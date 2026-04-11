@@ -5,16 +5,13 @@ import base64
 import dataclasses
 import sys
 import traceback
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import (
     Any,
-    Callable,
     Final,
     Literal,
-    Optional,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -37,11 +34,11 @@ from marimo._runtime.functions import Function
 
 LOGGER = _loggers.marimo_logger()
 
-Numeric = Union[int, float]
+Numeric = int | float
 
 
 @mddoc
-class number(UIElement[Optional[Numeric], Optional[Numeric]]):
+class number(UIElement[Numeric | None, Numeric | None]):
     """
     A number picker over an interval.
 
@@ -88,14 +85,14 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
 
     def __init__(
         self,
-        start: Optional[float] = None,
-        stop: Optional[float] = None,
-        step: Optional[float] = None,
-        value: Optional[float] = None,
+        start: float | None = None,
+        stop: float | None = None,
+        step: float | None = None,
+        value: float | None = None,
         debounce: bool = False,
         *,
         label: str = "",
-        on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
+        on_change: Callable[[Numeric | None], None] | None = None,
         full_width: bool = False,
         disabled: bool = False,
     ) -> None:
@@ -140,7 +137,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         label = kwargs.pop("label", info.label)
         return number(start=start, stop=stop, label=label, **kwargs)
 
-    def _convert_value(self, value: Optional[Numeric]) -> Optional[Numeric]:
+    def _convert_value(self, value: Numeric | None) -> Numeric | None:
         """Value is `None` if user uses keyboard to delete contents of input"""
         return value
 
@@ -217,29 +214,29 @@ class slider(UIElement[Numeric, Numeric]):
     """
 
     _name: Final[str] = "marimo-slider"
-    _mapping: Optional[dict[int, Numeric]] = None
+    _mapping: dict[int, Numeric] | None = None
 
     def __init__(
         self,
-        start: Optional[Numeric] = None,
-        stop: Optional[Numeric] = None,
-        step: Optional[Numeric] = None,
-        value: Optional[Numeric] = None,
+        start: Numeric | None = None,
+        stop: Numeric | None = None,
+        step: Numeric | None = None,
+        value: Numeric | None = None,
         debounce: bool = False,
         disabled: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
         include_input: bool = False,
-        steps: Optional[Sequence[Numeric]] = None,
+        steps: Sequence[Numeric] | None = None,
         *,
         label: str = "",
-        on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
+        on_change: Callable[[Numeric | None], None] | None = None,
         full_width: bool = False,
     ) -> None:
         self.start: Numeric
         self.stop: Numeric
-        self.step: Optional[Numeric]
-        self.steps: Optional[Sequence[Numeric]]
+        self.step: Numeric | None
+        self.steps: Sequence[Numeric] | None
         warn_js_safe_number(start, stop, value)
 
         # Guard against conflicting arguments
@@ -424,28 +421,28 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
     """
 
     _name: Final[str] = "marimo-range-slider"
-    _mapping: Optional[dict[int, Numeric]] = None
+    _mapping: dict[int, Numeric] | None = None
 
     def __init__(
         self,
-        start: Optional[Numeric] = None,
-        stop: Optional[Numeric] = None,
-        step: Optional[Numeric] = None,
-        value: Optional[Sequence[Numeric]] = None,
+        start: Numeric | None = None,
+        stop: Numeric | None = None,
+        step: Numeric | None = None,
+        value: Sequence[Numeric] | None = None,
         debounce: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
-        steps: Optional[Sequence[Numeric]] = None,
+        steps: Sequence[Numeric] | None = None,
         *,
         label: str = "",
-        on_change: Optional[Callable[[Sequence[Numeric]], None]] = None,
+        on_change: Callable[[Sequence[Numeric]], None] | None = None,
         full_width: bool = False,
         disabled: bool = False,
     ) -> None:
         self.start: Numeric
         self.stop: Numeric
-        self.step: Optional[Numeric]
-        self.steps: Optional[Sequence[Numeric]]
+        self.step: Numeric | None
+        self.steps: Sequence[Numeric] | None
         warn_js_safe_number(start, stop, *(value or []))
 
         if steps is not None and (
@@ -571,8 +568,8 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
 
 
 def _infer_dtype(
-    items: Sequence[Union[Numeric, Sequence[Numeric], None]],
-) -> type[int] | type[float]:
+    items: Sequence[Numeric | Sequence[Numeric] | None],
+) -> type[int | float]:
     """Infer the dtype of a sequence of numbers."""
     for item in items:
         if isinstance(item, Sequence):
@@ -611,7 +608,7 @@ class checkbox(UIElement[bool, bool]):
         *,
         label: str = "",
         disabled: bool = False,
-        on_change: Optional[Callable[[bool], None]] = None,
+        on_change: Callable[[bool], None] | None = None,
     ) -> None:
         super().__init__(
             component_name=checkbox._name,
@@ -628,7 +625,7 @@ class checkbox(UIElement[bool, bool]):
 
 
 @mddoc
-class radio(UIElement[Optional[str], Any]):
+class radio(UIElement[str | None, Any]):
     """A radio group.
 
     Examples:
@@ -672,11 +669,11 @@ class radio(UIElement[Optional[str], Any]):
     def __init__(
         self,
         options: Sequence[str] | dict[str, Any],
-        value: Optional[str] = None,
+        value: str | None = None,
         inline: bool = False,
         *,
         label: str = "",
-        on_change: Optional[Callable[[Any], None]] = None,
+        on_change: Callable[[Any], None] | None = None,
         disabled: bool = False,
     ) -> None:
         if not isinstance(options, dict):
@@ -704,7 +701,7 @@ class radio(UIElement[Optional[str], Any]):
         label = kwargs.pop("label", info.label)
         return radio(options=options, label=label, **kwargs)
 
-    def _convert_value(self, value: Optional[str]) -> Any:
+    def _convert_value(self, value: str | None) -> Any:
         return self.options[value] if value is not None else None
 
 
@@ -745,12 +742,12 @@ class text(UIElement[str, str]):
         value: str = "",
         placeholder: str = "",
         kind: Literal["text", "password", "email", "url"] = "text",
-        max_length: Optional[int] = None,
+        max_length: int | None = None,
         disabled: bool = False,
         debounce: bool | int = True,
         *,
         label: str = "",
-        on_change: Optional[Callable[[str], None]] = None,
+        on_change: Callable[[str], None] | None = None,
         full_width: bool = False,
     ) -> None:
         self._masked: bool = kind == "password" and bool(value)
@@ -825,13 +822,13 @@ class text_area(UIElement[str, str]):
         self,
         value: str = "",
         placeholder: str = "",
-        max_length: Optional[int] = None,
+        max_length: int | None = None,
         disabled: bool = False,
         debounce: bool | int = True,
-        rows: Optional[int] = None,
+        rows: int | None = None,
         *,
         label: str = "",
-        on_change: Optional[Callable[[str], None]] = None,
+        on_change: Callable[[str], None] | None = None,
         full_width: bool = False,
     ) -> None:
         super().__init__(
@@ -897,15 +894,15 @@ class code_editor(UIElement[str, str]):
         value: str = "",
         language: str = "python",
         placeholder: str = "",
-        theme: Optional[Literal["light", "dark"]] = None,
+        theme: Literal["light", "dark"] | None = None,
         disabled: bool = False,
-        min_height: Optional[int] = None,
-        max_height: Optional[int] = None,
+        min_height: int | None = None,
+        max_height: int | None = None,
         show_copy_button: bool = True,
         debounce: bool | int = False,
         *,
         label: str = "",
-        on_change: Optional[Callable[[str], None]] = None,
+        on_change: Callable[[str], None] | None = None,
     ) -> None:
         if (
             min_height is not None
@@ -1003,18 +1000,18 @@ class dropdown(UIElement[list[str], Any]):
 
     _FORCE_SEARCHABLE: Final[int] = 1000
     _name: Final[str] = "marimo-dropdown"
-    _selected_key: Optional[str] = None
+    _selected_key: str | None = None
     _RESERVED_OPTION: Final[str] = "--"
 
     def __init__(
         self,
         options: Sequence[Any] | dict[str, Any],
-        value: Optional[Any] = None,
-        allow_select_none: Optional[bool] = None,
+        value: Any | None = None,
+        allow_select_none: bool | None = None,
         searchable: bool = False,
         *,
         label: str = "",
-        on_change: Optional[Callable[[Any], None]] = None,
+        on_change: Callable[[Any], None] | None = None,
         full_width: bool = False,
     ) -> None:
         # Force searchable if there are too many options
@@ -1082,7 +1079,7 @@ class dropdown(UIElement[list[str], Any]):
             return None
 
     @property
-    def selected_key(self) -> Optional[str]:
+    def selected_key(self) -> str | None:
         """The selected option's key, or `None` if no selection."""
         return self._selected_key
 
@@ -1129,12 +1126,12 @@ class multiselect(UIElement[list[str], list[object]]):
     def __init__(
         self,
         options: Sequence[Any] | dict[str, Any],
-        value: Optional[Sequence[Any]] = None,
+        value: Sequence[Any] | None = None,
         *,
         label: str = "",
-        on_change: Optional[Callable[[list[object]], None]] = None,
+        on_change: Callable[[list[object]], None] | None = None,
         full_width: bool = False,
-        max_selections: Optional[int] = None,
+        max_selections: int | None = None,
     ) -> None:
         if len(options) > multiselect._MAX_OPTIONS:
             raise ValueError(
@@ -1237,16 +1234,16 @@ class button(UIElement[Any, Any]):
 
     def __init__(
         self,
-        on_click: Optional[Callable[[Any], Any]] = None,
-        value: Optional[Any] = None,
+        on_click: Callable[[Any], Any] | None = None,
+        value: Any | None = None,
         kind: Literal["neutral", "success", "warn", "danger"] = "neutral",
         disabled: bool = False,
-        tooltip: Optional[str] = None,
+        tooltip: str | None = None,
         *,
         label: str = "click here",
-        on_change: Optional[Callable[[Any], None]] = None,
+        on_change: Callable[[Any], None] | None = None,
         full_width: bool = False,
-        keyboard_shortcut: Optional[str] = None,
+        keyboard_shortcut: str | None = None,
     ) -> None:
         self._on_click = (lambda _: value) if on_click is None else on_click
         self._initial_value = value
@@ -1275,7 +1272,7 @@ class button(UIElement[Any, Any]):
             return self._on_click(self._value)  # type: ignore[no-untyped-call]
         except Exception:
             sys.stderr.write(
-                f"on_click handler for button ({str(self)}) raised an Exception:\n {traceback.format_exc()}\n"
+                f"on_click handler for button ({self!s}) raised an Exception:\n {traceback.format_exc()}\n"
             )
             return None
 
@@ -1375,15 +1372,13 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
 
     def __init__(
         self,
-        filetypes: Optional[Sequence[str]] = None,
+        filetypes: Sequence[str] | None = None,
         multiple: bool = False,
         kind: Literal["button", "area"] = "button",
         *,
         max_size: int = 100_000_000,  # 100MB default
         label: str = "",
-        on_change: Optional[
-            Callable[[Sequence[FileUploadResults]], None]
-        ] = None,
+        on_change: Callable[[Sequence[FileUploadResults]], None] | None = None,
     ) -> None:
         # Validate filetypes have leading dots or contain a forward slash
         if filetypes is not None:
@@ -1421,7 +1416,7 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
             for e in value
         )
 
-    def name(self, index: int = 0) -> Optional[str]:
+    def name(self, index: int = 0) -> str | None:
         """Get file name at index.
 
         Args:
@@ -1437,7 +1432,7 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
         else:
             return self.value[index].name
 
-    def contents(self, index: int = 0) -> Optional[bytes]:
+    def contents(self, index: int = 0) -> bytes | None:
         """Get file contents at index.
 
         Args:
@@ -1459,11 +1454,11 @@ T = TypeVar("T")
 
 @dataclasses.dataclass
 class ValueArgs:
-    value: Optional[JSONType] = None
+    value: JSONType | None = None
 
 
 @mddoc
-class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
+class form(UIElement[JSONTypeBound | None, T | None]):
     """A submittable form linked to a UIElement.
 
     Use a `form` to prevent sending UI element values to Python until a button
@@ -1546,17 +1541,15 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
         bordered: bool = True,
         loading: bool = False,
         submit_button_label: str = "Submit",
-        submit_button_tooltip: Optional[str] = None,
+        submit_button_tooltip: str | None = None,
         submit_button_disabled: bool = False,
         clear_on_submit: bool = False,
         show_clear_button: bool = False,
         clear_button_label: str = "Clear",
-        clear_button_tooltip: Optional[str] = None,
-        validate: Optional[
-            Callable[[Optional[JSONType]], Optional[str]]
-        ] = None,
+        clear_button_tooltip: str | None = None,
+        validate: Callable[[JSONType | None], str | None] | None = None,
         label: str = "",
-        on_change: Optional[Callable[[Optional[T]], None]] = None,
+        on_change: Callable[[T | None], None] | None = None,
     ) -> None:
         self.element = element._clone()
         self.validate = validate
@@ -1588,12 +1581,12 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
             ),
         )
 
-    def _validate(self, value: ValueArgs) -> Optional[str]:
+    def _validate(self, value: ValueArgs) -> str | None:
         if self.validate is None:
             return None
         return self.validate(value.value)
 
-    def _convert_value(self, value: Optional[JSONTypeBound]) -> Optional[T]:
+    def _convert_value(self, value: JSONTypeBound | None) -> T | None:
         if value is None:
             return None
         self.element._update(value)

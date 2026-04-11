@@ -4,7 +4,8 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from typing import Any, Callable, Generic, Protocol, TypeVar, Union
+from collections.abc import Callable
+from typing import Any, Generic, Protocol, TypeVar
 
 from marimo import _loggers
 from marimo._session.queue import QueueType
@@ -19,7 +20,7 @@ T = TypeVar("T", covariant=True)
 Consumer = Callable[[T], None]
 
 
-class Distributor(Generic[T], Protocol):
+class Distributor(Protocol, Generic[T]):
     """Base class for distributors."""
 
     def add_consumer(self, consumer: Consumer[T]) -> Disposable:
@@ -113,7 +114,7 @@ class ConnectionDistributor(Distributor[T]):
 
 
 class QueueDistributor(Distributor[T]):
-    def __init__(self, queue: QueueType[Union[T, None]]) -> None:
+    def __init__(self, queue: QueueType[T | None]) -> None:
         self.consumers: list[Consumer[T]] = []
         # distributor uses None as a signal to stop
         self.queue = queue
@@ -154,4 +155,3 @@ class QueueDistributor(Distributor[T]):
 
     def flush(self) -> None:
         """Flush the distributor."""
-        pass

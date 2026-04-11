@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Generator
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import msgspec
 
@@ -17,8 +17,8 @@ LOGGER = _loggers.marimo_logger()
 
 class SnippetSection(msgspec.Struct, rename="camel"):
     id: str
-    html: Optional[str] = None
-    code: Optional[str] = None
+    html: str | None = None
+    code: str | None = None
 
 
 class Snippet(msgspec.Struct, rename="camel"):
@@ -80,7 +80,7 @@ def get_title_from_code(code: str) -> str:
     if not code:
         return ""
     code = code.strip()
-    if not (code.startswith("mo.md") or code.startswith("#")):
+    if not (code.startswith(("mo.md", "#"))):
         return ""
 
     start = code.find("#")

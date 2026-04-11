@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from marimo._types.ids import CellId_t, SessionId
 
@@ -14,10 +14,10 @@ StatusValue = Literal["success", "error", "warning"]
 class SuccessResult:
     status: StatusValue = "success"
     auth_required: bool = False
-    next_steps: Optional[list[str]] = None
-    action_url: Optional[str] = None
-    message: Optional[str] = None
-    meta: Optional[dict[str, Any]] = None
+    next_steps: list[str] | None = None
+    action_url: str | None = None
+    message: str | None = None
+    meta: dict[str, Any] | None = None
 
 
 @dataclass
@@ -29,11 +29,11 @@ class EmptyArgs:
 class ToolGuidelines:
     """Structured guidance for AI assistants on when and how to use a tool."""
 
-    when_to_use: Optional[list[str]] = None
-    avoid_if: Optional[list[str]] = None
-    prerequisites: Optional[list[str]] = None
-    side_effects: Optional[list[str]] = None
-    additional_info: Optional[str] = None
+    when_to_use: list[str] | None = None
+    avoid_if: list[str] | None = None
+    prerequisites: list[str] | None = None
+    side_effects: list[str] | None = None
+    additional_info: str | None = None
 
 
 @dataclass
@@ -71,8 +71,8 @@ class ListSessionsResult:
 @dataclass
 class CodeExecutionResult:
     success: bool
-    output: Optional[str] = None
+    output: str | None = None
     stdout: list[str] = field(default_factory=list)
     stderr: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
-    error: Optional[str] = None
+    error: str | None = None

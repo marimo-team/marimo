@@ -672,7 +672,7 @@ class PyTorchFormatter(FormatterFactory):
         return "torch"
 
     def register(self) -> None:
-        import torch.nn  # type: ignore[import-not-found,import-untyped,unused-ignore]  # noqa: E501
+        import torch.nn  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
         from marimo._messaging.mimetypes import KnownMimeType
         from marimo._output import formatting

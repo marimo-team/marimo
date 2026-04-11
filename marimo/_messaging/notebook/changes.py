@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-from typing import Optional, Union
-
 import msgspec
 
 from marimo._ast.cell import CellConfig
@@ -24,8 +22,8 @@ class CreateCell(
     code: str
     name: str
     config: CellConfig
-    before: Optional[CellId_t] = None
-    after: Optional[CellId_t] = None
+    before: CellId_t | None = None
+    after: CellId_t | None = None
 
 
 class DeleteCell(
@@ -40,8 +38,8 @@ class MoveCell(msgspec.Struct, frozen=True, tag="move-cell", rename="camel"):
     """Reposition a cell in the notebook."""
 
     cell_id: CellId_t
-    before: Optional[CellId_t] = None
-    after: Optional[CellId_t] = None
+    before: CellId_t | None = None
+    after: CellId_t | None = None
 
 
 class ReorderCells(
@@ -79,14 +77,20 @@ class SetConfig(msgspec.Struct, frozen=True, tag="set-config", rename="camel"):
     """Partially update a cell's config. None fields are unchanged."""
 
     cell_id: CellId_t
-    column: Optional[int] = None
-    disabled: Optional[bool] = None
-    hide_code: Optional[bool] = None
+    column: int | None = None
+    disabled: bool | None = None
+    hide_code: bool | None = None
 
 
-DocumentChange = Union[
-    CreateCell, DeleteCell, MoveCell, ReorderCells, SetCode, SetName, SetConfig
-]
+DocumentChange = (
+    CreateCell
+    | DeleteCell
+    | MoveCell
+    | ReorderCells
+    | SetCode
+    | SetName
+    | SetConfig
+)
 
 # ------------------------------------------------------------------
 # Transaction
@@ -103,4 +107,4 @@ class Transaction(msgspec.Struct, frozen=True, rename="camel"):
 
     changes: tuple[DocumentChange, ...]
     source: str
-    version: Optional[int] = None
+    version: int | None = None

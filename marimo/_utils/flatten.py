@@ -12,10 +12,11 @@ installation of dm-tree on macOS is buggy
 from __future__ import annotations
 
 import itertools
-from typing import Any, Callable, Union
+from collections.abc import Callable
+from typing import Any
 
-STRUCT_TYPE = Union[tuple[Any, ...], list[Any], dict[Any, Any]]
-UNFLATTEN_TYPE = Callable[[list[Any]], Union[STRUCT_TYPE, Any]]
+STRUCT_TYPE = tuple[Any, ...] | list[Any] | dict[Any, Any]
+UNFLATTEN_TYPE = Callable[[list[Any]], STRUCT_TYPE | Any]
 FLATTEN_RET_TYPE = tuple[list[Any], UNFLATTEN_TYPE]
 
 
@@ -34,7 +35,7 @@ def _flatten_sequence(
     flatten_formattable_subclasses: bool,
 ) -> FLATTEN_RET_TYPE:
     """Flatten a sequence of values"""
-    base_type: type[list[Any]] | type[tuple[Any, ...]]
+    base_type: type[list[Any] | tuple[Any, ...]]
     if isinstance(value, list):
         base_type = list
     elif isinstance(value, tuple):
@@ -110,7 +111,7 @@ def _flatten_sequence(
         #
         # we chain the unflattened pieces together to pack them according to
         # the structure of value
-        for unflattener, length in zip(unflatteners, lengths):
+        for unflattener, length in zip(unflatteners, lengths, strict=False):
             unflattened_pieces.append(
                 unflattener(vector[pointer : pointer + length])
             )
@@ -137,9 +138,8 @@ def _flatten(
     # Track ids of structures to make sure that the tree has a finite height,
     # ie, to make sure that no structure contains itself.
     value_id = id(value)
-    if isinstance(value, (tuple, list, dict)):
-        if value_id in seen:
-            raise CyclicStructureError("already seen ", value)
+    if isinstance(value, (tuple, list, dict)) and value_id in seen:
+        raise CyclicStructureError("already seen ", value)
 
     from marimo._output.formatters.structures import is_structures_formatter
     from marimo._output.formatting import get_formatter
@@ -189,7 +189,9 @@ def _flatten(
         def unflatten(vector: list[Any]) -> STRUCT_TYPE:
             pointer = 0
             d = {}
-            for key, unflattener, length in zip(keys, unflatteners, lengths):
+            for key, unflattener, length in zip(
+                keys, unflatteners, lengths, strict=False
+            ):
                 piece = vector[pointer : pointer + length]
                 d[key] = unflattener(piece)
                 pointer += length

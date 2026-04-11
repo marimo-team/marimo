@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from json import loads
-from typing import Any, Optional
+from typing import Any
 
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -12,7 +12,7 @@ from marimo._plugins.stateless import json_output
 @mddoc
 def json(
     data: str | dict[str, Any] | list[Any],
-    label: Optional[str] = None,
+    label: str | None = None,
 ) -> Html:
     """Render a JSON with tree.
 

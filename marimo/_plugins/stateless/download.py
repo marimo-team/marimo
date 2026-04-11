@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import io
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Final, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Final, cast
 
 import marimo._output.data.data as mo_data
 from marimo._output.rich_help import mddoc
@@ -18,15 +18,15 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.functions import EmptyArgs, Function
 
 if TYPE_CHECKING:
-    from collections.abc import Coroutine
+    from collections.abc import Callable, Coroutine
 
-DataType = Union[str, bytes, io.BytesIO, io.BufferedReader]
+DataType = str | bytes | io.BytesIO | io.BufferedReader
 
 
 @dataclass
 class LoadResponse:
     data: str
-    filename: Optional[str]
+    filename: str | None
 
 
 @mddoc
@@ -75,13 +75,11 @@ class download(UIElement[None, None]):
 
     def __init__(
         self,
-        data: Union[
-            DataType,
-            Callable[[], DataType],
-            Callable[[], Coroutine[None, None, DataType]],
-        ],
-        filename: Optional[str] = None,
-        mimetype: Optional[str] = None,
+        data: DataType
+        | Callable[[], DataType]
+        | Callable[[], Coroutine[None, None, DataType]],
+        filename: str | None = None,
+        mimetype: str | None = None,
         disabled: bool = False,
         *,
         label: str = "Download",

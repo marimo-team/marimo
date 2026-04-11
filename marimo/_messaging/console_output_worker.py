@@ -12,7 +12,6 @@ from marimo._types.ids import CellId_t
 if TYPE_CHECKING:
     from collections import deque
     from threading import Condition
-    from typing import Optional
 
     from marimo._messaging.types import Stream
 
@@ -62,11 +61,7 @@ def _add_output_to_buffer(
     outputs_buffered_per_cell: dict[CellId_t, list[ConsoleMsg]],
 ) -> None:
     cell_id = console_output.cell_id
-    buffer = (
-        outputs_buffered_per_cell[cell_id]
-        if cell_id in outputs_buffered_per_cell
-        else None
-    )
+    buffer = outputs_buffered_per_cell.get(cell_id, None)
     if buffer and _can_merge_outputs(buffer[-1], console_output):
         buffer[-1].data += console_output.data
     elif buffer:
@@ -94,7 +89,7 @@ def buffered_writer(
     # only have a non-None timer when there's at least one output buffered
     #
     # when the timer expires, all buffered outputs are flushed
-    timer: Optional[float] = None
+    timer: float | None = None
 
     outputs_buffered_per_cell: dict[CellId_t, list[ConsoleMsg]] = {}
     while True:

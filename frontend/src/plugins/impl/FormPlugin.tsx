@@ -3,7 +3,7 @@
 import { Loader2Icon } from "lucide-react";
 import { type JSX, useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { UIElementId } from "@/core/cells/ids";
 import {
   MarimoValueInputEvent,
@@ -72,11 +72,7 @@ export const FormPlugin = createPlugin("marimo-form")
       .output(z.string().nullish()),
   })
   .renderer(({ data, functions, ...rest }) => {
-    return (
-      <TooltipProvider>
-        <Form {...data} {...rest} {...functions} />
-      </TooltipProvider>
-    );
+    return <Form {...data} {...rest} {...functions} />;
   });
 
 export interface FormWrapperProps<T>

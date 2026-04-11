@@ -4,13 +4,13 @@ from __future__ import annotations
 import ast
 import inspect
 import textwrap
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from marimo._ast.parse import ast_parse
 from marimo._ast.variables import unmangle_local
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
 ARG_PREFIX: str = "*"
 
@@ -81,7 +81,7 @@ def clean_to_modules(
     return (compiled_ast(pre_block), compiled_ast(block.body))
 
 
-def _get_decorator_name(node: ast.expr) -> Optional[str]:
+def _get_decorator_name(node: ast.expr) -> str | None:
     """Extract the name from a decorator node."""
     if isinstance(node, ast.Call):
         node = node.func
@@ -93,7 +93,7 @@ def _get_decorator_name(node: ast.expr) -> Optional[str]:
 
 
 def get_hashable_ast(
-    fn: Callable[..., Any], skip_decorators: Optional[set[str]] = None
+    fn: Callable[..., Any], skip_decorators: set[str] | None = None
 ) -> ast.Module:
     code, _ = inspect.getsourcelines(fn)
     args = set(fn.__code__.co_varnames)
@@ -236,7 +236,7 @@ class RemoveImportTransformer(ast.NodeTransformer):
         self,
         node: T,
         original_names: list[ast.alias],
-    ) -> Optional[T]:
+    ) -> T | None:
         if node.names:
             return node
         elif self.keep_one:
@@ -250,7 +250,7 @@ class RemoveImportTransformer(ast.NodeTransformer):
         tree = self.visit(tree)
         return ast.unparse(tree).strip()
 
-    def visit_Import(self, node: ast.Import) -> Optional[ast.Import]:
+    def visit_Import(self, node: ast.Import) -> ast.Import | None:
         name = self.import_name
         original_names = list(node.names)
         node.names = [
@@ -261,9 +261,7 @@ class RemoveImportTransformer(ast.NodeTransformer):
         ]
         return self._return_once(node, original_names)
 
-    def visit_ImportFrom(
-        self, node: ast.ImportFrom
-    ) -> Optional[ast.ImportFrom]:
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.ImportFrom | None:
         name = self.import_name
         original_names = list(node.names)
         node.names = [

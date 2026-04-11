@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime
 import decimal
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import narwhals.stable.v2 as nw
 from narwhals.stable.v2 import col
@@ -42,6 +42,8 @@ from marimo._utils.assert_never import assert_never
 from marimo._utils.narwhals_utils import collect_and_preserve_type
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import polars as pl
     from narwhals.expr import Expr
     from typing_extensions import TypeIs
@@ -457,7 +459,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 [
                     nw.col(on_col) == on_val
                     for on_col, on_val in zip(
-                        transform.column_ids, raw_pivot_column
+                        transform.column_ids, raw_pivot_column, strict=False
                     )
                 ],
             )

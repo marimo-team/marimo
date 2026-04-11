@@ -4,7 +4,8 @@ from __future__ import annotations
 import abc
 import subprocess
 import sys
-from typing import TYPE_CHECKING, Callable, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import msgspec
 
@@ -57,12 +58,12 @@ class PackageManager(abc.ABC):
             return True
         LOGGER.error(
             f"{self.name} is not available. "
-            f"Check out the docs for installation instructions: {self.docs_url}"  # noqa: E501
+            f"Check out the docs for installation instructions: {self.docs_url}"
         )
         return False
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: Optional[str] = None
+        self, package: str, *, upgrade: bool, group: str | None = None
     ) -> list[str]:
         """
         Get the shell command to install a package (where applicable).
@@ -78,8 +79,8 @@ class PackageManager(abc.ABC):
         package: str,
         *,
         upgrade: bool,
-        group: Optional[str] = None,
-        log_callback: Optional[LogCallback] = None,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
     ) -> bool:
         """Installation logic."""
         return await self.run(
@@ -90,10 +91,10 @@ class PackageManager(abc.ABC):
     async def install(
         self,
         package: str,
-        version: Optional[str],
+        version: str | None,
         upgrade: bool = False,
-        group: Optional[str] = None,
-        log_callback: Optional[LogCallback] = None,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
     ) -> bool:
         """Attempt to install a package that makes this module available.
 
@@ -115,9 +116,7 @@ class PackageManager(abc.ABC):
         )
 
     @abc.abstractmethod
-    async def uninstall(
-        self, package: str, group: Optional[str] = None
-    ) -> bool:
+    async def uninstall(self, package: str, group: str | None = None) -> bool:
         """Attempt to uninstall a package
 
         Args:
@@ -137,7 +136,7 @@ class PackageManager(abc.ABC):
         return False
 
     def _run_sync(
-        self, command: list[str], log_callback: Optional[LogCallback]
+        self, command: list[str], log_callback: LogCallback | None
     ) -> bool:
         if not self.is_manager_installed():
             return False
@@ -150,7 +149,7 @@ class PackageManager(abc.ABC):
             return completed_process.returncode == 0
 
         # Stream output to both the callback and the terminal
-        proc = safe_popen(  # noqa: ASYNC220
+        proc = safe_popen(
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -174,7 +173,7 @@ class PackageManager(abc.ABC):
         return return_code == 0
 
     async def run(
-        self, command: list[str], log_callback: Optional[LogCallback]
+        self, command: list[str], log_callback: LogCallback | None
     ) -> bool:
         """Run a command asynchronously in a thread pool to avoid blocking the event loop."""
         import asyncio
@@ -185,10 +184,10 @@ class PackageManager(abc.ABC):
         self,
         filepath: str,
         *,
-        packages_to_add: Optional[list[str]] = None,
-        packages_to_remove: Optional[list[str]] = None,
-        import_namespaces_to_add: Optional[list[str]] = None,
-        import_namespaces_to_remove: Optional[list[str]] = None,
+        packages_to_add: list[str] | None = None,
+        packages_to_remove: list[str] | None = None,
+        import_namespaces_to_add: list[str] | None = None,
+        import_namespaces_to_remove: list[str] | None = None,
         upgrade: bool,
     ) -> bool:
         del (
@@ -218,8 +217,8 @@ class PackageManager(abc.ABC):
 
     def dependency_tree(
         self,
-        filename: Optional[str] = None,  # noqa: ARG002
-    ) -> Optional[DependencyTreeNode]:
+        filename: str | None = None,  # noqa: ARG002
+    ) -> DependencyTreeNode | None:
         """Get dependency tree for the current environment or script.
 
         Args:

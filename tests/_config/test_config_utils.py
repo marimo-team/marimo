@@ -5,7 +5,6 @@ import os
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
 from unittest import mock
 
 import pytest
@@ -18,8 +17,8 @@ from marimo._config.utils import (
 
 @contextmanager
 def _mock_file_exists(
-    exists: Optional[str | list[str]] = None,
-    doesnt_exist: Optional[str | list[str]] = None,
+    exists: str | list[str] | None = None,
+    doesnt_exist: str | list[str] | None = None,
 ):
     if isinstance(exists, str):
         exists = [exists]

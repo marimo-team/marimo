@@ -33,7 +33,6 @@ async def mock_receive() -> Any:
 
 async def mock_send(message: Any) -> None:
     del message
-    pass
 
 
 async def test_custom_session_middleware_call(app: Starlette):

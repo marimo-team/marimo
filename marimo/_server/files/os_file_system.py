@@ -10,7 +10,7 @@ import shutil
 import subprocess
 from collections import deque
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from marimo import _loggers
 from marimo._server.files.file_system import FileSystem
@@ -138,7 +138,7 @@ class OSFileSystem(FileSystem):
         path: str,
         file_type: Literal["file", "directory", "notebook"],
         name: str,
-        contents: Optional[bytes],
+        contents: bytes | None,
     ) -> FileInfo:
         if name in DISALLOWED_NAMES:
             raise ValueError(
@@ -219,7 +219,7 @@ class OSFileSystem(FileSystem):
         self,
         query: str,
         *,
-        path: Optional[str] = None,
+        path: str | None = None,
         include_directories: bool = True,
         include_files: bool = True,
         depth: int = 3,
@@ -394,7 +394,7 @@ def editor_open_file_in_line_args(
         return [f"+{line_number}", path]
 
 
-def natural_sort_file(file: FileInfo) -> list[Union[int, str]]:
+def natural_sort_file(file: FileInfo) -> list[int | str]:
     return natural_sort(file.name)
 
 

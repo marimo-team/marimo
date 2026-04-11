@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from marimo._plugins.ui._impl.mpl import (  # noqa: E402
+from marimo._plugins.ui._impl.mpl import (
     BoxSelection,
     EmptySelection,
     LassoSelection,
@@ -289,7 +289,7 @@ def test_axes_bounds_match_constrained_layout() -> None:
         bbox.x1 * w,
         (1 - bbox.y0) * h,
     ]
-    for actual, exp in zip(args["axes-pixel-bounds"], expected):
+    for actual, exp in zip(args["axes-pixel-bounds"], expected, strict=False):
         assert abs(actual - exp) < 1e-6
 
 
@@ -320,7 +320,7 @@ def test_axes_bounds_match_tight_layout() -> None:
         bbox.x1 * w,
         (1 - bbox.y0) * h,
     ]
-    for actual, exp in zip(args["axes-pixel-bounds"], expected):
+    for actual, exp in zip(args["axes-pixel-bounds"], expected, strict=False):
         assert abs(actual - exp) < 1e-6
 
 

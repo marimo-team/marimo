@@ -4,19 +4,12 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from enum import Enum
-from typing import (
-    Any,
-    Generic,
-    Literal,
-    Optional,
-    TypeVar,
-    Union,
-)
+from typing import Any, Generic, Literal, TypeVar
 
 from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
 # Could be a DataFrame from pandas, polars, pyarrow, DataFrameProtocol, etc.
-DataFrameType = Union[IntoDataFrame, IntoLazyFrame]
+DataFrameType = IntoDataFrame | IntoLazyFrame
 
 ColumnId = str
 ColumnIds = list[ColumnId]
@@ -26,7 +19,6 @@ Operator = Literal[
     "!=",
     "<",
     ">",
-    "<",
     "<=",
     ">=",
     "is_true",
@@ -73,7 +65,7 @@ class TransformType(Enum):
 class Condition:
     column_id: ColumnId
     operator: Operator
-    value: Optional[Any] = None
+    value: Any | None = None
 
     def __hash__(self) -> int:
         return hash((self.column_id, self.operator, self.value))
@@ -186,21 +178,21 @@ class PivotTransform:
     aggregation: Aggregation
 
 
-Transform = Union[
-    AggregateTransform,
-    ColumnConversionTransform,
-    FilterRowsTransform,
-    PivotTransform,
-    GroupByTransform,
-    RenameColumnTransform,
-    SelectColumnsTransform,
-    SortColumnTransform,
-    ShuffleRowsTransform,
-    SampleRowsTransform,
-    ExplodeColumnsTransform,
-    ExpandDictTransform,
-    UniqueTransform,
-]
+Transform = (
+    AggregateTransform
+    | ColumnConversionTransform
+    | FilterRowsTransform
+    | PivotTransform
+    | GroupByTransform
+    | RenameColumnTransform
+    | SelectColumnsTransform
+    | SortColumnTransform
+    | ShuffleRowsTransform
+    | SampleRowsTransform
+    | ExplodeColumnsTransform
+    | ExpandDictTransform
+    | UniqueTransform
+)
 
 
 @dataclass

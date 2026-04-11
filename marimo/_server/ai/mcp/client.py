@@ -6,7 +6,7 @@ import time
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._config.config import MCPConfig
@@ -53,21 +53,21 @@ class MCPServerConnection:
     """Represents a connection to an MCP server."""
 
     definition: MCPServerDefinition
-    session: Optional[ClientSession] = None
+    session: ClientSession | None = None
     status: MCPServerStatus = MCPServerStatus.DISCONNECTED
     tools: list[Tool] = field(default_factory=list)
     last_health_check: float = 0
-    error_message: Optional[str] = None
-    read_stream: Optional[
-        MemoryObjectReceiveStream[Union[SessionMessage, Exception]]
-    ] = None
-    write_stream: Optional[MemoryObjectSendStream[SessionMessage]] = None
-    exit_stack: Optional[AsyncExitStack] = None
+    error_message: str | None = None
+    read_stream: (
+        MemoryObjectReceiveStream[SessionMessage | Exception] | None
+    ) = None
+    write_stream: MemoryObjectSendStream[SessionMessage] | None = None
+    exit_stack: AsyncExitStack | None = None
 
     # Minimal additions for task-per-connection fix
-    connection_task: Optional[asyncio.Task[None]] = None
-    disconnect_event: Optional[asyncio.Event] = None
-    connection_event: Optional[asyncio.Event] = None
+    connection_task: asyncio.Task[None] | None = None
+    disconnect_event: asyncio.Event | None = None
+    connection_event: asyncio.Event | None = None
 
 
 class MCPClient:
@@ -137,7 +137,7 @@ class MCPClient:
                 del self.connections[server_name]
 
         # Disconnect from servers that need to be updated (will reconnect below)
-        for server_name in diff.servers_to_update.keys():
+        for server_name in diff.servers_to_update:
             LOGGER.info(f"Updating server: {server_name}")
             await self.disconnect_from_server(server_name)
             # Clean up old connection, will be recreated below
@@ -157,14 +157,14 @@ class MCPClient:
             # Connect to servers concurrently
             tasks = [
                 self.connect_to_server(server_name)
-                for server_name in servers_to_connect.keys()
+                for server_name in servers_to_connect
             ]
             connection_results = await asyncio.gather(
                 *tasks, return_exceptions=True
             )
 
             for server_name, result in zip(
-                servers_to_connect.keys(), connection_results
+                servers_to_connect.keys(), connection_results, strict=False
             ):
                 if isinstance(result, Exception):
                     LOGGER.error(
@@ -284,7 +284,7 @@ class MCPClient:
                 # AsyncExitStack cleans up automatically here in same task
 
         except Exception as e:
-            error_msg = f"Failed to connect to MCP server {server_name} (transport: {server_def.transport}): {str(e)}"
+            error_msg = f"Failed to connect to MCP server {server_name} (transport: {server_def.transport}): {e!s}"
             LOGGER.error(error_msg)
             self._update_server_status(
                 server_name, MCPServerStatus.ERROR, error_msg
@@ -355,7 +355,7 @@ class MCPClient:
                 return current_status == MCPServerStatus.CONNECTING
 
         except Exception as e:
-            error_msg = f"Failed to connect to MCP server {server_name} (transport: {server_def.transport}): {str(e)}"
+            error_msg = f"Failed to connect to MCP server {server_name} (transport: {server_def.transport}): {e!s}"
             LOGGER.error(error_msg)
             if server_name in self.connections:
                 self._update_server_status(
@@ -387,7 +387,7 @@ class MCPClient:
 
         except Exception as e:
             LOGGER.error(
-                f"Tool discovery failed for {connection.definition.name}: {str(e)}"
+                f"Tool discovery failed for {connection.definition.name}: {e!s}"
             )
 
     def _create_namespaced_tool_name(
@@ -419,8 +419,7 @@ class MCPClient:
 
         # Connect to servers concurrently
         tasks = [
-            self.connect_to_server(server_name)
-            for server_name in self.servers.keys()
+            self.connect_to_server(server_name) for server_name in self.servers
         ]
 
         connection_results = await asyncio.gather(
@@ -428,7 +427,7 @@ class MCPClient:
         )
 
         for server_name, result in zip(
-            self.servers.keys(), connection_results
+            self.servers.keys(), connection_results, strict=False
         ):
             if isinstance(result, Exception):
                 LOGGER.error(f"Failed to connect to {server_name}: {result}")
@@ -529,12 +528,10 @@ class MCPClient:
 
         except Exception as e:
             LOGGER.error(
-                f"Failed to invoke tool {namespaced_tool_name} with params: {str(e)}"
+                f"Failed to invoke tool {namespaced_tool_name} with params: {e!s}"
             )
 
-            return self._create_error_result(
-                f"Tool execution failed: {str(e)}"
-            )
+            return self._create_error_result(f"Tool execution failed: {e!s}")
 
     def create_tool_params(
         self,
@@ -591,7 +588,7 @@ class MCPClient:
             if tool.meta and tool.meta.get("server_name") == server_name
         ]
 
-    def get_server_status(self, server_name: str) -> Optional[MCPServerStatus]:
+    def get_server_status(self, server_name: str) -> MCPServerStatus | None:
         """Get the status of a specific server."""
         connection = self.connections.get(server_name)
         return connection.status if connection else None
@@ -692,7 +689,7 @@ class MCPClient:
         self,
         server_name: str,
         status: MCPServerStatus,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
     ) -> None:
         """Centralized method to update server status.
 
@@ -783,7 +780,7 @@ class MCPClient:
             LOGGER.debug(f"Reset naming counter for {server_name}")
 
     async def _cancel_health_monitoring(
-        self, server_name: Optional[str] = None
+        self, server_name: str | None = None
     ) -> None:
         """Cancel health monitoring for a specific server or all servers.
 
@@ -848,7 +845,7 @@ class MCPClient:
             # No retry or forced cleanup - disconnection failures are logged but not blocking.
             # Local state cleanup happens in _connection_lifecycle finally block regardless.
             LOGGER.error(
-                f"Error disconnecting from server {server_name}: {str(e)}"
+                f"Error disconnecting from server {server_name}: {e!s}"
             )
             return False
 
@@ -867,7 +864,7 @@ class MCPClient:
 
 
 # Global MCP client instance using lazy initialization
-_MCP_CLIENT: Optional[MCPClient] = None
+_MCP_CLIENT: MCPClient | None = None
 
 
 def get_mcp_client() -> MCPClient:

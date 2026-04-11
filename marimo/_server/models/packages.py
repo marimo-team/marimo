@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
-
 import msgspec
 
 from marimo._runtime.packages.package_manager import PackageDescription
@@ -24,13 +22,13 @@ class AddPackageRequest(msgspec.Struct, rename="camel"):
     """
 
     package: str
-    upgrade: Optional[bool] = False
-    group: Optional[str] = None
+    upgrade: bool | None = False
+    group: str | None = None
 
 
 class RemovePackageRequest(msgspec.Struct, rename="camel"):
     package: str
-    group: Optional[str] = None
+    group: str | None = None
 
 
 class ListPackagesResponse(msgspec.Struct, rename="camel"):
@@ -38,12 +36,12 @@ class ListPackagesResponse(msgspec.Struct, rename="camel"):
 
 
 class DependencyTreeResponse(msgspec.Struct, rename="camel"):
-    tree: Optional[DependencyTreeNode]
+    tree: DependencyTreeNode | None
 
 
 class PackageOperationResponse(msgspec.Struct, rename="camel"):
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
 
     @staticmethod
     def of_success() -> PackageOperationResponse:

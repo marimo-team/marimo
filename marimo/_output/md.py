@@ -6,7 +6,7 @@ from functools import cache
 from importlib.util import find_spec
 from inspect import cleandoc
 from pathlib import Path
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 from urllib.request import urlopen
 
 import markdown  # type: ignore
@@ -68,10 +68,9 @@ class PyconDetectorPreprocessor(markdown.preprocessors.Preprocessor):
             code = match.group(3)
 
             # Only process if no language is specified
-            if not language:
-                if self._detect_pycon(code):
-                    # Replace with pycon language
-                    return f"{indent}```pycon\n{code}{indent}```"
+            if not language and self._detect_pycon(code):
+                # Replace with pycon language
+                return f"{indent}```pycon\n{code}{indent}```"
 
             # Return original
             return match.group(0)
@@ -167,8 +166,8 @@ def _has_module(module_name: str) -> bool:
 
 
 @cache
-def _get_extensions() -> list[Union[str, markdown.Extension]]:
-    extensions: list[Union[str, markdown.Extension]] = [
+def _get_extensions() -> list[str | markdown.Extension]:
+    extensions: list[str | markdown.Extension] = [
         # Syntax highlighting
         PyconDetectorExtension(),  # Python console detection (run before highlight)
         "pymdownx.highlight",
@@ -238,7 +237,7 @@ class _md(Html):
         text: str,
         *,
         apply_markdown_class: bool = True,
-        size: Optional[MarkdownSize] = None,
+        size: MarkdownSize | None = None,
     ) -> None:
         # cleandoc uniformly strips leading whitespace; useful for
         # indented multiline strings
@@ -359,7 +358,7 @@ def md(text: str) -> Html:
     return _md(text)
 
 
-def latex(*, filename: Union[str, Path]) -> None:
+def latex(*, filename: str | Path) -> None:
     """Load LaTeX from a file or URL.
 
     ```python

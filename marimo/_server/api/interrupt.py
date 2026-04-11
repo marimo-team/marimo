@@ -5,13 +5,16 @@ import asyncio
 import signal
 import sys
 import time
-from typing import Callable
+from typing import TYPE_CHECKING
 
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._utils.print import (
     TAB,
     print_,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class InterruptHandler:
@@ -31,7 +34,7 @@ class InterruptHandler:
             # Windows
             signal.signal(
                 signal.SIGINT,
-                lambda signum, frame: self._interrupt_handler(),  # noqa: ARG005,E501
+                lambda signum, frame: self._interrupt_handler(),  # noqa: ARG005
             )
 
     def _interrupt_handler(self) -> None:

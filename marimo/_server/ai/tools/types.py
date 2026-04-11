@@ -1,14 +1,15 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Optional, TypeVar
+from typing import Any, Literal, TypeVar
 
 from marimo._config.config import CopilotMode
 
 # Type aliases for tool system
 FunctionArgs = dict[str, Any]
-ValidationFunction = Callable[[FunctionArgs], Optional[tuple[bool, str]]]
+ValidationFunction = Callable[[FunctionArgs], tuple[bool, str] | None]
 
 ToolSource = Literal["mcp", "backend", "frontend"]
 
@@ -33,7 +34,7 @@ class ToolCallResult:
 
     tool_name: str
     result: Any
-    error: Optional[str] = None
+    error: str | None = None
 
 
 T = TypeVar("T")

@@ -164,11 +164,20 @@ const wrapDocHoverTargets: TransformFn = (
 // Wrap elements with data-tooltip attribute in a Tooltip component.
 // This renders the tooltip in a portal (top layer), fixing clipping inside
 // containers with overflow:hidden (e.g. grid cells).
+//
+// Marimo custom elements (marimo-button, etc.) are skipped — they handle
+// tooltips via the plugin system inside their Shadow DOM. Wrapping them here
+// would create a duplicate tooltip with incorrect positioning and
+// un-decoded JSON content (the data-* value is JSON-encoded by the backend).
 const wrapTooltipTargets: TransformFn = (
   reactNode: ReactNode,
   domNode: DOMNode,
 ): JSX.Element | undefined => {
   if (domNode instanceof Element && domNode.attribs?.["data-tooltip"]) {
+    const tagName = domNode.name?.toLowerCase() ?? "";
+    if (tagName.startsWith("marimo-")) {
+      return undefined;
+    }
     const tooltipContent = domNode.attribs["data-tooltip"];
     return (
       <Tooltip content={tooltipContent}>{reactNode as JSX.Element}</Tooltip>

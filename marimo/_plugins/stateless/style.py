@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from marimo._output.builder import h
 from marimo._output.formatting import as_dom_node
@@ -11,7 +11,7 @@ from marimo._output.rich_help import mddoc
 
 @mddoc
 def style(
-    item: object, style: Optional[dict[str, Any]] = None, **kwargs: Any
+    item: object, style: dict[str, Any] | None = None, **kwargs: Any
 ) -> Html:
     """Wrap an object in a styled container.
 

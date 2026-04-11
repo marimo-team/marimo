@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
-
 import msgspec
 
 
@@ -13,7 +11,7 @@ class DependencyTag(msgspec.Struct, rename="camel"):
 
 class DependencyTreeNode(msgspec.Struct, rename="camel"):
     name: str
-    version: Optional[str]
+    version: str | None
     # List of {"kind": "extra"|"group", "value": str}
     tags: list[DependencyTag]
     dependencies: list[DependencyTreeNode]

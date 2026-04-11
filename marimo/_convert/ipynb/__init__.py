@@ -15,7 +15,7 @@ from marimo._convert.ipynb.to_ir import (
     convert_from_ipynb_to_notebook_ir,
 )
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # Export (IR → ipynb)
     "convert_from_ir_to_ipynb",
     # Import (ipynb → IR)

@@ -5,7 +5,7 @@ import io
 import logging
 from contextlib import contextmanager
 from logging.handlers import TimedRotatingFileHandler
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo._utils.log_formatter import LogFormatter
 
@@ -76,9 +76,7 @@ def log_level_string_to_int(level: str) -> int:
         return logging.DEBUG
     elif level == "INFO":
         return logging.INFO
-    elif level == "WARN":
-        return logging.WARNING
-    elif level == "WARNING":
+    elif level == "WARN" or level == "WARNING":
         return logging.WARNING
     elif level == "ERROR":
         return logging.ERROR
@@ -119,7 +117,7 @@ def set_level(level: str | int = logging.WARNING) -> None:
                 handler.setLevel(_LOG_LEVEL)
 
 
-def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
+def get_logger(name: str, level: int | None = None) -> logging.Logger:
     """
     Get a logger with a given name and level.
     If the logger is already created, we return the cached logger.

@@ -126,10 +126,10 @@ def test_ibis_unbound_expressions() -> None:
 
     # Create unbound tables like in smoke tests
     t1 = ibis.table(
-        dict(value1="float", key1="string", key2="string"), name="table1"
+        {"value1": "float", "key1": "string", "key2": "string"}, name="table1"
     )
     t2 = ibis.table(
-        dict(value2="float", key3="string", key4="string"), name="table2"
+        {"value2": "float", "key3": "string", "key4": "string"}, name="table2"
     )
     joined = t1.left_join(t2, t1.key1 == t2.key3)
 

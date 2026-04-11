@@ -5,7 +5,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import click
 
@@ -310,7 +310,7 @@ async def _export_sessions(
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def session(
     name: Path,
-    sandbox: Optional[bool],
+    sandbox: bool | None,
     force_overwrite: bool,
     continue_on_error: bool,
     args: tuple[str, ...],

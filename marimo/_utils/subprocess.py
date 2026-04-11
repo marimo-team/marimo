@@ -164,7 +164,7 @@ def safe_popen(
     start_new_session: bool = ...,
     pass_fds: Sequence[int] = ...,
     *,
-    text: Literal[False, None] = ...,
+    text: Literal[False] | None = ...,
     encoding: None = ...,
     errors: None = ...,
     user: str | int | None = ...,

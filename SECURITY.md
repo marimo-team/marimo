@@ -2,11 +2,28 @@
 
 marimo is committed to providing a secure environment for notebook development and application deployment. For a comprehensive overview of marimo's security model and features, see our [Security documentation](https://docs.marimo.io/security/).
 
+## Supported Versions
+
+We provide security patches for the latest stable release only. We encourage all users to stay on the latest version.
+
 ## Reporting a Vulnerability
 
 To report a security vulnerability, [please draft an advisory through
-Github](https://github.com/marimo-team/marimo/security/advisories/new), or
+GitHub](https://github.com/marimo-team/marimo/security/advisories/new), or
 email the marimo team; security [at] marimo [dot] io.
+
+Please include:
+- A description of the vulnerability and its potential impact
+- Steps to reproduce or a proof-of-concept
+- Any suggested mitigations if known
+
+### What to Expect
+
+- **Acknowledgement**: We will respond within 3 business days to confirm receipt
+- **Triage**: We will assess severity and scope within 7 days
+- **Patch & disclosure**: We aim to release a fix and publish a CVE/advisory simultaneously, typically within 90 days of the initial report
+
+We will keep you informed throughout the process and credit you in the advisory unless you prefer to remain anonymous.
 
 ### What Warrants a Security Advisory
 
@@ -44,5 +61,7 @@ We would like to acknowledge and thank the following individuals for their respo
  - @devgi
  - @W-M-T (Ward Theunisse)
  - @doredry
+ - @q1uf3ng from OneKey Anzen Lab
+ - @Fushuling @RacerZ-fighting
 
 Your contributions help keep marimo safe for the entire community. We encourage security researchers to report issues and welcome your help in making marimo more secure.

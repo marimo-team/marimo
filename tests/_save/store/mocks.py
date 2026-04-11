@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from marimo._save.stores import Store
 
@@ -10,7 +10,7 @@ class MockStore(Store):
         super().__init__()
         self._cache: dict[str, Any] = {}
 
-    def get(self, key: str) -> Optional[bytes]:
+    def get(self, key: str) -> bytes | None:
         return self._cache.get(key, None)
 
     def put(self, key: str, value: bytes) -> bool:

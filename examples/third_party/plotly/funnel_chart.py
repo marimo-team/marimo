@@ -2,8 +2,8 @@
 # requires-python = ">=3.10"
 # dependencies = [
 #     "marimo",
-#     "pandas==2.3.0",
-#     "plotly==6.0.1",
+#     "pandas==2.3.3",
+#     "plotly==6.5.1",
 # ]
 # ///
 

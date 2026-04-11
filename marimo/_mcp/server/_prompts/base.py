@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from marimo._utils.case import to_snake_case
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from mcp.types import PromptMessage
 
     from marimo._ai._tools.base import ToolContext
@@ -52,7 +54,7 @@ class PromptBase(ABC):
             except Exception as e:
                 # Return error as a prompt message instead of raising
                 error_message = (
-                    f"Error generating prompt '{self.name}': {str(e)}\n\n"
+                    f"Error generating prompt '{self.name}': {e!s}\n\n"
                     f"Please try again or contact support if the issue persists."
                 )
                 return [

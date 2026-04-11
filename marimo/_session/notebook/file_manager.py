@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._ast import load
@@ -54,10 +54,10 @@ class AppFileManager:
 
     def __init__(
         self,
-        filename: Optional[str | Path],
+        filename: str | Path | None,
         *,
-        storage: Optional[StorageInterface] = None,
-        defaults: Optional[AppDefaults] = None,
+        storage: StorageInterface | None = None,
+        defaults: AppDefaults | None = None,
     ) -> None:
         self._filename = _maybe_path(filename)
 
@@ -70,15 +70,15 @@ class AppFileManager:
         self.app = self._load_app(self.path)
 
         # Track the last saved content to avoid reloading our own writes
-        self._last_saved_content: Optional[str] = None
+        self._last_saved_content: str | None = None
 
     @property
-    def filename(self) -> Optional[str]:
+    def filename(self) -> str | None:
         """Get the current filename as a Path object."""
         return str(self._filename) if self._filename is not None else None
 
     @filename.setter
-    def filename(self, value: Optional[str | Path]) -> None:
+    def filename(self, value: str | Path | None) -> None:
         """Set the filename, automatically converting strings to Path objects."""
         self._filename = _maybe_path(value)
 
@@ -125,12 +125,14 @@ class AppFileManager:
             else:
                 new_data = self.app.cell_manager.get_cell_data(cell_id)
                 prev_data = prev_cell_manager.get_cell_data(cell_id)
-                if new_data is None or prev_data is None:
-                    changed_cell_ids.add(cell_id)
-                elif (
-                    new_data.code != prev_data.code
-                    or new_data.name != prev_data.name
-                    or new_data.config != prev_data.config
+                if (
+                    new_data is None
+                    or prev_data is None
+                    or (
+                        new_data.code != prev_data.code
+                        or new_data.name != prev_data.name
+                        or new_data.config != prev_data.config
+                    )
                 ):
                     changed_cell_ids.add(cell_id)
 
@@ -170,7 +172,7 @@ class AppFileManager:
         *,
         notebook: NotebookSerializationV1,
         persist: bool,
-        previous_path: Optional[Path] = None,
+        previous_path: Path | None = None,
     ) -> str:
         """Save notebook to storage using appropriate format handler.
 
@@ -187,7 +189,7 @@ class AppFileManager:
 
         # Get the header in case it was modified by the user (e.g. package installation)
         handler = get_notebook_serializer(path)
-        header: Optional[str] = None
+        header: str | None = None
         if previous_path and previous_path.exists():
             header = handler.extract_header(previous_path)
         elif path.exists():
@@ -230,7 +232,7 @@ class AppFileManager:
 
         return contents
 
-    def _load_app(self, path: Optional[str]) -> InternalApp:
+    def _load_app(self, path: str | None) -> InternalApp:
         """Load app from storage.
 
         Args:
@@ -309,7 +311,7 @@ class AppFileManager:
 
         return new_path.name
 
-    def read_layout_config(self) -> Optional[LayoutConfig]:
+    def read_layout_config(self) -> LayoutConfig | None:
         """Read layout configuration file.
 
         Returns:
@@ -322,7 +324,7 @@ class AppFileManager:
 
         return None
 
-    def read_css_file(self) -> Optional[str]:
+    def read_css_file(self) -> str | None:
         """Read custom CSS file.
 
         Returns:
@@ -333,7 +335,7 @@ class AppFileManager:
             return None
         return self.storage.read_related_file(self._filename, css_file)
 
-    def read_html_head_file(self) -> Optional[str]:
+    def read_html_head_file(self) -> str | None:
         """Read custom HTML head file.
 
         Returns:
@@ -345,7 +347,7 @@ class AppFileManager:
         return self.storage.read_related_file(self._filename, html_head_file)
 
     @property
-    def path(self) -> Optional[str]:
+    def path(self) -> str | None:
         """Get absolute path to notebook file as string.
 
         Returns:
@@ -531,7 +533,7 @@ class AppFileManager:
             return False
 
 
-def read_css_file(css_file: str, filename: Optional[str]) -> Optional[str]:
+def read_css_file(css_file: str, filename: str | None) -> str | None:
     """Read the contents of a CSS file.
 
     Args:
@@ -567,8 +569,8 @@ def read_css_file(css_file: str, filename: Optional[str]) -> Optional[str]:
 
 
 def read_html_head_file(
-    html_head_file: str, filename: Optional[str]
-) -> Optional[str]:
+    html_head_file: str, filename: str | None
+) -> str | None:
     """Read the contents of an HTML head file.
 
     Args:
@@ -597,7 +599,7 @@ def read_html_head_file(
         return None
 
 
-def _maybe_path(path: Optional[str | Path]) -> Optional[Path]:
+def _maybe_path(path: str | Path | None) -> Path | None:
     """Convert a string or Path to a Path object."""
     if path is None:
         return None

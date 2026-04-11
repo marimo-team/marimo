@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import time
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo._messaging.msgspec_encoder import (
     asdict,
@@ -11,7 +11,7 @@ from marimo._messaging.msgspec_encoder import (
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from collections.abc import Callable
 
     import msgspec
 
@@ -40,7 +40,7 @@ def assert_serialize_roundtrip(obj: msgspec.Struct) -> None:
 
 
 def explore_module(
-    module: Any, indent: int = 0, visited: Optional[set[int]] = None
+    module: Any, indent: int = 0, visited: set[int] | None = None
 ) -> list[str]:
     """
     Recursively explore a module and print all public exported items.

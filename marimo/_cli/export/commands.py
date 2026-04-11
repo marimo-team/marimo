@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Callable, Literal, Optional
+from typing import TYPE_CHECKING, Literal
 
 import click
 
@@ -39,6 +39,9 @@ from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import maybe_make_dirs
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 _watch_message = (
     "Watch notebook for changes and regenerate the output on modification. "
     "If watchdog is installed, it will be used to watch the file. "
@@ -60,7 +63,7 @@ def export() -> None:
 
 def watch_and_export(
     marimo_path: MarimoPath,
-    output: Optional[Path],
+    output: Path | None,
     watch: bool,
     export_callback: Callable[[MarimoPath], ExportResult],
     force: bool,
@@ -111,7 +114,7 @@ def watch_and_export(
     async def on_file_changed(file_path: Path) -> None:
         if output:
             echo(
-                f"File {str(file_path)} changed. Re-exporting to {green(str(output))}"
+                f"File {file_path!s} changed. Re-exporting to {green(str(output))}"
             )
         try:
             # `export_callback` may call `asyncio_run()` internally. This callback
@@ -206,7 +209,7 @@ def html(
     include_code: bool,
     output: Path,
     watch: bool,
-    sandbox: Optional[bool],
+    sandbox: bool | None,
     force: bool,
     args: tuple[str],
 ) -> None:
@@ -292,7 +295,7 @@ Watch for changes and regenerate the script on modification:
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 def script(
-    name: str, output: Path, watch: bool, sandbox: Optional[bool], force: bool
+    name: str, output: Path, watch: bool, sandbox: bool | None, force: bool
 ) -> None:
     """
     Export a marimo notebook as a flat script, in topological order.
@@ -363,7 +366,7 @@ Watch for changes and regenerate the script on modification:
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 def md(
-    name: str, output: Path, watch: bool, sandbox: Optional[bool], force: bool
+    name: str, output: Path, watch: bool, sandbox: bool | None, force: bool
 ) -> None:
     """
     Export a marimo notebook as a code fenced markdown document.
@@ -458,7 +461,7 @@ def ipynb(
     watch: bool,
     sort: Literal["top-down", "topological"],
     include_outputs: bool,
-    sandbox: Optional[bool],
+    sandbox: bool | None,
     force: bool,
     args: tuple[str],
 ) -> None:
@@ -632,7 +635,7 @@ def pdf(
     raster_scale: float,
     raster_server: str,
     export_as: Literal["document", "slides"] | None,
-    sandbox: Optional[bool],
+    sandbox: bool | None,
     force: bool,
     args: tuple[str],
 ) -> None:
@@ -862,7 +865,7 @@ def html_wasm(
     watch: bool,
     show_code: bool,
     include_cloudflare: bool,
-    sandbox: Optional[bool],
+    sandbox: bool | None,
     force: bool,
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""

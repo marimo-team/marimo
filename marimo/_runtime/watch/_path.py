@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 import threading
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from marimo import _loggers
 from marimo._runtime.context import (
@@ -16,6 +16,9 @@ from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._runtime.threads import Thread
 from marimo._utils.platform import is_pyodide
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 

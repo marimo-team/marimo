@@ -95,12 +95,12 @@ class _DataclassParser:
             if value is None:
                 return None  # type: ignore[return-value]
             else:
-                return self._build_value(value, arg_type)  # type: ignore # noqa: E501
+                return self._build_value(value, arg_type)  # type: ignore
         elif origin_cls in (list, set) and isinstance(
             value, (tuple, list, set)
         ):
             (arg_type,) = get_args(cls)
-            return origin_cls(self._build_value(v, arg_type) for v in value)  # type: ignore # noqa: E501
+            return origin_cls(self._build_value(v, arg_type) for v in value)  # type: ignore
         elif origin_cls is tuple and isinstance(value, (tuple, list)):
             arg_types = get_args(cls)
             if len(arg_types) == 2 and isinstance(
@@ -110,8 +110,9 @@ class _DataclassParser:
                     self._build_value(v, arg_types[0]) for v in value
                 )
             else:
-                return origin_cls(  # type: ignore # noqa: E501
-                    self._build_value(v, t) for v, t in zip(value, arg_types)
+                return origin_cls(  # type: ignore
+                    self._build_value(v, t)
+                    for v, t in zip(value, arg_types, strict=False)
                 )
         elif origin_cls is dict and isinstance(value, dict):
             key_type, value_type = get_args(cls)
@@ -127,7 +128,7 @@ class _DataclassParser:
             arg_types = get_args(cls)
             for arg_type in arg_types:
                 try:
-                    return self._build_value(value, arg_type)  # type: ignore # noqa: E501
+                    return self._build_value(value, arg_type)  # type: ignore
                 # catch expected exceptions when conversion fails
                 except (TypeError, ValueError):
                     continue
@@ -203,7 +204,7 @@ class _DataclassParser:
 
 
 def _parse_msgspec(
-    value: Union[bytes, str, dict[Any, Any]], *, strict: bool, cls: type[T]
+    value: bytes | str | dict[Any, Any], *, strict: bool, cls: type[T]
 ) -> T:
     # If it is a dict, it is already parsed and we can just build the dataclass.
     if isinstance(value, dict):
@@ -213,7 +214,7 @@ def _parse_msgspec(
 
 
 def parse_raw(
-    message: Union[bytes, str, dict[Any, Any]],
+    message: bytes | str | dict[Any, Any],
     cls: type[T],
     allow_unknown_keys: bool = False,
 ) -> T:

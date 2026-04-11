@@ -25,12 +25,12 @@ class TestParseCell:
         cell = compile_cell(code)
         assert cell.key == hash(code)
         assert cell.code == code
-        assert cell.defs == set(["x", "z"])
-        assert cell.refs == set(["y"])
+        assert cell.defs == {"x", "z"}
+        assert cell.refs == {"y"}
 
     @staticmethod
     def test_local_variables() -> None:
-        code = "__ = 10\n_, y = f(x)\ndef _foo():\n  _bar = 0\nimport _secret_module as module"  # noqa: E501
+        code = "__ = 10\n_, y = f(x)\ndef _foo():\n  _bar = 0\nimport _secret_module as module"
         cell = compile_cell(code)
         assert cell.defs == {"module", "y"}
         assert cell.refs == {"f", "x"}
@@ -98,49 +98,49 @@ class TestImportWorkspace:
     def test_simple_import_statement() -> None:
         code = "import foo"
         cell = compile_cell(code)
-        assert cell.defs == set(["foo"])
+        assert cell.defs == {"foo"}
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
         assert len(list(cell.imports)) == 1
-        assert list(cell.imports)[0].definition == "foo"
-        assert list(cell.imports)[0].imported_symbol is None
-        assert list(cell.imports)[0].module == "foo"
-        assert list(cell.imports)[0].namespace == "foo"
-        assert list(cell.imports)[0].import_level is None
+        assert next(iter(cell.imports)).definition == "foo"
+        assert next(iter(cell.imports)).imported_symbol is None
+        assert next(iter(cell.imports)).module == "foo"
+        assert next(iter(cell.imports)).namespace == "foo"
+        assert next(iter(cell.imports)).import_level is None
 
     @staticmethod
     def test_dotted_import_statement() -> None:
         code = "import foo.bar"
         cell = compile_cell(code)
-        assert cell.defs == set(["foo"])
+        assert cell.defs == {"foo"}
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
         assert len(list(cell.imports)) == 1
-        assert list(cell.imports)[0].definition == "foo"
-        assert list(cell.imports)[0].imported_symbol is None
-        assert list(cell.imports)[0].module == "foo.bar"
-        assert list(cell.imports)[0].namespace == "foo"
-        assert list(cell.imports)[0].import_level is None
+        assert next(iter(cell.imports)).definition == "foo"
+        assert next(iter(cell.imports)).imported_symbol is None
+        assert next(iter(cell.imports)).module == "foo.bar"
+        assert next(iter(cell.imports)).namespace == "foo"
+        assert next(iter(cell.imports)).import_level is None
 
     @staticmethod
     def test_from_import() -> None:
         code = "from foo.bar import baz"
         cell = compile_cell(code)
-        assert cell.defs == set(["baz"])
+        assert cell.defs == {"baz"}
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
         assert len(list(cell.imports)) == 1
-        assert list(cell.imports)[0].definition == "baz"
-        assert list(cell.imports)[0].imported_symbol == "foo.bar.baz"
-        assert list(cell.imports)[0].module == "foo.bar"
-        assert list(cell.imports)[0].namespace == "foo"
-        assert list(cell.imports)[0].import_level == 0
+        assert next(iter(cell.imports)).definition == "baz"
+        assert next(iter(cell.imports)).imported_symbol == "foo.bar.baz"
+        assert next(iter(cell.imports)).module == "foo.bar"
+        assert next(iter(cell.imports)).namespace == "foo"
+        assert next(iter(cell.imports)).import_level == 0
 
     @staticmethod
     def test_multiple_imports() -> None:
         code = "import foo; import foo.bar; from foo.bar import baz"
         cell = compile_cell(code)
-        assert cell.defs == set(["foo", "baz"])
+        assert cell.defs == {"foo", "baz"}
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
         assert len(list(cell.imports)) == 3
@@ -202,9 +202,9 @@ class TestImportWorkspace:
 
         code = "import foo; import foo.bar; from foo.bar import baz"
         cell = compile_cell(code, carried_imports=[foo])
-        assert cell.defs == set(["foo", "baz"])
+        assert cell.defs == {"foo", "baz"}
         assert cell.import_workspace.is_import_block
-        assert cell.import_workspace.imported_defs == set(["foo"])
+        assert cell.import_workspace.imported_defs == {"foo"}
 
         assert len(list(cell.imports)) == 3
         assert foo in cell.imports
@@ -234,9 +234,9 @@ class TestImportWorkspace:
 
         code = "import foo; import foo.bar; from foo.bar import baz"
         cell = compile_cell(code, carried_imports=[foo, foo_bar, foo_bar_baz])
-        assert cell.defs == set(["foo", "baz"])
+        assert cell.defs == {"foo", "baz"}
         assert cell.import_workspace.is_import_block
-        assert cell.import_workspace.imported_defs == set(["foo", "baz"])
+        assert cell.import_workspace.imported_defs == {"foo", "baz"}
 
         assert len(list(cell.imports)) == 3
         assert foo in cell.imports
@@ -255,7 +255,7 @@ class TestImportWorkspace:
         )
         code = "import foo.bar"
         cell = compile_cell(code, carried_imports=[foo])
-        assert cell.defs == set(["foo"])
+        assert cell.defs == {"foo"}
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
 
@@ -268,8 +268,8 @@ class TestParseSQLCell:
         cell = compile_cell(code)
         assert cell.key == hash(code)
         assert cell.code == code
-        assert cell.defs == set(["t1"])
-        assert cell.refs == set(["mo"])
+        assert cell.defs == {"t1"}
+        assert cell.refs == {"mo"}
         assert cell.language == "sql"
         assert cell.variable_data == {
             "t1": [VariableData("table", qualified_name="t1")]
@@ -282,7 +282,7 @@ class TestParseSQLCell:
         assert cell.key == hash(code)
         assert cell.code == code
         assert not cell.defs
-        assert cell.refs == set(["mo", "t1"])
+        assert cell.refs == {"mo", "t1"}
         assert cell.language == "sql"
         assert not cell.variable_data
 
@@ -298,8 +298,8 @@ class TestParseSQLCell:
         cell = compile_cell(code)
         assert cell.key == hash(code)
         assert cell.code == code
-        assert cell.defs == set(["t1"])
-        assert cell.refs == set(["duckdb"])
+        assert cell.defs == {"t1"}
+        assert cell.refs == {"duckdb"}
         assert cell.language == "sql"
         assert cell.variable_data == {
             "t1": [VariableData("table", qualified_name="t1")]
@@ -318,7 +318,7 @@ class TestParseSQLCell:
         assert cell.key == hash(code)
         assert cell.code == code
         assert not cell.defs
-        assert cell.refs == set(["duckdb", "t1"])
+        assert cell.refs == {"duckdb", "t1"}
         assert cell.language == "sql"
         assert not cell.variable_data
 
@@ -354,8 +354,8 @@ class TestCellFactory:
         """Defs inferred from function code, not returns"""
 
         def f() -> None:
-            x = 10  # noqa: F841
-            y = 20  # noqa: F841
+            x = 10
+            y = 20
 
         cell = compiler.cell_factory(f, cell_id="0")
         assert cell._cell.defs == {"x", "y"}
@@ -366,7 +366,7 @@ class TestCellFactory:
         """Refs inferred from function code, not args"""
 
         def f() -> None:
-            x = y  # noqa: F841 F821
+            x = y  # noqa: F821
 
         cell = compiler.cell_factory(f, cell_id="0")
         assert cell._cell.defs == {"x"}
@@ -451,7 +451,7 @@ class TestSemicolon:
     @staticmethod
     def test_return_string_semicolon() -> None:
         def f() -> None:
-            "#; splits on ;# are less than ideal"  # noqa: B018 Contains a ;#
+            "#; splits on ;# are less than ideal"
 
         cell = compiler.cell_factory(f, cell_id="0")
         assert (
@@ -462,7 +462,7 @@ class TestSemicolon:
     def test_return_string_semicolon_suppressed() -> None:
         # fmt: off
         def f() -> None:
-            "#; splits on ;# are less than ideal";  # noqa: B018 E703 Contains a ;#
+            "#; splits on ;# are less than ideal";  # noqa: E703 Contains a ;#
         # fmt: on
 
         cell = compiler.cell_factory(f, cell_id="0")
@@ -863,11 +863,13 @@ class TestCellAstMatchesRawAst:
         import ast
 
         # For decorated nodes, check decorator line numbers
-        if isinstance(
-            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        if (
+            isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            )
+            and node.decorator_list
         ):
-            if node.decorator_list:
-                return min(d.lineno for d in node.decorator_list)
+            return min(d.lineno for d in node.decorator_list)
         return node.lineno
 
     def _assert_fixed_ast_contains_line(

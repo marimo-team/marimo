@@ -5,7 +5,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import click
 
@@ -199,7 +199,7 @@ async def _generate_thumbnails(
     height: int,
     scale: int,
     timeout_ms: int,
-    output: Optional[Path],
+    output: Path | None,
     overwrite: bool,
     include_code: bool,
     execute: bool,
@@ -431,11 +431,11 @@ def thumbnail(
     height: int,
     scale: int,
     timeout_ms: int,
-    output: Optional[Path],
+    output: Path | None,
     overwrite: bool,
     include_code: bool,
     execute: bool,
-    sandbox: Optional[bool],
+    sandbox: bool | None,
     continue_on_error: bool,
     args: tuple[str, ...],
 ) -> None:

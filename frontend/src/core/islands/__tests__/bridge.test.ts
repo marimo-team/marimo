@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { components } from "@marimo-team/marimo-api";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cellId,
   requestId,
@@ -83,17 +83,7 @@ describe("IslandsPyodideBridge", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset the singleton by clearing the window property
-    // oxlint-disable-next-line typescript/no-explicit-any
-    delete (window as any)._marimo_private_IslandsPyodideBridge;
-    // Access the singleton - creates a fresh instance
-    bridge = IslandsPyodideBridge.INSTANCE;
-  });
-
-  afterEach(() => {
-    // Clean up singleton
-    // oxlint-disable-next-line typescript/no-explicit-any
-    delete (window as any)._marimo_private_IslandsPyodideBridge;
+    bridge = new IslandsPyodideBridge({ autoStartSessions: false });
   });
 
   describe("sendComponentValues", () => {
