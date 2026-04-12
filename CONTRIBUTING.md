@@ -32,7 +32,7 @@ in lines of code. Here is a non-exhaustive list of changes we consider substanti
 9. changes to marimo's file format; 
 10. changes with many lines of code.
 
-To obtain aproval, open a [GitHub
+To obtain approval, open a [GitHub
 issue](https://github.com/marimo-team/marimo/issues) describing the change you
 would like to make and discuss it with a maintainer. If you would like to make
 a PR for an issue that already exists, join the conversation in that issue.
