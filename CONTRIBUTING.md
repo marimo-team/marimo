@@ -29,7 +29,7 @@ in lines of code. Here is a non-exhaustive list of changes we consider substanti
 6. changes to default configuration;
 7. opinionated changes to the user interface or user experience;
 8. changes to the semantics of marimo's runtime;
-9. changes to marimo's file format; 
+9. changes to marimo's file format;
 10. changes with many lines of code.
 
 To obtain approval, open a [GitHub
