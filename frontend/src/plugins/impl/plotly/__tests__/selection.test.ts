@@ -102,6 +102,14 @@ describe("shouldHandleClickSelection", () => {
     expect(shouldHandleClickSelection([heatmapPoint])).toBe(true);
   });
 
+  it("accepts box clicks", () => {
+    const boxPoint = createPlotDatum({
+      data: { type: "box" },
+    });
+
+    expect(shouldHandleClickSelection([boxPoint])).toBe(true);
+  });
+
   it("accepts violin clicks", () => {
     const violinPoint = createPlotDatum({
       data: { type: "violin" },
@@ -124,6 +132,22 @@ describe("shouldHandleClickSelection", () => {
     });
 
     expect(shouldHandleClickSelection([linePoint])).toBe(true);
+  });
+
+  it("accepts funnel clicks", () => {
+    const funnelPoint = createPlotDatum({
+      data: { type: "funnel" },
+    });
+
+    expect(shouldHandleClickSelection([funnelPoint])).toBe(true);
+  });
+
+  it("accepts funnelarea clicks", () => {
+    const funnelAreaPoint = createPlotDatum({
+      data: { type: "funnelarea" },
+    });
+
+    expect(shouldHandleClickSelection([funnelAreaPoint])).toBe(true);
   });
 
   it("accepts waterfall clicks", () => {
@@ -212,6 +236,64 @@ describe("extractPoints", () => {
     });
 
     expect(extractPoints([point])).toEqual([{ x: 1, y: 2, z: 3 }]);
+  });
+
+  it("returns funnel-specific fields for funnel traces", () => {
+    const point = createPlotDatum({
+      x: 1000,
+      y: "Visit",
+      label: "Visit",
+      value: 1000,
+      percentInitial: 1.0,
+      percentPrevious: 1.0,
+      percentTotal: 1.0,
+      curveNumber: 0,
+      pointIndex: 0,
+      pointNumber: 0,
+      data: { type: "funnel" },
+    });
+
+    expect(extractPoints([point])).toEqual([
+      {
+        x: 1000,
+        y: "Visit",
+        label: "Visit",
+        value: 1000,
+        percentInitial: 1.0,
+        percentPrevious: 1.0,
+        percentTotal: 1.0,
+        curveNumber: 0,
+        pointIndex: 0,
+        pointNumber: 0,
+      },
+    ]);
+  });
+
+  it("returns funnelarea-specific fields without x/y for funnelarea traces", () => {
+    const point = createPlotDatum({
+      label: "Stage A",
+      value: 500,
+      percentInitial: 0.5,
+      percentPrevious: 0.8,
+      percentTotal: 0.5,
+      curveNumber: 0,
+      pointNumber: 1,
+      x: 99,
+      y: 99,
+      data: { type: "funnelarea" },
+    });
+
+    expect(extractPoints([point])).toEqual([
+      {
+        label: "Stage A",
+        value: 500,
+        percentInitial: 0.5,
+        percentPrevious: 0.8,
+        percentTotal: 0.5,
+        curveNumber: 0,
+        pointNumber: 1,
+      },
+    ]);
   });
 
   it("returns x/y/pointIndex for waterfall clicks", () => {

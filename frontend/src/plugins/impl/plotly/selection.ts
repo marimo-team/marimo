@@ -24,6 +24,32 @@ const SUNBURST_DATA_KEYS: (keyof Plotly.SunburstPlotDatum)[] = [
   "value",
 ] as const;
 
+// Fields emitted by go.Funnel click events: includes x/y coordinates plus
+// funnel-specific percent metrics.
+const FUNNEL_DATA_KEYS: string[] = [
+  "curveNumber",
+  "pointIndex",
+  "pointNumber",
+  "x",
+  "y",
+  "label",
+  "value",
+  "percentInitial",
+  "percentPrevious",
+  "percentTotal",
+] as const;
+
+// Fields emitted by go.FunnelArea click events: sector-based, no x/y.
+const FUNNEL_AREA_DATA_KEYS: string[] = [
+  "curveNumber",
+  "pointNumber",
+  "label",
+  "value",
+  "percentInitial",
+  "percentPrevious",
+  "percentTotal",
+] as const;
+
 const LINE_CLICK_TRACE_TYPES = new Set(["scatter", "scattergl"]);
 
 const STANDARD_POINT_KEYS: string[] = [
@@ -256,10 +282,13 @@ export function shouldHandleClickSelection(
     const type = getTraceSource(point).type;
     return (
       type === "bar" ||
+      type === "box" ||
+      type === "funnel" ||
+      type === "funnelarea" ||
       type === "heatmap" ||
       type === "histogram" ||
-      type === "waterfall" ||
       type === "violin" ||
+      type === "waterfall" ||
       isLinePoint(point)
     );
   });
@@ -329,12 +358,42 @@ export function extractPoints(
   let parser: PlotlyTemplateParser | undefined;
 
   return points.map((point) => {
+    const trace = getTraceSource(point);
+
+    // FunnelArea: sector-based chart with no x/y coordinates.
+    // Pick funnel-area-specific keys, then merge any hovertemplate-parsed
+    // fields (e.g. customdata columns) so user-defined fields are preserved.
+    if (trace.type === "funnelarea") {
+      const base = pick(point, FUNNEL_AREA_DATA_KEYS);
+      const ht = Array.isArray(trace.hovertemplate)
+        ? trace.hovertemplate[0]
+        : trace.hovertemplate;
+      if (!ht) {
+        return base;
+      }
+      parser = parser ? parser.update(ht) : createParser(ht);
+      return { ...base, ...parser.parse(point) };
+    }
+
+    // Funnel: bar-like chart with x/y plus per-stage percent metrics.
+    // Pick funnel-specific keys, then merge hovertemplate-parsed fields so
+    // callers get both percentInitial et al. and any user-defined columns.
+    if (trace.type === "funnel") {
+      const base = pick(point, FUNNEL_DATA_KEYS);
+      const ht = Array.isArray(trace.hovertemplate)
+        ? trace.hovertemplate[0]
+        : trace.hovertemplate;
+      if (!ht) {
+        return base;
+      }
+      parser = parser ? parser.update(ht) : createParser(ht);
+      return { ...base, ...parser.parse(point) };
+    }
+
     const standardPointFields = withInferredXY(
       point,
       pick(point, STANDARD_POINT_KEYS),
     );
-
-    const trace = getTraceSource(point);
 
     // Get the first hovertemplate
     const hovertemplate = Array.isArray(trace.hovertemplate)
