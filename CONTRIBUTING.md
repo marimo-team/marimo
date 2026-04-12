@@ -37,8 +37,8 @@ issue](https://github.com/marimo-team/marimo/issues) describing the change you
 would like to make and discuss it with a maintainer. If you would like to make
 a PR for an issue that already exists, join the conversation in that issue.
 
-**Labels.** Pull requests with the `needs discussion` label are not ready for
-a PR. Pull requests with a `ready` label are ready for a PR.
+**Labels.** Issues with the `needs discussion` label are not ready for
+a PR; issues with a `ready` label are ready for a PR.
 
 ### Why is maintainer approval required?
 
