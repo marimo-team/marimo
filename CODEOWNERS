@@ -1,35 +1,4 @@
-# Frontend
-/frontend/src/ @manzt @light2dark
-
-# Backend
-/marimo/_ast/ @dmadisetti
-/marimo/_convert/ @dmadisetti
-/marimo/_runtime/ @dmadisetti
-
-# Caching
-/marimo/_save/ @dmadisetti
-
-# Linting
-/marimo/_lint/ @dmadisetti
-
-# SQL
-/marimo/_sql/ @light2dark
-/marimo/_data/ @light2dark
-
-# Deps
-pyproject.toml @akshayka
-package.json @mscolnick @manzt
-
-# Docs
 /docs/ @akshayka
-/examples/ @akshayka
 /README.md @akshayka
-
-# LSP
-/lsp/ @manzt
-
-# Schemas
-/openapi/ @manzt @mscolnick
-
-# CI
-/.github/ @mscolnick @manzt
+/tests/snapshots/api.txt @akshayka
+/tests/snapshots/dependencies.txt @akshayka
