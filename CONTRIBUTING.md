@@ -1,6 +1,6 @@
 # Contributing Guide
 
-We welcome all kinds of contributions. _You don't need to be an expert
+We welcome contributions. _You don't need to be an expert
 in frontend or Python development to help out._
 
 ## Checklist
@@ -9,15 +9,68 @@ Contributions are made through
 [pull requests](https://help.github.com/articles/using-pull-requests/).
 Before sending a pull request, make sure to do the following:
 
+- [Obtain maintainer approval](#maintainer-approval)
 - [Lint, typecheck, and format](#lint-typecheck-format) your code
 - [Write tests](#tests)
 - [Run tests](#tests) and check that they pass
 - Read the [CLA](https://marimo.io/cla)
 
-_Please reach out to the marimo team before starting work on a large
-contribution._ Get in touch at
-[GitHub issues](https://github.com/marimo-team/marimo/issues)
-or [on Discord](https://marimo.io/discord?ref=contributing).
+## Maintainer approval
+
+Contributors must obtain maintainer approval before making
+pull requests with substantial changes. Substance is not measured only
+in lines of code. Here is a non-exhaustive list of changes we consider substantial:
+
+1. changes to the public API;
+2. changes to required or optional dependencies;
+3. changes to CI workflows;
+4. changes with large internal refactors;
+5. changes to our documentation architecture;
+6. changes to default configuration;
+7. opinionated changes to the user interface or user experience;
+8. changes to the semantics of marimo's runtime;
+9. changes to marimo's file format; 
+10. changes with many lines of code.
+
+To obtain aproval, open a [GitHub
+issue](https://github.com/marimo-team/marimo/issues) describing the change you
+would like to make and discuss it with a maintainer. If you would like to make
+a PR for an issue that already exists, join the conversation in that issue.
+
+**Labels.** Pull requests with the `needs discussion` label are not ready for
+a PR. Pull requests with a `ready` label are ready for a PR.
+
+### Why is maintainer approval required?
+
+**Deliberate design.** marimo is an intentionally designed project. We
+put just as much thought into the features we exclude as the ones we include, 
+in order to provide our users with a simple, consistent, delightful, and
+powerful experience.
+
+For examples of the thought we put in, see our [MEPs
+repo](https://github.com/marimo-team/meps) and read our [founding
+essays](https://docs.marimo.io/reading/).
+
+**Consistency.** Each feature affects the whole product. A change that seems
+locally helpful can make the system less consistent and therefore harder to
+learn, explain, or evolve.
+
+**Small changes can have large consequences.** Unlike traditional software, in
+open source, some changes are irreversible. Even seemingly minor changes — like
+adjusting a function signature or adding “just one more option” — can
+have long-lasting consequences.
+
+**Maintenance burden.** New features create new work. What may seem like a
+small change in lines of code can have a disproportionately large maintenance
+cost when integrated over time.
+
+**Review burden.** Though the cost of writing code has decreased, the cost of
+reviewing code has not (in fact, it has increased). Asking a maintainer or
+community member to review your changes imposes a cost on their time. Building
+consensus before making the pull request shows respect.
+
+**Early consensus prevents wasted effort.** Seeking approval before implementing a
+substantial change increases the chance that your work will be merged.
 
 ## Setup
 
