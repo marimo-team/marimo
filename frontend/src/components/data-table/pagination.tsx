@@ -188,6 +188,79 @@ export const DataTablePagination = <TData,>({
 
 const PAGE_ITEM_HEIGHT = 32;
 
+/**
+ * Compute contiguous ranges of page numbers whose string starts with `prefix`,
+ * without scanning every page. O(log10(totalPages)).
+ *
+ * For prefix "5", totalPages=500: [[5,5], [50,59], [500,500]]
+ */
+export function matchingPageRanges(
+  prefix: string,
+  totalPages: number,
+): [number, number][] {
+  const n = Number.parseInt(prefix, 10);
+  if (Number.isNaN(n) || n <= 0 || String(n) !== prefix) {
+    return [];
+  }
+
+  const ranges: [number, number][] = [];
+  let power = 1;
+  while (n * power <= totalPages) {
+    const start = n * power;
+    const end = Math.min((n + 1) * power - 1, totalPages);
+    ranges.push([start, end]);
+    power *= 10;
+  }
+  return ranges;
+}
+
+interface PageMapping {
+  count: number;
+  pageAtIndex: (index: number) => number;
+  indexOfPage: (page: number) => number;
+}
+
+function createPageMapping(search: string, totalPages: number): PageMapping {
+  if (search === "") {
+    return {
+      count: totalPages,
+      pageAtIndex: (i) => i + 1,
+      indexOfPage: (p) => p - 1,
+    };
+  }
+
+  const ranges = matchingPageRanges(search, totalPages);
+  let count = 0;
+  for (const [s, e] of ranges) {
+    count += e - s + 1;
+  }
+
+  return {
+    count,
+    pageAtIndex: (i) => {
+      let offset = 0;
+      for (const [start, end] of ranges) {
+        const size = end - start + 1;
+        if (i < offset + size) {
+          return start + (i - offset);
+        }
+        offset += size;
+      }
+      return -1;
+    },
+    indexOfPage: (p) => {
+      let offset = 0;
+      for (const [start, end] of ranges) {
+        if (p >= start && p <= end) {
+          return offset + (p - start);
+        }
+        offset += end - start + 1;
+      }
+      return -1;
+    },
+  };
+}
+
 export const PageSelector = ({
   currentPage,
   totalPages,
@@ -200,25 +273,18 @@ export const PageSelector = ({
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
 
-  const filteredPages = React.useMemo(() => {
-    if (search === "") {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-    const result: number[] = [];
-    for (let i = 1; i <= totalPages; i++) {
-      if (String(i).startsWith(search)) {
-        result.push(i);
-      }
-    }
-    return result;
-  }, [totalPages, search]);
+  const mapping = React.useMemo(
+    () => createPageMapping(search, totalPages),
+    [search, totalPages],
+  );
 
   const handleSelect = (page: number) => {
     onPageChange(page - 1);
+    setSearch("");
     setOpen(false);
   };
 
-  const listHeight = Math.min(filteredPages.length * PAGE_ITEM_HEIGHT, 240);
+  const listHeight = Math.min(mapping.count * PAGE_ITEM_HEIGHT, 240);
 
   return (
     <Popover
@@ -275,13 +341,13 @@ export const PageSelector = ({
             }}
           />
           <CommandList className="max-h-60 overflow-hidden">
-            {filteredPages.length === 0 ? (
+            {mapping.count === 0 ? (
               <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
                 No matching page
               </CommandEmpty>
             ) : (
               <VirtualizedPageList
-                pages={filteredPages}
+                mapping={mapping}
                 currentPage={currentPage}
                 listHeight={listHeight}
                 onSelect={handleSelect}
@@ -295,22 +361,22 @@ export const PageSelector = ({
 };
 
 const VirtualizedPageList = ({
-  pages,
+  mapping,
   currentPage,
   listHeight,
   onSelect,
 }: {
-  pages: number[];
+  mapping: PageMapping;
   currentPage: number;
   listHeight: number;
   onSelect: (page: number) => void;
 }) => {
   const parentRef = React.useRef<HTMLDivElement>(null);
 
-  const currentIndex = pages.indexOf(currentPage);
+  const currentIndex = mapping.indexOfPage(currentPage);
 
   const virtualizer = useVirtualizer({
-    count: pages.length,
+    count: mapping.count,
     getScrollElement: () => parentRef.current,
     estimateSize: () => PAGE_ITEM_HEIGHT,
     overscan: 10,
@@ -319,6 +385,15 @@ const VirtualizedPageList = ({
         ? Math.max(0, currentIndex * PAGE_ITEM_HEIGHT - listHeight / 2)
         : 0,
   });
+
+  // Scroll to top when filtered results change (user is searching)
+  const prevCount = React.useRef(mapping.count);
+  React.useEffect(() => {
+    if (mapping.count !== prevCount.current) {
+      virtualizer.scrollToIndex(0);
+      prevCount.current = mapping.count;
+    }
+  }, [mapping.count, virtualizer]);
 
   return (
     <div ref={parentRef} style={{ height: listHeight, overflow: "auto" }}>
@@ -330,7 +405,7 @@ const VirtualizedPageList = ({
         }}
       >
         {virtualizer.getVirtualItems().map((virtualItem) => {
-          const page = pages[virtualItem.index];
+          const page = mapping.pageAtIndex(virtualItem.index);
           return (
             <CommandItem
               key={page}
@@ -365,11 +440,15 @@ export function prettifyRowCount(rowCount: number, locale: string): string {
   return `${prettyNumber(rowCount, locale)} ${new PluralWord("row").pluralize(rowCount)}`;
 }
 
-export const prettifyRowColumnCount = (
-  numRows: number | "too_many",
-  totalColumns: number,
-  locale: string,
-): string => {
+export const prettifyRowColumnCount = ({
+  numRows,
+  totalColumns,
+  locale,
+}: {
+  numRows: number | "too_many";
+  totalColumns: number;
+  locale: string;
+}): string => {
   const rowsLabel =
     numRows === "too_many" ? "Unknown" : prettifyRowCount(numRows, locale);
   const columnsLabel = `${prettyNumber(totalColumns, locale)} ${new PluralWord("column").pluralize(totalColumns)}`;
