@@ -226,3 +226,19 @@ class TestCacheContext:
     assert_type(mo.{cache_func}("cache"), _cache_context)
 """
         )
+
+
+class TestBatchTyping:
+    def test_batch_accepts_slider_and_number(self) -> None:
+        _check_pyright(
+            _PREAMBLE
+            + """
+    parameters = mo.md(
+        "slider: {a} number: {b}"
+    ).batch(
+        a=mo.ui.slider(start=1, stop=50, step=1, value=10),
+        b=mo.ui.number(value=0.2),
+    )
+    assert_type(parameters.value, dict[str, object])
+"""
+        )
