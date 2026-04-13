@@ -4,7 +4,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
-    Condition,
+    FilterCondition,
+    RangeValue,
     Transform,
     TransformType,
 )
@@ -32,52 +33,56 @@ def python_print_transforms(
 def python_print_pandas(
     df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
-    def generate_where_clause(df_name: str, where: Condition) -> str:
+    def generate_where_clause(df_name: str, where: FilterCondition) -> str:
         column_id, operator, value = (
             where.column_id,
             where.operator,
             where.value,
         )
+        col = f"{df_name}[{_as_literal(column_id)}]"
 
-        if operator == "==":
-            return (
-                f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}"
-            )
-        elif operator == "equals":
-            return (
-                f"{df_name}[{_as_literal(column_id)}].eq({_as_literal(value)})"
-            )
-        elif operator == "does_not_equal":
-            return (
-                f"{df_name}[{_as_literal(column_id)}].ne({_as_literal(value)})"
-            )
-        elif operator == "contains":
-            return f"{df_name}[{_as_literal(column_id)}].str.contains({_as_literal(value)})"
-        elif operator == "regex":
-            return f"{df_name}[{_as_literal(column_id)}].str.contains({_as_literal(value)}, regex=True)"
-        elif operator == "starts_with":
-            return f"{df_name}[{_as_literal(column_id)}].str.startswith({_as_literal(value)})"
-        elif operator == "ends_with":
-            return f"{df_name}[{_as_literal(column_id)}].str.endswith({_as_literal(value)})"
-        elif operator == "in" or operator == "not_in":
-            result = f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"
-            return result if operator == "in" else f"~{result}"
-        elif operator == "!=":
-            return (
-                f"{df_name}[{_as_literal(column_id)}].ne({_as_literal(value)})"
-            )
+        result: str
+        if operator == "==" or operator == "equals":
+            result = f"{col} == {_as_literal(value)}"
+        elif operator == "!=" or operator == "does_not_equal":
+            result = f"{col} != {_as_literal(value)}"
         elif operator in [">", ">=", "<", "<="]:
-            return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"
+            result = f"{col} {operator} {_as_literal(value)}"
+        elif operator == "contains":
+            result = f"{col}.str.contains({_as_literal(value)})"
+        elif operator == "regex":
+            result = f"{col}.str.contains({_as_literal(value)}, regex=True)"
+        elif operator == "starts_with":
+            result = f"{col}.str.startswith({_as_literal(value)})"
+        elif operator == "ends_with":
+            result = f"{col}.str.endswith({_as_literal(value)})"
+        elif operator == "in" or operator == "not_in":
+            expr = f"{col}.isin({_list_of_strings(value)})"
+            result = expr if operator == "in" else f"~{expr}"
         elif operator == "is_null":
-            return f"{df_name}[{_as_literal(column_id)}].isna()"
+            result = f"{col}.isna()"
         elif operator == "is_not_null":
-            return f"{df_name}[{_as_literal(column_id)}].notna()"
+            result = f"{col}.notna()"
         elif operator == "is_true":
-            return f"{df_name}[{_as_literal(column_id)}].eq(True)"
+            result = f"{col}.eq(True)"
         elif operator == "is_false":
-            return f"{df_name}[{_as_literal(column_id)}].eq(False)"
+            result = f"{col}.eq(False)"
+        elif operator == "between":
+            if isinstance(value, RangeValue):
+                result = f"{col}.between({_as_literal(value.min)}, {_as_literal(value.max)})"
+            else:
+                raise ValueError(
+                    f"between requires RangeValue, got {type(value)}"
+                )
+        elif operator == "is_empty":
+            result = f"({col} == '')"
         else:
             raise ValueError(f"Unknown operator: {operator}")
+
+        if where.negate:
+            result = f"~({result})"
+
+        return result
 
     if transform.type == TransformType.COLUMN_CONVERSION:
         column_id, data_type, errors = (
@@ -108,11 +113,15 @@ def python_print_pandas(
         return f"{df_name}.sort_values({args})"
 
     elif transform.type == TransformType.FILTER_ROWS:
-        operation, where = transform.operation, transform.where
-        if not where:
+        operation, group = transform.operation, transform.where
+        if not group.children:
             return df_name
         where_clauses = [
-            generate_where_clause(df_name, condition) for condition in where
+            generate_where_clause(df_name, condition)
+            for condition in group.children
+            if isinstance(
+                condition, FilterCondition
+            )  # TODO: handle nested FilterGroup (OR, negate)
         ]
         if operation == "keep_rows" and len(where_clauses) == 1:
             return f"{df_name}[{where_clauses[0]}]"
@@ -288,40 +297,56 @@ def python_print_pandas(
 def python_print_polars(
     df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
-    def generate_where_clause_polars(where: Condition) -> str:
+    def generate_where_clause_polars(where: FilterCondition) -> str:
         column_id, operator, value = (
             where.column_id,
             where.operator,
             where.value,
         )
+        col = f"pl.col({_as_literal(column_id)})"
 
+        result: str
         if operator == "==" or operator == "equals":
-            return f"pl.col({_as_literal(column_id)}) == {_as_literal(value)}"
-        elif operator == "does_not_equal" or operator == "!=":
-            return f"pl.col({_as_literal(column_id)}) != {_as_literal(value)}"
-        elif operator == "contains":
-            return f"pl.col({_as_literal(column_id)}).str.contains({_as_literal(value)})"
-        elif operator == "regex":
-            return f"pl.col({_as_literal(column_id)}).str.contains({_as_literal(value)}, literal=False)"
-        elif operator == "starts_with":
-            return f"pl.col({_as_literal(column_id)}).str.starts_with({_as_literal(value)})"
-        elif operator == "ends_with":
-            return f"pl.col({_as_literal(column_id)}).str.ends_with({_as_literal(value)})"
-        elif operator == "in" or operator == "not_in":
-            result = f"pl.col({_as_literal(column_id)}).is_in({_list_of_strings(value)})"
-            return result if operator == "in" else f"~{result}"
+            result = f"{col} == {_as_literal(value)}"
+        elif operator == "!=" or operator == "does_not_equal":
+            result = f"{col} != {_as_literal(value)}"
         elif operator in [">", ">=", "<", "<="]:
-            return f"pl.col({_as_literal(column_id)}) {operator} {_as_literal(value)}"
+            result = f"{col} {operator} {_as_literal(value)}"
+        elif operator == "contains":
+            result = f"{col}.str.contains({_as_literal(value)})"
+        elif operator == "regex":
+            result = f"{col}.str.contains({_as_literal(value)}, literal=False)"
+        elif operator == "starts_with":
+            result = f"{col}.str.starts_with({_as_literal(value)})"
+        elif operator == "ends_with":
+            result = f"{col}.str.ends_with({_as_literal(value)})"
+        elif operator == "in" or operator == "not_in":
+            expr = f"{col}.is_in({_list_of_strings(value)})"
+            result = expr if operator == "in" else f"~{expr}"
         elif operator == "is_null":
-            return f"pl.col({_as_literal(column_id)}).is_null()"
+            result = f"{col}.is_null()"
         elif operator == "is_not_null":
-            return f"pl.col({_as_literal(column_id)}).is_not_null()"
+            result = f"{col}.is_not_null()"
         elif operator == "is_true":
-            return f"pl.col({_as_literal(column_id)}) == True"
+            result = f"{col} == True"
         elif operator == "is_false":
-            return f"pl.col({_as_literal(column_id)}) == False"
+            result = f"{col} == False"
+        elif operator == "between":
+            if isinstance(value, RangeValue):
+                result = f"{col}.is_between({_as_literal(value.min)}, {_as_literal(value.max)})"
+            else:
+                raise ValueError(
+                    f"between requires RangeValue, got {type(value)}"
+                )
+        elif operator == "is_empty":
+            result = f'({col} == "")'
         else:
             raise ValueError(f"Unknown operator: {operator}")
+
+        if where.negate:
+            result = f"~({result})"
+
+        return result
 
     if transform.type == TransformType.COLUMN_CONVERSION:
         column_id, data_type = transform.column_id, transform.data_type
@@ -354,11 +379,15 @@ def python_print_polars(
         return f"{df_name}.sort({_as_literal(column_id)}, descending={not ascending}, nulls_last={na_position == 'last'})"
 
     elif transform.type == TransformType.FILTER_ROWS:
-        operation, where = transform.operation, transform.where
-        if not where:
+        operation, group = transform.operation, transform.where
+        if not group.children:
             return df_name
         where_clauses = [
-            generate_where_clause_polars(condition) for condition in where
+            generate_where_clause_polars(condition)
+            for condition in group.children
+            if isinstance(
+                condition, FilterCondition
+            )  # TODO: handle nested FilterGroup (OR, negate)
         ]
         if operation == "keep_rows" and len(where_clauses) == 1:
             return f"{df_name}.filter({where_clauses[0]})"
@@ -505,40 +534,56 @@ def python_print_polars(
 def python_print_ibis(
     df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
-    def generate_where_clause(df_name: str, where: Condition) -> str:
+    def generate_where_clause(df_name: str, where: FilterCondition) -> str:
         column_id, operator, value = (
             where.column_id,
             where.operator,
             where.value,
         )
+        col = f"{df_name}[{_as_literal(column_id)}]"
 
+        result: str
         if operator == "==" or operator == "equals":
-            return f"({df_name}[{_as_literal(column_id)}] == {_as_literal(value)})"
-        elif operator == "does_not_equal" or operator == "!=":
-            return f"({df_name}[{_as_literal(column_id)}] != {_as_literal(value)}))"
-        elif operator == "contains":
-            return f"({df_name}[{_as_literal(column_id)}].contains({_as_literal(value)}))"
-        elif operator == "regex":
-            return f"({df_name}[{_as_literal(column_id)}].re_search({_as_literal(value)}))"
-        elif operator == "starts_with":
-            return f"({df_name}[{_as_literal(column_id)}].startswith({_as_literal(value)}))"
-        elif operator == "ends_with":
-            return f"({df_name}[{_as_literal(column_id)}].endswith({_as_literal(value)}))"
-        elif operator == "in" or operator == "not_in":
-            result = f"({df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)}))"
-            return result if operator == "in" else f"~{result}"
+            result = f"({col} == {_as_literal(value)})"
+        elif operator == "!=" or operator == "does_not_equal":
+            result = f"({col} != {_as_literal(value)})"
         elif operator in [">", ">=", "<", "<="]:
-            return f"({df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)})"
+            result = f"({col} {operator} {_as_literal(value)})"
+        elif operator == "contains":
+            result = f"({col}.contains({_as_literal(value)}))"
+        elif operator == "regex":
+            result = f"({col}.re_search({_as_literal(value)}))"
+        elif operator == "starts_with":
+            result = f"({col}.startswith({_as_literal(value)}))"
+        elif operator == "ends_with":
+            result = f"({col}.endswith({_as_literal(value)}))"
+        elif operator == "in" or operator == "not_in":
+            expr = f"({col}.isin({_list_of_strings(value)}))"
+            result = expr if operator == "in" else f"~{expr}"
         elif operator == "is_null":
-            return f"({df_name}[{_as_literal(column_id)}].isnull())"
+            result = f"({col}.isnull())"
         elif operator == "is_not_null":
-            return f"({df_name}[{_as_literal(column_id)}].notnull())"
+            result = f"({col}.notnull())"
         elif operator == "is_true":
-            return f"({df_name}[{_as_literal(column_id)}] == True)"
+            result = f"({col} == True)"
         elif operator == "is_false":
-            return f"({df_name}[{_as_literal(column_id)}] == False)"
+            result = f"({col} == False)"
+        elif operator == "between":
+            if isinstance(value, RangeValue):
+                result = f"({col}.between({_as_literal(value.min)}, {_as_literal(value.max)}))"
+            else:
+                raise ValueError(
+                    f"between requires RangeValue, got {type(value)}"
+                )
+        elif operator == "is_empty":
+            result = f'({col} == "")'
         else:
             raise ValueError(f"Unknown operator: {operator}")
+
+        if where.negate:
+            result = f"~({result})"
+
+        return result
 
     if transform.type == TransformType.COLUMN_CONVERSION:
         column_id, data_type, errors = (
@@ -572,10 +617,13 @@ def python_print_ibis(
         return f"{df_name}.order_by([{df_name}[{_as_literal(column_id)}].{'asc' if ascending else 'desc'}()])"
 
     elif transform.type == TransformType.FILTER_ROWS:
-        conditions, operation = transform.where, transform.operation
+        group, operation = transform.where, transform.operation
         expressions = [
             generate_where_clause(df_name, condition)
-            for condition in conditions
+            for condition in group.children
+            if isinstance(
+                condition, FilterCondition
+            )  # TODO: handle nested FilterGroup (OR, negate)
         ]
         expression = " & ".join(expressions)
         return (

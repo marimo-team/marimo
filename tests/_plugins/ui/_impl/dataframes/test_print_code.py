@@ -25,9 +25,10 @@ from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     AggregateTransform,
     ColumnConversionTransform,
-    Condition,
     ExpandDictTransform,
     ExplodeColumnsTransform,
+    FilterCondition,
+    FilterGroup,
     FilterRowsTransform,
     GroupByTransform,
     PivotTransform,
@@ -102,7 +103,8 @@ def create_transform_strategy(
 
     # Strategies for each condition type
     comparison_condition_strategy = st.builds(
-        Condition,
+        FilterCondition,
+        type=st.just("condition"),
         column_id=comparison_column_id,
         operator=st.sampled_from(["==", "!=", "<", ">", "<=", ">="]),
         value=st.one_of(
@@ -111,14 +113,16 @@ def create_transform_strategy(
     )
 
     boolean_condition_strategy = st.builds(
-        Condition,
+        FilterCondition,
+        type=st.just("condition"),
         column_id=bool_column_id,
         operator=st.sampled_from(["is_true", "is_false"]),
         value=st.just(None),
     )
 
     string_condition_strategy = st.builds(
-        Condition,
+        FilterCondition,
+        type=st.just("condition"),
         column_id=string_column_id,
         operator=st.sampled_from(
             [
@@ -134,7 +138,8 @@ def create_transform_strategy(
     )
 
     list_condition_strategy = st.builds(
-        Condition,
+        FilterCondition,
+        type=st.just("condition"),
         column_id=list_column_id,
         operator=st.sampled_from(["in", "not_in"]),
         value=st.lists(st.one_of(st.text()), min_size=1),
@@ -170,11 +175,18 @@ def create_transform_strategy(
         na_position=st.sampled_from(["first", "last"]),
     )
 
+    filter_group_strategy = st.builds(
+        FilterGroup,
+        type=st.just("group"),
+        operator=st.just("and"),
+        children=st.lists(condition_strategy, min_size=1),
+    )
+
     filter_rows_transform_strategy = st.builds(
         FilterRowsTransform,
         type=st.just(TransformType.FILTER_ROWS),
         operation=st.sampled_from(["keep_rows", "remove_rows"]),
-        where=st.lists(condition_strategy, min_size=1),
+        where=filter_group_strategy,
     )
 
     group_by_transform_strategy = st.builds(
@@ -375,7 +387,7 @@ def test_print_code_result_matches_actual_transform_pandas(
         assume(
             not any(
                 condition.column_id in {"dates", "times", "datetimes"}
-                for condition in transform.where
+                for condition in transform.where.children
             )
         )
     # Ignore groupby mean
@@ -558,7 +570,7 @@ def test_print_code_result_matches_actual_transform_polars(
         assume(
             not any(
                 condition.column_id in {"dates", "times", "datetimes"}
-                for condition in transform.where
+                for condition in transform.where.children
             )
         )
     # Only explode columns for lists
@@ -802,7 +814,7 @@ def test_print_code_result_matches_actual_transform_ibis(
         assume(
             not any(
                 condition.column_id in {"booleans"}
-                for condition in transform.where
+                for condition in transform.where.children
             )
         )
     # Skip column conversion with errors='ignore' - ibis coalesce has type precedence issues

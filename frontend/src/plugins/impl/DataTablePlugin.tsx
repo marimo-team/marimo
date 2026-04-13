@@ -28,10 +28,7 @@ import { TablePanel } from "@/components/data-table/charts/charts";
 import { hasChart } from "@/components/data-table/charts/storage";
 import { ColumnChartSpecModel } from "@/components/data-table/column-summary/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary/column-summary";
-import {
-  type ColumnFilterValue,
-  filterToFilterCondition,
-} from "@/components/data-table/filters";
+import { filtersToFilterGroup } from "@/components/data-table/filters";
 import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-ownership";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import {
@@ -86,8 +83,8 @@ import { rpc } from "../core/rpc";
 import { Banner } from "./common/error-banner";
 import { Labeled } from "./common/labeled";
 import {
-  ConditionSchema,
-  type ConditionType,
+  FilterGroupSchema,
+  type FilterGroupType,
   columnToFieldTypesSchema,
 } from "./data-frames/schema";
 
@@ -213,7 +210,7 @@ type DataTableFunctions = {
       descending: boolean;
     }[];
     query?: string;
-    filters?: ConditionType[];
+    filters?: FilterGroupType;
     page_number: number;
     page_size: number;
     max_columns?: number | null;
@@ -312,7 +309,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             )
             .optional(),
           query: z.string().optional(),
-          filters: z.array(ConditionSchema).optional(),
+          filters: FilterGroupSchema.optional(),
           page_number: z.number(),
           page_size: z.number(),
           max_columns: z.number().nullable().optional(),
@@ -578,12 +575,7 @@ export const LoadingDataTableComponent = memo(
         query: searchQuery,
         page_number: paginationState.pageIndex,
         page_size: paginationState.pageSize,
-        filters: filters.flatMap((filter) => {
-          return filterToFilterCondition(
-            filter.id,
-            filter.value as ColumnFilterValue,
-          );
-        }),
+        filters: filtersToFilterGroup(filters),
       });
 
       if (canShowInitialPage) {
@@ -641,12 +633,7 @@ export const LoadingDataTableComponent = memo(
           page_size: 1,
           sort: sortArgs,
           query: searchQuery,
-          filters: filters.flatMap((filter) => {
-            return filterToFilterCondition(
-              filter.id,
-              filter.value as ColumnFilterValue,
-            );
-          }),
+          filters: filtersToFilterGroup(filters),
           // Do not clamp number of columns since we are viewing a single row
           max_columns: null,
         });
