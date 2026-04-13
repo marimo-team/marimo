@@ -19,6 +19,7 @@ from starlette.authentication import (
     AuthenticationBackend,
     BaseUser,
     SimpleUser,
+    UnauthenticatedUser,
 )
 from starlette.background import BackgroundTask
 from starlette.middleware.base import (
@@ -373,15 +374,43 @@ class ProxyMiddleware:
             [ConnectionRefusedError, str], Response
         ]
         | None = None,
+        *,
+        require_auth: bool = True,
     ) -> None:
         self.app = app
         self.path = proxy_path.rstrip("/")
         self.target_url = target_url
         self.path_rewrite = path_rewrite
+        self.require_auth = require_auth
         self.connection_error_handler = (
             connection_error_handler
             if connection_error_handler
             else _handle_proxy_connection_error
+        )
+
+    def _is_authenticated(self, scope: Scope) -> bool:
+        user = scope.get("user")
+        if user is None or isinstance(user, UnauthenticatedUser):
+            return False
+        return bool(getattr(user, "is_authenticated", False))
+
+    async def _reject_unauthenticated_http(
+        self, scope: Scope, receive: Receive, send: Send
+    ) -> None:
+        response = JSONResponse(
+            {"detail": "Authorization header required"},
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            headers={"WWW-Authenticate": "Basic"},
+        )
+        await response(scope, receive, send)
+
+    async def _reject_unauthenticated_websocket(
+        self, scope: Scope, receive: Receive, send: Send
+    ) -> None:
+        websocket = WebSocket(scope, receive=receive, send=send)
+        await websocket.close(
+            code=WebSocketCodes.UNAUTHORIZED,
+            reason="Unauthorized",
         )
 
     def _get_target_url(self, path: str) -> str:
@@ -417,6 +446,15 @@ class ProxyMiddleware:
             if not scope["path"].startswith(self.path):
                 return await self.app(scope, receive, send)
 
+            if self.require_auth and not self._is_authenticated(scope):
+                LOGGER.warning(
+                    "Rejecting unauthenticated websocket proxy request to %s",
+                    scope["path"],
+                )
+                return await self._reject_unauthenticated_websocket(
+                    scope, receive, send
+                )
+
             ws_target_url = self._get_target_url(scope["path"])
             ws_path = scope["path"]
             if self.path_rewrite:
@@ -442,6 +480,15 @@ class ProxyMiddleware:
         if not scope["path"].startswith(self.path):
             await self.app(scope, receive, send)
             return
+
+        if self.require_auth and not self._is_authenticated(scope):
+            LOGGER.warning(
+                "Rejecting unauthenticated http proxy request to %s",
+                scope["path"],
+            )
+            return await self._reject_unauthenticated_http(
+                scope, receive, send
+            )
 
         target_base = self._get_target_url(request.url.path)
         # Remove proxy path prefix for proxied request
