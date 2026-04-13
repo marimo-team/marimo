@@ -116,6 +116,14 @@ class DynamicDirectoryMiddleware:
                 "Using path='/' or path='' is not supported."
             )
         self.directory = Path(directory)
+        # Precompute the resolved directory so we don't hit the filesystem
+        # on every request. Fall back to an absolute path if resolve()
+        # fails (e.g., broken symlink), so the middleware still starts
+        # and per-request checks can handle resolution errors.
+        try:
+            self._resolved_directory = self.directory.resolve()
+        except (RuntimeError, OSError):
+            self._resolved_directory = self.directory.absolute()
         self.app_builder = app_builder
         self._app_cache: dict[str, ASGIApp] = {}
         self.validate_callback = validate_callback
@@ -146,9 +154,9 @@ class DynamicDirectoryMiddleware:
     def _is_within_directory(self, path: Path) -> bool:
         """Check that path resolves to a location within self.directory."""
         try:
-            path.resolve().relative_to(self.directory.resolve())
+            path.resolve().relative_to(self._resolved_directory)
             return True
-        except ValueError:
+        except (ValueError, RuntimeError, OSError):
             return False
 
     def _find_matching_file(
@@ -157,8 +165,11 @@ class DynamicDirectoryMiddleware:
         """Find a matching Python file in the directory structure.
         Returns tuple of (matching file, remaining path) if found, None otherwise.
         """
-        # Reject path traversal segments
-        if ".." in relative_path.split("/"):
+        # Reject path traversal segments. Normalize "\" to "/" so the check
+        # also catches backslash segments, which Windows treats as path
+        # separators (e.g. "..\\secret" via %5C in the URL).
+        segments = relative_path.replace("\\", "/").split("/")
+        if ".." in segments:
             return None
 
         # Try direct match first, skip if relative path has an extension
