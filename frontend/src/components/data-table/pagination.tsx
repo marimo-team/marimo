@@ -2,7 +2,7 @@
 "use no memo";
 
 import type { Table } from "@tanstack/react-table";
-import { range } from "lodash-es";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ChevronDown,
   ChevronLeft,
@@ -37,9 +37,6 @@ import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { prettyNumber } from "@/utils/numbers";
 import { PluralWord } from "@/utils/pluralize";
-import type { PageRange } from "./types";
-
-const MAX_PAGES_BEFORE_CLAMPING = 100;
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
@@ -189,6 +186,8 @@ export const DataTablePagination = <TData,>({
   );
 };
 
+const PAGE_ITEM_HEIGHT = 32;
+
 export const PageSelector = ({
   currentPage,
   totalPages,
@@ -199,19 +198,38 @@ export const PageSelector = ({
   onPageChange: (page: number) => void;
 }) => {
   const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
 
-  const pageRanges = React.useMemo(
-    () => getPageRanges(currentPage, totalPages),
-    [currentPage, totalPages],
-  );
+  const filteredPages = React.useMemo(() => {
+    if (search === "") {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const result: number[] = [];
+    for (let i = 1; i <= totalPages; i++) {
+      if (String(i).startsWith(search)) {
+        result.push(i);
+      }
+    }
+    return result;
+  }, [totalPages, search]);
 
   const handleSelect = (page: number) => {
     onPageChange(page - 1);
     setOpen(false);
   };
 
+  const listHeight = Math.min(filteredPages.length * PAGE_ITEM_HEIGHT, 240);
+
   return (
-    <Popover open={totalPages > 1 ? open : false} onOpenChange={setOpen}>
+    <Popover
+      open={totalPages > 1 ? open : false}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setSearch("");
+        }
+      }}
+    >
       <PopoverTrigger asChild={true} disabled={totalPages <= 1}>
         <button
           type="button"
@@ -229,18 +247,15 @@ export const PageSelector = ({
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-36 p-0" align="center" sideOffset={6}>
-        <Command
-          shouldFilter={true}
-          filter={(value, search) => {
-            return value.startsWith(search) ? 1 : 0;
-          }}
-        >
+        <Command shouldFilter={false} value={String(currentPage)}>
           <CommandInput
             placeholder={`Page (1–${totalPages})`}
             rootClassName="px-2 h-8"
             className="text-xs h-8"
             autoFocus={true}
             icon={null}
+            value={search}
+            onValueChange={setSearch}
             onKeyDown={(e) => {
               // Allow navigation/editing keys, block non-numeric input
               const allowed = [
@@ -248,6 +263,8 @@ export const PageSelector = ({
                 "Delete",
                 "ArrowLeft",
                 "ArrowRight",
+                "ArrowUp",
+                "ArrowDown",
                 "Tab",
                 "Enter",
                 "Escape",
@@ -257,27 +274,19 @@ export const PageSelector = ({
               }
             }}
           />
-          <CommandList className="max-h-60">
-            {pageRanges.map((item) =>
-              item.type === "ellipsis" ? null : (
-                <CommandItem
-                  key={item.page}
-                  value={String(item.page)}
-                  data-testid="page-option"
-                  className={cn(
-                    "text-xs cursor-pointer",
-                    item.page === currentPage && "font-semibold bg-accent",
-                  )}
-                  onSelect={() => handleSelect(item.page)}
-                  onMouseDown={Events.preventFocus}
-                >
-                  {item.page}
-                </CommandItem>
-              ),
+          <CommandList className="max-h-60 overflow-hidden">
+            {filteredPages.length === 0 ? (
+              <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
+                No matching page
+              </CommandEmpty>
+            ) : (
+              <VirtualizedPageList
+                pages={filteredPages}
+                currentPage={currentPage}
+                listHeight={listHeight}
+                onSelect={handleSelect}
+              />
             )}
-            <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
-              No matching page
-            </CommandEmpty>
           </CommandList>
         </Command>
       </PopoverContent>
@@ -285,47 +294,72 @@ export const PageSelector = ({
   );
 };
 
-export function getPageRanges(
-  currentPage: number,
-  totalPages: number,
-): PageRange[] {
-  if (totalPages <= MAX_PAGES_BEFORE_CLAMPING) {
-    return range(totalPages).map((i) => ({ type: "page", page: i + 1 }));
-  }
+const VirtualizedPageList = ({
+  pages,
+  currentPage,
+  listHeight,
+  onSelect,
+}: {
+  pages: number[];
+  currentPage: number;
+  listHeight: number;
+  onSelect: (page: number) => void;
+}) => {
+  const parentRef = React.useRef<HTMLDivElement>(null);
 
-  const middle = Math.floor(totalPages / 2);
+  const currentIndex = pages.indexOf(currentPage);
 
-  const items: PageRange[] = [];
-  const addPages = (start: number, count: number) => {
-    for (let i = 0; i < count; i++) {
-      items.push({ type: "page", page: start + i });
-    }
-  };
+  const virtualizer = useVirtualizer({
+    count: pages.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => PAGE_ITEM_HEIGHT,
+    overscan: 10,
+    initialOffset:
+      currentIndex > 0
+        ? Math.max(0, currentIndex * PAGE_ITEM_HEIGHT - listHeight / 2)
+        : 0,
+  });
 
-  addPages(1, 10);
-  items.push({ type: "ellipsis", key: "e1" });
-
-  if (currentPage > 10 && currentPage <= middle - 5) {
-    items.push(
-      { type: "page", page: currentPage },
-      { type: "ellipsis", key: "e1b" },
-    );
-  }
-
-  addPages(middle - 4, 10);
-  items.push({ type: "ellipsis", key: "e2" });
-
-  if (currentPage > middle + 5 && currentPage <= totalPages - 10) {
-    items.push(
-      { type: "page", page: currentPage },
-      { type: "ellipsis", key: "e2b" },
-    );
-  }
-
-  addPages(totalPages - 9, 10);
-
-  return items;
-}
+  return (
+    <div ref={parentRef} style={{ height: listHeight, overflow: "auto" }}>
+      <div
+        style={{
+          height: virtualizer.getTotalSize(),
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          const page = pages[virtualItem.index];
+          return (
+            <CommandItem
+              key={page}
+              value={String(page)}
+              data-testid="page-option"
+              aria-selected={page === currentPage}
+              className={cn(
+                "text-xs cursor-pointer",
+                page === currentPage && "font-semibold bg-accent",
+              )}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: virtualItem.size,
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+              onSelect={() => onSelect(page)}
+              onMouseDown={Events.preventFocus}
+            >
+              {page}
+            </CommandItem>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export function prettifyRowCount(rowCount: number, locale: string): string {
   return `${prettyNumber(rowCount, locale)} ${new PluralWord("row").pluralize(rowCount)}`;
