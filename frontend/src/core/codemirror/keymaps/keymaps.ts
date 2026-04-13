@@ -1,8 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import {
+  cursorCharLeft,
+  cursorCharRight,
+  cursorLineDown,
+  cursorLineUp,
   insertNewlineAndIndent,
   defaultKeymap as originalDefaultKeymap,
+  selectCharLeft,
+  selectCharRight,
+  selectLineDown,
+  selectLineUp,
   toggleBlockComment,
   toggleComment,
 } from "@codemirror/commands";
@@ -13,7 +21,7 @@ import {
   type KeyBinding,
   keymap,
 } from "@codemirror/view";
-import { getCM, vim } from "@replit/codemirror-vim";
+import { type CodeMirror, getCM, vim } from "@replit/codemirror-vim";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { logNever } from "@/utils/assertNever";
@@ -62,6 +70,12 @@ export function keymapBundle(
             },
           ),
         ),
+        // Arrow keys: use CodeMirror's cursor movement except in vim visual
+        // mode, where vim must handle them to maintain selection.
+        // The original cursorLineUp/Down bindings from the default keymap are
+        // filtered out (see defaultVimKeymap) because their preventDefault
+        // flag blocks vim's handler even when their run function returns false.
+        keymap.of(vimVisualModeArrowKeyBindings()),
         // Base vim mode
         vim({ status: false }),
         // Custom vim keymaps for cell navigation
@@ -101,12 +115,22 @@ const overrideKeymap = (keymap: HotkeyProvider): readonly KeyBinding[] => {
 };
 
 const defaultVimKeymap = once(() => {
-  const toRemove = new Set(["Enter", "Ctrl-v"]);
+  const toRemove = new Set([
+    "Enter",
+    "Ctrl-v",
+    "ArrowUp",
+    "ArrowDown",
+    "ArrowLeft",
+    "ArrowRight",
+  ]);
   // Remove conflicting keys from the keymap
   // Enter (<CR>) adds a new line
   //   - it should just go to the next line
   // Ctrl-v goes to the bottom of the cell
   //   - should enter blockwise visual mode
+  // ArrowUp/ArrowDown (cursorLineUp/Down) always handle the event and have
+  //   preventDefault, which blocks vim's handler from processing arrow keys.
+  //   Replaced with visual-mode-aware wrappers in keymapBundle.
   return defaultKeymap().filter(
     (k) => !toRemove.has(k.key || k.mac || k.linux || k.win || ""),
   );
@@ -153,6 +177,49 @@ function doubleCharacterListener(
       },
     },
   ]);
+}
+
+function isInVimVisualMode(cm: CodeMirror | undefined | null): boolean {
+  return cm?.state.vim?.visualMode === true;
+}
+
+/**
+ * In vim visual mode, arrow keys must be handled by vim to maintain selection.
+ * Wrap each arrow key's run and shift so they defer to vim in visual mode,
+ * but use CodeMirror's cursor commands in all other modes.
+ */
+function vimVisualModeArrowKeyBindings(): KeyBinding[] {
+  const wrap =
+    (cmd: Command): Command =>
+    (view) => {
+      if (isInVimVisualMode(getCM(view))) {
+        return false;
+      }
+      return cmd(view);
+    };
+
+  return [
+    {
+      key: "ArrowDown",
+      run: wrap(cursorLineDown),
+      shift: wrap(selectLineDown),
+    },
+    {
+      key: "ArrowUp",
+      run: wrap(cursorLineUp),
+      shift: wrap(selectLineUp),
+    },
+    {
+      key: "ArrowLeft",
+      run: wrap(cursorCharLeft),
+      shift: wrap(selectCharLeft),
+    },
+    {
+      key: "ArrowRight",
+      run: wrap(cursorCharRight),
+      shift: wrap(selectCharRight),
+    },
+  ];
 }
 
 export const visibleForTesting = {
