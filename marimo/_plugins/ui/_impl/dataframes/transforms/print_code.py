@@ -71,7 +71,9 @@ def python_print_pandas(
             if isinstance(value, RangeValue):
                 result = f"{col}.between({_as_literal(value.min)}, {_as_literal(value.max)})"
             else:
-                raise ValueError(f"between requires RangeValue, got {type(value)}")
+                raise ValueError(
+                    f"between requires RangeValue, got {type(value)}"
+                )
         elif operator == "is_empty":
             result = f"({col} == '')"
         else:
@@ -333,7 +335,9 @@ def python_print_polars(
             if isinstance(value, RangeValue):
                 result = f"{col}.is_between({_as_literal(value.min)}, {_as_literal(value.max)})"
             else:
-                raise ValueError(f"between requires RangeValue, got {type(value)}")
+                raise ValueError(
+                    f"between requires RangeValue, got {type(value)}"
+                )
         elif operator == "is_empty":
             result = f'({col} == "")'
         else:
@@ -568,7 +572,9 @@ def python_print_ibis(
             if isinstance(value, RangeValue):
                 result = f"({col}.between({_as_literal(value.min)}, {_as_literal(value.max)}))"
             else:
-                raise ValueError(f"between requires RangeValue, got {type(value)}")
+                raise ValueError(
+                    f"between requires RangeValue, got {type(value)}"
+                )
         elif operator == "is_empty":
             result = f'({col} == "")'
         else:
