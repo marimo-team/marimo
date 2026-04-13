@@ -70,13 +70,11 @@ class AppScriptRunner:
         self._executor = get_executor(ExecutionConfig())
 
     def _cancel(self, cell_id: CellId_t) -> None:
-        cancelled = set(
+        cancelled = {
             cid
-            for cid in dataflow.transitive_closure(
-                self.app.graph, set([cell_id])
-            )
+            for cid in dataflow.transitive_closure(self.app.graph, {cell_id})
             if cid in self.cells_to_run
-        )
+        }
         for cid in cancelled:
             self.app.graph.cells[cid].set_run_result_status("cancelled")
         self.cells_cancelled |= cancelled
@@ -120,7 +118,7 @@ class AppScriptRunner:
                         if isinstance(unwrapped_exception, MarimoStopError):
                             self._cancel(cid)
                         else:
-                            raise e
+                            raise
                     finally:
                         for hook in post_execute_hooks:
                             hook()
@@ -166,7 +164,7 @@ class AppScriptRunner:
                         if isinstance(unwrapped_exception, MarimoStopError):
                             self._cancel(cid)
                         else:
-                            raise e
+                            raise
                     finally:
                         for hook in post_execute_hooks:
                             hook()

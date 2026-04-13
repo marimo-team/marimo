@@ -84,10 +84,13 @@ def _extract_png_dimensions(data_url: str) -> tuple[int, int]:
 
 
 @pytest.mark.skipif(not HAS_MPL, reason="optional dependencies not installed")
-async def test_matplotlib_retina_rendering(
-    executing_kernel: Kernel, exec_req: ExecReqProvider
+@pytest.mark.parametrize("dpi", [72, 300])
+async def test_matplotlib_image_resolution_respects_dpi(
+    executing_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    dpi: int,
 ) -> None:
-    """Test that matplotlib figures are rendered at 2x DPI for retina displays."""
+    """Test that the actual image resolution (pixels) scales with DPI."""
     from marimo._output.formatters.formatters import register_formatters
 
     register_formatters(theme="light")
@@ -95,12 +98,11 @@ async def test_matplotlib_retina_rendering(
     await executing_kernel.run(
         [
             exec_req.get(
-                """
+                f"""
                 import matplotlib.pyplot as plt
 
-                # Create a simple figure
-                fig, ax = plt.subplots(figsize=(4, 3))
-                ax.plot([1, 2, 3], [1, 2, 3])
+                # Create an empty figure (no content) to isolate DPI effects
+                fig = plt.figure(figsize=(4, 3), dpi={dpi})
 
                 # Get the formatted output
                 result = fig._mime_()
@@ -124,12 +126,13 @@ async def test_matplotlib_retina_rendering(
     png_data_url = mimebundle["image/png"]
     width, height = _extract_png_dimensions(png_data_url)
 
-    # Verify it's rendering at high DPI (should be significantly larger than
-    # the base figsize in pixels). At 2x DPI, a 4x3 inch figure should be
-    # at least 500x400 pixels (allowing for different base DPI values)
-    # The exact value depends on matplotlib's default DPI (can be 72, 90, 100, etc.)
-    assert width >= 500, f"Expected high-res width (>500px), got {width}"
-    assert height >= 350, f"Expected high-res height (>350px), got {height}"
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.savefig.html
+    pad_inches = 0.1
+    calc_width = round((4 + 2 * pad_inches) * dpi)
+    calc_height = round((3 + 2 * pad_inches) * dpi)
+
+    assert calc_width - 5 < width < calc_width + 5
+    assert calc_height - 5 < height < calc_height + 5
 
     # Verify aspect ratio is preserved (4:3 ratio)
     aspect_ratio = width / height
@@ -140,10 +143,11 @@ async def test_matplotlib_retina_rendering(
 
 
 @pytest.mark.skipif(not HAS_MPL, reason="optional dependencies not installed")
-async def test_matplotlib_retina_metadata(
-    executing_kernel: Kernel, exec_req: ExecReqProvider
+@pytest.mark.parametrize("dpi", [72, 300])
+async def test_matplotlib_display_size_remains_constant(
+    executing_kernel: Kernel, exec_req: ExecReqProvider, dpi: int
 ) -> None:
-    """Test that matplotlib figures include proper width/height metadata."""
+    """Test that the display size in the notebook remains constant even if DPI changes."""
     from marimo._output.formatters.formatters import register_formatters
 
     register_formatters(theme="light")
@@ -151,12 +155,11 @@ async def test_matplotlib_retina_metadata(
     await executing_kernel.run(
         [
             exec_req.get(
-                """
+                f"""
                 import matplotlib.pyplot as plt
 
-                # Create a simple figure
-                fig, ax = plt.subplots(figsize=(4, 3))
-                ax.plot([1, 2, 3], [1, 2, 3])
+                # Create an empty figure (no content) to isolate DPI effects
+                fig = plt.figure(figsize=(4, 3), dpi={dpi})
                 result = fig._mime_()
                 """
             )
@@ -177,11 +180,7 @@ async def test_matplotlib_retina_metadata(
         "Metadata should include image/png dimensions"
     )
 
-    # Extract actual PNG dimensions
-    png_data_url = mimebundle_data["image/png"]
-    actual_width, actual_height = _extract_png_dimensions(png_data_url)
-
-    # Metadata dimensions should be half of actual (for retina display)
+    # Metadata dimensions should be figsize (4x3 inches) in 100 DPI.
     png_metadata = metadata["image/png"]
     assert "width" in png_metadata
     assert "height" in png_metadata
@@ -189,20 +188,20 @@ async def test_matplotlib_retina_metadata(
     metadata_width = png_metadata["width"]
     metadata_height = png_metadata["height"]
 
-    # Metadata should be approximately half the actual PNG dimensions
-    assert abs(metadata_width - actual_width // 2) <= 2, (
-        f"Metadata width {metadata_width} should be ~half of actual {actual_width}"
-    )
-    assert abs(metadata_height - actual_height // 2) <= 2, (
-        f"Metadata height {metadata_height} should be ~half of actual {actual_height}"
-    )
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.savefig.html
+    pad_inches = 0.1
+    calc_width = round((4 + 2 * pad_inches) * 100)
+    calc_height = round((3 + 2 * pad_inches) * 100)
+
+    assert calc_width - 5 < metadata_width < calc_width + 5
+    assert calc_height - 5 < metadata_height < calc_height + 5
 
 
 @pytest.mark.skipif(not HAS_MPL, reason="optional dependencies not installed")
 async def test_matplotlib_backwards_compatibility(
     executing_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    """Test that existing matplotlib code still works with retina rendering."""
+    """Test that existing matplotlib code still works with the new DPI rendering logic."""
     from marimo._output.formatters.formatters import register_formatters
 
     register_formatters(theme="light")

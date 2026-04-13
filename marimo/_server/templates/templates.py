@@ -324,8 +324,10 @@ def notebook_page_template(
     if html_head:
         html = html.replace("</head>", f"{html_head}</head>")
 
-    # Add per-notebook HTML head file contents if specified
-    if app_config.html_head_file:
+    # html_head_file is blocked in edit mode: it can contain arbitrary scripts
+    # and markup that could exfiltrate data or redress the UI. CSS-only styling
+    # (css_file) is permitted. Run mode is unaffected.
+    if mode == SessionMode.RUN and app_config.html_head_file:
         head_contents = read_html_head_file(
             app_config.html_head_file, filename=filepath or filename
         )

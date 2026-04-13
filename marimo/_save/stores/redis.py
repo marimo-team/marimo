@@ -23,9 +23,7 @@ class RedisStore(Store):
 
     def put(self, key: str, value: bytes) -> bool:
         result = self.redis.set(key, value)
-        if result is None:
-            return False
-        return True
+        return result is not None
 
     def hit(self, key: str) -> bool:
         return self.redis.exists(key) > 0

@@ -274,9 +274,9 @@ class CellImpl:
     @property
     def imported_namespaces(self) -> set[Name]:
         """Return a set of the namespaces imported by this cell."""
-        return set(
+        return {
             import_data.module.split(".")[0] for import_data in self.imports
-        )
+        }
 
     def namespace_to_variable(self, namespace: str) -> Name | None:
         """Returns the variable name corresponding to an imported namespace
@@ -322,7 +322,7 @@ class CellImpl:
         # Check that def matches the single definition
         name = tree.body[0].name
         ast_name = unmangle_local(variables.pop()).name
-        if not (name == ast_name):
+        if name != ast_name:
             return None
 
         if name.startswith("_"):
@@ -334,7 +334,7 @@ class CellImpl:
         ):
             return None
 
-        return list(variable_data)[0]
+        return next(iter(variable_data))
 
     @property
     def init_variable_data(self) -> dict[Name, VariableData]:

@@ -14,7 +14,7 @@ marimo is designed to be:
     5. fun
 """
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # Core API
     "App",
     "Cell",

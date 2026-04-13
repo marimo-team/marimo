@@ -502,9 +502,7 @@ class SessionCacheManager:
             return False
         if "script_metadata_hash" not in metadata:
             return False
-        if metadata.get("script_metadata_hash") != key.script_metadata_hash:
-            return False
-        return True
+        return metadata.get("script_metadata_hash") == key.script_metadata_hash
 
     def read_session_view(self, key: SessionCacheKey) -> SessionView:
         """Read the session view from the cache files.

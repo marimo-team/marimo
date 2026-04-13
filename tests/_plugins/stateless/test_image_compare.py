@@ -114,7 +114,7 @@ async def test_image_compare_filename(
     )
 
     assert len(get_context().virtual_file_registry.registry) == 2
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".png")
 
 
@@ -149,7 +149,7 @@ async def test_image_compare_path(
     )
 
     assert len(get_context().virtual_file_registry.registry) == 2
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".png")
 
 
@@ -172,7 +172,7 @@ async def test_image_compare_bytes_io(
     )
 
     assert len(get_context().virtual_file_registry.registry) == 2
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".png")
 
 
@@ -243,7 +243,7 @@ async def test_image_compare_array(
     )
 
     assert len(get_context().virtual_file_registry.registry) == 2
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".png")
 
 
@@ -267,7 +267,7 @@ async def test_image_compare_numpy(
     )
 
     assert len(get_context().virtual_file_registry.registry) == 2
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".png")
 
 

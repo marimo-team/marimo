@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.23.0"
+version = "0.23.1"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments; we need a very compelling reason for each dependency added.
@@ -330,76 +330,47 @@ ignore = [
 
     # From new version of Ruff: We should fix these, but it raises too many errors
     "BLE001", # Do not catch blind exception: `Exception`
-    "C405", # Unnecessary literal set
+    "RUF059", # Unused unpacked variable
     "DTZ001", # `datetime.datetime()` called without a `tzinfo` argument
     "PLW1510", # `subprocess.run` without explicit `check`
-    "FLY002", # Static join to f-string
-    "RUF059", # Unused unpacked variable
     "S110", # `try`-`except`-`pass`
     "TRY004", # Type check without `TypeError`
     "SIM102", # Use a single `if` statement instead of nested `if` statements
     "SIM117", # Use a single `with` statement with multiple contexts instead of nested `with` statements
-    "SIM118", # Use `key in dict` instead of `key in dict.keys()`
-    "RUF015", # Unnecessary iterable allocation for first element
-    "C408", # Unnecessary `dict`/`list`/`tuple` call
-    "C419", # Unnecessary comprehension inside `any`/`all`/`sum`/`min`/`max`
-    "SIM103", # Needless bool
-    "PIE810", # Multiple `startswith` / `endswith` calls
-    "C401", # Unnecessary generator set
     "RUF012", # Mutable class default
     "S102", # Use of `exec`
-    "TRY201", # Verbose `raise` (use `raise` without exception name)
     "PYI036", # Bad `sys.exit` annotation
-    "RUF013", # Implicit optional
     "DTZ005", # `datetime.now()` called without `tzinfo`
     "PLC0206", # Dict index without `.items()`
     "PYI066", # Put branches for newer Python versions first when branching on `sys.version_info` comparisons
     "SIM115", # Open file without context handler
-    "C403", # Unnecessary list comprehension set
-    "C414", # Unnecessary double cast or process
-    "SIM101", # Duplicate `isinstance` call
-    "SIM401", # Use `dict.get` instead of if-else block
     "DTZ006", # `datetime.fromtimestamp()` called without `tzinfo`
     "DTZ007", # `datetime.strptime()` called without zone
     "DTZ011", # `date.today()` used
-    "PYI034", # Non-self return type
-    "RUF022", # Unsorted `__all__`
     "TRY401", # Verbose log message
     "UP007", # Use `X | Y` for type annotations
-    "D420", # Incorrect docstring section order
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
     "DTZ901", # `datetime.min` / `datetime.max` used
     "PLW0602", # Global variable not assigned
     "S112", # `try`-`except`-`continue`
     "TRY203", # Useless `try`-`except`
-    "C409", # Unnecessary list literal passed to `tuple()` (rewrite as a tuple literal)
     "PLC0105", # Type name incorrect variance
-    "C400", # Unnecessary generator list
-    "C411", # Unnecessary list call
     "PLE1205", # Logging too many args
     "PLW1508", # Invalid envvar default
     "PLW1509", # `subprocess` `preexec_fn` argument
-    "PYI059", # Generic not last base class
     "PYI063", # PEP 484-style positional-only parameter
-    "SIM201", # Negate equal op
     "DTZ002", # `datetime.today()` called without tz
-    "FURB132", # Check and remove from set
-    "PERF102", # Incorrect dict iterator
-    "PIE794", # Duplicate class field definition
     "PLC0205", # Single string `__slots__`
-    "PLC0414", # Useless import alias
     "PLE0704", # Misplaced bare `raise`
     "PLR1704", # Redefined argument from local
     "PLW0129", # Assert on string literal
-    "PLW0133", # Useless exception statement
     "PLW0642", # Self or cls assignment
     "PYI006", # Bad `sys.version_info` comparison
     "SIM113", # `enumerate` for loop
-    "SIM210", # If expression with `True`/`False`
     "T100", # Debugger
     "UP045", # Use `X | None` for optional type annotations
-
 ]
+
 extend-select = [
     # pyflakes
     "F",
@@ -472,6 +443,8 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 "**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "dagger/*" = ["TID252"]
+# Prefer multi-line "\n".join([...]) expected strings in codegen tests.
+"tests/_ast/test_codegen.py" = ["FLY002"]
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]

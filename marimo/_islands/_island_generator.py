@@ -411,10 +411,13 @@ class MarimoIslandGenerator:
                 base_url = _development_url
             return dedent(
                 f"""
-                <script
-                    type="module"
-                    src="{base_url}/src/core/islands/main.ts"
-                ></script>
+                <script type="module" src="{base_url}/dist/main.js"></script>
+                <link
+                    href="{base_url}/dist/style.css"
+                    rel="stylesheet"
+                    title="marimo-islands"
+                    crossorigin="anonymous"
+                />
                 {fonts}
                 """
             ).strip()
@@ -429,6 +432,7 @@ class MarimoIslandGenerator:
             <link
                 href="{base_url}/dist/style.css"
                 rel="stylesheet"
+                title="marimo-islands"
                 crossorigin="anonymous"
             />
             {fonts}

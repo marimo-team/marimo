@@ -99,11 +99,11 @@ def download_as(
         filename (str | None, optional): The filename to use for the downloaded file.
             Defaults to None, which uses a random filename.
 
-    Raises:
-        ValueError: If unrecognized format.
-
     Returns:
         tuple: (url, user-facing filename with extension) for the downloaded file.
+
+    Raises:
+        ValueError: If unrecognized format.
     """
     if drop_marimo_index:
         # Remove the selection column if exists

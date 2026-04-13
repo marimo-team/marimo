@@ -82,7 +82,7 @@ reproducibility, maintainability, composability, and shareability.
 - 🖐️ **interactive:** [bind sliders, tables, plots, and more](guides/interactivity.md) to Python — no callbacks required
 - 🐍 **git-friendly:** stored as `.py` files
 - 🛢️ **designed for data**: query dataframes, databases, warehouses, and lakehouses [with SQL](guides/working_with_data/sql.md); filter and search [dataframes](guides/working_with_data/dataframes.md)
-- 🤖 **AI-native**: [generate cells with AI](https://docs.marimo.io/guides/generate_with_ai/) tailored for data work
+- 🤖 **AI-native**: [connect agent CLIs](guides/generate_with_ai/marimo_pair/) like Claude Code to notebooks, or use our editor's [built-in AI features](guides/editor_features/ai_completion/)
 - 🔬 **reproducible:** [no hidden state](guides/reactivity.md), deterministic execution, [built-in package management](guides/editor_features/package_management.md)
 - 🏃 **executable:** [execute as a Python script](guides/scripts.md), parameterized by CLI args
 - 🛜 **shareable**: [deploy as an interactive web app](guides/apps.md) or [slides](guides/apps.md#slides-layout), [run in the browser via WASM](guides/wasm.md)
@@ -136,11 +136,15 @@ millions of rows blazingly fast, no code required.
   <source src="/_static/docs-df.webm" type="video/webm">
 </video>
 
-**Generate cells with data-aware AI.** [Generate code with an AI
-assistant](https://docs.marimo.io/guides/editor_features/ai_completion/) that is highly
-specialized for working with data, with context about your variables in memory;
-[zero-shot entire notebooks](https://docs.marimo.io/guides/generate_with_ai/text_to_notebook/).
-Customize the system prompt, bring your own API keys, or use local models.
+
+**Generate cells with data-aware AI.** Collaborate on marimo notebooks with
+your favorite agent, such as Claude Code, Codex, or OpenCode, using [marimo
+pair](guides/generate_with_ai/marimo_pair/). Or,
+generate code [in the marimo editor with an AI
+assistant](guides/editor_features/ai_completion/) that
+is highly specialized for working with data, with context about your variables
+in memory. Customize the system prompt, bring your own API keys, or use local
+models.
 
 <video autoplay muted loop playsinline width="700px" align="center">
   <source src="/_static/readme-generate-with-ai.mp4" type="video/mp4">

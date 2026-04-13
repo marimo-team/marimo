@@ -5,12 +5,14 @@ import { useCallback, useEffect, useRef } from "react";
 import { z } from "zod";
 import { useEventListener } from "@/hooks/useEventListener";
 import { createPlugin } from "@/plugins/core/builder";
+import { isTrustedVirtualFileUrl } from "@/plugins/core/trusted-url";
 import { MODEL_MANAGER, type Model } from "@/plugins/impl/anywidget/model";
 import type { ModelState, WidgetModelId } from "@/plugins/impl/anywidget/types";
 import type { IPluginProps } from "@/plugins/types";
 import { downloadBlob } from "@/utils/download";
 import { Logger } from "@/utils/Logger";
 import { MplCommWebSocket } from "./mpl-websocket-shim";
+import { Functions } from "@/utils/functions";
 
 const MPL_SCOPE_CLASS = "mpl-interactive-figure";
 
@@ -72,6 +74,11 @@ let mplJsLoading: Promise<void> | null = null;
 async function ensureMplJs(jsUrl: string): Promise<void> {
   if (window.mpl) {
     return;
+  }
+  if (!isTrustedVirtualFileUrl(jsUrl)) {
+    throw new Error(
+      `Refusing to load mpl.js from untrusted URL: ${String(jsUrl)}`,
+    );
   }
   if (mplJsLoading) {
     return mplJsLoading;
@@ -148,6 +155,12 @@ function patchToolbarImages(
 }
 
 function injectCss(container: HTMLElement, cssUrl: string): () => void {
+  if (!isTrustedVirtualFileUrl(cssUrl)) {
+    Logger.error(
+      `Refusing to load mpl CSS from untrusted URL: ${String(cssUrl)}`,
+    );
+    return Functions.NOOP;
+  }
   const link = document.createElement("link");
   link.rel = "stylesheet";
   link.href = cssUrl;
@@ -306,4 +319,12 @@ const MplInteractiveSlot = (props: IPluginProps<ModelIdRef, Data>) => {
 
   // Must match _MPL_SCOPE in from_mpl_interactive.py
   return <div ref={containerRef} className={MPL_SCOPE_CLASS} />;
+};
+
+export const visibleForTesting = {
+  ensureMplJs,
+  injectCss,
+  resetMplJsLoading: () => {
+    mplJsLoading = null;
+  },
 };

@@ -30,9 +30,7 @@ def create_dataframes(
     def should_include(lib: DFType) -> bool:
         if include is not None and lib not in include:
             return False
-        if exclude is not None and lib in exclude:
-            return False
-        return True
+        return not (exclude is not None and lib in exclude)
 
     if DependencyManager.pandas.has() and should_include("pandas"):
         import pandas as pd

@@ -47,10 +47,7 @@ class EarlyStoppingConfig:
         if self.stop_on_breaking and diagnostic.severity == Severity.BREAKING:
             return True
 
-        if self.stop_on_runtime and diagnostic.severity == Severity.RUNTIME:
-            return True
-
-        return False
+        return self.stop_on_runtime and diagnostic.severity == Severity.RUNTIME
 
 
 class RuleEngine:
@@ -86,7 +83,7 @@ class RuleEngine:
         # Process rules as they complete
         while pending_tasks:
             # Wait for at least one task to complete
-            done, pending = await asyncio.wait(
+            done, _pending = await asyncio.wait(
                 pending_tasks.keys(), return_when=asyncio.FIRST_COMPLETED
             )
 

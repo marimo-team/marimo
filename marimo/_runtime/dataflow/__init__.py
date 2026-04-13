@@ -78,8 +78,8 @@ def induced_subgraph(
     parents: dict[CellId_t, set[CellId_t]] = {}
     children: dict[CellId_t, set[CellId_t]] = {}
     for cid in cell_ids:
-        parents[cid] = set(p for p in graph.parents[cid] if p in cell_ids)
-        children[cid] = set(c for c in graph.children[cid] if c in cell_ids)
+        parents[cid] = {p for p in graph.parents[cid] if p in cell_ids}
+        children[cid] = {c for c in graph.children[cid] if c in cell_ids}
     return parents, children
 
 
@@ -88,9 +88,9 @@ def get_cycles(
 ) -> list[tuple[Edge, ...]]:
     """Get all cycles among `cell_ids`."""
     _, induced_children = induced_subgraph(graph, cell_ids)
-    induced_edges = set(
-        [(u, v) for u in induced_children for v in induced_children[u]]
-    )
+    induced_edges = {
+        (u, v) for u in induced_children for v in induced_children[u]
+    }
     return [c for c in graph.cycles if all(e in induced_edges for e in c)]
 
 
