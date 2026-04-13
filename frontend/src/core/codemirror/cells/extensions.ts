@@ -169,8 +169,6 @@ function cellKeymaps({
       },
       {
         key: "ArrowUp",
-        preventDefault: true,
-        stopPropagation: true,
         run: (ev) => {
           // Skip if we are in the middle of an autocompletion
           const hasAutocomplete = completionStatus(ev.state);
@@ -188,8 +186,6 @@ function cellKeymaps({
       },
       {
         key: "ArrowDown",
-        preventDefault: true,
-        stopPropagation: true,
         run: (ev) => {
           // Skip if we are in the middle of an autocompletion
           const hasAutocomplete = completionStatus(ev.state);

@@ -9,9 +9,7 @@ exports[`snapshot all duplicate keymaps > default keymaps 2`] = `
     },
     {
       "key": "ArrowDown",
-      "preventDefault": true,
       "run": "run",
-      "stopPropagation": true,
     },
     {
       "key": "ArrowDown",
@@ -27,9 +25,7 @@ exports[`snapshot all duplicate keymaps > default keymaps 2`] = `
     },
     {
       "key": "ArrowUp",
-      "preventDefault": true,
       "run": "run",
-      "stopPropagation": true,
     },
     {
       "key": "ArrowUp",
@@ -118,15 +114,12 @@ exports[`snapshot all duplicate keymaps > vim keymaps 2`] = `
     },
     {
       "key": "ArrowDown",
-      "preventDefault": true,
       "run": "run",
-      "stopPropagation": true,
     },
     {
       "key": "ArrowDown",
-      "preventDefault": true,
-      "run": "cursorLineDown",
-      "shift": "selectLineDown",
+      "run": "<no name>",
+      "shift": "<no name>",
     },
   ],
   "ArrowUp": [
@@ -136,15 +129,12 @@ exports[`snapshot all duplicate keymaps > vim keymaps 2`] = `
     },
     {
       "key": "ArrowUp",
-      "preventDefault": true,
       "run": "run",
-      "stopPropagation": true,
     },
     {
       "key": "ArrowUp",
-      "preventDefault": true,
-      "run": "cursorLineUp",
-      "shift": "selectLineUp",
+      "run": "<no name>",
+      "shift": "<no name>",
     },
   ],
   "Backspace": [
