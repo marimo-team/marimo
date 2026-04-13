@@ -270,6 +270,7 @@ const CellEditorInternal = ({
     userConfig.language_servers,
     userConfig.display,
     userConfig.diagnostics,
+    userConfig.ai?.inline_tooltip,
     aiEnabled,
     theme,
     showPlaceholder,
