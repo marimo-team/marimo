@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import base64
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, TypedDict, Union
 
 import narwhals.stable.v2 as nw
 from narwhals.typing import IntoDataFrame
@@ -22,8 +22,11 @@ from marimo._utils.narwhals_utils import (
 
 LOGGER = _loggers.marimo_logger()
 
-Data = dict[Any, Any] | IntoDataFrame | nw.DataFrame[Any]
-_DataType = dict[Any, Any] | IntoDataFrame | nw.DataFrame[Any]
+# Use Union[] instead of X | Y for narwhals types — in older narwhals versions
+# (e.g. 2.6.0 shipped in Pyodide), IntoDataFrame is a string at runtime and
+# str does not support the | operator.
+Data = Union[dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
+_DataType = Union[dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
 
 
 class _JsonFormatDict(TypedDict):

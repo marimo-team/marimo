@@ -11,6 +11,7 @@ from typing import (
     Final,
     Literal,
     TypedDict,
+    Union,
     cast,
 )
 
@@ -111,11 +112,13 @@ def experimental_data_editor(
     return data_editor(*args, **kwargs)
 
 
+# Use Union[] instead of X | Y in class base — see altair_transformer.py
+# for rationale.
 @mddoc
 class data_editor(
     UIElement[
         DataEdits,
-        RowOrientedData | ColumnOrientedData | IntoDataFrame,
+        Union[RowOrientedData, ColumnOrientedData, IntoDataFrame],
     ]
 ):
     """A data editor component for editing tabular data.
