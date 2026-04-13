@@ -109,13 +109,23 @@ def _check_shutdown(
 def _try_fetch(
     port: int, host: str = "localhost", token: str | None = None
 ) -> bytes | None:
+    import http.cookiejar
+
     err: Exception | None = None
     for _ in range(20):
         try:
             url = f"http://{host}:{port}"
             if token is not None:
                 url = f"{url}?access_token={token}"
-            return urllib.request.urlopen(url).read()
+            # The server 303-redirects `/?access_token=...` to strip the
+            # token from the URL, attaching the session cookie to the
+            # redirect. Use a cookie-aware opener so the follow-up request
+            # carries that cookie and lands on the authenticated page
+            # instead of the login screen.
+            opener = urllib.request.build_opener(
+                urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
+            )
+            return opener.open(url).read()
         except Exception as e:
             err = e
             time.sleep(0.6)

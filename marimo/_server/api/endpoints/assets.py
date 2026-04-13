@@ -26,6 +26,7 @@ from marimo._runtime.virtual_file import (
     EMPTY_VIRTUAL_FILE,
     read_virtual_file_chunked,
 )
+from marimo._server.api.auth import TOKEN_QUERY_PARAM
 from marimo._server.api.deps import AppState
 from marimo._server.files.path_validator import PathValidator
 from marimo._server.router import APIRouter
@@ -107,6 +108,35 @@ except RuntimeError:
     LOGGER.error("Static files not found, skipping mount")
 
 FILE_QUERY_PARAM_KEY = "file"
+
+# Hardening headers for HTML page responses in edit/home mode. These
+# supplement the token-stripping redirect below by preventing any outbound
+# fetch from the HTML page from leaking a transiently-present access_token
+# via `Referer`, and by disabling MIME sniffing on the HTML response.
+_HTML_SECURITY_HEADERS: dict[str, str] = {
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+}
+
+
+def _strip_access_token_redirect(request: Request) -> RedirectResponse:
+    """Build a redirect to the current URL with access_token removed.
+
+    By the time this runs, `validate_auth` has already matched the query
+    param against the server's auth token and promoted it to a session
+    cookie. Redirecting before any JavaScript runs prevents a
+    pre-execution XSS, a third-party subresource, or browser history from
+    capturing the plaintext token.
+    """
+    stripped = request.url.remove_query_params(TOKEN_QUERY_PARAM)
+    target = stripped.path
+    if stripped.query:
+        target = f"{target}?{stripped.query}"
+    return RedirectResponse(
+        url=target,
+        status_code=303,
+        headers=_HTML_SECURITY_HEADERS,
+    )
 
 
 @router.get("/og/thumbnail", include_in_schema=False)
@@ -227,7 +257,15 @@ async def _fetch_index_html_from_url(asset_url: str) -> str:
 
 @router.get("/")
 @requires("read", redirect="auth:login_page")
-async def index(request: Request) -> HTMLResponse:
+async def index(request: Request) -> Response:
+    # Auth has already passed at this point — either via the session cookie
+    # or by validating `access_token` in the query string (which also set
+    # the cookie). If the token is still in the URL, redirect to strip it
+    # before serving HTML. The Set-Cookie header rides the 303 response, so
+    # the browser lands on a clean URL with an authenticated session.
+    if TOKEN_QUERY_PARAM in request.query_params:
+        return _strip_access_token_redirect(request)
+
     app_state = AppState(request)
     index_html = root / "index.html"
 
@@ -327,7 +365,7 @@ async def index(request: Request) -> HTMLResponse:
         # Inject service worker registration with the notebook ID
         html = _inject_service_worker(html, file_key)
 
-    return HTMLResponse(html)
+    return HTMLResponse(html, headers=_HTML_SECURITY_HEADERS)
 
 
 DEFAULT_NOTEBOOK_NAME = "__marimo_notebook__.py"

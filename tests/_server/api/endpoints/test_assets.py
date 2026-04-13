@@ -83,6 +83,60 @@ def test_index_when_new_file(client: TestClient) -> None:
     assert "<title>marimo</title>" in content
 
 
+def test_index_strips_access_token_query_param(client: TestClient) -> None:
+    # A valid `?access_token=` in the URL should 303 to the same path with
+    # the token removed, carrying a session cookie so the follow-up request
+    # is already authenticated. This prevents pre-execution XSS, Referer,
+    # or browser history from capturing the plaintext token.
+    response = client.get("/?access_token=fake-token", follow_redirects=False)
+    assert response.status_code == 303, response.text
+    assert response.headers["location"] == "/"
+    assert response.headers.get("referrer-policy") == "no-referrer"
+    assert response.headers.get("x-content-type-options") == "nosniff"
+    # The session cookie must be set so the redirect target is authenticated
+    # without the query param.
+    set_cookie = response.headers.get("set-cookie", "")
+    assert "session" in set_cookie
+
+
+def test_index_strips_access_token_preserves_other_params(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/?file=foo.py&access_token=fake-token&view-as=present",
+        follow_redirects=False,
+    )
+    assert response.status_code == 303, response.text
+    location = response.headers["location"]
+    assert location.startswith("/")
+    assert "access_token" not in location
+    assert "file=foo.py" in location
+    assert "view-as=present" in location
+
+
+def test_index_invalid_access_token_redirects_to_login(
+    client: TestClient,
+) -> None:
+    # An invalid token must NOT trigger the token-strip redirect (which
+    # would imply the token was accepted). Instead, `@requires` should
+    # redirect the unauthenticated request to the login page. Following
+    # the redirect lands on the login HTML.
+    response = client.get("/?access_token=wrong-token", follow_redirects=False)
+    assert response.status_code in (302, 303), response.text
+    assert "login" in response.headers["location"].lower()
+    # Following the redirect lands on the login page.
+    followed = client.get("/?access_token=wrong-token")
+    assert followed.status_code == 200
+    assert "Login" in followed.text
+
+
+def test_index_response_has_security_headers(client: TestClient) -> None:
+    response = client.get("/", headers=token_header())
+    assert response.status_code == 200, response.text
+    assert response.headers.get("referrer-policy") == "no-referrer"
+    assert response.headers.get("x-content-type-options") == "nosniff"
+
+
 def test_index_with_directory(client: TestClient, tmp_path: Path) -> None:
     with file_router_scope(
         client, AppFileRouter.from_directory(str(tmp_path))

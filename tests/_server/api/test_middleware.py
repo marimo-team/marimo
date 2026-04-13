@@ -266,13 +266,21 @@ class TestAuth:
         assert response.headers.get("Set-Cookie") is None
 
     def test_auth_by_query(self, app: Starlette) -> None:
-        # Test authorized access by auth_token in query
+        # Test authorized access by auth_token in query. The server now
+        # 303-redirects `/?access_token=...` to `/` after validating the
+        # token and attaching the session cookie to the redirect response,
+        # so the browser lands on a clean URL without exposing the token
+        # to JavaScript or Referer.
         client = TestClient(app)
-        response = client.get("/?access_token=fake-token")
-        assert response.status_code == 200, response.text
+        response = client.get(
+            "/?access_token=fake-token", follow_redirects=False
+        )
+        assert response.status_code == 303, response.text
         assert response.headers.get("Set-Cookie") is not None
+        assert response.headers["Location"] == "/"
 
-        # Can access again with cookie
+        # Following the redirect with the new cookie lands on the
+        # authenticated page.
         response = client.get("/")
         assert response.status_code == 200, response.text
 
