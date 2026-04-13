@@ -14,6 +14,7 @@ import pytest
 import uvicorn
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
+from starlette.middleware import Middleware
 from starlette.responses import Response
 from starlette.routing import Route
 from starlette.testclient import TestClient
@@ -27,6 +28,7 @@ from marimo._server.api.middleware import (
     _AsyncHTTPClient,
     _URLRequest,
 )
+from marimo._server.codes import WebSocketCodes
 from marimo._server.config import StarletteServerStateInit
 from marimo._server.lsp import BaseLspServer
 from marimo._server.main import (
@@ -43,7 +45,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from starlette.requests import Request
-    from starlette.types import ASGIApp, Receive, Scope, Send
+    from starlette.types import Receive, Scope, Send
 
 
 def init_state(
@@ -405,17 +407,25 @@ class TestProxyMiddleware:
         process.join()
 
     @pytest.fixture
-    def app_with_proxy(
-        self, edit_app: Starlette, target_server: None
-    ) -> ASGIApp:
+    def app_with_proxy(self, target_server: None) -> Starlette:
         del target_server
-        """Create the app with ProxyMiddleware targeting the running server."""
-        edit_app.add_middleware(
-            ProxyMiddleware,
-            proxy_path="/proxy",
-            target_url="http://127.0.0.1:8765",
+        app = create_starlette_app(
+            base_url="",
+            skew_protection=False,
+            middleware=[
+                Middleware(
+                    ProxyMiddleware,
+                    proxy_path="/proxy",
+                    target_url="http://127.0.0.1:8765",
+                )
+            ],
         )
-        return edit_app
+        with_server(app)
+        init_state(
+            session_manager=get_mock_session_manager(mode=SessionMode.EDIT),
+            skew_protection=False,
+        ).apply(app.state)
+        return app
 
     @pytest.fixture(scope="module")
     def static_server(self):
@@ -429,11 +439,9 @@ class TestProxyMiddleware:
 
     @pytest.fixture
     def app_with_static_proxy(
-        self, edit_app: Starlette, static_server: None, tmp_path: Path
-    ) -> ASGIApp:
+        self, static_server: None, tmp_path: Path
+    ) -> Starlette:
         del static_server
-        """Create the app with ProxyMiddleware targeting the static server."""
-        # Create test static files
         css_dir = tmp_path / "static" / "css"
         css_dir.mkdir(parents=True)
         css_file = css_dir / "page.css"
@@ -442,12 +450,24 @@ class TestProxyMiddleware:
         large_file = tmp_path / "static" / "large-file.txt"
         large_file.write_text("x" * 1024 * 1024)  # 1MB file
 
-        edit_app.add_middleware(
-            ProxyMiddleware,
-            proxy_path="/_static",
-            target_url="http://127.0.0.1:8766",
+        app = create_starlette_app(
+            base_url="",
+            skew_protection=False,
+            middleware=[
+                Middleware(
+                    ProxyMiddleware,
+                    proxy_path="/_static",
+                    target_url="http://127.0.0.1:8766",
+                    require_auth=False,
+                )
+            ],
         )
-        return edit_app
+        with_server(app)
+        init_state(
+            session_manager=get_mock_session_manager(mode=SessionMode.EDIT),
+            skew_protection=False,
+        ).apply(app.state)
+        return app
 
     @pytest.mark.flaky(reruns=5)
     def test_proxy_static_file(self, app_with_static_proxy: Starlette) -> None:
@@ -598,7 +618,9 @@ class TestProxyMiddleware:
 
     async def test_proxy_websocket(self, app_with_proxy: Starlette) -> None:
         client = TestClient(app_with_proxy)
-        with client.websocket_connect("/proxy/ws") as websocket:
+        with client.websocket_connect(
+            "/proxy/ws", headers=token_header("fake-token")
+        ) as websocket:
             websocket.send_json({"message": "hello there"})
             response = websocket.receive_json()
             assert response["message"] == "ws response from proxied app"
@@ -615,7 +637,9 @@ class TestProxyMiddleware:
         """Test that ProxyMiddleware correctly converts http/https to ws/wss."""
         # Create a simple app and middleware
         app = Starlette()
-        middleware = ProxyMiddleware(app, "/proxy", "http://example.com")
+        middleware = ProxyMiddleware(
+            app, "/proxy", "http://example.com", require_auth=False
+        )
 
         # Mock the _proxy_websocket method to capture the URL
         proxy_calls: list[str] = []
@@ -798,3 +822,89 @@ class TestLspProxyMiddleware:
 
         assert len(proxy_mw) == 1
         assert proxy_mw[0].kwargs["target_url"] == "http://localhost:8888"
+
+
+class TestLspProxyAuth:
+    """Access control for the LSP proxy middleware."""
+
+    @pytest.fixture
+    def lsp_app(self) -> Starlette:
+        app = create_starlette_app(
+            base_url="",
+            lsp_servers=[_mock_lsp_server("test-lsp", 8888)],
+            skew_protection=False,
+        )
+        with_server(app)
+        init_state(
+            session_manager=get_mock_session_manager(mode=SessionMode.EDIT),
+            skew_protection=False,
+        ).apply(app.state)
+        return app
+
+    def test_http_unauthenticated_is_rejected(
+        self, lsp_app: Starlette
+    ) -> None:
+        client = TestClient(lsp_app)
+        response = client.get("/lsp/test-lsp/anything")
+        assert response.status_code == 401, response.text
+
+    def test_http_bad_token_is_rejected(self, lsp_app: Starlette) -> None:
+        client = TestClient(lsp_app)
+        response = client.get(
+            "/lsp/test-lsp/anything",
+            headers=token_header("bad-token"),
+        )
+        assert response.status_code == 401, response.text
+
+    def test_http_bad_access_token_query_param_is_rejected(
+        self, lsp_app: Starlette
+    ) -> None:
+        client = TestClient(lsp_app)
+        response = client.get(
+            "/lsp/test-lsp/anything?access_token=not-the-right-token"
+        )
+        assert response.status_code == 401, response.text
+
+    def test_websocket_unauthenticated_is_rejected(
+        self, lsp_app: Starlette
+    ) -> None:
+        client = TestClient(lsp_app)
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with client.websocket_connect("/lsp/test-lsp/ws"):
+                pass
+        assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
+
+    def test_websocket_bad_access_token_is_rejected(
+        self, lsp_app: Starlette
+    ) -> None:
+        client = TestClient(lsp_app)
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with client.websocket_connect(
+                "/lsp/test-lsp/ws?access_token=not-the-right-token"
+            ):
+                pass
+        assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
+
+    def test_http_authenticated_is_forwarded(self, lsp_app: Starlette) -> None:
+        # The mock LSP server points at an unused port, so the upstream
+        # connection fails with 503. We only care that auth let the
+        # request through rather than 401.
+        client = TestClient(lsp_app)
+        response = client.get(
+            "/lsp/test-lsp/anything",
+            headers=token_header("fake-token"),
+        )
+        assert response.status_code != 401, response.text
+
+    def test_proxy_middleware_defaults_require_auth(self) -> None:
+        async def _noop_app(
+            scope: Scope, receive: Receive, send: Send
+        ) -> None:
+            del scope, receive, send
+
+        middleware = ProxyMiddleware(
+            app=_noop_app,
+            proxy_path="/proxy",
+            target_url="http://example.com",
+        )
+        assert middleware.require_auth is True
