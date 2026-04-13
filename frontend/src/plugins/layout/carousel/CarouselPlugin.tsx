@@ -46,5 +46,5 @@ export class CarouselPlugin implements IStatelessPlugin<Data> {
 }
 
 const LazySlidesComponent = React.lazy(
-  () => import("../../../components/slides/slides-component"),
+  () => import("../../../components/slides/swiper-component"),
 );

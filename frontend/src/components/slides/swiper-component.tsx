@@ -14,6 +14,7 @@ import { useEventListener } from "@/hooks/useEventListener";
 import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
 import { cn } from "@/utils/cn";
 
+import "./swiper-slides.css";
 import "./slides.css";
 
 interface SlidesComponentProps {

@@ -1,0 +1,38 @@
+@import "reveal.js/reveal.css";
+
+/* Neutralize reveal-viewport styles so the slides inherit marimo's defaults */
+.reveal-viewport {
+  background-color: transparent;
+  color: inherit;
+  line-height: inherit;
+  overflow: visible;
+  height: auto;
+}
+.reveal-viewport:fullscreen {
+  background-color: var(--background);
+}
+.reveal-viewport::backdrop {
+  background-color: var(--background);
+}
+
+/* Ensure .reveal inherits marimo's font/color instead of setting its own */
+.mo-slides-theme.reveal {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+/* Use marimo's primary color for controls and progress */
+.mo-slides-theme.reveal .controls {
+  color: var(--primary);
+}
+.mo-slides-theme.reveal .progress {
+  color: var(--primary);
+}
+
+.reveal .slides {
+  text-align: unset;
+}
+
+.reveal .slides > section {
+  height: 100%;
+}
