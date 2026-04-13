@@ -6,8 +6,8 @@ export function getLspRootUri() {
   const lspWorkspace = store.get(lspWorkspaceAtom);
   // The backend provides rootUri for active notebook sessions.
   // For non-notebook pages (home, gallery), lspWorkspace is null,
-  // and we safely return an empty string (LSP client won't be initialized).
-  return lspWorkspace?.rootUri ?? "";
+  // so return a valid file URI fallback.
+  return lspWorkspace?.rootUri ?? "file:///";
 }
 
 export function getLspWorkspaceFolders() {
@@ -21,6 +21,6 @@ export function getLspDocumentUri() {
   const lspWorkspace = store.get(lspWorkspaceAtom);
   // The backend provides documentUri for active notebook sessions.
   // For non-notebook pages (home, gallery), lspWorkspace is null,
-  // and we safely return an empty string.
-  return lspWorkspace?.documentUri ?? "";
+  // so return a valid file URI fallback.
+  return lspWorkspace?.documentUri ?? "file:///__marimo_notebook__.py";
 }
