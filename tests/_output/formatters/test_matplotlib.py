@@ -101,9 +101,8 @@ async def test_matplotlib_image_resolution_respects_dpi(
                 f"""
                 import matplotlib.pyplot as plt
 
-                # Create a simple figure
-                fig, ax = plt.subplots(figsize=(4, 3), dpi={dpi})
-                ax.plot([1, 2, 3], [1, 2, 3])
+                # Create an empty figure (no content) to isolate DPI effects
+                fig = plt.figure(figsize=(4, 3), dpi={dpi})
 
                 # Get the formatted output
                 result = fig._mime_()
@@ -126,8 +125,14 @@ async def test_matplotlib_image_resolution_respects_dpi(
     # Extract PNG data and check dimensions
     png_data_url = mimebundle["image/png"]
     width, height = _extract_png_dimensions(png_data_url)
-    assert 0.9 * 4 * dpi < width < 1.1 * 4 * dpi
-    assert 0.9 * 3 * dpi < height < 1.1 * 3 * dpi
+
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.savefig.html
+    pad_inches = 0.1
+    calc_width = round((4 + 2 * pad_inches) * dpi)
+    calc_height = round((3 + 2 * pad_inches) * dpi)
+
+    assert calc_width - 5 < width < calc_width + 5
+    assert calc_height - 5 < height < calc_height + 5
 
     # Verify aspect ratio is preserved (4:3 ratio)
     aspect_ratio = width / height
@@ -153,9 +158,8 @@ async def test_matplotlib_display_size_remains_constant(
                 f"""
                 import matplotlib.pyplot as plt
 
-                # Create a simple figure
-                fig, ax = plt.subplots(figsize=(4, 3), dpi={dpi})
-                ax.plot([1, 2, 3], [1, 2, 3])
+                # Create an empty figure (no content) to isolate DPI effects
+                fig = plt.figure(figsize=(4, 3), dpi={dpi})
                 result = fig._mime_()
                 """
             )
@@ -184,8 +188,13 @@ async def test_matplotlib_display_size_remains_constant(
     metadata_width = png_metadata["width"]
     metadata_height = png_metadata["height"]
 
-    assert 0.9 * 4 * 100 < metadata_width < 1.1 * 4 * 100
-    assert 0.9 * 3 * 100 < metadata_height < 1.1 * 3 * 100
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.savefig.html
+    pad_inches = 0.1
+    calc_width = round((4 + 2 * pad_inches) * 100)
+    calc_height = round((3 + 2 * pad_inches) * 100)
+
+    assert calc_width - 5 < metadata_width < calc_width + 5
+    assert calc_height - 5 < metadata_height < calc_height + 5
 
 
 @pytest.mark.skipif(not HAS_MPL, reason="optional dependencies not installed")

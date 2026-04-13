@@ -95,14 +95,15 @@ def _render_figure_mimebundle(
     try:
         # Extract dimensions from the PNG
         width, height = _extract_png_dimensions(png_bytes)
-        # Normalize to Matplotlib's default 100 DPI for consistent display size
+        # Normalize to a fixed 100 DPI reference for consistent display size
+        # https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.html
         factor = dpi / 100
         mimebundle = {
             "image/png": data_url,
             METADATA_KEY: {
                 "image/png": {
-                    "width": int(width / factor),
-                    "height": int(height / factor),
+                    "width": round(width / factor),
+                    "height": round(height / factor),
                 }
             },
         }
