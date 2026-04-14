@@ -83,6 +83,7 @@ const RevealSlidesComponent = ({
       </Deck>
       <Tooltip content="Fullscreen (F)">
         <Button
+          data-testid="marimo-plugin-slides-fullscreen"
           variant="ghost"
           size="icon"
           className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-70 text-muted-foreground transition-opacity h-7 w-7"
