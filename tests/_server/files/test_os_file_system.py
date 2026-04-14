@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Literal
 
@@ -8,6 +9,7 @@ import pytest
 from marimo._server.files.os_file_system import (
     OSFileSystem,
     _generate_unique_path,
+    _is_allowed_paths,
 )
 from marimo._server.models.files import FileDetailsResponse
 from marimo._utils.files import natural_sort
@@ -701,3 +703,29 @@ def test_generate_unique_path_existing_path(tmp_path: Path) -> None:
     unique_path = _generate_unique_path(base_path)
     assert not unique_path.exists()
     assert unique_path.name == "file_2.txt"
+
+
+@pytest.mark.parametrize("new_path", [".", "..", ""])
+def test_is_allowed_paths_disallowed_names(new_path: str) -> None:
+    assert not _is_allowed_paths("path/to/file.txt", f"path/to/{new_path}")
+
+
+def test_is_allowed_paths_subdirectory(tmp_path: Path) -> None:
+    base_path = tmp_path / "subdir"
+    base_path.mkdir()
+    assert not _is_allowed_paths(tmp_path, base_path)
+    assert not _is_allowed_paths(base_path, base_path)
+    assert not _is_allowed_paths(base_path, base_path / "../subdir/subsubdir")
+    assert _is_allowed_paths(base_path, base_path / "../subdir2")
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Symlinks on Windows require Admin privileges",
+)
+def test_is_allowed_paths_recursive_symlink(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    dst_link = tmp_path / "link_to_src"
+    dst_link.symlink_to(src)
+    assert not _is_allowed_paths(src, dst_link / "child")

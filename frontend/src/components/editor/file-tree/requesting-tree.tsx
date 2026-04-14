@@ -79,6 +79,10 @@ export class RequestingTree {
   async copy(id: string, newName: string): Promise<void> {
     const node = this.delegate.find(id);
     if (!node) {
+      toast({
+        title: "Failed",
+        description: `Node with id ${id} not found in the tree`,
+      });
       return;
     }
     const currentPath = node.data.path as FilePath;
@@ -106,6 +110,10 @@ export class RequestingTree {
   async rename(id: string, name: string): Promise<void> {
     const node = this.delegate.find(id);
     if (!node) {
+      toast({
+        title: "Failed",
+        description: `Node with id ${id} not found in the tree`,
+      });
       return;
     }
     const currentPath = node.data.path as FilePath;
@@ -201,6 +209,10 @@ export class RequestingTree {
   async delete(id: string): Promise<void> {
     const node = this.delegate.find(id);
     if (!node) {
+      toast({
+        title: "Failed",
+        description: `Node with id ${id} not found in the tree`,
+      });
       return;
     }
 
