@@ -3522,6 +3522,16 @@ def launch_kernel(
     if is_subprocess:
         restore_signals()
 
+        # The kernel subprocess does not use add_reader() (the server side
+        # does, via ConnectionDistributor), so it can run on the Proactor
+        # loop on Windows. Force the Proactor policy here so user code can
+        # use asyncio.create_subprocess_exec and other APIs that the
+        # SelectorEventLoop on Windows does not implement.
+        if sys.platform == "win32":
+            asyncio.set_event_loop_policy(
+                asyncio.WindowsProactorEventLoopPolicy()
+            )
+
     profiler = None
     if profile_path is not None:
         import cProfile
