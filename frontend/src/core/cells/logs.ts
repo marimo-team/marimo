@@ -7,6 +7,7 @@ import { Strings } from "@/utils/strings";
 import type { CellMessage, OutputMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import type { CellId } from "./ids";
+import { getInitialAppMode } from "../mode";
 import { store } from "../state/jotai";
 import { tracebackModalAtom } from "../errors/traceback-atom";
 import React from "react";
@@ -83,7 +84,17 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
         error.type === "internal",
     );
 
-    if (exceptionErrors.length > 0 && !didAlreadyToastError) {
+    // Only show the toast in app mode: edit mode already surfaces errors in
+    // the cell UI, so toasting there would be noisy and duplicative.
+    let isAppMode = false;
+    try {
+      isAppMode = getInitialAppMode() === "read";
+    } catch {
+      // Initial mode not set yet (e.g. in tests/islands) — suppress the toast.
+    }
+
+    // Only show toast once, and only in app mode
+    if (exceptionErrors.length > 0 && !didAlreadyToastError && isAppMode) {
       didAlreadyToastError = true;
 
       // Find first error with a traceback
