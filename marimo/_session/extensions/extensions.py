@@ -8,6 +8,8 @@ Extensions provide a way to add cross-cutting concerns to sessions
 from __future__ import annotations
 
 import asyncio
+import html
+from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -15,7 +17,9 @@ import msgspec
 
 from marimo import _loggers
 from marimo._cli.print import red
+from marimo._messaging.notebook.document import NotebookCell
 from marimo._messaging.notification import (
+    AlertNotification,
     NotebookDocumentTransactionNotification,
     NotificationMessage,
 )
@@ -26,6 +30,7 @@ from marimo._session.extensions.types import (
     EventAwareExtension,
     SessionExtension,
 )
+from marimo._session.model import SessionMode
 from marimo._session.state.serialize import (
     SessionCacheKey,
     SessionCacheManager,
@@ -218,6 +223,22 @@ class NotificationListenerExtension(SessionExtension):
         self.kernel_manager = kernel_manager
         self.queue_manager = queue_manager
         self.distributor: Distributor[KernelMessage] | None = None
+        # Debug-log the "unnamed notebook, skipping auto-save" warning once
+        # per session instead of on every code_mode mutation.
+        self._unnamed_autosave_logged = False
+        # Dedicated single-worker executor for auto-save. Using
+        # ``max_workers=1`` guarantees FIFO ordering of dispatched saves
+        # so a slower older snapshot never overwrites a newer one.
+        # Started lazily — run mode and unnamed notebooks never need it.
+        # TODO: if other extensions need the same "dispatch blocking
+        # I/O to a dedicated per-session worker" pattern, extract into
+        # ``marimo/_utils`` as a ``SerialTaskRunner`` or similar.
+        self._autosave_executor: ThreadPoolExecutor | None = None
+        # Futures for in-flight auto-saves. Populated only in the
+        # ``ConnectionDistributor`` path (edit mode, same process as
+        # the server event loop). Tests await these to synchronize
+        # with fire-and-forget dispatch.
+        self._pending_autosaves: list[asyncio.Future[None]] = []
 
     def _create_distributor(
         self,
@@ -232,12 +253,14 @@ class NotificationListenerExtension(SessionExtension):
             # Edit mode with original kernel manager uses connection
             return ConnectionDistributor(kernel_manager.kernel_connection)
 
-    @staticmethod
-    def _on_kernel_message(session: Session, msg: KernelMessage) -> None:
+    def _on_kernel_message(self, session: Session, msg: KernelMessage) -> None:
         """Route a raw kernel message to the appropriate session method.
 
         Document transactions are intercepted and applied to the
         ``session.document``, then ``session.notify()`` is invoked with the (versioned) result.
+
+        Kernel-sourced transactions also trigger an auto-save so agent-driven
+        mutations via ``code_mode`` land on disk the same way frontend edits do.
 
         Everything else is forwarded verbatim via ``session.notify()``.
 
@@ -245,6 +268,7 @@ class NotificationListenerExtension(SessionExtension):
         consider a middleware chain instead of inline dispatch.
         """
         notif: KernelMessage | NotificationMessage = msg
+        kernel_transaction_applied = False
 
         name = try_deserialize_kernel_notification_name(msg)
         if name == NotebookDocumentTransactionNotification.name:
@@ -257,12 +281,119 @@ class NotificationListenerExtension(SessionExtension):
                 notif = NotebookDocumentTransactionNotification(
                     transaction=applied
                 )
+                kernel_transaction_applied = applied.source == "kernel"
             except Exception:
                 LOGGER.warning(
                     "Failed to decode/apply kernel document transaction"
                 )
 
         session.notify(notif, from_consumer_id=None)
+
+        if kernel_transaction_applied:
+            self._maybe_autosave(session)
+
+    def _maybe_autosave(self, session: Session) -> None:
+        """Persist the kernel-driven mutation to disk best-effort.
+
+        Skipped in run mode and for unnamed notebooks. Failures are logged
+        and surfaced to the frontend via an ``AlertNotification`` so the
+        user sees a toast; they never raise out of the interceptor.
+
+        The file I/O is offloaded to ``run_in_executor`` when called from
+        the asyncio event loop (``ConnectionDistributor`` in edit mode),
+        so the loop is never stalled by disk writes. When called from the
+        ``QueueDistributor`` worker thread (IPC kernels, run mode), the
+        save runs inline on that worker thread.
+        """
+        if self.kernel_manager.mode != SessionMode.EDIT:
+            return
+
+        if session.app_file_manager.path is None:
+            if not self._unnamed_autosave_logged:
+                LOGGER.debug(
+                    "Skipping code_mode auto-save for unnamed notebook"
+                )
+                self._unnamed_autosave_logged = True
+            return
+
+        # Snapshot cells on the caller thread: ``NotebookDocument`` is not
+        # thread-safe for concurrent reads/writes, and only this thread
+        # (the one that called ``document.apply()`` above) knows the
+        # document is quiescent right now. The executor only touches the
+        # frozen list.
+        cells_snapshot: list[NotebookCell] = list(session.document.cells)
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop is None:
+            self._do_autosave(session, cells_snapshot, loop=None)
+        else:
+            if self._autosave_executor is None:
+                self._autosave_executor = ThreadPoolExecutor(
+                    max_workers=1,
+                    thread_name_prefix="marimo-autosave",
+                )
+            fut = loop.run_in_executor(
+                self._autosave_executor,
+                self._do_autosave,
+                session,
+                cells_snapshot,
+                loop,
+            )
+            # Prune already-done futures on each enqueue so the list
+            # doesn't grow unboundedly across thousands of mutations.
+            self._pending_autosaves = [
+                f for f in self._pending_autosaves if not f.done()
+            ]
+            self._pending_autosaves.append(fut)
+
+    def _do_autosave(
+        self,
+        session: Session,
+        cells: list[NotebookCell],
+        loop: asyncio.AbstractEventLoop | None,
+    ) -> None:
+        """Write the snapshot to disk; on failure, post an alert toast.
+
+        Runs on the event loop thread when ``loop is None`` and on an
+        executor thread otherwise. The alert broadcast is scheduled back
+        to the loop via ``call_soon_threadsafe`` when we're off-loop,
+        because ``session.notify`` ultimately writes to an ``asyncio.Queue``
+        which is not thread-safe.
+        """
+        try:
+            session.app_file_manager.save_from_cells(cells)
+            return
+        except Exception as err:
+            save_error: Exception = err
+
+        LOGGER.warning(
+            "Failed to auto-save notebook after kernel mutation: %s",
+            save_error,
+        )
+
+        path = session.app_file_manager.path
+        alert = AlertNotification(
+            title="Auto-save failed",
+            description=html.escape(
+                f"Could not persist kernel changes to {path}: {save_error}"
+            ),
+            variant="danger",
+        )
+
+        def _broadcast() -> None:
+            try:
+                session.notify(alert, from_consumer_id=None)
+            except Exception:
+                LOGGER.exception("Failed to broadcast auto-save failure alert")
+
+        if loop is not None:
+            loop.call_soon_threadsafe(_broadcast)
+        else:
+            _broadcast()
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
@@ -279,6 +410,13 @@ class NotificationListenerExtension(SessionExtension):
         if self.distributor is not None:
             self.distributor.stop()
             self.distributor = None
+        if self._autosave_executor is not None:
+            # Don't wait: the session is going away and we don't want to
+            # block the event loop on a slow disk write. Pending saves
+            # are best-effort and the notebook state is still in the
+            # kernel if the user reopens.
+            self._autosave_executor.shutdown(wait=False)
+            self._autosave_executor = None
 
     def flush(self) -> None:
         """Flush any pending messages from the distributor."""

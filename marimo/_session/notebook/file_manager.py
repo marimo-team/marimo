@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -30,6 +31,9 @@ from marimo._utils.scripts import with_python_version_requirement
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from marimo._messaging.notebook.document import NotebookCell
     from marimo._server.models.models import (
         CopyNotebookRequest,
         SaveNotebookRequest,
@@ -71,6 +75,13 @@ class AppFileManager:
 
         # Track the last saved content to avoid reloading our own writes
         self._last_saved_content: str | None = None
+
+        # Serializes concurrent writers (e.g. frontend Ctrl+S racing
+        # with code_mode auto-save, save_app_config during rename, …).
+        # Reentrant so public entry points can hold the lock around the
+        # full "mutate app + _save_file" sequence, and _save_file can
+        # defensively re-acquire it for direct callers.
+        self._save_lock = threading.RLock()
 
     @property
     def filename(self) -> str | None:
@@ -176,6 +187,11 @@ class AppFileManager:
     ) -> str:
         """Save notebook to storage using appropriate format handler.
 
+        All file writes and mutations of ``_last_saved_content`` / ``_filename``
+        go through this method. The ``_save_lock`` serializes concurrent
+        writers — e.g. frontend Ctrl+S racing with code_mode auto-save, or a
+        ``save_app_config`` call during a ``rename``.
+
         Args:
             path: Target file path
             notebook: Notebook in IR format
@@ -221,14 +237,15 @@ class AppFileManager:
         )
         contents = handler.serialize(notebook)
 
-        if persist:
-            self.storage.write(path, contents)
-            # Record the last saved content to avoid reloading our own writes
-            self._last_saved_content = contents.strip()
+        with self._save_lock:
+            if persist:
+                self.storage.write(path, contents)
+                # Record the last saved content to avoid reloading our own writes
+                self._last_saved_content = contents.strip()
 
-        # If this is a new unnamed notebook, update the filename
-        if self._is_unnamed():
-            self._filename = path
+            # If this is a new unnamed notebook, update the filename
+            if self._is_unnamed():
+                self._filename = path
 
         return contents
 
@@ -287,29 +304,30 @@ class AppFileManager:
         """
         new_path = Path(canonicalize_filename(str(new_filename)))
 
-        if self._is_same_path(new_path):
+        with self._save_lock:
+            if self._is_same_path(new_path):
+                return new_path.name
+
+            self._assert_path_does_not_exist(new_path)
+
+            if self._filename is not None:
+                self.storage.rename(self._filename, new_path)
+            else:
+                # Create new file for unnamed notebooks
+                self.storage.write(new_path, "")
+
+            previous_filename = self._filename
+            self._filename = new_path
+            self.app._app._filename = str(new_path)
+
+            self._save_file(
+                new_path,
+                notebook=self.app.to_ir(),
+                persist=True,
+                previous_path=previous_filename,
+            )
+
             return new_path.name
-
-        self._assert_path_does_not_exist(new_path)
-
-        if self._filename is not None:
-            self.storage.rename(self._filename, new_path)
-        else:
-            # Create new file for unnamed notebooks
-            self.storage.write(new_path, "")
-
-        previous_filename = self._filename
-        self._filename = new_path
-        self.app._app._filename = str(new_path)
-
-        self._save_file(
-            new_path,
-            notebook=self.app.to_ir(),
-            persist=True,
-            previous_path=previous_filename,
-        )
-
-        return new_path.name
 
     def read_layout_config(self) -> LayoutConfig | None:
         """Read layout configuration file.
@@ -366,14 +384,15 @@ class AppFileManager:
         Returns:
             Serialized notebook content
         """
-        self.app.update_config(config)
-        if self._filename is not None:
-            return self._save_file(
-                self._filename,
-                notebook=self.app.to_ir(),
-                persist=True,
-            )
-        return ""
+        with self._save_lock:
+            self.app.update_config(config)
+            if self._filename is not None:
+                return self._save_file(
+                    self._filename,
+                    notebook=self.app.to_ir(),
+                    persist=True,
+                )
+            return ""
 
     def save(self, request: SaveNotebookRequest) -> str:
         """Save the notebook.
@@ -398,37 +417,74 @@ class AppFileManager:
 
         filename_path = Path(canonicalize_filename(filename))
 
-        # Update app with new cell data
-        self.app.with_data(
-            cell_ids=cell_ids,
-            codes=codes,
-            names=names,
-            configs=configs,
-        )
+        with self._save_lock:
+            # Update app with new cell data
+            self.app.with_data(
+                cell_ids=cell_ids,
+                codes=codes,
+                names=names,
+                configs=configs,
+            )
 
-        if self.is_notebook_named and not self._is_same_path(filename_path):
+            if self.is_notebook_named and not self._is_same_path(
+                filename_path
+            ):
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="Save handler cannot rename files.",
+                )
+
+            # Save layout if provided
+            if layout is not None:
+                app_dir = filename_path.parent
+                app_name = filename_path.name
+                layout_filename = save_layout_config(
+                    app_dir, app_name, LayoutConfig(**layout)
+                )
+                self.app.update_config({"layout_file": layout_filename})
+            else:
+                # Remove the layout from the config
+                self.app.update_config({"layout_file": None})
+
+            return self._save_file(
+                filename_path,
+                notebook=self.app.to_ir(),
+                persist=request.persist,
+            )
+
+    def save_from_cells(self, cells: Sequence[NotebookCell]) -> str:
+        """Persist the notebook from a snapshot of document cells.
+
+        Used by the server-side auto-save path when the kernel mutates cells
+        via ``code_mode``. Unlike ``save()`` which takes its state from a
+        frontend request, this takes cells directly — typically a snapshot
+        of ``session.document.cells`` captured on the caller thread so the
+        write can safely run in an executor.
+
+        Returns:
+            Serialized notebook content
+
+        Raises:
+            HTTPException: If the notebook is unnamed or the write fails
+        """
+        if self._filename is None:
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
-                detail="Save handler cannot rename files.",
+                detail="Cannot save an unnamed notebook",
             )
 
-        # Save layout if provided
-        if layout is not None:
-            app_dir = filename_path.parent
-            app_name = filename_path.name
-            layout_filename = save_layout_config(
-                app_dir, app_name, LayoutConfig(**layout)
+        with self._save_lock:
+            self.app.with_data(
+                cell_ids=[cell.id for cell in cells],
+                codes=[cell.code for cell in cells],
+                names=[cell.name for cell in cells],
+                configs=[cell.config for cell in cells],
             )
-            self.app.update_config({"layout_file": layout_filename})
-        else:
-            # Remove the layout from the config
-            self.app.update_config({"layout_file": None})
-
-        return self._save_file(
-            filename_path,
-            notebook=self.app.to_ir(),
-            persist=request.persist,
-        )
+            return self._save_file(
+                self._filename,
+                notebook=self.app.to_ir(),
+                persist=True,
+            )
 
     def copy(self, request: CopyNotebookRequest) -> str:
         """Copy a notebook file.
