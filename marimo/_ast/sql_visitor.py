@@ -588,7 +588,7 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
                 exp.Copy,
             )
         ):
-            _collect_table_refs_excluding_ctes(expression)
+            _collect_table_refs_excluding_ctes(expression)  # type: ignore[arg-type]
 
         # build_scope only works for select statements.
         # It may raise OptimizeError for valid SQL with duplicate aliases
@@ -602,6 +602,6 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
                             if ref := get_ref_from_table(source):
                                 refs.add(ref)
         except OptimizeError:
-            _collect_table_refs_excluding_ctes(expression)
+            _collect_table_refs_excluding_ctes(expression)  # type: ignore[arg-type]
 
     return refs
