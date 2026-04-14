@@ -358,7 +358,7 @@ def test_session_disconnect_reconnect() -> None:
         configs={},
         app_metadata=app_metadata,
         config_manager=get_default_config_manager(current_path=None),
-        virtual_file_storage="shared_memory",
+        virtual_file_storage="in_memory",
         redirect_console_to_browser=False,
     )
 
@@ -1093,7 +1093,9 @@ async def test_caching_extension_respects_mode_and_config() -> None:
             app_metadata=app_metadata,
             app_file_manager=AppFileManager.from_app(InternalApp(App())),
             config_manager=config_manager,
-            virtual_file_storage="shared_memory",
+            virtual_file_storage="shared_memory"
+            if mode == SessionMode.EDIT
+            else "in_memory",
             redirect_console_to_browser=False,
             ttl_seconds=None,
             auto_instantiate=auto_instantiate,
