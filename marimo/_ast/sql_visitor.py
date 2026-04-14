@@ -547,16 +547,17 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
         references to CTE names would be misidentified as real tables.
 
         We only collect CTEs from the statement-level WITH clause
-        (expression.args["with_"]) rather than traversing into nested
-        subqueries, because a subquery's CTE is scoped to that subquery
-        and must not mask a real table with the same name in the outer
-        query. Schema-qualified refs (e.g. schema.foo) are always real
-        tables even if a CTE shares the same base name.
+        rather than nested subqueries, because a subquery's CTE is
+        scoped to that subquery and must not mask a real table with the
+        same name in the outer query. We identify statement-level CTEs
+        by checking that the CTE's grandparent (With -> Expression) is
+        the top-level expression. Schema-qualified refs (e.g. schema.foo)
+        are always real tables even if a CTE shares the same base name.
         """
         cte_names: set[str] = set()
-        with_clause = expression.args.get("with_")
-        if with_clause:
-            for cte in with_clause.expressions:
+        for cte in expression.find_all(exp.CTE):
+            with_node = cte.parent
+            if with_node and with_node.parent is expression:
                 alias = cte.alias
                 if alias:
                     cte_names.add(alias.lower())
