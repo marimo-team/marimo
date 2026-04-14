@@ -76,11 +76,9 @@ class AppFileManager:
         # Track the last saved content to avoid reloading our own writes
         self._last_saved_content: str | None = None
 
-        # Serializes concurrent writers (e.g. frontend Ctrl+S racing
-        # with code_mode auto-save, save_app_config during rename, …).
-        # Reentrant so public entry points can hold the lock around the
-        # full "mutate app + _save_file" sequence, and _save_file can
-        # defensively re-acquire it for direct callers.
+        # Serializes concurrent writers. Reentrant so public entry points
+        # can wrap the full "mutate app + _save_file" sequence while
+        # ``_save_file`` re-acquires for any direct caller.
         self._save_lock = threading.RLock()
 
     @property
@@ -187,10 +185,7 @@ class AppFileManager:
     ) -> str:
         """Save notebook to storage using appropriate format handler.
 
-        All file writes and mutations of ``_last_saved_content`` / ``_filename``
-        go through this method. The ``_save_lock`` serializes concurrent
-        writers — e.g. frontend Ctrl+S racing with code_mode auto-save, or a
-        ``save_app_config`` call during a ``rename``.
+        All file writes go through this method under ``_save_lock``.
 
         Args:
             path: Target file path
@@ -203,41 +198,43 @@ class AppFileManager:
         """
         LOGGER.debug("Saving app to %s", path)
 
-        # Get the header in case it was modified by the user (e.g. package installation)
-        handler = get_notebook_serializer(path)
-        header: str | None = None
-        if previous_path and previous_path.exists():
-            header = handler.extract_header(previous_path)
-        elif path.exists():
-            header = handler.extract_header(path)
-
-        # For new .py files in sandbox mode, generate header with marimo
-        if header is None and str(path).endswith(".py"):
-            from marimo._config.settings import GLOBAL_SETTINGS
-
-            if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
-                from marimo._utils.scripts import write_pyproject_to_script
-
-                header = write_pyproject_to_script(
-                    with_python_version_requirement(
-                        {
-                            "dependencies": ["marimo"],
-                        }
-                    )
-                )
-
-        # Rewrap with header if relevant and set filename.
-        notebook = NotebookSerializationV1(
-            app=notebook.app,
-            header=Header(value=header) if header else notebook.header,
-            cells=notebook.cells,
-            violations=notebook.violations,
-            valid=notebook.valid,
-            filename=str(path),
-        )
-        contents = handler.serialize(notebook)
-
         with self._save_lock:
+            # Get the header in case it was modified by the user (e.g. package installation)
+            handler = get_notebook_serializer(path)
+            header: str | None = None
+            if previous_path and previous_path.exists():
+                header = handler.extract_header(previous_path)
+            elif path.exists():
+                header = handler.extract_header(path)
+
+            # For new .py files in sandbox mode, generate header with marimo
+            if header is None and str(path).endswith(".py"):
+                from marimo._config.settings import GLOBAL_SETTINGS
+
+                if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+                    from marimo._utils.scripts import (
+                        write_pyproject_to_script,
+                    )
+
+                    header = write_pyproject_to_script(
+                        with_python_version_requirement(
+                            {
+                                "dependencies": ["marimo"],
+                            }
+                        )
+                    )
+
+            # Rewrap with header if relevant and set filename.
+            notebook = NotebookSerializationV1(
+                app=notebook.app,
+                header=Header(value=header) if header else notebook.header,
+                cells=notebook.cells,
+                violations=notebook.violations,
+                valid=notebook.valid,
+                filename=str(path),
+            )
+            contents = handler.serialize(notebook)
+
             if persist:
                 self.storage.write(path, contents)
                 # Record the last saved content to avoid reloading our own writes
@@ -247,7 +244,7 @@ class AppFileManager:
             if self._is_unnamed():
                 self._filename = path
 
-        return contents
+            return contents
 
     def _load_app(self, path: str | None) -> InternalApp:
         """Load app from storage.
@@ -455,14 +452,10 @@ class AppFileManager:
     def save_from_cells(self, cells: Sequence[NotebookCell]) -> str:
         """Persist the notebook from a snapshot of document cells.
 
-        Used by the server-side auto-save path when the kernel mutates cells
-        via ``code_mode``. Unlike ``save()`` which takes its state from a
-        frontend request, this takes cells directly — typically a snapshot
-        of ``session.document.cells`` captured on the caller thread so the
-        write can safely run in an executor.
-
-        Returns:
-            Serialized notebook content
+        Used by the server-side auto-save path for ``code_mode``
+        mutations. Unlike ``save()``, this takes cells directly — the
+        caller is responsible for snapshotting ``session.document.cells``
+        on a thread where the document is quiescent.
 
         Raises:
             HTTPException: If the notebook is unnamed or the write fails

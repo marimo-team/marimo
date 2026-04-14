@@ -543,11 +543,9 @@ def generate_filecontents(
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
 
-    # Update old internal cell names to the new ones. Empty names also
-    # fall back to the default — codegen would otherwise emit ``def ():``
-    # (invalid Python) and ``safe_serialize_cell`` would trigger the
-    # unparsable-cell fallback. Code_mode emits ``name=""`` for unnamed
-    # cells, as does any client that doesn't pre-populate names.
+    # Normalize internal cell names. Empty names would emit ``def ():``
+    # (invalid Python) and fall back to the unparsable-cell path;
+    # ``"__"`` is a legacy internal marker.
     for idx, name in enumerate(names):
         if name == "__" or not name:
             names[idx] = DEFAULT_CELL_NAME

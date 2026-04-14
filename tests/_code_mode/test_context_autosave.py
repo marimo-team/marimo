@@ -10,7 +10,6 @@ feeding them through the auto-save interceptor against a real
 
 from __future__ import annotations
 
-import asyncio
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -103,6 +102,14 @@ py_notebook = _make_notebook_fixture("notebook.py", INITIAL_NOTEBOOK_PY)
 md_notebook = _make_notebook_fixture("notebook.md", INITIAL_NOTEBOOK_MD)
 
 
+def _make_session_for(app_file_manager: AppFileManager) -> Mock:
+    s = Mock()
+    s.app_file_manager = app_file_manager
+    s.document = NotebookDocument()
+    s.notify = Mock()
+    return s
+
+
 @pytest.fixture
 def ext() -> NotificationListenerExtension:
     kernel_manager = Mock()
@@ -112,12 +119,14 @@ def ext() -> NotificationListenerExtension:
     return NotificationListenerExtension(kernel_manager, queue_manager)
 
 
-def _make_session_for(app_file_manager: AppFileManager) -> Mock:
-    s = Mock()
-    s.app_file_manager = app_file_manager
-    s.document = NotebookDocument()
-    s.notify = Mock()
-    return s
+@pytest.fixture
+def py_session(py_notebook: AppFileManager) -> Mock:
+    return _make_session_for(py_notebook)
+
+
+@pytest.fixture
+def md_session(md_notebook: AppFileManager) -> Mock:
+    return _make_session_for(md_notebook)
 
 
 async def _drain(
@@ -128,16 +137,14 @@ async def _drain(
     """Forward every NotebookDocumentTransactionNotification on ``k.stream``
     through the interceptor so disk state catches up with the kernel graph.
 
-    Auto-save is dispatched to the default executor when a running loop is
-    detected, so after feeding messages we must await the pending futures
+    Auto-save is dispatched to the runner's executor when a running loop
+    is detected, so after feeding messages we must drain pending tasks
     before asserting on the file contents.
     """
     for notif in list(k.stream.operations):
         if isinstance(notif, NotebookDocumentTransactionNotification):
             ext._on_kernel_message(session, serialize_kernel_message(notif))
-    if ext._pending_autosaves:
-        await asyncio.gather(*ext._pending_autosaves)
-        ext._pending_autosaves.clear()
+    await ext._autosave_runner.drain()
 
 
 class TestCodeModeAutoSavePy:
@@ -147,13 +154,13 @@ class TestCodeModeAutoSavePy:
         self,
         k: Kernel,
         py_notebook: AppFileManager,
+        py_session: Mock,
         ext: NotificationListenerExtension,
     ) -> None:
-        session = _make_session_for(py_notebook)
         with _ctx(k) as ctx:
             async with ctx as nb:
                 nb.create_cell("greeting = 42")
-        await _drain(k, ext, session)
+        await _drain(k, ext, py_session)
 
         contents = _read_disk(py_notebook)
         assert "greeting = 42" in contents
@@ -164,15 +171,15 @@ class TestCodeModeAutoSavePy:
         self,
         k: Kernel,
         py_notebook: AppFileManager,
+        py_session: Mock,
         ext: NotificationListenerExtension,
     ) -> None:
-        session = _make_session_for(py_notebook)
         with _ctx(k) as ctx:
             async with ctx as nb:
                 cid = nb.create_cell("x = 1")
             async with ctx as nb:
                 nb.edit_cell(cid, code="x = 999")
-        await _drain(k, ext, session)
+        await _drain(k, ext, py_session)
 
         contents = _read_disk(py_notebook)
         assert "x = 999" in contents
@@ -182,16 +189,16 @@ class TestCodeModeAutoSavePy:
         self,
         k: Kernel,
         py_notebook: AppFileManager,
+        py_session: Mock,
         ext: NotificationListenerExtension,
     ) -> None:
-        session = _make_session_for(py_notebook)
         with _ctx(k) as ctx:
             async with ctx as nb:
                 nb.create_cell("keep = 1")
                 drop = nb.create_cell("drop = 2")
             async with ctx as nb:
                 nb.delete_cell(drop)
-        await _drain(k, ext, session)
+        await _drain(k, ext, py_session)
 
         contents = _read_disk(py_notebook)
         assert "keep = 1" in contents
@@ -201,10 +208,10 @@ class TestCodeModeAutoSavePy:
         self,
         k: Kernel,
         py_notebook: AppFileManager,
+        py_session: Mock,
         ext: NotificationListenerExtension,
     ) -> None:
         """Create + edit + delete in a single context block all land."""
-        session = _make_session_for(py_notebook)
         with _ctx(k) as ctx:
             async with ctx as nb:
                 first = nb.create_cell("first = 1")
@@ -213,7 +220,7 @@ class TestCodeModeAutoSavePy:
                 nb.edit_cell(first, code="first = 100")
                 nb.create_cell("third = 3")
                 nb.delete_cell(second)
-        await _drain(k, ext, session)
+        await _drain(k, ext, py_session)
 
         contents = _read_disk(py_notebook)
         assert "first = 100" in contents
@@ -228,13 +235,13 @@ class TestCodeModeAutoSaveMd:
         self,
         k: Kernel,
         md_notebook: AppFileManager,
+        md_session: Mock,
         ext: NotificationListenerExtension,
     ) -> None:
-        session = _make_session_for(md_notebook)
         with _ctx(k) as ctx:
             async with ctx as nb:
                 nb.create_cell("answer = 42")
-        await _drain(k, ext, session)
+        await _drain(k, ext, md_session)
 
         assert "answer = 42" in _read_disk(md_notebook)
 
@@ -246,12 +253,12 @@ class TestExecutorOrdering:
         self,
         k: Kernel,
         py_notebook: AppFileManager,
+        py_session: Mock,
         ext: NotificationListenerExtension,
     ) -> None:
         """Rapid-fire kernel mutations should all serialize through the
         single-worker executor in FIFO order, leaving the newest snapshot
         on disk."""
-        session = _make_session_for(py_notebook)
         with _ctx(k) as ctx:
             async with ctx as nb:
                 cid = nb.create_cell("version = 1")
@@ -262,7 +269,7 @@ class TestExecutorOrdering:
             async with ctx as nb:
                 nb.edit_cell(cid, code="version = 4")
 
-        await _drain(k, ext, session)
+        await _drain(k, ext, py_session)
 
         contents = _read_disk(py_notebook)
         assert "version = 4" in contents

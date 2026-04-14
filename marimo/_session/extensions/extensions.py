@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import html
-from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
+from functools import partial
 from typing import TYPE_CHECKING
 
 import msgspec
@@ -46,6 +46,7 @@ from marimo._utils.distributor import (
     QueueDistributor,
 )
 from marimo._utils.print import print_, print_tabbed
+from marimo._utils.serial_task_runner import SerialTaskRunner
 
 if TYPE_CHECKING:
     from logging import Logger
@@ -223,22 +224,12 @@ class NotificationListenerExtension(SessionExtension):
         self.kernel_manager = kernel_manager
         self.queue_manager = queue_manager
         self.distributor: Distributor[KernelMessage] | None = None
-        # Debug-log the "unnamed notebook, skipping auto-save" warning once
-        # per session instead of on every code_mode mutation.
+        # Log the unnamed-notebook skip once per session, not per mutation.
         self._unnamed_autosave_logged = False
-        # Dedicated single-worker executor for auto-save. Using
-        # ``max_workers=1`` guarantees FIFO ordering of dispatched saves
-        # so a slower older snapshot never overwrites a newer one.
-        # Started lazily — run mode and unnamed notebooks never need it.
-        # TODO: if other extensions need the same "dispatch blocking
-        # I/O to a dedicated per-session worker" pattern, extract into
-        # ``marimo/_utils`` as a ``SerialTaskRunner`` or similar.
-        self._autosave_executor: ThreadPoolExecutor | None = None
-        # Futures for in-flight auto-saves. Populated only in the
-        # ``ConnectionDistributor`` path (edit mode, same process as
-        # the server event loop). Tests await these to synchronize
-        # with fire-and-forget dispatch.
-        self._pending_autosaves: list[asyncio.Future[None]] = []
+        # FIFO so a slow older save never clobbers a newer one.
+        self._autosave_runner = SerialTaskRunner(
+            thread_name_prefix="marimo-autosave"
+        )
 
     def _create_distributor(
         self,
@@ -293,17 +284,11 @@ class NotificationListenerExtension(SessionExtension):
             self._maybe_autosave(session)
 
     def _maybe_autosave(self, session: Session) -> None:
-        """Persist the kernel-driven mutation to disk best-effort.
+        """Best-effort persistence of kernel-driven mutations to disk.
 
-        Skipped in run mode and for unnamed notebooks. Failures are logged
-        and surfaced to the frontend via an ``AlertNotification`` so the
-        user sees a toast; they never raise out of the interceptor.
-
-        The file I/O is offloaded to ``run_in_executor`` when called from
-        the asyncio event loop (``ConnectionDistributor`` in edit mode),
-        so the loop is never stalled by disk writes. When called from the
-        ``QueueDistributor`` worker thread (IPC kernels, run mode), the
-        save runs inline on that worker thread.
+        Skipped in run mode and for unnamed notebooks. Failures surface as
+        an ``AlertNotification`` toast; they never raise out of the
+        interceptor.
         """
         if self.kernel_manager.mode != SessionMode.EDIT:
             return
@@ -316,84 +301,37 @@ class NotificationListenerExtension(SessionExtension):
                 self._unnamed_autosave_logged = True
             return
 
-        # Snapshot cells on the caller thread: ``NotebookDocument`` is not
-        # thread-safe for concurrent reads/writes, and only this thread
-        # (the one that called ``document.apply()`` above) knows the
-        # document is quiescent right now. The executor only touches the
-        # frozen list.
+        # Snapshot on the caller thread — NotebookDocument isn't
+        # thread-safe, and only this thread knows it's quiescent right
+        # after ``document.apply()``.
         cells_snapshot: list[NotebookCell] = list(session.document.cells)
 
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
+        self._autosave_runner.submit(
+            partial(session.app_file_manager.save_from_cells, cells_snapshot),
+            on_error=partial(self._post_autosave_failure, session),
+        )
 
-        if loop is None:
-            self._do_autosave(session, cells_snapshot, loop=None)
-        else:
-            if self._autosave_executor is None:
-                self._autosave_executor = ThreadPoolExecutor(
-                    max_workers=1,
-                    thread_name_prefix="marimo-autosave",
-                )
-            fut = loop.run_in_executor(
-                self._autosave_executor,
-                self._do_autosave,
-                session,
-                cells_snapshot,
-                loop,
-            )
-            # Prune already-done futures on each enqueue so the list
-            # doesn't grow unboundedly across thousands of mutations.
-            self._pending_autosaves = [
-                f for f in self._pending_autosaves if not f.done()
-            ]
-            self._pending_autosaves.append(fut)
-
-    def _do_autosave(
-        self,
-        session: Session,
-        cells: list[NotebookCell],
-        loop: asyncio.AbstractEventLoop | None,
-    ) -> None:
-        """Write the snapshot to disk; on failure, post an alert toast.
-
-        Runs on the event loop thread when ``loop is None`` and on an
-        executor thread otherwise. The alert broadcast is scheduled back
-        to the loop via ``call_soon_threadsafe`` when we're off-loop,
-        because ``session.notify`` ultimately writes to an ``asyncio.Queue``
-        which is not thread-safe.
-        """
-        try:
-            session.app_file_manager.save_from_cells(cells)
-            return
-        except Exception as err:
-            save_error: Exception = err
-
+    @staticmethod
+    def _post_autosave_failure(session: Session, err: Exception) -> None:
+        # Runs on the event loop thread — the runner routes on_error there
+        # so session.notify can safely touch the per-consumer asyncio.Queue.
         LOGGER.warning(
-            "Failed to auto-save notebook after kernel mutation: %s",
-            save_error,
+            "Failed to auto-save notebook after kernel mutation: %s", err
         )
-
-        path = session.app_file_manager.path
-        alert = AlertNotification(
-            title="Auto-save failed",
-            description=html.escape(
-                f"Could not persist kernel changes to {path}: {save_error}"
-            ),
-            variant="danger",
-        )
-
-        def _broadcast() -> None:
-            try:
-                session.notify(alert, from_consumer_id=None)
-            except Exception:
-                LOGGER.exception("Failed to broadcast auto-save failure alert")
-
-        if loop is not None:
-            loop.call_soon_threadsafe(_broadcast)
-        else:
-            _broadcast()
+        try:
+            session.notify(
+                AlertNotification(
+                    title="Auto-save failed",
+                    description=html.escape(
+                        f"Could not persist kernel changes to "
+                        f"{session.app_file_manager.path}: {err}"
+                    ),
+                    variant="danger",
+                ),
+                from_consumer_id=None,
+            )
+        except Exception:
+            LOGGER.exception("Failed to broadcast auto-save failure alert")
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
@@ -410,13 +348,8 @@ class NotificationListenerExtension(SessionExtension):
         if self.distributor is not None:
             self.distributor.stop()
             self.distributor = None
-        if self._autosave_executor is not None:
-            # Don't wait: the session is going away and we don't want to
-            # block the event loop on a slow disk write. Pending saves
-            # are best-effort and the notebook state is still in the
-            # kernel if the user reopens.
-            self._autosave_executor.shutdown(wait=False)
-            self._autosave_executor = None
+        # Don't block session close on disk I/O; kernel still holds state.
+        self._autosave_runner.shutdown(wait=False)
 
     def flush(self) -> None:
         """Flush any pending messages from the distributor."""

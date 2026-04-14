@@ -321,65 +321,73 @@ class TestUnnamedNotebook:
         assert ext._unnamed_autosave_logged is True
 
 
+def _get_alerts(session: Mock) -> list[AlertNotification]:
+    """Extract every ``AlertNotification`` the interceptor broadcast."""
+    return [
+        call.args[0]
+        for call in session.notify.call_args_list
+        if isinstance(call.args[0], AlertNotification)
+    ]
+
+
+def _get_tx_broadcasts(
+    session: Mock,
+) -> list[NotebookDocumentTransactionNotification]:
+    return [
+        call.args[0]
+        for call in session.notify.call_args_list
+        if isinstance(call.args[0], NotebookDocumentTransactionNotification)
+    ]
+
+
+def _install_failing_write(
+    app_file_manager: AppFileManager, message: str = "disk full"
+) -> None:
+    def _fail(*_args: object, **_kwargs: object) -> None:
+        raise OSError(message)
+
+    app_file_manager.storage.write = _fail  # type: ignore[method-assign]
+
+
 class TestFailureSurfaces:
     """Write failures should surface as an AlertNotification toast."""
 
     @pytest.fixture
-    def failing_storage(
-        self, app_file_manager: AppFileManager
-    ) -> AppFileManager:
-        def _fail(*_args: object, **_kwargs: object) -> None:
-            raise OSError("disk full")
+    def failing_storage(self, app_file_manager: AppFileManager) -> None:
+        _install_failing_write(app_file_manager)
 
-        app_file_manager.storage.write = _fail  # type: ignore[method-assign]
-        return app_file_manager
-
+    @pytest.mark.usefixtures("failing_storage")
     def test_write_failure_broadcasts_alert(
         self,
         ext: NotificationListenerExtension,
         session: Mock,
-        failing_storage: AppFileManager,
         existing_cell_id: CellId_t,
     ) -> None:
-        del failing_storage
         # Must not raise out of the interceptor
         ext._on_kernel_message(
             session,
             _serialize_tx(SetCode(cell_id=existing_cell_id, code="x = 2")),
         )
 
-        alerts = [
-            call.args[0]
-            for call in session.notify.call_args_list
-            if isinstance(call.args[0], AlertNotification)
-        ]
+        alerts = _get_alerts(session)
         assert len(alerts) == 1
         assert alerts[0].variant == "danger"
         assert alerts[0].title == "Auto-save failed"
 
+    @pytest.mark.usefixtures("failing_storage")
     def test_transaction_still_broadcast_when_save_fails(
         self,
         ext: NotificationListenerExtension,
         session: Mock,
-        failing_storage: AppFileManager,
         existing_cell_id: CellId_t,
     ) -> None:
         """Even on save failure, the frontend must see the transaction so
         its local state stays in sync with the kernel graph."""
-        del failing_storage
         ext._on_kernel_message(
             session,
             _serialize_tx(SetCode(cell_id=existing_cell_id, code="x = 2")),
         )
-
-        tx_broadcasts = [
-            call.args[0]
-            for call in session.notify.call_args_list
-            if isinstance(
-                call.args[0], NotebookDocumentTransactionNotification
-            )
-        ]
-        assert len(tx_broadcasts) == 1
+        assert len(_get_tx_broadcasts(session)) == 1
 
     def test_alert_description_is_html_escaped(
         self,
@@ -391,22 +399,15 @@ class TestFailureSurfaces:
         """User-controllable path + OS error strings must be HTML-escaped
         before landing in AlertNotification.description, which the frontend
         renders via renderHTML (sanitized today, but defense in depth)."""
-
-        def _fail(*_args: object, **_kwargs: object) -> None:
-            raise OSError("<script>alert(1)</script>")
-
-        app_file_manager.storage.write = _fail  # type: ignore[method-assign]
-
+        _install_failing_write(
+            app_file_manager, message="<script>alert(1)</script>"
+        )
         ext._on_kernel_message(
             session,
             _serialize_tx(SetCode(cell_id=existing_cell_id, code="x = 2")),
         )
 
-        alerts = [
-            call.args[0]
-            for call in session.notify.call_args_list
-            if isinstance(call.args[0], AlertNotification)
-        ]
+        alerts = _get_alerts(session)
         assert len(alerts) == 1
         desc = alerts[0].description
         assert "<script>" not in desc
