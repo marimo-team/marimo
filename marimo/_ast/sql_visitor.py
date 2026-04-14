@@ -551,12 +551,14 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
         even if a CTE shares the same base name.
         """
         cte_names = {
-            cte.alias for cte in expression.find_all(exp.CTE) if cte.alias
+            cte.alias.lower()
+            for cte in expression.find_all(exp.CTE)
+            if cte.alias
         }
         for table in expression.find_all(exp.Table):
             if ref := get_ref_from_table(table):
                 is_unqualified_cte = (
-                    ref.table in cte_names
+                    ref.table.lower() in cte_names
                     and ref.schema is None
                     and ref.catalog is None
                 )

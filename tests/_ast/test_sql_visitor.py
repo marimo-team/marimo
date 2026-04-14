@@ -960,6 +960,29 @@ class TestFindSQLRefs:
             SQLRef(table="classes"),
         }
 
+    def test_cte_with_duplicate_join_aliases_mixed_case(self) -> None:
+        # CTE defined as "Num_Exams" but referenced as "num_exams".
+        # SQL identifiers are case-insensitive, so these must match.
+        sql = """
+        WITH
+            Num_Exams AS (
+                SELECT student_id, exam_type_id, COUNT(*) AS num_exams
+                FROM exam_records
+                GROUP BY student_id, exam_type_id
+            )
+        SELECT
+            student_id, student_name, exam_type_id,
+            c.class_name, COALESCE(c.num_exams, 0) AS num_exams
+        FROM students
+            LEFT JOIN num_exams c USING (student_id)
+            JOIN classes c USING (class_id)
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="exam_records"),
+            SQLRef(table="students"),
+            SQLRef(table="classes"),
+        }
+
     def test_cte_with_duplicate_join_aliases_different_aliases(self) -> None:
         # Same query as above but with distinct aliases — should work
         # both before and after the fix (build_scope succeeds here).
