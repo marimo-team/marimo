@@ -159,7 +159,7 @@ class TestHandleCreateKernelFailure:
                 app_config={},  # type: ignore[arg-type]
             ),
             user_config=DEFAULT_CONFIG,
-            virtual_files_supported=True,
+            virtual_file_storage="shared_memory",
             redirect_console_to_browser=True,
             log_level=10,
         )

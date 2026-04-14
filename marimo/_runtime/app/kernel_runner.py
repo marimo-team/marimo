@@ -140,7 +140,7 @@ class AppKernelRunner:
             stream=ctx.stream,
             stdout=None,
             stderr=None,
-            virtual_files_supported=True,
+            virtual_file_storage="shared_memory",
             mode=SessionMode.EDIT,
             parent=ctx,
         )

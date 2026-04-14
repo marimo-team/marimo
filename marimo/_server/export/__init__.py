@@ -518,7 +518,7 @@ async def run_app_until_completion(
         ),
         app_file_manager=file_manager,
         config_manager=config_manager,
-        virtual_files_supported=False,
+        virtual_file_storage=None,
         redirect_console_to_browser=False,
         ttl_seconds=None,
         auto_instantiate=True,

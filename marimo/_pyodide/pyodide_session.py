@@ -493,7 +493,7 @@ def _launch_pyodide_kernel(
         stream=stream,
         stdout=stdout,
         stderr=stderr,
-        virtual_files_supported=False,
+        virtual_file_storage=None,
         mode=session_mode,
     )
 
