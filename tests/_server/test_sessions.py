@@ -140,7 +140,7 @@ def test_kernel_manager_run_mode() -> None:
         configs={},
         app_metadata=app_metadata,
         config_manager=get_default_config_manager(current_path=None),
-        virtual_file_storage="shared_memory",
+        virtual_file_storage="in_memory",
         redirect_console_to_browser=False,
     )
 
@@ -312,7 +312,7 @@ async def test_session() -> None:
         configs={},
         app_metadata=app_metadata,
         config_manager=get_default_config_manager(current_path=None),
-        virtual_file_storage="shared_memory",
+        virtual_file_storage="in_memory",
         redirect_console_to_browser=False,
     )
 
@@ -416,7 +416,7 @@ def test_session_with_kiosk_consumers() -> None:
         configs={},
         app_metadata=app_metadata,
         config_manager=get_default_config_manager(current_path=None),
-        virtual_file_storage="shared_memory",
+        virtual_file_storage="in_memory",
         redirect_console_to_browser=False,
     )
 
@@ -1039,7 +1039,7 @@ def test_session_with_script_config_overrides(
         app_metadata=app_metadata,
         app_file_manager=app_file_manager,
         config_manager=get_default_config_manager(current_path=None),
-        virtual_file_storage="shared_memory",
+        virtual_file_storage="in_memory",
         redirect_console_to_browser=False,
         ttl_seconds=None,
         auto_instantiate=True,
