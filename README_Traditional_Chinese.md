@@ -44,7 +44,7 @@
 - 🖐️ **互動性：** [綁定滑桿、表格、圖表等](https://docs.marimo.io/guides/interactivity.html)至 Python — 無需回呼函式
 - 🐍 **支援 Git 版本控制：** 以 `.py` 檔案格式儲存
 - 🛢️ **為資料設計：** 使用 SQL 查詢[資料框和資料庫](https://docs.marimo.io/guides/working_with_data/sql.html)，過濾和搜尋[資料框](https://docs.marimo.io/guides/working_with_data/dataframes.html)
-- 🤖 **AI 原生：** 使用 AI 生成資料工作的單元格
+- 🤖 **AI 原生：** [連結 agent CLIs](https://docs.marimo.io/guides/generate_with_ai/marimo_pair/)（如 Claude Code）至筆記本，或使用編輯器的[內建 AI 功能](https://docs.marimo.io/guides/editor_features/ai_completion/)
 - 🔬 **可重現：** [無隱藏狀態](https://docs.marimo.io/guides/reactivity.html#no-hidden-state)、確定性執行、[內建套件管理](https://docs.marimo.io/guides/editor_features/package_management.html)
 - 🏃 **可執行：** [作為 Python 腳本執行](https://docs.marimo.io/guides/scripts.html)，透過 CLI 參數化
 - 🛜 **可分享：** [部署為互動式網頁應用程式](https://docs.marimo.io/guides/apps.html)或[簡報](https://docs.marimo.io/guides/apps.html#slides-layout)，[透過 WASM 在瀏覽器中執行](https://docs.marimo.io/guides/wasm.html)
@@ -80,7 +80,7 @@ marimo 保證您的筆記本程式碼、輸出和程式狀態保持一致。這[
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-df.gif" width="700px" />
 
-**使用資料感知 AI 生成單元格。** 使用[AI 助手生成程式碼](https://docs.marimo.io/guides/editor_features/ai_completion/)，該助手專門為資料處理而設計，具有記憶體中變數的上下文；[零樣本生成整個筆記本](https://docs.marimo.io/guides/generate_with_ai/text_to_notebook/)。自訂系統提示，使用您自己的 API 金鑰，或使用本地模型。
+**使用資料感知 AI 生成單元格。** 使用您最喜愛 agent（如 Claude Code、Codex 或 OpenCode），透過 [marimo pair](https://docs.marimo.io/guides/generate_with_ai/marimo_pair/) 協作編輯 marimo 筆記本。或者，透過 [marimo 編輯器的 AI 助手](https://docs.marimo.io/guides/editor_features/ai_completion/)生成程式碼，該助手專門為資料處理而設計，具有記憶體中變數的上下文。自訂系統提示，使用您自己的 API 金鑰，或使用本地模型。
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-generate-with-ai.gif" width="700px" />
 
