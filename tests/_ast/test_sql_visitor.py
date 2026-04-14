@@ -1068,6 +1068,24 @@ class TestFindSQLRefs:
             SQLRef(table="bar"),
         }
 
+    def test_nested_subquery_cte_does_not_mask_outer_table(self) -> None:
+        # A CTE defined inside a subquery is scoped to that subquery.
+        # It must not mask a real table with the same name in the outer
+        # query. Duplicate aliases force the OptimizeError fallback.
+        sql = """
+        SELECT *
+        FROM my_table
+            JOIN (
+                WITH my_table AS (SELECT 1 AS id)
+                SELECT * FROM my_table
+            ) a ON my_table.id = a.id
+            JOIN other_table a ON my_table.id = a.id
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="my_table"),
+            SQLRef(table="other_table"),
+        }
+
     def test_dml_with_cte(self) -> None:
         # CTE names should be filtered in DML statements too.
         sql = """
