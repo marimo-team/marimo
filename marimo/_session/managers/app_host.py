@@ -181,7 +181,10 @@ class AppHostKernelManager(KernelManager):
             configs=self._configs,
             app_metadata=self._app_metadata,
             user_config=self._config_manager.get_config(hide_secrets=False),
-            virtual_files_supported=True,
+            # AppHost runs the kernel in a subprocess, so virtual files
+            # must be stored in shared memory — otherwise the server
+            # process can't serve them on /@file/...
+            virtual_file_storage="shared_memory",
             redirect_console_to_browser=self._redirect_console_to_browser,
             log_level=GLOBAL_SETTINGS.LOG_LEVEL,
         )

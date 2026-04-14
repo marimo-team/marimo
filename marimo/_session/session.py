@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
     from marimo._ast.cell_manager import CellManager
+    from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._server.models.models import InstantiateNotebookRequest
     from marimo._session.app_host import AppHostContext
 
@@ -116,7 +117,7 @@ class SessionImpl(Session):
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
         config_manager: MarimoConfigManager,
-        virtual_files_supported: bool,
+        virtual_file_storage: VirtualFileStorageType | None,
         redirect_console_to_browser: bool,
         auto_instantiate: bool,
         ttl_seconds: int | None,
@@ -183,7 +184,6 @@ class SessionImpl(Session):
                 configs=configs,
                 app_metadata=app_metadata,
                 config_manager=config_manager,
-                virtual_files_supported=virtual_files_supported,
                 redirect_console_to_browser=redirect_console_to_browser,
             )
         else:
@@ -198,7 +198,7 @@ class SessionImpl(Session):
                 configs=configs,
                 app_metadata=app_metadata,
                 config_manager=config_manager,
-                virtual_files_supported=virtual_files_supported,
+                virtual_file_storage=virtual_file_storage,
                 redirect_console_to_browser=redirect_console_to_browser,
             )
 

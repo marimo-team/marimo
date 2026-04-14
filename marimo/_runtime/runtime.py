@@ -230,6 +230,7 @@ if TYPE_CHECKING:
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
+    from marimo._runtime.virtual_file import VirtualFileStorageType
 
 LOGGER = _loggers.marimo_logger()
 
@@ -3502,7 +3503,7 @@ def launch_kernel(
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
     user_config: MarimoConfig,
-    virtual_files_supported: bool,
+    virtual_file_storage: VirtualFileStorageType | None,
     redirect_console_to_browser: bool,
     interrupt_queue: QueueType[bool] | None = None,
     profile_path: str | None = None,
@@ -3636,7 +3637,7 @@ def launch_kernel(
         stream=stream,
         stdout=stdout,
         stderr=stderr,
-        virtual_files_supported=virtual_files_supported,
+        virtual_file_storage=virtual_file_storage,
         mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
     )
 

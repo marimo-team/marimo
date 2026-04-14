@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from marimo._ast.cell import CellConfig
     from marimo._config.manager import MarimoConfigReader
     from marimo._runtime.commands import AppMetadata
+    from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
@@ -47,7 +48,7 @@ class KernelManagerImpl(KernelManager):
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
         config_manager: MarimoConfigReader,
-        virtual_files_supported: bool,
+        virtual_file_storage: VirtualFileStorageType | None,
         redirect_console_to_browser: bool,
     ) -> None:
         self.kernel_task: ProcessLike | threading.Thread | None = None
@@ -60,7 +61,7 @@ class KernelManagerImpl(KernelManager):
 
         # Only used in edit mode
         self._read_conn: TypedConnection[KernelMessage] | None = None
-        self._virtual_files_supported = virtual_files_supported
+        self._virtual_file_storage = virtual_file_storage
 
     def start_kernel(self) -> None:
         # We use a process in edit mode so that we can interrupt the app
@@ -85,7 +86,7 @@ class KernelManagerImpl(KernelManager):
                     self.configs,
                     self.app_metadata,
                     self.config_manager.get_config(hide_secrets=False),
-                    self._virtual_files_supported,
+                    self._virtual_file_storage,
                     self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
                     self.profile_path,
@@ -137,7 +138,7 @@ class KernelManagerImpl(KernelManager):
                     self.configs,
                     self.app_metadata,
                     self.config_manager.get_config(hide_secrets=False),
-                    self._virtual_files_supported,
+                    self._virtual_file_storage,
                     self.redirect_console_to_browser,
                     # win32 interrupt queue
                     None,

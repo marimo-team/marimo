@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from marimo._messaging.types import Stream
     from marimo._runtime.runtime import Kernel
     from marimo._runtime.state import State
+    from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._types.ids import CellId_t
 
 
@@ -143,7 +144,7 @@ def create_kernel_context(
     stream: Stream,
     stdout: Stdout | None,
     stderr: Stderr | None,
-    virtual_files_supported: bool,
+    virtual_file_storage: VirtualFileStorageType | None,
     mode: SessionMode,
     app: InternalApp | None = None,
     parent: KernelRuntimeContext | None = None,
@@ -154,15 +155,17 @@ def create_kernel_context(
         InMemoryStorage,
         SharedMemoryStorage,
         VirtualFileRegistry,
+        VirtualFileStorage,
     )
     from marimo._save.cache import CacheState
     from marimo._save.stores import get_store
 
-    # Use shared memory in edit mode,
-    # in-memory storage in run mode (same process)
-    storage = (
+    # Storage is chosen explicitly by the caller. None means virtual files
+    # are not supported; we still construct an (inert) InMemoryStorage so
+    # the registry has a backend, but ctx.virtual_files_supported is False.
+    storage: VirtualFileStorage = (
         SharedMemoryStorage()
-        if mode == SessionMode.EDIT
+        if virtual_file_storage == "shared_memory"
         else InMemoryStorage()
     )
 
@@ -181,7 +184,7 @@ def create_kernel_context(
             else AppKernelRunnerRegistry()
         ),
         virtual_file_registry=VirtualFileRegistry(storage=storage),
-        virtual_files_supported=virtual_files_supported,
+        virtual_files_supported=virtual_file_storage is not None,
         stream=stream,
         stdout=stdout,
         stderr=stderr,
@@ -198,7 +201,7 @@ def initialize_kernel_context(
     stream: Stream,
     stdout: Stdout | None,
     stderr: Stderr | None,
-    virtual_files_supported: bool,
+    virtual_file_storage: VirtualFileStorageType | None,
     mode: SessionMode,
 ) -> KernelRuntimeContext:
     """Initializes thread-local/session-specific context.
@@ -210,7 +213,7 @@ def initialize_kernel_context(
         stream=stream,
         stdout=stdout,
         stderr=stderr,
-        virtual_files_supported=virtual_files_supported,
+        virtual_file_storage=virtual_file_storage,
         mode=mode,
     )
     initialize_context(runtime_context=ctx)

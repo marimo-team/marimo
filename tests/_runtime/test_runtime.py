@@ -1384,7 +1384,7 @@ except NameError:
                 stream=k.stream,
                 stdout=k.stdout,
                 stderr=k.stderr,
-                virtual_files_supported=True,
+                virtual_file_storage="shared_memory",
                 mode=SessionMode.EDIT,
             )
 
@@ -1550,7 +1550,7 @@ except NameError:
                 stream=k.stream,
                 stdout=k.stdout,
                 stderr=k.stderr,
-                virtual_files_supported=True,
+                virtual_file_storage="shared_memory",
                 mode=SessionMode.EDIT,
             )
 

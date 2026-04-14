@@ -227,7 +227,14 @@ class SessionManager:
             ),
             app_file_manager=app_file_manager,
             config_manager=self._config_manager,
-            virtual_files_supported=True,
+            # EDIT mode runs the kernel in a subprocess (SharedMemoryStorage);
+            # RUN mode runs it in a thread in the same process (InMemoryStorage).
+            # AppHost-backed sessions override this with "shared_memory".
+            virtual_file_storage=(
+                "shared_memory"
+                if self.mode == SessionMode.EDIT
+                else "in_memory"
+            ),
             redirect_console_to_browser=self.redirect_console_to_browser,
             ttl_seconds=self.ttl_seconds,
             auto_instantiate=auto_instantiate,

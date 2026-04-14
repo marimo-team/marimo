@@ -188,7 +188,6 @@ class IPCKernelManagerImpl(KernelManager):
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
         config_manager: MarimoConfigReader,
-        virtual_files_supported: bool = True,
         redirect_console_to_browser: bool = True,
     ) -> None:
         self.queue_manager = queue_manager
@@ -197,7 +196,6 @@ class IPCKernelManagerImpl(KernelManager):
         self.configs = configs
         self.app_metadata = app_metadata
         self.config_manager = config_manager
-        self.virtual_files_supported = virtual_files_supported
         self.redirect_console_to_browser = redirect_console_to_browser
 
         self._process: subprocess.Popen[bytes] | None = None
@@ -217,7 +215,6 @@ class IPCKernelManagerImpl(KernelManager):
             profile_path=None,
             connection_info=self.connection_info,
             is_run_mode=self.mode == SessionMode.RUN,
-            virtual_files_supported=self.virtual_files_supported,
             redirect_console_to_browser=self.redirect_console_to_browser,
         )
 

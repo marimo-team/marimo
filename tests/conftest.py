@@ -262,7 +262,11 @@ class MockedKernel:
             stream=self.stream,  # type: ignore
             stdout=self.stdout,  # type: ignore
             stderr=self.stderr,  # type: ignore
-            virtual_files_supported=True,
+            virtual_file_storage=(
+                "shared_memory"
+                if self.session_mode == SessionMode.EDIT
+                else "in_memory"
+            ),
             mode=self.session_mode,
         )
 
