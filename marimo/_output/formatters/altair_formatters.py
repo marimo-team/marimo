@@ -80,7 +80,10 @@ class AltairFormatter(FormatterFactory):
                         data_url = io_to_data_url(mime_response, mime_type)
                         return (mime_type, data_url or "")
                     if isinstance(mime_response, str):
-                        if mime_type == "image/svg+xml":
+                        if (
+                            mime_type == "image/svg+xml"
+                            and not altair.renderers.options.get("inline")
+                        ):
                             svg_bytes = mime_response.encode()
                             data_url = io_to_data_url(svg_bytes, mime_type)
                             return (mime_type, data_url or "")

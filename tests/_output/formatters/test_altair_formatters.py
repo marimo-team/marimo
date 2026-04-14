@@ -157,24 +157,34 @@ def test_altair_formatter_mimebundle():
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
-def test_altair_formatter_svg():
+@pytest.mark.parametrize(
+    ("inline", "expected"),
+    [
+        (True, "<svg></svg>"),
+        (False, "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="),
+    ],
+)
+def test_altair_formatter_svg(inline: bool, expected: str):
     AltairFormatter().register()
 
     import altair as alt
 
     # Create a mock chart with a _repr_mimebundle_ method that returns SVG
     mock_chart = alt.Chart(get_data()).mark_point()
-    with patch.object(
-        alt.Chart,
-        "_repr_mimebundle_",
-        return_value={"image/svg+xml": "<svg></svg>"},
+    with (
+        patch.dict(alt.renderers.options, {"inline": inline}),
+        patch.object(
+            alt.Chart,
+            "_repr_mimebundle_",
+            return_value={"image/svg+xml": "<svg></svg>"},
+        ),
     ):
         formatter = get_formatter(mock_chart)
         assert formatter is not None
         mime, content = formatter(mock_chart)
 
         assert mime == "image/svg+xml"
-        assert content == "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="
+        assert content == expected
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
