@@ -588,8 +588,10 @@ export class MatplotlibRenderer {
 
   #restoreSelection = (value: SelectionValue): void => {
     if (!value || !("has_selection" in value) || !value.has_selection) {
-      this.#interaction = { type: "idle" };
-      this.#scheduleRedraw();
+      if (this.#interaction.type !== "idle") {
+        this.#interaction = { type: "idle" };
+        this.#scheduleRedraw();
+      }
       return;
     }
 
