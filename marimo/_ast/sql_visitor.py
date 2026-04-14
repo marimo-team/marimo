@@ -541,7 +541,7 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     refs: set[SQLRef] = set()
 
     def _collect_table_refs_excluding_ctes(
-        expression: exp.Expression,
+        expression: exp.Expression | None,
     ) -> None:
         """Walk all Table nodes, filtering out unqualified CTE references.
 
@@ -555,6 +555,9 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
         query. Schema-qualified refs (e.g. schema.foo) are always real
         tables even if a CTE shares the same base name.
         """
+        if expression is None:
+            return
+
         cte_names: set[str] = set()
         with_clause = expression.args.get("with_")
         if with_clause:
