@@ -46,7 +46,6 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
 
   const slides = (
     <LazySlidesComponent
-      className="flex-1 self-center"
       cellsWithOutput={cellsWithOutput}
       activeIndex={resolvedIndex}
       onSlideChange={handleSlideChange}
@@ -55,7 +54,7 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   );
 
   if (isReading) {
-    return <div className="p-4 flex flex-col flex-1 max-h-[95%]">{slides}</div>;
+    return <div className="p-4 flex flex-1 max-h-[95%]">{slides}</div>;
   }
 
   return (

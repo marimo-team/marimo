@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { ExpandIcon } from "lucide-react";
-import { cn } from "@/utils/cn";
 import { Deck, Slide } from "@revealjs/react";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { Button } from "@/components/ui/button";
@@ -15,13 +14,11 @@ import "./slides.css";
 import "./reveal-slides.css";
 
 const RevealSlidesComponent = ({
-  className,
   cellsWithOutput,
   activeIndex,
   onSlideChange,
   deckRef,
 }: {
-  className?: string;
   cellsWithOutput: (CellRuntimeState & CellData)[];
   activeIndex?: number;
   onSlideChange?: (index: number) => void;
@@ -39,7 +36,7 @@ const RevealSlidesComponent = ({
   }, [activeIndex, deckRef]);
 
   return (
-    <div className={cn("group relative h-full", className)}>
+    <div className="group relative h-full w-full flex-1">
       <Deck
         deckRef={deckRef}
         className="relative w-full h-full border rounded bg-background mo-slides-theme prose-slides"
