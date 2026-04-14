@@ -5,15 +5,22 @@ import { z } from "zod";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import {
+  usePendingCutActions,
+  usePendingCutState,
+} from "@/core/cells/pending-cut-service";
+import type { CellConfig } from "@/core/network/types";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
 
 // According to MDN, custom mimetypes should start with "web "
 const MARIMO_CELL_MIMETYPE = "web application/x-marimo-cell";
 
-interface ClipboardCellData {
+export interface ClipboardCellData {
   cells: {
     code: string;
+    name?: string;
+    config?: CellConfig;
   }[];
   version: "1.0";
 }
@@ -22,19 +29,49 @@ const ClipboardCellDataSchema = z.object({
   cells: z.array(
     z.object({
       code: z.string(),
+      name: z.string().optional(),
+      config: z
+        .object({
+          column: z.union([z.number(), z.null()]).optional(),
+          disabled: z.boolean().optional(),
+          hide_code: z.boolean().optional(),
+        })
+        .optional(),
     }),
   ),
   version: z.literal("1.0"),
 });
 
-// NOTE: We don't support Cut yet. We can wait for feedback before implementing.
-// It is a bit more complex as will need to:
-// - include id, outputs, and name
-// - delete the existing cell, but don't place on the undo stack
-// - don't want to invalidate downstream cells
+function buildClipboardPayload(
+  cells: Array<{ code: string; name?: string; config?: CellConfig }>,
+): { clipboardData: ClipboardCellData; plainText: string } {
+  const clipboardData: ClipboardCellData = {
+    cells: cells.map((cell) => ({
+      code: cell.code,
+      name: cell.name,
+      config: cell.config,
+    })),
+    version: "1.0",
+  };
+  const plainText = cells.map((cell) => cell.code).join("\n\n");
+  return { clipboardData, plainText };
+}
+
+async function writeCellsToClipboard(
+  clipboardData: ClipboardCellData,
+  plainText: string,
+): Promise<void> {
+  const clipboardItem = new ClipboardItemBuilder()
+    .add(MARIMO_CELL_MIMETYPE, clipboardData)
+    .add("text/plain", plainText)
+    .build();
+  await navigator.clipboard.write([clipboardItem]);
+}
 
 export function useCellClipboard() {
   const actions = useCellActions();
+  const pendingCutActions = usePendingCutActions();
+  const pendingCutState = usePendingCutState();
 
   const copyCells = useEvent(async (cellIds: CellId[]) => {
     const notebook = getNotebook();
@@ -47,32 +84,47 @@ export function useCellClipboard() {
       return;
     }
 
+    const { clipboardData, plainText } = buildClipboardPayload(cells);
+
     try {
-      const clipboardData: ClipboardCellData = {
-        cells: cells.map((cell) => ({ code: cell.code })),
-        version: "1.0",
-      };
-
-      // Create plain text representation (joined by newlines)
-      const plainText = cells.map((cell) => cell.code).join("\n\n");
-
-      // Create clipboard item with both custom mimetype and plain text
-      const clipboardItem = new ClipboardItemBuilder()
-        .add(MARIMO_CELL_MIMETYPE, clipboardData)
-        .add("text/plain", plainText)
-        .build();
-
-      await navigator.clipboard.write([clipboardItem]);
-
+      await writeCellsToClipboard(clipboardData, plainText);
+      pendingCutActions.clear();
       toastSuccess(cells.length);
     } catch (error) {
       Logger.error("Failed to copy cells to clipboard", error);
 
       // Fallback to simple text copy
       try {
-        const plainText = cells.map((cell) => cell.code).join("\n\n");
         await copyToClipboard(plainText);
+        pendingCutActions.clear();
         toastSuccess(cells.length);
+      } catch {
+        toastError();
+      }
+    }
+  });
+
+  const cutCells = useEvent(async (cellIds: CellId[]) => {
+    const notebook = getNotebook();
+    const validCellIds = cellIds.filter((cellId) => notebook.cellData[cellId]);
+    const cells = validCellIds.map((cellId) => notebook.cellData[cellId]);
+
+    if (cells.length === 0) {
+      // No cells to cut
+      return;
+    }
+
+    const { clipboardData, plainText } = buildClipboardPayload(cells);
+
+    try {
+      await writeCellsToClipboard(clipboardData, plainText);
+      pendingCutActions.markForCut({ cellIds: validCellIds, clipboardData });
+    } catch (error) {
+      Logger.error("Failed to cut cells to clipboard", error);
+      try {
+        await copyToClipboard(plainText);
+        // Mark cells as pending cut instead of deleting immediately
+        pendingCutActions.markForCut({ cellIds: validCellIds, clipboardData });
       } catch {
         toastError();
       }
@@ -85,6 +137,27 @@ export function useCellClipboard() {
 
   const pasteAtCell = useEvent(async (cellId: CellId, opts?: PasteOptions) => {
     const { before = false } = opts ?? {};
+
+    // Check if we have pending cut cells (internal move)
+    if (pendingCutState.cellIds.size > 0) {
+      const pendingCellIds = [...pendingCutState.cellIds];
+      const notebook = getNotebook();
+      const previousPlacements = pendingCellIds.map((id) => {
+        const column = notebook.cellIds.findWithId(id);
+        return { columnId: column.id, index: column.indexOfOrThrow(id) };
+      });
+
+      actions.moveCellsRelativeTo({
+        cellIds: pendingCellIds,
+        targetCellId: cellId,
+        position: before ? "before" : "after",
+        previousPlacements,
+      });
+
+      pendingCutActions.clear();
+      return;
+    }
+
     try {
       const clipboardItems = await navigator.clipboard.read();
 
@@ -112,6 +185,9 @@ export function useCellClipboard() {
                 cellId: currentCellId,
                 before,
                 code: cell.code,
+                name: cell.name,
+                config: cell.config,
+                hideCode: cell.config?.hide_code,
                 autoFocus: true,
               });
             }
@@ -143,7 +219,9 @@ export function useCellClipboard() {
 
   return {
     copyCells,
+    cutCells,
     pasteAtCell,
+    clearPendingCut: pendingCutActions.clear,
   };
 }
 

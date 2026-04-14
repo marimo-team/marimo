@@ -10,6 +10,10 @@ import {
 } from "@codemirror/view";
 import { createTracebackInfoAtom } from "@/core/cells/cells";
 import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
+import {
+  clearPendingCutAtom,
+  pendingCutCellIdsAtom,
+} from "@/core/cells/pending-cut-service";
 import { loroSyncAnnotation } from "@/core/codemirror/rtc/loro/sync";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -326,6 +330,12 @@ function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
         code: nextCode,
         formattingChange: isFormattingChange,
       });
+
+      // Clear pending cut state if this cell was marked for cut
+      const pendingCutCellIds = store.get(pendingCutCellIdsAtom);
+      if (pendingCutCellIds.has(cellId)) {
+        store.set(clearPendingCutAtom);
+      }
     }
   });
 
