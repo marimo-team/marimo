@@ -16,7 +16,6 @@ from marimo._utils.methods import getcallable
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from marimo._plugins.core.web_component import JSONType
     from marimo._plugins.ui._core.ui_element import UIElement
     from marimo._plugins.ui._impl.batch import batch as batch_plugin
 
@@ -164,7 +163,7 @@ class Html(MIME):
         )
 
     @mddoc
-    def batch(self, **elements: UIElement[JSONType, object]) -> batch_plugin:
+    def batch(self, **elements: UIElement[Any, Any]) -> batch_plugin:
         """Convert an HTML object with templated text into a UI element.
 
         This method lets you create custom UI elements that are represented
