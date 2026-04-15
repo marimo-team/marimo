@@ -108,6 +108,25 @@
   background: var(--gray-3);
 }
 
+/* -- Variable rename popup -- */
+
+/*
+ * The rename popup created by @marimo-team/codemirror-languageserver uses
+ * hardcoded inline styles (background: white, border: 1px solid #ddd).
+ * Override those here so the popup matches the editor theme in both light
+ * and dark mode.
+ */
+.cm-rename-popup {
+  background: var(--popover) !important;
+  border-color: var(--border) !important;
+}
+
+.cm-rename-popup input {
+  background: var(--background);
+  color: var(--foreground);
+  border-color: var(--border) !important;
+}
+
 /* -- Codeium -- */
 
 .cm-codeium-cycle {
