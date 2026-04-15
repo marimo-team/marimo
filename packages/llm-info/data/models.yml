@@ -266,3 +266,68 @@
   providers: [wandb]
   roles: [chat, edit]
   thinking: true
+
+# OpenCode Go Models
+
+- name: GLM 5.1 (OpenCode Go)
+  model: glm-5.1
+  description: Mixture-of-Experts model with user-controllable thinking/non-thinking modes
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: true
+
+- name: GLM 5 (OpenCode Go)
+  model: glm-5
+  description: Efficient Mixture-of-Experts model for coding tasks
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Kimi K2.5 (OpenCode Go)
+  model: kimi-k2.5
+  description: Mixture-of-Experts model optimized for complex tool use and reasoning
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: true
+
+- name: MiMo V2 Pro (OpenCode Go)
+  model: mimo-v2-pro
+  description: MiMo V2 Pro model for coding tasks
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: false
+
+- name: MiMo V2 Omni (OpenCode Go)
+  model: mimo-v2-omni
+  description: MiMo V2 Omni multimodal model
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: false
+
+- name: MiniMax M2.7 (OpenCode Go)
+  model: minimax-m2.7
+  description: MiniMax M2.7 model with advanced reasoning
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: true
+
+- name: MiniMax M2.5 (OpenCode Go)
+  model: minimax-m2.5
+  description: MiniMax M2.5 model with efficient inference
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Qwen 3.6 Plus (OpenCode Go)
+  model: qwen3.6-plus
+  description: Qwen 3.6 Plus for complex reasoning and coding
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Qwen 3.5 Plus (OpenCode Go)
+  model: qwen3.5-plus
+  description: Qwen 3.5 Plus efficient coding model
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: false

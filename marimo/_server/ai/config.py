@@ -163,6 +163,19 @@ class AnyProviderConfig:
         )
 
     @classmethod
+    def for_opencode_go(cls, config: AiConfig) -> AnyProviderConfig:
+        fallback_key = cls.os_key("OPENCODE_API_KEY")
+        return cls._for_openai_like(
+            config,
+            "opencode_go",
+            "OpenCode Go",
+            fallback_key=fallback_key,
+            # Default base URL for OpenCode Go
+            fallback_base_url="https://opencode.ai/zen/go/v1/",
+            require_key=True,
+        )
+
+    @classmethod
     def _for_openai_like(
         cls,
         config: AiConfig,
@@ -263,6 +276,8 @@ class AnyProviderConfig:
             return cls.for_openrouter(config)
         elif model_id.provider == "wandb":
             return cls.for_wandb(config)
+        elif model_id.provider == "opencode-go":
+            return cls.for_opencode_go(config)
         elif model_id.provider == "openai_compatible":
             return cls.for_openai_compatible(config)
         else:

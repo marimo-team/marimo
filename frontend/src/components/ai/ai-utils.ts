@@ -21,6 +21,7 @@ const CREDENTIAL_CHECKERS: Record<KnownProviderId, CredentialChecker> = {
   openrouter: (ai) => Boolean(ai?.openrouter?.api_key),
   azure: (ai) => Boolean(ai?.azure?.api_key && ai?.azure?.base_url),
   wandb: (ai) => Boolean(ai?.wandb?.api_key),
+  "opencode-go": (ai) => Boolean(ai?.opencode_go?.api_key),
   bedrock: (ai) => Boolean(ai?.bedrock?.region_name),
   ollama: (ai) => Boolean(ai?.ollama?.base_url),
   // These providers don't have user-configurable credentials in the UI
