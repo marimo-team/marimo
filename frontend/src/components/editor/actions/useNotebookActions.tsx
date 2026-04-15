@@ -381,6 +381,18 @@ export function useNotebookActions() {
             });
           },
         },
+        {
+          icon: <MarimoPlusIcon size={14} strokeWidth={1.5} />,
+          label: "Create molab notebook",
+          handle: async () => {
+            const code = await readCode();
+            const url = createShareableLink({
+              code: code.contents,
+              baseUrl: `${Constants.molab}/new`,
+            });
+            window.open(url, "_blank");
+          },
+        },
       ],
     },
 
