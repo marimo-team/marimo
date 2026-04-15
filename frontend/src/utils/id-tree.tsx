@@ -1036,8 +1036,8 @@ export class MultiColumn<T> {
     if (placements.length === 0) {
       return this;
     }
-    let result: MultiColumn<T> = this;
-    for (const { id } of placements) {
+    let result = this.deleteById(placements[0].id);
+    for (const { id } of placements.slice(1)) {
       result = result.deleteById(id);
     }
     const sorted = [...placements].toSorted((a, b) => {
