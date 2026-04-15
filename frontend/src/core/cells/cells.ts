@@ -259,7 +259,7 @@ const {
           lastCodeRun,
           config: createCellConfig({
             ...config,
-            hide_code: hideCode ?? config?.hide_code,
+            ...(hideCode != null && { hide_code: hideCode }),
           }),
           lastExecutionTime,
           edited: Boolean(code) && code !== lastCodeRun,
@@ -872,7 +872,7 @@ const {
       cellReducer: (cell) => {
         return {
           ...cell,
-          config: { ...cell.config, ...config },
+          config: createCellConfig({ ...cell.config, ...config }),
         };
       },
     });
