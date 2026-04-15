@@ -84,8 +84,11 @@ LAZY_STUB_LOOKUP: dict[str, str] = {
     "numpy.ndarray": "npy",
     "polars.dataframe.frame.DataFrame": "arrow",
     "polars.series.series.Series": "arrow",
+    # pandas 3.x sets __module__ = "pandas"; 2.x exposes the internal path
     "pandas.DataFrame": "arrow",
+    "pandas.core.frame.DataFrame": "arrow",
     "pandas.Series": "arrow",
+    "pandas.core.series.Series": "arrow",
 }
 
 # Runtime cache: type → loader string, populated by maybe_update_lazy_stub().
@@ -115,7 +118,7 @@ def _arrow_load(data: bytes, type_hint: Optional[str] = None) -> Any:
     table = reader.read_all()
     if type_hint and type_hint.startswith("pandas."):
         df = table.to_pandas()
-        if type_hint == "pandas.Series":
+        if type_hint in ("pandas.Series", "pandas.core.series.Series"):
             # Stored as a single-column DataFrame; recover as a Series.
             return df.iloc[:, 0]
         return df
