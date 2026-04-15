@@ -92,6 +92,7 @@ class ScratchCellListener(EventAwareExtension):
         super().__init__()
         self._queue: asyncio.Queue[CellNotification | None] = asyncio.Queue()
         self.timed_out = False
+        self.child_error_summaries: list[str] = []
 
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
@@ -105,10 +106,23 @@ class ScratchCellListener(EventAwareExtension):
             self._queue.put_nowait(msg)
             if msg.status == "idle":
                 self._queue.put_nowait(None)  # sentinel
-        elif msg.console is not None:
-            # Stream console output from cells run by _code_mode
-            # during this scratchpad execution.
-            self._queue.put_nowait(msg)
+        else:
+            if msg.console is not None:
+                # Stream console output from cells run by _code_mode
+                # during this scratchpad execution.
+                self._queue.put_nowait(msg)
+            if (
+                msg.output is not None
+                and msg.output.channel == CellChannel.MARIMO_ERROR
+                and isinstance(msg.output.data, list)
+                and msg.output.data
+            ):
+                err = msg.output.data[0]
+                exc_type = getattr(err, "exception_type", None) or type(err).__name__
+                short_id = str(msg.cell_id)[:8]
+                self.child_error_summaries.append(
+                    f"cell '{short_id}' raised {exc_type}"
+                )
 
     async def stream(self) -> AsyncGenerator[str, None]:
         """Yield SSE-formatted stdout/stderr events until execution completes.
@@ -180,7 +194,10 @@ def _format_console(msg: CellNotification) -> list[str]:
     ]
 
 
-def build_done_event(session: Session) -> str:
+def build_done_event(
+    session: Session,
+    listener: ScratchCellListener | None = None,
+) -> str:
     """Build the ``done`` SSE event from the session's scratch cell state."""
     cell_notif = session.session_view.cell_notifications.get(SCRATCH_CELL_ID)
     if cell_notif is None:
@@ -188,7 +205,7 @@ def build_done_event(session: Session) -> str:
 
     output = cell_notif.output
 
-    # Error case
+    # Error case — scratch cell itself errored
     if (
         output is not None
         and output.channel == CellChannel.MARIMO_ERROR
@@ -211,6 +228,20 @@ def build_done_event(session: Session) -> str:
                     " to install missing packages."
                 )
         return _format_sse("done", DoneError(success=False, error=error_data))
+
+    # Error case — child cells (created/run by code_mode) errored.
+    # Full traceback was already streamed; msg is just a summary.
+    if listener and listener.child_error_summaries:
+        return _format_sse(
+            "done",
+            DoneError(
+                success=False,
+                error=ErrorData(
+                    type="CellExecutionError",
+                    msg="; ".join(listener.child_error_summaries),
+                ),
+            ),
+        )
 
     # Success case
     if output is not None:
@@ -244,7 +275,10 @@ def build_timeout_event(timeout: float) -> str:
     )
 
 
-def extract_result(session: Session) -> CodeExecutionResult:
+def extract_result(
+    session: Session,
+    listener: ScratchCellListener | None = None,
+) -> CodeExecutionResult:
     """Read the scratch cell's final state from the session view."""
     cell_notif = session.session_view.cell_notifications.get(SCRATCH_CELL_ID)
     if cell_notif is None:
@@ -278,6 +312,10 @@ def extract_result(session: Session) -> CodeExecutionResult:
     ):
         for err in cell_notif.output.data:
             errors.append(str(getattr(err, "msg", None) or err))
+
+    # Include child cell error summaries.
+    if listener:
+        errors.extend(listener.child_error_summaries)
 
     return CodeExecutionResult(
         success=len(errors) == 0,

@@ -5,6 +5,7 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
+from inline_snapshot import snapshot
 
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -138,6 +139,26 @@ class TestExtractResult:
         assert result.success is False
         assert len(result.errors) == 1
         assert "NameError" in result.errors[0]
+
+    def test_child_cell_errors_included(self) -> None:
+        """extract_result reports failure when listener saw child errors."""
+        notif = CellNotification(
+            cell_id=SCRATCH_CELL_ID,
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/plain",
+                data="summary",
+            ),
+            console=None,
+            status="idle",
+        )
+        listener = ScratchCellListener()
+        listener.child_error_summaries.append(
+            "cell 'abc12345' raised ZeroDivisionError"
+        )
+        result = extract_result(_make_session(notif), listener)
+        assert result.success is False
+        assert result.errors == ["cell 'abc12345' raised ZeroDivisionError"]
 
     def test_none_console_entries_skipped(self) -> None:
         notif = CellNotification(
@@ -319,6 +340,56 @@ class TestBuildDoneEvent:
         _, data = _parse_sse(build_done_event(_make_session(notif)))
         assert data["success"] is False
         assert "ctx.install_packages" in data["error"]["msg"]
+
+    def test_child_cell_error_reports_failure(self) -> None:
+        """done event reports failure when listener saw child errors."""
+        notif = CellNotification(
+            cell_id=SCRATCH_CELL_ID,
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/plain",
+                data="summary",
+            ),
+            status="idle",
+        )
+        listener = ScratchCellListener()
+        listener.child_error_summaries.append(
+            "cell 'abc12345' raised ZeroDivisionError"
+        )
+        _, data = _parse_sse(
+            build_done_event(_make_session(notif), listener)
+        )
+        assert data == snapshot(
+            {
+                "success": False,
+                "error": {
+                    "type": "CellExecutionError",
+                    "msg": "cell 'abc12345' raised ZeroDivisionError",
+                },
+            }
+        )
+
+    def test_no_child_errors_still_succeeds(self) -> None:
+        """done event succeeds when listener has no child errors."""
+        listener = ScratchCellListener()
+        notif = CellNotification(
+            cell_id=SCRATCH_CELL_ID,
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/plain",
+                data="42",
+            ),
+            status="idle",
+        )
+        _, data = _parse_sse(
+            build_done_event(_make_session(notif), listener)
+        )
+        assert data == snapshot(
+            {
+                "success": True,
+                "output": {"mimetype": "text/plain", "data": "42"},
+            }
+        )
 
     def test_timeout(self) -> None:
         _, data = _parse_sse(build_timeout_event(30.0))

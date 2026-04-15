@@ -43,8 +43,9 @@ def _show_tracebacks_enabled() -> bool:
 
 def write_traceback(traceback: str) -> None:
     in_run_mode = get_mode() == "run"
+    code_mode = is_code_mode_request()
 
-    if isinstance(sys.stderr, Stderr) and not is_code_mode_request():
+    if isinstance(sys.stderr, Stderr) and not code_mode:
         # In run mode, only forward to the frontend if show_tracebacks is on.
         if in_run_mode and not _show_tracebacks_enabled():
             return
@@ -63,13 +64,16 @@ def write_traceback(traceback: str) -> None:
             if in_run_mode and not _show_tracebacks_enabled():
                 sys.stderr.write(traceback)
                 return
+            trimmed = _trim_traceback(traceback)
             broadcast_notification(
                 CellNotification(
                     cell_id=ctx.cell_id,
                     console=CellOutput(
                         channel=CellChannel.STDERR,
                         mimetype="application/vnd.marimo+traceback",
-                        data=_highlight_traceback(_trim_traceback(traceback)),
+                        data=trimmed
+                        if code_mode
+                        else _highlight_traceback(trimmed),
                     ),
                 ),
                 ctx.stream,
