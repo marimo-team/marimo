@@ -52,7 +52,7 @@ class SerialTaskRunner:
 
     def submit(
         self,
-        work: Callable[[], None],
+        work: Callable[[], object],
         *,
         on_error: Callable[[Exception], None] | None = None,
     ) -> None:
