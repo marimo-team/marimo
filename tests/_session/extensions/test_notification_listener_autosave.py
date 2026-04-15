@@ -414,6 +414,85 @@ class TestFailureSurfaces:
         assert "&lt;script&gt;" in desc
 
 
+class TestCellSnapshotIsolation:
+    """``_maybe_autosave`` must deep-copy cells before scheduling the
+    save. ``NotebookCell`` and ``CellConfig`` are mutable and owned by
+    the document, so a shallow ``list(...)`` would let the event-loop
+    thread mutate fields under the worker thread's feet — a torn
+    snapshot / data race."""
+
+    def test_autosave_passes_deep_copied_cells_to_save(
+        self,
+        ext: NotificationListenerExtension,
+        session: Mock,
+        existing_cell_id: CellId_t,
+    ) -> None:
+        received: list[list[NotebookCell]] = []
+        real_save = session.app_file_manager.save_from_cells
+
+        def _capture(cells: list[NotebookCell]) -> str:
+            received.append(list(cells))
+            return real_save(cells)
+
+        session.app_file_manager.save_from_cells = _capture  # type: ignore[method-assign]
+
+        ext._on_kernel_message(
+            session,
+            _serialize_tx(SetCode(cell_id=existing_cell_id, code="x = 2")),
+        )
+
+        assert len(received) == 1
+        snapshot = received[0]
+        live_cells = session.document.cells
+        assert len(snapshot) == len(live_cells)
+        for snap_cell, live_cell in zip(snapshot, live_cells, strict=True):
+            # Distinct cell objects…
+            assert snap_cell is not live_cell
+            # …and distinct config objects. If the config were shared,
+            # a ``SetConfig`` on the loop thread would race an in-flight
+            # save on the worker thread.
+            assert snap_cell.config is not live_cell.config
+            # Values still match at snapshot time.
+            assert snap_cell.id == live_cell.id
+            assert snap_cell.code == live_cell.code
+            assert snap_cell.name == live_cell.name
+
+    def test_post_submit_document_mutation_does_not_leak_into_snapshot(
+        self,
+        ext: NotificationListenerExtension,
+        session: Mock,
+        existing_cell_id: CellId_t,
+    ) -> None:
+        """Regression: if the shallow-copy bug returned, clobbering
+        ``cell.code`` / ``cell.config`` on the document after submit
+        would also clobber the snapshot the worker thread is about to
+        read."""
+        received: list[list[NotebookCell]] = []
+        real_save = session.app_file_manager.save_from_cells
+
+        def _capture(cells: list[NotebookCell]) -> str:
+            received.append(list(cells))
+            return real_save(cells)
+
+        session.app_file_manager.save_from_cells = _capture  # type: ignore[method-assign]
+
+        ext._on_kernel_message(
+            session,
+            _serialize_tx(SetCode(cell_id=existing_cell_id, code="x = 2")),
+        )
+
+        for cell in session.document.cells:
+            cell.code = "CLOBBERED"
+            cell.name = "CLOBBERED_NAME"
+            cell.config.hide_code = True
+
+        assert len(received) == 1
+        snapshot = received[0]
+        assert all(c.code != "CLOBBERED" for c in snapshot)
+        assert all(c.name != "CLOBBERED_NAME" for c in snapshot)
+        assert all(c.config.hide_code is False for c in snapshot)
+
+
 class TestLayoutPreservation:
     """Auto-save must not wipe an existing layout_file setting."""
 

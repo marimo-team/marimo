@@ -38,6 +38,7 @@ class SerialTaskRunner:
     def __init__(self, *, thread_name_prefix: str = "serial-task") -> None:
         self._thread_name_prefix = thread_name_prefix
         self._pending: list[asyncio.Future[Any]] = []
+        self._closed = False
 
     @cached_property
     def _executor(self) -> ThreadPoolExecutor:
@@ -64,7 +65,18 @@ class SerialTaskRunner:
         with any exception raised by ``work`` — posted back to the event
         loop when off-loop, inline otherwise. A failing ``on_error`` is
         logged and swallowed.
+
+        After ``shutdown()``, ``submit`` is a no-op (and logs at debug).
+        Without this guard, ``cached_property`` would silently
+        re-materialize a fresh executor — and a new worker thread — for
+        any late submissions that race session teardown.
         """
+        if self._closed:
+            LOGGER.debug(
+                "SerialTaskRunner.submit called after shutdown; dropping task"
+            )
+            return
+
         try:
             loop: asyncio.AbstractEventLoop | None = asyncio.get_running_loop()
         except RuntimeError:
@@ -128,8 +140,11 @@ class SerialTaskRunner:
         """Tear down the executor. Idempotent; no-op if never materialized.
 
         Uses ``__dict__.pop`` so we don't trigger the ``cached_property``
-        just to shut it down.
+        just to shut it down. Sets ``_closed`` so any subsequent
+        ``submit`` becomes a no-op instead of re-materializing a new
+        executor via ``cached_property``.
         """
+        self._closed = True
         executor = self.__dict__.pop("_executor", None)
         if executor is not None:
             executor.shutdown(wait=wait)

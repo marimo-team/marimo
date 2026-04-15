@@ -349,6 +349,14 @@ def test_save_and_save_from_cells_serialize_under_lock(
         t1.join(timeout=10)
         t2.join(timeout=10)
 
+        assert not t1.is_alive(), (
+            "frontend save thread did not terminate within 10s "
+            "(likely deadlock in AppFileManager write lock)"
+        )
+        assert not t2.is_alive(), (
+            "autosave thread did not terminate within 10s "
+            "(likely deadlock in AppFileManager write lock)"
+        )
         assert not errors, f"unexpected errors: {errors}"
         # File ends in a parseable state — the serializer's codegen would
         # raise on a torn write, and the final content must be one of the

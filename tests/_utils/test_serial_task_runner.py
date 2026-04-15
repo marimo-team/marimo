@@ -196,3 +196,34 @@ class TestShutdown:
         await runner.drain()
         runner.shutdown(wait=True)
         assert completed.is_set()
+
+    def test_submit_after_shutdown_sync_is_noop(self) -> None:
+        """Regression: a stray submit() after shutdown must not
+        re-materialize the ``cached_property`` executor — otherwise
+        session teardown can race with ``QueueDistributor.stop()`` and
+        spin up a brand-new worker thread on the way out."""
+        runner = SerialTaskRunner(thread_name_prefix="closed-sync")
+        runner.shutdown()
+
+        called: list[int] = []
+        runner.submit(lambda: called.append(1))
+
+        assert called == []
+        assert "_executor" not in runner.__dict__
+
+    async def test_submit_after_shutdown_async_is_noop(self) -> None:
+        """Same regression guard, but from the event-loop code path."""
+        runner = SerialTaskRunner(thread_name_prefix="closed-async")
+        # Materialize and immediately shut down.
+        runner.submit(lambda: None)
+        await runner.drain()
+        runner.shutdown(wait=True)
+
+        called: list[int] = []
+        runner.submit(lambda: called.append(1))
+        # Nothing was scheduled, so drain has nothing to await.
+        await runner.drain()
+
+        assert called == []
+        assert "_executor" not in runner.__dict__
+        assert runner.pending == []

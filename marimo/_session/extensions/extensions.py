@@ -8,6 +8,7 @@ Extensions provide a way to add cross-cutting concerns to sessions
 from __future__ import annotations
 
 import asyncio
+import copy
 import html
 from enum import Enum
 from functools import partial
@@ -301,10 +302,13 @@ class NotificationListenerExtension(SessionExtension):
                 self._unnamed_autosave_logged = True
             return
 
-        # Snapshot on the caller thread — NotebookDocument isn't
-        # thread-safe, and only this thread knows it's quiescent right
-        # after ``document.apply()``.
-        cells_snapshot: list[NotebookCell] = list(session.document.cells)
+        # Deep-copy on the caller thread. ``NotebookCell`` and
+        # ``CellConfig`` are mutable and owned by the document, so a
+        # shallow copy would let the event-loop thread mutate fields
+        # under the worker thread's feet (torn snapshot).
+        cells_snapshot: list[NotebookCell] = copy.deepcopy(
+            session.document.cells
+        )
 
         self._autosave_runner.submit(
             partial(session.app_file_manager.save_from_cells, cells_snapshot),
