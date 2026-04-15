@@ -2206,6 +2206,116 @@ describe("cell reducer", () => {
     expect(state.cellIds.getColumns()[2].topLevelIds).toEqual([cellId("2")]);
   });
 
+  it("rebuildCellColumns regroups cells by config.column", () => {
+    // Create four cells in a single column.
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: cellId("1"), before: false });
+    actions.createNewCell({ cellId: cellId("2"), before: false });
+    expect(state.cellIds.getColumns().length).toBe(1);
+
+    // Explicitly set config.column on each cell. This ONLY updates metadata —
+    // updateCellConfig does not touch the MultiColumn tree.
+    actions.updateCellConfig({
+      cellId: cellId("0"),
+      config: { column: 0 },
+    });
+    actions.updateCellConfig({
+      cellId: cellId("2"),
+      config: { column: 1 },
+    });
+
+    // Tree is still a single column at this point.
+    expect(state.cellIds.getColumns().length).toBe(1);
+
+    // Now rebuild the column tree from metadata.
+    actions.rebuildCellColumns({
+      cellIds: [cellId("0"), cellId("1"), cellId("2"), cellId("3")],
+    });
+
+    expect(state.cellIds.getColumns().length).toBe(2);
+    // Cell 1 inherits from 0 (col 0), cell 3 inherits from 2 (col 1).
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
+      cellId("0"),
+      cellId("1"),
+    ]);
+    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([
+      cellId("2"),
+      cellId("3"),
+    ]);
+  });
+
+  it("rebuildCellColumns with explicit column on every cell", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: cellId("1"), before: false });
+    actions.createNewCell({ cellId: cellId("2"), before: false });
+
+    for (const [id, col] of [
+      ["0", 1],
+      ["1", 0],
+      ["2", 1],
+      ["3", 0],
+    ] as const) {
+      actions.updateCellConfig({ cellId: cellId(id), config: { column: col } });
+    }
+
+    actions.rebuildCellColumns({
+      cellIds: [cellId("0"), cellId("1"), cellId("2"), cellId("3")],
+    });
+
+    expect(state.cellIds.getColumns().length).toBe(2);
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
+      cellId("1"),
+      cellId("3"),
+    ]);
+    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([
+      cellId("0"),
+      cellId("2"),
+    ]);
+  });
+
+  it("rebuildCellColumns collapses to one column when all cells are col 0", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.addColumnBreakpoint({ cellId: cellId("1") });
+    expect(state.cellIds.getColumns().length).toBe(2);
+
+    // Wipe column metadata back to 0 for both cells.
+    actions.updateCellConfig({ cellId: cellId("0"), config: { column: 0 } });
+    actions.updateCellConfig({ cellId: cellId("1"), config: { column: 0 } });
+
+    actions.rebuildCellColumns({
+      cellIds: [cellId("0"), cellId("1")],
+    });
+
+    expect(state.cellIds.getColumns().length).toBe(1);
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
+      cellId("0"),
+      cellId("1"),
+    ]);
+  });
+
+  it("rebuildCellColumns follows the provided order, not current tree order", () => {
+    // Start with a single column.
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: cellId("1"), before: false });
+    actions.updateCellConfig({ cellId: cellId("0"), config: { column: 0 } });
+    actions.updateCellConfig({ cellId: cellId("2"), config: { column: 1 } });
+
+    // Pass the reversed order. The rebuild should honor it.
+    actions.rebuildCellColumns({
+      cellIds: [cellId("2"), cellId("1"), cellId("0")],
+    });
+
+    // cellIds iteration:
+    //   2 → col=1, pushed to col1, prev=1
+    //   1 → col=null, pushed to col[prev=1] = col1
+    //   0 → col=0, pushed to col0
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([cellId("0")]);
+    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([
+      cellId("2"),
+      cellId("1"),
+    ]);
+  });
+
   it("can clear output of a single cell", () => {
     // Set up initial state with output
     actions.handleCellMessage({

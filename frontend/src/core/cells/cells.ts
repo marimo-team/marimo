@@ -874,6 +874,24 @@ const {
       cellHandles: nextCellHandles,
     };
   },
+  /**
+   * Rebuild the MultiColumn tree using each cell's `config.column` value.
+   *
+   * Used after a transaction whose `set-config` changes updated cells'
+   * column metadata without physically moving them in the tree. Cells with
+   * `config.column == null` inherit the column of the previous cell in the
+   * given order (see `MultiColumn.fromIdsAndColumns`), which lets the server
+   * send column changes only at column boundaries.
+   */
+  rebuildCellColumns: (state, action: { cellIds: CellId[] }) => {
+    const newCellIds = MultiColumn.fromIdsAndColumns(
+      action.cellIds.map((id) => [
+        id,
+        state.cellData[id]?.config.column ?? null,
+      ]),
+    );
+    return { ...state, cellIds: newCellIds };
+  },
   setCellCodes: (
     state,
     action: {

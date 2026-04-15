@@ -106,6 +106,14 @@ function pretty(s: NotebookState): string {
   return `\n${lines.join("\n")}\n`;
 }
 
+/** Snapshot showing the physical column grouping in the MultiColumn tree. */
+function prettyColumns(s: NotebookState): string {
+  const lines = s.cellIds
+    .getColumns()
+    .map((col, idx) => `col${idx}: [${col.inOrderIds.join(", ")}]`);
+  return `\n${lines.join("\n")}\n`;
+}
+
 let i = 0;
 
 beforeAll(() => {
@@ -132,6 +140,14 @@ describe("applyTransactionChanges edge cases", () => {
       "
       0: 'a'
       new-cell: 'configured' [hide_code, disabled, col=1]
+      "
+    `);
+    // The new cell must physically land in the second column, not just
+    // carry col=1 as stale metadata.
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0]
+      col1: [new-cell]
       "
     `);
   });
@@ -346,5 +362,430 @@ describe("applyTransactionChanges edge cases", () => {
 
     expect(state.cellData[cellId("repro")].code).toBe('x = "AFTER"');
     expect(editorView?.state.doc.toString()).toBe('x = "AFTER"');
+  });
+});
+
+describe("applyTransactionChanges column rebuild", () => {
+  it("boundary anchors: set-config on column boundaries splits cells into columns", () => {
+    // The user's exact example. Server sends a reorder + set-config only on
+    // the cells at column boundaries. The replica must infer that the cells
+    // in between inherit the column of the preceding anchor.
+    setup("a", "b", "c", "d");
+    const [a, b, c, d] = state.cellIds.inOrderIds;
+    apply([
+      { type: "reorder-cells", cellIds: [a, b, c, d] },
+      {
+        type: "set-config",
+        cellId: a,
+        column: 0,
+        disabled: false,
+        hideCode: false,
+      },
+      {
+        type: "set-config",
+        cellId: c,
+        column: 1,
+        disabled: false,
+        hideCode: false,
+      },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1]
+      col1: [2, 3]
+      "
+    `);
+  });
+
+  it("boundary anchors on reordered cells: order follows reorder-cells", () => {
+    // Start from a single column, reorder the cells and split at c.
+    // The rebuild must use the new flat order from reorder-cells so that
+    // b ends up next to a (col 0) and d ends up next to c (col 1).
+    setup("a", "b", "c", "d");
+    const [a, b, c, d] = state.cellIds.inOrderIds;
+    apply([
+      { type: "reorder-cells", cellIds: [d, a, c, b] },
+      {
+        type: "set-config",
+        cellId: d,
+        column: 0,
+        disabled: false,
+        hideCode: false,
+      },
+      {
+        type: "set-config",
+        cellId: c,
+        column: 1,
+        disabled: false,
+        hideCode: false,
+      },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [3, 0]
+      col1: [2, 1]
+      "
+    `);
+  });
+
+  it("three columns: inherits column through consecutive cells", () => {
+    setup("a", "b", "c", "d", "e", "f");
+    const [a, b, c, d, e, f] = state.cellIds.inOrderIds;
+    apply([
+      { type: "reorder-cells", cellIds: [a, b, c, d, e, f] },
+      {
+        type: "set-config",
+        cellId: a,
+        column: 0,
+        disabled: false,
+        hideCode: false,
+      },
+      {
+        type: "set-config",
+        cellId: c,
+        column: 1,
+        disabled: false,
+        hideCode: false,
+      },
+      {
+        type: "set-config",
+        cellId: e,
+        column: 2,
+        disabled: false,
+        hideCode: false,
+      },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1]
+      col1: [2, 3]
+      col2: [4, 5]
+      "
+    `);
+  });
+
+  it("every cell explicitly tagged with a column", () => {
+    setup("a", "b", "c", "d");
+    const [a, b, c, d] = state.cellIds.inOrderIds;
+    apply([
+      { type: "reorder-cells", cellIds: [a, b, c, d] },
+      { type: "set-config", cellId: a, column: 0 },
+      { type: "set-config", cellId: b, column: 1 },
+      { type: "set-config", cellId: c, column: 0 },
+      { type: "set-config", cellId: d, column: 1 },
+    ]);
+    // a and c in col0; b and d in col1. Order within each column follows
+    // the reorder-cells order.
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 2]
+      col1: [1, 3]
+      "
+    `);
+  });
+
+  it("set-config without reorder-cells moves the cell to the new column", () => {
+    setup("a", "b", "c");
+    const [, b] = state.cellIds.inOrderIds;
+    apply([{ type: "set-config", cellId: b, column: 1 }]);
+    // Without reorder-cells, the flat order comes from the current tree.
+    // b gets explicit col=1; a and c stay with default null → follow the
+    // previous cell's column (a → col0 because prev=0; c → col1 because
+    // prev was just set to 1 by b).
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0]
+      col1: [1, 2]
+      "
+    `);
+  });
+
+  it("no column change: set-config only touching other fields does not repartition", () => {
+    setup("a", "b", "c");
+    const [, b] = state.cellIds.inOrderIds;
+    apply([{ type: "set-config", cellId: b, hideCode: true }]);
+    // All three cells remain in a single column. No rebuild triggered.
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1, 2]
+      "
+    `);
+    expect(pretty(state)).toMatchInlineSnapshot(`
+      "
+      0: 'a'
+      1: 'b' [hide_code]
+      2: 'c'
+      "
+    `);
+  });
+
+  it("no changes: empty transaction leaves column structure alone", () => {
+    // Setup a multi-column state first
+    setup("a", "b");
+    const [a, b] = state.cellIds.inOrderIds;
+    apply([
+      { type: "reorder-cells", cellIds: [a, b] },
+      { type: "set-config", cellId: a, column: 0 },
+      { type: "set-config", cellId: b, column: 1 },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0]
+      col1: [1]
+      "
+    `);
+    // Now apply no changes — column structure should be preserved.
+    apply([]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0]
+      col1: [1]
+      "
+    `);
+  });
+
+  it("merging columns: set-config col=0 for everything collapses to one column", () => {
+    // Start in a multi-column state.
+    setup("a", "b", "c", "d");
+    const [a, b, c, d] = state.cellIds.inOrderIds;
+    apply([
+      { type: "reorder-cells", cellIds: [a, b, c, d] },
+      { type: "set-config", cellId: a, column: 0 },
+      { type: "set-config", cellId: c, column: 1 },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1]
+      col1: [2, 3]
+      "
+    `);
+    // Now merge everything back to col 0.
+    apply([
+      { type: "reorder-cells", cellIds: [a, b, c, d] },
+      { type: "set-config", cellId: c, column: 0 },
+      { type: "set-config", cellId: d, column: 0 },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1, 2, 3]
+      "
+    `);
+  });
+
+  it("create-cell with column places cell in correct column", () => {
+    setup("a", "b");
+    const [, b] = state.cellIds.inOrderIds;
+    apply([
+      {
+        type: "create-cell",
+        cellId: cellId("fresh"),
+        code: "x",
+        name: "",
+        config: { column: 1 },
+        after: b,
+      },
+    ]);
+    // a and b are in col 0 (unchanged). The new cell is created at the end
+    // with column=1, so it should land physically in col 1.
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1]
+      col1: [fresh]
+      "
+    `);
+    expect(pretty(state)).toMatchInlineSnapshot(`
+      "
+      0: 'a'
+      1: 'b'
+      fresh: 'x' [col=1]
+      "
+    `);
+  });
+
+  it("multi-change transaction with column + code + name updates", () => {
+    setup("a", "b", "c");
+    const [a, b, c] = state.cellIds.inOrderIds;
+    apply([
+      { type: "reorder-cells", cellIds: [a, b, c] },
+      { type: "set-code", cellId: a, code: "x = 1" },
+      { type: "set-name", cellId: b, name: "middle" },
+      { type: "set-config", cellId: a, column: 0 },
+      { type: "set-config", cellId: b, column: 1 },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0]
+      col1: [1, 2]
+      "
+    `);
+    expect(pretty(state)).toMatchInlineSnapshot(`
+      "
+      0: 'x = 1' [col=0]
+      1: 'b' [name=middle, col=1]
+      2: 'c'
+      "
+    `);
+  });
+
+  it("cancelled create+delete does not trigger column rebuild", () => {
+    setup("a", "b");
+    apply([
+      {
+        type: "create-cell",
+        cellId: cellId("ephemeral"),
+        code: "tmp",
+        name: "",
+        config: { column: 1 },
+      },
+      { type: "delete-cell", cellId: cellId("ephemeral") },
+    ]);
+    // The create+delete cancel out. The column metadata on the cancelled
+    // create-cell shouldn't cause a spurious column rebuild.
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1]
+      "
+    `);
+  });
+
+  it("boundary-anchor convention: moving an anchor pulls non-anchored followers", () => {
+    // This documents the boundary-anchor convention used by the server: only
+    // cells at column boundaries carry an explicit column. Non-anchor cells
+    // have config.column=null and inherit the column of the previous cell.
+    // That means moving an anchor also moves its silent followers.
+    setup("a", "b", "c", "d");
+    const [a, b, c, d] = state.cellIds.inOrderIds;
+    // Split into two columns. Only a and c are anchors.
+    apply([
+      { type: "reorder-cells", cellIds: [a, b, c, d] },
+      { type: "set-config", cellId: a, column: 0 },
+      { type: "set-config", cellId: c, column: 1 },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1]
+      col1: [2, 3]
+      "
+    `);
+    // Move the c anchor to col 0. d has no explicit column so it follows c.
+    apply([
+      { type: "reorder-cells", cellIds: [a, b, c, d] },
+      { type: "set-config", cellId: c, column: 0 },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1, 2, 3]
+      "
+    `);
+  });
+
+  it("explicit anchors on followers: move anchor leaves explicitly-tagged follower behind", () => {
+    // Contrast with the previous test: if d is explicitly tagged col=1,
+    // moving c back to col 0 should leave d in col 1.
+    setup("a", "b", "c", "d");
+    const [a, b, c, d] = state.cellIds.inOrderIds;
+    apply([
+      { type: "reorder-cells", cellIds: [a, b, c, d] },
+      { type: "set-config", cellId: a, column: 0 },
+      { type: "set-config", cellId: c, column: 1 },
+      { type: "set-config", cellId: d, column: 1 },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1]
+      col1: [2, 3]
+      "
+    `);
+    // Move c back to col 0. Because d has its own explicit column=1, it
+    // does NOT follow c.
+    apply([
+      { type: "reorder-cells", cellIds: [a, b, c, d] },
+      { type: "set-config", cellId: c, column: 0 },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1, 2]
+      col1: [3]
+      "
+    `);
+  });
+
+  it("set-config before reorder-cells: processing is sorted so set-config runs last", () => {
+    // Defensive test: even if a transaction has set-config *before*
+    // reorder-cells, the implementation must process reorder-cells first so
+    // that the column rebuild sees the intended final flat order. This
+    // matches the order the backend plans transactions in.
+    setup("a", "b", "c", "d");
+    const [a, b, c, d] = state.cellIds.inOrderIds;
+    apply([
+      // set-config appears FIRST in the transaction.
+      { type: "set-config", cellId: a, column: 0 },
+      { type: "set-config", cellId: c, column: 1 },
+      // reorder-cells comes afterwards.
+      { type: "reorder-cells", cellIds: [a, b, c, d] },
+    ]);
+    // Result must be identical to the canonical order:
+    // the tree is reshaped first, then column metadata is applied.
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1]
+      col1: [2, 3]
+      "
+    `);
+  });
+
+  it("set-config interleaved between other changes is still run last", () => {
+    // Another ordering variant: set-config interleaved between set-code and
+    // reorder-cells. Our sort must move set-config to the end regardless of
+    // position, while preserving the relative order of the other changes.
+    setup("a", "b", "c", "d");
+    const [a, b, c, d] = state.cellIds.inOrderIds;
+    apply([
+      { type: "set-config", cellId: a, column: 0 },
+      { type: "set-code", cellId: a, code: "x = 1" },
+      { type: "set-config", cellId: c, column: 1 },
+      { type: "reorder-cells", cellIds: [a, b, c, d] },
+      { type: "set-name", cellId: d, name: "last" },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1]
+      col1: [2, 3]
+      "
+    `);
+    expect(pretty(state)).toMatchInlineSnapshot(`
+      "
+      0: 'x = 1' [col=0]
+      1: 'b'
+      2: 'c' [col=1]
+      3: 'd' [name=last]
+      "
+    `);
+  });
+
+  it("reorder-cells alone (no column changes) preserves existing columns", () => {
+    // Start in a two-column state.
+    setup("a", "b", "c", "d");
+    const [a, b, c, d] = state.cellIds.inOrderIds;
+    apply([
+      { type: "reorder-cells", cellIds: [a, b, c, d] },
+      { type: "set-config", cellId: a, column: 0 },
+      { type: "set-config", cellId: c, column: 1 },
+    ]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [0, 1]
+      col1: [2, 3]
+      "
+    `);
+    // Now reorder without any column changes. The rebuild must NOT fire.
+    // setCellIds with fromWithPreviousShape preserves the column assignments.
+    apply([{ type: "reorder-cells", cellIds: [b, a, d, c] }]);
+    expect(prettyColumns(state)).toMatchInlineSnapshot(`
+      "
+      col0: [1, 0]
+      col1: [3, 2]
+      "
+    `);
   });
 });

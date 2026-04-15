@@ -349,6 +349,7 @@ export function toDocumentChanges(
     case "prepareForRun":
     case "handleCellMessage":
     case "setCellIds":
+    case "rebuildCellColumns":
     case "setCellCodes":
     case "setCells":
     case "setStdinResponse":
@@ -624,7 +625,24 @@ export function applyTransactionChanges(
 ): void {
   const cancelled = cancelledCellIds(changes);
 
-  for (const change of changes) {
+  // Process set-config changes after everything else. The tree must be fully
+  // restructured (create-cell, delete-cell, reorder-cells, move-cell) before
+  // we start applying column metadata, since the follow-up rebuildCellColumns
+  // step interprets each cell's config.column against the *final* flat order.
+  // Sorting is stable within each group.
+  const sortedChanges: TransactionChange[] = [
+    ...changes.filter((c) => c.type !== "set-config"),
+    ...changes.filter((c) => c.type === "set-config"),
+  ];
+
+  // Track whether any change updated a cell's column, and remember the final
+  // flat order produced by a reorder-cells change (if any). After all changes
+  // are applied, these are used to rebuild the MultiColumn tree so that cells
+  // physically move to the column their metadata says they belong in.
+  let hasColumnChange = false;
+  let reorderOrder: CellId[] | null = null;
+
+  for (const change of sortedChanges) {
     if (
       cancelled.size > 0 &&
       "cellId" in change &&
@@ -632,10 +650,25 @@ export function applyTransactionChanges(
     ) {
       continue;
     }
+    if (change.type === "set-config" && change.column != null) {
+      hasColumnChange = true;
+    }
+    if (change.type === "create-cell" && change.config?.column != null) {
+      hasColumnChange = true;
+    }
+    if (change.type === "reorder-cells") {
+      reorderOrder = change.cellIds as CellId[];
+    }
     for (const action of fromDocumentChanges([change], getCurrentCellIds)) {
       // @ts-expect-error - TypeScript is not smart enough to know we have correctly mapped type -> payload
       actions[action.type](action.payload);
     }
+  }
+
+  if (hasColumnChange) {
+    actions.rebuildCellColumns({
+      cellIds: reorderOrder ?? getCurrentCellIds(),
+    });
   }
 }
 
