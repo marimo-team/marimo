@@ -48,8 +48,8 @@ class AltairFormatter(FormatterFactory):
             mimebundle: MimeBundle | tuple[MimeBundle, MimeBundle] = {}
             try:
                 mimebundle = chart._repr_mimebundle_() or {}  # type: ignore
-            except Exception:
-                pass
+            except Exception as e:
+                LOGGER.warning("Failed to get mimebundle from chart: %s", e)
 
             # When the mimebundle is a tuple, it follows the format
             # (data_dict, metadata_dict).
