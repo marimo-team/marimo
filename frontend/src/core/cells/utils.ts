@@ -70,7 +70,9 @@ export function canUndoDeletes(state: NotebookState) {
  */
 export function getUndoLabel(state: NotebookState): string {
   const last = state.history[state.history.length - 1];
-  if (!last) {return "Undo cell deletion";}
+  if (!last) {
+    return "Undo cell deletion";
+  }
   return last.type === "move" ? "Undo move" : "Undo cell deletion";
 }
 
