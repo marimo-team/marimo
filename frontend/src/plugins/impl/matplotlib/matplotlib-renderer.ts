@@ -380,6 +380,18 @@ export class MatplotlibRenderer {
       return;
     }
 
+    // Restore selection from backend when the value changed and the user
+    // is not actively drawing/dragging/resizing.  During active interactions
+    // the renderer owns the interaction state — overwriting it would fight
+    // the user's pointer.
+    const isUserInteracting =
+      this.#interaction.type !== "idle" && this.#interaction.action !== null;
+    if (state.value !== prev.value && !isUserInteracting) {
+      this.#restoreSelection(state.value);
+      // #restoreSelection already schedules a redraw
+      return;
+    }
+
     // Redraw if style props changed or dimensions changed
     if (
       needsRedraw ||
@@ -576,6 +588,10 @@ export class MatplotlibRenderer {
 
   #restoreSelection = (value: SelectionValue): void => {
     if (!value || !("has_selection" in value) || !value.has_selection) {
+      if (this.#interaction.type !== "idle") {
+        this.#interaction = { type: "idle" };
+        this.#scheduleRedraw();
+      }
       return;
     }
 
