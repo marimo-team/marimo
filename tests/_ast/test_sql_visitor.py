@@ -924,6 +924,179 @@ class TestFindSQLRefs:
             SQLRef(table="table3"),
         }
 
+    def test_cte_with_duplicate_join_aliases(self) -> None:
+        # Regression test for issue #9168
+        # When two JOIN-ed tables share the same alias and one of them
+        # is a CTE, build_scope raises OptimizeError ("Alias already used").
+        # The fallback path must still filter out CTE names.
+        sql = """
+        WITH
+            num_exams AS (
+                SELECT
+                    student_id,
+                    exam_type_id,
+                    COUNT(*) AS num_exams
+                FROM
+                    exam_records
+                GROUP BY
+                    student_id,
+                    exam_type_id
+            )
+        SELECT
+            student_id,
+            student_name,
+            exam_type_id,
+            c.class_name,
+            COALESCE(c.num_exams, 0) AS num_exams
+        FROM
+            students
+            LEFT JOIN num_exams c USING (student_id)
+            JOIN classes c USING (class_id)
+        """
+        # num_exams is a CTE and should NOT appear as a dependency
+        assert find_sql_refs(sql) == {
+            SQLRef(table="exam_records"),
+            SQLRef(table="students"),
+            SQLRef(table="classes"),
+        }
+
+    def test_cte_with_duplicate_join_aliases_mixed_case(self) -> None:
+        # CTE defined as "Num_Exams" but referenced as "num_exams".
+        # SQL identifiers are case-insensitive, so these must match.
+        sql = """
+        WITH
+            Num_Exams AS (
+                SELECT student_id, exam_type_id, COUNT(*) AS num_exams
+                FROM exam_records
+                GROUP BY student_id, exam_type_id
+            )
+        SELECT
+            student_id, student_name, exam_type_id,
+            c.class_name, COALESCE(c.num_exams, 0) AS num_exams
+        FROM students
+            LEFT JOIN num_exams c USING (student_id)
+            JOIN classes c USING (class_id)
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="exam_records"),
+            SQLRef(table="students"),
+            SQLRef(table="classes"),
+        }
+
+    def test_cte_with_duplicate_join_aliases_different_aliases(self) -> None:
+        # Same query as above but with distinct aliases — should work
+        # both before and after the fix (build_scope succeeds here).
+        sql = """
+        WITH
+            num_exams AS (
+                SELECT
+                    student_id,
+                    exam_type_id,
+                    COUNT(*) AS num_exams
+                FROM
+                    exam_records
+                GROUP BY
+                    student_id,
+                    exam_type_id
+            )
+        SELECT
+            student_id,
+            student_name,
+            exam_type_id,
+            cl.class_name,
+            COALESCE(ne.num_exams, 0) AS num_exams
+        FROM
+            students
+            LEFT JOIN num_exams ne USING (student_id)
+            JOIN classes cl USING (class_id)
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="exam_records"),
+            SQLRef(table="students"),
+            SQLRef(table="classes"),
+        }
+
+    def test_multiple_ctes_with_duplicate_aliases(self) -> None:
+        # Multiple CTEs referenced with the same alias in joins
+        sql = """
+        WITH
+            cte1 AS (SELECT id, val FROM table1),
+            cte2 AS (SELECT id, val FROM table2)
+        SELECT *
+        FROM table3
+            JOIN cte1 x ON table3.id = x.id
+            JOIN cte2 x ON table3.id = x.id
+        """
+        # Neither cte1 nor cte2 should appear as dependencies
+        assert find_sql_refs(sql) == {
+            SQLRef(table="table1"),
+            SQLRef(table="table2"),
+            SQLRef(table="table3"),
+        }
+
+    def test_cte_name_matches_real_table_with_duplicate_alias(self) -> None:
+        # Edge case: CTE name shadows a real table used elsewhere.
+        # The CTE itself still shouldn't be a dependency — only the
+        # tables referenced inside and outside it should be.
+        sql = """
+        WITH
+            shared_name AS (SELECT id FROM source_table)
+        SELECT *
+        FROM base_table
+            JOIN shared_name a ON base_table.id = a.id
+            JOIN other_table a ON base_table.id = a.id
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="source_table"),
+            SQLRef(table="base_table"),
+            SQLRef(table="other_table"),
+        }
+
+    def test_schema_qualified_table_same_name_as_cte(self) -> None:
+        # A schema-qualified table reference should never be filtered,
+        # even if its base name matches a CTE in the same query.
+        sql = """
+        WITH foo AS (SELECT id FROM source)
+        SELECT *
+        FROM schema1.foo
+            JOIN foo a ON schema1.foo.id = a.id
+            JOIN bar a ON schema1.foo.id = a.id
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="source"),
+            SQLRef(table="foo", schema="schema1"),
+            SQLRef(table="bar"),
+        }
+
+    def test_nested_subquery_cte_does_not_mask_outer_table(self) -> None:
+        # A CTE defined inside a subquery is scoped to that subquery.
+        # It must not mask a real table with the same name in the outer
+        # query. Duplicate aliases force the OptimizeError fallback.
+        sql = """
+        SELECT *
+        FROM my_table
+            JOIN (
+                WITH my_table AS (SELECT 1 AS id)
+                SELECT * FROM my_table
+            ) a ON my_table.id = a.id
+            JOIN other_table a ON my_table.id = a.id
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="my_table"),
+            SQLRef(table="other_table"),
+        }
+
+    def test_dml_with_cte(self) -> None:
+        # CTE names should be filtered in DML statements too.
+        sql = """
+        WITH cte AS (SELECT * FROM source_table)
+        INSERT INTO target_table SELECT * FROM cte;
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="source_table"),
+            SQLRef(table="target_table"),
+        }
+
     def test_multiple_statements_with_optimize_error(self) -> None:
         # Verify that OptimizeError in one statement doesn't affect others.
         # The try/except is inside the loop, so each statement is independent.
