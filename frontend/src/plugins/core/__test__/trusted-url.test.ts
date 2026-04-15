@@ -49,12 +49,15 @@ describe("isTrustedVirtualFileUrl", () => {
   });
 
   describe("data URL exemption", () => {
+    let previousHasRunAnyCell: boolean;
+
     beforeEach(() => {
+      previousHasRunAnyCell = store.get(hasRunAnyCellAtom);
       store.set(hasRunAnyCellAtom, true);
     });
 
     afterEach(() => {
-      store.set(hasRunAnyCellAtom, false);
+      store.set(hasRunAnyCellAtom, previousHasRunAnyCell);
     });
 
     it.each([
