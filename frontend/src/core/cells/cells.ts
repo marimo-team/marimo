@@ -739,7 +739,11 @@ const {
 
     if (last.type === "move") {
       const { cellIds, placements } = last;
-      if (cellIds.length === 0 || placements.length !== cellIds.length) {
+      if (
+        cellIds.length === 0 ||
+        placements.length !== cellIds.length ||
+        cellIds.some((id) => !state.cellData[id])
+      ) {
         return { ...state, history: state.history.slice(0, -1) };
       }
       const toRestore = cellIds.map((id, i) => ({

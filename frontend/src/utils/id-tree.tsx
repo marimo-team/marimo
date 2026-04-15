@@ -1033,14 +1033,14 @@ export class MultiColumn<T> {
   placeCells(
     placements: Array<{ id: T; columnId: CellColumnId; index: CellIndex }>,
   ): MultiColumn<T> {
-    if (placements.length === 0) return this;
+    if (placements.length === 0) {return this;}
     let result: MultiColumn<T> = this;
     for (const { id } of placements) {
       result = result.deleteById(id);
     }
-    const sorted = [...placements].sort((a, b) => {
+    const sorted = [...placements].toSorted((a, b) => {
       if (a.columnId !== b.columnId)
-        return a.columnId.localeCompare(b.columnId);
+        {return a.columnId.localeCompare(b.columnId);}
       return (a.index as number) - (b.index as number);
     });
     for (const { id, columnId, index } of sorted) {
