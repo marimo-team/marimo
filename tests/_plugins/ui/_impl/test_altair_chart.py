@@ -5,6 +5,7 @@ import datetime
 import io
 import json
 import sys
+import unittest.mock
 from contextlib import redirect_stderr
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
@@ -1463,9 +1464,21 @@ def test_chart_with_url_data():
         .encode(x="Horsepower:Q", y="Miles_per_Gallon:Q")
     )
 
-    marimo_chart = altair_chart(chart)
-    assert isinstance(marimo_chart.dataframe, pl.DataFrame)
-    assert len(marimo_chart.dataframe) > 0
+    fake_payload = json.dumps(
+        [
+            {"Horsepower": 130, "Miles_per_Gallon": 18.0},
+            {"Horsepower": 165, "Miles_per_Gallon": 15.0},
+            {"Horsepower": 150, "Miles_per_Gallon": 18.0},
+        ]
+    ).encode("utf-8")
+
+    with unittest.mock.patch(
+        "urllib.request.urlopen",
+        return_value=io.BytesIO(fake_payload),
+    ):
+        marimo_chart = altair_chart(chart)
+        assert isinstance(marimo_chart.dataframe, pl.DataFrame)
+        assert len(marimo_chart.dataframe) > 0
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
