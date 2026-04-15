@@ -3,7 +3,7 @@
 # dependencies = [
 #     "marimo",
 #     "altair",
-#     "pandas",
+#     "polars",
 # ]
 # ///
 # Copyright 2026 Marimo. All rights reserved.

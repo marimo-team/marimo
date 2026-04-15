@@ -9,6 +9,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import type { RevealApi } from "reveal.js";
 import { Events } from "@/utils/events";
+import { Logger } from "@/utils/Logger";
 
 import "./slides.css";
 import "./reveal-slides.css";
@@ -88,7 +89,12 @@ const RevealSlidesComponent = ({
           size="icon"
           className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-70 text-muted-foreground transition-opacity h-7 w-7"
           onClick={() => {
-            deckRef.current?.getViewportElement()?.requestFullscreen();
+            deckRef.current
+              ?.getViewportElement()
+              ?.requestFullscreen()
+              .catch((error) => {
+                Logger.error("Failed to request fullscreen", error);
+              });
           }}
         >
           <ExpandIcon className="h-4 w-4" />
