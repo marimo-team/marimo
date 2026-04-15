@@ -11,7 +11,7 @@ import sys
 import tempfile
 from enum import Enum
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 import click
 
@@ -409,10 +409,10 @@ def _ensure_marimo_in_script_metadata(name: str | None) -> None:
 def run_in_sandbox(
     args: list[str],
     *,
-    name: Optional[str] = None,
-    additional_features: Optional[list[DepFeatures]] = None,
-    additional_deps: Optional[list[str]] = None,
-    extra_env: Optional[dict[str, str]] = None,
+    name: str | None = None,
+    additional_features: list[DepFeatures] | None = None,
+    additional_deps: list[str] | None = None,
+    extra_env: dict[str, str] | None = None,
 ) -> int:
     """Run marimo in a sandboxed uv environment.
 

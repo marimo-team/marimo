@@ -2,6 +2,7 @@
 <link
     href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.0.0/dist/style.css"
     rel="stylesheet"
+    title="marimo-islands"
     crossorigin="anonymous"
 />
 <link rel="preconnect" href="https://fonts.googleapis.com" />

@@ -5,9 +5,8 @@ import json
 import os
 import urllib.error
 from datetime import datetime
-from typing import Any, Callable, cast
+from typing import TYPE_CHECKING, Any, cast
 
-import marimo._utils.requests as requests
 from marimo import _loggers
 from marimo._cli.install_hints import get_upgrade_commands
 from marimo._cli.print import echo, green, orange
@@ -17,7 +16,11 @@ from marimo._config.cli_state import (
     write_cli_state,
 )
 from marimo._tracer import server_tracer
+from marimo._utils import requests
 from marimo._version import __version__ as current_version
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 FETCH_TIMEOUT = 3
 
@@ -54,7 +57,6 @@ def check_for_updates(
     except Exception as e:
         LOGGER.warning("Failed to check for updates", exc_info=e)
         # Don't want to crash the CLI on any errors.
-        pass
 
 
 def _check_for_updates_internal(
@@ -177,10 +179,9 @@ def update_notices(response: dict[str, Any]) -> list[str]:
             break
 
         # Add notice if version is greater than current but <= latest
-        if current_ver < notice_version <= latest_ver:
-            if notice_text:
-                collected_notices.insert(
-                    0, notice_text
-                )  # Add to front (reverse order)
+        if current_ver < notice_version <= latest_ver and notice_text:
+            collected_notices.insert(
+                0, notice_text
+            )  # Add to front (reverse order)
 
     return collected_notices

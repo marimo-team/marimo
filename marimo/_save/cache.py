@@ -6,7 +6,7 @@ import inspect
 import re
 from collections import namedtuple
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal, Optional, get_args
+from typing import TYPE_CHECKING, Any, Literal, get_args
 
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
@@ -196,10 +196,10 @@ class Cache:
         elif isinstance(value, set):
             # Sets cannot be recursive (require hashable items), but keep the
             # reference.
-            result = set(
+            result = {
                 self._restore_from_stub_if_needed(item, scope, memo)
                 for item in value
-            )
+            }
             value.clear()
             value.update(result)
             result = value
@@ -236,7 +236,7 @@ class Cache:
     def update(
         self,
         scope: dict[str, Any],
-        meta: Optional[dict[MetaKey, Any]] = None,
+        meta: dict[MetaKey, Any] | None = None,
         preserve_pointers: bool = True,
     ) -> None:
         """Loads values from scope, updating the cache."""
@@ -328,10 +328,10 @@ class Cache:
             )
         elif isinstance(value, set):
             # sets cannot be recursive (require hashable items)
-            converted = set(
+            converted = {
                 self._convert_to_stub_if_needed(item, memo, preserve_pointers)
                 for item in value
-            )
+            }
             if preserve_pointers:
                 value.clear()
                 value.update(converted)
@@ -450,7 +450,7 @@ class CacheContext(abc.ABC):
     Base class for cache interfaces."""
 
     __slots__ = "_loader"
-    _loader: Optional[State[Loader]]
+    _loader: State[Loader] | None
 
     # Match functools api
     def cache_info(self) -> CacheInfo:
@@ -509,7 +509,7 @@ class CacheContext(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def last_hash(self) -> Optional[str]:
+    def last_hash(self) -> str | None:
         """Last computed cache hash, if available."""
 
     def __repr__(self) -> str:

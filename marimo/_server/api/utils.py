@@ -9,7 +9,6 @@ from pathlib import Path
 from shutil import which
 from typing import (
     TYPE_CHECKING,
-    Optional,
     Protocol,
     TypeVar,
     runtime_checkable,
@@ -65,7 +64,7 @@ async def dispatch_control_request(
     return SuccessResponse()
 
 
-def parse_title(filepath: Optional[str]) -> str:
+def parse_title(filepath: str | None) -> str:
     """
     Create a title from a filename.
     """

@@ -5,7 +5,7 @@ import dataclasses
 import json
 import os
 import re
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import generate_id
@@ -13,7 +13,7 @@ from marimo._plugins.ui._impl.chat.chat import AI_SDK_VERSION, DONE_CHUNK
 from marimo._utils.dicts import remove_none_values
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Generator
+    from collections.abc import AsyncGenerator, Callable, Generator
 
     from pydantic_ai import Agent
     from pydantic_ai.settings import ModelSettings
@@ -90,8 +90,8 @@ class openai(ChatModel):
         model: str,
         *,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
     ):
         self.model = model
         self.system_message = system_message
@@ -231,8 +231,8 @@ class anthropic(ChatModel):
         model: str,
         *,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
     ):
         self.model = model
         self.system_message = system_message
@@ -337,7 +337,7 @@ class google(ChatModel):
         model: str,
         *,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
     ):
         self.model = model
         self.system_message = system_message
@@ -445,8 +445,8 @@ class groq(ChatModel):
         model: str,
         *,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
     ):
         self.model = model
         self.system_message = system_message
@@ -560,10 +560,10 @@ class bedrock(ChatModel):
         *,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         region_name: str = "us-east-1",
-        profile_name: Optional[str] = None,
-        credentials: Optional[dict[str, str]] = None,
-        aws_access_key_id: Optional[str] = None,
-        aws_secret_access_key: Optional[str] = None,
+        profile_name: str | None = None,
+        credentials: dict[str, str] | None = None,
+        aws_access_key_id: str | None = None,
+        aws_secret_access_key: str | None = None,
     ):
         if not model.startswith("bedrock/"):
             model = f"bedrock/{model}"

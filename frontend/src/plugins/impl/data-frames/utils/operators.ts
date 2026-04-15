@@ -41,6 +41,7 @@ const createComparisonOperators = (schema: z.ZodType) => ({
   ">=": [schema],
   "<": [schema],
   "<=": [schema],
+  between: [z.object({ min: schema, max: schema })],
   is_null: [],
   is_not_null: [],
 });
@@ -59,6 +60,7 @@ export const STRING_OPERATORS = {
   ends_with: [Schema.string],
   in: [Schema.stringMultiColumnValues],
   not_in: [Schema.stringMultiColumnValues],
+  is_empty: [],
   is_null: [],
   is_not_null: [],
 };

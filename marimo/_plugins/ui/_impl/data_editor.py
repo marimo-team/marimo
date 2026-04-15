@@ -8,12 +8,9 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Final,
     Literal,
-    Optional,
     TypedDict,
-    Union,
     cast,
 )
 
@@ -30,6 +27,8 @@ from marimo._utils.deprecated import deprecated
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from narwhals.dtypes import DType
     from typing_extensions import TypeIs
 
@@ -70,7 +69,7 @@ class ColumnEdit(TypedDict):
     """
 
     columnIdx: int
-    newName: Optional[str]
+    newName: str | None
     type: Literal["insert", "remove", "rename"]
 
 
@@ -95,7 +94,7 @@ class DataEdits(TypedDict):
         edits (List[PositionalEdit | RowEdit | ColumnEdit]): List of individual cell edits, row edits, or column edits.
     """
 
-    edits: list[Union[PositionalEdit, RowEdit, ColumnEdit]]
+    edits: list[PositionalEdit | RowEdit | ColumnEdit]
 
 
 RowOrientedData = list[dict[str, Any]]
@@ -116,7 +115,7 @@ def experimental_data_editor(
 class data_editor(
     UIElement[
         DataEdits,
-        Union[RowOrientedData, ColumnOrientedData, IntoDataFrame],
+        RowOrientedData | ColumnOrientedData | IntoDataFrame,
     ]
 ):
     """A data editor component for editing tabular data.
@@ -155,11 +154,11 @@ class data_editor(
         ```
 
     Attributes:
-        value (Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]): The current state of the edited data.
-        data (Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]): The original data passed to the editor.
+        value (RowOrientedData | ColumnOrientedData | IntoDataFrame): The current state of the edited data.
+        data (RowOrientedData | ColumnOrientedData | IntoDataFrame): The original data passed to the editor.
 
     Args:
-        data (Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]): The data to be edited.
+        data (RowOrientedData | ColumnOrientedData | IntoDataFrame): The data to be edited.
             Can be a Pandas dataframe, a list of dicts, or a dict of lists.
         label (str): Markdown label for the element.
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
@@ -176,19 +175,17 @@ class data_editor(
 
     def __init__(
         self,
-        data: Union[RowOrientedData, ColumnOrientedData, IntoDataFrame],
+        data: RowOrientedData | ColumnOrientedData | IntoDataFrame,
         *,
         label: str = "",
-        on_change: Optional[
-            Callable[
-                [Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]],
-                None,
-            ]
-        ] = None,
-        editable_columns: Union[list[str], Literal["all"]] = "all",
-        column_sizing_mode: Optional[Literal["auto", "fit"]] = None,
-        pagination: Optional[bool] = None,
-        page_size: Optional[int] = None,
+        on_change: Callable[
+            [RowOrientedData | ColumnOrientedData | IntoDataFrame], None
+        ]
+        | None = None,
+        editable_columns: list[str] | Literal["all"] = "all",
+        column_sizing_mode: Literal["auto", "fit"] | None = None,
+        pagination: bool | None = None,
+        page_size: int | None = None,
     ) -> None:
         # These attributes are deprecated, but we keep them for backwards compatibility
         if pagination:
@@ -233,12 +230,12 @@ class data_editor(
     @property
     def data(
         self,
-    ) -> Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]:
+    ) -> RowOrientedData | ColumnOrientedData | IntoDataFrame:
         return self._data
 
     def _convert_value(
         self, value: DataEdits
-    ) -> Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]:
+    ) -> RowOrientedData | ColumnOrientedData | IntoDataFrame:
         self._edits = value
         return apply_edits(deepcopy(self._data), value)
 
@@ -247,10 +244,10 @@ class data_editor(
 
 
 def apply_edits(
-    data: Union[RowOrientedData, ColumnOrientedData, IntoDataFrame],
+    data: RowOrientedData | ColumnOrientedData | IntoDataFrame,
     edits: DataEdits,
-    schema: Optional[nw.Schema] = None,
-) -> Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]:
+    schema: nw.Schema | None = None,
+) -> RowOrientedData | ColumnOrientedData | IntoDataFrame:
     if len(edits["edits"]) == 0:
         return data
     # If row-oriented, apply edits to the data
@@ -271,7 +268,7 @@ def apply_edits(
 def _apply_edits_column_oriented(
     data: ColumnOrientedData,
     edits: DataEdits,
-    schema: Optional[nw.Schema] = None,
+    schema: nw.Schema | None = None,
 ) -> ColumnOrientedData:
     for edit in edits["edits"]:
         if is_positional_edit(edit):
@@ -287,7 +284,7 @@ def _apply_edits_column_oriented(
 def _apply_edits_row_oriented(
     data: RowOrientedData,
     edits: DataEdits,
-    schema: Optional[nw.Schema] = None,
+    schema: nw.Schema | None = None,
 ) -> RowOrientedData:
     for edit in edits["edits"]:
         if is_positional_edit(edit):
@@ -301,7 +298,7 @@ def _apply_edits_row_oriented(
 
 
 def _apply_edits_dataframe(
-    native_df: IntoDataFrame, edits: DataEdits, schema: Optional[nw.Schema]
+    native_df: IntoDataFrame, edits: DataEdits, schema: nw.Schema | None
 ) -> IntoDataFrame:
     df = nw.from_native(native_df, eager_only=True)
     column_oriented = df.to_dict(as_series=False)
@@ -318,7 +315,7 @@ def _apply_edits_dataframe(
 def _convert_value(
     value: Any,
     original_value: Any,
-    dtype: Optional[DType] = None,
+    dtype: DType | None = None,
 ) -> Any:
     try:
         # None is a valid value for all dtypes
@@ -332,27 +329,22 @@ def _convert_value(
                 return datetime.date.fromisoformat(value)
             elif dtype == nw.Duration:
                 return datetime.timedelta(microseconds=float(value))
-            elif dtype == nw.Float32:
+            elif dtype == nw.Float32 or dtype == nw.Float64:
                 return float(value)
-            elif dtype == nw.Float64:
-                return float(value)
-            elif dtype == nw.Int16:
+            elif (
+                dtype == nw.Int16
+                or dtype == nw.Int32
+                or dtype == nw.Int64
+                or dtype == nw.UInt16
+                or dtype == nw.UInt32
+                or dtype == nw.UInt64
+            ):
                 return int(value)
-            elif dtype == nw.Int32:
-                return int(value)
-            elif dtype == nw.Int64:
-                return int(value)
-            elif dtype == nw.UInt16:
-                return int(value)
-            elif dtype == nw.UInt32:
-                return int(value)
-            elif dtype == nw.UInt64:
-                return int(value)
-            elif dtype == nw.String:
-                return str(value)
-            elif dtype == nw.Enum:
-                return str(value)
-            elif dtype == nw.Categorical:
+            elif (
+                dtype == nw.String
+                or dtype == nw.Enum
+                or dtype == nw.Categorical
+            ):
                 return str(value)
             elif dtype == nw.Boolean:
                 return bool(value)
@@ -414,21 +406,21 @@ def _convert_value(
 
 
 def is_positional_edit(
-    edit: Union[PositionalEdit, RowEdit, ColumnEdit],
+    edit: PositionalEdit | RowEdit | ColumnEdit,
 ) -> TypeIs[PositionalEdit]:
     """Check if edit is a PositionalEdit and return it typed."""
     return "rowIdx" in edit and "columnId" in edit and "value" in edit
 
 
 def is_row_edit(
-    edit: Union[PositionalEdit, RowEdit, ColumnEdit],
+    edit: PositionalEdit | RowEdit | ColumnEdit,
 ) -> TypeIs[RowEdit]:
     """Check if edit is a RowEdit and return it typed."""
     return "rowIdx" in edit and "type" in edit
 
 
 def is_column_edit(
-    edit: Union[PositionalEdit, RowEdit, ColumnEdit],
+    edit: PositionalEdit | RowEdit | ColumnEdit,
 ) -> TypeIs[ColumnEdit]:
     """Check if edit is a ColumnEdit and return it typed."""
     return "columnIdx" in edit and "type" in edit
@@ -437,7 +429,7 @@ def is_column_edit(
 def _apply_positional_edit_column_oriented(
     data: ColumnOrientedData,
     edit: PositionalEdit,
-    schema: Optional[nw.Schema] = None,
+    schema: nw.Schema | None = None,
 ) -> None:
     """Apply a positional edit to column-oriented data."""
     column = data[edit["columnId"]]
@@ -453,12 +445,12 @@ def _apply_positional_edit_column_oriented(
 def _apply_positional_edit_row_oriented(
     data: RowOrientedData,
     edit: PositionalEdit,
-    schema: Optional[nw.Schema] = None,
+    schema: nw.Schema | None = None,
 ) -> None:
     """Apply a positional edit to row-oriented data."""
     if edit["rowIdx"] >= len(data):
         # Create a new row with None values for all columns
-        new_row = {col: None for col in data[0].keys()}
+        new_row = {col: None for col in data[0]}
         data.append(new_row)
     original_value = data[0][edit["columnId"]] if data else None
     dtype = schema.get(edit["columnId"]) if schema else None
@@ -495,7 +487,7 @@ def _apply_row_edit_row_oriented(
 def _validate_column_edit(
     edit: ColumnEdit,
     data_length: int,
-    new_column_name: Optional[str],
+    new_column_name: str | None,
 ) -> None:
     """Validate column edit parameters."""
     column_idx = edit["columnIdx"]
@@ -624,7 +616,7 @@ def _apply_column_edit_row_oriented(
 
         for row in data:
             new_row = {}
-            for key in row.keys():
+            for key in row:
                 if key == column_name:
                     new_row[new_column_name] = row[key]
                 else:

@@ -103,9 +103,8 @@ class TestCellsViewCellId:
 
     async def test_lookup_by_cell_id_not_found(self, k: Kernel) -> None:
         await k.run([cmd(cell_id="abc", code="x = 1")])
-        with _ctx(k) as ctx:
-            with pytest.raises(KeyError):
-                ctx.cells["nonexistent"]
+        with _ctx(k) as ctx, pytest.raises(KeyError):
+            ctx.cells["nonexistent"]
 
 
 class TestCellsViewCellName:

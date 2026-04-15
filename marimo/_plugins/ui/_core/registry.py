@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import weakref
-from typing import TYPE_CHECKING, Any, Optional, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar
 
 from marimo._ast.app import _Namespace
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -78,18 +78,17 @@ class UIElementRegistry:
         # _Namespace if it contains `object_id`
         bindings: set[str] = set()
         for name, value in glbls.items():
-            if isinstance(value, UIElement) and self._has_parent_id(
-                value, object_id
+            if (
+                isinstance(value, UIElement)
+                and self._has_parent_id(value, object_id)
+                or isinstance(value, _Namespace)
+                and self._find_bindings_in_namespace(object_id, value)
             ):
-                bindings.add(name)
-            elif isinstance(
-                value, _Namespace
-            ) and self._find_bindings_in_namespace(object_id, value):
                 bindings.add(name)
         return bindings
 
     def _register_bindings(
-        self, object_id: UIElementId, glbls: Optional[dict[str, Any]] = None
+        self, object_id: UIElementId, glbls: dict[str, Any] | None = None
     ) -> None:
         from marimo._runtime.context.kernel_context import KernelRuntimeContext
 
@@ -102,7 +101,7 @@ class UIElementRegistry:
             )
 
     def register_scope(
-        self, glbls: dict[str, Any], defs: Optional[set[str]] = None
+        self, glbls: dict[str, Any], defs: set[str] | None = None
     ) -> None:
         if defs is None:
             defs = set(glbls.keys())
@@ -111,7 +110,7 @@ class UIElementRegistry:
             if isinstance(lookup, UIElement):
                 self._register_bindings(lookup._id, glbls)
 
-    def lookup(self, name: str) -> Optional[UIElement[Any, Any]]:
+    def lookup(self, name: str) -> UIElement[Any, Any] | None:
         for object_id, bindings in self._bindings.items():
             if name in bindings:
                 return self.get_object(object_id)

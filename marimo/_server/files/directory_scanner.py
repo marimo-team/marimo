@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from typing import Optional
 
 from marimo import _loggers
 from marimo._server.files.os_file_system import natural_sort_file
@@ -108,9 +107,9 @@ class DirectoryScanner:
         self,
         directory: str,
         include_markdown: bool = False,
-        max_files: Optional[int] = None,
-        max_depth: Optional[int] = None,
-        max_execution_time: Optional[int] = None,
+        max_files: int | None = None,
+        max_depth: int | None = None,
+        max_execution_time: int | None = None,
     ):
         """Initialize DirectoryScanner.
 
@@ -154,9 +153,7 @@ class DirectoryScanner:
         file_count = [0]  # Use list for closure mutability
         self.partial_results = []  # Reset partial results
 
-        def recurse(
-            directory: str, depth: int = 0
-        ) -> Optional[list[FileInfo]]:
+        def recurse(directory: str, depth: int = 0) -> list[FileInfo] | None:
             if depth > self.max_depth:
                 return None
 
@@ -171,7 +168,7 @@ class DirectoryScanner:
                 # Store accumulated results before raising timeout
                 raise HTTPException(
                     status_code=HTTPStatus.REQUEST_TIMEOUT,
-                    detail=f"Request timed out: Loading workspace files took too long. Showing first {file_count[0]} files.",  # noqa: E501
+                    detail=f"Request timed out: Loading workspace files took too long. Showing first {file_count[0]} files.",
                 )
 
             try:

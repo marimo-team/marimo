@@ -6,7 +6,7 @@ from __future__ import annotations
 import abc
 from typing import Any, TypeVar
 
-__all__ = ["CustomStub", "CUSTOM_STUBS", "mro_lookup", "register_stub"]
+__all__ = ["CUSTOM_STUBS", "CustomStub", "mro_lookup", "register_stub"]
 
 _T = TypeVar("_T")
 

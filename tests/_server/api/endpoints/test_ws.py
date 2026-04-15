@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -31,6 +31,8 @@ from tests._server.conftest import get_kernel_tasks, get_user_config_manager
 from tests._server.mocks import get_session_manager
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from starlette.testclient import TestClient, WebSocketTestSession
 
 
@@ -167,7 +169,9 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
             f.write("\n# test")
             f.close()
         assert session_manager._watcher_manager._watchers
-        watcher = list(session_manager._watcher_manager._watchers.values())[0]
+        watcher = next(
+            iter(session_manager._watcher_manager._watchers.values())
+        )
         await watcher.callback(Path(filename))
         # Drain messages until we get the reload message
         # (other messages like 'variables' may arrive first)

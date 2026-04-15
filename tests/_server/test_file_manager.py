@@ -70,7 +70,7 @@ def test_rename_to_existing_filename(app_file_manager: AppFileManager) -> None:
     with open(existing_filename, "w") as f:
         f.write("This is a test file.")
     try:
-        with pytest.raises(HTTPException) as e:  # noqa: PT012
+        with pytest.raises(HTTPException) as e:
             app_file_manager.rename(existing_filename)
         assert e.value.status_code == HTTPStatus.BAD_REQUEST
     finally:
@@ -93,7 +93,7 @@ def test_successful_rename(app_file_manager: AppFileManager) -> None:
 
 def test_rename_exception(app_file_manager: AppFileManager) -> None:
     new_filename = "/invalid/path/new_filename.py"
-    with pytest.raises(HTTPException) as e:  # noqa: PT012
+    with pytest.raises(HTTPException) as e:
         app_file_manager.rename(new_filename)
     assert e.value.status_code == HTTPStatus.SERVER_ERROR
 
@@ -184,7 +184,7 @@ def test_save_app_config_valid(app_file_manager: AppFileManager) -> None:
 )
 def test_save_app_config_exception(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = "/invalid/path/app_config.py"
-    with pytest.raises(HTTPException) as e:  # noqa: PT012
+    with pytest.raises(HTTPException) as e:
         app_file_manager.save_app_config({})
     assert e.value.status_code == HTTPStatus.SERVER_ERROR
 
@@ -194,7 +194,7 @@ def test_save_filename_change_not_allowed(
 ) -> None:
     app_file_manager.filename = "original.py"
     save_request.filename = "new.py"
-    with pytest.raises(HTTPException) as e:  # noqa: PT012
+    with pytest.raises(HTTPException) as e:
         app_file_manager.save(save_request)
     assert e.value.status_code == HTTPStatus.BAD_REQUEST
 
@@ -205,7 +205,7 @@ def test_save_existing_filename(app_file_manager: AppFileManager) -> None:
         f.write("This is a test file.")
     save_request.filename = existing_filename
     try:
-        with pytest.raises(HTTPException) as e:  # noqa: PT012
+        with pytest.raises(HTTPException) as e:
             app_file_manager.save(save_request)
         assert e.value.status_code == HTTPStatus.BAD_REQUEST
     finally:
@@ -389,7 +389,7 @@ if __name__ == "__main__":
 
     # Initialize AppFileManager with the temp file
     manager = AppFileManager(filename=str(temp_file))
-    original_code = list(manager.app.cell_manager.codes())[0]
+    original_code = next(iter(manager.app.cell_manager.codes()))
     assert "x = 1" in original_code
 
     # Modify the file content
@@ -412,7 +412,7 @@ if __name__ == "__main__":
     changed_cell_ids = manager.reload()
 
     # Check that the code was updated
-    reloaded_code = list(manager.app.cell_manager.codes())[0]
+    reloaded_code = next(iter(manager.app.cell_manager.codes()))
     assert "x = 42" in reloaded_code
     assert "x = 1" not in reloaded_code
     assert changed_cell_ids == {"Hbol"}
@@ -683,6 +683,56 @@ def test_overload_app_settings() -> None:
     finally:
         os.environ.pop("_MARIMO_APP_OVERLOAD_SQL_OUTPUT", None)
         os.environ.pop("_MARIMO_APP_OVERLOAD_AUTO_DOWNLOAD", None)
+
+
+def test_overload_app_settings_existing_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Env overloads should override values set on an existing App(...)."""
+    temp_file = tmp_path / "existing_app.py"
+    temp_file.write_text(
+        """
+import marimo
+__generated_with = "0.0.1"
+app = marimo.App(
+    css_file="custom.css",
+    html_head_file="custom.html",
+    app_title="Custom Title",
+)
+
+@app.cell
+def __():
+    import marimo as mo
+    return mo,
+
+if __name__ == "__main__":
+    app.run()
+"""
+    )
+
+    # Sanity: without env, the App(...) kwargs are preserved.
+    manager = AppFileManager(filename=str(temp_file))
+    assert manager.app.config.css_file == "custom.css"
+    assert manager.app.config.html_head_file == "custom.html"
+    assert manager.app.config.app_title == "Custom Title"
+
+    # Non-empty overrides replace the existing values.
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_CSS_FILE", "override.css")
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_HTML_HEAD_FILE", "override.html")
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_APP_TITLE", "Override Title")
+    manager = AppFileManager(filename=str(temp_file))
+    assert manager.app.config.css_file == "override.css"
+    assert manager.app.config.html_head_file == "override.html"
+    assert manager.app.config.app_title == "Override Title"
+
+    # Empty-string overrides also replace the existing values.
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_CSS_FILE", "")
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_HTML_HEAD_FILE", "")
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_APP_TITLE", "")
+    manager = AppFileManager(filename=str(temp_file))
+    assert manager.app.config.css_file == ""
+    assert manager.app.config.html_head_file == ""
+    assert manager.app.config.app_title == ""
 
 
 def test_reload_detects_deleted_cells(tmp_path: Path) -> None:

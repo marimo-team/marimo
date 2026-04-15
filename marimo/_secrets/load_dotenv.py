@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -21,7 +20,7 @@ def load_dotenv_with_fallback(file: str) -> None:
         load_to_environ(parse_dotenv(file))
 
 
-def read_dotenv_with_fallback(file: str) -> dict[str, Optional[str]]:
+def read_dotenv_with_fallback(file: str) -> dict[str, str | None]:
     """Read a .env file using the dotenv library, falling to our custom
     implementation if the dotenv library is not installed.
     """
@@ -33,9 +32,9 @@ def read_dotenv_with_fallback(file: str) -> dict[str, Optional[str]]:
         return parse_dotenv(file)
 
 
-def parse_dotenv(filepath: str) -> dict[str, Optional[str]]:
+def parse_dotenv(filepath: str) -> dict[str, str | None]:
     """Parse a .env file into a dictionary of key-value pairs."""
-    env_dict: dict[str, Optional[str]] = {}
+    env_dict: dict[str, str | None] = {}
     try:
         with open(filepath, encoding="utf-8") as f:
             for line in f:
@@ -61,7 +60,7 @@ def parse_dotenv(filepath: str) -> dict[str, Optional[str]]:
     return env_dict
 
 
-def load_to_environ(env_dict: dict[str, Optional[str]]) -> None:
+def load_to_environ(env_dict: dict[str, str | None]) -> None:
     """Load a dictionary of key-value pairs into the environment."""
     for key, value in env_dict.items():
         if key in os.environ:

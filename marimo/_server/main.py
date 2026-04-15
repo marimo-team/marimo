@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -41,22 +41,22 @@ LOGGER = _loggers.marimo_logger()
 
 @dataclass
 class LspPorts:
-    pylsp: Optional[int]
-    copilot: Optional[int]
+    pylsp: int | None
+    copilot: int | None
 
 
 # Create app
 def create_starlette_app(
     *,
     base_url: str,
-    host: Optional[str] = None,
-    middleware: Optional[list[Middleware]] = None,
-    lifespan: Optional[Lifespan[Starlette]] = None,
+    host: str | None = None,
+    middleware: list[Middleware] | None = None,
+    lifespan: Lifespan[Starlette] | None = None,
     enable_auth: bool = True,
-    allow_origins: Optional[tuple[str, ...]] = None,
-    lsp_servers: Optional[list[LspServer]] = None,
+    allow_origins: tuple[str, ...] | None = None,
+    lsp_servers: list[LspServer] | None = None,
     skew_protection: bool = True,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
 ) -> Starlette:
     final_middlewares: list[Middleware] = []
 

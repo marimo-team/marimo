@@ -5,7 +5,10 @@ import io
 import token as token_types
 from dataclasses import dataclass
 from tokenize import TokenError, tokenize
-from typing import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @dataclass
@@ -97,7 +100,7 @@ class CommentPreserver:
 
         result = []
         for i, (original, transformed) in enumerate(
-            zip(original_sources, transformed_sources)
+            zip(original_sources, transformed_sources, strict=False)
         ):
             comments = self.comments_by_source.get(i, [])
             if not comments:

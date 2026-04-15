@@ -4,7 +4,7 @@ from __future__ import annotations
 import abc
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._server.app_defaults import AppDefaults
@@ -84,7 +84,7 @@ class AppFileRouter(abc.ABC):
 
     def get_single_app_file_manager(
         self,
-        defaults: Optional[AppDefaults] = None,
+        defaults: AppDefaults | None = None,
     ) -> AppFileManager:
         key = self.get_unique_file_key()
         assert key is not None, "Expected a single file"
@@ -93,7 +93,7 @@ class AppFileRouter(abc.ABC):
     def get_file_manager(
         self,
         key: MarimoFileKey,
-        defaults: Optional[AppDefaults] = None,
+        defaults: AppDefaults | None = None,
     ) -> AppFileManager:
         """
         Given a key, return an AppFileManager.
@@ -130,18 +130,16 @@ class AppFileRouter(abc.ABC):
         )
 
     @abc.abstractmethod
-    def get_unique_file_key(self) -> Optional[MarimoFileKey]:
+    def get_unique_file_key(self) -> MarimoFileKey | None:
         """
         If there is a unique file key, return it. Otherwise, return None.
         """
-        pass
 
     @abc.abstractmethod
-    def maybe_get_single_file(self) -> Optional[MarimoFile]:
+    def maybe_get_single_file(self) -> MarimoFile | None:
         """
         If there is a single file, return it. Otherwise, return None.
         """
-        pass
 
     @property
     @abc.abstractmethod
@@ -149,14 +147,13 @@ class AppFileRouter(abc.ABC):
         """
         Get all files in a recursive tree.
         """
-        pass
 
 
 class NewFileAppFileRouter(AppFileRouter):
-    def get_unique_file_key(self) -> Optional[MarimoFileKey]:
+    def get_unique_file_key(self) -> MarimoFileKey | None:
         return AppFileRouter.NEW_FILE
 
-    def maybe_get_single_file(self) -> Optional[MarimoFile]:
+    def maybe_get_single_file(self) -> MarimoFile | None:
         return None
 
     @property
@@ -202,7 +199,7 @@ class ListOfFilesAppFileRouter(AppFileRouter):
     def get_file_manager(
         self,
         key: MarimoFileKey,
-        defaults: Optional[AppDefaults] = None,
+        defaults: AppDefaults | None = None,
     ) -> AppFileManager:
         defaults = defaults or AppDefaults()
 
@@ -239,12 +236,12 @@ class ListOfFilesAppFileRouter(AppFileRouter):
             detail=f"File {key} not found",
         )
 
-    def get_unique_file_key(self) -> Optional[MarimoFileKey]:
+    def get_unique_file_key(self) -> MarimoFileKey | None:
         if self._allow_single_file_key and len(self._files) == 1:
             return self._files[0].path
         return None
 
-    def maybe_get_single_file(self) -> Optional[MarimoFile]:
+    def maybe_get_single_file(self) -> MarimoFile | None:
         if self._allow_single_file_key and len(self._files) == 1:
             return self._files[0]
         return None
@@ -269,7 +266,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         abs_directory = Path(directory).absolute()
         self._directory = str(abs_directory)
         self.include_markdown = include_markdown
-        self._lazy_files: Optional[list[FileInfo]] = None
+        self._lazy_files: list[FileInfo] | None = None
 
         # Use PathValidator for security validation
         self._validator = PathValidator(abs_directory)
@@ -315,7 +312,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
     def get_file_manager(
         self,
         key: MarimoFileKey,
-        defaults: Optional[AppDefaults] = None,
+        defaults: AppDefaults | None = None,
     ) -> AppFileManager:
         """
         Given a key, return an AppFileManager.

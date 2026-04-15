@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Union
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     import tempfile
@@ -27,7 +27,7 @@ class MarimoPath:
     And reduce API surface area of pathlib.Path.
     """
 
-    def __init__(self, path: Union[str, Path], strict: bool = False) -> None:
+    def __init__(self, path: str | Path, strict: bool = False) -> None:
         self.path: Path = Path(path)
         # Do this on initialization to avoid issues with changing directories
         self.cwd = Path.cwd()
@@ -44,7 +44,7 @@ class MarimoPath:
             )
 
     @staticmethod
-    def is_valid_path(path: Union[str, Path]) -> bool:
+    def is_valid_path(path: str | Path) -> bool:
         try:
             MarimoPath(path)
             return True
@@ -94,12 +94,11 @@ class MarimoPath:
 
     @property
     def relative_name(self) -> str:
-        if self.strict:
-            if not self.is_relative_to(self.cwd):
-                raise ValueError(
-                    "Cannot get relative name for files outside"
-                    " of the current working directory"
-                )
+        if self.strict and not self.is_relative_to(self.cwd):
+            raise ValueError(
+                "Cannot get relative name for files outside"
+                " of the current working directory"
+            )
         # If can't return relative path, return absolute path
         if not self.is_relative_to(self.cwd):
             return str(self.path.absolute())

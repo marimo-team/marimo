@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo._utils.assert_never import assert_never
 
@@ -87,7 +87,7 @@ class NotebookDocument:
         assert doc.get_cell(CellId_t("a")).code == "x = 2"
     """
 
-    def __init__(self, cells: Optional[Iterable[NotebookCell]] = None) -> None:
+    def __init__(self, cells: Iterable[NotebookCell] | None = None) -> None:
         self._cells: list[NotebookCell] = list(cells) if cells else []
         self._version: int = 0
 

@@ -41,7 +41,7 @@ class ModelIdRef(TypedDict):
 
 
 if TYPE_CHECKING:
-    from anywidget import (  # type: ignore [import-not-found,unused-ignore]  # noqa: E501
+    from anywidget import (  # type: ignore [import-not-found,unused-ignore]
         AnyWidget,
     )
 
@@ -77,7 +77,7 @@ class WeakCache(Generic[K, V]):
 
 # Weak dictionary
 # When the widget is deleted, the UIElement will be deleted as well
-_cache: WeakCache[AnyWidget, UIElement[Any, Any]] = WeakCache()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
+_cache: WeakCache[AnyWidget, UIElement[Any, Any]] = WeakCache()  # type: ignore[no-untyped-call, unused-ignore, assignment]
 
 
 def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
@@ -85,7 +85,7 @@ def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     el = _cache.get(widget)
     if el is None:
         el = anywidget(widget)
-        _cache.add(widget, el)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
+        _cache.add(widget, el)  # type: ignore[no-untyped-call, unused-ignore, assignment]
     return el
 
 
@@ -206,7 +206,7 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
             initial_value=ModelIdRef(model_id=model_id),
             label=None,
             args={
-                "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]  # noqa: E501
+                "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]
                 "js-hash": js_hash,
                 "model-id": model_id,
             },

@@ -8,7 +8,7 @@ session) and can have multiple kiosk consumers.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._messaging.types import KernelMessage
@@ -29,7 +29,7 @@ class Room:
     """
 
     def __init__(self) -> None:
-        self.main_consumer: Optional[SessionConsumer] = None
+        self.main_consumer: SessionConsumer | None = None
         self.consumers: dict[SessionConsumer, ConsumerId] = {}
 
     @property
@@ -68,7 +68,7 @@ class Room:
         self,
         notification: KernelMessage,
         *,
-        except_consumer: Optional[ConsumerId],
+        except_consumer: ConsumerId | None,
     ) -> None:
         """Broadcast a notification to all consumers except the one specified."""
         for consumer in self.consumers:

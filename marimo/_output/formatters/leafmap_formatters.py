@@ -18,7 +18,7 @@ class LeafmapFormatter(FormatterFactory):
         # Different backends
         # plotly is handled by PlotlyFormatter
         import leafmap.foliumap as leafmap_folium  # type: ignore[import-untyped]
-        import leafmap.leafmap as leafmap  # type: ignore[import-untyped]
+        from leafmap import leafmap  # type: ignore[import-untyped]
 
         from marimo._output import formatting
 

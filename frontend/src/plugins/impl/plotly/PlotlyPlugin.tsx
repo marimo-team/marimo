@@ -19,6 +19,7 @@ import {
   extractPoints,
   extractSunburstPoints,
   extractTreemapPoints,
+  hasAreaTrace,
   hasPureLineTrace,
   lineSelectionButtons,
   type ModeBarButton,
@@ -113,7 +114,8 @@ export const PlotlyComponent = memo(
 
     const configMemo = useDeepCompareMemoize(config);
     const plotlyConfig = useMemo((): Partial<Plotly.Config> => {
-      const hasPureLine = hasPureLineTrace(figure.data);
+      const hasLineOrAreaTrace =
+        hasPureLineTrace(figure.data) || hasAreaTrace(figure.data);
       const defaultButtons: ModeBarButton[] = [
         // Custom button to reset the state
         {
@@ -130,7 +132,7 @@ export const PlotlyComponent = memo(
           click: handleResetWithClear,
         },
       ];
-      if (hasPureLine) {
+      if (hasLineOrAreaTrace) {
         defaultButtons.push(...lineSelectionButtons(handleSetDragmode));
       }
 

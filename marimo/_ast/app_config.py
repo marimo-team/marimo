@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import asdict, dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from marimo import _loggers
 from marimo._config.config import ExportType, SqlOutputType, WidthType
@@ -25,16 +25,16 @@ class _AppConfig:
 
     width: WidthType = "compact"
 
-    app_title: Optional[str] = None
+    app_title: str | None = None
 
     # The file path of the layout file, relative to the app file.
-    layout_file: Optional[str] = None
+    layout_file: str | None = None
 
     # CSS file, relative to the app file
-    css_file: Optional[str] = None
+    css_file: str | None = None
 
     # HTML head file, relative to the app file
-    html_head_file: Optional[str] = None
+    html_head_file: str | None = None
 
     # Whether to automatically download the app as HTML and Markdown
     auto_download: list[ExportType] = field(default_factory=list)
@@ -59,11 +59,10 @@ class _AppConfig:
         for key in updates:
             if hasattr(config, key):
                 config.__setattr__(key, updates[key])
-            elif key not in other_allowed:
-                if not silent:
-                    LOGGER.warning(
-                        f"Unrecognized key '{key}' in app config. Ignoring."
-                    )
+            elif key not in other_allowed and not silent:
+                LOGGER.warning(
+                    f"Unrecognized key '{key}' in app config. Ignoring."
+                )
         return config
 
     def asdict(self) -> dict[str, Any]:

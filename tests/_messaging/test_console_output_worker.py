@@ -4,7 +4,6 @@ from __future__ import annotations
 import threading
 import time
 from collections import deque
-from typing import Optional
 
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import (
@@ -139,7 +138,7 @@ class TestConsoleOutputWorker:
     def test_buffered_writer_basic(self) -> None:
         # Test basic functionality of buffered writer
         stream = MockStream()
-        msg_queue: deque[Optional[ConsoleMsg]] = deque()
+        msg_queue: deque[ConsoleMsg | None] = deque()
         cv = threading.Condition()
 
         # Start the buffered writer in a separate thread
@@ -185,7 +184,7 @@ class TestConsoleOutputWorker:
     def test_buffered_writer_multiple_messages(self) -> None:
         # Test buffered writer with multiple messages
         stream = MockStream()
-        msg_queue: deque[Optional[ConsoleMsg]] = deque()
+        msg_queue: deque[ConsoleMsg | None] = deque()
         cv = threading.Condition()
 
         # Start the buffered writer in a separate thread

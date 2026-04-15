@@ -46,7 +46,7 @@ class PushQueue(QueueType[T]):
         """Put an item into the queue without blocking."""
         self.put(obj, block=False)
 
-    def get(self, block: bool = True, timeout: float | None = None) -> T:  # noqa: FBT001, FBT002
+    def get(self, block: bool = True, timeout: float | None = None) -> T:
         """Get an item from the queue (stub - not implemented for PushQueue)."""
         msg = "PushQueue does not support get operations"
         raise NotImplementedError(msg)

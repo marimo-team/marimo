@@ -142,7 +142,11 @@ export const TableBottomBar = <TData,>({
 
     return (
       <span>
-        {prettifyRowColumnCount(table.getRowCount(), totalColumns, locale)}
+        {prettifyRowColumnCount({
+          numRows: table.getRowCount(),
+          totalColumns,
+          locale,
+        })}
       </span>
     );
   };

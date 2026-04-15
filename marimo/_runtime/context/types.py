@@ -10,7 +10,7 @@ import abc
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo._ast.app_config import _AppConfig
 from marimo._messaging.context import HTTP_REQUEST_CTX
@@ -66,7 +66,7 @@ class ExecutionContext:
     setting_element_value: bool
     # Cell ID corresponding to local graph object, and not prefixed in script
     # context.
-    local_cell_id: Optional[CellId_t] = None
+    local_cell_id: CellId_t | None = None
     # outputs set imperatively via mo.output.append and associated functions
     output: CellOutputList = field(default_factory=CellOutputList)
     duckdb_connection: duckdb.DuckDBPyConnection | None = None
@@ -122,36 +122,31 @@ class RuntimeContext(abc.ABC):
         Get the marimo configuration.
         This is a merged configuration from the user config and project config.
         """
-        pass
 
     @property
-    def request(self) -> Optional[HTTPRequest]:
+    def request(self) -> HTTPRequest | None:
         """Get the current request context if any."""
         return HTTP_REQUEST_CTX.get(None)
 
     @property
     @abc.abstractmethod
-    def cell_id(self) -> Optional[CellId_t]:
+    def cell_id(self) -> CellId_t | None:
         """Get the cell id of the currently executing cell, if any."""
-        pass
 
     @property
     @abc.abstractmethod
     def argv(self) -> list[str]:
         """The original argv the context was created with."""
-        pass
 
     @property
     @abc.abstractmethod
     def cli_args(self) -> CLIArgs:
         """Get the CLI args."""
-        pass
 
     @property
     @abc.abstractmethod
     def query_params(self) -> QueryParams:
         """Get the query params."""
-        pass
 
     @abc.abstractmethod
     def get_ui_initial_value(self, object_id: str) -> Any:
@@ -207,7 +202,7 @@ class _ThreadLocalContext(threading.local):
     """Thread-local container that holds thread/session-specific state."""
 
     def __init__(self) -> None:
-        self.runtime_context: Optional[RuntimeContext] = None
+        self.runtime_context: RuntimeContext | None = None
 
     def initialize(self, runtime_context: RuntimeContext) -> None:
         self.runtime_context = runtime_context
@@ -249,7 +244,7 @@ def get_context() -> RuntimeContext:
     return _THREAD_LOCAL_CONTEXT.runtime_context
 
 
-def safe_get_context() -> Optional[RuntimeContext]:
+def safe_get_context() -> RuntimeContext | None:
     """Return the runtime context if it exists, otherwise None."""
     return _THREAD_LOCAL_CONTEXT.runtime_context
 

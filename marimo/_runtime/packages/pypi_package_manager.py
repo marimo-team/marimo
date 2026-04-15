@@ -8,7 +8,6 @@ import sys
 import tempfile
 from functools import cached_property
 from pathlib import Path
-from typing import Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -155,7 +154,7 @@ class PipPackageManager(PypiPackageManager):
         return False
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: Optional[str] = None
+        self, package: str, *, upgrade: bool, group: str | None = None
     ) -> list[str]:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
@@ -168,9 +167,7 @@ class PipPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(
-        self, package: str, group: Optional[str] = None
-    ) -> bool:
+    async def uninstall(self, package: str, group: str | None = None) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         LOGGER.info(f"Uninstalling {package} with pip")
@@ -214,8 +211,8 @@ class MicropipPackageManager(PypiPackageManager):
         package: str,
         *,
         upgrade: bool,
-        group: Optional[str] = None,
-        log_callback: Optional[LogCallback] = None,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
     ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
@@ -242,9 +239,7 @@ class MicropipPackageManager(PypiPackageManager):
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
 
-    async def uninstall(
-        self, package: str, group: Optional[str] = None
-    ) -> bool:
+    async def uninstall(self, package: str, group: str | None = None) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         assert is_pyodide()
@@ -297,7 +292,7 @@ class UvPackageManager(PypiPackageManager):
         return self._uv_bin != "uv" or super().is_manager_installed()
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: Optional[str] = None
+        self, package: str, *, upgrade: bool, group: str | None = None
     ) -> list[str]:
         install_cmd: list[str]
         if self.is_in_uv_project:
@@ -328,8 +323,8 @@ class UvPackageManager(PypiPackageManager):
         package: str,
         *,
         upgrade: bool,
-        group: Optional[str] = None,
-        log_callback: Optional[LogCallback] = None,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
     ) -> bool:
         """Installation logic with fallback to --no-cache on cache write errors."""
         LOGGER.info(
@@ -351,7 +346,7 @@ class UvPackageManager(PypiPackageManager):
         LOGGER.info(f"Running command: {cmd}")
 
         # Run the command and capture output
-        proc = safe_popen(  # noqa: ASYNC220
+        proc = safe_popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -403,10 +398,10 @@ class UvPackageManager(PypiPackageManager):
         self,
         filepath: str,
         *,
-        packages_to_add: Optional[list[str]] = None,
-        packages_to_remove: Optional[list[str]] = None,
-        import_namespaces_to_add: Optional[list[str]] = None,
-        import_namespaces_to_remove: Optional[list[str]] = None,
+        packages_to_add: list[str] | None = None,
+        packages_to_remove: list[str] | None = None,
+        import_namespaces_to_add: list[str] | None = None,
+        import_namespaces_to_remove: list[str] | None = None,
         upgrade: bool,
     ) -> bool:
         """Update the notebook's script metadata with the packages to add/remove.
@@ -448,15 +443,13 @@ class UvPackageManager(PypiPackageManager):
             - These should be passed directly to uv which handles them correctly
             """
             # Git URLs: git+https://, git+ssh://, git://
-            if package.startswith("git+") or package.startswith("git://"):
+            if package.startswith(("git+", "git://")):
                 return True
             # Direct references with @ (PEP 440 direct references)
             if " @ " in package:
                 return True
             # URLs (https://, http://, file://)
-            if "://" in package:
-                return True
-            return False
+            return "://" in package
 
         def _is_installed(package: str) -> bool:
             return version_map.has(package)
@@ -478,7 +471,7 @@ class UvPackageManager(PypiPackageManager):
             if _is_direct_reference(im) or _is_installed(im)
         ]
 
-        if filepath.endswith(".md") or filepath.endswith(".qmd"):
+        if filepath.endswith((".md", ".qmd")):
             # md and qmd require writing to a faux python file first.
             return self._process_md_changes(
                 filepath, packages_to_add, packages_to_remove, upgrade=upgrade
@@ -619,9 +612,7 @@ class UvPackageManager(PypiPackageManager):
         pyproject_path = Path(venv_path).parent / "pyproject.toml"
         return uv_lock_path.exists() and pyproject_path.exists()
 
-    async def uninstall(
-        self, package: str, group: Optional[str] = None
-    ) -> bool:
+    async def uninstall(self, package: str, group: str | None = None) -> bool:
         uninstall_cmd: list[str]
         if self.is_in_uv_project:
             LOGGER.info(f"Uninstalling {package} with 'uv remove'")
@@ -680,8 +671,8 @@ class UvPackageManager(PypiPackageManager):
             return False
 
     def dependency_tree(
-        self, filename: Optional[str] = None
-    ) -> Optional[DependencyTreeNode]:
+        self, filename: str | None = None
+    ) -> DependencyTreeNode | None:
         """Return the project's dependency tree using the `uv tree` command."""
 
         # Skip if not a script and not inside a uv-managed project
@@ -721,7 +712,7 @@ class RyePackageManager(PypiPackageManager):
     docs_url = "https://rye.astral.sh/"
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: Optional[str] = None
+        self, package: str, *, upgrade: bool, group: str | None = None
     ) -> list[str]:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
@@ -731,9 +722,7 @@ class RyePackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(
-        self, package: str, group: Optional[str] = None
-    ) -> bool:
+    async def uninstall(self, package: str, group: str | None = None) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(
@@ -760,7 +749,7 @@ class PoetryPackageManager(PypiPackageManager):
         return major
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: Optional[str] = None
+        self, package: str, *, upgrade: bool, group: str | None = None
     ) -> list[str]:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
@@ -771,9 +760,7 @@ class PoetryPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(
-        self, package: str, group: Optional[str] = None
-    ) -> bool:
+    async def uninstall(self, package: str, group: str | None = None) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(

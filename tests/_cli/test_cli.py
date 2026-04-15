@@ -19,7 +19,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
@@ -43,7 +43,7 @@ from marimo._utils.platform import is_windows
 from marimo._utils.toml import toml_reader
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
 HAS_UV = DependencyManager.which("uv")
 HAS_ZMQ = DependencyManager.zmq.has()
@@ -93,7 +93,7 @@ def _confirm_shutdown(process: subprocess.Popen[Any]) -> None:
 
 def _check_shutdown(
     process: subprocess.Popen[Any],
-    check_fn: Optional[Callable[[int], bool]] = None,
+    check_fn: Callable[[int], bool] | None = None,
 ) -> None:
     max_tries = 3
     tries = 0
@@ -107,15 +107,25 @@ def _check_shutdown(
 
 
 def _try_fetch(
-    port: int, host: str = "localhost", token: Optional[str] = None
-) -> Optional[bytes]:
+    port: int, host: str = "localhost", token: str | None = None
+) -> bytes | None:
+    import http.cookiejar
+
     err: Exception | None = None
     for _ in range(20):
         try:
             url = f"http://{host}:{port}"
             if token is not None:
                 url = f"{url}?access_token={token}"
-            return urllib.request.urlopen(url).read()
+            # The server 303-redirects `/?access_token=...` to strip the
+            # token from the URL, attaching the session cookie to the
+            # redirect. Use a cookie-aware opener so the follow-up request
+            # carries that cookie and lands on the authenticated page
+            # instead of the login screen.
+            opener = urllib.request.build_opener(
+                urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
+            )
+            return opener.open(url).read()
         except Exception as e:
             err = e
             time.sleep(0.6)
@@ -123,7 +133,7 @@ def _try_fetch(
     return None
 
 
-def _check_started(port: int, host: str = "localhost") -> Optional[bytes]:
+def _check_started(port: int, host: str = "localhost") -> bytes | None:
     assert _try_fetch(port, host) is not None
 
 
@@ -141,7 +151,7 @@ def _temp_run_file(directory: tempfile.TemporaryDirectory[str]) -> str:
 def _check_contents(
     p: subprocess.Popen[Any],  # type: ignore
     phrase: bytes,
-    contents: Optional[bytes],
+    contents: bytes | None,
 ) -> None:
     try:
         assert contents is not None, contents
@@ -163,7 +173,7 @@ def _get_port() -> int:
     raise OSError("Could not find an unused port.")
 
 
-def _read_toml(filepath: Path) -> Optional[dict[str, Any]]:
+def _read_toml(filepath: Path) -> dict[str, Any] | None:
     if not filepath.exists():
         return None
     return toml_reader.read(filepath)
@@ -1729,7 +1739,7 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
 # shell-completion has 1 input (value of $SHELL) & 3 outputs (return code, stdout, & stderr)
 # parameterize to give coverage. We use a boolean to specify if output on that stream should be present.
 @pytest.mark.parametrize(
-    "shell,rc,expect_stdout,expect_stderr".split(","),
+    ("shell", "rc", "expect_stdout", "expect_stderr"),
     [
         # valid shell values, rc of 0, data only on stdout
         ("bash", 0, True, False),

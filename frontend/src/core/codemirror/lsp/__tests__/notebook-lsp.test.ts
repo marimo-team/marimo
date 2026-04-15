@@ -12,6 +12,7 @@ import { cellId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
 import { topologicalCodesAtom } from "../../copilot/getCodes";
+import { lspWorkspaceAtom } from "@/core/saving/file-state";
 import { languageAdapterState } from "../../language/extension";
 import { PythonLanguageAdapter } from "../../language/languages/python";
 import { languageMetadataField } from "../../language/metadata";
@@ -285,6 +286,12 @@ describe("NotebookLanguageServerClient", () => {
           },
         };
       }
+      if (atom === lspWorkspaceAtom) {
+        return {
+          rootUri: "file:///project",
+          documentUri: "file:///project/__marimo_notebook__.py",
+        };
+      }
       return undefined;
     });
 
@@ -421,7 +428,7 @@ describe("NotebookLanguageServerClient", () => {
       expect(result).toEqual(mockCompletionResponse);
       expect(mockClient.textDocumentCompletion).toHaveBeenCalledWith(
         expect.objectContaining({
-          textDocument: { uri: "file:///__marimo_notebook__.py" },
+          textDocument: { uri: "file:///project/__marimo_notebook__.py" },
         }),
       );
     });

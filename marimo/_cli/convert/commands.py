@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import click
 
@@ -34,7 +33,7 @@ def _build_rerun_command(filename: str, output: Path | None) -> str:
 )
 def convert(
     filename: str,
-    output: Optional[Path],
+    output: Path | None,
 ) -> None:
     r"""Convert a Jupyter notebook, Markdown file, or Python script to a marimo notebook.
 

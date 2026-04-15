@@ -58,13 +58,11 @@ class Runner:
         graph = self._graph
         substitutions = set(kwargs.keys())
         unsubstituted_refs = cell_impl.refs - substitutions
-        parent_ids = set(
-            [
-                parent_id
-                for parent_id in graph.parents[cell_impl.cell_id]
-                if graph.cells[parent_id].defs.intersection(unsubstituted_refs)
-            ]
-        )
+        parent_ids = {
+            parent_id
+            for parent_id in graph.parents[cell_impl.cell_id]
+            if graph.cells[parent_id].defs.intersection(unsubstituted_refs)
+        }
         return transitive_closure(graph, parent_ids, children=False)
 
     @staticmethod

@@ -1,24 +1,64 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { execFile, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { promisify } from "node:util";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import topLevelAwait from "vite-plugin-top-level-await";
 import wasm from "vite-plugin-wasm";
 import packageJson from "../package.json";
 
+const execFileAsync = promisify(execFile);
+
 const htmlDevPlugin = (): Plugin => {
-  return {
-    apply: "serve",
-    name: "html-transform",
-    transformIndexHtml: async () => {
+  const generateHtml = async (): Promise<string> => {
+    // Auto-regenerate HTML in dev mode by running the Python script
+    const scriptPath = path.resolve(__dirname, "generate.py");
+    try {
+      const { stdout } = await execFileAsync("uv", ["run", scriptPath], {
+        env: { ...process.env, MODE: "dev" },
+      });
+      return stdout;
+    } catch (error) {
+      console.error("Failed to generate demo HTML:", error);
+      // Fallback to existing file if generation fails
       const indexHtml = await fs.promises.readFile(
         path.resolve(__dirname, "__demo__", "index.html"),
         "utf-8",
       );
+      const preamble = `<!DOCTYPE html>\n
+<script type="module">import { injectIntoGlobalHook } from "/@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;</script>
 
-      return `<!DOCTYPE html>\n${indexHtml}`;
+<script type="module" src="/@vite/client"></script>
+      `;
+      return `${preamble}\n${indexHtml}`;
+    }
+  };
+
+  return {
+    apply: "serve",
+    name: "html-transform",
+    transformIndexHtml: async () => {
+      return await generateHtml();
+    },
+    // Watch the generate.py file and trigger HMR on changes
+    configureServer(server) {
+      const scriptPath = path.resolve(__dirname, "generate.py");
+      server.watcher.add(scriptPath);
+      server.watcher.on("change", (file) => {
+        if (file === scriptPath) {
+          console.log("Demo script changed, regenerating HTML...");
+          server.ws.send({
+            type: "full-reload",
+            path: "*",
+          });
+        }
+      });
     },
   };
 };
@@ -26,6 +66,14 @@ const htmlDevPlugin = (): Plugin => {
 const ReactCompilerConfig = {
   target: "19",
 };
+
+function getMarimoVersion(): string {
+  try {
+    return execFileSync("uv", ["run", "marimo", "--version"]).toString().trim();
+  } catch {
+    return packageJson.version;
+  }
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -45,12 +93,10 @@ export default defineConfig({
     "process.env.LOG": JSON.stringify(""),
     "process.env.VSCODE_TEXTMATE_DEBUG": JSON.stringify(false),
     "process.env.NODE_DEBUG": JSON.stringify(false),
-    // Precedence: VITE_MARIMO_VERSION > package.json version > "latest"
-    "import.meta.env.VITE_MARIMO_VERSION": process.env.VITE_MARIMO_VERSION
-      ? JSON.stringify(process.env.VITE_MARIMO_VERSION)
-      : process.env.NODE_ENV === "production"
-        ? JSON.stringify(packageJson.version)
-        : JSON.stringify("latest"),
+    // Precedence: VITE_MARIMO_VERSION > uv run marimo --version > package.json
+    "import.meta.env.VITE_MARIMO_VERSION": JSON.stringify(
+      process.env.VITE_MARIMO_VERSION || getMarimoVersion(),
+    ),
   },
   server: {
     headers: {

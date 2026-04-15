@@ -188,7 +188,7 @@ def _handle_create_kernel(
                     configs=cmd.configs,
                     app_metadata=cmd.app_metadata,
                     user_config=cmd.user_config,
-                    virtual_files_supported=cmd.virtual_files_supported,
+                    virtual_file_storage=cmd.virtual_file_storage,
                     redirect_console_to_browser=cmd.redirect_console_to_browser,
                     interrupt_queue=None,
                     log_level=cmd.log_level,

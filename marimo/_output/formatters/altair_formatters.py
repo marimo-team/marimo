@@ -48,8 +48,8 @@ class AltairFormatter(FormatterFactory):
             mimebundle: MimeBundle | tuple[MimeBundle, MimeBundle] = {}
             try:
                 mimebundle = chart._repr_mimebundle_() or {}  # type: ignore
-            except Exception:
-                pass
+            except Exception as e:
+                LOGGER.warning("Failed to get mimebundle from chart: %s", e)
 
             # When the mimebundle is a tuple, it follows the format
             # (data_dict, metadata_dict).
@@ -108,7 +108,6 @@ class AltairFormatter(FormatterFactory):
         del theme
         # We don't need to apply this here because the theme is set in the
         # vega-lite component
-        pass
 
 
 def _format_png_mimebundle(
@@ -121,8 +120,8 @@ def _format_png_mimebundle(
         "image/png": data_url or "",
         METADATA_KEY: {
             "image/png": {
-                "width": metadata["width"],
-                "height": metadata["height"],
+                "width": round(metadata["width"]),
+                "height": round(metadata["height"]),
             }
         },
     }

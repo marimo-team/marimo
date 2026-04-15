@@ -20,7 +20,7 @@ _cached_token_dir: Path | None = None
 def _token_dir() -> Path:
     import tempfile
 
-    global _cached_token_dir  # noqa: PLW0603
+    global _cached_token_dir
     if _cached_token_dir is None:
         _cached_token_dir = Path(tempfile.mkdtemp(prefix="marimo-pair-"))
     return _cached_token_dir
@@ -183,7 +183,7 @@ def prompt(
         f"Use `execute-code.sh --url {url}` from the marimo-pair "
         "skill to execute code in the notebook."
         f"{token_hint}\n\n"
-        "Once you are connected, send a fun toast to the user inside marimo letting them know you're ready to pair."
+        "Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair."
     )
 
 

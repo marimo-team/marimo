@@ -6,7 +6,7 @@ import queue
 import threading
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import msgspec
 
@@ -63,10 +63,10 @@ def maybe_update_lazy_stub(value: Any) -> str:
 
 def to_item(
     path: Path,
-    value: Optional[Any],
+    value: Any | None,
     var_name: str = "",
-    loader: Optional[str] = None,
-    hash: Optional[str] = "",  # noqa: A002
+    loader: str | None = None,
+    hash: str | None = "",  # noqa: A002
 ) -> Item:
     if value is None:
         return Item()
@@ -135,7 +135,7 @@ class LazyLoader(BasePersistenceLoader):
     def __init__(
         self,
         name: str,
-        store: Optional[Store] = None,
+        store: Store | None = None,
     ) -> None:
         if store is None:
             store = LazyStore()
@@ -148,9 +148,9 @@ class LazyLoader(BasePersistenceLoader):
             t.join()
         self._pending.clear()
 
-    def load_cache(self, key: HashKey) -> Optional[Cache]:
+    def load_cache(self, key: HashKey) -> Cache | None:
         try:
-            blob: Optional[bytes] = self.store.get(str(self.build_path(key)))
+            blob: bytes | None = self.store.get(str(self.build_path(key)))
             if not blob:
                 return None
             return self.restore_cache(key, blob)
@@ -164,7 +164,7 @@ class LazyLoader(BasePersistenceLoader):
 
         # Collect references to load
         ref_vars: dict[str, str] = {}
-        ref_type_hints: dict[str, Optional[str]] = {}
+        ref_type_hints: dict[str, str | None] = {}
         variable_hashes: dict[str, str] = {}
         for var_name, item in cache_data.defs.items():
             if var_name in cache_data.ui_defs:
@@ -176,8 +176,8 @@ class LazyLoader(BasePersistenceLoader):
                 variable_hashes[var_name] = item.hash
 
         # Eagerly resolve return value reference alongside defs
-        return_ref: Optional[str] = None
-        return_type_hint: Optional[str] = None
+        return_ref: str | None = None
+        return_type_hint: str | None = None
         if (
             cache_data.meta.return_value
             and cache_data.meta.return_value.reference
@@ -359,7 +359,7 @@ class LazyLoader(BasePersistenceLoader):
         self._pending.append(t)
         return True
 
-    def to_blob(self, cache: Cache) -> Optional[bytes]:
+    def to_blob(self, cache: Cache) -> bytes | None:
         # Not used — save_cache is overridden. Kept for interface compliance.
         del cache
         return None

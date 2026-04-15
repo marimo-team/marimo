@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
-from typing import Any, Callable, Final, Optional
+from collections.abc import Callable, Iterator, Sequence
+from typing import Any, Final
 
 from marimo._output.formatters.structures import format_structure
 from marimo._output.hypertext import Html
@@ -81,7 +81,7 @@ class array(UIElement[dict[str, JSONType], Sequence[object]]):
         elements: Sequence[UIElement[Any, Any]],
         *,
         label: str = "",
-        on_change: Optional[Callable[[Sequence[object]], None]] = None,
+        on_change: Callable[[Sequence[object]], None] | None = None,
     ) -> None:
         self._elements = [e._clone() for e in elements]
         self._label = label

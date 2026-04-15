@@ -6,13 +6,16 @@ from __future__ import annotations
 import io
 import pickle
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 import msgspec
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._save.stores import get_store
 from marimo._save.stubs.stubs import CustomStub
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class CacheType(Enum):
@@ -30,20 +33,34 @@ class Item(msgspec.Struct):
     Only one of the value fields should be set (oneof semantics).
     """
 
-    primitive: Optional[Any] = None
-    reference: Optional[str] = None
-    module: Optional[str] = None
+    primitive: Any | None = None
+    reference: str | None = None
+    module: str | None = None
     # (code, filename, linenumber)
-    function: Optional[tuple[str, str, int]] = None
-    hash: Optional[str] = None
+    function: tuple[str, str, int] | None = None
+    hash: str | None = None
     # Fully-qualified class name of the original value — used by format-aware
     # deserializers (e.g. to distinguish pandas from polars Arrow blobs).
-    type_hint: Optional[str] = None
+    type_hint: str | None = None
+
+    def __post_init__(self) -> None:
+        fields_set = sum(
+            1
+            for field in [
+                self.primitive,
+                self.reference,
+                self.module,
+                self.function,
+            ]
+            if field is not None
+        )
+        if fields_set > 1:
+            raise ValueError("Item can only have one value field set")
 
 
 class Meta(msgspec.Struct):
     version: int
-    return_value: Optional[Item] = None
+    return_value: Item | None = None
 
 
 class Cache(msgspec.Struct):
@@ -99,7 +116,7 @@ _LAZY_STUB_CACHE: dict[type, str] = {}
 # ---------------------------------------------------------------------------
 
 
-def _npy_load(data: bytes, type_hint: Optional[str] = None) -> Any:
+def _npy_load(data: bytes, type_hint: str | None = None) -> Any:
     DependencyManager.numpy.require("to load cached numpy arrays.")
     import numpy as np
 
@@ -107,7 +124,7 @@ def _npy_load(data: bytes, type_hint: Optional[str] = None) -> Any:
     return np.load(io.BytesIO(data), allow_pickle=True)
 
 
-def _arrow_load(data: bytes, type_hint: Optional[str] = None) -> Any:
+def _arrow_load(data: bytes, type_hint: str | None = None) -> Any:
     # type_hint is the fq class name written by to_item() at save time.
     # Using it (rather than schema metadata inspection) is explicit and
     # version-stable across pyarrow/polars/pandas releases.
@@ -133,12 +150,12 @@ def _arrow_load(data: bytes, type_hint: Optional[str] = None) -> Any:
     return result
 
 
-def _pickle_load(data: bytes, type_hint: Optional[str] = None) -> Any:
+def _pickle_load(data: bytes, type_hint: str | None = None) -> Any:
     del type_hint
     return pickle.loads(data)
 
 
-BLOB_DESERIALIZERS: dict[str, Callable[[bytes, Optional[str]], Any]] = {
+BLOB_DESERIALIZERS: dict[str, Callable[[bytes, str | None], Any]] = {
     ".pickle": _pickle_load,
     ".npy": _npy_load,
     ".arrow": _arrow_load,

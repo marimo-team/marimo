@@ -20,8 +20,6 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Optional,
     cast,
 )
 from uuid import uuid4
@@ -228,10 +226,11 @@ from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Iterator, Sequence
+    from collections.abc import Awaitable, Callable, Iterator, Sequence
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
+    from marimo._runtime.virtual_file import VirtualFileStorageType
 
 LOGGER = _loggers.marimo_logger()
 
@@ -250,7 +249,7 @@ def defs() -> tuple[str, ...]:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        return tuple()
+        return ()
 
     if ctx.execution_context is not None:
         return tuple(
@@ -259,7 +258,7 @@ def defs() -> tuple[str, ...]:
                 for defn in ctx.graph.cells[ctx.execution_context.cell_id].defs
             )
         )
-    return tuple()
+    return ()
 
 
 @mddoc
@@ -272,7 +271,7 @@ def refs() -> tuple[str, ...]:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        return tuple()
+        return ()
 
     # builtins that have not been shadowed by the user
     unshadowed_builtins = BUILTINS.difference(
@@ -288,7 +287,7 @@ def refs() -> tuple[str, ...]:
                 if defn not in unshadowed_builtins
             )
         )
-    return tuple()
+    return ()
 
 
 @mddoc
@@ -550,7 +549,7 @@ class Kernel:
         # timestamp at which most recently processed interrupt was seen;
         # the kernel rejects run requests that were issued before that
         # timestamp, to save the user from having to spam the interrupt button
-        self.last_interrupt_timestamp: Optional[float] = None
+        self.last_interrupt_timestamp: float | None = None
 
         # Callbacks
         self.secrets_callbacks = SecretsCallbacks(self)
@@ -656,9 +655,9 @@ class Kernel:
 
         # Lifespans
         lifespan = Lifespans(_KERNEL_LIFESPAN_REGISTRY.get_all())
-        self._lifespan: Optional[
-            contextlib.AbstractAsyncContextManager[None]
-        ] = None
+        self._lifespan: contextlib.AbstractAsyncContextManager[None] | None = (
+            None
+        )
         if lifespan.has_lifespans():
             self._lifespan = lifespan(None)
 
@@ -849,15 +848,15 @@ class Kernel:
             module_reloader is not None
             and module_reloader.cell_uses_stale_modules(cell)
         ):
-            self.graph.set_stale(set([cell.cell_id]), prune_imports=True)
+            self.graph.set_stale({cell.cell_id}, prune_imports=True)
         LOGGER.debug("registered cell %s", cell_id)
         LOGGER.debug("parents: %s", self.graph.parents[cell_id])
         LOGGER.debug("children: %s", self.graph.children[cell_id])
 
     def _try_compiling_cell(
         self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
-    ) -> tuple[Optional[CellImpl], Optional[Error]]:
-        error: Optional[Error] = None
+    ) -> tuple[CellImpl | None, Error | None]:
+        error: Error | None = None
         try:
             # In run mode or debugpy, pass the notebook filename so
             # tracebacks reference the real file instead of synthetic
@@ -919,7 +918,7 @@ class Kernel:
         code: str,
         carried_imports: list[ImportData],
         stale: bool,
-    ) -> Optional[Error]:
+    ) -> Error | None:
         """Attempt to register a cell with given id and code.
 
         Precondition: a cell with the supplied id must not already exist in the
@@ -936,7 +935,7 @@ class Kernel:
 
     def _maybe_register_cell(
         self, cell_id: CellId_t, code: str, stale: bool
-    ) -> tuple[set[CellId_t], Optional[Error]]:
+    ) -> tuple[set[CellId_t], Error | None]:
         """Register a cell (given by id, code) if not already registered.
 
         If a cell with id `cell_id` is already registered but with different
@@ -995,7 +994,7 @@ class Kernel:
                 cell = self.graph.cells.get(cell_id, None)
                 if cell:
                     prev_imports: set[Name] = (
-                        set([im.namespace for im in previous_cell.imports])
+                        {im.namespace for im in previous_cell.imports}
                         if previous_cell
                         else set()
                     )
@@ -1076,7 +1075,7 @@ class Kernel:
     def _invalidate_cell_state(
         self,
         cell_id: CellId_t,
-        exclude_defs: Optional[set[Name]] = None,
+        exclude_defs: set[Name] | None = None,
         deletion: bool = False,
     ) -> None:
         """Cleanup state associated with this cell.
@@ -1319,7 +1318,7 @@ class Kernel:
 
         self.errors = all_errors
         for cid in self.errors:
-            cell = self.graph.cells[cid] if cid in self.graph.cells else None
+            cell = self.graph.cells.get(cid, None)
             if (
                 cell is not None
                 and not cell.config.disabled
@@ -2138,7 +2137,7 @@ class Kernel:
                     debug(error_title, error_message)
                 except Exception as e:
                     error_title = "Exception"
-                    error_message = f"Function call (name: {request.function_name}, args: {request.args}) failed with exception {str(e)}"
+                    error_message = f"Function call (name: {request.function_name}, args: {request.args}) failed with exception {e!s}"
                     LOGGER.info(error_message, exc_info=True)
                     debug(error_title, error_message)
 
@@ -2398,7 +2397,7 @@ class Kernel:
 
         async def handle_stop(request: StopKernelCommand) -> None:
             del request
-            return None
+            return
 
         handler.register(CreateNotebookCommand, handle_instantiate)
         handler.register(DeleteCellCommand, self.delete_cell)
@@ -2480,7 +2479,7 @@ class Kernel:
 
     def get_sql_connection(
         self, variable_name: str
-    ) -> tuple[Optional[SQLConnectionType], Optional[str]]:
+    ) -> tuple[SQLConnectionType | None, str | None]:
         """
         Fetch the SQL connection associated with the given variable name.
         Returns the connection if it supports query or catalog operations, or an error message if not.
@@ -2513,7 +2512,7 @@ class DatasetCallbacks:
 
     def get_engine_catalog(
         self, variable_name: str
-    ) -> tuple[Optional[EngineCatalog[Any]], Optional[str]]:
+    ) -> tuple[EngineCatalog[Any] | None, str | None]:
         """Get engines that support catalog operations.
         Returns an error if the connection does not support catalog operations."""
         variable_name = cast(VariableName, variable_name)
@@ -3042,7 +3041,7 @@ class SqlCallbacks:
             return
 
         variable_name = cast(VariableName, request.engine)
-        engine: Optional[SQLConnectionType] = None
+        engine: SQLConnectionType | None = None
         if variable_name == INTERNAL_DUCKDB_ENGINE:
             engine = DuckDBEngine(connection=None)
             error = None
@@ -3078,7 +3077,7 @@ class SqlCallbacks:
             request.query, self._kernel.globals
         )
         validate_result = SqlCatalogCheckResult(
-            success=True if error_message is None else False,
+            success=error_message is None,
             error_message=error_message,
         )
         broadcast_notification(
@@ -3147,13 +3146,11 @@ class PackagesCallbacks:
         if self.package_manager is None:
             return
 
-        packages = list(
-            sorted(
-                pkg
-                for mod in missing_packages
-                if not self.package_manager.attempted_to_install(
-                    pkg := self.package_manager.module_to_package(mod)
-                )
+        packages = sorted(
+            pkg
+            for mod in missing_packages
+            if not self.package_manager.attempted_to_install(
+                pkg := self.package_manager.module_to_package(mod)
             )
         )
         # Deleting a cell can make the set of missing packages smaller
@@ -3229,7 +3226,7 @@ class PackagesCallbacks:
         if not missing_packages:
             return
 
-        packages = list(sorted(missing_packages))
+        packages = sorted(missing_packages)
         if self.package_manager.should_auto_install():
             version = {pkg: "" for pkg in packages}
             self._kernel.enqueue_control_request(
@@ -3267,7 +3264,7 @@ class PackagesCallbacks:
             return
 
         resolved_packages: dict[str, PackageRequirement] = {}
-        for pkg in request.versions.keys():
+        for pkg in request.versions:
             pkg_req = PackageRequirement.parse(pkg)
             resolved_packages[pkg_req.name] = pkg_req
 
@@ -3376,12 +3373,12 @@ class PackagesCallbacks:
         # This consists of cells that either statically reference the installed
         # module, or that previously failed with a ModuleNotFoundError matching
         # an installed module.
-        cells_to_run = set(
+        cells_to_run = {
             cid
             for module in installed_modules
             if (cid := self._kernel.module_registry.defining_cell(module))
             is not None
-        )
+        }
 
         for cid, cell in self._kernel.graph.cells.items():
             if (
@@ -3506,10 +3503,10 @@ def launch_kernel(
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
     user_config: MarimoConfig,
-    virtual_files_supported: bool,
+    virtual_file_storage: VirtualFileStorageType | None,
     redirect_console_to_browser: bool,
     interrupt_queue: QueueType[bool] | None = None,
-    profile_path: Optional[str] = None,
+    profile_path: str | None = None,
     log_level: int | None = None,
     is_ipc: bool = False,
 ) -> None:
@@ -3539,7 +3536,7 @@ def launch_kernel(
     use_fd_redirect = is_subprocess
 
     # Create communication channels
-    pipe: Optional[TypedConnection[KernelMessage]] = None
+    pipe: TypedConnection[KernelMessage] | None = None
     if socket_addr is not None:
         n_tries = 0
         while n_tries < 100:
@@ -3640,7 +3637,7 @@ def launch_kernel(
         stream=stream,
         stdout=stdout,
         stderr=stderr,
-        virtual_files_supported=virtual_files_supported,
+        virtual_file_storage=virtual_file_storage,
         mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
     )
 

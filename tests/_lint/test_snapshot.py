@@ -258,3 +258,19 @@ def test_branch_expression_snapshot():
         error_output.append(error.format())
 
     snapshot("branch_expression_errors.txt", "\n".join(error_output))
+
+
+def test_reusable_definition_order_snapshot():
+    """Test snapshot for reusable definition ordering error."""
+    file = "tests/_lint/test_files/reusable_definition_order.py"
+    with open(file) as f:
+        code = f.read()
+
+    notebook = parse_notebook(code, filepath=file)
+    errors = lint_notebook(notebook)
+
+    error_output = []
+    for error in errors:
+        error_output.append(error.format())
+
+    snapshot("reusable_definition_order_errors.txt", "\n".join(error_output))

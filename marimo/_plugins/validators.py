@@ -8,8 +8,8 @@ from marimo._dependencies.dependencies import DependencyManager
 
 
 def validate_range(
-    min_value: int | float | None,
-    max_value: int | float | None,
+    min_value: float | None,
+    max_value: float | None,
 ) -> None:
     if min_value is not None:
         validate_number(min_value)
@@ -24,9 +24,9 @@ def validate_range(
 
 
 def validate_between_range(
-    value: int | float | None,
-    min_value: int | float | None,
-    max_value: int | float | None,
+    value: float | None,
+    min_value: float | None,
+    max_value: float | None,
 ) -> None:
     if value is None:
         return
@@ -45,7 +45,7 @@ def validate_number(
         raise TypeError("Value must be a number")
 
 
-def warn_js_safe_number(*values: int | float | None) -> None:
+def warn_js_safe_number(*values: float | None) -> None:
     # Number.MAX_SAFE_INTEGER in JavaScript
     MAX_SAFE_INTEGER = 9007199254740991
 

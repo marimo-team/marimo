@@ -5,7 +5,7 @@ import asyncio
 import contextlib
 import ipaddress
 import socket
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._server.ai.mcp.config import is_mcp_config_empty
@@ -102,7 +102,7 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
         yield
         return
 
-    async def background_connect_mcp_servers() -> Optional[MCPClient]:
+    async def background_connect_mcp_servers() -> MCPClient | None:
         try:
             from marimo._server.ai.mcp import get_mcp_client
 
@@ -309,7 +309,7 @@ def _startup_url(state: AppStateBase) -> str:
 
     if AuthToken.is_empty(state.session_manager.auth_token):
         return url
-    return f"{url}?access_token={str(state.session_manager.auth_token)}"
+    return f"{url}?access_token={state.session_manager.auth_token!s}"
 
 
 def _mcp_startup_url(state: AppStateBase) -> str:
@@ -338,4 +338,4 @@ def _mcp_startup_url(state: AppStateBase) -> str:
     # Add access token if not empty
     if AuthToken.is_empty(state.session_manager.auth_token):
         return url
-    return f"{url}?access_token={str(state.session_manager.auth_token)}"
+    return f"{url}?access_token={state.session_manager.auth_token!s}"

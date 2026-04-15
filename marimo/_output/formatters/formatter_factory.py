@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from marimo import _loggers
 from marimo._config.config import Theme
@@ -16,7 +16,7 @@ Unregister = Callable[[], None]
 class FormatterFactory(abc.ABC):
     @staticmethod
     @abc.abstractmethod
-    def package_name() -> Optional[str]:
+    def package_name() -> str | None:
         """Name of third-party package that this formatter is for
 
         **Important**: should not actually import the package, since that will

@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal
 
 import msgspec
 
@@ -13,7 +13,7 @@ class ExportAsHTMLRequest(msgspec.Struct, rename="camel"):
     download: bool
     files: list[str]
     include_code: bool
-    asset_url: Optional[str] = None
+    asset_url: str | None = None
 
 
 class ExportAsScriptRequest(msgspec.Struct, rename="camel"):

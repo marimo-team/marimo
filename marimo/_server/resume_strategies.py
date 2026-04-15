@@ -6,7 +6,7 @@ Provides mode-specific logic for determining whether and how to resume sessions.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from marimo import _loggers
 from marimo._session.model import ConnectionState, SessionMode
@@ -27,7 +27,7 @@ class SessionResumeStrategy(Protocol):
         self,
         new_session_id: SessionId,
         file_key: MarimoFileKey,
-    ) -> Optional[Session]:
+    ) -> Session | None:
         """Try to resume a session.
 
         Args:
@@ -54,7 +54,7 @@ class EditModeResumeStrategy(SessionResumeStrategy):
         self,
         new_session_id: SessionId,
         file_key: MarimoFileKey,
-    ) -> Optional[Session]:
+    ) -> Session | None:
         """Try to resume an orphaned session for the same file."""
         import os
 
@@ -109,7 +109,7 @@ class RunModeResumeStrategy(SessionResumeStrategy):
         self,
         new_session_id: SessionId,
         file_key: MarimoFileKey,  # noqa: ARG002
-    ) -> Optional[Session]:
+    ) -> Session | None:
         """Try to resume a session with matching ID if orphaned."""
         session = self._repository.get_sync(new_session_id)
 

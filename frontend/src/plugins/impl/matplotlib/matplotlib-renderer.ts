@@ -297,13 +297,7 @@ export class MatplotlibRenderer {
     // Create canvas
     const canvas = document.createElement("canvas");
     canvas.className = "block cursor-crosshair";
-    const dpr = globalThis.devicePixelRatio ?? 1;
-    canvas.width = this.#state.width * dpr;
-    canvas.height = this.#state.height * dpr;
-    canvas.style.width = `${this.#state.width}px`;
-    canvas.style.maxWidth = "100%";
-    canvas.style.height = "auto";
-    canvas.style.aspectRatio = `${this.#state.width} / ${this.#state.height}`;
+    this.#syncCanvasSize(canvas);
     canvas.style.touchAction = "none";
     container.append(canvas);
     this.#canvas = canvas;
@@ -322,6 +316,10 @@ export class MatplotlibRenderer {
       signal: options.signal,
     });
 
+    // Watch for devicePixelRatio changes (e.g. browser zoom, moving between
+    // displays). matchMedia fires exactly once per DPR transition.
+    this.#watchDevicePixelRatio(options.signal);
+
     // Clean up on abort
     options.signal.addEventListener("abort", () => {
       cancelAnimationFrame(this.#rafId);
@@ -333,6 +331,38 @@ export class MatplotlibRenderer {
     this.#restoreSelection(this.#state.value);
   }
 
+  /** Set the canvas buffer + CSS size to match current logical size and DPR. */
+  #syncCanvasSize(canvas: HTMLCanvasElement = this.#canvas): void {
+    const dpr = globalThis.devicePixelRatio ?? 1;
+    const { width, height } = this.#state;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.maxWidth = "100%";
+    canvas.style.height = "auto";
+    canvas.style.aspectRatio = `${width} / ${height}`;
+  }
+
+  /**
+   * Observe devicePixelRatio changes via matchMedia. Each listener fires once
+   * per transition, so we re-register after every change.
+   */
+  #watchDevicePixelRatio(signal: AbortSignal): void {
+    if (signal.aborted) {
+      return;
+    }
+    const mq = matchMedia(
+      `(resolution: ${globalThis.devicePixelRatio ?? 1}dppx)`,
+    );
+    const onChange = () => {
+      this.#syncCanvasSize();
+      this.#drawCanvas();
+      // Re-register for the next DPR transition
+      this.#watchDevicePixelRatio(signal);
+    };
+    mq.addEventListener("change", onChange, { once: true, signal });
+  }
+
   update(state: MatplotlibState): void {
     const prev = this.#state;
     this.#state = state;
@@ -341,18 +371,24 @@ export class MatplotlibRenderer {
 
     // Update canvas dimensions if changed
     if (state.width !== prev.width || state.height !== prev.height) {
-      const dpr = globalThis.devicePixelRatio ?? 1;
-      this.#canvas.width = state.width * dpr;
-      this.#canvas.height = state.height * dpr;
-      this.#canvas.style.width = `${state.width}px`;
-      this.#canvas.style.maxWidth = "100%";
-      this.#canvas.style.height = "auto";
-      this.#canvas.style.aspectRatio = `${state.width} / ${state.height}`;
+      this.#syncCanvasSize();
       needsRedraw = true;
     }
 
     if (state.chartBase64 !== this.#currentChartBase64) {
       this.#loadImage(state.chartBase64);
+      return;
+    }
+
+    // Restore selection from backend when the value changed and the user
+    // is not actively drawing/dragging/resizing.  During active interactions
+    // the renderer owns the interaction state — overwriting it would fight
+    // the user's pointer.
+    const isUserInteracting =
+      this.#interaction.type !== "idle" && this.#interaction.action !== null;
+    if (state.value !== prev.value && !isUserInteracting) {
+      this.#restoreSelection(state.value);
+      // #restoreSelection already schedules a redraw
       return;
     }
 
@@ -552,6 +588,10 @@ export class MatplotlibRenderer {
 
   #restoreSelection = (value: SelectionValue): void => {
     if (!value || !("has_selection" in value) || !value.has_selection) {
+      if (this.#interaction.type !== "idle") {
+        this.#interaction = { type: "idle" };
+        this.#scheduleRedraw();
+      }
       return;
     }
 

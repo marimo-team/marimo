@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import sys
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output import formatting
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 def is_structures_formatter(
     formatter: formatting.Formatter[object] | None,
 ) -> bool:
-    return formatter is formatting.get_formatter(tuple())
+    return formatter is formatting.get_formatter(())
 
 
 def _leaf_formatter(
@@ -50,7 +50,7 @@ def _leaf_formatter(
     if value is None:
         return value
     if isinstance(value, set):
-        return f"text/plain+set:{str(value)}"
+        return f"text/plain+set:{value!s}"
     if isinstance(value, tuple):
         return f"text/plain+tuple:{json.dumps(value)}"
 
@@ -61,8 +61,8 @@ def _leaf_formatter(
 
 
 def format_structure(
-    t: Union[tuple[Any, ...], list[Any], dict[str, Any]],
-) -> Union[tuple[Any, ...], list[Any], dict[str, Any]]:
+    t: tuple[Any, ...] | list[Any] | dict[str, Any],
+) -> tuple[Any, ...] | list[Any] | dict[str, Any]:
     """Format the leaves of a structure.
 
     Returns a structure of the same shape as `t` with formatted
@@ -119,12 +119,10 @@ class StructuresFormatter(FormatterFactory):
         @formatting.formatter(dict)
         @formatting.formatter(defaultdict)
         def _format_structure(
-            t: Union[
-                tuple[Any, ...],
-                list[Any],
-                dict[str, Any],
-                defaultdict[Any, Any],
-            ],
+            t: tuple[Any, ...]
+            | list[Any]
+            | dict[str, Any]
+            | defaultdict[Any, Any],
         ) -> tuple[KnownMimeType, str]:
             # Some objects extend list/tuple/dict, but also have _repr_ methods
             # that we want to use preferentially.

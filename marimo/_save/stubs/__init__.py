@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from marimo._save.stubs.function_stub import FunctionStub
 from marimo._save.stubs.lazy_stub import LAZY_STUB_LOOKUP, ReferenceStub
@@ -16,6 +16,9 @@ from marimo._save.stubs.stubs import (
     register_stub,
 )
 from marimo._save.stubs.ui_element_stub import UIElementStub
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Track which class names we've already attempted to register
 _REGISTERED_NAMES: set[str] = set()
@@ -73,9 +76,9 @@ def maybe_get_custom_stub(value: Any) -> CustomStub | None:
 
 __all__ = [
     "CUSTOM_STUBS",
+    "LAZY_STUB_LOOKUP",
     "CustomStub",
     "FunctionStub",
-    "LAZY_STUB_LOOKUP",
     "ModuleStub",
     "ReferenceStub",
     "UIElementStub",

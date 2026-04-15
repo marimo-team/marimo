@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   extractIndices,
   extractPoints,
+  hasAreaTrace,
   hasPureLineTrace,
   lineSelectionButtons,
   type ModeBarButton,
@@ -101,6 +102,22 @@ describe("shouldHandleClickSelection", () => {
     expect(shouldHandleClickSelection([heatmapPoint])).toBe(true);
   });
 
+  it("accepts box clicks", () => {
+    const boxPoint = createPlotDatum({
+      data: { type: "box" },
+    });
+
+    expect(shouldHandleClickSelection([boxPoint])).toBe(true);
+  });
+
+  it("accepts violin clicks", () => {
+    const violinPoint = createPlotDatum({
+      data: { type: "violin" },
+    });
+
+    expect(shouldHandleClickSelection([violinPoint])).toBe(true);
+  });
+
   it("accepts histogram clicks", () => {
     const histogramPoint = createPlotDatum({
       data: { type: "histogram" },
@@ -115,6 +132,22 @@ describe("shouldHandleClickSelection", () => {
     });
 
     expect(shouldHandleClickSelection([linePoint])).toBe(true);
+  });
+
+  it("accepts funnel clicks", () => {
+    const funnelPoint = createPlotDatum({
+      data: { type: "funnel" },
+    });
+
+    expect(shouldHandleClickSelection([funnelPoint])).toBe(true);
+  });
+
+  it("accepts funnelarea clicks", () => {
+    const funnelAreaPoint = createPlotDatum({
+      data: { type: "funnelarea" },
+    });
+
+    expect(shouldHandleClickSelection([funnelAreaPoint])).toBe(true);
   });
 
   it("accepts waterfall clicks", () => {
@@ -205,6 +238,64 @@ describe("extractPoints", () => {
     expect(extractPoints([point])).toEqual([{ x: 1, y: 2, z: 3 }]);
   });
 
+  it("returns funnel-specific fields for funnel traces", () => {
+    const point = createPlotDatum({
+      x: 1000,
+      y: "Visit",
+      label: "Visit",
+      value: 1000,
+      percentInitial: 1.0,
+      percentPrevious: 1.0,
+      percentTotal: 1.0,
+      curveNumber: 0,
+      pointIndex: 0,
+      pointNumber: 0,
+      data: { type: "funnel" },
+    });
+
+    expect(extractPoints([point])).toEqual([
+      {
+        x: 1000,
+        y: "Visit",
+        label: "Visit",
+        value: 1000,
+        percentInitial: 1.0,
+        percentPrevious: 1.0,
+        percentTotal: 1.0,
+        curveNumber: 0,
+        pointIndex: 0,
+        pointNumber: 0,
+      },
+    ]);
+  });
+
+  it("returns funnelarea-specific fields without x/y for funnelarea traces", () => {
+    const point = createPlotDatum({
+      label: "Stage A",
+      value: 500,
+      percentInitial: 0.5,
+      percentPrevious: 0.8,
+      percentTotal: 0.5,
+      curveNumber: 0,
+      pointNumber: 1,
+      x: 99,
+      y: 99,
+      data: { type: "funnelarea" },
+    });
+
+    expect(extractPoints([point])).toEqual([
+      {
+        label: "Stage A",
+        value: 500,
+        percentInitial: 0.5,
+        percentPrevious: 0.8,
+        percentTotal: 0.5,
+        curveNumber: 0,
+        pointNumber: 1,
+      },
+    ]);
+  });
+
   it("returns x/y/pointIndex for waterfall clicks", () => {
     const point = createPlotDatum({
       x: "Revenue",
@@ -217,5 +308,69 @@ describe("extractPoints", () => {
     expect(extractPoints([point])).toEqual([
       { x: "Revenue", y: 400, pointIndex: 1, curveNumber: 0 },
     ]);
+  });
+});
+
+describe("hasAreaTrace", () => {
+  it("detects scatter trace with tozeroy fill", () => {
+    expect(
+      hasAreaTrace([createTrace({ type: "scatter", fill: "tozeroy" })]),
+    ).toBe(true);
+  });
+
+  it("detects scatter trace with tonexty fill", () => {
+    expect(
+      hasAreaTrace([createTrace({ type: "scatter", fill: "tonexty" })]),
+    ).toBe(true);
+  });
+
+  it("detects scatter trace with stackgroup (px.area pattern)", () => {
+    expect(
+      hasAreaTrace([
+        createTrace({ type: "scatter", mode: "lines", stackgroup: "one" }),
+      ]),
+    ).toBe(true);
+  });
+
+  it("detects area traces with mode=none (fill-only, no visible line)", () => {
+    expect(
+      hasAreaTrace([
+        createTrace({ type: "scatter", fill: "tozeroy", mode: "none" }),
+      ]),
+    ).toBe(true);
+  });
+
+  it("ignores scatter traces with no fill and no stackgroup", () => {
+    expect(
+      hasAreaTrace([
+        createTrace({ type: "scatter", mode: "lines" }),
+        createTrace({ type: "scatter", mode: "markers" }),
+      ]),
+    ).toBe(false);
+  });
+
+  it("ignores scatter traces with fill=none", () => {
+    expect(hasAreaTrace([createTrace({ type: "scatter", fill: "none" })])).toBe(
+      false,
+    );
+  });
+
+  it("ignores scatter traces with fill=empty string", () => {
+    expect(
+      hasAreaTrace([createTrace({ type: "scatter", fill: "" as "none" })]),
+    ).toBe(false);
+  });
+
+  it("ignores non-scatter traces", () => {
+    expect(
+      hasAreaTrace([
+        createTrace({ type: "bar" }),
+        createTrace({ type: "heatmap" }),
+      ]),
+    ).toBe(false);
+  });
+
+  it("returns false for undefined data", () => {
+    expect(hasAreaTrace(undefined)).toBe(false);
   });
 });

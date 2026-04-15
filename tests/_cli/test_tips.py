@@ -4,7 +4,7 @@ from __future__ import annotations
 import io
 from unittest.mock import patch
 
-import marimo._cli.cli as cli
+from marimo._cli import cli
 from marimo._cli.tips import (
     CLI_STARTUP_TIPS,
     CliTip,

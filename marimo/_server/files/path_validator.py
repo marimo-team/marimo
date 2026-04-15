@@ -1,8 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from pathlib import Path
-from typing import Optional
 
 from marimo import _loggers
 from marimo._utils.http import HTTPException, HTTPStatus
@@ -19,7 +19,7 @@ class PathValidator:
     - Symlink resolution and security
     """
 
-    def __init__(self, base_directory: Optional[Path] = None):
+    def __init__(self, base_directory: Path | None = None):
         """Initialize PathValidator.
 
         Args:
@@ -89,8 +89,6 @@ class PathValidator:
         Returns:
             Normalized absolute path without symlink resolution
         """
-        import os
-
         from marimo._utils.tmpdir import _convert_to_long_pathname
 
         # Make absolute relative to base if needed
@@ -197,18 +195,35 @@ class PathValidator:
                     )
                 )
 
-                # If it was an absolute directory, then the base is that directory
-                # otherwise, the base is the current working directory
-                if directory.is_absolute():
-                    filepath_base = directory
-                else:
-                    filepath_base = Path.cwd()
-
-                filepath_normalized = (
-                    self._normalize_path_without_resolving_symlinks(
-                        filepath, filepath_base
-                    )
+                filepath_base = (
+                    directory if directory.is_absolute() else Path.cwd()
                 )
+                # Original-form absolute directory (no long-path conversion).
+                # filepath_base / directory is a no-op when directory is absolute.
+                directory_original = Path(
+                    os.path.normpath(filepath_base / directory)
+                )
+
+                # filepath_base / filepath is a no-op when filepath is absolute.
+                abs_filepath = Path(os.path.normpath(filepath_base / filepath))
+
+                try:
+                    # Both paths are in the same (possibly short) form, so
+                    # relative_to is reliable. Reuse directory_normalized (which
+                    # already had short→long conversion applied) as the prefix
+                    # so we never call _convert_to_long_pathname on a path that
+                    # may not exist yet (e.g. a copy destination).
+                    relative = abs_filepath.relative_to(directory_original)
+                    filepath_normalized = directory_normalized / relative
+                except ValueError:
+                    # filepath is not inside directory; normalize it
+                    # independently so _check_containment can produce a clear
+                    # error. The security check will reject it either way.
+                    filepath_normalized = (
+                        self._normalize_path_without_resolving_symlinks(
+                            filepath, filepath_base
+                        )
+                    )
                 self._check_containment(
                     directory_normalized,
                     filepath_normalized,
@@ -220,7 +235,7 @@ class PathValidator:
                 # Handle errors like permission errors, etc.
                 raise HTTPException(
                     status_code=HTTPStatus.BAD_REQUEST,
-                    detail=f"Error resolving path {filepath}: {str(e)}",
+                    detail=f"Error resolving path {filepath}: {e!s}",
                 ) from e
 
         except HTTPException:
@@ -230,7 +245,7 @@ class PathValidator:
             # Catch any other unexpected errors
             raise HTTPException(
                 status_code=HTTPStatus.SERVER_ERROR,
-                detail=f"Unexpected error validating path: {str(e)}",
+                detail=f"Unexpected error validating path: {e!s}",
             ) from e
 
     def validate_file_access(self, filepath: Path) -> None:

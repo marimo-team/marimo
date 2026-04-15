@@ -65,7 +65,7 @@ def test_container_emulation() -> None:
     assert d["0"] == d.elements["0"]
     assert d["1"] == d.elements["1"]
     # iter
-    for a, b in zip(d, d.elements):
+    for a, b in zip(d, d.elements, strict=False):
         assert a == b
     # contains
     assert "0" in d

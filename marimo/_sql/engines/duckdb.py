@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager, nullcontext
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._data.get_datasets import get_databases_from_duckdb
@@ -32,8 +32,8 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
 
     def __init__(
         self,
-        connection: Optional[duckdb.DuckDBPyConnection] = None,
-        engine_name: Optional[VariableName] = None,
+        connection: duckdb.DuckDBPyConnection | None = None,
+        engine_name: VariableName | None = None,
     ) -> None:
         super().__init__(connection, engine_name)
 
@@ -65,7 +65,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
 
     @staticmethod
     def execute_and_return_relation(
-        query: str, params: Optional[list[Any]] = None
+        query: str, params: list[Any] | None = None
     ) -> duckdb.DuckDBPyRelation:
         """Execute a query and return a relation. Supports parameters."""
         DependencyManager.duckdb.require("to execute sql")
@@ -108,7 +108,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
             auto_discover_columns=False,
         )
 
-    def get_default_database(self) -> Optional[str]:
+    def get_default_database(self) -> str | None:
         try:
             import duckdb
 
@@ -124,7 +124,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
             LOGGER.info("Failed to get current database")
             return None
 
-    def get_default_schema(self) -> Optional[str]:
+    def get_default_schema(self) -> str | None:
         try:
             import duckdb
 
@@ -143,9 +143,9 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
     def get_databases(
         self,
         *,
-        include_schemas: Union[bool, Literal["auto"]],
-        include_tables: Union[bool, Literal["auto"]],
-        include_table_details: Union[bool, Literal["auto"]],
+        include_schemas: bool | Literal["auto"],
+        include_tables: bool | Literal["auto"],
+        include_table_details: bool | Literal["auto"],
     ) -> list[Database]:
         """Fetch all databases from the engine. At the moment, will fetch everything."""
         _, _, _ = include_schemas, include_tables, include_table_details
@@ -162,7 +162,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
     def get_schemas(
         self,
         *,
-        database: Optional[str],
+        database: str | None,
         include_tables: bool,
         include_table_details: bool,
     ) -> list[Schema]:
@@ -179,7 +179,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
 
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
-    ) -> Optional[DataTable]:
+    ) -> DataTable | None:
         """Get a single table from the engine. This is currently implemented in get_databases_from_duckdb."""
         _, _, _ = table_name, schema_name, database_name
         return None

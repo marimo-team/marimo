@@ -80,6 +80,25 @@ slider = mo.ui.panel(slider)
         assert panel(False) is not None
         assert panel(None) is not None
 
+    @staticmethod
+    def test_extension_served_as_virtual_file(
+        executing_kernel: Kernel,
+    ) -> None:
+        # The extension JS must be served via a `./@file/...` virtual file
+        # path rather than inlined as a `data-extension` attribute. This is
+        # what lets the frontend refuse to execute attacker-controlled
+        # scripts embedded in markdown via raw <marimo-panel> elements.
+        del executing_kernel  # fixture installs the runtime context
+        slider = pn.widgets.IntSlider(start=0, end=10, value=5)
+        element = panel(slider)
+
+        text = element.text
+        assert "data-extension-url=" in text
+        assert "data-extension=" not in text
+        # The extension URL must be a virtual file path; absolute or data:
+        # URLs would let raw-HTML attackers load arbitrary JavaScript.
+        assert "@file/" in text
+
 
 @pytest.mark.skipif(not HAS_HOLOVIEWS, reason="holoviews not installed")
 class TestHoloViewsSettings:

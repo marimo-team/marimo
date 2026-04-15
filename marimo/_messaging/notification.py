@@ -8,8 +8,6 @@ from typing import (
     Any,
     ClassVar,
     Literal,
-    Optional,
-    Union,
 )
 
 import msgspec
@@ -79,12 +77,12 @@ class CellNotification(Notification, tag="cell-op"):
 
     name: ClassVar[str] = "cell-op"
     cell_id: CellId_t
-    output: Optional[CellOutput] = None
-    console: Optional[Union[CellOutput, list[CellOutput]]] = None
-    status: Optional[RuntimeStateType] = None
-    stale_inputs: Optional[bool] = None
-    run_id: Optional[RunId_t] = None
-    serialization: Optional[str] = None
+    output: CellOutput | None = None
+    console: CellOutput | list[CellOutput] | None = None
+    status: RuntimeStateType | None = None
+    stale_inputs: bool | None = None
+    run_id: RunId_t | None = None
+    serialization: str | None = None
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
@@ -117,8 +115,8 @@ class HumanReadableStatus(msgspec.Struct):
     """
 
     code: Literal["ok", "error"]
-    title: Union[str, None] = None
-    message: Union[str, None] = None
+    title: str | None = None
+    message: str | None = None
 
 
 class FunctionCallResultNotification(Notification, tag="function-call-result"):
@@ -164,14 +162,14 @@ class UIElementMessageNotification(
     name: ClassVar[str] = "send-ui-element-message"
     ui_element: UIElementId
     message: dict[str, Any]
-    buffers: Optional[list[bytes]] = None
+    buffers: list[bytes] | None = None
 
 
 class ModelOpen(msgspec.Struct, tag="open", tag_field="method"):
     """Initial widget state on creation."""
 
     state: dict[str, Any]
-    buffer_paths: list[list[Union[str, int]]]
+    buffer_paths: list[list[str | int]]
     buffers: list[bytes]
 
 
@@ -179,7 +177,7 @@ class ModelUpdate(msgspec.Struct, tag="update", tag_field="method"):
     """State sync - changed traits only."""
 
     state: dict[str, Any]
-    buffer_paths: list[list[Union[str, int]]]
+    buffer_paths: list[list[str | int]]
     buffers: list[bytes]
 
 
@@ -193,10 +191,8 @@ class ModelCustom(msgspec.Struct, tag="custom", tag_field="method"):
 class ModelClose(msgspec.Struct, tag="close", tag_field="method"):
     """Widget destruction."""
 
-    pass
 
-
-ModelMessage = Union[ModelOpen, ModelUpdate, ModelCustom, ModelClose]
+ModelMessage = ModelOpen | ModelUpdate | ModelCustom | ModelClose
 
 
 class ModelLifecycleNotification(Notification, tag="model-lifecycle"):
@@ -297,12 +293,12 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     cell_ids: tuple[CellId_t, ...]
     codes: tuple[str, ...]
     names: tuple[str, ...]
-    layout: Optional[LayoutConfig]
+    layout: LayoutConfig | None
     configs: tuple[CellConfig, ...]
     resumed: bool
-    ui_values: Optional[dict[str, JSONType]]
-    last_executed_code: Optional[dict[CellId_t, str]]
-    last_execution_time: Optional[dict[CellId_t, float]]
+    ui_values: dict[str, JSONType] | None
+    last_executed_code: dict[CellId_t, str] | None
+    last_execution_time: dict[CellId_t, float] | None
     app_config: _AppConfig
     kiosk: bool
     capabilities: KernelCapabilitiesNotification
@@ -336,7 +332,7 @@ class AlertNotification(Notification, tag="alert"):
     name: ClassVar[str] = "alert"
     title: str
     description: str
-    variant: Optional[Literal["danger"]] = None
+    variant: Literal["danger"] | None = None
 
 
 class MissingPackageAlertNotification(
@@ -380,8 +376,8 @@ class InstallingPackageAlertNotification(
 
     name: ClassVar[str] = "installing-package-alert"
     packages: PackageStatusType
-    logs: Optional[dict[str, str]] = None  # package name -> log content
-    log_status: Optional[Literal["append", "start", "done"]] = None
+    logs: dict[str, str] | None = None  # package name -> log content
+    log_status: Literal["append", "start", "done"] | None = None
     source: Literal["kernel", "server"] = "kernel"
 
 
@@ -417,8 +413,8 @@ class BannerNotification(Notification, tag="banner"):
     name: ClassVar[str] = "banner"
     title: str
     description: str
-    variant: Optional[Literal["danger"]] = None
-    action: Optional[Literal["restart"]] = None
+    variant: Literal["danger"] | None = None
+    action: Literal["restart"] | None = None
 
 
 class KernelStartupErrorNotification(Notification, tag="kernel-startup-error"):
@@ -462,8 +458,8 @@ class VariableValue(BaseStruct):
     """
 
     name: str
-    value: Optional[str]
-    datatype: Optional[str]
+    value: str | None
+    datatype: str | None
 
 
 class VariablesNotification(Notification, tag="variables"):
@@ -498,7 +494,7 @@ class DatasetsNotification(Notification, tag="datasets"):
 
     name: ClassVar[str] = "datasets"
     tables: list[DataTable]
-    clear_channel: Optional[DataTableSource] = None
+    clear_channel: DataTableSource | None = None
 
 
 class SQLDatabaseMetadata(msgspec.Struct):
@@ -540,8 +536,8 @@ class SQLTablePreviewNotification(Notification, tag="sql-table-preview"):
     name: ClassVar[str] = "sql-table-preview"
     request_id: RequestId
     metadata: SQLMetadata
-    table: Optional[DataTable]
-    error: Optional[str] = None
+    table: DataTable | None
+    error: str | None = None
 
 
 class SQLTableListPreviewNotification(
@@ -560,7 +556,7 @@ class SQLTableListPreviewNotification(
     request_id: RequestId
     metadata: SQLMetadata
     tables: list[DataTable] = msgspec.field(default_factory=list)
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class ColumnPreview(msgspec.Struct):
@@ -574,11 +570,11 @@ class ColumnPreview(msgspec.Struct):
         stats: Statistical summary.
     """
 
-    chart_spec: Optional[str] = None
-    chart_code: Optional[str] = None
-    error: Optional[str] = None
-    missing_packages: Optional[list[str]] = None
-    stats: Optional[ColumnStats] = None
+    chart_spec: str | None = None
+    chart_code: str | None = None
+    error: str | None = None
+    missing_packages: list[str] | None = None
+    stats: ColumnStats | None = None
 
 
 class DataColumnPreviewNotification(
@@ -614,7 +610,7 @@ class SQLSchemaListPreviewNotification(
     request_id: RequestId
     metadata: SQLDatabaseMetadata
     schemas: list[Schema] = msgspec.field(default_factory=list)
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class DataSourceConnectionsNotification(
@@ -657,9 +653,9 @@ class StorageEntriesNotification(Notification, tag="storage-entries"):
     request_id: RequestId
     entries: list[StorageEntry]
     namespace: str
-    prefix: Optional[str] = None
-    query: Optional[str] = None
-    error: Optional[str] = None
+    prefix: str | None = None
+    query: str | None = None
+    error: str | None = None
 
 
 class StorageDownloadReadyNotification(
@@ -679,9 +675,9 @@ class StorageDownloadReadyNotification(
 
     name: ClassVar[str] = "storage-download-ready"
     request_id: RequestId
-    url: Optional[str] = None
-    filename: Optional[str] = None
-    error: Optional[str] = None
+    url: str | None = None
+    filename: str | None = None
+    error: str | None = None
 
 
 class ValidateSQLResultNotification(Notification, tag="validate-sql-result"):
@@ -696,9 +692,9 @@ class ValidateSQLResultNotification(Notification, tag="validate-sql-result"):
 
     name: ClassVar[str] = "validate-sql-result"
     request_id: RequestId
-    parse_result: Optional[SqlParseResult] = None
-    validate_result: Optional[SqlCatalogCheckResult] = None
-    error: Optional[str] = None
+    parse_result: SqlParseResult | None = None
+    validate_result: SqlCatalogCheckResult | None = None
+    error: str | None = None
 
 
 class QueryParamsSetNotification(Notification, tag="query-params-set"):
@@ -711,7 +707,7 @@ class QueryParamsSetNotification(Notification, tag="query-params-set"):
 
     name: ClassVar[str] = "query-params-set"
     key: str
-    value: Union[str, list[str]]
+    value: str | list[str]
 
 
 class QueryParamsAppendNotification(Notification, tag="query-params-append"):
@@ -737,7 +733,7 @@ class QueryParamsDeleteNotification(Notification, tag="query-params-delete"):
 
     name: ClassVar[str] = "query-params-delete"
     key: str
-    value: Optional[str]
+    value: str | None
 
 
 class QueryParamsClearNotification(Notification, tag="query-params-clear"):
@@ -813,55 +809,55 @@ class NotebookDocumentTransactionNotification(
     transaction: Transaction
 
 
-NotificationMessage = Union[
+NotificationMessage = (
     # Cell operations
-    CellNotification,
-    FunctionCallResultNotification,
-    UIElementMessageNotification,
-    ModelLifecycleNotification,
-    RemoveUIElementsNotification,
+    CellNotification
+    | FunctionCallResultNotification
+    | UIElementMessageNotification
+    | ModelLifecycleNotification
+    | RemoveUIElementsNotification
     # Notebook lifecycle
-    ReloadNotification,
-    ReconnectedNotification,
-    InterruptedNotification,
-    CompletedRunNotification,
-    KernelReadyNotification,
+    | ReloadNotification
+    | ReconnectedNotification
+    | InterruptedNotification
+    | CompletedRunNotification
+    | KernelReadyNotification
     # Editor
-    CompletionResultNotification,
+    | CompletionResultNotification
     # Alerts
-    AlertNotification,
-    BannerNotification,
-    MissingPackageAlertNotification,
-    InstallingPackageAlertNotification,
-    StartupLogsNotification,
-    KernelStartupErrorNotification,
+    | AlertNotification
+    | BannerNotification
+    | MissingPackageAlertNotification
+    | InstallingPackageAlertNotification
+    | StartupLogsNotification
+    | KernelStartupErrorNotification
     # Variables
-    VariablesNotification,
-    VariableValuesNotification,
+    | VariablesNotification
+    | VariableValuesNotification
     # Query params
-    QueryParamsSetNotification,
-    QueryParamsAppendNotification,
-    QueryParamsDeleteNotification,
-    QueryParamsClearNotification,
+    | QueryParamsSetNotification
+    | QueryParamsAppendNotification
+    | QueryParamsDeleteNotification
+    | QueryParamsClearNotification
     # Data/SQL
-    DatasetsNotification,
-    DataColumnPreviewNotification,
-    SQLTablePreviewNotification,
-    SQLTableListPreviewNotification,
-    SQLSchemaListPreviewNotification,
-    DataSourceConnectionsNotification,
-    ValidateSQLResultNotification,
+    | DatasetsNotification
+    | DataColumnPreviewNotification
+    | SQLTablePreviewNotification
+    | SQLTableListPreviewNotification
+    | SQLSchemaListPreviewNotification
+    | DataSourceConnectionsNotification
+    | ValidateSQLResultNotification
     # Storage
-    StorageNamespacesNotification,
-    StorageEntriesNotification,
-    StorageDownloadReadyNotification,
+    | StorageNamespacesNotification
+    | StorageEntriesNotification
+    | StorageDownloadReadyNotification
     # Secrets
-    SecretKeysResultNotification,
+    | SecretKeysResultNotification
     # Cache
-    CacheClearedNotification,
-    CacheInfoNotification,
+    | CacheClearedNotification
+    | CacheInfoNotification
     # Kiosk
-    FocusCellNotification,
+    | FocusCellNotification
     # Document
-    NotebookDocumentTransactionNotification,
-]
+    | NotebookDocumentTransactionNotification
+)

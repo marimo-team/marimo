@@ -84,7 +84,7 @@ async def test_matplotlib_boxplot_dict_special_case(
         formatter = executing_kernel.globals["formatter"]
         boxplot_result = executing_kernel.globals["boxplot_result"]
         assert formatter is not None
-        mimetype, data = formatter(boxplot_result)
+        mimetype, _data = formatter(boxplot_result)
         # Should be a single image, not JSON with multiple formatted artists
         assert (
             mimetype.startswith("image")
@@ -119,7 +119,7 @@ async def test_matplotlib_violinplot_dict_special_case(
         formatter = executing_kernel.globals["formatter"]
         violinplot_result = executing_kernel.globals["violinplot_result"]
         assert formatter is not None
-        mimetype, data = formatter(violinplot_result)
+        mimetype, _data = formatter(violinplot_result)
         # Should be a single image, not JSON with multiple formatted artists
         assert (
             mimetype.startswith("image")
@@ -519,7 +519,7 @@ def test_function_like_objects_are_pretty_inspected() -> None:
 
     # Method
     class C:
-        def m(self, a: int) -> int:  # noqa: D401, ARG002
+        def m(self, a: int) -> int:
             return a
 
     fmt = get_formatter(C.m)
@@ -574,7 +574,7 @@ def test_function_like_objects_fallback_on_exception() -> None:
 
 
 def test_is_structures_formatter() -> None:
-    assert is_structures_formatter(get_formatter(tuple()))
+    assert is_structures_formatter(get_formatter(()))
     assert is_structures_formatter(get_formatter([]))
     assert is_structures_formatter(get_formatter({1: 2}))
 

@@ -12,6 +12,7 @@ from marimo import _loggers
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
+from marimo._server.files.path_validator import PathValidator
 from marimo._server.models.models import (
     BaseResponse,
     CopyNotebookRequest,
@@ -110,14 +111,19 @@ async def rename_file(
     """
     body = await parse_request(request, cls=RenameNotebookRequest)
     app_state = AppState(request)
+    directory = app_state.session_manager.file_router.directory
 
     # Resolve relative filenames against the file router's directory
-    if not Path(body.filename).is_absolute():
-        directory = app_state.session_manager.file_router.directory
-        if directory:
-            body.filename = str(Path(directory) / body.filename)
+    if not Path(body.filename).is_absolute() and directory:
+        body.filename = str(Path(directory) / body.filename)
 
     filename = await abspath(body.filename)
+
+    # Prevent path traversal: ensure target is inside the router's directory
+    if directory:
+        PathValidator().validate_inside_directory(
+            Path(directory), Path(filename)
+        )
 
     app_state.require_current_session().put_control_request(
         RenameNotebookCommand(filename=filename),
@@ -159,12 +165,18 @@ async def save(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=SaveNotebookRequest)
+    directory = app_state.session_manager.file_router.directory
 
     # Resolve relative filenames against the file router's directory
     if body.filename and not Path(body.filename).is_absolute():
-        directory = app_state.session_manager.file_router.directory
         if directory:
             body.filename = str(Path(directory) / body.filename)
+
+    # Prevent path traversal: ensure target is inside the router's directory
+    if directory and body.filename:
+        PathValidator().validate_inside_directory(
+            Path(directory), Path(body.filename)
+        )
 
     session = app_state.require_current_session()
     contents = session.app_file_manager.save(body)
@@ -216,6 +228,18 @@ async def copy(
             body.source = str(Path(directory) / body.source)
         if body.destination and not Path(body.destination).is_absolute():
             body.destination = str(Path(directory) / body.destination)
+
+    # Prevent path traversal: ensure source and destination are inside the router's directory
+    if directory:
+        validator = PathValidator()
+        if body.source:
+            validator.validate_inside_directory(
+                Path(directory), Path(body.source)
+            )
+        if body.destination:
+            validator.validate_inside_directory(
+                Path(directory), Path(body.destination)
+            )
 
     session = app_state.require_current_session()
     contents = session.app_file_manager.copy(body)

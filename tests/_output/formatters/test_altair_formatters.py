@@ -190,7 +190,7 @@ def test_altair_formatter_png():
         "_repr_mimebundle_",
         return_value=(
             {"image/png": b"png"},
-            {"image/png": {"width": 10, "height": 20}},
+            {"image/png": {"width": 10.2, "height": 19.8}},
         ),
     ):
         formatter = get_formatter(mock_chart)

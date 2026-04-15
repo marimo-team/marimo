@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import json
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass
 from html import escape
-from typing import Any, Callable, Optional, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from marimo import _loggers as loggers
 from marimo._messaging.mimetypes import KnownMimeType
@@ -55,7 +56,7 @@ class FormatterRegistry:
     def add_formatter(self, t: type[Any], f: Formatter[Any]) -> None:
         self.formatters[t] = f
 
-    def get_formatter(self, obj: Any) -> Optional[Formatter[Any]]:
+    def get_formatter(self, obj: Any) -> Formatter[Any] | None:
         top_level_type = type(obj)
         # Top-level formatters
         if top_level_type in self.formatters:
@@ -68,7 +69,7 @@ class FormatterRegistry:
         # Search for formatters in the object's type hierarchy
         try:
             mro_list = top_level_type.mro()
-        except BaseException as e:  # noqa: E722
+        except BaseException as e:
             # Some exotic metaclasses or broken types may raise when calling mro
             LOGGER.warning(
                 "Failed to read MRO for type %s: %s", top_level_type, str(e)
@@ -139,8 +140,8 @@ def get_formatter(
     obj: T,
     # Include opinionated formatters by default
     # (e.g., for pandas, polars, arrow, etc.)
-    include_opinionated: Optional[bool] = None,
-) -> Optional[Formatter[T]]:
+    include_opinionated: bool | None = None,
+) -> Formatter[T] | None:
     from marimo._runtime.context import ContextNotInitializedError, get_context
 
     try:
@@ -214,7 +215,7 @@ def get_formatter(
 class FormattedOutput:
     mimetype: KnownMimeType
     data: str
-    traceback: Optional[str] = None
+    traceback: str | None = None
     exception: BaseException | None = None
 
     @staticmethod
@@ -223,7 +224,7 @@ class FormattedOutput:
 
 
 def try_format(
-    obj: Any, include_opinionated: Optional[bool] = None
+    obj: Any, include_opinionated: bool | None = None
 ) -> FormattedOutput:
     if obj is None:
         return FormattedOutput.empty()
@@ -236,7 +237,7 @@ def try_format(
         try:
             mimetype, data = formatter(obj)
             return FormattedOutput(mimetype=mimetype, data=data)
-        except BaseException as e:  # noqa: E722
+        except BaseException as e:
             # Catching base exception so we're robust to bugs in libraries
             return FormattedOutput(
                 mimetype="text/plain",

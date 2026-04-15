@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Optional
+from typing import TYPE_CHECKING, Literal
 
 from marimo._output.builder import h
 from marimo._output.formatting import as_html
@@ -27,9 +27,9 @@ class _FlexContainerHtml(Html):
 
     def __init__(
         self,
-        style: Optional[str],
+        style: str | None,
         live_children: list[Html],
-        child_flexes: Optional[Sequence[Optional[float]]],
+        child_flexes: Sequence[float | None] | None,
     ) -> None:
         self._style = style
         self._live_children = live_children
@@ -37,7 +37,7 @@ class _FlexContainerHtml(Html):
         super().__init__(self._build_text())
 
     def _build_text(self) -> str:
-        def _item_style(idx: int) -> Optional[str]:
+        def _item_style(idx: int) -> str | None:
             if self._child_flexes is None:
                 return ""
             child_flex = self._child_flexes[idx]
@@ -76,10 +76,10 @@ def _flex(
     justify: Literal[
         "start", "center", "end", "space-between", "space-around"
     ],
-    align: Optional[Literal["start", "end", "center", "stretch"]],
+    align: Literal["start", "end", "center", "stretch"] | None,
     wrap: bool,
     gap: float,
-    child_flexes: Optional[Sequence[Optional[float]]],
+    child_flexes: Sequence[float | None] | None,
 ) -> Html:
     justify_content_map = {
         "start": "flex-start",
@@ -120,12 +120,12 @@ def _flex(
 def vstack(
     items: Sequence[object],
     *,
-    align: Optional[Literal["start", "end", "center", "stretch"]] = None,
+    align: Literal["start", "end", "center", "stretch"] | None = None,
     justify: Literal[
         "start", "center", "end", "space-between", "space-around"
     ] = "start",
     gap: float = 0.5,
-    heights: Optional[Literal["equal"] | Sequence[float]] = None,
+    heights: Literal["equal"] | Sequence[float] | None = None,
 ) -> Html:
     """Stack items vertically, in a column.
 
@@ -186,10 +186,10 @@ def hstack(
     justify: Literal[
         "start", "center", "end", "space-between", "space-around"
     ] = "space-between",
-    align: Optional[Literal["start", "end", "center", "stretch"]] = None,
+    align: Literal["start", "end", "center", "stretch"] | None = None,
     wrap: bool = False,
     gap: float = 0.5,
-    widths: Optional[Literal["equal"] | Sequence[float]] = None,
+    widths: Literal["equal"] | Sequence[float] | None = None,
 ) -> Html:
     """Stack items horizontally, in a row.
 
@@ -263,7 +263,7 @@ def hstack(
 def _spaced(
     items: Sequence[object],
     justify: Literal["left", "right", "center", "normal"] = "center",
-    items_per_row: Optional[int] = None,
+    items_per_row: int | None = None,
     column_gap: float = 1,
     row_gap: float = 1,
 ) -> Html:

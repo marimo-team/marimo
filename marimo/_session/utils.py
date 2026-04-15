@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._session.model import ConnectionState
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 def send_message_to_consumer(
     session: Session,
     operation: NotificationMessage,
-    consumer_id: Optional[ConsumerId],
+    consumer_id: ConsumerId | None,
 ) -> None:
     """Send a message operation to a specific consumer in a session."""
     notification = serialize_kernel_message(operation)

@@ -5,7 +5,7 @@ import asyncio
 import json
 import sys
 from textwrap import dedent
-from typing import TYPE_CHECKING, Optional, Union, cast
+from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
 from marimo._ast.app import App, InternalApp
@@ -57,18 +57,17 @@ class MarimoIslandStub:
         self._display_output = display_output
         self._is_reactive = is_reactive
 
-        self._internal_app: Optional[InternalApp] = None
-        self._session_view: Optional[SessionView] = None
-        self._output: Optional[CellOutput] = None
+        self._internal_app: InternalApp | None = None
+        self._session_view: SessionView | None = None
+        self._output: CellOutput | None = None
 
     @property
-    def output(self) -> Optional[CellOutput]:
+    def output(self) -> CellOutput | None:
         # Leave output accessible for direct use for non-interactive cases e.g.
         # pdf.
-        if self._output is None:
-            if self._session_view is not None:
-                outputs = self._session_view.get_cell_outputs([self._cell_id])
-                self._output = outputs.get(self._cell_id, None)
+        if self._output is None and self._session_view is not None:
+            outputs = self._session_view.get_cell_outputs([self._cell_id])
+            self._output = outputs.get(self._cell_id, None)
         return self._output
 
     @property
@@ -77,9 +76,9 @@ class MarimoIslandStub:
 
     def render(
         self,
-        display_code: Optional[bool] = None,
-        display_output: Optional[bool] = None,
-        is_reactive: Optional[bool] = None,
+        display_code: bool | None = None,
+        display_output: bool | None = None,
+        is_reactive: bool | None = None,
         as_raw: bool = False,
     ) -> str:
         """
@@ -363,7 +362,7 @@ class MarimoIslandGenerator:
         self,
         *,
         version_override: str = __version__,
-        _development_url: Union[str, bool] = False,
+        _development_url: str | bool = False,
     ) -> str:
         """
         Render the header for the app.
@@ -412,10 +411,13 @@ class MarimoIslandGenerator:
                 base_url = _development_url
             return dedent(
                 f"""
-                <script
-                    type="module"
-                    src="{base_url}/src/core/islands/main.ts"
-                ></script>
+                <script type="module" src="{base_url}/dist/main.js"></script>
+                <link
+                    href="{base_url}/dist/style.css"
+                    rel="stylesheet"
+                    title="marimo-islands"
+                    crossorigin="anonymous"
+                />
                 {fonts}
                 """
             ).strip()
@@ -430,6 +432,7 @@ class MarimoIslandGenerator:
             <link
                 href="{base_url}/dist/style.css"
                 rel="stylesheet"
+                title="marimo-islands"
                 crossorigin="anonymous"
             />
             {fonts}
@@ -487,9 +490,9 @@ class MarimoIslandGenerator:
         self,
         *,
         include_init_island: bool = True,
-        max_width: Optional[str] = None,
-        margin: Optional[str] = None,
-        style: Optional[str] = None,
+        max_width: str | None = None,
+        margin: str | None = None,
+        style: str | None = None,
     ) -> str:
         """
         Render the body for the app.
@@ -538,11 +541,11 @@ class MarimoIslandGenerator:
         self,
         *,
         version_override: str = __version__,
-        _development_url: Union[str, bool] = False,
+        _development_url: str | bool = False,
         include_init_island: bool = True,
-        max_width: Optional[str] = None,
-        margin: Optional[str] = None,
-        style: Optional[str] = None,
+        max_width: str | None = None,
+        margin: str | None = None,
+        style: str | None = None,
     ) -> str:
         """
         Render reactive html for the app.
