@@ -69,6 +69,8 @@ def _has_binning(spec: VegaSpec) -> bool:
     if "encoding" not in spec:
         return False
     for encoding in spec["encoding"].values():
+        if isinstance(encoding, list):
+            continue
         if "bin" in encoding:
             return True
     return False
@@ -85,6 +87,8 @@ def _get_binned_fields(spec: VegaSpec) -> dict[str, Any]:
         return binned_fields
 
     for encoding in spec["encoding"].values():
+        if isinstance(encoding, list):
+            continue
         if encoding.get("bin"):
             # Get the field name
             field = encoding.get("field")

@@ -305,4 +305,46 @@ describe("applyTransactionChanges edge cases", () => {
       "
     `);
   });
+
+  it("set-code updates the mounted editor view's document", () => {
+    // Existing tests only check cellData.code — this covers the editor
+    // view side, so regressions in the reducer's imperative sync (or in
+    // the CellEditor useEffect that backs it up) don't go unnoticed.
+    setup('x = "BEFORE"');
+    const [a] = state.cellIds.inOrderIds;
+    const editorView = state.cellHandles[a].current?.editorViewOrNull;
+    expect(editorView?.state.doc.toString()).toBe('x = "BEFORE"');
+
+    apply([{ type: "set-code", cellId: a, code: 'x = "AFTER"' }]);
+
+    expect(state.cellData[a].code).toBe('x = "AFTER"');
+    expect(editorView?.state.doc.toString()).toBe('x = "AFTER"');
+  });
+
+  it("create-cell then set-code on same cell updates editor", () => {
+    // Mirrors the code_mode flow that exposed marimo-pair#27: create_cell
+    // in one batch, edit_cell in a second batch, each arriving as a
+    // separate transaction.
+    setup();
+    apply([
+      {
+        type: "create-cell",
+        cellId: cellId("repro"),
+        code: 'x = "BEFORE"',
+        name: "repro_bug",
+        config: {},
+      },
+    ]);
+    const editorView =
+      state.cellHandles[cellId("repro")].current?.editorViewOrNull;
+    expect(editorView?.state.doc.toString()).toBe('x = "BEFORE"');
+
+    apply([
+      { type: "set-code", cellId: cellId("repro"), code: 'x = "AFTER"' },
+      { type: "reorder-cells", cellIds: [cellId("repro")] },
+    ]);
+
+    expect(state.cellData[cellId("repro")].code).toBe('x = "AFTER"');
+    expect(editorView?.state.doc.toString()).toBe('x = "AFTER"');
+  });
 });

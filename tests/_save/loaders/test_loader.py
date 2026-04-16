@@ -10,6 +10,7 @@ from pathlib import Path
 import msgspec
 import pytest
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._save.cache import MARIMO_CACHE_VERSION, Cache
 from marimo._save.hash import HashKey
 from marimo._save.loaders import (
@@ -286,3 +287,164 @@ class TestLazyLoader(ABCTestLoader):
 
         result = loader.load_cache(key("missing", "Pure"))
         assert result is None
+
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(), reason="numpy required"
+    )
+    def test_numpy_object_dtype_round_trip(self) -> None:
+        """Object-dtype numpy arrays survive save → flush → load via .npy."""
+        import numpy as np
+
+        loader = self.instance()
+        arr = np.array(["a", "b"], dtype=object)
+        cache = Cache(
+            defs={"arr": arr},
+            hash="np_obj_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        loaded = loader.load_cache(key("np_obj_hash", "Pure"))
+        assert loaded is not None
+        np.testing.assert_array_equal(loaded.defs["arr"], arr)
+
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(), reason="numpy required"
+    )
+    def test_numpy_round_trip(self) -> None:
+        """numpy arrays survive save → flush → load via .npy format."""
+        import numpy as np
+
+        loader = self.instance()
+        arr = np.array([1.0, 2.0, 3.0])
+        cache = Cache(
+            defs={"arr": arr},
+            hash="np_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        assert list(Path(self.store.save_path).rglob("*.npy")), (
+            "expected .npy blob, got pickle fallback"
+        )
+        loaded = loader.load_cache(key("np_hash", "Pure"))
+        assert loaded is not None
+        np.testing.assert_array_equal(loaded.defs["arr"], arr)
+
+    @pytest.mark.skipif(
+        not DependencyManager.has("polars"), reason="polars required"
+    )
+    def test_polars_round_trip(self) -> None:
+        """polars DataFrames survive save → flush → load via .arrow format."""
+        import polars as pl
+
+        loader = self.instance()
+        df = pl.DataFrame({"a": [1, 2], "b": [3.0, 4.0]})
+        cache = Cache(
+            defs={"df": df},
+            hash="pl_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        assert list(Path(self.store.save_path).rglob("*.arrow")), (
+            "expected .arrow blob, got pickle fallback"
+        )
+        loaded = loader.load_cache(key("pl_hash", "Pure"))
+        assert loaded is not None
+        assert loaded.defs["df"].equals(df)
+
+    @pytest.mark.skipif(
+        not DependencyManager.has("polars"), reason="polars required"
+    )
+    def test_polars_series_round_trip(self) -> None:
+        """polars Series survive save → flush → load via .arrow format."""
+        import polars as pl
+
+        loader = self.instance()
+        s = pl.Series("vals", [10, 20, 30])
+        cache = Cache(
+            defs={"s": s},
+            hash="pl_series_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        assert list(Path(self.store.save_path).rglob("*.arrow")), (
+            "expected .arrow blob, got pickle fallback"
+        )
+        loaded = loader.load_cache(key("pl_series_hash", "Pure"))
+        assert loaded is not None
+        assert isinstance(loaded.defs["s"], pl.Series)
+        assert loaded.defs["s"].to_list() == s.to_list()
+
+    @pytest.mark.skipif(
+        not DependencyManager.has("pandas"), reason="pandas required"
+    )
+    def test_pandas_round_trip(self) -> None:
+        """pandas DataFrames survive save → flush → load via .arrow format."""
+        import pandas as pd
+
+        loader = self.instance()
+        df = pd.DataFrame({"x": [1, 2], "y": [3.0, 4.0]})
+        cache = Cache(
+            defs={"df": df},
+            hash="pd_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        assert list(Path(self.store.save_path).rglob("*.arrow")), (
+            "expected .arrow blob, got pickle fallback"
+        )
+        loaded = loader.load_cache(key("pd_hash", "Pure"))
+        assert loaded is not None
+        pd.testing.assert_frame_equal(loaded.defs["df"], df)
+
+    @pytest.mark.skipif(
+        not DependencyManager.has("pandas"), reason="pandas required"
+    )
+    def test_pandas_series_round_trip(self) -> None:
+        """pandas Series survive save → flush → load via .arrow format."""
+        import pandas as pd
+
+        loader = self.instance()
+        s = pd.Series([10, 20, 30], name="vals")
+        cache = Cache(
+            defs={"s": s},
+            hash="pd_series_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        assert list(Path(self.store.save_path).rglob("*.arrow")), (
+            "expected .arrow blob, got pickle fallback"
+        )
+        loaded = loader.load_cache(key("pd_series_hash", "Pure"))
+        assert loaded is not None
+        assert isinstance(loaded.defs["s"], pd.Series)
+        pd.testing.assert_series_equal(loaded.defs["s"], s)

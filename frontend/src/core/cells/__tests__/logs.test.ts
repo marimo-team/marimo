@@ -5,6 +5,11 @@ import { cellId } from "@/__tests__/branded";
 import type { CellMessage } from "../../kernel/messages";
 import { formatLogTimestamp, getCellLogsForMessage } from "../logs";
 
+// Stable mock reference so every (re)import of use-toast sees the same spy,
+// even after vi.resetModules() clears the module cache between tests.
+const { toastMock } = vi.hoisted(() => ({ toastMock: vi.fn() }));
+vi.mock("@/components/ui/use-toast", () => ({ toast: toastMock }));
+
 describe("getCellLogsForMessage", () => {
   beforeEach(() => {
     // Mock console.log to avoid cluttering test output
@@ -321,6 +326,102 @@ describe("getCellLogsForMessage", () => {
 
     expect(logs).toHaveLength(1);
     expect(logs[0].level).toBe("stderr");
+  });
+});
+
+describe("getCellLogsForMessage - internal error toast", () => {
+  // Re-imported per test after vi.resetModules() so the module-level
+  // `didAlreadyToastError` flag starts fresh and all jotai atom references
+  // (initialModeAtom, etc.) match the versions used by the reset logs.ts.
+  let getLogs: typeof import("../logs").getCellLogsForMessage;
+  let store: typeof import("@/core/state/jotai").store;
+  let initialModeAtom: typeof import("@/core/mode").initialModeAtom;
+
+  beforeEach(async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {
+      // no-op
+    });
+    vi.resetModules();
+    ({ getCellLogsForMessage: getLogs } = await import("../logs"));
+    ({ store } = await import("@/core/state/jotai"));
+    ({ initialModeAtom } = await import("@/core/mode"));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  const makeErrorCellMessage = (id: CellMessage["cell_id"]): CellMessage => ({
+    cell_id: id,
+    console: [],
+    output: {
+      mimetype: "application/vnd.marimo+error",
+      data: [
+        {
+          type: "exception",
+          exception_type: "ValueError",
+          msg: "something exploded",
+          traceback: ["File foo.py, line 1", "ValueError: something exploded"],
+        },
+      ],
+      channel: "marimo-error",
+      timestamp: 0,
+    } as unknown as CellMessage["output"],
+    status: "idle",
+    stale_inputs: null,
+    timestamp: 0,
+  });
+
+  test("shows toast for internal errors in app (read) mode", () => {
+    store.set(initialModeAtom, "read");
+
+    getLogs(makeErrorCellMessage(cellId("cell-err-1")));
+
+    expect(toastMock).toHaveBeenCalledTimes(1);
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "An internal error occurred",
+        variant: "danger",
+      }),
+    );
+  });
+
+  test("does not show toast for internal errors in edit mode", () => {
+    store.set(initialModeAtom, "edit");
+
+    getLogs(makeErrorCellMessage(cellId("cell-err-2")));
+
+    expect(toastMock).not.toHaveBeenCalled();
+  });
+
+  test("edit-mode errors do not consume the once-per-session toast slot", () => {
+    // Errors received while in edit mode should be silently skipped...
+    store.set(initialModeAtom, "edit");
+    getLogs(makeErrorCellMessage(cellId("cell-err-3")));
+    expect(toastMock).not.toHaveBeenCalled();
+
+    // ...and a subsequent error in app mode should still toast.
+    store.set(initialModeAtom, "read");
+    getLogs(makeErrorCellMessage(cellId("cell-err-4")));
+    expect(toastMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("toast only fires once across multiple app-mode errors", () => {
+    store.set(initialModeAtom, "read");
+
+    getLogs(makeErrorCellMessage(cellId("cell-err-5")));
+    getLogs(makeErrorCellMessage(cellId("cell-err-6")));
+
+    expect(toastMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("suppresses toast when initial mode has not been set", () => {
+    // Leave initialModeAtom at its default (undefined); getInitialAppMode
+    // will throw and the logic should swallow it without toasting.
+    getLogs(makeErrorCellMessage(cellId("cell-err-7")));
+
+    expect(toastMock).not.toHaveBeenCalled();
   });
 });
 
