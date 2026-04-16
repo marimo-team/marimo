@@ -623,9 +623,7 @@ class TestPackages:
                     nb.packages.add("pandas", "numpy>=1.26")
 
             assert mock_install.call_count == 2
-            installed = [
-                call.args[0] for call in mock_install.call_args_list
-            ]
+            installed = [call.args[0] for call in mock_install.call_args_list]
             assert "pandas" in installed
             assert "numpy>=1.26" in installed
 
@@ -681,9 +679,7 @@ class TestPackages:
                     nb.packages.remove("pandas", "numpy")
 
             assert mock_uninstall.call_count == 2
-            removed = [
-                call.args[0] for call in mock_uninstall.call_args_list
-            ]
+            removed = [call.args[0] for call in mock_uninstall.call_args_list]
             assert "pandas" in removed
             assert "numpy" in removed
 
@@ -700,9 +696,7 @@ class TestPackages:
                     nb.packages.add(["pandas", "numpy>=1.26"])
 
             assert mock_install.call_count == 2
-            installed = [
-                call.args[0] for call in mock_install.call_args_list
-            ]
+            installed = [call.args[0] for call in mock_install.call_args_list]
             assert "pandas" in installed
             assert "numpy>=1.26" in installed
 
@@ -719,9 +713,7 @@ class TestPackages:
                     nb.packages.add("polars", ["pandas", "numpy"])
 
             assert mock_install.call_count == 3
-            installed = [
-                call.args[0] for call in mock_install.call_args_list
-            ]
+            installed = [call.args[0] for call in mock_install.call_args_list]
             assert set(installed) == {"polars", "pandas", "numpy"}
 
     async def test_remove_accepts_list(self, k: Kernel) -> None:
@@ -737,9 +729,7 @@ class TestPackages:
                     nb.packages.remove(["pandas", "numpy"])
 
             assert mock_uninstall.call_count == 2
-            removed = [
-                call.args[0] for call in mock_uninstall.call_args_list
-            ]
+            removed = [call.args[0] for call in mock_uninstall.call_args_list]
             assert "pandas" in removed
             assert "numpy" in removed
 
@@ -752,9 +742,7 @@ class TestPackages:
                 PackageDescription(name="pandas", version="2.1.0"),
                 PackageDescription(name="numpy", version="1.26.0"),
             ]
-            with patch.object(
-                pm, "list_packages", return_value=mock_packages
-            ):
+            with patch.object(pm, "list_packages", return_value=mock_packages):
                 async with ctx as nb:
                     result = nb.packages.list()
 
@@ -786,15 +774,11 @@ class TestPackages:
 
             call_order: list[tuple[str, str]] = []
 
-            async def track_install(
-                package: str, **_kwargs: object
-            ) -> bool:
+            async def track_install(package: str, **_kwargs: object) -> bool:
                 call_order.append(("add", package))
                 return True
 
-            async def track_uninstall(
-                package: str, **_kwargs: object
-            ) -> bool:
+            async def track_uninstall(package: str, **_kwargs: object) -> bool:
                 call_order.append(("remove", package))
                 return True
 
@@ -845,6 +829,32 @@ class TestPackages:
 
             assert mock_install.call_count == 0
             assert mock_uninstall.call_count == 0
+
+    async def test_legacy_install_packages_alias(self, k: Kernel) -> None:
+        """ctx.install_packages() still works as a hidden alias for
+        ctx.packages.add() so skills referencing the old name keep
+        working."""
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            with patch.object(
+                pm, "install", new_callable=AsyncMock, return_value=True
+            ) as mock_install:
+                async with ctx as nb:
+                    # Invoked via __getattr__
+                    nb.install_packages("pandas", ["numpy", "polars"])
+
+            assert mock_install.call_count == 3
+            installed = [call.args[0] for call in mock_install.call_args_list]
+            assert set(installed) == {"pandas", "numpy", "polars"}
+
+    async def test_legacy_install_packages_not_in_dir(self, k: Kernel) -> None:
+        """The alias is reachable via attribute access but hidden from
+        dir() so it doesn't pollute IDE completion or the public API."""
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                assert "install_packages" not in dir(nb)
 
     async def test_summary_includes_packages(
         self, k: Kernel, capsys: object

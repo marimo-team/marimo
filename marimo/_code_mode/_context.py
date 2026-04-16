@@ -593,6 +593,17 @@ class AsyncCodeModeContext:
                 "Without 'async with', operations are silently lost."
             )
 
+    def __getattr__(self, name: str) -> Any:
+        # Legacy alias: `ctx.install_packages(...)` was the pre-namespace
+        # API. Kept as a hidden shim for in-flight skills / examples;
+        # does not appear in dir() or IDE completion. Prefer
+        # `ctx.packages.add(...)` in new code.
+        if name == "install_packages":
+            return self.packages.add
+        raise AttributeError(
+            f"{type(self).__name__!r} object has no attribute {name!r}"
+        )
+
     # ------------------------------------------------------------------
     # Async context manager
     # ------------------------------------------------------------------

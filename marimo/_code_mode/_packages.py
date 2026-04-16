@@ -78,9 +78,7 @@ class Packages:
         self._ctx = ctx
         self._ops: list[PackageOp] = []
 
-    def add(
-        self, *packages: str | list[str] | tuple[str, ...]
-    ) -> None:
+    def add(self, *packages: str | list[str] | tuple[str, ...]) -> None:
         """Queue packages for installation on context exit.
 
         Packages are installed with streaming UI notifications and the
@@ -102,9 +100,7 @@ class Packages:
         for pkg in _flatten_packages(packages):
             self._ops.append(_AddPackage(package=pkg))
 
-    def remove(
-        self, *packages: str | list[str] | tuple[str, ...]
-    ) -> None:
+    def remove(self, *packages: str | list[str] | tuple[str, ...]) -> None:
         """Queue packages for removal on context exit.
 
         Updates the script metadata for sandboxed notebooks.
