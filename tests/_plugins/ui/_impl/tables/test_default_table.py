@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import datetime
 import json
+import string
 import unittest
 from datetime import date
 from pathlib import Path
 from typing import Any
 
 import pytest
+from hypothesis import given, strategies as st
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.hypertext import Html
@@ -1179,3 +1181,71 @@ def test_validate_header_tooltip_invalid() -> None:
     mapping = {"does_not_exist": "oops"}
     with pytest.raises(ValueError):
         _validate_header_tooltip(mapping, columns)
+
+
+_column_name = st.text(
+    alphabet=string.ascii_letters + string.digits + "_",
+    min_size=1,
+    max_size=10,
+)
+_column_names = st.lists(_column_name, min_size=1, max_size=10, unique=True)
+
+
+@given(cols=_column_names, data=st.data())
+def test_drop_columns_preserves_order_row_major(
+    cols: list[str], data: st.DataObject
+) -> None:
+    to_drop = data.draw(
+        st.lists(st.sampled_from(cols), unique=True, max_size=len(cols))
+    )
+    mgr = DefaultTableManager(
+        [
+            {c: i for i, c in enumerate(cols)},
+            {c: i + 1 for i, c in enumerate(cols)},
+        ]
+    )
+    expected = [c for c in cols if c not in set(to_drop)]
+    assert mgr.drop_columns(to_drop).get_column_names() == expected
+
+
+@given(cols=_column_names, data=st.data())
+def test_drop_columns_preserves_order_column_major(
+    cols: list[str], data: st.DataObject
+) -> None:
+    to_drop = data.draw(
+        st.lists(st.sampled_from(cols), unique=True, max_size=len(cols))
+    )
+    mgr = DefaultTableManager({c: [i, i + 1] for i, c in enumerate(cols)})
+    expected = [c for c in cols if c not in set(to_drop)]
+    assert mgr.drop_columns(to_drop).get_column_names() == expected
+
+
+@given(cols=_column_names, data=st.data())
+def test_select_columns_preserves_caller_order_row_major(
+    cols: list[str], data: st.DataObject
+) -> None:
+    subset = data.draw(
+        st.lists(
+            st.sampled_from(cols), unique=True, min_size=1, max_size=len(cols)
+        )
+    )
+    mgr = DefaultTableManager(
+        [
+            {c: i for i, c in enumerate(cols)},
+            {c: i + 1 for i, c in enumerate(cols)},
+        ]
+    )
+    assert mgr.select_columns(subset).get_column_names() == subset
+
+
+@given(cols=_column_names, data=st.data())
+def test_select_columns_preserves_caller_order_column_major(
+    cols: list[str], data: st.DataObject
+) -> None:
+    subset = data.draw(
+        st.lists(
+            st.sampled_from(cols), unique=True, min_size=1, max_size=len(cols)
+        )
+    )
+    mgr = DefaultTableManager({c: [i, i + 1] for i, c in enumerate(cols)})
+    assert mgr.select_columns(subset).get_column_names() == subset
