@@ -66,7 +66,6 @@ import {
   renderSortFilterIcon,
   renderSorts,
 } from "./header-items";
-import { isNumericType } from "./types";
 import { detectSentinel, stringifyUnknownValue } from "./utils";
 
 const TOP_K_ROWS = 30;
@@ -649,12 +648,10 @@ const PopoverFilterByValues = <TData, TValue>({
             {filteredData.map(([value, count], rowIndex) => {
               const isSelected = chosenValues.has(value);
               const valueString = stringifyUnknownValue({ value });
-              const isNumericColumn = isNumericType(
+              const sentinel = detectSentinel(
+                value,
                 column.columnDef.meta?.dataType,
               );
-              const sentinel = detectSentinel(value, {
-                isNumericColumn,
-              });
 
               return (
                 <CommandItem

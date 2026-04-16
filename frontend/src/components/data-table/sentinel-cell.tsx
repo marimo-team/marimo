@@ -2,27 +2,21 @@
 
 import type { CellValueSentinel, CellValueSentinelType } from "./types";
 
-const WHITESPACE_MARKERS: Record<string, string> = {
-  " ": "\u2423", // open box (space symbol)
-  "\t": "\u2192", // right arrow
-  "\n": "\u21B5", // return symbol
-  "\r": "\u21B5", // return symbol (treat same as \n)
+const WHITESPACE_CHARS: Record<string, { marker: string; name: string }> = {
+  " ": { marker: "\u2423", name: "space" }, // open box (space symbol)
+  "\t": { marker: "\\t", name: "tab" },
+  "\n": { marker: "\\n", name: "newline" },
+  "\r": { marker: "\\r", name: "newline" },
 };
 
 function renderWhitespaceMarkers(str: string): string {
-  return [...str].map((ch) => WHITESPACE_MARKERS[ch] ?? ch).join("");
+  return [...str].map((ch) => WHITESPACE_CHARS[ch]?.marker ?? ch).join("");
 }
 
 function describeWhitespace(str: string): string {
-  const CHAR_NAMES: Record<string, string> = {
-    " ": "space",
-    "\t": "tab",
-    "\n": "newline",
-    "\r": "newline",
-  };
   const counts: Record<string, number> = {};
   for (const ch of str) {
-    const name = CHAR_NAMES[ch] ?? "character";
+    const name = WHITESPACE_CHARS[ch]?.name ?? "character";
     counts[name] = (counts[name] ?? 0) + 1;
   }
   return Object.entries(counts)
@@ -48,9 +42,9 @@ const SENTINEL_CONFIG: Record<CellValueSentinelType, SentinelConfig> = {
     ariaLabel: () => "empty string",
   },
   whitespace: {
-    label: (value) => renderWhitespaceMarkers(value as string),
-    tooltip: (value) => describeWhitespace(value as string),
-    ariaLabel: (value) => describeWhitespace(value as string),
+    label: (value) => renderWhitespaceMarkers(String(value)),
+    tooltip: (value) => describeWhitespace(String(value)),
+    ariaLabel: (value) => describeWhitespace(String(value)),
   },
   nan: {
     label: () => "NaN",
@@ -66,6 +60,11 @@ const SENTINEL_CONFIG: Record<CellValueSentinelType, SentinelConfig> = {
     label: () => "-inf",
     tooltip: () => "-Infinity",
     ariaLabel: () => "negative infinity",
+  },
+  nat: {
+    label: () => "NaT",
+    tooltip: () => "NaT (Not a Time)",
+    ariaLabel: () => "Not a Time",
   },
 };
 
@@ -85,7 +84,7 @@ export function SentinelCell({
       aria-label={ariaLabel}
       title={tooltip}
     >
-      {label}
+      <span className="opacity-70">{label}</span>
     </span>
   );
 }

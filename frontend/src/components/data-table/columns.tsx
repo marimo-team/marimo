@@ -525,11 +525,9 @@ export function renderCellValue<TData, TValue>({
 
   const isWrapped = column.getColumnWrapping?.() === "wrap";
 
-  // Sentinel values (null, whitespace, NaN, Infinity) rendered specially.
+  // Sentinel values (null, whitespace, NaN, Infinity, NaT) rendered specially.
   // Empty strings are left as-is
-  const sentinel = detectSentinel(value, {
-    isNumericColumn: isNumericType(dataType),
-  });
+  const sentinel = detectSentinel(value, dataType);
   if (sentinel && sentinel.type !== "empty-string") {
     return (
       <div onClick={selectCell} className={cellStyles}>

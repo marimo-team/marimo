@@ -189,97 +189,128 @@ describe("getClipboardContent", () => {
 
 describe("detectSentinel", () => {
   it("should detect null and undefined", () => {
-    expect(detectSentinel(null)).toEqual({ type: "null", value: null });
-    expect(detectSentinel(undefined)).toEqual({
+    expect(detectSentinel(null, undefined)).toEqual({
+      type: "null",
+      value: null,
+    });
+    expect(detectSentinel(undefined, undefined)).toEqual({
       type: "null",
       value: undefined,
     });
   });
 
   it("should detect empty string", () => {
-    expect(detectSentinel("")).toEqual({ type: "empty-string", value: "" });
+    expect(detectSentinel("", "string")).toEqual({
+      type: "empty-string",
+      value: "",
+    });
   });
 
   it("should detect whitespace-only strings", () => {
-    expect(detectSentinel(" ")).toEqual({ type: "whitespace", value: " " });
-    expect(detectSentinel("   ")).toEqual({ type: "whitespace", value: "   " });
-    expect(detectSentinel("\t")).toEqual({ type: "whitespace", value: "\t" });
-    expect(detectSentinel("\n")).toEqual({ type: "whitespace", value: "\n" });
-    expect(detectSentinel("\t \n")).toEqual({
+    expect(detectSentinel(" ", "string")).toEqual({
+      type: "whitespace",
+      value: " ",
+    });
+    expect(detectSentinel("   ", "string")).toEqual({
+      type: "whitespace",
+      value: "   ",
+    });
+    expect(detectSentinel("\t", "string")).toEqual({
+      type: "whitespace",
+      value: "\t",
+    });
+    expect(detectSentinel("\n", "string")).toEqual({
+      type: "whitespace",
+      value: "\n",
+    });
+    expect(detectSentinel("\t \n", "string")).toEqual({
       type: "whitespace",
       value: "\t \n",
     });
   });
 
   it("should detect NaN", () => {
-    expect(detectSentinel(Number.NaN)).toEqual({
+    expect(detectSentinel(Number.NaN, "number")).toEqual({
       type: "nan",
       value: Number.NaN,
     });
   });
 
   it("should detect Infinity", () => {
-    expect(detectSentinel(Number.POSITIVE_INFINITY)).toEqual({
+    expect(detectSentinel(Number.POSITIVE_INFINITY, "number")).toEqual({
       type: "positive-infinity",
       value: Number.POSITIVE_INFINITY,
     });
-    expect(detectSentinel(Number.NEGATIVE_INFINITY)).toEqual({
+    expect(detectSentinel(Number.NEGATIVE_INFINITY, "number")).toEqual({
       type: "negative-infinity",
       value: Number.NEGATIVE_INFINITY,
     });
   });
 
   it("should return null for normal values", () => {
-    expect(detectSentinel("hello")).toBeNull();
-    expect(detectSentinel(42)).toBeNull();
-    expect(detectSentinel(0)).toBeNull();
-    expect(detectSentinel(-1.5)).toBeNull();
-    expect(detectSentinel(true)).toBeNull();
-    expect(detectSentinel(false)).toBeNull();
-    expect(detectSentinel({})).toBeNull();
-    expect(detectSentinel([])).toBeNull();
+    expect(detectSentinel("hello", "string")).toBeNull();
+    expect(detectSentinel(42, "number")).toBeNull();
+    expect(detectSentinel(0, "number")).toBeNull();
+    expect(detectSentinel(-1.5, "number")).toBeNull();
+    expect(detectSentinel(true, "boolean")).toBeNull();
+    expect(detectSentinel(false, "boolean")).toBeNull();
+    expect(detectSentinel({}, "unknown")).toBeNull();
+    expect(detectSentinel([], "unknown")).toBeNull();
   });
 
   it("should not match literal null-like strings", () => {
-    expect(detectSentinel("null")).toBeNull();
-    expect(detectSentinel("NULL")).toBeNull();
-    expect(detectSentinel("None")).toBeNull();
+    expect(detectSentinel("null", "string")).toBeNull();
+    expect(detectSentinel("NULL", "string")).toBeNull();
+    expect(detectSentinel("None", "string")).toBeNull();
   });
 
   it("should not match string NaN/Infinity in non-numeric columns", () => {
-    expect(detectSentinel("NaN")).toBeNull();
-    expect(detectSentinel("Infinity")).toBeNull();
-    expect(detectSentinel("-Infinity")).toBeNull();
+    expect(detectSentinel("NaN", "string")).toBeNull();
+    expect(detectSentinel("Infinity", "string")).toBeNull();
+    expect(detectSentinel("-Infinity", "string")).toBeNull();
   });
 
   it("should match string NaN/Infinity in numeric columns", () => {
-    const opts = { isNumericColumn: true };
-    expect(detectSentinel("NaN", opts)).toEqual({
+    expect(detectSentinel("NaN", "number")).toEqual({
       type: "nan",
       value: "NaN",
     });
-    expect(detectSentinel("Infinity", opts)).toEqual({
+    expect(detectSentinel("Infinity", "number")).toEqual({
       type: "positive-infinity",
       value: "Infinity",
     });
-    expect(detectSentinel("-Infinity", opts)).toEqual({
+    expect(detectSentinel("-Infinity", "number")).toEqual({
       type: "negative-infinity",
       value: "-Infinity",
     });
-    expect(detectSentinel("inf", opts)).toEqual({
+    expect(detectSentinel("inf", "number")).toEqual({
       type: "positive-infinity",
       value: "inf",
     });
-    expect(detectSentinel("-inf", opts)).toEqual({
+    expect(detectSentinel("-inf", "number")).toEqual({
       type: "negative-infinity",
       value: "-inf",
     });
   });
 
   it("should still not match normal strings in numeric columns", () => {
-    const opts = { isNumericColumn: true };
-    expect(detectSentinel("hello", opts)).toBeNull();
-    expect(detectSentinel("42", opts)).toBeNull();
+    expect(detectSentinel("hello", "number")).toBeNull();
+    expect(detectSentinel("42", "number")).toBeNull();
+  });
+
+  it("should not match NaT in non-temporal columns", () => {
+    expect(detectSentinel("NaT", "string")).toBeNull();
+  });
+
+  it("should match NaT in temporal columns", () => {
+    expect(detectSentinel("NaT", "datetime")).toEqual({
+      type: "nat",
+      value: "NaT",
+    });
+    expect(detectSentinel("NaT", "date")).toEqual({
+      type: "nat",
+      value: "NaT",
+    });
   });
 });
 

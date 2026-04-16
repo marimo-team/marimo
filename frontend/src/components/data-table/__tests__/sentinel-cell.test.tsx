@@ -39,19 +39,19 @@ describe("SentinelCell", () => {
 
   it("renders tab", () => {
     const span = renderSentinel({ type: "whitespace", value: "\t" });
-    expect(span.textContent).toBe("\u2192");
+    expect(span.textContent).toBe("\\t");
     expect(span.getAttribute("aria-label")).toBe("1 tab");
   });
 
   it("renders newline", () => {
     const span = renderSentinel({ type: "whitespace", value: "\n" });
-    expect(span.textContent).toBe("\u21B5");
+    expect(span.textContent).toBe("\\n");
     expect(span.getAttribute("aria-label")).toBe("1 newline");
   });
 
   it("renders mixed whitespace", () => {
     const span = renderSentinel({ type: "whitespace", value: "\t \n" });
-    expect(span.textContent).toBe("\u2192\u2423\u21B5");
+    expect(span.textContent).toBe("\\t\u2423\\n");
     expect(span.getAttribute("aria-label")).toBe("1 tab, 1 space, 1 newline");
   });
 
@@ -73,5 +73,11 @@ describe("SentinelCell", () => {
     });
     expect(span.textContent).toBe("-inf");
     expect(span.getAttribute("title")).toBe("-Infinity");
+  });
+
+  it("renders NaT", () => {
+    const span = renderSentinel({ type: "nat", value: "NaT" });
+    expect(span.textContent).toBe("NaT");
+    expect(span.getAttribute("title")).toBe("NaT (Not a Time)");
   });
 });

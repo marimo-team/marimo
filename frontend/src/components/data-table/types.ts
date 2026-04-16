@@ -101,7 +101,8 @@ export type CellValueSentinel =
   | { type: "whitespace"; value: string }
   | { type: "nan"; value: number | string }
   | { type: "positive-infinity"; value: number | string }
-  | { type: "negative-infinity"; value: number | string };
+  | { type: "negative-infinity"; value: number | string }
+  | { type: "nat"; value: string };
 
 export type CellValueSentinelType = CellValueSentinel["type"];
 
@@ -109,6 +110,12 @@ export function isNumericType(
   dataType: DataType | undefined,
 ): dataType is "number" | "integer" {
   return dataType === "number" || dataType === "integer";
+}
+
+export function isTemporalType(
+  dataType: DataType | undefined,
+): dataType is "date" | "datetime" | "time" {
+  return dataType === "date" || dataType === "datetime" || dataType === "time";
 }
 
 export function extractTimezone(dtype: string | undefined): string | undefined {

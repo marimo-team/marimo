@@ -5,7 +5,13 @@ import type { TableData } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { getMimeValues } from "./mime-cell";
-import { INDEX_COLUMN_NAME, type CellValueSentinel } from "./types";
+import type { DataType } from "@/core/kernel/messages";
+import {
+  type CellValueSentinel,
+  INDEX_COLUMN_NAME,
+  isNumericType,
+  isTemporalType,
+} from "./types";
 
 const WHITESPACE_ONLY_RE = /^[\s]+$/;
 
@@ -104,16 +110,12 @@ const NUMERIC_STRING_SPECIALS: Record<string, StringValueSentinelType> = {
 
 /**
  * Detect if a cell value is a sentinel (null, empty string, whitespace,
- * NaN, infinity). String representations like "NaN" are only matched when
- * `opts.isNumericColumn` is true.
- *
- * @param value - value to detect
- * @param opts.isNumericColumn - flag if the column is of a numeric type
- * @returns
+ * NaN, infinity, NaT). Column-type-dependent sentinels (string "NaN",
+ * "NaT", etc.) are matched based on `dataType`.
  */
 export function detectSentinel(
   value: unknown,
-  opts?: { isNumericColumn?: boolean },
+  dataType: DataType | undefined,
 ): CellValueSentinel | null {
   if (value == null) {
     return { type: "null", value };
@@ -127,11 +129,15 @@ export function detectSentinel(
       return { type: "whitespace", value };
     }
     // String "NaN"/"Infinity" in a numeric column = actual special float value
-    if (opts?.isNumericColumn) {
+    if (isNumericType(dataType)) {
       const type = NUMERIC_STRING_SPECIALS[value];
       if (type) {
         return { type, value };
       }
+    }
+    // String "NaT" in a temporal column = pandas Not-a-Time sentinel
+    if (isTemporalType(dataType) && value === "NaT") {
+      return { type: "nat", value };
     }
     return null;
   }
