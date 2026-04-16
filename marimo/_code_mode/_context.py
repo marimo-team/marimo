@@ -120,6 +120,12 @@ class CellStatusType(str, Enum, metaclass=_HelpableEnumMeta):
     running = "running"
     """Currently executing."""
 
+    def __str__(self) -> str:
+        return self.value
+
+    def __repr__(self) -> str:
+        return repr(self.value)
+
 
 CellErrorKind = Literal["graph", "runtime"]
 
@@ -296,26 +302,26 @@ class NotebookCell:
         stale > last run result.
         """
         if self._impl is None:
-            return "stale" if self._cell.code else None
+            return CellStatusType.stale if self._cell.code else None
         # Transient runtime state takes priority.
         rs = self._impl.runtime_state
         if rs == "queued":
-            return "queued"
+            return CellStatusType.queued
         if rs == "running":
-            return "running"
+            return CellStatusType.running
         if rs == "disabled-transitively":
-            return "disabled"
+            return CellStatusType.disabled
         # Stale overrides last run result.
         if self._is_stale():
-            return "stale"
+            return CellStatusType.stale
         # Fall back to last execution result.
         rr = self._impl.run_result_status
         if rr is None:
             # Registered in the graph but never executed.
-            return "stale" if self._cell.code else None
+            return CellStatusType.stale if self._cell.code else None
         if rr == "success":
-            return "idle"
-        return rr
+            return CellStatusType.idle
+        return CellStatusType(rr)
 
     @property
     def errors(self) -> list[CellError]:

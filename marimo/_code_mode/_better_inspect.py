@@ -91,6 +91,22 @@ def _public_attrs(obj: Any) -> list[str]:
     return sorted(name for name in raw if not name.startswith("_"))
 
 
+_MISSING: Any = object()
+
+
+def _safe_getattr_static(obj: Any, name: str) -> Any:
+    """Fetch an attribute without invoking descriptors or properties.
+
+    Uses ``inspect.getattr_static`` so that ``dir()``/``help()`` never
+    trigger property getters (which could raise or have side effects).
+    Returns ``_MISSING`` if the attribute cannot be retrieved.
+    """
+    try:
+        return inspect.getattr_static(obj, name)
+    except AttributeError:
+        return _MISSING
+
+
 def _type_label(val: Any) -> str:
     """Best-effort type label for a value.
 
@@ -102,6 +118,26 @@ def _type_label(val: Any) -> str:
         if ret is not None:
             return ret.__name__ if isinstance(ret, type) else str(ret)
     return type(val).__name__
+
+
+def _unwrap_callable(val: Any) -> Any:
+    """Unwrap ``classmethod``/``staticmethod`` to the underlying function."""
+    if isinstance(val, (classmethod, staticmethod)):
+        return val.__func__
+    return val
+
+
+def _format_signature(func: Any) -> str:
+    """Return a string signature with ``self``/``cls`` stripped."""
+    sig = inspect.signature(func)
+    params = [p for n, p in sig.parameters.items() if n not in ("self", "cls")]
+    return str(sig.replace(parameters=params))
+
+
+def _first_doc_line(doc: str | None) -> str:
+    if not doc:
+        return ""
+    return doc.strip().split("\n", 1)[0]
 
 
 def better_dir(obj: Any) -> list[str]:
@@ -139,13 +175,19 @@ def better_dir(obj: Any) -> list[str]:
     result: list[str] = []
 
     for name in _public_attrs(obj):
-        val: Any = getattr(obj, name, None)
+        val = _safe_getattr_static(obj, name)
+        if val is _MISSING:
+            continue
 
-        if isinstance(val, Enum):
+        call_target = _unwrap_callable(val)
+
+        if isinstance(val, property):
+            result.append(f"{name}: {_type_label(val)}")
+        elif isinstance(val, Enum):
             result.append(f"{name} = {val.value!r}")
-        elif callable(val):
+        elif callable(call_target):
             try:
-                sig = str(inspect.signature(val))
+                sig = _format_signature(call_target)
             except (ValueError, TypeError):
                 sig = "(...)"
             result.append(f"{name}{sig}")
@@ -196,11 +238,22 @@ def better_help(obj: Any) -> str:
           disconnect() -> None  -- Disconnect from the server.
           send(data: bytes, timeout: float = 5.0) -> int  -- Send data to the server.
     """
-    cls: type = obj if isinstance(obj, type) else type(obj)
-    lines: list[str] = [f"# {cls.__name__}"]
+    # Pick a reasonable title for any object kind (modules, functions, ...).
+    title = getattr(obj, "__name__", None) or type(obj).__name__
 
-    if cls.__doc__:
-        lines.append(cls.__doc__.strip().split("\n")[0])
+    lines: list[str] = [f"# {title}"]
+
+    # Prefer the original (pre-@helpable) docstring so we don't duplicate
+    # the generated heading or drop the human-written description line.
+    raw_doc = getattr(obj, "_original_doc__", None) or getattr(
+        obj, "__doc__", None
+    )
+    desc = _first_doc_line(raw_doc)
+    # Strip the generated `# Name` heading if _original_doc__ is unavailable.
+    if desc.startswith("#"):
+        desc = ""
+    if desc:
+        lines.append(desc)
 
     lines.append("")
 
@@ -208,21 +261,28 @@ def better_help(obj: Any) -> str:
     methods: list[str] = []
 
     for name in _public_attrs(obj):
-        val: Any = getattr(obj, name, None)
+        val = _safe_getattr_static(obj, name)
+        if val is _MISSING:
+            continue
 
-        if callable(val):
+        call_target = _unwrap_callable(val)
+
+        if isinstance(val, property):
+            attrs.append(f"  {name}: {_type_label(val)}")
+            continue
+
+        if callable(call_target) and not isinstance(val, Enum):
             try:
-                sig = str(inspect.signature(val))
+                sig = _format_signature(call_target)
             except (ValueError, TypeError):
                 sig = "(...)"
-
-            doc: str = (
-                (getattr(val, "__doc__", None) or "").strip().split("\n")[0]
-            )
-            entry: str = f"  {name}{sig}"
+            doc = _first_doc_line(getattr(call_target, "__doc__", None))
+            entry = f"  {name}{sig}"
             if doc:
                 entry += f"  -- {doc}"
             methods.append(entry)
+        elif isinstance(val, Enum):
+            attrs.append(f"  {name} = {val.value!r}")
         else:
             attrs.append(f"  {name}: {_type_label(val)}")
 
@@ -246,7 +306,7 @@ def _build_enum_help(cls: type) -> str:
         lines.append(original_doc.strip().split("\n")[0])
     lines.append("")
     lines.append("Values:")
-    for member in cls:  # type: ignore[call-overload]
+    for member in cls:  # type: ignore[attr-defined]
         doc = _enum_member_doc(cls, member.name)
         entry = f"  {member.name} = {member.value!r}"
         if doc:
@@ -258,16 +318,14 @@ def _build_enum_help(cls: type) -> str:
 def _enum_member_doc(cls: type, name: str) -> str:
     """Extract the inline docstring for an enum member, if any.
 
-    Python stores ``\"\"\"docstring\"\"\"`` lines that follow an enum member
-    assignment as ``member_name.__doc__`` (from Python 3.13+ via
-    ``Enum._generate_next_value_``), but in older Pythons or when the
-    pattern isn't used, we fall back to scanning the class source.
+    Python 3.13+ stores the immediately-following ``\"\"\"docstring\"\"\"``
+    literal as ``member.__doc__``. On older Pythons this is just the
+    class docstring; we treat that as "no per-member doc" and return "".
     """
     member = cls[name]  # type: ignore[index]
-    # Python may store per-member docstrings directly.
     member_doc = getattr(member, "__doc__", None)
     if member_doc and member_doc != cls.__doc__:
-        return member_doc.strip().split("\n")[0]
+        return _first_doc_line(member_doc)
     return ""
 
 
@@ -318,24 +376,16 @@ def _build_help(cls: type) -> str:
                 continue
             seen.add(name)
 
-            if callable(val):
+            # Unwrap classmethod/staticmethod so they appear under Methods.
+            call_target = _unwrap_callable(val)
+
+            if callable(call_target) and not isinstance(val, property):
                 try:
-                    sig_obj = inspect.signature(val)
-                    # Strip 'self' parameter for cleaner output
-                    params = [
-                        p
-                        for name_p, p in sig_obj.parameters.items()
-                        if name_p != "self"
-                    ]
-                    sig = str(sig_obj.replace(parameters=params))
+                    sig = _format_signature(call_target)
                 except (ValueError, TypeError):
                     sig = "(...)"
-                doc: str = (
-                    (getattr(val, "__doc__", None) or "")
-                    .strip()
-                    .split("\n")[0]
-                )
-                entry: str = f"  {name}{sig}"
+                doc = _first_doc_line(getattr(call_target, "__doc__", None))
+                entry = f"  {name}{sig}"
                 if doc:
                     entry += f"  -- {doc}"
                 methods.append(entry)
@@ -415,6 +465,17 @@ def helpable(cls: type) -> type:
         help(MyClient)     # clean output (via __doc__)
         help(MyClient())   # clean output (via __doc__)
 
+    Caveat:
+        For classes whose metaclass is the default ``type``, the decorator
+        recreates the class with ``_HelpableMeta`` so that ``dir(Class)``
+        is also clean. Methods that use zero-argument ``super()`` inside
+        such classes will still bind to the *original* class (via the
+        ``__class__`` closure cell the compiler injects), which is not in
+        the new class's MRO. In practice this is only an issue if the
+        decorated class subclasses another class *and* its methods call
+        ``super()``; keep ``@helpable`` for simple, leaf-level data/API
+        classes, or use explicit ``super(ClassName, self)`` calls.
+
     Args:
         cls: The class to decorate.
 
@@ -451,5 +512,5 @@ def helpable(cls: type) -> type:
     # Fallback for classes with special metaclasses (Protocol, ABCMeta, …):
     # mutate in place — dir(instance) works, dir(Class) stays default.
     cls.__doc__ = help_text
-    cls.__dir__ = _dir  # type: ignore[attr-defined]
+    cls.__dir__ = _dir  # type: ignore[method-assign, assignment]
     return cls
