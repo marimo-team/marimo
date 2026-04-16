@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.3"
+__generated_with = "0.23.1"
 app = marimo.App(width="medium")
 
 
@@ -78,6 +78,7 @@ def _():
             "structs_with_list": pl.Series(
                 "mixed",
                 [{"a": [1, 2], "b": 2}, {"a": [3, 4], "b": 4}, [5, 6]],
+                strict=False,
             ),
             "list_with_structs": pl.Series(
                 "list_with_structs",
