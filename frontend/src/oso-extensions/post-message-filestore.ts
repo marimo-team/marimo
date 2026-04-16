@@ -2,18 +2,20 @@ import type { FileStore } from "@/core/wasm/store";
 import type { NotebookRpcServer } from "./notebook-rpc";
 
 type CapturePreview = () => Promise<string | null>;
+type ConfirmSave = () => void;
 
 export class PostMessageFileStore implements FileStore {
   private notebookRpc: NotebookRpcServer;
   private capturePreview: CapturePreview | null = null;
+  private confirmSave: ConfirmSave | null = null;
 
-  constructor(notebookRpc: NotebookRpcServer, capturePreview?: CapturePreview) {
+  constructor(notebookRpc: NotebookRpcServer) {
     this.notebookRpc = notebookRpc;
-    this.capturePreview = capturePreview ?? null;
   }
 
-  setCapturePreview(capturePreview: CapturePreview | null): void {
+  setCapturePreview(capturePreview: CapturePreview | null, confirmSave?: ConfirmSave | null): void {
     this.capturePreview = capturePreview;
+    this.confirmSave = confirmSave ?? null;
   }
 
   async saveFile(contents: string): Promise<void> {
@@ -24,6 +26,7 @@ export class PostMessageFileStore implements FileStore {
         const preview = await this.capturePreview();
         if (preview) {
           await this.notebookRpc.getFilestore().saveNotebookPreview(preview);
+          this.confirmSave?.();
         }
       } catch (error) {
         console.error("Failed to save preview:", error);
