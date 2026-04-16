@@ -147,13 +147,11 @@ def _maybe_warn_external_resources(svg: str) -> None:
     if re.search(
         r'<[^>]*\b(?:xlink:)?href\s*=\s*["\'](?!\s*(?:#|data:))[^"\']+', svg
     ):
-        msg = "".join(
-            [
-                "This SVG contains external resources (href/xlink:href) ",
-                "that may not render correctly when encoded as a Data URL. ",
-                "If images are missing, try enabling raw SVG rendering with: ",
-                "altair.renderers.enable('svg', raw_svg=True).",
-            ]
+        msg = (
+            "This SVG contains external resources (href/xlink:href) "
+            "that may not render correctly when encoded as a Data URL. "
+            "If images are missing, try enabling raw SVG rendering with: "
+            "altair.renderers.enable('svg', raw_svg=True)."
         )
         LOGGER.warning(msg)
 
