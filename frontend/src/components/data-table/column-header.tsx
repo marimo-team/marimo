@@ -54,7 +54,6 @@ import {
 } from "../ui/select";
 import { type ColumnFilterForType, Filter } from "./filters";
 import { SentinelCell } from "./sentinel-cell";
-import { detectSentinel } from "./utils";
 import {
   ClearFilterMenuItem,
   FilterButtons,
@@ -68,7 +67,7 @@ import {
   renderSorts,
 } from "./header-items";
 import { isNumericType } from "./types";
-import { stringifyUnknownValue } from "./utils";
+import { detectSentinel, stringifyUnknownValue } from "./utils";
 
 const TOP_K_ROWS = 30;
 

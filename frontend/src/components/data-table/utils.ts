@@ -5,11 +5,7 @@ import type { TableData } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { getMimeValues } from "./mime-cell";
-import {
-  INDEX_COLUMN_NAME,
-  type CellValueSentinelType,
-  type CellValueSentinel,
-} from "./types";
+import { INDEX_COLUMN_NAME, type CellValueSentinel } from "./types";
 
 const WHITESPACE_ONLY_RE = /^[\s]+$/;
 
@@ -93,7 +89,12 @@ export function getPageIndexForRow(
 
 // String representations of numeric special values.
 // Only matched when the caller indicates the column is numeric.
-const NUMERIC_STRING_SPECIALS: Record<string, CellValueSentinelType> = {
+type StringValueSentinelType = Extract<
+  CellValueSentinel,
+  { value: number | string }
+>["type"];
+
+const NUMERIC_STRING_SPECIALS: Record<string, StringValueSentinelType> = {
   NaN: "nan",
   Infinity: "positive-infinity",
   "-Infinity": "negative-infinity",
