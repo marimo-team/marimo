@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { hasRunAnyCellAtom } from "@/components/editor/cell/useRunCells";
+import { store } from "@/core/state/jotai";
 import { isTrustedVirtualFileUrl } from "../trusted-url";
 
 describe("isTrustedVirtualFileUrl", () => {
@@ -44,5 +46,47 @@ describe("isTrustedVirtualFileUrl", () => {
     expect(isTrustedVirtualFileUrl(undefined)).toBe(false);
     expect(isTrustedVirtualFileUrl(42)).toBe(false);
     expect(isTrustedVirtualFileUrl({})).toBe(false);
+  });
+
+  describe("data URL exemption", () => {
+    let previousHasRunAnyCell: boolean;
+
+    beforeEach(() => {
+      previousHasRunAnyCell = store.get(hasRunAnyCellAtom);
+      store.set(hasRunAnyCellAtom, true);
+    });
+
+    afterEach(() => {
+      store.set(hasRunAnyCellAtom, previousHasRunAnyCell);
+    });
+
+    it.each([
+      "data:text/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=",
+      "data:application/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=",
+      "data:text/css;base64,Ym9keXt9",
+    ])("accepts safe data URL %s after a cell has run", (url) => {
+      expect(isTrustedVirtualFileUrl(url)).toBe(true);
+    });
+
+    it.each([
+      // Non-base64 data URLs are refused
+      "data:text/javascript,alert(1)",
+      "data:text/javascript;charset=utf-8,alert(1)",
+      // HTML / SVG / arbitrary types are refused
+      "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
+      "data:image/svg+xml;base64,PHN2Zy8+",
+      "data:application/octet-stream;base64,AAA=",
+    ])("still rejects unsafe data URL %s", (url) => {
+      expect(isTrustedVirtualFileUrl(url)).toBe(false);
+    });
+
+    it("rejects data URL when no cell has been run", () => {
+      store.set(hasRunAnyCellAtom, false);
+      expect(
+        isTrustedVirtualFileUrl(
+          "data:text/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=",
+        ),
+      ).toBe(false);
+    });
   });
 });
