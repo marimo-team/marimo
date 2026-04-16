@@ -1204,7 +1204,8 @@ def test_drop_columns_preserves_order_row_major(
             {c: i + 1 for i, c in enumerate(cols)},
         ]
     )
-    expected = [c for c in cols if c not in set(to_drop)]
+    to_drop_set = set(to_drop)
+    expected = [c for c in cols if c not in to_drop_set]
     assert mgr.drop_columns(to_drop).get_column_names() == expected
 
 
@@ -1216,7 +1217,8 @@ def test_drop_columns_preserves_order_column_major(
         st.lists(st.sampled_from(cols), unique=True, max_size=len(cols))
     )
     mgr = DefaultTableManager({c: [i, i + 1] for i, c in enumerate(cols)})
-    expected = [c for c in cols if c not in set(to_drop)]
+    to_drop_set = set(to_drop)
+    expected = [c for c in cols if c not in to_drop_set]
     assert mgr.drop_columns(to_drop).get_column_names() == expected
 
 

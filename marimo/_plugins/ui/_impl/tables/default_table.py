@@ -210,8 +210,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return selected_cells
 
     def drop_columns(self, columns: list[str]) -> DefaultTableManager:
+        to_drop = set(columns)
         new_cols = [
-            col for col in self.get_column_names() if col not in columns
+            col for col in self.get_column_names() if col not in to_drop
         ]
         return self.select_columns(new_cols)
 
