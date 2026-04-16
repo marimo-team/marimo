@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 from urllib.request import urlopen
 
@@ -82,8 +83,9 @@ class AltairFormatter(FormatterFactory):
                     if isinstance(mime_response, str):
                         if (
                             mime_type == "image/svg+xml"
-                            and not altair.renderers.options.get("inline")
+                            and not altair.renderers.options.get("raw_svg")
                         ):
+                            _maybe_warn_external_resources(mime_response)
                             svg_bytes = mime_response.encode()
                             data_url = io_to_data_url(svg_bytes, mime_type)
                             return (mime_type, data_url or "")
@@ -133,6 +135,27 @@ def _format_png_mimebundle(
         },
     }
     return "application/vnd.marimo+mimebundle", json.dumps(mimebundle)
+
+
+# Check if the SVG contains external resources that may not render
+# correctly when encoded as a Data URL.
+# https://github.com/marimo-team/marimo/pull/9104
+def _maybe_warn_external_resources(svg: str) -> None:
+    # Strictly detecting external resource usage in SVG is difficult;
+    # as a heuristic, we check for 'href' or 'xlink:href' attributes
+    # that point to external resources (ignoring internal '#' or 'data:' URLs).
+    if re.search(
+        r'<[^>]*\b(?:xlink:)?href\s*=\s*["\'](?!\s*(?:#|data:))[^"\']+', svg
+    ):
+        msg = "".join(
+            [
+                "This SVG contains external resources (href/xlink:href) ",
+                "that may not render correctly when encoded as a Data URL. ",
+                "If images are missing, try enabling raw SVG rendering with: ",
+                "altair.renderers.enable('svg', raw_svg=True).",
+            ]
+        )
+        LOGGER.warning(msg)
 
 
 # This is only needed since it seems that altair does not
