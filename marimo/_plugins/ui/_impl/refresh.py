@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 @mddoc
-class refresh(UIElement[int, int]):
+class refresh(UIElement[str, str]):
     """A refresh button that will auto-refresh its descendants for a given interval.
 
     Each option value can either be a number (int or float) in seconds or a
@@ -35,7 +35,11 @@ class refresh(UIElement[int, int]):
         ```
 
     Attributes:
-        value (int): The time in seconds since the refresh has been activated.
+        value (str): Before the first refresh, the empty string `""`. After
+            each refresh, a string of the form `"<interval> (<count>)"` —
+            e.g. `"1m (3)"` — where `<interval>` is the selected option and
+            `<count>` increments each tick so that downstream cells re-run
+            on every refresh.
 
     Args:
         options (Optional[list[Union[int, float, str]]], optional): The options for the
@@ -47,8 +51,8 @@ class refresh(UIElement[int, int]):
         default_interval (Optional[Union[int, float, str]], optional): The default value
             of the refresh interval.
         label (str, optional): Markdown label for the element. Defaults to "".
-        on_change (Optional[Callable[[int], None]], optional): Optional callback to run
-            when this element's value changes.
+        on_change (Optional[Callable[[str], None]], optional): Optional callback
+            to run when this element's value changes.
     """
 
     name: Final[str] = "marimo-refresh"
@@ -59,7 +63,7 @@ class refresh(UIElement[int, int]):
         default_interval: float | str | None = None,
         *,
         label: str = "",
-        on_change: Callable[[int], None] | None = None,
+        on_change: Callable[[str], None] | None = None,
     ) -> None:
         if default_interval and not isinstance(
             default_interval, (int, float, str)
@@ -94,7 +98,7 @@ class refresh(UIElement[int, int]):
 
         super().__init__(
             component_name=refresh.name,
-            initial_value=0,
+            initial_value="",
             label=label,
             args={
                 "options": resolved_options,
@@ -103,5 +107,5 @@ class refresh(UIElement[int, int]):
             on_change=on_change,
         )
 
-    def _convert_value(self, value: int) -> int:
+    def _convert_value(self, value: str) -> str:
         return value
