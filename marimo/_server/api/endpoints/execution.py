@@ -302,11 +302,17 @@ async def execute_code(
             with session.scoped(listener):
                 async with session.scratchpad_lock:
                     http_req = HTTPRequest.from_request(request)
-                    # Inject the auth token so that code-mode
-                    # screenshot support can authenticate Playwright
-                    # against this server.
+                    # Inject trusted server URL and auth token for
+                    # code-mode screenshot support.  We use the
+                    # server's own host/port (from config) rather
+                    # than the request's Host header to prevent
+                    # header-spoofing attacks.
                     http_req.meta["screenshot_auth_token"] = str(
                         app_state.session_manager.auth_token
+                    )
+                    base_url = app_state.base_url.rstrip("/")
+                    http_req.meta["screenshot_server_url"] = (
+                        f"http://{app_state.host}:{app_state.port}{base_url}"
                     )
                     session.put_control_request(
                         ExecuteScratchpadCommand(

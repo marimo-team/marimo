@@ -1189,16 +1189,20 @@ class AsyncCodeModeContext:
                 "available.  screenshot() must be called during cell "
                 "execution (e.g. from code-mode)."
             )
-        base_url = request.base_url
-        base_path = (base_url.get("path") or "").rstrip("/")
-        if base_path == "/":
-            base_path = ""
-        server_url = f"{base_url['scheme']}://{base_url['netloc']}{base_path}"
-
-        # Lazy-init the screenshot session (browser reuse).
+        # Read trusted server URL and auth token injected by the
+        # /execute endpoint (from server config, not request headers).
+        server_url: str | None = request.meta.get("screenshot_server_url")
+        if server_url is None:
+            raise ScreenshotError(
+                "Cannot take screenshots: screenshot_server_url not "
+                "found in request.meta.  This endpoint may not "
+                "support screenshots."
+            )
         screenshot_auth_token: str | None = request.meta.get(
             "screenshot_auth_token"
         )
+
+        # Lazy-init the screenshot session (browser reuse).
         if self._screenshot_session is None:
             self._screenshot_session = _ScreenshotSession(
                 server_url,

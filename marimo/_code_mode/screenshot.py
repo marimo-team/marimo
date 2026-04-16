@@ -7,7 +7,9 @@ in kiosk mode and reuses it across captures.
 
 from __future__ import annotations
 
+import asyncio
 import base64
+import time
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -37,6 +39,13 @@ _ATTACH_TIMEOUT_MS = 5_000
 # output element, each candidate selector gets a short wait before we
 # move on to the next one.
 _SELECTOR_PROBE_TIMEOUT_MS = 1_000
+
+
+def _suppress() -> Any:
+    """contextlib.suppress(Exception) without the import."""
+    import contextlib
+
+    return contextlib.suppress(Exception)
 
 
 class ScreenshotError(RuntimeError):
@@ -96,40 +105,67 @@ class _ScreenshotSession:
         self._playwright: Any = None
         self._browser: Any = None
         self._page: Any = None
+        self._init_lock = asyncio.Lock()
 
     async def _ensure_ready(self) -> None:
         """Launch browser and navigate to the notebook if not already done."""
         if self._page is not None:
             return
 
+        async with self._init_lock:
+            # Re-check after acquiring the lock.
+            if self._page is not None:
+                return
+            await self._init_browser()
+
+    async def _init_browser(self) -> None:
+        """Start Playwright + Chromium and navigate to the kiosk page.
+
+        On failure, any partially-created resources are cleaned up
+        before re-raising.
+        """
         async_playwright = _require_playwright()
 
         LOGGER.debug("Screenshot session: launching browser")
-        self._playwright = await async_playwright().start()
+        pw = await async_playwright().start()
+        browser: Any = None
+        page: Any = None
         try:
-            self._browser = await self._playwright.chromium.launch()
-        except Exception as err:
-            # Most likely the browser binary was never downloaded.
-            # Playwright raises plain `Error` here, so match on the
-            # message rather than the class.
-            msg = str(err).lower()
-            if (
-                "executable doesn't exist" in msg
-                or "looks like playwright" in msg
-            ):
-                _raise_browser_missing(err)
+            try:
+                browser = await pw.chromium.launch()
+            except Exception as err:
+                msg = str(err).lower()
+                if (
+                    "executable doesn't exist" in msg
+                    or "looks like playwright" in msg
+                ):
+                    _raise_browser_missing(err)
+                raise
+
+            context = await browser.new_context(
+                viewport={
+                    "width": _VIEWPORT_WIDTH,
+                    "height": _VIEWPORT_HEIGHT,
+                },
+                device_scale_factor=_DEVICE_SCALE_FACTOR,
+            )
+            page = await context.new_page()
+            await page.emulate_media(reduced_motion="reduce")
+
+            # Commit only after full success.
+            self._playwright = pw
+            self._browser = browser
+            self._page = page
+            await self._navigate(initial=True)
+            LOGGER.debug("Screenshot session: ready")
+        except BaseException:
+            # Clean up partially-created resources.
+            if browser is not None:
+                with _suppress():
+                    await browser.close()
+            with _suppress():
+                await pw.stop()
             raise
-
-        context = await self._browser.new_context(
-            viewport={"width": _VIEWPORT_WIDTH, "height": _VIEWPORT_HEIGHT},
-            device_scale_factor=_DEVICE_SCALE_FACTOR,
-        )
-        page = await context.new_page()
-        await page.emulate_media(reduced_motion="reduce")
-
-        self._page = page
-        await self._navigate(initial=True)
-        LOGGER.debug("Screenshot session: ready")
 
     async def _navigate(self, *, initial: bool) -> None:
         """Navigate (initial=True) or reload (initial=False) the kiosk page."""
@@ -256,15 +292,18 @@ class _ScreenshotSession:
             container_selector,
         ]
 
-        # Each probe gets a short wait; the container fallback is
-        # guaranteed to exist (step 1) so it resolves immediately.
-        probe_budget = min(_SELECTOR_PROBE_TIMEOUT_MS, timeout_ms)
+        # Track a hard deadline so total probing never exceeds timeout_ms.
+        deadline = time.monotonic() + timeout_ms / 1000.0
 
         last_error: Exception | None = None
         for selector in candidates:
+            remaining_ms = max(0, int((deadline - time.monotonic()) * 1000))
+            if remaining_ms == 0:
+                break
+            probe = min(_SELECTOR_PROBE_TIMEOUT_MS, remaining_ms)
             locator = self._page.locator(selector).first
             try:
-                await locator.wait_for(state="visible", timeout=probe_budget)
+                await locator.wait_for(state="visible", timeout=probe)
                 LOGGER.debug(
                     "Screenshot: resolved output via selector %s", selector
                 )
