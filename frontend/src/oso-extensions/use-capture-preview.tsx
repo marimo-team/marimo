@@ -65,19 +65,12 @@ interface Candidate {
   isHidden: boolean;
 }
 
-function isInViewport(rect: DOMRect): boolean {
-  return (
-    rect.width > 0 &&
-    rect.height > 0 &&
-    rect.top < window.innerHeight &&
-    rect.left < window.innerWidth &&
-    rect.bottom > 0 &&
-    rect.right > 0
-  );
-}
-
-export function useCaptureNotebookPreview() {
+export function useCaptureNotebookPreview(): {
+  capture: () => Promise<Base64ImageString | null>;
+  confirmSave: () => void;
+} {
   const lastHashRef = useRef<string | null>(null);
+  const pendingHashRef = useRef<string | null>(null);
 
   const capturePreviewInternal =
     useCallback(async (): Promise<Base64ImageString | null> => {
@@ -120,7 +113,7 @@ export function useCaptureNotebookPreview() {
       }
 
       const visibleCandidate = candidates.find(
-        (c) => !c.isHidden && isInViewport(c.rect),
+        (c) => !c.isHidden && c.rect.width > 0 && c.rect.height > 0,
       );
       if (!visibleCandidate) return null;
 
@@ -139,16 +132,25 @@ export function useCaptureNotebookPreview() {
       return null;
     }, []);
 
-  return useCallback(async (): Promise<Base64ImageString | null> => {
+  const capture = useCallback(async (): Promise<Base64ImageString | null> => {
     const preview = await capturePreviewInternal();
     if (!preview) return null;
 
     const hash = await hashBase64(preview);
     if (hash === lastHashRef.current) return null;
 
-    lastHashRef.current = hash;
+    pendingHashRef.current = hash;
     return preview;
   }, [capturePreviewInternal]);
+
+  const confirmSave = useCallback(() => {
+    if (pendingHashRef.current) {
+      lastHashRef.current = pendingHashRef.current;
+      pendingHashRef.current = null;
+    }
+  }, []);
+
+  return { capture, confirmSave };
 }
 
 async function captureImageElement(

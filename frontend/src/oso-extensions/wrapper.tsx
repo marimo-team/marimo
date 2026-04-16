@@ -32,7 +32,7 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
   const actions = useCellActions();
   const dataSourceActions = useDataSourceActions();
   const notebookRpcServer = useNotebookRpcServer();
-  const capturePreview = useCaptureNotebookPreview();
+  const { capture: capturePreview, confirmSave: confirmPreviewSave } = useCaptureNotebookPreview();
 
   const createCellAtEnd = useCallback(async (code: string) => {
     actions.createNewCell({
@@ -47,11 +47,11 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
     if (!filestore) {
       return;
     }
-    filestore.setCapturePreview(capturePreview);
+    filestore.setCapturePreview(capturePreview, confirmPreviewSave);
     return () => {
-      filestore.setCapturePreview(null);
+      filestore.setCapturePreview(null, null);
     };
-  }, [capturePreview]);
+  }, [capturePreview, confirmPreviewSave]);
 
   notebookRpcServer.registerHandler("createCell", createCellAtEnd);
   notebookRpcServer.registerHandler("captureNotebookPreview", capturePreview);
