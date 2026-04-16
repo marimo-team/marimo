@@ -621,15 +621,7 @@ class AsyncCodeModeContext:
         self._ui_updates = []
         self._cells_to_run = set()
 
-        # Close any Playwright browser that was opened for screenshots.
-        if self._screenshot_session is not None:
-            try:
-                await self._screenshot_session.close()
-            except Exception:
-                LOGGER.debug(
-                    "Failed to close screenshot session", exc_info=True
-                )
-            self._screenshot_session = None
+        await self.close_screenshot_session()
 
         if exc_type is not None:
             return  # let exception propagate, discard queued ops
@@ -1198,7 +1190,10 @@ class AsyncCodeModeContext:
                 "execution (e.g. from code-mode)."
             )
         base_url = request.base_url
-        server_url = f"{base_url['scheme']}://{base_url['netloc']}"
+        base_path = (base_url.get("path") or "").rstrip("/")
+        if base_path == "/":
+            base_path = ""
+        server_url = f"{base_url['scheme']}://{base_url['netloc']}{base_path}"
 
         # Lazy-init the screenshot session (browser reuse).
         screenshot_auth_token: str | None = request.meta.get(
@@ -1222,6 +1217,22 @@ class AsyncCodeModeContext:
         if as_data_url:
             return _to_data_url(image)
         return image
+
+    async def close_screenshot_session(self) -> None:
+        """Close the Playwright browser opened by :meth:`screenshot`.
+
+        Called automatically in ``__aexit__``.  Call this explicitly
+        when using ``screenshot()`` outside ``async with`` to avoid
+        leaking a headless browser process.
+        """
+        if self._screenshot_session is not None:
+            try:
+                await self._screenshot_session.close()
+            except Exception:
+                LOGGER.debug(
+                    "Failed to close screenshot session", exc_info=True
+                )
+            self._screenshot_session = None
 
     def _resolve_screenshot_target(
         self,
@@ -1247,10 +1258,21 @@ class AsyncCodeModeContext:
             )
 
         if isinstance(target, int):
-            return self.cells[target].id
+            try:
+                return self.cells[target].id
+            except IndexError as exc:
+                raise ScreenshotError(
+                    f"Cell index {target} out of range "
+                    f"(notebook has {len(self.cells)} cells)."
+                ) from exc
 
         if isinstance(target, str):
-            return self.cells._resolve(target)
+            try:
+                return self.cells._resolve(target)
+            except KeyError as exc:
+                raise ScreenshotError(
+                    f"Unknown cell ID or name: {target!r}."
+                ) from exc
 
         if isinstance(target, NotebookCell):
             return target.id

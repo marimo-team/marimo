@@ -61,10 +61,8 @@ def _require_playwright() -> Any:
         raise ScreenshotError(
             "Playwright is not installed.\n"
             "Fix:\n"
-            '  1. ctx.install_packages("playwright")  '
-            "# or: pip install playwright\n"
-            "  2. python -m playwright install chromium  "
-            "# download browser binary"
+            "  1. pip install playwright\n"
+            "  2. python -m playwright install chromium"
         )
 
     from playwright.async_api import (  # type: ignore[import-not-found]
