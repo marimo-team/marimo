@@ -36,6 +36,9 @@ class _RemovePackage:
 
 
 PackageOp = Union[_AddPackage, _RemovePackage]
+# Alias for `list` used in `Packages` annotations; `Packages.list` shadows the
+# builtin inside the class scope.
+PackageOpList = list[PackageOp]
 
 
 def _flatten_packages(
@@ -145,7 +148,7 @@ class Packages:
     def _reset(self) -> None:
         self._ops = []
 
-    async def _flush(self) -> list[PackageOp]:
+    async def _flush(self) -> PackageOpList:
         """Execute queued ops in order. Returns the ops that ran."""
         if not self._ops:
             return []
