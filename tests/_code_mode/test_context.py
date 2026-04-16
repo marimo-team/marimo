@@ -830,10 +830,17 @@ class TestPackages:
             assert mock_install.call_count == 0
             assert mock_uninstall.call_count == 0
 
-    async def test_legacy_install_packages_alias(self, k: Kernel) -> None:
+    async def test_legacy_install_packages_alias(
+        self, k: Kernel, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         """ctx.install_packages() still works as a hidden alias for
-        ctx.packages.add() so skills referencing the old name keep
-        working."""
+        ctx.packages.add() and nudges the caller on first use per
+        session, so skills referencing the old name keep working."""
+        from marimo._code_mode import _context as _ctx_mod
+
+        # Reset the once-per-session flag so this test sees the nudge.
+        _ctx_mod._LEGACY_INSTALL_WARNED = False
+
         with _ctx(k) as ctx:
             pm = k.packages_callbacks.package_manager
             assert pm is not None
@@ -844,10 +851,18 @@ class TestPackages:
                 async with ctx as nb:
                     # Invoked via __getattr__
                     nb.install_packages("pandas", ["numpy", "polars"])
+                    # Second call in the same session — should not nudge
+                    # again.
+                    nb.install_packages("requests")
 
-            assert mock_install.call_count == 3
+            assert mock_install.call_count == 4
             installed = [call.args[0] for call in mock_install.call_args_list]
-            assert set(installed) == {"pandas", "numpy", "polars"}
+            assert set(installed) == {"pandas", "numpy", "polars", "requests"}
+
+            # The nudge is written to stderr exactly once.
+            captured = capsys.readouterr()
+            assert captured.err.count("legacy alias") == 1
+            assert "ctx.packages.add()" in captured.err
 
     async def test_legacy_install_packages_not_in_dir(self, k: Kernel) -> None:
         """The alias is reachable via attribute access but hidden from

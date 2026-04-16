@@ -151,6 +151,10 @@ class CellRuntimeState(Protocol):
 
 LOGGER = _loggers.marimo_logger()
 
+# Set the first time `ctx.install_packages` (legacy alias) is used in a
+# session, so the nudge is printed once per process instead of every call.
+_LEGACY_INSTALL_WARNED = False
+
 
 # ------------------------------------------------------------------
 # Entry point
@@ -599,6 +603,13 @@ class AsyncCodeModeContext:
         # does not appear in dir() or IDE completion. Prefer
         # `ctx.packages.add(...)` in new code.
         if name == "install_packages":
+            global _LEGACY_INSTALL_WARNED
+            if not _LEGACY_INSTALL_WARNED:
+                _LEGACY_INSTALL_WARNED = True
+                sys.stderr.write(
+                    "note: ctx.install_packages() is a legacy alias — "
+                    "please update to ctx.packages.add()\n"
+                )
             return self.packages.add
         raise AttributeError(
             f"{type(self).__name__!r} object has no attribute {name!r}"
