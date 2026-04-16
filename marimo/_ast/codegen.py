@@ -543,9 +543,11 @@ def generate_filecontents(
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
 
-    # Update old internal cell names to the new ones
+    # Normalize internal cell names. Empty names would emit ``def ():``
+    # (invalid Python) and fall back to the unparsable-cell path;
+    # ``"__"`` is a legacy internal marker.
     for idx, name in enumerate(names):
-        if name == "__":
+        if name == "__" or not name:
             names[idx] = DEFAULT_CELL_NAME
 
     setup_cell = pop_setup_cell(codes, names, cell_configs)

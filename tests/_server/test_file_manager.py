@@ -228,6 +228,148 @@ def test_save_cannot_rename(app_file_manager: AppFileManager) -> None:
     assert e.value.status_code == HTTPStatus.BAD_REQUEST
 
 
+def test_save_from_cells_persists_cells(
+    app_file_manager: AppFileManager,
+) -> None:
+    """``save_from_cells`` should round-trip cells through the serializer."""
+    from marimo._messaging.notebook.document import NotebookCell
+
+    app_file_manager.save_from_cells(
+        [
+            NotebookCell(
+                id=CellId_t("first"),
+                code="z = 99",
+                name="first",
+                config=CellConfig(),
+            ),
+        ]
+    )
+    assert app_file_manager.filename is not None
+    with open(app_file_manager.filename, encoding="utf-8") as f:
+        contents = f.read()
+    assert "z = 99" in contents
+    assert "def first" in contents
+
+
+def test_save_from_cells_empty_name_normalizes(
+    app_file_manager: AppFileManager,
+) -> None:
+    """Empty cell names must serialize as the default ``_`` rather than
+    falling back to the unparsable-cell path."""
+    from marimo._messaging.notebook.document import NotebookCell
+
+    app_file_manager.save_from_cells(
+        [
+            NotebookCell(
+                id=CellId_t("c"),
+                code="greeting = 42",
+                name="",
+                config=CellConfig(),
+            ),
+        ]
+    )
+    assert app_file_manager.filename is not None
+    with open(app_file_manager.filename, encoding="utf-8") as f:
+        contents = f.read()
+    assert "greeting = 42" in contents
+    assert "_unparsable_cell" not in contents
+
+
+def test_save_from_cells_unnamed_raises(
+    app_file_manager: AppFileManager,
+) -> None:
+    """Unnamed notebooks cannot be persisted from a cell snapshot."""
+    app_file_manager.filename = None
+    with pytest.raises(HTTPException) as e:
+        app_file_manager.save_from_cells([])
+    assert e.value.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_save_from_cells_preserves_layout_file(
+    app_file_manager: AppFileManager,
+) -> None:
+    """``save_from_cells`` must keep ``layout_file`` in app config."""
+    from marimo._messaging.notebook.document import NotebookCell
+
+    app_file_manager.app.update_config({"layout_file": "layouts/x.grid.json"})
+    app_file_manager.save_from_cells(
+        [
+            NotebookCell(
+                id=CellId_t("c"),
+                code="x = 1",
+                name="",
+                config=CellConfig(),
+            ),
+        ]
+    )
+    assert app_file_manager.app.config.layout_file == "layouts/x.grid.json"
+
+
+def test_save_and_save_from_cells_serialize_under_lock(
+    app_file_manager: AppFileManager,
+) -> None:
+    """Concurrent ``save`` + ``save_from_cells`` on the same manager must
+    produce a valid (non-torn) file. Also regression-tests that the
+    reentrant lock covers both entry points."""
+    import threading
+
+    from marimo._messaging.notebook.document import NotebookCell
+
+    assert app_file_manager.filename is not None
+    save_request.filename = app_file_manager.filename
+    errors: list[Exception] = []
+
+    def _frontend_save() -> None:
+        try:
+            for _ in range(20):
+                app_file_manager.save(save_request)
+        except Exception as e:  # pragma: no cover — should never happen
+            errors.append(e)
+
+    def _autosave() -> None:
+        cells = [
+            NotebookCell(
+                id=CellId_t("auto"),
+                code="auto = 1",
+                name="",
+                config=CellConfig(),
+            )
+        ]
+        try:
+            for _ in range(20):
+                app_file_manager.save_from_cells(cells)
+        except Exception as e:  # pragma: no cover
+            errors.append(e)
+
+    try:
+        t1 = threading.Thread(target=_frontend_save)
+        t2 = threading.Thread(target=_autosave)
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+        assert not t1.is_alive(), (
+            "frontend save thread did not terminate within 10s "
+            "(likely deadlock in AppFileManager write lock)"
+        )
+        assert not t2.is_alive(), (
+            "autosave thread did not terminate within 10s "
+            "(likely deadlock in AppFileManager write lock)"
+        )
+        assert not errors, f"unexpected errors: {errors}"
+        # File ends in a parseable state — the serializer's codegen would
+        # raise on a torn write, and the final content must be one of the
+        # two write paths, never a mix.
+        with open(save_request.filename, encoding="utf-8") as f:
+            contents = f.read()
+        assert "import marimo" in contents
+        assert "app = marimo.App" in contents
+    finally:
+        if os.path.exists(save_request.filename):
+            os.remove(save_request.filename)
+
+
 def test_save_with_header(
     app_file_manager: AppFileManager, tmp_path: Path
 ) -> None:
