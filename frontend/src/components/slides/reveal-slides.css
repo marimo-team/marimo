@@ -11,6 +11,10 @@
 .reveal-viewport:fullscreen {
   background-color: var(--background);
 }
+.reveal-viewport:fullscreen .mo-slide-content {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
 .reveal-viewport::backdrop {
   background-color: var(--background);
 }
