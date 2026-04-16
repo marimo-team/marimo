@@ -1376,6 +1376,22 @@ def test_download_as_ignores_cell_selection() -> None:
     assert int(rows[0]["a"]) == 2
 
 
+def test_download_as_parquet_without_libs_reports_missing_packages(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(DependencyManager.pandas, "has", lambda: False)
+    monkeypatch.setattr(DependencyManager.polars, "has", lambda: False)
+    monkeypatch.setattr(DependencyManager.pyarrow, "has", lambda: False)
+
+    table = ui.table([{"a": 1}])
+    response = table._download_as(DownloadAsArgs(format="parquet"))
+
+    assert response.url == ""
+    assert response.filename == ""
+    assert response.missing_packages == ["polars"]
+    assert response.error is not None and "polars" in response.error
+
+
 @pytest.mark.skipif(
     not DependencyManager.pandas.has() or not DependencyManager.polars.has(),
     reason="Pandas or Polars not installed",

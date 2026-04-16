@@ -97,8 +97,13 @@ class DownloadAsArgs:
 
 @dataclass
 class DownloadAsResponse:
-    url: str
-    filename: str
+    url: str = ""
+    filename: str = ""
+    # Populated when the requested format's dependencies are missing (e.g.,
+    # Parquet without pyarrow/pandas/polars). Mirrors the shape used by
+    # ColumnPreview so the frontend can reuse its install-prompt flow.
+    error: str | None = None
+    missing_packages: list[str] | None = None
 
 
 @dataclass
@@ -873,16 +878,45 @@ class table(
         current searched/filtered view. Raw data is downloaded without any
         formatting applied.
 
+        When a requested format requires a package that isn't installed
+        (e.g., Parquet without pyarrow/pandas/polars), returns a
+        ``DownloadAsResponse`` with ``error`` and ``missing_packages``
+        populated instead of raising. The frontend uses this to prompt the
+        user to install the dependency and retry.
+
         Args:
-            args (DownloadAsArgs): Arguments specifying the download format.
-                format must be one of 'csv' or 'json'.
+            args (DownloadAsArgs): The requested download format. Must be
+                one of ``'csv'``, ``'json'``, or ``'parquet'``.
 
         Returns:
-            DownloadAsResponse: URL and filename for the downloaded file.
+            DownloadAsResponse: Either a success response with ``url`` and
+                ``filename`` populated, or a missing-packages response with
+                ``error`` and ``missing_packages`` populated when the
+                format's dependencies are not available.
 
         Raises:
-            ValueError: If format is not 'csv' or 'json'.
+            NotImplementedError: If the current selection resolves to
+                something other than a ``TableManager`` (e.g., a raw list
+                of ``TableCell`` from cell-selection modes).
         """
+        # Short-circuit Parquet when no parquet-capable lib is importable.
+        # Surfaced as a structured response so the frontend can offer an
+        # install prompt instead of showing a generic error toast. Polars
+        # is the recommended install: self-contained, lightweight, and its
+        # native writer handles the plain-Python data shapes we get here.
+        if args.format == "parquet" and not (
+            DependencyManager.pandas.has()
+            or DependencyManager.polars.has()
+            or DependencyManager.pyarrow.has()
+        ):
+            return DownloadAsResponse(
+                error=(
+                    "Parquet export requires a DataFrame library. "
+                    "We recommend polars."
+                ),
+                missing_packages=["polars"],
+            )
+
         # For cell-selection modes, ignore selection and download from the
         # searched/filtered view. For row-selection modes, preserve existing
         # behavior: download selected rows if any, otherwise the searched view.
