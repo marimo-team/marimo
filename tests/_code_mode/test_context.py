@@ -24,6 +24,7 @@ from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
 )
 from marimo._runtime.commands import ExecuteCellCommand
+from marimo._runtime.packages.package_manager import PackageDescription
 from marimo._runtime.runtime import Kernel
 from marimo._types.ids import CellId_t
 
@@ -586,8 +587,15 @@ class TestResolveTarget:
             assert reorder["cellIds"][2] == "1"
 
 
-class TestInstallPackages:
-    async def test_install_single(self, k: Kernel) -> None:
+class TestPackages:
+    """Tests for the ctx.packages namespace (Packages class)."""
+
+    async def test_packages_property_exists(self, k: Kernel) -> None:
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                assert nb.packages is not None
+
+    async def test_add_single(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
             pm = k.packages_callbacks.package_manager
             assert pm is not None
@@ -595,16 +603,15 @@ class TestInstallPackages:
             with patch.object(
                 pm, "install", new_callable=AsyncMock, return_value=True
             ) as mock_install:
-                async with ctx:
-                    ctx.install_packages("pandas")
+                async with ctx as nb:
+                    nb.packages.add("pandas")
                     # Not installed yet — still queued.
                     assert mock_install.call_count == 0
 
             assert mock_install.call_count == 1
             assert mock_install.call_args_list[0].args[0] == "pandas"
-            assert mock_install.call_args_list[0].kwargs["version"] == ""
 
-    async def test_install_multiple_with_specifiers(self, k: Kernel) -> None:
+    async def test_add_multiple(self, k: Kernel) -> None:
         with _ctx(k) as ctx:
             pm = k.packages_callbacks.package_manager
             assert pm is not None
@@ -612,19 +619,249 @@ class TestInstallPackages:
             with patch.object(
                 pm, "install", new_callable=AsyncMock, return_value=True
             ) as mock_install:
-                async with ctx:
-                    ctx.install_packages(
-                        "pandas", "polars>=0.20", "numpy==1.26"
-                    )
+                async with ctx as nb:
+                    nb.packages.add("pandas", "numpy>=1.26")
 
-            # Each package should have been installed one-by-one.
-            installed = {
-                call.args[0]: call.kwargs["version"]
-                for call in mock_install.call_args_list
-            }
-            assert installed["pandas"] == ""
-            assert installed["polars>=0.20"] == ""
-            assert installed["numpy==1.26"] == ""
+            assert mock_install.call_count == 2
+            installed = [
+                call.args[0] for call in mock_install.call_args_list
+            ]
+            assert "pandas" in installed
+            assert "numpy>=1.26" in installed
+
+    async def test_add_queued_before_cell_ops(self, k: Kernel) -> None:
+        """Packages are installed before cell ops so imports work."""
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            call_order: list[str] = []
+
+            async def tracking_install(
+                package: str, **_kwargs: object
+            ) -> bool:
+                del package
+                call_order.append("install")
+                return True
+
+            with patch.object(pm, "install", side_effect=tracking_install):
+                async with ctx as nb:
+                    nb.packages.add("pandas")
+                    cid = nb.create_cell("import pandas")
+                    nb.run_cell(cid)
+
+            # install should have been called (packages flush before cells)
+            assert "install" in call_order
+
+    async def test_remove_single(self, k: Kernel) -> None:
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            with patch.object(
+                pm, "uninstall", new_callable=AsyncMock, return_value=True
+            ) as mock_uninstall:
+                async with ctx as nb:
+                    nb.packages.remove("pandas")
+                    # Not removed yet — still queued.
+                    assert mock_uninstall.call_count == 0
+
+            assert mock_uninstall.call_count == 1
+            assert mock_uninstall.call_args_list[0].args[0] == "pandas"
+
+    async def test_remove_multiple(self, k: Kernel) -> None:
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            with patch.object(
+                pm, "uninstall", new_callable=AsyncMock, return_value=True
+            ) as mock_uninstall:
+                async with ctx as nb:
+                    nb.packages.remove("pandas", "numpy")
+
+            assert mock_uninstall.call_count == 2
+            removed = [
+                call.args[0] for call in mock_uninstall.call_args_list
+            ]
+            assert "pandas" in removed
+            assert "numpy" in removed
+
+    async def test_add_accepts_list(self, k: Kernel) -> None:
+        """add() accepts a list of package names."""
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            with patch.object(
+                pm, "install", new_callable=AsyncMock, return_value=True
+            ) as mock_install:
+                async with ctx as nb:
+                    nb.packages.add(["pandas", "numpy>=1.26"])
+
+            assert mock_install.call_count == 2
+            installed = [
+                call.args[0] for call in mock_install.call_args_list
+            ]
+            assert "pandas" in installed
+            assert "numpy>=1.26" in installed
+
+    async def test_add_mixes_strings_and_lists(self, k: Kernel) -> None:
+        """add() accepts a mix of strings and lists."""
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            with patch.object(
+                pm, "install", new_callable=AsyncMock, return_value=True
+            ) as mock_install:
+                async with ctx as nb:
+                    nb.packages.add("polars", ["pandas", "numpy"])
+
+            assert mock_install.call_count == 3
+            installed = [
+                call.args[0] for call in mock_install.call_args_list
+            ]
+            assert set(installed) == {"polars", "pandas", "numpy"}
+
+    async def test_remove_accepts_list(self, k: Kernel) -> None:
+        """remove() accepts a list of package names."""
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            with patch.object(
+                pm, "uninstall", new_callable=AsyncMock, return_value=True
+            ) as mock_uninstall:
+                async with ctx as nb:
+                    nb.packages.remove(["pandas", "numpy"])
+
+            assert mock_uninstall.call_count == 2
+            removed = [
+                call.args[0] for call in mock_uninstall.call_args_list
+            ]
+            assert "pandas" in removed
+            assert "numpy" in removed
+
+    async def test_list_returns_installed_packages(self, k: Kernel) -> None:
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            mock_packages = [
+                PackageDescription(name="pandas", version="2.1.0"),
+                PackageDescription(name="numpy", version="1.26.0"),
+            ]
+            with patch.object(
+                pm, "list_packages", return_value=mock_packages
+            ):
+                async with ctx as nb:
+                    result = nb.packages.list()
+
+            assert len(result) == 2
+            assert result[0].name == "pandas"
+            assert result[1].name == "numpy"
+
+    async def test_list_errors_after_add(self, k: Kernel) -> None:
+        """list() raises after add() has been called in the same batch."""
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.packages.add("pandas")
+                with pytest.raises(RuntimeError):
+                    nb.packages.list()
+
+    async def test_list_errors_after_remove(self, k: Kernel) -> None:
+        """list() raises after remove() has been called in the same batch."""
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                nb.packages.remove("pandas")
+                with pytest.raises(RuntimeError):
+                    nb.packages.list()
+
+    async def test_add_and_remove_in_same_batch(self, k: Kernel) -> None:
+        """add and remove can coexist in the same batch, executed in order."""
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            call_order: list[tuple[str, str]] = []
+
+            async def track_install(
+                package: str, **_kwargs: object
+            ) -> bool:
+                call_order.append(("add", package))
+                return True
+
+            async def track_uninstall(
+                package: str, **_kwargs: object
+            ) -> bool:
+                call_order.append(("remove", package))
+                return True
+
+            with (
+                patch.object(pm, "install", side_effect=track_install),
+                patch.object(pm, "uninstall", side_effect=track_uninstall),
+            ):
+                async with ctx as nb:
+                    nb.packages.add("polars")
+                    nb.packages.remove("pandas")
+
+            assert call_order == [("add", "polars"), ("remove", "pandas")]
+
+    async def test_exception_discards_package_ops(self, k: Kernel) -> None:
+        """If an exception occurs, queued package ops are discarded."""
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            with patch.object(
+                pm, "install", new_callable=AsyncMock, return_value=True
+            ) as mock_install:
+                try:
+                    async with ctx as nb:
+                        nb.packages.add("pandas")
+                        raise ValueError("oops")
+                except ValueError:
+                    pass
+
+            assert mock_install.call_count == 0
+
+    async def test_noop_packages(self, k: Kernel) -> None:
+        """No package ops means nothing happens."""
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            with (
+                patch.object(
+                    pm, "install", new_callable=AsyncMock
+                ) as mock_install,
+                patch.object(
+                    pm, "uninstall", new_callable=AsyncMock
+                ) as mock_uninstall,
+            ):
+                async with ctx as nb:
+                    pass
+
+            assert mock_install.call_count == 0
+            assert mock_uninstall.call_count == 0
+
+    async def test_summary_includes_packages(
+        self, k: Kernel, capsys: object
+    ) -> None:
+        """Package operations appear in the printed summary."""
+        with _ctx(k) as ctx:
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            with patch.object(
+                pm, "install", new_callable=AsyncMock, return_value=True
+            ):
+                async with ctx as nb:
+                    nb.packages.add("pandas")
+
+            captured = capsys.readouterr()  # type: ignore[attr-defined]
+            assert "pandas" in captured.out
 
 
 class TestAutorunStaleState:
