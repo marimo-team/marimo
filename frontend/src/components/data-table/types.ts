@@ -95,6 +95,22 @@ export type DataTableSelection =
   | "multi-cell"
   | null;
 
+export type CellValueSentinel =
+  | { type: "null"; value: null | undefined }
+  | { type: "empty-string"; value: string }
+  | { type: "whitespace"; value: string }
+  | { type: "nan"; value: number | string }
+  | { type: "positive-infinity"; value: number | string }
+  | { type: "negative-infinity"; value: number | string };
+
+export type CellValueSentinelType = CellValueSentinel["type"];
+
+export function isNumericType(
+  dataType: DataType | undefined,
+): dataType is "number" | "integer" {
+  return dataType === "number" || dataType === "integer";
+}
+
 export function extractTimezone(dtype: string | undefined): string | undefined {
   if (!dtype) {
     return undefined;

@@ -53,6 +53,8 @@ import {
   SelectValue,
 } from "../ui/select";
 import { type ColumnFilterForType, Filter } from "./filters";
+import { SentinelCell } from "./sentinel-cell";
+import { detectSentinel } from "./utils";
 import {
   ClearFilterMenuItem,
   FilterButtons,
@@ -65,6 +67,7 @@ import {
   renderSortFilterIcon,
   renderSorts,
 } from "./header-items";
+import { isNumericType } from "./types";
 import { stringifyUnknownValue } from "./utils";
 
 const TOP_K_ROWS = 30;
@@ -647,6 +650,12 @@ const PopoverFilterByValues = <TData, TValue>({
             {filteredData.map(([value, count], rowIndex) => {
               const isSelected = chosenValues.has(value);
               const valueString = stringifyUnknownValue({ value });
+              const isNumericColumn = isNumericType(
+                column.columnDef.meta?.dataType,
+              );
+              const sentinel = detectSentinel(value, {
+                isNumericColumn,
+              });
 
               return (
                 <CommandItem
@@ -661,7 +670,11 @@ const PopoverFilterByValues = <TData, TValue>({
                     className="mr-3 h-3.5 w-3.5"
                   />
                   <span className="flex-1 overflow-hidden max-h-20 line-clamp-3">
-                    {valueString}
+                    {sentinel ? (
+                      <SentinelCell sentinel={sentinel} />
+                    ) : (
+                      valueString
+                    )}
                   </span>
                   <span className="ml-3">{count}</span>
                 </CommandItem>
