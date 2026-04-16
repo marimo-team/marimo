@@ -6,8 +6,9 @@ import copy
 import pathlib
 import sys
 import textwrap
-from typing import TYPE_CHECKING, cast
-from unittest.mock import Mock, patch
+from contextlib import ExitStack
+from typing import TYPE_CHECKING, Any, cast
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -45,7 +46,12 @@ from marimo._runtime.context.types import teardown_context
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.patches import create_main_module
 from marimo._runtime.runner.hooks import create_default_hooks
-from marimo._runtime.runtime import Kernel, notebook_dir, notebook_location
+from marimo._runtime.runtime import (
+    Kernel,
+    launch_kernel,
+    notebook_dir,
+    notebook_location,
+)
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._session.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
@@ -53,7 +59,7 @@ from tests._messaging.mocks import MockStderr, MockStream
 from tests.conftest import ExecReqProvider, MockedKernel
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Coroutine, Sequence
 
 
 def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:
@@ -4175,3 +4181,148 @@ class TestRequestHandler:
         assert handler1 is handler2
         assert handler2 is handler3
         assert handler1 is handler3
+
+
+class TestLaunchKernelEventLoop:
+    """Event-loop policy / factory selection in launch_kernel.
+
+    The kernel subprocess must run on the Windows ProactorEventLoop so
+    user code can use asyncio.create_subprocess_exec() and other APIs
+    the SelectorEventLoop does not implement. The server keeps the
+    SelectorEventLoop because ConnectionDistributor relies on
+    loop.add_reader().
+
+    These tests stub out everything after the event-loop setup so only
+    the policy / loop_factory decision is exercised.
+    """
+
+    _HEAVY_DEPENDENCY_TARGETS = [
+        "marimo._runtime.runtime.restore_signals",
+        "marimo._runtime.runtime.ThreadSafeStream",
+        "marimo._runtime.runtime.ThreadSafeStdout",
+        "marimo._runtime.runtime.ThreadSafeStderr",
+        "marimo._runtime.runtime.ThreadSafeStdin",
+        "marimo._runtime.runtime.marimo_pdb.MarimoPdb",
+        "marimo._runtime.runtime.Kernel",
+        "marimo._runtime.runtime.initialize_kernel_context",
+        "marimo._runtime.runtime.patches.patch_main_module",
+        "marimo._output.formatters.formatters.register_formatters",
+    ]
+
+    class _StopAfterAsyncioRun(Exception):
+        """Sentinel raised from the mocked asyncio.run so we skip the
+        post-run teardown path (which touches a runtime context we
+        haven't initialized)."""
+
+    @classmethod
+    def _fake_asyncio_run(
+        cls, coro: Coroutine[Any, Any, Any], **_kwargs: Any
+    ) -> None:
+        # Close the never-awaited coroutine to suppress the
+        # RuntimeWarning, then bail so we don't execute the post-run
+        # teardown.
+        coro.close()
+        raise cls._StopAfterAsyncioRun
+
+    @classmethod
+    def _call_launch_kernel(cls, *, is_edit_mode: bool) -> None:
+        with pytest.raises(cls._StopAfterAsyncioRun):
+            launch_kernel(
+                control_queue=MagicMock(),
+                set_ui_element_queue=MagicMock(),
+                completion_queue=MagicMock(),
+                input_queue=MagicMock(),
+                stream_queue=MagicMock(),
+                socket_addr=None,
+                is_edit_mode=is_edit_mode,
+                configs={},
+                app_metadata=AppMetadata(
+                    query_params={}, cli_args={}, app_config=_AppConfig()
+                ),
+                user_config=DEFAULT_CONFIG,
+                virtual_file_storage=None,
+                redirect_console_to_browser=False,
+            )
+
+    @pytest.fixture
+    def harness(self):
+        """Neutralize launch_kernel's heavy dependencies so the test
+        only observes the event-loop policy / loop_factory decision."""
+        with ExitStack() as stack:
+            for target in self._HEAVY_DEPENDENCY_TARGETS:
+                stack.enter_context(patch(target))
+            # `signal` is used as `signal.signal(...)` and references
+            # `signal.SIGBREAK`, which only exists on Windows — swap
+            # the whole module ref so non-Windows hosts don't blow up.
+            stack.enter_context(
+                patch("marimo._runtime.runtime.signal", new=MagicMock())
+            )
+            run_mock = MagicMock(side_effect=self._fake_asyncio_run)
+            stack.enter_context(patch("asyncio.run", run_mock))
+            yield run_mock
+
+    def test_non_windows_does_not_change_event_loop_policy(self, harness):
+        with (
+            patch("sys.platform", "linux"),
+            patch.object(asyncio, "set_event_loop_policy") as set_policy,
+        ):
+            self._call_launch_kernel(is_edit_mode=True)
+
+        set_policy.assert_not_called()
+        assert harness.call_count == 1
+        assert "loop_factory" not in harness.call_args.kwargs
+
+    def test_windows_pre_314_installs_proactor_event_loop_policy(
+        self, harness
+    ):
+        with (
+            patch("sys.platform", "win32"),
+            patch("sys.version_info", (3, 12, 0, "final", 0)),
+            patch.object(
+                asyncio, "WindowsProactorEventLoopPolicy", create=True
+            ) as policy_cls,
+            patch.object(asyncio, "set_event_loop_policy") as set_policy,
+        ):
+            self._call_launch_kernel(is_edit_mode=True)
+
+        policy_cls.assert_called_once_with()
+        set_policy.assert_called_once_with(policy_cls.return_value)
+        # Pre-3.14 uses the policy API, not loop_factory.
+        assert "loop_factory" not in harness.call_args.kwargs
+
+    def test_windows_314_plus_uses_proactor_loop_factory(self, harness):
+        # Event loop policies are deprecated in 3.14; launch_kernel must
+        # pass ProactorEventLoop as the loop_factory to asyncio.run
+        # instead of mutating the global policy.
+        with (
+            patch("sys.platform", "win32"),
+            patch("sys.version_info", (3, 14, 0, "final", 0)),
+            patch.object(
+                asyncio, "ProactorEventLoop", create=True
+            ) as proactor_cls,
+            patch.object(asyncio, "set_event_loop_policy") as set_policy,
+        ):
+            self._call_launch_kernel(is_edit_mode=True)
+
+        set_policy.assert_not_called()
+        assert harness.call_args.kwargs.get("loop_factory") is proactor_cls
+
+    def test_run_mode_on_windows_does_not_touch_event_loop_policy(
+        self, harness
+    ):
+        # Run mode (not edit, not IPC) runs in-process on the server's
+        # loop and must NOT mutate the event loop policy — the server
+        # uses the Selector loop for ConnectionDistributor.add_reader().
+        with (
+            patch("sys.platform", "win32"),
+            patch("sys.version_info", (3, 12, 0, "final", 0)),
+            patch.object(
+                asyncio, "WindowsProactorEventLoopPolicy", create=True
+            ) as policy_cls,
+            patch.object(asyncio, "set_event_loop_policy") as set_policy,
+        ):
+            self._call_launch_kernel(is_edit_mode=False)
+
+        policy_cls.assert_not_called()
+        set_policy.assert_not_called()
+        assert "loop_factory" not in harness.call_args.kwargs
