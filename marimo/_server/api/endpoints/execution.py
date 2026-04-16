@@ -301,10 +301,17 @@ async def execute_code(
             listener = ScratchCellListener()
             with session.scoped(listener):
                 async with session.scratchpad_lock:
+                    http_req = HTTPRequest.from_request(request)
+                    # Inject the auth token so that code-mode
+                    # screenshot support can authenticate Playwright
+                    # against this server.
+                    http_req.meta["screenshot_auth_token"] = str(
+                        app_state.session_manager.auth_token
+                    )
                     session.put_control_request(
                         ExecuteScratchpadCommand(
                             code=body.code,
-                            request=HTTPRequest.from_request(request),
+                            request=http_req,
                             notebook_cells=tuple(session.document.cells),
                         ),
                         from_consumer_id=None,
