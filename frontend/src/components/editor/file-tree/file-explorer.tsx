@@ -381,6 +381,7 @@ const Show = ({
       {node.data.name}
       {node.data.isMarimoFile && !isWasm() && (
         <span
+          data-file-action="open"
           className="shrink-0 ml-2 text-sm hidden group-hover:inline hover:underline"
           onClick={onOpenMarimoFile}
         >
