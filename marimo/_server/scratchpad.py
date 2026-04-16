@@ -118,7 +118,9 @@ class ScratchCellListener(EventAwareExtension):
                 and msg.output.data
             ):
                 err = msg.output.data[0]
-                exc_type = getattr(err, "exception_type", None) or type(err).__name__
+                exc_type = (
+                    getattr(err, "exception_type", None) or type(err).__name__
+                )
                 short_id = str(msg.cell_id)[:8]
                 self.child_error_summaries.append(
                     f"cell '{short_id}' raised {exc_type}"

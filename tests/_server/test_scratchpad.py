@@ -356,9 +356,7 @@ class TestBuildDoneEvent:
         listener.child_error_summaries.append(
             "cell 'abc12345' raised ZeroDivisionError"
         )
-        _, data = _parse_sse(
-            build_done_event(_make_session(notif), listener)
-        )
+        _, data = _parse_sse(build_done_event(_make_session(notif), listener))
         assert data == snapshot(
             {
                 "success": False,
@@ -381,9 +379,7 @@ class TestBuildDoneEvent:
             ),
             status="idle",
         )
-        _, data = _parse_sse(
-            build_done_event(_make_session(notif), listener)
-        )
+        _, data = _parse_sse(build_done_event(_make_session(notif), listener))
         assert data == snapshot(
             {
                 "success": True,
