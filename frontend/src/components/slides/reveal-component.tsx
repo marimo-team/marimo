@@ -60,7 +60,9 @@ const RevealSlidesComponent = ({
           if (deck) {
             onSlideChange?.(deck.getIndices().h);
             // Trigger resize so vega-embed re-measures container width
-            if (deck.getCurrentSlide()?.querySelector("marimo-vega")) {
+            if (
+              deck.getCurrentSlide()?.querySelector(".vega-embed, marimo-vega")
+            ) {
               requestAnimationFrame(() => {
                 window.dispatchEvent(new Event("resize"));
               });
