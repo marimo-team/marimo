@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
@@ -79,9 +79,9 @@ class SessionManager:
         config_manager: MarimoConfigManager,
         cli_args: SerializedCLIArgs,
         argv: list[str] | None,
-        auth_token: Optional[AuthToken],
+        auth_token: AuthToken | None,
         redirect_console_to_browser: bool,
-        ttl_seconds: Optional[int],
+        ttl_seconds: int | None,
         watch: bool = False,
         sandbox_mode: SandboxMode | None = None,
         isolate_apps: bool = False,
@@ -227,7 +227,14 @@ class SessionManager:
             ),
             app_file_manager=app_file_manager,
             config_manager=self._config_manager,
-            virtual_files_supported=True,
+            # EDIT mode runs the kernel in a subprocess (SharedMemoryStorage);
+            # RUN mode runs it in a thread in the same process (InMemoryStorage).
+            # AppHost-backed sessions override this with "shared_memory".
+            virtual_file_storage=(
+                "shared_memory"
+                if self.mode == SessionMode.EDIT
+                else "in_memory"
+            ),
             redirect_console_to_browser=self.redirect_console_to_browser,
             ttl_seconds=self.ttl_seconds,
             auto_instantiate=auto_instantiate,
@@ -262,7 +269,7 @@ class SessionManager:
 
     async def rename_session(
         self, session_id: SessionId, new_path: str
-    ) -> tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """Handle renaming a file for a session.
 
         Returns:
@@ -303,7 +310,7 @@ class SessionManager:
                 Path(path), session
             )
 
-    def get_session(self, session_id: SessionId) -> Optional[Session]:
+    def get_session(self, session_id: SessionId) -> Session | None:
         """Get a session by ID, checking both direct and consumer IDs."""
         session = self._repository.get_sync(session_id)
         if session:
@@ -314,13 +321,13 @@ class SessionManager:
 
     def get_session_by_file_key(
         self, file_key: MarimoFileKey
-    ) -> Optional[Session]:
+    ) -> Session | None:
         """Get a session by file key."""
         return self._repository.get_by_file_key(file_key)
 
     def maybe_resume_session(
         self, new_session_id: SessionId, file_key: MarimoFileKey
-    ) -> Optional[Session]:
+    ) -> Session | None:
         """Try to resume a session if one is resumable.
 
         If it is resumable, return the session and update the session id.

@@ -22,7 +22,11 @@ import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { OutputMessage } from "@/core/kernel/messages";
-import { type CollapsibleTree, MultiColumn } from "@/utils/id-tree";
+import {
+  type CollapsibleTree,
+  MultiColumn,
+  type CellColumnId,
+} from "@/utils/id-tree";
 import type { Seconds } from "@/utils/time";
 import {
   exportedForTesting,
@@ -493,6 +497,106 @@ describe("cell reducer", () => {
       [2] ''
       "
     `);
+  });
+
+  it("can move a cell to an exact index within a column", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+    actions.createNewCell({
+      cellId: cellId("1"),
+      before: false,
+    });
+
+    const columnId = state.cellIds.atOrThrow(0).id;
+    actions.moveCellToIndex({
+      cellId: firstCellId,
+      columnId,
+      index: 3,
+    });
+
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [1] ''
+
+      [2] ''
+
+      [0] ''
+      "
+    `);
+  });
+
+  it("can move a cell to an exact index across columns", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+    actions.createNewCell({
+      cellId: cellId("1"),
+      before: false,
+    });
+    actions.addColumnBreakpoint({ cellId: cellId("1") });
+
+    const secondColumnId = state.cellIds.atOrThrow(1).id;
+    actions.moveCellToIndex({
+      cellId: firstCellId,
+      columnId: secondColumnId,
+      index: 1,
+    });
+
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+
+
+      > col 1
+      [1] ''
+
+      [0] ''
+
+      [2] ''
+      "
+    `);
+  });
+
+  it("moveCellToIndex is a no-op when moving to the same position", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+    actions.createNewCell({
+      cellId: cellId("1"),
+      before: false,
+    });
+
+    const columnId = state.cellIds.atOrThrow(0).id;
+    const before = formatCells(state);
+
+    actions.moveCellToIndex({
+      cellId: firstCellId,
+      columnId,
+      index: 0,
+    });
+
+    expect(formatCells(state)).toBe(before);
+  });
+
+  it("moveCellToIndex is a no-op for an invalid columnId", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+
+    const before = formatCells(state);
+
+    actions.moveCellToIndex({
+      cellId: firstCellId,
+      columnId: "nonexistent-column" as CellColumnId,
+      index: 0,
+    });
+
+    expect(formatCells(state)).toBe(before);
   });
 
   it("can run cell and receive cell messages", () => {
@@ -1207,6 +1311,47 @@ describe("cell reducer", () => {
       { ...STD_IN_1, response: "Marimo!" },
       { ...STD_IN_2, response: "" },
     ]);
+  });
+
+  it("does not crash when setStdinResponse has out-of-bounds outputIndex", () => {
+    const STDOUT: OutputMessage = {
+      channel: "stdout",
+      mimetype: "text/plain",
+      data: "hello!",
+      timestamp: 1,
+    };
+
+    // Set the cell to running with a console output
+    actions.prepareForRun({ cellId: firstCellId });
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: undefined,
+      console: null,
+      status: "running",
+      stale_inputs: null,
+      timestamp: new Date(20).getTime() as Seconds,
+    });
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: undefined,
+      console: STDOUT,
+      status: undefined,
+      stale_inputs: null,
+      timestamp: new Date(22).getTime() as Seconds,
+    });
+
+    // Try to set stdin response with an out-of-bounds index
+    // This should not crash - it should return state unchanged
+    actions.setStdinResponse({
+      response: "test",
+      cellId: firstCellId,
+      outputIndex: 999,
+    });
+
+    // Cell state should be unchanged
+    const cell = cells[0];
+    expect(cell.consoleOutputs).toHaveLength(1);
+    expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
   });
 
   it("can receive console when the cell is idle and will clear when starts again", () => {
@@ -2059,6 +2204,116 @@ describe("cell reducer", () => {
     expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([cellId("0")]);
     expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([cellId("1")]);
     expect(state.cellIds.getColumns()[2].topLevelIds).toEqual([cellId("2")]);
+  });
+
+  it("rebuildCellColumns regroups cells by config.column", () => {
+    // Create four cells in a single column.
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: cellId("1"), before: false });
+    actions.createNewCell({ cellId: cellId("2"), before: false });
+    expect(state.cellIds.getColumns().length).toBe(1);
+
+    // Explicitly set config.column on each cell. This ONLY updates metadata —
+    // updateCellConfig does not touch the MultiColumn tree.
+    actions.updateCellConfig({
+      cellId: cellId("0"),
+      config: { column: 0 },
+    });
+    actions.updateCellConfig({
+      cellId: cellId("2"),
+      config: { column: 1 },
+    });
+
+    // Tree is still a single column at this point.
+    expect(state.cellIds.getColumns().length).toBe(1);
+
+    // Now rebuild the column tree from metadata.
+    actions.rebuildCellColumns({
+      cellIds: [cellId("0"), cellId("1"), cellId("2"), cellId("3")],
+    });
+
+    expect(state.cellIds.getColumns().length).toBe(2);
+    // Cell 1 inherits from 0 (col 0), cell 3 inherits from 2 (col 1).
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
+      cellId("0"),
+      cellId("1"),
+    ]);
+    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([
+      cellId("2"),
+      cellId("3"),
+    ]);
+  });
+
+  it("rebuildCellColumns with explicit column on every cell", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: cellId("1"), before: false });
+    actions.createNewCell({ cellId: cellId("2"), before: false });
+
+    for (const [id, col] of [
+      ["0", 1],
+      ["1", 0],
+      ["2", 1],
+      ["3", 0],
+    ] as const) {
+      actions.updateCellConfig({ cellId: cellId(id), config: { column: col } });
+    }
+
+    actions.rebuildCellColumns({
+      cellIds: [cellId("0"), cellId("1"), cellId("2"), cellId("3")],
+    });
+
+    expect(state.cellIds.getColumns().length).toBe(2);
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
+      cellId("1"),
+      cellId("3"),
+    ]);
+    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([
+      cellId("0"),
+      cellId("2"),
+    ]);
+  });
+
+  it("rebuildCellColumns collapses to one column when all cells are col 0", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.addColumnBreakpoint({ cellId: cellId("1") });
+    expect(state.cellIds.getColumns().length).toBe(2);
+
+    // Wipe column metadata back to 0 for both cells.
+    actions.updateCellConfig({ cellId: cellId("0"), config: { column: 0 } });
+    actions.updateCellConfig({ cellId: cellId("1"), config: { column: 0 } });
+
+    actions.rebuildCellColumns({
+      cellIds: [cellId("0"), cellId("1")],
+    });
+
+    expect(state.cellIds.getColumns().length).toBe(1);
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([
+      cellId("0"),
+      cellId("1"),
+    ]);
+  });
+
+  it("rebuildCellColumns follows the provided order, not current tree order", () => {
+    // Start with a single column.
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: cellId("1"), before: false });
+    actions.updateCellConfig({ cellId: cellId("0"), config: { column: 0 } });
+    actions.updateCellConfig({ cellId: cellId("2"), config: { column: 1 } });
+
+    // Pass the reversed order. The rebuild should honor it.
+    actions.rebuildCellColumns({
+      cellIds: [cellId("2"), cellId("1"), cellId("0")],
+    });
+
+    // cellIds iteration:
+    //   2 → col=1, pushed to col1, prev=1
+    //   1 → col=null, pushed to col[prev=1] = col1
+    //   0 → col=0, pushed to col0
+    expect(state.cellIds.getColumns()[0].topLevelIds).toEqual([cellId("0")]);
+    expect(state.cellIds.getColumns()[1].topLevelIds).toEqual([
+      cellId("2"),
+      cellId("1"),
+    ]);
   });
 
   it("can clear output of a single cell", () => {

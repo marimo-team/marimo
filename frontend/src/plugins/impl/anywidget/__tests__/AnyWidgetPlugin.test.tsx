@@ -29,6 +29,7 @@ describe("LoadedSlot", () => {
     data: {
       jsUrl: "http://example.com/widget.js",
       jsHash: "abc123",
+      modelId: modelId,
     },
     host: document.createElement(
       "div",
@@ -64,6 +65,30 @@ describe("LoadedSlot", () => {
     // Wait a render
     await waitFor(() => {
       expect(mockWidget.render).toHaveBeenCalled();
+    });
+  });
+
+  it("should not remount when value update drops model_id", async () => {
+    // Regression: when the frontend sends a state update (e.g. {zoom_level: 0}),
+    // it overwrites the UIElement value that originally held {model_id: "..."}.
+    // The key must stay stable because modelId comes from data, not value.
+    const { container, rerender } = render(<LoadedSlot {...mockProps} />);
+
+    await waitFor(() => {
+      expect(mockWidget.render).toHaveBeenCalledTimes(1);
+    });
+
+    const divBefore = container.querySelector("div");
+
+    // Simulate a value update that does NOT include model_id
+    // (this is what happens when the widget sends trait state)
+    rerender(<LoadedSlot {...mockProps} />);
+
+    await waitFor(() => {
+      // The div should be the same DOM node (no remount)
+      expect(container.querySelector("div")).toBe(divBefore);
+      // render should not be called again (no remount)
+      expect(mockWidget.render).toHaveBeenCalledTimes(1);
     });
   });
 

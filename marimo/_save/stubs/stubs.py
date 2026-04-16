@@ -4,9 +4,33 @@
 from __future__ import annotations
 
 import abc
-from typing import Any
+from typing import Any, TypeVar
 
-__all__ = ["CustomStub", "CUSTOM_STUBS", "register_stub"]
+__all__ = ["CUSTOM_STUBS", "CustomStub", "mro_lookup", "register_stub"]
+
+_T = TypeVar("_T")
+
+
+def mro_lookup(
+    value_type: type, registry: dict[str, _T]
+) -> tuple[str, _T] | None:
+    """Walk the MRO of value_type, return ``(fq_name, value)`` for first match.
+
+    Matches against fully-qualified class names of the form
+    ``"{cls.__module__}.{cls.__name__}"``.  Returns ``None`` if no class in
+    the MRO is found in *registry*.
+    """
+    try:
+        mro_list = value_type.mro()
+    except Exception:
+        mro_list = [value_type]
+    for cls in mro_list:
+        if not (hasattr(cls, "__module__") and hasattr(cls, "__name__")):
+            continue
+        key = f"{cls.__module__}.{cls.__name__}"
+        if key in registry:
+            return key, registry[key]
+    return None
 
 
 class CustomStub(abc.ABC):

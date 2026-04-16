@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 import io
-from typing import Any, Union
+from typing import Any
 
 from marimo._messaging.msgspec_encoder import enc_hook
 from marimo._plugins.core.media import is_data_empty
@@ -58,7 +58,7 @@ def audio(data: bytes, ext: str = "wav") -> VirtualFile:
     return item.virtual_file
 
 
-def csv(data: Union[str, bytes, io.BytesIO]) -> VirtualFile:
+def csv(data: str | bytes | io.BytesIO) -> VirtualFile:
     """Create a virtual file for CSV data.
 
     Args:
@@ -95,7 +95,7 @@ def parquet(data: bytes) -> VirtualFile:
     return any_data(data, ext="parquet")  # type: ignore
 
 
-def json(data: Union[str, bytes, io.BytesIO]) -> VirtualFile:
+def json(data: str | bytes | io.BytesIO) -> VirtualFile:
     """Create a virtual file for JSON data.
 
     Args:
@@ -132,7 +132,7 @@ def html(data: str) -> VirtualFile:
     return any_data(data, ext="html")
 
 
-def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
+def any_data(data: str | bytes | io.BytesIO, ext: str) -> VirtualFile:
     """Create a virtual file from any data.
 
     It can be a string, bytes, or a file-like object.
@@ -192,12 +192,12 @@ MIN_SAFE_INTEGER = -9007199254740991
 BIGINT_KEY = "$bigint"
 
 
-def is_bigint(value: int | float) -> bool:
+def is_bigint(value: float) -> bool:
     return value > MAX_SAFE_INTEGER or value < MIN_SAFE_INTEGER
 
 
 def sanitize_json_bigint(
-    data: Union[str, dict[str, Any], list[dict[str, Any]]],
+    data: str | dict[str, Any] | list[dict[str, Any]],
     ensure_ascii: bool = True,
 ) -> str:
     """Sanitize JSON big numbers to a string.

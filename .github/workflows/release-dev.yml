@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           # get tag history for version number
           fetch-depth: 0
@@ -41,7 +41,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
 
       # patch pyproject.toml version to be of the form
       # X.Y.<Z+1>-dev{n-commits-since-last-tag}
@@ -67,7 +67,7 @@ jobs:
         run: uv build
 
       - name: 📦 Upload marimo dist artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: pypi-marimo-dev
           path: dist/
@@ -86,7 +86,7 @@ jobs:
         run: ./scripts/validate_base_wheel_size.sh
 
       - name: 📦 Upload marimo-base dist artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: pypi-marimo-base-dev
           path: dist/
@@ -99,7 +99,7 @@ jobs:
           npm version ${{ env.MARIMO_VERSION }} --no-git-tag-version
 
       - name: 📦 Upload frontend artifact for npm publish
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: frontend-dev
           path: frontend/
@@ -121,7 +121,7 @@ jobs:
           ./islands/validate.sh
 
       - name: 📦 Upload islands artifact for npm publish
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: frontend-islands-dev
           path: frontend/

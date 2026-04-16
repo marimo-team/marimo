@@ -1,9 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
-import { Tooltip } from "radix-ui";
-
-const TooltipProvider = Tooltip.Provider;
 
 import type {
   ColumnFiltersState,
@@ -31,10 +28,7 @@ import { TablePanel } from "@/components/data-table/charts/charts";
 import { hasChart } from "@/components/data-table/charts/storage";
 import { ColumnChartSpecModel } from "@/components/data-table/column-summary/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary/column-summary";
-import {
-  type ColumnFilterValue,
-  filterToFilterCondition,
-} from "@/components/data-table/filters";
+import { filtersToFilterGroup } from "@/components/data-table/filters";
 import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-ownership";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import {
@@ -71,6 +65,7 @@ import {
 import { slotsController } from "@/core/slots/slots";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
+import { isIslands } from "@/core/islands/utils";
 import { isInVscodeExtension } from "@/core/vscode/is-in-vscode";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
@@ -88,8 +83,8 @@ import { rpc } from "../core/rpc";
 import { Banner } from "./common/error-banner";
 import { Labeled } from "./common/labeled";
 import {
-  ConditionSchema,
-  type ConditionType,
+  FilterGroupSchema,
+  type FilterGroupType,
   columnToFieldTypesSchema,
 } from "./data-frames/schema";
 
@@ -215,7 +210,7 @@ type DataTableFunctions = {
       descending: boolean;
     }[];
     query?: string;
-    filters?: ConditionType[];
+    filters?: FilterGroupType;
     page_number: number;
     page_size: number;
     max_columns?: number | null;
@@ -314,7 +309,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             )
             .optional(),
           query: z.string().optional(),
-          filters: z.array(ConditionSchema).optional(),
+          filters: FilterGroupSchema.optional(),
           page_number: z.number(),
           page_size: z.number(),
           max_columns: z.number().nullable().optional(),
@@ -580,12 +575,7 @@ export const LoadingDataTableComponent = memo(
         query: searchQuery,
         page_number: paginationState.pageIndex,
         page_size: paginationState.pageSize,
-        filters: filters.flatMap((filter) => {
-          return filterToFilterCondition(
-            filter.id,
-            filter.value as ColumnFilterValue,
-          );
-        }),
+        filters: filtersToFilterGroup(filters),
       });
 
       if (canShowInitialPage) {
@@ -643,12 +633,7 @@ export const LoadingDataTableComponent = memo(
           page_size: 1,
           sort: sortArgs,
           query: searchQuery,
-          filters: filters.flatMap((filter) => {
-            return filterToFilterCondition(
-              filter.id,
-              filter.value as ColumnFilterValue,
-            );
-          }),
+          filters: filtersToFilterGroup(filters),
           // Do not clamp number of columns since we are viewing a single row
           max_columns: null,
         });
@@ -704,7 +689,7 @@ export const LoadingDataTableComponent = memo(
           <LoadingTable
             pageSize={
               props.totalRows !== TOO_MANY_ROWS && props.totalRows > 0
-                ? props.totalRows
+                ? Math.min(props.totalRows, props.pageSize)
                 : props.pageSize
             }
           />
@@ -1009,6 +994,7 @@ const DataTableComponent = ({
   const canShowColumnExplorer = showColumnExplorer && !!preview_column;
 
   const isInVscode = isInVscodeExtension();
+  const isIslandsMode = isIslands();
 
   return (
     <>
@@ -1094,13 +1080,15 @@ const DataTableComponent = ({
             onCellSelectionChange={handleCellSelectionChange}
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
-            showChartBuilder={showChartBuilder}
+            showChartBuilder={showChartBuilder && !isIslandsMode}
             isChartBuilderOpen={isChartBuilderOpen}
             showPageSizeSelector={showPageSizeSelector}
-            // Hidden in VSCode (for now) because we don't have a panel to show
+            // Hidden in VSCode and islands because there's no panel to show
             // the table explorer.
             showTableExplorer={
-              (showRowExplorer || canShowColumnExplorer) && !isInVscode
+              (showRowExplorer || canShowColumnExplorer) &&
+              !isInVscode &&
+              !isIslandsMode
             }
             togglePanel={togglePanel}
             isPanelOpen={isPanelOpen}
@@ -1123,9 +1111,7 @@ export const TableProviders: React.FC<{ children: React.ReactNode }> = ({
   return (
     <ErrorBoundary>
       <Provider store={store}>
-        <SlotzProvider controller={slotsController}>
-          <TooltipProvider>{children}</TooltipProvider>
-        </SlotzProvider>
+        <SlotzProvider controller={slotsController}>{children}</SlotzProvider>
       </Provider>
     </ErrorBoundary>
   );

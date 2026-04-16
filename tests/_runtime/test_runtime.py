@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import pathlib
 import sys
 import textwrap
@@ -1118,7 +1119,7 @@ except NameError:
         assert "1" in k.graph.cells
         assert "x" not in k.globals
         if k.lazy():
-            assert k.graph.get_stale() == set([er.cell_id])
+            assert k.graph.get_stale() == {er.cell_id}
             await k.run([er])
         assert not k.graph.get_stale()
         assert "y" not in k.globals
@@ -1130,7 +1131,7 @@ except NameError:
         assert "1" in k.graph.cells
         assert not k.errors
         if k.lazy():
-            assert k.graph.get_stale() == set([er.cell_id])
+            assert k.graph.get_stale() == {er.cell_id}
             await k.run([er])
         assert not k.graph.get_stale()
         assert k.globals["y"] == 1
@@ -1155,7 +1156,7 @@ except NameError:
             [ExecuteCellCommand(er_1.cell_id, "x = 0; raise RuntimeError")]
         )
         if k.lazy():
-            assert graph.get_stale() == set([er_2.cell_id])
+            assert graph.get_stale() == {er_2.cell_id}
             # running er_2 will redefine y; this is different from the
             # behavior of a non-lazy kernel, which doesn't run er_2
             # but instead invalidates it on exception raised
@@ -1202,7 +1203,7 @@ except NameError:
         )
         assert k.globals["defs"]["slider"].value == 5
         if k.lazy():
-            assert graph.get_stale() == set([er.cell_id])
+            assert graph.get_stale() == {er.cell_id}
             await k.run([er])
         assert not graph.get_stale()
         assert k.globals["slider_value"] == 6
@@ -1383,7 +1384,7 @@ except NameError:
                 stream=k.stream,
                 stdout=k.stdout,
                 stderr=k.stderr,
-                virtual_files_supported=True,
+                virtual_file_storage="shared_memory",
                 mode=SessionMode.EDIT,
             )
 
@@ -1549,7 +1550,7 @@ except NameError:
                 stream=k.stream,
                 stdout=k.stdout,
                 stderr=k.stderr,
-                virtual_files_supported=True,
+                virtual_file_storage="shared_memory",
                 mode=SessionMode.EDIT,
             )
 
@@ -1777,7 +1778,7 @@ except NameError:
         await k.rename_file("foo")
         if k.lazy():
             assert "pytest" in k.globals["x"]
-            assert k.graph.get_stale() == set([er.cell_id])
+            assert k.graph.get_stale() == {er.cell_id}
             await k.run([er])
         assert k.globals["x"] == "foo"
 
@@ -2735,7 +2736,7 @@ class TestDisable:
         )
 
         assert k.globals["ns"].count == 10
-        assert k.graph.get_stale() == set([er_2.cell_id])
+        assert k.graph.get_stale() == {er_2.cell_id}
 
         # re-enable cell 2
         await k.set_cell_config(
@@ -2744,7 +2745,7 @@ class TestDisable:
             )
         )
         if k.lazy():
-            assert k.graph.get_stale() == set([er_2.cell_id])
+            assert k.graph.get_stale() == {er_2.cell_id}
             await k.run([er_2])
         assert not k.graph.get_stale()
         # cell 2 should have re-run
@@ -2782,13 +2783,14 @@ class TestDisable:
         await k.run([ExecuteCellCommand(cell_id=er_1.cell_id, code="x = 2")])
         assert k.globals["x"] == 2
         if k.lazy():
-            assert graph.get_stale() == set(
-                [er_2.cell_id, er_3.cell_id, er_4.cell_id, er_5.cell_id]
-            )
+            assert graph.get_stale() == {
+                er_2.cell_id,
+                er_3.cell_id,
+                er_4.cell_id,
+                er_5.cell_id,
+            }
             await k.run([er_5])
-        assert graph.get_stale() == set(
-            [er_2.cell_id, er_3.cell_id, er_4.cell_id]
-        )
+        assert graph.get_stale() == {er_2.cell_id, er_3.cell_id, er_4.cell_id}
         assert k.globals["zzz"] == 3
 
         # enable cell 2: should run stale cells as a side-effect
@@ -2800,9 +2802,11 @@ class TestDisable:
         assert k.globals["x"] == 2
         assert k.globals["zzz"] == 3
         if k.lazy():
-            assert graph.get_stale() == set(
-                [er_2.cell_id, er_3.cell_id, er_4.cell_id]
-            )
+            assert graph.get_stale() == {
+                er_2.cell_id,
+                er_3.cell_id,
+                er_4.cell_id,
+            }
             # runs er_3 and er_2, which are stale ancestors
             await k.run([er_4])
         # stale cells **should have** updated
@@ -2835,7 +2839,7 @@ class TestDisable:
         )
         # update the code of cell 1 -- both cells stale
         await k.run([er_1 := exec_req.get_with_id(er_1.cell_id, "x = 2")])
-        assert graph.get_stale() == set([er_1.cell_id, er_2.cell_id])
+        assert graph.get_stale() == {er_1.cell_id, er_2.cell_id}
 
         # enable cell 1, but 2 still disabled
         await k.set_cell_config(
@@ -2844,11 +2848,11 @@ class TestDisable:
             )
         )
         if k.lazy():
-            assert graph.get_stale() == set([er_1.cell_id, er_2.cell_id])
+            assert graph.get_stale() == {er_1.cell_id, er_2.cell_id}
             await k.run([er_1])
 
         assert k.globals["x"] == 2
-        assert graph.get_stale() == set([er_2.cell_id])
+        assert graph.get_stale() == {er_2.cell_id}
 
         # enable cell 2
         await k.set_cell_config(
@@ -2857,7 +2861,7 @@ class TestDisable:
             )
         )
         if k.lazy():
-            assert graph.get_stale() == set([er_2.cell_id])
+            assert graph.get_stale() == {er_2.cell_id}
             await k.run([er_2])
 
         assert not graph.get_stale()
@@ -3228,13 +3232,13 @@ class TestSQL:
             [
                 ExecuteCellCommand(
                     cell_id="2",
-                    code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",  # noqa: E501
+                    code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",
                 ),
                 # cell 1 should automatically execute due to the definition of
                 # t1
                 ExecuteCellCommand(
                     cell_id="3",
-                    code="mo.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",  # noqa: E501
+                    code="mo.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",
                 ),
             ]
         )
@@ -3265,13 +3269,13 @@ class TestSQL:
             [
                 ExecuteCellCommand(
                     cell_id="2",
-                    code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",  # noqa: E501
+                    code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",
                 ),
                 # cell 1 should automatically execute due to the definition of
                 # t1
                 ExecuteCellCommand(
                     cell_id="3",
-                    code="duckdb.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",  # noqa: E501
+                    code="duckdb.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",
                 ),
             ]
         )
@@ -3304,7 +3308,7 @@ class TestSQL:
                 # t1
                 ExecuteCellCommand(
                     cell_id="2",
-                    code="mo.sql('CREATE OR REPLACE VIEW view as SELECT 42')",  # noqa: E501
+                    code="mo.sql('CREATE OR REPLACE VIEW view as SELECT 42')",
                 ),
             ]
         )
@@ -3370,17 +3374,15 @@ class TestStateTransitions:
         stream = MockStream(mocked_kernel.stream)
         cell_notifications = stream.cell_notifications
 
-        n_queued = sum(
-            [1 for op in cell_notifications if op.status == "queued"]
-        )
+        n_queued = sum(1 for op in cell_notifications if op.status == "queued")
         assert n_queued == 1
 
         n_running = sum(
-            [1 for op in cell_notifications if op.status == "running"]
+            1 for op in cell_notifications if op.status == "running"
         )
         assert n_running == 1
 
-        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
+        n_idle = sum(1 for op in cell_notifications if op.status == "idle")
         assert n_idle == 1
 
     async def test_statuses_not_repeated_on_stop(
@@ -3395,17 +3397,15 @@ class TestStateTransitions:
 
         cell_notifications = mocked_kernel.stream.cell_notifications
 
-        n_queued = sum(
-            [1 for op in cell_notifications if op.status == "queued"]
-        )
+        n_queued = sum(1 for op in cell_notifications if op.status == "queued")
         assert n_queued == 1
 
         n_running = sum(
-            [1 for op in cell_notifications if op.status == "running"]
+            1 for op in cell_notifications if op.status == "running"
         )
         assert n_running == 1
 
-        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
+        n_idle = sum(1 for op in cell_notifications if op.status == "idle")
         assert n_idle == 1
 
     async def test_statuses_not_repeated_on_interruption(
@@ -3415,7 +3415,7 @@ class TestStateTransitions:
         await k.run(
             [
                 exec_req.get(
-                    "from marimo._runtime.control_flow import MarimoInterrupt; raise MarimoInterrupt()"  # noqa: E501
+                    "from marimo._runtime.control_flow import MarimoInterrupt; raise MarimoInterrupt()"
                 ),
             ]
         )
@@ -3423,17 +3423,15 @@ class TestStateTransitions:
         stream = MockStream(mocked_kernel.stream)
         cell_notifications = stream.cell_notifications
 
-        n_queued = sum(
-            [1 for op in cell_notifications if op.status == "queued"]
-        )
+        n_queued = sum(1 for op in cell_notifications if op.status == "queued")
         assert n_queued == 1
 
         n_running = sum(
-            [1 for op in cell_notifications if op.status == "running"]
+            1 for op in cell_notifications if op.status == "running"
         )
         assert n_running == 1
 
-        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
+        n_idle = sum(1 for op in cell_notifications if op.status == "idle")
         assert n_idle == 1
 
     async def test_statuses_not_repeated_on_exception(
@@ -3449,17 +3447,15 @@ class TestStateTransitions:
         stream = MockStream(mocked_kernel.stream)
         cell_notifications = stream.cell_notifications
 
-        n_queued = sum(
-            [1 for op in cell_notifications if op.status == "queued"]
-        )
+        n_queued = sum(1 for op in cell_notifications if op.status == "queued")
         assert n_queued == 1
 
         n_running = sum(
-            [1 for op in cell_notifications if op.status == "running"]
+            1 for op in cell_notifications if op.status == "running"
         )
         assert n_running == 1
 
-        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
+        n_idle = sum(1 for op in cell_notifications if op.status == "idle")
         assert n_idle == 1
 
     async def test_descendant_status_reset_to_idle_on_error(
@@ -3477,19 +3473,17 @@ class TestStateTransitions:
         cell_notifications = stream.cell_notifications
 
         # er_1 and er_2
-        n_queued = sum(
-            [1 for op in cell_notifications if op.status == "queued"]
-        )
+        n_queued = sum(1 for op in cell_notifications if op.status == "queued")
         assert n_queued == 2
 
         # only er_1 runs
         n_running = sum(
-            [1 for op in cell_notifications if op.status == "running"]
+            1 for op in cell_notifications if op.status == "running"
         )
         assert n_running == 1
 
         # er_1 and er_2
-        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
+        n_idle = sum(1 for op in cell_notifications if op.status == "idle")
         assert n_idle == 2
 
         assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
@@ -3517,19 +3511,17 @@ class TestStateTransitions:
         cell_notifications = stream.cell_notifications
 
         # er_1 and er_2
-        n_queued = sum(
-            [1 for op in cell_notifications if op.status == "queued"]
-        )
+        n_queued = sum(1 for op in cell_notifications if op.status == "queued")
         assert n_queued == 2
 
         # only er_1 runs
         n_running = sum(
-            [1 for op in cell_notifications if op.status == "running"]
+            1 for op in cell_notifications if op.status == "running"
         )
         assert n_running == 1
 
         # er_1 and er_2
-        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
+        n_idle = sum(1 for op in cell_notifications if op.status == "idle")
         assert n_idle == 2
 
         assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
@@ -3700,6 +3692,40 @@ class TestErrorHandling:
         assert len(errors) == 1
         assert isinstance(errors[0], MarimoInternalError)
         assert errors[0].msg.startswith("An internal error occurred: ")
+
+        # Verify no traceback leaks via console output
+        for op in cell_notifications:
+            if op.console is not None:
+                console_list = (
+                    [op.console]
+                    if not isinstance(op.console, list)
+                    else op.console
+                )
+                for console_output in console_list:
+                    assert "some secret error" not in str(
+                        console_output.data
+                    ), "Traceback leaked to console in run mode"
+
+    async def test_error_handling_in_run_mode_with_show_tracebacks(
+        self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """When show_tracebacks is enabled, exceptions should not be
+        sanitized and should include a formatted traceback."""
+        k = run_mode_kernel.k
+        k.user_config = copy.deepcopy(k.user_config)
+        k.user_config["runtime"]["show_tracebacks"] = True
+        await k.run([exec_req.get("raise ValueError('some secret error')")])
+        cell_notifications = run_mode_kernel.stream.cell_notifications
+        error_cell_notification = _filter_to_error_ops(cell_notifications)
+        assert len(error_cell_notification) == 1
+        errors = _parse_error_output(error_cell_notification[0])
+
+        assert len(errors) == 1
+        assert isinstance(errors[0], MarimoExceptionRaisedError)
+        assert errors[0].msg == "some secret error"
+        assert errors[0].exception_type == "ValueError"
+        assert errors[0].traceback is not None
+        assert "ValueError" in errors[0].traceback
 
     async def test_error_handling_in_run_mode_stop(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider

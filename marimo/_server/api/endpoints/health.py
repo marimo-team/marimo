@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Optional, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from starlette.authentication import requires
 from starlette.responses import JSONResponse, PlainTextResponse
@@ -115,6 +115,7 @@ async def list_sessions(request: Request) -> JSONResponse:
 
 
 @router.get("/api/version")
+@requires("read")
 async def version(request: Request) -> PlainTextResponse:
     """
     responses:
@@ -215,7 +216,7 @@ async def usage(request: Request) -> JSONResponse:
                             - memory
                             - cpu
 
-    """  # noqa: E501
+    """
     import subprocess
 
     import psutil
@@ -244,7 +245,7 @@ async def usage(request: Request) -> JSONResponse:
         cpu = psutil.cpu_percent(interval=None)
 
     # Collect kernel PIDs first so we can exclude them from server memory
-    kernel_memory: Optional[int] = None
+    kernel_memory: int | None = None
     kernel_pids: set[int] = set()
     session = AppState(request).get_current_session()
     try:
@@ -336,6 +337,7 @@ async def usage(request: Request) -> JSONResponse:
 
 
 @router.get("/api/status/connections")
+@requires("read")
 async def connections(request: Request) -> JSONResponse:
     """
     responses:
@@ -368,7 +370,7 @@ def _is_gpu_available() -> bool:
 
     if DependencyManager.which("nvidia-smi"):
         try:
-            _ = subprocess.run(  # noqa: ASYNC221
+            _ = subprocess.run(
                 _GPU_STATS_CMD,
                 capture_output=True,
                 text=True,

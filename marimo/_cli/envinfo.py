@@ -4,7 +4,7 @@ from __future__ import annotations
 import platform
 import sys
 from pathlib import Path
-from typing import Any, Union, cast
+from typing import Any, cast
 
 from marimo import _loggers
 from marimo._config.manager import get_default_config_manager
@@ -33,7 +33,7 @@ def is_win11() -> bool:
     return False
 
 
-def get_experimental_flags() -> dict[str, Union[str, bool, dict[str, Any]]]:
+def get_experimental_flags() -> dict[str, str | bool | dict[str, Any]]:
     try:
         config = get_default_config_manager(current_path=None).get_config()
         experimental_config = config.get("experimental", {})
@@ -76,13 +76,13 @@ def get_default_locale() -> str:
         return "--"
 
 
-def get_system_info() -> dict[str, Union[str, bool, dict[str, Any]]]:
+def get_system_info() -> dict[str, str | bool | dict[str, Any]]:
     os_version = platform.release()
     if platform.system() == "Windows" and is_win11():
         os_version = "11"
 
     location = Path(__file__).parent.parent.as_posix()
-    info: dict[str, Union[str, bool, dict[str, Any]]] = {
+    info: dict[str, str | bool | dict[str, Any]] = {
         "marimo": __version__,
         "editable": is_editable("marimo"),
         "location": location,

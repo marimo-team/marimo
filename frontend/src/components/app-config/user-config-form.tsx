@@ -19,6 +19,7 @@ import { useForm } from "react-hook-form";
 import type z from "zod";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { acceptCompletionOnEnterAtom } from "@/core/codemirror/completion/accept-on-enter-atom";
 import {
   Form,
   FormControl,
@@ -118,6 +119,9 @@ const LOCALE_SYSTEM_VALUE = "__system__";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
+  const [acceptOnEnter, setAcceptOnEnter] = useAtom(
+    acceptCompletionOnEnterAtom,
+  );
   const formElement = useRef<HTMLFormElement>(null);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
   const [activeCategory, setActiveCategory] = useAtom(
@@ -446,6 +450,27 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel className="font-normal">
+                    Accept suggestion on Enter
+                  </FormLabel>
+                  <FormControl>
+                    <Checkbox
+                      data-testid="accept-completion-on-enter-checkbox"
+                      checked={acceptOnEnter}
+                      onCheckedChange={(checked) =>
+                        setAcceptOnEnter(Boolean(checked))
+                      }
+                    />
+                  </FormControl>
+                </FormItem>
+                <FormDescription>
+                  When unchecked, pressing Enter inserts a new line instead of
+                  accepting an autocomplete suggestion. Use Tab to accept
+                  suggestions.
+                </FormDescription>
+              </div>
               <FormField
                 control={form.control}
                 name="completion.signature_hint_on_typing"

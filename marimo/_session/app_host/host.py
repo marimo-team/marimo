@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from marimo._ast.cell import CellConfig
     from marimo._config.config import MarimoConfig
     from marimo._runtime.commands import AppMetadata
+    from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
@@ -251,7 +252,7 @@ class AppHost:
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
         user_config: MarimoConfig,
-        virtual_files_supported: bool,
+        virtual_file_storage: VirtualFileStorageType | None,
         redirect_console_to_browser: bool,
         log_level: int,
     ) -> KernelCreatedResponse:
@@ -264,7 +265,7 @@ class AppHost:
             configs=configs,
             app_metadata=app_metadata,
             user_config=user_config,
-            virtual_files_supported=virtual_files_supported,
+            virtual_file_storage=virtual_file_storage,
             redirect_console_to_browser=redirect_console_to_browser,
             log_level=log_level,
         )

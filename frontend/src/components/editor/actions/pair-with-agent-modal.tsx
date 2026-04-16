@@ -1,8 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtomValue } from "jotai";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -12,25 +11,26 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { runtimeConfigAtom } from "@/core/runtime/config";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
 import { Tooltip } from "@/components/ui/tooltip";
-import type { RuntimeConfig } from "@/core/runtime/types";
+import { assertNever } from "@/utils/assertNever";
+import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
+import { API } from "@/core/network/api";
 
 type AgentTab = "claude" | "codex" | "opencode";
 
-function buildRemoteUrl(config: RuntimeConfig) {
-  const url = new URL(config.url);
-  if (config.authToken) {
-    url.searchParams.set("auth", config.authToken);
-  }
-  return url.toString();
+function getMarimoCommand(): string {
+  return import.meta.env.DEV ? "uv run marimo" : "uvx marimo@latest";
 }
 
-function getPromptCommand(agent: AgentTab, remoteUrl: string): string {
-  const command = import.meta.env.DEV ? "uv run marimo" : "uvx marimo@latest";
-  const base = `${command} pair prompt --url '${remoteUrl}'`;
+function getPromptCommand(
+  agent: AgentTab,
+  url: string,
+  withToken: boolean,
+): string {
+  const tokenFlag = withToken ? " --with-token" : "";
+  const base = `${getMarimoCommand()} pair prompt --url '${url}'${tokenFlag}`;
   switch (agent) {
     case "claude":
       return `claude "$(${base} --claude)"`;
@@ -38,18 +38,44 @@ function getPromptCommand(agent: AgentTab, remoteUrl: string): string {
       return `codex "$(${base} --codex)"`;
     case "opencode":
       return `opencode "$(${base} --opencode)"`;
+    default:
+      assertNever(agent);
   }
 }
 
+function maskToken(token: string): string {
+  if (token.length <= 4) {
+    return "****";
+  }
+  return `${"*".repeat(Math.min(token.length - 4, 8))}${token.slice(-4)}`;
+}
+
 const SKILL_INSTALL = "npx skills add marimo-team/marimo-pair";
+
+function useAuthToken(): string | null {
+  const [token, setToken] = useState<string | null>(null);
+  useEffect(() => {
+    fetch(asRemoteURL("/auth/token").href, {
+      headers: API.headers(),
+    })
+      .then((res) =>
+        res.ok ? (res.json() as Promise<{ token: string | null }>) : null,
+      )
+      .then((data) => setToken(data?.token ?? null))
+      .catch(() => setToken(null));
+  }, []);
+  return token;
+}
 
 export const PairWithAgentModal: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<AgentTab>("claude");
-  const runtimeConfig = useAtomValue(runtimeConfigAtom);
-  const remoteUrl = buildRemoteUrl(runtimeConfig);
-  const promptCommand = getPromptCommand(activeTab, remoteUrl);
+  const runtimeManager = useRuntimeManager();
+  const authToken = useAuthToken();
+  const hasToken = Boolean(authToken);
+  const remoteUrl = runtimeManager.httpURL.toString();
+  const promptCommand = getPromptCommand(activeTab, remoteUrl, hasToken);
 
   return (
     <DialogContent className="sm:max-w-lg">
@@ -104,6 +130,15 @@ export const PairWithAgentModal: React.FC<{
             </TabsContent>
           </Tabs>
         </div>
+
+        {hasToken && authToken && (
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium">
+              3. Paste when prompted for token
+            </span>
+            <CommandBlock command={authToken} display={maskToken(authToken)} />
+          </div>
+        )}
       </div>
 
       <DialogFooter>
@@ -115,7 +150,10 @@ export const PairWithAgentModal: React.FC<{
   );
 };
 
-const CommandBlock: React.FC<{ command: string }> = ({ command }) => {
+const CommandBlock: React.FC<{ command: string; display?: string }> = ({
+  command,
+  display,
+}) => {
   const [copied, setCopied] = useState(false);
 
   const copy = Events.stopPropagation(async (e) => {
@@ -127,7 +165,9 @@ const CommandBlock: React.FC<{ command: string }> = ({ command }) => {
 
   return (
     <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 font-mono text-xs">
-      <code className="flex-1 select-all break-words">{command}</code>
+      <code className="flex-1 select-all break-words">
+        {display ?? command}
+      </code>
       <Tooltip content="Copied!" open={copied}>
         <Button onClick={copy} size="xs" variant="ghost">
           {copied ? (

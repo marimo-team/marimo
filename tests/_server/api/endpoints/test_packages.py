@@ -119,7 +119,7 @@ def test_add_package_failure(
     assert response.status_code == 200
     assert response.json() == {
         "success": False,
-        "error": "Failed to install test-package. See terminal for error logs.",  # noqa: E501
+        "error": "Failed to install test-package. See terminal for error logs.",
     }
 
 
@@ -135,7 +135,7 @@ def test_remove_package_failure(
     assert response.status_code == 200
     assert response.json() == {
         "success": False,
-        "error": "Failed to uninstall test-package. See terminal for error logs.",  # noqa: E501
+        "error": "Failed to uninstall test-package. See terminal for error logs.",
     }
 
 

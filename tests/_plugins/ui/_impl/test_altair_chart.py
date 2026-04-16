@@ -5,6 +5,7 @@ import datetime
 import io
 import json
 import sys
+import unittest.mock
 from contextlib import redirect_stderr
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
@@ -994,6 +995,62 @@ def test_get_binned_fields() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_binned_fields_with_tooltip_list() -> None:
+    """Test _get_binned_fields handles tooltip encoded as a list (#9167)."""
+    import altair as alt
+
+    # Tooltip as a list should not crash _get_binned_fields or _has_binning
+    spec = _parse_spec(
+        alt.Chart(pd.DataFrame({"x": range(10), "y": range(10)}))
+        .mark_point()
+        .encode(
+            x="x",
+            y="y",
+            tooltip=["x", "y"],
+        )
+    )
+    assert _get_binned_fields(spec) == {}
+    assert _has_binning(spec) is False
+
+    # Tooltip list with binned fields on other channels
+    spec_with_bins = _parse_spec(
+        alt.Chart(pd.DataFrame({"x": range(10), "y": range(10)}))
+        .mark_bar()
+        .encode(
+            x=alt.X("x", bin=True),
+            y="count()",
+            tooltip=["x", alt.Tooltip("y", format=".2f")],
+        )
+    )
+    binned = _get_binned_fields(spec_with_bins)
+    assert "x" in binned
+    assert _has_binning(spec_with_bins) is True
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_altair_chart_with_tooltip_list() -> None:
+    """Smoke test: altair_chart with tooltip list should not error (#9167)."""
+    import altair as alt
+
+    df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6], "c": ["x", "y", "z"]})
+    chart = (
+        alt.Chart(df)
+        .mark_arc()
+        .encode(
+            theta="a",
+            color="c",
+            tooltip=[
+                "c",
+                alt.Tooltip("a", format=".2f"),
+                alt.Tooltip("b", format="$.2f"),
+            ],
+        )
+    )
+    # This should not raise AttributeError
+    altair_chart(chart)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_has_geoshape() -> None:
     import altair as alt
 
@@ -1407,9 +1464,21 @@ def test_chart_with_url_data():
         .encode(x="Horsepower:Q", y="Miles_per_Gallon:Q")
     )
 
-    marimo_chart = altair_chart(chart)
-    assert isinstance(marimo_chart.dataframe, pl.DataFrame)
-    assert len(marimo_chart.dataframe) > 0
+    fake_payload = json.dumps(
+        [
+            {"Horsepower": 130, "Miles_per_Gallon": 18.0},
+            {"Horsepower": 165, "Miles_per_Gallon": 15.0},
+            {"Horsepower": 150, "Miles_per_Gallon": 18.0},
+        ]
+    ).encode("utf-8")
+
+    with unittest.mock.patch(
+        "urllib.request.urlopen",
+        return_value=io.BytesIO(fake_payload),
+    ):
+        marimo_chart = altair_chart(chart)
+        assert isinstance(marimo_chart.dataframe, pl.DataFrame)
+        assert len(marimo_chart.dataframe) > 0
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

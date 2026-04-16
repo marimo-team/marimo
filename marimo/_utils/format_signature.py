@@ -13,9 +13,7 @@ def format_signature(prefix: str, signature_text: str, width: int = 39) -> str:
     except ModuleNotFoundError:
         pass
 
-    if black_installed and (
-        prefix.startswith("class") or prefix.startswith("def")
-    ):
+    if black_installed and (prefix.startswith(("class", "def"))):
         # Coarse try-except because we're using internal black APIs;
         # many other well-established projects use these APIs, which
         # gives us at least a small amount of confidence in our use.
@@ -37,8 +35,7 @@ def format_signature(prefix: str, signature_text: str, width: int = 39) -> str:
                 formatted = formatted[:-5]
             elif formatted.endswith("..."):
                 formatted = formatted.rsplit("\n", 1)[0].rstrip()
-                if formatted.endswith(":"):
-                    formatted = formatted[:-1]
+                formatted = formatted.removesuffix(":")
             return formatted  # type: ignore[no-any-return]
         except Exception:
             pass

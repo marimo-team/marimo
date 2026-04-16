@@ -3,7 +3,6 @@
 import type { UIMessage } from "ai";
 import React, { Suspense } from "react";
 import { z } from "zod";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import { Arrays } from "@/utils/arrays";
@@ -73,23 +72,21 @@ export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
       .output(z.unknown()),
   })
   .renderer((props) => (
-    <TooltipProvider>
-      <Suspense>
-        <LazyChatbot
-          prompts={props.data.prompts}
-          showConfigurationControls={props.data.showConfigurationControls}
-          maxHeight={props.data.maxHeight}
-          allowAttachments={props.data.allowAttachments}
-          disabled={props.data.disabled}
-          config={props.data.config}
-          get_chat_history={props.functions.get_chat_history}
-          delete_chat_history={props.functions.delete_chat_history}
-          delete_chat_message={props.functions.delete_chat_message}
-          send_prompt={props.functions.send_prompt}
-          value={props.value?.messages || Arrays.EMPTY}
-          setValue={(messages) => props.setValue({ messages })}
-          host={props.host}
-        />
-      </Suspense>
-    </TooltipProvider>
+    <Suspense>
+      <LazyChatbot
+        prompts={props.data.prompts}
+        showConfigurationControls={props.data.showConfigurationControls}
+        maxHeight={props.data.maxHeight}
+        allowAttachments={props.data.allowAttachments}
+        disabled={props.data.disabled}
+        config={props.data.config}
+        get_chat_history={props.functions.get_chat_history}
+        delete_chat_history={props.functions.delete_chat_history}
+        delete_chat_message={props.functions.delete_chat_message}
+        send_prompt={props.functions.send_prompt}
+        value={props.value?.messages || Arrays.EMPTY}
+        setValue={(messages) => props.setValue({ messages })}
+        host={props.host}
+      />
+    </Suspense>
   ));

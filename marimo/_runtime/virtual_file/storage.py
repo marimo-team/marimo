@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 
 from marimo._utils.platform import is_pyodide
 
@@ -10,6 +10,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
 DEFAULT_CHUNK_SIZE = 256 * 1024  # 256KB
+
+VirtualFileStorageType = Literal["in_memory", "shared_memory"]
 
 if not is_pyodide():
     # the shared_memory module is not supported in the Pyodide distribution
@@ -247,7 +249,7 @@ class VirtualFileStorageManager:
     _instance: VirtualFileStorageManager | None = None
     _storage: VirtualFileStorage | None = None
 
-    def __new__(cls) -> VirtualFileStorageManager:
+    def __new__(cls) -> VirtualFileStorageManager:  # noqa: PYI034
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance

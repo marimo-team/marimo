@@ -4,7 +4,7 @@ from __future__ import annotations
 import functools
 import io
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import narwhals.stable.v2 as nw
 
@@ -29,6 +29,8 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 if TYPE_CHECKING:
     import pandas as pd
 
+    from marimo._plugins.ui._impl.table import SortArgs
+
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
@@ -40,6 +42,11 @@ def _trivial_range_index(index: pd.Index) -> bool:
 
     # A trivial index is an unnamed RangeIndex (0, 1, 2, ...)
     return isinstance(index, pd.RangeIndex) and index.name is None
+
+
+def _resolve_index_name(name: object, columns: set[str]) -> str:
+    """Return a non-conflicting index name by appending '_index' if needed."""
+    return f"{name}_index" if name in columns else str(name)
 
 
 def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
@@ -55,12 +62,8 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     if not conflicting_names:
         return df
 
-    new_names: list[str] = []
-    for name in index_names:
-        if name in conflicting_names:
-            new_names.append(f"{name}_index")
-        else:
-            new_names.append(str(name))
+    columns = set(df.columns)
+    new_names = [_resolve_index_name(name, columns) for name in index_names]
 
     if isinstance(df.index, pd.MultiIndex):
         df.index = df.index.set_names(new_names)
@@ -106,11 +109,56 @@ class PandasTableManagerFactory(TableManagerFactory):
             def schema(self) -> pd.Series[Any]:
                 return self._original_data.dtypes  # type: ignore
 
+            def sort_values(self, by: list[SortArgs]) -> TableManager[Any]:
+                if not by:
+                    return self
+
+                columns = [sort_arg.by for sort_arg in by]
+                descending = [sort_arg.descending for sort_arg in by]
+
+                # Object-dtype columns may contain mixed Python types
+                # (e.g. int + str) that can't be compared directly.
+                # Cast those to string via temp columns before sorting.
+                dtypes = self._original_data.dtypes
+                mixed_cols = [
+                    col for col in columns if dtypes[col] == "object"
+                ]
+
+                if not mixed_cols:
+                    return super().sort_values(by)
+
+                df = self.data
+                temp_cols: list[str] = []
+                sort_cols: list[str] = []
+                for col in columns:
+                    if col in mixed_cols:
+                        temp = f"__sort_{col}"
+                        # Preserve nulls so nulls_last=True works.
+                        # On pandas <3.0, cast(String) turns None
+                        # into the string "None" instead of null.
+                        df = df.with_columns(
+                            nw.when(nw.col(col).is_null())
+                            .then(None)
+                            .otherwise(nw.col(col).cast(nw.String))
+                            .alias(temp)
+                        )
+                        temp_cols.append(temp)
+                        sort_cols.append(temp)
+                    else:
+                        sort_cols.append(col)
+
+                df = df.sort(
+                    sort_cols,
+                    descending=descending,
+                    nulls_last=True,
+                ).drop(temp_cols)
+                return self.with_new_data(df)
+
             # We override narwhals's to_csv_str to handle pandas
             # headers
             def to_csv_str(
                 self,
-                format_mapping: Optional[FormatMapping] = None,
+                format_mapping: FormatMapping | None = None,
                 separator: str | None = None,
             ) -> str:
                 has_headers = len(self.get_row_headers()) > 0
@@ -125,7 +173,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
             def to_json_str(
                 self,
-                format_mapping: Optional[FormatMapping] = None,
+                format_mapping: FormatMapping | None = None,
                 strict_json: bool = False,
                 ensure_ascii: bool = True,
             ) -> str:
@@ -259,7 +307,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return out.getvalue()
 
             def apply_formatting(
-                self, format_mapping: Optional[FormatMapping]
+                self, format_mapping: FormatMapping | None
             ) -> PandasTableManager:
                 if not format_mapping:
                     return self
@@ -329,9 +377,16 @@ class PandasTableManagerFactory(TableManagerFactory):
             # We override the default implementation to use pandas
             # headers
             def get_row_headers(self) -> FieldTypes:
-                return self._get_row_headers_for_index(
+                headers = self._get_row_headers_for_index(
                     self._original_data.index
                 )
+                # Rename headers that collide with column names so the
+                # frontend receives names consistent with to_json_str().
+                columns = set(self._original_data.columns)
+                return [
+                    (_resolve_index_name(name, columns), ft)
+                    for name, ft in headers
+                ]
 
             def _has_non_trivial_index(self) -> bool:
                 """Check if the DataFrame has a non-trivial index that should be searched."""
@@ -417,9 +472,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 if lower_dtype.startswith("interval"):
                     return ("string", dtype)
-                if lower_dtype.startswith("int") or lower_dtype.startswith(
-                    "uint"
-                ):
+                if lower_dtype.startswith(("int", "uint")):
                     return ("integer", dtype)
                 if lower_dtype.startswith("float"):
                     return ("number", dtype)

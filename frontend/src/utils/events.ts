@@ -37,21 +37,20 @@ export const Events = {
    * Returns true if the event is coming from a text input
    */
   fromInput: (e: Pick<KeyboardEvent, "target">) => {
-    const target = e.target as HTMLElement;
+    const target = Events.composedTarget(e);
     return (
       target.tagName === "INPUT" ||
       target.tagName === "TEXTAREA" ||
       target.tagName.startsWith("MARIMO") ||
       target.isContentEditable ||
-      Events.fromCodeMirror(e)
+      Events.fromCodeMirror(target)
     );
   },
 
   /**
    * Returns true if the event is coming from a code editor.
    */
-  fromCodeMirror: (e: Pick<KeyboardEvent, "target">) => {
-    const target = e.target as HTMLElement;
+  fromCodeMirror: (target: HTMLElement) => {
     return target.closest(".cm-editor") !== null;
   },
 
@@ -60,18 +59,33 @@ export const Events = {
    * form element or code editor.
    */
   shouldIgnoreKeyboardEvent(e: KeyboardEvent) {
-    // Check for common form elements where keyboard shortcuts should be ignored
+    const target = Events.composedTarget(e);
     return (
-      e.target instanceof HTMLInputElement ||
-      e.target instanceof HTMLTextAreaElement ||
-      e.target instanceof HTMLSelectElement ||
-      (e.target instanceof HTMLElement &&
-        (e.target.isContentEditable ||
-          e.target.tagName === "BUTTON" ||
-          e.target.closest("[role='textbox']") !== null ||
-          e.target.closest("[contenteditable='true']") !== null ||
-          e.target.closest(".cm-editor") !== null)) // Add check for CodeMirror editor
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      (target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.tagName === "BUTTON" ||
+          target.closest("[role='textbox']") !== null ||
+          target.closest("[contenteditable='true']") !== null ||
+          Events.fromCodeMirror(target)))
     );
+  },
+
+  /**
+   * Resolve the real event target, piercing shadow DOM retargeting.
+   * Falls back to e.target for synthetic events (e.g. React Aria)
+   * that don't expose composedPath.
+   *
+   * Without this, e.target is the shadow host (e.g. <marimo-text>) rather than the
+   * real <input> inside it, so instanceof checks fail. (#4230)
+   */
+  composedTarget(e: Pick<Event, "target">): HTMLElement {
+    if ("composedPath" in e && typeof e.composedPath === "function") {
+      return (e.composedPath()[0] ?? e.target) as HTMLElement;
+    }
+    return e.target as HTMLElement;
   },
 
   hasModifier: (

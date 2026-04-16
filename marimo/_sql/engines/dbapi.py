@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from marimo import _loggers
 from marimo._sql.engines.types import QueryEngine
@@ -39,7 +39,7 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
             return "sql"
 
     def execute(
-        self, query: str, parameters: Optional[Sequence[Any]] = None
+        self, query: str, parameters: Sequence[Any] | None = None
     ) -> Any:
         sql_output_format = self.sql_output_format()
 
@@ -176,7 +176,7 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
             # Column info
             desc = getattr(cursor, "description", None)
             if desc:
-                cols: list[dict[str, Optional[Any]]] = []
+                cols: list[dict[str, Any | None]] = []
                 for col in desc:
                     # description tuple: (name, type_code, display_size, internal_size, precision, scale, null_ok)
                     name = col[0]

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
+    FilterCondition,
     FilterRowsTransform,
     Transformations,
 )
@@ -14,22 +15,29 @@ def test_parse_transforms() -> None:
             {
                 "type": "filter_rows",
                 "operation": "keep_rows",
-                "where": [
-                    {
-                        "column_id": "student",
-                        "operator": "is_false",
-                    },
-                    {
-                        "column_id": "age",
-                        "operator": "<=",
-                        "value": 20,
-                    },
-                    {
-                        "column_id": "email",
-                        "operator": "ends_with",
-                        "value": "@gmail.com",
-                    },
-                ],
+                "where": {
+                    "type": "group",
+                    "operator": "and",
+                    "children": [
+                        {
+                            "type": "condition",
+                            "column_id": "student",
+                            "operator": "is_false",
+                        },
+                        {
+                            "type": "condition",
+                            "column_id": "age",
+                            "operator": "<=",
+                            "value": 20,
+                        },
+                        {
+                            "type": "condition",
+                            "column_id": "email",
+                            "operator": "ends_with",
+                            "value": "@gmail.com",
+                        },
+                    ],
+                },
             },
         ]
     }
@@ -44,13 +52,18 @@ def test_parse_transforms_with_in_operator() -> None:
                 {
                     "type": "filter_rows",
                     "operation": "keep_rows",
-                    "where": [
-                        {
-                            "column_id": "category",
-                            "operator": operator,
-                            "value": ["A", "B", "C"],
-                        },
-                    ],
+                    "where": {
+                        "type": "group",
+                        "operator": "and",
+                        "children": [
+                            {
+                                "type": "condition",
+                                "column_id": "category",
+                                "operator": operator,
+                                "value": ["A", "B", "C"],
+                            },
+                        ],
+                    },
                 },
             ]
         }
@@ -59,7 +72,8 @@ def test_parse_transforms_with_in_operator() -> None:
         value = create_transform(operator)
         result = parse_raw(value, Transformations)
         assert isinstance(result, Transformations)
-        # Verify the value is converted to tuple for hashability
         transform = result.transforms[0]
         assert isinstance(transform, FilterRowsTransform)
-        assert transform.where[0].value == ("A", "B", "C")
+        condition = transform.where.children[0]
+        assert isinstance(condition, FilterCondition)
+        assert condition.value == ("A", "B", "C")

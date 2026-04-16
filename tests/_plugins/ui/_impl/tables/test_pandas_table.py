@@ -181,7 +181,7 @@ class TestPandasTableManager(unittest.TestCase):
                 ),
                 "nulls": pd.Series([None, "data", None]),
                 "category": pd.Categorical(["cat", "dog", "mouse"]),
-                "set": [set([1, 2]), set([3, 4]), set([5, 6])],
+                "set": [{1, 2}, {3, 4}, {5, 6}],
                 "imaginary": [1 + 2j, 3 + 4j, 5 + 6j],
                 "time": [
                     datetime.time(12, 30),
@@ -652,6 +652,40 @@ class TestPandasTableManager(unittest.TestCase):
             [("X", ("string", "str")), ("Y", ("integer", "int64"))],
         ]
 
+    def test_get_row_headers_index_column_name_conflict(self) -> None:
+        data = pd.DataFrame(
+            {"ID_SOMETHING": [1, 2], "ID_DATE": [3, 4]},
+            index=pd.Index(["2026-04-01", "2026-04-02"], name="ID_DATE"),
+        )
+        manager = self.factory.create()(data)
+        headers = manager.get_row_headers()
+        # Index renamed to avoid collision with column of the same name
+        header_names = [h[0] for h in headers]
+        assert header_names == ["ID_DATE_index"]
+
+    def test_get_row_headers_multi_index_partial_conflict(self) -> None:
+        data = pd.DataFrame(
+            {"x": [1, 2, 3], "y": [4, 5, 6]},
+            index=pd.MultiIndex.from_tuples(
+                [(1, 4), (2, 5), (3, 6)], names=["x", "z"]
+            ),
+        )
+        manager = self.factory.create()(data)
+        headers = manager.get_row_headers()
+        # Only the conflicting level is renamed
+        header_names = [h[0] for h in headers]
+        assert header_names == ["x_index", "z"]
+
+    def test_get_row_headers_no_conflict(self) -> None:
+        data = pd.DataFrame(
+            {"A": [1, 2, 3]},
+            index=pd.Index(["a", "b", "c"], name="idx"),
+        )
+        manager = self.factory.create()(data)
+        headers = manager.get_row_headers()
+        header_names = [h[0] for h in headers]
+        assert header_names == ["idx"]
+
     def test_is_type(self) -> None:
         assert self.manager.is_type(self.data)
         assert not self.manager.is_type("not a dataframe")
@@ -688,7 +722,7 @@ class TestPandasTableManager(unittest.TestCase):
                 "D": [True, False, True],
                 "E": [1 + 2j, 3 + 4j, 5 + 6j],
                 "F": [None, None, None],
-                "G": [set([1, 2]), set([3, 4]), set([5, 6])],
+                "G": [{1, 2}, {3, 4}, {5, 6}],
                 "H": [
                     pd.Timestamp("2021-01-01"),
                     pd.Timestamp("2021-01-02"),
@@ -1617,6 +1651,46 @@ class TestPandasTableManager(unittest.TestCase):
         ]
         last = sorted_manager.data["A"][-1]
         assert last is None or isnan(last)
+
+    def test_sort_values_with_mixed_types(self) -> None:
+        """Sorting a column with mixed types (int, str, float, bool, None)
+        should not raise, falling back to string comparison."""
+        df = pd.DataFrame(
+            {
+                "mixed": [42, "hello", 3.14, True, None, "world", 7],
+                "normal": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
+            }
+        )
+        manager = self.factory.create()(df)
+
+        # descending
+        sorted_manager = manager.sort_values(
+            [SortArgs(by="mixed", descending=True)]
+        )
+        assert sorted_manager.get_num_rows() == 7
+        values = sorted_manager.data["mixed"].to_list()
+        assert values[-1] is None or (
+            isinstance(values[-1], float) and isnan(values[-1])
+        )
+
+        # ascending
+        sorted_manager = manager.sort_values(
+            [SortArgs(by="mixed", descending=False)]
+        )
+        assert sorted_manager.get_num_rows() == 7
+        values = sorted_manager.data["mixed"].to_list()
+        assert values[-1] is None or (
+            isinstance(values[-1], float) and isnan(values[-1])
+        )
+
+        # multi-column sort with one mixed column
+        sorted_manager = manager.sort_values(
+            [
+                SortArgs(by="mixed", descending=False),
+                SortArgs(by="normal", descending=False),
+            ]
+        )
+        assert sorted_manager.get_num_rows() == 7
 
     def test_dataframe_with_multiindex(self) -> None:
         df = pd.DataFrame(

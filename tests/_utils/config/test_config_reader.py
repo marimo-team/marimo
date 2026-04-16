@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo._utils.config.config import ConfigReader
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class TestConfig:
     __test__ = False
     value: str
-    nullable_value: Optional[str] = None
+    nullable_value: str | None = None
 
 
 def test_read_toml_invalid_syntax(tmp_path: Path) -> None:

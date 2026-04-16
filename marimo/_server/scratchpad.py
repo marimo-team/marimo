@@ -79,6 +79,13 @@ class ScratchCellListener(EventAwareExtension):
     Supports both SSE streaming (via ``stream()``) and simple blocking
     wait (via ``wait()``) so the same listener works for the HTTP
     ``/execute`` endpoint and the MCP ``execute_code`` tool.
+
+    In addition to the scratch cell's own output, the listener captures
+    console output (stdout/stderr) from *other* cells that execute while
+    the scratchpad is active — e.g. cells created and run by
+    ``_code_mode``.  Only the scratch cell's ``idle`` status triggers
+    the done sentinel; non-scratch notifications are streamed but never
+    signal completion.
     """
 
     def __init__(self) -> None:
@@ -93,11 +100,15 @@ class ScratchCellListener(EventAwareExtension):
         msg = deserialize_kernel_message(notification)
         if not isinstance(msg, CellNotification):
             return
-        if msg.cell_id != SCRATCH_CELL_ID:
-            return
-        self._queue.put_nowait(msg)
-        if msg.status == "idle":
-            self._queue.put_nowait(None)  # sentinel
+
+        if msg.cell_id == SCRATCH_CELL_ID:
+            self._queue.put_nowait(msg)
+            if msg.status == "idle":
+                self._queue.put_nowait(None)  # sentinel
+        elif msg.console is not None:
+            # Stream console output from cells run by _code_mode
+            # during this scratchpad execution.
+            self._queue.put_nowait(msg)
 
     async def stream(self) -> AsyncGenerator[str, None]:
         """Yield SSE-formatted stdout/stderr events until execution completes.

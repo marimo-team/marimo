@@ -1,10 +1,10 @@
 [build-system]
-requires = ["uv_build>=0.8.3,<0.11.0"]
+requires = ["uv_build>=0.8.3,<0.12.0"]
 build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.22.0"
+version = "0.23.1"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments; we need a very compelling reason for each dependency added.
@@ -54,11 +54,10 @@ dependencies = [
     "pyzmq>=27.1.0; python_version < '3.15'",
 ]
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "Apache-2.0"
 requires-python = ">=3.10"
 classifiers = [
     "Operating System :: OS Independent",
-    "License :: OSI Approved :: Apache Software License",
     "Environment :: Console",
     "Environment :: Web Environment",
     "Intended Audience :: Developers",
@@ -129,7 +128,7 @@ dev = [
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
     # For linting
-    "ruff>=0.14.0,<0.15.2", # TODO: remove upper bound once we fix the ruff issues
+    "ruff>=0.15.9",
     # For AI
     "pydantic-ai-slim[openai]>=1.71.0",
 ]
@@ -252,7 +251,7 @@ typecheck = [
 
 docs = [
     "marimo_docs",
-    "ruff>=0.14.0,<0.15.2", # TODO: remove upper bound once we fix the ruff issues
+    "ruff>=0.15.9",
     "mkdocs>=1.6.1",
     # Live reloading broken in >= 9.6.21: https://github.com/squidfunk/mkdocs-material/issues/8478
     "mkdocs-material==9.6.20",
@@ -287,7 +286,7 @@ wheel-exclude = ["marimo/_smoke_tests/**"]
 
 [tool.ruff]
 line-length = 79
-target-version = "py39"
+target-version = "py310"
 include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py"]
 exclude = [
     "build",
@@ -326,9 +325,51 @@ ignore = [
     "E501",  # Line too long, we still trim
     "D415", # First line should end with a period, question mark, or exclamation point
     "FA102", # Use `from __future__ import annotations`
-    "UP007", # Use X | Y for type annotations, wasn't supported in 3.9
-    "UP045", # Use X | None for optional type annotations, wasn't supported in 3.9
+    "PLR1711", # Useless returns. We use this currently to delimit the end of a cell.
+
+    # From new version of Ruff: We should fix these, but it raises too many errors
+    "BLE001", # Do not catch blind exception: `Exception`
+    "RUF059", # Unused unpacked variable
+    "DTZ001", # `datetime.datetime()` called without a `tzinfo` argument
+    "PLW1510", # `subprocess.run` without explicit `check`
+    "S110", # `try`-`except`-`pass`
+    "TRY004", # Type check without `TypeError`
+    "SIM102", # Use a single `if` statement instead of nested `if` statements
+    "SIM117", # Use a single `with` statement with multiple contexts instead of nested `with` statements
+    "RUF012", # Mutable class default
+    "S102", # Use of `exec`
+    "PYI036", # Bad `sys.exit` annotation
+    "DTZ005", # `datetime.now()` called without `tzinfo`
+    "PLC0206", # Dict index without `.items()`
+    "PYI066", # Put branches for newer Python versions first when branching on `sys.version_info` comparisons
+    "SIM115", # Open file without context handler
+    "DTZ006", # `datetime.fromtimestamp()` called without `tzinfo`
+    "DTZ007", # `datetime.strptime()` called without zone
+    "DTZ011", # `date.today()` used
+    "TRY401", # Verbose log message
+    "UP007", # Use `X | Y` for type annotations
+    "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
+    "DTZ901", # `datetime.min` / `datetime.max` used
+    "PLW0602", # Global variable not assigned
+    "S112", # `try`-`except`-`continue`
+    "TRY203", # Useless `try`-`except`
+    "PLC0105", # Type name incorrect variance
+    "PLE1205", # Logging too many args
+    "PLW1508", # Invalid envvar default
+    "PLW1509", # `subprocess` `preexec_fn` argument
+    "PYI063", # PEP 484-style positional-only parameter
+    "DTZ002", # `datetime.today()` called without tz
+    "PLC0205", # Single string `__slots__`
+    "PLE0704", # Misplaced bare `raise`
+    "PLR1704", # Redefined argument from local
+    "PLW0129", # Assert on string literal
+    "PLW0642", # Self or cls assignment
+    "PYI006", # Bad `sys.version_info` comparison
+    "SIM113", # `enumerate` for loop
+    "T100", # Debugger
+    "UP045", # Use `X | None` for optional type annotations
 ]
+
 extend-select = [
     # pyflakes
     "F",
@@ -395,15 +436,14 @@ extend-select = [
     "UP",  # Upgrades
 ]
 
-# Never try to fix `F401` (unused imports).
-unfixable = ["F401"]
-
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "dagger/*" = ["TID252"]
+# Prefer multi-line "\n".join([...]) expected strings in codegen tests.
+"tests/_ast/test_codegen.py" = ["FLY002"]
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]

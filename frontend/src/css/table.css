@@ -17,6 +17,10 @@
   padding-right: var(--marimo-table-edge-padding, 0.375rem);
 }
 
+[part="label"] {
+  padding-left: var(--marimo-table-edge-padding, 0);
+}
+
 .markdown table,
 table.dataframe {
   display: block;

@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Final, Optional
+from typing import TYPE_CHECKING, Any, Final
 
 import marimo._output.data.data as mo_data
 from marimo._dependencies.dependencies import DependencyManager
@@ -10,6 +10,8 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from narwhals.typing import IntoDataFrame
 
 
@@ -45,14 +47,14 @@ class data_explorer(UIElement[dict[str, Any], dict[str, Any]]):
     def __init__(
         self,
         df: IntoDataFrame,
-        on_change: Optional[Callable[[dict[str, Any]], None]] = None,
-        x: Optional[str] = None,
-        y: Optional[str] = None,
-        row: Optional[str] = None,
-        column: Optional[str] = None,
-        color: Optional[str] = None,
-        size: Optional[str] = None,
-        shape: Optional[str] = None,
+        on_change: Callable[[dict[str, Any]], None] | None = None,
+        x: str | None = None,
+        y: str | None = None,
+        row: str | None = None,
+        column: str | None = None,
+        color: str | None = None,
+        size: str | None = None,
+        shape: str | None = None,
     ) -> None:
         # Drop the index since empty column names break the data explorer
         df_no_idx = _drop_index(df)
@@ -60,15 +62,15 @@ class data_explorer(UIElement[dict[str, Any], dict[str, Any]]):
 
         manager = get_table_manager(df_no_idx)
 
-        encoding_fields = dict(
-            x=x,
-            y=y,
-            row=row,
-            column=column,
-            color=color,
-            size=size,
-            shape=shape,
-        )
+        encoding_fields = {
+            "x": x,
+            "y": y,
+            "row": row,
+            "column": column,
+            "color": color,
+            "size": size,
+            "shape": shape,
+        }
 
         # Create ChartSpec structure for frontend
         initial_value: dict[str, Any] = {

@@ -240,6 +240,33 @@ describe("wrapTooltipTargets", () => {
       </p>
     `);
   });
+
+  test("data-tooltip on marimo custom elements is not wrapped", () => {
+    const html =
+      '<marimo-button data-tooltip="&quot;Run clicky&quot;">click</marimo-button>';
+    expect(parseHtml({ html })).toMatchInlineSnapshot(`
+      <marimo-button
+        data-tooltip=""Run clicky""
+      >
+        click
+      </marimo-button>
+    `);
+  });
+
+  test("data-tooltip on non-marimo custom elements is still wrapped", () => {
+    const html = '<my-widget data-tooltip="info">content</my-widget>';
+    expect(parseHtml({ html })).toMatchInlineSnapshot(`
+      <Tooltip
+        content="info"
+      >
+        <my-widget
+          data-tooltip="info"
+        >
+          content
+        </my-widget>
+      </Tooltip>
+    `);
+  });
 });
 
 describe("parseHtml with < nad >", () => {

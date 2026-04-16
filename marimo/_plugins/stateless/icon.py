@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
@@ -13,14 +13,13 @@ from marimo._output.utils import create_style
 def icon(
     icon_name: str,
     *,
-    size: Optional[int] = None,
-    color: Optional[str] = None,
+    size: int | None = None,
+    color: str | None = None,
     inline: bool = True,
-    flip: Optional[
-        Literal["horizontal", "vertical", "horizontal,vertical"]
-    ] = None,
-    rotate: Optional[Literal["90deg", "180deg", "270deg"]] = None,
-    style: Optional[dict[str, Union[str, int, float, None]]] = None,
+    flip: Literal["horizontal", "vertical", "horizontal,vertical"]
+    | None = None,
+    rotate: Literal["90deg", "180deg", "270deg"] | None = None,
+    style: dict[str, str | int | float | None] | None = None,
 ) -> Html:
     """Displays an icon. These icons are referenced by name from the
     [Iconify](https://iconify.design/) library.
@@ -77,7 +76,7 @@ def icon(
     )
 
 
-def _space_to_string(value: Union[str, int, float, None]) -> Optional[str]:
+def _space_to_string(value: str | float | None) -> str | None:
     if value is None:
         return None
     if isinstance(value, str):

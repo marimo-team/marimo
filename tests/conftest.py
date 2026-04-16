@@ -262,7 +262,11 @@ class MockedKernel:
             stream=self.stream,  # type: ignore
             stdout=self.stdout,  # type: ignore
             stderr=self.stderr,  # type: ignore
-            virtual_files_supported=True,
+            virtual_file_storage=(
+                "shared_memory"
+                if self.session_mode == SessionMode.EDIT
+                else "in_memory"
+            ),
             mode=self.session_mode,
         )
 
@@ -338,6 +342,17 @@ def executing_kernel() -> Generator[Kernel, None, None]:
     with mocked.k._install_execution_context(cell_id="0"):
         yield mocked.k
     mocked.teardown()
+
+
+@pytest.fixture(scope="session")
+def default_snippets():
+    """Read all default snippets once per test session."""
+    import asyncio
+
+    from marimo._config.config import merge_default_config
+    from marimo._snippets.snippets import read_snippets
+
+    return asyncio.run(read_snippets(merge_default_config({})))
 
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
@@ -432,7 +447,7 @@ def app() -> Generator[App, None, None]:
 class TestableModuleStub(ModuleStub):
     __test__ = False
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         # Used for testing, equality otherwise not useful.
         if not isinstance(other, ModuleStub):
             return False
@@ -487,14 +502,13 @@ def pytest_make_collect_report(collector):
     }[collector.path.stem]
 
     # Just a quick check to make sure the class is actually exported.
-    if app == app_pytest:
-        if len(classes) == 0:
-            report.outcome = "failed"
-            report.longrepr = (
-                f"Expected class in {collector.path}, found none "
-                " (tests/conftest.py)."
-            )
-            return report
+    if app == app_pytest and len(classes) == 0:
+        report.outcome = "failed"
+        report.longrepr = (
+            f"Expected class in {collector.path}, found none "
+            " (tests/conftest.py)."
+        )
+        return report
     for cls in classes:
         if not (
             cls.startswith("MarimoTestBlock")

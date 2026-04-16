@@ -23,13 +23,13 @@ FORMATTING_RULE_CODES: dict[str, type[LintRule]] = {
 }
 
 __all__ = [
-    "GeneralFormattingRule",
     "FORMATTING_RULE_CODES",
-    "StdoutRule",
-    "StderrRule",
     "EmptyCellRule",
-    "SqlParseRule",
-    "MiscLogRule",
+    "GeneralFormattingRule",
     "MarkdownDedentRule",
+    "MiscLogRule",
+    "SqlParseRule",
+    "StderrRule",
+    "StdoutRule",
     "UnsafeFixRule",
 ]

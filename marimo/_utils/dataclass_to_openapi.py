@@ -246,11 +246,11 @@ class PythonTypeToOpenAPI:
             cls (Any): The dataclass type or instance to convert.
             processed_classes (Dict[Any, str]): A dictionary of processed classes.
 
-        Raises:
-            ValueError: If cls is not a dataclass.
-
         Returns:
             Dict[str, Any]: The OpenAPI schema.
+
+        Raises:
+            ValueError: If cls is not a dataclass.
         """
         # If cls is an instance, get its class
         if not isinstance(cls, type) and dataclasses.is_dataclass(cls):

@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from marimo._utils.toml import toml_reader
 
@@ -71,7 +71,7 @@ def infer_package_manager() -> PackageManagerKind:
 
 def infer_package_manager_from_pyproject(
     pyproject_toml: Path,
-) -> Optional[PackageManagerKind]:
+) -> PackageManagerKind | None:
     """Infer the package manager from a pyproject.toml file."""
     try:
         data = toml_reader.read(pyproject_toml)
@@ -98,7 +98,7 @@ def infer_package_manager_from_pyproject(
 
 def infer_package_manager_from_lockfile(
     root_dir: Path,
-) -> Optional[PackageManagerKind]:
+) -> PackageManagerKind | None:
     """Infer the package manager from a lockfile."""
     lockfile_map: dict[str, PackageManagerKind] = {
         "poetry.lock": "poetry",

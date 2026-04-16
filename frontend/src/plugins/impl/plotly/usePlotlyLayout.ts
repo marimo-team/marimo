@@ -3,7 +3,7 @@
 import { usePrevious } from "@uidotdev/usehooks";
 import { dequal as isEqual } from "dequal";
 import type * as Plotly from "plotly.js";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Objects } from "@/utils/objects";
 import type { Figure } from "./Plot";
 
@@ -40,17 +40,45 @@ export function createInitialLayout(figure: Figure): Partial<Plotly.Layout> {
 }
 
 /**
+ * Returns true if two figures have compatible trace types.
+ * When traces are incompatible (different types, count, or order), axis settings
+ * from the old figure should not be preserved as they would distort the
+ * new chart. See https://github.com/marimo-team/marimo/issues/5898
+ */
+export function hasCompatibleTraces(prev: Figure, next: Figure): boolean {
+  if (prev.data.length !== next.data.length) {
+    return false;
+  }
+  return prev.data.every(
+    (trace, i) =>
+      (trace.type ?? "scatter") === (next.data[i]?.type ?? "scatter"),
+  );
+}
+
+/**
  * Computes the updated layout when the figure changes.
  * Preserves user-interaction values (dragmode, xaxis, yaxis) while
  * taking everything else from the new figure's layout.
+ *
+ * When trace types change, only dragmode is preserved — axis settings
+ * are reset to let Plotly auto-compute ranges for the new chart type.
  */
 export function computeLayoutOnFigureChange(
   nextFigure: Figure,
+  prevFigure: Figure,
   prevLayout: Partial<Plotly.Layout>,
 ): Partial<Plotly.Layout> {
+  const base = createInitialLayout(nextFigure);
+  if (hasCompatibleTraces(prevFigure, nextFigure)) {
+    return {
+      ...base,
+      ...Objects.pick(prevLayout, PERSISTED_LAYOUT_KEYS),
+    };
+  }
+  // Incompatible traces — only preserve dragmode, not axis settings
   return {
-    ...createInitialLayout(nextFigure),
-    ...Objects.pick(prevLayout, PERSISTED_LAYOUT_KEYS),
+    ...base,
+    ...("dragmode" in prevLayout ? { dragmode: prevLayout.dragmode } : {}),
   };
 }
 
@@ -121,6 +149,9 @@ export function usePlotlyLayout({
     return structuredClone(originalFigure);
   });
 
+  // Track the previous figure to detect trace type changes
+  const prevFigureRef = useRef(figure);
+
   const [layout, setLayout] = useState<Partial<Plotly.Layout>>(() => {
     return {
       ...createInitialLayout(figure),
@@ -132,12 +163,15 @@ export function usePlotlyLayout({
   // Update figure and layout when originalFigure changes
   useEffect(() => {
     const nextFigure = structuredClone(originalFigure);
+    const prevFig = prevFigureRef.current;
+    prevFigureRef.current = nextFigure;
     setFigure(nextFigure);
     // Start with the new figure's layout, then only preserve user-interaction
     // values (dragmode, xaxis, yaxis) from the previous layout.
     // We don't want to preserve other properties like `shapes` from the previous
     // layout, as they should be fully controlled by the figure prop.
-    setLayout((prev) => computeLayoutOnFigureChange(nextFigure, prev));
+    // When trace types change, axis settings are reset to avoid distortion (#5898).
+    setLayout((prev) => computeLayoutOnFigureChange(nextFigure, prevFig, prev));
   }, [originalFigure, isScriptLoaded]);
 
   const prevFigure = usePrevious(figure) ?? figure;

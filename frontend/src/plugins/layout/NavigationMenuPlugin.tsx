@@ -11,7 +11,7 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip } from "@/components/ui/tooltip";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { cn } from "@/utils/cn";
 import { appendQueryParams } from "@/utils/urls";
@@ -67,11 +67,7 @@ export class NavigationMenuPlugin implements IStatelessPlugin<Data> {
   });
 
   render(props: IStatelessPluginProps<Data>): JSX.Element {
-    return (
-      <TooltipProvider>
-        <NavMenuComponent {...props.data} />
-      </TooltipProvider>
-    );
+    return <NavMenuComponent {...props.data} />;
   }
 }
 

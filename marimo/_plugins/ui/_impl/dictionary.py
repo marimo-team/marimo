@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo._output.formatters.structures import format_structure
 from marimo._output.hypertext import Html
@@ -10,6 +10,9 @@ from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.json_output import json_output
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.batch import _batch_base, validate_and_clone
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @mddoc
@@ -100,7 +103,7 @@ class dictionary(_batch_base):
         elements: dict[str, UIElement[Any, Any]],
         *,
         label: str = "",
-        on_change: Optional[Callable[[dict[str, object]], None]] = None,
+        on_change: Callable[[dict[str, object]], None] | None = None,
     ) -> None:
         # Why we clone the wrapped elements:
         #

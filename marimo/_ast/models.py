@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from marimo._ast.cell import Cell, CellConfig
 from marimo._types.ids import CellId_t
@@ -27,4 +26,4 @@ class CellData:
     code: str
     name: str
     config: CellConfig
-    cell: Optional[Cell]
+    cell: Cell | None

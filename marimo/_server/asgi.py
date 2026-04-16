@@ -4,15 +4,13 @@ from __future__ import annotations
 import abc
 import logging
 from asyncio import iscoroutine
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from functools import partial
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
-    Callable,
-    Optional,
     Protocol,
-    Union,
+    cast,
 )
 
 if TYPE_CHECKING:
@@ -38,7 +36,7 @@ class ASGIAppBuilder(abc.ABC):
         *,
         path: str,
         root: str,
-        middleware: Optional[list[MiddlewareFactory]] = None,
+        middleware: list[MiddlewareFactory] | None = None,
     ) -> ASGIAppBuilder:
         """
         Adds a static application to the ASGI app at the specified path.
@@ -51,7 +49,6 @@ class ASGIAppBuilder(abc.ABC):
         Returns:
             ASGIAppBuilder: The builder instance for chaining.
         """
-        pass
 
     @abc.abstractmethod
     def with_dynamic_directory(
@@ -59,8 +56,8 @@ class ASGIAppBuilder(abc.ABC):
         *,
         path: str,
         directory: str,
-        validate_callback: Optional[ValidateCallback] = None,
-        middleware: Optional[list[MiddlewareFactory]] = None,
+        validate_callback: ValidateCallback | None = None,
+        middleware: list[MiddlewareFactory] | None = None,
     ) -> ASGIAppBuilder:
         """
         Adds a dynamic directory to the ASGI app, allowing for dynamic loading of applications from the specified directory.
@@ -79,7 +76,6 @@ class ASGIAppBuilder(abc.ABC):
         Returns:
             ASGIAppBuilder: The builder instance for chaining.
         """
-        pass
 
     @abc.abstractmethod
     def build(self) -> ASGIApp:
@@ -89,12 +85,9 @@ class ASGIAppBuilder(abc.ABC):
         Returns:
             ASGIApp: The built ASGI application.
         """
-        pass
 
 
-ValidateCallback: TypeAlias = Callable[
-    [str, "Scope"], Union[Awaitable[bool], bool]
-]
+ValidateCallback: TypeAlias = Callable[[str, "Scope"], Awaitable[bool] | bool]
 
 
 class DynamicDirectoryMiddleware:
@@ -104,7 +97,7 @@ class DynamicDirectoryMiddleware:
         base_path: str,
         directory: str,
         app_builder: Callable[[str, str], ASGIApp],
-        validate_callback: Optional[ValidateCallback] = None,
+        validate_callback: ValidateCallback | None = None,
     ) -> None:
         self.app = app
         self.base_path = base_path.rstrip("/")
@@ -115,6 +108,14 @@ class DynamicDirectoryMiddleware:
                 "Using path='/' or path='' is not supported."
             )
         self.directory = Path(directory)
+        # Precompute the resolved directory so we don't hit the filesystem
+        # on every request. Fall back to an absolute path if resolve()
+        # fails (e.g., broken symlink), so the middleware still starts
+        # and per-request checks can handle resolution errors.
+        try:
+            self._resolved_directory = self.directory.resolve()
+        except (RuntimeError, OSError):
+            self._resolved_directory = self.directory.absolute()
         self.app_builder = app_builder
         self._app_cache: dict[str, ASGIApp] = {}
         self.validate_callback = validate_callback
@@ -142,16 +143,35 @@ class DynamicDirectoryMiddleware:
         LOGGER.debug(f"Redirecting to: {redirect_url}")
         return RedirectResponse(url=redirect_url, status_code=307)
 
+    def _is_within_directory(self, path: Path) -> bool:
+        """Check that path resolves to a location within self.directory."""
+        try:
+            path.resolve().relative_to(self._resolved_directory)
+            return True
+        except (ValueError, RuntimeError, OSError):
+            return False
+
     def _find_matching_file(
         self, relative_path: str
-    ) -> Optional[tuple[Path, str]]:
+    ) -> tuple[Path, str] | None:
         """Find a matching Python file in the directory structure.
         Returns tuple of (matching file, remaining path) if found, None otherwise.
         """
+        # Reject path traversal segments. Normalize "\" to "/" so the check
+        # also catches backslash segments, which Windows treats as path
+        # separators (e.g. "..\\secret" via %5C in the URL).
+        segments = relative_path.replace("\\", "/").split("/")
+        if ".." in segments:
+            return None
+
         # Try direct match first, skip if relative path has an extension
         if not Path(relative_path).suffix:
             direct_match = self.directory / f"{relative_path}.py"
-            if not direct_match.name.startswith("_") and direct_match.exists():
+            if (
+                not direct_match.name.startswith("_")
+                and self._is_within_directory(direct_match)
+                and direct_match.exists()
+            ):
                 return (direct_match, "")
 
         # Try nested path by progressively checking each part
@@ -166,6 +186,7 @@ class DynamicDirectoryMiddleware:
             if (
                 cache_key in self._app_cache
                 and not potential_path.name.startswith("_")
+                and self._is_within_directory(potential_path)
             ):
                 return (potential_path.with_suffix(".py"), "/".join(remaining))
 
@@ -335,12 +356,13 @@ def create_asgi_app(
     *,
     quiet: bool = False,
     include_code: bool = False,
-    token: Optional[str] = None,
+    token: str | None = None,
     skew_protection: bool = False,
     session_ttl: int = 120,
-    asset_url: Optional[str] = None,
+    asset_url: str | None = None,
     redirect_console_to_browser: bool = False,
-    html_head: Optional[str] = None,
+    show_tracebacks: bool = False,
+    html_head: str | None = None,
 ) -> ASGIAppBuilder:
     """Public API to create an ASGI app that can serve multiple notebooks.
     This only works for application that are in Run mode.
@@ -357,6 +379,8 @@ def create_asgi_app(
             e.g. https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{version}/dist
         redirect_console_to_browser (bool, optional): Whether to redirect console output (stdout/stderr) to the browser.
             When True, console output will be displayed in the browser. Defaults to False.
+        show_tracebacks (bool, optional): Whether to show detailed error tracebacks in a modal.
+            When True, exceptions will display a clickable toast that opens a modal with the full traceback. Defaults to False.
         html_head (str, optional): Custom HTML string to inject into the <head> of every notebook page.
             This is useful for adding global analytics scripts, custom stylesheets, meta tags, etc.
             When a notebook also has its own `html_head_file` config, the global `html_head` is injected first,
@@ -436,8 +460,9 @@ def create_asgi_app(
     from starlette.applications import Starlette
     from starlette.responses import RedirectResponse
 
-    import marimo._server.api.lifespans as lifespans
+    from marimo._config.config import PartialMarimoConfig
     from marimo._config.manager import get_default_config_manager
+    from marimo._server.api import lifespans
     from marimo._server.file_router import AppFileRouter
     from marimo._server.lsp import NoopLspServer
     from marimo._server.main import create_starlette_app
@@ -473,14 +498,14 @@ def create_asgi_app(
     class Builder(ASGIAppBuilder):
         def __init__(self) -> None:
             self._mount_configs: list[
-                tuple[str, str, Optional[list[MiddlewareFactory]]]
+                tuple[str, str, list[MiddlewareFactory] | None]
             ] = []
             self._dynamic_directory_configs: list[
                 tuple[
                     str,
                     str,
-                    Optional[ValidateCallback],
-                    Optional[list[MiddlewareFactory]],
+                    ValidateCallback | None,
+                    list[MiddlewareFactory] | None,
                 ]
             ] = []
             self._app_cache: dict[str, ASGIApp] = {}
@@ -490,7 +515,7 @@ def create_asgi_app(
             *,
             path: str,
             root: str,
-            middleware: Optional[list[MiddlewareFactory]] = None,
+            middleware: list[MiddlewareFactory] | None = None,
         ) -> ASGIAppBuilder:
             self._mount_configs.append((path, root, middleware))
             return self
@@ -500,8 +525,8 @@ def create_asgi_app(
             *,
             path: str,
             directory: str,
-            validate_callback: Optional[ValidateCallback] = None,
-            middleware: Optional[list[MiddlewareFactory]] = None,
+            validate_callback: ValidateCallback | None = None,
+            middleware: list[MiddlewareFactory] | None = None,
         ) -> ASGIAppBuilder:
             self._dynamic_directory_configs.append(
                 (path, directory, validate_callback, middleware)
@@ -510,6 +535,14 @@ def create_asgi_app(
 
         @staticmethod
         def _create_app_for_file(base_url: str, file_path: str) -> ASGIApp:
+            # Apply runtime config override for show_tracebacks
+            app_config_reader = config_reader.with_overrides(
+                cast(
+                    PartialMarimoConfig,
+                    {"runtime": {"show_tracebacks": show_tracebacks}},
+                )
+            )
+
             session_manager = SessionManager(
                 file_router=AppFileRouter.from_filename(MarimoPath(file_path)),
                 mode=SessionMode.RUN,
@@ -518,7 +551,7 @@ def create_asgi_app(
                 # Currently we only support run mode,
                 # which doesn't require an LSP server
                 lsp_server=NoopLspServer(),
-                config_manager=config_reader,
+                config_manager=app_config_reader,
                 # We don't pass any CLI args for now
                 # since we don't want to read arbitrary args and apply them
                 # to each application
@@ -549,7 +582,7 @@ def create_asgi_app(
             app.state.session_manager = session_manager
             app.state.base_url = base_url
             app.state.asset_url = asset_url
-            app.state.config_manager = config_reader
+            app.state.config_manager = app_config_reader
             app.state.enable_auth = enable_auth
             app.state.html_head = html_head
             return app

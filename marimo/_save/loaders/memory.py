@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import threading
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from marimo._save.cache import Cache
 from marimo._save.loaders.loader import Loader
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from marimo._save.hash import HashKey
@@ -24,12 +25,12 @@ class MemoryLoader(Loader):
         self,
         *args: Any,
         max_size: int = 128,
-        cache: Optional[OrderedDict[Path, Cache]] = None,
+        cache: OrderedDict[Path, Cache] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
 
-        self._cache: Union[OrderedDict[Path, Cache], dict[Path, Cache]]
+        self._cache: OrderedDict[Path, Cache] | dict[Path, Cache]
         self.is_lru = max_size > 0
 
         # Normal python dicts are atomic, ordered dictionaries are not.
@@ -55,7 +56,7 @@ class MemoryLoader(Loader):
         path = self.build_path(key)
         return self._maybe_lock(lambda: path in self._cache)
 
-    def load_cache(self, key: HashKey) -> Optional[Cache]:
+    def load_cache(self, key: HashKey) -> Cache | None:
         if not self.cache_hit(key):
             return None
         path = self.build_path(key)

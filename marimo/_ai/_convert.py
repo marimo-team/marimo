@@ -5,7 +5,7 @@ import base64
 import dataclasses
 import json
 import uuid
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Union
 
 from marimo import _loggers
 from marimo._ai._types import (
@@ -110,11 +110,9 @@ def convert_to_openai_messages(
             continue
 
         current_parts: list[
-            Union[
-                ChatCompletionContentPartTextParam,
-                ChatCompletionContentPartParam,
-                ContentArrayOfContentPart,
-            ]
+            ChatCompletionContentPartTextParam
+            | ChatCompletionContentPartParam
+            | ContentArrayOfContentPart
         ] = []
         for part in message.parts:
             if isinstance(part, TextPart):
@@ -475,7 +473,7 @@ def _extract_data(url: str) -> str:
 
 
 def convert_to_ai_sdk_messages(
-    content_text: Union[str, dict[str, Any]],
+    content_text: str | dict[str, Any],
     content_type: Literal[
         "text",
         "text_start",
@@ -491,7 +489,7 @@ def convert_to_ai_sdk_messages(
         "finish_reason",
         "error",
     ],
-    text_id: Optional[str] = None,
+    text_id: str | None = None,
 ) -> str:
     """
     Format events for the AI SDK v5 stream protocol using Server-Sent Events.

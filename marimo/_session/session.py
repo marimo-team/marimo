@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from marimo import _loggers
@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
     from marimo._ast.cell_manager import CellManager
+    from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._server.models.models import InstantiateNotebookRequest
     from marimo._session.app_host import AppHostContext
 
@@ -116,10 +117,10 @@ class SessionImpl(Session):
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
         config_manager: MarimoConfigManager,
-        virtual_files_supported: bool,
+        virtual_file_storage: VirtualFileStorageType | None,
         redirect_console_to_browser: bool,
         auto_instantiate: bool,
-        ttl_seconds: Optional[int],
+        ttl_seconds: int | None,
         extensions: list[SessionExtension] | None = None,
         sandbox_mode: SandboxMode | None = None,
         app_host_context: AppHostContext | None = None,
@@ -183,7 +184,6 @@ class SessionImpl(Session):
                 configs=configs,
                 app_metadata=app_metadata,
                 config_manager=config_manager,
-                virtual_files_supported=virtual_files_supported,
                 redirect_console_to_browser=redirect_console_to_browser,
             )
         else:
@@ -198,7 +198,7 @@ class SessionImpl(Session):
                 configs=configs,
                 app_metadata=app_metadata,
                 config_manager=config_manager,
-                virtual_files_supported=virtual_files_supported,
+                virtual_file_storage=virtual_file_storage,
                 redirect_console_to_browser=redirect_console_to_browser,
             )
 
@@ -244,7 +244,7 @@ class SessionImpl(Session):
         kernel_manager: KernelManager,
         app_file_manager: AppFileManager,
         config_manager: MarimoConfigManager,
-        ttl_seconds: Optional[int],
+        ttl_seconds: int | None,
         extensions: list[SessionExtension],
     ) -> None:
         """Initialize kernel and client connection to it."""
@@ -355,7 +355,7 @@ class SessionImpl(Session):
     def put_control_request(
         self,
         request: commands.CommandMessage,
-        from_consumer_id: Optional[ConsumerId],
+        from_consumer_id: ConsumerId | None,
     ) -> None:
         """Put a control request in the control queue."""
         self._event_bus.emit_received_command(self, request, from_consumer_id)
@@ -414,7 +414,7 @@ class SessionImpl(Session):
     def notify(
         self,
         operation: NotificationMessage | KernelMessage,
-        from_consumer_id: Optional[ConsumerId],
+        from_consumer_id: ConsumerId | None,
     ) -> None:
         """Broadcast a notification to session consumers."""
         if isinstance(operation, bytes):
@@ -446,7 +446,7 @@ class SessionImpl(Session):
         self,
         request: InstantiateNotebookRequest,
         *,
-        http_request: Optional[HTTPRequest],
+        http_request: HTTPRequest | None,
     ) -> None:
         """Instantiate the app."""
         app = self.app_file_manager.app

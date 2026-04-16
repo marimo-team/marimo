@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -15,6 +15,7 @@ from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -185,7 +186,7 @@ async def test_message_callback_format(
     """Test that message_callback receives properly formatted JSON."""
     received_messages: list[str] = []
 
-    session, _ = create_session(
+    _session, _ = create_session(
         filename=str(mock_app_file),
         query_params={},
         message_callback=lambda text: received_messages.append(text),

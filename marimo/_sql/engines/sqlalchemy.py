@@ -7,12 +7,9 @@ from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Literal,
-    Optional,
     ParamSpec,
     TypeVar,
-    Union,
 )
 
 from marimo import _loggers
@@ -36,7 +33,7 @@ from marimo._types.ids import VariableName
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     import pandas as pd
     import polars as pl
@@ -103,10 +100,10 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
     """SQLAlchemy engine."""
 
     def __init__(
-        self, connection: Engine, engine_name: Optional[VariableName] = None
+        self, connection: Engine, engine_name: VariableName | None = None
     ) -> None:
         super().__init__(connection, engine_name)
-        self.inspector: Optional[Inspector] = None
+        self.inspector: Inspector | None = None
 
         try:
             # May not exist in older versions of SQLAlchemy
@@ -139,7 +136,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         return identifier
 
     @contextmanager
-    def _get_inspector(self, database: str) -> Iterator[Optional[Inspector]]:
+    def _get_inspector(self, database: str) -> Iterator[Inspector | None]:
         """Yield an appropriate SQLAlchemy Inspector for the given database.
 
         For dialects that require a USE DATABASE command (e.g. Snowflake),
@@ -233,7 +230,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             auto_discover_columns=False,
         )
 
-    def get_default_database(self) -> Optional[str]:
+    def get_default_database(self) -> str | None:
         """Get the current database name.
 
         Returns:
@@ -254,7 +251,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             LOGGER.warning("Connection URL is invalid", exc_info=True)
             return None
 
-        database_name: Optional[str] = None
+        database_name: str | None = None
         dialect_queries = {
             "postgresql": "SELECT current_database()",
             "mssql": "SELECT DB_NAME()",
@@ -292,7 +289,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         message="Failed to get default schema name",
         log_level="warning",
     )
-    def get_default_schema(self) -> Optional[str]:
+    def get_default_schema(self) -> str | None:
         """Get the default schema name"""
         if self.inspector is None:
             return None
@@ -387,9 +384,9 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
     def get_databases(
         self,
         *,
-        include_schemas: Union[bool, Literal["auto"]],
-        include_tables: Union[bool, Literal["auto"]],
-        include_table_details: Union[bool, Literal["auto"]],
+        include_schemas: bool | Literal["auto"],
+        include_tables: bool | Literal["auto"],
+        include_table_details: bool | Literal["auto"],
     ) -> list[Database]:
         """Get all databases from the engine.
 
@@ -456,7 +453,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
     def get_schemas(
         self,
         *,
-        database: Optional[str],
+        database: str | None,
         include_tables: bool,
         include_table_details: bool,
     ) -> list[Schema]:
@@ -565,7 +562,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
     )
     def _get_columns(
         self, table_name: str, schema: str, database: str
-    ) -> Optional[list[ReflectedColumn]]:
+    ) -> list[ReflectedColumn] | None:
 
         with self._get_inspector(database) as inspector:
             if inspector is None:
@@ -610,7 +607,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
-    ) -> Optional[DataTable]:
+    ) -> DataTable | None:
         """Get a single table from the engine."""
 
         columns = self._get_columns(
@@ -683,7 +680,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
     def _resolve_should_auto_discover(
         self,
-        value: Union[bool, Literal["auto"]],
+        value: bool | Literal["auto"],
     ) -> bool:
         if value == "auto":
             return self._is_cheap_discovery()

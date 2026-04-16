@@ -1,0 +1,7 @@
+error[reusable-definition-order]: Reusable definition 'uses_offset' depends on reusable definition(s) declared later in the notebook: `offset`
+ --> tests/_lint/test_files/reusable_definition_order.py:7:1
+   7 | @app.function
+   8 | def uses_offset(x: int = offset()) -> int:
+     |     ^
+   9 |     return x + 1
+hint: Move the referenced reusable definition(s) earlier in the notebook, before `uses_offset`.

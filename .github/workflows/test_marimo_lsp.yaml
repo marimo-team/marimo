@@ -21,16 +21,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ⬇️ Checkout marimo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: ⬇️ Checkout marimo-lsp
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: marimo-team/marimo-lsp
           path: marimo-lsp
 
       - name: 🐍 Setup uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
 
       - name: 🔧 Install marimo-lsp with local marimo
         working-directory: marimo-lsp
@@ -50,7 +50,7 @@ jobs:
 
       - name: 🐛 Open issue on failure
         if: failure() && github.event_name == 'push'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const title = '🚨 marimo-lsp compatibility check failed';

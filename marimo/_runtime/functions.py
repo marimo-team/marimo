@@ -4,14 +4,14 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from marimo._loggers import marimo_logger
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
-    from collections.abc import Coroutine
+    from collections.abc import Callable, Coroutine
 
 LOGGER = marimo_logger()
 
@@ -23,8 +23,6 @@ T = TypeVar("T")
 @dataclasses.dataclass
 class EmptyArgs:
     """Utility type for functions that take no arguments."""
-
-    ...
 
 
 @dataclasses.dataclass
@@ -58,7 +56,7 @@ class Function(Generic[S, T]):
             return self.function(parse_raw(args, self.arg_cls))
         except Exception as e:
             LOGGER.error(f"Error calling function {self.name}: {e}")
-            raise e
+            raise
 
 
 @dataclasses.dataclass

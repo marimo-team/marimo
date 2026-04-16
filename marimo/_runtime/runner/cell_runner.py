@@ -12,10 +12,10 @@ from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo._ast.variables import unmangle_local
-from marimo._config.config import ExecutionType, OnCellChangeType
+from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._loggers import marimo_logger
@@ -92,7 +92,7 @@ class RunResult:
     # TODO(akshayka): Exceptions and "Errors" (most of which are at parse time
     # and can't be encountered by the runner) shouldn't be packed into a single
     # field.
-    exception: Optional[ExceptionOrError]
+    exception: ExceptionOrError | None
     # Accumulated output: via imperative mo.output.append()
     accumulated_output: Any = None
 
@@ -102,7 +102,7 @@ class RunResult:
 
 
 def should_show_traceback(
-    exception: Optional[ExceptionOrError],
+    exception: ExceptionOrError | None,
 ) -> bool:
     if exception is None:
         return True
@@ -115,10 +115,7 @@ def should_show_traceback(
 
     # SQL parsing errors happen in SQL cells so showing a
     # python traceback is not useful.
-    if isinstance(exception, MarimoSQLError):
-        return False
-
-    return True
+    return not isinstance(exception, MarimoSQLError)
 
 
 class Runner:
@@ -135,6 +132,7 @@ class Runner:
         execution_type: ExecutionType = "relaxed",
         excluded_cells: set[CellId_t] | None = None,
         execution_context: ExecutionContextManager | None = None,
+        user_config: MarimoConfig | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -144,6 +142,7 @@ class Runner:
         )
         self.execution_context = execution_context
         self._hooks = hooks
+        self.user_config = user_config
 
         # runtime globals
         self.glbls = glbls
@@ -221,7 +220,7 @@ class Runner:
         return sorted_cells
 
     # Adapted from
-    # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312  # noqa: E501
+    # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312
     @staticmethod
     @contextlib.contextmanager
     def _cancel_on_sigint(future: asyncio.Future[Any]) -> Iterator[None]:
@@ -269,11 +268,11 @@ class Runner:
 
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell (and its descendants) as cancelled."""
-        descendants = set(
+        descendants = {
             cid
-            for cid in dataflow.transitive_closure(self.graph, set([cell_id]))
+            for cid in dataflow.transitive_closure(self.graph, {cell_id})
             if cid in self.cells_to_run
-        )
+        }
         self.cancelled_cells.add(cell_id, descendants)
         for cid in descendants:
             self.graph.cells[cid].set_run_result_status("cancelled")
@@ -286,17 +285,11 @@ class Runner:
         """Whether there are more cells to run."""
         return not self.interrupted and len(self.cells_to_run) > 0
 
-    def _get_run_position(self, cell_id: CellId_t) -> Optional[int]:
+    def _get_run_position(self, cell_id: CellId_t) -> int | None:
         """Position in the original run queue"""
-        return (
-            self._run_position[cell_id]
-            if cell_id in self._run_position
-            else None
-        )
+        return self._run_position.get(cell_id, None)
 
-    def _runs_after(
-        self, source: CellId_t, target: CellId_t
-    ) -> Optional[bool]:
+    def _runs_after(self, source: CellId_t, target: CellId_t) -> bool | None:
         """Compare run positions.
 
         Returns `True` if source runs after target, `False` if target runs
@@ -369,10 +362,10 @@ class Runner:
     def _run_result_from_exception(
         self,
         output: Any,
-        unwrapped_exception: Optional[BaseException],
+        unwrapped_exception: BaseException | None,
         cell_id: CellId_t,
-    ) -> tuple[RunResult, Optional[BaseException]]:
-        exception: Optional[ExceptionOrError] = unwrapped_exception
+    ) -> tuple[RunResult, BaseException | None]:
+        exception: ExceptionOrError | None = unwrapped_exception
         if isinstance(exception, MarimoMissingRefError):
             ref, blamed_cell = self._get_blamed_cell(exception)
             # All MarimoMissingRefErrors should be caused caused by
@@ -526,7 +519,7 @@ class Runner:
         # Should cover all cell runtime exceptions.
         except MarimoRuntimeException as e:
             output: Any = None
-            unwrapped_exception: Optional[BaseException] = e.__cause__
+            unwrapped_exception: BaseException | None = e.__cause__
 
             # Interrupts are sometimes sent multiple times; in particular,
             # it appears that polars forwards interrupts, so interrupting
@@ -652,7 +645,7 @@ class Runner:
 
     def _get_blamed_cell(
         self, e: MarimoMissingRefError
-    ) -> tuple[str, Optional[CellId_t]]:
+    ) -> tuple[str, CellId_t | None]:
         ref = e.ref
         blamed_cell = None
         try:
@@ -667,7 +660,7 @@ class Runner:
 
     def _find_first_blocked_missing_ref(
         self, cell_id: CellId_t
-    ) -> Optional[CellId_t]:
+    ) -> CellId_t | None:
         """Return the first out-of-run ancestor still in a stopped/errored state."""
         cell = self.graph.cells[cell_id]
         for ref in cell.refs:
@@ -719,6 +712,7 @@ class Runner:
             cancelled_cells=self.cancelled_cells,
             all_temporaries=all_temporaries,
             should_broadcast_data=_should_broadcast_data(),
+            user_config=self.user_config,
         )
 
         while self.pending():

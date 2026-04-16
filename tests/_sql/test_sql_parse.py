@@ -460,7 +460,7 @@ class TestEdgeCases:
 
     def test_query_with_semicolon(self):
         """Test parsing query with trailing semicolon."""
-        result, error = parse_sql("SELECT 1;", "duckdb")
+        result, _error = parse_sql("SELECT 1;", "duckdb")
         assert result is not None
 
         assert result.success is True
@@ -470,7 +470,7 @@ class TestEdgeCases:
         """Test parsing multiple SQL statements."""
         query = "SELECT 1; SELECT 2;"
 
-        result, error = parse_sql(query, "duckdb")
+        result, _error = parse_sql(query, "duckdb")
 
         # DuckDB might handle this differently, just ensure we get a result
         assert isinstance(result, SqlParseResult)
@@ -547,7 +547,7 @@ class TestEdgeCases:
             SELECT 1 as test_column; /* End line comment */
             """,
         ]:
-            result, error = parse_sql(query, "duckdb")
+            result, _error = parse_sql(query, "duckdb")
             assert result is not None
             assert result.success is True
             assert result.errors == []

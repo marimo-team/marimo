@@ -24,32 +24,41 @@ const ToastViewport = React.forwardRef<
 ));
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
+const VARIANT_CLASSES = {
+  default: "bg-background border",
+  danger:
+    "group destructive text-error border-destructive bg-(--red-1) shadow-md-solid shadow-error",
+} as const satisfies Record<string, string>;
+
+type ToastVariant = keyof typeof VARIANT_CLASSES;
+
 const toastVariants = cva(
   "data-[swipe=move]:transition-none group relative pointer-events-auto flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=move]:translate-x-(--radix-toast-swipe-move-x) data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-(--radix-toast-swipe-end-x) data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=open]:slide-in-from-top-full sm:data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-right-full",
   {
     variants: {
-      variant: {
-        default: "bg-background border",
-        danger:
-          "group destructive text-error border-destructive bg-(--red-1) shadow-md-solid shadow-error",
-      },
+      variant: VARIANT_CLASSES,
     },
     defaultVariants: {
-      variant: "default",
+      variant: "default" satisfies ToastVariant,
     },
   },
 );
+
+function isToastVariant(value: unknown): value is ToastVariant {
+  return typeof value === "string" && value in VARIANT_CLASSES;
+}
 
 const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> &
     VariantProps<typeof toastVariants>
 >(({ className, variant, ...props }, ref) => {
+  const resolvedVariant = isToastVariant(variant) ? variant : "default";
   return (
     <ToastPrimitives.Root
       ref={ref}
       className={cn(
-        toastVariants({ variant: variant || "default" }),
+        toastVariants({ variant: resolvedVariant }),
         "print:hidden",
         className,
       )}
@@ -118,7 +127,9 @@ ToastDescription.displayName = ToastPrimitives.Description.displayName;
 
 type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>;
 
-type ToastActionElement = React.ReactElement<typeof ToastAction>;
+type ToastActionElement = React.ReactElement<
+  React.ComponentProps<typeof ToastAction>
+>;
 
 export {
   type ToastProps,

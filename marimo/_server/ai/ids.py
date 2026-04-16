@@ -43,18 +43,13 @@ class AiModelId:
 
 def _guess_provider(model: str) -> AiProviderId:
     def is_google(model: str) -> bool:
-        return model.startswith("google") or model.startswith("gemini")
+        return model.startswith(("google", "gemini"))
 
     def is_anthropic(model: str) -> bool:
         return model.startswith("claude")
 
     def is_openai(model: str) -> bool:
-        return (
-            model.startswith("gpt")
-            or model.startswith("o4")
-            or model.startswith("o3")
-            or model.startswith("o1")
-        )
+        return model.startswith(("gpt", "o4", "o3", "o1"))
 
     if is_google(model):
         return AiProviderId("google")

@@ -5,7 +5,7 @@ inputs:
   node-version:
     description: 'Node.js version to use'
     required: false
-    default: '22'
+    default: '24'
   turbo-token:
     description: 'Turbo token for caching'
     required: false

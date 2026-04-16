@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from marimo._output import md
 from marimo._output.formatting import as_html
@@ -58,9 +58,9 @@ class sidebar(Html):
     def __init__(
         self,
         item: object,
-        footer: Optional[object] = None,
+        footer: object | None = None,
         *,
-        width: Optional[str | int] = None,
+        width: str | int | None = None,
     ) -> None:
         # If its a string, wrap in md
         if isinstance(item, str):

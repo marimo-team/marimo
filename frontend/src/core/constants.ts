@@ -7,6 +7,7 @@ export const Constants = {
   discordLink: "https://marimo.io/discord?ref=notebook",
   docsPage: "https://docs.marimo.io",
   youtube: "https://www.youtube.com/@marimo-team",
+  molab: "https://molab.marimo.io",
 };
 
 export const KnownQueryParams = {

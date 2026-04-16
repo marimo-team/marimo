@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import functools
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType
@@ -11,6 +11,9 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatters.utils import src_or_src_doc
 from marimo._output.utils import flatten_string
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 class BokehFormatter(FormatterFactory):
     @staticmethod
@@ -18,9 +21,9 @@ class BokehFormatter(FormatterFactory):
         return "bokeh"
 
     def register(self) -> Callable[[], None]:
-        import bokeh.io  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-        import bokeh.models  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-        import bokeh.plotting  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import bokeh.io  # type: ignore[import-not-found,import-untyped,unused-ignore]
+        import bokeh.models  # type: ignore[import-not-found,import-untyped,unused-ignore]
+        import bokeh.plotting  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
         from marimo._output import formatting
         from marimo._runtime.output import _output
@@ -47,7 +50,6 @@ class BokehFormatter(FormatterFactory):
             # Noop
             del args
             del kwargs
-            pass
 
         bokeh.plotting.show = show
         bokeh.plotting.output_notebook = output_notebook
@@ -63,9 +65,9 @@ class BokehFormatter(FormatterFactory):
         def _show_plot(
             plot: bokeh.models.Model | bokeh.document.Document,
         ) -> tuple[KnownMimeType, str]:
-            import bokeh.embed  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-            import bokeh.resources  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-            from bokeh.io import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+            import bokeh.embed  # type: ignore[import-not-found,import-untyped,unused-ignore]
+            import bokeh.resources  # type: ignore[import-not-found,import-untyped,unused-ignore]
+            from bokeh.io import (  # type: ignore[import-not-found,import-untyped,unused-ignore]
                 curdoc,
             )
 
@@ -75,7 +77,7 @@ class BokehFormatter(FormatterFactory):
             )
 
             # Try to get the background fill color
-            background_fill_color: Optional[str] = None
+            background_fill_color: str | None = None
             try:
                 attrs = current_theme._json.get("attrs", {})
                 background_fill_color = attrs.get("BaseColorBar", {}).get(

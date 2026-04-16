@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from typing import Literal, Optional
+from typing import Literal
 
 import click
 from click import echo
@@ -18,7 +18,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def prompt_run_in_docker_container(
-    name: str | None, trusted: Optional[bool] = None
+    name: str | None, trusted: bool | None = None
 ) -> bool:
     if GLOBAL_SETTINGS.IN_SECURE_ENVIRONMENT:
         return False
@@ -77,7 +77,7 @@ def echo_red(text: str) -> None:
 
 # Run a marimo file in a docker container
 # marimo edit https://github.com/some/file.py --docker
-def _check_port_in_use(port: int) -> Optional[str]:
+def _check_port_in_use(port: int) -> str | None:
     try:
         result = subprocess.run(
             ["docker", "ps", "--format", "{{.ID}}\t{{.Ports}}", "--no-trunc"],
@@ -98,7 +98,7 @@ def run_in_docker(
     file_path: str | None,
     mode: Literal["edit", "run"],
     *,
-    port: Optional[int],
+    port: int | None,
     debug: bool = False,
 ) -> None:
     echo(f"Starting {green('containerized')} marimo notebook")

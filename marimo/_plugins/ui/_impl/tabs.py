@@ -1,13 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Callable, Final, Optional
+from typing import TYPE_CHECKING, Final
 
 from marimo._output.formatting import as_html
 from marimo._output.md import md
 from marimo._output.rich_help import mddoc
 from marimo._plugins.stateless.lazy import lazy as lazy_ui
 from marimo._plugins.ui._core.ui_element import UIElement
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @mddoc
@@ -58,11 +61,11 @@ class tabs(UIElement[str, str]):
     def __init__(
         self,
         tabs: dict[str, object],
-        value: Optional[str] = None,
+        value: str | None = None,
         lazy: bool = False,
         *,
         label: str = "",
-        on_change: Optional[Callable[[str], None]] = None,
+        on_change: Callable[[str], None] | None = None,
     ) -> None:
         def render_content(tab: object) -> str:
             if lazy:
@@ -79,7 +82,7 @@ class tabs(UIElement[str, str]):
         )
 
         self._tab_keys = list(tabs.keys())
-        tab_labels = list(md(label).text for label in tabs.keys())
+        tab_labels = [md(label).text for label in tabs]
 
         index = (
             str(self._tab_keys.index(value))

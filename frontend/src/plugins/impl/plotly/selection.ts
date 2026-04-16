@@ -24,6 +24,32 @@ const SUNBURST_DATA_KEYS: (keyof Plotly.SunburstPlotDatum)[] = [
   "value",
 ] as const;
 
+// Fields emitted by go.Funnel click events: includes x/y coordinates plus
+// funnel-specific percent metrics.
+const FUNNEL_DATA_KEYS: string[] = [
+  "curveNumber",
+  "pointIndex",
+  "pointNumber",
+  "x",
+  "y",
+  "label",
+  "value",
+  "percentInitial",
+  "percentPrevious",
+  "percentTotal",
+] as const;
+
+// Fields emitted by go.FunnelArea click events: sector-based, no x/y.
+const FUNNEL_AREA_DATA_KEYS: string[] = [
+  "curveNumber",
+  "pointNumber",
+  "label",
+  "value",
+  "percentInitial",
+  "percentPrevious",
+  "percentTotal",
+] as const;
+
 const LINE_CLICK_TRACE_TYPES = new Set(["scatter", "scattergl"]);
 
 const STANDARD_POINT_KEYS: string[] = [
@@ -141,13 +167,44 @@ export function hasPureLineTrace(
   }
 
   return data.some((trace) => {
-    const traceType = (trace as { type?: unknown }).type;
+    const t = trace as Record<string, unknown>;
     const isScatterLike =
-      traceType === undefined || LINE_CLICK_TRACE_TYPES.has(String(traceType));
+      t.type === undefined || LINE_CLICK_TRACE_TYPES.has(String(t.type));
     if (!isScatterLike) {
       return false;
     }
-    return isPureLineMode((trace as { mode?: unknown }).mode);
+    return isPureLineMode(t.mode);
+  });
+}
+
+/**
+ * Return true when any scatter/scattergl trace has a non-empty fill or a
+ * stackgroup, i.e. it is an area chart.
+ *
+ * Area traces built with `mode="none"` have no visible line or markers, so
+ * `hasPureLineTrace` returns false for them even though they need select/lasso
+ * buttons just as much as `mode="lines"` area charts.  This function covers
+ * that gap and is OR-ed with `hasPureLineTrace` in the config builder.
+ */
+export function hasAreaTrace(
+  data: readonly Plotly.Data[] | undefined,
+): boolean {
+  if (!data) {
+    return false;
+  }
+
+  return data.some((trace) => {
+    const t = trace as Record<string, unknown>;
+    // Only scatter/scattergl can be area traces.
+    if (t.type !== undefined && !LINE_CLICK_TRACE_TYPES.has(String(t.type))) {
+      return false;
+    }
+    // A trace is an area trace when fill is a non-empty string other than
+    // "none", OR it belongs to a stackgroup (px.area always sets stackgroup).
+    return (
+      (typeof t.fill === "string" && t.fill !== "" && t.fill !== "none") ||
+      t.stackgroup != null
+    );
   });
 }
 
@@ -225,8 +282,13 @@ export function shouldHandleClickSelection(
     const type = getTraceSource(point).type;
     return (
       type === "bar" ||
+      type === "box" ||
+      type === "funnel" ||
+      type === "funnelarea" ||
       type === "heatmap" ||
       type === "histogram" ||
+      type === "violin" ||
+      type === "waterfall" ||
       isLinePoint(point)
     );
   });
@@ -296,12 +358,42 @@ export function extractPoints(
   let parser: PlotlyTemplateParser | undefined;
 
   return points.map((point) => {
+    const trace = getTraceSource(point);
+
+    // FunnelArea: sector-based chart with no x/y coordinates.
+    // Pick funnel-area-specific keys, then merge any hovertemplate-parsed
+    // fields (e.g. customdata columns) so user-defined fields are preserved.
+    if (trace.type === "funnelarea") {
+      const base = pick(point, FUNNEL_AREA_DATA_KEYS);
+      const ht = Array.isArray(trace.hovertemplate)
+        ? trace.hovertemplate[0]
+        : trace.hovertemplate;
+      if (!ht) {
+        return base;
+      }
+      parser = parser ? parser.update(ht) : createParser(ht);
+      return { ...base, ...parser.parse(point) };
+    }
+
+    // Funnel: bar-like chart with x/y plus per-stage percent metrics.
+    // Pick funnel-specific keys, then merge hovertemplate-parsed fields so
+    // callers get both percentInitial et al. and any user-defined columns.
+    if (trace.type === "funnel") {
+      const base = pick(point, FUNNEL_DATA_KEYS);
+      const ht = Array.isArray(trace.hovertemplate)
+        ? trace.hovertemplate[0]
+        : trace.hovertemplate;
+      if (!ht) {
+        return base;
+      }
+      parser = parser ? parser.update(ht) : createParser(ht);
+      return { ...base, ...parser.parse(point) };
+    }
+
     const standardPointFields = withInferredXY(
       point,
       pick(point, STANDARD_POINT_KEYS),
     );
-
-    const trace = getTraceSource(point);
 
     // Get the first hovertemplate
     const hovertemplate = Array.isArray(trace.hovertemplate)

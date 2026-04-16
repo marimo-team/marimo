@@ -8,7 +8,6 @@ import type { Data, VegaComponentState } from "./vega-component";
 
 import "./vega.css";
 import React, { type JSX } from "react";
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 const LazyVegaComponent = React.lazy(() => import("./vega-component"));
 
@@ -29,13 +28,11 @@ export class VegaPlugin implements IPlugin<VegaComponentState, Data> {
 
   render(props: IPluginProps<VegaComponentState, Data>): JSX.Element {
     return (
-      <TooltipProvider>
-        <LazyVegaComponent
-          value={props.value}
-          setValue={props.setValue}
-          {...props.data}
-        />
-      </TooltipProvider>
+      <LazyVegaComponent
+        value={props.value}
+        setValue={props.setValue}
+        {...props.data}
+      />
     );
   }
 }

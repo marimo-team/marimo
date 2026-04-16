@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from marimo._output.formatters.structures import format_structure
 from marimo._output.hypertext import Html
@@ -14,7 +14,7 @@ from marimo._utils.flatten import CyclicStructureError
 @mddoc
 def tree(
     items: list[Any] | tuple[Any] | dict[Any, Any],
-    label: Optional[str] = None,
+    label: str | None = None,
 ) -> Html:
     """Render a nested structure of lists, tuples, or dicts as a tree.
 

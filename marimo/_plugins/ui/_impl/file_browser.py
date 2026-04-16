@@ -1,17 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     Final,
     Literal,
-    Optional,
     TypedDict,
-    Union,
 )
 
 from marimo import _loggers
@@ -141,17 +138,16 @@ class file_browser(
 
     def __init__(
         self,
-        initial_path: Union[str, Path] = "",
-        filetypes: Optional[Sequence[str]] = None,
+        initial_path: str | Path = "",
+        filetypes: Sequence[str] | None = None,
         selection_mode: Literal["file", "directory"] = "file",
         multiple: bool = True,
         restrict_navigation: bool = False,
         *,
-        limit: Optional[int] = None,
+        limit: int | None = None,
         label: str = "",
-        on_change: Optional[
-            Callable[[Sequence[FileBrowserFileInfo]], None]
-        ] = None,
+        on_change: Callable[[Sequence[FileBrowserFileInfo]], None]
+        | None = None,
         ignore_empty_dirs: bool = False,
     ) -> None:
         validate_one_of(selection_mode, ["file", "directory"])
@@ -306,7 +302,7 @@ class file_browser(
 
         # Sort based on natural sort (alpha, then num)
         all_file_paths = sorted(
-            list(path.iterdir()), key=lambda f: natural_sort(f.name)
+            path.iterdir(), key=lambda f: natural_sort(f.name)
         )
         is_truncated = False
 
@@ -367,7 +363,7 @@ class file_browser(
             for file in value
         )
 
-    def name(self, index: int = 0) -> Optional[str]:
+    def name(self, index: int = 0) -> str | None:
         """Get file name at index.
 
         Args:
@@ -383,7 +379,7 @@ class file_browser(
         else:
             return self.value[index].name
 
-    def path(self, index: int = 0) -> Optional[Path]:
+    def path(self, index: int = 0) -> Path | None:
         """Get file path at index.
 
         Args:

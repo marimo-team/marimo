@@ -3,9 +3,7 @@ from __future__ import annotations
 
 from typing import (
     TYPE_CHECKING,
-    Optional,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -39,9 +37,9 @@ class QueryParams(State[SerializedQueryParams]):
 
     def __init__(
         self,
-        params: dict[str, Union[str, list[str]]],
-        stream: Optional[Stream] = None,
-        _registry: Optional[StateRegistry] = None,
+        params: dict[str, str | list[str]],
+        stream: Stream | None = None,
+        _registry: StateRegistry | None = None,
     ):
         super().__init__(params, _registry=_registry)
         self._params = params
@@ -50,14 +48,14 @@ class QueryParams(State[SerializedQueryParams]):
     T = TypeVar("T", str, list[str])
 
     @overload
-    def get(self, key: str) -> Optional[Union[str, list[str]]]: ...
+    def get(self, key: str) -> str | list[str] | None: ...
 
     @overload
-    def get(self, key: str, default: T) -> Union[str, list[str], T]: ...
+    def get(self, key: str, default: T) -> str | list[str] | T: ...
 
     def get(
-        self, key: str, default: Optional[Union[str, list[str]]] = None
-    ) -> Optional[Union[str, list[str]]]:
+        self, key: str, default: str | list[str] | None = None
+    ) -> str | list[str] | None:
         """Get the value of the query parameter.
 
         Args:
@@ -81,7 +79,7 @@ class QueryParams(State[SerializedQueryParams]):
             return value
         return [value]
 
-    def __getitem__(self, key: str) -> Optional[Union[str, list[str]]]:
+    def __getitem__(self, key: str) -> str | list[str] | None:
         return self.get(key)
 
     def __contains__(self, key: str) -> bool:
@@ -99,7 +97,7 @@ class QueryParams(State[SerializedQueryParams]):
     def __str__(self) -> str:
         return str(self._params)
 
-    def __setitem__(self, key: str, value: Union[str, list[str]]) -> None:
+    def __setitem__(self, key: str, value: str | list[str]) -> None:
         if value is None or value == []:  # type: ignore
             self.remove(key)
             return
@@ -117,7 +115,7 @@ class QueryParams(State[SerializedQueryParams]):
         )
         self._set_value(self._params)
 
-    def set(self, key: str, value: Union[str, list[str]]) -> None:
+    def set(self, key: str, value: str | list[str]) -> None:
         """Set the value of a query parameter."""
         self[key] = value
 
@@ -147,7 +145,7 @@ class QueryParams(State[SerializedQueryParams]):
         )
         self._set_value(self._params)
 
-    def remove(self, key: str, value: Optional[str] = None) -> None:
+    def remove(self, key: str, value: str | None = None) -> None:
         """Remove a value from a list of values.
 
         Args:
@@ -187,7 +185,7 @@ class QueryParams(State[SerializedQueryParams]):
         broadcast_notification(QueryParamsClearNotification(), self._stream)
         self._set_value(self._params)
 
-    def to_dict(self) -> dict[str, Union[str, list[str]]]:
+    def to_dict(self) -> dict[str, str | list[str]]:
         return self._params
 
 
@@ -204,16 +202,14 @@ class CLIArgs:
     T = TypeVar("T", Primitive, list[Primitive])
 
     @overload
-    def get(self, key: str) -> Optional[ListOrValue[Primitive]]: ...
+    def get(self, key: str) -> ListOrValue[Primitive] | None: ...
 
     @overload
-    def get(
-        self, key: str, default: T
-    ) -> Union[ListOrValue[Primitive], T]: ...
+    def get(self, key: str, default: T) -> ListOrValue[Primitive] | T: ...
 
     def get(
-        self, key: str, default: Optional[ListOrValue[Primitive]] = None
-    ) -> Optional[ListOrValue[Primitive]]:
+        self, key: str, default: ListOrValue[Primitive] | None = None
+    ) -> ListOrValue[Primitive] | None:
         """Get the value of the CLI arg.
 
         Args:
@@ -238,7 +234,7 @@ class CLIArgs:
             return value
         return [value]
 
-    def __getitem__(self, key: str) -> Optional[ListOrValue[Primitive]]:
+    def __getitem__(self, key: str) -> ListOrValue[Primitive] | None:
         return self.get(key)
 
     def __contains__(self, key: str) -> bool:

@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import tempfile
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo._config.manager import (
     MarimoConfigManager,
@@ -19,6 +20,8 @@ from marimo._session.model import SessionMode
 from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
     from starlette.testclient import TestClient
 
 
@@ -28,7 +31,7 @@ def get_session_manager(client: TestClient) -> SessionManager:
 
 def get_starlette_server_state_init(
     *,
-    session_manager: Optional[SessionManager] = None,
+    session_manager: SessionManager | None = None,
     base_url: str = "",
 ) -> StarletteServerStateInit:
     return StarletteServerStateInit(
@@ -92,6 +95,21 @@ if __name__ == "__main__":
     return sm
 
 
+@contextlib.contextmanager
+def file_router_scope(
+    client: TestClient, file_router: AppFileRouter
+) -> Iterator[None]:
+    session_manager: SessionManager = cast(
+        Any, client.app
+    ).state.session_manager
+    original_file_router = session_manager.file_router
+    session_manager.file_router = file_router
+    try:
+        yield
+    finally:
+        session_manager.file_router = original_file_router
+
+
 def with_file_router(
     file_router: AppFileRouter,
 ) -> Callable[[Callable[..., None]], Callable[..., None]]:
@@ -99,15 +117,8 @@ def with_file_router(
 
     def decorator(func: Callable[..., None]) -> Callable[..., None]:
         def wrapper(client: TestClient, *args: Any, **kwargs: Any) -> None:
-            session_manager: SessionManager = cast(
-                Any, client.app
-            ).state.session_manager
-            original_file_router = session_manager.file_router
-            session_manager.file_router = file_router
-
-            func(client, *args, **kwargs)
-
-            session_manager.file_router = original_file_router
+            with file_router_scope(client, file_router):
+                func(client, *args, **kwargs)
 
         return wrapper
 
@@ -123,7 +134,7 @@ def with_session(
     def decorator(func: Callable[..., None]) -> Callable[..., None]:
         def wrapper(
             client: TestClient,
-            temp_marimo_file: Optional[str],
+            temp_marimo_file: str | None,
         ) -> None:
             auth_token = get_session_manager(client).auth_token
             headers = token_header(auth_token)
@@ -232,7 +243,7 @@ def with_read_session(
 def token_header(
     token: str | AuthToken = "fake-token", skew_id: str = "skew-id-1"
 ) -> dict[str, str]:
-    encoded = base64.b64encode(f"marimo:{str(token)}".encode()).decode()
+    encoded = base64.b64encode(f"marimo:{token!s}".encode()).decode()
     return {
         "Authorization": f"Basic {encoded}",
         "Marimo-Server-Token": skew_id,

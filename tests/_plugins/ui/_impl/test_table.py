@@ -12,7 +12,10 @@ import pytest
 from marimo._data.models import ValueCount
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
-from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
+from marimo._plugins.ui._impl.dataframes.transforms.types import (
+    FilterCondition,
+    FilterGroup,
+)
 from marimo._plugins.ui._impl.table import (
     CHART_MAX_ROWS_STRING_VALUE_COUNTS,
     DEFAULT_MAX_COLUMNS,
@@ -119,7 +122,7 @@ def test_normalize_data(executing_kernel: Kernel) -> None:
     assert str(e.value) == "data must be a list or tuple or a dict of lists."
 
     # Test with invalid data structure
-    data3: Any = [set([1, 2, 3])]
+    data3: Any = [{1, 2, 3}]
     with pytest.raises(ValueError) as e:
         _normalize_data(data3)
     assert (
@@ -1117,7 +1120,18 @@ def test_table_with_filtered_columns(df: Any) -> None:
     table = ui.table(df)
     result = table._search(
         SearchTableArgs(
-            filters=[Condition(column_id="b", operator="contains", value="f")],
+            filters=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="b",
+                        operator="contains",
+                        value="f",
+                    )
+                ],
+            ),
             page_size=10,
             page_number=0,
         )
@@ -1641,7 +1655,15 @@ def test_selection_with_clamped_columns_and_filter(df: Any):
     search_args = SearchTableArgs(
         page_size=10,
         page_number=0,
-        filters=[Condition(column_id="age", operator=">=", value=30)],
+        filters=FilterGroup(
+            type="group",
+            operator="and",
+            children=[
+                FilterCondition(
+                    type="condition", column_id="age", operator=">=", value=30
+                )
+            ],
+        ),
     )
     response = table._search(search_args)
     result_data = json.loads(response.data)
@@ -2357,7 +2379,15 @@ def test_max_columns_not_provided_with_filters(df: Any):
     search_args = SearchTableArgs(
         page_size=10,
         page_number=0,
-        filters=[Condition(column_id="col0", operator="==", value=1)],
+        filters=FilterGroup(
+            type="group",
+            operator="and",
+            children=[
+                FilterCondition(
+                    type="condition", column_id="col0", operator="==", value=1
+                )
+            ],
+        ),
         max_columns=MAX_COLUMNS_NOT_PROVIDED,
     )
     response = table._search(search_args)
@@ -2369,7 +2399,15 @@ def test_max_columns_not_provided_with_filters(df: Any):
     search_args = SearchTableArgs(
         page_size=10,
         page_number=0,
-        filters=[Condition(column_id="col0", operator="==", value=1)],
+        filters=FilterGroup(
+            type="group",
+            operator="and",
+            children=[
+                FilterCondition(
+                    type="condition", column_id="col0", operator="==", value=1
+                )
+            ],
+        ),
         max_columns=20,
     )
     response = table._search(search_args)
@@ -2381,7 +2419,15 @@ def test_max_columns_not_provided_with_filters(df: Any):
     search_args = SearchTableArgs(
         page_size=10,
         page_number=0,
-        filters=[Condition(column_id="col0", operator="==", value=1)],
+        filters=FilterGroup(
+            type="group",
+            operator="and",
+            children=[
+                FilterCondition(
+                    type="condition", column_id="col0", operator="==", value=1
+                )
+            ],
+        ),
         max_columns=None,
     )
     response = table._search(search_args)
@@ -2405,16 +2451,30 @@ def test_filters_with_nonexistent_columns(df: Any):
     search_args = SearchTableArgs(
         page_size=10,
         page_number=0,
-        filters=[
-            Condition(column_id="a", operator="==", value=1),  # exists
-            Condition(
-                column_id="nonexistent", operator="==", value=10
-            ),  # doesn't exist
-            Condition(column_id="b", operator=">=", value=4),  # exists
-            Condition(
-                column_id="missing_col", operator="!=", value=0
-            ),  # doesn't exist
-        ],
+        filters=FilterGroup(
+            type="group",
+            operator="and",
+            children=[
+                FilterCondition(
+                    type="condition", column_id="a", operator="==", value=1
+                ),  # exists
+                FilterCondition(
+                    type="condition",
+                    column_id="nonexistent",
+                    operator="==",
+                    value=10,
+                ),  # doesn't exist
+                FilterCondition(
+                    type="condition", column_id="b", operator=">=", value=4
+                ),  # exists
+                FilterCondition(
+                    type="condition",
+                    column_id="missing_col",
+                    operator="!=",
+                    value=0,
+                ),  # doesn't exist
+            ],
+        ),
     )
 
     # Should not raise an error and should apply only the valid filters
@@ -2432,10 +2492,24 @@ def test_filters_with_nonexistent_columns(df: Any):
     search_args_all_invalid = SearchTableArgs(
         page_size=10,
         page_number=0,
-        filters=[
-            Condition(column_id="nonexistent1", operator="==", value=1),
-            Condition(column_id="nonexistent2", operator="!=", value=2),
-        ],
+        filters=FilterGroup(
+            type="group",
+            operator="and",
+            children=[
+                FilterCondition(
+                    type="condition",
+                    column_id="nonexistent1",
+                    operator="==",
+                    value=1,
+                ),
+                FilterCondition(
+                    type="condition",
+                    column_id="nonexistent2",
+                    operator="!=",
+                    value=2,
+                ),
+            ],
+        ),
     )
 
     response = table._search(search_args_all_invalid)

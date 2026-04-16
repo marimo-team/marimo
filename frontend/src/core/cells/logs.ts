@@ -7,6 +7,11 @@ import { Strings } from "@/utils/strings";
 import type { CellMessage, OutputMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import type { CellId } from "./ids";
+import { initialModeAtom } from "../mode";
+import { store } from "../state/jotai";
+import { tracebackModalAtom } from "../errors/traceback-atom";
+import React from "react";
+import { ToastAction } from "@/components/ui/toast";
 
 export interface CellLog {
   timestamp: number;
@@ -72,17 +77,59 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
       });
     });
 
-    const shouldToast = cell.output.data.some(
-      (error) => error.type === "internal",
+    // Find exception errors and check for traceback
+    const exceptionErrors = cell.output.data.filter(
+      (error) =>
+        ("type" in error && error.type === "exception") ||
+        error.type === "internal",
     );
-    if (!didAlreadyToastError && shouldToast) {
+
+    // Only show the toast in app mode: edit mode already surfaces errors in
+    // the cell UI, so toasting there would be noisy and duplicative. Read the
+    // atom directly so an unset initial mode (e.g. in tests/islands) simply
+    // returns undefined instead of throwing and masking real errors.
+    const isAppMode = store.get(initialModeAtom) === "read";
+
+    // Only show toast once, and only in app mode
+    if (exceptionErrors.length > 0 && !didAlreadyToastError && isAppMode) {
       didAlreadyToastError = true;
-      toast({
-        title: "An internal error occurred",
-        description: "See console for details.",
-        className:
-          "text-xs text-background bg-(--red-10) py-2 pl-3 *:flex *:gap-3",
-      });
+
+      // Find first error with a traceback
+      const errorWithTraceback = exceptionErrors.find(
+        (error) => error.traceback,
+      );
+
+      if (errorWithTraceback) {
+        // Show toast with action button to open modal
+        const handleClick = () => {
+          store.set(tracebackModalAtom, {
+            traceback: errorWithTraceback.traceback,
+            errorMessage:
+              errorWithTraceback.msg || "An internal error occurred",
+          });
+        };
+
+        toast({
+          title: "An internal error occurred",
+          description:
+            errorWithTraceback.msg || "Click 'View' to see traceback",
+          variant: "danger",
+          action: React.createElement(
+            ToastAction,
+            {
+              altText: "View traceback",
+              onClick: handleClick,
+            },
+            "View",
+          ),
+        });
+      } else {
+        toast({
+          title: "An internal error occurred",
+          description: "See console for details.",
+          variant: "danger",
+        });
+      }
     }
   }
 

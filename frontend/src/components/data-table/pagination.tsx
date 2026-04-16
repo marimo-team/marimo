@@ -2,7 +2,7 @@
 "use no memo";
 
 import type { Table } from "@tanstack/react-table";
-import { range } from "lodash-es";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ChevronDown,
   ChevronLeft,
@@ -37,9 +37,6 @@ import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { prettyNumber } from "@/utils/numbers";
 import { PluralWord } from "@/utils/pluralize";
-import type { PageRange } from "./types";
-
-const MAX_PAGES_BEFORE_CLAMPING = 100;
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
@@ -189,6 +186,81 @@ export const DataTablePagination = <TData,>({
   );
 };
 
+const PAGE_ITEM_HEIGHT = 32;
+
+/**
+ * Compute contiguous ranges of page numbers whose string starts with `prefix`,
+ * without scanning every page. O(log10(totalPages)).
+ *
+ * For prefix "5", totalPages=500: [[5,5], [50,59], [500,500]]
+ */
+export function matchingPageRanges(
+  prefix: string,
+  totalPages: number,
+): [number, number][] {
+  const n = Number.parseInt(prefix, 10);
+  if (Number.isNaN(n) || n <= 0 || String(n) !== prefix) {
+    return [];
+  }
+
+  const ranges: [number, number][] = [];
+  let power = 1;
+  while (n * power <= totalPages) {
+    const start = n * power;
+    const end = Math.min((n + 1) * power - 1, totalPages);
+    ranges.push([start, end]);
+    power *= 10;
+  }
+  return ranges;
+}
+
+interface PageMapping {
+  count: number;
+  pageAtIndex: (index: number) => number;
+  indexOfPage: (page: number) => number;
+}
+
+function createPageMapping(search: string, totalPages: number): PageMapping {
+  if (search === "") {
+    return {
+      count: totalPages,
+      pageAtIndex: (i) => i + 1,
+      indexOfPage: (p) => p - 1,
+    };
+  }
+
+  const ranges = matchingPageRanges(search, totalPages);
+  let count = 0;
+  for (const [s, e] of ranges) {
+    count += e - s + 1;
+  }
+
+  return {
+    count,
+    pageAtIndex: (i) => {
+      let offset = 0;
+      for (const [start, end] of ranges) {
+        const size = end - start + 1;
+        if (i < offset + size) {
+          return start + (i - offset);
+        }
+        offset += size;
+      }
+      return -1;
+    },
+    indexOfPage: (p) => {
+      let offset = 0;
+      for (const [start, end] of ranges) {
+        if (p >= start && p <= end) {
+          return offset + (p - start);
+        }
+        offset += end - start + 1;
+      }
+      return -1;
+    },
+  };
+}
+
 export const PageSelector = ({
   currentPage,
   totalPages,
@@ -199,19 +271,31 @@ export const PageSelector = ({
   onPageChange: (page: number) => void;
 }) => {
   const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
 
-  const pageRanges = React.useMemo(
-    () => getPageRanges(currentPage, totalPages),
-    [currentPage, totalPages],
+  const mapping = React.useMemo(
+    () => createPageMapping(search, totalPages),
+    [search, totalPages],
   );
 
   const handleSelect = (page: number) => {
     onPageChange(page - 1);
+    setSearch("");
     setOpen(false);
   };
 
+  const listHeight = Math.min(mapping.count * PAGE_ITEM_HEIGHT, 240);
+
   return (
-    <Popover open={totalPages > 1 ? open : false} onOpenChange={setOpen}>
+    <Popover
+      open={totalPages > 1 ? open : false}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setSearch("");
+        }
+      }}
+    >
       <PopoverTrigger asChild={true} disabled={totalPages <= 1}>
         <button
           type="button"
@@ -229,18 +313,15 @@ export const PageSelector = ({
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-36 p-0" align="center" sideOffset={6}>
-        <Command
-          shouldFilter={true}
-          filter={(value, search) => {
-            return value.startsWith(search) ? 1 : 0;
-          }}
-        >
+        <Command shouldFilter={false} value={String(currentPage)}>
           <CommandInput
             placeholder={`Page (1–${totalPages})`}
             rootClassName="px-2 h-8"
             className="text-xs h-8"
             autoFocus={true}
             icon={null}
+            value={search}
+            onValueChange={setSearch}
             onKeyDown={(e) => {
               // Allow navigation/editing keys, block non-numeric input
               const allowed = [
@@ -248,6 +329,8 @@ export const PageSelector = ({
                 "Delete",
                 "ArrowLeft",
                 "ArrowRight",
+                "ArrowUp",
+                "ArrowDown",
                 "Tab",
                 "Enter",
                 "Escape",
@@ -257,27 +340,19 @@ export const PageSelector = ({
               }
             }}
           />
-          <CommandList className="max-h-60">
-            {pageRanges.map((item) =>
-              item.type === "ellipsis" ? null : (
-                <CommandItem
-                  key={item.page}
-                  value={String(item.page)}
-                  data-testid="page-option"
-                  className={cn(
-                    "text-xs cursor-pointer",
-                    item.page === currentPage && "font-semibold bg-accent",
-                  )}
-                  onSelect={() => handleSelect(item.page)}
-                  onMouseDown={Events.preventFocus}
-                >
-                  {item.page}
-                </CommandItem>
-              ),
+          <CommandList className="max-h-60 overflow-hidden">
+            {mapping.count === 0 ? (
+              <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
+                No matching page
+              </CommandEmpty>
+            ) : (
+              <VirtualizedPageList
+                mapping={mapping}
+                currentPage={currentPage}
+                listHeight={listHeight}
+                onSelect={handleSelect}
+              />
             )}
-            <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
-              No matching page
-            </CommandEmpty>
           </CommandList>
         </Command>
       </PopoverContent>
@@ -285,57 +360,95 @@ export const PageSelector = ({
   );
 };
 
-export function getPageRanges(
-  currentPage: number,
-  totalPages: number,
-): PageRange[] {
-  if (totalPages <= MAX_PAGES_BEFORE_CLAMPING) {
-    return range(totalPages).map((i) => ({ type: "page", page: i + 1 }));
-  }
+const VirtualizedPageList = ({
+  mapping,
+  currentPage,
+  listHeight,
+  onSelect,
+}: {
+  mapping: PageMapping;
+  currentPage: number;
+  listHeight: number;
+  onSelect: (page: number) => void;
+}) => {
+  const parentRef = React.useRef<HTMLDivElement>(null);
 
-  const middle = Math.floor(totalPages / 2);
+  const currentIndex = mapping.indexOfPage(currentPage);
 
-  const items: PageRange[] = [];
-  const addPages = (start: number, count: number) => {
-    for (let i = 0; i < count; i++) {
-      items.push({ type: "page", page: start + i });
+  const virtualizer = useVirtualizer({
+    count: mapping.count,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => PAGE_ITEM_HEIGHT,
+    overscan: 10,
+    initialOffset:
+      currentIndex > 0
+        ? Math.max(0, currentIndex * PAGE_ITEM_HEIGHT - listHeight / 2)
+        : 0,
+  });
+
+  // Scroll to top when filtered results change (user is searching)
+  const prevCount = React.useRef(mapping.count);
+  React.useEffect(() => {
+    if (mapping.count !== prevCount.current) {
+      virtualizer.scrollToIndex(0);
+      prevCount.current = mapping.count;
     }
-  };
+  }, [mapping.count, virtualizer]);
 
-  addPages(1, 10);
-  items.push({ type: "ellipsis", key: "e1" });
-
-  if (currentPage > 10 && currentPage <= middle - 5) {
-    items.push(
-      { type: "page", page: currentPage },
-      { type: "ellipsis", key: "e1b" },
-    );
-  }
-
-  addPages(middle - 4, 10);
-  items.push({ type: "ellipsis", key: "e2" });
-
-  if (currentPage > middle + 5 && currentPage <= totalPages - 10) {
-    items.push(
-      { type: "page", page: currentPage },
-      { type: "ellipsis", key: "e2b" },
-    );
-  }
-
-  addPages(totalPages - 9, 10);
-
-  return items;
-}
+  return (
+    <div ref={parentRef} style={{ height: listHeight, overflow: "auto" }}>
+      <div
+        style={{
+          height: virtualizer.getTotalSize(),
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          const page = mapping.pageAtIndex(virtualItem.index);
+          return (
+            <CommandItem
+              key={page}
+              value={String(page)}
+              data-testid="page-option"
+              aria-selected={page === currentPage}
+              className={cn(
+                "text-xs cursor-pointer",
+                page === currentPage && "font-semibold bg-accent",
+              )}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: virtualItem.size,
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+              onSelect={() => onSelect(page)}
+              onMouseDown={Events.preventFocus}
+            >
+              {page}
+            </CommandItem>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export function prettifyRowCount(rowCount: number, locale: string): string {
   return `${prettyNumber(rowCount, locale)} ${new PluralWord("row").pluralize(rowCount)}`;
 }
 
-export const prettifyRowColumnCount = (
-  numRows: number | "too_many",
-  totalColumns: number,
-  locale: string,
-): string => {
+export const prettifyRowColumnCount = ({
+  numRows,
+  totalColumns,
+  locale,
+}: {
+  numRows: number | "too_many";
+  totalColumns: number;
+  locale: string;
+}): string => {
   const rowsLabel =
     numRows === "too_many" ? "Unknown" : prettifyRowCount(numRows, locale);
   const columnsLabel = `${prettyNumber(totalColumns, locale)} ${new PluralWord("column").pluralize(totalColumns)}`;

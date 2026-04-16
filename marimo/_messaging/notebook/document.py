@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo._utils.assert_never import assert_never
 
@@ -55,6 +55,19 @@ class NotebookCell(msgspec.Struct):
     name: str
     config: CellConfig
 
+    def __repr__(self) -> str:
+        first_line = self.code.split("\n", 1)[0]
+        if len(first_line) > 80:
+            code_preview = first_line[:80] + "..."
+        elif "\n" in self.code:
+            code_preview = first_line + "..."
+        else:
+            code_preview = first_line
+        name_part = f", name={self.name!r}" if self.name else ""
+        return (
+            f"NotebookCell(id={self.id!r}{name_part}, code={code_preview!r})"
+        )
+
 
 class NotebookDocument:
     """Ordered collection of cells with transactional updates.
@@ -74,7 +87,7 @@ class NotebookDocument:
         assert doc.get_cell(CellId_t("a")).code == "x = 2"
     """
 
-    def __init__(self, cells: Optional[Iterable[NotebookCell]] = None) -> None:
+    def __init__(self, cells: Iterable[NotebookCell] | None = None) -> None:
         self._cells: list[NotebookCell] = list(cells) if cells else []
         self._version: int = 0
 

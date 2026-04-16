@@ -6,7 +6,7 @@ import re
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from marimo._ast.load import get_notebook_status
 from marimo._ast.parse import MarimoFileError
@@ -45,7 +45,7 @@ def contents_differ_excluding_generated_with(
 
 
 async def _to_async_iterator(
-    files_to_check: Union[AsyncIterator[Path], Iterator[Path]],
+    files_to_check: AsyncIterator[Path] | Iterator[Path],
 ) -> AsyncIterator[Path]:
     """Convert a regular iterator to an async iterator if needed."""
     if hasattr(files_to_check, "__aiter__"):
@@ -181,7 +181,7 @@ class Linter:
             self.errored = True
             file_status.failed = True
             file_status.message = f"Failed to parse: {file_path}"
-            file_status.details = [f"SyntaxError: {str(e)}"]
+            file_status.details = [f"SyntaxError: {e!s}"]
             return file_status
         except MarimoFileError as e:
             # Handle syntax errors in notebooks
@@ -198,7 +198,7 @@ class Linter:
                 file_status.message = (
                     f"Not recognizable as a marimo notebook: {file_path}"
                 )
-                file_status.details = [f"MarimoFileError: {str(e)}"]
+                file_status.details = [f"MarimoFileError: {e!s}"]
                 return file_status
 
         file_status.notebook = load_result.notebook
@@ -321,13 +321,13 @@ class Linter:
         )
 
     def run_streaming(
-        self, files_to_check: Union[AsyncIterator[Path], Iterator[Path]]
+        self, files_to_check: AsyncIterator[Path] | Iterator[Path]
     ) -> None:
         """Run linting checks with real-time streaming output."""
         asyncio.run(self._run_streaming_async(files_to_check))
 
     async def _run_streaming_async(
-        self, files_to_check: Union[AsyncIterator[Path], Iterator[Path]]
+        self, files_to_check: AsyncIterator[Path] | Iterator[Path]
     ) -> None:
         """Internal async implementation of run_streaming."""
         # Process files as they complete
@@ -342,15 +342,18 @@ class Linter:
             self._pipe_file_status(file_status)
 
             # Add to fix queue and potentially fix if requested
-            if self.fix_files and not (
-                file_status.skipped
-                or file_status.failed
-                or file_status.notebook is None
+            if (
+                self.fix_files
+                and not (
+                    file_status.skipped
+                    or file_status.failed
+                    or file_status.notebook is None
+                )
+                and await self.fix(file_status)
             ):
-                if await self.fix(file_status):
-                    fixed_count += 1
-                    if self.pipe:
-                        self.pipe(f"Updated: {file_status.file}")
+                fixed_count += 1
+                if self.pipe:
+                    self.pipe(f"Updated: {file_status.file}")
 
         self.fixed_count = fixed_count
 

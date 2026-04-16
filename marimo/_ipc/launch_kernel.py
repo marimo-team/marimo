@@ -44,7 +44,7 @@ def main() -> None:
         profile_path=args.profile_path,
         # Virtual files require a web server to serve file URLs. Since we're
         # not running one, content must be embedded as data URLs instead.
-        virtual_files_supported=False,
+        virtual_file_storage=None,
         # NB: IPC kernels are always subprocesses (is_ipc=True) but may be
         # edit or run mode based on is_edit_mode.
         stream_queue=queue_manager.stream_queue,

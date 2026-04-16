@@ -1,8 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 
 from marimo._loggers import marimo_logger
 from marimo._messaging.notification import (
@@ -38,7 +39,7 @@ class MarimoCommManager:
     def receive_comm_message(
         self,
         command: ModelCommand,
-    ) -> tuple[Optional[str], Optional[dict[str, Any]]]:
+    ) -> tuple[str | None, dict[str, Any] | None]:
         """Receive a message from the frontend and forward to the comm.
 
         Returns:
@@ -67,10 +68,10 @@ class MarimoCommManager:
 
 Msg = dict[str, Any]
 MsgCallback = Callable[[Msg], None]
-DataType = Optional[dict[str, Any]]
-MetadataType = Optional[dict[str, Any]]
+DataType = dict[str, Any] | None
+MetadataType = dict[str, Any] | None
 Buffer = bytes | memoryview | bytearray
-BufferType = Optional[list[Buffer]]
+BufferType = list[Buffer] | None
 
 
 def _ensure_bytes(buf: object) -> bytes:
@@ -91,7 +92,7 @@ def _ensure_bytes(buf: object) -> bytes:
 def _create_model_message(
     data: dict[str, Any],
     buffers: list[Buffer],
-) -> Optional[ModelMessage]:
+) -> ModelMessage | None:
     """Create the appropriate ModelMessage based on the method field.
 
     Returns None for methods that should be skipped (e.g., echo_update).
@@ -147,15 +148,15 @@ class MarimoComm:
     ) -> None:
         del keys  # unused
         del metadata  # unused
-        self._msg_callback: Optional[MsgCallback] = None
-        self._close_callback: Optional[MsgCallback] = None
+        self._msg_callback: MsgCallback | None = None
+        self._close_callback: MsgCallback | None = None
         self._closed: bool = False
         self._closed_data: dict[str, object] = {}
 
         self.comm_id = comm_id
         self.comm_manager = comm_manager
         self.target_name = target_name
-        self.ui_element_id: Optional[str] = None
+        self.ui_element_id: str | None = None
         self._open(data=data, buffers=buffers)
 
     def _open(
@@ -170,7 +171,7 @@ class MarimoComm:
         # produce <marimo-anywidget> HTML).
         state = (data or {}).get("state", {})
         esm = state.get("_esm")
-        self.esm: Optional[str] = esm if isinstance(esm, str) and esm else None
+        self.esm: str | None = esm if isinstance(esm, str) and esm else None
         self.comm_manager.register_comm(self)
         try:
             self._broadcast(data or {}, buffers or [])

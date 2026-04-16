@@ -76,6 +76,21 @@ function buildPackageSpecifier(name: string, extras: string[]): string {
   return `${name}[${extras.join(",")}]`;
 }
 
+const SourceBadge: React.FC<{ source?: "kernel" | "server" }> = ({
+  source,
+}) => {
+  if (source !== "server") {
+    return null;
+  }
+  return (
+    <Tooltip content="Installing into the server environment, not the notebook kernel">
+      <span className="ml-2 text-xs font-normal border border-current rounded px-1 py-0.5 opacity-60">
+        server
+      </span>
+    </Tooltip>
+  );
+};
+
 export const PackageAlert: React.FC = () => {
   const { packageAlert, packageLogs } = useAlerts();
   const { clearPackageAlert } = useAlertActions();
@@ -105,6 +120,7 @@ export const PackageAlert: React.FC = () => {
             <span className="font-bold text-lg flex items-center mb-2">
               <PackageXIcon className="w-5 h-5 inline-block mr-2" />
               Missing packages
+              <SourceBadge source={packageAlert.source} />
             </span>
             <Button
               variant="text"
@@ -217,6 +233,7 @@ export const PackageAlert: React.FC = () => {
             <span className="font-bold text-lg flex items-center mb-2">
               {titleIcon}
               {title}
+              <SourceBadge source={packageAlert.source} />
             </span>
             <Button
               variant="text"

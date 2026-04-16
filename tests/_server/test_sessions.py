@@ -9,11 +9,12 @@ import queue
 import sys
 import threading
 import time
+from collections.abc import Callable
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from textwrap import dedent
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
@@ -139,7 +140,7 @@ def test_kernel_manager_run_mode() -> None:
         configs={},
         app_metadata=app_metadata,
         config_manager=get_default_config_manager(current_path=None),
-        virtual_files_supported=True,
+        virtual_file_storage="in_memory",
         redirect_console_to_browser=False,
     )
 
@@ -173,7 +174,7 @@ def test_kernel_manager_edit_mode() -> None:
         configs={},
         app_metadata=app_metadata,
         config_manager=get_default_config_manager(current_path=None),
-        virtual_files_supported=True,
+        virtual_file_storage="shared_memory",
         redirect_console_to_browser=False,
     )
 
@@ -205,7 +206,7 @@ def test_kernel_manager_interrupt(tmp_path: Path) -> None:
         configs={},
         app_metadata=app_metadata,
         config_manager=get_default_config_manager(current_path=None),
-        virtual_files_supported=True,
+        virtual_file_storage="shared_memory",
         redirect_console_to_browser=False,
     )
 
@@ -311,7 +312,7 @@ async def test_session() -> None:
         configs={},
         app_metadata=app_metadata,
         config_manager=get_default_config_manager(current_path=None),
-        virtual_files_supported=True,
+        virtual_file_storage="in_memory",
         redirect_console_to_browser=False,
     )
 
@@ -357,7 +358,7 @@ def test_session_disconnect_reconnect() -> None:
         configs={},
         app_metadata=app_metadata,
         config_manager=get_default_config_manager(current_path=None),
-        virtual_files_supported=True,
+        virtual_file_storage="in_memory",
         redirect_console_to_browser=False,
     )
 
@@ -415,7 +416,7 @@ def test_session_with_kiosk_consumers() -> None:
         configs={},
         app_metadata=app_metadata,
         config_manager=get_default_config_manager(current_path=None),
-        virtual_files_supported=True,
+        virtual_file_storage="in_memory",
         redirect_console_to_browser=False,
     )
 
@@ -536,7 +537,7 @@ def __():
         )
 
         # Wait for the watcher to detect the change
-        for _ in range(16):  # noqa: B007
+        for _ in range(16):
             await asyncio.sleep(0.1)
             if len(session_consumer.notify_calls) > 0:
                 break
@@ -573,7 +574,7 @@ def __():
         )
 
         # Wait for the watcher to detect the change
-        for _ in range(16):  # noqa: B007
+        for _ in range(16):
             await asyncio.sleep(0.1)
             if len(session_consumer.notify_calls) > 0:
                 break
@@ -608,7 +609,7 @@ def __():
         )
 
         # Wait for the watcher to detect the change
-        for _ in range(16):  # noqa: B007
+        for _ in range(16):
             await asyncio.sleep(0.1)
             if len(session_consumer2.notify_calls) > 0:
                 break
@@ -741,7 +742,7 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
         session.session_view = mock_session_view
 
         # Wait for file watcher to be initialized by checking it exists
-        for _ in range(20):  # noqa: B007
+        for _ in range(20):
             await asyncio.sleep(0.05)
             if (
                 hasattr(session_manager, "_file_watcher")
@@ -766,7 +767,7 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
 
         # Wait for the watcher to detect the change and send transaction
         tx_ops: list[NotebookDocumentTransactionNotification] = []
-        for _ in range(20):  # noqa: B007
+        for _ in range(20):
             await asyncio.sleep(0.1)
             tx_ops = [
                 op
@@ -849,7 +850,7 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
         )
 
         # Wait a bit for session to be ready
-        for _ in range(16):  # noqa: B007
+        for _ in range(16):
             await asyncio.sleep(0.1)
             if len(session_consumer.notify_calls) > 0:
                 break
@@ -870,7 +871,7 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
         )
 
         # Wait for the watcher to detect the change
-        for _ in range(16):  # noqa: B007
+        for _ in range(16):
             await asyncio.sleep(0.1)
             if len(session_consumer.notify_calls) > 0:
                 break
@@ -985,7 +986,7 @@ def __():
         )
 
         # Wait for the watcher to detect the change
-        for _ in range(16):  # noqa: B007
+        for _ in range(16):
             await asyncio.sleep(0.1)
             if len(operations) > 0:
                 break
@@ -1001,7 +1002,7 @@ def __():
     finally:
         # Cleanup
         session_manager.shutdown()
-        if new_path.exists():  # noqa: ASYNC240
+        if new_path.exists():
             os.remove(new_path)
         if tmp_path1.exists():  # noqa: ASYNC240
             os.remove(tmp_path1)
@@ -1038,7 +1039,7 @@ def test_session_with_script_config_overrides(
         app_metadata=app_metadata,
         app_file_manager=app_file_manager,
         config_manager=get_default_config_manager(current_path=None),
-        virtual_files_supported=True,
+        virtual_file_storage="in_memory",
         redirect_console_to_browser=False,
         ttl_seconds=None,
         auto_instantiate=True,
@@ -1092,7 +1093,9 @@ async def test_caching_extension_respects_mode_and_config() -> None:
             app_metadata=app_metadata,
             app_file_manager=AppFileManager.from_app(InternalApp(App())),
             config_manager=config_manager,
-            virtual_files_supported=True,
+            virtual_file_storage="shared_memory"
+            if mode == SessionMode.EDIT
+            else "in_memory",
             redirect_console_to_browser=False,
             ttl_seconds=None,
             auto_instantiate=auto_instantiate,

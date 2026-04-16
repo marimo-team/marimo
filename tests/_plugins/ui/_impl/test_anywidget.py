@@ -200,10 +200,10 @@ x = as_marimo_element.count
         assert "model_id" in wrapped._initial_value_frontend
         assert len(wrapped._initial_value_frontend) == 1
         assert isinstance(wrapped._initial_value_frontend["model_id"], str)
-        assert wrapped._component_args == {
-            "js-url": "",
-            "js-hash": md5(b"").hexdigest(),
-        }
+        assert wrapped._component_args["js-url"] == ""
+        assert wrapped._component_args["js-hash"] == md5(b"").hexdigest()
+        assert isinstance(wrapped._component_args["model-id"], str)
+        assert len(wrapped._component_args) == 3
 
     @staticmethod
     async def test_initialization_with_dataview() -> None:
@@ -215,10 +215,10 @@ x = as_marimo_element.count
         assert "model_id" in wrapped._initial_value_frontend
         assert len(wrapped._initial_value_frontend) == 1
         assert isinstance(wrapped._initial_value_frontend["model_id"], str)
-        assert wrapped._component_args == {
-            "js-url": "",
-            "js-hash": md5(b"").hexdigest(),
-        }
+        assert wrapped._component_args["js-url"] == ""
+        assert wrapped._component_args["js-hash"] == md5(b"").hexdigest()
+        assert isinstance(wrapped._component_args["model-id"], str)
+        assert len(wrapped._component_args) == 3
 
     @staticmethod
     async def test_custom_methods_and_attributes() -> None:

@@ -7,12 +7,13 @@ CellNotificationUtils for cell-related broadcasts.
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from marimo import _loggers as loggers
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.errors import (
+    MarimoExceptionRaisedError,
     MarimoInternalError,
     is_sensitive_error,
 )
@@ -38,7 +39,7 @@ LOGGER = loggers.marimo_logger()
 
 
 def broadcast_notification(
-    notification: NotificationMessage, stream: Optional[Stream] = None
+    notification: NotificationMessage, stream: Stream | None = None
 ) -> None:
     """Broadcast a notification to the stream."""
     if stream is None:
@@ -111,8 +112,8 @@ class CellNotificationUtils:
         channel: CellChannel,
         mimetype: KnownMimeType,
         data: str,
-        cell_id: Optional[CellId_t],
-        status: Optional[RuntimeStateType],
+        cell_id: CellId_t | None,
+        status: RuntimeStateType | None,
         stream: Stream | None = None,
     ) -> None:
         # Import here to avoid circular dependency
@@ -140,8 +141,8 @@ class CellNotificationUtils:
 
     @staticmethod
     def broadcast_empty_output(
-        cell_id: Optional[CellId_t],
-        status: Optional[RuntimeStateType],
+        cell_id: CellId_t | None,
+        status: RuntimeStateType | None,
         stream: Stream | None = None,
     ) -> None:
         # Import here to avoid circular dependency
@@ -165,8 +166,8 @@ class CellNotificationUtils:
         channel: CellChannel,
         mimetype: KnownMimeType,
         data: str,
-        cell_id: Optional[CellId_t],
-        status: Optional[RuntimeStateType],
+        cell_id: CellId_t | None,
+        status: RuntimeStateType | None,
         stream: Stream | None = None,
     ) -> None:
         # Import here to avoid circular dependency
@@ -221,18 +222,37 @@ class CellNotificationUtils:
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
 
-        console: Optional[list[CellOutput]] = [] if clear_console else None
+        console: list[CellOutput] | None = [] if clear_console else None
 
         # In run mode, we don't want to broadcast the error. Instead we want to print the error to the console
         # and then broadcast a new error such that the data is hidden.
         safe_errors: list[Error] = []
         if get_mode() == "run":
+            # Check if show_tracebacks is enabled
+            show_tracebacks = False
+            try:
+                ctx = get_context()
+                show_tracebacks = bool(
+                    ctx.marimo_config["runtime"].get("show_tracebacks", False)
+                )
+            except ContextNotInitializedError:
+                pass
+
             for error in data:
                 # Skip non-sensitive errors
                 if not is_sensitive_error(error):
                     safe_errors.append(error)
                     continue
 
+                # show raised exceptions only if `show_tracebacks` is enabled
+                if (
+                    isinstance(error, MarimoExceptionRaisedError)
+                    and show_tracebacks
+                ):
+                    safe_errors.append(error)
+                    continue
+
+                # Sanitize sensitive errors
                 error_id = uuid4()
                 LOGGER.error(
                     f"(error_id={error_id}) {error.describe()}",
@@ -271,7 +291,7 @@ class CellNotificationUtils:
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
 
-        status: Optional[TopLevelHints] = serialization.hint
+        status: TopLevelHints | None = serialization.hint
         broadcast_notification(
             CellNotification(cell_id=cell_id, serialization=str(status)),
             stream,

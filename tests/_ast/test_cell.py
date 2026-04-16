@@ -25,7 +25,7 @@ class TestCellRun:
         cell = app.cell(f)
         assert cell.name == "f"
         assert not cell.refs
-        assert cell.defs == set(["x"])
+        assert cell.defs == {"x"}
         assert not cell._is_coroutine
         assert cell.run() == ("output", {"x": 4})
 

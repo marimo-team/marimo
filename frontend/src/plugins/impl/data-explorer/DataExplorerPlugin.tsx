@@ -3,7 +3,6 @@ import "../vega/vega.css";
 
 import React from "react";
 import { z } from "zod";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { createPlugin } from "@/plugins/core/builder";
 import type { DataExplorerState } from "./ConnectedDataExplorerComponent";
 
@@ -21,11 +20,9 @@ export const DataExplorerPlugin = createPlugin<DataExplorerState>(
     }),
   )
   .renderer((props) => (
-    <TooltipProvider>
-      <LazyDataExplorerComponent
-        {...props.data}
-        value={props.value}
-        setValue={props.setValue}
-      />
-    </TooltipProvider>
+    <LazyDataExplorerComponent
+      {...props.data}
+      value={props.value}
+      setValue={props.setValue}
+    />
   ));

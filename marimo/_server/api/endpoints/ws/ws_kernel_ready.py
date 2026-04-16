@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
     KernelCapabilitiesNotification,
     KernelReadyNotification,
@@ -62,7 +63,8 @@ def build_kernel_ready(
     Returns:
         KernelReady message operation.
     """
-    codes, names, configs, cell_ids = _extract_cell_data(session, manager)
+    document = session.document
+    codes, names, configs, cell_ids = _extract_cell_data(document, manager)
 
     # Initialize RTC if needed
     if _should_init_rtc(rtc_enabled, mode):
@@ -86,7 +88,7 @@ def build_kernel_ready(
 
 
 def _extract_cell_data(
-    session: Session,
+    document: NotebookDocument,
     manager: SessionManager,
 ) -> tuple[
     tuple[str, ...],
@@ -97,14 +99,14 @@ def _extract_cell_data(
     """Extract cell data based on mode.
 
     Args:
-        session: Current session
+        document: Current document
         manager: Session manager
 
     Returns:
         Tuple of (codes, names, configs, cell_ids).
     """
-    file_manager = session.app_file_manager
-    app = file_manager.app
+    if not document.cells:
+        return ((), (), (), ())
 
     if manager.should_send_code_to_frontend():
         # Send full cell data to frontend
@@ -112,13 +114,14 @@ def _extract_cell_data(
             zip(
                 *tuple(
                     (
-                        cell_data.code,
-                        cell_data.name,
-                        cell_data.config,
-                        cell_data.cell_id,
+                        cell.code,
+                        cell.name,
+                        cell.config,
+                        cell.id,
                     )
-                    for cell_data in app.cell_manager.cell_data()
-                )
+                    for cell in document.cells
+                ),
+                strict=False,
             )
         )
         return codes, names, configs, cell_ids
@@ -127,9 +130,10 @@ def _extract_cell_data(
         codes, names, configs, cell_ids = tuple(
             zip(
                 *tuple(
-                    ("", cell_data.name, cell_data.config, cell_data.cell_id)
-                    for cell_data in app.cell_manager.cell_data()
-                )
+                    ("", cell.name, cell.config, cell.id)
+                    for cell in document.cells
+                ),
+                strict=False,
             )
         )
         return codes, names, configs, cell_ids

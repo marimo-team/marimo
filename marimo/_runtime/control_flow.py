@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
-
 from marimo._output.rich_help import mddoc
 
 # We used to define a custom MarimoInterrupt BaseException to interrupt the
@@ -21,12 +19,12 @@ class MarimoStopError(BaseException):
         output: optional output object
     """
 
-    def __init__(self, output: Optional[object]) -> None:
+    def __init__(self, output: object | None) -> None:
         self.output = output
 
 
 @mddoc
-def stop(predicate: bool, output: Optional[object] = None) -> None:
+def stop(predicate: bool, output: object | None = None) -> None:
     """Stops execution of a cell when `predicate` is `True`
 
     When `predicate` is `True`, this function raises a `MarimoStopError`. If

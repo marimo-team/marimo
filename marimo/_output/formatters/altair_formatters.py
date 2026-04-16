@@ -1,15 +1,15 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
 import json
+import re
 from typing import Any
 from urllib.request import urlopen
 
 from marimo._config.config import Theme
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._loggers import marimo_logger
-from marimo._messaging.mimetypes import KnownMimeType, MimeBundleOrTuple
+from marimo._messaging.mimetypes import METADATA_KEY, KnownMimeType, MimeBundle
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.ui._impl.altair_chart import (
@@ -18,7 +18,6 @@ from marimo._plugins.ui._impl.altair_chart import (
     get_chart_mimetype,
     maybe_fix_vegafusion_background,
 )
-from marimo._utils.data_uri import build_data_url
 
 LOGGER = marimo_logger()
 
@@ -47,11 +46,16 @@ class AltairFormatter(FormatterFactory):
             # If its HTML, we want to handle this ourselves
             # if its svg, vega, or png, then we want to pass that instead
             # because that means the user has configured the that renderer
-            mimebundle: MimeBundleOrTuple = {}
+            mimebundle: MimeBundle | tuple[MimeBundle, MimeBundle] = {}
             try:
                 mimebundle = chart._repr_mimebundle_() or {}  # type: ignore
-            except Exception:
-                pass
+            except Exception as e:
+                LOGGER.warning("Failed to get mimebundle from chart: %s", e)
+
+            # When the mimebundle is a tuple, it follows the format
+            # (data_dict, metadata_dict).
+            if isinstance(mimebundle, tuple) and "image/png" in mimebundle[0]:
+                return _format_png_mimebundle(mimebundle)
 
             # Handle where there are multiple mime types
             # return as a mimebundle
@@ -77,9 +81,14 @@ class AltairFormatter(FormatterFactory):
                         data_url = io_to_data_url(mime_response, mime_type)
                         return (mime_type, data_url or "")
                     if isinstance(mime_response, str):
-                        if mime_type == "image/svg+xml":
-                            data = base64.b64encode(mime_response.encode())
-                            return mime_type, build_data_url(mime_type, data)
+                        if (
+                            mime_type == "image/svg+xml"
+                            and not altair.renderers.options.get("raw_svg")
+                        ):
+                            _maybe_warn_external_resources(mime_response)
+                            svg_bytes = mime_response.encode()
+                            data_url = io_to_data_url(svg_bytes, mime_type)
+                            return (mime_type, data_url or "")
                         return mime_type, mime_response
                     return mime_type, json.dumps(mime_response)
 
@@ -108,7 +117,43 @@ class AltairFormatter(FormatterFactory):
         del theme
         # We don't need to apply this here because the theme is set in the
         # vega-lite component
-        pass
+
+
+def _format_png_mimebundle(
+    png_mimebundle: tuple[MimeBundle, MimeBundle],
+) -> tuple[KnownMimeType, str]:
+    data_url = io_to_data_url(png_mimebundle[0]["image/png"], "image/png")
+    metadata = png_mimebundle[1]["image/png"]
+
+    mimebundle = {
+        "image/png": data_url or "",
+        METADATA_KEY: {
+            "image/png": {
+                "width": round(metadata["width"]),
+                "height": round(metadata["height"]),
+            }
+        },
+    }
+    return "application/vnd.marimo+mimebundle", json.dumps(mimebundle)
+
+
+# Check if the SVG contains external resources that may not render
+# correctly when encoded as a Data URL.
+# https://github.com/marimo-team/marimo/pull/9104
+def _maybe_warn_external_resources(svg: str) -> None:
+    # Strictly detecting external resource usage in SVG is difficult;
+    # as a heuristic, we check for 'href' or 'xlink:href' attributes
+    # that point to external resources (ignoring internal '#' or 'data:' URLs).
+    if re.search(
+        r'<[^>]*\b(?:xlink:)?href\s*=\s*["\'](?!\s*(?:#|data:))[^"\']+', svg
+    ):
+        msg = (
+            "This SVG contains external resources (href/xlink:href) "
+            "that may not render correctly when encoded as a Data URL. "
+            "If images are missing, try enabling raw SVG rendering with: "
+            "altair.renderers.enable('svg', raw_svg=True)."
+        )
+        LOGGER.warning(msg)
 
 
 # This is only needed since it seems that altair does not

@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 from marimo import _loggers
 from marimo._config.config import DatasourcesConfig
@@ -70,8 +70,8 @@ def engine_to_data_source_connection(
     variable_name: VariableName, engine: BaseEngine[Any]
 ) -> DataSourceConnection:
     databases: list[Database] = []
-    default_database: Optional[str] = None
-    default_schema: Optional[str] = None
+    default_database: str | None = None
+    default_schema: str | None = None
 
     if not isinstance(engine, EngineCatalog):
         return DataSourceConnection(

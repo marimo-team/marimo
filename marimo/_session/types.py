@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import contextlib
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Protocol, Union
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     import asyncio
@@ -42,7 +42,7 @@ class QueueManager(Protocol):
     set_ui_element_queue: QueueType[commands.BatchableCommand]
     completion_queue: QueueType[commands.CodeCompletionCommand]
     input_queue: QueueType[str]
-    stream_queue: Optional[QueueType[Union[KernelMessage, None]]]
+    stream_queue: QueueType[KernelMessage | None] | None
     win32_interrupt_queue: QueueType[bool] | None
 
     def close_queues(self) -> None:
@@ -61,7 +61,7 @@ class QueueManager(Protocol):
 class KernelManager(Protocol):
     """Protocol for kernel management."""
 
-    kernel_task: Optional[Union[ProcessLike, threading.Thread]]
+    kernel_task: ProcessLike | threading.Thread | None
     mode: SessionMode
 
     def start_kernel(self) -> None:
@@ -143,7 +143,7 @@ class Session(Protocol):
     def put_control_request(
         self,
         request: commands.CommandMessage,
-        from_consumer_id: Optional[ConsumerId],
+        from_consumer_id: ConsumerId | None,
     ) -> None:
         """Put a control request in the control queue."""
         ...
@@ -173,7 +173,7 @@ class Session(Protocol):
     def notify(
         self,
         operation: NotificationMessage | KernelMessage,
-        from_consumer_id: Optional[ConsumerId],
+        from_consumer_id: ConsumerId | None,
     ) -> None:
         """Broadcast a notification to session consumers."""
         ...
@@ -182,7 +182,7 @@ class Session(Protocol):
         self,
         request: Any,
         *,
-        http_request: Optional[commands.HTTPRequest],
+        http_request: commands.HTTPRequest | None,
     ) -> None:
         """Instantiate the app."""
         ...

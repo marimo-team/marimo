@@ -6,6 +6,7 @@ import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
+import type { CollapsibleTree } from "@/utils/id-tree";
 import {
   type CellColumnId,
   type CellIndex,
@@ -337,6 +338,49 @@ const {
           scrollKey: cellId,
         };
   },
+  moveCellToIndex: (
+    state,
+    action: {
+      cellId: CellId;
+      columnId: CellColumnId;
+      index: number;
+    },
+  ) => {
+    const { cellId, columnId, index } = action;
+    const fromColumn = state.cellIds.findWithId(cellId);
+    const fromIndex = fromColumn.indexOfOrThrow(cellId);
+
+    const destinationColumn = state.cellIds.get(columnId);
+    if (!destinationColumn) {
+      return state;
+    }
+
+    const clampedIndex = Math.max(0, Math.min(index, destinationColumn.length));
+    const adjustedIndex =
+      fromColumn.id === columnId && fromIndex < clampedIndex
+        ? clampedIndex - 1
+        : clampedIndex;
+
+    if (fromColumn.id === columnId && fromIndex === adjustedIndex) {
+      return state;
+    }
+
+    const withoutCell = state.cellIds.deleteById(cellId);
+    const updatedColumn = withoutCell.get(columnId);
+    if (!updatedColumn) {
+      return state;
+    }
+
+    return {
+      ...state,
+      cellIds: withoutCell.insertId(
+        cellId,
+        columnId,
+        Math.max(0, Math.min(adjustedIndex, updatedColumn.length)),
+      ),
+      scrollKey: null,
+    };
+  },
   dropCellOverCell: (state, action: { cellId: CellId; overCellId: CellId }) => {
     const { cellId, overCellId } = action;
 
@@ -578,7 +622,18 @@ const {
       return state;
     }
 
-    const column = state.cellIds.findWithId(cellId);
+    let column: CollapsibleTree<CellId>;
+    try {
+      column = state.cellIds.findWithId(cellId);
+    } catch (error) {
+      // Expected for kernel-only cells or out-of-order transactions.
+      Logger.warn("Skipping delete for missing cellId", {
+        cellId,
+        error,
+      });
+      return state;
+    }
+
     const cellIndex = column.indexOfOrThrow(cellId);
     const focusIndex = cellIndex === 0 ? 1 : cellIndex - 1;
     let scrollKey: CellId | null = null;
@@ -819,6 +874,24 @@ const {
       cellHandles: nextCellHandles,
     };
   },
+  /**
+   * Rebuild the MultiColumn tree using each cell's `config.column` value.
+   *
+   * Used after a transaction whose `set-config` changes updated cells'
+   * column metadata without physically moving them in the tree. Cells with
+   * `config.column == null` inherit the column of the previous cell in the
+   * given order (see `MultiColumn.fromIdsAndColumns`), which lets the server
+   * send column changes only at column boundaries.
+   */
+  rebuildCellColumns: (state, action: { cellIds: CellId[] }) => {
+    const newCellIds = MultiColumn.fromIdsAndColumns(
+      action.cellIds.map((id) => [
+        id,
+        state.cellData[id]?.config.column ?? null,
+      ]),
+    );
+    return { ...state, cellIds: newCellIds };
+  },
   setCellCodes: (
     state,
     action: {
@@ -935,7 +1008,7 @@ const {
       cellReducer: (cell) => {
         const consoleOutputs = [...cell.consoleOutputs];
         const stdinOutput = consoleOutputs[outputIndex];
-        if (stdinOutput.channel !== "stdin") {
+        if (stdinOutput == null || stdinOutput.channel !== "stdin") {
           Logger.warn("Expected stdin output");
           return cell;
         }

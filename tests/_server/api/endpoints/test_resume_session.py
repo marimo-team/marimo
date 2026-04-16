@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import time
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.notification import (
@@ -25,9 +25,7 @@ if TYPE_CHECKING:
     from starlette.testclient import TestClient
 
 
-def get_session(
-    client: TestClient, session_id: SessionId
-) -> Optional[Session]:
+def get_session(client: TestClient, session_id: SessionId) -> Session | None:
     return get_session_manager(client).get_session(session_id)
 
 
