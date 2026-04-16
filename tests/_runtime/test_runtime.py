@@ -4192,8 +4192,9 @@ class TestLaunchKernelEventLoop:
     SelectorEventLoop because ConnectionDistributor relies on
     loop.add_reader().
 
-    These tests stub out everything after the event-loop setup so only
-    the policy / loop_factory decision is exercised.
+    Each test exercises a single (platform, python-version) branch and
+    skips when the current runner doesn't match it. CI runs across all
+    major operating systems, so every branch is covered somewhere.
     """
 
     _HEAVY_DEPENDENCY_TARGETS = [
@@ -4251,9 +4252,8 @@ class TestLaunchKernelEventLoop:
         with ExitStack() as stack:
             for target in self._HEAVY_DEPENDENCY_TARGETS:
                 stack.enter_context(patch(target))
-            # `signal` is used as `signal.signal(...)` and references
-            # `signal.SIGBREAK`, which only exists on Windows — swap
-            # the whole module ref so non-Windows hosts don't blow up.
+            # Swap the whole signal module ref to avoid registering real
+            # SIGINT/SIGTERM/SIGBREAK handlers in the test process.
             stack.enter_context(
                 patch("marimo._runtime.runtime.signal", new=MagicMock())
             )
@@ -4261,25 +4261,28 @@ class TestLaunchKernelEventLoop:
             stack.enter_context(patch("asyncio.run", run_mock))
             yield run_mock
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="exercises the non-Windows branch",
+    )
     def test_non_windows_does_not_change_event_loop_policy(self, harness):
-        with (
-            patch("sys.platform", "linux"),
-            patch.object(asyncio, "set_event_loop_policy") as set_policy,
-        ):
+        with patch.object(asyncio, "set_event_loop_policy") as set_policy:
             self._call_launch_kernel(is_edit_mode=True)
 
         set_policy.assert_not_called()
         assert harness.call_count == 1
         assert "loop_factory" not in harness.call_args.kwargs
 
+    @pytest.mark.skipif(
+        sys.platform != "win32" or sys.version_info >= (3, 14),
+        reason="exercises the Windows pre-3.14 branch",
+    )
     def test_windows_pre_314_installs_proactor_event_loop_policy(
         self, harness
     ):
         with (
-            patch("sys.platform", "win32"),
-            patch("sys.version_info", (3, 12, 0, "final", 0)),
             patch.object(
-                asyncio, "WindowsProactorEventLoopPolicy", create=True
+                asyncio, "WindowsProactorEventLoopPolicy"
             ) as policy_cls,
             patch.object(asyncio, "set_event_loop_policy") as set_policy,
         ):
@@ -4290,16 +4293,16 @@ class TestLaunchKernelEventLoop:
         # Pre-3.14 uses the policy API, not loop_factory.
         assert "loop_factory" not in harness.call_args.kwargs
 
+    @pytest.mark.skipif(
+        sys.platform != "win32" or sys.version_info < (3, 14),
+        reason="exercises the Windows 3.14+ branch",
+    )
     def test_windows_314_plus_uses_proactor_loop_factory(self, harness):
         # Event loop policies are deprecated in 3.14; launch_kernel must
         # pass ProactorEventLoop as the loop_factory to asyncio.run
         # instead of mutating the global policy.
         with (
-            patch("sys.platform", "win32"),
-            patch("sys.version_info", (3, 14, 0, "final", 0)),
-            patch.object(
-                asyncio, "ProactorEventLoop", create=True
-            ) as proactor_cls,
+            patch.object(asyncio, "ProactorEventLoop") as proactor_cls,
             patch.object(asyncio, "set_event_loop_policy") as set_policy,
         ):
             self._call_launch_kernel(is_edit_mode=True)
@@ -4307,22 +4310,18 @@ class TestLaunchKernelEventLoop:
         set_policy.assert_not_called()
         assert harness.call_args.kwargs.get("loop_factory") is proactor_cls
 
+    @pytest.mark.skipif(
+        sys.platform != "win32",
+        reason="run-mode guard is only meaningful on Windows",
+    )
     def test_run_mode_on_windows_does_not_touch_event_loop_policy(
         self, harness
     ):
         # Run mode (not edit, not IPC) runs in-process on the server's
         # loop and must NOT mutate the event loop policy — the server
         # uses the Selector loop for ConnectionDistributor.add_reader().
-        with (
-            patch("sys.platform", "win32"),
-            patch("sys.version_info", (3, 12, 0, "final", 0)),
-            patch.object(
-                asyncio, "WindowsProactorEventLoopPolicy", create=True
-            ) as policy_cls,
-            patch.object(asyncio, "set_event_loop_policy") as set_policy,
-        ):
+        with patch.object(asyncio, "set_event_loop_policy") as set_policy:
             self._call_launch_kernel(is_edit_mode=False)
 
-        policy_cls.assert_not_called()
         set_policy.assert_not_called()
         assert "loop_factory" not in harness.call_args.kwargs
