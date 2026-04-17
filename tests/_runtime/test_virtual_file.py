@@ -350,6 +350,7 @@ def test_virtual_file_registry_shared_shared_memory_storage() -> None:
     key2 = f"{uuid.uuid4().hex[:8]}.txt"
     context = type("Context", (), {"virtual_files_supported": True})()
 
+    registry1 = None
     registry2 = None
     try:
         manager.storage = None
@@ -368,6 +369,8 @@ def test_virtual_file_registry_shared_shared_memory_storage() -> None:
         assert read_virtual_file(key2, 3) == b"two"
     finally:
         manager.storage = original_storage
+        if registry1 is not None:
+            registry1.shutdown()
         if registry2 is not None:
             registry2.shutdown()
 
