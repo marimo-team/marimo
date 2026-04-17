@@ -13,8 +13,8 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import pytest
 
 from marimo._ast.app_config import _AppConfig
-from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.manager import get_default_config_manager
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._runtime.commands import (
     AppMetadata,
     CreateNotebookCommand,
@@ -217,8 +217,10 @@ def test_close_kernel_shuts_down_same_group_subprocesses_only(
         child_newpg_process = psutil.Process(pids["child_newpg"])
 
         _wait_until(
-            lambda: child_pg_process.is_running()
-            and child_newpg_process.is_running(),
+            lambda: (
+                child_pg_process.is_running()
+                and child_newpg_process.is_running()
+            ),
             timeout_seconds=2,
             message="Spawned subprocesses did not stay alive long enough",
         )

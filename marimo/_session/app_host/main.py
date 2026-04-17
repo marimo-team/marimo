@@ -372,10 +372,7 @@ def app_host_main(args: AppHostArgs) -> None:
     stream_socket.close(linger=0)
     context.destroy(linger=0)
 
-    if (
-        should_kill_process_group
-        and parent_exit_cleanup_complete is not None
-    ):
+    if should_kill_process_group and parent_exit_cleanup_complete is not None:
         parent_exit_cleanup_complete.set()
 
     if should_kill_process_group and sys.platform != "win32":

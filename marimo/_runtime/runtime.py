@@ -182,8 +182,10 @@ from marimo._runtime.packages.utils import (
     is_python_isolated,
 )
 from marimo._runtime.params import CLIArgs, QueryParams
-from marimo._runtime.parent_poller import ParentPollerUnix, kill_own_process_group
-
+from marimo._runtime.parent_poller import (
+    ParentPollerUnix,
+    kill_own_process_group,
+)
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import ModuleWatcher

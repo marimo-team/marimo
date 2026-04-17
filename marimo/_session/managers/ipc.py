@@ -495,7 +495,9 @@ class IPCKernelManagerImpl(KernelManager):
                 self._cleanup_sandbox()
                 return
 
-            self.queue_manager.put_control_request(commands.StopKernelCommand())
+            self.queue_manager.put_control_request(
+                commands.StopKernelCommand()
+            )
             self._shutdown_thread = threading.Thread(
                 target=self._shutdown_process_in_background,
                 daemon=False,

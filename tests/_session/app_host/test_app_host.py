@@ -20,7 +20,9 @@ from marimo._runtime.commands import (
 from marimo._session.app_host.commands import Channel
 
 
-def _wait_until(predicate: object, timeout_seconds: float, message: str) -> None:
+def _wait_until(
+    predicate: object, timeout_seconds: float, message: str
+) -> None:
     assert callable(predicate)
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
@@ -359,8 +361,10 @@ class TestAppHost:
             child_newpg_process = psutil.Process(pids["child_newpg"])
 
             _wait_until(
-                lambda: child_pg_process.is_running()
-                and child_newpg_process.is_running(),
+                lambda: (
+                    child_pg_process.is_running()
+                    and child_newpg_process.is_running()
+                ),
                 timeout_seconds=2,
                 message="AppHost subprocesses did not stay alive long enough",
             )

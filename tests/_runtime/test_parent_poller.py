@@ -241,10 +241,12 @@ def test_parent_poller_uses_runtime_cleanup_before_killing_descendants(
     try:
         launcher.wait(timeout=3)
         _wait_until(
-            lambda: ready_path.exists()
-            and ready_path.read_text() == "ready"
-            and kernel_pid_path.exists()
-            and child_pid_path.exists(),
+            lambda: (
+                ready_path.exists()
+                and ready_path.read_text() == "ready"
+                and kernel_pid_path.exists()
+                and child_pid_path.exists()
+            ),
             timeout_seconds=3,
             message="Kernel subprocess tree did not become ready in time",
         )
