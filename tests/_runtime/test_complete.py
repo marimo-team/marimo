@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 import threading
+import time
 from collections.abc import Mapping
 from inspect import signature
 from types import ModuleType
@@ -19,6 +20,8 @@ from marimo._messaging.types import KernelMessage, Stream
 from marimo._runtime.commands import CodeCompletionCommand
 from marimo._runtime.complete import (
     _build_docstring_cached,
+    _get_completion_option,
+    _get_completion_options,
     _get_docstring,
     _maybe_get_key_options,
     _resolve_chained_key_path,
@@ -709,3 +712,160 @@ def test_resolve_chained_key_path(
 ) -> None:
     key_path = _resolve_chained_key_path("obj", trigger_code)
     assert key_path == expected_key_path
+
+
+class _FakeCompletion:
+    """Stand-in for jedi.api.classes.Completion.
+
+    Tracks whether `type` was accessed so we can assert we didn't pay the
+    (expensive) jedi inference cost in the fast path.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        completion_type: str = "function",
+        raise_on_type: bool = False,
+    ) -> None:
+        self.name = name
+        self._type = completion_type
+        self._raise_on_type = raise_on_type
+        self.type_access_count = 0
+        self.docstring_called = False
+
+    @property
+    def type(self) -> str:
+        self.type_access_count += 1
+        if self._raise_on_type:
+            raise AssertionError(
+                "completion.type accessed when it should have been skipped"
+            )
+        return self._type
+
+    def docstring(self, *_args: Any, **_kwargs: Any) -> str:
+        self.docstring_called = True
+        return ""
+
+
+def test_get_completion_option_skips_type_when_compute_type_false() -> None:
+    completion = _FakeCompletion("foo", raise_on_type=True)
+    script = mock.MagicMock()
+
+    option = _get_completion_option(
+        completion,
+        script,
+        compute_completion_info=False,
+        compute_type=False,
+    )
+
+    assert option.name == "foo"
+    assert option.type == ""
+    assert option.completion_info == ""
+    assert completion.type_access_count == 0
+
+
+def test_get_completion_option_computes_type_by_default() -> None:
+    completion = _FakeCompletion("foo", completion_type="class")
+    script = mock.MagicMock()
+
+    option = _get_completion_option(
+        completion,
+        script,
+        compute_completion_info=False,
+    )
+
+    assert option.type == "class"
+    assert completion.type_access_count == 1
+
+
+def test_get_completion_option_skips_all_inference_when_type_skipped() -> None:
+    """When `compute_type=False`, we also skip docstrings and signatures.
+    The whole point of `compute_type=False` is "we're out of budget", so
+    further jedi inference (docstring, signature) would defeat the purpose.
+    """
+    completion = _FakeCompletion("foo", raise_on_type=True)
+    script = mock.MagicMock()
+
+    option = _get_completion_option(
+        completion,
+        script,
+        compute_completion_info=True,
+        compute_type=False,
+    )
+
+    assert option.name == "foo"
+    assert option.type == ""
+    assert option.completion_info == ""
+    assert completion.type_access_count == 0
+    assert not completion.docstring_called
+    script.get_signatures.assert_not_called()
+
+
+def test_get_completion_options_skips_docstrings_past_limit() -> None:
+    completions = [_FakeCompletion(f"attr_{i}") for i in range(10)]
+    script = mock.MagicMock()
+
+    options = _get_completion_options(
+        completions, script, prefix="", limit=5, timeout=5.0
+    )
+
+    assert len(options) == 10
+    assert all(opt.completion_info == "" for opt in options)
+    # Types are still computed since we're well under the timeout
+    assert all(c.type_access_count == 1 for c in completions)
+
+
+def test_get_completion_options_keeps_docstrings_under_limit() -> None:
+    completions = [_FakeCompletion(f"attr_{i}") for i in range(3)]
+    script = mock.MagicMock()
+
+    _get_completion_options(
+        completions, script, prefix="", limit=10, timeout=5.0
+    )
+
+    # All three completions should have had docstring() invoked
+    assert all(c.docstring_called for c in completions)
+
+
+def test_get_completion_options_bails_out_when_timeout_elapsed() -> None:
+    """Once the time budget is blown, subsequent completions skip both type
+    inference and docstring lookup — this is the key knob that keeps cold
+    completions from taking 10+ seconds on heavy libraries.
+    """
+    completions = [_FakeCompletion(f"attr_{i}") for i in range(4)]
+    script = mock.MagicMock()
+
+    # Burn time on the first call so the rest see an expired budget.
+    original_time = time.time
+    times = iter([0.0, 0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0])
+
+    with mock.patch(
+        "marimo._runtime.complete.time.time",
+        side_effect=lambda: next(times, original_time()),
+    ):
+        options = _get_completion_options(
+            completions, script, prefix="", limit=100, timeout=1.0
+        )
+
+    # First one completes normally, the rest should have no info or type
+    assert options[0].completion_info != "" or completions[0].docstring_called
+    assert options[0].type == "function"
+    for opt in options[1:]:
+        assert opt.type == ""
+        assert opt.completion_info == ""
+
+
+def test_get_completion_options_respects_prefix_filter() -> None:
+    """Underscore names are filtered out by `_should_include_name`."""
+    completions = [
+        _FakeCompletion("public"),
+        _FakeCompletion("_private"),
+        _FakeCompletion("__dunder__"),
+    ]
+    script = mock.MagicMock()
+
+    options = _get_completion_options(
+        completions, script, prefix="", limit=100, timeout=5.0
+    )
+
+    assert [opt.name for opt in options] == ["public"]
