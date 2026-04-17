@@ -125,7 +125,7 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
                 size="xs"
                 className="shrink-0"
               >
-                <a href={molabLink} target="_blank" rel="noreferrer">
+                <a href={molabLink} target="_blank" rel="noopener noreferrer">
                   <MarimoPlusIcon
                     size={12}
                     strokeWidth={1.5}
