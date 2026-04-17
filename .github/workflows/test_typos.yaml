@@ -2,7 +2,8 @@ name: Typos
 
 # Run on pull requests
 on:
-  pull_request: {}
+  # DEBUG: disabled on throwaway debug branch
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

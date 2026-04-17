@@ -112,38 +112,10 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        dependencies: ["core", "core,optional"]
+        # DEBUG: only run Windows Py 3.10 core deps for this throwaway branch.
+        os: [windows-latest]
+        dependencies: ["core"]
         python-version: ["3.10"]
-        include:
-          - os: ubuntu-latest
-            python-version: "3.10"
-            dependencies: "minimal"
-          - os: ubuntu-latest
-            python-version: "3.11"
-            dependencies: "core"
-          - os: ubuntu-latest
-            python-version: "3.12"
-            dependencies: "core"
-          - os: ubuntu-latest
-            python-version: "3.13"
-            dependencies: "core"
-          - os: ubuntu-latest
-            python-version: "3.14"
-            dependencies: "core"
-          - os: ubuntu-latest
-            python-version: "3.10"
-            dependencies: "core,optional"
-          - os: ubuntu-latest
-            python-version: "3.11"
-            dependencies: "core,optional"
-          - os: ubuntu-latest
-            python-version: "3.12"
-            dependencies: "core,optional"
-          - os: ubuntu-latest
-            python-version: "3.13"
-            dependencies: "core,optional"
-          # TODO: Add in 3.14 optional once there is broader wheel support
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -202,15 +174,15 @@ jobs:
       - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          # DEBUG EXPERIMENT 3a: exclude new debug-kill-process-group tests
-          # to see whether cross-test state pollution comes from them. Do not
-          # merge.
+          # DEBUG EXPERIMENT 3b: exclude tests/_ipc and tests/_islands to see
+          # whether cross-test state pollution comes from kernel/process
+          # subprocess startup in those tests. Do not merge.
           uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
             -v \
-            ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
+            -p no:xdist \
             -k "not test_cli" \
-            --ignore=tests/_runtime/test_parent_poller.py \
-            --ignore=tests/_session \
+            --ignore=tests/_ipc \
+            --ignore=tests/_islands \
             --durations=10 \
             -p packages.pytest_changed \
             --changed-from=${{ steps.setup-flags.outputs.changed_from }} \

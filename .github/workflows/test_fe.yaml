@@ -1,9 +1,8 @@
 name: Test FE
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  # DEBUG: disabled on throwaway debug branch
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

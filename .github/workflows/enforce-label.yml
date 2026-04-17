@@ -3,8 +3,8 @@ name: 🏷️ Enforce Pull Request Label
 # Enforces that at least one label is selected on pull requests
 
 on:
-  pull_request:
-    types: [labeled, unlabeled, opened, reopened, edited, synchronize]
+  # DEBUG: disabled on throwaway debug branch
+  workflow_dispatch:
 
 permissions:
   contents: read
