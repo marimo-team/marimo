@@ -37,6 +37,11 @@ from marimo._ast.cell import (
 from marimo._ast.cell_id import CellIdGenerator
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import SETUP_CELL_NAME
+from marimo._code_mode._packages import (
+    Packages,
+    _AddPackage,
+    _RemovePackage,
+)
 from marimo._code_mode._plan import (
     _AddOp,
     _build_plan,
@@ -71,7 +76,6 @@ from marimo._runtime.commands import (
     CommandMessage,
     DeleteCellCommand,
     ExecuteCellCommand,
-    InstallPackagesCommand,
     UpdateUIElementCommand,
 )
 from marimo._runtime.context import get_context as _get_runtime_context
@@ -146,6 +150,10 @@ class CellRuntimeState(Protocol):
 
 
 LOGGER = _loggers.marimo_logger()
+
+# Set the first time `ctx.install_packages` (legacy alias) is used in a
+# session, so the nudge is printed once per process instead of every call.
+_LEGACY_INSTALL_WARNED = False
 
 
 # ------------------------------------------------------------------
@@ -573,7 +581,7 @@ class AsyncCodeModeContext:
         # document prevents collisions with cells already on disk.
         self._id_generator = CellIdGenerator(seed=None)
         self._id_generator.seen_ids = set(document.cell_ids)
-        self._packages_to_install: list[str] = []
+        self._packages = Packages(self)
         self._ui_updates: list[tuple[UIElementId, Any]] = []
         self._cells_to_run: set[CellId_t] = set()
         self._entered = False
@@ -589,6 +597,24 @@ class AsyncCodeModeContext:
                 "Without 'async with', operations are silently lost."
             )
 
+    def __getattr__(self, name: str) -> Any:
+        # Legacy alias: `ctx.install_packages(...)` was the pre-namespace
+        # API. Kept as a hidden shim for in-flight skills / examples;
+        # does not appear in dir() or IDE completion. Prefer
+        # `ctx.packages.add(...)` in new code.
+        if name == "install_packages":
+            global _LEGACY_INSTALL_WARNED
+            if not _LEGACY_INSTALL_WARNED:
+                _LEGACY_INSTALL_WARNED = True
+                sys.stderr.write(
+                    "note: ctx.install_packages() is a legacy alias — "
+                    "please update to ctx.packages.add()\n"
+                )
+            return self.packages.add
+        raise AttributeError(
+            f"{type(self).__name__!r} object has no attribute {name!r}"
+        )
+
     # ------------------------------------------------------------------
     # Async context manager
     # ------------------------------------------------------------------
@@ -596,7 +622,7 @@ class AsyncCodeModeContext:
     async def __aenter__(self) -> Self:
         self._ops = []
         self._pending_adds = {}
-        self._packages_to_install = []
+        self._packages._reset()
         self._ui_updates = []
         self._cells_to_run = set()
         self._entered = True
@@ -609,26 +635,20 @@ class AsyncCodeModeContext:
         exc_tb: TracebackType | None,
     ) -> None:
         ops = self._ops
-        packages = self._packages_to_install
         ui_updates = self._ui_updates
         cells_to_run = self._cells_to_run
         self._ops = []
         self._pending_adds = {}
-        self._packages_to_install = []
         self._ui_updates = []
         self._cells_to_run = set()
 
         if exc_type is not None:
+            self._packages._reset()
             return  # let exception propagate, discard queued ops
 
-        # Install queued packages before applying cell ops so that
-        # newly added cells can import them.
-        if packages:
-            manager = self._kernel.user_config["package_management"]["manager"]
-            for pkg in packages:
-                await self.execute_command(
-                    InstallPackagesCommand(manager=manager, versions={pkg: ""})
-                )
+        # Flush queued package ops before cell ops so newly added
+        # cells can import newly installed packages.
+        package_ops = await self._packages._flush()
 
         if ops:
             _validate_ops(ops)
@@ -658,7 +678,7 @@ class AsyncCodeModeContext:
             )
 
         # Print a summary of what was applied.
-        self._print_summary(ops, packages, ui_updates, cells_to_run)
+        self._print_summary(ops, package_ops, ui_updates, cells_to_run)
 
     # ------------------------------------------------------------------
     # Summary
@@ -667,15 +687,18 @@ class AsyncCodeModeContext:
     def _print_summary(
         self,
         ops: list[_Op],
-        packages: list[str],
+        package_ops: list[_AddPackage | _RemovePackage],
         ui_updates: list[tuple[UIElementId, Any]],
         cells_to_run: set[CellId_t] | None = None,
     ) -> None:
         """Print a human-readable summary of applied operations."""
         lines: list[str] = []
 
-        for pkg in packages:
-            lines.append(f"installed {pkg}")
+        for pkg_op in package_ops:
+            if isinstance(pkg_op, _AddPackage):
+                lines.append(f"installed {pkg_op.package}")
+            else:
+                lines.append(f"uninstalled {pkg_op.package}")
 
         _run = cells_to_run or set()
         op_cell_ids: set[CellId_t] = set()
@@ -767,6 +790,22 @@ class AsyncCodeModeContext:
             ctx.cells["my_cell"]  # by cell name
         """
         return _CellsView(self)
+
+    @property
+    def packages(self) -> Packages:
+        """Package management for the notebook's Python environment.
+
+        List currently installed packages::
+
+            ctx.packages.list()  # -> list[PackageDescription]
+
+        Queue packages to install or remove; mutations flush on exit
+        before cell ops so newly added cells can import them::
+
+            ctx.packages.add("pandas", "numpy>=1.26")
+            ctx.packages.remove("old-pkg")
+        """
+        return self._packages
 
     # ------------------------------------------------------------------
     # Mutation methods (queue ops, applied on __aexit__)
@@ -1382,35 +1421,6 @@ class AsyncCodeModeContext:
         """
         self._require_entered()
         self._ui_updates.append((UIElementId(element._id), value))
-
-    # ------------------------------------------------------------------
-    # Package management
-    # ------------------------------------------------------------------
-
-    def install_packages(
-        self, *packages: str | list[str] | tuple[str, ...]
-    ) -> None:
-        """Queue packages for installation on context exit.
-
-        Installed before cell ops, so newly added cells can import them.
-
-        Examples:
-            ```python
-            ctx.install_packages("pandas")
-            ctx.install_packages("polars>=0.20", "numpy==1.26")
-            ctx.install_packages(["altair", "vega_datasets"])
-            ```
-
-        Args:
-            *packages: Pip-style package specifiers. Accepts individual
-                strings, or a list/tuple of strings.
-        """
-        self._require_entered()
-        for pkg in packages:
-            if isinstance(pkg, (list, tuple)):
-                self._packages_to_install.extend(pkg)
-            else:
-                self._packages_to_install.append(pkg)
 
     # ------------------------------------------------------------------
     # Low-level primitives
