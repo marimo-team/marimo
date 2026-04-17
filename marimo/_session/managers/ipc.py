@@ -216,6 +216,7 @@ class IPCKernelManagerImpl(KernelManager):
             connection_info=self.connection_info,
             is_run_mode=self.mode == SessionMode.RUN,
             redirect_console_to_browser=self.redirect_console_to_browser,
+            parent_pid=os.getpid(),
         )
 
         venv_config = _get_venv_config(self.config_manager)
