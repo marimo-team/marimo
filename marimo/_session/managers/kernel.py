@@ -9,7 +9,7 @@ import sys
 import threading
 import time
 from multiprocessing import connection, get_context
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 from marimo import _loggers
@@ -177,9 +177,10 @@ class KernelManagerImpl(KernelManager):
             and self.kernel_task is not None
             and not isinstance(self.kernel_task, threading.Thread)
         ):
+            kernel_task = cast(ProcessLike, self.kernel_task)
             # The kernel calls setsid() during startup, so its eventual pgid
             # should match its pid; keep that as a fallback before we can safely observe it.
-            self._expected_pgid = self.kernel_task.pid
+            self._expected_pgid = kernel_task.pid
         if listener is not None:
             # First thing kernel does is connect to the socket, so it's safe to
             # call accept
