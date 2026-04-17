@@ -189,3 +189,4 @@ async def test_import_multiprocessing(
         ]
     )
     assert mocked_kernel.stdout.messages == ["hello", "\n"]
+    # Trigger CI: throwaway edit to force pytest_changed to pick up this file.
