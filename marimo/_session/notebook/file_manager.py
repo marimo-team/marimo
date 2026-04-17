@@ -80,6 +80,8 @@ class AppFileManager:
         # can wrap the full "mutate app + _save_file" sequence while
         # ``_save_file`` re-acquires for any direct caller.
         self._save_lock = threading.RLock()
+        # Foreground writes supersede queued autosaves.
+        self._autosave_generation = 0
 
     @property
     def filename(self) -> str | None:
@@ -306,6 +308,7 @@ class AppFileManager:
                 return new_path.name
 
             self._assert_path_does_not_exist(new_path)
+            self._invalidate_autosaves()
 
             if self._filename is not None:
                 self.storage.rename(self._filename, new_path)
@@ -384,6 +387,7 @@ class AppFileManager:
         with self._save_lock:
             self.app.update_config(config)
             if self._filename is not None:
+                self._invalidate_autosaves()
                 return self._save_file(
                     self._filename,
                     notebook=self.app.to_ir(),
@@ -443,13 +447,25 @@ class AppFileManager:
                 # Remove the layout from the config
                 self.app.update_config({"layout_file": None})
 
+            if request.persist:
+                self._invalidate_autosaves()
             return self._save_file(
                 filename_path,
                 notebook=self.app.to_ir(),
                 persist=request.persist,
             )
 
-    def save_from_cells(self, cells: Sequence[NotebookCell]) -> str:
+    def capture_autosave_target(self) -> tuple[Path | None, int]:
+        with self._save_lock:
+            return self._filename, self._autosave_generation
+
+    def save_from_cells(
+        self,
+        cells: Sequence[NotebookCell],
+        *,
+        expected_filename: Path | None = None,
+        expected_generation: int | None = None,
+    ) -> str:
         """Persist the notebook from a snapshot of document cells.
 
         Used by the server-side auto-save path for ``code_mode``
@@ -467,6 +483,15 @@ class AppFileManager:
             )
 
         with self._save_lock:
+            if expected_generation is not None:
+                if expected_generation != self._autosave_generation:
+                    return ""
+            if expected_filename is not None:
+                if self._filename is None or not self._is_same_path(
+                    expected_filename
+                ):
+                    return ""
+
             self.app.with_data(
                 cell_ids=[cell.id for cell in cells],
                 codes=[cell.code for cell in cells],
@@ -478,6 +503,9 @@ class AppFileManager:
                 notebook=self.app.to_ir(),
                 persist=True,
             )
+
+    def _invalidate_autosaves(self) -> None:
+        self._autosave_generation += 1
 
     def copy(self, request: CopyNotebookRequest) -> str:
         """Copy a notebook file.
