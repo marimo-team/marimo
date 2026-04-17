@@ -374,6 +374,13 @@ def _(mo):
         {"label": "para sep (U+2029)", "s": "\u2029abc d\u2029"},
         {"label": "form feed (\\f)", "s": "\fabc d\f"},
         {"label": "vertical tab (\\v)", "s": "\vabc d\v"},
+        # Adjacent-escape cases: verify spacing between multi-char \uXXXX markers
+        {"label": "3x nbsp adjacent", "s": "\xa0\xa0\xa0abc d\xa0\xa0\xa0"},
+        {
+            "label": "mixed adjacent (nbsp + en + em)",
+            "s": "\xa0\u2002\u2003abc d\u2003\u2002\xa0",
+        },
+        {"label": "nbsp + regular space", "s": "\xa0 \xa0abc d\xa0 \xa0"},
     ]
     mo.vstack(
         [

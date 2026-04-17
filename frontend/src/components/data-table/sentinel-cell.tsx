@@ -9,17 +9,18 @@ const WHITESPACE_CHARS: Record<string, { marker: string; name: string }> = {
   "\r": { marker: "\\r", name: "newline" },
 };
 
-function renderWhitespaceMarkers(str: string): string {
-  return [...str]
-    .map((ch) => {
-      const entry = WHITESPACE_CHARS[ch];
-      if (entry) {
-        return entry.marker;
-      }
-      const code = ch.codePointAt(0) ?? 0;
-      return `\\u${code.toString(16).padStart(4, "0")}`;
-    })
-    .join("");
+function renderWhitespaceMarkers(str: string): React.ReactNode[] {
+  return [...str].map((ch, i) => {
+    const entry = WHITESPACE_CHARS[ch];
+    const marker = entry
+      ? entry.marker
+      : `\\u${(ch.codePointAt(0) ?? 0).toString(16).padStart(4, "0")}`;
+    return (
+      <span key={i} className="mr-0.5 last:mr-0">
+        {marker}
+      </span>
+    );
+  });
 }
 
 function describeWhitespace(str: string): string {
@@ -34,7 +35,7 @@ function describeWhitespace(str: string): string {
 }
 
 interface SentinelConfig {
-  label: (value: CellValueSentinel["value"]) => string;
+  label: (value: CellValueSentinel["value"]) => string | React.ReactNode[];
   tooltip: (value: CellValueSentinel["value"]) => string;
   ariaLabel: (value: CellValueSentinel["value"]) => string;
 }
