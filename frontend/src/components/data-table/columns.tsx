@@ -39,8 +39,8 @@ import {
   INDEX_COLUMN_NAME,
   isNumericType,
 } from "./types";
-import { SentinelCell } from "./sentinel-cell";
-import { detectSentinel } from "./utils";
+import { SentinelCell, WhitespaceMarkers } from "./sentinel-cell";
+import { detectSentinel, splitLeadingTrailingWhitespace } from "./utils";
 import { uniformSample } from "./uniformSample";
 import { MarkdownUrlDetector, UrlDetector } from "./url-detector";
 
@@ -582,7 +582,13 @@ export function renderCellValue<TData, TValue>({
       ? String(column.applyColumnFormatting(value))
       : String(renderValue());
 
-    const parts = parseContent(stringValue);
+    const { leading, middle, trailing } =
+      splitLeadingTrailingWhitespace(stringValue);
+    const hasEdgeWhitespace = leading.length > 0 || trailing.length > 0;
+
+    // Parse only the inner content for URL detection so URLDetector doesn't
+    // split on the whitespace padding.
+    const parts = parseContent(hasEdgeWhitespace ? middle : stringValue);
     const allMarkup = parts.every((part) => part.type !== "text");
     if (allMarkup || stringValue.length < MAX_STRING_LENGTH || isWrapped) {
       return (
@@ -590,7 +596,9 @@ export function renderCellValue<TData, TValue>({
           onClick={selectCell}
           className={cn(cellStyles, isWrapped && COLUMN_WRAPPING_STYLES)}
         >
+          <WhitespaceMarkers value={leading} />
           <UrlDetector parts={parts} />
+          <WhitespaceMarkers value={trailing} />
         </div>
       );
     }
@@ -604,7 +612,10 @@ export function renderCellValue<TData, TValue>({
         buttonText="X"
         wrapped={isWrapped}
       >
-        <MarkdownUrlDetector content={stringValue} parts={parts} />
+        <MarkdownUrlDetector
+          content={stringValue}
+          parts={parseContent(stringValue)}
+        />
       </PopoutColumn>
     );
   }

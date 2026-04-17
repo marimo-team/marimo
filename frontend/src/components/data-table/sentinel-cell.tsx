@@ -3,14 +3,23 @@
 import type { CellValueSentinel, CellValueSentinelType } from "./types";
 
 const WHITESPACE_CHARS: Record<string, { marker: string; name: string }> = {
-  " ": { marker: "\u2423", name: "space" }, // open box (space symbol)
+  " ": { marker: "\u2423", name: "space" },
   "\t": { marker: "\\t", name: "tab" },
   "\n": { marker: "\\n", name: "newline" },
   "\r": { marker: "\\r", name: "newline" },
 };
 
 function renderWhitespaceMarkers(str: string): string {
-  return [...str].map((ch) => WHITESPACE_CHARS[ch]?.marker ?? ch).join("");
+  return [...str]
+    .map((ch) => {
+      const entry = WHITESPACE_CHARS[ch];
+      if (entry) {
+        return entry.marker;
+      }
+      const code = ch.codePointAt(0) ?? 0;
+      return `\\u${code.toString(16).padStart(4, "0")}`;
+    })
+    .join("");
 }
 
 function describeWhitespace(str: string): string {
@@ -67,6 +76,24 @@ const SENTINEL_CONFIG: Record<CellValueSentinelType, SentinelConfig> = {
     ariaLabel: () => "Not a Time",
   },
 };
+
+export function WhitespaceMarkers({ value }: { value: string }) {
+  if (!value) {
+    return null;
+  }
+
+  const description = describeWhitespace(value);
+
+  return (
+    <span
+      className="text-muted-foreground opacity-60"
+      aria-label={description}
+      title={description}
+    >
+      {renderWhitespaceMarkers(value)}
+    </span>
+  );
+}
 
 export function SentinelCell({
   sentinel,

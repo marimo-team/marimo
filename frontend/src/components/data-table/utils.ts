@@ -14,6 +14,51 @@ import {
 } from "./types";
 
 const WHITESPACE_ONLY_RE = /^[\s]+$/;
+const WHITESPACE_CHAR_RE = /\s/;
+const EDGE_WHITESPACE_RE = /^(\s*)([\s\S]*?)(\s*)$/;
+
+/**
+ * checks for leading and trailing whitespaces.
+ * Will run for every cell, so fast exits for common cases
+ *
+ * @param value - to split
+ * @returns - leading, middle, and trailing string where leading and trailing are whitespace string
+ */
+export function splitLeadingTrailingWhitespace(value: string): {
+  leading: string;
+  middle: string;
+  trailing: string;
+} {
+  const parts = {
+    leading: "",
+    middle: "",
+    trailing: "",
+  };
+  if (value.length === 0) {
+    return parts;
+  }
+
+  const firstWhitespaceCh = WHITESPACE_CHAR_RE.test(value[0]);
+  const lastWhitespaceCh = WHITESPACE_CHAR_RE.test(value[value.length - 1]);
+
+  // if does not start or end with ws
+  if (!firstWhitespaceCh && !lastWhitespaceCh) {
+    parts.middle = value;
+    return parts;
+  }
+
+  const match = EDGE_WHITESPACE_RE.exec(value);
+  if (!match) {
+    parts.middle = value;
+    return parts;
+  }
+
+  parts.leading = match[1] ?? "";
+  parts.middle = match[2] ?? "";
+  parts.trailing = match[3] ?? "";
+
+  return parts;
+}
 
 /**
  * Convenience function to load table data.
