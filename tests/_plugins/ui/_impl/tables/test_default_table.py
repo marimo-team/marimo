@@ -506,9 +506,7 @@ class TestDefaultTable(unittest.TestCase):
         result = manager.to_csv().decode()
         # None renders as an empty cell; nested values render as JSON
         # strings (quoted/escaped by the csv module).
-        assert result.startswith("a,b,c\n")
-        assert ',"{""k"":""v""}",' in result
-        assert ',"[1,2]"\n' in result
+        assert result == 'a,b,c\n,"{""k"":""v""}","[1,2]"\n'
 
 
 class TestColumnarDefaultTable(unittest.TestCase):

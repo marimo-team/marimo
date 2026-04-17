@@ -900,22 +900,29 @@ class table(
                 of ``TableCell`` from cell-selection modes).
         """
         # Short-circuit Parquet when no parquet-capable lib is importable.
-        # Surfaced as a structured response so the frontend can offer an
-        # install prompt instead of showing a generic error toast. Polars
-        # is the recommended install: self-contained, lightweight, and its
-        # native writer handles the plain-Python data shapes we get here.
-        if args.format == "parquet" and not (
-            DependencyManager.pandas.has()
-            or DependencyManager.polars.has()
-            or DependencyManager.pyarrow.has()
-        ):
-            return DownloadAsResponse(
-                error=(
-                    "Parquet export requires a DataFrame library. "
-                    "We recommend polars."
-                ),
-                missing_packages=["polars"],
-            )
+        if args.format == "parquet":
+            has_polars = DependencyManager.polars.has()
+            has_pandas = DependencyManager.pandas.has()
+            has_pyarrow = DependencyManager.pyarrow.has()
+
+            if not (has_polars or (has_pandas and has_pyarrow)):
+                # if pandas is installed and pyarrow is not, prompt to install pyarrow
+                if has_pandas:
+                    return DownloadAsResponse(
+                        error=(
+                            "Parquet export requires pyarrow. "
+                            "Please install pyarrow to enable parquet export."
+                        ),
+                        missing_packages=["pyarrow"],
+                    )
+                else:  # else prompt polars
+                    return DownloadAsResponse(
+                        error=(
+                            "Parquet export requires a DataFrame library. "
+                            "We recommend polars."
+                        ),
+                        missing_packages=["polars"],
+                    )
 
         # For cell-selection modes, ignore selection and download from the
         # searched/filtered view. For row-selection modes, preserve existing

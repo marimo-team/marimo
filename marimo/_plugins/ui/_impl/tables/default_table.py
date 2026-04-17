@@ -512,6 +512,8 @@ def _is_column_oriented(data: JsonTableData) -> bool:
 
 
 def _to_csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
     if isinstance(value, (dict, list, tuple)):
         return str(encode_json_str(SuperJson(value)))
     return str(value)

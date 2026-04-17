@@ -1389,7 +1389,25 @@ def test_download_as_parquet_without_libs_reports_missing_packages(
     assert response.url == ""
     assert response.filename == ""
     assert response.missing_packages == ["polars"]
-    assert response.error is not None and "polars" in response.error
+    assert response.error is not None
+    assert "polars" in response.error
+
+
+def test_download_as_parquet_with_pandas_only_prompts_pyarrow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(DependencyManager.pandas, "has", lambda: True)
+    monkeypatch.setattr(DependencyManager.polars, "has", lambda: False)
+    monkeypatch.setattr(DependencyManager.pyarrow, "has", lambda: False)
+
+    table = ui.table([{"a": 1}])
+    response = table._download_as(DownloadAsArgs(format="parquet"))
+
+    assert response.url == ""
+    assert response.filename == ""
+    assert response.missing_packages == ["pyarrow"]
+    assert response.error is not None
+    assert "pyarrow" in response.error
 
 
 @pytest.mark.skipif(
