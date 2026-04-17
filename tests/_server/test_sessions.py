@@ -155,7 +155,7 @@ def test_kernel_manager_run_mode() -> None:
 
     # Assert shutdown
     assert isinstance(kernel_manager.kernel_task, threading.Thread)
-    kernel_manager.kernel_task.join()
+    kernel_manager.wait_for_close(timeout=10)
     assert not kernel_manager.is_alive()
     assert queue_manager.input_queue.empty()
     assert queue_manager.control_queue.empty()
@@ -188,11 +188,57 @@ def test_kernel_manager_edit_mode() -> None:
     kernel_manager.close_kernel()
 
     # Assert shutdown
-    kernel_manager.kernel_task.join()
+    kernel_manager.wait_for_close(timeout=10)
     assert not kernel_manager.is_alive()
     # these are known to be mp.Queue
     queue_manager.input_queue.join_thread()  # type: ignore
     queue_manager.control_queue.join_thread()  # type: ignore
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="setsid/process-group semantics are Unix-only",
+)
+@save_and_restore_main
+def test_kernel_manager_edit_mode_kernel_in_own_process_group() -> None:
+    """Edit-mode kernels must live in their own process group so that
+    close_kernel() can clean up descendant subprocesses (e.g. jedi
+    completion workers) with killpg, not just the direct child.
+    """
+    queue_manager = QueueManagerImpl(use_multiprocessing=True)
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=SessionMode.EDIT,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
+        virtual_file_storage="shared_memory",
+        redirect_console_to_browser=False,
+    )
+
+    kernel_manager.start_kernel()
+    try:
+        assert kernel_manager.kernel_task is not None
+        pid = kernel_manager.kernel_task.pid
+        assert pid is not None
+
+        # Poll briefly: the kernel calls os.setsid() shortly after start.
+        deadline = time.time() + 5
+        pgid = os.getpgid(pid)
+        while pgid != pid and time.time() < deadline:
+            time.sleep(0.05)
+            pgid = os.getpgid(pid)
+
+        assert pgid == pid, (
+            f"kernel pid {pid} should be its own process group "
+            f"leader, got pgid={pgid}"
+        )
+        assert pgid != os.getpgrp(), (
+            "kernel must not share the server's process group"
+        )
+    finally:
+        kernel_manager.close_kernel()
+        kernel_manager.wait_for_close(timeout=10)
 
 
 @save_and_restore_main
@@ -294,7 +340,7 @@ def test_kernel_manager_interrupt(tmp_path: Path) -> None:
 
         # Assert shutdown
         kernel_manager.close_kernel()
-        kernel_manager.kernel_task.join(timeout=5)
+        kernel_manager.wait_for_close(timeout=10)
         assert not kernel_manager.is_alive()
 
 
@@ -338,7 +384,7 @@ async def test_session() -> None:
 
     # Assert shutdown
     assert kernel_manager.kernel_task is not None
-    kernel_manager.kernel_task.join()
+    kernel_manager.wait_for_close(timeout=10)
     assert not kernel_manager.is_alive()
     assert queue_manager.input_queue.empty()
     assert queue_manager.control_queue.empty()
@@ -398,7 +444,7 @@ def test_session_disconnect_reconnect() -> None:
 
     # Assert shutdown
     assert kernel_manager.kernel_task is not None
-    kernel_manager.kernel_task.join()
+    kernel_manager.wait_for_close(timeout=10)
     assert not kernel_manager.is_alive()
     new_session_consumer.on_attach.assert_called_once()
     new_session_consumer.on_detach.assert_called_once()
@@ -456,7 +502,7 @@ def test_session_with_kiosk_consumers() -> None:
 
     # Assert shutdown
     assert kernel_manager.kernel_task is not None
-    kernel_manager.kernel_task.join()
+    kernel_manager.wait_for_close(timeout=10)
     assert not kernel_manager.is_alive()
     assert queue_manager.input_queue.empty()
     assert queue_manager.control_queue.empty()

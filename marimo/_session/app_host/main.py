@@ -14,6 +14,7 @@ import queue
 import signal
 import sys
 import threading
+import time
 import typing
 
 from marimo import _loggers
@@ -21,6 +22,10 @@ from marimo._messaging.thread_local_streams import install_thread_local_proxies
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import runtime
 from marimo._runtime.commands import StopKernelCommand
+from marimo._runtime.parent_poller import (
+    ParentPollerUnix,
+    kill_own_process_group,
+)
 from marimo._session.app_host.commands import (
     AppHostArgs,
     AppHostReadyResponse,
@@ -35,6 +40,9 @@ from marimo._session.app_host.commands import (
 )
 
 LOGGER = _loggers.marimo_logger()
+
+_APP_HOST_PARENT_POLL_TIMEOUT_MS = 1000
+_APP_HOST_SHUTDOWN_WAIT_SECONDS = 1.0
 
 
 @dataclasses.dataclass
@@ -139,8 +147,9 @@ def _stream_collector_loop(
 
 def _shutdown_all_kernels(
     kernels: dict[str, _KernelInfo],
-) -> None:
-    for info in kernels.values():
+) -> list[_KernelInfo]:
+    infos = list(kernels.values())
+    for info in infos:
         try:
             info.queues.control.put(StopKernelCommand())
         except Exception:
@@ -148,6 +157,16 @@ def _shutdown_all_kernels(
                 "Error stopping kernel for session %s", info.session_id
             )
     kernels.clear()
+    return infos
+
+
+def _wait_for_kernel_threads(infos: list[_KernelInfo]) -> None:
+    deadline = time.monotonic() + _APP_HOST_SHUTDOWN_WAIT_SECONDS
+    for info in infos:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        info.thread.join(timeout=remaining)
 
 
 def _handle_stop_kernel(
@@ -247,6 +266,24 @@ def app_host_main(args: AppHostArgs) -> None:
     # and sends ShutdownAppHostCmd via the management channel.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+    parent_exit_detected: threading.Event | None = None
+    parent_exit_cleanup_complete: threading.Event | None = None
+    shutdown_requested = threading.Event()
+
+    if sys.platform != "win32":
+        os.setsid()
+
+        if args.parent_pid is not None and args.parent_pid != 1:
+            parent_exit_detected = threading.Event()
+            parent_exit_cleanup_complete = threading.Event()
+            ParentPollerUnix(
+                parent_pid=args.parent_pid,
+                request_graceful_shutdown=shutdown_requested.set,
+                parent_exit_detected=parent_exit_detected,
+                cleanup_complete=parent_exit_cleanup_complete,
+                target_name="app host",
+            ).start()
+
     _loggers.set_level(args.log_level)
     LOGGER.debug(
         "App host started for %s (pid=%d)", args.file_path, os.getpid()
@@ -285,11 +322,13 @@ def app_host_main(args: AppHostArgs) -> None:
     response_socket.send(encode_mgmt_response(AppHostReadyResponse()))
 
     kernels: dict[str, _KernelInfo] = {}
+    kernels_to_join: list[_KernelInfo] = []
+    should_kill_process_group = False
     poller = zmq.Poller()
     poller.register(mgmt_socket, zmq.POLLIN)
     poller.register(cmd_socket, zmq.POLLIN)
     while True:
-        events = dict(poller.poll())
+        events = dict(poller.poll(timeout=_APP_HOST_PARENT_POLL_TIMEOUT_MS))
 
         if cmd_socket in events:
             _handle_command(cmd_socket, kernels)
@@ -306,7 +345,8 @@ def app_host_main(args: AppHostArgs) -> None:
                 _handle_stop_kernel(cmd, kernels)
             elif isinstance(cmd, ShutdownAppHostCmd):
                 LOGGER.debug("App host shutting down for %s", args.file_path)
-                _shutdown_all_kernels(kernels)
+                kernels_to_join = _shutdown_all_kernels(kernels)
+                should_kill_process_group = True
                 stream_outbox.put(None)  # Stop collector thread
                 break
             else:
@@ -314,11 +354,32 @@ def app_host_main(args: AppHostArgs) -> None:
                     "App host received unknown command: %s", type(cmd)
                 )
 
+        if shutdown_requested.is_set():
+            LOGGER.warning(
+                "Parent server appears to have exited, shutting down app host."
+            )
+            kernels_to_join = _shutdown_all_kernels(kernels)
+            should_kill_process_group = True
+            stream_outbox.put(None)
+            break
+
+    _wait_for_kernel_threads(kernels_to_join)
+    collector_thread.join(timeout=_APP_HOST_SHUTDOWN_WAIT_SECONDS)
+
     mgmt_socket.close(linger=0)
     response_socket.close(linger=0)
     cmd_socket.close(linger=0)
     stream_socket.close(linger=0)
     context.destroy(linger=0)
+
+    if (
+        should_kill_process_group
+        and parent_exit_cleanup_complete is not None
+    ):
+        parent_exit_cleanup_complete.set()
+
+    if should_kill_process_group and sys.platform != "win32":
+        kill_own_process_group()
 
 
 def main() -> None:

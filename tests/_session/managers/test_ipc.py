@@ -1,13 +1,56 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
+import inspect
+import json
 import os
+import sys
 import time
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
+from marimo._ast.app_config import _AppConfig
+from marimo._config.config import DEFAULT_CONFIG
+from marimo._runtime.commands import (
+    AppMetadata,
+    CreateNotebookCommand,
+    ExecuteCellCommand,
+    UpdateUIElementCommand,
+)
 from marimo._session.managers.ipc import construct_kernel_env
+from marimo._session.model import SessionMode
+
+
+def _wait_until(predicate: object, timeout_seconds: float, message: str) -> None:
+    assert callable(predicate)
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        time.sleep(0.05)
+    pytest.fail(message)
+
+
+def _cleanup_process(process: object) -> None:
+    import psutil
+
+    assert isinstance(process, psutil.Process)
+    try:
+        process.terminate()
+        try:
+            process.wait(timeout=2)
+        except psutil.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=2)
+    except psutil.NoSuchProcess:
+        pass
+
+
+def _current_venv_dir() -> str:
+    return str(Path(sys.executable).resolve().parent.parent)
 
 
 @pytest.mark.requires("zmq")
@@ -105,6 +148,144 @@ class TestIPCKernelManagerImpl:
 
         # venv_python property should return the stored value
         assert kernel_manager.venv_python == "/path/to/sandbox/venv/python"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="process-group shutdown semantics are Unix-only",
+    )
+    def test_close_kernel_shuts_down_same_group_subprocesses_only(
+        self, tmp_path: Path
+    ) -> None:
+        import psutil
+
+        from marimo._ipc import QueueManager as IPCQueueManager
+        from marimo._session.managers.ipc import (
+            IPCKernelManagerImpl,
+            IPCQueueManagerImpl,
+        )
+
+        app_path = tmp_path / "ipc_app.py"
+        app_path.write_text("")
+        pid_file = tmp_path / "subprocess_pids.json"
+
+        ipc_queue_manager, connection_info = IPCQueueManager.create()
+        queue_manager = IPCQueueManagerImpl.from_ipc(ipc_queue_manager)
+        config_manager = MagicMock()
+        user_config = copy.deepcopy(DEFAULT_CONFIG)
+        user_config["venv"] = {"path": _current_venv_dir()}
+        config_manager.get_config.return_value = user_config
+
+        kernel_manager = IPCKernelManagerImpl(
+            queue_manager=queue_manager,
+            connection_info=connection_info,
+            mode=SessionMode.EDIT,
+            configs={},
+            app_metadata=AppMetadata(
+                query_params={},
+                filename=str(app_path),
+                cli_args={},
+                argv=None,
+                app_config=_AppConfig(),
+            ),
+            config_manager=config_manager,
+            redirect_console_to_browser=False,
+        )
+
+        child_pg_process: psutil.Process | None = None
+        child_newpg_process: psutil.Process | None = None
+
+        kernel_manager.start_kernel()
+        try:
+            assert kernel_manager.pid is not None
+            assert kernel_manager.kernel_task is not None
+
+            queue_manager.put_control_request(
+                CreateNotebookCommand(
+                    execution_requests=(
+                        ExecuteCellCommand(
+                            cell_id="1",
+                            code=inspect.cleandoc(
+                                f"""
+                                import json
+                                import os
+                                import subprocess
+                                import sys
+                                import time
+                                from pathlib import Path
+
+                                output_path = Path({str(pid_file)!r})
+                                cmd = [sys.executable, "-c", "import time; time.sleep(30)"]
+                                child_pg = subprocess.Popen(
+                                    cmd, start_new_session=False
+                                )
+                                child_newpg = subprocess.Popen(
+                                    cmd, start_new_session=True
+                                )
+                                time.sleep(0.5)
+                                output_path.write_text(
+                                    json.dumps(
+                                        {{
+                                            "child_pg": child_pg.pid,
+                                            "child_newpg": child_newpg.pid,
+                                        }}
+                                    )
+                                )
+                                """
+                            ),
+                        ),
+                    ),
+                    cell_ids=("1",),
+                    set_ui_element_value_request=UpdateUIElementCommand(
+                        object_ids=[], values=[]
+                    ),
+                    auto_run=True,
+                )
+            )
+
+            _wait_until(
+                pid_file.exists,
+                timeout_seconds=5,
+                message="Kernel did not write subprocess PID file in time",
+            )
+
+            pids = json.loads(pid_file.read_text())
+            child_pg_process = psutil.Process(pids["child_pg"])
+            child_newpg_process = psutil.Process(pids["child_newpg"])
+
+            _wait_until(
+                lambda: child_pg_process.is_running()
+                and child_newpg_process.is_running(),
+                timeout_seconds=2,
+                message="Spawned subprocesses did not stay alive long enough",
+            )
+
+            start = time.monotonic()
+            kernel_manager.close_kernel()
+            elapsed = time.monotonic() - start
+
+            assert elapsed < 1.0
+
+            kernel_manager.wait_for_close(timeout=10)
+
+            _wait_until(
+                lambda: not kernel_manager.is_alive(),
+                timeout_seconds=2,
+                message="IPC kernel process did not exit after close_kernel()",
+            )
+            _wait_until(
+                lambda: not child_pg_process.is_running(),
+                timeout_seconds=2,
+                message="Same-process-group IPC child survived close_kernel()",
+            )
+
+            assert child_newpg_process.is_running()
+        finally:
+            if kernel_manager.is_alive():
+                kernel_manager.close_kernel()
+            kernel_manager.wait_for_close(timeout=10)
+
+            if child_newpg_process is not None:
+                _cleanup_process(child_newpg_process)
 
 
 @pytest.mark.requires("zmq")

@@ -182,6 +182,8 @@ from marimo._runtime.packages.utils import (
     is_python_isolated,
 )
 from marimo._runtime.params import CLIArgs, QueryParams
+from marimo._runtime.parent_poller import ParentPollerUnix, kill_own_process_group
+
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import ModuleWatcher
@@ -3537,6 +3539,7 @@ def launch_kernel(
     profile_path: str | None = None,
     log_level: int | None = None,
     is_ipc: bool = False,
+    parent_pid: int | None = None,
 ) -> None:
     if log_level is not None:
         _loggers.set_level(log_level)
@@ -3687,6 +3690,8 @@ def launch_kernel(
         # completions only provided in edit mode
         kernel.start_completion_worker(completion_queue)
 
+    parent_exit_detected: threading.Event | None = None
+    parent_exit_cleanup_complete: threading.Event | None = None
     if is_subprocess:
         # Subprocess kernels (EDIT and IPC_RUN) can receive signals and need
         # their own formatter registration since they don't share state with
@@ -3700,6 +3705,26 @@ def launch_kernel(
             # signals intended for the parent (server) process,
             # Ctrl+C in particular.
             os.setsid()
+
+            # Start a parent poller which is responsible for cleaning up
+            # the kernel and associated processes if the parent (server)
+            # dies unexpectedly.
+            #
+            # Skip when parent is PID 1 (init / container pid1): PID 1
+            # never goes away, so the poll is meaningless and could be
+            # noisy on reparenting.
+            if parent_pid is not None and parent_pid != 1:
+                parent_exit_detected = threading.Event()
+                parent_exit_cleanup_complete = threading.Event()
+                ParentPollerUnix(
+                    parent_pid=parent_pid,
+                    request_graceful_shutdown=lambda: control_queue.put_nowait(
+                        StopKernelCommand()
+                    ),
+                    parent_exit_detected=parent_exit_detected,
+                    cleanup_complete=parent_exit_cleanup_complete,
+                    target_name="kernel",
+                ).start()
 
         # Each subprocess kernel needs to install the formatter import hooks
         register_formatters(theme=user_config["display"]["theme"])
@@ -3793,3 +3818,20 @@ def launch_kernel(
     kernel.teardown()
     if isinstance(pipe, connection.Connection):
         pipe.close()
+
+    # `launch_kernel()` is also used outside the dedicated edit/IPC subprocess
+    # case (for example, run-mode kernels execute in a thread inside the
+    # server). Only self-kill the current process group when the parent-death
+    # poller detected that no outside manager is left to reap this subprocess
+    # tree; doing this unconditionally would turn normal exits into SIGKILLs,
+    # and in non-subprocess modes could kill the whole host process.
+    #
+    # The server kills the process group for edit-mode sessions. So this
+    # code path is only for when the server died, as a last resort.
+    if (
+        parent_exit_detected is not None
+        and parent_exit_cleanup_complete is not None
+        and parent_exit_detected.is_set()
+    ):
+        parent_exit_cleanup_complete.set()
+        kill_own_process_group()

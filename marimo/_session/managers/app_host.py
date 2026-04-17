@@ -8,6 +8,7 @@ protocols (QueueManager, KernelManager).
 from __future__ import annotations
 
 import queue
+import time
 from typing import TYPE_CHECKING, TypeVar
 
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -216,6 +217,13 @@ class AppHostKernelManager(KernelManager):
     def close_kernel(self) -> None:
         self.queue_manager.close_queues()
         self._app_host.stop_kernel(self._session_id)
+
+    def wait_for_close(self, timeout: float | None = None) -> None:
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while self.is_alive():
+            if deadline is not None and time.monotonic() >= deadline:
+                return
+            time.sleep(0.05)
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:

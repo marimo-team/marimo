@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import os
 import pickle
+import signal
 import subprocess
 import sys
 import threading
@@ -23,6 +25,7 @@ from marimo._session.app_host.commands import (
     encode_mgmt_command,
 )
 from marimo._session.app_host.connection import AppHostConnection
+from marimo._utils.process_tree import signal_process_tree
 
 if TYPE_CHECKING:
     import queue
@@ -65,6 +68,7 @@ class AppHost:
 
         # The process hosting client kernels.
         self._process: subprocess.Popen[bytes] | None = None
+        self._pgid: int | None = None
         self._conn: AppHostConnection | None = None
 
         # Set by shutdown(); checked by the stream receiver loop and
@@ -160,7 +164,9 @@ class AppHost:
                 LOGGER.warning("Error in stream receiver", exc_info=True)
 
     def start(self) -> None:
-        conn, args = AppHostConnection.create(self._file_path)
+        conn, args = AppHostConnection.create(
+            self._file_path, parent_pid=os.getpid()
+        )
         self._conn = conn
 
         cmd = [
@@ -360,11 +366,26 @@ class AppHost:
             try:
                 self._process.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                self._process.terminate()
+                if sys.platform == "win32":
+                    self._process.terminate()
+                else:
+                    self._pgid = signal_process_tree(
+                        self._process.pid,
+                        signal.SIGTERM,
+                        cached_pgid=self._pgid,
+                    )
                 try:
                     self._process.wait(timeout=2)
                 except subprocess.TimeoutExpired:
-                    self._process.kill()
+                    if sys.platform == "win32":
+                        self._process.kill()
+                    else:
+                        self._pgid = signal_process_tree(
+                            self._process.pid,
+                            signal.SIGKILL,
+                            cached_pgid=self._pgid,
+                        )
+                        self._process.wait(timeout=2)
 
         # Close all sockets (with linger=0).  This interrupts any
         # pending poll()/recv() in _stream_receiver_loop with ETERM,

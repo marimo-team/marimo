@@ -34,7 +34,10 @@ class AppHostConnection:
 
     @classmethod
     def create(
-        cls, file_path: str, log_level: int | None = None
+        cls,
+        file_path: str,
+        log_level: int | None = None,
+        parent_pid: int | None = None,
     ) -> tuple[AppHostConnection, AppHostArgs]:
         """Bind all sockets, return connection and args for subprocess."""
         import zmq
@@ -74,6 +77,7 @@ class AppHostConnection:
             stream_addr=f"{_BIND_ADDR}:{stream_port}",
             file_path=file_path,
             log_level=log_level,
+            parent_pid=parent_pid,
         )
 
         return conn, args

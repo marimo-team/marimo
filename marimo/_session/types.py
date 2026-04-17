@@ -80,6 +80,10 @@ class KernelManager(Protocol):
         """Close the kernel and clean up resources."""
         ...
 
+    def wait_for_close(self, timeout: float | None = None) -> None:
+        """Block until kernel shutdown work completes."""
+        ...
+
     @property
     def pid(self) -> int | None:
         """Get the PID of the kernel."""

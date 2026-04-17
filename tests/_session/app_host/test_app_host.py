@@ -1,7 +1,48 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
+import json
+import sys
+import time
+
 import pytest
+
+from marimo._ast.app_config import _AppConfig
+from marimo._config.config import DEFAULT_CONFIG
+from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._runtime.commands import (
+    AppMetadata,
+    CreateNotebookCommand,
+    ExecuteCellCommand,
+    UpdateUIElementCommand,
+)
+from marimo._session.app_host.commands import Channel
+
+
+def _wait_until(predicate: object, timeout_seconds: float, message: str) -> None:
+    assert callable(predicate)
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        time.sleep(0.05)
+    pytest.fail(message)
+
+
+def _cleanup_process(process: object) -> None:
+    import psutil
+
+    assert isinstance(process, psutil.Process)
+    try:
+        process.terminate()
+        try:
+            process.wait(timeout=2)
+        except psutil.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=2)
+    except psutil.NoSuchProcess:
+        pass
 
 
 @pytest.mark.requires("zmq")
@@ -223,6 +264,126 @@ class TestAppHost:
 
         app_host.shutdown()
         assert not app_host.is_alive()
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="process-group shutdown semantics are Unix-only",
+    )
+    def test_shutdown_reaps_same_group_subprocesses_only(
+        self, tmp_path
+    ) -> None:
+        import psutil
+
+        from marimo._session.app_host.host import AppHost
+
+        app_path = tmp_path / "app_host_test.py"
+        app_path.write_text("")
+        pid_file = tmp_path / "subprocess_pids.json"
+
+        app_host = AppHost(str(app_path))
+        app_host.start()
+
+        child_pg_process: psutil.Process | None = None
+        child_newpg_process: psutil.Process | None = None
+
+        try:
+            response = app_host.create_kernel(
+                session_id="s1",
+                configs={},
+                app_metadata=AppMetadata(
+                    query_params={},
+                    filename=str(app_path),
+                    cli_args={},
+                    argv=None,
+                    app_config=_AppConfig(),
+                ),
+                user_config=DEFAULT_CONFIG,
+                virtual_file_storage="shared_memory",
+                redirect_console_to_browser=False,
+                log_level=GLOBAL_SETTINGS.LOG_LEVEL,
+            )
+            assert response.success
+
+            app_host.send_command(
+                "s1",
+                Channel.CONTROL,
+                CreateNotebookCommand(
+                    execution_requests=(
+                        ExecuteCellCommand(
+                            cell_id="1",
+                            code=inspect.cleandoc(
+                                f"""
+                                import json
+                                import subprocess
+                                import sys
+                                import time
+                                from pathlib import Path
+
+                                output_path = Path({str(pid_file)!r})
+                                cmd = [sys.executable, "-c", "import time; time.sleep(30)"]
+                                child_pg = subprocess.Popen(
+                                    cmd, start_new_session=False
+                                )
+                                child_newpg = subprocess.Popen(
+                                    cmd, start_new_session=True
+                                )
+                                time.sleep(0.5)
+                                output_path.write_text(
+                                    json.dumps(
+                                        {{
+                                            "child_pg": child_pg.pid,
+                                            "child_newpg": child_newpg.pid,
+                                        }}
+                                    )
+                                )
+                                """
+                            ),
+                        ),
+                    ),
+                    cell_ids=("1",),
+                    set_ui_element_value_request=UpdateUIElementCommand(
+                        object_ids=[], values=[]
+                    ),
+                    auto_run=True,
+                ),
+            )
+
+            _wait_until(
+                pid_file.exists,
+                timeout_seconds=5,
+                message="AppHost kernel did not write subprocess PID file",
+            )
+
+            pids = json.loads(pid_file.read_text())
+            child_pg_process = psutil.Process(pids["child_pg"])
+            child_newpg_process = psutil.Process(pids["child_newpg"])
+
+            _wait_until(
+                lambda: child_pg_process.is_running()
+                and child_newpg_process.is_running(),
+                timeout_seconds=2,
+                message="AppHost subprocesses did not stay alive long enough",
+            )
+
+            app_host.shutdown()
+
+            _wait_until(
+                lambda: not app_host.is_alive(),
+                timeout_seconds=2,
+                message="AppHost process did not exit during shutdown()",
+            )
+            _wait_until(
+                lambda: not child_pg_process.is_running(),
+                timeout_seconds=2,
+                message="Same-process-group child survived AppHost shutdown()",
+            )
+
+            assert child_newpg_process.is_running()
+        finally:
+            if app_host.is_alive():
+                app_host.shutdown()
+            if child_newpg_process is not None:
+                _cleanup_process(child_newpg_process)
 
 
 @pytest.mark.requires("zmq")
