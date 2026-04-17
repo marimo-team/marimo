@@ -13,7 +13,6 @@ import os
 import signal
 import sys
 import time
-from dataclasses import dataclass
 from threading import Event, Thread
 from typing import TYPE_CHECKING, Final
 
@@ -42,25 +41,6 @@ def kill_own_process_group() -> None:
     os._exit(1)
 
 
-@dataclass(frozen=True)
-class ParentPollerHandle:
-    """State shared between a parent poller and its owner."""
-
-    exit_detected: Event
-    cleanup_complete: Event
-
-    def mark_cleanup_complete(self) -> None:
-        """For the caller to signal to the poller it can exit."""
-        self.cleanup_complete.set()
-
-    def finalize_if_parent_died(self) -> None:
-        if not self.exit_detected.is_set():
-            return
-
-        self.mark_cleanup_complete()
-        kill_own_process_group()
-
-
 class ParentPollerUnix(Thread):
     """Daemon thread that exits the process when the parent has died."""
 
@@ -69,16 +49,25 @@ class ParentPollerUnix(Thread):
         parent_pid: int,
         *,
         request_graceful_shutdown: Callable[[], None],
-        parent_exit_detected: Event,
-        cleanup_complete: Event,
         target_name: str = "kernel",
     ) -> None:
         super().__init__(daemon=True)
         self.parent_pid = parent_pid
         self.request_graceful_shutdown = request_graceful_shutdown
-        self.parent_exit_detected = parent_exit_detected
-        self.cleanup_complete = cleanup_complete
         self.target_name = target_name
+        self.parent_exit_detected = Event()
+        self.cleanup_complete = Event()
+
+    def mark_cleanup_complete(self) -> None:
+        """For the caller to signal to the poller it can exit."""
+        self.cleanup_complete.set()
+
+    def finalize_if_parent_died(self) -> None:
+        if not self.parent_exit_detected.is_set():
+            return
+
+        self.mark_cleanup_complete()
+        kill_own_process_group()
 
     def _request_shutdown(self) -> None:
         try:
@@ -138,26 +127,19 @@ def start_parent_poller(
     *,
     request_graceful_shutdown: Callable[[], None],
     target_name: str,
-) -> ParentPollerHandle | None:
+) -> ParentPollerUnix | None:
     """Start a parent poller when the current Unix subprocess has a parent.
 
     Returns `None` when parent polling is not applicable, such as when
     running on Windows or when reparenting to PID 1 is expected.
     """
-    if sys.platform == "win32" or parent_pid in (None, 1):
+    if sys.platform == "win32" or parent_pid is None or parent_pid == 1:
         return None
 
-    assert parent_pid is not None
-    parent_pid_int = parent_pid
-    handle = ParentPollerHandle(
-        exit_detected=Event(),
-        cleanup_complete=Event(),
-    )
-    ParentPollerUnix(
-        parent_pid=parent_pid_int,
+    poller = ParentPollerUnix(
+        parent_pid=parent_pid,
         request_graceful_shutdown=request_graceful_shutdown,
-        parent_exit_detected=handle.exit_detected,
-        cleanup_complete=handle.cleanup_complete,
         target_name=target_name,
-    ).start()
-    return handle
+    )
+    poller.start()
+    return poller

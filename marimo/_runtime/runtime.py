@@ -3720,6 +3720,7 @@ def launch_kernel(
         # completions only provided in edit mode
         kernel.start_completion_worker(completion_queue)
 
+    parent_poller = None
     if is_subprocess:
         # Subprocess kernels (EDIT and IPC_RUN) can receive signals and need
         # their own formatter registration since they don't share state with
@@ -3732,7 +3733,6 @@ def launch_kernel(
 
         # TODO: Windows workaround -- find a way to make the process
         # its group leader
-        parent_poller = None
         if sys.platform != "win32":
             # Make this process group leader to prevent it from receiving
             # signals intended for the parent (server) process,
