@@ -174,15 +174,23 @@ jobs:
       - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          # DEBUG EXPERIMENT 4: run only tests/_messaging/ to determine
-          # whether the poisoner is inside _messaging/ (hangs) or in earlier
-          # directories such as _ai/_ast/_cli/_code_mode/_convert/_data/
-          # _internal/_lint (passes). Do not merge.
-          uv run --python ${{ matrix.python-version }} --group test pytest tests/_messaging/ \
+          # DEBUG EXPERIMENT 5: same full suite as original but also ignore
+          # tests/_cli — suspect is test_sandbox.py which shells out to uv to
+          # build real venvs. Do not merge.
+          uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
             -v \
             -p no:xdist \
+            -k "not test_cli" \
+            --ignore=tests/_ipc \
+            --ignore=tests/_islands \
+            --ignore=tests/_cli \
             --durations=10 \
-            --inline-snapshot=disable
+            -p packages.pytest_changed \
+            --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
+            --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
+            --picked=first \
+            --inline-snapshot=disable \
+          || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
 
       # Test with optional dependencies
       - name: Test changed with optional dependencies
