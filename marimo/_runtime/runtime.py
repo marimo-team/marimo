@@ -182,6 +182,9 @@ from marimo._runtime.packages.utils import (
     is_python_isolated,
 )
 from marimo._runtime.params import CLIArgs, QueryParams
+from marimo._runtime.parent_poller import (
+    start_parent_poller,
+)
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import ModuleWatcher
@@ -3554,6 +3557,7 @@ def launch_kernel(
     profile_path: str | None = None,
     log_level: int | None = None,
     is_ipc: bool = False,
+    parent_pid: int | None = None,
 ) -> None:
     if log_level is not None:
         _loggers.set_level(log_level)
@@ -3720,18 +3724,28 @@ def launch_kernel(
         # Subprocess kernels (EDIT and IPC_RUN) can receive signals and need
         # their own formatter registration since they don't share state with
         # the host process.
+        #
+        # Each subprocess kernel needs to install the formatter import hooks
         from marimo._output.formatters.formatters import register_formatters
+
+        register_formatters(theme=user_config["display"]["theme"])
 
         # TODO: Windows workaround -- find a way to make the process
         # its group leader
+        parent_poller = None
         if sys.platform != "win32":
             # Make this process group leader to prevent it from receiving
             # signals intended for the parent (server) process,
             # Ctrl+C in particular.
             os.setsid()
 
-        # Each subprocess kernel needs to install the formatter import hooks
-        register_formatters(theme=user_config["display"]["theme"])
+            parent_poller = start_parent_poller(
+                parent_pid,
+                request_graceful_shutdown=lambda: control_queue.put_nowait(
+                    StopKernelCommand()
+                ),
+                target_name="kernel",
+            )
 
         signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
 
@@ -3822,3 +3836,9 @@ def launch_kernel(
     kernel.teardown()
     if isinstance(pipe, connection.Connection):
         pipe.close()
+
+    if parent_poller is not None:
+        # The server kills the process group for edit-mode sessions and app
+        # host sessions. This is a last resort to clean up the kernel's
+        # children if the server isn't around to do so.
+        parent_poller.finalize_if_parent_died()

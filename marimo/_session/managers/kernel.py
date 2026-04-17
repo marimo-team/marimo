@@ -91,6 +91,10 @@ class KernelManagerImpl(KernelManager):
                     self.queue_manager.win32_interrupt_queue,
                     self.profile_path,
                     GLOBAL_SETTINGS.LOG_LEVEL,
+                    # is_ipc
+                    False,
+                    # PID
+                    os.getpid(),
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
