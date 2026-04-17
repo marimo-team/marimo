@@ -25,15 +25,15 @@ import { toast } from "../ui/use-toast";
 import { MarimoPlusIcon } from "../icons/marimo-icons";
 
 export const StaticBanner: React.FC = () => {
-  const code = useAtomValue(codeAtom);
+  const code = "hiii";
 
-  if (!isStaticNotebook()) {
-    return null;
-  }
+  // if (!isStaticNotebook()) {
+  //   return null;
+  // }
 
-  if (!code) {
-    return null;
-  }
+  // if (!code) {
+  //   return null;
+  // }
 
   return (
     <div
@@ -135,9 +135,9 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
                 </a>
               </Button>
               <p className="text-sm text-(--sky-12)">
-                Run in the cloud with{" "}
-                <span className="font-semibold">molab</span>, marimo's hosted
-                notebook platform.
+                Launch this notebook in{" "}
+                <span className="font-semibold">molab</span>, marimo's
+                cloud-hosted notebook platform.
               </p>
             </div>
           </DialogDescription>
