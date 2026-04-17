@@ -146,8 +146,6 @@ describe("WhitespaceMarkers", () => {
   it("describes mixed whitespace in aria-label", () => {
     const { container } = renderMarkers(" \t\n");
     const outer = container.querySelector("span")!;
-    expect(outer.getAttribute("aria-label")).toBe(
-      "1 space, 1 tab, 1 newline",
-    );
+    expect(outer.getAttribute("aria-label")).toBe("1 space, 1 tab, 1 newline");
   });
 });
