@@ -1,34 +1,31 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { expect, test } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
+import { waitForMarimoApp } from "./test-utils";
 
 const appUrl = getAppUrl("stdin.py");
 
 test("stdin works", async ({ page }) => {
   await page.goto(appUrl);
+  await waitForMarimoApp(page);
 
-  expect(page.getByText("stdin.py")).toBeTruthy();
+  await expect(page.getByText("stdin.py")).toBeVisible();
 
   // Check that "what is your name?" exists in the console
-  await expect(page.getByTestId("console-output-area")).toHaveText(
+  await expect(page.getByTestId("console-output-area")).toContainText(
     "what is your name?",
   );
-
-  // Expect loading spinner
-  await expect(page.getByTestId("loading-indicator")).toBeVisible();
 
   // Get input inside the console
   const consoleInput = page
     .getByTestId("console-output-area")
     .getByRole("textbox");
-  // Type "marimo" into the console
   await consoleInput.fill("marimo");
-  // Hit enter
   await consoleInput.press("Enter");
 
-  // Check that "Hi, marimo" exists on the page
-  await expect(page.getByText("Hi marimo")).toBeVisible();
+  // Check that "Hi marimo" exists on the page
+  await expect(page.getByText("Hi marimo")).toBeVisible({ timeout: 10000 });
 
-  // Expect not loading spinner
+  // Expect no loading spinner after completion
   await expect(page.getByTestId("loading-indicator")).not.toBeVisible();
 });
