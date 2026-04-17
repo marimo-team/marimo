@@ -74,7 +74,7 @@ export const ColumnExplorerPanel = ({
   return (
     <div className="mb-3">
       <span className="text-xs font-semibold ml-2 flex">
-        {prettifyRowColumnCount(totalRows, totalColumns, locale)}
+        {prettifyRowColumnCount({ numRows: totalRows, totalColumns, locale })}
         <CopyClipboardIcon
           tooltip="Copy column names"
           value={columns?.map(([columnName]) => columnName).join(",\n") || ""}

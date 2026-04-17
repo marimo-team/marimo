@@ -9,7 +9,7 @@ import subprocess
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Literal, Optional, Union, cast
+from typing import Any, Literal, cast
 
 from marimo import _loggers
 from marimo._config.config import MarimoConfig
@@ -37,7 +37,7 @@ class LspServer(ABC):
     id: str
 
     @abstractmethod
-    async def start(self) -> Optional[AlertNotification]:
+    async def start(self) -> AlertNotification | None:
         pass
 
     @abstractmethod
@@ -54,7 +54,7 @@ class LspServer(ABC):
 
     @abstractmethod
     async def restart(
-        self, server_ids: Optional[list[LspServerId]] = None
+        self, server_ids: list[LspServerId] | None = None
     ) -> LspRestartResponse:
         pass
 
@@ -62,21 +62,21 @@ class LspServer(ABC):
 class BaseLspServer(LspServer):
     def __init__(self, port: int) -> None:
         self.port = port
-        self.process: Optional[subprocess.Popen[str]] = None
-        self._health_check_task: Optional[asyncio.Task[None]] = None
+        self.process: subprocess.Popen[str] | None = None
+        self._health_check_task: asyncio.Task[None] | None = None
         self._startup_failed = False
-        self._started_at: Optional[float] = None  # Unix timestamp
+        self._started_at: float | None = None  # Unix timestamp
         self._start_lock = asyncio.Lock()
         self.log_file = _loggers.get_log_directory() / f"{self.id}.log"
 
     @server_tracer.start_as_current_span("lsp_server.start")
-    async def start(self) -> Optional[AlertNotification]:
+    async def start(self) -> AlertNotification | None:
         # Use lock to prevent race conditions when start() is called concurrently
         # (e.g., user rapidly toggles LSP settings)
         async with self._start_lock:
             return await self._start_internal()
 
-    async def _start_internal(self) -> Optional[AlertNotification]:
+    async def _start_internal(self) -> AlertNotification | None:
         if self.process is not None:
             LOGGER.debug("LSP server already started")
             return None
@@ -231,7 +231,7 @@ class BaseLspServer(LspServer):
 
     async def ping(
         self, timeout_ms: float = 5000
-    ) -> tuple[bool, Optional[float]]:
+    ) -> tuple[bool, float | None]:
         """
         Send an active health ping to verify server responsiveness.
 
@@ -264,7 +264,7 @@ class BaseLspServer(LspServer):
         except Exception:
             return False
 
-    async def restart_server(self) -> Optional[AlertNotification]:
+    async def restart_server(self) -> AlertNotification | None:
         """Stop and restart this LSP server."""
         self._startup_failed = False
         self._started_at = None
@@ -287,7 +287,7 @@ class BaseLspServer(LspServer):
 
         # Determine server status
         server_status: LspServerStatus
-        last_ping_ms: Optional[float] = None
+        last_ping_ms: float | None = None
 
         if self.has_failed():
             server_status = "crashed"
@@ -315,7 +315,7 @@ class BaseLspServer(LspServer):
         return LspHealthResponse(status=status, servers=[server_health])
 
     async def restart(
-        self, server_ids: Optional[list[LspServerId]] = None
+        self, server_ids: list[LspServerId] | None = None
     ) -> LspRestartResponse:
         """Restart this LSP server if requested."""
         sid = LspServerId(self.id)
@@ -399,7 +399,30 @@ class BaseLspServer(LspServer):
             else:
                 self.process.terminate()
 
-    def stop(self) -> None:
+    def _close_pipes(self) -> None:
+        """Close stdout/stderr pipes to unblock the child process.
+
+        If the child is writing to a pipe whose buffer is full, it will
+        block forever.  Closing the parent's end of the pipe lets the
+        child receive EPIPE/SIGPIPE so it can exit, and prevents
+        process.wait() from deadlocking.
+        """
+        if self.process is None:
+            return
+        for stream in (self.process.stdout, self.process.stderr):
+            if stream is not None:
+                try:
+                    stream.close()
+                except OSError:
+                    pass
+
+    def _begin_stop(self) -> None:
+        """Send termination signal and close pipes.
+
+        Call this on every server *before* calling _finish_stop() so that
+        all servers receive SIGTERM concurrently and the wait timeouts
+        don't stack up.
+        """
         # Cancel health monitoring task
         if (
             self._health_check_task is not None
@@ -415,28 +438,41 @@ class BaseLspServer(LspServer):
             else:
                 self._signal_process_tree(signal.SIGTERM)
 
-            try:
-                # Wait for graceful shutdown with timeout
-                self.process.wait(timeout=5)
-                LOGGER.debug("LSP server stopped gracefully")
-            except subprocess.TimeoutExpired:
-                # Force kill if process doesn't respond to terminate
-                LOGGER.warning(
-                    "LSP server did not stop gracefully, forcing kill"
-                )
-                if is_windows():
-                    self.process.kill()
-                else:
-                    self._signal_process_tree(signal.SIGKILL)
-                try:
-                    self.process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    LOGGER.error("Failed to kill LSP server process")
-            self.process = None
-        else:
-            LOGGER.debug("LSP server not running")
+            # Close pipes so the child doesn't block writing to a full
+            # pipe buffer, which would prevent it from exiting and cause
+            # wait() to deadlock (see Python subprocess docs).
+            self._close_pipes()
 
-    def validate_requirements(self) -> Union[str, Literal[True]]:
+    def _finish_stop(self) -> None:
+        """Wait for the process to exit, force-killing if needed.
+
+        Must be called after _begin_stop().
+        """
+        if self.process is None:
+            LOGGER.debug("LSP server not running")
+            return
+
+        try:
+            self.process.wait(timeout=2)
+            LOGGER.debug("LSP server stopped gracefully")
+        except subprocess.TimeoutExpired:
+            # Force kill if process doesn't respond to terminate
+            LOGGER.warning("LSP server did not stop gracefully, forcing kill")
+            if is_windows():
+                self.process.kill()
+            else:
+                self._signal_process_tree(signal.SIGKILL)
+            try:
+                self.process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                LOGGER.error("Failed to kill LSP server process")
+        self.process = None
+
+    def stop(self) -> None:
+        self._begin_stop()
+        self._finish_stop()
+
+    def validate_requirements(self) -> str | Literal[True]:
         raise NotImplementedError()
 
     def get_command(self) -> list[str]:
@@ -453,7 +489,7 @@ class CopilotLspServer(BaseLspServer):
         super().__init__(port)
         self.log_file = _loggers.get_log_directory() / "github-copilot-lsp.log"
 
-    def validate_requirements(self) -> Union[str, Literal[True]]:
+    def validate_requirements(self) -> str | Literal[True]:
         if not DependencyManager.which("node"):
             return "node.js binary is missing. Install node at https://nodejs.org/."
 
@@ -467,8 +503,9 @@ class CopilotLspServer(BaseLspServer):
             )
             if result.returncode == 0:
                 version_str = result.stdout.strip()
-                if version_str.startswith("v"):
-                    version_str = version_str[1:]  # Remove 'v' prefix
+                version_str = version_str.removeprefix(
+                    "v"
+                )  # Remove 'v' prefix
 
                 # Parse major version
                 major_version = int(version_str.split(".")[0])
@@ -542,7 +579,7 @@ class PyLspServer(BaseLspServer):
 
     id = "pylsp"
 
-    async def start(self) -> Optional[AlertNotification]:
+    async def start(self) -> AlertNotification | None:
         # pylsp is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.pylsp.has():
             LOGGER.info(
@@ -551,7 +588,7 @@ class PyLspServer(BaseLspServer):
             return None
         return await super().start()
 
-    def validate_requirements(self) -> Union[str, Literal[True]]:
+    def validate_requirements(self) -> str | Literal[True]:
         if not DependencyManager.pylsp.has():
             return "pylsp is missing. Install it with `pip install python-lsp-server`."
 
@@ -605,14 +642,14 @@ class BasedpyrightServer(BaseLspServer):
         super().__init__(port)
         self.log_file = _loggers.get_log_directory() / "basedpyright-lsp.log"
 
-    async def start(self) -> Optional[AlertNotification]:
+    async def start(self) -> AlertNotification | None:
         # basedpyright is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.basedpyright.has():
             LOGGER.debug("basedpyright is not installed. Skipping LSP server.")
             return None
         return await super().start()
 
-    def validate_requirements(self) -> Union[str, Literal[True]]:
+    def validate_requirements(self) -> str | Literal[True]:
         if not DependencyManager.basedpyright.has():
             return "basedpyright is missing. Install it with `pip install basedpyright`."
 
@@ -650,14 +687,14 @@ class TyServer(BaseLspServer):
         super().__init__(port)
         self.log_file = _loggers.get_log_directory() / "ty-lsp.log"
 
-    async def start(self) -> Optional[AlertNotification]:
+    async def start(self) -> AlertNotification | None:
         # ty is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.ty.has():
             LOGGER.debug("ty is not installed. Skipping LSP server.")
             return None
         return await super().start()
 
-    def validate_requirements(self) -> Union[str, Literal[True]]:
+    def validate_requirements(self) -> str | Literal[True]:
         if not DependencyManager.ty.has():
             return "ty is missing. Install it with `pip install ty`."
 
@@ -700,14 +737,14 @@ class PyreflyServer(BaseLspServer):
         super().__init__(port)
         self.log_file = _loggers.get_log_directory() / "pyrefly-lsp.log"
 
-    async def start(self) -> Optional[AlertNotification]:
+    async def start(self) -> AlertNotification | None:
         # Pyrefly is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.pyrefly.has():
             LOGGER.debug("Pyrefly is not installed. Skipping LSP server.")
             return None
         return await super().start()
 
-    def validate_requirements(self) -> Union[str, Literal[True]]:
+    def validate_requirements(self) -> str | Literal[True]:
         if not DependencyManager.pyrefly.has():
             return "Pyrefly is missing. Install it with `pip install pyrefly`."
         if not DependencyManager.which("node"):
@@ -755,7 +792,7 @@ class NoopLspServer(LspServer):
         return LspHealthResponse(status="healthy", servers=[])
 
     async def restart(
-        self, server_ids: Optional[list[LspServerId]] = None
+        self, server_ids: list[LspServerId] | None = None
     ) -> LspRestartResponse:
         del server_ids  # Unused
         return LspRestartResponse(success=True, restarted=[], errors={})
@@ -803,10 +840,10 @@ class CompositeLspServer(LspServer):
             .get("enabled", False),
         )
 
-    async def start(self) -> Optional[AlertNotification]:
+    async def start(self) -> AlertNotification | None:
         # .get_config() should not be cached, as it may be updated by the user
         config = self.config_reader.get_config()
-        tasks: list[asyncio.Task[Optional[AlertNotification]]] = []
+        tasks: list[asyncio.Task[AlertNotification | None]] = []
 
         for server_name, server in self.servers.items():
             if not self._is_enabled(config, server_name):
@@ -823,8 +860,18 @@ class CompositeLspServer(LspServer):
         return alerts[0] if alerts else None
 
     def stop(self) -> None:
+        # Signal all servers to stop first (send SIGTERM + close pipes)
+        # so they shut down concurrently, then wait for each one.
+        # This avoids stacking the per-server wait timeouts.
         for server in self.servers.values():
-            server.stop()
+            if isinstance(server, BaseLspServer):
+                server._begin_stop()
+            else:
+                server.stop()
+                continue
+        for server in self.servers.values():
+            if isinstance(server, BaseLspServer):
+                server._finish_stop()
 
     def is_running(self) -> bool:
         return any(server.is_running() for server in self.servers.values())
@@ -842,8 +889,8 @@ class CompositeLspServer(LspServer):
 
             # Determine server status
             server_status: LspServerStatus
-            last_ping_ms: Optional[float] = None
-            started_at: Optional[float] = None
+            last_ping_ms: float | None = None
+            started_at: float | None = None
 
             if isinstance(server, BaseLspServer):
                 started_at = server._started_at
@@ -884,7 +931,7 @@ class CompositeLspServer(LspServer):
         return LspHealthResponse(status=status, servers=server_healths)
 
     async def restart(
-        self, server_ids: Optional[list[LspServerId]] = None
+        self, server_ids: list[LspServerId] | None = None
     ) -> LspRestartResponse:
         """Restart specified or failed LSP servers."""
         config = self.config_reader.get_config()

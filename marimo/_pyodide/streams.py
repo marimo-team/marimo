@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._messaging.cell_output import CellOutput
@@ -21,7 +21,7 @@ from marimo._messaging.types import (
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -33,7 +33,7 @@ class PyodideStream(Stream):
         self,
         pipe: Callable[[KernelMessage], None],
         input_queue: asyncio.Queue[str],
-        cell_id: Optional[CellId_t] = None,
+        cell_id: CellId_t | None = None,
     ):
         self.pipe = pipe
         self.cell_id = cell_id
@@ -84,7 +84,7 @@ class PyodideStdout(Stdout):
         return len(data)
 
     # Buffer type not available python < 3.12, hence type ignore
-    def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override] # noqa: E501
+    def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override]
         for line in sequence:
             self.write(line)
 
@@ -131,7 +131,7 @@ class PyodideStderr(Stderr):
         )
         return len(data)
 
-    def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override] # noqa: E501
+    def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override]
         for line in sequence:
             self.write(line)
 
@@ -180,13 +180,13 @@ class PyodideStdin(Stdin):
         loop = asyncio.get_event_loop()
         return loop.run_until_complete(self.stream.input_queue.get())
 
-    def readline(self, size: int | None = -1) -> str:  # type: ignore[override]  # noqa: E501
+    def readline(self, size: int | None = -1) -> str:  # type: ignore[override]
         # size only included for compatibility with sys.stdin.readline API;
         # we don't support it.
         del size
         return self._readline_with_prompt(prompt="")
 
-    def readlines(self, hint: int | None = -1) -> list[str]:  # type: ignore[override]  # noqa: E501
+    def readlines(self, hint: int | None = -1) -> list[str]:  # type: ignore[override]
         # Just an alias for readline.
         #
         # hint only included for compatibility with sys.stdin.readlines API;

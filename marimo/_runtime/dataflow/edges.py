@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Optional, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from marimo import _loggers
 
@@ -86,7 +86,7 @@ def _is_valid_cell_reference(
 def _resolve_variable_name(
     name: Name,
     other_cell: CellImpl,
-    sql_ref: Optional[SQLRef],
+    sql_ref: SQLRef | None,
     sql_matches: list[tuple[set[CellId_t], Name]],
 ) -> Name:
     """Resolve the variable name to use when checking if it exists in another cell.

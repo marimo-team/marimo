@@ -172,6 +172,44 @@ def test_move_file_or_directory(client: TestClient) -> None:
     assert response.json()["success"] is True
 
 
+def test_copy_file(client: TestClient) -> None:
+    file_path = Path(test_dir).joinpath("test_file.txt")
+    file_path.write_text("This is a test file for copying.")
+    copy_path = Path(test_dir).joinpath("test_file_copy.txt")
+    response = client.post(
+        "/api/files/copy",
+        headers=HEADERS,
+        json={
+            "path": test_file_path,
+            "newPath": str(copy_path),
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["success"] is True
+    assert copy_path.exists()
+    assert copy_path.read_text() == file_path.read_text()
+
+
+def test_copy_directory(client: TestClient) -> None:
+    sub_dir = Path(test_dir).joinpath("test_subdir")
+    sub_dir.mkdir(exist_ok=True)
+    inner_file = sub_dir.joinpath("inner.txt")
+    inner_file.write_text("inner content")
+
+    copy_sub_dir = Path(test_dir).joinpath("test_subdir_copy")
+    response = client.post(
+        "/api/files/copy",
+        headers=HEADERS,
+        json={
+            "path": str(sub_dir),
+            "newPath": str(copy_sub_dir),
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["success"] is True
+    assert copy_sub_dir.joinpath("inner.txt").read_text() == "inner content"
+
+
 def test_open_file(client: TestClient) -> None:
     response = client.post(
         "/api/files/open",

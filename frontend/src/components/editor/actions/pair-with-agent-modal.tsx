@@ -16,6 +16,7 @@ import { Events } from "@/utils/events";
 import { Tooltip } from "@/components/ui/tooltip";
 import { assertNever } from "@/utils/assertNever";
 import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
+import { API } from "@/core/network/api";
 
 type AgentTab = "claude" | "codex" | "opencode";
 
@@ -54,7 +55,9 @@ const SKILL_INSTALL = "npx skills add marimo-team/marimo-pair";
 function useAuthToken(): string | null {
   const [token, setToken] = useState<string | null>(null);
   useEffect(() => {
-    fetch(asRemoteURL("/auth/token").href, { credentials: "include" })
+    fetch(asRemoteURL("/auth/token").href, {
+      headers: API.headers(),
+    })
       .then((res) =>
         res.ok ? (res.json() as Promise<{ token: string | null }>) : null,
       )

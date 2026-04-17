@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import typing
-
 import msgspec
 import msgspec.json
 
@@ -19,7 +17,7 @@ class ConnectionInfo(msgspec.Struct):
     control: int
     ui_element: int
     completion: int
-    win32_interrupt: typing.Union[int, None]
+    win32_interrupt: int | None
 
     input: int
     stream: int
@@ -32,11 +30,12 @@ class KernelArgs(msgspec.Struct):
     app_metadata: AppMetadata
     user_config: MarimoConfig
     log_level: int
-    profile_path: typing.Union[str, None]
+    profile_path: str | None
     connection_info: ConnectionInfo
     # Whether to use run-mode config (autorun) vs edit-mode config (lazy)
     is_run_mode: bool = False
     # Runtime behavior flags
+    # virtual_files_supported is ignored, but kept for backward compatibility
     virtual_files_supported: bool = True
     redirect_console_to_browser: bool = True
 

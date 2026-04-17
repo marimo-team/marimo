@@ -5,7 +5,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Optional, Union
+from typing import Any
 
 from marimo._version import __version__
 
@@ -31,7 +31,7 @@ class Response:
         status_code: int,
         content: bytes,
         headers: dict[str, str],
-        original_error: Optional[Exception] = None,
+        original_error: Exception | None = None,
     ):
         self.status_code = status_code
         self.content = content
@@ -79,11 +79,11 @@ def _make_request(
     method: str,
     url: str,
     *,
-    params: Optional[dict[str, str]] = None,
-    headers: Optional[dict[str, str]] = None,
-    data: Optional[Union[dict[str, Any], str]] = None,
-    json_data: Optional[dict[str, Any]] = None,
-    timeout: Optional[float] = None,
+    params: dict[str, str] | None = None,
+    headers: dict[str, str] | None = None,
+    data: dict[str, Any] | str | None = None,
+    json_data: dict[str, Any] | None = None,
+    timeout: float | None = None,
 ) -> Response:
     """Make an HTTP request and return a Response object.
 
@@ -158,15 +158,15 @@ def _make_request(
             original_error=e,
         )
     except Exception as e:
-        raise RequestError(f"Request failed: {str(e)}") from e
+        raise RequestError(f"Request failed: {e!s}") from e
 
 
 def get(
     url: str,
     *,
-    params: Optional[dict[str, str]] = None,
-    headers: Optional[dict[str, str]] = None,
-    timeout: Optional[float] = None,
+    params: dict[str, str] | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: float | None = None,
 ) -> Response:
     """Make a GET request."""
     return _make_request(
@@ -177,10 +177,10 @@ def get(
 def post(
     url: str,
     *,
-    data: Optional[Union[dict[str, Any], str]] = None,
-    json_data: Optional[dict[str, Any]] = None,
-    headers: Optional[dict[str, str]] = None,
-    timeout: Optional[float] = None,
+    data: dict[str, Any] | str | None = None,
+    json_data: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: float | None = None,
 ) -> Response:
     """Make a POST request."""
     return _make_request(
@@ -196,10 +196,10 @@ def post(
 def put(
     url: str,
     *,
-    data: Optional[Union[dict[str, Any], str]] = None,
-    json_data: Optional[dict[str, Any]] = None,
-    headers: Optional[dict[str, str]] = None,
-    timeout: Optional[float] = None,
+    data: dict[str, Any] | str | None = None,
+    json_data: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: float | None = None,
 ) -> Response:
     """Make a PUT request."""
     return _make_request(
@@ -215,8 +215,8 @@ def put(
 def delete(
     url: str,
     *,
-    headers: Optional[dict[str, str]] = None,
-    timeout: Optional[float] = None,
+    headers: dict[str, str] | None = None,
+    timeout: float | None = None,
 ) -> Response:
     """Make a DELETE request."""
     return _make_request("DELETE", url, headers=headers, timeout=timeout)

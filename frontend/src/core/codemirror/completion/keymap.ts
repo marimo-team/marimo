@@ -22,20 +22,27 @@ const KEYS_TO_REMOVE = new Set<string | undefined>([
   "Alt-`",
 ]);
 
-function hasRemovedKeybinding(binding: KeyBinding): boolean {
-  return [binding.key, binding.mac, binding.linux, binding.win].some((key) =>
-    KEYS_TO_REMOVE.has(key),
+export function filterCompletionBindings(
+  bindings: readonly KeyBinding[],
+  keysToRemove: Set<string | undefined> = KEYS_TO_REMOVE,
+): readonly KeyBinding[] {
+  return bindings.filter(
+    (binding) =>
+      ![binding.key, binding.mac, binding.linux, binding.win].some((key) =>
+        keysToRemove.has(key),
+      ),
   );
 }
 
-export function filterCompletionBindings(
-  bindings: readonly KeyBinding[],
-): readonly KeyBinding[] {
-  return bindings.filter((binding) => !hasRemovedKeybinding(binding));
-}
-
-export function completionKeymap(): Extension {
-  const withoutKeysToRemove = filterCompletionBindings(defaultCompletionKeymap);
+export function completionKeymap(acceptOnEnter = true): Extension {
+  const keysToRemove = new Set(KEYS_TO_REMOVE);
+  if (!acceptOnEnter) {
+    keysToRemove.add("Enter");
+  }
+  const withoutKeysToRemove = filterCompletionBindings(
+    defaultCompletionKeymap,
+    keysToRemove,
+  );
 
   return Prec.highest(
     keymap.of([

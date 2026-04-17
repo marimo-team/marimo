@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import time
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -19,6 +19,9 @@ from marimo._sql.connection_utils import (
     update_table_in_connection,
     update_table_list_in_connection,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 TIME_THRESHOLD_SECONDS = 0.1
 

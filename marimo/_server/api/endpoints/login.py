@@ -109,11 +109,11 @@ async def login_submit(request: Request) -> Response:
     redirect_url = request.query_params.get("next", base_url)
 
     # Validate redirect URL to prevent open redirect vulnerabilities
+    # Reject protocol-relative URLs (e.g. //evil.com) which browsers
+    # interpret as absolute URLs, bypassing scheme-based checks.
     parsed = urlparse(redirect_url)
-    if parsed.scheme and parsed.netloc:
-        if parsed.netloc != request.url.netloc:
-            # Fall back to base URL if external redirect
-            redirect_url = base_url
+    if parsed.netloc and parsed.netloc != request.url.netloc:
+        redirect_url = base_url
 
     if request.method == "POST":
         body = (await request.body()).decode()

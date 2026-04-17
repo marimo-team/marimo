@@ -1632,6 +1632,35 @@ components:
       - download
       title: ExportAsScriptRequest
       type: object
+    FileCopyRequest:
+      properties:
+        newPath:
+          type: string
+        path:
+          type: string
+      required:
+      - path
+      - newPath
+      title: FileCopyRequest
+      type: object
+    FileCopyResponse:
+      properties:
+        info:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/FileInfo'
+          default: null
+        message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        success:
+          type: boolean
+      required:
+      - success
+      title: FileCopyResponse
+      type: object
     FileCreateRequest:
       properties:
         contents:
@@ -2149,7 +2178,10 @@ components:
       description: "Package installation progress with streaming logs.\n\n    Attributes:\n\
         \        packages: Package name to status (queued/installing/installed/failed).\n\
         \        logs: Optional streaming logs per package.\n        log_status: Log\
-        \ stream status (append/start/done)."
+        \ stream status (append/start/done).\n        source: Which Python environment\
+        \ packages are installed into.\n                \"kernel\" (default) installs\
+        \ in the kernel's venv; \"server\"\n                installs in the server's\
+        \ own Python env."
       properties:
         log_status:
           anyOf:
@@ -2177,6 +2209,11 @@ components:
             - installing
             - queued
           type: object
+        source:
+          default: kernel
+          enum:
+          - kernel
+          - server
       required:
       - op
       - packages
@@ -6018,6 +6055,20 @@ paths:
           description: Update the cell outputs
         400:
           description: File must be saved before downloading
+  /api/files/copy:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileCopyRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileCopyResponse'
+          description: Copy a file or directory
   /api/files/create:
     post:
       requestBody:

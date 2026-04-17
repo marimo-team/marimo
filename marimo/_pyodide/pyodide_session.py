@@ -7,7 +7,7 @@ import json
 import re
 import signal
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from marimo import _loggers
 from marimo._config.config import (
@@ -46,6 +46,8 @@ from marimo._server.export.exporter import Exporter
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.files import (
+    FileCopyRequest,
+    FileCopyResponse,
     FileCreateRequest,
     FileCreateResponse,
     FileDeleteRequest,
@@ -76,6 +78,8 @@ from marimo._utils.inline_script_metadata import PyProjectReader
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._ast.cell import CellConfig
     from marimo._messaging.types import KernelMessage
     from marimo._session.notebook.file_manager import AppFileManager
@@ -367,6 +371,20 @@ class PyodideBridge:
         response = FileDeleteResponse(success=success)
         return self._dump(response)
 
+    def copy_file_or_directory(
+        self,
+        request: str,
+    ) -> str:
+        body = self._parse(request, FileCopyRequest)
+        try:
+            info = self.file_system.copy_file_or_directory(
+                body.path, body.new_path
+            )
+            response = FileCopyResponse(success=True, info=info)
+        except Exception as e:
+            response = FileCopyResponse(success=False, message=str(e))
+        return self._dump(response)
+
     def move_file_or_directory(
         self,
         request: str,
@@ -491,7 +509,7 @@ def _launch_pyodide_kernel(
         stream=stream,
         stdout=stdout,
         stderr=stderr,
-        virtual_files_supported=False,
+        virtual_file_storage=None,
         mode=session_mode,
     )
 

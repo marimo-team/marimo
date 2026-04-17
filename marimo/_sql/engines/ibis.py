@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 from marimo import _loggers
 from marimo._data.models import (
@@ -33,7 +33,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
     def __init__(
         self,
         connection: SQLBackend,
-        engine_name: Optional[VariableName] = None,
+        engine_name: VariableName | None = None,
     ) -> None:
         super().__init__(connection, engine_name)
 
@@ -90,7 +90,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             auto_discover_columns=False,
         )
 
-    def get_default_database(self) -> Optional[str]:
+    def get_default_database(self) -> str | None:
         """Get the current database name.
 
         Returns:
@@ -117,7 +117,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
         return database_name
 
-    def get_default_schema(self) -> Optional[str]:
+    def get_default_schema(self) -> str | None:
         """Get the default schema name"""
         schema_name = None
         try:
@@ -132,9 +132,9 @@ class IbisEngine(SQLConnection["SQLBackend"]):
     def get_databases(
         self,
         *,
-        include_schemas: Union[bool, Literal["auto"]],
-        include_tables: Union[bool, Literal["auto"]],
-        include_table_details: Union[bool, Literal["auto"]],
+        include_schemas: bool | Literal["auto"],
+        include_tables: bool | Literal["auto"],
+        include_table_details: bool | Literal["auto"],
     ) -> list[Database]:
         """Get all databases from the engine.
 
@@ -193,7 +193,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
     def get_schemas(
         self,
         *,
-        database: Optional[str],
+        database: str | None,
         include_tables: bool,
         include_table_details: bool,
     ) -> list[Schema]:
@@ -364,7 +364,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
-    ) -> Optional[DataTable]:
+    ) -> DataTable | None:
         """Get a single table from the engine."""
         if self._connection is None:
             return None
@@ -440,34 +440,29 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             return "string"
         elif ibis_dtype.is_boolean():
             return "boolean"
-        elif ibis_dtype.is_string():
+        elif ibis_dtype.is_string() or ibis_dtype.is_binary():
             return "string"
-        elif ibis_dtype.is_binary():
-            return "string"
-        elif ibis_dtype.is_array():
+        elif (
+            ibis_dtype.is_array()
+            or ibis_dtype.is_map()
+            or ibis_dtype.is_struct()
+            or ibis_dtype.is_json()
+        ):
             return "unknown"
-        elif ibis_dtype.is_map():
-            return "unknown"
-        elif ibis_dtype.is_struct():
-            return "unknown"
-        elif ibis_dtype.is_json():
-            return "unknown"
-        elif ibis_dtype.is_uuid():
-            return "string"
-        elif ibis_dtype.is_macaddr():
-            return "string"
-        elif ibis_dtype.is_inet():
-            return "string"
-        elif ibis_dtype.is_linestring():
-            return "string"
-        elif ibis_dtype.is_multilinestring():
+        elif (
+            ibis_dtype.is_uuid()
+            or ibis_dtype.is_macaddr()
+            or ibis_dtype.is_inet()
+            or ibis_dtype.is_linestring()
+            or ibis_dtype.is_multilinestring()
+        ):
             return "string"
         else:
             raise IbisToMarimoConversionError
 
     def _resolve_should_auto_discover(
         self,
-        value: Union[bool, Literal["auto"]],
+        value: bool | Literal["auto"],
     ) -> bool:
         if value == "auto":
             return self._is_cheap_discovery()

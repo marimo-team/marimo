@@ -12,9 +12,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
-    Optional,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -33,13 +31,12 @@ from marimo._schemas.serialization import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from typing import TypeAlias
 
-    from typing_extensions import TypeAlias
 
-
-FnNode: TypeAlias = Union[ast.FunctionDef, ast.AsyncFunctionDef]
-CellNode: TypeAlias = Union[FnNode, ast.ClassDef]
-Node: TypeAlias = Union[ast.stmt, ast.expr]
+FnNode: TypeAlias = ast.FunctionDef | ast.AsyncFunctionDef
+CellNode: TypeAlias = FnNode | ast.ClassDef
+Node: TypeAlias = ast.stmt | ast.expr
 
 
 V = TypeVar("V")
@@ -103,7 +100,7 @@ class Extractor:
     """Helper to extract AST nodes to schema/serialization ir."""
 
     @staticmethod
-    def from_file(filename: Union[str, Path]) -> Extractor:
+    def from_file(filename: str | Path) -> Extractor:
         return Extractor(contents=Path(filename).read_text(encoding="utf-8"))
 
     def __init__(self, contents: str):
@@ -115,7 +112,7 @@ class Extractor:
         lineno: int,
         col_offset: int,
         end_lineno: int,
-        end_col_offset: Optional[int],
+        end_col_offset: int | None,
     ) -> str:
         if lineno == end_lineno:
             return self.lines[lineno][col_offset:end_col_offset]
@@ -148,7 +145,7 @@ class Extractor:
             )
 
             # Scrub past the decorator + 1, lineno 1 index -1
-            decorator: Optional[ast.expr]
+            decorator: ast.expr | None
             if len(node.decorator_list) and (
                 decorator := get_valid_decorator(node)
             ):
@@ -369,8 +366,7 @@ class Extractor:
         code_result = self.extract_from_code(node)
         _violations.extend(code_result.violations)
         code = code_result.unwrap()
-        if code.endswith("\npass"):
-            code = code[: -len("\npass")]
+        code = code.removesuffix("\npass")
         return ParseResult(
             SetupCell(
                 code=code,
@@ -385,7 +381,7 @@ class Extractor:
         )
 
     def to_cell(
-        self, node: Node, attribute: Optional[str] = None
+        self, node: Node, attribute: str | None = None
     ) -> ParseResult[CellDef]:
         """Convert an AST node to a CellDef."""
         violations: list[Violation] = []
@@ -413,7 +409,7 @@ class Extractor:
                 cell_result = self.to_cell_def(node, kwargs)
                 violations.extend(cell_result.violations)
                 return ParseResult(cell_result.unwrap(), violations=violations)
-            cell_types: dict[Optional[str], type[CellDef]] = {
+            cell_types: dict[str | None, type[CellDef]] = {
                 "function": FunctionCell,
                 "class_definition": ClassCell,
             }
@@ -502,7 +498,7 @@ class Parser:
     """
 
     @staticmethod
-    def from_file(filename: Union[str, Path]) -> Parser:
+    def from_file(filename: str | Path) -> Parser:
         return Parser(
             contents=Path(filename).read_text(encoding="utf-8"),
             filepath=str(filename),
@@ -709,10 +705,10 @@ class PeekStack(Generic[U]):
 
     def __init__(self, iterable: Iterator[U]):
         self._iterable = iterable
-        self._next: Optional[U] = None
-        self.last: Optional[U] = None
+        self._next: U | None = None
+        self.last: U | None = None
 
-    def __next__(self) -> Optional[U]:
+    def __next__(self) -> U | None:
         if self._next:
             self.last = self._next
             self._next = None
@@ -723,7 +719,7 @@ class PeekStack(Generic[U]):
                 self.last = None
         return self.last
 
-    def peek(self) -> Optional[U]:
+    def peek(self) -> U | None:
         if self._next:
             return self._next
         try:
@@ -734,7 +730,7 @@ class PeekStack(Generic[U]):
 
 
 def _maybe_kwargs(
-    node: Optional[ast.expr],
+    node: ast.expr | None,
 ) -> tuple[dict[str, Any], list[Violation]]:
     if isinstance(node, ast.Call):
         return _eval_kwargs(node.keywords)
@@ -743,7 +739,7 @@ def _maybe_kwargs(
     raise MarimoFileError(f"Provided node ({node}) is not an attribute.")
 
 
-def _maybe_version(node: Node) -> Optional[str]:
+def _maybe_version(node: Node) -> str | None:
     # Expected ast:
     #
     #    Assign(
@@ -797,7 +793,7 @@ def _eval_kwargs(
     return kwargs, violations
 
 
-def _none_to_0(n: Optional[int]) -> int:
+def _none_to_0(n: int | None) -> int:
     return n if n is not None else 0
 
 
@@ -812,14 +808,14 @@ def extract_offsets_post_colon(
         tokenize(io.BytesIO(function_code.encode("utf-8")).readline)
     )
 
-    def_node: Optional[TokenInfo] = None
+    def_node: TokenInfo | None = None
     while token := next(tokens):
         if token.type == token_types.NAME and token.string == block_start:
             def_node = token
             break
     assert def_node is not None
 
-    paren_counter: Optional[int] = None
+    paren_counter: int | None = None
     token = tokens.peek()
     while token := next(tokens):
         if token.type == token_types.OP and token.string == "(":
@@ -886,8 +882,8 @@ def extract_offsets_post_colon(
 
 
 def is_equal_ast(
-    basis: Optional[Union[ast.AST, list[ast.AST]]],
-    other: Optional[Union[ast.AST, list[ast.AST]]],
+    basis: ast.AST | list[ast.AST] | None,
+    other: ast.AST | list[ast.AST] | None,
 ) -> bool:
     """Compare two AST nodes for equality."""
     if type(basis) is not type(other):
@@ -898,7 +894,9 @@ def is_equal_ast(
         assert isinstance(other, list)
         if len(basis) != len(other):
             return False
-        return all(is_equal_ast(a, b) for a, b in zip(basis, other))
+        return all(
+            is_equal_ast(a, b) for a, b in zip(basis, other, strict=False)
+        )
 
     for key, value in vars(basis).items():
         # Scrub positional data not relevant for comparison.
@@ -920,7 +918,7 @@ def is_equal_ast(
 
 def get_valid_decorator(
     node: CellNode,
-) -> Optional[Union[ast.Attribute, ast.Call]]:
+) -> ast.Attribute | ast.Call | None:
     valid_decorators = (
         "cell",
         "function",
@@ -1022,7 +1020,7 @@ def is_body_cell(node: Node) -> bool:
     ) or is_unparsable_cell(node)
 
 
-def _is_ellipsis(node: Optional[Node]) -> bool:
+def _is_ellipsis(node: Node | None) -> bool:
     if node is None:
         return False
     # ast.Ellipsis is deprecated in 3.12+ and removed in 3.14
@@ -1050,18 +1048,18 @@ def is_setup_cell(node: Node) -> bool:
     )
 
 
-def is_cell(node: Optional[Node]) -> bool:
+def is_cell(node: Node | None) -> bool:
     return bool(node and (is_setup_cell(node) or is_body_cell(node)))
 
 
-def is_run_guard(node: Optional[Node]) -> bool:
+def is_run_guard(node: Node | None) -> bool:
     basis = ast_parse('if __name__ == "__main__": app.run()').body[0]
     return bool(node and is_equal_ast(basis, node))
 
 
 def parse_notebook(
     contents: str, filepath: str = "<marimo>"
-) -> Optional[NotebookSerialization]:
+) -> NotebookSerialization | None:
     parser = Parser(contents, filepath=filepath)
     if not parser.extractor.contents:
         return None

@@ -12,13 +12,16 @@
 
 import marimo
 
-__generated_with = "0.22.0"
+__generated_with = "0.23.1"
 app = marimo.App(width="medium")
 
 with app.setup:
     import marimo as mo
     import altair as alt
     import pandas as pd
+
+    # Verify vl-convert-python is installed; it's required for the SVG renderer.
+    import vl_convert as vlc
 
 
 @app.cell
@@ -29,7 +32,6 @@ def _():
 
 @app.cell
 def _(data):
-    # Issue #9015: SVG charts in layouts render raw base64 string
     alt.renderers.enable("svg")
 
     chart = alt.Chart(data).mark_point().encode(x="x", y="y")
@@ -45,8 +47,10 @@ def _(chart):
 
 @app.cell
 def _(chart):
-    # This renders the raw base64-encoded string (issue #9015)
-    mo.vstack([chart])
+    # SVG outputs should be correctly rendered in vstack or hstack
+    # (reported in Issue #9015 and fixed in PR #9043).
+    # For vstack, align="start" is needed to preserve the image size
+    mo.vstack([chart], align="start")
     return
 
 
@@ -78,7 +82,10 @@ def _(chart_with_images):
 
 @app.cell
 def _(chart_with_images):
-    # Image marks should not be broken
+    # Image marks are broken.
+    # The root cause is the browser's security restriction.
+    # When marimo detects an SVG with external resources (e.g., image URLs),
+    # it warns the user to enable 'raw_svg=True' for correct rendering.
     alt.renderers.enable("svg")
     chart_with_images
     return
@@ -86,9 +93,9 @@ def _(chart_with_images):
 
 @app.cell
 def _(chart_with_images):
-    # Image marks should not be broken
-    alt.renderers.enable("svg")
-    mo.hstack([chart_with_images])
+    # Image marks are correctly rendered when 'raw_svg=True' is enabled.
+    alt.renderers.enable("svg", raw_svg=True)
+    chart_with_images
     return
 
 

@@ -98,7 +98,7 @@ def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
         if name.endswith(".py"):
             return read_pyproject_from_script(contents)
 
-        if not (name.endswith(".md") or name.endswith(".qmd")):
+        if not (name.endswith((".md", ".qmd"))):
             raise ValueError(
                 f"Unsupported file type: {name}. Only .py and .md files are supported."
             )
@@ -143,7 +143,7 @@ def _pyproject_toml_to_requirements_txt(
         pyproject: A dict containing the pyproject.toml contents.
         config_path: The path to the pyproject.toml or inline script metadata. This
             is used to resolve relative paths used in the dependencies.
-    """  # noqa: E501
+    """
     dependencies = cast(list[str], pyproject.get("dependencies", []))
     if not dependencies:
         return []
@@ -155,12 +155,13 @@ def _pyproject_toml_to_requirements_txt(
         # attached, so we cannot do .index()
         dep_index: int | None = None
         for i, dep in enumerate(dependencies):
-            if (
-                dep == dependency
-                or dep.startswith(f"{dependency}==")
-                or dep.startswith(f"{dependency}<")
-                or dep.startswith(f"{dependency}>")
-                or dep.startswith(f"{dependency}~")
+            if dep == dependency or dep.startswith(
+                (
+                    f"{dependency}==",
+                    f"{dependency}<",
+                    f"{dependency}>",
+                    f"{dependency}~",
+                )
             ):
                 dep_index = i
                 break
@@ -188,7 +189,7 @@ def _pyproject_toml_to_requirements_txt(
             if not source_path.is_absolute() and config_path:
                 config_dir = Path(config_path).parent
                 source_path = normalize_path(config_dir / source_path)
-            new_dependency = f"{dependency} @ {str(source_path)}"
+            new_dependency = f"{dependency} @ {source_path!s}"
 
         # Handle URLs
         elif "url" in source:

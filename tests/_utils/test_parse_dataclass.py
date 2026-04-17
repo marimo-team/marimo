@@ -6,16 +6,7 @@ import json
 import sys
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import (
-    Any,
-    Generic,
-    Literal,
-    NewType,
-    Optional,
-    TypedDict,
-    TypeVar,
-    Union,
-)
+from typing import Any, Generic, Literal, NewType, TypedDict, TypeVar
 
 import msgspec
 import pytest
@@ -146,11 +137,9 @@ class TestParseRaw:
             configs: tuple[Config, ...]
 
         nested = Nested(
-            configs=tuple(
-                [
-                    Config(disabled=True, gpu=False),
-                    Config(disabled=False, gpu=True),
-                ]
+            configs=(
+                Config(disabled=True, gpu=False),
+                Config(disabled=False, gpu=True),
             )
         )
 
@@ -185,7 +174,7 @@ class TestParseRaw:
     def test_unions(self) -> None:
         @dataclass
         class Nested:
-            config: Union[ConfigOne, ConfigTwo]
+            config: ConfigOne | ConfigTwo
 
         # first
         nested = Nested(config=ConfigOne(disabled=True))
@@ -212,7 +201,7 @@ class TestParseRaw:
     def test_awkward_unions(self):
         @dataclass
         class Nested:
-            data: Union[str, bool, dict[str, Any], list[float], list[bytes]]
+            data: str | bool | dict[str, Any] | list[float] | list[bytes]
 
         # str
         nested = Nested(data="string")
@@ -263,7 +252,7 @@ class TestParseRaw:
     def test_discriminated_union(self) -> None:
         @dataclass
         class Nested:
-            config: Union[Dog, Cat]
+            config: Dog | Cat
 
         parsed = parse_raw(
             serialize({"config": {"type": "dog", "bark": True}}),
@@ -354,7 +343,7 @@ class TestParseRaw:
 def test_build_optional() -> None:
     @dataclass
     class TestOptional:
-        x: Optional[str] = None
+        x: str | None = None
 
     parsed = parse_raw({}, TestOptional)
     assert parsed == TestOptional(x=None)
@@ -398,7 +387,7 @@ def test_newtype() -> None:
 def test_nested_optional_fields() -> None:
     @dataclass
     class NestedOptional:
-        value: Optional[Config] = None
+        value: Config | None = None
 
     # Test with None value
     parsed = parse_raw({}, NestedOptional)
@@ -414,7 +403,7 @@ def test_nested_optional_fields() -> None:
 def test_mixed_container_types() -> None:
     @dataclass
     class MixedContainer:
-        data: list[Union[int, str, Config]]
+        data: list[int | str | Config]
 
     mixed = MixedContainer(
         data=[1, "string", Config(disabled=True, gpu=False)]
@@ -427,7 +416,7 @@ def test_mixed_container_types() -> None:
 def test_complex_nested_structures() -> None:
     @dataclass
     class ComplexNested:
-        mapping: dict[str, list[Optional[Config]]]
+        mapping: dict[str, list[Config | None]]
 
     complex_data = ComplexNested(
         mapping={
@@ -533,7 +522,7 @@ def test_type_conversion() -> None:
 def test_nested_union_with_none() -> None:
     @dataclass
     class NestedUnionWithNone:
-        value: Union[Config, None]
+        value: Config | None
 
     # Test with None
     parsed = parse_raw({"value": None}, NestedUnionWithNone)
@@ -692,7 +681,7 @@ def test_complex_union_discrimination() -> None:
 
     @dataclass
     class Container:
-        data: Union[TypeA, TypeB, TypeC]
+        data: TypeA | TypeB | TypeC
 
     # Test with TypeA
     parsed = parse_raw({"data": {"type": "a", "value_a": "test"}}, Container)
@@ -747,7 +736,7 @@ def test_recursive_structure_limit() -> None:
     @dataclass
     class RecursiveNode:
         value: int
-        next: Optional[RecursiveNode] = None
+        next: RecursiveNode | None = None
 
     # Make RecursiveNode available in globals
     globals()["RecursiveNode"] = RecursiveNode
@@ -822,8 +811,8 @@ def test_date_and_datetime_types() -> None:
     class DateTimeTypes:
         date_value: dt.date
         datetime_value: dt.datetime
-        optional_date: Optional[dt.date] = None
-        optional_datetime: Optional[dt.datetime] = None
+        optional_date: dt.date | None = None
+        optional_datetime: dt.datetime | None = None
 
     # Test with ISO format strings
     data = {

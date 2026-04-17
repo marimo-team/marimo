@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._utils.data_uri import from_data_uri
@@ -54,7 +54,7 @@ def save_layout_config(
 
 def read_layout_config(
     directory: str | Path, filename: str
-) -> Optional[LayoutConfig]:
+) -> LayoutConfig | None:
     """
     Read the layout configuration from disk.
 

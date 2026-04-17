@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from marimo._output.rich_help import (
     RichHelp,
@@ -114,7 +114,6 @@ def test_doc_with_signature() -> None:
 
     def example_func(arg: str) -> None:
         """This is a docstring."""
-        pass
 
     result = _doc_with_signature(example_func)
     assert "```python" in result
@@ -146,7 +145,7 @@ def test_richhelp_protocol() -> None:
         """My class docstring."""
 
         @staticmethod
-        def _rich_help_() -> Optional[str]:
+        def _rich_help_() -> str | None:
             return "Custom rich help for MyClass"
 
     # Check if MyClass is recognized as implementing RichHelp protocol

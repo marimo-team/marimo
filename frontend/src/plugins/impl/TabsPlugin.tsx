@@ -9,12 +9,14 @@ import {
 } from "../../components/ui/tabs";
 import { renderHTML } from "../core/RenderHTML";
 import type { IPlugin, IPluginProps } from "../types";
+import { Labeled } from "./common/labeled";
 
 interface Data {
   /**
    * The labels for each tab; raw HTML.
    */
   tabs: string[];
+  label: string | null;
 }
 
 // Selected tab index
@@ -25,6 +27,7 @@ export class TabsPlugin implements IPlugin<T, Data> {
 
   validator = z.object({
     tabs: z.array(z.string()),
+    label: z.string().nullable(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -47,6 +50,7 @@ interface TabComponentProps extends Data {
 
 const TabComponent = ({
   tabs,
+  label,
   value,
   setValue,
   children,
@@ -67,17 +71,19 @@ const TabComponent = ({
   }
 
   return (
-    <Tabs value={internalValue} onValueChange={handleChange}>
-      <TabsList>
-        {tabs.map((tab, index) => (
-          <TabsTrigger key={index} value={index.toString()}>
-            {renderHTML({ html: tab })}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-      {React.Children.map(children, (child, index) => {
-        return <TabsContent value={index.toString()}>{child}</TabsContent>;
-      })}
-    </Tabs>
+    <Labeled label={label} align="top">
+      <Tabs value={internalValue} onValueChange={handleChange}>
+        <TabsList>
+          {tabs.map((tab, index) => (
+            <TabsTrigger key={index} value={index.toString()}>
+              {renderHTML({ html: tab })}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {React.Children.map(children, (child, index) => {
+          return <TabsContent value={index.toString()}>{child}</TabsContent>;
+        })}
+      </Tabs>
+    </Labeled>
   );
 };

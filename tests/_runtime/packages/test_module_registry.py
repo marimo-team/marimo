@@ -32,4 +32,4 @@ def test_missing_modules() -> None:
     graph.register_cell(
         "1", parse_cell("import time; import super_fake_package")
     )
-    assert mgr.missing_modules() == set(["does", "super_fake_package"])
+    assert mgr.missing_modules() == {"does", "super_fake_package"}

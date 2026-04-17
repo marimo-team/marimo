@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, Optional
+from typing import Any
 
 from starlette.datastructures import URL, Headers, QueryParams
 from starlette.requests import HTTPConnection
@@ -13,8 +13,8 @@ class MockHTTPConnection(HTTPConnection):
     def __init__(
         self,
         url: str = "http://localhost:8000/test?param1=value1&param2=value2",
-        headers: Optional[dict[str, str]] = None,
-        path_params: Optional[dict[str, Any]] = None,
+        headers: dict[str, str] | None = None,
+        path_params: dict[str, Any] | None = None,
     ):
         url_obj = URL(url)
         # Convert headers to list of tuples as expected by Starlette

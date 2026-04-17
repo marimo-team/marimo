@@ -3,12 +3,10 @@ from __future__ import annotations
 
 import datetime as dt
 from typing import (
+    TYPE_CHECKING,
     Any,
-    Callable,
     Final,
     Literal,
-    Optional,
-    Union,
     cast,
 )
 
@@ -21,9 +19,12 @@ from marimo._data.series import (
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 LOGGER = _loggers.marimo_logger()
 
-Numeric = Union[int, float]
+Numeric = int | float
 
 
 @mddoc
@@ -80,12 +81,12 @@ class date(UIElement[str, dt.date]):
 
     def __init__(
         self,
-        start: Optional[dt.date | str] = None,
-        stop: Optional[dt.date | str] = None,
-        value: Optional[dt.date | str] = None,
+        start: dt.date | str | None = None,
+        stop: dt.date | str | None = None,
+        value: dt.date | str | None = None,
         *,
         label: str = "",
-        on_change: Optional[Callable[[dt.date], None]] = None,
+        on_change: Callable[[dt.date], None] | None = None,
         full_width: bool = False,
         disabled: bool = False,
     ) -> None:
@@ -181,7 +182,7 @@ class date(UIElement[str, dt.date]):
 
 
 @mddoc
-class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
+class datetime(UIElement[str | None, dt.datetime | None]):
     """A datetime picker over an interval.
 
     Examples:
@@ -209,7 +210,7 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
         value (datetime.datetime | str, optional): Default value.
         precision (Literal["hour", "minute", "second"], optional): The precision of the datetime picker. Defaults to "minute".
         label (str, optional): Markdown label for the element.
-        on_change (Callable[[Optional[datetime.datetime]], None], optional): Optional callback to run when this element's value changes.
+        on_change (Callable[[datetime.datetime | None], None], optional): Optional callback to run when this element's value changes.
         full_width (bool, optional): Whether the input should take up the full width of its container.
         disabled (bool, optional): Whether the input should be disabled. Defaults to False.
     """
@@ -219,13 +220,13 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
 
     def __init__(
         self,
-        start: Optional[dt.datetime | str] = None,
-        stop: Optional[dt.datetime | str] = None,
-        value: Optional[dt.datetime | str] = None,
+        start: dt.datetime | str | None = None,
+        stop: dt.datetime | str | None = None,
+        value: dt.datetime | str | None = None,
         *,
         precision: Literal["hour", "minute", "second"] = "minute",
-        label: Optional[str] = None,
-        on_change: Optional[Callable[[Optional[dt.datetime]], None]] = None,
+        label: str | None = None,
+        on_change: Callable[[dt.datetime | None], None] | None = None,
         full_width: bool = False,
         disabled: bool = False,
     ):
@@ -299,7 +300,7 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
         label = kwargs.pop("label", info.label)
         return datetime(start=start, stop=stop, label=label, **kwargs)
 
-    def _convert_value(self, value: Optional[str]) -> Optional[dt.datetime]:
+    def _convert_value(self, value: str | None) -> dt.datetime | None:
         if value is None:
             return None
         POSSIBLE_FORMATS = [
@@ -376,12 +377,12 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
 
     def __init__(
         self,
-        start: Optional[dt.date | str] = None,
-        stop: Optional[dt.date | str] = None,
-        value: Optional[tuple[dt.date, dt.date] | tuple[str, str]] = None,
+        start: dt.date | str | None = None,
+        stop: dt.date | str | None = None,
+        value: tuple[dt.date, dt.date] | tuple[str, str] | None = None,
         *,
-        label: Optional[str] = None,
-        on_change: Optional[Callable[[tuple[dt.date, dt.date]], None]] = None,
+        label: str | None = None,
+        on_change: Callable[[tuple[dt.date, dt.date]], None] | None = None,
         full_width: bool = False,
         disabled: bool = False,
     ):

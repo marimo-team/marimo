@@ -6,9 +6,7 @@ import numbers
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Final,
-    Optional,
     cast,
 )
 
@@ -23,6 +21,8 @@ from marimo._plugins.ui._core.ui_element import UIElement
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import plotly.graph_objects as go  # type:ignore
 
 # Selection is a dictionary of the form:
@@ -133,7 +133,7 @@ def _is_orderable_axis(arr: Any, bound_value: Any) -> bool:
     return False
 
 
-def _to_numeric_coord(value: Any) -> Optional[float]:
+def _to_numeric_coord(value: Any) -> float | None:
     """Convert a numeric/datetime-like value to a float for geometry tests."""
     import datetime
 
@@ -205,7 +205,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     cursor on the frontend, get them as a list of dicts in Python!
 
     This function supports scatter plots, scattergl plots, line charts, area
-    charts, bar charts, histograms, treemap charts, sunburst charts, and heatmaps.
+    charts, bar charts, box plots, violin plots, strip charts, histograms,
+    funnel charts, funnelarea charts, waterfall charts, treemap charts,
+    sunburst charts, and heatmaps.
 
     Examples:
         ```python
@@ -262,11 +264,11 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     def __init__(
         self,
         figure: go.Figure,
-        config: Optional[dict[str, Any]] = None,
-        renderer_name: Optional[str] = None,
+        config: dict[str, Any] | None = None,
+        renderer_name: str | None = None,
         *,
         label: str = "",
-        on_change: Optional[Callable[[JSONType], None]] = None,
+        on_change: Callable[[JSONType], None] | None = None,
     ) -> None:
         DependencyManager.plotly.require("for `mo.ui.plotly`")
 
@@ -327,16 +329,23 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             for trace in figure.data:
                 # Skip trace types handled separately in _convert_value
                 if getattr(trace, "type", None) in (
+                    "box",
+                    "violin",
+                    "funnel",
+                    "funnelarea",
                     "heatmap",
                     "bar",
                     "histogram",
+                    "waterfall",
                 ):
                     continue
                 x_data = getattr(trace, "x", None)
                 y_data = getattr(trace, "y", None)
                 if x_data is None or y_data is None:
                     continue
-                for point_idx, (x, y) in enumerate(zip(x_data, y_data)):
+                for point_idx, (x, y) in enumerate(
+                    zip(x_data, y_data, strict=False)
+                ):
                     # Early exit if x is not in range
                     if not (selection.x0 <= x <= selection.x1):
                         continue
@@ -486,6 +495,40 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         if has_bar and value.get("range"):
             _append_bar_items_to_selection(self._figure, self._selection_data)
 
+        has_waterfall = any(
+            getattr(trace, "type", None) == "waterfall"
+            for trace in self._figure.data
+        )
+
+        # For waterfall charts: extract bars within a range selection or pass
+        # through click data.  Waterfall bars stack, so extraction uses
+        # cumulative-sum positions rather than raw trace.y values.
+        if has_waterfall:
+            _append_waterfall_bars_to_selection(
+                self._figure, self._selection_data
+            )
+
+        has_funnel = any(
+            getattr(trace, "type", None) == "funnel"
+            for trace in self._figure.data
+        )
+
+        # For funnel charts, extract stages that fall within a range selection
+        # or pass through click data supplied by the frontend.
+        if has_funnel:
+            _append_funnel_points_to_selection(
+                self._figure, self._selection_data
+            )
+
+        has_funnelarea = any(
+            getattr(trace, "type", None) == "funnelarea"
+            for trace in self._figure.data
+        )
+
+        # For funnelarea, pass through the click data from the frontend.
+        if has_funnelarea:
+            _append_funnelarea_points_to_selection(self._selection_data)
+
         # For line/scatter charts, extract points from box/lasso selections.
         # Plotly may not send point data for pure line charts, so we extract manually.
         if has_scatter and (value.get("range") or value.get("lasso")):
@@ -502,6 +545,28 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         # This enables row-level reactive workflows from histogram selections.
         if has_histogram:
             _append_histogram_points_to_selection(
+                self._figure, self._selection_data
+            )
+
+        has_box = any(
+            getattr(trace, "type", None) == "box"
+            for trace in self._figure.data
+        )
+
+        # For box plots (including strip charts which use go.Box traces),
+        # expand click pointNumbers and range selections into individual sample rows.
+        if has_box:
+            _append_box_points_to_selection(self._figure, self._selection_data)
+
+        has_violin = any(
+            getattr(trace, "type", None) == "violin"
+            for trace in self._figure.data
+        )
+
+        # For violin plots, expand click pointNumbers and range selections
+        # into individual sample rows.
+        if has_violin:
+            _append_violin_points_to_selection(
                 self._figure, self._selection_data
             )
 
@@ -783,16 +848,13 @@ def _trace_needs_scatter_range_fallback(trace: Any) -> bool:
     if mode is None:
         return False
 
-    if isinstance(mode, str) and "markers" in mode:
-        return False
-
-    return True
+    return not (isinstance(mode, str) and "markers" in mode)
 
 
 def _extract_scatter_points_from_range(
     figure: go.Figure,
     range_data: dict[str, Any],
-    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+    trace_filter: Callable[[int, Any], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points in a selection range.
 
@@ -837,7 +899,7 @@ def _extract_scatter_points_numpy(
     x_max: float,
     y_min: Any = None,
     y_max: Any = None,
-    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+    trace_filter: Callable[[int, Any], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points from selection bounds using numpy."""
     import numpy as np
@@ -966,7 +1028,7 @@ def _extract_scatter_points_fallback(
     x_max: float,
     y_min: Any = None,
     y_max: Any = None,
-    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+    trace_filter: Callable[[int, Any], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points with pure Python."""
     selected_points: list[dict[str, Any]] = []
@@ -1007,7 +1069,9 @@ def _extract_scatter_points_fallback(
         y_category_positions = _category_position_map(y_data)
 
         # First pass: include points directly inside current selection bounds.
-        for point_idx, (x_val, y_val) in enumerate(zip(x_data, y_data)):
+        for point_idx, (x_val, y_val) in enumerate(
+            zip(x_data, y_data, strict=False)
+        ):
             x_in_range = False
 
             if _is_orderable_value(x_val) and _is_orderable_value(x_min):
@@ -1123,7 +1187,7 @@ def _point_in_polygon(
 def _extract_scatter_points_from_lasso(
     figure: go.Figure,
     lasso_data: dict[str, Any],
-    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+    trace_filter: Callable[[int, Any], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points that fall inside a lasso polygon."""
     lasso_x = lasso_data.get("x")
@@ -1167,7 +1231,7 @@ def _extract_scatter_points_from_lasso(
 
         polygon_x: list[float] = []
         polygon_y: list[float] = []
-        for raw_x, raw_y in zip(lasso_x, lasso_y):
+        for raw_x, raw_y in zip(lasso_x, lasso_y, strict=False):
             x_coord = _to_numeric_coord(raw_x)
             if x_coord is None:
                 x_coord = _safe_category_get(x_category_to_index, raw_x, -1)
@@ -1191,7 +1255,9 @@ def _extract_scatter_points_from_lasso(
         if not polygon_x:
             continue
 
-        for point_idx, (x_val, y_val) in enumerate(zip(x_data, y_data)):
+        for point_idx, (x_val, y_val) in enumerate(
+            zip(x_data, y_data, strict=False)
+        ):
             x_coord = _to_numeric_coord(x_val)
             if x_coord is None:
                 try:
@@ -1526,7 +1592,7 @@ def _extract_histogram_points_from_bins(
 
 def _build_histogram_sample_point(
     trace: Any, trace_idx: int, point_idx: int
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Build a row-level selection payload point from a histogram trace."""
     orientation = getattr(trace, "orientation", "v")
     if orientation is None:
@@ -1955,6 +2021,295 @@ def _build_bar_point(
     return point
 
 
+def _compute_waterfall_bar_extents(
+    y_data: Any,
+    measures: Any,
+    base: float,
+) -> list[tuple[float, float]]:
+    """Return the visual (low, high) extent for each waterfall bar.
+
+    Waterfall bars stack on top of each other, so the visual position of
+    each bar depends on the cumulative sum of preceding relative bars:
+
+    * ``"absolute"`` — bar runs from *base* to y[i]; resets running total.
+    * ``"relative"`` — bar runs from running_total to running_total + y[i].
+    * ``"total"``    — bar runs from *base* to running_total (display only;
+      does not alter the running total).
+    """
+    running_total = base
+    extents: list[tuple[float, float]] = []
+
+    default_measure = "relative"
+    for i, y_val in enumerate(y_data):
+        try:
+            m = (
+                str(measures[i]).lower()
+                if measures is not None and i < len(measures)
+                else default_measure
+            )
+        except (IndexError, TypeError):
+            m = default_measure
+
+        try:
+            v = float(y_val)
+        except (TypeError, ValueError):
+            v = 0.0
+
+        if m == "absolute":
+            bar_lo, bar_hi = base, v
+            running_total = v
+        elif m == "total":
+            bar_lo, bar_hi = base, running_total
+        else:  # relative
+            bar_lo = running_total
+            bar_hi = running_total + v
+            running_total = bar_hi
+
+        extents.append((min(bar_lo, bar_hi), max(bar_lo, bar_hi)))
+
+    return extents
+
+
+def _append_waterfall_bars_to_selection(
+    figure: go.Figure, selection_data: dict[str, Any]
+) -> None:
+    """Handle selection data for go.Waterfall traces.
+
+    Two cases:
+    1. Range selection (dragmode="select"): extract waterfall bars whose
+       visual extent (accounting for stacking) overlaps the selection rectangle.
+    2. Click selection: pass through frontend-supplied points, stripping
+       empty-dict placeholders and re-syncing indices.
+    """
+    range_value = selection_data.get("range")
+    all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
+    all_indices = cast(list[Any], selection_data.get("indices", []))
+
+    if isinstance(range_value, dict):
+        waterfall_items = _extract_waterfall_bars_from_range(
+            figure, cast(dict[str, Any], range_value)
+        )
+        has_real_points = any(all_points)
+        if not has_real_points and not waterfall_items:
+            selection_data["points"] = []
+            selection_data["indices"] = []
+            return
+
+        seen: set[tuple[int, int]] = set()
+        merged_points: list[dict[str, Any]] = []
+        merged_indices: list[int] = []
+
+        for point_idx, point in enumerate(all_points):
+            if not point:
+                continue
+            point_id = _get_selection_point_id(point)
+            if point_id is not None:
+                if point_id in seen:
+                    continue
+                seen.add(point_id)
+            merged_points.append(point)
+            if point_idx < len(all_indices) and isinstance(
+                all_indices[point_idx], int
+            ):
+                merged_indices.append(all_indices[point_idx])
+            elif point_id is not None:
+                merged_indices.append(point_id[1])
+
+        for point in waterfall_items:
+            point_id = _get_selection_point_id(point)
+            if point_id is not None:
+                if point_id in seen:
+                    continue
+                seen.add(point_id)
+                merged_indices.append(point_id[1])
+            merged_points.append(point)
+
+        selection_data["points"] = merged_points
+        selection_data["indices"] = merged_indices
+    else:
+        # Click: strip empty placeholders, re-sync indices.
+        clean_points = [p for p in all_points if p]
+        if not clean_points:
+            selection_data["points"] = []
+            selection_data["indices"] = []
+            return
+        incoming_index_map = {
+            id(p): idx
+            for idx, p in zip(all_indices, all_points, strict=False)
+            if p and isinstance(idx, int)
+        }
+        clean_indices: list[int] = []
+        for p in clean_points:
+            idx = incoming_index_map.get(id(p))
+            if isinstance(idx, int):
+                clean_indices.append(idx)
+            else:
+                pi = p.get("pointIndex", p.get("pointNumber"))
+                if isinstance(pi, int):
+                    clean_indices.append(pi)
+        selection_data["points"] = clean_points
+        selection_data["indices"] = clean_indices
+
+
+def _extract_waterfall_bars_from_range(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Dispatch to numpy or fallback waterfall extraction."""
+    if not range_data.get("x") or not range_data.get("y"):
+        return []
+
+    x_range = range_data["x"]
+    y_range = range_data["y"]
+    x_min, x_max = min(x_range), max(x_range)
+    y_min, y_max = min(y_range), max(y_range)
+
+    if DependencyManager.numpy.has():
+        return _extract_waterfall_bars_numpy(
+            figure, x_min, x_max, y_min, y_max
+        )
+    return _extract_waterfall_bars_fallback(figure, x_min, x_max, y_min, y_max)
+
+
+def _extract_waterfall_bars_numpy(
+    figure: go.Figure,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> list[dict[str, Any]]:
+    """Extract waterfall bars using numpy for vectorized filtering."""
+    import numpy as np
+
+    selected: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "waterfall":
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+        if x_data is None or y_data is None:
+            continue
+
+        n = len(y_data) if hasattr(y_data, "__len__") else 0
+        if n == 0:
+            continue
+
+        orientation = getattr(trace, "orientation", None) or "v"
+        measures = getattr(trace, "measure", None)
+        trace_base = getattr(trace, "base", None)
+        base = (
+            float(trace_base) if isinstance(trace_base, (int, float)) else 0.0
+        )
+
+        if orientation == "h":
+            # Horizontal: y=labels (categorical), x=values (stacking)
+            cat_data, val_data = y_data, x_data
+            cat_min, cat_max = y_min, y_max
+            val_min, val_max = x_min, x_max
+        else:
+            # Vertical (default): x=labels (categorical), y=values (stacking)
+            cat_data, val_data = x_data, y_data
+            cat_min, cat_max = x_min, x_max
+            val_min, val_max = y_min, y_max
+
+        # Category axis: orderable (numeric/datetime) or positional (categorical)
+        cat_arr = np.asarray(cat_data)
+        cat_is_orderable = _is_orderable_axis(cat_arr, cat_min)
+        if cat_is_orderable:
+            cat_min_p = _parse_datetime_bound(cat_min)
+            cat_max_p = _parse_datetime_bound(cat_max)
+            cat_mask = (cat_arr >= cat_min_p) & (cat_arr <= cat_max_p)
+        else:
+            cat_positions = np.arange(n, dtype=np.float64)
+            cat_mask = (cat_max > cat_positions - 0.5) & (
+                cat_min < cat_positions + 0.5
+            )
+
+        # Value axis: use stacked extents (low, high) for each bar
+        extents = _compute_waterfall_bar_extents(val_data, measures, base)
+        ext_arr = np.array(extents, dtype=np.float64)  # shape (n, 2)
+        bar_lo = ext_arr[:, 0]
+        bar_hi = ext_arr[:, 1]
+        # Overlap condition: val_min < bar_hi AND val_max > bar_lo
+        val_mask = (val_min < bar_hi) & (val_max > bar_lo)
+
+        mask = cat_mask & val_mask
+        for i in np.where(mask)[0]:
+            selected.append(
+                _build_waterfall_point(
+                    trace, trace_idx, int(i), x_data, y_data, measures
+                )
+            )
+
+    return selected
+
+
+def _extract_waterfall_bars_fallback(
+    figure: go.Figure,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> list[dict[str, Any]]:
+    """Extract waterfall bars using pure Python (fallback when numpy unavailable)."""
+    selected: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "waterfall":
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+        if x_data is None or y_data is None:
+            continue
+
+        n = len(y_data) if hasattr(y_data, "__len__") else 0
+        if n == 0:
+            continue
+
+        orientation = getattr(trace, "orientation", None) or "v"
+        measures = getattr(trace, "measure", None)
+        trace_base = getattr(trace, "base", None)
+        base = (
+            float(trace_base) if isinstance(trace_base, (int, float)) else 0.0
+        )
+
+        if orientation == "h":
+            cat_data, val_data = y_data, x_data
+            cat_min, cat_max = y_min, y_max
+            val_min, val_max = x_min, x_max
+        else:
+            cat_data, val_data = x_data, y_data
+            cat_min, cat_max = x_min, x_max
+            val_min, val_max = y_min, y_max
+
+        extents = _compute_waterfall_bar_extents(val_data, measures, base)
+
+        for i, (bar_lo, bar_hi) in enumerate(extents):
+            # Category check: orderable (numeric/datetime) or positional
+            cat_val = _get_indexed_value(cat_data, i)
+            if _is_orderable_value(cat_val) and _is_orderable_value(cat_min):
+                cat_min_p = _parse_datetime_bound(cat_min)
+                cat_max_p = _parse_datetime_bound(cat_max)
+                cat_val_p = _parse_datetime_bound(cat_val)
+                if not (cat_min_p <= cat_val_p <= cat_max_p):
+                    continue
+            else:
+                if cat_max <= i - 0.5 or cat_min >= i + 0.5:
+                    continue
+            # Value check: bar [bar_lo, bar_hi] overlaps [val_min, val_max]
+            if val_min >= bar_hi or val_max <= bar_lo:
+                continue
+            selected.append(
+                _build_waterfall_point(
+                    trace, trace_idx, i, x_data, y_data, measures
+                )
+            )
+
+    return selected
+
+
 def _append_map_scatter_points_to_selection(
     figure: go.Figure, selection_data: dict[str, Any]
 ) -> None:
@@ -2022,3 +2377,1330 @@ def _append_map_scatter_points_to_selection(
 
     if extracted:
         selection_data["points"] = extracted
+
+
+def _append_violin_points_to_selection(
+    figure: go.Figure, selection_data: dict[str, Any]
+) -> None:
+    """Expand violin plot selections into individual underlying data points.
+
+    Handles three cases:
+    - Range/lasso with individual points already sent by Plotly (``points``
+      enabled): Plotly already delivered the right individual data points via
+      the ``onSelected`` event; pass them through unchanged.
+    - Range/lasso without individual points (``points`` disabled): extract
+      all underlying sample rows whose category position overlaps the selection
+      range from the figure data.
+    - Click events (no range/lasso): the frontend sends ``pointNumbers`` for
+      the clicked violin element; expand these into one dict per sample row so
+      Python callers get row-level data.
+    """
+    all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
+    all_indices = cast(list[Any], selection_data.get("indices", []))
+
+    violin_curve_numbers = {
+        trace_idx
+        for trace_idx, trace in enumerate(figure.data)
+        if getattr(trace, "type", None) == "violin"
+    }
+    if not violin_curve_numbers:
+        return
+
+    range_value = selection_data.get("range")
+    lasso_value = selection_data.get("lasso")
+
+    # --- Range/lasso selection path (onSelected event) ---
+    if isinstance(range_value, dict) or isinstance(lasso_value, dict):
+        existing_violin = [
+            p
+            for p in all_points
+            if p and p.get("curveNumber") in violin_curve_numbers
+        ]
+        existing_non_violin = [
+            p
+            for p in all_points
+            if p and p.get("curveNumber") not in violin_curve_numbers
+        ]
+        existing_non_violin_indices = [
+            idx
+            for idx, p in zip(all_indices, all_points, strict=False)
+            if p and p.get("curveNumber") not in violin_curve_numbers
+        ]
+
+        if existing_violin:
+            # Plotly already sent the individual selected data points because
+            # points is enabled.  Use them as-is; do NOT re-extract from the
+            # range (which can fail on categorical axes and would discard richer
+            # hovertemplate fields like custom ids).
+            clean_points = existing_violin + existing_non_violin
+            # Preserve incoming indices from the frontend payload rather than
+            # recomputing from pointIndex only — Plotly may send pointNumber
+            # instead. Map each point object to its original index by identity.
+            incoming_index_map = {
+                id(p): idx
+                for idx, p in zip(all_indices, all_points, strict=False)
+                if p
+            }
+            clean_indices: list[int] = []
+            for p in clean_points:
+                idx = incoming_index_map.get(id(p))
+                if isinstance(idx, int):
+                    clean_indices.append(idx)
+                else:
+                    pid = _get_selection_point_id(p)
+                    if pid is not None:
+                        clean_indices.append(pid[1])
+            selection_data["points"] = clean_points
+            selection_data["indices"] = clean_indices
+            return
+
+        # No individual points from Plotly → points attribute is disabled.
+        # Only extract from a range selection; lasso events without a range
+        # dict would pass an empty range_dict and incorrectly select all rows.
+        if not isinstance(range_value, dict):
+            return
+        violin_points = _extract_violin_points_from_range(
+            figure, cast(dict[str, Any], range_value)
+        )
+
+        if violin_points or existing_non_violin:
+            seen: set[tuple[int, int]] = set()
+            merged_points: list[dict[str, Any]] = []
+            merged_indices: list[int] = []
+
+            for idx, point in zip(
+                existing_non_violin_indices, existing_non_violin, strict=False
+            ):
+                point_id = _get_selection_point_id(point)
+                if point_id is not None:
+                    if point_id in seen:
+                        continue
+                    seen.add(point_id)
+                merged_points.append(point)
+                if isinstance(idx, int):
+                    merged_indices.append(idx)
+
+            for point in violin_points:
+                point_id = _get_selection_point_id(point)
+                if point_id is not None:
+                    if point_id in seen:
+                        continue
+                    seen.add(point_id)
+                    merged_indices.append(point_id[1])
+                merged_points.append(point)
+
+            selection_data["points"] = merged_points
+            selection_data["indices"] = merged_indices
+        else:
+            # Range didn't overlap any violin category and no non-violin points
+            # exist — clear any stale placeholder dicts the frontend may have sent.
+            selection_data["points"] = []
+            selection_data["indices"] = []
+        return
+
+    # --- Click event path ---
+    # Violin element clicks include pointNumbers (all raw-data indices in the
+    # group).  Expand each such click-point into individual sample rows.
+    has_violin_click_with_numbers = any(
+        p.get("curveNumber") in violin_curve_numbers and "pointNumbers" in p
+        for p in all_points
+        if p
+    )
+    if not has_violin_click_with_numbers:
+        return
+
+    expanded_points: list[dict[str, Any]] = []
+    expanded_indices: list[int] = []
+    seen_ids: set[tuple[int, int]] = set()
+
+    for point in all_points:
+        if not point:
+            continue
+
+        curve_number = point.get("curveNumber")
+
+        if curve_number not in violin_curve_numbers:
+            point_id = _get_selection_point_id(point)
+            if point_id is not None and point_id in seen_ids:
+                continue
+            if point_id is not None:
+                seen_ids.add(point_id)
+            expanded_points.append(point)
+            # Use _get_selection_point_id to capture pointNumber as a fallback
+            # when pointIndex is absent (e.g. hovermode-'x' multi-trace clicks).
+            if point_id is not None:
+                expanded_indices.append(point_id[1])
+            elif isinstance(point.get("pointIndex"), int):
+                expanded_indices.append(cast(int, point["pointIndex"]))
+            continue
+
+        point_numbers = point.get("pointNumbers")
+        if not isinstance(point_numbers, list) or not (
+            0 <= cast(int, curve_number) < len(figure.data)
+        ):
+            expanded_points.append(point)
+            if isinstance(point.get("pointIndex"), int):
+                expanded_indices.append(cast(int, point["pointIndex"]))
+            continue
+
+        trace = figure.data[cast(int, curve_number)]
+        for raw_idx in point_numbers:
+            if not isinstance(raw_idx, int):
+                continue
+            sample = _build_violin_sample_point(
+                trace, cast(int, curve_number), raw_idx
+            )
+            if sample is None:
+                continue
+            point_id = _get_selection_point_id(sample)
+            if point_id is not None and point_id in seen_ids:
+                continue
+            if point_id is not None:
+                seen_ids.add(point_id)
+            expanded_points.append(sample)
+            expanded_indices.append(raw_idx)
+
+    selection_data["points"] = expanded_points
+    selection_data["indices"] = expanded_indices
+
+
+def _extract_violin_points_from_range(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract violin plot underlying data points that fall within a selection range.
+
+    For each violin trace, both the category axis (x for vertical, y for
+    horizontal) and the value axis are compared against the selection range.
+    Only sample rows whose category group overlaps the selection *and* whose
+    individual value falls within the value-axis bounds are returned.  When the
+    value-axis range is absent from ``range_data`` (e.g. a selection spanning
+    the full y-axis) all rows in matching categories are included.
+    """
+    if DependencyManager.numpy.has():
+        return _extract_violin_points_numpy(figure, range_data)
+    return _extract_violin_points_fallback(figure, range_data)
+
+
+def _extract_violin_points_numpy(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract violin plot data points from a selection range using numpy.
+
+    Filters by both the category axis (which violin group falls inside the
+    selection box) and the value axis (which individual sample values fall
+    inside the selection box).  When ``points`` is disabled in the Plotly
+    figure, Plotly does not send individual point coordinates, so we derive
+    inclusion from the underlying trace arrays.
+    """
+    import numpy as np
+
+    x_range = range_data.get("x")
+    y_range = range_data.get("y")
+
+    selected: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "violin":
+            continue
+
+        orientation = getattr(trace, "orientation", "v") or "v"
+        if orientation == "h":
+            cat_range = y_range
+            val_range = x_range
+            cat_data = getattr(trace, "y", None)
+            val_data = getattr(trace, "x", None)
+        else:
+            cat_range = x_range
+            val_range = y_range
+            cat_data = getattr(trace, "x", None)
+            val_data = getattr(trace, "y", None)
+
+        if val_data is None:
+            continue
+
+        val_arr = np.asarray(val_data)
+        n = len(val_arr)
+        if n == 0:
+            continue
+
+        if cat_data is None:
+            cat_arr: list[Any] = [getattr(trace, "name", trace_idx)] * n
+        else:
+            cat_arr_raw = np.asarray(cat_data)
+            if cat_arr_raw.ndim == 0 or len(cat_arr_raw) != n:
+                cat_val = (
+                    cat_arr_raw.item()
+                    if hasattr(cat_arr_raw, "item") and cat_arr_raw.ndim == 0
+                    else (cat_arr_raw[0] if len(cat_arr_raw) > 0 else None)
+                )
+                cat_arr = [cat_val] * n
+            else:
+                cat_arr = cat_arr_raw.tolist()
+
+        if cat_range:
+            cat_min, cat_max = min(cat_range), max(cat_range)
+            cat_np = np.asarray(cat_arr)
+            cat_is_orderable = _is_orderable_axis(cat_np, cat_min)
+
+            if cat_is_orderable:
+                cat_min_p = _parse_datetime_bound(cat_min)
+                cat_max_p = _parse_datetime_bound(cat_max)
+                cat_mask = np.array(
+                    [
+                        cat_min_p <= _parse_datetime_bound(v) <= cat_max_p
+                        if _is_orderable_value(v)
+                        else False
+                        for v in cat_arr
+                    ]
+                )
+            else:
+                seen_order: dict[Any, float] = {}
+                for v in cat_arr:
+                    try:
+                        if v not in seen_order:
+                            seen_order[v] = float(len(seen_order))
+                    except TypeError:
+                        pass
+                positions = np.array(
+                    [_safe_category_get(seen_order, v, -1) for v in cat_arr],
+                    dtype=np.float64,
+                )
+                cat_mask = (cat_max > positions - 0.5) & (
+                    cat_min < positions + 0.5
+                )
+        else:
+            cat_mask = np.ones(n, dtype=bool)
+
+        if val_range:
+            val_min_f = float(min(val_range))
+            val_max_f = float(max(val_range))
+            try:
+                val_numeric = val_arr.astype(float)
+                val_mask = (val_numeric >= val_min_f) & (
+                    val_numeric <= val_max_f
+                )
+                cat_mask = cat_mask & val_mask
+            except (ValueError, TypeError):
+                pass  # non-numeric values; skip value filtering
+
+        selected_indices = np.where(cat_mask)[0]
+        for i in selected_indices:
+            sample = _build_violin_sample_point(trace, trace_idx, int(i))
+            if sample is not None:
+                selected.append(sample)
+
+    return selected
+
+
+def _build_waterfall_point(
+    trace: Any,
+    trace_idx: int,
+    point_idx: int,
+    x_data: Any,
+    y_data: Any,
+    measures: Any,
+) -> dict[str, Any]:
+    """Build a selection point dict for a single waterfall bar."""
+    x_val = _get_indexed_value(x_data, point_idx)
+    y_val = _get_indexed_value(y_data, point_idx)
+    point: dict[str, Any] = {
+        "x": x_val,
+        "y": y_val,
+        "curveNumber": trace_idx,
+        "pointIndex": point_idx,
+        "pointNumber": point_idx,
+    }
+    # Include the measure type so callers know if it's relative/absolute/total
+    try:
+        m = measures[point_idx] if measures is not None else None
+    except (IndexError, TypeError):
+        m = None
+    if m is not None:
+        point["measure"] = str(m)
+
+    name = getattr(trace, "name", None)
+    if name:
+        point["name"] = name
+
+    for field in ("customdata", "text", "hovertext"):
+        val = _get_indexed_value(getattr(trace, field, None), point_idx)
+        if val is not None:
+            point[field] = val
+
+    return point
+
+
+def _append_box_points_to_selection(
+    figure: go.Figure, selection_data: dict[str, Any]
+) -> None:
+    """Expand box plot selections into individual underlying data points.
+
+    Handles three cases:
+    - Range/lasso with individual points already sent by Plotly (``boxpoints``
+      enabled): Plotly already delivered the right individual data points via
+      the ``onSelected`` event; pass them through unchanged.
+    - Range/lasso without individual points (``boxpoints`` disabled): extract
+      all underlying sample rows whose category position overlaps the selection
+      range from the figure data.
+    - Click events (no range/lasso): the frontend sends ``pointNumbers`` for
+      the clicked box/whisker element; expand these into one dict per sample
+      row so Python callers get row-level data.
+
+    This also handles strip charts (``px.strip()``) which are rendered as
+    ``go.Box`` traces with ``boxpoints="all"`` and transparent fills.
+    """
+    all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
+    all_indices = cast(list[Any], selection_data.get("indices", []))
+
+    box_curve_numbers = {
+        trace_idx
+        for trace_idx, trace in enumerate(figure.data)
+        if getattr(trace, "type", None) == "box"
+    }
+    if not box_curve_numbers:
+        return
+
+    range_value = selection_data.get("range")
+    lasso_value = selection_data.get("lasso")
+
+    # --- Range/lasso selection path (onSelected event) ---
+    if isinstance(range_value, dict) or isinstance(lasso_value, dict):
+        # Partition existing points by whether they come from a box trace.
+        existing_box = [
+            p
+            for p in all_points
+            if p and p.get("curveNumber") in box_curve_numbers
+        ]
+        existing_non_box = [
+            p
+            for p in all_points
+            if p and p.get("curveNumber") not in box_curve_numbers
+        ]
+        existing_non_box_indices = [
+            idx
+            for idx, p in zip(all_indices, all_points, strict=False)
+            if p and p.get("curveNumber") not in box_curve_numbers
+        ]
+
+        if existing_box:
+            # Plotly already sent the individual selected data points because
+            # boxpoints is enabled.  Use them as-is; do NOT re-extract from
+            # the range (which can fail on categorical axes and would discard
+            # richer hovertemplate fields like sample_id).
+            clean_points = existing_box + existing_non_box
+            # Preserve incoming indices from the frontend payload rather than
+            # recomputing from pointIndex only — Plotly may send pointNumber
+            # instead. Map each point object to its original index by identity.
+            incoming_index_map = {
+                id(p): idx
+                for idx, p in zip(all_indices, all_points, strict=False)
+                if p
+            }
+            clean_indices: list[int] = []
+            for p in clean_points:
+                idx = incoming_index_map.get(id(p))
+                if isinstance(idx, int):
+                    clean_indices.append(idx)
+                else:
+                    pid = _get_selection_point_id(p)
+                    if pid is not None:
+                        clean_indices.append(pid[1])
+            selection_data["points"] = clean_points
+            selection_data["indices"] = clean_indices
+            return
+
+        # No individual points from Plotly → boxpoints is disabled.
+        # Only extract from a range selection; lasso events without a range
+        # dict would pass an empty range_dict and incorrectly select all rows.
+        if not isinstance(range_value, dict):
+            return
+        box_points = _extract_box_points_from_range(
+            figure, cast(dict[str, Any], range_value)
+        )
+
+        if box_points or existing_non_box:
+            seen: set[tuple[int, int]] = set()
+            merged_points: list[dict[str, Any]] = []
+            merged_indices: list[int] = []
+
+            for idx, point in zip(
+                existing_non_box_indices, existing_non_box, strict=False
+            ):
+                point_id = _get_selection_point_id(point)
+                if point_id is not None:
+                    if point_id in seen:
+                        continue
+                    seen.add(point_id)
+                merged_points.append(point)
+                if isinstance(idx, int):
+                    merged_indices.append(idx)
+                elif point_id is not None:
+                    merged_indices.append(point_id[1])
+
+            for point in box_points:
+                point_id = _get_selection_point_id(point)
+                if point_id is not None:
+                    if point_id in seen:
+                        continue
+                    seen.add(point_id)
+                    merged_indices.append(point_id[1])
+                merged_points.append(point)
+
+            selection_data["points"] = merged_points
+            selection_data["indices"] = merged_indices
+        else:
+            # No box points and no non-box points in range: clear any frontend
+            # placeholder dicts that may have leaked into points/indices.
+            selection_data["points"] = []
+            selection_data["indices"] = []
+        return
+
+    # --- Click event path ---
+    # Box/whisker clicks include pointNumbers (all raw-data indices in the group).
+    # Expand each such click-point into individual sample rows.
+    has_box_click_with_numbers = any(
+        p.get("curveNumber") in box_curve_numbers and "pointNumbers" in p
+        for p in all_points
+        if p
+    )
+    if not has_box_click_with_numbers:
+        return
+
+    expanded_points: list[dict[str, Any]] = []
+    expanded_indices: list[int] = []
+    seen_ids: set[tuple[int, int]] = set()
+
+    for point in all_points:
+        if not point:
+            continue
+
+        curve_number = point.get("curveNumber")
+
+        # Passthrough non-box points unchanged
+        if curve_number not in box_curve_numbers:
+            point_id = _get_selection_point_id(point)
+            if point_id is not None and point_id in seen_ids:
+                continue
+            if point_id is not None:
+                seen_ids.add(point_id)
+                expanded_indices.append(point_id[1])
+            expanded_points.append(point)
+            continue
+
+        point_numbers = point.get("pointNumbers")
+        if not isinstance(point_numbers, list) or not (
+            0 <= cast(int, curve_number) < len(figure.data)
+        ):
+            # No pointNumbers – pass through as-is
+            point_id = _get_selection_point_id(point)
+            if point_id is not None:
+                expanded_indices.append(point_id[1])
+            expanded_points.append(point)
+            continue
+
+        trace = figure.data[cast(int, curve_number)]
+        for raw_idx in point_numbers:
+            if not isinstance(raw_idx, int):
+                continue
+            sample = _build_box_sample_point(
+                trace, cast(int, curve_number), raw_idx
+            )
+            if sample is None:
+                continue
+            point_id = _get_selection_point_id(sample)
+            if point_id is not None and point_id in seen_ids:
+                continue
+            if point_id is not None:
+                seen_ids.add(point_id)
+            expanded_points.append(sample)
+            expanded_indices.append(raw_idx)
+
+    selection_data["points"] = expanded_points
+    selection_data["indices"] = expanded_indices
+
+
+def _build_global_category_order(
+    figure: go.Figure, trace_type: str
+) -> dict[Any, float]:
+    """Build a category-to-float-position mapping across all traces of the given type.
+
+    Using per-trace first-seen order causes the same category to get different
+    numeric positions in different traces (common with Plotly Express faceting/
+    coloring).  A single pre-built order from all traces ensures the positions
+    are consistent with the axis-global ordering Plotly uses for range values.
+    """
+    order: dict[Any, float] = {}
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != trace_type:
+            continue
+        orientation = getattr(trace, "orientation", "v") or "v"
+        cat_data = getattr(trace, "y" if orientation == "h" else "x", None)
+        val_data = getattr(trace, "x" if orientation == "h" else "y", None)
+        if val_data is None:
+            continue
+        n = len(val_data) if hasattr(val_data, "__len__") else 0
+        if n == 0:
+            continue
+        if cat_data is None:
+            cats: list[Any] = [getattr(trace, "name", None) or trace_idx]
+        elif isinstance(cat_data, (str, bytes)):
+            cats = [cat_data]
+        elif hasattr(cat_data, "__len__") and len(cat_data) == n:
+            cats = list(cat_data)
+        else:
+            try:
+                cats = [cat_data[0]]
+            except (TypeError, IndexError, KeyError):
+                cats = [cat_data]
+        for v in cats:
+            try:
+                if v not in order:
+                    order[v] = float(len(order))
+            except TypeError:
+                pass
+    return order
+
+
+def _extract_box_points_from_range(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract box plot underlying data points that fall within a selection range.
+
+    For each box trace the category position (x for vertical, y for horizontal)
+    is compared against the selection range.  Only samples whose value coordinate
+    also falls within the selection rectangle are returned.
+    """
+    if DependencyManager.numpy.has():
+        return _extract_box_points_numpy(figure, range_data)
+    return _extract_box_points_fallback(figure, range_data)
+
+
+def _extract_box_points_numpy(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract box plot data points from a selection range using numpy."""
+    import numpy as np
+
+    x_range = range_data.get("x")
+    y_range = range_data.get("y")
+
+    selected: list[dict[str, Any]] = []
+
+    # Build global category order once so that the same category gets the same
+    # numeric position across all traces (px faceting can produce traces with
+    # different/missing categories, making per-trace first-seen order wrong).
+    global_cat_order = _build_global_category_order(figure, "box")
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "box":
+            continue
+
+        orientation = getattr(trace, "orientation", "v") or "v"
+        # For vertical boxes: x is the category axis, y holds data values.
+        # For horizontal boxes: y is the category axis, x holds data values.
+        if orientation == "h":
+            cat_range = y_range
+            val_range = x_range
+            cat_data = getattr(trace, "y", None)
+            val_data = getattr(trace, "x", None)
+        else:
+            cat_range = x_range
+            val_range = y_range
+            cat_data = getattr(trace, "x", None)
+            val_data = getattr(trace, "y", None)
+
+        if val_data is None:
+            continue
+
+        val_arr = np.asarray(val_data)
+        n = len(val_arr)
+        if n == 0:
+            continue
+
+        # Build per-sample category array.  A box trace can have:
+        #   - cat_data as an array (one category per sample, same length as val)
+        #   - cat_data as a scalar / None (all samples share one category)
+        if cat_data is None:
+            # No explicit category; Plotly uses the trace name / index.
+            cat_arr: list[Any] = [getattr(trace, "name", trace_idx)] * n
+        else:
+            cat_arr_raw = np.asarray(cat_data)
+            if cat_arr_raw.ndim == 0 or len(cat_arr_raw) != n:
+                # Scalar category
+                cat_val = (
+                    cat_arr_raw.item()
+                    if hasattr(cat_arr_raw, "item") and cat_arr_raw.ndim == 0
+                    else (cat_arr_raw[0] if len(cat_arr_raw) > 0 else None)
+                )
+                cat_arr = [cat_val] * n
+            else:
+                cat_arr = cat_arr_raw.tolist()
+
+        # --- Category filter ---
+        if cat_range:
+            cat_min, cat_max = min(cat_range), max(cat_range)
+            cat_np = np.asarray(cat_arr)
+            cat_is_orderable = _is_orderable_axis(cat_np, cat_min)
+
+            if cat_is_orderable:
+                cat_min_p = _parse_datetime_bound(cat_min)
+                cat_max_p = _parse_datetime_bound(cat_max)
+                cat_mask = np.array(
+                    [
+                        cat_min_p <= _parse_datetime_bound(v) <= cat_max_p
+                        if _is_orderable_value(v)
+                        else False
+                        for v in cat_arr
+                    ]
+                )
+            else:
+                # Use the global order so positions are consistent across traces
+                positions = np.array(
+                    [
+                        _safe_category_get(global_cat_order, v, -1)
+                        for v in cat_arr
+                    ],
+                    dtype=np.float64,
+                )
+                cat_mask = (cat_max > positions - 0.5) & (
+                    cat_min < positions + 0.5
+                )
+        else:
+            cat_mask = np.ones(n, dtype=bool)
+
+        # --- Value filter ---
+        # Exclude samples whose value coordinate falls outside the selection
+        # rectangle (category match alone is insufficient).
+        if val_range:
+            val_min_p = _parse_datetime_bound(min(val_range))
+            val_max_p = _parse_datetime_bound(max(val_range))
+            val_mask = np.array(
+                [
+                    val_min_p <= parsed_v <= val_max_p
+                    if _is_orderable_value(parsed_v)
+                    else False
+                    for parsed_v in (
+                        _parse_datetime_bound(v) for v in val_arr.tolist()
+                    )
+                ]
+            )
+            cat_mask = cat_mask & val_mask
+
+        selected_indices = np.where(cat_mask)[0]
+        for i in selected_indices:
+            sample = _build_box_sample_point(trace, trace_idx, int(i))
+            if sample is not None:
+                selected.append(sample)
+
+    return selected
+
+
+def _extract_box_points_fallback(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract box plot data points from a selection range (pure Python)."""
+    x_range = range_data.get("x")
+    y_range = range_data.get("y")
+
+    selected: list[dict[str, Any]] = []
+
+    # Global category order for consistent positions across all box traces
+    global_cat_order = _build_global_category_order(figure, "box")
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "box":
+            continue
+
+        orientation = getattr(trace, "orientation", "v") or "v"
+        if orientation == "h":
+            cat_range = y_range
+            val_range = x_range
+            cat_data = getattr(trace, "y", None)
+            val_data = getattr(trace, "x", None)
+        else:
+            cat_range = x_range
+            val_range = y_range
+            cat_data = getattr(trace, "x", None)
+            val_data = getattr(trace, "y", None)
+
+        if val_data is None:
+            continue
+
+        n = len(val_data)
+        if n == 0:
+            continue
+
+        # Build per-sample category list
+        if cat_data is None:
+            cat_list: list[Any] = [getattr(trace, "name", trace_idx)] * n
+        elif isinstance(cat_data, (str, bytes)):
+            cat_list = [cat_data] * n
+        elif hasattr(cat_data, "__len__") and len(cat_data) == n:
+            cat_list = list(cat_data)
+        else:
+            try:
+                scalar: Any = cat_data[0]
+            except (TypeError, IndexError, KeyError):
+                scalar = cat_data
+            cat_list = [scalar] * n
+
+        if cat_range:
+            cat_min, cat_max = min(cat_range), max(cat_range)
+
+        if val_range:
+            val_min_p = _parse_datetime_bound(min(val_range))
+            val_max_p = _parse_datetime_bound(max(val_range))
+
+        for i, cat_val in enumerate(cat_list):
+            # --- Category filter ---
+            if cat_range:
+                if _is_orderable_value(cat_val) and _is_orderable_value(
+                    cat_min
+                ):
+                    cat_min_p = _parse_datetime_bound(cat_min)
+                    cat_max_p = _parse_datetime_bound(cat_max)
+                    cat_val_p = _parse_datetime_bound(cat_val)
+                    if not (cat_min_p <= cat_val_p <= cat_max_p):
+                        continue
+                else:
+                    pos = _safe_category_get(global_cat_order, cat_val, -1)
+                    if pos < 0:
+                        continue
+                    if not (cat_max > pos - 0.5 and cat_min < pos + 0.5):
+                        continue
+
+            # --- Value filter ---
+            if val_range:
+                val_v = (
+                    val_data[i] if hasattr(val_data, "__getitem__") else None
+                )
+                val_v_p = _parse_datetime_bound(val_v)
+                if val_v is None or not (
+                    _is_orderable_value(val_v_p)
+                    and val_min_p <= val_v_p <= val_max_p
+                ):
+                    continue
+
+            sample = _build_box_sample_point(trace, trace_idx, i)
+            if sample is not None:
+                selected.append(sample)
+
+    return selected
+
+
+def _build_box_sample_point(
+    trace: Any, trace_idx: int, point_idx: int
+) -> dict[str, Any] | None:
+    """Build a row-level selection payload for a single box plot data point."""
+    orientation = getattr(trace, "orientation", "v") or "v"
+    if orientation == "h":
+        val_key, cat_key = "x", "y"
+    else:
+        val_key, cat_key = "y", "x"
+
+    val_value = _get_indexed_value(getattr(trace, val_key, None), point_idx)
+    if val_value is None:
+        return None
+
+    cat_source = getattr(trace, cat_key, None)
+    if cat_source is None:
+        cat_value: Any = getattr(trace, "name", None) or trace_idx
+    elif isinstance(cat_source, (str, bytes)):
+        cat_value = cat_source
+    else:
+        try:
+            cat_len = (
+                len(cat_source) if hasattr(cat_source, "__len__") else None
+            )
+        except TypeError:
+            cat_len = None
+        if cat_len == len(getattr(trace, val_key, [])):
+            cat_value = _get_indexed_value(cat_source, point_idx)
+        else:
+            indexed = _get_indexed_value(cat_source, 0)
+            cat_value = indexed if indexed is not None else cat_source
+
+    point: dict[str, Any] = {
+        val_key: val_value,
+        "pointIndex": point_idx,
+        "curveNumber": trace_idx,
+    }
+    if cat_value is not None:
+        point[cat_key] = cat_value
+
+    name = getattr(trace, "name", None)
+    if name:
+        point["name"] = name
+
+    for field in ("customdata", "text", "hovertext"):
+        val = _get_indexed_value(getattr(trace, field, None), point_idx)
+        if val is not None:
+            point[field] = val
+
+    return point
+
+
+def _extract_violin_points_fallback(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract violin plot data points from a selection range (pure Python).
+
+    Filters by both the category axis (which violin group falls inside the
+    selection box) and the value axis (which individual sample values fall
+    inside the selection box).  Used when numpy is unavailable.
+    """
+    x_range = range_data.get("x")
+    y_range = range_data.get("y")
+
+    selected: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "violin":
+            continue
+
+        orientation = getattr(trace, "orientation", "v") or "v"
+        if orientation == "h":
+            cat_range = y_range
+            val_range = x_range
+            cat_data = getattr(trace, "y", None)
+            val_data = getattr(trace, "x", None)
+        else:
+            cat_range = x_range
+            val_range = y_range
+            cat_data = getattr(trace, "x", None)
+            val_data = getattr(trace, "y", None)
+
+        if val_data is None:
+            continue
+
+        n = len(val_data)
+        if n == 0:
+            continue
+
+        if cat_data is None:
+            cat_list: list[Any] = [getattr(trace, "name", trace_idx)] * n
+        elif hasattr(cat_data, "__len__") and len(cat_data) == n:
+            cat_list = list(cat_data)
+        else:
+            scalar = (
+                cat_data[0] if hasattr(cat_data, "__getitem__") else cat_data
+            )
+            cat_list = [scalar] * n
+
+        if cat_range:
+            cat_min, cat_max = min(cat_range), max(cat_range)
+            seen_order: dict[Any, int] = {}
+            for v in cat_list:
+                try:
+                    if v not in seen_order:
+                        seen_order[v] = len(seen_order)
+                except TypeError:
+                    pass
+
+        for i, cat_val in enumerate(cat_list):
+            if cat_range:
+                if _is_orderable_value(cat_val) and _is_orderable_value(
+                    cat_min
+                ):
+                    cat_min_p = _parse_datetime_bound(cat_min)
+                    cat_max_p = _parse_datetime_bound(cat_max)
+                    cat_val_p = _parse_datetime_bound(cat_val)
+                    if not (cat_min_p <= cat_val_p <= cat_max_p):
+                        continue
+                else:
+                    try:
+                        pos = seen_order.get(cat_val)
+                    except TypeError:
+                        continue
+                    if pos is None:
+                        continue
+                    if not (cat_max > pos - 0.5 and cat_min < pos + 0.5):
+                        continue
+
+            if val_range:
+                val_min_f = float(min(val_range))
+                val_max_f = float(max(val_range))
+                try:
+                    val_f = float(val_data[i])
+                    if not (val_min_f <= val_f <= val_max_f):
+                        continue
+                except (TypeError, ValueError):
+                    pass  # non-numeric value; skip value filtering
+
+            sample = _build_violin_sample_point(trace, trace_idx, i)
+            if sample is not None:
+                selected.append(sample)
+
+    return selected
+
+
+def _build_violin_sample_point(
+    trace: Any, trace_idx: int, point_idx: int
+) -> dict[str, Any] | None:
+    """Build a row-level selection payload for a single violin plot data point."""
+    orientation = getattr(trace, "orientation", "v") or "v"
+    if orientation == "h":
+        val_key, cat_key = "x", "y"
+    else:
+        val_key, cat_key = "y", "x"
+
+    val_value = _get_indexed_value(getattr(trace, val_key, None), point_idx)
+    if val_value is None:
+        return None
+
+    cat_source = getattr(trace, cat_key, None)
+    if cat_source is None:
+        cat_value: Any = getattr(trace, "name", None) or trace_idx
+    elif isinstance(cat_source, (str, bytes)):
+        cat_value = cat_source
+    else:
+        try:
+            cat_len = (
+                len(cat_source) if hasattr(cat_source, "__len__") else None
+            )
+        except TypeError:
+            cat_len = None
+        if cat_len == len(getattr(trace, val_key, [])):
+            cat_value = _get_indexed_value(cat_source, point_idx)
+        else:
+            indexed = _get_indexed_value(cat_source, 0)
+            cat_value = indexed if indexed is not None else cat_source
+
+    point: dict[str, Any] = {
+        val_key: val_value,
+        "pointIndex": point_idx,
+        "pointNumber": point_idx,
+        "curveNumber": trace_idx,
+    }
+    if cat_value is not None:
+        point[cat_key] = cat_value
+
+    name = getattr(trace, "name", None)
+    if name:
+        point["name"] = name
+
+    for field in ("customdata", "text", "hovertext"):
+        val = _get_indexed_value(getattr(trace, field, None), point_idx)
+        if val is not None:
+            point[field] = val
+
+    return point
+
+
+def _append_funnel_points_to_selection(
+    figure: go.Figure, selection_data: dict[str, Any]
+) -> None:
+    """Handle selection data for go.Funnel traces.
+
+    Two cases:
+    1. Range selection (dragmode="select"): extract funnel stages whose
+       position and value overlap the selection rectangle.
+    2. Click selection: points are already populated by the frontend with
+       x, y, label, value, and percent metrics — pass them through after
+       filtering empty placeholders and re-syncing indices.
+    """
+    range_value = selection_data.get("range")
+    all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
+    all_indices = cast(list[Any], selection_data.get("indices", []))
+
+    if isinstance(range_value, dict):
+        # Range selection: extract funnel stages within the rectangle.
+        funnel_items = _extract_funnel_stages_from_range(
+            figure, cast(dict[str, Any], range_value)
+        )
+        has_real_points = any(all_points)
+        if not has_real_points and not funnel_items:
+            selection_data["points"] = []
+            selection_data["indices"] = []
+            return
+
+        seen: set[tuple[int, int]] = set()
+        merged_points: list[dict[str, Any]] = []
+        merged_indices: list[int] = []
+
+        for point_idx, point in enumerate(all_points):
+            if not point:
+                continue
+            point_id = _get_selection_point_id(point)
+            if point_id is not None:
+                if point_id in seen:
+                    continue
+                seen.add(point_id)
+            merged_points.append(point)
+            if point_idx < len(all_indices) and isinstance(
+                all_indices[point_idx], int
+            ):
+                merged_indices.append(all_indices[point_idx])
+            elif point_id is not None:
+                merged_indices.append(point_id[1])
+
+        for point in funnel_items:
+            point_id = _get_selection_point_id(point)
+            if point_id is not None:
+                if point_id in seen:
+                    continue
+                seen.add(point_id)
+                merged_indices.append(point_id[1])
+            merged_points.append(point)
+
+        selection_data["points"] = merged_points
+        selection_data["indices"] = merged_indices
+    else:
+        # Click selection: clean up empty-dict placeholders from the frontend.
+        clean_points = [p for p in all_points if p]
+        if not clean_points:
+            selection_data["points"] = []
+            selection_data["indices"] = []
+            return
+        # Re-sync indices: prefer what the frontend sent, fall back to pointIndex.
+        incoming_index_map = {
+            id(p): idx
+            for idx, p in zip(all_indices, all_points, strict=False)
+            if p and isinstance(idx, int)
+        }
+        clean_indices: list[int] = []
+        for p in clean_points:
+            idx = incoming_index_map.get(id(p))
+            if isinstance(idx, int):
+                clean_indices.append(idx)
+            else:
+                pi = p.get("pointIndex", p.get("pointNumber"))
+                if isinstance(pi, int):
+                    clean_indices.append(pi)
+        selection_data["points"] = clean_points
+        selection_data["indices"] = clean_indices
+
+
+def _extract_funnel_stages_from_range(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract funnel stages that fall within a box-selection range.
+
+    go.Funnel is structurally identical to a horizontal/vertical bar chart:
+    default orientation has x = numeric values, y = categorical stage labels.
+    A stage is selected when its category position is within the y-range AND
+    its value bar (from 0 to x) overlaps the x-range.
+    """
+    if not range_data.get("x") or not range_data.get("y"):
+        return []
+
+    x_range = range_data["x"]
+    y_range = range_data["y"]
+    x_min, x_max = min(x_range), max(x_range)
+    y_min, y_max = min(y_range), max(y_range)
+
+    if DependencyManager.numpy.has():
+        return _extract_funnel_stages_numpy(figure, x_min, x_max, y_min, y_max)
+    return _extract_funnel_stages_fallback(figure, x_min, x_max, y_min, y_max)
+
+
+def _extract_funnel_stages_numpy(
+    figure: go.Figure,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> list[dict[str, Any]]:
+    """Extract funnel stages using numpy for vectorized filtering."""
+    import numpy as np
+
+    selected: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "funnel":
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+        if x_data is None or y_data is None:
+            continue
+
+        orientation = getattr(trace, "orientation", "h") or "h"
+        if orientation == "h":
+            val_data = x_data
+            cat_min, cat_max = y_min, y_max
+            val_min, val_max = x_min, x_max
+        else:
+            val_data = y_data
+            cat_min, cat_max = x_min, x_max
+            val_min, val_max = y_min, y_max
+
+        n = len(val_data) if hasattr(val_data, "__len__") else 0
+        if n == 0:
+            continue
+
+        try:
+            val_arr = np.asarray(val_data, dtype=np.float64)
+        except (TypeError, ValueError):
+            # Non-numeric entries (e.g. None) in val_data — fall back to the
+            # element-wise path so that non-numeric stages are silently skipped.
+            numeric_val_min = _to_numeric_bar_value(val_min)
+            for i, val in enumerate(val_data):
+                if not (cat_max > i - 0.5 and cat_min < i + 0.5):
+                    continue
+                numeric_val = _to_numeric_bar_value(val)
+                if numeric_val is None or (
+                    numeric_val_min is not None
+                    and numeric_val < numeric_val_min
+                ):
+                    continue
+                selected.append(
+                    _build_funnel_stage_point(
+                        trace, trace_idx, i, x_data, y_data
+                    )
+                )
+            continue
+
+        # Category axis: each stage occupies position index ± 0.5
+        cat_positions = np.arange(n, dtype=np.float64)
+        cat_mask = (cat_max > cat_positions - 0.5) & (
+            cat_min < cat_positions + 0.5
+        )
+
+        # Value axis: funnel bar spans [0, v]; selected if bar overlaps [val_min, val_max].
+        # Overlap condition: val_min <= v AND val_max > 0
+        if val_max <= 0:
+            continue  # selection is entirely in negative space — no overlap possible
+        val_mask = val_arr >= val_min
+
+        mask = cat_mask & val_mask
+        for i in np.where(mask)[0]:
+            selected.append(
+                _build_funnel_stage_point(
+                    trace, trace_idx, int(i), x_data, y_data
+                )
+            )
+
+    return selected
+
+
+def _extract_funnel_stages_fallback(
+    figure: go.Figure,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> list[dict[str, Any]]:
+    """Extract funnel stages using pure Python (fallback when numpy unavailable)."""
+    selected: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "funnel":
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+        if x_data is None or y_data is None:
+            continue
+
+        orientation = getattr(trace, "orientation", "h") or "h"
+        if orientation == "h":
+            val_data = x_data
+            cat_min, cat_max = y_min, y_max
+            val_min, val_max = x_min, x_max
+        else:
+            val_data = y_data
+            cat_min, cat_max = x_min, x_max
+            val_min, val_max = y_min, y_max
+
+        # Value axis: funnel bar spans [0, v]; no overlap possible if val_max ≤ 0
+        numeric_val_max = _to_numeric_bar_value(val_max)
+        if numeric_val_max is None or numeric_val_max <= 0:
+            continue
+
+        numeric_val_min = _to_numeric_bar_value(val_min)
+
+        for i, val in enumerate(val_data):
+            # Category check: stage i spans (i-0.5, i+0.5)
+            cat_in_range = not (cat_max <= i - 0.5 or cat_min >= i + 0.5)
+            if not cat_in_range:
+                continue
+
+            # Value check: bar [0, val] overlaps selection [val_min, val_max]
+            # Overlap: val_min <= val (bar reaches into or touches selection range)
+            numeric_val = _to_numeric_bar_value(val)
+            if numeric_val is None or (
+                numeric_val_min is not None and numeric_val < numeric_val_min
+            ):
+                continue
+
+            selected.append(
+                _build_funnel_stage_point(trace, trace_idx, i, x_data, y_data)
+            )
+
+    return selected
+
+
+def _build_funnel_stage_point(
+    trace: Any,
+    trace_idx: int,
+    point_idx: int,
+    x_data: Any,
+    y_data: Any,
+) -> dict[str, Any]:
+    """Build a selection point dict for a single funnel stage."""
+    x_val = _get_indexed_value(x_data, point_idx)
+    y_val = _get_indexed_value(y_data, point_idx)
+    # For horizontal funnels (default): y=category label, x=numeric value.
+    # For vertical funnels: x=category label, y=numeric value.
+    orientation = getattr(trace, "orientation", "h")
+    if orientation == "v":
+        label = x_val
+        value = y_val
+    else:
+        label = y_val
+        value = x_val
+    point: dict[str, Any] = {
+        "x": x_val,
+        "y": y_val,
+        "label": label,
+        "value": value,
+        "curveNumber": trace_idx,
+        "pointIndex": point_idx,
+        "pointNumber": point_idx,
+    }
+    for field in ("customdata", "text", "hovertext"):
+        val = _get_indexed_value(getattr(trace, field, None), point_idx)
+        if val is not None:
+            point[field] = val
+    name = getattr(trace, "name", None)
+    if name:
+        point["name"] = name
+    return point
+
+
+def _append_funnelarea_points_to_selection(
+    selection_data: dict[str, Any],
+) -> None:
+    """Pass through click data for go.FunnelArea traces.
+
+    FunnelArea is a sector-based chart (like sunburst) with no x/y axes, so
+    range/lasso selection is not applicable.  The frontend already populates
+    selection_data with label, value, and percent metrics on click; this
+    function only strips empty-dict placeholders and syncs indices.
+    """
+    all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
+    all_indices = cast(list[Any], selection_data.get("indices", []))
+
+    clean_points = [p for p in all_points if p]
+    if not clean_points:
+        selection_data["points"] = []
+        selection_data["indices"] = []
+        return
+
+    incoming_index_map = {
+        id(p): idx
+        for idx, p in zip(all_indices, all_points, strict=False)
+        if p and isinstance(idx, int)
+    }
+    clean_indices: list[int] = []
+    for p in clean_points:
+        idx = incoming_index_map.get(id(p))
+        if isinstance(idx, int):
+            clean_indices.append(idx)
+        else:
+            pi = p.get("pointNumber")
+            if isinstance(pi, int):
+                clean_indices.append(pi)
+    selection_data["points"] = clean_points
+    selection_data["indices"] = clean_indices

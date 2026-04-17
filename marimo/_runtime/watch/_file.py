@@ -6,7 +6,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.watch._path import (
@@ -14,6 +14,9 @@ from marimo._runtime.watch._path import (
     PathState,
     write_side_effect,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # For testing only - do not use in production
 _TEST_SLEEP_INTERVAL: float | None = None

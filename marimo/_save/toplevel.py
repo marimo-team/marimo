@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._ast.app import App, InternalApp
@@ -12,6 +12,9 @@ from marimo._ast.names import (
 from marimo._ast.toplevel import TopLevelExtraction
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._types.ids import CellId_t
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 

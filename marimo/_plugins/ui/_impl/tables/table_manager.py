@@ -8,9 +8,7 @@ from typing import (
     Any,
     Generic,
     NamedTuple,
-    Optional,
     TypeVar,
-    Union,
 )
 
 from marimo._data.models import (
@@ -33,13 +31,13 @@ FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
 
 
 class TableCoordinate(NamedTuple):
-    row_id: Union[int, str]
+    row_id: int | str
     column_name: str
 
 
 @dataclass
 class TableCell:
-    row: Union[int, str]
+    row: int | str
     column: str
     value: Any | None
 
@@ -81,7 +79,7 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def apply_formatting(
-        self, format_mapping: Optional[FormatMapping]
+        self, format_mapping: FormatMapping | None
     ) -> TableManager[Any]:
         pass
 
@@ -96,14 +94,14 @@ class TableManager(abc.ABC, Generic[T]):
     @abc.abstractmethod
     def to_csv_str(
         self,
-        format_mapping: Optional[FormatMapping] = None,
+        format_mapping: FormatMapping | None = None,
         separator: str | None = None,
     ) -> str:
         pass
 
     def to_csv(
         self,
-        format_mapping: Optional[FormatMapping] = None,
+        format_mapping: FormatMapping | None = None,
         encoding: str | None = "utf-8",
         separator: str | None = None,
     ) -> bytes:
@@ -118,7 +116,7 @@ class TableManager(abc.ABC, Generic[T]):
     @abc.abstractmethod
     def to_json_str(
         self,
-        format_mapping: Optional[FormatMapping] = None,
+        format_mapping: FormatMapping | None = None,
         strict_json: bool = False,
         ensure_ascii: bool = True,
     ) -> str:
@@ -126,7 +124,7 @@ class TableManager(abc.ABC, Generic[T]):
 
     def to_json(
         self,
-        format_mapping: Optional[FormatMapping] = None,
+        format_mapping: FormatMapping | None = None,
         strict_json: bool = False,  # Whether the result should be strictly JSON compliant (eg. nan -> null)
         encoding: str | None = "utf-8",
         ensure_ascii: bool = True,
@@ -199,7 +197,7 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def get_num_rows(self, force: bool = True) -> Optional[int]:
+    def get_num_rows(self, force: bool = True) -> int | None:
         # This can be expensive to compute,
         # so we allow optionals
         pass

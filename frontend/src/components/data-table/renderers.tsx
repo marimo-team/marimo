@@ -27,7 +27,7 @@ import { DataTableContextMenu } from "./context-menu";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
 import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
-import { TABLE_ROW_HEIGHT_PX } from "./types";
+import { AUTO_WIDTH_MAX_COLUMNS, TABLE_ROW_HEIGHT_PX } from "./types";
 import { stringifyUnknownValue } from "./utils";
 
 export function renderTableHeader<TData>(
@@ -46,7 +46,7 @@ export function renderTableHeader<TData>(
           <TableHead
             key={header.id}
             className={cn(
-              "h-auto min-h-10 whitespace-pre align-top",
+              "h-auto min-h-10 whitespace-pre align-top border-r border-r-border/75",
               className,
             )}
             style={style}
@@ -69,6 +69,13 @@ export function renderTableHeader<TData>(
         {renderHeaderGroup(table.getLeftHeaderGroups())}
         {renderHeaderGroup(table.getCenterHeaderGroups())}
         {renderHeaderGroup(table.getRightHeaderGroups())}
+        {table.getAllColumns().length <= AUTO_WIDTH_MAX_COLUMNS && (
+          <th
+            className="w-full border-0"
+            aria-hidden="true"
+            role="presentation"
+          />
+        )}
       </TableRow>
     </TableHeader>
   );
@@ -163,7 +170,7 @@ export const DataTableBody = <TData,>({
           {...getCellDomProps(cell.id)}
           key={cell.id}
           className={cn(
-            "whitespace-pre truncate max-w-[300px] outline-hidden",
+            "whitespace-pre truncate max-w-[300px] outline-hidden border-r border-r-border/75",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping?.() === "wrap" &&
               COLUMN_WRAPPING_STYLES,
@@ -230,15 +237,21 @@ export const DataTableBody = <TData,>({
         {renderCells(row.getLeftVisibleCells())}
         {renderCells(row.getCenterVisibleCells())}
         {renderCells(row.getRightVisibleCells())}
+        {columns.length <= AUTO_WIDTH_MAX_COLUMNS && (
+          <td className="border-0" aria-hidden="true" role="presentation" />
+        )}
       </TableRow>
     );
   };
+
+  const hasFillerColumn = columns.length <= AUTO_WIDTH_MAX_COLUMNS;
+  const totalColSpan = columns.length + (hasFillerColumn ? 1 : 0);
 
   const renderRows = () => {
     if (rows.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={columns.length} className="h-24 text-center">
+          <TableCell colSpan={totalColSpan} className="h-24 text-center">
             No results.
           </TableCell>
         </TableRow>
@@ -255,7 +268,7 @@ export const DataTableBody = <TData,>({
               data-virtual-spacer=""
               style={{ height: virtualItems[0].start }}
             >
-              <td colSpan={columns.length} />
+              <td colSpan={totalColSpan} />
             </tr>
           )}
           {virtualItems.map((vItem) => renderRow(rows[vItem.index]))}
@@ -266,7 +279,7 @@ export const DataTableBody = <TData,>({
                 height: totalSize - (virtualItems.at(-1)?.end ?? totalSize),
               }}
             >
-              <td colSpan={columns.length} />
+              <td colSpan={totalColSpan} />
             </tr>
           )}
         </>

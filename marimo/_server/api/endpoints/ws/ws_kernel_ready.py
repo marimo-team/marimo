@@ -120,7 +120,8 @@ def _extract_cell_data(
                         cell.id,
                     )
                     for cell in document.cells
-                )
+                ),
+                strict=False,
             )
         )
         return codes, names, configs, cell_ids
@@ -131,7 +132,8 @@ def _extract_cell_data(
                 *tuple(
                     ("", cell.name, cell.config, cell.id)
                     for cell in document.cells
-                )
+                ),
+                strict=False,
             )
         )
         return codes, names, configs, cell_ids

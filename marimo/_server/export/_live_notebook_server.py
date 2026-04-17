@@ -7,11 +7,15 @@ import tempfile
 import time
 from contextlib import AbstractContextManager
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.error import URLError
 from urllib.request import urlopen
 
 from marimo import _loggers
 from marimo._utils.net import find_free_port
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 LOGGER = _loggers.marimo_logger()
 
@@ -42,7 +46,7 @@ class LiveNotebookServer(AbstractContextManager["LiveNotebookServer"]):
     def health_url(self) -> str:
         return f"{self.page_url}/health"
 
-    def __enter__(self) -> LiveNotebookServer:
+    def __enter__(self) -> Self:
         """Start the server process and block until the health endpoint is ready."""
 
         self._log_file = tempfile.NamedTemporaryFile(

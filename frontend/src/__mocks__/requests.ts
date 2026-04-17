@@ -51,6 +51,7 @@ export const MockRequestClient = {
         .mockResolvedValue({ files: [], query: "", total_found: 0 }),
       sendCreateFileOrFolder: vi.fn().mockResolvedValue({}),
       sendDeleteFileOrFolder: vi.fn().mockResolvedValue({}),
+      sendCopyFileOrFolder: vi.fn().mockResolvedValue({}),
       sendRenameFileOrFolder: vi.fn().mockResolvedValue({}),
       sendUpdateFile: vi.fn().mockResolvedValue({}),
       sendFileDetails: vi.fn().mockResolvedValue({}),

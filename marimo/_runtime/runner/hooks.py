@@ -1,9 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -19,11 +20,11 @@ if TYPE_CHECKING:
 
 __all__ = [
     "NotebookCellHooks",
-    "Priority",
-    "PreparationHook",
-    "PreExecutionHook",
-    "PostExecutionHook",
     "OnFinishHook",
+    "PostExecutionHook",
+    "PreExecutionHook",
+    "PreparationHook",
+    "Priority",
     "create_default_hooks",
 ]
 

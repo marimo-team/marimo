@@ -1,10 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 from starlette.applications import (
-    Starlette,  # noqa: TCH002 - required at runtime
+    Starlette,  # noqa: TC002 - required at runtime
 )
 
 from marimo import _loggers
@@ -22,6 +22,8 @@ from marimo._server.ai.tools.types import (
 from marimo._utils.once import once
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from mcp.types import (  # type: ignore[import-not-found]
         CallToolResult,
         Tool as MCPRawTool,
@@ -84,8 +86,8 @@ class ToolManager:
         return [tool for tool in all_tools if mode in tool.mode]
 
     def _get_tool(
-        self, name: str, source: Optional[ToolSource] = None
-    ) -> Optional[ToolDefinition]:
+        self, name: str, source: ToolSource | None = None
+    ) -> ToolDefinition | None:
         """Get tool definition by name."""
 
         if source:
@@ -135,7 +137,7 @@ class ToolManager:
                         )
                     return is_valid, error_message
             except Exception as e:
-                error_msg = f"Error in tool-specific validation for '{tool_name}': {str(e)}"
+                error_msg = f"Error in tool-specific validation for '{tool_name}': {e!s}"
                 LOGGER.error(error_msg)
                 return False, error_msg
 
@@ -159,7 +161,7 @@ class ToolManager:
             return [self._convert_mcp_tool(tool) for tool in mcp_tools]
 
         except Exception as e:
-            LOGGER.error(f"Failed to get MCP tools: {str(e)}")
+            LOGGER.error(f"Failed to get MCP tools: {e!s}")
             return []
 
     def _convert_mcp_tool(self, mcp_tool: MCPRawTool) -> ToolDefinition:
@@ -287,7 +289,7 @@ class ToolManager:
                 )
 
         except Exception as e:
-            error_message = f"Error invoking tool '{tool_name}': {str(e)}"
+            error_message = f"Error invoking tool '{tool_name}': {e!s}"
             LOGGER.error(error_message)
             return ToolCallResult(
                 tool_name=tool_name, result=None, error=str(error_message)
@@ -327,7 +329,7 @@ class ToolManager:
 
 
 # Global tool manager instance
-_TOOL_MANAGER: Optional[ToolManager] = None
+_TOOL_MANAGER: ToolManager | None = None
 
 
 def setup_tool_manager(app: Starlette) -> None:

@@ -76,9 +76,9 @@ def _set_imported_defs(
     with ctx.graph.lock:
         LOGGER.debug("Acquired graph lock to update import workspace.")
         if cell.import_workspace.is_import_block:
-            cell.import_workspace.imported_defs = set(
+            cell.import_workspace.imported_defs = {
                 name for name in cell.defs if name in ctx.glbls
-            )
+            }
 
 
 @kernel_tracer.start_as_current_span("set_status_idle")
@@ -131,7 +131,7 @@ def _broadcast_variables(
     values = [
         create_variable_value(
             name=variable,
-            value=(ctx.glbls[variable] if variable in ctx.glbls else None),
+            value=(ctx.glbls.get(variable, None)),
         )
         for variable in cell.defs
     ]
@@ -279,9 +279,9 @@ def _store_reference_to_output(
     if isinstance(run_result.output, UIElement):
         cell.set_output(run_result.output)
     elif run_result.output is not None:
-        if contains_instance(run_result.output, UIElement):
-            cell.set_output(run_result.output)
-        elif callable(getattr(run_result.output, "_repr_mimebundle_", None)):
+        if contains_instance(run_result.output, UIElement) or callable(
+            getattr(run_result.output, "_repr_mimebundle_", None)
+        ):
             cell.set_output(run_result.output)
 
 
@@ -421,15 +421,14 @@ def _broadcast_outputs(
                 ctx.user_config["runtime"].get("show_tracebacks", False)
             )
 
-        if show_tracebacks:
-            if (
-                isinstance(run_result.exception, BaseException)
-                and run_result.exception.__traceback__
-            ):
-                tb_lines = tb.format_exception(run_result.exception)
-                formatted_traceback = _highlight_traceback(
-                    _trim_traceback("".join(tb_lines))
-                )
+        if show_tracebacks and (
+            isinstance(run_result.exception, BaseException)
+            and run_result.exception.__traceback__
+        ):
+            tb_lines = tb.format_exception(run_result.exception)
+            formatted_traceback = _highlight_traceback(
+                _trim_traceback("".join(tb_lines))
+            )
 
         CellNotificationUtils.broadcast_error(
             data=[

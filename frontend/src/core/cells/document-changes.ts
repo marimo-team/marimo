@@ -25,6 +25,7 @@ import type { NotebookDocumentTransactionRequest } from "../network/types";
 import { store } from "../state/jotai";
 import type { CellActions, NotebookState } from "./cells";
 import type { CellId } from "./ids";
+import { SCRATCH_CELL_ID } from "./ids";
 import type { CellData } from "./types";
 
 export type DocumentChange =
@@ -214,12 +215,13 @@ export function toDocumentChanges(
       ];
     }
 
-    // dropCellOverCell/dropCellOverColumn → set-config + reorder-cells
+    // dropCellOverCell/dropCellOverColumn/moveCellToIndex → set-config + reorder-cells
     // Drag-and-drop reorders can move cells within or across columns.
     // We emit config changes for cells whose column changed, then
     // the full ordering.
     case "dropCellOverCell":
     case "dropCellOverColumn":
+    case "moveCellToIndex":
       return columnChanges(prevState, newState);
 
     // updateCellCode → set-code
@@ -347,6 +349,7 @@ export function toDocumentChanges(
     case "prepareForRun":
     case "handleCellMessage":
     case "setCellIds":
+    case "rebuildCellColumns":
     case "setCellCodes":
     case "setCells":
     case "setStdinResponse":
@@ -572,8 +575,19 @@ const flushChanges = debounce(() => {
   void getRequestClient().sendDocumentTransaction({ changes });
 }, 400);
 
+function isScratchChange(change: DocumentChange): boolean {
+  if ("cellId" in change && change.cellId === SCRATCH_CELL_ID) {
+    return true;
+  }
+  return false;
+}
+
 function enqueue(change: DocumentChange) {
   if (store.get(kioskModeAtom)) {
+    return;
+  }
+  // The scratchpad cell is local-only — don't sync it to the document.
+  if (isScratchChange(change)) {
     return;
   }
   pendingChanges.push(change);
@@ -611,7 +625,24 @@ export function applyTransactionChanges(
 ): void {
   const cancelled = cancelledCellIds(changes);
 
-  for (const change of changes) {
+  // Process set-config changes after everything else. The tree must be fully
+  // restructured (create-cell, delete-cell, reorder-cells, move-cell) before
+  // we start applying column metadata, since the follow-up rebuildCellColumns
+  // step interprets each cell's config.column against the *final* flat order.
+  // Sorting is stable within each group.
+  const sortedChanges: TransactionChange[] = [
+    ...changes.filter((c) => c.type !== "set-config"),
+    ...changes.filter((c) => c.type === "set-config"),
+  ];
+
+  // Track whether any change updated a cell's column, and remember the final
+  // flat order produced by a reorder-cells change (if any). After all changes
+  // are applied, these are used to rebuild the MultiColumn tree so that cells
+  // physically move to the column their metadata says they belong in.
+  let hasColumnChange = false;
+  let reorderOrder: CellId[] | null = null;
+
+  for (const change of sortedChanges) {
     if (
       cancelled.size > 0 &&
       "cellId" in change &&
@@ -619,10 +650,25 @@ export function applyTransactionChanges(
     ) {
       continue;
     }
+    if (change.type === "set-config" && change.column != null) {
+      hasColumnChange = true;
+    }
+    if (change.type === "create-cell" && change.config?.column != null) {
+      hasColumnChange = true;
+    }
+    if (change.type === "reorder-cells") {
+      reorderOrder = change.cellIds as CellId[];
+    }
     for (const action of fromDocumentChanges([change], getCurrentCellIds)) {
       // @ts-expect-error - TypeScript is not smart enough to know we have correctly mapped type -> payload
       actions[action.type](action.payload);
     }
+  }
+
+  if (hasColumnChange) {
+    actions.rebuildCellColumns({
+      cellIds: reorderOrder ?? getCurrentCellIds(),
+    });
   }
 }
 

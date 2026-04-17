@@ -10,7 +10,7 @@ It may be externally used and must be kept backwards compatible.
 
 from __future__ import annotations
 
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._schemas.common import BaseDict
@@ -18,9 +18,9 @@ from marimo._schemas.common import BaseDict
 
 # Metadata types
 class TimeMetadata(BaseDict):
-    started: Optional[str]
-    completed: Optional[str]
-    duration: Optional[float]
+    started: str | None
+    completed: str | None
+    duration: float | None
 
 
 # Output types
@@ -30,7 +30,7 @@ class StreamOutput(BaseDict):
     type: Literal["stream"]
     name: Literal["stdout", "stderr"]
     text: str
-    mimetype: Optional[KnownMimeType]
+    mimetype: KnownMimeType | None
 
 
 class StreamMediaOutput(BaseDict):
@@ -53,23 +53,17 @@ class DataOutput(BaseDict):
 
 
 # Union of all possible output types
-OutputType = Union[
-    ErrorOutput,
-    DataOutput,
-    # Dict[str, Any],  # For future output types, forwards-compatible
-]
+# Dict[str, Any],  # For future output types, forwards-compatible
+OutputType = ErrorOutput | DataOutput
 
-ConsoleType = Union[
-    StreamOutput,
-    StreamMediaOutput,
-]
+ConsoleType = StreamOutput | StreamMediaOutput
 
 
 class Cell(BaseDict):
     """Code cell specific structure"""
 
     id: str
-    code_hash: Optional[str]
+    code_hash: str | None
     outputs: list[OutputType]
     console: list[ConsoleType]
 
@@ -81,8 +75,8 @@ class Cell(BaseDict):
 class NotebookSessionMetadata(BaseDict):
     """Metadata about the notebook"""
 
-    marimo_version: Optional[str]
-    script_metadata_hash: Optional[str]
+    marimo_version: str | None
+    script_metadata_hash: str | None
 
     # We don't need to store AppConfig
     # since that exists in the notebook.py itself

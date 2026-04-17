@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from typing import (
     TYPE_CHECKING,
-    Callable,
-    Optional,
     ParamSpec,
     TypeAlias,
     TypeVar,
@@ -83,7 +82,7 @@ class CellManager:
     def cell_decorator(
         self,
         obj: Obj[P, R] | None,
-        column: Optional[int],
+        column: int | None,
         disabled: bool,
         hide_code: bool,
         app: InternalApp | None = None,
@@ -161,7 +160,7 @@ class CellManager:
         self,
         frame: FrameType,
         app: InternalApp | None = None,
-        config: Optional[CellConfig] = None,
+        config: CellConfig | None = None,
     ) -> Cell:
         """Registers cells when called through a context block."""
         cell = context_cell_factory(
@@ -191,11 +190,11 @@ class CellManager:
 
     def register_cell(
         self,
-        cell_id: Optional[CellId_t],
+        cell_id: CellId_t | None,
         code: str,
-        config: Optional[CellConfig],
+        config: CellConfig | None,
         name: str = DEFAULT_CELL_NAME,
-        cell: Optional[Cell] = None,
+        cell: Cell | None = None,
     ) -> None:
         """Register a new cell with the manager.
 
@@ -249,7 +248,7 @@ class CellManager:
     def register_unparsable_cell(
         self,
         code: str,
-        name: Optional[str],
+        name: str | None,
         cell_config: CellConfig,
     ) -> None:
         """Register a cell that couldn't be parsed.
@@ -386,7 +385,7 @@ class CellManager:
 
     def cells(
         self,
-    ) -> Iterable[Optional[Cell]]:
+    ) -> Iterable[Cell | None]:
         """Get an iterator over all Cell objects.
 
         Returns:
@@ -433,7 +432,7 @@ class CellManager:
         """
         return self._cell_data[cell_id]
 
-    def get_cell_code(self, cell_id: CellId_t) -> Optional[str]:
+    def get_cell_code(self, cell_id: CellId_t) -> str | None:
         """Get the code for a cell by its ID.
 
         Args:
@@ -446,7 +445,7 @@ class CellManager:
             return None
         return self._cell_data[cell_id].code
 
-    def get_cell_data(self, cell_id: CellId_t) -> Optional[CellData]:
+    def get_cell_data(self, cell_id: CellId_t) -> CellData | None:
         """Get the cell data for a specific cell ID.
 
         Args:
@@ -460,7 +459,7 @@ class CellManager:
             return None
         return self._cell_data[cell_id]
 
-    def get_cell_data_by_name(self, name: str) -> Optional[CellData]:
+    def get_cell_data_by_name(self, name: str) -> CellData | None:
         """Find a cell ID by its name.
 
         Args:
@@ -475,7 +474,7 @@ class CellManager:
                 return cell_data
         return None
 
-    def get_cell_id_by_code(self, code: str) -> Optional[CellId_t]:
+    def get_cell_id_by_code(self, code: str) -> CellId_t | None:
         """Find a cell ID by its code content.
 
         Args:
@@ -512,7 +511,7 @@ class CellManager:
         self._cell_data = new_cell_data
 
         # Add the new ids to the set, so we don't reuse them in the future
-        for _id in id_mapping.keys():
+        for _id in id_mapping:
             self._cell_id_generator.seen_ids.add(_id)
 
     @property

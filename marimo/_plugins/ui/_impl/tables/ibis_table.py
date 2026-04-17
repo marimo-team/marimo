@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime
 import functools
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 import narwhals.stable.v2 as nw
 
@@ -162,10 +162,8 @@ class IbisTableManagerFactory(TableManagerFactory):
                 )
 
                 bin_values = []
-                bin_start: Union[
-                    datetime.datetime, datetime.date, datetime.time
-                ]
-                bin_end: Union[datetime.datetime, datetime.date, datetime.time]
+                bin_start: datetime.datetime | datetime.date | datetime.time
+                bin_end: datetime.datetime | datetime.date | datetime.time
 
                 for row in numeric_bin_values.itertuples(index=False):
                     if dtype.is_date():

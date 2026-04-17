@@ -11,6 +11,8 @@ import type {
   CopyNotebookRequest,
   ExportAsHTMLRequest,
   ExportAsMarkdownRequest,
+  FileCopyRequest,
+  FileCopyResponse,
   FileCreateRequest,
   FileCreateResponse,
   FileDeleteRequest,
@@ -86,6 +88,7 @@ export interface RawBridge {
   delete_file_or_directory(
     request: FileDeleteRequest,
   ): Promise<FileDeleteResponse>;
+  copy_file_or_directory(request: FileCopyRequest): Promise<FileCopyResponse>;
   move_file_or_directory(request: FileMoveRequest): Promise<FileMoveResponse>;
   update_file(request: FileUpdateRequest): Promise<FileUpdateResponse>;
   load_packages(request: string): Promise<string>;

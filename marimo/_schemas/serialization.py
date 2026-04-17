@@ -3,14 +3,14 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 from marimo._ast.names import DEFAULT_CELL_NAME
 
 if TYPE_CHECKING:
-    from typing_extensions import TypeAlias
+    from typing import TypeAlias
 
-NodeRef: TypeAlias = Union[ast.stmt, ast.expr]
+NodeRef: TypeAlias = ast.stmt | ast.expr
 
 
 @dataclass
@@ -44,7 +44,7 @@ class CellDef(Node):
     name: str = DEFAULT_CELL_NAME
     options: dict[str, Any] = field(default_factory=dict)
 
-    _ast: Optional[NodeRef] = None
+    _ast: NodeRef | None = None
 
     def __post_init__(self) -> None:
         from marimo._ast.parse import extract_lineno
@@ -121,12 +121,12 @@ class NotebookSerializationV1:
     """
 
     app: AppInstantiation
-    header: Optional[Header] = None
-    version: Optional[str] = None
+    header: Header | None = None
+    version: str | None = None
     cells: list[CellDef] = field(default_factory=list)
     violations: list[Violation] = field(default_factory=list)
     valid: bool = True
-    filename: Optional[str] = None
+    filename: str | None = None
 
 
 NotebookSerialization: TypeAlias = NotebookSerializationV1

@@ -6,7 +6,7 @@ import re
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo._ast.cell import CellImpl, _is_coroutine
 from marimo._ast.variables import is_mangled_local
@@ -61,7 +61,7 @@ class ExecutionConfig:
 
 
 def _raise_name_error(
-    graph: Optional[DirectedGraph], name_error: NameError
+    graph: DirectedGraph | None, name_error: NameError
 ) -> None:
     if graph is None:
         raise MarimoRuntimeException from name_error
@@ -75,7 +75,7 @@ def _raise_name_error(
 
 
 class Executor(ABC):
-    def __init__(self, base: Optional[Executor] = None) -> None:
+    def __init__(self, base: Executor | None = None) -> None:
         self.base = base
 
     @abstractmethod
@@ -102,7 +102,7 @@ class DefaultExecutor(Executor):
         self,
         cell: CellImpl,
         glbls: dict[str, Any],
-        graph: Optional[DirectedGraph] = None,
+        graph: DirectedGraph | None = None,
     ) -> Any:
         if cell.body is None:
             return None
@@ -128,7 +128,7 @@ class DefaultExecutor(Executor):
         self,
         cell: CellImpl,
         glbls: dict[str, Any],
-        graph: Optional[DirectedGraph] = None,
+        graph: DirectedGraph | None = None,
     ) -> Any:
         try:
             if cell.body is None:

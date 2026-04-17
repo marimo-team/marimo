@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
-
 from marimo import _loggers
 from marimo._save.stores.store import Store
 
@@ -26,7 +24,7 @@ class TieredStore(Store):
             raise ValueError("At least one store is required")
         self.stores = stores
 
-    def get(self, key: str) -> Optional[bytes]:
+    def get(self, key: str) -> bytes | None:
         """Get a value from the first store that has it."""
         for i, store in enumerate(self.stores):
             try:

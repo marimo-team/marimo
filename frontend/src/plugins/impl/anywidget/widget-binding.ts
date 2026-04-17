@@ -5,6 +5,7 @@ import type { AnyWidget, Experimental } from "@anywidget/types";
 import { asRemoteURL } from "@/core/runtime/config";
 import { resolveVirtualFileURL } from "@/core/static/files";
 import { isStaticNotebook } from "@/core/static/static-state";
+import { isTrustedVirtualFileUrl } from "@/plugins/core/trusted-url";
 import { Logger } from "@/utils/Logger";
 import type { Model } from "./model";
 import type { ModelState, WidgetModelId } from "./types";
@@ -80,6 +81,18 @@ class WidgetDefRegistry {
   }
 
   async #doImport(jsUrl: string): Promise<any> {
+    // Only trust marimo virtual file paths. Accepting arbitrary URLs
+    // would let a raw `<marimo-anywidget data-js-url=...>` element
+    // embedded in a markdown cell dynamically import attacker-controlled
+    // JavaScript at same origin (the HTML sanitizer allows any marimo-*
+    // custom element with any attribute through to the plugin layer).
+    if (!isTrustedVirtualFileUrl(jsUrl)) {
+      throw new Error(
+        `Refusing to load anywidget module from untrusted URL: ${String(
+          jsUrl,
+        )}`,
+      );
+    }
     let url = asRemoteURL(jsUrl).toString();
     if (isStaticNotebook()) {
       url = resolveVirtualFileURL(url);

@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo._types.ids import CellId_t
 
@@ -14,7 +14,7 @@ def similarity_score(s1: str, s2: str) -> float:
     Returns lower score for more similar strings."""
     # Find common prefix length
     prefix_len = 0
-    for c1, c2 in zip(s1, s2):
+    for c1, c2 in zip(s1, s2, strict=False):
         if c1 != c2:
             break
         prefix_len += 1
@@ -24,7 +24,7 @@ def similarity_score(s1: str, s2: str) -> float:
         s1_rev = s1[::-1]
         s2_rev = s2[::-1]
         suffix_len = 0
-        for c1, c2 in zip(s1_rev, s2_rev):
+        for c1, c2 in zip(s1_rev, s2_rev, strict=False):
             if c1 != c2:
                 break
             suffix_len += 1
@@ -39,7 +39,7 @@ def group_lookup(
     ids: Sequence[CellId_t], codes: Sequence[str]
 ) -> dict[str, list[tuple[int, CellId_t]]]:
     lookup: dict[str, list[tuple[int, CellId_t]]] = {}
-    for idx, (cell_id, code) in enumerate(zip(ids, codes)):
+    for idx, (cell_id, code) in enumerate(zip(ids, codes, strict=False)):
         lookup.setdefault(code, []).append((idx, cell_id))
     return lookup
 
@@ -201,7 +201,7 @@ def _match_cell_ids_by_similarity(
     previous_lookup = group_lookup(prev_ids, prev_codes)
     next_lookup = group_lookup(next_ids, next_codes)
 
-    result: list[Optional[CellId_t]] = [None] * len(next_codes)
+    result: list[CellId_t | None] = [None] * len(next_codes)
     filled = 0
     for idx, code in enumerate(next_codes):
         if code in previous_lookup:
@@ -289,8 +289,8 @@ def match_cell_ids_by_similarity(
         A map of old ids to new ids, using prev_ids where possible
     """
 
-    prev_ids, prev_codes = zip(*prev_data.items())
-    next_ids, next_codes = zip(*next_data.items())
+    prev_ids, prev_codes = zip(*prev_data.items(), strict=False)
+    next_ids, next_codes = zip(*next_data.items(), strict=False)
 
     sorted_ids = _match_cell_ids_by_similarity(
         prev_ids,
@@ -299,4 +299,4 @@ def match_cell_ids_by_similarity(
         next_codes,
     )
 
-    return dict(zip(sorted_ids, next_ids))
+    return dict(zip(sorted_ids, next_ids, strict=False))

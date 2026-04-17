@@ -37,7 +37,10 @@ import {
   extractTimezone,
   type FieldTypesWithExternalType,
   INDEX_COLUMN_NAME,
+  isNumericType,
 } from "./types";
+import { SentinelCell } from "./sentinel-cell";
+import { detectSentinel } from "./utils";
 import { uniformSample } from "./uniformSample";
 import { MarkdownUrlDetector, UrlDetector } from "./url-detector";
 
@@ -163,7 +166,7 @@ export function generateColumns<T>({
     }
     // Auto right-align numeric columns
     const dataType = getMeta(key).dataType;
-    if (dataType === "number" || dataType === "integer") {
+    if (isNumericType(dataType)) {
       return "right";
     }
     return undefined;
@@ -206,41 +209,30 @@ export function generateColumns<T>({
             </div>
           ) : null;
 
-        const justify = getJustify(key);
-
-        const headerWithType = (
-          <div
+        const headerName = (
+          <span
             className={cn(
-              "flex flex-col",
-              justify === "center" && "items-center",
-              justify === "right" && "items-end",
+              "font-bold",
+              headerTitle && "underline decoration-dotted",
             )}
           >
-            <span
-              className={cn(
-                "font-bold",
-                headerTitle && "underline decoration-dotted",
-              )}
-            >
-              {key === "" ? " " : key}
-            </span>
-            {dtypeHeader}
-          </div>
+            {key === "" ? " " : key}
+          </span>
         );
 
         const headerWithTooltip = headerTitle ? (
           <Tooltip content={headerTitle} delayDuration={300}>
-            {headerWithType}
+            {headerName}
           </Tooltip>
         ) : (
-          headerWithType
+          headerName
         );
 
         const dataTableColumnHeader = (
           <DataTableColumnHeader
             header={headerWithTooltip}
+            subheader={dtypeHeader}
             column={column}
-            justify={justify}
             calculateTopKRows={calculateTopKRows}
             table={table}
           />
@@ -255,8 +247,6 @@ export function generateColumns<T>({
           <div
             className={cn(
               "flex flex-col h-full pt-0.5 pb-3 justify-between items-start",
-              justify === "center" && "items-center",
-              justify === "right" && "items-end",
             )}
           >
             {dataTableColumnHeader}
@@ -282,14 +272,14 @@ export function generateColumns<T>({
           !isCellSelected;
 
         const dataType = column.columnDef.meta?.dataType;
-        const isNumeric = dataType === "number" || dataType === "integer";
-        const cellStyles = getCellStyleClass(
+        const isNumeric = isNumericType(dataType);
+        const cellStyles = getCellStyleClass({
           justify,
           wrapped,
           canSelectCell,
-          isCellSelected,
+          isSelected: isCellSelected,
           isNumeric,
-        );
+        });
 
         const renderedCell = renderCellValue({
           column,
@@ -448,13 +438,19 @@ function getFilterTypeForFieldType(
   }
 }
 
-function getCellStyleClass(
-  justify: "left" | "center" | "right" | undefined,
-  wrapped: boolean | undefined,
-  canSelectCell: boolean,
-  isSelected: boolean,
-  isNumeric?: boolean,
-): string {
+function getCellStyleClass({
+  justify = "left",
+  wrapped,
+  canSelectCell,
+  isSelected,
+  isNumeric = false,
+}: {
+  justify: "left" | "center" | "right" | undefined;
+  wrapped: boolean | undefined;
+  canSelectCell: boolean;
+  isSelected: boolean;
+  isNumeric?: boolean;
+}): string {
   return cn(
     canSelectCell && "cursor-pointer",
     isSelected &&
@@ -528,6 +524,17 @@ export function renderCellValue<TData, TValue>({
   const dtype = column.columnDef.meta?.dtype;
 
   const isWrapped = column.getColumnWrapping?.() === "wrap";
+
+  // Sentinel values (null, whitespace, NaN, Infinity, NaT) rendered specially.
+  // Empty strings are left as-is
+  const sentinel = detectSentinel(value, dataType);
+  if (sentinel && sentinel.type !== "empty-string") {
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        <SentinelCell sentinel={sentinel} />
+      </div>
+    );
+  }
 
   if (dataType === "datetime" && typeof value === "string") {
     try {

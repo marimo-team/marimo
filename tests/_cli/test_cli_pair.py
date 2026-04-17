@@ -2,20 +2,18 @@
 from __future__ import annotations
 
 import hashlib
-from typing import TYPE_CHECKING
+import sys
+from pathlib import Path
 from unittest.mock import patch
 
 from click.testing import CliRunner
 
 from marimo._cli.cli import main as cli_main
-from marimo._cli.pair.commands import AgentConfig
+from marimo._cli.pair.commands import AgentConfig, _opencode_skill_dirs
 
 _runner = CliRunner()
 
 TEST_URL = "https://localhost:8000?auth=tok123"
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 class TestPairGroup:
@@ -91,7 +89,8 @@ class TestPairPromptWithToken:
         token_file = tmp_path / f"{url_hash}-token.txt"
         assert token_file.exists()
         assert token_file.read_text() == "my-secret-token"
-        assert oct(token_file.stat().st_mode & 0o777) == "0o600"
+        if sys.platform != "win32":
+            assert oct(token_file.stat().st_mode & 0o777) == "0o600"
 
     def test_with_token_still_requires_url(self) -> None:
         result = _runner.invoke(
@@ -148,6 +147,20 @@ class TestPairPromptWithToken:
         )
         assert result.exit_code == 0
         assert "cat" not in result.output
+
+
+class TestOpencodeSkillDirs:
+    def test_opencode_skill_dirs(self) -> None:
+        cwd = Path.cwd()
+        home = Path.home()
+        assert _opencode_skill_dirs() == [
+            cwd / ".opencode" / "skills",
+            home / ".config" / "opencode" / "skills",
+            cwd / ".claude" / "skills",
+            home / ".claude" / "skills",
+            cwd / ".agents" / "skills",
+            home / ".agents" / "skills",
+        ]
 
 
 class TestAgentConfig:

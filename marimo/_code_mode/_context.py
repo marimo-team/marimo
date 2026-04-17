@@ -24,13 +24,26 @@ Usage::
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, overload
+from dataclasses import dataclass
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Literal, Protocol, overload
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellImpl
+from marimo._ast.cell import (
+    CellConfig,
+    CellImpl,
+    RunResultStatusType,
+    RuntimeStateType,
+)
 from marimo._ast.cell_id import CellIdGenerator
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import SETUP_CELL_NAME
+from marimo._code_mode._better_inspect import _HelpableEnumMeta, helpable
+from marimo._code_mode._packages import (
+    Packages,
+    _AddPackage,
+    _RemovePackage,
+)
 from marimo._code_mode._plan import (
     _AddOp,
     _build_plan,
@@ -41,6 +54,7 @@ from marimo._code_mode._plan import (
     _UpdateOp,
     _validate_ops,
 )
+from marimo._messaging.errors import Error
 from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
@@ -51,7 +65,10 @@ from marimo._messaging.notebook.changes import (
     SetName,
     Transaction,
 )
-from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
+from marimo._messaging.notebook.document import (
+    NotebookCell as _NotebookCell,
+    NotebookDocument,
+)
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     Notification,
@@ -61,7 +78,6 @@ from marimo._runtime.commands import (
     CommandMessage,
     DeleteCellCommand,
     ExecuteCellCommand,
-    InstallPackagesCommand,
     UpdateUIElementCommand,
 )
 from marimo._runtime.context import get_context as _get_runtime_context
@@ -71,15 +87,99 @@ from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.formatter import DefaultFormatter
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
     from types import TracebackType
+
+    from typing_extensions import Self
 
     from marimo._ast.cell_manager import CellManager
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
 
 
+@helpable
+class CellStatusType(str, Enum, metaclass=_HelpableEnumMeta):
+    """Synthesized cell execution status.
+
+    Returned by ``NotebookCell.status``.  Compares equal to plain
+    strings, so ``cell.status == "idle"`` works as expected.
+    """
+
+    idle = "idle"
+    """Ran successfully, up to date."""
+    exception = "exception"
+    """Cell raised an exception."""
+    stale = "stale"
+    """Needs re-run (code edited, inputs changed, or never run)."""
+    cancelled = "cancelled"
+    """Ancestor raised an exception."""
+    interrupted = "interrupted"
+    """Execution was interrupted."""
+    marimo_error = "marimo-error"
+    """Prevented from executing (e.g. multiply-defined name)."""
+    disabled = "disabled"
+    """Cell is disabled."""
+    queued = "queued"
+    """Waiting to run."""
+    running = "running"
+    """Currently executing."""
+
+    def __str__(self) -> str:
+        return self.value
+
+    def __repr__(self) -> str:
+        return repr(self.value)
+
+
+CellErrorKind = Literal["graph", "runtime"]
+
+
+@helpable
+@dataclass(frozen=True, slots=True)
+class CellError:
+    """An error affecting a notebook cell.
+
+    Parameters
+    ----------
+    kind : ``"graph"`` or ``"runtime"``
+        ``"graph"`` — a dataflow-graph error that *prevents* execution
+        (multiply-defined variable, cycle, etc.).
+        ``"runtime"`` — an exception raised during execution.
+    msg : str
+        Human-readable description.
+    exception : Exception | None
+        The original ``Exception`` for runtime errors; ``None`` for
+        graph errors.
+    """
+
+    kind: CellErrorKind
+    msg: str
+    exception: Exception | None = None
+
+    def __repr__(self) -> str:
+        return f"CellError(kind={self.kind!r}, msg={self.msg!r})"
+
+
+class CellRuntimeState(Protocol):
+    """The subset of ``CellImpl`` that ``NotebookCell`` reads."""
+
+    @property
+    def code(self) -> str: ...
+    @property
+    def runtime_state(self) -> RuntimeStateType | None: ...
+    @property
+    def run_result_status(self) -> RunResultStatusType | None: ...
+    @property
+    def stale(self) -> bool: ...
+    @property
+    def exception(self) -> Exception | None: ...
+
+
 LOGGER = _loggers.marimo_logger()
+
+# Set the first time `ctx.install_packages` (legacy alias) is used in a
+# session, so the nudge is printed once per process instead of every call.
+_LEGACY_INSTALL_WARNED = False
 
 
 # ------------------------------------------------------------------
@@ -107,7 +207,7 @@ def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
     """
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
-        raise RuntimeError("code mode requires a running kernel context")  # noqa: TRY004
+        raise RuntimeError("code mode requires a running kernel context")
     cell_manager = runtime_ctx._app.cell_manager if runtime_ctx._app else None
     return AsyncCodeModeContext(
         runtime_ctx._kernel,
@@ -116,6 +216,167 @@ def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
     )
 
 
+@helpable
+class NotebookCell:
+    """Read-only view of a single cell with runtime status.
+
+    Wraps the document-level cell data and enriches it with
+    live execution state from the kernel's dependency graph.
+
+    Properties
+    ----------
+    id : CellId_t
+    code : str
+    name : str
+    config : CellConfig
+    status : CellStatusType | None
+        Synthesized execution status. Priority order:
+        transient state (queued/running/disabled) > stale > last run result.
+        ``None`` if the cell has never been registered in the graph.
+    errors : list[CellError]
+        Structured errors affecting this cell.
+        Each entry is a ``CellError`` with ``kind``, ``msg``, and
+        ``exception`` fields. Covers both runtime exceptions
+        (e.g. ``NameError``) and graph errors (multiply-defined
+        variables, cycles, etc.).
+    """
+
+    __slots__ = ("_cell", "_graph_errors", "_impl")
+
+    def __init__(
+        self,
+        cell: _NotebookCell,
+        cell_impl: CellRuntimeState | None,
+        graph_errors: tuple[Error, ...] = (),
+    ) -> None:
+        self._cell = cell
+        self._impl = cell_impl
+        self._graph_errors = graph_errors
+
+    # -- document properties (delegated) --
+
+    @property
+    def id(self) -> CellId_t:
+        """The unique cell identifier."""
+        return self._cell.id
+
+    @property
+    def code(self) -> str:
+        """The current source code of the cell."""
+        return self._cell.code
+
+    @property
+    def name(self) -> str:
+        """The cell's display name (empty string if unnamed)."""
+        return self._cell.name
+
+    @property
+    def config(self) -> CellConfig:
+        """The cell's configuration (e.g. disabled, hide_code)."""
+        return self._cell.config
+
+    # -- runtime properties --
+
+    def _is_stale(self) -> bool:
+        """Whether the cell needs to be (re-)run.
+
+        True when:
+        - The cell has code but was never run (no impl in the graph).
+        - The cell's code was edited since it was last run.
+        - The runtime marked the cell stale (lazy mode: inputs changed).
+        """
+        if self._impl is None:
+            return bool(self._cell.code)
+        return self._cell.code != self._impl.code or self._impl.stale
+
+    @property
+    def status(self) -> CellStatusType | None:
+        """Synthesized cell status.
+
+        Possible values:
+
+        - ``"idle"`` — ran successfully, up to date.
+        - ``"exception"`` — cell raised an exception.
+        - ``"stale"`` — needs re-run (code edited, inputs changed, or never run).
+        - ``"cancelled"`` — ancestor raised an exception.
+        - ``"interrupted"`` — execution was interrupted.
+        - ``"marimo-error"`` — prevented from executing (e.g. multiply-defined name).
+        - ``"disabled"`` — cell is disabled.
+        - ``"queued"`` — waiting to run.
+        - ``"running"`` — currently executing.
+        - ``None`` — empty cell, never registered in the graph.
+
+        Priority: transient state (queued/running/disabled) >
+        stale > last run result.
+        """
+        if self._impl is None:
+            return CellStatusType.stale if self._cell.code else None
+        # Transient runtime state takes priority.
+        rs = self._impl.runtime_state
+        if rs == "queued":
+            return CellStatusType.queued
+        if rs == "running":
+            return CellStatusType.running
+        if rs == "disabled-transitively":
+            return CellStatusType.disabled
+        # Stale overrides last run result.
+        if self._is_stale():
+            return CellStatusType.stale
+        # Fall back to last execution result.
+        rr = self._impl.run_result_status
+        if rr is None:
+            # Registered in the graph but never executed.
+            return CellStatusType.stale if self._cell.code else None
+        if rr == "success":
+            return CellStatusType.idle
+        return CellStatusType(rr)
+
+    @property
+    def errors(self) -> list[CellError]:
+        """All errors affecting this cell.
+
+        Returns a list of :class:`CellError` objects. Each has a
+        ``kind`` (``"graph"`` or ``"runtime"``), a human-readable
+        ``msg``, and for runtime errors the original ``exception``.
+
+        Returns an empty list when the cell is healthy.
+        """
+        result: list[CellError] = [
+            CellError(kind="graph", msg=err.describe())
+            for err in self._graph_errors
+        ]
+        if self._impl and self._impl.exception is not None:
+            exc = self._impl.exception
+            result.append(
+                CellError(
+                    kind="runtime",
+                    msg=f"{type(exc).__name__}: {exc}",
+                    exception=exc,
+                )
+            )
+        return result
+
+    # -- display --
+
+    def __repr__(self) -> str:
+        first_line = self.code.split("\n", 1)[0]
+        if len(first_line) > 80:
+            code_preview = first_line[:80] + "..."
+        elif "\n" in self.code:
+            code_preview = first_line + "..."
+        else:
+            code_preview = first_line
+        name_part = f", name={self.name!r}" if self.name else ""
+        status_part = f", status={self.status!r}" if self.status else ""
+        errors = self.errors
+        errors_part = f", errors={errors!r}" if errors else ""
+        return (
+            f"NotebookCell(id={self.id!r}{name_part}"
+            f"{status_part}{errors_part}, code={code_preview!r})"
+        )
+
+
+@helpable
 class _CellsView:
     """Read-only, ordered view over notebook cells.
 
@@ -126,16 +387,16 @@ class _CellsView:
         ctx.cells["Abcd1234"]  # by cell ID
         ctx.cells["my_cell"]  # by cell name
 
-    Iteration yields ``NotebookCell`` objects directly::
+    Iteration yields ``NotebookCell`` objects with runtime status::
 
         for cell in ctx.cells:
-            print(cell.id, cell.code)
+            print(cell.id, cell.code, cell.status)
 
     Dict-like access is also available::
 
         ctx.cells.keys()  # list of CellId_t
-        ctx.cells.values()  # list of NotebookCell
-        ctx.cells.items()  # list of (CellId_t, NotebookCell)
+        ctx.cells.values()  # sequence of NotebookCell
+        ctx.cells.items()  # sequence of (CellId_t, NotebookCell)
         "my_cell" in ctx.cells  # membership test
     """
 
@@ -145,6 +406,17 @@ class _CellsView:
     @property
     def _doc(self) -> NotebookDocument:
         return self._ctx._document
+
+    def _cell_view(self, cell: _NotebookCell) -> NotebookCell:
+        """Wrap a document cell with runtime state from the graph."""
+        try:
+            graph = self._ctx.graph
+            impl = graph.cells.get(cell.id)
+            graph_errors = self._ctx._kernel.errors.get(cell.id, ())
+        except AttributeError:
+            impl = None
+            graph_errors = ()
+        return NotebookCell(cell, impl, graph_errors=graph_errors)
 
     def _cell_ids(self) -> list[CellId_t]:
         return list(self._doc)
@@ -186,12 +458,12 @@ class _CellsView:
 
     def __getitem__(self, key: int | str) -> NotebookCell:
         if isinstance(key, int):
-            return self._doc.cells[key]
-        return self._doc.get_cell(self._resolve(key))
+            return self._cell_view(self._doc.cells[key])
+        return self._cell_view(self._doc.get_cell(self._resolve(key)))
 
     def __iter__(self) -> Iterator[NotebookCell]:
         for cell_id in self._doc.cell_ids:
-            yield self._doc.get_cell(cell_id)
+            yield self._cell_view(self._doc.get_cell(cell_id))
 
     def __contains__(self, key: object) -> bool:
         if isinstance(key, int):
@@ -204,23 +476,23 @@ class _CellsView:
                 return False
         return False
 
-    def keys(self) -> list[CellId_t]:
+    def keys(self) -> Sequence[CellId_t]:
         """Return cell IDs in notebook order."""
         return self._doc.cell_ids
 
-    def values(self) -> list[NotebookCell]:
+    def values(self) -> Sequence[NotebookCell]:
         """Return cell data in notebook order."""
-        return self._doc.cells
+        return [self._cell_view(c) for c in self._doc.cells]
 
-    def items(self) -> list[tuple[CellId_t, NotebookCell]]:
+    def items(self) -> Sequence[tuple[CellId_t, NotebookCell]]:
         """Return (cell_id, cell_data) pairs in notebook order."""
-        return [(c.id, c) for c in self._doc.cells]
+        return [(c.id, self._cell_view(c)) for c in self._doc.cells]
 
     # ------------------------------------------------------------------
     # Content search
     # ------------------------------------------------------------------
 
-    def find(self, substring: str) -> list[NotebookCell]:
+    def find(self, substring: str) -> Sequence[NotebookCell]:
         """Return cells whose code contains *substring*.
 
         Performs a case-sensitive substring search on each cell's code.
@@ -229,9 +501,11 @@ class _CellsView:
 
             ctx.cells.find("import marimo")
         """
-        return [c for c in self._doc.cells if substring in c.code]
+        return [
+            self._cell_view(c) for c in self._doc.cells if substring in c.code
+        ]
 
-    def grep(self, pattern: str) -> list[NotebookCell]:
+    def grep(self, pattern: str) -> Sequence[NotebookCell]:
         """Return cells whose code matches the regex *pattern*.
 
         Uses :func:`re.search` so the pattern can match anywhere in
@@ -244,31 +518,37 @@ class _CellsView:
         import re
 
         compiled = re.compile(pattern)
-        return [c for c in self._doc.cells if compiled.search(c.code)]
+        return [
+            self._cell_view(c)
+            for c in self._doc.cells
+            if compiled.search(c.code)
+        ]
 
     # ------------------------------------------------------------------
     # Display
     # ------------------------------------------------------------------
 
     def __repr__(self) -> str:
-        cells = self._doc.cells
-        n = len(cells)
+        doc_cells = self._doc.cells
+        n = len(doc_cells)
         max_shown = 10
         lines = [f"CellsView({n} cell{'s' if n != 1 else ''}):"]
 
-        def _fmt(i: int, c: NotebookCell) -> str:
+        def _fmt(i: int, c: _NotebookCell) -> str:
+            cv = self._cell_view(c)
             first_line = c.code.split("\n", 1)[0]
             code_preview = first_line[:50]
             if len(first_line) > 50:
                 code_preview += "..."
             name_part = f" ({c.name})" if c.name else ""
-            return f"  [{i}] {c.id}{name_part} | {code_preview}"
+            status_part = f" [{cv.status}]" if cv.status else ""
+            return f"  [{i}] {c.id}{name_part}{status_part} | {code_preview}"
 
         if n <= max_shown:
-            for i, c in enumerate(cells):
+            for i, c in enumerate(doc_cells):
                 lines.append(_fmt(i, c))
         else:
-            for i, c in enumerate(cells[:max_shown]):
+            for i, c in enumerate(doc_cells[:max_shown]):
                 lines.append(_fmt(i, c))
             omitted = n - max_shown - 1
             if omitted > 0:
@@ -276,7 +556,7 @@ class _CellsView:
                     f"  ... {omitted} more cell"
                     f"{'s' if omitted != 1 else ''} ..."
                 )
-            lines.append(_fmt(n - 1, cells[-1]))
+            lines.append(_fmt(n - 1, doc_cells[-1]))
         return "\n".join(lines)
 
 
@@ -285,6 +565,7 @@ class _CellsView:
 # ------------------------------------------------------------------
 
 
+@helpable
 class AsyncCodeModeContext:
     """Async programmatic control of a running marimo notebook.
 
@@ -329,7 +610,7 @@ class AsyncCodeModeContext:
         # document prevents collisions with cells already on disk.
         self._id_generator = CellIdGenerator(seed=None)
         self._id_generator.seen_ids = set(document.cell_ids)
-        self._packages_to_install: list[str] = []
+        self._packages = Packages(self)
         self._ui_updates: list[tuple[UIElementId, Any]] = []
         self._cells_to_run: set[CellId_t] = set()
         self._entered = False
@@ -345,14 +626,32 @@ class AsyncCodeModeContext:
                 "Without 'async with', operations are silently lost."
             )
 
+    def __getattr__(self, name: str) -> Any:
+        # Legacy alias: `ctx.install_packages(...)` was the pre-namespace
+        # API. Kept as a hidden shim for in-flight skills / examples;
+        # does not appear in dir() or IDE completion. Prefer
+        # `ctx.packages.add(...)` in new code.
+        if name == "install_packages":
+            global _LEGACY_INSTALL_WARNED
+            if not _LEGACY_INSTALL_WARNED:
+                _LEGACY_INSTALL_WARNED = True
+                sys.stderr.write(
+                    "note: ctx.install_packages() is a legacy alias — "
+                    "please update to ctx.packages.add()\n"
+                )
+            return self.packages.add
+        raise AttributeError(
+            f"{type(self).__name__!r} object has no attribute {name!r}"
+        )
+
     # ------------------------------------------------------------------
     # Async context manager
     # ------------------------------------------------------------------
 
-    async def __aenter__(self) -> AsyncCodeModeContext:
+    async def __aenter__(self) -> Self:
         self._ops = []
         self._pending_adds = {}
-        self._packages_to_install = []
+        self._packages._reset()
         self._ui_updates = []
         self._cells_to_run = set()
         self._entered = True
@@ -365,26 +664,20 @@ class AsyncCodeModeContext:
         exc_tb: TracebackType | None,
     ) -> None:
         ops = self._ops
-        packages = self._packages_to_install
         ui_updates = self._ui_updates
         cells_to_run = self._cells_to_run
         self._ops = []
         self._pending_adds = {}
-        self._packages_to_install = []
         self._ui_updates = []
         self._cells_to_run = set()
 
         if exc_type is not None:
+            self._packages._reset()
             return  # let exception propagate, discard queued ops
 
-        # Install queued packages before applying cell ops so that
-        # newly added cells can import them.
-        if packages:
-            manager = self._kernel.user_config["package_management"]["manager"]
-            for pkg in packages:
-                await self.execute_command(
-                    InstallPackagesCommand(manager=manager, versions={pkg: ""})
-                )
+        # Flush queued package ops before cell ops so newly added
+        # cells can import newly installed packages.
+        package_ops = await self._packages._flush()
 
         if ops:
             _validate_ops(ops)
@@ -392,11 +685,20 @@ class AsyncCodeModeContext:
                 self._dry_run_compile(ops)
             await self._apply_ops(ops, cells_to_run)
         elif cells_to_run:
-            await self._kernel._run_cells(cells_to_run)
+            code_lookup = {c.id: c.code for c in self._document.cells}
+            await self._kernel.run(
+                [
+                    ExecuteCellCommand(
+                        cell_id=cid,
+                        code=code_lookup[cid],
+                    )
+                    for cid in cells_to_run
+                ]
+            )
 
         # Flush queued UI updates as a single batch.
         if ui_updates:
-            object_ids, values = zip(*ui_updates)
+            object_ids, values = zip(*ui_updates, strict=False)
             await self._kernel.set_ui_element_value(
                 UpdateUIElementCommand(
                     object_ids=list(object_ids),
@@ -405,7 +707,7 @@ class AsyncCodeModeContext:
             )
 
         # Print a summary of what was applied.
-        self._print_summary(ops, packages, ui_updates, cells_to_run)
+        self._print_summary(ops, package_ops, ui_updates, cells_to_run)
 
     # ------------------------------------------------------------------
     # Summary
@@ -414,15 +716,18 @@ class AsyncCodeModeContext:
     def _print_summary(
         self,
         ops: list[_Op],
-        packages: list[str],
+        package_ops: list[_AddPackage | _RemovePackage],
         ui_updates: list[tuple[UIElementId, Any]],
         cells_to_run: set[CellId_t] | None = None,
     ) -> None:
         """Print a human-readable summary of applied operations."""
         lines: list[str] = []
 
-        for pkg in packages:
-            lines.append(f"installed {pkg}")
+        for pkg_op in package_ops:
+            if isinstance(pkg_op, _AddPackage):
+                lines.append(f"installed {pkg_op.package}")
+            else:
+                lines.append(f"uninstalled {pkg_op.package}")
 
         _run = cells_to_run or set()
         op_cell_ids: set[CellId_t] = set()
@@ -514,6 +819,22 @@ class AsyncCodeModeContext:
             ctx.cells["my_cell"]  # by cell name
         """
         return _CellsView(self)
+
+    @property
+    def packages(self) -> Packages:
+        """Package management for the notebook's Python environment.
+
+        List currently installed packages::
+
+            ctx.packages.list()  # -> list[PackageDescription]
+
+        Queue packages to install or remove; mutations flush on exit
+        before cell ops so newly added cells can import them::
+
+            ctx.packages.add("pandas", "numpy>=1.26")
+            ctx.packages.remove("old-pkg")
+        """
+        return self._packages
 
     # ------------------------------------------------------------------
     # Mutation methods (queue ops, applied on __aexit__)
@@ -1129,35 +1450,6 @@ class AsyncCodeModeContext:
         """
         self._require_entered()
         self._ui_updates.append((UIElementId(element._id), value))
-
-    # ------------------------------------------------------------------
-    # Package management
-    # ------------------------------------------------------------------
-
-    def install_packages(
-        self, *packages: str | list[str] | tuple[str, ...]
-    ) -> None:
-        """Queue packages for installation on context exit.
-
-        Installed before cell ops, so newly added cells can import them.
-
-        Examples:
-            ```python
-            ctx.install_packages("pandas")
-            ctx.install_packages("polars>=0.20", "numpy==1.26")
-            ctx.install_packages(["altair", "vega_datasets"])
-            ```
-
-        Args:
-            *packages: Pip-style package specifiers. Accepts individual
-                strings, or a list/tuple of strings.
-        """
-        self._require_entered()
-        for pkg in packages:
-            if isinstance(pkg, (list, tuple)):
-                self._packages_to_install.extend(pkg)
-            else:
-                self._packages_to_install.append(pkg)
 
     # ------------------------------------------------------------------
     # Low-level primitives

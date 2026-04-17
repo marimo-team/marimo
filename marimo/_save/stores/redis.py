@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from marimo._save.stores.store import Store
 
@@ -15,7 +15,7 @@ class RedisStore(Store):
         # See list of options here:
         self.redis = redis.Redis(**kwargs)
 
-    def get(self, key: str) -> Optional[bytes]:
+    def get(self, key: str) -> bytes | None:
         result = self.redis.get(key)
         if result is None:
             return None
@@ -23,9 +23,7 @@ class RedisStore(Store):
 
     def put(self, key: str, value: bytes) -> bool:
         result = self.redis.set(key, value)
-        if result is None:
-            return False
-        return True
+        return result is not None
 
     def hit(self, key: str) -> bool:
         return self.redis.exists(key) > 0

@@ -35,7 +35,7 @@ class TestAppHostCommands:
                 configs={},
                 app_metadata=app_metadata,
                 user_config=user_config,
-                virtual_files_supported=True,
+                virtual_file_storage="shared_memory",
                 redirect_console_to_browser=True,
                 log_level=10,
             ),
@@ -455,7 +455,7 @@ class TestAppHostMultipleClients:
                             )
                         )
                     ),
-                    virtual_files_supported=True,
+                    virtual_file_storage="shared_memory",
                     redirect_console_to_browser=False,
                     ttl_seconds=None,
                     auto_instantiate=False,

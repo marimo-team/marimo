@@ -8,14 +8,19 @@ Extensions provide a way to add cross-cutting concerns to sessions
 from __future__ import annotations
 
 import asyncio
+import copy
+import html
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from functools import partial
+from typing import TYPE_CHECKING
 
 import msgspec
 
 from marimo import _loggers
 from marimo._cli.print import red
+from marimo._messaging.notebook.document import NotebookCell
 from marimo._messaging.notification import (
+    AlertNotification,
     NotebookDocumentTransactionNotification,
     NotificationMessage,
 )
@@ -26,6 +31,7 @@ from marimo._session.extensions.types import (
     EventAwareExtension,
     SessionExtension,
 )
+from marimo._session.model import SessionMode
 from marimo._session.state.serialize import (
     SessionCacheKey,
     SessionCacheManager,
@@ -41,6 +47,7 @@ from marimo._utils.distributor import (
     QueueDistributor,
 )
 from marimo._utils.print import print_, print_tabbed
+from marimo._utils.serial_task_runner import SerialTaskRunner
 
 if TYPE_CHECKING:
     from logging import Logger
@@ -67,7 +74,7 @@ class HeartbeatExtension(SessionExtension):
     """
 
     def __init__(self) -> None:
-        self.heartbeat_task: Optional[asyncio.Task[None]] = None
+        self.heartbeat_task: asyncio.Task[None] | None = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
@@ -139,7 +146,7 @@ class CachingExtension(EventAwareExtension):
         self.interval = interval
         self.enabled = enabled
         self.mode = mode
-        self.session_cache_manager: Optional[SessionCacheManager] = None
+        self.session_cache_manager: SessionCacheManager | None = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         """Initialize cache manager when attached to session."""
@@ -196,11 +203,11 @@ class CachingExtension(EventAwareExtension):
         """Rename the path for the cache manager."""
         del old_path
         if self.mode is not CacheMode.READ_WRITE:
-            return None
+            return
         path = session.app_file_manager.path
         if self.session_cache_manager and path:
             self.session_cache_manager.rename_path(path)
-        return None
+        return
 
     def _stop(self) -> None:
         """Stop the cache manager."""
@@ -217,7 +224,13 @@ class NotificationListenerExtension(SessionExtension):
     ) -> None:
         self.kernel_manager = kernel_manager
         self.queue_manager = queue_manager
-        self.distributor: Optional[Distributor[KernelMessage]] = None
+        self.distributor: Distributor[KernelMessage] | None = None
+        # Log the unnamed-notebook skip once per session, not per mutation.
+        self._unnamed_autosave_logged = False
+        # FIFO so a slow older save never clobbers a newer one.
+        self._autosave_runner = SerialTaskRunner(
+            thread_name_prefix="marimo-autosave"
+        )
 
     def _create_distributor(
         self,
@@ -232,12 +245,14 @@ class NotificationListenerExtension(SessionExtension):
             # Edit mode with original kernel manager uses connection
             return ConnectionDistributor(kernel_manager.kernel_connection)
 
-    @staticmethod
-    def _on_kernel_message(session: Session, msg: KernelMessage) -> None:
+    def _on_kernel_message(self, session: Session, msg: KernelMessage) -> None:
         """Route a raw kernel message to the appropriate session method.
 
         Document transactions are intercepted and applied to the
         ``session.document``, then ``session.notify()`` is invoked with the (versioned) result.
+
+        Kernel-sourced transactions also trigger an auto-save so agent-driven
+        mutations via ``code_mode`` land on disk the same way frontend edits do.
 
         Everything else is forwarded verbatim via ``session.notify()``.
 
@@ -245,6 +260,7 @@ class NotificationListenerExtension(SessionExtension):
         consider a middleware chain instead of inline dispatch.
         """
         notif: KernelMessage | NotificationMessage = msg
+        kernel_transaction_applied = False
 
         name = try_deserialize_kernel_notification_name(msg)
         if name == NotebookDocumentTransactionNotification.name:
@@ -257,12 +273,77 @@ class NotificationListenerExtension(SessionExtension):
                 notif = NotebookDocumentTransactionNotification(
                     transaction=applied
                 )
-            except Exception:  # noqa: BLE001
+                kernel_transaction_applied = applied.source == "kernel"
+            except Exception:
                 LOGGER.warning(
                     "Failed to decode/apply kernel document transaction"
                 )
 
         session.notify(notif, from_consumer_id=None)
+
+        if kernel_transaction_applied:
+            self._maybe_autosave(session)
+
+    def _maybe_autosave(self, session: Session) -> None:
+        """Best-effort persistence of kernel-driven mutations to disk.
+
+        Skipped in run mode and for unnamed notebooks. Failures surface as
+        an ``AlertNotification`` toast; they never raise out of the
+        interceptor.
+        """
+        if self.kernel_manager.mode != SessionMode.EDIT:
+            return
+
+        expected_filename, expected_generation = (
+            session.app_file_manager.capture_autosave_target()
+        )
+        if expected_filename is None:
+            if not self._unnamed_autosave_logged:
+                LOGGER.debug(
+                    "Skipping code_mode auto-save for unnamed notebook"
+                )
+                self._unnamed_autosave_logged = True
+            return
+
+        # Deep-copy on the caller thread. ``NotebookCell`` and
+        # ``CellConfig`` are mutable and owned by the document, so a
+        # shallow copy would let the event-loop thread mutate fields
+        # under the worker thread's feet (torn snapshot).
+        cells_snapshot: list[NotebookCell] = copy.deepcopy(
+            session.document.cells
+        )
+
+        self._autosave_runner.submit(
+            partial(
+                session.app_file_manager.save_from_cells,
+                cells_snapshot,
+                expected_filename=expected_filename,
+                expected_generation=expected_generation,
+            ),
+            on_error=partial(self._post_autosave_failure, session),
+        )
+
+    @staticmethod
+    def _post_autosave_failure(session: Session, err: Exception) -> None:
+        # Runs on the event loop thread — the runner routes on_error there
+        # so session.notify can safely touch the per-consumer asyncio.Queue.
+        LOGGER.warning(
+            "Failed to auto-save notebook after kernel mutation: %s", err
+        )
+        try:
+            session.notify(
+                AlertNotification(
+                    title="Auto-save failed",
+                    description=html.escape(
+                        f"Could not persist kernel changes to "
+                        f"{session.app_file_manager.path}: {err}"
+                    ),
+                    variant="danger",
+                ),
+                from_consumer_id=None,
+            )
+        except Exception:
+            LOGGER.exception("Failed to broadcast auto-save failure alert")
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
@@ -279,6 +360,8 @@ class NotificationListenerExtension(SessionExtension):
         if self.distributor is not None:
             self.distributor.stop()
             self.distributor = None
+        # Don't block session close on disk I/O; kernel still holds state.
+        self._autosave_runner.shutdown(wait=False)
 
     def flush(self) -> None:
         """Flush any pending messages from the distributor."""
@@ -333,7 +416,7 @@ class SessionViewExtension(EventAwareExtension):
         self,
         session: Session,
         request: commands.CommandMessage,
-        from_consumer_id: Optional[ConsumerId],
+        from_consumer_id: ConsumerId | None,
     ) -> None:
         """Called when a command is received."""
         del from_consumer_id
@@ -363,7 +446,7 @@ class QueueExtension(EventAwareExtension):
         self,
         session: Session,
         request: commands.CommandMessage,
-        from_consumer_id: Optional[ConsumerId],
+        from_consumer_id: ConsumerId | None,
     ) -> None:
         """Called when a command is received."""
         del session
@@ -383,7 +466,7 @@ class ReplayExtension(EventAwareExtension):
         self,
         session: Session,
         request: commands.CommandMessage,
-        from_consumer_id: Optional[ConsumerId],
+        from_consumer_id: ConsumerId | None,
     ) -> None:
         """Called when a command is received."""
         from marimo._messaging.notification import (

@@ -1,19 +1,27 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import os
 import shutil
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock, patch
 
 from marimo._server.api.deps import AppState
-from marimo._server.api.endpoints.assets import _inject_service_worker
+from marimo._server.api.endpoints.assets import (
+    DEFAULT_NOTEBOOK_NAME,
+    _inject_service_worker,
+)
 from marimo._server.api.utils import parse_title
 from marimo._server.file_router import AppFileRouter
 from marimo._session.model import SessionMode
-from tests._server.mocks import token_header, with_file_router
+from marimo._utils.marimo_path import MarimoPath
+from tests._server.mocks import (
+    file_router_scope,
+    token_header,
+    with_file_router,
+)
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -75,30 +83,87 @@ def test_index_when_new_file(client: TestClient) -> None:
     assert "<title>marimo</title>" in content
 
 
-TEMP_DIR = TemporaryDirectory()
+def test_index_strips_access_token_query_param(client: TestClient) -> None:
+    # A valid `?access_token=` in the URL should 303 to the same path with
+    # the token removed, carrying a session cookie so the follow-up request
+    # is already authenticated. This prevents pre-execution XSS, Referer,
+    # or browser history from capturing the plaintext token.
+    response = client.get("/?access_token=fake-token", follow_redirects=False)
+    assert response.status_code == 303, response.text
+    assert response.headers["location"] == "/"
+    assert response.headers.get("referrer-policy") == "no-referrer"
+    assert response.headers.get("x-content-type-options") == "nosniff"
+    # The session cookie must be set so the redirect target is authenticated
+    # without the query param.
+    set_cookie = response.headers.get("set-cookie", "")
+    assert "session" in set_cookie
 
 
-@with_file_router(AppFileRouter.from_directory(TEMP_DIR.name))
-def test_index_with_directory(client: TestClient) -> None:
+def test_index_strips_access_token_preserves_other_params(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/?file=foo.py&access_token=fake-token&view-as=present",
+        follow_redirects=False,
+    )
+    assert response.status_code == 303, response.text
+    location = response.headers["location"]
+    assert location.startswith("/")
+    assert "access_token" not in location
+    assert "file=foo.py" in location
+    assert "view-as=present" in location
+
+
+def test_index_invalid_access_token_redirects_to_login(
+    client: TestClient,
+) -> None:
+    # An invalid token must NOT trigger the token-strip redirect (which
+    # would imply the token was accepted). Instead, `@requires` should
+    # redirect the unauthenticated request to the login page. Following
+    # the redirect lands on the login HTML.
+    response = client.get("/?access_token=wrong-token", follow_redirects=False)
+    assert response.status_code in (302, 303), response.text
+    assert "login" in response.headers["location"].lower()
+    # Following the redirect lands on the login page.
+    followed = client.get("/?access_token=wrong-token")
+    assert followed.status_code == 200
+    assert "Login" in followed.text
+
+
+def test_index_response_has_security_headers(client: TestClient) -> None:
     response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
-    content = response.text
-    assert "<marimo-filename" in content
-    assert '"mode": "home"' in content
-    assert "<title>marimo</title>" in content
+    assert response.headers.get("referrer-policy") == "no-referrer"
+    assert response.headers.get("x-content-type-options") == "nosniff"
 
 
-@with_file_router(AppFileRouter.from_directory(TEMP_DIR.name))
-def test_index_with_directory_run_mode(client: TestClient) -> None:
+def test_index_with_directory(client: TestClient, tmp_path: Path) -> None:
+    with file_router_scope(
+        client, AppFileRouter.from_directory(str(tmp_path))
+    ):
+        response = client.get("/", headers=token_header())
+        assert response.status_code == 200, response.text
+        content = response.text
+        assert "<marimo-filename" in content
+        assert '"mode": "home"' in content
+        assert "<title>marimo</title>" in content
+
+
+def test_index_with_directory_run_mode(
+    client: TestClient, tmp_path: Path
+) -> None:
     app_state = AppState.from_app(cast(Any, client.app))
     app_state.session_manager.mode = SessionMode.RUN
 
-    response = client.get("/", headers=token_header())
-    assert response.status_code == 200, response.text
-    content = response.text
-    assert "<marimo-filename" in content
-    assert '"mode": "gallery"' in content
-    assert "<title>marimo</title>" in content
+    with file_router_scope(
+        client, AppFileRouter.from_directory(str(tmp_path))
+    ):
+        response = client.get("/", headers=token_header())
+        assert response.status_code == 200, response.text
+        content = response.text
+        assert "<marimo-filename" in content
+        assert '"mode": "gallery"' in content
+        assert "<title>marimo</title>" in content
 
 
 def test_favicon(client: TestClient) -> None:
@@ -253,9 +318,19 @@ def test_public_file_security(client: TestClient) -> None:
         )
         assert response.status_code == 404
 
-        # Test symlink attempt
+        # Symlinks in public/ that point outside public/ are rejected,
+        # even though the symlink itself lives inside public/.
         response = client.get("/public/symlink.txt", headers=headers)
+        assert response.status_code == 404
+
+        # A symlink whose target is still inside public/ is allowed.
+        os.symlink(
+            str(public_dir / "safe.txt"),
+            str(public_dir / "inside_link.txt"),
+        )
+        response = client.get("/public/inside_link.txt", headers=headers)
         assert response.status_code == 200
+        assert response.text == "public content"
 
     finally:
         # Cleanup
@@ -371,3 +446,70 @@ def test_index_includes_notebook_key_in_mount_config(
     # Verify notebook key is present in mount config by checking HTML content
     # The mount config is injected as JSON in the HTML
     assert '"notebook":' in response.text or "'notebook':" in response.text
+
+
+def test_index_lsp_workspace_with_filename(
+    client: TestClient, tmp_path: Path
+) -> None:
+    temp_project_dir = tmp_path
+    temp_project_dir.joinpath("pyproject.toml").touch()
+    subdir = temp_project_dir.joinpath("subdir")
+    subdir.mkdir()
+    notebook_file = subdir.joinpath("notebook.py")
+    notebook_file.touch()
+
+    with file_router_scope(
+        client, AppFileRouter.from_filename(MarimoPath(notebook_file))
+    ):
+        response = client.get("/", headers=token_header())
+        root_uri = json.dumps(temp_project_dir.as_uri())
+        document_uri = json.dumps(notebook_file.as_uri())
+        assert f'"rootUri": {root_uri}' in response.text
+        assert f'"documentUri": {document_uri}' in response.text
+
+
+def test_index_lsp_workspace_with_root_directory(
+    client: TestClient, tmp_path: Path
+) -> None:
+    temp_project_dir = tmp_path
+    temp_project_dir.joinpath("pyproject.toml").touch()
+
+    with file_router_scope(
+        client, AppFileRouter.from_directory(str(temp_project_dir))
+    ):
+        response = client.get("/?file=__new__file.py", headers=token_header())
+        root_path = temp_project_dir
+        root_uri = json.dumps(root_path.as_uri())
+        document_path = root_path.joinpath(DEFAULT_NOTEBOOK_NAME)
+        document_uri = json.dumps(document_path.as_uri())
+        assert f'"rootUri": {root_uri}' in response.text
+        assert f'"documentUri": {document_uri}' in response.text
+
+
+def test_index_lsp_workspace_with_sub_directory(
+    client: TestClient, tmp_path: Path
+) -> None:
+    temp_project_dir = tmp_path
+    temp_project_dir.joinpath("pyproject.toml").touch()
+    subdir = temp_project_dir.joinpath("subdir")
+    subdir.mkdir()
+
+    with file_router_scope(client, AppFileRouter.from_directory(str(subdir))):
+        response = client.get("/?file=__new__file.py", headers=token_header())
+        root_path = temp_project_dir
+        root_uri = json.dumps(root_path.as_uri())
+        document_path = subdir.joinpath(DEFAULT_NOTEBOOK_NAME)
+        document_uri = json.dumps(document_path.as_uri())
+        assert f'"rootUri": {root_uri}' in response.text
+        assert f'"documentUri": {document_uri}' in response.text
+
+
+@with_file_router(AppFileRouter.new_file())
+def test_index_lsp_workspace_fallback_to_cwd(client: TestClient) -> None:
+    response = client.get("/", headers=token_header())
+    root_path = Path.cwd()
+    root_uri = json.dumps(root_path.as_uri())
+    document_path = root_path.joinpath(DEFAULT_NOTEBOOK_NAME)
+    document_uri = json.dumps(document_path.as_uri())
+    assert f'"rootUri": {root_uri}' in response.text
+    assert f'"documentUri": {document_uri}' in response.text

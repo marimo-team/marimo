@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import SuccessResult, ToolGuidelines
@@ -33,12 +32,12 @@ class DataTableMetadata:
     """
 
     source: str
-    num_rows: Optional[int]
-    num_columns: Optional[int]
+    num_rows: int | None
+    num_columns: int | None
     columns: list[DataTableColumn]
-    engine: Optional[str]
-    primary_keys: Optional[list[str]]
-    indexes: Optional[list[str]]
+    engine: str | None
+    primary_keys: list[str] | None
+    indexes: list[str] | None
 
 
 @dataclass

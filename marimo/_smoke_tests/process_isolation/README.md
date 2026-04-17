@@ -46,3 +46,20 @@ Open both apps in browser. Each should show a green "PASS" callout.
 - **With `--sandbox`**: Both apps additionally show a green "Sandbox: PASS" callout —
   each app's unique dependency (`humanize` for app1, `pyfiglet` for app2) was installed
   in its own sandbox venv, and the other app's dependency is not present.
+
+---
+
+## Virtual File Smoke Test
+
+Tests that virtual files (images, Arrow data for tables, etc.) created in
+an isolated child process are accessible to the parent server process.
+
+```bash
+marimo run marimo/_smoke_tests/process_isolation/virtual_files.py \
+           marimo/_smoke_tests/process_isolation/app1.py
+```
+
+Multi-file `marimo run` auto-enables process isolation. You should see a
+blue square image, a green HTML heading, and a three-row table. If any of
+those are broken, the cross-process virtual file storage handoff is not
+working.

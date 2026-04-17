@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from importlib.metadata import entry_points
-from typing import TYPE_CHECKING, Generic, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, TypeVar, cast
 
 from marimo import _loggers
 from marimo._entrypoints.ids import KnownEntryPoint
@@ -86,7 +86,7 @@ class EntryPointRegistry(Generic[T]):
             return
         self._plugins[name] = value
 
-    def unregister(self, name: str) -> Optional[T]:
+    def unregister(self, name: str) -> T | None:
         """Unregister a plugin by name.
 
         Args:

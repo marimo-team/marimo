@@ -1088,6 +1088,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/files/copy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["FileCopyRequest"];
+        };
+      };
+      responses: {
+        /** @description Copy a file or directory */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["FileCopyResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/files/create": {
     parameters: {
       query?: never;
@@ -4302,6 +4341,19 @@ export interface components {
     ExportAsScriptRequest: {
       download: boolean;
     };
+    /** FileCopyRequest */
+    FileCopyRequest: {
+      newPath: string;
+      path: string;
+    };
+    /** FileCopyResponse */
+    FileCopyResponse: {
+      /** @default null */
+      info?: null | components["schemas"]["FileInfo"];
+      /** @default null */
+      message?: string | null;
+      success: boolean;
+    };
     /** FileCreateRequest */
     FileCreateRequest: {
       /** @default null */
@@ -4622,6 +4674,9 @@ export interface components {
      *             packages: Package name to status (queued/installing/installed/failed).
      *             logs: Optional streaming logs per package.
      *             log_status: Log stream status (append/start/done).
+     *             source: Which Python environment packages are installed into.
+     *                     "kernel" (default) installs in the kernel's venv; "server"
+     *                     installs in the server's own Python env.
      */
     InstallingPackageAlertNotification: {
       /** @default null */
@@ -4635,6 +4690,11 @@ export interface components {
       packages: {
         [key: string]: "failed" | "installed" | "installing" | "queued";
       };
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
     };
     /** InstantiateNotebookRequest */
     InstantiateNotebookRequest: {

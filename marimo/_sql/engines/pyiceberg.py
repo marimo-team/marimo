@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 from marimo import _loggers
 from marimo._data.models import (
@@ -29,7 +29,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
     """PyIceberg engine."""
 
     def __init__(
-        self, connection: Catalog, engine_name: Optional[VariableName] = None
+        self, connection: Catalog, engine_name: VariableName | None = None
     ) -> None:
         super().__init__(connection, engine_name)
         self.default_database = self.get_default_database()
@@ -60,10 +60,10 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
             auto_discover_columns=False,
         )
 
-    def get_default_database(self) -> Optional[str]:
+    def get_default_database(self) -> str | None:
         return None
 
-    def get_default_schema(self) -> Optional[str]:
+    def get_default_schema(self) -> str | None:
         return None  # Iceberg doesn't have schemas in the traditional sense
 
     # TODO: The following methods are currently not implemented.
@@ -71,7 +71,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
     def get_schemas(
         self,
         *,
-        database: Optional[str],
+        database: str | None,
         include_tables: bool,
         include_table_details: bool,
     ) -> list[Schema]:
@@ -82,9 +82,9 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
     def get_databases(
         self,
         *,
-        include_schemas: Union[bool, Literal["auto"]],
-        include_tables: Union[bool, Literal["auto"]],
-        include_table_details: Union[bool, Literal["auto"]],
+        include_schemas: bool | Literal["auto"],
+        include_tables: bool | Literal["auto"],
+        include_table_details: bool | Literal["auto"],
     ) -> list[Database]:
         """Get all databases from the engine."""
         from pyiceberg.catalog import Catalog
@@ -177,7 +177,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
 
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
-    ) -> Optional[DataTable]:
+    ) -> DataTable | None:
         """Get a single table from the engine."""
         del schema_name  # Not used since Iceberg doesn't have schemas
         try:
@@ -216,7 +216,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
 
     def _resolve_should_auto_discover(
         self,
-        value: Union[bool, Literal["auto"]],
+        value: bool | Literal["auto"],
     ) -> bool:
         if value == "auto":
             return self._is_cheap_discovery()

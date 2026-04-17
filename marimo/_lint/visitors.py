@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import ast
-from typing import Optional
 
 
 class VariableLineVisitor(ast.NodeVisitor):
@@ -12,7 +11,7 @@ class VariableLineVisitor(ast.NodeVisitor):
 
     def __init__(self, target_variable: str):
         self.target_variable = target_variable
-        self.line_number: Optional[int] = None
+        self.line_number: int | None = None
         self.column_number: int = 1
 
     def visit_Name(self, node: ast.Name) -> None:

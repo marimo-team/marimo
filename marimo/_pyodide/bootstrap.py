@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from marimo._config.config import merge_config
 from marimo._messaging.notification import (
@@ -28,6 +28,8 @@ from marimo._session.notebook import AppFileManager
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._config.config import MarimoConfig
     from marimo._messaging.types import KernelMessage
     from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession

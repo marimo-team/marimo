@@ -4,7 +4,7 @@ from __future__ import annotations
 import functools
 import io
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import narwhals.stable.v2 as nw
 
@@ -28,6 +28,8 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 
 if TYPE_CHECKING:
     import pandas as pd
+
+    from marimo._plugins.ui._impl.table import SortArgs
 
 LOGGER = _loggers.marimo_logger()
 
@@ -107,11 +109,56 @@ class PandasTableManagerFactory(TableManagerFactory):
             def schema(self) -> pd.Series[Any]:
                 return self._original_data.dtypes  # type: ignore
 
+            def sort_values(self, by: list[SortArgs]) -> TableManager[Any]:
+                if not by:
+                    return self
+
+                columns = [sort_arg.by for sort_arg in by]
+                descending = [sort_arg.descending for sort_arg in by]
+
+                # Object-dtype columns may contain mixed Python types
+                # (e.g. int + str) that can't be compared directly.
+                # Cast those to string via temp columns before sorting.
+                dtypes = self._original_data.dtypes
+                mixed_cols = [
+                    col for col in columns if dtypes[col] == "object"
+                ]
+
+                if not mixed_cols:
+                    return super().sort_values(by)
+
+                df = self.data
+                temp_cols: list[str] = []
+                sort_cols: list[str] = []
+                for col in columns:
+                    if col in mixed_cols:
+                        temp = f"__sort_{col}"
+                        # Preserve nulls so nulls_last=True works.
+                        # On pandas <3.0, cast(String) turns None
+                        # into the string "None" instead of null.
+                        df = df.with_columns(
+                            nw.when(nw.col(col).is_null())
+                            .then(None)
+                            .otherwise(nw.col(col).cast(nw.String))
+                            .alias(temp)
+                        )
+                        temp_cols.append(temp)
+                        sort_cols.append(temp)
+                    else:
+                        sort_cols.append(col)
+
+                df = df.sort(
+                    sort_cols,
+                    descending=descending,
+                    nulls_last=True,
+                ).drop(temp_cols)
+                return self.with_new_data(df)
+
             # We override narwhals's to_csv_str to handle pandas
             # headers
             def to_csv_str(
                 self,
-                format_mapping: Optional[FormatMapping] = None,
+                format_mapping: FormatMapping | None = None,
                 separator: str | None = None,
             ) -> str:
                 has_headers = len(self.get_row_headers()) > 0
@@ -126,7 +173,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
             def to_json_str(
                 self,
-                format_mapping: Optional[FormatMapping] = None,
+                format_mapping: FormatMapping | None = None,
                 strict_json: bool = False,
                 ensure_ascii: bool = True,
             ) -> str:
@@ -260,7 +307,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return out.getvalue()
 
             def apply_formatting(
-                self, format_mapping: Optional[FormatMapping]
+                self, format_mapping: FormatMapping | None
             ) -> PandasTableManager:
                 if not format_mapping:
                     return self
@@ -425,9 +472,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 if lower_dtype.startswith("interval"):
                     return ("string", dtype)
-                if lower_dtype.startswith("int") or lower_dtype.startswith(
-                    "uint"
-                ):
+                if lower_dtype.startswith(("int", "uint")):
                     return ("integer", dtype)
                 if lower_dtype.startswith("float"):
                     return ("number", dtype)

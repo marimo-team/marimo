@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Optional
 
 from marimo._cli.print import bold, green, light_blue, muted, yellow
 from marimo._cli.tips import CliTip
@@ -21,7 +20,7 @@ except Exception:
 
 def print_startup(
     *,
-    file_name: Optional[str],
+    file_name: str | None,
     url: str,
     run: bool,
     new: bool,

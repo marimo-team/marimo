@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -512,6 +513,55 @@ class TestDynamicDirectoryMiddleware(unittest.TestCase):
         assert response.status_code == 404
         assert response.text == "Not Found"
 
+    def test_path_traversal_blocked(self):
+        # Create a dedicated sibling directory with a unique name to hold
+        # the "outside" file, so we don't clobber files in the shared
+        # parent directory and are safe under parallel test runs.
+        parent_dir = Path(self.temp_dir).parent
+        outside_dir = Path(tempfile.mkdtemp(dir=parent_dir))
+        outside_name = outside_dir.name
+        (outside_dir / "secret.py").write_text(contents)
+        try:
+            # Raw traversal
+            response = self.client.get(f"/apps/../{outside_name}/secret/")
+            assert response.status_code == 404
+            assert response.text == "Not Found"
+
+            # URL-encoded traversal (%2e%2e = ..)
+            response = self.client.get(f"/apps/%2e%2e/{outside_name}/secret/")
+            assert response.status_code == 404
+            assert response.text == "Not Found"
+
+            # Double-encoded
+            response = self.client.get(
+                f"/apps/%252e%252e/{outside_name}/secret/"
+            )
+            assert response.status_code == 404
+            assert response.text == "Not Found"
+
+            # Nested traversal
+            response = self.client.get(
+                f"/apps/nested/../../{outside_name}/secret/"
+            )
+            assert response.status_code == 404
+            assert response.text == "Not Found"
+        finally:
+            shutil.rmtree(outside_dir, ignore_errors=True)
+
+    def test_path_traversal_blocked_backslash(self):
+        # Windows treats "\" as a path separator, so URLs like
+        # "/apps/..%5Csecret/" (%5C = "\") could bypass a naive "/"-only
+        # check. Call _find_matching_file directly since httpx/starlette
+        # would otherwise reject or normalize the raw URL before it
+        # reaches the middleware.
+        middleware = self.app_with_middleware
+        assert middleware._find_matching_file("..\\secret") is None
+        assert middleware._find_matching_file("foo\\..\\secret") is None
+        assert middleware._find_matching_file("nested\\..\\..\\secret") is None
+        # Mixed separators
+        assert middleware._find_matching_file("..\\..\\secret") is None
+        assert middleware._find_matching_file("foo/..\\secret") is None
+
     def test_valid_app_path(self):
         response = self.client.get("/apps/test_app/")
         assert response.status_code == 200
@@ -787,9 +837,7 @@ class TestDynamicDirectoryMiddleware(unittest.TestCase):
                 # Check the marimo app file as added to the scope prior.
                 file = scope["marimo_app_file"]
                 assert isinstance(file, str)
-                assert file.endswith(str(allowed_file)) or file.endswith(
-                    str(blocked_file)
-                )
+                assert file.endswith((str(allowed_file), str(blocked_file)))
 
                 if scope["type"] == "http":
 

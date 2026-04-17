@@ -9,7 +9,6 @@ from typing import (
     Any,
     Generic,
     Literal,
-    Optional,
     TypeVar,
     get_args,
 )
@@ -145,7 +144,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         system_prompt: str,
         max_tokens: int,
         additional_tools: list[ToolDefinition],
-        stream_options: Optional[StreamOptions] = None,
+        stream_options: StreamOptions | None = None,
     ) -> StreamingResponse:
         """Return a streaming response from the given messages. The response are AI SDK events."""
         from pydantic_ai.ui.vercel_ai import VercelAIAdapter
@@ -303,9 +302,9 @@ class OpenAIClientMixin:
         ssl_verify: bool = (
             config.ssl_verify if config.ssl_verify is not None else True
         )
-        extra_headers: Optional[dict[str, str]] = config.extra_headers
-        ca_bundle_path: Optional[str] = config.ca_bundle_path
-        client_pem: Optional[str] = config.client_pem
+        extra_headers: dict[str, str] | None = config.extra_headers
+        ca_bundle_path: str | None = config.ca_bundle_path
+        client_pem: str | None = config.client_pem
 
         # Check if ca_bundle_path and client_pem are valid files
         if ca_bundle_path:
@@ -431,13 +430,10 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
             return False
 
         # If using a custom base_url that's not OpenAI, don't assume reasoning is supported
-        if (
+        return not (
             self.config.base_url
             and "api.openai.com" not in self.config.base_url
-        ):
-            return False
-
-        return True
+        )
 
 
 class AzureOpenAIProvider(OpenAIProvider):
@@ -866,7 +862,7 @@ def get_completion_provider(
 async def merge_backticks(
     chunks: AsyncIterator[str],
 ) -> AsyncGenerator[str, None]:
-    buffer: Optional[str] = None
+    buffer: str | None = None
 
     def only_whitespace_or_newlines(text: str) -> bool:
         return all(char.isspace() or char == "\n" for char in text)
@@ -922,7 +918,7 @@ async def without_wrapping_backticks(
     langs = ["python", "sql", "markdown"]
 
     first_chunk = True
-    buffer: Optional[str] = None
+    buffer: str | None = None
     has_starting_backticks = False
 
     async for chunk in chunks:
@@ -937,8 +933,7 @@ async def without_wrapping_backticks(
                     # Remove the starting backticks with lang
                     chunk = stripped_chunk[3 + len(lang) :]
                     # Also remove starting newline if present
-                    if chunk.startswith("\n"):
-                        chunk = chunk[1:]
+                    chunk = chunk.removeprefix("\n")
                     break
             # If no language-specific fence was found, check for plain backticks
             else:
@@ -946,8 +941,7 @@ async def without_wrapping_backticks(
                     has_starting_backticks = True
                     chunk = stripped_chunk[3:]  # Remove the starting backticks
                     # Also remove starting newline if present
-                    if chunk.startswith("\n"):
-                        chunk = chunk[1:]
+                    chunk = chunk.removeprefix("\n")
 
         # If we have a buffered chunk, yield it now
         if buffer is not None:

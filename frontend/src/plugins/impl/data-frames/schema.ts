@@ -73,16 +73,36 @@ const SortColumnTransformSchema = z.object({
     .default("last"),
 });
 
-export const ConditionSchema = z
+export const FilterConditionSchema = z
   .object({
     column_id: column_id,
     operator: z
       .enum(Object.keys(ALL_OPERATORS) as [OperatorType, ...OperatorType[]])
       .describe(FieldOptions.of({ label: " " })),
+    type: z.literal("condition").default("condition"),
     value: z.any().describe(FieldOptions.of({ label: "Value" })),
+    negate: z.boolean().default(false),
   })
   .describe(FieldOptions.of({ direction: "row", special: "column_filter" }));
-export type ConditionType = z.infer<typeof ConditionSchema>;
+export type FilterConditionType = z.infer<typeof FilterConditionSchema>;
+
+export interface FilterGroupType {
+  type: "group";
+  operator: "and" | "or";
+  children: (FilterConditionType | FilterGroupType)[];
+  negate: boolean;
+}
+
+export const FilterGroupSchema: z.ZodType<FilterGroupType> = z.lazy(() =>
+  z.object({
+    type: z.literal("group").default("group"),
+    operator: z.enum(["and", "or"]).default("and"),
+    children: z
+      .array(z.union([FilterConditionSchema, FilterGroupSchema]))
+      .default([]),
+    negate: z.boolean().default(false),
+  }),
+);
 
 const FilterRowsTransformSchema = z.object({
   type: z.literal("filter_rows"),
@@ -91,17 +111,29 @@ const FilterRowsTransformSchema = z.object({
     .default("keep_rows")
     .describe(FieldOptions.of({ special: "radio_group" })),
   where: z
-    .array(ConditionSchema)
+    .array(FilterConditionSchema)
     .min(1)
     .describe(FieldOptions.of({ label: "Value", minLength: 1 }))
-    .transform((value) => {
-      return value.filter((condition) => {
+    .default(() => [
+      {
+        column_id: "" as ColumnId,
+        operator: "==" as const,
+        value: "",
+        type: "condition" as const,
+        negate: false,
+      },
+    ])
+    .transform((value): FilterGroupType => {
+      const validConditions = value.filter((condition) => {
         return isConditionValueValid(condition.operator, condition.value);
       });
-    })
-    .default(() => [
-      { column_id: "" as ColumnId, operator: "==" as const, value: "" },
-    ]),
+      return {
+        type: "group",
+        operator: "and",
+        children: validConditions,
+        negate: false,
+      };
+    }),
 });
 
 const GroupByTransformSchema = z

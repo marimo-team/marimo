@@ -5,7 +5,7 @@ import ast
 import re
 from dataclasses import dataclass, field
 from textwrap import dedent
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -24,7 +24,7 @@ COMMON_FILE_EXTENSIONS = (
 
 SQLKind = Literal["table", "view", "schema", "catalog"]
 
-SQLTypes = Union[SQLKind, Literal["any"]]
+SQLTypes = SQLKind | Literal["any"]
 
 
 class SQLVisitor(ast.NodeVisitor):
@@ -49,7 +49,7 @@ class SQLVisitor(ast.NodeVisitor):
             # string or f-string
             if node.args:
                 first_arg = node.args[0]
-                sql: Optional[str] = None
+                sql: str | None = None
                 if isinstance(first_arg, ast.Constant):
                     sql = first_arg.value
                 elif isinstance(first_arg, ast.JoinedStr):
@@ -337,8 +337,8 @@ class SQLRef:
     # Tables are synonymous with views,
     # since we can't know the difference in queries
     table: str
-    schema: Optional[str] = None
-    catalog: Optional[str] = None
+    schema: str | None = None
+    catalog: str | None = None
 
     @classmethod
     def from_parts(
@@ -507,7 +507,7 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     from sqlglot.errors import OptimizeError
     from sqlglot.optimizer.scope import build_scope
 
-    def get_ref_from_table(table: exp.Table) -> Optional[SQLRef]:
+    def get_ref_from_table(table: exp.Table) -> SQLRef | None:
         # The variables might be empty strings, if they are, we set them to None
         try:
             table_name = table.name or None
@@ -540,6 +540,37 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
 
     refs: set[SQLRef] = set()
 
+    def _collect_table_refs_excluding_ctes(expression: exp.Expression) -> None:
+        """Walk all Table nodes, filtering out unqualified CTE references.
+
+        find_all(exp.Table) doesn't understand CTE scope, so bare
+        references to CTE names would be misidentified as real tables.
+
+        We only collect CTEs from the statement-level WITH clause
+        rather than nested subqueries, because a subquery's CTE is
+        scoped to that subquery and must not mask a real table with the
+        same name in the outer query. We identify statement-level CTEs
+        by checking that the CTE's grandparent (With -> Expression) is
+        the top-level expression. Schema-qualified refs (e.g. schema.foo)
+        are always real tables even if a CTE shares the same base name.
+        """
+        cte_names: set[str] = set()
+        for cte in expression.find_all(exp.CTE):
+            with_node = cte.parent
+            if with_node and with_node.parent is expression:
+                alias = cte.alias
+                if alias:
+                    cte_names.add(alias.lower())
+        for table in expression.find_all(exp.Table):
+            if ref := get_ref_from_table(table):
+                is_unqualified_cte = (
+                    ref.table.lower() in cte_names
+                    and ref.schema is None
+                    and ref.catalog is None
+                )
+                if not is_unqualified_cte:
+                    refs.add(ref)
+
     for expression in expression_list:
         if expression is None:
             continue
@@ -558,9 +589,7 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
                 exp.Copy,
             )
         ):
-            for table in expression.find_all(exp.Table):
-                if ref := get_ref_from_table(table):
-                    refs.add(ref)
+            _collect_table_refs_excluding_ctes(expression)  # type: ignore[arg-type]
 
         # build_scope only works for select statements.
         # It may raise OptimizeError for valid SQL with duplicate aliases
@@ -574,13 +603,6 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
                             if ref := get_ref_from_table(source):
                                 refs.add(ref)
         except OptimizeError:
-            # Fall back to extracting table references without scope analysis.
-            # This can happen with valid SQL that has duplicate aliases
-            # (e.g., cross-joined subqueries with the same column alias).
-            # We prefer build_scope when possible because it correctly handles
-            # CTEs - find_all would incorrectly report CTE names as table refs.
-            for table in expression.find_all(exp.Table):
-                if ref := get_ref_from_table(table):
-                    refs.add(ref)
+            _collect_table_refs_excluding_ctes(expression)  # type: ignore[arg-type]
 
     return refs
