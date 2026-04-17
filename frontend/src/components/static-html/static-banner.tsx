@@ -25,15 +25,15 @@ import { toast } from "../ui/use-toast";
 import { MarimoPlusIcon } from "../icons/marimo-icons";
 
 export const StaticBanner: React.FC = () => {
-  const code = "Hello!!!!! World!!!!";
+  const code = useAtomValue(codeAtom);
 
-  // if (!isStaticNotebook()) {
-  //   return null;
-  // }
+  if (!isStaticNotebook()) {
+    return null;
+  }
 
-  // if (!code) {
-  //   return null;
-  // }
+  if (!code) {
+    return null;
+  }
 
   return (
     <div
@@ -67,7 +67,6 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
   }
 
   const href = window.location.href;
-  const wasmLink = createShareableLink({ code });
   const molabLink = createShareableLink({
     code,
     baseUrl: `${Constants.molab}/new`,
