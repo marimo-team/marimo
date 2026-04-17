@@ -248,7 +248,9 @@ class KernelManagerImpl(KernelManager):
         # synchronously below in `close_kernel()`.
         if profile_path is not None:
             # Hack: block until the profile is written
-            self.queue_manager.put_control_request(commands.StopKernelCommand())
+            self.queue_manager.put_control_request(
+                commands.StopKernelCommand()
+            )
             print_(f"\tWriting profile statistics to {profile_path} ...")
             while not os.path.exists(profile_path):
                 time.sleep(0.1)
