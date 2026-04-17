@@ -55,14 +55,6 @@ class DefaultTableManager(TableManager[JsonTableData]):
         self.data = data
         self.is_column_oriented = _is_column_oriented(data)
 
-    def supports_download(self) -> bool:
-        # If we have pandas/polars/pyarrow, we can convert to CSV or JSON
-        return (
-            DependencyManager.pandas.has()
-            or DependencyManager.polars.has()
-            or DependencyManager.pyarrow.has()
-        )
-
     def apply_formatting(
         self, format_mapping: FormatMapping | None
     ) -> TableManager[JsonTableData]:
@@ -95,14 +87,26 @@ class DefaultTableManager(TableManager[JsonTableData]):
         format_mapping: FormatMapping | None = None,
         separator: str | None = None,
     ) -> str:
-        if isinstance(self.data, dict) and not self.is_column_oriented:
-            return DefaultTableManager(
-                self._normalize_data(self.data)
-            ).to_csv_str(format_mapping, separator=separator)
+        import csv
+        import io
 
-        return self._as_table_manager().to_csv_str(
-            format_mapping, separator=separator
+        formatted = self.apply_formatting(format_mapping)
+        rows = self._normalize_data(formatted.data)
+        columns = self.get_column_names()
+        buf = io.StringIO()
+
+        writer = csv.DictWriter(
+            buf,
+            fieldnames=columns,
+            delimiter=separator or ",",
+            lineterminator="\n",
         )
+        writer.writeheader()
+        writer.writerows(
+            {col: _to_csv_cell(row.get(col)) for col in columns}
+            for row in rows
+        )
+        return buf.getvalue()
 
     def to_json_str(
         self,
@@ -504,3 +508,11 @@ def _is_column_oriented(data: JsonTableData) -> bool:
     return isinstance(data, dict) and all(
         isinstance(value, (list, tuple)) for value in data.values()
     )
+
+
+def _to_csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list, tuple)):
+        return str(encode_json_str(SuperJson(value)))
+    return str(value)

@@ -490,6 +490,26 @@ class TestDefaultTable(unittest.TestCase):
         expected_data = [(date(1994, 5, 24), 2), (None, 2)]
         assert result == expected_data
 
+    def test_supports_download(self) -> None:
+        assert self.manager.supports_download() is True
+
+    def test_to_csv(self) -> None:
+        manager = DefaultTableManager([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
+        assert manager.to_csv() == b"a,b\n1,2\n3,4\n"
+
+    def test_to_csv_with_separator(self) -> None:
+        manager = DefaultTableManager([{"a": 1, "b": 2}])
+        assert manager.to_csv(separator="\t") == b"a\tb\n1\t2\n"
+
+    def test_to_csv_handles_none_and_nested(self) -> None:
+        manager = DefaultTableManager(
+            [{"a": None, "b": {"k": "v"}, "c": [1, 2]}]
+        )
+        result = manager.to_csv().decode()
+        # None renders as an empty cell; nested values render as JSON
+        # strings (quoted/escaped by the csv module).
+        assert result == 'a,b,c\n,"{""k"":""v""}","[1,2]"\n'
+
 
 class TestColumnarDefaultTable(unittest.TestCase):
     def setUp(self) -> None:
@@ -883,9 +903,6 @@ class TestColumnarDefaultTable(unittest.TestCase):
         ]
         assert result == expected_data
 
-    @pytest.mark.skipif(
-        not HAS_DEPS, reason="optional dependencies not installed"
-    )
     def test_to_csv(self) -> None:
         manager = DefaultTableManager(
             {
@@ -893,10 +910,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
                 "b": [3, 4],
             }
         )
-        result = manager.to_csv()
-        assert (
-            result == b"a,b\n1,3\n2,4\n" or result == b"a,b\r\n1,3\r\n2,4\r\n"
-        )
+        assert manager.to_csv() == b"a,b\n1,3\n2,4\n"
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
@@ -1103,14 +1117,8 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         expected_data = [(None, 2), ("A", 1)]
         assert result == expected_data
 
-    @pytest.mark.skipif(
-        not HAS_DEPS, reason="optional dependencies not installed"
-    )
     def test_to_csv(self) -> None:
-        result = self.manager.to_csv()
-        assert result == b"key,value\na,1\nb,2\n" or result == (
-            b"key,value\r\na,1\r\nb,2\r\n"
-        )
+        assert self.manager.to_csv() == b"key,value\na,1\nb,2\n"
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
@@ -1135,6 +1143,9 @@ class TestListDefaultTable(unittest.TestCase):
         assert selected_cells == [
             TableCell(row=2, column="value", value=6),
         ]
+
+    def test_to_csv(self) -> None:
+        assert self.manager.to_csv() == b"value\n4\n5\n6\n"
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
