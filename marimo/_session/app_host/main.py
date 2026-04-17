@@ -23,8 +23,8 @@ from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import runtime
 from marimo._runtime.commands import StopKernelCommand
 from marimo._runtime.parent_poller import (
-    ParentPollerUnix,
     kill_own_process_group,
+    start_parent_poller,
 )
 from marimo._session.app_host.commands import (
     AppHostArgs,
@@ -266,23 +266,17 @@ def app_host_main(args: AppHostArgs) -> None:
     # and sends ShutdownAppHostCmd via the management channel.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    parent_exit_detected: threading.Event | None = None
-    parent_exit_cleanup_complete: threading.Event | None = None
+    parent_poller = None
     shutdown_requested = threading.Event()
 
     if sys.platform != "win32":
         os.setsid()
 
-        if args.parent_pid is not None and args.parent_pid != 1:
-            parent_exit_detected = threading.Event()
-            parent_exit_cleanup_complete = threading.Event()
-            ParentPollerUnix(
-                parent_pid=args.parent_pid,
-                request_graceful_shutdown=shutdown_requested.set,
-                parent_exit_detected=parent_exit_detected,
-                cleanup_complete=parent_exit_cleanup_complete,
-                target_name="app host",
-            ).start()
+        parent_poller = start_parent_poller(
+            args.parent_pid,
+            request_graceful_shutdown=shutdown_requested.set,
+            target_name="app host",
+        )
 
     _loggers.set_level(args.log_level)
     LOGGER.debug(
@@ -372,8 +366,8 @@ def app_host_main(args: AppHostArgs) -> None:
     stream_socket.close(linger=0)
     context.destroy(linger=0)
 
-    if should_kill_process_group and parent_exit_cleanup_complete is not None:
-        parent_exit_cleanup_complete.set()
+    if should_kill_process_group and parent_poller is not None:
+        parent_poller.mark_cleanup_complete()
 
     if should_kill_process_group and sys.platform != "win32":
         kill_own_process_group()

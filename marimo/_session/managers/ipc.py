@@ -11,8 +11,6 @@ import os
 import signal
 import subprocess
 import sys
-import threading
-import time
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -34,13 +32,13 @@ from marimo._session._venv import (
     has_marimo_installed,
     install_marimo_into_venv,
 )
+from marimo._session.managers._shutdown import (
+    BackgroundShutdownStartResult,
+    ProcessShutdownController,
+)
 from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike, QueueType, route_control_request
 from marimo._session.types import KernelManager, QueueManager
-from marimo._utils.process_tree import (
-    signal_process_group,
-    signal_process_tree,
-)
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
@@ -51,10 +49,6 @@ if TYPE_CHECKING:
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
-
-_GRACEFUL_SHUTDOWN_WAIT_SECONDS = 1.0
-_FORCE_SHUTDOWN_WAIT_SECONDS = 5.0
-_PROCESS_GROUP_REAP_WAIT_SECONDS = 0.5
 
 
 def _get_venv_config(config_manager: MarimoConfigReader) -> VenvConfig:
@@ -212,11 +206,9 @@ class IPCKernelManagerImpl(KernelManager):
         self.kernel_task: ProcessLike | None = None
         self._sandbox_dir: str | None = None
         self._venv_python: str | None = None
-        self._pgid: int | None = None
-        self._expected_pgid: int | None = None
-        self._queues_closed = False
-        self._shutdown_lock = threading.Lock()
-        self._shutdown_thread: threading.Thread | None = None
+        self._process_shutdown = ProcessShutdownController(
+            close_queues=self.queue_manager.close_queues
+        )
 
     def start_kernel(self) -> None:
         from marimo._cli.print import echo, muted
@@ -360,8 +352,7 @@ class IPCKernelManagerImpl(KernelManager):
 
             # Create a ProcessLike wrapper for the subprocess
             self.kernel_task = _SubprocessWrapper(self._process)
-            if sys.platform != "win32":
-                self._expected_pgid = self._process.pid
+            self._process_shutdown.remember_expected_pgid(self._process.pid)
         except KernelStartupError:
             # Already a KernelStartupError, just cleanup and re-raise
             cleanup_sandbox_dir(self._sandbox_dir)
@@ -411,108 +402,72 @@ class IPCKernelManagerImpl(KernelManager):
         if self._process is None:
             return
 
-        if sys.platform == "win32":
-            if sig == signal.SIGKILL:
-                self._process.kill()
-            else:
-                self._process.terminate()
-            return
-
-        self._pgid = signal_process_tree(
+        self._process_shutdown.signal_tree(
             self._process.pid,
             sig,
-            cached_pgid=self._pgid,
+            on_windows=self._signal_windows_process,
         )
 
+    def _signal_windows_process(self, sig: int) -> None:
+        assert self._process is not None
+        if sig == signal.SIGKILL:
+            self._process.kill()
+        else:
+            self._process.terminate()
+
     def _close_queues(self) -> None:
-        if self._queues_closed:
-            return
-        self.queue_manager.close_queues()
-        self._queues_closed = True
+        self._process_shutdown.close_queues_once()
 
     def _cleanup_sandbox(self) -> None:
         cleanup_sandbox_dir(self._sandbox_dir)
         self._sandbox_dir = None
 
-    def _reap_process_group_after_exit(self) -> None:
-        if sys.platform == "win32":
-            return
-
-        pgid = self._pgid or self._expected_pgid
-        if not signal_process_group(pgid, signal.SIGTERM):
-            return
-
-        kill_sig = (
-            signal.SIGKILL if hasattr(signal, "SIGKILL") else signal.SIGTERM
-        )
-        time.sleep(_PROCESS_GROUP_REAP_WAIT_SECONDS)
-        signal_process_group(pgid, kill_sig)
+    def _wait_for_process_exit(self, timeout: float) -> bool:
+        assert self._process is not None
+        try:
+            self._process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return False
+        return True
 
     def _shutdown_process_in_background(self) -> None:
         assert self._process is not None
 
-        try:
-            try:
-                self._process.wait(timeout=_GRACEFUL_SHUTDOWN_WAIT_SECONDS)
-            except subprocess.TimeoutExpired:
-                pass
-
-            if self._process.poll() is None:
-                self._signal_kernel_tree(signal.SIGTERM)
-                try:
-                    self._process.wait(timeout=_FORCE_SHUTDOWN_WAIT_SECONDS)
-                except subprocess.TimeoutExpired:
-                    pass
-
-            if self._process.poll() is None:
-                kill_sig = (
-                    signal.SIGKILL
-                    if hasattr(signal, "SIGKILL")
-                    else signal.SIGTERM
-                )
-                self._signal_kernel_tree(kill_sig)
-                try:
-                    self._process.wait(timeout=_FORCE_SHUTDOWN_WAIT_SECONDS)
-                except subprocess.TimeoutExpired:
-                    pass
-
-            self._reap_process_group_after_exit()
-        finally:
-            self._close_queues()
-            self._cleanup_sandbox()
+        self._process_shutdown.run_shutdown(
+            wait_for_exit=self._wait_for_process_exit,
+            is_alive=self.is_alive,
+            signal_tree=self._signal_kernel_tree,
+            finalize=self._cleanup_sandbox,
+        )
 
     def close_kernel(self) -> None:
         if self._process is None:
             self._cleanup_sandbox()
             return
 
-        with self._shutdown_lock:
-            if self._shutdown_thread is not None:
-                return
+        result = self._process_shutdown.start_background_shutdown(
+            is_alive=self.is_alive,
+            before_start=self._request_kernel_stop,
+            target=self._shutdown_process_in_background,
+        )
+        if result == BackgroundShutdownStartResult.TARGET_NOT_ALIVE:
+            self._close_queues()
+            self._cleanup_sandbox()
 
-            if self._process.poll() is not None:
-                self._close_queues()
-                self._cleanup_sandbox()
-                return
-
-            self.queue_manager.put_control_request(
-                commands.StopKernelCommand()
-            )
-            self._shutdown_thread = threading.Thread(
-                target=self._shutdown_process_in_background,
-                daemon=False,
-            )
-            self._shutdown_thread.start()
+    def _request_kernel_stop(self) -> None:
+        self.queue_manager.put_control_request(commands.StopKernelCommand())
 
     def wait_for_close(self, timeout: float | None = None) -> None:
         if self._process is None:
             return
 
-        thread = self._shutdown_thread
-        if thread is not None:
-            thread.join(timeout=timeout)
-            return
+        self._process_shutdown.wait_for_shutdown(
+            timeout,
+            fallback_wait=self._wait_for_process_directly,
+        )
 
+    def _wait_for_process_directly(self, timeout: float | None) -> None:
+        assert self._process is not None
         try:
             self._process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:

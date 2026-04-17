@@ -23,6 +23,7 @@ from marimo._runtime.commands import (
 )
 from marimo._session.managers import KernelManagerImpl, QueueManagerImpl
 from marimo._session.model import SessionMode
+from tests._utils.process_helpers import cleanup_process, wait_until
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -54,31 +55,6 @@ def save_and_restore_main(f: F) -> F:
             sys.modules["__main__"] = main
 
     return wrapper  # type: ignore[return-value]
-
-
-def _wait_until(
-    predicate: Callable[[], bool], timeout_seconds: float, message: str
-) -> None:
-    deadline = time.monotonic() + timeout_seconds
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.05)
-    pytest.fail(message)
-
-
-def _cleanup_process(process: psutil.Process) -> None:
-    import psutil
-
-    try:
-        process.terminate()
-        try:
-            process.wait(timeout=2)
-        except psutil.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=2)
-    except psutil.NoSuchProcess:
-        pass
 
 
 @pytest.mark.skipif(
@@ -116,7 +92,7 @@ def test_close_kernel_returns_quickly_and_preserves_profile_dump(
         assert elapsed < 1.0
 
         kernel_manager.wait_for_close(timeout=10)
-        _wait_until(
+        wait_until(
             lambda: not kernel_manager.is_alive(),
             timeout_seconds=2,
             message="Kernel process did not exit after close_kernel()",
@@ -205,7 +181,7 @@ def test_close_kernel_shuts_down_same_group_subprocesses_only(
             )
         )
 
-        _wait_until(
+        wait_until(
             pid_file.exists,
             timeout_seconds=5,
             message="Kernel did not write subprocess PID file in time",
@@ -216,7 +192,7 @@ def test_close_kernel_shuts_down_same_group_subprocesses_only(
         child_pg_process = psutil.Process(pids["child_pg"])
         child_newpg_process = psutil.Process(pids["child_newpg"])
 
-        _wait_until(
+        wait_until(
             lambda: (
                 child_pg_process.is_running()
                 and child_newpg_process.is_running()
@@ -228,12 +204,12 @@ def test_close_kernel_shuts_down_same_group_subprocesses_only(
         kernel_manager.close_kernel()
         kernel_manager.wait_for_close(timeout=10)
 
-        _wait_until(
+        wait_until(
             lambda: not kernel_manager.is_alive(),
             timeout_seconds=2,
             message="Kernel process did not exit after close_kernel()",
         )
-        _wait_until(
+        wait_until(
             lambda: not child_pg_process.is_running(),
             timeout_seconds=2,
             message="Same-process-group child survived close_kernel()",
@@ -247,7 +223,7 @@ def test_close_kernel_shuts_down_same_group_subprocesses_only(
         kernel_manager.wait_for_close(timeout=10)
 
         if child_newpg_process is not None:
-            _cleanup_process(child_newpg_process)
+            cleanup_process(child_newpg_process)
 
         queue_manager.input_queue.join_thread()  # type: ignore[union-attr]
         queue_manager.control_queue.join_thread()  # type: ignore[union-attr]

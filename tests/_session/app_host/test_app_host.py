@@ -4,7 +4,6 @@ from __future__ import annotations
 import inspect
 import json
 import sys
-import time
 
 import pytest
 
@@ -18,33 +17,7 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
 )
 from marimo._session.app_host.commands import Channel
-
-
-def _wait_until(
-    predicate: object, timeout_seconds: float, message: str
-) -> None:
-    assert callable(predicate)
-    deadline = time.monotonic() + timeout_seconds
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.05)
-    pytest.fail(message)
-
-
-def _cleanup_process(process: object) -> None:
-    import psutil
-
-    assert isinstance(process, psutil.Process)
-    try:
-        process.terminate()
-        try:
-            process.wait(timeout=2)
-        except psutil.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=2)
-    except psutil.NoSuchProcess:
-        pass
+from tests._utils.process_helpers import cleanup_process, wait_until
 
 
 @pytest.mark.requires("zmq")
@@ -350,7 +323,7 @@ class TestAppHost:
                 ),
             )
 
-            _wait_until(
+            wait_until(
                 pid_file.exists,
                 timeout_seconds=5,
                 message="AppHost kernel did not write subprocess PID file",
@@ -360,7 +333,7 @@ class TestAppHost:
             child_pg_process = psutil.Process(pids["child_pg"])
             child_newpg_process = psutil.Process(pids["child_newpg"])
 
-            _wait_until(
+            wait_until(
                 lambda: (
                     child_pg_process.is_running()
                     and child_newpg_process.is_running()
@@ -371,12 +344,12 @@ class TestAppHost:
 
             app_host.shutdown()
 
-            _wait_until(
+            wait_until(
                 lambda: not app_host.is_alive(),
                 timeout_seconds=2,
                 message="AppHost process did not exit during shutdown()",
             )
-            _wait_until(
+            wait_until(
                 lambda: not child_pg_process.is_running(),
                 timeout_seconds=2,
                 message="Same-process-group child survived AppHost shutdown()",
@@ -387,7 +360,7 @@ class TestAppHost:
             if app_host.is_alive():
                 app_host.shutdown()
             if child_newpg_process is not None:
-                _cleanup_process(child_newpg_process)
+                cleanup_process(child_newpg_process)
 
 
 @pytest.mark.requires("zmq")

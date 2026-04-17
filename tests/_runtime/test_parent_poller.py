@@ -9,23 +9,10 @@ import sys
 import textwrap
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
-
-def _wait_until(
-    predicate: Callable[[], bool], timeout_seconds: float, message: str
-) -> None:
-    deadline = time.monotonic() + timeout_seconds
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.02)
-    pytest.fail(message)
+from tests._utils.process_helpers import wait_until
 
 
 def _wait_for_pipe_eof(read_fd: int, timeout_seconds: float) -> None:
@@ -240,7 +227,7 @@ def test_parent_poller_uses_runtime_cleanup_before_killing_descendants(
 
     try:
         launcher.wait(timeout=3)
-        _wait_until(
+        wait_until(
             lambda: (
                 ready_path.exists()
                 and ready_path.read_text() == "ready"
@@ -249,6 +236,7 @@ def test_parent_poller_uses_runtime_cleanup_before_killing_descendants(
             ),
             timeout_seconds=3,
             message="Kernel subprocess tree did not become ready in time",
+            poll_interval_seconds=0.02,
         )
 
         # Drain any startup bytes so the next read can observe EOF directly.
@@ -261,13 +249,14 @@ def test_parent_poller_uses_runtime_cleanup_before_killing_descendants(
                 pipe_closed = True
                 break
 
-        _wait_until(
+        wait_until(
             cleanup_path.exists,
             timeout_seconds=2,
             message=(
                 "Kernel teardown did not run before parent-death shutdown "
                 "forced the process group to exit."
             ),
+            poll_interval_seconds=0.02,
         )
         if not pipe_closed:
             _wait_for_pipe_eof(read_fd, timeout_seconds=2)

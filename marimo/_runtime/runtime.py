@@ -183,8 +183,7 @@ from marimo._runtime.packages.utils import (
 )
 from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.parent_poller import (
-    ParentPollerUnix,
-    kill_own_process_group,
+    start_parent_poller,
 )
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
@@ -3692,8 +3691,7 @@ def launch_kernel(
         # completions only provided in edit mode
         kernel.start_completion_worker(completion_queue)
 
-    parent_exit_detected: threading.Event | None = None
-    parent_exit_cleanup_complete: threading.Event | None = None
+    parent_poller = None
     if is_subprocess:
         # Subprocess kernels (EDIT and IPC_RUN) can receive signals and need
         # their own formatter registration since they don't share state with
@@ -3715,18 +3713,13 @@ def launch_kernel(
             # Skip when parent is PID 1 (init / container pid1): PID 1
             # never goes away, so the poll is meaningless and could be
             # noisy on reparenting.
-            if parent_pid is not None and parent_pid != 1:
-                parent_exit_detected = threading.Event()
-                parent_exit_cleanup_complete = threading.Event()
-                ParentPollerUnix(
-                    parent_pid=parent_pid,
-                    request_graceful_shutdown=lambda: control_queue.put_nowait(
-                        StopKernelCommand()
-                    ),
-                    parent_exit_detected=parent_exit_detected,
-                    cleanup_complete=parent_exit_cleanup_complete,
-                    target_name="kernel",
-                ).start()
+            parent_poller = start_parent_poller(
+                parent_pid,
+                request_graceful_shutdown=lambda: control_queue.put_nowait(
+                    StopKernelCommand()
+                ),
+                target_name="kernel",
+            )
 
         # Each subprocess kernel needs to install the formatter import hooks
         register_formatters(theme=user_config["display"]["theme"])
@@ -3830,10 +3823,5 @@ def launch_kernel(
     #
     # The server kills the process group for edit-mode sessions. So this
     # code path is only for when the server died, as a last resort.
-    if (
-        parent_exit_detected is not None
-        and parent_exit_cleanup_complete is not None
-        and parent_exit_detected.is_set()
-    ):
-        parent_exit_cleanup_complete.set()
-        kill_own_process_group()
+    if parent_poller is not None:
+        parent_poller.finalize_if_parent_died()

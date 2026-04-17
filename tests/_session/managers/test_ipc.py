@@ -22,33 +22,7 @@ from marimo._runtime.commands import (
 )
 from marimo._session.managers.ipc import construct_kernel_env
 from marimo._session.model import SessionMode
-
-
-def _wait_until(
-    predicate: object, timeout_seconds: float, message: str
-) -> None:
-    assert callable(predicate)
-    deadline = time.monotonic() + timeout_seconds
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.05)
-    pytest.fail(message)
-
-
-def _cleanup_process(process: object) -> None:
-    import psutil
-
-    assert isinstance(process, psutil.Process)
-    try:
-        process.terminate()
-        try:
-            process.wait(timeout=2)
-        except psutil.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=2)
-    except psutil.NoSuchProcess:
-        pass
+from tests._utils.process_helpers import cleanup_process, wait_until
 
 
 def _current_venv_dir() -> str:
@@ -244,7 +218,7 @@ class TestIPCKernelManagerImpl:
                 )
             )
 
-            _wait_until(
+            wait_until(
                 pid_file.exists,
                 timeout_seconds=5,
                 message="Kernel did not write subprocess PID file in time",
@@ -254,7 +228,7 @@ class TestIPCKernelManagerImpl:
             child_pg_process = psutil.Process(pids["child_pg"])
             child_newpg_process = psutil.Process(pids["child_newpg"])
 
-            _wait_until(
+            wait_until(
                 lambda: (
                     child_pg_process.is_running()
                     and child_newpg_process.is_running()
@@ -271,12 +245,12 @@ class TestIPCKernelManagerImpl:
 
             kernel_manager.wait_for_close(timeout=10)
 
-            _wait_until(
+            wait_until(
                 lambda: not kernel_manager.is_alive(),
                 timeout_seconds=2,
                 message="IPC kernel process did not exit after close_kernel()",
             )
-            _wait_until(
+            wait_until(
                 lambda: not child_pg_process.is_running(),
                 timeout_seconds=2,
                 message="Same-process-group IPC child survived close_kernel()",
@@ -289,7 +263,7 @@ class TestIPCKernelManagerImpl:
             kernel_manager.wait_for_close(timeout=10)
 
             if child_newpg_process is not None:
-                _cleanup_process(child_newpg_process)
+                cleanup_process(child_newpg_process)
 
 
 @pytest.mark.requires("zmq")

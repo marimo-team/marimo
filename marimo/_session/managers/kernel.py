@@ -7,7 +7,6 @@ import os
 import signal
 import sys
 import threading
-import time
 from multiprocessing import connection, get_context
 from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
@@ -17,14 +16,14 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import commands, runtime
+from marimo._session.managers._shutdown import (
+    BackgroundShutdownStartResult,
+    ProcessShutdownController,
+)
 from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike
 from marimo._session.types import KernelManager, QueueManager
 from marimo._utils.print import print_
-from marimo._utils.process_tree import (
-    signal_process_group,
-    signal_process_tree,
-)
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
@@ -35,12 +34,6 @@ if TYPE_CHECKING:
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
-
-# Give the kernel a brief chance to process StopKernelCommand and run
-# teardown before escalating to OS signals in a background thread.
-_GRACEFUL_SHUTDOWN_WAIT_SECONDS = 1.0
-_FORCE_SHUTDOWN_WAIT_SECONDS = 5.0
-_PROCESS_GROUP_REAP_WAIT_SECONDS = 0.5
 
 
 class KernelManagerImpl(KernelManager):
@@ -72,14 +65,9 @@ class KernelManagerImpl(KernelManager):
         # Only used in edit mode
         self._read_conn: TypedConnection[KernelMessage] | None = None
         self._virtual_file_storage = virtual_file_storage
-        # Cached kernel process group id (Unix only)
-        self._pgid: int | None = None
-        # Fallback pgid for the post-exit reap path; after setsid(), the
-        # kernel's process group should be led by its own pid.
-        self._expected_pgid: int | None = None
-        self._queues_closed = False
-        self._shutdown_lock = threading.Lock()
-        self._shutdown_thread: threading.Thread | None = None
+        self._process_shutdown = ProcessShutdownController(
+            close_queues=self.queue_manager.close_queues
+        )
 
     def start_kernel(self) -> None:
         # We use a process in edit mode so that we can interrupt the app
@@ -180,7 +168,7 @@ class KernelManagerImpl(KernelManager):
             kernel_task = cast(ProcessLike, self.kernel_task)
             # The kernel calls setsid() during startup, so its eventual pgid
             # should match its pid; keep that as a fallback before we can safely observe it.
-            self._expected_pgid = kernel_task.pid
+            self._process_shutdown.remember_expected_pgid(kernel_task.pid)
         if listener is not None:
             # First thing kernel does is connect to the socket, so it's safe to
             # call accept
@@ -252,21 +240,22 @@ class KernelManagerImpl(KernelManager):
         if isinstance(self.kernel_task, threading.Thread):
             return
 
-        if sys.platform == "win32":
-            try:
-                self.kernel_task.terminate()
-            except OSError:
-                pass
-            return
-
         # Resolve pgid lazily. Caching is unsafe until the child has reached
         # setsid(); the shared helper keeps the early-startup fallback to a
         # direct pid signal so we never hit the server's own process group.
-        self._pgid = signal_process_tree(
+        self._process_shutdown.signal_tree(
             self.kernel_task.pid,
             sig,
-            cached_pgid=self._pgid,
+            on_windows=self._terminate_kernel_on_windows,
         )
+
+    def _terminate_kernel_on_windows(self, _: int) -> None:
+        assert self.kernel_task is not None
+        assert not isinstance(self.kernel_task, threading.Thread)
+        try:
+            self.kernel_task.terminate()
+        except OSError:
+            pass
 
     def _close_read_connection(self) -> None:
         """Close the IPC connection used to receive kernel messages."""
@@ -276,30 +265,13 @@ class KernelManagerImpl(KernelManager):
 
     def _close_queues(self) -> None:
         """Close queue resources exactly once."""
-        if self._queues_closed:
-            return
-        self.queue_manager.close_queues()
-        self._queues_closed = True
+        self._process_shutdown.close_queues_once()
 
-    def _reap_process_group_after_exit(self) -> None:
-        """Kill lingering same-process-group children after kernel exit.
-
-        After the kernel process exits, we do one final best-effort sweep of
-        the kernel's process group so children that outlive the kernel do not
-        stay orphaned. Unix-only.
-        """
-        if sys.platform == "win32":
-            return
-
-        pgid = self._pgid or self._expected_pgid
-        if not signal_process_group(pgid, signal.SIGTERM):
-            return
-
-        kill_sig = (
-            signal.SIGKILL if hasattr(signal, "SIGKILL") else signal.SIGTERM
-        )
-        time.sleep(_PROCESS_GROUP_REAP_WAIT_SECONDS)
-        signal_process_group(pgid, kill_sig)
+    def _wait_for_process_exit(self, timeout: float) -> bool:
+        assert self.kernel_task is not None
+        assert not isinstance(self.kernel_task, threading.Thread)
+        self.kernel_task.join(timeout=timeout)
+        return not self.kernel_task.is_alive()
 
     def _shutdown_process_in_background(self) -> None:
         """Finish subprocess-kernel shutdown without blocking the server.
@@ -320,25 +292,21 @@ class KernelManagerImpl(KernelManager):
         assert self.kernel_task is not None
         assert not isinstance(self.kernel_task, threading.Thread)
 
-        try:
-            self.kernel_task.join(timeout=_GRACEFUL_SHUTDOWN_WAIT_SECONDS)
-            if self.kernel_task.is_alive():
-                self._signal_kernel_tree(signal.SIGTERM)
-                self.kernel_task.join(timeout=_FORCE_SHUTDOWN_WAIT_SECONDS)
+        self._process_shutdown.run_shutdown(
+            wait_for_exit=self._wait_for_process_exit,
+            is_alive=self.kernel_task.is_alive,
+            signal_tree=self._signal_kernel_tree,
+            finalize=self._close_read_connection,
+        )
 
-            if self.kernel_task.is_alive():
-                kill_sig = (
-                    signal.SIGKILL
-                    if hasattr(signal, "SIGKILL")
-                    else signal.SIGTERM
-                )
-                self._signal_kernel_tree(kill_sig)
-                self.kernel_task.join(timeout=_FORCE_SHUTDOWN_WAIT_SECONDS)
+    def _request_kernel_stop(self) -> None:
+        profile_path = self.profile_path
+        if profile_path is not None:
+            print_(f"\tWriting profile statistics to {profile_path} ...")
 
-            self._reap_process_group_after_exit()
-        finally:
-            self._close_queues()
-            self._close_read_connection()
+        # We first politely ask the kernel to stop. A background worker waits
+        # for the kernel to stop, then terminates its entire process group.
+        self.queue_manager.put_control_request(commands.StopKernelCommand())
 
     def close_kernel(self) -> None:
         assert self.kernel_task is not None, "kernel not started"
@@ -351,35 +319,19 @@ class KernelManagerImpl(KernelManager):
                 self.queue_manager.put_control_request(
                     commands.StopKernelCommand()
                 )
-        else:
-            with self._shutdown_lock:
-                if self._shutdown_thread is not None:
-                    return
+            return
 
-                if not self.kernel_task.is_alive():
-                    # The kernel exited before we could start the background
-                    # shutdown path, so we still need to release the parent-
-                    # side queue resources here.
-                    self._close_queues()
-                    self._close_read_connection()
-                    return
-
-                if self.profile_path is not None:
-                    print_(
-                        f"\tWriting profile statistics to {self.profile_path} ..."
-                    )
-
-                # We first politely ask the kernel to stop. A background worker
-                # waits for the kernel to stop, then terminates its entire
-                # process group.
-                self.queue_manager.put_control_request(
-                    commands.StopKernelCommand()
-                )
-                self._shutdown_thread = threading.Thread(
-                    target=self._shutdown_process_in_background,
-                    daemon=False,
-                )
-                self._shutdown_thread.start()
+        result = self._process_shutdown.start_background_shutdown(
+            is_alive=self.kernel_task.is_alive,
+            before_start=self._request_kernel_stop,
+            target=self._shutdown_process_in_background,
+        )
+        if result == BackgroundShutdownStartResult.TARGET_NOT_ALIVE:
+            # The kernel exited before we could start the background
+            # shutdown path, so we still need to release the parent-side
+            # queue resources here.
+            self._close_queues()
+            self._close_read_connection()
 
     def wait_for_close(self, timeout: float | None = None) -> None:
         """Wait for shutdown work started by `close_kernel()` to finish."""
@@ -388,11 +340,10 @@ class KernelManagerImpl(KernelManager):
             self.kernel_task.join(timeout=timeout)
             return
 
-        thread = self._shutdown_thread
-        if thread is not None:
-            thread.join(timeout=timeout)
-        else:
-            self.kernel_task.join(timeout=timeout)
+        self._process_shutdown.wait_for_shutdown(
+            timeout,
+            fallback_wait=self.kernel_task.join,
+        )
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:
