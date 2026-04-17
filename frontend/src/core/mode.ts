@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { atom } from "jotai";
+import { atom, useAtomValue } from "jotai";
 import { isIslands } from "@/core/islands/utils";
 import { assertExists } from "@/utils/assertExists";
 import { invariant } from "@/utils/invariant";
@@ -79,3 +79,12 @@ export const viewStateAtom = atom<ViewState>({
 export const initialModeAtom = atom<AppMode | undefined>(undefined);
 
 export const kioskModeAtom = atom<boolean>(false);
+
+/**
+ * Whether installing packages is allowed in the current view. False in read
+ * mode, since end-users of a deployed notebook cannot mutate its environment.
+ */
+export function useInstallAllowed(): boolean {
+  const { mode } = useAtomValue(viewStateAtom);
+  return mode !== "read";
+}

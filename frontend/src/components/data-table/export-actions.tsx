@@ -20,6 +20,7 @@ import {
   jsonToMarkdown,
   jsonToTSV,
 } from "@/utils/json/json-parser";
+import { MissingPackagePrompt } from "../datasources/missing-package-prompt";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -38,6 +39,8 @@ export interface ExportActionProps {
   downloadAs: (req: { format: DownloadFormat }) => Promise<{
     url: string;
     filename: string;
+    error?: string | null;
+    missing_packages?: string[] | null;
   }>;
 }
 
@@ -81,6 +84,8 @@ const copyOptions = [
   FILE_TYPES.CSV,
   FILE_TYPES.MARKDOWN,
 ];
+const labelForDownloadFormat = (format: DownloadFormat): string =>
+  downloadOptions.find((opt) => opt.format === format)?.label ?? format;
 
 export const ExportMenu: React.FC<ExportActionProps> = (props) => {
   const { locale } = useLocale();
@@ -101,43 +106,82 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
     </Button>
   );
 
-  const getDownloadResult = (format: DownloadFormat) => {
-    return props.downloadAs({ format }).catch((error) => {
+  const resolveDownloadUrl = async (
+    format: DownloadFormat,
+    onRetry: () => void,
+  ): Promise<{ url: string; filename: string } | null> => {
+    let response: Awaited<ReturnType<typeof props.downloadAs>>;
+    try {
+      response = await props.downloadAs({ format });
+    } catch (error) {
       toast({
         title: "Failed to download",
-        description: "message" in error ? error.message : String(error),
+        description:
+          error != null && typeof error === "object" && "message" in error
+            ? String(error.message)
+            : String(error),
       });
-      throw error;
+      return null;
+    }
+
+    if (response.missing_packages && response.missing_packages.length > 0) {
+      toast({
+        title: "Export failed",
+        description: (
+          <MissingPackagePrompt
+            packages={response.missing_packages}
+            featureName={`${labelForDownloadFormat(format)} export`}
+            description={response.error}
+            onInstall={onRetry}
+          />
+        ),
+      });
+      return null;
+    }
+
+    return { url: response.url, filename: response.filename };
+  };
+
+  const handleDownload = async (format: DownloadFormat) => {
+    const result = await resolveDownloadUrl(format, () => {
+      void handleDownload(format);
     });
+    if (!result) {
+      return;
+    }
+    const rawName = (result.filename ?? "").trim();
+    const baseName = Filenames.withoutExtension(rawName) || "download";
+    downloadByURL(result.url, `${baseName}.${format}`);
   };
 
   const handleClipboardCopy = async (
     format: (typeof copyOptions)[number]["format"],
   ) => {
-    let text: string;
+    const sourceFormat: DownloadFormat = format === "csv" ? "csv" : "json";
+    const result = await resolveDownloadUrl(sourceFormat, () => {
+      void handleClipboardCopy(format);
+    });
+    if (!result) {
+      return;
+    }
 
+    let text: string;
     switch (format) {
       case "tsv": {
-        const { url } = await getDownloadResult("json");
-        const json = await fetchJson(url);
+        const json = await fetchJson(result.url);
         text = jsonToTSV(json, locale);
         break;
       }
       case "json": {
-        const { url } = await getDownloadResult("json");
-        const json = await fetchJson(url);
+        const json = await fetchJson(result.url);
         text = JSON.stringify(json, null, 2);
         break;
       }
-      case "csv": {
-        const { url } = await getDownloadResult("csv");
-        const csv = await fetchText(url);
-        text = csv;
+      case "csv":
+        text = await fetchText(result.url);
         break;
-      }
       case "markdown": {
-        const { url } = await getDownloadResult("json");
-        const json = await fetchJson(url);
+        const json = await fetchJson(result.url);
         text = jsonToMarkdown(json);
         break;
       }
@@ -164,13 +208,8 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
         {downloadOptions.map((option) => (
           <DropdownMenuItem
             key={option.label}
-            onSelect={async () => {
-              const { url, filename } = await getDownloadResult(option.format);
-              const ext = option.format;
-              const rawName = (filename ?? "").trim();
-              const baseName =
-                Filenames.withoutExtension(rawName) || "download";
-              downloadByURL(url, `${baseName}.${ext}`);
+            onSelect={() => {
+              void handleDownload(option.format);
             }}
           >
             <option.icon className="mo-dropdown-icon" />
