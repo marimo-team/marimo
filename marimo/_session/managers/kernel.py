@@ -7,6 +7,7 @@ import os
 import signal
 import sys
 import threading
+import time
 from multiprocessing import connection, get_context
 from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
@@ -301,12 +302,14 @@ class KernelManagerImpl(KernelManager):
 
     def _request_kernel_stop(self) -> None:
         profile_path = self.profile_path
-        if profile_path is not None:
-            print_(f"\tWriting profile statistics to {profile_path} ...")
-
         # We first politely ask the kernel to stop. A background worker waits
         # for the kernel to stop, then terminates its entire process group.
         self.queue_manager.put_control_request(commands.StopKernelCommand())
+        if profile_path is not None:
+            # Hack: block until the profile is written
+            print_(f"\tWriting profile statistics to {profile_path} ...")
+            while not os.path.exists(profile_path):
+                time.sleep(0.1)
 
     def close_kernel(self) -> None:
         assert self.kernel_task is not None, "kernel not started"
