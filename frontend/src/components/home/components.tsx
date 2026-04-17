@@ -32,6 +32,7 @@ import { useRequestClient } from "@/core/network/requests";
 import type { TutorialId } from "@/core/network/types";
 import { openNotebook } from "@/utils/links";
 import { Objects } from "@/utils/objects";
+import { MarimoPlusIcon } from "../icons/marimo-icons";
 
 const TUTORIALS: Record<
   TutorialId,
@@ -131,6 +132,12 @@ const RESOURCES = [
     description: "Join the marimo Discord community",
     icon: MessagesSquareIcon,
     url: Constants.discordLink,
+  },
+  {
+    title: "molab",
+    description: "Run marimo notebooks in the cloud",
+    icon: MarimoPlusIcon,
+    url: Constants.molab,
   },
   {
     title: "YouTube",
