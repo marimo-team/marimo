@@ -397,23 +397,6 @@ class IPCKernelManagerImpl(KernelManager):
                 LOGGER.debug("Sending SIGINT to kernel")
                 os.kill(self._process.pid, signal.SIGINT)
 
-    def _signal_kernel_tree(self, sig: int) -> None:
-        if self._process is None:
-            return
-
-        self._process_shutdown.signal_tree(
-            self._process.pid,
-            sig,
-            on_windows=self._signal_windows_process,
-        )
-
-    def _signal_windows_process(self, sig: int) -> None:
-        assert self._process is not None
-        if sig == signal.SIGKILL:
-            self._process.kill()
-        else:
-            self._process.terminate()
-
     def _close_queues(self) -> None:
         self._process_shutdown.close_queues_once()
 
@@ -443,9 +426,10 @@ class IPCKernelManagerImpl(KernelManager):
         # Block until the kernel exits (force-killing if necessary) and its
         # process group is reaped.
         self._process_shutdown.run_shutdown(
+            pid=self._process.pid,
             wait_for_exit=self._wait_for_process_exit,
             is_alive=self.is_alive,
-            signal_tree=self._signal_kernel_tree,
+            terminate=self._process.terminate,
             finalize=self._cleanup_sandbox,
         )
 

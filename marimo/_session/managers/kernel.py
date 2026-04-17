@@ -226,37 +226,6 @@ class KernelManagerImpl(KernelManager):
                 LOGGER.debug("Sending SIGINT to kernel")
                 os.kill(self.kernel_task.pid, signal.SIGINT)
 
-    def _signal_kernel_tree(self, sig: int) -> None:
-        """Best-effort signal delivery to the kernel process tree.
-
-        For subprocess kernels on Unix, the runtime calls `setsid()` during
-        startup so the kernel becomes the leader of its own process group.
-        That lets the manager escalate from a cooperative shutdown request to
-        process-group signaling, which reaches subprocesses spawned by user
-        code. The helper in `process_tree.py` also handles the early-startup
-        race where the child has not reached `setsid()` yet.
-        """
-        assert self.kernel_task is not None
-        if isinstance(self.kernel_task, threading.Thread):
-            return
-
-        # Resolve pgid lazily. Caching is unsafe until the child has reached
-        # setsid(); the shared helper keeps the early-startup fallback to a
-        # direct pid signal so we never hit the server's own process group.
-        self._process_shutdown.signal_tree(
-            self.kernel_task.pid,
-            sig,
-            on_windows=self._terminate_kernel_on_windows,
-        )
-
-    def _terminate_kernel_on_windows(self, _: int) -> None:
-        assert self.kernel_task is not None
-        assert not isinstance(self.kernel_task, threading.Thread)
-        try:
-            self.kernel_task.terminate()
-        except OSError:
-            pass
-
     def _close_read_connection(self) -> None:
         """Close the IPC connection used to receive kernel messages."""
         if self._read_conn is not None:
@@ -273,13 +242,13 @@ class KernelManagerImpl(KernelManager):
         self.kernel_task.join(timeout=timeout)
         return not self.kernel_task.is_alive()
 
-    def _request_kernel_stop(self) -> None:
+    def _maybe_write_kernel_profile(self) -> None:
         profile_path = self.profile_path
         # Politely ask the kernel to stop; shutdown escalation happens
         # synchronously below in `close_kernel()`.
-        self.queue_manager.put_control_request(commands.StopKernelCommand())
         if profile_path is not None:
             # Hack: block until the profile is written
+            self.queue_manager.put_control_request(commands.StopKernelCommand())
             print_(f"\tWriting profile statistics to {profile_path} ...")
             while not os.path.exists(profile_path):
                 time.sleep(0.1)
@@ -303,14 +272,15 @@ class KernelManagerImpl(KernelManager):
             self._close_read_connection()
             return
 
-        self._request_kernel_stop()
+        self._maybe_write_kernel_profile()
         # Block until the kernel exits (force-killing if necessary) and its
         # process group is reaped. See `ProcessShutdownController.run_shutdown`
         # for the escalation schedule.
         self._process_shutdown.run_shutdown(
+            pid=self.kernel_task.pid,
             wait_for_exit=self._wait_for_process_exit,
             is_alive=self.kernel_task.is_alive,
-            signal_tree=self._signal_kernel_tree,
+            terminate=self.kernel_task.terminate,
             finalize=self._close_read_connection,
         )
 

@@ -39,13 +39,23 @@ class ProcessShutdownController:
         pid: int | None,
         sig: int,
         *,
-        on_windows: Callable[[int], None],
+        terminate: Callable[[], None],
     ) -> None:
+        """Signal the process tree rooted at `pid`.
+
+        On POSIX, signals the full process group so subprocesses spawned by
+        user code are reached. On Windows there is no process-group
+        abstraction — escalation between SIGTERM and SIGKILL collapses to a
+        single `TerminateProcess` call via `terminate()`.
+        """
         if pid is None:
             return
 
         if sys.platform == "win32":
-            on_windows(sig)
+            try:
+                terminate()
+            except OSError:
+                pass
             return
 
         self._pgid = signal_process_tree(
@@ -77,15 +87,16 @@ class ProcessShutdownController:
     def run_shutdown(
         self,
         *,
+        pid: int | None,
         wait_for_exit: Callable[[float], bool],
         is_alive: Callable[[], bool],
-        signal_tree: Callable[[int], None],
+        terminate: Callable[[], None],
         finalize: Callable[[], None],
     ) -> None:
         try:
-            if not wait_for_exit(_GRACEFUL_SHUTDOWN_WAIT_SECONDS):
-                signal_tree(signal.SIGTERM)
-                wait_for_exit(_FORCE_SHUTDOWN_WAIT_SECONDS)
+            self.close_queues_once()
+            self.signal_tree(pid, signal.SIGTERM, terminate=terminate)
+            wait_for_exit(_FORCE_SHUTDOWN_WAIT_SECONDS)
 
             if is_alive():
                 kill_sig = (
@@ -93,10 +104,9 @@ class ProcessShutdownController:
                     if hasattr(signal, "SIGKILL")
                     else signal.SIGTERM
                 )
-                signal_tree(kill_sig)
+                self.signal_tree(pid, kill_sig, terminate=terminate)
                 wait_for_exit(_FORCE_SHUTDOWN_WAIT_SECONDS)
 
             self.reap_process_group_after_exit()
         finally:
-            self.close_queues_once()
             finalize()
