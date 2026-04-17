@@ -381,6 +381,7 @@ const Show = ({
       {node.data.name}
       {node.data.isMarimoFile && !isWasm() && (
         <span
+          data-testid="file-explorer-open-marimo-button"
           className="shrink-0 ml-2 text-sm hidden group-hover:inline hover:underline"
           onClick={onOpenMarimoFile}
         >
@@ -419,8 +420,7 @@ const Edit = ({ node }: { node: NodeApi<FileInfo> }) => {
 };
 
 const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
-  const { openFile, sendCreateFileOrFolder, sendFileDetails } =
-    useRequestClient();
+  const { openFile, sendFileDetails } = useRequestClient();
   const disableFileDownloads = useAtomValue(disableFileDownloadsAtom);
 
   const fileType: FileIconType = node.data.isDirectory
@@ -502,37 +502,14 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
   });
 
   const handleDuplicate = useEvent(async () => {
-    if (!tree || node.data.isDirectory) {
+    if (!tree) {
       return;
     }
 
     const [name, extension] = fileSplit(node.data.name);
     const duplicateName = `${name}_copy${extension}`;
 
-    try {
-      // First get the file contents
-      const details = await sendFileDetails({ path: node.data.path });
-
-      // Get the parent directory path
-      const parentPath = node.parent?.data.path || "";
-
-      // Create the duplicate file by creating a new file with the same contents
-      await sendCreateFileOrFolder({
-        path: parentPath,
-        type: "file",
-        name: duplicateName,
-        contents: details.contents ? btoa(details.contents) : undefined,
-      });
-
-      // Refresh the parent folder to show the new file
-      await tree.refreshAll([parentPath]);
-    } catch {
-      toast({
-        title: "Failed to duplicate file",
-        description: "Unable to create a duplicate of the file",
-        variant: "danger",
-      });
-    }
+    await tree.copy(node.id, duplicateName);
   });
 
   const renderActions = () => {
@@ -581,12 +558,10 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
           <Edit3Icon className={ic} />
           Rename
         </DropdownMenuItem>
-        {!node.data.isDirectory && (
-          <DropdownMenuItem onSelect={handleDuplicate}>
-            <CopyIcon className={ic} />
-            Duplicate
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem onSelect={handleDuplicate}>
+          <CopyIcon className={ic} />
+          Duplicate
+        </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={async () => {
             await copyToClipboard(node.data.path);

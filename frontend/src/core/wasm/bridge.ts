@@ -17,6 +17,7 @@ import type {
   EditRequests,
   ExportAsHTMLRequest,
   ExportAsMarkdownRequest,
+  FileCopyResponse,
   FileCreateResponse,
   FileDeleteResponse,
   FileDetailsResponse,
@@ -441,6 +442,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
       payload: request,
     });
     return response as FileDeleteResponse;
+  };
+
+  sendCopyFileOrFolder: EditRequests["sendCopyFileOrFolder"] = async (
+    request,
+  ) => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "copy_file_or_directory",
+      payload: request,
+    });
+    return response as FileCopyResponse;
   };
 
   sendRenameFileOrFolder: EditRequests["sendRenameFileOrFolder"] = async (

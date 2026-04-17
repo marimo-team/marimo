@@ -761,6 +761,31 @@ def test_pyodide_bridge_move_file(
     assert new_path.exists()
 
 
+def test_pyodide_bridge_copy_file(
+    pyodide_bridge: PyodideBridge,
+    tmp_path: Path,
+) -> None:
+    """Test copying file through the bridge."""
+    test_file = tmp_path / "original.py"
+    test_file.write_text("# copy me")
+    new_path = tmp_path / "copied.py"
+
+    request_json = json.dumps(
+        {
+            "path": str(test_file),
+            "newPath": str(new_path),
+        }
+    )
+
+    result = pyodide_bridge.copy_file_or_directory(request_json)
+    response = json.loads(result)
+
+    assert response["success"] is True
+    assert test_file.exists()
+    assert new_path.exists()
+    assert new_path.read_text() == "# copy me"
+
+
 def test_pyodide_bridge_update_file(
     pyodide_bridge: PyodideBridge,
     tmp_path: Path,

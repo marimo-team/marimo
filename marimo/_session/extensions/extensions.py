@@ -294,7 +294,10 @@ class NotificationListenerExtension(SessionExtension):
         if self.kernel_manager.mode != SessionMode.EDIT:
             return
 
-        if session.app_file_manager.path is None:
+        expected_filename, expected_generation = (
+            session.app_file_manager.capture_autosave_target()
+        )
+        if expected_filename is None:
             if not self._unnamed_autosave_logged:
                 LOGGER.debug(
                     "Skipping code_mode auto-save for unnamed notebook"
@@ -311,7 +314,12 @@ class NotificationListenerExtension(SessionExtension):
         )
 
         self._autosave_runner.submit(
-            partial(session.app_file_manager.save_from_cells, cells_snapshot),
+            partial(
+                session.app_file_manager.save_from_cells,
+                cells_snapshot,
+                expected_filename=expected_filename,
+                expected_generation=expected_generation,
+            ),
             on_error=partial(self._post_autosave_failure, session),
         )
 

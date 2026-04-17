@@ -48,26 +48,52 @@ def _claude_skill_dirs() -> list[Path]:
     return [root / sub for root in roots for sub in subdirs]
 
 
-AGENTS: dict[str, AgentConfig] = {
-    "claude": AgentConfig(
-        name="Claude Code",
-        skill_dirs=_claude_skill_dirs(),
-    ),
-    "codex": AgentConfig(
-        name="Codex",
-        skill_dirs=[
-            Path.home() / ".codex" / "skills",
-            Path.cwd() / ".codex" / "skills",
-        ],
-    ),
-    "opencode": AgentConfig(
-        name="opencode",
-        skill_dirs=[
-            Path.home() / ".config" / "opencode" / "skills",
-            Path.cwd() / ".config" / "opencode" / "skills",
-        ],
-    ),
-}
+def _opencode_skill_dirs() -> list[Path]:
+    """Return directories where an opencode skill (or compatible layout) may live.
+
+    https://opencode.ai/docs/skills/
+    Checked roots are the parent of ``<skill-name>/SKILL.md`` for:
+
+    - Project opencode: ``.opencode/skills/``
+    - Global opencode: ``~/.config/opencode/skills/``
+    - Project Claude-compatible: ``.claude/skills/``
+    - Global Claude-compatible: ``~/.claude/skills/``
+    - Project agent-compatible: ``.agents/skills/``
+    - Global agent-compatible: ``~/.agents/skills/``
+    """
+    cwd = Path.cwd()
+    home = Path.home()
+    return [
+        cwd / ".opencode" / "skills",
+        home / ".config" / "opencode" / "skills",
+        cwd / ".claude" / "skills",
+        home / ".claude" / "skills",
+        cwd / ".agents" / "skills",
+        home / ".agents" / "skills",
+    ]
+
+
+def pair_agents() -> dict[str, AgentConfig]:
+    """Return agent configs; paths use ``Path.cwd()`` at call time."""
+    cwd = Path.cwd()
+    home = Path.home()
+    return {
+        "claude": AgentConfig(
+            name="Claude Code",
+            skill_dirs=_claude_skill_dirs(),
+        ),
+        "codex": AgentConfig(
+            name="Codex",
+            skill_dirs=[
+                home / ".codex" / "skills",
+                cwd / ".codex" / "skills",
+            ],
+        ),
+        "opencode": AgentConfig(
+            name="opencode",
+            skill_dirs=_opencode_skill_dirs(),
+        ),
+    }
 
 
 @click.group(
@@ -137,7 +163,7 @@ def prompt(
         "codex": codex,
         "opencode": opencode,
     }
-    for key, agent in AGENTS.items():
+    for key, agent in pair_agents().items():
         if not selected_agents[key]:
             continue
         if not agent.has_skill():

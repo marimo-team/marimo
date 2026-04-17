@@ -37,7 +37,10 @@ import {
   extractTimezone,
   type FieldTypesWithExternalType,
   INDEX_COLUMN_NAME,
+  isNumericType,
 } from "./types";
+import { SentinelCell } from "./sentinel-cell";
+import { detectSentinel } from "./utils";
 import { uniformSample } from "./uniformSample";
 import { MarkdownUrlDetector, UrlDetector } from "./url-detector";
 
@@ -163,7 +166,7 @@ export function generateColumns<T>({
     }
     // Auto right-align numeric columns
     const dataType = getMeta(key).dataType;
-    if (dataType === "number" || dataType === "integer") {
+    if (isNumericType(dataType)) {
       return "right";
     }
     return undefined;
@@ -269,7 +272,7 @@ export function generateColumns<T>({
           !isCellSelected;
 
         const dataType = column.columnDef.meta?.dataType;
-        const isNumeric = dataType === "number" || dataType === "integer";
+        const isNumeric = isNumericType(dataType);
         const cellStyles = getCellStyleClass({
           justify,
           wrapped,
@@ -521,6 +524,17 @@ export function renderCellValue<TData, TValue>({
   const dtype = column.columnDef.meta?.dtype;
 
   const isWrapped = column.getColumnWrapping?.() === "wrap";
+
+  // Sentinel values (null, whitespace, NaN, Infinity, NaT) rendered specially.
+  // Empty strings are left as-is
+  const sentinel = detectSentinel(value, dataType);
+  if (sentinel && sentinel.type !== "empty-string") {
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        <SentinelCell sentinel={sentinel} />
+      </div>
+    );
+  }
 
   if (dataType === "datetime" && typeof value === "string") {
     try {

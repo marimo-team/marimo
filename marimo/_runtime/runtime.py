@@ -3519,8 +3519,22 @@ def launch_kernel(
     # - Run mode (not edit) uses autorun config regardless of IPC
     is_subprocess = is_edit_mode or is_ipc
 
+    loop_factory: Callable[[], asyncio.AbstractEventLoop] | None = None
     if is_subprocess:
         restore_signals()
+
+        # The runtime process inherits the server's loop policy, on Windows, we
+        # restore the event loop policy to the default ProactorEventLoop, so
+        # user code can use asyncio.create_subprocess_exec and other APIs that
+        # the SelectorEventLoop does not implement.
+        if sys.platform == "win32":
+            if sys.version_info >= (3, 14):
+                # Event loop policies are deprecated in Python 3.14
+                loop_factory = asyncio.ProactorEventLoop
+            else:
+                asyncio.set_event_loop_policy(
+                    asyncio.WindowsProactorEventLoopPolicy()
+                )
 
     profiler = None
     if profile_path is not None:
@@ -3723,7 +3737,10 @@ def launch_kernel(
     # queue.get().  The queue read is offloaded to a thread via
     # run_in_executor; avoid adding further async primitives elsewhere in the
     # runtime unless there is a very good reason.
-    asyncio.run(control_loop(kernel))
+    if loop_factory is not None:
+        asyncio.run(control_loop(kernel), loop_factory=loop_factory)
+    else:
+        asyncio.run(control_loop(kernel))
 
     if not use_fd_redirect:
         from marimo._messaging.thread_local_streams import (
