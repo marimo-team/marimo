@@ -3814,14 +3814,8 @@ def launch_kernel(
     if isinstance(pipe, connection.Connection):
         pipe.close()
 
-    # `launch_kernel()` is also used outside the dedicated edit/IPC subprocess
-    # case (for example, run-mode kernels execute in a thread inside the
-    # server). Only self-kill the current process group when the parent-death
-    # poller detected that no outside manager is left to reap this subprocess
-    # tree; doing this unconditionally would turn normal exits into SIGKILLs,
-    # and in non-subprocess modes could kill the whole host process.
-    #
-    # The server kills the process group for edit-mode sessions. So this
-    # code path is only for when the server died, as a last resort.
     if parent_poller is not None:
+        # The server kills the process group for edit-mode sessions and app
+        # host sessions. This is a last resort to clean up the kernel's
+        # children if the server isn't around to do so.
         parent_poller.finalize_if_parent_died()

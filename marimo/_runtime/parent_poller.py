@@ -36,6 +36,7 @@ class ParentPollerHandle:
     cleanup_complete: Event
 
     def mark_cleanup_complete(self) -> None:
+        """For the caller to signal to the poller it can exit."""
         self.cleanup_complete.set()
 
     def finalize_if_parent_died(self) -> None:
