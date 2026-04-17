@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
+import signal
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from typing import (
@@ -11,6 +13,8 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._session.queue import ProcessLike
+from marimo._utils.platform import is_windows
 
 LOGGER = _loggers.marimo_logger()
 
@@ -271,3 +275,33 @@ def safe_popen(
     except Exception as e:
         LOGGER.error("Failed to create subprocess for command %s: %s", args, e)
         return None
+
+
+def try_kill_process_and_group(process: ProcessLike) -> None:
+    """Attempt to kill the process group to which process belongs.
+
+    Refuses to kill the group if its the same group as the calling process.
+
+    Regardless, tries to kill the process.
+    """
+    try:
+        pid = process.pid
+        if pid is None:
+            return
+
+        if is_windows():
+            # TODO(akshayka): Investigate whether we need to kill an entire
+            # process group on Windows, and if so how ...
+            process.terminate()
+        else:
+            target_pgid = os.getpgid(pid)
+            if target_pgid == os.getpgrp():
+                # This should never happen. The child's target
+                LOGGER.warning(
+                    "The target's pgid matches the server's (%d)", target_pgid
+                )
+                process.terminate()
+            else:
+                os.killpg(target_pgid, signal.SIGTERM)
+    except Exception as e:
+        LOGGER.warning(e)

@@ -20,8 +20,8 @@ from marimo._runtime import commands, runtime
 from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike
 from marimo._session.types import KernelManager, QueueManager
-from marimo._utils.platform import is_windows
 from marimo._utils.print import print_
+from marimo._utils.subprocess import try_kill_process_and_group
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
@@ -273,20 +273,7 @@ class KernelManagerImpl(KernelManager):
             time.sleep(1)
 
         self.queue_manager.close_queues()
-        if self.kernel_task.is_alive() and is_windows():
-            # TODO(akshayka): Investigate whether we need to kill an entire
-            # process group on Windows, and if so how
-            self.kernel_task.terminate()
-        elif self.kernel_task.is_alive():
-            kernel_pgid = os.getpgid(self.kernel_task.pid)  # type: ignore
-            if kernel_pgid == os.getpgrp():
-                # This should never happen. The child's kernel
-                LOGGER.warning(
-                    "The kernel's pgid matches the server's (%d)", kernel_pgid
-                )
-                self.kernel_task.terminate()
-            else:
-                os.killpg(kernel_pgid, signal.SIGTERM)
+        try_kill_process_and_group(self.kernel_task)
         if self._read_conn is not None:
             self._read_conn.close()
 
