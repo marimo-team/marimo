@@ -1579,3 +1579,55 @@ def test_prune_cells_for_overrides_preserves_order() -> None:
         graph, execution_order, {"b": 100}
     )
     assert result == ["0", "2", "3"]
+
+
+def test_is_any_ancestor_errored() -> None:
+    """Test that is_any_ancestor_errored correctly detects ancestor errors."""
+    graph = dataflow.DirectedGraph()
+    # Create a chain: 0 -> 1 -> 2
+    code = "x = 0"
+    first_cell = parse_cell(code)
+    graph.register_cell("0", first_cell)
+    code = "y = x"
+    second_cell = parse_cell(code)
+    graph.register_cell("1", second_cell)
+    code = "z = y"
+    third_cell = parse_cell(code)
+    graph.register_cell("2", third_cell)
+
+    # No errors initially
+    assert not graph.is_any_ancestor_errored("0")
+    assert not graph.is_any_ancestor_errored("1")
+    assert not graph.is_any_ancestor_errored("2")
+
+    # Set cell 0 to exception state
+    graph.cells["0"].set_run_result_status("exception")
+    assert not graph.is_any_ancestor_errored("0")  # no ancestors
+    assert graph.is_any_ancestor_errored("1")  # parent 0 has error
+    assert graph.is_any_ancestor_errored("2")  # grandparent 0 has error
+
+    # Fix cell 0 - clear the error
+    graph.cells["0"].set_run_result_status("success")
+    assert not graph.is_any_ancestor_errored("0")
+    assert not graph.is_any_ancestor_errored("1")
+    assert not graph.is_any_ancestor_errored("2")
+
+
+def test_is_any_ancestor_errored_marimo_error() -> None:
+    """Test that is_any_ancestor_errored detects marimo-error status too."""
+    graph = dataflow.DirectedGraph()
+    code = "x = 0"
+    first_cell = parse_cell(code)
+    graph.register_cell("0", first_cell)
+    code = "y = x"
+    second_cell = parse_cell(code)
+    graph.register_cell("1", second_cell)
+
+    # Set cell 0 to marimo-error state (e.g. registration/syntax error)
+    graph.cells["0"].set_run_result_status("marimo-error")
+    assert not graph.is_any_ancestor_errored("0")  # no ancestors
+    assert graph.is_any_ancestor_errored("1")  # parent 0 has marimo-error
+
+    # Fix cell 0
+    graph.cells["0"].set_run_result_status("success")
+    assert not graph.is_any_ancestor_errored("1")

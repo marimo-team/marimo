@@ -25,7 +25,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellImpl
+from marimo._ast.cell import CellConfig, CellImpl, RuntimeStateType
 from marimo._ast.compiler import _build_source_position_map, compile_cell
 from marimo._ast.errors import ImportStarError
 from marimo._ast.names import SETUP_CELL_NAME
@@ -1401,12 +1401,39 @@ class Kernel:
             # common cases. We could also be more aggressive and run this before
             # every cell, or even before pickle.dump/pickle.dumps()
             with patches.patch_main_module_context(self._module):
+                # Snapshot disabled cells that are in an error/cancelled state
+                # BEFORE running, so we can clear them after the run if their
+                # ancestor recovered.
+                pre_run_errored_disabled = {
+                    cid
+                    for cid, cell in self.graph.cells.items()
+                    if self.graph.is_disabled(cid)
+                    and cell.run_result_status
+                    in ("exception", "marimo-error", "cancelled")
+                }
                 while cell_ids := await self._run_cells_internal(cell_ids):
                     LOGGER.debug("Running state updates ...")
                     if self.lazy() and cell_ids:
                         self.graph.set_stale(cell_ids, prune_imports=True)
                         break
                 LOGGER.debug("Finished run.")
+                # Clear stale error state from disabled cells whose ancestor
+                # recovered. Uses pre-run snapshot since run_result_status is
+                # updated during the run.
+                for cid in pre_run_errored_disabled:
+                    cell_impl = self.graph.cells[cid]
+                    if not self.graph.is_any_ancestor_errored(cid):
+                        cell_impl.set_run_result_status("disabled")
+                        status = cast(
+                            RuntimeStateType,
+                            "idle"
+                            if cell_impl.config.disabled
+                            else "disabled-transitively",
+                        )
+                        cell_impl.set_runtime_state(status)
+                        CellNotificationUtils.broadcast_empty_output(
+                            cell_id=cid, status=status
+                        )
 
     async def _if_autorun_then_run_cells(
         self, cell_ids: set[CellId_t]
@@ -1814,6 +1841,7 @@ class Kernel:
                 relatives=dataflow.get_import_block_relatives(self.graph),
             )
         )
+
         if self.module_watcher is not None:
             self.module_watcher.run_is_processed.set()
 
