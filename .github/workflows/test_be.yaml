@@ -202,14 +202,22 @@ jobs:
       - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          # DEBUG EXPERIMENT 1: isolate test_streams.py on Windows to test
-          # whether test_import_multiprocessing hangs because of cross-test
-          # pollution or because of production-code changes. Do not merge.
-          uv run --python ${{ matrix.python-version }} --group test pytest tests/_messaging/test_streams.py \
+          # DEBUG EXPERIMENT 3a: exclude new debug-kill-process-group tests
+          # to see whether cross-test state pollution comes from them. Do not
+          # merge.
+          uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
             -v \
-            -p no:xdist \
+            ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
+            -k "not test_cli" \
+            --ignore=tests/_runtime/test_parent_poller.py \
+            --ignore=tests/_session \
             --durations=10 \
-            --inline-snapshot=disable
+            -p packages.pytest_changed \
+            --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
+            --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
+            --picked=first \
+            --inline-snapshot=disable \
+          || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
 
       # Test with optional dependencies
       - name: Test changed with optional dependencies
