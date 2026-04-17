@@ -492,9 +492,7 @@ class TestDefaultTable(unittest.TestCase):
         assert self.manager.supports_download() is True
 
     def test_to_csv(self) -> None:
-        manager = DefaultTableManager(
-            [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
-        )
+        manager = DefaultTableManager([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
         assert manager.to_csv() == b"a,b\n1,2\n3,4\n"
 
     def test_to_csv_with_separator(self) -> None:
