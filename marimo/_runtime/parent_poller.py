@@ -141,7 +141,7 @@ def start_parent_poller(
 ) -> ParentPollerHandle | None:
     """Start a parent poller when the current Unix subprocess has a parent.
 
-    Returns ``None`` when parent polling is not applicable, such as when
+    Returns `None` when parent polling is not applicable, such as when
     running on Windows or when reparenting to PID 1 is expected.
     """
     if sys.platform == "win32" or parent_pid in (None, 1):

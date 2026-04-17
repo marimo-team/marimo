@@ -3709,10 +3709,6 @@ def launch_kernel(
             # Start a parent poller which is responsible for cleaning up
             # the kernel and associated processes if the parent (server)
             # dies unexpectedly.
-            #
-            # Skip when parent is PID 1 (init / container pid1): PID 1
-            # never goes away, so the poll is meaningless and could be
-            # noisy on reparenting.
             parent_poller = start_parent_poller(
                 parent_pid,
                 request_graceful_shutdown=lambda: control_queue.put_nowait(
