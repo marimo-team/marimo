@@ -431,9 +431,7 @@ class TestCellSnapshotIsolation:
         received: list[list[NotebookCell]] = []
         real_save = session.app_file_manager.save_from_cells
 
-        def _capture(
-            cells: list[NotebookCell], **kwargs: object
-        ) -> str:
+        def _capture(cells: list[NotebookCell], **kwargs: object) -> str:
             received.append(list(cells))
             return real_save(cells, **kwargs)
 
@@ -473,9 +471,7 @@ class TestCellSnapshotIsolation:
         received: list[list[NotebookCell]] = []
         real_save = session.app_file_manager.save_from_cells
 
-        def _capture(
-            cells: list[NotebookCell], **kwargs: object
-        ) -> str:
+        def _capture(cells: list[NotebookCell], **kwargs: object) -> str:
             received.append(list(cells))
             return real_save(cells, **kwargs)
 
@@ -544,9 +540,7 @@ class TestAutosaveOrdering:
 
         ext._on_kernel_message(
             session,
-            _serialize_tx(
-                SetCode(cell_id=existing_cell_id, code="old = 1")
-            ),
+            _serialize_tx(SetCode(cell_id=existing_cell_id, code="old = 1")),
         )
         assert len(queued_work) == 1
 
