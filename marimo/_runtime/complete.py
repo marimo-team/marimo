@@ -323,11 +323,11 @@ def _get_completion_options(
     compute_docstrings = len(completions) <= limit
 
     completion_options: list[CompletionOption] = []
-    start_time = time.time()
+    deadline = time.monotonic() + timeout
     for completion in completions:
         if not _should_include_name(completion.name, prefix):
             continue
-        under_time_budget = (time.time() - start_time) < timeout
+        under_time_budget = time.monotonic() < deadline
         completion_options.append(
             _get_completion_option(
                 completion,
