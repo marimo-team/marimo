@@ -1181,6 +1181,63 @@ class TestDefaultTableWithComplexData(unittest.TestCase):
         )
 
 
+class TestHeterogeneousRowData(unittest.TestCase):
+    """Row-oriented data where rows have differing key sets."""
+
+    def test_get_column_names_unions_keys(self) -> None:
+        mgr = DefaultTableManager([{"a": 1}, {"a": 2, "b": 3}])
+        assert mgr.get_column_names() == ["a", "b"]
+
+    def test_get_column_names_disjoint_keys(self) -> None:
+        mgr = DefaultTableManager([{"a": 1}, {"b": 2}])
+        assert mgr.get_column_names() == ["a", "b"]
+
+    def test_get_column_names_preserves_first_seen_order(self) -> None:
+        mgr = DefaultTableManager([{"b": 1}, {"a": 2, "b": 3}])
+        assert mgr.get_column_names() == ["b", "a"]
+
+    def test_get_column_names_empty_dict_rows(self) -> None:
+        assert DefaultTableManager([{}, {}]).get_column_names() == []
+
+    def test_to_csv_str_includes_all_columns(self) -> None:
+        mgr = DefaultTableManager([{"a": 1}, {"a": 2, "b": 3}])
+        assert mgr.to_csv_str() == "a,b\n1,\n2,3\n"
+
+    def test_to_json_str_preserves_per_row_keys(self) -> None:
+        mgr = DefaultTableManager([{"a": 1}, {"a": 2, "b": 3}])
+        assert json.loads(mgr.to_json_str()) == [
+            {"a": 1},
+            {"a": 2, "b": 3},
+        ]
+
+    def test_select_columns_fills_missing_keys_with_none(self) -> None:
+        mgr = DefaultTableManager([{"a": 1}, {"a": 2, "b": 3}])
+        assert mgr.select_columns(["a", "b"]).data == [
+            {"a": 1, "b": None},
+            {"a": 2, "b": 3},
+        ]
+
+
+class TestMismatchedColumnLengths(unittest.TestCase):
+    """Column-oriented data where columns have differing lengths."""
+
+    def test_get_num_rows_is_max_column_length(self) -> None:
+        mgr = DefaultTableManager({"a": [1, 2, 3], "b": [4, 5]})
+        assert mgr.get_num_rows() == 3
+
+    def test_to_csv_str_pads_short_columns(self) -> None:
+        mgr = DefaultTableManager({"a": [1, 2, 3], "b": [4, 5]})
+        assert mgr.to_csv_str() == "a,b\n1,4\n2,5\n3,\n"
+
+    def test_to_json_str_pads_short_columns_with_null(self) -> None:
+        mgr = DefaultTableManager({"a": [1, 2, 3], "b": [4, 5]})
+        assert json.loads(mgr.to_json_str()) == [
+            {"a": 1, "b": 4},
+            {"a": 2, "b": 5},
+            {"a": 3, "b": None},
+        ]
+
+
 def test_validate_header_tooltip_valid() -> None:
     columns = {"name", "age", "birth_year"}
     mapping = {"name": "Name of person", "age": "Age in years"}
