@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal, Protocol, overload
 
 from marimo import _loggers
@@ -37,6 +38,7 @@ from marimo._ast.cell import (
 from marimo._ast.cell_id import CellIdGenerator
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import SETUP_CELL_NAME
+from marimo._code_mode._better_inspect import _HelpableEnumMeta, helpable
 from marimo._code_mode._packages import (
     Packages,
     _AddPackage,
@@ -94,21 +96,45 @@ if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
 
-CellStatusType = Literal[
-    "idle",
-    "exception",
-    "stale",
-    "cancelled",
-    "interrupted",
-    "marimo-error",
-    "disabled",
-    "queued",
-    "running",
-]
+
+@helpable
+class CellStatusType(str, Enum, metaclass=_HelpableEnumMeta):
+    """Synthesized cell execution status.
+
+    Returned by ``NotebookCell.status``.  Compares equal to plain
+    strings, so ``cell.status == "idle"`` works as expected.
+    """
+
+    idle = "idle"
+    """Ran successfully, up to date."""
+    exception = "exception"
+    """Cell raised an exception."""
+    stale = "stale"
+    """Needs re-run (code edited, inputs changed, or never run)."""
+    cancelled = "cancelled"
+    """Ancestor raised an exception."""
+    interrupted = "interrupted"
+    """Execution was interrupted."""
+    marimo_error = "marimo-error"
+    """Prevented from executing (e.g. multiply-defined name)."""
+    disabled = "disabled"
+    """Cell is disabled."""
+    queued = "queued"
+    """Waiting to run."""
+    running = "running"
+    """Currently executing."""
+
+    def __str__(self) -> str:
+        return self.value
+
+    def __repr__(self) -> str:
+        return repr(self.value)
+
 
 CellErrorKind = Literal["graph", "runtime"]
 
 
+@helpable
 @dataclass(frozen=True, slots=True)
 class CellError:
     """An error affecting a notebook cell.
@@ -190,6 +216,7 @@ def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
     )
 
 
+@helpable
 class NotebookCell:
     """Read-only view of a single cell with runtime status.
 
@@ -283,26 +310,26 @@ class NotebookCell:
         stale > last run result.
         """
         if self._impl is None:
-            return "stale" if self._cell.code else None
+            return CellStatusType.stale if self._cell.code else None
         # Transient runtime state takes priority.
         rs = self._impl.runtime_state
         if rs == "queued":
-            return "queued"
+            return CellStatusType.queued
         if rs == "running":
-            return "running"
+            return CellStatusType.running
         if rs == "disabled-transitively":
-            return "disabled"
+            return CellStatusType.disabled
         # Stale overrides last run result.
         if self._is_stale():
-            return "stale"
+            return CellStatusType.stale
         # Fall back to last execution result.
         rr = self._impl.run_result_status
         if rr is None:
             # Registered in the graph but never executed.
-            return "stale" if self._cell.code else None
+            return CellStatusType.stale if self._cell.code else None
         if rr == "success":
-            return "idle"
-        return rr
+            return CellStatusType.idle
+        return CellStatusType(rr)
 
     @property
     def errors(self) -> list[CellError]:
@@ -349,6 +376,7 @@ class NotebookCell:
         )
 
 
+@helpable
 class _CellsView:
     """Read-only, ordered view over notebook cells.
 
@@ -537,6 +565,7 @@ class _CellsView:
 # ------------------------------------------------------------------
 
 
+@helpable
 class AsyncCodeModeContext:
     """Async programmatic control of a running marimo notebook.
 

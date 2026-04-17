@@ -211,6 +211,7 @@ jobs:
             --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
             --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
             --picked=first \
+            --inline-snapshot=disable \
           || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
 
       # Test with optional dependencies
@@ -226,6 +227,7 @@ jobs:
             --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
             --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
             --picked=first \
+            --inline-snapshot=disable \
           || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
 
       # Test with minimal dependencies using lowest resolution
@@ -243,6 +245,7 @@ jobs:
             --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
             --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
             --picked=first \
+            --inline-snapshot=disable \
           || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
         env:
           UV_RESOLUTION: lowest-direct
@@ -275,6 +278,7 @@ jobs:
             -k "not test_cli" \
             --durations=10 \
             --picked=first \
+            --inline-snapshot=disable \
             --cov=marimo --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
       # Only upload coverage on `main` so it is not blocking
