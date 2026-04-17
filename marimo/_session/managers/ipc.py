@@ -33,7 +33,6 @@ from marimo._session._venv import (
     install_marimo_into_venv,
 )
 from marimo._session.managers._shutdown import (
-    BackgroundShutdownStartResult,
     ProcessShutdownController,
 )
 from marimo._session.model import SessionMode
@@ -430,9 +429,19 @@ class IPCKernelManagerImpl(KernelManager):
             return False
         return True
 
-    def _shutdown_process_in_background(self) -> None:
-        assert self._process is not None
+    def close_kernel(self) -> None:
+        if self._process is None:
+            self._cleanup_sandbox()
+            return
 
+        if not self.is_alive():
+            self._close_queues()
+            self._cleanup_sandbox()
+            return
+
+        self._request_kernel_stop()
+        # Block until the kernel exits (force-killing if necessary) and its
+        # process group is reaped.
         self._process_shutdown.run_shutdown(
             wait_for_exit=self._wait_for_process_exit,
             is_alive=self.is_alive,
@@ -440,38 +449,12 @@ class IPCKernelManagerImpl(KernelManager):
             finalize=self._cleanup_sandbox,
         )
 
-    def close_kernel(self) -> None:
-        if self._process is None:
-            self._cleanup_sandbox()
-            return
-
-        result = self._process_shutdown.start_background_shutdown(
-            is_alive=self.is_alive,
-            before_start=self._request_kernel_stop,
-            target=self._shutdown_process_in_background,
-        )
-        if result == BackgroundShutdownStartResult.TARGET_NOT_ALIVE:
-            self._close_queues()
-            self._cleanup_sandbox()
-
     def _request_kernel_stop(self) -> None:
         self.queue_manager.put_control_request(commands.StopKernelCommand())
 
     def wait_for_close(self, timeout: float | None = None) -> None:
-        if self._process is None:
-            return
-
-        self._process_shutdown.wait_for_shutdown(
-            timeout,
-            fallback_wait=self._wait_for_process_directly,
-        )
-
-    def _wait_for_process_directly(self, timeout: float | None) -> None:
-        assert self._process is not None
-        try:
-            self._process.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            return
+        """No-op: `close_kernel()` now waits synchronously."""
+        del timeout
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:

@@ -18,7 +18,6 @@ from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import commands, runtime
 from marimo._session.managers._shutdown import (
-    BackgroundShutdownStartResult,
     ProcessShutdownController,
 )
 from marimo._session.model import SessionMode
@@ -274,36 +273,10 @@ class KernelManagerImpl(KernelManager):
         self.kernel_task.join(timeout=timeout)
         return not self.kernel_task.is_alive()
 
-    def _shutdown_process_in_background(self) -> None:
-        """Finish subprocess-kernel shutdown without blocking the server.
-
-        The shutdown sequence for subprocess kernels is:
-
-        1. `close_kernel()` queues `StopKernelCommand()` and returns.
-        2. This background worker waits briefly for the kernel to run normal
-           teardown and exit on its own.
-        3. If the kernel is still alive, escalate to `SIGTERM`, then
-           `SIGKILL` if necessary.
-        4. After the kernel exits, sweep the process group one last time to
-           reap lingering child processes.
-
-        This split keeps the request path non-blocking while still cleaning up
-        subprocesses that would otherwise be orphaned.
-        """
-        assert self.kernel_task is not None
-        assert not isinstance(self.kernel_task, threading.Thread)
-
-        self._process_shutdown.run_shutdown(
-            wait_for_exit=self._wait_for_process_exit,
-            is_alive=self.kernel_task.is_alive,
-            signal_tree=self._signal_kernel_tree,
-            finalize=self._close_read_connection,
-        )
-
     def _request_kernel_stop(self) -> None:
         profile_path = self.profile_path
-        # We first politely ask the kernel to stop. A background worker waits
-        # for the kernel to stop, then terminates its entire process group.
+        # Politely ask the kernel to stop; shutdown escalation happens
+        # synchronously below in `close_kernel()`.
         self.queue_manager.put_control_request(commands.StopKernelCommand())
         if profile_path is not None:
             # Hack: block until the profile is written
@@ -317,36 +290,33 @@ class KernelManagerImpl(KernelManager):
         if isinstance(self.kernel_task, threading.Thread):
             # in run mode
             if self.kernel_task.is_alive():
-                # We don't join the kernel thread because we don't want to server
-                # to block on it finishing
+                # We don't join the kernel thread because we don't want the
+                # server to block on it finishing.
                 self.queue_manager.put_control_request(
                     commands.StopKernelCommand()
                 )
             return
 
-        result = self._process_shutdown.start_background_shutdown(
-            is_alive=self.kernel_task.is_alive,
-            before_start=self._request_kernel_stop,
-            target=self._shutdown_process_in_background,
-        )
-        if result == BackgroundShutdownStartResult.TARGET_NOT_ALIVE:
-            # The kernel exited before we could start the background
-            # shutdown path, so we still need to release the parent-side
-            # queue resources here.
+        if not self.kernel_task.is_alive():
+            # Kernel already exited; just release parent-side resources.
             self._close_queues()
             self._close_read_connection()
-
-    def wait_for_close(self, timeout: float | None = None) -> None:
-        """Wait for shutdown work started by `close_kernel()` to finish."""
-        assert self.kernel_task is not None, "kernel not started"
-        if isinstance(self.kernel_task, threading.Thread):
-            self.kernel_task.join(timeout=timeout)
             return
 
-        self._process_shutdown.wait_for_shutdown(
-            timeout,
-            fallback_wait=self.kernel_task.join,
+        self._request_kernel_stop()
+        # Block until the kernel exits (force-killing if necessary) and its
+        # process group is reaped. See `ProcessShutdownController.run_shutdown`
+        # for the escalation schedule.
+        self._process_shutdown.run_shutdown(
+            wait_for_exit=self._wait_for_process_exit,
+            is_alive=self.kernel_task.is_alive,
+            signal_tree=self._signal_kernel_tree,
+            finalize=self._close_read_connection,
         )
+
+    def wait_for_close(self, timeout: float | None = None) -> None:
+        """No-op: `close_kernel()` now waits synchronously."""
+        del timeout
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:

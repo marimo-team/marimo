@@ -5,9 +5,7 @@ from __future__ import annotations
 
 import signal
 import sys
-import threading
 import time
-from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -23,12 +21,6 @@ _FORCE_SHUTDOWN_WAIT_SECONDS = 5.0
 _PROCESS_GROUP_REAP_WAIT_SECONDS = 0.5
 
 
-class BackgroundShutdownStartResult(Enum):
-    STARTED = auto()
-    ALREADY_STARTED = auto()
-    TARGET_NOT_ALIVE = auto()
-
-
 class ProcessShutdownController:
     """Coordinates cooperative kernel shutdown and process-tree cleanup."""
 
@@ -37,8 +29,6 @@ class ProcessShutdownController:
         self._pgid: int | None = None
         self._expected_pgid: int | None = None
         self._queues_closed = False
-        self._shutdown_lock = threading.Lock()
-        self._shutdown_thread: threading.Thread | None = None
 
     def remember_expected_pgid(self, pid: int | None) -> None:
         if sys.platform != "win32":
@@ -110,40 +100,3 @@ class ProcessShutdownController:
         finally:
             self.close_queues_once()
             finalize()
-
-    def start_background_shutdown(
-        self,
-        *,
-        is_alive: Callable[[], bool],
-        target: Callable[[], None],
-        before_start: Callable[[], None] | None = None,
-    ) -> BackgroundShutdownStartResult:
-        with self._shutdown_lock:
-            if self._shutdown_thread is not None:
-                return BackgroundShutdownStartResult.ALREADY_STARTED
-
-            if not is_alive():
-                return BackgroundShutdownStartResult.TARGET_NOT_ALIVE
-
-            if before_start is not None:
-                before_start()
-
-            self._shutdown_thread = threading.Thread(
-                target=target,
-                daemon=False,
-            )
-            self._shutdown_thread.start()
-            return BackgroundShutdownStartResult.STARTED
-
-    def wait_for_shutdown(
-        self,
-        timeout: float | None,
-        *,
-        fallback_wait: Callable[[float | None], None],
-    ) -> None:
-        thread = self._shutdown_thread
-        if thread is not None:
-            thread.join(timeout=timeout)
-            return
-
-        fallback_wait(timeout)

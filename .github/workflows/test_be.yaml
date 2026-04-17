@@ -174,16 +174,12 @@ jobs:
       - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          # DEBUG EXPERIMENT 5: same full suite as original but also ignore
-          # tests/_cli — suspect is test_sandbox.py which shells out to uv to
-          # build real venvs. Do not merge.
+          # DEBUG EXPERIMENT 6: full-suite repro after reverting close_kernel
+          # to synchronous shutdown. Do not merge.
           uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
             -v \
             -p no:xdist \
             -k "not test_cli" \
-            --ignore=tests/_ipc \
-            --ignore=tests/_islands \
-            --ignore=tests/_cli \
             --durations=10 \
             -p packages.pytest_changed \
             --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
