@@ -73,6 +73,13 @@ class FileDeleteRequest(msgspec.Struct, rename="camel"):
     path: str
 
 
+class FileCopyRequest(msgspec.Struct, rename="camel"):
+    # The current path of the file or directory
+    path: str
+    # The new path or name for the file or directory
+    new_path: str
+
+
 class FileMoveRequest(msgspec.Struct, rename="camel"):
     # The current path of the file or directory
     path: str
@@ -111,6 +118,12 @@ class FileDeleteResponse(BaseResponse):
 
 
 class FileUpdateResponse(BaseResponse):
+    # Additional information, e.g., error message
+    message: str | None = None
+    info: FileInfo | None = None
+
+
+class FileCopyResponse(BaseResponse):
     # Additional information, e.g., error message
     message: str | None = None
     info: FileInfo | None = None

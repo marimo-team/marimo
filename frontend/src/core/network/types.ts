@@ -23,6 +23,8 @@ export type ExportAsIPYNBRequest = schemas["ExportAsIPYNBRequest"];
 export type ExportAsScriptRequest = schemas["ExportAsScriptRequest"];
 export type ExportAsPDFRequest = schemas["ExportAsPDFRequest"];
 export type UpdateCellOutputsRequest = schemas["UpdateCellOutputsRequest"];
+export type FileCopyRequest = schemas["FileCopyRequest"];
+export type FileCopyResponse = schemas["FileCopyResponse"];
 export type FileCreateRequest = schemas["FileCreateRequest"];
 export type FileCreateResponse = schemas["FileCreateResponse"];
 export type FileDeleteRequest = schemas["FileDeleteRequest"];
@@ -168,6 +170,7 @@ export interface EditRequests {
   sendDeleteFileOrFolder: (
     request: FileDeleteRequest,
   ) => Promise<FileDeleteResponse>;
+  sendCopyFileOrFolder: (request: FileCopyRequest) => Promise<FileCopyResponse>;
   sendRenameFileOrFolder: (
     request: FileMoveRequest,
   ) => Promise<FileMoveResponse>;

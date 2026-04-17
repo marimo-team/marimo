@@ -15,6 +15,7 @@ export const treeAtom = atom<RequestingTree>((get) => {
     listFiles: client.sendListFiles,
     createFileOrFolder: client.sendCreateFileOrFolder,
     deleteFileOrFolder: client.sendDeleteFileOrFolder,
+    copyFileOrFolder: client.sendCopyFileOrFolder,
     renameFileOrFolder: client.sendRenameFileOrFolder,
   });
 });

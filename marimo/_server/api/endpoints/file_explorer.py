@@ -11,6 +11,8 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.files import (
+    FileCopyRequest,
+    FileCopyResponse,
     FileCreateRequest,
     FileCreateResponse,
     FileDeleteRequest,
@@ -157,12 +159,44 @@ async def delete_file_or_directory(
     """
     body = await parse_request(request, cls=FileDeleteRequest)
     try:
+        # TODO: Refactor this side-effect based validation to a dedicated validation.
         file_system.get_details(body.path)
         success = file_system.delete_file_or_directory(body.path)
         return FileDeleteResponse(success=success)
     except Exception as e:
         LOGGER.error(f"Error deleting file or directory: {e}")
         return FileDeleteResponse(success=False, message=str(e))
+
+
+@router.post("/copy")
+@requires("edit")
+async def copy_file_or_directory(
+    *,
+    request: Request,
+) -> FileCopyResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/FileCopyRequest"
+    responses:
+        200:
+            description: Copy a file or directory
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/FileCopyResponse"
+    """
+    body = await parse_request(request, cls=FileCopyRequest)
+    try:
+        # TODO: Refactor this side-effect based validation to a dedicated validation.
+        file_system.get_details(body.path)
+        info = file_system.copy_file_or_directory(body.path, body.new_path)
+        return FileCopyResponse(success=True, info=info)
+    except Exception as e:
+        LOGGER.error(f"Error copying file or directory: {e}")
+        return FileCopyResponse(success=False, message=str(e))
 
 
 @router.post("/move")
@@ -187,11 +221,12 @@ async def move_file_or_directory(
     """
     body = await parse_request(request, cls=FileMoveRequest)
     try:
+        # TODO: Refactor this side-effect based validation to a dedicated validation.
         file_system.get_details(body.path)
         info = file_system.move_file_or_directory(body.path, body.new_path)
         return FileMoveResponse(success=True, info=info)
     except Exception as e:
-        LOGGER.error(f"Error updating file or directory: {e}")
+        LOGGER.error(f"Error moving file or directory: {e}")
         return FileMoveResponse(success=False, message=str(e))
 
 
@@ -218,6 +253,7 @@ async def update_file(
     app_state = AppState(request)
     body = await parse_request(request, cls=FileUpdateRequest)
     try:
+        # TODO: Refactor this side-effect based validation to a dedicated validation.
         file_system.get_details(body.path)
         info = file_system.update_file(body.path, body.contents)
 
@@ -253,6 +289,7 @@ async def open_file(
     """
     body = await parse_request(request, cls=FileOpenRequest)
     try:
+        # TODO: Refactor this side-effect based validation to a dedicated validation.
         file_system.get_details(body.path)
         success = file_system.open_in_editor(body.path, body.line_number)
         return SuccessResponse(success=success)
