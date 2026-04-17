@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from marimo._server.api.lifespans import _startup_url
+from marimo._server.start import _resolve_proxy
 from marimo._server.tokens import AuthToken
 
 
@@ -44,6 +45,39 @@ def _make_state(host: str, port: int = 2718, base_url: str = "/") -> MagicMock:
 def test_startup_url_ipv6(host: str, expected: str) -> None:
     state = _make_state(host)
     assert _startup_url(state) == expected
+
+
+@pytest.mark.parametrize(
+    ("proxy", "in_port", "in_host", "expected_port", "expected_host"),
+    [
+        # No proxy: port and host pass through unchanged
+        (None, 2972, "127.0.0.1", 2972, "127.0.0.1"),
+        # Bare hostname: default to port 80
+        ("example.com", 2972, "127.0.0.1", 80, "example.com"),
+        # host:port
+        ("example.com:8080", 2972, "127.0.0.1", 8080, "example.com"),
+        # http:// schema: default port 80
+        ("http://example.com", 2972, "127.0.0.1", 80, "example.com"),
+        # https:// schema: default port 443
+        ("https://example.com", 2972, "127.0.0.1", 443, "example.com"),
+        # https:// schema with explicit port
+        ("https://example.com:8443", 2972, "127.0.0.1", 8443, "example.com"),
+        # http:// with explicit port
+        ("http://example.com:8080", 2972, "127.0.0.1", 8080, "example.com"),
+        # IPv6 with brackets and port
+        ("[2001:db8::1]:8080", 2972, "127.0.0.1", 8080, "2001:db8::1"),
+    ],
+)
+def test_resolve_proxy(
+    proxy: str | None,
+    in_port: int,
+    in_host: str,
+    expected_port: int,
+    expected_host: str,
+) -> None:
+    port, host = _resolve_proxy(in_port, in_host, proxy)
+    assert port == expected_port
+    assert host == expected_host
 
 
 def test_startup_url_getnameinfo_failure() -> None:

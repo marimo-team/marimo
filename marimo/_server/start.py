@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import threading
 from typing import TYPE_CHECKING, cast
+from urllib.parse import urlparse
 
 import uvicorn
 
@@ -44,7 +44,6 @@ if TYPE_CHECKING:
     from marimo._cli.tips import CliTip
 
 DEFAULT_PORT = 2718
-PROXY_REGEX = re.compile(r"^(.*):(\d+)$")
 
 
 def _execute_startup_command(
@@ -140,21 +139,29 @@ def _resolve_proxy(port: int, host: str, proxy: str | None) -> tuple[int, str]:
        (uvicorn)  -----------------
 
 
-    If the proxy is provided, it will default to port 80. Otherwise if the
-    proxy has a port specified, it will use that port.
-    e.g. `example.com:8080`
+    If the proxy is provided, it will default to port 80 (443 for https://).
+    Supports bare hostnames, host:port, and full URLs with a scheme.
+    e.g. `example.com:8080`, `https://example.com`, `https://example.com:8443`
     """
     if not proxy:
         return port, host
 
-    match = PROXY_REGEX.match(proxy)
-    # Our proxy has an explicit port defined, so return that.
-    if match:
-        external_host, external_port = match.groups()
-        return int(external_port), external_host
+    # Prefix with "//" so urlparse treats the value as a netloc rather than a
+    # path when no scheme is present — handles "host", "host:port", and full
+    # "scheme://host:port" forms uniformly.
+    parse_target = proxy if "://" in proxy else f"//{proxy}"
+    parsed = urlparse(parse_target)
 
-    # A default to 80 is reasonable if a proxy is provided.
-    return 80, proxy
+    # parsed.hostname strips brackets from IPv6 addresses (e.g. [::1] → ::1)
+    external_host = parsed.hostname or proxy
+    if parsed.port is not None:
+        external_port = parsed.port
+    elif parsed.scheme == "https":
+        external_port = 443
+    else:
+        external_port = 80
+
+    return external_port, external_host
 
 
 def start(
