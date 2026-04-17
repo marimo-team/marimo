@@ -1404,7 +1404,7 @@ class Kernel:
                 # Snapshot disabled cells that are in an error/cancelled state
                 # BEFORE running, so we can clear them after the run if their
                 # ancestor recovered.
-                _pre_run_errored_disabled = {
+                pre_run_errored_disabled = {
                     cid
                     for cid, cell in self.graph.cells.items()
                     if self.graph.is_disabled(cid)
@@ -1420,19 +1420,19 @@ class Kernel:
                 # Clear stale error state from disabled cells whose ancestor
                 # recovered. Uses pre-run snapshot since run_result_status is
                 # updated during the run.
-                for _cid in _pre_run_errored_disabled:
-                    _cell_impl = self.graph.cells[_cid]
-                    if not self.graph.is_any_ancestor_errored(_cid):
-                        _cell_impl.set_run_result_status("disabled")
-                        _status = cast(
+                for cid in pre_run_errored_disabled:
+                    cell_impl = self.graph.cells[cid]
+                    if not self.graph.is_any_ancestor_errored(cid):
+                        cell_impl.set_run_result_status("disabled")
+                        status = cast(
                             RuntimeStateType,
                             "idle"
-                            if _cell_impl.config.disabled
+                            if cell_impl.config.disabled
                             else "disabled-transitively",
                         )
-                        _cell_impl.set_runtime_state(_status)
+                        cell_impl.set_runtime_state(status)
                         CellNotificationUtils.broadcast_empty_output(
-                            cell_id=_cid, status=_status
+                            cell_id=cid, status=status
                         )
 
     async def _if_autorun_then_run_cells(
