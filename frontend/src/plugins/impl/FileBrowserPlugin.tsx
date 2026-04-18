@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { CornerLeftUp } from "lucide-react";
+import { type LucideIcon, CornerLeftUp } from "lucide-react";
 import { type JSX, useEffect, useState } from "react";
 import { z } from "zod";
 import {
@@ -128,6 +128,43 @@ interface FileBrowserProps extends Data, PluginFunctions {
   host: HTMLElement;
 }
 
+interface CheckboxOrIconProps {
+  isSelected: boolean;
+  canSelect: boolean;
+  Icon: LucideIcon;
+  onSelect: () => void;
+}
+
+function CheckboxOrIcon({
+  isSelected,
+  canSelect,
+  Icon,
+  onSelect,
+}: CheckboxOrIconProps) {
+  if (canSelect) {
+    return (
+      <>
+        <Checkbox
+          checked={isSelected}
+          onClick={(e) => {
+            onSelect();
+            e.stopPropagation();
+          }}
+          className={cn({ "hidden group-hover:flex": !isSelected })}
+        />
+        <Icon
+          size={16}
+          className={cn("mr-2", {
+            hidden: isSelected,
+            "group-hover:hidden": !isSelected,
+          })}
+        />
+      </>
+    );
+  }
+  return <Icon size={16} className="mr-2" />;
+}
+
 /**
  * File browser component.
  *
@@ -145,7 +182,6 @@ export const FileBrowser = ({
   host,
 }: FileBrowserProps): JSX.Element | null => {
   const [path, setPath] = useInternalStateWithSync(initialPath);
-  const [selectAllLabel, setSelectAllLabel] = useState("Select all");
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
 
@@ -158,7 +194,6 @@ export const FileBrowser = ({
   const { data, error, isPending } = useAsyncData(() => {
     return list_directory({ path: path });
   }, [path, randomId]);
-  const spinnerLabel = "Listing files...";
 
   useEffect(() => {
     if (!isPending) {
@@ -175,24 +210,28 @@ export const FileBrowser = ({
     };
   }, [isPending]);
 
+  const files = data?.files ?? [];
+  const selectedPaths = new Set(value.map((x) => x.path));
+  const canSelectDirectories =
+    selectionMode === "directory" || selectionMode === "all";
+  const canSelectFiles = selectionMode === "file" || selectionMode === "all";
+
+  const selectable = files.filter(
+    (f) =>
+      (canSelectDirectories && f.is_directory) ||
+      (canSelectFiles && !f.is_directory),
+  );
+  const allSelected =
+    selectable.length > 0 && selectable.every((f) => selectedPaths.has(f.path));
+
   if (!data && error) {
     return <Banner kind="danger">{error.message}</Banner>;
-  }
-
-  let { files } = data || {};
-  if (files === undefined) {
-    files = [];
   }
 
   const pathBuilder = PathBuilder.guessDeliminator(initialPath);
   const delimiter = pathBuilder.deliminator;
 
-  const selectedPaths = new Set(value.map((x) => x.path));
   const selectedFiles = value.map((x) => <li key={x.id}>{x.path}</li>);
-
-  const canSelectDirectories =
-    selectionMode === "directory" || selectionMode === "all";
-  const canSelectFiles = selectionMode === "file" || selectionMode === "all";
 
   function setNewPath(newPath: string) {
     // Prevent updating path while updating
@@ -230,9 +269,7 @@ export const FileBrowser = ({
       return;
     }
 
-    // Update path and reset select all label
     setPath(newPath);
-    setSelectAllLabel("Select all");
     setIsUpdatingPath(false);
   }
 
@@ -264,28 +301,18 @@ export const FileBrowser = ({
   }) {
     const fileInfo = createFileInfo({ path, name, isDirectory });
 
-    if (multiple) {
-      if (selectedPaths.has(path)) {
-        setValue(value.filter((x) => x.path !== path));
-        setSelectAllLabel("Select all");
-      } else {
-        setValue([...value, fileInfo]);
-      }
+    if (selectedPaths.has(path)) {
+      setValue(value.filter((x) => x.path !== path));
     } else {
-      setValue([fileInfo]);
+      setValue(multiple ? [...value, fileInfo] : [fileInfo]);
     }
   }
 
   function deselectAllFiles() {
     setValue(value.filter((x) => Paths.dirname(x.path) !== path));
-    setSelectAllLabel("Select all");
   }
 
   function selectAllFiles() {
-    if (!files) {
-      return;
-    }
-
     const filesInView: FileInfo[] = [];
 
     for (const file of files) {
@@ -304,7 +331,6 @@ export const FileBrowser = ({
     }
 
     setValue([...value, ...filesInView]);
-    setSelectAllLabel("Deselect all");
   }
 
   // Create rows for directories and files
@@ -313,7 +339,7 @@ export const FileBrowser = ({
   // Parent directory ".." row button
   fileRows.push(
     <TableRow
-      className="hover:bg-primary hover:bg-opacity-25 select-none"
+      className="hover:bg-accent select-none"
       key={"Parent directory"}
       onClick={() => setNewPath(PARENT_DIRECTORY)}
     >
@@ -344,50 +370,13 @@ export const FileBrowser = ({
     const Icon = FILE_TYPE_ICONS[fileType];
 
     const isSelected = selectedPaths.has(filePath);
-    const renderCheckboxOrIcon = () => {
-      if (
-        (canSelectDirectories && file.is_directory) ||
-        (canSelectFiles && !file.is_directory)
-      ) {
-        return (
-          <>
-            <Checkbox
-              checked={isSelected}
-              onClick={(e) => {
-                handleSelection({
-                  path: filePath,
-                  name: file.name,
-                  isDirectory: file.is_directory,
-                });
-                e.stopPropagation();
-              }}
-              className={cn("", {
-                "hidden group-hover:flex": !isSelected,
-              })}
-            />
-            <Icon
-              size={16}
-              className={cn("mr-2", {
-                hidden: isSelected,
-                "group-hover:hidden": !isSelected,
-              })}
-            />
-          </>
-        );
-      }
-
-      return <Icon size={16} className="mr-2" />;
-    };
 
     fileRows.push(
       <TableRow
         key={file.id}
-        className={cn(
-          "hover:bg-primary hover:bg-opacity-25 group select-none",
-          {
-            "bg-primary bg-opacity-25": isSelected,
-          },
-        )}
+        className={cn("hover:bg-accent group select-none", {
+          "bg-primary/25 hover:bg-primary/35": isSelected,
+        })}
         onClick={() =>
           handleClick({
             path: filePath,
@@ -397,7 +386,21 @@ export const FileBrowser = ({
         }
       >
         <TableCell className="w-[50px] pl-4">
-          {renderCheckboxOrIcon()}
+          <CheckboxOrIcon
+            isSelected={isSelected}
+            canSelect={
+              (canSelectDirectories && file.is_directory) ||
+              (canSelectFiles && !file.is_directory)
+            }
+            Icon={Icon}
+            onSelect={() =>
+              handleSelection({
+                path: filePath,
+                name: file.name,
+                isDirectory: file.is_directory,
+              })
+            }
+          />
         </TableCell>
         <TableCell>{file.name}</TableCell>
       </TableRow>,
@@ -423,8 +426,9 @@ export const FileBrowser = ({
         : PluralWords.of("file");
 
   const renderHeader = () => {
-    label = label ?? `Select ${selectionKindLabel.join(" and ", 2)}...`;
-    const labelText = <Label>{renderHTML({ html: label })}</Label>;
+    const displayLabel =
+      label ?? `Select ${selectionKindLabel.join(" and ", 2)}...`;
+    const labelText = <Label>{renderHTML({ html: displayLabel })}</Label>;
 
     if (multiple) {
       return (
@@ -434,13 +438,9 @@ export const FileBrowser = ({
             <Button
               size="xs"
               variant="link"
-              onClick={
-                selectAllLabel === "Select all"
-                  ? () => selectAllFiles()
-                  : () => deselectAllFiles()
-              }
+              onClick={allSelected ? deselectAllFiles : selectAllFiles}
             >
-              {renderHTML({ html: selectAllLabel })}
+              {allSelected ? "Deselect all" : "Select all"}
             </Button>
           </div>
         </div>
@@ -461,7 +461,7 @@ export const FileBrowser = ({
         onChange={(e) => setNewPath(e.target.value)}
       >
         {parentDirectories.map((dir) => (
-          <option value={dir} key={dir} selected={dir === path}>
+          <option value={dir} key={dir}>
             {dir}
           </option>
         ))}
@@ -487,7 +487,7 @@ export const FileBrowser = ({
             role="status"
           >
             <Spinner size="small" />
-            <span>{spinnerLabel}</span>
+            <span>Listing files...</span>
           </div>
         )}
         <Table className="cursor-pointer table-fixed">
