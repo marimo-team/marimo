@@ -273,7 +273,10 @@ class KernelManagerImpl(KernelManager):
             time.sleep(1)
 
         self.queue_manager.close_queues()
-        try_kill_process_and_group(self.kernel_task)
+        try:
+            try_kill_process_and_group(self.kernel_task)
+        except Exception as e:
+            LOGGER.warning(e)
         if self._read_conn is not None:
             self._read_conn.close()
 

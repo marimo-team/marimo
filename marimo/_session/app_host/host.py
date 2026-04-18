@@ -359,7 +359,10 @@ class AppHost:
                 pass
 
         if self._process is not None:
-            try_kill_process_and_group(cast(ProcessLike, self._process))
+            try:
+                try_kill_process_and_group(cast(ProcessLike, self._process))
+            except Exception as e:
+                LOGGER.warning(e)
 
         # Close all sockets (with linger=0).  This interrupts any
         # pending poll()/recv() in _stream_receiver_loop with ETERM,

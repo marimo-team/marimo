@@ -398,7 +398,10 @@ class IPCKernelManagerImpl(KernelManager):
             )
             self.queue_manager.close_queues()
             if self._process.poll() is None:
-                try_kill_process_and_group(cast(ProcessLike, self._process))
+                try:
+                    try_kill_process_and_group(cast(ProcessLike, self._process))
+                except Exception as e:
+                    LOGGER.warning(e)
 
         # Always attempt cleanup, even if _process is None
         cleanup_sandbox_dir(self._sandbox_dir)

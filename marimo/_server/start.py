@@ -313,6 +313,7 @@ def start(
         lifespans.open_browser,
         lifespans.tool_manager,
         lifespans.server_registry,
+        lifespans.reap_subprocesses,
         *LIFESPAN_REGISTRY.get_all(),
     ]
 

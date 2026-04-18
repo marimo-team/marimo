@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import os
 import signal
 import subprocess
@@ -277,32 +278,93 @@ def safe_popen(
         return None
 
 
+_REAP_TASKS: set[asyncio.Task[None]] = set()
+
+
+def _non_blocking_process_finished(pid: int) -> bool:
+    """Returns True if the process has finished."""
+    try:
+        ret, _ = os.waitpid(pid, os.WNOHANG)
+    except ChildProcessError:
+        return True
+    return ret != 0
+
+
+async def cancel_pending_reaps() -> None:
+    """Cancel and await any in-flight reap tasks.
+
+    Call from a server shutdown hook so asyncio doesn't emit
+    "Task was destroyed but it is pending" when the loop closes.
+    """
+    tasks = list(_REAP_TASKS)
+    for t in tasks:
+        t.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+async def _reap_pid_unix(pgid: int | None, pid: int) -> None:
+    await asyncio.sleep(5.0)
+    if _non_blocking_process_finished(pid):
+        return
+
+    LOGGER.warning("Process %d did not respond to SIGTERM. Force killing.", pid)
+    if pgid is not None:
+        os.killpg(pgid, signal.SIGKILL)
+    else:
+        os.kill(pid, signal.SIGKILL)
+
+    wait_for_s = 10
+    waited_s = 0
+    while not (process_finished := _non_blocking_process_finished(pid)) and waited_s < wait_for_s:
+        await asyncio.sleep(1.0)
+        waited_s += 1
+
+    if not process_finished:
+        LOGGER.warning("Waited for 10s, but process %d has still not quit ...", pid)
+        return
+
+
 def try_kill_process_and_group(process: ProcessLike) -> None:
     """Attempt to kill the process group to which process belongs.
 
     Refuses to kill the group if its the same group as the calling process.
 
     Regardless, tries to kill the process.
-    """
-    try:
-        pid = process.pid
-        if pid is None:
-            return
 
-        if is_windows():
-            # TODO(akshayka): Investigate whether we need to kill an entire
-            # process group on Windows, and if so how ...
-            process.terminate()
-        else:
-            target_pgid = os.getpgid(pid)
-            if target_pgid == os.getpgrp():
-                # This should never happen ... the kernel process makes sure to
-                # call setsid and become the group leader
-                LOGGER.warning(
-                    "The target's pgid matches the server's (%d)", target_pgid
-                )
-                process.terminate()
-            else:
-                os.killpg(target_pgid, signal.SIGTERM)
-    except Exception as e:
-        LOGGER.warning(e)
+    If running in an event loop, starts a task to reap the process on Unix-like
+    systems. If not running in an event loop, it is the caller's responsibility
+    to reap the process.
+    """
+    pid = process.pid
+    if pid is None:
+        return
+
+    if is_windows():
+        # TODO(akshayka): Investigate whether we need to kill an entire
+        # process group on Windows, and if so how ...
+        process.terminate()
+        return
+
+    target_pgid = os.getpgid(pid)
+    if target_pgid == os.getpgrp():
+        # This should never happen ... the kernel process makes sure to
+        # call setsid and become the group leader
+        LOGGER.warning(
+            "The target's pgid matches the server's (%d)", target_pgid
+        )
+        target_pgid = None
+        process.terminate()
+    else:
+        os.killpg(target_pgid, signal.SIGTERM)
+
+    if _non_blocking_process_finished(pid):
+        return
+
+    try:
+        loop = asyncio.get_running_loop()
+        task = loop.create_task(_reap_pid_unix(target_pgid, pid))
+        _REAP_TASKS.add(task)
+        task.add_done_callback(_REAP_TASKS.discard)
+    except RuntimeError:
+        pass

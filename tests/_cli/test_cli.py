@@ -868,6 +868,52 @@ def test_cli_new() -> None:
     _check_contents(p, b'"serverToken": ', contents)
 
 
+@pytest.mark.skipif(
+    _is_win32(),
+    reason="Parent polling is Unix-only (relies on getppid/killpg)",
+)
+def test_cli_kernel_killed_when_server_killed() -> None:
+    """Orphaned kernels should self-terminate via the parent poller."""
+    import psutil
+    from websockets.sync.client import connect
+
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "new", "-p", str(port), "--headless", "--no-token"]
+    )
+    try:
+        assert _try_fetch(port) is not None
+        # Opening a WebSocket causes the server to spawn a kernel process.
+        with connect(f"ws://localhost:{port}/ws?session_id=s1"):
+            server = psutil.Process(p.pid)
+            deadline = time.time() + 10
+            kernel_pids: list[int] = []
+            while time.time() < deadline:
+                kernel_pids = [c.pid for c in server.children()]
+                if kernel_pids:
+                    break
+                time.sleep(0.2)
+            assert kernel_pids, "expected kernel child process to be spawned"
+
+        # Kill only the server; the kernel's parent poller should notice.
+        p.kill()
+        p.wait(timeout=5)
+
+        deadline = time.time() + 10
+        while time.time() < deadline and any(
+            psutil.pid_exists(pid) for pid in kernel_pids
+        ):
+            time.sleep(0.2)
+
+        still_alive = [pid for pid in kernel_pids if psutil.pid_exists(pid)]
+        assert not still_alive, (
+            f"kernel pids {still_alive} still alive after server killed"
+        )
+    finally:
+        with contextlib.suppress(Exception):
+            p.kill()
+
+
 def test_cli_run(temp_marimo_file: str) -> None:
     port = _get_port()
     p = subprocess.Popen(
