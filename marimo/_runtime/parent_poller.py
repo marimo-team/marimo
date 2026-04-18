@@ -23,79 +23,29 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
-_PARENT_POLL_INTERVAL_SECONDS: Final[float] = 1.0
-_PARENT_SHUTDOWN_WAIT_SECONDS: Final[float] = 1.0
-
-
-def kill_own_process_group() -> None:
-    """Force-kill this process and all peers in its process group."""
-    try:
-        os.killpg(os.getpgrp(), signal.SIGKILL)
-    except ProcessLookupError:
-        pass
-    except OSError:
-        LOGGER.debug(
-            "Failed to kill kernel process group; exiting current process.",
-            exc_info=True,
-        )
-    os._exit(1)
-
 
 class ParentPollerUnix(Thread):
-    """Daemon thread that exits the process when the parent has died."""
+    """Daemon thread that kills the process group when the parent has died."""
 
-    def __init__(
-        self,
-        parent_pid: int,
-        *,
-        request_graceful_shutdown: Callable[[], None],
-        target_name: str = "kernel",
-    ) -> None:
+    def __init__(self, parent_pid: int) -> None:
         super().__init__(daemon=True)
         self.parent_pid = parent_pid
-        self.request_graceful_shutdown = request_graceful_shutdown
-        self.target_name = target_name
-        self.parent_exit_detected = Event()
-        self.cleanup_complete = Event()
-
-    def mark_cleanup_complete(self) -> None:
-        """For the caller to signal to the poller it can exit."""
-        self.cleanup_complete.set()
-
-    def finalize_if_parent_died(self) -> None:
-        if not self.parent_exit_detected.is_set():
-            return
-
-        self.mark_cleanup_complete()
-        kill_own_process_group()
-
-    def _request_shutdown(self) -> None:
-        try:
-            self.request_graceful_shutdown()
-        except Exception:
-            LOGGER.debug(
-                "Failed to request graceful shutdown during parent-death "
-                "shutdown; force-kill fallback may be required.",
-                exc_info=True,
-            )
 
     def _handle_parent_death(self) -> None:
         LOGGER.warning(
-            "Parent server appears to have exited, shutting down %s.",
-            self.target_name,
+            "Parent server appears to have exited, shutting down."
         )
-        self.parent_exit_detected.set()
-        self._request_shutdown()
 
-        if self.cleanup_complete.wait(timeout=_PARENT_SHUTDOWN_WAIT_SECONDS):
-            return
-
-        LOGGER.warning(
-            "%s cleanup did not finish before timeout; force-killing its "
-            "process group.",
-            self.target_name.capitalize(),
-        )
-        kill_own_process_group()
+        try:
+            os.killpg(os.getpgrp(), signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        except OSError:
+            LOGGER.debug(
+                "Failed to kill kernel process group; exiting current process.",
+                exc_info=True,
+            )
+        os._exit(1)
 
     def run(self) -> None:
         from errno import EINTR
@@ -115,31 +65,20 @@ class ParentPollerUnix(Thread):
                 if parent_is_init or parent_has_changed:
                     self._handle_parent_death()
                     return
-                time.sleep(_PARENT_POLL_INTERVAL_SECONDS)
+                time.sleep(1.0)
             except OSError as e:
                 if e.errno == EINTR:
                     continue
                 raise
 
 
-def start_parent_poller(
-    parent_pid: int | None,
-    *,
-    request_graceful_shutdown: Callable[[], None],
-    target_name: str,
-) -> ParentPollerUnix | None:
+def start_parent_poller(parent_pid: int | None):
     """Start a parent poller when the current Unix subprocess has a parent.
 
     Returns `None` when parent polling is not applicable, such as when
     running on Windows or when reparenting to PID 1 is expected.
     """
     if sys.platform == "win32" or parent_pid is None or parent_pid == 1:
-        return None
+        return
 
-    poller = ParentPollerUnix(
-        parent_pid=parent_pid,
-        request_graceful_shutdown=request_graceful_shutdown,
-        target_name=target_name,
-    )
-    poller.start()
-    return poller
+    ParentPollerUnix(parent_pid=parent_pid).start()

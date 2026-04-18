@@ -296,7 +296,8 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
         else:
             target_pgid = os.getpgid(pid)
             if target_pgid == os.getpgrp():
-                # This should never happen. The child's target
+                # This should never happen ... the kernel process makes sure to
+                # call setsid and become the group leader
                 LOGGER.warning(
                     "The target's pgid matches the server's (%d)", target_pgid
                 )

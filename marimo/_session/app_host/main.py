@@ -21,6 +21,7 @@ from marimo._messaging.thread_local_streams import install_thread_local_proxies
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import runtime
 from marimo._runtime.commands import StopKernelCommand
+from marimo._runtime.parent_poller import start_parent_poller
 from marimo._session.app_host.commands import (
     AppHostArgs,
     AppHostReadyResponse,
@@ -246,6 +247,10 @@ def app_host_main(args: AppHostArgs) -> None:
     # Ignore SIGINT in app host processes. The main process handles Ctrl-C
     # and sends ShutdownAppHostCmd via the management channel.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    if sys.platform != "win32":
+        os.setsid()
+        start_parent_poller(args.parent_pid)
 
     _loggers.set_level(args.log_level)
     LOGGER.debug(

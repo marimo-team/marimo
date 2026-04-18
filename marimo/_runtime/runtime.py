@@ -3720,7 +3720,6 @@ def launch_kernel(
         # completions only provided in edit mode
         kernel.start_completion_worker(completion_queue)
 
-    parent_poller = None
     if is_subprocess:
         # Subprocess kernels (EDIT and IPC_RUN) can receive signals and need
         # their own formatter registration since they don't share state with
@@ -3738,14 +3737,7 @@ def launch_kernel(
             # signals intended for the parent (server) process,
             # Ctrl+C in particular.
             os.setsid()
-
-            parent_poller = start_parent_poller(
-                parent_pid,
-                request_graceful_shutdown=lambda: control_queue.put_nowait(
-                    StopKernelCommand()
-                ),
-                target_name="kernel",
-            )
+            start_parent_poller(parent_pid)
 
         signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
 
@@ -3836,9 +3828,3 @@ def launch_kernel(
     kernel.teardown()
     if isinstance(pipe, connection.Connection):
         pipe.close()
-
-    if parent_poller is not None:
-        # The server kills the process group for edit-mode sessions and app
-        # host sessions. This is a last resort to clean up the kernel's
-        # children if the server isn't around to do so.
-        parent_poller.finalize_if_parent_died()
