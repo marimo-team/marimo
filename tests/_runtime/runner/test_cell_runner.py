@@ -199,7 +199,8 @@ async def test_ui_element_update_skips_overridden_cells(
     # because x is overridden
     slider_element = k.globals["slider_element"]
     assert await k.set_ui_element_value(
-        UpdateUIElementCommand.from_ids_and_values([(slider_element._id, 8)])
+        UpdateUIElementCommand.from_ids_and_values([(slider_element._id, 8)]),
+        notify_frontend=False,
     )
 
     # After UI update, result should still be 200 because x is still overridden

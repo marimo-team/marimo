@@ -202,7 +202,7 @@ class AppKernelRunner:
         self,
         request: UpdateUIElementCommand,
         *,
-        notify_frontend: bool = False,
+        notify_frontend: bool,
     ) -> bool:
         with self._runtime_context.install():
             return await self._kernel.set_ui_element_value(

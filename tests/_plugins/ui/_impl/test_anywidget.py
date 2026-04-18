@@ -143,7 +143,8 @@ x = as_marimo_element.count
         await k.set_ui_element_value(
             UpdateUIElementCommand.from_ids_and_values(
                 [(ui_element._id, {"count": 5})]
-            )
+            ),
+            notify_frontend=False,
         )
 
         assert k.globals["w_value"]["count"] == 5
@@ -292,7 +293,8 @@ x = as_marimo_element.count
         await k.set_ui_element_value(
             UpdateUIElementCommand.from_ids_and_values(
                 [(ui_element._id, {"value": 42})]
-            )
+            ),
+            notify_frontend=False,
         )
 
         assert ui_element.value == {"value": 42}

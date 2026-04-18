@@ -1447,7 +1447,8 @@ class TestAppComposition:
         assert await k.set_ui_element_value(
             UpdateUIElementCommand.from_ids_and_values(
                 [(dropdown_element._id, ["second"])]
-            )
+            ),
+            notify_frontend=False,
         )
         assert token[0] == 2
 
@@ -1499,7 +1500,8 @@ class TestAppComposition:
         # testing that only descendants of the updated UI elements run,
         # and that the other UI element is not reset
         assert await k.set_ui_element_value(
-            UpdateUIElementCommand.from_ids_and_values([(x._id, 2)])
+            UpdateUIElementCommand.from_ids_and_values([(x._id, 2)]),
+            notify_frontend=False,
         )
 
         assert app_kernel_runner == app._get_kernel_runner()
@@ -1508,7 +1510,8 @@ class TestAppComposition:
         assert y.value == 1
 
         assert await k.set_ui_element_value(
-            UpdateUIElementCommand.from_ids_and_values([(y._id, 3)])
+            UpdateUIElementCommand.from_ids_and_values([(y._id, 3)]),
+            notify_frontend=False,
         )
 
         assert x.value == 2

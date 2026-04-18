@@ -1879,7 +1879,7 @@ class Kernel:
         self,
         request: UpdateUIElementCommand,
         *,
-        notify_frontend: bool = False,
+        notify_frontend: bool,
     ) -> bool:
         """Set the value of a UI element bound to a global variable.
 
@@ -1889,15 +1889,15 @@ class Kernel:
             request: The UI element update command.
             notify_frontend: Whether to broadcast the new value back to
                 the frontend via a ``marimo-ui-value-update`` message.
-                Default ``False`` — the usual case (user-initiated
-                updates from the frontend) already has the value
-                locally; re-broadcasting it causes redundant traffic
-                and, on transports with non-negligible round-trip
-                latency (LSP, remote kernels), can visibly snap the
-                rendered widget backward to a stale value. Set
-                ``True`` for genuinely kernel-initiated changes
-                (e.g. code_mode's ``set_ui_value``) where the
-                frontend has no other way to learn about the update.
+                Set ``False`` for user-initiated updates from the frontend
+                (the frontend already has the value locally;
+                re-broadcasting causes redundant traffic and, on transports
+                with non-negligible round-trip latency (LSP, remote
+                kernels), can visibly snap the rendered widget backward to
+                a stale value). Set ``True`` for genuinely
+                kernel-initiated changes (e.g. code_mode's
+                ``set_ui_value``) where the frontend has no other way to
+                learn about the update.
 
         Returns True if any ui elements were set, False otherwise
         """
@@ -2382,7 +2382,7 @@ class Kernel:
             request: UpdateUIElementCommand,
         ) -> None:
             with http_request_context(request.request):
-                await self.set_ui_element_value(request)
+                await self.set_ui_element_value(request, notify_frontend=False)
             broadcast_notification(CompletedRunNotification())
 
         async def handle_pdb_request(request: DebugCellCommand) -> None:
@@ -2407,7 +2407,8 @@ class Kernel:
                 await self.set_ui_element_value(
                     UpdateUIElementCommand.from_ids_and_values(
                         [(UIElementId(ui_element_id), state)]
-                    )
+                    ),
+                    notify_frontend=False,
                 )
                 broadcast_notification(CompletedRunNotification())
             elif self.state_updates:
