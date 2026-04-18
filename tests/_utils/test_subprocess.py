@@ -166,7 +166,7 @@ async def test_try_kill_process_and_group_sigkills_stubborn_child(
         "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
         "while True: time.sleep(1)\n"
     )
-    proc = subprocess.Popen(
+    proc = subprocess.Popen(  # noqa: ASYNC220
         [sys.executable, "-c", script], start_new_session=True
     )
     pgid = os.getpgid(proc.pid)
