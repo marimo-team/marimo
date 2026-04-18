@@ -444,24 +444,37 @@ def run_in_sandbox(
 
     env = os.environ.copy()
     env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+    # Let the inner marimo server poll for our PID so it can shut down if we
+    # get SIGKILLed (signal handlers below can't catch uncatchable signals).
+    env["MARIMO_ANCESTOR_PID"] = str(os.getpid())
     if extra_env:
         env.update(extra_env)
 
-    process = subprocess.Popen(uv_cmd, env=env)
+    # On Unix, run `uv` in its own session so that (a) the tty no longer
+    # delivers SIGINT/SIGTERM to it directly and (b) we can signal the whole
+    # subtree with a single killpg. The signal handlers below are then the
+    # sole path for forwarding signals from the CLI down to uv, the inner
+    # marimo server, and the kernel.
+    if sys.platform == "win32":
+        process = subprocess.Popen(uv_cmd, env=env)
+    else:
+        process = subprocess.Popen(uv_cmd, env=env, start_new_session=True)
 
     def handler(sig: int, frame: object) -> None:
-        del sig
         del frame
         try:
             if sys.platform == "win32":
                 os.kill(process.pid, signal.CTRL_C_EVENT)
             else:
-                os.kill(process.pid, signal.SIGINT)
+                os.killpg(process.pid, sig)
         except ProcessLookupError:
             # Process may have already been terminated.
             pass
 
     signal.signal(signal.SIGINT, handler)
+    if sys.platform != "win32":
+        signal.signal(signal.SIGTERM, handler)
+        signal.signal(signal.SIGHUP, handler)
 
     return process.wait()
 

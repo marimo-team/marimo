@@ -17,6 +17,7 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._mcp.setup import McpType, setup_mcp_server
 from marimo._messaging.notification import StartupLogsNotification
 from marimo._runtime.commands import SerializedCLIArgs
+from marimo._runtime.parent_poller import start_parent_poller
 from marimo._server.api import lifespans
 from marimo._server.config import (
     StarletteServerStateInit,
@@ -211,6 +212,20 @@ def start(
     Start the server.
     """
     import packaging.version
+
+    # In single-file sandbox mode, uv becomes our direct parent. So we
+    # watch the outer CLI's PID, terminating if the CLI terminates.
+    ancestor_pid_env = os.environ.get("MARIMO_ANCESTOR_PID")
+    if ancestor_pid_env:
+        try:
+            start_parent_poller(
+                parent_pid=os.getppid(),
+                ancestor_pid=int(ancestor_pid_env),
+            )
+        except ValueError:
+            LOGGER.warning(
+                "Ignoring invalid MARIMO_ANCESTOR_PID=%r", ancestor_pid_env
+            )
 
     # Defaults when mcp is enabled
     if mcp:

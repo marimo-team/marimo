@@ -914,6 +914,65 @@ def test_cli_kernel_killed_when_server_killed() -> None:
             p.kill()
 
 
+@pytest.mark.skipif(
+    _is_win32(),
+    reason="Parent polling is Unix-only (relies on getppid/killpg)",
+)
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_sandbox_descendants_killed_when_cli_killed(
+    temp_marimo_file: str,
+) -> None:
+    """Single-file sandbox: killing the outer marimo CLI (here via SIGKILL,
+    which signal handlers can't catch) must still reap the `uv run` child,
+    the inner marimo server, and the kernel — via the ancestor poller."""
+    import psutil
+
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--sandbox",
+        ]
+    )
+    descendants: list[int] = []
+    try:
+        assert _try_fetch(port) is not None
+        cli = psutil.Process(p.pid)
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            descendants = [c.pid for c in cli.children(recursive=True)]
+            if len(descendants) >= 2:  # uv + inner marimo server at minimum
+                break
+            time.sleep(0.2)
+        assert descendants, "expected descendant processes"
+
+        p.kill()
+        p.wait(timeout=5)
+
+        deadline = time.time() + 15
+        while time.time() < deadline and any(
+            psutil.pid_exists(pid) for pid in descendants
+        ):
+            time.sleep(0.2)
+
+        still_alive = [pid for pid in descendants if psutil.pid_exists(pid)]
+        assert not still_alive, (
+            f"sandbox descendants {still_alive} still alive after CLI killed"
+        )
+    finally:
+        with contextlib.suppress(Exception):
+            p.kill()
+        for pid in descendants:
+            with contextlib.suppress(Exception):
+                os.kill(pid, signal.SIGKILL)
+
+
 def test_cli_run(temp_marimo_file: str) -> None:
     port = _get_port()
     p = subprocess.Popen(
