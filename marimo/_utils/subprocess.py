@@ -353,14 +353,14 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
         process.terminate()
         return
 
-    target_pgid = os.getpgid(pid)
+    target_pgid: int = os.getpgid(pid)
     if target_pgid == os.getpgrp():
         # This should never happen ... the kernel process makes sure to
         # call setsid and become the group leader
         LOGGER.warning(
             "The target's pgid matches the server's (%d)", target_pgid
         )
-        target_pgid = None
+        target_pgid = None  # type: ignore
         process.terminate()
     else:
         os.killpg(target_pgid, signal.SIGTERM)
