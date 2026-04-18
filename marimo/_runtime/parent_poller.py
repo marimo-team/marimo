@@ -13,13 +13,9 @@ import os
 import signal
 import sys
 import time
-from threading import Event, Thread
-from typing import TYPE_CHECKING, Final
+from threading import Thread
 
 from marimo import _loggers
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -32,9 +28,7 @@ class ParentPollerUnix(Thread):
         self.parent_pid = parent_pid
 
     def _handle_parent_death(self) -> None:
-        LOGGER.warning(
-            "Parent server appears to have exited, shutting down."
-        )
+        LOGGER.warning("Parent server appears to have exited, shutting down.")
 
         try:
             os.killpg(os.getpgrp(), signal.SIGKILL)
@@ -72,7 +66,7 @@ class ParentPollerUnix(Thread):
                 raise
 
 
-def start_parent_poller(parent_pid: int | None):
+def start_parent_poller(parent_pid: int | None) -> None:
     """Start a parent poller when the current Unix subprocess has a parent.
 
     Returns `None` when parent polling is not applicable, such as when
