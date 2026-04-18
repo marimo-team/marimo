@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Poll another process and exist when that process exits.
+"""Poll another process and exit when that process exits.
 
 Ported from ipykernel.parentpoller (BSD-licensed) to avoid orphaned kernel
 processes when the marimo server is killed ungracefully (e.g. SIGKILL, OOM).
