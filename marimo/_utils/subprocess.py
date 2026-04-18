@@ -335,7 +335,7 @@ async def _reap_pid_unix(pgid: int | None, pid: int) -> None:
 def try_kill_process_and_group(process: ProcessLike) -> None:
     """Attempt to kill the process group to which process belongs.
 
-    Refuses to kill the group if its the same group as the calling process.
+    Refuses to kill the group if it the current process belongs to it.
 
     Regardless, tries to kill the process.
 
