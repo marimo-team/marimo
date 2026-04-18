@@ -1,6 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { fileSplit, getProtocolAndParentDirectories } from "./pathUtils";
+import {
+  fileSplit,
+  getProtocolAndParentDirectories,
+  resolvePaths,
+} from "./pathUtils";
 
 describe("getProtocolAndParentDirectories", () => {
   it("should extract protocol and list parent directories correctly", () => {
@@ -109,5 +113,43 @@ describe("fileSplit", () => {
       "path/to/file.txt",
       ".md",
     ]);
+  });
+});
+
+describe("resolvePaths", () => {
+  it("should resolve paths relative to root", () => {
+    const result = resolvePaths({
+      path: "notebooks/notebook.py",
+      name: "notebook_copy.py",
+      root: "/workspaces/marimo",
+    });
+    expect(result).toEqual({
+      path: "/workspaces/marimo/notebooks/notebook.py",
+      newPath: "/workspaces/marimo/notebooks/notebook_copy.py",
+    });
+  });
+
+  it("should handle absolute paths", () => {
+    const result = resolvePaths({
+      path: "/abs/path/notebook.py",
+      name: "notebook_copy.py",
+      root: "/workspaces/marimo",
+    });
+    expect(result).toEqual({
+      path: "/abs/path/notebook.py",
+      newPath: "/abs/path/notebook_copy.py",
+    });
+  });
+
+  it("should handle Windows paths", () => {
+    const result = resolvePaths({
+      path: "notebook.py",
+      name: "notebook_copy.py",
+      root: "C:\\Users\\marimo",
+    });
+    expect(result).toEqual({
+      path: "C:\\Users\\marimo\\notebook.py",
+      newPath: "C:\\Users\\marimo\\notebook_copy.py",
+    });
   });
 });

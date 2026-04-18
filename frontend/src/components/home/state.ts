@@ -15,7 +15,13 @@ export const RunningNotebooksContext = React.createContext<{
   runningNotebooks: new Map(),
   setRunningNotebooks: Functions.NOOP,
 });
-export const WorkspaceRootContext = React.createContext<string>("");
+export const WorkspaceContext = React.createContext<{
+  root: string;
+  refreshAll: () => void;
+}>({
+  root: "",
+  refreshAll: Functions.NOOP,
+});
 
 export const includeMarkdownAtom = atomWithStorage<boolean>(
   "marimo:home:include-markdown",

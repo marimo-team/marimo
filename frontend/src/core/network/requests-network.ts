@@ -260,7 +260,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponseReturnNull);
     },
     openFile: async (request) => {
-      await waitForConnectionOpen();
       await getClient()
         .POST("/api/files/open", {
           body: request,
@@ -281,7 +280,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponseReturnNull);
     },
     sendListFiles: async (request) => {
-      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/list_files", {
           body: request,
@@ -289,7 +287,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     sendSearchFiles: async (request) => {
-      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/search", {
           body: request,
@@ -297,7 +294,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     sendCreateFileOrFolder: async (request) => {
-      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/create", {
           body: request,
@@ -305,7 +301,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     sendDeleteFileOrFolder: async (request) => {
-      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/delete", {
           body: request,
@@ -313,7 +308,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     sendCopyFileOrFolder: async (request) => {
-      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/copy", {
           body: request,
@@ -321,7 +315,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     sendRenameFileOrFolder: async (request) => {
-      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/move", {
           body: request,
@@ -329,7 +322,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     sendUpdateFile: async (request) => {
-      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/update", {
           body: request,
@@ -337,7 +329,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     sendFileDetails: async (request) => {
-      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/file_details", {
           body: request,

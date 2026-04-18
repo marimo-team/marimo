@@ -7,14 +7,16 @@ import {
   ChevronRightIcon,
   ChevronsDownUpIcon,
   ClockIcon,
+  CopyIcon,
+  Edit3Icon,
   ExternalLinkIcon,
   PlayCircleIcon,
   PowerOffIcon,
   RefreshCcwIcon,
   SearchIcon,
+  Trash2Icon,
 } from "lucide-react";
-import type React from "react";
-import { Suspense, use, useEffect, useRef, useState } from "react";
+import React, { Suspense, use, useEffect, useRef, useState } from "react";
 import {
   type NodeApi,
   type NodeRendererProps,
@@ -22,22 +24,38 @@ import {
   type TreeApi,
 } from "react-arborist";
 import { useLocale } from "react-aria";
+import useEvent from "react-use-event-hook";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
 import {
   FILE_ICON as FILE_TYPE_ICONS,
   type FileIconType as FileType,
   guessFileIconType as guessFileType,
 } from "@/components/editor/file-tree/file-icons";
+import {
+  MoreActionsButton,
+  MENU_ITEM_ICON_CLASS,
+} from "@/components/editor/file-tree/tree-actions";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { getSessionId, isSessionId } from "@/core/kernel/session";
 import { useRequestClient } from "@/core/network/requests";
-import type { FileInfo, MarimoFile } from "@/core/network/types";
+import type {
+  FileInfo,
+  MarimoFile,
+  FileUpdateResponse,
+} from "@/core/network/types";
 import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
 import { Banner } from "@/plugins/impl/common/error-banner";
@@ -47,11 +65,13 @@ import { timeAgo } from "@/utils/dates";
 import { prettyError } from "@/utils/errors";
 import { Maps } from "@/utils/maps";
 import { Paths } from "@/utils/paths";
+import { fileSplit, resolvePaths } from "@/utils/pathUtils";
 import { asURL } from "@/utils/url";
 import { newNotebookURL } from "@/utils/urls";
 import { ConfigButton } from "../app-config/app-config-button";
 import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
+import { Edit } from "../editor/file-tree/file-explorer";
 import {
   Header,
   OpenTutorialDropDown,
@@ -61,7 +81,7 @@ import {
   expandedFoldersAtom,
   includeMarkdownAtom,
   RunningNotebooksContext,
-  WorkspaceRootContext,
+  WorkspaceContext,
 } from "../home/state";
 import { Spinner } from "../icons/spinner";
 import { Input } from "../ui/input";
@@ -131,7 +151,7 @@ const HomePage: React.FC = () => {
             files={recents.files}
           />
           <ErrorBoundary>
-            <WorkspaceNotebooks />
+            <WorkspaceNotebooks onRefresh={recentsResponse.refetch} />
           </ErrorBoundary>
         </div>
       </RunningNotebooksContext>
@@ -139,7 +159,9 @@ const HomePage: React.FC = () => {
   );
 };
 
-const WorkspaceNotebooks: React.FC = () => {
+const WorkspaceNotebooks: React.FC<{ onRefresh: () => void }> = ({
+  onRefresh,
+}) => {
   const { getWorkspaceFiles } = useRequestClient();
   const [includeMarkdown, setIncludeMarkdown] = useAtom(includeMarkdownAtom);
   const [searchText, setSearchText] = useState("");
@@ -153,6 +175,10 @@ const WorkspaceNotebooks: React.FC = () => {
     () => getWorkspaceFiles({ includeMarkdown }),
     [includeMarkdown],
   );
+  const refreshAll = useEvent(() => {
+    refetch();
+    onRefresh();
+  });
 
   if (isPending) {
     return <Spinner centered={true} size="xlarge" className="mt-6" />;
@@ -167,7 +193,7 @@ const WorkspaceNotebooks: React.FC = () => {
   }
 
   return (
-    <WorkspaceRootContext value={workspace.root}>
+    <WorkspaceContext value={{ root: workspace.root, refreshAll }}>
       <div className="flex flex-col gap-2">
         {workspace.hasMore && (
           <Banner kind="warn" className="rounded p-4">
@@ -216,7 +242,7 @@ const WorkspaceNotebooks: React.FC = () => {
           <NotebookFileTree searchText={searchText} files={workspace.files} />
         </div>
       </div>
-    </WorkspaceRootContext>
+    </WorkspaceContext>
   );
 };
 
@@ -244,6 +270,8 @@ const NotebookFileTree: React.FC<{
   const [openState, setOpenState] = useAtom(expandedFoldersAtom);
   const openStateIsEmpty = Object.keys(openState).length === 0;
   const ref = useRef<TreeApi<FileInfo>>(undefined);
+  const { sendRenameFileOrFolder } = useRequestClient();
+  const { root, refreshAll } = use(WorkspaceContext);
 
   useEffect(() => {
     // If empty, collapse all
@@ -251,6 +279,21 @@ const NotebookFileTree: React.FC<{
       ref.current?.closeAll();
     }
   }, [openStateIsEmpty]);
+
+  const handleRename = useEvent(async (id: string, name: string) => {
+    const node = ref.current?.get(id);
+    if (!node) {
+      toast({
+        title: "Failed",
+        description: `Node with id ${id} not found in the tree`,
+      });
+      return;
+    }
+    const paths = { path: node.data.path, name, root };
+    const { path, newPath } = resolvePaths(paths);
+    await sendRenameFileOrFolder({ path, newPath }).then(handleResponse);
+    refreshAll();
+  });
 
   if (files.length === 0) {
     return (
@@ -277,6 +320,9 @@ const NotebookFileTree: React.FC<{
         const prevOpen = openState[id] ?? false;
         setOpenState({ ...openState, [id]: !prevOpen });
       }}
+      onRename={async ({ id, name }) => {
+        await handleRename(id, name);
+      }}
       padding={5}
       rowHeight={35}
       indent={15}
@@ -286,7 +332,6 @@ const NotebookFileTree: React.FC<{
       // Disable interactions
       disableDrop={true}
       disableDrag={true}
-      disableEdit={true}
       disableMultiSelection={true}
     >
       {Node}
@@ -301,11 +346,22 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
 
   const Icon = FILE_TYPE_ICONS[fileType];
   const iconEl = <Icon className="w-5 h-5 shrink-0" strokeWidth={1.5} />;
-  const root = use(WorkspaceRootContext);
+  const { root } = use(WorkspaceContext);
+  const { runningNotebooks } = use(RunningNotebooksContext);
 
   const renderItem = () => {
     const itemClassName =
       "flex items-center pl-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1 overflow-hidden h-full pr-3 gap-2";
+
+    if (node.isEditing) {
+      return (
+        <div className={itemClassName}>
+          {iconEl}
+          <Edit node={node} />
+        </div>
+      );
+    }
+
     if (node.data.isDirectory) {
       return (
         <span className={itemClassName}>
@@ -323,6 +379,10 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
     const isMarkdown =
       relativePath.endsWith(".md") || relativePath.endsWith(".qmd");
 
+    const isRunning = runningNotebooks.has(relativePath);
+    const needsSessionShutdownButtonSpace =
+      runningNotebooks.size > 0 && !isRunning;
+
     return (
       <a
         className={itemClassName}
@@ -334,7 +394,13 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
           {node.data.name}
           {isMarkdown && <MarkdownIcon className="ml-2 inline opacity-80" />}
         </span>
+        <FileActions node={node} isRunning={isRunning} />
         <SessionShutdownButton filePath={relativePath} />
+        {needsSessionShutdownButtonSpace && (
+          <div className="invisible pointer-events-none">
+            <Button size={"icon"} variant="outline" />
+          </div>
+        )}
         <ExternalLinkIcon
           size={20}
           className="group-hover:opacity-100 opacity-0 text-primary"
@@ -526,5 +592,106 @@ const CreateNewNotebook: React.FC = () => {
     </a>
   );
 };
+
+const FileActions = ({
+  node,
+  isRunning = false,
+}: {
+  node: NodeApi<FileInfo>;
+  isRunning?: boolean;
+}) => {
+  const { root, refreshAll } = use(WorkspaceContext);
+  const { sendCopyFileOrFolder, sendDeleteFileOrFolder } = useRequestClient();
+  const { openConfirm } = useImperativeModal();
+
+  const handleDuplicate = useEvent(async () => {
+    const [name, extension] = fileSplit(node.data.name);
+    const duplicateName = `${name}_copy${extension}`;
+    const paths = { path: node.data.path, name: duplicateName, root };
+    const { path, newPath } = resolvePaths(paths);
+    await sendCopyFileOrFolder({ path, newPath }).then(handleResponse);
+    refreshAll();
+  });
+
+  const handleDelete = useEvent(async () => {
+    const paths = { path: node.data.path, name: "", root };
+    const { path } = resolvePaths(paths);
+    openConfirm({
+      title: "Delete notebook",
+      description: `Are you sure you want to delete ${node.data.name}?`,
+      confirmAction: (
+        <AlertDialogDestructiveAction
+          onClick={async () => {
+            await sendDeleteFileOrFolder({ path }).then(handleResponse);
+            refreshAll();
+          }}
+          aria-label="Confirm"
+        >
+          Delete
+        </AlertDialogDestructiveAction>
+      ),
+    });
+  });
+
+  const ic = MENU_ITEM_ICON_CLASS;
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger
+        asChild={true}
+        tabIndex={-1}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+      >
+        <MoreActionsButton
+          data-testid="workspace-more-button"
+          className="w-4 h-6 p-0"
+        />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="print:hidden w-fit min-w-[120px]"
+        onClick={(e) => e.stopPropagation()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
+        {!isRunning && (
+          <DropdownMenuItem onSelect={() => node.edit()}>
+            <Edit3Icon className={ic} />
+            Rename
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onSelect={handleDuplicate}>
+          <CopyIcon className={ic} />
+          Duplicate
+        </DropdownMenuItem>
+        {!isRunning && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={handleDelete} variant="danger">
+              <Trash2Icon className={ic} />
+              Delete
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+// frontend/src/components/editor/file-tree/requesting-tree.tsx
+function handleResponse(
+  response: FileUpdateResponse,
+): FileUpdateResponse | null {
+  if (!response.success) {
+    toast({
+      title: "Failed",
+      description: response.message,
+    });
+    return null;
+  }
+
+  return response;
+}
 
 export default HomePage;

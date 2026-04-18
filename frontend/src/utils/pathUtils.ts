@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { type FilePath, Paths, PathBuilder } from "./paths";
+
 /**
  * Get the protocol and parent directories of a path.
  */
@@ -73,4 +75,33 @@ export function fileSplit(path: string): [name: string, extension: string] {
   const name = lastDotIndex > 0 ? path.slice(0, lastDotIndex) : path;
   const extension = lastDotIndex > 0 ? path.slice(lastDotIndex) : "";
   return [name, extension];
+}
+
+/**
+ * Resolves the absolute paths for a file operation (like rename or copy).
+ * Takes a current node path, a new name without directory, and the workspace
+ * root to return the absolute current path and the absolute new path.
+ */
+export function resolvePaths({
+  path,
+  name,
+  root,
+}: {
+  path: string;
+  name: string;
+  root: string;
+}) {
+  const pathBuilder = PathBuilder.guessDeliminator(root);
+  const currentPath = path as FilePath;
+  const parentPath = pathBuilder.dirname(currentPath);
+  const newPath = pathBuilder.join(parentPath, name);
+
+  const absoluteCurrentPath = Paths.isAbsolute(path)
+    ? path
+    : pathBuilder.join(root, currentPath);
+  const absoluteNewPath = Paths.isAbsolute(newPath)
+    ? newPath
+    : pathBuilder.join(root, newPath);
+
+  return { path: absoluteCurrentPath, newPath: absoluteNewPath };
 }

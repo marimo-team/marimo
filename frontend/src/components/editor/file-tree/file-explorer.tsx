@@ -392,7 +392,7 @@ const Show = ({
   );
 };
 
-const Edit = ({ node }: { node: NodeApi<FileInfo> }) => {
+export const Edit = ({ node }: { node: NodeApi<FileInfo> }) => {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     ref.current?.focus();
