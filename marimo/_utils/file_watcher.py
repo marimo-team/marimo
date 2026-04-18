@@ -68,10 +68,12 @@ class PollingFileWatcher(FileWatcher):
         self.loop = loop
         self.last_modified: float | None = self._get_modified()
         self._missing_count = 0
+        self._task: asyncio.Task[None] | None = None
 
     def start(self) -> None:
         self._running = True
-        self.loop.create_task(self._poll())
+        # Hold a strong reference so the task isn't GC'd mid-poll.
+        self._task = self.loop.create_task(self._poll())
 
     def stop(self) -> None:
         self._running = False
