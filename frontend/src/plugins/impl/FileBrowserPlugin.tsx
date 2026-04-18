@@ -340,7 +340,7 @@ export const FileBrowser = ({
   fileRows.push(
     <TableRow
       className="hover:bg-accent select-none"
-      key={"Parent directory"}
+      key="Parent directory"
       onClick={() => setNewPath(PARENT_DIRECTORY)}
     >
       <TableCell className="w-[50px] pl-4">
@@ -357,12 +357,10 @@ export const FileBrowser = ({
       filePath = filePath.slice(1) as FilePath;
     }
 
-    // Click handler
-    const handleClick = file.is_directory
-      ? ({ path }: { path: string }) => setNewPath(path)
-      : handleSelection;
+    const isSelectable =
+      (canSelectDirectories && file.is_directory) ||
+      (canSelectFiles && !file.is_directory);
 
-    // Icon
     const fileType: FileType = file.is_directory
       ? "directory"
       : guessFileType(file.name);
@@ -376,22 +374,27 @@ export const FileBrowser = ({
         key={file.id}
         className={cn("hover:bg-accent group select-none", {
           "bg-primary/25 hover:bg-primary/35": isSelected,
+          "cursor-default": !isSelectable && !file.is_directory,
         })}
-        onClick={() =>
-          handleClick({
-            path: filePath,
-            name: file.name,
-            isDirectory: file.is_directory,
-          })
-        }
+        onClick={() => {
+          if (isSelectable) {
+            handleSelection({
+              path: filePath,
+              name: file.name,
+              isDirectory: file.is_directory,
+            });
+          }
+        }}
+        onDoubleClick={() => {
+          if (file.is_directory) {
+            setNewPath(filePath);
+          }
+        }}
       >
         <TableCell className="w-[50px] pl-4">
           <CheckboxOrIcon
             isSelected={isSelected}
-            canSelect={
-              (canSelectDirectories && file.is_directory) ||
-              (canSelectFiles && !file.is_directory)
-            }
+            canSelect={isSelectable}
             Icon={Icon}
             onSelect={() =>
               handleSelection({
