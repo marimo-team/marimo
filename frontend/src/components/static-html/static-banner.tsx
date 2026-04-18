@@ -22,6 +22,7 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import { toast } from "../ui/use-toast";
+import { MarimoPlusIcon } from "../icons/marimo-icons";
 
 export const StaticBanner: React.FC = () => {
   const code = useAtomValue(codeAtom);
@@ -66,7 +67,10 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
   }
 
   const href = window.location.href;
-  const wasmLink = createShareableLink({ code });
+  const molabLink = createShareableLink({
+    code,
+    baseUrl: `${Constants.molab}/new`,
+  });
 
   return (
     <Dialog>
@@ -114,21 +118,26 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
               </div>
             )}
 
-            <div className="pt-3 border-t border-(--sky-7)">
-              <p className="text-sm text-(--sky-12) mb-2">
-                <strong>Try in browser with WebAssembly:</strong>{" "}
-                <a
-                  href={wasmLink}
-                  target="_blank"
-                  className="text-(--sky-11) hover:underline break-all"
-                  rel="noreferrer"
-                >
-                  {wasmLink.slice(0, 50)}...
+            <div className="pt-3 border-t flex gap-2 items-center">
+              <Button
+                asChild={true}
+                variant="outline"
+                size="xs"
+                className="shrink-0"
+              >
+                <a href={molabLink} target="_blank" rel="noopener noreferrer">
+                  <MarimoPlusIcon
+                    size={12}
+                    strokeWidth={1.5}
+                    className="mr-1.5 mt-px text-(--grass-11)"
+                  />
+                  Open in molab
                 </a>
-              </p>
+              </Button>
               <p className="text-sm text-(--sky-12)">
-                Note: WebAssembly may not work for all notebooks. Additionally,
-                some dependencies may not be available in the browser.
+                Run this notebook in{" "}
+                <span className="font-semibold">molab</span>, marimo's
+                cloud-hosted notebook platform.
               </p>
             </div>
           </DialogDescription>
