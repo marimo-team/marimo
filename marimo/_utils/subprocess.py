@@ -308,7 +308,9 @@ async def _reap_pid_unix(pgid: int | None, pid: int) -> None:
     if _non_blocking_process_finished(pid):
         return
 
-    LOGGER.warning("Process %d did not respond to SIGTERM. Force killing.", pid)
+    LOGGER.warning(
+        "Process %d did not respond to SIGTERM. Force killing.", pid
+    )
     if pgid is not None:
         os.killpg(pgid, signal.SIGKILL)
     else:
@@ -316,12 +318,17 @@ async def _reap_pid_unix(pgid: int | None, pid: int) -> None:
 
     wait_for_s = 10
     waited_s = 0
-    while not (process_finished := _non_blocking_process_finished(pid)) and waited_s < wait_for_s:
+    while (
+        not (process_finished := _non_blocking_process_finished(pid))
+        and waited_s < wait_for_s
+    ):
         await asyncio.sleep(1.0)
         waited_s += 1
 
     if not process_finished:
-        LOGGER.warning("Waited for 10s, but process %d has still not quit ...", pid)
+        LOGGER.warning(
+            "Waited for 10s, but process %d has still not quit ...", pid
+        )
         return
 
 
