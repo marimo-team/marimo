@@ -1,7 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -11,7 +14,11 @@ from unittest.mock import patch
 import pytest
 
 from marimo._session.queue import ProcessLike
-from marimo._utils.subprocess import safe_popen, try_kill_process_and_group
+from marimo._utils.subprocess import (
+    _REAP_TASKS,
+    safe_popen,
+    try_kill_process_and_group,
+)
 
 
 class TestSafePopen:
@@ -136,3 +143,38 @@ def test_try_kill_process_and_group_kills_pgroup_spares_new_session() -> None:
                 except ProcessLookupError:
                     pass
         leader.wait(timeout=5)
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX only")
+async def test_try_kill_process_and_group_sigkills_stubborn_child(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """try_kill_process_and_group schedules a reap task that escalates to
+    SIGKILL when the child ignores SIGTERM.
+    """
+    # Skip the reaper's real 5s/1s waits so the test is fast.
+    real_sleep = asyncio.sleep
+
+    async def no_wait(_delay: float) -> None:
+        await real_sleep(0)
+
+    monkeypatch.setattr(asyncio, "sleep", no_wait)
+
+    script = (
+        "import signal, time\n"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        "while True: time.sleep(1)\n"
+    )
+    proc = subprocess.Popen(
+        [sys.executable, "-c", script], start_new_session=True
+    )
+    pgid = os.getpgid(proc.pid)
+    try:
+        try_kill_process_and_group(cast(ProcessLike, proc))
+        # Drain the reap task(s) scheduled on the current loop.
+        await asyncio.gather(*list(_REAP_TASKS), return_exceptions=True)
+        assert not _is_alive(proc.pid)
+    finally:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(pgid, signal.SIGKILL)
