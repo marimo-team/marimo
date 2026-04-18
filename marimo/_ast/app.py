@@ -779,10 +779,15 @@ class App:
         return output, _Namespace(defs, owner=self)
 
     async def _set_ui_element_value(
-        self, request: UpdateUIElementCommand
+        self,
+        request: UpdateUIElementCommand,
+        *,
+        notify_frontend: bool = False,
     ) -> bool:
         app_kernel_runner = self._get_kernel_runner()
-        return await app_kernel_runner.set_ui_element_value(request)
+        return await app_kernel_runner.set_ui_element_value(
+            request, notify_frontend=notify_frontend
+        )
 
     async def _function_call(
         self, request: InvokeFunctionCommand
@@ -1039,9 +1044,14 @@ class InternalApp:
         return self._app._run_cell_sync(cell, kwargs)
 
     async def set_ui_element_value(
-        self, request: UpdateUIElementCommand
+        self,
+        request: UpdateUIElementCommand,
+        *,
+        notify_frontend: bool = False,
     ) -> bool:
-        return await self._app._set_ui_element_value(request)
+        return await self._app._set_ui_element_value(
+            request, notify_frontend=notify_frontend
+        )
 
     async def function_call(
         self, request: InvokeFunctionCommand

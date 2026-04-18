@@ -703,7 +703,8 @@ class AsyncCodeModeContext:
                 UpdateUIElementCommand(
                     object_ids=list(object_ids),
                     values=list(values),
-                )
+                ),
+                notify_frontend=True,
             )
 
         # Print a summary of what was applied.
