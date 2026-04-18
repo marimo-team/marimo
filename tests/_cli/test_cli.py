@@ -940,13 +940,13 @@ def test_cli_sandbox_descendants_killed_when_cli_killed(
             "--sandbox",
         ]
     )
-    descendants: list[int] = []
+    descendants = []
     try:
         assert _try_fetch(port) is not None
         cli = psutil.Process(p.pid)
         deadline = time.time() + 10
         while time.time() < deadline:
-            descendants = [c.pid for c in cli.children(recursive=True)]
+            descendants = cli.children(recursive=True)
             if len(descendants) >= 2:  # uv + inner marimo server at minimum
                 break
             time.sleep(0.2)
@@ -955,22 +955,29 @@ def test_cli_sandbox_descendants_killed_when_cli_killed(
         p.kill()
         p.wait(timeout=5)
 
+        def _alive(proc: psutil.Process) -> bool:
+            # Treat zombies (exited but unreaped by their parent) as dead —
+            # the ancestor poller signalled them; only the reaper hasn't
+            # gotten around to them yet.
+            try:
+                return proc.status() != psutil.STATUS_ZOMBIE
+            except psutil.NoSuchProcess:
+                return False
+
         deadline = time.time() + 15
-        while time.time() < deadline and any(
-            psutil.pid_exists(pid) for pid in descendants
-        ):
+        while time.time() < deadline and any(_alive(c) for c in descendants):
             time.sleep(0.2)
 
-        still_alive = [pid for pid in descendants if psutil.pid_exists(pid)]
+        still_alive = [c for c in descendants if _alive(c)]
         assert not still_alive, (
-            f"sandbox descendants {still_alive} still alive after CLI killed"
+            f"sandbox descendants still alive after CLI killed: {still_alive}"
         )
     finally:
         with contextlib.suppress(Exception):
             p.kill()
-        for pid in descendants:
+        for c in descendants:
             with contextlib.suppress(Exception):
-                os.kill(pid, signal.SIGKILL)
+                os.kill(c.pid, signal.SIGKILL)
 
 
 def test_cli_run(temp_marimo_file: str) -> None:
