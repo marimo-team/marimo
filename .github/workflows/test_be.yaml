@@ -184,15 +184,15 @@ jobs:
             echo "include_unchanged=false" >> $GITHUB_OUTPUT
           fi
 
-      # Test with base dependencies
-      # Exit code 5 = no tests collected (e.g. only CLI test files changed);
-      # treat that as success since CLI tests run in a separate workflow.
+      # Test with base dependencies.
+      #
+      # The run-pytest action runs tests in two passes: a parallel pass (xdist)
+      # for tests not marked @pytest.mark.serial, and a serial pass (-p no:xdist)
+      # for tests that are. To exclude a new test from xdist, mark it serial —
+      # no CI change needed.
       #
       # TODO: xdist is disabled on Windows because several tests
       # crash workers. Fix and re-enable. Failing tests:
-      #   - tests/_islands/test_island_generator.py::test_build
-      #   - tests/_islands/test_island_generator.py::test_render
-      #   - tests/_islands/test_island_generator.py::test_render_multiline_markdown
       #   - tests/_messaging/test_streams.py::test_import_multiprocessing
       #   - tests/_server/api/endpoints/test_ai.py::TestOpenAiEndpoints::test_completion_without_token
       #   - tests/_server/test_session_manager.py::test_create_session_new
@@ -201,52 +201,36 @@ jobs:
       #   - tests/_server/test_session_manager.py::test_recents_touch_called_on_session_create
       - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
-        run: |
-          uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
-            -v \
-            ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
-            -k "not test_cli" \
-            --durations=10 \
-            -p packages.pytest_changed \
-            --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
-            --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
-            --picked=first \
-            --inline-snapshot=disable \
-          || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
+        uses: ./.github/actions/run-pytest
+        with:
+          python-version: ${{ matrix.python-version }}
+          dep-group: test
+          changed-from: ${{ steps.setup-flags.outputs.changed_from }}
+          include-unchanged: ${{ steps.setup-flags.outputs.include_unchanged }}
+          xdist: ${{ matrix.os != 'windows-latest' }}
 
-      # Test with optional dependencies
       - name: Test changed with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
-        run: |
-          uv run --python ${{ matrix.python-version }} --group test-optional pytest tests/ \
-            -v \
-            ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
-            -k "not test_cli" \
-            --durations=10 \
-            -p packages.pytest_changed \
-            --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
-            --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
-            --picked=first \
-            --inline-snapshot=disable \
-          || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
+        uses: ./.github/actions/run-pytest
+        with:
+          python-version: ${{ matrix.python-version }}
+          dep-group: test-optional
+          changed-from: ${{ steps.setup-flags.outputs.changed_from }}
+          include-unchanged: ${{ steps.setup-flags.outputs.include_unchanged }}
+          xdist: ${{ matrix.os != 'windows-latest' }}
 
       # Test with minimal dependencies using lowest resolution
       # https://docs.astral.sh/uv/concepts/resolution/#lowest-resolution
       # https://docs.astral.sh/uv/reference/environment/#uv_resolution
       - name: Test with minimal dependencies (lowest resolution)
         if: ${{ matrix.dependencies == 'minimal' }}
-        run: |
-          uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
-            -v \
-            ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
-            -k "not test_cli" \
-            --durations=10 \
-            -p packages.pytest_changed \
-            --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
-            --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
-            --picked=first \
-            --inline-snapshot=disable \
-          || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
+        uses: ./.github/actions/run-pytest
+        with:
+          python-version: ${{ matrix.python-version }}
+          dep-group: test
+          changed-from: ${{ steps.setup-flags.outputs.changed_from }}
+          include-unchanged: ${{ steps.setup-flags.outputs.include_unchanged }}
+          xdist: ${{ matrix.os != 'windows-latest' }}
         env:
           UV_RESOLUTION: lowest-direct
 

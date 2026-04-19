@@ -1,0 +1,60 @@
+name: Run pytest (two-phase)
+description: >
+  Run the backend test suite in two passes: a parallel pass (xdist) for tests
+  not marked @pytest.mark.serial, and a serial pass for tests that are.
+
+inputs:
+  python-version:
+    required: true
+    description: Python version to pass to uv
+  dep-group:
+    required: true
+    description: uv dependency group to install (e.g. "test", "test-optional")
+  changed-from:
+    required: true
+    description: Git ref passed to packages.pytest_changed --changed-from
+  include-unchanged:
+    required: true
+    description: Value for packages.pytest_changed --include-unchanged ("true"/"false")
+  xdist:
+    required: true
+    description: '"true" to run the parallel pass with -n auto, "false" to disable xdist entirely'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run tests (parallel, not serial)
+      shell: bash
+      run: |
+        XDIST_FLAGS=(-p no:xdist)
+        if [ "${{ inputs.xdist }}" = "true" ]; then
+          XDIST_FLAGS=(-n auto)
+        fi
+        uv run --python ${{ inputs.python-version }} --group ${{ inputs.dep-group }} pytest tests/ \
+          -v \
+          "${XDIST_FLAGS[@]}" \
+          -k "not test_cli" \
+          -m "not serial" \
+          --durations=10 \
+          -p packages.pytest_changed \
+          --changed-from=${{ inputs.changed-from }} \
+          --include-unchanged=${{ inputs.include-unchanged }} \
+          --picked=first \
+          --inline-snapshot=disable \
+        || { ec=$?; [ $ec -eq 5 ] || exit $ec; }
+
+    - name: Run tests (serial)
+      shell: bash
+      run: |
+        uv run --python ${{ inputs.python-version }} --group ${{ inputs.dep-group }} pytest tests/ \
+          -p no:xdist \
+          -v \
+          -k "not test_cli" \
+          -m serial \
+          --durations=10 \
+          -p packages.pytest_changed \
+          --changed-from=${{ inputs.changed-from }} \
+          --include-unchanged=${{ inputs.include-unchanged }} \
+          --picked=first \
+          --inline-snapshot=disable \
+        || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
