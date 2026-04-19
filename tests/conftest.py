@@ -86,13 +86,44 @@ def pytest_collection_modifyitems(
             item.add_marker(pytest.mark.skip(reason=reason))
 
 
-@pytest.fixture(autouse=True)
-def _ensure_main_has_file() -> Generator[None, None, None]:
-    """Ensure __main__.__file__ is set for pytest-xdist workers.
+@pytest.fixture(scope="session")
+def _fake_main_file(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A benign empty .py file to assign as __main__.__file__ in tests.
 
-    xdist workers don't always set __file__ on __main__, which causes
-    marimo's kernel (create_main_module) to set __file__=None, breaking
-    tests that rely on __file__ being a real path.
+    Why not reuse the real pytest launcher path? On Windows,
+    shutil.which("pytest") returns pytest.exe — a zipapp. If a cell
+    spawns a child process via multiprocessing.Manager() (or anything
+    using the "spawn" start method), the child runs
+    multiprocessing.spawn._fixup_main_from_path(__main__.__file__),
+    which calls runpy.run_path() on the parent's __file__. For a zipapp
+    pytest.exe that means pytest starts running inside the child
+    process, never writes the Manager's server address back, and the
+    parent hangs at reader.recv(). An empty .py file has no side
+    effects when runpy executes it.
+    """
+    path = tmp_path_factory.mktemp("marimo_test_main") / "pytest_main.py"
+    path.write_text("")
+    return path
+
+
+@pytest.fixture(autouse=True)
+def _ensure_main_has_file(
+    _fake_main_file: Path,
+) -> Generator[None, None, None]:
+    """Point __main__.__file__ at a benign empty .py for every test.
+
+    Two reasons to override (rather than only fill in when missing):
+
+    1. xdist workers don't always set __file__ on __main__, which causes
+       marimo's kernel (create_main_module) to set __file__=None,
+       breaking tests that rely on __file__ being a real path.
+    2. When pytest is invoked as pytest.exe on Windows,
+       __main__.__file__ is already the zipapp launcher. Cells that use
+       multiprocessing.Manager() (or any "spawn" child) then run
+       runpy.run_path(pytest.exe) inside the child via
+       multiprocessing.spawn._fixup_main_from_path, which re-runs pytest
+       in the child — the child never writes back the Manager's server
+       address and the parent hangs at reader.recv().
     """
     main = sys.modules.get("__main__")
     if main is None:
@@ -102,17 +133,7 @@ def _ensure_main_has_file() -> Generator[None, None, None]:
     had_file_attr = hasattr(main, "__file__")
     original_file = getattr(main, "__file__", None)
 
-    if not had_file_attr or original_file is None:
-        # Find a valid pytest path: prefer shutil.which, fall back to
-        # sys.argv[0], then construct one from sys.executable.
-        pytest_path = shutil.which("pytest")
-        if pytest_path and Path(pytest_path).exists():
-            new_file = pytest_path
-        elif sys.argv and sys.argv[0] and Path(sys.argv[0]).exists():
-            new_file = sys.argv[0]
-        else:
-            new_file = str(Path(sys.executable).parent / "pytest")
-        main.__file__ = new_file
+    main.__file__ = str(_fake_main_file)
 
     try:
         yield
