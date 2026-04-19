@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
 snapshot = snapshotter(__file__)
 
+pytestmark = pytest.mark.serial
+
 
 def test_add_code():
     generator = MarimoIslandGenerator()
