@@ -26,7 +26,8 @@ async def test_refresh_value_updates_to_frontend_string(
     assert refresh.value == ""
 
     await k.set_ui_element_value(
-        UpdateUIElementCommand([refresh._id], ["1s (0)"])
+        UpdateUIElementCommand([refresh._id], ["1s (0)"]),
+        notify_frontend=False,
     )
     assert refresh.value == "1s (0)"
 

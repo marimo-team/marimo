@@ -782,7 +782,7 @@ class App:
         self,
         request: UpdateUIElementCommand,
         *,
-        notify_frontend: bool = False,
+        notify_frontend: bool,
     ) -> bool:
         app_kernel_runner = self._get_kernel_runner()
         return await app_kernel_runner.set_ui_element_value(
@@ -1047,7 +1047,7 @@ class InternalApp:
         self,
         request: UpdateUIElementCommand,
         *,
-        notify_frontend: bool = False,
+        notify_frontend: bool,
     ) -> bool:
         return await self._app._set_ui_element_value(
             request, notify_frontend=notify_frontend

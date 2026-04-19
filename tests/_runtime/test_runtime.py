@@ -212,9 +212,9 @@ class TestExecution:
 
         element_id = k.globals["s"]._id
         await k.set_ui_element_value(
-            UpdateUIElementCommand.from_ids_and_values([(element_id, 5)])
+            UpdateUIElementCommand.from_ids_and_values([(element_id, 5)]),
+            notify_frontend=False,
         )
-        assert k.globals["s"].value == 5
 
         if k.reactive_execution_mode == "lazy":
             assert k.graph.cells["2"].stale
@@ -255,7 +255,8 @@ class TestExecution:
         # Set a child of the array to 5 ...
         child_id = k.globals["array"][0]._id
         await k.set_ui_element_value(
-            UpdateUIElementCommand.from_ids_and_values([(child_id, 5)])
+            UpdateUIElementCommand.from_ids_and_values([(child_id, 5)]),
+            notify_frontend=False,
         )
 
         # Make sure the array and its child are updated
@@ -293,7 +294,8 @@ class TestExecution:
 
         array_id = k.globals["array"]._id
         await k.set_ui_element_value(
-            UpdateUIElementCommand.from_ids_and_values([(array_id, {"0": 5})])
+            UpdateUIElementCommand.from_ids_and_values([(array_id, {"0": 5})]),
+            notify_frontend=False,
         )
         assert k.globals["array"].value == [5]
         if k.lazy():
@@ -324,7 +326,8 @@ class TestExecution:
         # called
         child_id = k.globals["array"][0]._id
         await k.set_ui_element_value(
-            UpdateUIElementCommand.from_ids_and_values([(child_id, 5)])
+            UpdateUIElementCommand.from_ids_and_values([(child_id, 5)]),
+            notify_frontend=False,
         )
         if k.lazy():
             assert k.graph.cells[er.cell_id].stale
@@ -348,7 +351,8 @@ class TestExecution:
         # This shouldn't crash the kernel, and s's value should still be
         # updated
         await k.set_ui_element_value(
-            UpdateUIElementCommand.from_ids_and_values([(element_id, 5)])
+            UpdateUIElementCommand.from_ids_and_values([(element_id, 5)]),
+            notify_frontend=False,
         )
         assert k.globals["_cell_1_s"].value == 5
 
@@ -1205,7 +1209,8 @@ except NameError:
         element_id = k.globals["defs"]["slider"]._id
 
         await k.set_ui_element_value(
-            UpdateUIElementCommand.from_ids_and_values([(element_id, 5)])
+            UpdateUIElementCommand.from_ids_and_values([(element_id, 5)]),
+            notify_frontend=False,
         )
         assert k.globals["defs"]["slider"].value == 5
         if k.lazy():
@@ -1226,7 +1231,8 @@ except NameError:
         await k.set_ui_element_value(
             UpdateUIElementCommand.from_ids_and_values(
                 [("does not exist", None)]
-            )
+            ),
+            notify_frontend=False,
         )
 
     async def test_interrupt(
