@@ -782,7 +782,16 @@ class TestPandasTableManager(unittest.TestCase):
         )
         float64_cols = data.select_dtypes(include="float64").columns
         data[float64_cols] = data[float64_cols].astype("Float64")
-        object_cols = data.select_dtypes(include=["object"]).columns
+        # Include "str" explicitly: pandas 3 assigns dtype="str" to string
+        # literal columns by default, and include=["object"] alone matches
+        # nothing — it also emits pandas.errors.Pandas4Warning for
+        # back-compat with pandas 2, which xdist then fails to transmit to
+        # the controller on CI and tears the worker down.
+        # TODO: xdist's unserialize_warning_message (workermanage.py) raises
+        # BaseException on import failure and the controller's receiver
+        # thread catches it as fatal, killing the worker. File upstream —
+        # warning transmission should never crash the session.
+        object_cols = data.select_dtypes(include=["object", "str"]).columns
         data[object_cols] = data[object_cols].astype("string")
 
         manager = self.factory.create()(data)
