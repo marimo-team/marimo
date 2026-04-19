@@ -16,7 +16,8 @@ import {
   SearchIcon,
   Trash2Icon,
 } from "lucide-react";
-import React, { Suspense, use, useEffect, useRef, useState } from "react";
+import type React from "react";
+import { Suspense, use, useEffect, useRef, useState } from "react";
 import {
   type NodeApi,
   type NodeRendererProps,
@@ -53,8 +54,8 @@ import { getSessionId, isSessionId } from "@/core/kernel/session";
 import { useRequestClient } from "@/core/network/requests";
 import type {
   FileInfo,
-  MarimoFile,
   FileUpdateResponse,
+  MarimoFile,
 } from "@/core/network/types";
 import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
