@@ -773,6 +773,20 @@ class TestPandasTableManager(unittest.TestCase):
             ],
         ]
 
+    # pandas 3 emits Pandas4Warning here (select_dtypes(include=["object"])
+    # also picks up the new "str" dtype, for back-compat with pandas 2).
+    # Suppress by message so this filter is a no-op on pandas 2, where
+    # neither the "str" dtype nor Pandas4Warning exists. Necessary because
+    # xdist's unserialize_warning_message fails to import pandas in the
+    # controller on CI and the receiver thread treats that as a fatal
+    # BaseException, killing the worker and cascading into hundreds of
+    # fake failures.
+    # TODO: fix xdist upstream — workermanage.py:462 should not tear down
+    # the session when warning deserialization fails; wrap just the
+    # unserialize call and fall back to a generic Warning.
+    @pytest.mark.filterwarnings(
+        "ignore:For backward compatibility, 'str' dtypes are included"
+    )
     def test_get_field_types_nullables(self) -> None:
         data = pd.DataFrame(
             {
@@ -782,16 +796,7 @@ class TestPandasTableManager(unittest.TestCase):
         )
         float64_cols = data.select_dtypes(include="float64").columns
         data[float64_cols] = data[float64_cols].astype("Float64")
-        # Include "str" explicitly: pandas 3 assigns dtype="str" to string
-        # literal columns by default, and include=["object"] alone matches
-        # nothing — it also emits pandas.errors.Pandas4Warning for
-        # back-compat with pandas 2, which xdist then fails to transmit to
-        # the controller on CI and tears the worker down.
-        # TODO: xdist's unserialize_warning_message (workermanage.py) raises
-        # BaseException on import failure and the controller's receiver
-        # thread catches it as fatal, killing the worker. File upstream —
-        # warning transmission should never crash the session.
-        object_cols = data.select_dtypes(include=["object", "str"]).columns
+        object_cols = data.select_dtypes(include=["object"]).columns
         data[object_cols] = data[object_cols].astype("string")
 
         manager = self.factory.create()(data)
