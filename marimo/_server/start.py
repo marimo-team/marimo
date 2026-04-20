@@ -150,12 +150,25 @@ def _resolve_proxy(port: int, host: str, proxy: str | None) -> tuple[int, str]:
     # path when no scheme is present — handles "host", "host:port", and full
     # "scheme://host:port" forms uniformly.
     parse_target = proxy if "://" in proxy else f"//{proxy}"
-    parsed = urlparse(parse_target)
 
-    # parsed.hostname strips brackets from IPv6 addresses (e.g. [::1] → ::1)
-    external_host = parsed.hostname or proxy
-    if parsed.port is not None:
-        external_port = parsed.port
+    try:
+        parsed = urlparse(parse_target)
+
+        # parsed.hostname strips brackets from IPv6 addresses
+        # (e.g. [::1] → ::1)
+        external_host = parsed.hostname or proxy
+        parsed_port = parsed.port
+    except ValueError:
+        LOGGER.warning(
+            "Ignoring invalid proxy value %r; falling back to host=%r, port=%r",
+            proxy,
+            host,
+            port,
+        )
+        return port, host
+
+    if parsed_port is not None:
+        external_port = parsed_port
     elif parsed.scheme == "https":
         external_port = 443
     else:
