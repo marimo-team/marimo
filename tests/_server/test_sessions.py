@@ -53,7 +53,6 @@ from marimo._session.session import (
 from marimo._session.state.session_view import SessionView
 from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.marimo_path import MarimoPath
-from tests.utils import save_and_restore_main
 
 initialize_asyncio()
 
@@ -90,7 +89,6 @@ class MockSessionConsumer(SessionConsumer):
 session_id = SessionId("test")
 
 
-@save_and_restore_main
 def test_queue_manager() -> None:
     # Test with multiprocessing queues
     queue_manager_mp = QueueManagerImpl(use_multiprocessing=True)
@@ -105,7 +103,6 @@ def test_queue_manager() -> None:
     assert isinstance(queue_manager_thread.input_queue, queue.Queue)
 
 
-@save_and_restore_main
 def test_kernel_manager_run_mode() -> None:
     # Mock objects and data for testing
     queue_manager = QueueManagerImpl(use_multiprocessing=False)
@@ -139,7 +136,6 @@ def test_kernel_manager_run_mode() -> None:
     assert queue_manager.control_queue.empty()
 
 
-@save_and_restore_main
 def test_kernel_manager_edit_mode() -> None:
     # Mock objects and data for testing
     queue_manager = QueueManagerImpl(use_multiprocessing=True)
@@ -173,7 +169,6 @@ def test_kernel_manager_edit_mode() -> None:
     queue_manager.control_queue.join_thread()  # type: ignore
 
 
-@save_and_restore_main
 def test_kernel_manager_interrupt(tmp_path: Path) -> None:
     queue_manager = QueueManagerImpl(use_multiprocessing=True)
     mode = SessionMode.EDIT
@@ -279,7 +274,6 @@ def test_kernel_manager_interrupt(tmp_path: Path) -> None:
 session_id = SessionId("test_session_id")
 
 
-@save_and_restore_main
 async def test_session() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
@@ -325,7 +319,6 @@ async def test_session() -> None:
     assert session.connection_state() == ConnectionState.CLOSED
 
 
-@save_and_restore_main
 def test_session_disconnect_reconnect() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
@@ -383,7 +376,6 @@ def test_session_disconnect_reconnect() -> None:
     assert session.connection_state() == ConnectionState.CLOSED
 
 
-@save_and_restore_main
 def test_session_with_kiosk_consumers() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
@@ -448,7 +440,6 @@ def test_session_with_kiosk_consumers() -> None:
 
 
 @pytest.mark.flaky(reruns=3)
-@save_and_restore_main
 async def test_session_manager_file_watching(tmp_path: Path) -> None:
     # Create a temporary file
     tmp_file = tmp_path / "test.py"
@@ -604,7 +595,6 @@ def __():
         session_manager.shutdown()
 
 
-@save_and_restore_main
 def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
     """Test that watch mode does not override config settings."""
     # Create a temporary file
@@ -659,7 +649,6 @@ def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
 
 
 @pytest.mark.flaky(reruns=3)
-@save_and_restore_main
 async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
     """Test that watch mode with autorun config auto-executes changed cells."""
     tmp_file = tmp_path / "test.py"
@@ -769,7 +758,6 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
             session_manager.shutdown()
 
 
-@save_and_restore_main
 async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
     """Test that watch mode with lazy config marks cells as stale without executing."""
     tmp_file = tmp_path / "test.py"
@@ -868,7 +856,6 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
             session_manager.shutdown()
 
 
-@save_and_restore_main
 async def test_session_manager_file_rename() -> None:
     """Test that file renaming works correctly with file watching."""
     # Create two temporary files
@@ -986,7 +973,6 @@ def __():
             os.remove(tmp_path1)
 
 
-@save_and_restore_main
 def test_session_with_script_config_overrides(
     tmp_path: Path,
 ) -> None:
@@ -1038,7 +1024,6 @@ def test_session_with_script_config_overrides(
     session.close()
 
 
-@save_and_restore_main
 async def test_caching_extension_respects_mode_and_config() -> None:
     """Test caching enablement and mode across edit/run sessions."""
     from marimo._session.extensions.extensions import (

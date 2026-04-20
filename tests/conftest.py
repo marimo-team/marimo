@@ -127,6 +127,26 @@ def _ensure_main_has_file() -> Generator[None, None, None]:
 
 
 @pytest.fixture(autouse=True)
+def _save_and_restore_main(
+    _ensure_main_has_file: None,
+) -> Generator[None, None, None]:
+    """Restore sys.modules["__main__"] after each test.
+
+    marimo's kernel swaps out the main module via patch_main_module;
+    without this fixture, that swap leaks into subsequent tests.
+    """
+    main = sys.modules.get("__main__")
+    if main is None:
+        yield
+        return
+
+    try:
+        yield
+    finally:
+        sys.modules["__main__"] = main
+
+
+@pytest.fixture(autouse=True)
 def patch_random_seed(monkeypatch: pytest.MonkeyPatch) -> None:
     """Patch UIElement._random_seed to use a fixed seed for testing"""
     import random
