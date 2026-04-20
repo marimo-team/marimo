@@ -382,6 +382,49 @@ def test_serialize_notebook_missing_cell_data(session_view: SessionView):
     assert cell["config"]["hide_code"] is None
 
 
+def test_session_round_trip_does_not_preserve_dangling_virtual_file_urls(
+    session_view: SessionView,
+):
+    """Cell-output HTML referencing `./@file/...` virtual files must not
+    survive a session-cache round-trip verbatim. After kernel restart the
+    backing buffers are gone, so any URL replayed into the frontend will
+    404 — anywidget initialization then fails for the restored cell.
+
+    Regression: https://github.com/marimo-team/marimo/issues/9273.
+
+    The fix may strip these references, replace them with data URLs, or
+    persist + re-register the buffers. Whichever approach lands, the
+    verbatim URL must not survive.
+    """
+    html = (
+        '<marimo-anywidget data-name="Counter">'
+        '<img src="./@file/4-abcd1234.png">'
+        "</marimo-anywidget>"
+    )
+    view = session_view
+    view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/html",
+            data=html,
+        ),
+    )
+    view.last_executed_code[CELL1] = "widget"
+
+    serialized = serialize_session_view(view, cell_ids=[CELL1])
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(serialized)
+    restored = deserialize_session(serialized, code_hash_to_cell_id)
+
+    restored_output = restored.cell_notifications[CELL1].output
+    assert restored_output is not None
+    assert isinstance(restored_output.data, str)
+    assert "./@file/" not in restored_output.data, (
+        "Restored cell output preserved a virtual-file URL whose backing "
+        "buffer no longer exists after kernel restart."
+    )
+
+
 def test_deserialize_basic_session():
     """Test deserialization of a basic session"""
     session = NotebookSessionV1(
