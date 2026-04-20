@@ -3598,18 +3598,29 @@ def launch_kernel(
     pipe: TypedConnection[KernelMessage] | None = None
     if socket_addr is not None:
         n_tries = 0
+        last_error: BaseException | None = None
         while n_tries < 100:
             try:
                 pipe = TypedConnection[KernelMessage].of(
                     connection.Client(socket_addr)
                 )
                 break
-            except Exception:
+            except Exception as e:
+                last_error = e
                 n_tries += 1
                 time.sleep(0.01)
 
         if n_tries == 100 or pipe is None:
-            LOGGER.debug("Failed to connect to socket.")
+            # Parent is blocked in listener.accept() with no timeout; if we
+            # return silently the parent hangs forever. Log the cause so the
+            # next failure is diagnosable instead of opaque.
+            LOGGER.error(
+                "marimo kernel subprocess failed to connect to %s "
+                "after %d attempts",
+                socket_addr,
+                n_tries,
+                exc_info=last_error,
+            )
             return
 
         stream = ThreadSafeStream(
