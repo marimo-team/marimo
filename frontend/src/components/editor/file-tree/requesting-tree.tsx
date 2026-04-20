@@ -141,9 +141,13 @@ export class RequestingTree {
       name,
       root: this.rootPath,
     });
-    await this.callbacks
+    const result = await this.callbacks
       .renameFileOrFolder({ path, newPath })
       .then(handleFileResponse);
+    if (!result) {
+      return;
+    }
+
     this.delegate.update({ id, changes: { name, path: newPath } });
     this.onChange(this.delegate.data);
     // Rename all of its children
@@ -156,23 +160,25 @@ export class RequestingTree {
       : this.rootPath;
 
     await Promise.all(
-      fromIds.map((id) => {
-        this.delegate.move({ id, parentId, index: 0 });
+      fromIds.map(async (id) => {
         const node = this.delegate.find(id);
         if (!node) {
-          return Promise.resolve();
+          return;
         }
+        const originalPath = node.data.path;
         const newPath = this.path.join(
           parentPath,
-          this.path.basename(node.data.path as FilePath),
+          this.path.basename(originalPath as FilePath),
         );
-        this.delegate.update({ id, changes: { path: newPath } });
-        return this.callbacks
-          .renameFileOrFolder({
-            path: node.data.path,
-            newPath: newPath,
-          })
+        const result = await this.callbacks
+          .renameFileOrFolder({ path: originalPath, newPath })
           .then(handleFileResponse);
+        if (!result) {
+          return;
+        }
+
+        this.delegate.move({ id, parentId, index: 0 });
+        this.delegate.update({ id, changes: { path: newPath } });
       }),
     );
 
@@ -182,11 +188,15 @@ export class RequestingTree {
     await this.refreshAll([parentPath]);
   }
 
-  async createFile(
-    name: string,
-    parentId: string | null,
-    type: "file" | "notebook" = "file",
-  ): Promise<void> {
+  async createFile({
+    name,
+    parentId,
+    type = "file",
+  }: {
+    name: string;
+    parentId: string | null;
+    type?: "file" | "notebook";
+  }): Promise<void> {
     const parentPath = parentId
       ? (this.delegate.find(parentId)?.data.path ?? parentId)
       : this.rootPath;
@@ -236,9 +246,12 @@ export class RequestingTree {
       return;
     }
 
-    await this.callbacks
+    const result = await this.callbacks
       .deleteFileOrFolder({ path: node.data.path })
       .then(handleFileResponse);
+    if (!result) {
+      return;
+    }
     this.delegate.drop({ id });
     this.onChange(this.delegate.data);
   }

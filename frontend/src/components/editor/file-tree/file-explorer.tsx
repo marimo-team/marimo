@@ -131,7 +131,7 @@ export const FileExplorer: React.FC<{
     openPrompt({
       title: "File name",
       onConfirm: async (name) => {
-        tree.createFile(name, null);
+        tree.createFile({ name, parentId: null });
       },
     });
   });
@@ -140,7 +140,7 @@ export const FileExplorer: React.FC<{
     openPrompt({
       title: "Notebook name",
       onConfirm: async (name) => {
-        tree.createFile(name, null, "notebook");
+        tree.createFile({ name, parentId: null, type: "notebook" });
       },
     });
   });
@@ -459,7 +459,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     openPrompt({
       title: "File name",
       onConfirm: async (name) => {
-        tree?.createFile(name, node.id);
+        tree?.createFile({ name, parentId: node.id });
       },
     });
   });
@@ -469,7 +469,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     openPrompt({
       title: "Notebook name",
       onConfirm: async (name) => {
-        tree?.createFile(name, node.id, "notebook");
+        tree?.createFile({ name, parentId: node.id, type: "notebook" });
       },
     });
   });
