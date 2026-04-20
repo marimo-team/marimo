@@ -6,7 +6,7 @@ const WHITESPACE_CHARS: Record<string, { marker: string; name: string }> = {
   " ": { marker: "\u2423", name: "space" },
   "\t": { marker: "\\t", name: "tab" },
   "\n": { marker: "\\n", name: "newline" },
-  "\r": { marker: "\\r", name: "newline" },
+  "\r": { marker: "\\r", name: "carriage return" },
 };
 
 function renderWhitespaceMarkers(str: string): React.ReactNode[] {
@@ -26,7 +26,7 @@ function renderWhitespaceMarkers(str: string): React.ReactNode[] {
 function describeWhitespace(str: string): string {
   const counts: Record<string, number> = {};
   for (const ch of str) {
-    const name = WHITESPACE_CHARS[ch]?.name ?? "character";
+    const name = WHITESPACE_CHARS[ch]?.name ?? "unicode whitespace";
     counts[name] = (counts[name] ?? 0) + 1;
   }
   return Object.entries(counts)
