@@ -24,6 +24,36 @@ runs:
         python-version: ${{ inputs.python-version }}
         enable-cache: true
 
+    # Diagnostic for the "ModuleNotFoundError: No module named
+    # 'numpy.random' / 'matplotlib.backends.*'" failures specific to Ubuntu
+    # core-dep runs. Gated to one representative matrix entry to keep
+    # output focused. Prints:
+    #   - whether the submodule files are physically present in .venv
+    #   - .venv/bin/python's sys.path
+    #   - whether .venv/bin/python can import them directly (no uv run)
+    # Remove once the failures are understood and fixed.
+    - name: Diagnose venv contents
+      if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.11' && inputs.dependencies == 'core' }}
+      shell: bash
+      run: |
+        uv sync --python ${{ inputs.python-version }} --group test
+        SP=$(.venv/bin/python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+        echo "=== site-packages: $SP ==="
+        echo
+        echo "=== numpy/random/ (first 20 lines) ==="
+        ls -la "$SP/numpy/random/" 2>&1 | head -20
+        echo
+        echo "=== matplotlib/backends/ (webagg|svg files) ==="
+        ls "$SP/matplotlib/backends/" 2>&1 | grep -E 'webagg|svg' || echo "(no matches)"
+        echo
+        echo "=== .venv/bin/python sys.path ==="
+        .venv/bin/python -c "import sys; print('\n'.join(sys.path))"
+        echo
+        echo "=== direct import probes (.venv/bin/python, no uv run) ==="
+        .venv/bin/python -c "import pytest; print('pytest OK:', pytest.__file__)" || echo "pytest: IMPORT FAILED"
+        .venv/bin/python -c "import numpy.random; print('numpy.random OK:', numpy.random.__file__)" || echo "numpy.random: IMPORT FAILED"
+        .venv/bin/python -c "from matplotlib.backends.backend_webagg_core import FigureManagerWebAgg; print('backend_webagg_core OK')" || echo "backend_webagg_core: IMPORT FAILED"
+
     # This step is needed since some of our tests rely on the index.html file
     - name: Create assets directory, copy over index.html
       shell: bash
