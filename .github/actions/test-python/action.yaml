@@ -24,6 +24,10 @@ runs:
         python-version: ${{ inputs.python-version }}
         enable-cache: true
 
+    - name: Install uv-managed Python
+      shell: bash
+      run: uv python install ${{ inputs.python-version }}
+
     # This step is needed since some of our tests rely on the index.html file
     - name: Create assets directory, copy over index.html
       shell: bash
@@ -72,7 +76,7 @@ runs:
       if: ${{ inputs.dependencies == 'core' }}
       shell: bash
       run: |
-        uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
+        uv run --managed-python --python ${{ inputs.python-version }} --group test python -m pytest tests/ \
           -v \
           ${{ inputs.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
           -k "not test_cli" \
@@ -89,7 +93,7 @@ runs:
       if: ${{ inputs.dependencies == 'core,optional' }}
       shell: bash
       run: |
-        uv run --python ${{ inputs.python-version }} --group test-optional pytest tests/ \
+        uv run --managed-python --python ${{ inputs.python-version }} --group test-optional python -m pytest tests/ \
           -v \
           ${{ inputs.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
           -k "not test_cli" \
@@ -110,7 +114,7 @@ runs:
       env:
         UV_RESOLUTION: lowest-direct
       run: |
-        uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
+        uv run --managed-python --python ${{ inputs.python-version }} --group test python -m pytest tests/ \
           -v \
           ${{ inputs.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
           -k "not test_cli" \

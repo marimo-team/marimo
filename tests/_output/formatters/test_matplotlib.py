@@ -260,14 +260,15 @@ async def test_matplotlib_svg_rendering(
                 import matplotlib.pyplot as plt
 
                 fmt = plt.rcParams["savefig.format"]
-                plt.rcParams["savefig.format"] = "svg"
+                try:
+                    plt.rcParams["savefig.format"] = "svg"
 
-                # Create a simple figure
-                fig, ax = plt.subplots(figsize=(4, 3))
-                ax.plot([1, 2, 3], [1, 2, 3])
-                result = fig._mime_()
-
-                plt.rcParams["savefig.format"] = fmt
+                    # Create a simple figure
+                    fig, ax = plt.subplots(figsize=(4, 3))
+                    ax.plot([1, 2, 3], [1, 2, 3])
+                    result = fig._mime_()
+                finally:
+                    plt.rcParams["savefig.format"] = fmt
                 """
             )
         ]
@@ -298,14 +299,15 @@ async def test_matplotlib_svg_rendering_in_layout(
                 import matplotlib.pyplot as plt
 
                 fmt = plt.rcParams["savefig.format"]
-                plt.rcParams["savefig.format"] = "svg"
+                try:
+                    plt.rcParams["savefig.format"] = "svg"
 
-                # Create a simple figure
-                fig, ax = plt.subplots(figsize=(4, 3))
-                ax.plot([1, 2, 3], [1, 2, 3])
-                result = mo.hstack([fig])._mime_()
-
-                plt.rcParams["savefig.format"] = fmt
+                    # Create a simple figure
+                    fig, ax = plt.subplots(figsize=(4, 3))
+                    ax.plot([1, 2, 3], [1, 2, 3])
+                    result = mo.hstack([fig])._mime_()
+                finally:
+                    plt.rcParams["savefig.format"] = fmt
                 """
             )
         ]

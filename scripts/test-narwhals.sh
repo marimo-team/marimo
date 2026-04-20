@@ -21,7 +21,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-exec uv run --python "$PY_VERSION" --group test-optional pytest \
+exec uv run --python "$PY_VERSION" --group test-optional python -m pytest \
     tests/_data/ \
     tests/_plugins/ui/_impl/ \
     tests/_utils/test_narwhals_utils.py

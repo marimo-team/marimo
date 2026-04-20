@@ -63,7 +63,7 @@ for PY_VERSION in "${PY_VERSIONS[@]}"; do
     echo "============================================"
     echo ""
 
-    if uv run --python "$PY_VERSION" --group "$GROUP" pytest tests/ \
+    if uv run --python "$PY_VERSION" --group "$GROUP" python -m pytest tests/ \
         -v \
         -k "not test_cli" \
         --durations=10 \

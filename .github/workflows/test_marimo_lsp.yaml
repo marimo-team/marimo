@@ -46,7 +46,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         id: tests
         working-directory: marimo-lsp
-        run: uv run pytest
+        run: uv run python -m pytest
 
       - name: 🐛 Open issue on failure
         if: failure() && github.event_name == 'push'
