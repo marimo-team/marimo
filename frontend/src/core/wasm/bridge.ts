@@ -67,10 +67,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   private getSaveWorker(): SaveWorker {
     if (getInitialAppMode() === "read") {
-      Logger.debug("Skipping SaveWorker in read-mode");
+      Logger.debug("Using partially disabled SaveWorker in read-mode");
       return {
         readFile: throwNotImplemented,
-        readNotebook: throwNotImplemented,
+        readNotebook: async () => (await notebookFileStore.readFile()) ?? "",
         saveNotebook: throwNotImplemented,
       };
     }
