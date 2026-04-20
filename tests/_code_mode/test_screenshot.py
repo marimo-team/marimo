@@ -2,13 +2,28 @@
 from __future__ import annotations
 
 import base64
-from typing import Any
+from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
+import pytest
+
+from marimo._ast.cell import CellConfig
+from marimo._code_mode._context import (
+    AsyncCodeModeContext,
+    NotebookCell,
+)
 from marimo._code_mode.screenshot import (
+    ScreenshotError,
     _ScreenshotSession,
     _to_data_url,
 )
-from marimo._runtime.commands import HTTPRequest
+from marimo._messaging.notebook.document import (
+    NotebookCell as _DocNotebookCell,
+)
+from marimo._types.ids import CellId_t
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 class TestToDataUrl:
@@ -61,64 +76,108 @@ class TestScreenshotSessionAuthUrl:
         assert page_url == "http://localhost:9999?kiosk=true"
 
 
-class TestExecuteEndpointInjectsAuthToken:
-    """The /execute endpoint injects ``meta["screenshot_auth_token"]`` into the
-    ``HTTPRequest`` it passes to the kernel so code-mode screenshot
-    support can authenticate Playwright against this server.
+class _FakeCells:
+    """Minimal stand-in for ``_CellsView`` used by the resolver tests.
+
+    Supports the operations ``_resolve_screenshot_target`` actually
+    calls — ``__len__``, integer indexing, and ``_resolve(str)`` — so
+    the resolver can run without a live kernel/document.
     """
 
-    def test_meta_receives_screenshot_auth_token(self) -> None:
-        """Simulate what the /execute endpoint does: build an
-        HTTPRequest and mutate its meta dict."""
-        http_req = _make_http_request()
+    def __init__(
+        self,
+        cell_ids: list[str],
+        names: dict[str, str] | None = None,
+    ) -> None:
+        self._ids = [CellId_t(cid) for cid in cell_ids]
+        self._names = names or {}
 
-        # This mirrors the injection in execution.py:
-        screenshot_auth_token = "test-token-abc"
-        http_req.meta["screenshot_auth_token"] = screenshot_auth_token
+    def __len__(self) -> int:
+        return len(self._ids)
 
-        assert http_req.meta["screenshot_auth_token"] == "test-token-abc"
+    def __getitem__(self, idx: int) -> Any:
+        return SimpleNamespace(id=self._ids[idx])
 
-    def test_meta_preserves_existing_keys(self) -> None:
-        http_req = _make_http_request(meta={"custom": "value"})
-        http_req.meta["screenshot_auth_token"] = "tok"
-
-        assert http_req.meta["custom"] == "value"
-        assert http_req.meta["screenshot_auth_token"] == "tok"
-
-    def test_meta_empty_by_default(self) -> None:
-        """Without the /execute injection, meta has no screenshot_auth_token."""
-        http_req = _make_http_request()
-        assert "screenshot_auth_token" not in http_req.meta
-
-
-# -- helpers --------------------------------------------------------
+    def _resolve(self, target: str) -> CellId_t:
+        if target in self._ids:
+            return CellId_t(target)
+        for cid, name in self._names.items():
+            if name == target:
+                return CellId_t(cid)
+        raise KeyError(target)
 
 
-def _make_http_request(
-    meta: dict[str, Any] | None = None,
-) -> HTTPRequest:
-    """Build a minimal HTTPRequest for testing."""
-    return HTTPRequest(
-        url={
-            "path": "/api/kernel/execute",
-            "port": 1234,
-            "scheme": "http",
-            "netloc": "localhost:1234",
-            "query": "",
-            "hostname": "localhost",
-        },
-        base_url={
-            "path": "/",
-            "port": 1234,
-            "scheme": "http",
-            "netloc": "localhost:1234",
-            "query": "",
-            "hostname": "localhost",
-        },
-        headers={},
-        query_params={},
-        path_params={},
-        cookies={},
-        meta=meta or {},
-        user={},
-    )
+def _fake_ctx(cell_ids: list[str], names: dict[str, str] | None = None) -> Any:
+    """Build an object usable as ``self`` for the resolver method."""
+    return SimpleNamespace(cells=_FakeCells(cell_ids, names))
+
+
+def _resolve(ctx: Any, target: Any) -> CellId_t:
+    return AsyncCodeModeContext._resolve_screenshot_target(ctx, target)
+
+
+class TestResolveScreenshotTarget:
+    def test_none_with_empty_notebook_raises(self) -> None:
+        with pytest.raises(ScreenshotError, match="no cells"):
+            _resolve(_fake_ctx([]), None)
+
+    def test_none_returns_last_cell(self) -> None:
+        ctx = _fake_ctx(["cell-a", "cell-b", "cell-c"])
+        assert _resolve(ctx, None) == CellId_t("cell-c")
+
+    def test_bool_raises_type_error(self) -> None:
+        # ``bool`` is a subclass of ``int``; guard before the int branch
+        # so ``ctx.screenshot(True)`` surfaces as a caller mistake.
+        ctx = _fake_ctx(["cell-a"])
+        with pytest.raises(TypeError, match="bool"):
+            _resolve(ctx, True)
+        with pytest.raises(TypeError, match="bool"):
+            _resolve(ctx, False)
+
+    def test_int_positive_index(self) -> None:
+        ctx = _fake_ctx(["cell-a", "cell-b", "cell-c"])
+        assert _resolve(ctx, 0) == CellId_t("cell-a")
+        assert _resolve(ctx, 1) == CellId_t("cell-b")
+
+    def test_int_negative_index(self) -> None:
+        ctx = _fake_ctx(["cell-a", "cell-b", "cell-c"])
+        assert _resolve(ctx, -1) == CellId_t("cell-c")
+        assert _resolve(ctx, -3) == CellId_t("cell-a")
+
+    def test_int_out_of_range_raises(self) -> None:
+        ctx = _fake_ctx(["cell-a"])
+        with pytest.raises(ScreenshotError, match="out of range"):
+            _resolve(ctx, 5)
+        with pytest.raises(ScreenshotError, match="out of range"):
+            _resolve(ctx, -2)
+
+    def test_str_resolves_cell_id(self) -> None:
+        ctx = _fake_ctx(["cell-a", "cell-b"])
+        assert _resolve(ctx, "cell-a") == CellId_t("cell-a")
+
+    def test_str_resolves_cell_name(self) -> None:
+        ctx = _fake_ctx(["cell-a", "cell-b"], names={"cell-b": "my_cell"})
+        assert _resolve(ctx, "my_cell") == CellId_t("cell-b")
+
+    def test_str_unknown_raises(self) -> None:
+        ctx = _fake_ctx(["cell-a"])
+        with pytest.raises(ScreenshotError, match="Unknown cell ID or name"):
+            _resolve(ctx, "does-not-exist")
+
+    def test_notebook_cell_target(self) -> None:
+        doc_cell = _DocNotebookCell(
+            id=CellId_t("cell-x"),
+            code="x = 1",
+            name="",
+            config=CellConfig(),
+        )
+        nb_cell = NotebookCell(doc_cell, cell_impl=None)
+        ctx = _fake_ctx(["cell-a"])  # cell-x deliberately not in view
+        assert _resolve(ctx, nb_cell) == CellId_t("cell-x")
+
+    def test_unsupported_type_raises(self) -> None:
+        ctx = _fake_ctx(["cell-a"])
+        with pytest.raises(TypeError, match="Unsupported"):
+            _resolve(ctx, 3.14)
+        with pytest.raises(TypeError, match="Unsupported"):
+            _resolve(ctx, object())

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import sys
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -158,6 +158,58 @@ class TestExecutionRoutes_EditMode:
         assert response.status_code == 200, response.text
         assert response.headers["content-type"] == "application/json"
         assert "success" in response.json()
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_injects_screenshot_meta(client: TestClient) -> None:
+        """`/api/kernel/execute` injects a trusted server URL + auth token
+        into ``HTTPRequest.meta`` so ``ctx.screenshot()`` can authenticate
+        Playwright against this server.  Regression guard: deleting either
+        injection line in the endpoint should fail this test.
+        """
+        from unittest.mock import patch
+
+        from marimo._runtime.commands import ExecuteScratchpadCommand
+        from marimo._server import scratchpad as scratchpad_mod
+
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        captured: list[object] = []
+
+        def capture(req: object, from_consumer_id: object) -> None:  # noqa: ARG001
+            captured.append(req)
+
+        async def empty_stream(self: object):  # noqa: ARG001
+            if False:
+                yield ""  # makes this an async generator that yields nothing
+
+        with (
+            patch.object(session, "put_control_request", side_effect=capture),
+            patch.object(
+                scratchpad_mod.ScratchCellListener,
+                "stream",
+                empty_stream,
+            ),
+        ):
+            response = client.post(
+                "/api/kernel/execute",
+                headers=HEADERS,
+                json={"code": "x = 1"},
+            )
+
+        assert response.status_code == 200, response.text
+
+        scratchpad_cmds = [
+            c for c in captured if isinstance(c, ExecuteScratchpadCommand)
+        ]
+        assert len(scratchpad_cmds) == 1, (
+            f"expected one ExecuteScratchpadCommand, got {captured!r}"
+        )
+        meta = scratchpad_cmds[0].request.meta
+        assert meta["screenshot_auth_token"] == "fake-token"
+        # Mock server uses host="localhost", port=1234, base_url=""
+        assert meta["screenshot_server_url"] == "http://localhost:1234"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -399,7 +451,7 @@ class TestExecutionRoutes_RunMode:
 
 def get_printed_object(
     client: TestClient, cell_id: CellId_t
-) -> dict[str, Any]:
+) -> dict[str, object]:
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
 
