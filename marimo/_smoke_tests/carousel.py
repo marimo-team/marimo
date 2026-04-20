@@ -3,29 +3,30 @@
 # dependencies = [
 #     "marimo",
 #     "altair",
-#     "pandas",
+#     "polars",
 # ]
 # ///
 # Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
-__generated_with = "0.15.5"
-app = marimo.App()
+__generated_with = "0.23.1"
+app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
-    import pandas as pd
+    import polars as pl
     import altair as alt
-    return alt, mo, pd
+
+    return alt, mo, pl
 
 
 @app.cell
-def _(pd):
-    df = pd.read_csv(
-        "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv"
+def _(pl):
+    df = pl.read_csv(
+        "https://gist.githubusercontent.com/netj/8836201/raw/6f9306ad21398ea43cba4f7d537619d0e07d5ae3/iris.csv"
     )
     return (df,)
 
@@ -41,7 +42,7 @@ def _(alt, df, mo):
     chart = mo.ui.altair_chart(
         alt.Chart(df)
         .mark_point()
-        .encode(x="sepal_length", y="sepal_width", color="species"),
+        .encode(x="sepal.length", y="sepal.width", color="variety"),
         label="Iris Data in chart",
     )
     return (chart,)

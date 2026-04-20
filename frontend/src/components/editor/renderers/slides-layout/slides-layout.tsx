@@ -1,18 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 import { numColumnsAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { ICellRendererProps } from "../types";
 import type { SlidesLayout } from "./types";
 import { SlidesMinimap } from "@/components/slides/minimap";
-import { Slide } from "@/components/slides/slide";
 import useEvent from "react-use-event-hook";
+import type { RevealApi } from "reveal.js";
 
 type Props = ICellRendererProps<SlidesLayout>;
 
 const LazySlidesComponent = React.lazy(
-  () => import("../../../slides/slides-component"),
+  () => import("../../../slides/reveal-component"),
 );
 
 export const SlidesLayoutRenderer: React.FC<Props> = ({
@@ -26,6 +26,7 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   const numColumns = useAtomValue(numColumnsAtom);
   const isMultiColumn = numColumns > 1;
   const [activeCellId, setActiveCellId] = useState<CellId | null>(null);
+  const deckRef = useRef<RevealApi | null>(null);
 
   const cellsWithOutput = cells.filter(
     (cell) => cell.output != null && cell.output.data !== "",
@@ -45,24 +46,15 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
 
   const slides = (
     <LazySlidesComponent
-      forceKeyboardNavigation={true}
-      className="flex-1 self-center"
+      cellsWithOutput={cellsWithOutput}
       activeIndex={resolvedIndex}
-      onActiveIndexChange={handleSlideChange}
-    >
-      {cellsWithOutput.map((cell) => (
-        <Slide
-          key={cell.id}
-          cellId={cell.id}
-          status={cell.status}
-          output={cell.output}
-        />
-      ))}
-    </LazySlidesComponent>
+      onSlideChange={handleSlideChange}
+      deckRef={deckRef}
+    />
   );
 
   if (isReading) {
-    return <div className="p-4 flex flex-col flex-1 max-h-[95%]">{slides}</div>;
+    return <div className="p-4 flex flex-1 max-h-[95%]">{slides}</div>;
   }
 
   return (
