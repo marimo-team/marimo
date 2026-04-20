@@ -207,7 +207,8 @@ jobs:
           dep-group: test
           changed-from: ${{ steps.setup-flags.outputs.changed_from }}
           include-unchanged: ${{ steps.setup-flags.outputs.include_unchanged }}
-          xdist: ${{ matrix.os != 'windows-latest' }}
+          # TEMPORARY: xdist disabled globally to observe baseline failures.
+          xdist: false
 
       - name: Test changed with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
@@ -217,7 +218,8 @@ jobs:
           dep-group: test-optional
           changed-from: ${{ steps.setup-flags.outputs.changed_from }}
           include-unchanged: ${{ steps.setup-flags.outputs.include_unchanged }}
-          xdist: ${{ matrix.os != 'windows-latest' }}
+          # TEMPORARY: xdist disabled globally to observe baseline failures.
+          xdist: false
 
       # Test with minimal dependencies using lowest resolution
       # https://docs.astral.sh/uv/concepts/resolution/#lowest-resolution
@@ -230,7 +232,8 @@ jobs:
           dep-group: test
           changed-from: ${{ steps.setup-flags.outputs.changed_from }}
           include-unchanged: ${{ steps.setup-flags.outputs.include_unchanged }}
-          xdist: ${{ matrix.os != 'windows-latest' }}
+          # TEMPORARY: xdist disabled globally to observe baseline failures.
+          xdist: false
         env:
           UV_RESOLUTION: lowest-direct
 
