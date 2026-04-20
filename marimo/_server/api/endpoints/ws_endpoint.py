@@ -66,6 +66,9 @@ router = APIRouter()
 
 DOC_MANAGER = LoroDocManager()
 
+# Strong refs so fire-and-forget tasks aren't GC'd mid-flight.
+_background_tasks: set[asyncio.Task[None]] = set()
+
 
 @router.websocket("/ws")
 async def websocket_endpoint(
@@ -500,11 +503,13 @@ class WebSocketHandler(SessionConsumer):
             or self.status == ConnectionState.CONNECTING
         ) and self.websocket.application_state is WebSocketState.CONNECTED
         if is_connected:
-            asyncio.create_task(
+            task = asyncio.create_task(
                 self._safe_close(
                     WebSocketCodes.NORMAL_CLOSE, "MARIMO_SHUTDOWN"
                 )
             )
+            _background_tasks.add(task)
+            task.add_done_callback(_background_tasks.discard)
 
         if self.ws_future:
             self.ws_future.cancel()

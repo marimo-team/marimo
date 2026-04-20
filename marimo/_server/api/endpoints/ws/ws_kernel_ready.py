@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
@@ -26,6 +26,9 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 LORO_ALLOWED = sys.version_info >= (3, 11)
+
+# Strong refs so fire-and-forget tasks aren't GC'd mid-flight.
+_background_tasks: set[asyncio.Task[Any]] = set()
 
 
 def build_kernel_ready(
@@ -184,4 +187,8 @@ def _try_init_rtc_doc(
             "RTC: Loro is not installed, disabling real-time collaboration"
         )
     else:
-        asyncio.create_task(doc_manager.create_doc(file_key, cell_ids, codes))
+        task = asyncio.create_task(
+            doc_manager.create_doc(file_key, cell_ids, codes)
+        )
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)

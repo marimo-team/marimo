@@ -695,7 +695,8 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
         self.app_state.timeout_tracker = time.time()
         self.timeout_duration_minutes = timeout_duration_minutes
 
-        asyncio.create_task(self.monitor())
+        # Hold a strong reference so the monitor task isn't GC'd.
+        self._monitor_task = asyncio.create_task(self.monitor())
 
     async def __call__(
         self, scope: Scope, receive: Receive, send: Send
