@@ -121,9 +121,8 @@ class ScratchCellListener(EventAwareExtension):
                 exc_type = (
                     getattr(err, "exception_type", None) or type(err).__name__
                 )
-                short_id = str(msg.cell_id)[:8]
                 self.child_error_summaries.append(
-                    f"cell '{short_id}' raised {exc_type}"
+                    f"cell '{msg.cell_id}' raised {exc_type}"
                 )
 
     async def stream(self) -> AsyncGenerator[str, None]:
