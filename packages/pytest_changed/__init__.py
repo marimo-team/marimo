@@ -253,6 +253,13 @@ def pytest_configure(config: pytest.Config) -> None:
         pytest.exit("Not in a git repository", returncode=1)
         raise UnreachableError("Not in a git repository") from e
 
+    # When --include-unchanged is set, we always run all tests, so skip the
+    # (expensive) changed-file detection and dependency-graph analysis.
+    if config.getoption("include_unchanged"):
+        print_("--include-unchanged set - running all tests")
+        config.option.changed_test_files = None
+        return
+
     # Get test base directory from args or fall back to repo root
     test_base = get_test_base(config, repo_root)
 
