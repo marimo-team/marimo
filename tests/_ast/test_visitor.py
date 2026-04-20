@@ -423,6 +423,50 @@ def test_pep572_walrus_comprehension_examples() -> None:
     }
 
 
+def test_walrus_comprehension_does_not_double_mangle_private_refs() -> None:
+    # Regression: https://github.com/marimo-team/marimo/issues/9274
+    # Inside `(_m := {... for ... in _values ...})`, `_values` was being
+    # mangled twice because visit_NamedExpr visits node.value then falls
+    # through to generic_visit, which re-visits the same subtree.
+    code = (
+        "for _key, _values in {}.items():\n"
+        "    if _m := {k for k, v in _values.items() if v > 1}:\n"
+        "        pass\n"
+    )
+    v = visitor.ScopedVisitor("cell_MJUe_")
+    mod = ast.parse(code)
+    v.visit(mod)
+    unparsed = ast.unparse(mod)
+    assert "_cell_MJUe__cell_MJUe_" not in unparsed, unparsed
+    assert "_cell_MJUe__values.items()" in unparsed
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        # list comprehension inside walrus
+        "if _x := [_y for _y in _things]: pass",
+        # generator expression inside walrus
+        "print(_r := sum(n for n in _things))",
+        # dict comprehension inside walrus
+        "if _x := {k: v for k, v in _things.items()}: pass",
+        # lambda body — nested scope, no comprehension at all
+        "if _x := (lambda: _things): pass",
+    ],
+    ids=["listcomp", "genexp", "dictcomp", "lambda"],
+)
+def test_walrus_does_not_double_mangle_across_nested_scopes(
+    code: str,
+) -> None:
+    # The visit_NamedExpr double-visit (see #9274) affects any nested
+    # scope inside the walrus value, not only set comprehensions.
+    v = visitor.ScopedVisitor("cell_MJUe_")
+    mod = ast.parse(code)
+    v.visit(mod)
+    unparsed = ast.unparse(mod)
+    assert "_cell_MJUe__cell_MJUe_" not in unparsed, unparsed
+
+
 def test_walrus_in_comp_in_fn_block_does_not_leak_to_global() -> None:
     code = "def f():\n  [(x := 0) for i in range(5)]\n  y = x + 1"
     v = visitor.ScopedVisitor()
