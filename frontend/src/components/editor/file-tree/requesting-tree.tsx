@@ -2,12 +2,34 @@
 
 import { SimpleTree } from "react-arborist";
 import { toast } from "@/components/ui/use-toast";
-import type { EditRequests, FileInfo } from "@/core/network/types";
+import type {
+  EditRequests,
+  FileInfo,
+  FileUpdateResponse,
+} from "@/core/network/types";
 import { prettyError } from "@/utils/errors";
 import { Functions } from "@/utils/functions";
 import { type FilePath, PathBuilder } from "@/utils/paths";
 import { resolvePaths } from "@/utils/pathUtils";
-import { handleFileResponse } from "./file-operations";
+
+/**
+ * Normalized result of a file mutation: the server response when successful,
+ * `null` when the server rejected the request and a toast was surfaced.
+ */
+export type FileOperationResult = FileUpdateResponse | null;
+
+export function handleFileResponse(
+  response: FileUpdateResponse,
+): FileOperationResult {
+  if (!response.success) {
+    toast({
+      title: "Failed",
+      description: response.message,
+    });
+    return null;
+  }
+  return response;
+}
 
 export class RequestingTree {
   private delegate = new SimpleTree<FileInfo>([]);

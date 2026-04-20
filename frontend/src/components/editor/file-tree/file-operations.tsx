@@ -13,34 +13,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "@/components/ui/use-toast";
 import { useRequestClient } from "@/core/network/requests";
-import type { FileInfo, FileUpdateResponse } from "@/core/network/types";
+import type { FileInfo } from "@/core/network/types";
 import {
   makeDuplicateName,
   resolvePaths,
   toAbsolutePath,
 } from "@/utils/pathUtils";
+import {
+  type FileOperationResult,
+  handleFileResponse,
+} from "./requesting-tree";
 import { MENU_ITEM_ICON_CLASS, MoreActionsButton } from "./tree-actions";
-
-export function handleFileResponse(
-  response: FileUpdateResponse,
-): FileUpdateResponse | null {
-  if (!response.success) {
-    toast({
-      title: "Failed",
-      description: response.message,
-    });
-    return null;
-  }
-  return response;
-}
-
-/**
- * Result of a successful file operation; `null` means the server rejected
- * the request and a toast was already shown.
- */
-export type FileOperationResult = FileUpdateResponse | null;
 
 /**
  * Hook that exposes rename / duplicate / delete operations against absolute
@@ -101,14 +85,26 @@ export function useFileOperations({ root }: { root: string }) {
   return { renameFile, duplicateFile, deleteFile };
 }
 
+export type FileItemKind = "file" | "folder" | "notebook";
+
+const DELETE_TITLE_BY_KIND: Record<FileItemKind, string> = {
+  file: "Delete file",
+  folder: "Delete folder",
+  notebook: "Delete notebook",
+};
+
 export function useConfirmDeleteFile() {
   const { openConfirm } = useImperativeModal();
 
   return useCallback(
-    (name: string, onConfirm: () => void | Promise<void>) => {
+    (
+      target: { name: string; kind?: FileItemKind },
+      onConfirm: () => void | Promise<void>,
+    ) => {
+      const kind = target.kind ?? "file";
       openConfirm({
-        title: "Delete notebook",
-        description: `Are you sure you want to delete ${name}?`,
+        title: DELETE_TITLE_BY_KIND[kind],
+        description: `Are you sure you want to delete ${target.name}?`,
         confirmAction: (
           <AlertDialogDestructiveAction
             onClick={async () => {
@@ -155,7 +151,12 @@ export function useNotebookFileActions({
   });
 
   const handleDelete = useEvent(() => {
-    confirmDelete(node.data.name, async () => {
+    const kind: FileItemKind = node.data.isDirectory
+      ? "folder"
+      : node.data.isMarimoFile
+        ? "notebook"
+        : "file";
+    confirmDelete({ name: node.data.name, kind }, async () => {
       const result = await deleteFile(node.data);
       if (result) {
         onAfterChange?.();

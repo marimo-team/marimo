@@ -13,8 +13,12 @@ export const FileNameInput = ({ node }: { node: NodeApi<FileInfo> }) => {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     ref.current?.focus();
-    // Select everything, but the extension
-    ref.current?.setSelectionRange(0, node.data.name.lastIndexOf("."));
+    // Select everything but the extension. For extensionless names
+    // (`README`) and dotfiles (`.env`), select the full name.
+    const name = node.data.name;
+    const dotIndex = name.lastIndexOf(".");
+    const end = dotIndex > 0 ? dotIndex : name.length;
+    ref.current?.setSelectionRange(0, end);
   }, [node.data.name]);
 
   return (
