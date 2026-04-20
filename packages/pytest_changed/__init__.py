@@ -272,7 +272,11 @@ def pytest_configure(config: pytest.Config) -> None:
 
     if not changed_files:
         print_(f"No Python files changed from {changed_from}")
-        config.option.changed_test_files = set()
+        if config.getoption("include_unchanged"):
+            print_("--include-unchanged set - running all tests")
+            config.option.changed_test_files = None
+        else:
+            config.option.changed_test_files = set()
         return
 
     print_(
