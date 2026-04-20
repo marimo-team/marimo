@@ -88,11 +88,13 @@ from marimo._utils.formatter import DefaultFormatter
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
+    from os import PathLike
     from types import TracebackType
 
     from typing_extensions import Self
 
     from marimo._ast.cell_manager import CellManager
+    from marimo._code_mode.screenshot import _ScreenshotSession
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
 
@@ -614,6 +616,7 @@ class AsyncCodeModeContext:
         self._ui_updates: list[tuple[UIElementId, Any]] = []
         self._cells_to_run: set[CellId_t] = set()
         self._entered = False
+        self._screenshot_session: _ScreenshotSession | None = None
 
     def _require_entered(self) -> None:
         if not self._entered:
@@ -670,6 +673,8 @@ class AsyncCodeModeContext:
         self._pending_adds = {}
         self._ui_updates = []
         self._cells_to_run = set()
+
+        await self.close_screenshot_session()
 
         if exc_type is not None:
             self._packages._reset()
@@ -1198,6 +1203,197 @@ class AsyncCodeModeContext:
                 "for deletion in this batch"
             )
         self._cells_to_run.add(cell_id)
+
+    # ------------------------------------------------------------------
+    # Screenshot
+    # ------------------------------------------------------------------
+
+    async def screenshot(
+        self,
+        target: int | str | NotebookCell | None = None,
+        *,
+        timeout_ms: int = 30_000,
+        as_data_url: bool = False,
+        save_to: str | PathLike[str] | None = None,
+    ) -> bytes | str:
+        """Capture a cell's rendered output as a PNG screenshot.
+
+        Launches a headless Chromium browser (reused across calls)
+        connected to this server in kiosk mode.
+
+        Requires ``playwright`` + its Chromium binary::
+
+            ctx.install_packages("playwright")
+            # then once: python -m playwright install chromium
+
+        Does **not** require ``async with``.
+
+        Args:
+            target: Cell to screenshot.
+
+                - ``None`` — last cell.
+                - ``int`` — cell index (negative OK).
+                - ``str`` — cell ID or name.
+                - ``NotebookCell`` — e.g. ``ctx.cells[0]``.
+
+                For an object defined by a cell, resolve first::
+
+                    cid = ctx.find_cell_defining_object(chart)
+                    img = await ctx.screenshot(cid)
+
+            timeout_ms: Max wait (ms) for the output to be visible.
+            as_data_url: Return ``data:image/png;base64,...`` str
+                instead of raw bytes.
+            save_to: Also write the PNG to this path.
+
+        Returns:
+            ``bytes`` (PNG), or ``str`` (data URL) if *as_data_url*.
+
+        Raises:
+            ScreenshotError: Missing playwright, missing browser,
+                unknown cell, empty output, or invisible element.
+        """
+        from pathlib import Path
+
+        from marimo._code_mode.screenshot import (
+            ScreenshotError,
+            _ScreenshotSession,
+            _to_data_url,
+        )
+        from marimo._messaging.context import HTTP_REQUEST_CTX
+
+        cell_id = self._resolve_screenshot_target(target)
+
+        # Resolve server URL from the current HTTP request context.
+        request = HTTP_REQUEST_CTX.get(None)
+        if request is None:
+            raise ScreenshotError(
+                "Cannot take screenshots: no HTTP request context "
+                "available.  screenshot() must be called during cell "
+                "execution (e.g. from code-mode)."
+            )
+        # Read trusted server URL and auth token injected by the
+        # /execute endpoint (from server config, not request headers).
+        server_url: str | None = request.meta.get("screenshot_server_url")
+        if server_url is None:
+            raise ScreenshotError(
+                "Cannot take screenshots: screenshot_server_url not "
+                "found in request.meta.  This endpoint may not "
+                "support screenshots."
+            )
+        screenshot_auth_token: str | None = request.meta.get(
+            "screenshot_auth_token"
+        )
+
+        # Lazy-init the screenshot session (browser reuse).
+        if self._screenshot_session is None:
+            self._screenshot_session = _ScreenshotSession(
+                server_url,
+                screenshot_auth_token=screenshot_auth_token,
+            )
+
+        image = await self._screenshot_session.capture(
+            cell_id, timeout_ms=timeout_ms
+        )
+
+        if save_to is not None:
+            # Screenshot writes are infrequent and small; a sync write
+            # keeps the API simple without meaningful blocking cost.
+            Path(save_to).write_bytes(image)  # noqa: ASYNC240
+
+        if as_data_url:
+            return _to_data_url(image)
+        return image
+
+    async def close_screenshot_session(self) -> None:
+        """Close the Playwright browser opened by :meth:`screenshot`.
+
+        Called automatically in ``__aexit__``.  Call this explicitly
+        when using ``screenshot()`` outside ``async with`` to avoid
+        leaking a headless browser process.
+        """
+        if self._screenshot_session is not None:
+            try:
+                await self._screenshot_session.close()
+            except Exception:
+                LOGGER.debug(
+                    "Failed to close screenshot session", exc_info=True
+                )
+            self._screenshot_session = None
+
+    def _resolve_screenshot_target(
+        self,
+        target: int | str | NotebookCell | None,
+    ) -> CellId_t:
+        """Resolve a screenshot *target* to a cell ID."""
+        from marimo._code_mode.screenshot import ScreenshotError
+
+        if target is None:
+            if len(self.cells) == 0:
+                raise ScreenshotError(
+                    "Notebook has no cells. Create and run a cell first."
+                )
+            return self.cells[-1].id
+
+        if isinstance(target, bool):
+            # Guard before the ``int`` branch — ``bool`` subclasses
+            # ``int`` in Python, and ``ctx.screenshot(True)`` almost
+            # certainly reflects a caller mistake.
+            raise TypeError(
+                "screenshot target cannot be a bool; pass a cell ID, "
+                "cell name, integer index, or NotebookCell."
+            )
+
+        if isinstance(target, int):
+            try:
+                return self.cells[target].id
+            except IndexError as exc:
+                raise ScreenshotError(
+                    f"Cell index {target} out of range "
+                    f"(notebook has {len(self.cells)} cells)."
+                ) from exc
+
+        if isinstance(target, str):
+            try:
+                return self.cells._resolve(target)
+            except KeyError as exc:
+                raise ScreenshotError(
+                    f"Unknown cell ID or name: {target!r}."
+                ) from exc
+
+        if isinstance(target, NotebookCell):
+            return target.id
+
+        raise TypeError(
+            f"Unsupported screenshot target type: {type(target).__name__}. "
+            "Pass a cell ID (str), cell name (str), integer index, "
+            "or NotebookCell."
+        )
+
+    def find_cell_defining_object(self, obj: Any) -> CellId_t | None:
+        """Return the cell ID whose ``defs`` include a variable bound to *obj*.
+
+        Uses identity (``is``) matching against kernel globals.
+        Returns ``None`` if no cell defines *obj*.
+
+        Example::
+
+            cell_id = ctx.find_cell_defining_object(chart)
+            if cell_id is not None:
+                image = await ctx.screenshot(cell_id)
+        """
+        globals_map = self.globals
+        names = [name for name, value in globals_map.items() if value is obj]
+        if not names:
+            return None
+
+        graph_cells = self.graph.cells
+
+        name_set = set(names)
+        for cell_id, cell_impl in graph_cells.items():
+            if name_set & getattr(cell_impl, "defs", set()):
+                return cell_id
+        return None
 
     # ------------------------------------------------------------------
     # Apply queued operations
