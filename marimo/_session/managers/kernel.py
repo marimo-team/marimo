@@ -154,11 +154,39 @@ class KernelManagerImpl(KernelManager):
 
         self.kernel_task.start()  # type: ignore
         if listener is not None:
-            # First thing kernel does is connect to the socket, so it's safe to
-            # call accept
-            self._read_conn = TypedConnection[KernelMessage].of(
-                listener.accept()
+            # Listener.accept() has no timeout. Run it on a helper thread so
+            # the main path can watchdog kernel_task liveness; otherwise a
+            # child that dies before connecting leaves us blocked forever.
+            result: dict[str, Any] = {}
+
+            def _accept() -> None:
+                try:
+                    result["conn"] = listener.accept()
+                except BaseException as e:
+                    result["error"] = e
+
+            accept_thread = threading.Thread(
+                target=_accept, name="kernel-accept", daemon=True
             )
+            accept_thread.start()
+            while True:
+                accept_thread.join(timeout=0.5)
+                if not accept_thread.is_alive():
+                    break
+                if not self.kernel_task.is_alive():  # type: ignore[attr-defined]
+                    # Closing the listener unblocks accept() in the helper
+                    # thread so it can exit cleanly instead of leaking.
+                    listener.close()
+                    accept_thread.join(timeout=1.0)
+                    raise RuntimeError(
+                        "marimo kernel subprocess exited before "
+                        "connecting (exitcode="
+                        f"{getattr(self.kernel_task, 'exitcode', None)})"
+                        "; check subprocess stderr for the cause"
+                    )
+            if "error" in result:
+                raise result["error"]
+            self._read_conn = TypedConnection[KernelMessage].of(result["conn"])
 
     @property
     def pid(self) -> int | None:
