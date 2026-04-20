@@ -419,9 +419,93 @@ def test_session_round_trip_drops_dangling_virtual_file_urls(
     code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(serialized)
     restored = deserialize_session(serialized, code_hash_to_cell_id)
 
+    assert restored.cell_notifications[CELL1].output is None
+
+
+def test_session_round_trip_drops_nested_virtual_file_urls(
+    session_view: SessionView,
+):
+    # `_references_virtual_file` recurses through dicts and lists — a mime
+    # bundle where only one alternative carries the `./@file/` URL must
+    # still trigger the drop.
+    view = session_view
+    view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="application/vnd.marimo+mimebundle",
+            data={
+                "text/plain": "widget",
+                "text/html": '<img src="./@file/4-abcd1234.png">',
+            },
+        ),
+    )
+    view.last_executed_code[CELL1] = "widget"
+
+    serialized = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=True
+    )
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(serialized)
+    restored = deserialize_session(serialized, code_hash_to_cell_id)
+
+    assert restored.cell_notifications[CELL1].output is None
+
+
+def test_drop_virtual_file_outputs_ignores_literal_prefix_in_text(
+    session_view: SessionView,
+):
+    # The check is anchored to the full URL shape (`./@file/<digits>-`),
+    # so plain text that happens to mention the prefix must not trigger
+    # the drop.
+    view = session_view
+    view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="marimo stores virtual files under ./@file/ on the server",
+        ),
+    )
+    view.last_executed_code[CELL1] = "print('docs')"
+
+    serialized = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=True
+    )
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(serialized)
+    restored = deserialize_session(serialized, code_hash_to_cell_id)
+
     restored_output = restored.cell_notifications[CELL1].output
-    surviving = restored_output.data if restored_output is not None else ""
-    assert "./@file/" not in repr(surviving)
+    assert restored_output is not None
+    assert restored_output.data == (
+        "marimo stores virtual files under ./@file/ on the server"
+    )
+
+
+def test_drop_virtual_file_outputs_preserves_unrelated_outputs(
+    session_view: SessionView,
+):
+    # The drop is targeted: outputs without a virtual-file URL must pass
+    # through even when `drop_virtual_file_outputs=True`.
+    view = session_view
+    view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/html",
+            data="<b>Hello</b>",
+        ),
+    )
+    view.last_executed_code[CELL1] = "HTML('Hello')"
+
+    serialized = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=True
+    )
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(serialized)
+    restored = deserialize_session(serialized, code_hash_to_cell_id)
+
+    restored_output = restored.cell_notifications[CELL1].output
+    assert restored_output is not None
+    assert restored_output.data == "<b>Hello</b>"
 
 
 def test_deserialize_basic_session():

@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -52,6 +53,13 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+# Matches the runtime's virtual-file URL shape: `./@file/<bytes>-<name>`
+# (see `marimo/_runtime/virtual_file/virtual_file.py`). Anchored to the
+# byte-length digits so a literal "./@file/" mention in user content
+# doesn't trip the check.
+_VIRTUAL_FILE_URL_RE = re.compile(r"\./@file/\d+-")
+
+
 def _references_virtual_file(data: Any) -> bool:
     """Return True if `data` references a virtual-file URL.
 
@@ -61,7 +69,7 @@ def _references_virtual_file(data: Any) -> bool:
     state — see #9273).
     """
     if isinstance(data, str):
-        return "./@file/" in data
+        return _VIRTUAL_FILE_URL_RE.search(data) is not None
     if isinstance(data, dict):
         return any(_references_virtual_file(v) for v in data.values())
     if isinstance(data, list):
