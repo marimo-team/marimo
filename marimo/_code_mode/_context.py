@@ -1299,19 +1299,12 @@ class AsyncCodeModeContext:
             if cell_id is not None:
                 image = await ctx.screenshot(cell_id)
         """
-        try:
-            globals_map = self.globals
-        except Exception:
-            return None
-
+        globals_map = self.globals
         names = [name for name, value in globals_map.items() if value is obj]
         if not names:
             return None
 
-        try:
-            graph_cells = self.graph.cells
-        except Exception:
-            return None
+        graph_cells = self.graph.cells
 
         name_set = set(names)
         for cell_id, cell_impl in graph_cells.items():
