@@ -88,7 +88,9 @@ def test_serialize_basic_session(session_view: SessionView):
     )
     view.last_executed_code[CELL1] = "print('Hello, world!')"
 
-    result = serialize_session_view(view, cell_ids=[CELL1], drop_virtual_file_outputs=False)
+    result = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+    )
     snapshot("basic_session.json", json.dumps(result, indent=2))
 
 
@@ -107,7 +109,9 @@ def test_serialize_session_with_error(session_view: SessionView):
         "raise RuntimeError('Something went wrong')"
     )
 
-    result = serialize_session_view(view, cell_ids=[CELL1], drop_virtual_file_outputs=False)
+    result = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+    )
     snapshot("error_session.json", json.dumps(result, indent=2))
 
 
@@ -131,7 +135,9 @@ def test_serialize_session_with_console(session_view: SessionView):
     )
     view.last_executed_code[CELL1] = "print('test')"
 
-    result = serialize_session_view(view, cell_ids=[CELL1], drop_virtual_file_outputs=False)
+    result = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+    )
     snapshot("console_session.json", json.dumps(result, indent=2))
 
 
@@ -151,7 +157,9 @@ def test_serialize_session_with_mime_bundle(session_view: SessionView):
     )
     view.last_executed_code[CELL1] = "HTML('Hello')"
 
-    result = serialize_session_view(view, cell_ids=[CELL1], drop_virtual_file_outputs=False)
+    result = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+    )
     snapshot("mime_bundle_session.json", json.dumps(result, indent=2))
 
 
@@ -412,10 +420,10 @@ def test_session_round_trip_drops_dangling_virtual_file_urls(
     restored = deserialize_session(serialized, code_hash_to_cell_id)
 
     restored_output = restored.cell_notifications[CELL1].output
-    surviving = (
-        restored_output.data if restored_output is not None else ""
-    )
+    surviving = restored_output.data if restored_output is not None else ""
     assert "./@file/" not in repr(surviving)
+
+
 def test_deserialize_basic_session():
     """Test deserialization of a basic session"""
     session = NotebookSessionV1(
@@ -796,7 +804,9 @@ def test_serialize_session_with_dict_error():
         "raise RuntimeError('Something went wrong')"
     )
 
-    result = serialize_session_view(view, cell_ids=[CELL1], drop_virtual_file_outputs=False)
+    result = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+    )
     assert len(result["cells"]) == 1
     assert len(result["cells"][0]["outputs"]) == 1
     assert result["cells"][0]["outputs"][0]["type"] == "error"
@@ -832,7 +842,9 @@ def test_serialize_session_with_mixed_error_formats(session_view: SessionView):
     )
     view.last_executed_code[CELL1] = "# code that causes mixed errors"
 
-    result = serialize_session_view(view, cell_ids=[CELL1], drop_virtual_file_outputs=False)
+    result = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+    )
 
     # Verify the error normalization worked correctly
     assert len(result["cells"]) == 1
@@ -934,7 +946,9 @@ class TestSessionCacheManager:
             cache_file.parent.mkdir(parents=True)
 
             # Write cache file
-            data = serialize_session_view(view, cell_ids=[CELL1], drop_virtual_file_outputs=False)
+            data = serialize_session_view(
+                view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+            )
             cache_file.write_text(json.dumps(data))
 
             # Read back
@@ -972,7 +986,9 @@ class TestSessionCacheManager:
             cache_file.parent.mkdir(parents=True)
 
             # Write cache file
-            data = serialize_session_view(view, cell_ids=[CELL1], drop_virtual_file_outputs=False)
+            data = serialize_session_view(
+                view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+            )
             cache_file.write_text(json.dumps(data))
 
             # Read back
