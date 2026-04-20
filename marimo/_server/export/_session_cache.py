@@ -65,6 +65,7 @@ def serialize_session_snapshot(
         view,
         cell_ids=cell_ids,
         script_metadata_hash=get_script_metadata_hash(notebook_path),
+        drop_virtual_file_outputs=True,
     )
 
 
