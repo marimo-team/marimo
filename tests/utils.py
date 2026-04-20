@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+import functools
 import inspect
+import sys
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from marimo._messaging.msgspec_encoder import (
     asdict,
@@ -14,6 +17,25 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     import msgspec
+
+F = TypeVar("F", bound="Callable[..., Any]")
+
+
+# TODO(akshayka): automatically do this for every test in our test suite
+def save_and_restore_main(f: F) -> F:
+    """Kernels swap out the main module; restore it after running tests."""
+
+    @functools.wraps(f)
+    def wrapper(*args: Any, **kwargs: Any) -> None:
+        main = sys.modules["__main__"]
+        try:
+            res = f(*args, **kwargs)
+            if asyncio.iscoroutine(res):
+                asyncio.run(res)
+        finally:
+            sys.modules["__main__"] = main
+
+    return wrapper  # type: ignore
 
 
 def try_assert_n_times(n: int, assert_fn: Callable[[], None]) -> None:
