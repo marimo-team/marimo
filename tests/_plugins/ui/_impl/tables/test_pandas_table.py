@@ -773,6 +773,20 @@ class TestPandasTableManager(unittest.TestCase):
             ],
         ]
 
+    # pandas 3 emits Pandas4Warning here (select_dtypes(include=["object"])
+    # also picks up the new "str" dtype, for back-compat with pandas 2).
+    # Suppress by message so this filter is a no-op on pandas 2, where
+    # neither the "str" dtype nor Pandas4Warning exists. Necessary because
+    # xdist's unserialize_warning_message fails to import pandas in the
+    # controller on CI and the receiver thread treats that as a fatal
+    # BaseException, killing the worker and cascading into hundreds of
+    # fake failures.
+    # TODO: fix xdist upstream — workermanage.py:462 should not tear down
+    # the session when warning deserialization fails; wrap just the
+    # unserialize call and fall back to a generic Warning.
+    @pytest.mark.filterwarnings(
+        "ignore:For backward compatibility, 'str' dtypes are included"
+    )
     def test_get_field_types_nullables(self) -> None:
         data = pd.DataFrame(
             {
