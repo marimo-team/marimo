@@ -110,20 +110,11 @@ def _fake_main_file(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def _ensure_main_has_file(
     _fake_main_file: Path,
 ) -> Generator[None, None, None]:
-    """Point __main__.__file__ at a benign empty .py for every test.
+    """Make sure main has a file ...
 
-    Two reasons to override (rather than only fill in when missing):
-
-    1. xdist workers don't always set __file__ on __main__, which causes
-       marimo's kernel (create_main_module) to set __file__=None,
-       breaking tests that rely on __file__ being a real path.
-    2. When pytest is invoked as pytest.exe on Windows,
-       __main__.__file__ is already the zipapp launcher. Cells that use
-       multiprocessing.Manager() (or any "spawn" child) then run
-       runpy.run_path(pytest.exe) inside the child via
-       multiprocessing.spawn._fixup_main_from_path, which re-runs pytest
-       in the child — the child never writes back the Manager's server
-       address and the parent hangs at reader.recv().
+    xdist workers don't always set __file__ on __main__, which causes
+    marimo's kernel (create_main_module) to set __file__=None,
+    breaking tests that rely on __file__ being a real path.
     """
     main = sys.modules.get("__main__")
     if main is None:
@@ -133,7 +124,8 @@ def _ensure_main_has_file(
     had_file_attr = hasattr(main, "__file__")
     original_file = getattr(main, "__file__", None)
 
-    main.__file__ = str(_fake_main_file)
+    if not had_file_attr or original_file is None:
+        main.__file__ = str(_fake_main_file)
 
     try:
         yield
