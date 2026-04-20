@@ -22,14 +22,14 @@ vi.mock("@/core/runtime/config", () => ({
 
 describe("ColumnChartSpecModel", () => {
   const mockData = "http://example.com/data.json";
-  const mockFieldTypes: FieldTypes = {
-    date: "date",
-    number: "number",
-    integer: "integer",
-    boolean: "boolean",
-    string: "string",
-    datetime: "datetime",
-  };
+  const mockFieldTypes: FieldTypes = new Map([
+    ["date", "date"],
+    ["number", "number"],
+    ["integer", "integer"],
+    ["boolean", "boolean"],
+    ["string", "string"],
+    ["datetime", "datetime"],
+  ]);
   const mockStats: Record<ColumnName, Partial<ColumnHeaderStats>> = {
     date: { min: "2023-01-01", max: "2023-12-31" },
     number: { min: 0, max: 100 },
@@ -120,9 +120,9 @@ describe("ColumnChartSpecModel", () => {
   });
 
   it("should handle special characters in column names", () => {
-    const specialFieldTypes: FieldTypes = {
-      "column.with[special:chars]": "time",
-    };
+    const specialFieldTypes: FieldTypes = new Map([
+      ["column.with[special:chars]", "time"],
+    ]);
     const specialStats: Record<ColumnName, Partial<ColumnHeaderStats>> = {
       "column.with[special:chars]": { min: "2023-01-01", max: "2023-12-31" },
     };
@@ -267,10 +267,10 @@ describe("ColumnChartSpecModel", () => {
   });
 
   describe("snapshot with legacy data spec", () => {
-    const fieldTypes: FieldTypes = {
+    const fieldTypes: FieldTypes = new Map([
       ...mockFieldTypes,
-      a: "number",
-    };
+      ["a", "number"],
+    ]);
 
     it("url data", () => {
       const model = new ColumnChartSpecModel(

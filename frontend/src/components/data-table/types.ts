@@ -2,7 +2,6 @@
 
 import type { RowData } from "@tanstack/react-table";
 import type { DataType } from "@/core/kernel/messages";
-import { Objects } from "@/utils/objects";
 
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
@@ -56,16 +55,19 @@ export type FieldTypesWithExternalType = [
   columnName: string,
   [dataType: DataType, externalType: string],
 ][];
-export type FieldTypes = Record<string, DataType>;
+// Ordered map of column name -> data type.
+//
+// `Map` (not `Record`) because JS objects reorder integer-string keys
+// to the front in numeric order per `OrdinaryOwnPropertyKeys`; a
+// DataFrame with a `"2010"` column alongside `"here"` would otherwise
+// lose its column order on iteration (#9269). `Map` preserves insertion
+// order for all keys.
+export type FieldTypes = Map<string, DataType>;
 
 export function toFieldTypes(
   fieldTypes: FieldTypesWithExternalType,
 ): FieldTypes {
-  return Objects.collect(
-    fieldTypes,
-    ([columnName]) => columnName,
-    ([, [type]]) => type,
-  );
+  return new Map(fieldTypes.map(([columnName, [type]]) => [columnName, type]));
 }
 
 interface BinValue {

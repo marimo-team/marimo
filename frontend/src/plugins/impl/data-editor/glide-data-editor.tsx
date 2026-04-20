@@ -102,7 +102,7 @@ export const GlideDataEditor = <T,>({
 
   const columns: ModifiedGridColumn[] = useMemo(() => {
     const columns: ModifiedGridColumn[] = [];
-    for (const [columnName, fieldType] of Object.entries(columnFields)) {
+    for (const [columnName, fieldType] of columnFields) {
       const editable =
         editableColumns === "all" || editableColumns.includes(columnName);
 
@@ -311,7 +311,7 @@ export const GlideDataEditor = <T,>({
       const [col, _row] = cell;
       const key = columns[col].title;
 
-      const columnType = columnFields[key];
+      const columnType = columnFields.get(key);
       // Verify the new value is of the correct type
       switch (columnType) {
         case "number":
@@ -445,7 +445,7 @@ export const GlideDataEditor = <T,>({
       const oldColumnName = columns[menu.col].title;
 
       // Validate the new column name
-      if (columnFields[newName]) {
+      if (columnFields.has(newName)) {
         toastColumnExists(newName);
         return;
       }
@@ -498,7 +498,7 @@ export const GlideDataEditor = <T,>({
       const clampedColumnIdx = Math.max(0, Math.min(columnIdx, columns.length));
 
       // Validate the new column name
-      if (columnFields[columnName]) {
+      if (columnFields.has(columnName)) {
         toastColumnExists(columnName);
         return;
       }

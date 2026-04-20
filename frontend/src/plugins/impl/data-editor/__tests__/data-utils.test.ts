@@ -2,12 +2,18 @@
 
 import { describe, expect, it } from "vitest";
 import type { FieldTypes } from "@/components/data-table/types";
+import type { DataType } from "@/core/kernel/messages";
 import {
   insertColumn,
   modifyColumnFields,
   removeColumn,
   renameColumn,
 } from "../data-utils";
+
+// Fixtures are written as object literals for readability; `FieldTypes`
+// is a `Map` (#9269).
+const asFieldTypes = (obj: Record<string, DataType>): FieldTypes =>
+  new Map(Object.entries(obj));
 
 describe("removeColumn", () => {
   const testData = [
@@ -481,12 +487,12 @@ describe("renameColumn", () => {
 });
 
 describe("modifyColumnFields", () => {
-  const testFieldTypes: FieldTypes = {
+  const testFieldTypes: FieldTypes = asFieldTypes({
     int: "integer",
     string: "string",
     bool: "boolean",
     datetime: "datetime",
-  };
+  });
 
   it("should insert a new column at index 0", () => {
     const result = modifyColumnFields({
@@ -496,16 +502,15 @@ describe("modifyColumnFields", () => {
       newColumnName: "newColumn",
     });
 
-    const expected = {
-      newColumn: "string",
-      int: "integer",
-      string: "string",
-      bool: "boolean",
-      datetime: "datetime",
-    };
-
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "newColumn" => "string",
+        "int" => "integer",
+        "string" => "string",
+        "bool" => "boolean",
+        "datetime" => "datetime",
+      }
+    `);
   });
 
   it("should insert a new column at index 1", () => {
@@ -516,16 +521,15 @@ describe("modifyColumnFields", () => {
       newColumnName: "newColumn",
     });
 
-    const expected = {
-      int: "integer",
-      newColumn: "string",
-      string: "string",
-      bool: "boolean",
-      datetime: "datetime",
-    };
-
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "int" => "integer",
+        "newColumn" => "string",
+        "string" => "string",
+        "bool" => "boolean",
+        "datetime" => "datetime",
+      }
+    `);
   });
 
   it("should insert a new column at index 2", () => {
@@ -536,16 +540,15 @@ describe("modifyColumnFields", () => {
       newColumnName: "newColumn",
     });
 
-    const expected = {
-      int: "integer",
-      string: "string",
-      newColumn: "string",
-      bool: "boolean",
-      datetime: "datetime",
-    };
-
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "int" => "integer",
+        "string" => "string",
+        "newColumn" => "string",
+        "bool" => "boolean",
+        "datetime" => "datetime",
+      }
+    `);
   });
 
   it("should insert a new column at the end", () => {
@@ -557,16 +560,15 @@ describe("modifyColumnFields", () => {
       dataType: "datetime",
     });
 
-    const expected = {
-      int: "integer",
-      string: "string",
-      bool: "boolean",
-      datetime: "datetime",
-      newColumn: "datetime", // Set to the same type as the data type
-    };
-
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "int" => "integer",
+        "string" => "string",
+        "bool" => "boolean",
+        "datetime" => "datetime",
+        "newColumn" => "datetime",
+      }
+    `);
   });
 
   it("should insert a new column beyond the array length", () => {
@@ -577,16 +579,15 @@ describe("modifyColumnFields", () => {
       newColumnName: "newColumn",
     });
 
-    const expected = {
-      int: "integer",
-      string: "string",
-      bool: "boolean",
-      datetime: "datetime",
-      newColumn: "string",
-    };
-
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "int" => "integer",
+        "string" => "string",
+        "bool" => "boolean",
+        "datetime" => "datetime",
+        "newColumn" => "string",
+      }
+    `);
   });
 
   it("should remove column at index 0", () => {
@@ -596,14 +597,13 @@ describe("modifyColumnFields", () => {
       type: "remove",
     });
 
-    const expected = {
-      string: "string",
-      bool: "boolean",
-      datetime: "datetime",
-    };
-
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "string" => "string",
+        "bool" => "boolean",
+        "datetime" => "datetime",
+      }
+    `);
   });
 
   it("should remove column at index 1", () => {
@@ -613,14 +613,13 @@ describe("modifyColumnFields", () => {
       type: "remove",
     });
 
-    const expected = {
-      int: "integer",
-      bool: "boolean",
-      datetime: "datetime",
-    };
-
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "int" => "integer",
+        "bool" => "boolean",
+        "datetime" => "datetime",
+      }
+    `);
   });
 
   it("should remove column at index 2", () => {
@@ -630,14 +629,13 @@ describe("modifyColumnFields", () => {
       type: "remove",
     });
 
-    const expected = {
-      int: "integer",
-      string: "string",
-      datetime: "datetime",
-    };
-
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "int" => "integer",
+        "string" => "string",
+        "datetime" => "datetime",
+      }
+    `);
   });
 
   it("should remove column at index 3", () => {
@@ -647,14 +645,13 @@ describe("modifyColumnFields", () => {
       type: "remove",
     });
 
-    const expected = {
-      int: "integer",
-      string: "string",
-      bool: "boolean",
-    };
-
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "int" => "integer",
+        "string" => "string",
+        "bool" => "boolean",
+      }
+    `);
   });
 
   it("should handle removing non-existent column index", () => {
@@ -685,15 +682,14 @@ describe("modifyColumnFields", () => {
       newColumnName: "number",
     });
 
-    const expected = {
-      number: "string", // Defaults to string type for renamed columns
-      string: "string",
-      bool: "boolean",
-      datetime: "datetime",
-    };
-
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "number" => "string",
+        "string" => "string",
+        "bool" => "boolean",
+        "datetime" => "datetime",
+      }
+    `);
   });
 
   it("should rename column at index 1", () => {
@@ -704,15 +700,14 @@ describe("modifyColumnFields", () => {
       newColumnName: "text",
     });
 
-    const expected = {
-      int: "integer",
-      text: "string", // Defaults to string type for renamed columns
-      bool: "boolean",
-      datetime: "datetime",
-    };
-
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "int" => "integer",
+        "text" => "string",
+        "bool" => "boolean",
+        "datetime" => "datetime",
+      }
+    `);
   });
 
   it("should rename column at index 3", () => {
@@ -724,15 +719,14 @@ describe("modifyColumnFields", () => {
       newColumnName: "timestamp",
     });
 
-    const expected = {
-      int: "integer",
-      string: "string",
-      bool: "boolean",
-      timestamp: "datetime",
-    };
-
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "int" => "integer",
+        "string" => "string",
+        "bool" => "boolean",
+        "timestamp" => "datetime",
+      }
+    `);
   });
 
   it("should handle renaming non-existent column index", () => {
@@ -758,7 +752,7 @@ describe("modifyColumnFields", () => {
   });
 
   it("should preserve original field types structure", () => {
-    const originalFieldTypes = { ...testFieldTypes };
+    const originalFieldTypes = new Map(testFieldTypes);
     modifyColumnFields({
       columnFields: testFieldTypes,
       columnIdx: 1,
@@ -769,7 +763,7 @@ describe("modifyColumnFields", () => {
   });
 
   it("should handle empty field types object", () => {
-    const emptyFieldTypes: FieldTypes = {};
+    const emptyFieldTypes: FieldTypes = new Map();
 
     // Insert
     const insertResult = modifyColumnFields({
@@ -778,7 +772,11 @@ describe("modifyColumnFields", () => {
       type: "insert",
       newColumnName: "newColumn",
     });
-    expect(insertResult).toEqual({ newColumn: "string" });
+    expect(insertResult).toMatchInlineSnapshot(`
+      Map {
+        "newColumn" => "string",
+      }
+    `);
 
     // Remove
     const removeResult = modifyColumnFields({
@@ -786,16 +784,16 @@ describe("modifyColumnFields", () => {
       columnIdx: 0,
       type: "remove",
     });
-    expect(removeResult).toEqual({});
+    expect(removeResult).toMatchInlineSnapshot(`Map {}`);
   });
 
   it("should handle field types with special characters in column names", () => {
-    const specialFieldTypes: FieldTypes = {
+    const specialFieldTypes: FieldTypes = asFieldTypes({
       "column-with-dash": "integer",
       column_with_underscore: "string",
       "column.with.dot": "boolean",
       "column with space": "datetime",
-    };
+    });
 
     // Insert
     const insertResult = modifyColumnFields({
@@ -804,15 +802,15 @@ describe("modifyColumnFields", () => {
       type: "insert",
       newColumnName: "new-column",
     });
-    const insertExpected = {
-      "column-with-dash": "integer",
-      "new-column": "string",
-      column_with_underscore: "string",
-      "column.with.dot": "boolean",
-      "column with space": "datetime",
-    };
-    expect(Object.keys(insertResult)).toEqual(Object.keys(insertExpected));
-    expect(insertResult).toEqual(insertExpected);
+    expect(insertResult).toMatchInlineSnapshot(`
+      Map {
+        "column-with-dash" => "integer",
+        "new-column" => "string",
+        "column_with_underscore" => "string",
+        "column.with.dot" => "boolean",
+        "column with space" => "datetime",
+      }
+    `);
 
     // Remove
     const removeResult = modifyColumnFields({
@@ -820,13 +818,13 @@ describe("modifyColumnFields", () => {
       columnIdx: 1,
       type: "remove",
     });
-    const removeExpected = {
-      "column-with-dash": "integer",
-      "column.with.dot": "boolean",
-      "column with space": "datetime",
-    };
-    expect(Object.keys(removeResult)).toEqual(Object.keys(removeExpected));
-    expect(removeResult).toEqual(removeExpected);
+    expect(removeResult).toMatchInlineSnapshot(`
+      Map {
+        "column-with-dash" => "integer",
+        "column.with.dot" => "boolean",
+        "column with space" => "datetime",
+      }
+    `);
 
     // Rename
     const renameResult = modifyColumnFields({
@@ -835,14 +833,14 @@ describe("modifyColumnFields", () => {
       type: "rename",
       newColumnName: "renamed-column",
     });
-    const renameExpected = {
-      "column-with-dash": "integer",
-      "renamed-column": "string",
-      "column.with.dot": "boolean",
-      "column with space": "datetime",
-    };
-    expect(Object.keys(renameResult)).toEqual(Object.keys(renameExpected));
-    expect(renameResult).toEqual(renameExpected);
+    expect(renameResult).toMatchInlineSnapshot(`
+      Map {
+        "column-with-dash" => "integer",
+        "renamed-column" => "string",
+        "column.with.dot" => "boolean",
+        "column with space" => "datetime",
+      }
+    `);
   });
 
   it("should handle multiple operations in sequence", () => {
@@ -864,13 +862,13 @@ describe("modifyColumnFields", () => {
       newColumnName: "renamed",
     });
 
-    const expected = {
-      renamed: "string",
-      newColumn: "string",
-      bool: "boolean",
-      datetime: "datetime",
-    };
-    expect(Object.keys(result)).toEqual(Object.keys(expected));
-    expect(result).toEqual(expected);
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "renamed" => "string",
+        "newColumn" => "string",
+        "bool" => "boolean",
+        "datetime" => "datetime",
+      }
+    `);
   });
 });

@@ -79,24 +79,25 @@ export function modifyColumnFields(opts: {
         return columnFields;
       }
 
-      const entries = Object.entries(columnFields);
-      const newEntries = [
+      const entries = [...columnFields.entries()];
+      const newEntries: Array<[string, DataType]> = [
         ...entries.slice(0, columnIdx),
         [newColumnName, dataType || "string"],
         ...entries.slice(columnIdx),
       ];
-      return Object.fromEntries(newEntries);
+      return new Map(newEntries);
     }
     case "remove": {
-      if (columnIdx < 0 || columnIdx >= Object.keys(columnFields).length) {
+      if (columnIdx < 0 || columnIdx >= columnFields.size) {
         return columnFields;
       }
 
-      const entries = Object.entries(columnFields);
+      const entries = [...columnFields.entries()];
       const columnName = entries[columnIdx]?.[0];
       if (columnName) {
-        const { [columnName]: _, ...rest } = columnFields;
-        return rest;
+        const next = new Map(columnFields);
+        next.delete(columnName);
+        return next;
       }
       return columnFields;
     }
@@ -106,18 +107,18 @@ export function modifyColumnFields(opts: {
         return columnFields;
       }
 
-      if (columnIdx < 0 || columnIdx >= Object.keys(columnFields).length) {
+      if (columnIdx < 0 || columnIdx >= columnFields.size) {
         return columnFields;
       }
 
       // Rename at the right index
-      const entries = Object.entries(columnFields);
-      const newEntries = [
+      const entries = [...columnFields.entries()];
+      const newEntries: Array<[string, DataType]> = [
         ...entries.slice(0, columnIdx),
         [newColumnName, dataType || "string"],
         ...entries.slice(columnIdx + 1),
       ];
-      return Object.fromEntries(newEntries);
+      return new Map(newEntries);
     }
   }
 }
