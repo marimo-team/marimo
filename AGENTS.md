@@ -41,6 +41,26 @@ make fe-check              # Typecheck and lint frontend
 cd frontend && pnpm test src/path/to/file.test.ts
 ```
 
+## Parallel tests (xdist)
+
+Backend tests run **serially by default** in CI. Tests are opted into
+parallel execution under `pytest-xdist` only after being audited as
+independent (no shared global state, no port/file collisions, no reliance
+on collection order).
+
+To opt a module in, add near the top of the test file:
+
+```python
+import pytest
+
+pytestmark = pytest.mark.xdist_safe
+```
+
+Individual tests or classes can also be opted in via
+`@pytest.mark.xdist_safe`. If a regression appears under parallel
+execution, the fastest fix is to remove the marker from the offending
+module and open an issue — do not re-disable xdist globally.
+
 ## Commits
 
 - Run `make check` before committing

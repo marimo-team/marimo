@@ -54,11 +54,21 @@ runs:
         fi
 
     # Test with base dependencies
-    # Exit code 5 = no tests collected (e.g. only CLI test files changed);
-    # treat that as success since CLI tests run in a separate workflow.
+    # Exit code 5 = no tests collected (e.g. only CLI test files changed,
+    # or no xdist_safe-marked tests in the changed set); treat that as
+    # success since CLI tests run in a separate workflow and the xdist
+    # step legitimately collects nothing when no marked modules changed.
     #
-    # TODO: xdist is disabled on Windows because several tests
-    # crash workers. Fix and re-enable. Failing tests:
+    # xdist is opt-in: tests run serially by default. Modules opt in by
+    # adding `pytestmark = pytest.mark.xdist_safe`. On Linux/macOS the
+    # serial step excludes xdist_safe and a second step runs the marked
+    # tests under -n auto. On Windows, xdist is disabled entirely and
+    # the serial step runs every test (marked tests included).
+    #
+    # Note: The following tests crashed workers on Windows under xdist.
+    # If/when any of their modules are opted into xdist_safe, re-verify
+    # behavior on Windows (Windows will still run them serially, but the
+    # underlying issues may resurface on Linux/macOS parallel runs):
     #   - tests/_islands/test_island_generator.py::test_build
     #   - tests/_islands/test_island_generator.py::test_render
     #   - tests/_islands/test_island_generator.py::test_render_multiline_markdown
@@ -68,13 +78,31 @@ runs:
     #   - tests/_server/test_session_manager.py::test_create_session_absolute_url
     #   - tests/_server/test_session_manager.py::test_create_session_with_script_config_overrides
     #   - tests/_server/test_session_manager.py::test_recents_touch_called_on_session_create
-    - name: Test changed with base dependencies
+    - name: Test changed with base dependencies (serial)
       if: ${{ inputs.dependencies == 'core' }}
       shell: bash
       run: |
         uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
           -v \
-          ${{ inputs.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
+          -p no:xdist \
+          ${{ inputs.os != 'windows-latest' && '-m "not xdist_safe"' || '' }} \
+          -k "not test_cli" \
+          --durations=10 \
+          -p packages.pytest_changed \
+          --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
+          --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
+          --picked=first \
+          --inline-snapshot=disable \
+        || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
+
+    - name: Test changed with base dependencies (xdist)
+      if: ${{ inputs.dependencies == 'core' && inputs.os != 'windows-latest' }}
+      shell: bash
+      run: |
+        uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
+          -v \
+          -n auto \
+          -m xdist_safe \
           -k "not test_cli" \
           --durations=10 \
           -p packages.pytest_changed \
@@ -85,13 +113,31 @@ runs:
         || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
 
     # Test with optional dependencies
-    - name: Test changed with optional dependencies
+    - name: Test changed with optional dependencies (serial)
       if: ${{ inputs.dependencies == 'core,optional' }}
       shell: bash
       run: |
         uv run --python ${{ inputs.python-version }} --group test-optional pytest tests/ \
           -v \
-          ${{ inputs.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
+          -p no:xdist \
+          ${{ inputs.os != 'windows-latest' && '-m "not xdist_safe"' || '' }} \
+          -k "not test_cli" \
+          --durations=10 \
+          -p packages.pytest_changed \
+          --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
+          --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
+          --picked=first \
+          --inline-snapshot=disable \
+        || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
+
+    - name: Test changed with optional dependencies (xdist)
+      if: ${{ inputs.dependencies == 'core,optional' && inputs.os != 'windows-latest' }}
+      shell: bash
+      run: |
+        uv run --python ${{ inputs.python-version }} --group test-optional pytest tests/ \
+          -v \
+          -n auto \
+          -m xdist_safe \
           -k "not test_cli" \
           --durations=10 \
           -p packages.pytest_changed \
@@ -104,7 +150,7 @@ runs:
     # Test with minimal dependencies using lowest resolution
     # https://docs.astral.sh/uv/concepts/resolution/#lowest-resolution
     # https://docs.astral.sh/uv/reference/environment/#uv_resolution
-    - name: Test with minimal dependencies (lowest resolution)
+    - name: Test with minimal dependencies (lowest resolution, serial)
       if: ${{ inputs.dependencies == 'minimal' }}
       shell: bash
       env:
@@ -112,7 +158,27 @@ runs:
       run: |
         uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
           -v \
-          ${{ inputs.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
+          -p no:xdist \
+          ${{ inputs.os != 'windows-latest' && '-m "not xdist_safe"' || '' }} \
+          -k "not test_cli" \
+          --durations=10 \
+          -p packages.pytest_changed \
+          --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
+          --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
+          --picked=first \
+          --inline-snapshot=disable \
+        || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
+
+    - name: Test with minimal dependencies (lowest resolution, xdist)
+      if: ${{ inputs.dependencies == 'minimal' && inputs.os != 'windows-latest' }}
+      shell: bash
+      env:
+        UV_RESOLUTION: lowest-direct
+      run: |
+        uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
+          -v \
+          -n auto \
+          -m xdist_safe \
           -k "not test_cli" \
           --durations=10 \
           -p packages.pytest_changed \
