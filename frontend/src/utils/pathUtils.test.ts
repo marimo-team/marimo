@@ -221,4 +221,33 @@ describe("resolvePaths", () => {
       newPath: "/root/a/b/renamed.py",
     });
   });
+
+  it("handles an empty root with an absolute POSIX path", () => {
+    // Callers that already hold absolute paths pass `root: ""`. In that case
+    // the delimiter must be inferred from the path itself, not from `""` (which
+    // would otherwise default to Windows backslashes).
+    expect(
+      resolvePaths({
+        path: "/abs/path/file.py",
+        name: "renamed.py",
+        root: "",
+      }),
+    ).toEqual({
+      path: "/abs/path/file.py",
+      newPath: "/abs/path/renamed.py",
+    });
+  });
+
+  it("handles an empty root with an absolute Windows path", () => {
+    expect(
+      resolvePaths({
+        path: "C:\\Users\\marimo\\file.py",
+        name: "renamed.py",
+        root: "",
+      }),
+    ).toEqual({
+      path: "C:\\Users\\marimo\\file.py",
+      newPath: "C:\\Users\\marimo\\renamed.py",
+    });
+  });
 });

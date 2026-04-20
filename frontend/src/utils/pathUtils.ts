@@ -113,8 +113,10 @@ export function resolvePaths({
   name: string;
   root: string;
 }): { path: FilePath; newPath: FilePath } {
-  const pathBuilder = PathBuilder.guessDeliminator(root);
   const absPath = toAbsolutePath(path, root);
+  // When `root` is empty (callers with already-absolute paths), fall back to
+  // the resolved absolute path so we don't default to the Windows delimiter.
+  const pathBuilder = PathBuilder.guessDeliminator(root || absPath);
   const newPath = pathBuilder.join(pathBuilder.dirname(absPath), name);
   return { path: absPath, newPath };
 }
