@@ -408,8 +408,12 @@ def _(mo):
             + "   ",
         },
         {
-            "label": "long string URL",
-            "s": "  " + ("https://www.google.com" * 2) + "   ",
+            "label": "long string URL + edge whitespace",
+            "s": (
+                "  "
+                + "https://www.example.com/search?q=the+quick+brown+fox+jumps+over+the+lazy+dog&lang=en&page=1"
+                + "   "
+            ),
         },
     ]
     mo.vstack(
