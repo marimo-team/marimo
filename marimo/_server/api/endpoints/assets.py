@@ -595,7 +595,12 @@ async def serve_public_file(request: Request) -> Response:
 @router.get("/{path:path}")
 async def serve_static(request: Request) -> FileResponse:
     path = str(request.path_params["path"])
-    if any(re.match(pattern, path) for pattern in STATIC_FILES):
-        return FileResponse(root / path)
+    if any(re.fullmatch(pattern, path) for pattern in STATIC_FILES):
+        resolved = (root / path).resolve()
+        try:
+            resolved.relative_to(root.resolve())
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Not Found") from None
+        return FileResponse(resolved)
 
     raise HTTPException(status_code=404, detail="Not Found")
