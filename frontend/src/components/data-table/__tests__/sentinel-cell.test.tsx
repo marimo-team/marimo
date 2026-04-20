@@ -148,4 +148,24 @@ describe("WhitespaceMarkers", () => {
     const outer = container.querySelector("span")!;
     expect(outer.getAttribute("aria-label")).toBe("1 space, 1 tab, 1 newline");
   });
+
+  it("describes unknown whitespace as 'unicode whitespace'", () => {
+    const { container } = renderMarkers("\u00a0");
+    const outer = container.querySelector("span")!;
+    expect(outer.getAttribute("aria-label")).toBe("1 unicode whitespace");
+  });
+
+  it("pluralizes unknown whitespace in aria-label", () => {
+    const { container } = renderMarkers("\u00a0\u00a0\u2002");
+    const outer = container.querySelector("span")!;
+    expect(outer.getAttribute("aria-label")).toBe("3 unicode whitespaces");
+  });
+
+  it("mixes known and unknown whitespace labels", () => {
+    const { container } = renderMarkers(" \u00a0\t");
+    const outer = container.querySelector("span")!;
+    expect(outer.getAttribute("aria-label")).toBe(
+      "1 space, 1 unicode whitespace, 1 tab",
+    );
+  });
 });

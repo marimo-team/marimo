@@ -394,5 +394,32 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    # Strings >= 50 chars collapse into a PopoutColumn (click the row to
+    # expand). Expected: the *trigger* shows edge whitespace markers plus
+    # the middle text; the *expanded popover* preserves all whitespace via
+    # `whitespace-pre-wrap` and the copy icon yields the raw string.
+    popout_rows = [
+        {
+            "label": "long string + edge whitespace (popout)",
+            "s": "   "
+            + ("The quick brown fox jumps over the lazy dog. " * 2)
+            + "   ",
+        },
+        {
+            "label": "long string URL",
+            "s": "  " + ("https://www.google.com" * 2) + "   ",
+        },
+    ]
+    mo.vstack(
+        [
+            mo.md("### Popout column (long strings, ≥ 50 chars)"),
+            mo.ui.table(selection=None, data=popout_rows),
+        ]
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()

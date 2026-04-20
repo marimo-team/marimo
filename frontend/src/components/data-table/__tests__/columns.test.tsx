@@ -749,6 +749,98 @@ describe("LocaleNumber", () => {
   });
 });
 
+describe("renderCellValue with string + edge whitespace", () => {
+  const createMockStringColumn = () =>
+    ({
+      id: "desc",
+      columnDef: {
+        meta: {
+          dataType: "string" as const,
+          dtype: "object",
+        },
+      },
+      getColumnFormatting: () => undefined,
+      getColumnWrapping: () => undefined,
+      applyColumnFormatting: (value: unknown) => value,
+    }) as unknown as Column<unknown>;
+
+  const renderWithProviders = (node: React.ReactNode) =>
+    render(
+      <I18nProvider locale="en-US">
+        <TooltipProvider>{node}</TooltipProvider>
+      </I18nProvider>,
+    );
+
+  it("renders edge whitespace markers and still detects the URL in the middle", () => {
+    const mockColumn = createMockStringColumn();
+    const value = "  https://example.com  ";
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => value,
+      getValue: () => value,
+      selectCell: undefined,
+      cellStyles: "",
+    });
+
+    const { container } = renderWithProviders(result);
+
+    // URL detection runs on the middle, so the anchor is still rendered.
+    const link = container.querySelector("a");
+    expect(link).toBeTruthy();
+    expect(link?.href).toBe("https://example.com/");
+
+    // The link text is exactly the URL — no leading/trailing whitespace
+    // leaked into the anchor.
+    expect(link?.textContent).toBe("https://example.com");
+
+    // Both edge-whitespace marker containers are present and render
+    // visible glyphs (U+2423 "open box" for regular spaces).
+    const markerSpans = container.querySelectorAll(
+      "span[aria-label$='space'], span[aria-label$='spaces']",
+    );
+    expect(markerSpans.length).toBeGreaterThanOrEqual(2);
+    expect(container.textContent?.includes("\u2423")).toBe(true);
+  });
+
+  it("does not split URLs on whitespace padding (regression)", () => {
+    const mockColumn = createMockStringColumn();
+    // Trailing whitespace would previously be consumed by the URL regex
+    // (\S+). We render the middle only through parseContent to avoid that.
+    const value = "go here: https://example.com/path  ";
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => value,
+      getValue: () => value,
+      selectCell: undefined,
+      cellStyles: "",
+    });
+
+    const { container } = renderWithProviders(result);
+
+    const link = container.querySelector("a");
+    expect(link).toBeTruthy();
+    // href is URL-normalized by the browser — should not include the
+    // trailing spaces as part of the URL path.
+    expect(link?.href).toBe("https://example.com/path");
+    expect(link?.textContent?.trimEnd()).toBe("https://example.com/path");
+  });
+
+  it("renders no marker span when the string has no edge whitespace", () => {
+    const mockColumn = createMockStringColumn();
+    const value = "https://example.com";
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => value,
+      getValue: () => value,
+      selectCell: undefined,
+      cellStyles: "",
+    });
+
+    const { container } = renderWithProviders(result);
+    expect(container.textContent?.includes("\u2423")).toBe(false);
+  });
+});
+
 describe("renderCellValue with boolean values", () => {
   const createMockColumn = () =>
     ({
