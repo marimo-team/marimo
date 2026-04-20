@@ -56,6 +56,8 @@ register_formatters()
 # Initialize mimetypes for consistent behavior across platforms (especially Windows)
 initialize_mimetypes()
 
+_MISSING_MAIN_MODULE = object()
+
 
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
@@ -87,17 +89,22 @@ def pytest_collection_modifyitems(
 
 
 @pytest.fixture(autouse=True)
-def _save_and_restore_main() -> Generator[None, None, None]:
+def _save_and_restore_main(
+    _ensure_main_has_file: None,
+) -> Generator[None, None, None]:
     """Restore sys.modules["__main__"] after each test.
 
     marimo's kernel swaps out the main module via patch_main_module;
     without this fixture, that swap leaks into subsequent tests.
     """
-    main = sys.modules["__main__"]
+    main = sys.modules.get("__main__", _MISSING_MAIN_MODULE)
     try:
         yield
     finally:
-        sys.modules["__main__"] = main
+        if main is _MISSING_MAIN_MODULE:
+            sys.modules.pop("__main__", None)
+        else:
+            sys.modules["__main__"] = main
 
 
 @pytest.fixture(autouse=True)
