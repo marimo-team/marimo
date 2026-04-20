@@ -4,6 +4,7 @@ from __future__ import annotations
 import functools
 from collections import defaultdict
 from collections.abc import Sequence
+from itertools import zip_longest
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
@@ -46,6 +47,7 @@ JsonTableData = (
 # For non-column-oriented data, we use "key" and "value" as the column names
 KEY = "key"
 VALUE = "value"
+MAX_ROWS_TO_SCAN = 1000  # only scan first 1000 rows to infer column names
 
 
 class DefaultTableManager(TableManager[JsonTableData]):
@@ -154,7 +156,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         # Row major data
         return DefaultTableManager(
             [
-                {key: row[key] for key in columns}
+                {key: row.get(key) for key in columns}
                 for row in self._normalize_data(self.data)
             ]
         )
@@ -351,8 +353,11 @@ class DefaultTableManager(TableManager[JsonTableData]):
         del force
         if isinstance(self.data, dict):
             if self.is_column_oriented:
-                first = next(iter(self.data.values()), None)
-                return len(cast(list[Any], first))
+                # iterate on all columns to find longest
+                return max(
+                    (len(cast(list[Any], v)) for v in self.data.values()),
+                    default=0,
+                )
             else:
                 return len(self.data)
         return len(self.data)
@@ -363,10 +368,21 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def get_column_names(self) -> list[str]:
         if isinstance(self.data, dict):
             if not self.is_column_oriented:
+                # i.e. the dict is a mapping of key-value pairs, not column-oriented data
                 return [KEY, VALUE]
             return list(self.data.keys())
-        first = next(iter(self.data), None)
-        return list(first.keys()) if isinstance(first, dict) else ["value"]
+
+        if not self.data or not isinstance(self.data[0], dict):
+            return ["value"]
+
+        seen: dict[str, None] = {}
+        # iterate on first 1000 rows to find column names
+        for row in self.data[:MAX_ROWS_TO_SCAN]:
+            if isinstance(row, dict):
+                for key in row:
+                    seen.setdefault(key)
+
+        return list(seen)
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
         return sorted(
@@ -471,7 +487,10 @@ class DefaultTableManager(TableManager[JsonTableData]):
             column_names = list(data.keys())
             return [
                 dict(zip(column_names, row_values, strict=False))
-                for row_values in zip(*column_values, strict=False)
+                for row_values in zip_longest(
+                    *column_values,  # type: ignore[arg-type]
+                    fillvalue=None,  # fills shorter rows with None
+                )
             ]
 
         # If its a dictionary, convert to key-value pairs
