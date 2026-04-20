@@ -2,19 +2,17 @@
 from __future__ import annotations
 
 import asyncio
-import functools
 import inspect
 import os
 import queue
 import sys
 import threading
 import time
-from collections.abc import Callable
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from textwrap import dedent
-from typing import Any, TypeVar
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -55,10 +53,9 @@ from marimo._session.session import (
 from marimo._session.state.session_view import SessionView
 from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.marimo_path import MarimoPath
+from tests.utils import save_and_restore_main
 
 initialize_asyncio()
-
-F = TypeVar("F", bound=Callable[..., Any])
 
 app_metadata = AppMetadata(
     query_params={"some_param": "some_value"},
@@ -88,25 +85,6 @@ class MockSessionConsumer(SessionConsumer):
 
     def notify(self, notification: KernelMessage) -> None:
         self.notify_calls.append(deserialize_kernel_message(notification))
-
-
-# TODO(akshayka): automatically do this for every test in our test suite
-def save_and_restore_main(f: F) -> F:
-    """Kernels swap out the main module; restore it after running tests"""
-
-    @functools.wraps(f)
-    def wrapper(*args: Any, **kwargs: Any) -> None:
-        main = sys.modules["__main__"]
-        try:
-            res = f(*args, **kwargs)
-            if asyncio.iscoroutine(res):
-                asyncio.run(res)
-            else:
-                pass
-        finally:
-            sys.modules["__main__"] = main
-
-    return wrapper  # type: ignore
 
 
 session_id = SessionId("test")

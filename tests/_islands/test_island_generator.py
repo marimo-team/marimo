@@ -10,6 +10,7 @@ from marimo._islands._island_generator import (
     MarimoIslandGenerator,
 )
 from tests.mocks import snapshotter
+from tests.utils import save_and_restore_main
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -25,6 +26,7 @@ def test_add_code():
     assert len(list(generator._app.cell_manager.cells())) == 1
 
 
+@save_and_restore_main
 async def test_build():
     generator = MarimoIslandGenerator()
     generator.add_code("print('Hello, World!')")
@@ -39,6 +41,7 @@ async def test_build():
         await generator.build()
 
 
+@save_and_restore_main
 async def test_render():
     generator = MarimoIslandGenerator()
     block1 = generator.add_code("import marimo as mo")
@@ -77,6 +80,7 @@ async def test_render():
     )
 
 
+@save_and_restore_main
 async def test_render_multiline_markdown():
     generator = MarimoIslandGenerator()
     stub = generator.add_code(
@@ -105,6 +109,7 @@ async def test_render_multiline_markdown():
     snapshot("markdown.txt", stub.render())
 
 
+@save_and_restore_main
 async def test_from_file(tmp_path: Path):
     # Create a temporary marimo file
     marimo_file = tmp_path / "temp_marimo_file.py"
