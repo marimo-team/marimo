@@ -149,8 +149,14 @@ jobs:
         with:
           fetch-depth: 0 # Fetch all history for git diff
 
+      # Use uv's managed Python rather than the hostedtoolcache build from
+      # actions/setup-python: the hostedtoolcache interpreter has ABI quirks
+      # that caused numpy/matplotlib lazy submodule imports to fail on CI.
       - name: 🐍 Setup uv
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
 
       # This step is needed since some of our tests rely on the index.html file
       - name: Create assets directory, copy over index.html
@@ -158,11 +164,6 @@ jobs:
           mkdir -p marimo/_static/assets
           cp frontend/index.html marimo/_static/index.html
           cp frontend/public/favicon.ico marimo/_static/favicon.ico
-
-      # Required since python3.14 not pulled automatically for now.
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
-        with:
-          python-version: ${{ matrix.python-version }}
 
       # Setup test flags based on conditions
       - name: Setup test flags
@@ -202,6 +203,7 @@ jobs:
       - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
+          uv sync --python ${{ matrix.python-version }} --group test
           uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
             -v \
             ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
@@ -218,6 +220,7 @@ jobs:
       - name: Test changed with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
         run: |
+          uv sync --python ${{ matrix.python-version }} --group test-optional
           uv run --python ${{ matrix.python-version }} --group test-optional pytest tests/ \
             -v \
             ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
@@ -236,6 +239,7 @@ jobs:
       - name: Test with minimal dependencies (lowest resolution)
         if: ${{ matrix.dependencies == 'minimal' }}
         run: |
+          uv sync --python ${{ matrix.python-version }} --group test
           uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
             -v \
             ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
