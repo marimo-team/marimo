@@ -311,8 +311,9 @@ async def execute_code(
                         app_state.session_manager.auth_token
                     )
                     base_url = app_state.base_url.rstrip("/")
+                    scheme = request.url.scheme or "http"
                     http_req.meta["screenshot_server_url"] = (
-                        f"http://{app_state.host}:{app_state.port}{base_url}"
+                        f"{scheme}://{app_state.host}:{app_state.port}{base_url}"
                     )
                     session.put_control_request(
                         ExecuteScratchpadCommand(
