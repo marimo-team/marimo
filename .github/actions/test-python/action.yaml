@@ -18,9 +18,15 @@ runs:
     # Use uv's managed Python rather than the hostedtoolcache build from
     # actions/setup-python: the hostedtoolcache interpreter has ABI quirks
     # that caused numpy/matplotlib lazy submodule imports to fail on CI.
+    #
+    # Pin uv to 0.11.6 (one below the suspect 0.11.7). Failing CI runs on
+    # 0.11.7 raise ModuleNotFoundError for lazily-loaded submodules
+    # (numpy.random, matplotlib.backends.*) even though the parent packages
+    # import fine. If this pin is green, the regression is 0.11.7-specific.
     - name: 🐍 Setup uv
       uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
       with:
+        version: "0.11.6"
         python-version: ${{ inputs.python-version }}
         enable-cache: true
 
