@@ -88,7 +88,9 @@ def test_serialize_basic_session(session_view: SessionView):
     )
     view.last_executed_code[CELL1] = "print('Hello, world!')"
 
-    result = serialize_session_view(view, cell_ids=[CELL1])
+    result = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+    )
     snapshot("basic_session.json", json.dumps(result, indent=2))
 
 
@@ -107,7 +109,9 @@ def test_serialize_session_with_error(session_view: SessionView):
         "raise RuntimeError('Something went wrong')"
     )
 
-    result = serialize_session_view(view, cell_ids=[CELL1])
+    result = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+    )
     snapshot("error_session.json", json.dumps(result, indent=2))
 
 
@@ -131,7 +135,9 @@ def test_serialize_session_with_console(session_view: SessionView):
     )
     view.last_executed_code[CELL1] = "print('test')"
 
-    result = serialize_session_view(view, cell_ids=[CELL1])
+    result = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+    )
     snapshot("console_session.json", json.dumps(result, indent=2))
 
 
@@ -151,7 +157,9 @@ def test_serialize_session_with_mime_bundle(session_view: SessionView):
     )
     view.last_executed_code[CELL1] = "HTML('Hello')"
 
-    result = serialize_session_view(view, cell_ids=[CELL1])
+    result = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+    )
     snapshot("mime_bundle_session.json", json.dumps(result, indent=2))
 
 
@@ -380,6 +388,124 @@ def test_serialize_notebook_missing_cell_data(session_view: SessionView):
     assert cell["config"]["column"] is None
     assert cell["config"]["disabled"] is None
     assert cell["config"]["hide_code"] is None
+
+
+def test_session_round_trip_drops_dangling_virtual_file_urls(
+    session_view: SessionView,
+):
+    # Regression: https://github.com/marimo-team/marimo/issues/9273.
+    # A `./@file/...` URL in cached HTML output points at a per-process
+    # buffer that won't exist on the next kernel; the URL must not
+    # survive the on-disk cache round-trip.
+    html = (
+        '<marimo-anywidget data-name="Counter">'
+        '<img src="./@file/4-abcd1234.png">'
+        "</marimo-anywidget>"
+    )
+    view = session_view
+    view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/html",
+            data=html,
+        ),
+    )
+    view.last_executed_code[CELL1] = "widget"
+
+    serialized = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=True
+    )
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(serialized)
+    restored = deserialize_session(serialized, code_hash_to_cell_id)
+
+    assert restored.cell_notifications[CELL1].output is None
+
+
+def test_session_round_trip_drops_nested_virtual_file_urls(
+    session_view: SessionView,
+):
+    # `_references_virtual_file` recurses through dicts and lists — a mime
+    # bundle where only one alternative carries the `./@file/` URL must
+    # still trigger the drop.
+    view = session_view
+    view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="application/vnd.marimo+mimebundle",
+            data={
+                "text/plain": "widget",
+                "text/html": '<img src="./@file/4-abcd1234.png">',
+            },
+        ),
+    )
+    view.last_executed_code[CELL1] = "widget"
+
+    serialized = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=True
+    )
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(serialized)
+    restored = deserialize_session(serialized, code_hash_to_cell_id)
+
+    assert restored.cell_notifications[CELL1].output is None
+
+
+def test_drop_virtual_file_outputs_ignores_literal_prefix_in_text(
+    session_view: SessionView,
+):
+    # The check is anchored to the full URL shape (`./@file/<digits>-`),
+    # so plain text that happens to mention the prefix must not trigger
+    # the drop.
+    view = session_view
+    view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="marimo stores virtual files under ./@file/ on the server",
+        ),
+    )
+    view.last_executed_code[CELL1] = "print('docs')"
+
+    serialized = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=True
+    )
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(serialized)
+    restored = deserialize_session(serialized, code_hash_to_cell_id)
+
+    restored_output = restored.cell_notifications[CELL1].output
+    assert restored_output is not None
+    assert restored_output.data == (
+        "marimo stores virtual files under ./@file/ on the server"
+    )
+
+
+def test_drop_virtual_file_outputs_preserves_unrelated_outputs(
+    session_view: SessionView,
+):
+    # The drop is targeted: outputs without a virtual-file URL must pass
+    # through even when `drop_virtual_file_outputs=True`.
+    view = session_view
+    view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/html",
+            data="<b>Hello</b>",
+        ),
+    )
+    view.last_executed_code[CELL1] = "HTML('Hello')"
+
+    serialized = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=True
+    )
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(serialized)
+    restored = deserialize_session(serialized, code_hash_to_cell_id)
+
+    restored_output = restored.cell_notifications[CELL1].output
+    assert restored_output is not None
+    assert restored_output.data == "<b>Hello</b>"
 
 
 def test_deserialize_basic_session():
@@ -762,7 +888,9 @@ def test_serialize_session_with_dict_error():
         "raise RuntimeError('Something went wrong')"
     )
 
-    result = serialize_session_view(view, cell_ids=[CELL1])
+    result = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+    )
     assert len(result["cells"]) == 1
     assert len(result["cells"][0]["outputs"]) == 1
     assert result["cells"][0]["outputs"][0]["type"] == "error"
@@ -798,7 +926,9 @@ def test_serialize_session_with_mixed_error_formats(session_view: SessionView):
     )
     view.last_executed_code[CELL1] = "# code that causes mixed errors"
 
-    result = serialize_session_view(view, cell_ids=[CELL1])
+    result = serialize_session_view(
+        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+    )
 
     # Verify the error normalization worked correctly
     assert len(result["cells"]) == 1
@@ -900,7 +1030,9 @@ class TestSessionCacheManager:
             cache_file.parent.mkdir(parents=True)
 
             # Write cache file
-            data = serialize_session_view(view, cell_ids=[CELL1])
+            data = serialize_session_view(
+                view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+            )
             cache_file.write_text(json.dumps(data))
 
             # Read back
@@ -938,7 +1070,9 @@ class TestSessionCacheManager:
             cache_file.parent.mkdir(parents=True)
 
             # Write cache file
-            data = serialize_session_view(view, cell_ids=[CELL1])
+            data = serialize_session_view(
+                view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+            )
             cache_file.write_text(json.dumps(data))
 
             # Read back
@@ -970,7 +1104,9 @@ class TestSessionCacheManager:
             cache_file.parent.mkdir(parents=True)
 
             # Write cache file
-            data = serialize_session_view(view, cell_ids=[id1, id2])
+            data = serialize_session_view(
+                view, cell_ids=[id1, id2], drop_virtual_file_outputs=False
+            )
             cache_file.write_text(json.dumps(data))
 
             # Read back
@@ -1004,7 +1140,10 @@ class TestSessionCacheManager:
             cache_file.parent.mkdir(parents=True)
 
             data = serialize_session_view(
-                view, cell_ids=[id1, id2], script_metadata_hash="old"
+                view,
+                cell_ids=[id1, id2],
+                script_metadata_hash="old",
+                drop_virtual_file_outputs=False,
             )
             cache_file.write_text(json.dumps(data))
 
@@ -1050,7 +1189,9 @@ class TestSessionCacheManager:
             cache_file.parent.mkdir(parents=True)
 
             # Write cache file
-            data = serialize_session_view(view, cell_ids=[CELL1, CELL2])
+            data = serialize_session_view(
+                view, cell_ids=[CELL1, CELL2], drop_virtual_file_outputs=False
+            )
             cache_file.write_text(json.dumps(data))
 
             # Read back

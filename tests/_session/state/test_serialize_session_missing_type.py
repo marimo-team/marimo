@@ -29,7 +29,9 @@ def test_serialize_session_with_dict_error_missing_type():
         "raise RuntimeError('Something went wrong')"
     )
 
-    result = serialize_session_view(view, cell_ids=[CELL_ID])
+    result = serialize_session_view(
+        view, cell_ids=[CELL_ID], drop_virtual_file_outputs=False
+    )
     assert len(result["cells"]) == 1
     assert len(result["cells"][0]["outputs"]) == 1
     assert result["cells"][0]["outputs"][0]["type"] == "error"

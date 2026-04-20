@@ -88,7 +88,9 @@ class Exporter:
 
         # Serialize notebook state
         session_snapshot = serialize_session_view(
-            session_view, cell_ids=app.cell_manager.cell_ids()
+            session_view,
+            cell_ids=app.cell_manager.cell_ids(),
+            drop_virtual_file_outputs=False,
         )
         notebook_snapshot = serialize_notebook(session_view, app.cell_manager)
 
