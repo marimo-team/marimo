@@ -2,14 +2,12 @@
 
 import { SimpleTree } from "react-arborist";
 import { toast } from "@/components/ui/use-toast";
-import type {
-  EditRequests,
-  FileInfo,
-  FileUpdateResponse,
-} from "@/core/network/types";
+import type { EditRequests, FileInfo } from "@/core/network/types";
 import { prettyError } from "@/utils/errors";
 import { Functions } from "@/utils/functions";
 import { type FilePath, PathBuilder } from "@/utils/paths";
+import { resolvePaths } from "@/utils/pathUtils";
+import { handleFileResponse } from "./file-operations";
 
 export class RequestingTree {
   private delegate = new SimpleTree<FileInfo>([]);
@@ -85,15 +83,15 @@ export class RequestingTree {
       });
       return;
     }
-    const currentPath = node.data.path as FilePath;
-    const parentPath = this.path.dirname(currentPath);
-    const newPath = this.path.join(parentPath, newName);
+    const { path, newPath } = resolvePaths({
+      path: node.data.path,
+      name: newName,
+      root: this.rootPath,
+    });
+    const parentPath = this.path.dirname(path);
     const newFile = await this.callbacks
-      .copyFileOrFolder({
-        path: currentPath,
-        newPath: newPath,
-      })
-      .then(this.handleResponse);
+      .copyFileOrFolder({ path, newPath })
+      .then(handleFileResponse);
     if (!newFile?.info) {
       return;
     }
@@ -116,14 +114,14 @@ export class RequestingTree {
       });
       return;
     }
-    const currentPath = node.data.path as FilePath;
-    const newPath = this.path.join(this.path.dirname(currentPath), name);
+    const { path, newPath } = resolvePaths({
+      path: node.data.path,
+      name,
+      root: this.rootPath,
+    });
     await this.callbacks
-      .renameFileOrFolder({
-        path: currentPath,
-        newPath: newPath,
-      })
-      .then(this.handleResponse);
+      .renameFileOrFolder({ path, newPath })
+      .then(handleFileResponse);
     this.delegate.update({ id, changes: { name, path: newPath } });
     this.onChange(this.delegate.data);
     // Rename all of its children
@@ -152,7 +150,7 @@ export class RequestingTree {
             path: node.data.path,
             newPath: newPath,
           })
-          .then(this.handleResponse);
+          .then(handleFileResponse);
       }),
     );
 
@@ -172,7 +170,7 @@ export class RequestingTree {
       : this.rootPath;
     const newFile = await this.callbacks
       .createFileOrFolder({ path: parentPath, type: type, name: name })
-      .then(this.handleResponse);
+      .then(handleFileResponse);
     if (!newFile?.info) {
       return;
     }
@@ -192,7 +190,7 @@ export class RequestingTree {
       : this.rootPath;
     const newFolder = await this.callbacks
       .createFileOrFolder({ path: parentPath, type: "directory", name: name })
-      .then(this.handleResponse);
+      .then(handleFileResponse);
     if (!newFolder?.info) {
       return;
     }
@@ -218,7 +216,7 @@ export class RequestingTree {
 
     await this.callbacks
       .deleteFileOrFolder({ path: node.data.path })
-      .then(this.handleResponse);
+      .then(handleFileResponse);
     this.delegate.drop({ id });
     this.onChange(this.delegate.data);
   }
@@ -261,19 +259,5 @@ export class RequestingTree {
       return path.slice(root.length) as FilePath;
     }
     return path;
-  };
-
-  private handleResponse = (
-    response: FileUpdateResponse,
-  ): FileUpdateResponse | null => {
-    if (!response.success) {
-      toast({
-        title: "Failed",
-        description: response.message,
-      });
-      return null;
-    }
-
-    return response;
   };
 }
