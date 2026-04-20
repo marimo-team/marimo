@@ -910,7 +910,10 @@ class ScopedVisitor(ast.NodeVisitor):
                     )
                     break
         else:
-            self.generic_visit(node)
+            # NB: only visit the target — value was already visited above.
+            # Calling generic_visit here would re-visit value, causing names
+            # inside it to be mangled twice (issue #9274).
+            self.visit(node.target)
         return node
 
     def visit_Name(self, node: ast.Name) -> ast.Name:

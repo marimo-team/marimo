@@ -435,6 +435,31 @@ def test_walrus_in_comp_in_fn_block_does_not_leak_to_global() -> None:
     }
 
 
+def test_walrus_with_comp_value_does_not_double_mangle() -> None:
+    """Regression test for issue #9274.
+
+    When a walrus expression at module scope holds a comprehension as its
+    value, names inside the comprehension must be mangled once, not twice.
+    """
+    code = (
+        "for _key, _values in items.items():\n"
+        "    if _matches := {k for k, v in _values.items() if v > 1}:\n"
+        "        pass\n"
+    )
+    v = visitor.ScopedVisitor(mangle_prefix="cell_MJUe")
+    mod = ast.parse(code)
+    v.visit(mod)
+    unparsed = ast.unparse(mod)
+    assert "_cell_MJUe_cell_MJUe_values" not in unparsed
+    assert "_cell_MJUe_values.items()" in unparsed
+    assert v.defs == {
+        "_cell_MJUe_key",
+        "_cell_MJUe_values",
+        "_cell_MJUe_matches",
+    }
+    assert v.refs == {"items"}
+
+
 def test_assignments_in_multiple_scopes() -> None:
     code = (
         "a = 0\ndef foo():\n  b = 0\n  c = 0\n  def bar():\n    d = 0\ne = 0"
