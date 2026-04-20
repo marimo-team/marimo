@@ -7,6 +7,7 @@ import {
   getClipboardContent,
   getPageIndexForRow,
   getRawValue,
+  splitLeadingTrailingWhitespace,
   stringifyUnknownValue,
 } from "../utils";
 
@@ -340,5 +341,103 @@ describe("getRawValue", () => {
   it("should return undefined when row index is out of bounds", () => {
     const table = createMockTableWithMeta([{ a: 1 }]);
     expect(getRawValue(table, 5, "a")).toBeUndefined();
+  });
+});
+
+describe("splitLeadingTrailingWhitespace", () => {
+  it("returns all empty for empty string", () => {
+    expect(splitLeadingTrailingWhitespace("")).toEqual({
+      leading: "",
+      middle: "",
+      trailing: "",
+    });
+  });
+
+  it("returns value as middle when no edge whitespace", () => {
+    expect(splitLeadingTrailingWhitespace("abc")).toEqual({
+      leading: "",
+      middle: "abc",
+      trailing: "",
+    });
+  });
+
+  it("preserves inner whitespace in middle", () => {
+    expect(splitLeadingTrailingWhitespace("abc d ef")).toEqual({
+      leading: "",
+      middle: "abc d ef",
+      trailing: "",
+    });
+  });
+
+  it("splits leading whitespace only", () => {
+    expect(splitLeadingTrailingWhitespace("   abc")).toEqual({
+      leading: "   ",
+      middle: "abc",
+      trailing: "",
+    });
+  });
+
+  it("splits trailing whitespace only", () => {
+    expect(splitLeadingTrailingWhitespace("abc   ")).toEqual({
+      leading: "",
+      middle: "abc",
+      trailing: "   ",
+    });
+  });
+
+  it("splits both leading and trailing whitespace", () => {
+    expect(splitLeadingTrailingWhitespace("  abc  ")).toEqual({
+      leading: "  ",
+      middle: "abc",
+      trailing: "  ",
+    });
+  });
+
+  it("handles mixed whitespace types at edges", () => {
+    expect(splitLeadingTrailingWhitespace("\t\n abc \r\t")).toEqual({
+      leading: "\t\n ",
+      middle: "abc",
+      trailing: " \r\t",
+    });
+  });
+
+  it("preserves inner whitespace when edges have whitespace", () => {
+    expect(splitLeadingTrailingWhitespace("  a b c  ")).toEqual({
+      leading: "  ",
+      middle: "a b c",
+      trailing: "  ",
+    });
+  });
+
+  it("handles Unicode whitespace (NBSP) at edges", () => {
+    expect(splitLeadingTrailingWhitespace("\u00a0abc\u00a0")).toEqual({
+      leading: "\u00a0",
+      middle: "abc",
+      trailing: "\u00a0",
+    });
+  });
+
+  it("puts whitespace-only string in leading (caller should handle sentinel first)", () => {
+    expect(splitLeadingTrailingWhitespace("   ")).toEqual({
+      leading: "   ",
+      middle: "",
+      trailing: "",
+    });
+  });
+
+  it("handles single whitespace char", () => {
+    expect(splitLeadingTrailingWhitespace(" ")).toEqual({
+      leading: " ",
+      middle: "",
+      trailing: "",
+    });
+  });
+
+  it("handles single non-whitespace char", () => {
+    expect(splitLeadingTrailingWhitespace("a")).toEqual({
+      leading: "",
+      middle: "a",
+      trailing: "",
+    });
   });
 });

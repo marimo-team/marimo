@@ -39,8 +39,8 @@ import {
   INDEX_COLUMN_NAME,
   isNumericType,
 } from "./types";
-import { SentinelCell } from "./sentinel-cell";
-import { detectSentinel } from "./utils";
+import { SentinelCell, WhitespaceMarkers } from "./sentinel-cell";
+import { detectSentinel, splitLeadingTrailingWhitespace } from "./utils";
 import { uniformSample } from "./uniformSample";
 import { MarkdownUrlDetector, UrlDetector } from "./url-detector";
 
@@ -346,6 +346,7 @@ const PopoutColumn = ({
   cellStyles,
   selectCell,
   rawStringValue,
+  edges,
   contentClassName,
   buttonText,
   wrapped,
@@ -354,11 +355,25 @@ const PopoutColumn = ({
   cellStyles?: string;
   selectCell?: () => void;
   rawStringValue: string;
+  // Edge whitespace shown as visible markers in the trigger; copy/title
+  // still use `rawStringValue`. Middle is sliced from `rawStringValue`.
+  edges?: { leading: string; trailing: string };
   contentClassName?: string;
   buttonText?: string;
   wrapped?: boolean;
   children: React.ReactNode;
 }) => {
+  const hasEdgeWhitespace =
+    edges !== undefined &&
+    (edges.leading.length > 0 || edges.trailing.length > 0);
+
+  const displayText = hasEdgeWhitespace
+    ? rawStringValue.slice(
+        edges.leading.length,
+        rawStringValue.length - edges.trailing.length,
+      )
+    : rawStringValue;
+
   return (
     <EmotionCacheProvider container={null}>
       <Popover>
@@ -377,7 +392,9 @@ const PopoutColumn = ({
             )}
             title={rawStringValue}
           >
-            {rawStringValue}
+            {edges ? <WhitespaceMarkers value={edges.leading} /> : null}
+            {displayText}
+            {edges ? <WhitespaceMarkers value={edges.trailing} /> : null}
           </span>
         </PopoverTrigger>
         <PopoverContent
@@ -582,7 +599,13 @@ export function renderCellValue<TData, TValue>({
       ? String(column.applyColumnFormatting(value))
       : String(renderValue());
 
-    const parts = parseContent(stringValue);
+    const { leading, middle, trailing } =
+      splitLeadingTrailingWhitespace(stringValue);
+    const hasEdgeWhitespace = leading.length > 0 || trailing.length > 0;
+
+    // Parse only the inner content for URL detection so URLDetector doesn't
+    // split on the whitespace padding.
+    const parts = parseContent(hasEdgeWhitespace ? middle : stringValue);
     const allMarkup = parts.every((part) => part.type !== "text");
     if (allMarkup || stringValue.length < MAX_STRING_LENGTH || isWrapped) {
       return (
@@ -590,7 +613,9 @@ export function renderCellValue<TData, TValue>({
           onClick={selectCell}
           className={cn(cellStyles, isWrapped && COLUMN_WRAPPING_STYLES)}
         >
+          <WhitespaceMarkers value={leading} />
           <UrlDetector parts={parts} />
+          <WhitespaceMarkers value={trailing} />
         </div>
       );
     }
@@ -600,11 +625,15 @@ export function renderCellValue<TData, TValue>({
         cellStyles={cellStyles}
         selectCell={selectCell}
         rawStringValue={stringValue}
+        edges={{ leading, trailing }}
         contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm w-96"
         buttonText="X"
         wrapped={isWrapped}
       >
-        <MarkdownUrlDetector content={stringValue} parts={parts} />
+        <MarkdownUrlDetector
+          content={stringValue}
+          parts={parseContent(stringValue)}
+        />
       </PopoutColumn>
     );
   }
