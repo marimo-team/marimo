@@ -203,7 +203,6 @@ jobs:
       - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          uv sync --python ${{ matrix.python-version }} --group test
           uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
             -v \
             ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
@@ -220,7 +219,6 @@ jobs:
       - name: Test changed with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
         run: |
-          uv sync --python ${{ matrix.python-version }} --group test-optional
           uv run --python ${{ matrix.python-version }} --group test-optional pytest tests/ \
             -v \
             ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
@@ -239,7 +237,6 @@ jobs:
       - name: Test with minimal dependencies (lowest resolution)
         if: ${{ matrix.dependencies == 'minimal' }}
         run: |
-          uv sync --python ${{ matrix.python-version }} --group test
           uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
             -v \
             ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
