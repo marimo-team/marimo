@@ -87,6 +87,20 @@ def pytest_collection_modifyitems(
 
 
 @pytest.fixture(autouse=True)
+def _save_and_restore_main() -> Generator[None, None, None]:
+    """Restore sys.modules["__main__"] after each test.
+
+    marimo's kernel swaps out the main module via patch_main_module;
+    without this fixture, that swap leaks into subsequent tests.
+    """
+    main = sys.modules["__main__"]
+    try:
+        yield
+    finally:
+        sys.modules["__main__"] = main
+
+
+@pytest.fixture(autouse=True)
 def _ensure_main_has_file() -> Generator[None, None, None]:
     """Ensure __main__.__file__ is set for pytest-xdist workers.
 
