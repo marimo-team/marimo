@@ -1,6 +1,39 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { extractTimezone } from "../types";
+import {
+  extractTimezone,
+  type FieldTypesWithExternalType,
+  toFieldTypes,
+} from "../types";
+
+describe("toFieldTypes", () => {
+  // Regression: https://github.com/marimo-team/marimo/issues/9269
+  // Column names that look like non-negative integers (e.g. "2000",
+  // "2010") get hoisted to the front in numeric order by the
+  // ECMAScript `OrdinaryOwnPropertyKeys` algorithm whenever they live
+  // as keys of a plain object. The data_editor's `FieldTypes` shape
+  // (`Record<string, DataType>`) loses column order for those keys.
+  it("preserves insertion order for digit-string column names", () => {
+    const input: FieldTypesWithExternalType = [
+      ["here", ["string", ""]],
+      ["is", ["string", ""]],
+      ["a", ["string", ""]],
+      ["2010", ["number", ""]],
+      ["column", ["string", ""]],
+      ["2000", ["number", ""]],
+      ["set", ["string", ""]],
+    ];
+    expect(Object.keys(toFieldTypes(input))).toEqual([
+      "here",
+      "is",
+      "a",
+      "2010",
+      "column",
+      "2000",
+      "set",
+    ]);
+  });
+});
 
 describe("extractTimezone", () => {
   it("should return undefined when dtype is undefined", () => {
