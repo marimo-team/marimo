@@ -435,6 +435,53 @@ def test_walrus_in_comp_in_fn_block_does_not_leak_to_global() -> None:
     }
 
 
+def test_walrus_with_comp_value_does_not_double_mangle() -> None:
+    """Regression test for issue #9274.
+
+    When a walrus expression at module scope holds a comprehension as its
+    value, names inside the comprehension must be mangled once, not twice.
+    """
+    code = (
+        "for _key, _values in items.items():\n"
+        "    if _matches := {k for k, v in _values.items() if v > 1}:\n"
+        "        pass\n"
+    )
+    v = visitor.ScopedVisitor(mangle_prefix="cell_MJUe")
+    mod = ast.parse(code)
+    v.visit(mod)
+    unparsed = ast.unparse(mod)
+    assert "_cell_MJUe_cell_MJUe_values" not in unparsed
+    assert "_cell_MJUe_values.items()" in unparsed
+    assert v.defs == {
+        "_cell_MJUe_key",
+        "_cell_MJUe_values",
+        "_cell_MJUe_matches",
+    }
+    assert v.refs == {"items"}
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "if _x := [_y for _y in _things]: pass",
+        "print(_r := sum(n for n in _things))",
+        "if _x := {k: v for k, v in _things.items()}: pass",
+        "if _x := (lambda: _things): pass",
+    ],
+    ids=["listcomp", "genexp", "dictcomp", "lambda"],
+)
+def test_walrus_does_not_double_mangle_across_nested_scopes(
+    code: str,
+) -> None:
+    # The double-visit in visit_NamedExpr (issue #9274) affects any nested
+    # scope inside the walrus value, not only set comprehensions.
+    v = visitor.ScopedVisitor(mangle_prefix="cell_MJUe")
+    mod = ast.parse(code)
+    v.visit(mod)
+    unparsed = ast.unparse(mod)
+    assert "_cell_MJUe_cell_MJUe_" not in unparsed, unparsed
+
+
 def test_assignments_in_multiple_scopes() -> None:
     code = (
         "a = 0\ndef foo():\n  b = 0\n  c = 0\n  def bar():\n    d = 0\ne = 0"
