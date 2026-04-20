@@ -3611,9 +3611,10 @@ def launch_kernel(
                 time.sleep(0.01)
 
         if n_tries == 100 or pipe is None:
-            # Parent is blocked in listener.accept() with no timeout; if we
-            # return silently the parent hangs forever. Log the cause so the
-            # next failure is diagnosable instead of opaque.
+            # The parent may still be waiting for this subprocess to connect,
+            # but startup now watches kernel liveness and will abort if the
+            # kernel exits. Log the cause so the failure is diagnosable
+            # instead of opaque.
             LOGGER.error(
                 "marimo kernel subprocess failed to connect to %s "
                 "after %d attempts",
