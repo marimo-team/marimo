@@ -737,9 +737,18 @@ class AsyncCodeModeContext:
             op_cell_ids.add(cell_id)
             label = self._cell_label(cell_id)
             ran = cell_id in _run
+            errored = ran and self._cell_errored(cell_id)
             if isinstance(op, _AddOp):
-                verb = "created and ran" if ran else "created"
-                lines.append(f"{verb} cell {label}")
+                if errored:
+                    verb = "created and ran"
+                    suffix = " (error)"
+                elif ran:
+                    verb = "created and ran"
+                    suffix = ""
+                else:
+                    verb = "created"
+                    suffix = ""
+                lines.append(f"{verb} cell {label}{suffix}")
             elif isinstance(op, _UpdateOp):
                 parts = []
                 if op.code is not None:
@@ -747,7 +756,12 @@ class AsyncCodeModeContext:
                 if op.config is not None:
                     parts.append("config")
                 detail = " and ".join(parts) if parts else "config"
-                suffix = " and ran" if ran else ""
+                if errored:
+                    suffix = " and ran (error)"
+                elif ran:
+                    suffix = " and ran"
+                else:
+                    suffix = ""
                 lines.append(f"edited {detail} of cell {label}{suffix}")
             elif isinstance(op, _DeleteOp):
                 lines.append(f"deleted cell {label}")
@@ -759,7 +773,9 @@ class AsyncCodeModeContext:
             for cell_id in _run:
                 if cell_id not in op_cell_ids:
                     label = self._cell_label(cell_id)
-                    lines.append(f"re-ran cell {label}")
+                    errored = self._cell_errored(cell_id)
+                    suffix = " (error)" if errored else ""
+                    lines.append(f"re-ran cell {label}{suffix}")
 
         if ui_updates:
             lines.append(f"updated {len(ui_updates)} UI element(s)")
@@ -767,20 +783,18 @@ class AsyncCodeModeContext:
         if not lines:
             return
 
+        # Add a blank line before the summary when cells errored,
+        # so the summary is visually separated from streamed tracebacks.
+        has_errors = _run and any(self._cell_errored(cid) for cid in _run)
+        if has_errors:
+            sys.stdout.write("\n")
         for line in lines:
             sys.stdout.write(line + "\n")
 
-        # Report runtime errors for cells that were executed.
-        # This runs after _run_cells returns and the nested
-        # redirect_streams context has exited, so stderr is routed
-        # back to the scratch cell and captured by the SSE listener.
-        if _run:
-            for cell_id in _run:
-                cell = self.graph.cells.get(cell_id)
-                if cell is None or cell.exception is None:
-                    continue
-                label = self._cell_label(cell_id)
-                sys.stderr.write(f"error in cell {label}:\n{cell.exception}\n")
+    def _cell_errored(self, cell_id: CellId_t) -> bool:
+        """Return True if the cell raised an exception."""
+        cell = self.graph.cells.get(cell_id)
+        return cell is not None and cell.exception is not None
 
     def _cell_label(self, cell_id: CellId_t) -> str:
         """Return a display label: ``'id' (name)`` or ``'id'``."""

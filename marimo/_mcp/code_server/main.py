@@ -140,7 +140,7 @@ def setup_code_mcp_server(
                     error=f"Execution timed out after {EXECUTION_TIMEOUT}s",
                 )
 
-            return extract_result(session)
+            return extract_result(session, listener)
 
     # Build the streamable HTTP app
     mcp_app = mcp.streamable_http_app()

@@ -1013,15 +1013,19 @@ class TestDocumentKernelDivergence:
 
 
 class TestErrorReporting:
-    async def test_print_summary_reports_cell_errors(
+    async def test_print_summary_does_not_duplicate_errors(
         self, k: Kernel, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        """_print_summary writes cell runtime errors to stderr."""
+        """_print_summary does not write cell errors to stderr.
+
+        Runtime errors are surfaced by ScratchCellListener via the done
+        event, not duplicated to stderr by _print_summary.
+        """
         with _ctx(k) as ctx:
             async with ctx as nb:
                 cid = nb.create_cell("raise ValueError('boom')")
                 nb.run_cell(cid)
 
         captured = capsys.readouterr()
-        assert "error in cell" in captured.err
-        assert "boom" in captured.err
+        assert "created and ran" in captured.out
+        assert "error in cell" not in captured.err

@@ -312,7 +312,7 @@ async def execute_code(
                     async for event in listener.stream():
                         yield event
 
-                yield build_done_event(session)
+                yield build_done_event(session, listener)
         finally:
             disconnect_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
