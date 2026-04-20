@@ -162,7 +162,7 @@ class KernelManagerImpl(KernelManager):
             def _accept() -> None:
                 try:
                     result["conn"] = listener.accept()
-                except BaseException as e:
+                except Exception as e:
                     result["error"] = e
 
             accept_thread = threading.Thread(
