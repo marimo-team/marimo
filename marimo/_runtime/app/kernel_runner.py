@@ -199,10 +199,15 @@ class AppKernelRunner:
         return self.outputs, self._kernel.globals
 
     async def set_ui_element_value(
-        self, request: UpdateUIElementCommand
+        self,
+        request: UpdateUIElementCommand,
+        *,
+        notify_frontend: bool,
     ) -> bool:
         with self._runtime_context.install():
-            return await self._kernel.set_ui_element_value(request)
+            return await self._kernel.set_ui_element_value(
+                request, notify_frontend=notify_frontend
+            )
 
     async def function_call(
         self, request: InvokeFunctionCommand

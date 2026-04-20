@@ -1876,11 +1876,28 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("set_ui_element_value")
     async def set_ui_element_value(
-        self, request: UpdateUIElementCommand
+        self,
+        request: UpdateUIElementCommand,
+        *,
+        notify_frontend: bool,
     ) -> bool:
         """Set the value of a UI element bound to a global variable.
 
         Runs cells that reference the UI element by name.
+
+        Args:
+            request: The UI element update command.
+            notify_frontend: Whether to broadcast the new value back to
+                the frontend via a ``marimo-ui-value-update`` message.
+                Set ``False`` for user-initiated updates from the frontend
+                (the frontend already has the value locally;
+                re-broadcasting causes redundant traffic and, on transports
+                with non-negligible round-trip latency (LSP, remote
+                kernels), can visibly snap the rendered widget backward to
+                a stale value). Set ``True`` for genuinely
+                kernel-initiated changes (e.g. code_mode's
+                ``set_ui_value``) where the frontend has no other way to
+                learn about the update.
 
         Returns True if any ui elements were set, False otherwise
         """
@@ -1909,7 +1926,8 @@ class Kernel:
                                 object_ids=[object_id],
                                 values=[value],
                                 request=request.request,
-                            )
+                            ),
+                            notify_frontend=notify_frontend,
                         )
                     ):
                         bindings = [
@@ -1981,19 +1999,17 @@ class Kernel:
                     write_traceback(tmpio.read())
                 else:
                     updated_components.append(component)
-                    # Broadcast the new value to the frontend so the
-                    # rendered widget reflects kernel-initiated changes
-                    # (e.g. from code_mode's set_ui_value).
-                    broadcast_notification(
-                        UIElementMessageNotification(
-                            ui_element=object_id,
-                            message={
-                                "type": "marimo-ui-value-update",
-                                "value": value,
-                            },
-                        ),
-                        self.stream,
-                    )
+                    if notify_frontend:
+                        broadcast_notification(
+                            UIElementMessageNotification(
+                                ui_element=object_id,
+                                message={
+                                    "type": "marimo-ui-value-update",
+                                    "value": value,
+                                },
+                            ),
+                            self.stream,
+                        )
 
             bound_names = {
                 name
@@ -2366,7 +2382,7 @@ class Kernel:
             request: UpdateUIElementCommand,
         ) -> None:
             with http_request_context(request.request):
-                await self.set_ui_element_value(request)
+                await self.set_ui_element_value(request, notify_frontend=False)
             broadcast_notification(CompletedRunNotification())
 
         async def handle_pdb_request(request: DebugCellCommand) -> None:
@@ -2391,7 +2407,8 @@ class Kernel:
                 await self.set_ui_element_value(
                     UpdateUIElementCommand.from_ids_and_values(
                         [(UIElementId(ui_element_id), state)]
-                    )
+                    ),
+                    notify_frontend=False,
                 )
                 broadcast_notification(CompletedRunNotification())
             elif self.state_updates:
