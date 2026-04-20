@@ -41,7 +41,7 @@ export class ColumnChartSpecModel<T> {
 
   public static readonly EMPTY = new ColumnChartSpecModel(
     [],
-    {},
+    new Map(),
     {},
     {},
     {},
@@ -97,7 +97,7 @@ export class ColumnChartSpecModel<T> {
   public getHeaderSummary(column: string) {
     return {
       stats: this.columnStats.get(column),
-      type: this.fieldTypes[column],
+      type: this.fieldTypes.get(column),
       spec: this.opts.includeCharts ? this.getVegaSpec(column) : undefined,
     };
   }
@@ -141,7 +141,10 @@ export class ColumnChartSpecModel<T> {
     }
 
     const base = this.createBase(data);
-    const type = this.fieldTypes[column];
+    const type = this.fieldTypes.get(column);
+    if (type === undefined) {
+      return null;
+    }
 
     // https://github.com/vega/altair/blob/32990a597af7c09586904f40b3f5e6787f752fa5/doc/user_guide/encodings/index.rst#escaping-special-characters-in-column-names
     // escape periods in column names

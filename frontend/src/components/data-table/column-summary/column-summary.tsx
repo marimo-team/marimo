@@ -75,7 +75,7 @@ export const TableColumnSummary = <TData, TValue>({
   };
 
   const renderStats = () => {
-    if (!stats) {
+    if (!stats || type === undefined) {
       return null;
     }
 

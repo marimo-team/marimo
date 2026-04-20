@@ -7,12 +7,12 @@ import {
 } from "../types";
 
 describe("toFieldTypes", () => {
-  // Regression: https://github.com/marimo-team/marimo/issues/9269
-  // Column names that look like non-negative integers (e.g. "2000",
-  // "2010") get hoisted to the front in numeric order by the
-  // ECMAScript `OrdinaryOwnPropertyKeys` algorithm whenever they live
-  // as keys of a plain object. The data_editor's `FieldTypes` shape
-  // (`Record<string, DataType>`) loses column order for those keys.
+  // Regression: https://github.com/marimo-team/marimo/issues/9269.
+  // When `FieldTypes` was a plain `Record<string, DataType>`, column
+  // names that look like non-negative integers (e.g. "2000", "2010")
+  // were hoisted to the front in numeric order by ECMAScript's
+  // `OrdinaryOwnPropertyKeys` algorithm. `Map` preserves insertion
+  // order for all keys.
   it("preserves insertion order for digit-string column names", () => {
     const input: FieldTypesWithExternalType = [
       ["here", ["string", ""]],
@@ -23,7 +23,7 @@ describe("toFieldTypes", () => {
       ["2000", ["number", ""]],
       ["set", ["string", ""]],
     ];
-    expect(Object.keys(toFieldTypes(input))).toEqual([
+    expect([...toFieldTypes(input).keys()]).toEqual([
       "here",
       "is",
       "a",

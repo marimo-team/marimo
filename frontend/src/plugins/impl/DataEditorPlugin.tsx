@@ -83,19 +83,23 @@ interface Props extends Omit<
 
 const LoadingDataEditor = (props: Props) => {
   const [data, setData] = useState<unknown[]>([]);
-  const [columnFields, setColumnFields] = useState<FieldTypes>({});
+  const [columnFields, setColumnFields] = useState<FieldTypes>(new Map());
 
   // Load the data
   const { error } = useAsyncData(async () => {
     const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
 
     // If we already have the data, return it
-    // Otherwise, load the data from the URL
+    // Otherwise, load the data from the URL. Vega's CSV parser takes a
+    // plain `Record`; column order doesn't matter for parsing.
     const localData = Array.isArray(props.data)
       ? props.data
       : await vegaLoadData(
           props.data,
-          { type: "csv", parse: getVegaFieldTypes(withoutExternalTypes) },
+          {
+            type: "csv",
+            parse: getVegaFieldTypes(Object.fromEntries(withoutExternalTypes)),
+          },
           { handleBigIntAndNumberLike: true },
         );
 
