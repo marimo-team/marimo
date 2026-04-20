@@ -910,7 +910,9 @@ class ScopedVisitor(ast.NodeVisitor):
                     )
                     break
         else:
-            self.generic_visit(node)
+            # node.value was already visited above; visit only the target
+            # to avoid re-mangling names inside the value subtree.
+            self.visit(node.target)
         return node
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
