@@ -2214,7 +2214,6 @@ class TestStrictExecution:
         assert "f" in k.globals
         assert k.globals["V"] == 5
 
-
     @staticmethod
     async def test_cell_private_imports(
         execution_kernel: Kernel, exec_req: ExecReqProvider
@@ -2246,6 +2245,55 @@ class TestStrictExecution:
         assert "Hello" in k.globals["L"].text
         assert "NameError" in k.stderr.messages[0]
 
+    @staticmethod
+    async def test_cell_private_import_as_public(
+        execution_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """from mod import _private as public — public name, no mangling."""
+        k = execution_kernel
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import _output as output
+                    def f(x):
+                       return output.md.md(x)
+                    """
+                ),
+                exec_req.get("L = f('Hello')"),
+            ]
+        )
+        assert not k.errors
+        assert not k.stderr.messages, k.stderr.messages
+        assert "output" in k.globals
+        assert "L" in k.globals
+        assert "Hello" in k.globals["L"].text
+
+    @staticmethod
+    async def test_cell_public_import_as_private(
+        execution_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """from mod import public as _private — mangled, cell-private."""
+        k = execution_kernel
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._output import md as _md
+                    def f(x):
+                       return _md.md(x)
+                    """
+                ),
+                exec_req.get("L = f('Hello')"),
+                exec_req.get("_md"),
+            ]
+        )
+        assert not k.errors
+        assert "_md" not in k.globals
+        assert "L" in k.globals
+        assert "Hello" in k.globals["L"].text
+        # Cell 3 gets NameError: _md is cell-private
+        assert "NameError" in k.stderr.messages[0]
 
     @staticmethod
     async def test_cell_copy_works(
