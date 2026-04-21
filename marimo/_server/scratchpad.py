@@ -15,7 +15,10 @@ else:
 
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.notification import CellNotification
+from marimo._messaging.notification import (
+    CellNotification,
+    CompletedRunNotification,
+)
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._session.extensions.types import EventAwareExtension
@@ -99,13 +102,17 @@ class ScratchCellListener(EventAwareExtension):
     ) -> None:
         del session
         msg = deserialize_kernel_message(notification)
+
+        # Check for completion sentinel FIRST (waits for downstream errors)
+        if isinstance(msg, CompletedRunNotification):
+            self._queue.put_nowait(None)  # sentinel
+            return
+
         if not isinstance(msg, CellNotification):
             return
 
         if msg.cell_id == SCRATCH_CELL_ID:
             self._queue.put_nowait(msg)
-            if msg.status == "idle":
-                self._queue.put_nowait(None)  # sentinel
         else:
             if msg.console is not None:
                 # Stream console output from cells run by _code_mode
