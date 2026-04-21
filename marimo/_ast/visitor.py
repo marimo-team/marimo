@@ -298,22 +298,34 @@ class ScopedVisitor(ast.NodeVisitor):
             # Mangle _-prefixed imports consistently with other
             # private naming conventions. We set asname (not name)
             # because name is the actual module path to import —
-            # changing it would alter what gets imported. asname
+            # changing it would alter what gets imported. `asname`
             # only controls the local binding:
             #   from my_module import _private
             # becomes:
             #   from my_module import _private as _mangled
             mangled = self._if_local_then_mangle(basename)
             if mangled != basename:
+                # An alternative would be rewriting
+                #   import _pkg.submodule
+                #   _pkg.submodule.attr
+                # as
+                #   import _pkg.submodule as _mangled
+                #   _mangled.attr
+                # but this would increase the complexity of
+                # visitor a fair amount.
+                # TODO(dmadisetti): Consider revising.
                 if "." in node.name:
                     rest = node.name[len(basename) + 1 :]
-                    raise SyntaxError(
-                        f"Dotted import `import {node.name}` binds a "
-                        f"private top-level name `{basename}` which "
-                        f"cannot be safely used. Use "
-                        f"`from {basename} import {rest}` or add an "
-                        f"explicit alias instead."
+                    import warnings
+
+                    warnings.warn(
+                        f"`import {node.name}` binds private name "
+                        f"`{basename}` and cannot be safely used. "
+                        f"Try `from {basename} import {rest}` or "
+                        f"`import {node.name} as my_submodule`.",
+                        stacklevel=2,
                     )
+                    return basename
                 node.asname = mangled
             return mangled
         else:

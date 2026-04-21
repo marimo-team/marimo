@@ -93,9 +93,11 @@ class TestParseCell:
         cell = compile_cell("import _mypkg")
         assert "_mypkg" not in cell.defs
 
-        # import _pkg.sub (dotted) — error, can't safely mangle
-        with pytest.raises(SyntaxError, match="cannot be safely used"):
-            compile_cell("import _pkg.submodule")
+        # import _pkg.sub (dotted) — warns and skips mangling
+        with pytest.warns(match="cannot be safely used"):
+            cell = compile_cell("import _pkg.submodule")
+        # _pkg stays unmangled — lands in temporaries, not defs
+        assert "_pkg" in cell.temporaries
 
 
 class TestCompilerFlags:
