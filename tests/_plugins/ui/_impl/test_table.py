@@ -1261,6 +1261,16 @@ def test_show_download(df: Any) -> None:
 
 DOWNLOAD_FORMATS = ["csv", "json", "parquet"]
 
+# Parquet export requires pandas+pyarrow or polars (see the `_download_as`
+# short-circuit in `table.py`). In environments without those — e.g. the
+# `test` group, which has only pyarrow — skip parquet in the round-trip.
+_CAN_EXPORT_PARQUET = DependencyManager.polars.has() or (
+    DependencyManager.pandas.has() and DependencyManager.pyarrow.has()
+)
+_TESTABLE_DOWNLOAD_FORMATS = (
+    DOWNLOAD_FORMATS if _CAN_EXPORT_PARQUET else ["csv", "json"]
+)
+
 
 @pytest.mark.parametrize(
     "df",
@@ -1335,7 +1345,7 @@ def test_download_as(df: Any) -> None:
         raise ValueError(f"Unsupported format: {format_type}")
 
     # Test base downloads (full data)
-    for format_type in DOWNLOAD_FORMATS:
+    for format_type in _TESTABLE_DOWNLOAD_FORMATS:
         downloaded_df = download_and_convert(format_type, table)
         downloaded_nw = nw.from_native(downloaded_df)
         assert len(downloaded_nw) == len(nw_df)
@@ -1343,7 +1353,7 @@ def test_download_as(df: Any) -> None:
 
     # Test downloads with search filter
     table._search(SearchTableArgs(query="New", page_size=10, page_number=0))
-    for format_type in DOWNLOAD_FORMATS:
+    for format_type in _TESTABLE_DOWNLOAD_FORMATS:
         filtered_df = download_and_convert(format_type, table)
         filtered_nw = nw.from_native(filtered_df)
         assert len(filtered_nw) == 2
@@ -1352,7 +1362,7 @@ def test_download_as(df: Any) -> None:
 
     # Test downloads with row selection (includes search from before)
     table._convert_value(["1"])  # select one row of the filtered view
-    for format_type in DOWNLOAD_FORMATS:
+    for format_type in _TESTABLE_DOWNLOAD_FORMATS:
         selected_df = download_and_convert(format_type, table)
         selected_nw = nw.from_native(selected_df)
         # For row selection, selection is respected (single row)

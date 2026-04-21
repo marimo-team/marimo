@@ -900,29 +900,12 @@ class table(
                 of ``TableCell`` from cell-selection modes).
         """
         # Short-circuit Parquet when no parquet-capable lib is importable.
-        # For `DefaultTableManager` (plain-Python data), `to_parquet` routes
-        # through `_as_table_manager`, which requires pandas or polars — so the
-        # strict guard applies. Native pandas/polars/pyarrow frames export via
-        # narwhals, where pyarrow alone is sufficient for pyarrow frames and
-        # polars alone for polars frames, so the guard is relaxed accordingly.
         if args.format == "parquet":
-            from marimo._plugins.ui._impl.tables.default_table import (
-                DefaultTableManager,
-            )
-
             has_polars = DependencyManager.polars.has()
             has_pandas = DependencyManager.pandas.has()
             has_pyarrow = DependencyManager.pyarrow.has()
 
-            is_default_manager = isinstance(
-                self._searched_manager, DefaultTableManager
-            )
-            if is_default_manager:
-                can_export = has_polars or (has_pandas and has_pyarrow)
-            else:
-                can_export = has_polars or has_pyarrow
-
-            if not can_export:
+            if not (has_polars or (has_pandas and has_pyarrow)):
                 # if pandas is installed and pyarrow is not, prompt to install pyarrow
                 if has_pandas:
                     return DownloadAsResponse(
