@@ -938,8 +938,13 @@ def test_cli_server_exits_when_ancestor_pid_dies(
     # start_new_session so the poller's killpg doesn't touch pytest.
     p = subprocess.Popen(
         [
-            "marimo", "edit", temp_marimo_file,
-            "-p", str(port), "--headless", "--no-token",
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
         ],
         env=env,
         start_new_session=True,
