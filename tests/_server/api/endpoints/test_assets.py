@@ -118,7 +118,7 @@ def test_index_invalid_access_token_redirects_to_login(
     client: TestClient,
 ) -> None:
     # An invalid token must NOT trigger the token-strip redirect (which
-    # would imply the token was accepted). Instead, `@requires` should
+    # would imply the token was accepted). Instead, the auth guard should
     # redirect the unauthenticated request to the login page. Following
     # the redirect lands on the login HTML.
     response = client.get("/?access_token=wrong-token", follow_redirects=False)
@@ -128,6 +128,48 @@ def test_index_invalid_access_token_redirects_to_login(
     followed = client.get("/?access_token=wrong-token")
     assert followed.status_code == 200
     assert "Login" in followed.text
+
+
+def test_index_unauthenticated_redirect_is_relative(
+    client: TestClient,
+) -> None:
+    # Regression test for https://github.com/marimo-team/marimo/issues/9249.
+    # When a reverse proxy forwards an internal `Host` header, an absolute
+    # Location would send the browser to an unreachable internal address.
+    # The Location must be relative so the browser resolves it against the
+    # public URL it originally used.
+    response = client.get(
+        "/",
+        headers={"Host": "10.0.0.5:60830"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303, response.text
+    location = response.headers["location"]
+    # Must be relative — no scheme, no host.
+    assert location.startswith("/auth/login?"), location
+    assert "://" not in location
+    assert "10.0.0.5" not in location
+
+
+def test_index_unauthenticated_redirect_preserves_next(
+    client: TestClient,
+) -> None:
+    # The original path (and query) must round-trip through the redirect so
+    # the user lands where they were trying to go after logging in.
+    response = client.get(
+        "/?file=foo.py&view-as=present",
+        follow_redirects=False,
+    )
+    assert response.status_code == 303, response.text
+    location = response.headers["location"]
+    assert location.startswith("/auth/login?"), location
+    # next= is percent-encoded; decoding it should yield the original path
+    # with its query string.
+    from urllib.parse import parse_qs, urlparse
+
+    parsed = urlparse(location)
+    next_value = parse_qs(parsed.query)["next"][0]
+    assert next_value == "/?file=foo.py&view-as=present"
 
 
 def test_index_response_has_security_headers(client: TestClient) -> None:

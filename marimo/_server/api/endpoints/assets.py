@@ -5,8 +5,9 @@ import mimetypes
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
+from urllib.parse import urlencode
 
-from starlette.authentication import requires
+from starlette.authentication import has_required_scope, requires
 from starlette.exceptions import HTTPException
 from starlette.responses import (
     FileResponse,
@@ -139,6 +140,29 @@ def _strip_access_token_redirect(request: Request) -> RedirectResponse:
     )
 
 
+def _login_redirect(request: Request) -> RedirectResponse:
+    """Build a relative redirect to the login page for unauthenticated users.
+
+    Starlette's built-in `@requires(redirect=...)` builds the Location from
+    `request.url_for(...)` and embeds `str(request.url)` as `next=`. Both
+    of those use the request's `Host` header, so behind a reverse proxy
+    that doesn't rewrite `Host` the browser is sent to an internal
+    address. Emitting a relative `Location` sidesteps that — browsers
+    resolve it against the URL they themselves used, regardless of what
+    the proxy forwarded.
+
+    See https://github.com/marimo-team/marimo/issues/9249.
+    """
+    next_url = request.url.path
+    if request.url.query:
+        next_url = f"{next_url}?{request.url.query}"
+    login_path = request.app.url_path_for("auth:login_page")
+    return RedirectResponse(
+        url=f"{login_path}?{urlencode({'next': next_url})}",
+        status_code=303,
+    )
+
+
 @router.get("/og/thumbnail", include_in_schema=False)
 @requires("read")
 def og_thumbnail(*, request: Request) -> Response:
@@ -256,8 +280,12 @@ async def _fetch_index_html_from_url(asset_url: str) -> str:
 
 
 @router.get("/")
-@requires("read", redirect="auth:login_page")
 async def index(request: Request) -> Response:
+    # Manual auth guard instead of `@requires(redirect=...)` so the
+    # Location is relative — see `_login_redirect` for the reasoning.
+    if not has_required_scope(request, ["read"]):
+        return _login_redirect(request)
+
     # Auth has already passed at this point — either via the session cookie
     # or by validating `access_token` in the query string (which also set
     # the cookie). If the token is still in the URL, redirect to strip it
