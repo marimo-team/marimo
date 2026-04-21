@@ -190,18 +190,21 @@ def _detect_numpy_random_poisoning(
     yield
     if not _POISON_LOG or "numpy" not in sys.modules:
         return
+    # Passive check: don't call __import__, which would re-cache numpy.random
+    # in sys.modules and mask the very poisoning we're trying to detect.
     global _numpy_random_import_state
-    try:
-        __import__("numpy.random")
-        currently_works = True
-    except ImportError:
-        currently_works = False
-    if _numpy_random_import_state != currently_works:
-        label = "POISONED" if not currently_works else "RECOVERED"
+    in_sys_modules = "numpy.random" in sys.modules
+    if _numpy_random_import_state != in_sys_modules:
+        if _numpy_random_import_state is True and not in_sys_modules:
+            label = "REMOVED_FROM_SYS_MODULES"
+        elif _numpy_random_import_state is False and in_sys_modules:
+            label = "RE_ADDED_TO_SYS_MODULES"
+        else:
+            label = "FIRST_SEEN_PRESENT" if in_sys_modules else "FIRST_SEEN_ABSENT"
         worker = _os.environ.get("PYTEST_XDIST_WORKER", "main")
         with open(_POISON_LOG, "a") as f:
             f.write(f"[{worker}] {label} by: {request.node.nodeid}\n")
-        _numpy_random_import_state = currently_works
+        _numpy_random_import_state = in_sys_modules
 
 
 @dataclasses.dataclass
