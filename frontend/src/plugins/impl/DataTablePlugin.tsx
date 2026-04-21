@@ -1073,6 +1073,7 @@ const DataTableComponent = ({
             showFilters={showFilters}
             filters={filters}
             onFiltersChange={setFilters}
+            calculateTopKRows={calculate_top_k_rows}
             reloading={reloading}
             onRowSelectionChange={handleRowSelectionChange}
             freezeColumnsLeft={freezeColumnsLeft}
