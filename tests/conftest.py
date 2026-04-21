@@ -230,13 +230,31 @@ def _probe_numpy_random_state(nodeid: str) -> None:
 def _detect_numpy_random_poisoning(
     request: pytest.FixtureRequest,
 ) -> Generator[None, None, None]:
+    # Capture BEFORE the test runs so we can catch tests that mutate
+    # sys.modules['numpy.random'] during their body (even if they restore
+    # it before teardown).
+    before = (
+        "numpy.random" in sys.modules if "numpy" in sys.modules else None
+    )
     yield
     if not _POISON_LOG or "numpy" not in sys.modules:
         return
+    worker = _os.environ.get("PYTEST_XDIST_WORKER", "main")
+    in_sys_modules = "numpy.random" in sys.modules
+    # Log ANY test that flipped numpy.random during its body — this
+    # catches the "remove during test, re-add before teardown" case that
+    # the between-tests check below would miss.
+    if before is not None and before != in_sys_modules:
+        direction = "REMOVED" if before and not in_sys_modules else "RE_ADDED"
+        with open(_POISON_LOG, "a") as f:
+            f.write(
+                f"[{worker}] DURING {request.node.nodeid}: "
+                f"numpy.random {direction} "
+                f"(before={before} after={in_sys_modules})\n"
+            )
     # Passive check: don't call __import__, which would re-cache numpy.random
     # in sys.modules and mask the very poisoning we're trying to detect.
     global _numpy_random_import_state
-    in_sys_modules = "numpy.random" in sys.modules
     if _numpy_random_import_state != in_sys_modules:
         if _numpy_random_import_state is True and not in_sys_modules:
             label = "REMOVED_FROM_SYS_MODULES"
@@ -246,7 +264,6 @@ def _detect_numpy_random_poisoning(
             label = (
                 "FIRST_SEEN_PRESENT" if in_sys_modules else "FIRST_SEEN_ABSENT"
             )
-        worker = _os.environ.get("PYTEST_XDIST_WORKER", "main")
         with open(_POISON_LOG, "a") as f:
             f.write(f"[{worker}] {label} by: {request.node.nodeid}\n")
         _numpy_random_import_state = in_sys_modules

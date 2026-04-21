@@ -132,7 +132,7 @@ runs:
       run: |
         if [ -f /tmp/marimo-poison.log ]; then
           echo "=== numpy.random import state transitions during this run ==="
-          sort -u /tmp/marimo-poison.log
+          cat /tmp/marimo-poison.log
         else
           echo "(no poisoning log written — fixture either not loaded or numpy never imported)"
         fi
