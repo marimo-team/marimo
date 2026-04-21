@@ -3685,18 +3685,24 @@ def launch_kernel(
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
         hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
 
+    # Subprocess kernels own their process's sys.modules, so they use
+    # "__main__" directly. Thread-based kernels share sys.modules with the
+    # server and with sibling kernels, so each gets a unique module name —
+    # this keeps pickle correct (fn.__module__ resolves to *this* kernel's
+    # module in sys.modules, no matter which thread is pickling) and avoids
+    # kernels racing on a shared "__main__" slot.
+    if is_subprocess:
+        kernel_main_name = "__main__"
+    else:
+        kernel_main_name = f"__marimo_kernel_{uuid4().hex}__"
     main_module = patches.create_main_module(
         file=app_metadata.filename,
         input_override=input_override,
         print_override=print_override,
         doc=app_metadata.docstring,
+        name=kernel_main_name,
     )
-    if is_subprocess:
-        # Thread-based run mode kernels share sys.modules, so we don't
-        # publish the kernel's __main__ globally at launch — _run_cells
-        # wraps each run in patch_main_module_context, which swaps in and
-        # restores __main__ around cell execution.
-        patches.patch_sys_module(main_module)
+    patches.patch_sys_module(main_module)
 
     kernel = Kernel(
         cell_configs=configs,
@@ -3828,5 +3834,11 @@ def launch_kernel(
     get_context().app_kernel_runner_registry.shutdown()
     teardown_context()
     kernel.teardown()
+    if not is_subprocess:
+        # Unregister this kernel's main module so its entry doesn't leak
+        # across kernel lifetimes in the shared process. In subprocess
+        # modes we registered under "__main__" and process teardown handles
+        # the rest.
+        sys.modules.pop(main_module.__name__, None)
     if isinstance(pipe, connection.Connection):
         pipe.close()

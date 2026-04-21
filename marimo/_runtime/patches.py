@@ -188,11 +188,16 @@ def create_main_module(
     input_override: Callable[[Any], str] | None,
     print_override: Callable[[Any], None] | None,
     doc: str | None = None,
+    name: str = "__main__",
 ) -> types.ModuleType:
     # Every kernel gets its own main module, whose __dict__ attribute
-    # serves as the global namespace
+    # serves as the global namespace. `name` controls both the module's
+    # __name__ attribute and the key it can be registered under in
+    # sys.modules. Thread-based kernels use a unique name so multiple
+    # kernels can coexist in one process's sys.modules without racing on
+    # the shared "__main__" slot.
     _module = types.ModuleType(
-        "__main__",
+        name,
         doc=doc if doc is not None else "Created for the marimo kernel.",
     )
     _module.__dict__.setdefault("__builtin__", globals()["__builtins__"])
