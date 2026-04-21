@@ -182,6 +182,22 @@ def _normalize_sandbox_dependencies(
     return filtered + [include_features(chosen, additional_features)]
 
 
+def _resolve_local_path_line(line: str, script_dir: Path) -> str:
+    """Resolve a relative local-path requirement to an absolute path.
+
+    >>> _resolve_local_path_line("-e ../pkg ; py<'3.12' # via foo", Path("/a/b"))
+    '-e /a/pkg ; py<\\'3.12\\' # via foo'
+    """
+    rest = line[3:] if line.startswith("-e ") else line
+    path_and_comment, _, _ = rest.partition(";")
+    path_token, _, _ = path_and_comment.partition(" #")
+    path_token = path_token.rstrip()
+    if not path_token.startswith("."):
+        return line
+    resolved = str((script_dir / path_token).resolve())
+    return line.replace(path_token, resolved, 1)
+
+
 def _uv_export_script_requirements_txt(
     name: str | None,
 ) -> list[str]:
@@ -202,41 +218,11 @@ def _uv_export_script_requirements_txt(
         capture_output=True,
         text=True,
     )
-    lines = result.stdout.split("\n")
-
-    # uv export returns local paths relative to the script file, but these
-    # lines get written to a temp requirements file consumed by
-    # `uv run --with-requirements`, which resolves relative paths from CWD.
-    # Convert relative paths to absolute using the script's directory as base.
-    # Applies to both editable (-e ../../) and non-editable (../../) sources.
     script_dir = Path(name).resolve().parent
-    resolved = []
-    for line in lines:
-        editable = line.startswith("-e ")
-        rest = line[3:].strip() if editable else line.strip()
-        # Split off any environment markers ("; ...") or inline comments ("# ...")
-        # so we only resolve the path token itself.
-        # Preserve the original separator exactly. Environment markers
-        # may appear without a leading space (e.g. ;python_version<"3.12").
-        # Inline comments must be preceded by whitespace to be valid.
-        marker_idx = rest.find(";")
-        comment_idx = -1
-        for i, char in enumerate(rest):
-            if char == "#" and i > 0 and rest[i - 1].isspace():
-                comment_idx = i
-                break
-        split_points = [idx for idx in (marker_idx, comment_idx) if idx != -1]
-        if split_points:
-            split_idx = min(split_points)
-            path_token = rest[:split_idx]
-            remainder = rest[split_idx:]
-        else:
-            path_token, remainder = rest, ""
-        if path_token.startswith("."):
-            path_token = str((script_dir / path_token).resolve())
-        prefix = "-e " if editable else ""
-        resolved.append(f"{prefix}{path_token}{remainder}")
-    return resolved
+    return [
+        _resolve_local_path_line(line, script_dir)
+        for line in result.stdout.split("\n")
+    ]
 
 
 def _resolve_requirements_txt_lines(pyproject: PyProjectReader) -> list[str]:
