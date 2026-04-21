@@ -57,6 +57,9 @@ runs:
     # Exit code 5 = no tests collected (e.g. only CLI test files changed);
     # treat that as success since CLI tests run in a separate workflow.
     #
+    # xdist is also disabled when the `test-serial` label is applied to a PR,
+    # as an escape hatch when parallelism causes flakes that block a merge.
+    #
     # TODO: xdist is disabled on Windows because several tests
     # crash workers. Fix and re-enable. Failing tests:
     #   - tests/_islands/test_island_generator.py::test_build
@@ -74,7 +77,7 @@ runs:
       run: |
         uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
           -v \
-          ${{ inputs.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
+          ${{ (inputs.os != 'windows-latest' && !contains(github.event.pull_request.labels.*.name, 'test-serial')) && '-n auto' || '-p no:xdist' }} \
           -k "not test_cli" \
           --durations=10 \
           -p packages.pytest_changed \
@@ -91,7 +94,7 @@ runs:
       run: |
         uv run --python ${{ inputs.python-version }} --group test-optional pytest tests/ \
           -v \
-          ${{ inputs.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
+          ${{ (inputs.os != 'windows-latest' && !contains(github.event.pull_request.labels.*.name, 'test-serial')) && '-n auto' || '-p no:xdist' }} \
           -k "not test_cli" \
           --durations=10 \
           -p packages.pytest_changed \
@@ -112,7 +115,7 @@ runs:
       run: |
         uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
           -v \
-          ${{ inputs.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
+          ${{ (inputs.os != 'windows-latest' && !contains(github.event.pull_request.labels.*.name, 'test-serial')) && '-n auto' || '-p no:xdist' }} \
           -k "not test_cli" \
           --durations=10 \
           -p packages.pytest_changed \
