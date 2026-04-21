@@ -2227,10 +2227,14 @@ def test_lazy_dataframe_with_non_lazy_dataframe(df: Any):
 def test_get_data_url_no_deps() -> None:
     table = ui.table([1, 2, 3])
     response = table._get_data_url({})
-    assert response.data_url.startswith("data:application/json;base64,")
-    data = json.loads(from_data_uri(response.data_url)[1])
-    assert data == [{"value": 1}, {"value": 2}, {"value": 3}]
-    assert response.format == "json"
+    # DefaultTableManager.to_csv_str uses the stdlib csv module and works
+    # without pandas/polars/pyarrow, so _to_chart_data_url returns CSV before
+    # falling through to JSON.
+    assert response.data_url.startswith("data:text/csv;base64,")
+    assert from_data_uri(response.data_url)[1].decode("utf-8") == (
+        "value\n1\n2\n3\n"
+    )
+    assert response.format == "csv"
 
 
 @pytest.mark.skipif(

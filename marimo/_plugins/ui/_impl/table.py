@@ -905,7 +905,7 @@ class table(
             has_pandas = DependencyManager.pandas.has()
             has_pyarrow = DependencyManager.pyarrow.has()
 
-            if not (has_polars or (has_pandas and has_pyarrow)):
+            if not (has_polars or has_pyarrow):
                 # if pandas is installed and pyarrow is not, prompt to install pyarrow
                 if has_pandas:
                     return DownloadAsResponse(

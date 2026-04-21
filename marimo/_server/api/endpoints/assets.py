@@ -601,6 +601,9 @@ async def serve_static(request: Request) -> FileResponse:
             PathValidator().validate_inside_directory(root, file_path)
         except Exception:
             raise HTTPException(status_code=404, detail="Not Found") from None
-        return FileResponse(root / path)
+        resolved = root / path
+        if not resolved.is_file():
+            raise HTTPException(status_code=404, detail="Not Found")
+        return FileResponse(resolved)
 
     raise HTTPException(status_code=404, detail="Not Found")
