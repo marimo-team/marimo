@@ -15,9 +15,9 @@ from marimo import _loggers
 from marimo._ast.parse import ast_parse
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import marimo_browser, marimo_pdb
+from marimo._utils.platform import is_pyodide
 
 LOGGER = _loggers.marimo_logger()
-from marimo._utils.platform import is_pyodide
 
 Unpatch = Callable[[], None]
 
