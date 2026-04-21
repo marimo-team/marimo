@@ -857,10 +857,12 @@ def test_resolve_local_path_line() -> None:
     assert _resolve_local_path_line("-e ../pkg", d) == f"-e {_r('../pkg')}"
     # Env marker
     result = _resolve_local_path_line("../pkg ; py<'3.12'", d)
-    assert _r("../pkg") in result and "py<'3.12'" in result
+    assert _r("../pkg") in result
+    assert "py<'3.12'" in result
     # Inline comment
     result = _resolve_local_path_line("../pkg # via foo", d)
-    assert _r("../pkg") in result and "# via foo" in result
+    assert _r("../pkg") in result
+    assert "# via foo" in result
     # Both marker and comment
     result = _resolve_local_path_line("../pkg ; py<'3.12' # via foo", d)
     assert _r("../pkg") in result
