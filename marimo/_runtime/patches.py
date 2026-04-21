@@ -6,13 +6,17 @@ import contextlib
 import functools
 import sys
 import textwrap
+import threading
 import types
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from marimo import _loggers
 from marimo._ast.parse import ast_parse
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import marimo_browser, marimo_pdb
+
+LOGGER = _loggers.marimo_logger()
 from marimo._utils.platform import is_pyodide
 
 Unpatch = Callable[[], None]
@@ -58,6 +62,58 @@ def patch_webbrowser() -> None:
 
 def patch_sys_module(module: types.ModuleType) -> None:
     sys.modules[module.__name__] = module
+
+
+# Refcount-based save/restore for the process's ``sys.modules['__main__']``.
+# Run-mode (thread) kernels share sys.modules with the host; pairing every
+# ``patch_main_module`` with save/restore keeps the host's main module from
+# leaking the kernel's synthetic module after the session ends.
+_main_save_lock = threading.Lock()
+_main_save_count = 0
+_main_original: types.ModuleType | None = None
+
+
+def save_main_module() -> None:
+    """Pair with ``restore_main_module`` to scope a ``patch_main_module`` call.
+
+    The first call in a process captures the current ``sys.modules['__main__']``;
+    subsequent overlapping calls share that capture and the last paired
+    ``restore_main_module`` puts the original back.
+
+    Callers must balance save/restore. An unbalanced save increments the
+    refcount permanently for the process lifetime and prevents the original
+    ``__main__`` from ever being restored; an unbalanced restore is a no-op.
+    """
+    global _main_save_count, _main_original
+    with _main_save_lock:
+        if _main_save_count == 0:
+            _main_original = sys.modules.get("__main__")
+            LOGGER.debug(
+                "save_main_module captured original __main__=%r",
+                _main_original,
+            )
+        _main_save_count += 1
+
+
+def restore_main_module() -> None:
+    """Release a reference acquired by ``save_main_module``.
+
+    Restores the captured original ``sys.modules['__main__']`` when the last
+    outstanding reference is released. Calling with no outstanding reference
+    is a no-op.
+    """
+    global _main_save_count, _main_original
+    with _main_save_lock:
+        if _main_save_count == 0:
+            return
+        _main_save_count -= 1
+        if _main_save_count == 0 and _main_original is not None:
+            sys.modules["__main__"] = _main_original
+            LOGGER.debug(
+                "restore_main_module restored __main__ to %r",
+                _main_original,
+            )
+            _main_original = None
 
 
 def patch_pyodide_networking() -> None:

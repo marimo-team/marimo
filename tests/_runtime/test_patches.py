@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import io
+import multiprocessing
 import sys
+import threading
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
@@ -10,10 +12,16 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.capture import capture_stderr
-from marimo._runtime.patches import patch_polars_write_json
+from marimo._runtime.patches import (
+    patch_main_module,
+    patch_polars_write_json,
+    restore_main_module,
+    save_main_module,
+)
 from marimo._runtime.runtime import Kernel
 from marimo._utils.platform import is_pyodide
 from tests._messaging.mocks import MockStream
+from tests._runtime._patches_spawn_target import noop_target
 from tests.conftest import ExecReqProvider
 
 if TYPE_CHECKING:
@@ -254,3 +262,108 @@ def test_polars_write_json_patch(tmp_path: Path):
         # Test it fails again
         with pytest.raises(ValueError, match="Test error"):
             df.write_json(file_path)
+
+
+class TestSaveRestoreMainModule:
+    """save_main_module / restore_main_module refcount helpers.
+
+    patch_main_module mutates sys.modules['__main__'] without a restore
+    path, leaking a synthetic module into any host that shares sys.modules
+    with the kernel (i.e. RUN-mode thread kernels). The helpers let
+    callers explicitly scope the mutation.
+    """
+
+    def test_restore_returns_original_main(self) -> None:
+        original = sys.modules["__main__"]
+        save_main_module()
+        try:
+            patch_main_module(
+                file=None, input_override=None, print_override=None
+            )
+            assert sys.modules["__main__"] is not original
+        finally:
+            restore_main_module()
+        assert sys.modules["__main__"] is original
+
+    def test_refcounted_multiple_savers_share_original(self) -> None:
+        original = sys.modules["__main__"]
+        # Two overlapping sessions each call save.
+        save_main_module()
+        save_main_module()
+        try:
+            patch_main_module(
+                file=None, input_override=None, print_override=None
+            )
+            mutated = sys.modules["__main__"]
+            assert mutated is not original
+            # First release: refcount still > 0, no restore yet.
+            restore_main_module()
+            assert sys.modules["__main__"] is mutated
+        finally:
+            # Last release: restore to the originally captured value.
+            restore_main_module()
+        assert sys.modules["__main__"] is original
+
+    def test_over_release_is_noop(self) -> None:
+        original = sys.modules["__main__"]
+        # No outstanding save; restore should do nothing.
+        restore_main_module()
+        assert sys.modules["__main__"] is original
+
+    def test_concurrent_save_restore_cycles_preserve_main(self) -> None:
+        """Concurrent save/restore cycles converge back to the original main."""
+        original = sys.modules["__main__"]
+        n_threads = 8
+        iterations_per_thread = 25
+
+        def worker() -> None:
+            for _ in range(iterations_per_thread):
+                save_main_module()
+                patch_main_module(
+                    file=None, input_override=None, print_override=None
+                )
+                restore_main_module()
+
+        threads = [threading.Thread(target=worker) for _ in range(n_threads)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert sys.modules["__main__"] is original
+
+    def test_save_when_main_is_absent_is_safe(self) -> None:
+        """Saving when sys.modules has no __main__ skips the restore write."""
+        saved_main = sys.modules.pop("__main__", None)
+        try:
+            save_main_module()
+            # A save that captured None must not install a None __main__.
+            restore_main_module()
+            assert "__main__" not in sys.modules
+        finally:
+            if saved_main is not None:
+                sys.modules["__main__"] = saved_main
+
+    def test_host_spawn_works_after_save_and_restore(self) -> None:
+        """End-to-end: restoring __main__ lets the host spawn subprocesses.
+
+        Matches the reproduction in the bug report. Without the restore,
+        ``multiprocessing.get_context('spawn').Process(...).start()`` fails
+        because the synthetic __main__ has no handle to module-level
+        targets. With the restore, it succeeds.
+        """
+        save_main_module()
+        try:
+            patch_main_module(
+                file=None, input_override=None, print_override=None
+            )
+        finally:
+            restore_main_module()
+
+        proc = multiprocessing.get_context("spawn").Process(target=noop_target)
+        proc.start()
+        proc.join(timeout=10)
+        assert proc.exitcode == 0, (
+            "spawn subprocess failed after save/patch/restore cycle; "
+            "restore did not recover host's __main__"
+        )
