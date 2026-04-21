@@ -233,9 +233,7 @@ def _detect_numpy_random_poisoning(
     # Capture BEFORE the test runs so we can catch tests that mutate
     # sys.modules['numpy.random'] during their body (even if they restore
     # it before teardown).
-    before = (
-        "numpy.random" in sys.modules if "numpy" in sys.modules else None
-    )
+    before = "numpy.random" in sys.modules if "numpy" in sys.modules else None
     yield
     if not _POISON_LOG or "numpy" not in sys.modules:
         return
