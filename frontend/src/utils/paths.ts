@@ -4,10 +4,18 @@ import type { TypedString } from "./typed";
 
 export type FilePath = TypedString<"FilePath">;
 
+// Windows drive-letter prefix like `C:\`, `d:/`, `Z:\`.
+const WINDOWS_DRIVE_PREFIX = /^[A-Za-z]:[/\\]/;
+// URI scheme prefix like `s3://`, `gs://`, `http://`, `file://`.
+const URI_SCHEME_PREFIX = /^[A-Za-z][\dA-Za-z+.-]*:\/\//;
+
 export const Paths = {
   isAbsolute: (path: string): boolean => {
     return (
-      path.startsWith("/") || path.startsWith("\\") || path.startsWith("C:\\")
+      path.startsWith("/") ||
+      path.startsWith("\\") ||
+      WINDOWS_DRIVE_PREFIX.test(path) ||
+      URI_SCHEME_PREFIX.test(path)
     );
   },
   dirname: (path: string) => {

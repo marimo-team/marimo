@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { type FilePath, Paths, PathBuilder } from "./paths";
+
 /**
  * Get the protocol and parent directories of a path.
  */
@@ -73,4 +75,48 @@ export function fileSplit(path: string): [name: string, extension: string] {
   const name = lastDotIndex > 0 ? path.slice(0, lastDotIndex) : path;
   const extension = lastDotIndex > 0 ? path.slice(lastDotIndex) : "";
   return [name, extension];
+}
+
+/**
+ * Build the "_copy" filename used for duplicate operations.
+ * e.g. `foo.py` → `foo_copy.py`, `README` → `README_copy`.
+ */
+export function makeDuplicateName(name: string): string {
+  const [base, extension] = fileSplit(name);
+  return `${base}_copy${extension}`;
+}
+
+/**
+ * Return `path` as an absolute path, joining against `root` when it's
+ * workspace-relative. `root`'s delimiter determines the join style so
+ * Windows and POSIX paths both behave correctly.
+ */
+export function toAbsolutePath(path: string, root: string): FilePath {
+  if (Paths.isAbsolute(path)) {
+    return path as FilePath;
+  }
+  return PathBuilder.guessDeliminator(root).join(root, path as FilePath);
+}
+
+/**
+ * Resolve absolute current/new paths for a rename- or copy-style operation.
+ * Given a node's current `path` (absolute or workspace-relative) and a
+ * desired new `name` (basename only), returns the absolute source and the
+ * absolute destination, keeping the file in the same parent directory.
+ */
+export function resolvePaths({
+  path,
+  name,
+  root,
+}: {
+  path: string;
+  name: string;
+  root: string;
+}): { path: FilePath; newPath: FilePath } {
+  const absPath = toAbsolutePath(path, root);
+  // When `root` is empty (callers with already-absolute paths), fall back to
+  // the resolved absolute path so we don't default to the Windows delimiter.
+  const pathBuilder = PathBuilder.guessDeliminator(root || absPath);
+  const newPath = pathBuilder.join(pathBuilder.dirname(absPath), name);
+  return { path: absPath, newPath };
 }

@@ -305,7 +305,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     sendDeleteFileOrFolder: async (request) => {
-      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/delete", {
           body: request,
@@ -313,7 +312,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     sendCopyFileOrFolder: async (request) => {
-      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/copy", {
           body: request,
@@ -321,7 +319,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     sendRenameFileOrFolder: async (request) => {
-      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/move", {
           body: request,

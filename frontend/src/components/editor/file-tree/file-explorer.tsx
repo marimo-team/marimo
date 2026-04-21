@@ -6,21 +6,18 @@ import {
   ArrowLeftIcon,
   BetweenHorizontalStartIcon,
   BracesIcon,
-  CopyIcon,
   CopyMinusIcon,
   DownloadIcon,
-  Edit3Icon,
   ExternalLinkIcon,
   EyeOffIcon,
   FilePlus2Icon,
   FolderPlusIcon,
   ListTreeIcon,
   PlaySquareIcon,
-  Trash2Icon,
   UploadIcon,
   ViewIcon,
 } from "lucide-react";
-import React, { Suspense, use, useEffect, useRef, useState } from "react";
+import React, { Suspense, use, useRef, useState } from "react";
 import {
   type NodeApi,
   type NodeRendererProps,
@@ -35,8 +32,14 @@ import {
   guessFileIconType,
 } from "@/components/editor/file-tree/file-icons";
 import {
+  DeleteMenuItem,
+  DuplicateMenuItem,
+  FileActionsDropdown,
+  RenameMenuItem,
+} from "@/components/editor/file-tree/file-operations";
+import { FileNameInput } from "@/components/editor/file-tree/file-name-input";
+import {
   MENU_ITEM_ICON_CLASS,
-  MoreActionsButton,
   RefreshIconButton,
   TreeChevron,
 } from "@/components/editor/file-tree/tree-actions";
@@ -46,11 +49,8 @@ import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
@@ -69,7 +69,7 @@ import { downloadBlob } from "@/utils/download";
 import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { openNotebook } from "@/utils/links";
 import type { FilePath } from "@/utils/paths";
-import { fileSplit } from "@/utils/pathUtils";
+import { makeDuplicateName } from "@/utils/pathUtils";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { useTreeDndManager } from "./dnd-wrapper";
 import { FileViewer } from "./file-viewer";
@@ -131,7 +131,7 @@ export const FileExplorer: React.FC<{
     openPrompt({
       title: "File name",
       onConfirm: async (name) => {
-        tree.createFile(name, null);
+        tree.createFile({ name, parentId: null });
       },
     });
   });
@@ -140,7 +140,7 @@ export const FileExplorer: React.FC<{
     openPrompt({
       title: "Notebook name",
       onConfirm: async (name) => {
-        tree.createFile(name, null, "notebook");
+        tree.createFile({ name, parentId: null, type: "notebook" });
       },
     });
   });
@@ -392,33 +392,6 @@ const Show = ({
   );
 };
 
-const Edit = ({ node }: { node: NodeApi<FileInfo> }) => {
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    ref.current?.focus();
-    // Select everything, but the extension
-    ref.current?.setSelectionRange(0, node.data.name.lastIndexOf("."));
-  }, [node.data.name]);
-
-  return (
-    <input
-      ref={ref}
-      className="flex-1 bg-transparent border border-border text-muted-foreground"
-      defaultValue={node.data.name}
-      onClick={(e) => e.stopPropagation()}
-      onBlur={() => node.reset()}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          node.reset();
-        }
-        if (e.key === "Enter") {
-          node.submit(e.currentTarget.value);
-        }
-      }}
-    />
-  );
-};
-
 const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
   const { openFile, sendFileDetails } = useRequestClient();
   const disableFileDownloads = useAtomValue(disableFileDownloadsAtom);
@@ -486,7 +459,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     openPrompt({
       title: "File name",
       onConfirm: async (name) => {
-        tree?.createFile(name, node.id);
+        tree?.createFile({ name, parentId: node.id });
       },
     });
   });
@@ -496,7 +469,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     openPrompt({
       title: "Notebook name",
       onConfirm: async (name) => {
-        tree?.createFile(name, node.id, "notebook");
+        tree?.createFile({ name, parentId: node.id, type: "notebook" });
       },
     });
   });
@@ -505,157 +478,8 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     if (!tree) {
       return;
     }
-
-    const [name, extension] = fileSplit(node.data.name);
-    const duplicateName = `${name}_copy${extension}`;
-
-    await tree.copy(node.id, duplicateName);
+    await tree.copy(node.id, makeDuplicateName(node.data.name));
   });
-
-  const renderActions = () => {
-    const ic = MENU_ITEM_ICON_CLASS;
-    return (
-      <DropdownMenuContent
-        align="end"
-        className="print:hidden w-[220px]"
-        onClick={(e) => e.stopPropagation()}
-        onCloseAutoFocus={(e) => e.preventDefault()}
-      >
-        {!node.data.isDirectory && (
-          <DropdownMenuItem onSelect={() => node.select()}>
-            <ViewIcon className={ic} />
-            Open file
-          </DropdownMenuItem>
-        )}
-        {!node.data.isDirectory && !isWasm() && (
-          <DropdownMenuItem
-            onSelect={() => {
-              openFile({ path: node.data.path });
-            }}
-          >
-            <ExternalLinkIcon className={ic} />
-            Open file in external editor
-          </DropdownMenuItem>
-        )}
-        {node.data.isDirectory && (
-          <>
-            <DropdownMenuItem onSelect={() => handleCreateNotebook()}>
-              <MarimoPlusIcon className={ic} />
-              Create notebook
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => handleCreateFile()}>
-              <FilePlus2Icon className={ic} />
-              Create file
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => handleCreateFolder()}>
-              <FolderPlusIcon className={ic} />
-              Create folder
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </>
-        )}
-        <DropdownMenuItem onSelect={() => node.edit()}>
-          <Edit3Icon className={ic} />
-          Rename
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={handleDuplicate}>
-          <CopyIcon className={ic} />
-          Duplicate
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={async () => {
-            await copyToClipboard(node.data.path);
-            toast({ title: "Copied to clipboard" });
-          }}
-        >
-          <ListTreeIcon className={ic} />
-          Copy path
-        </DropdownMenuItem>
-        {tree && (
-          <DropdownMenuItem
-            onSelect={async () => {
-              await copyToClipboard(
-                tree.relativeFromRoot(node.data.path as FilePath),
-              );
-              toast({ title: "Copied to clipboard" });
-            }}
-          >
-            <ListTreeIcon className={ic} />
-            Copy relative path
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem
-          onSelect={() => {
-            const { path } = node.data;
-            const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
-            handleInsertCode(pythonCode);
-          }}
-        >
-          <BetweenHorizontalStartIcon className={ic} />
-          Insert snippet for reading file
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={async () => {
-            toast({
-              title: "Copied to clipboard",
-              description:
-                "Code to open the file has been copied to your clipboard. You can also drag and drop this file into the editor",
-            });
-            const { path } = node.data;
-            const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
-            await copyToClipboard(pythonCode);
-          }}
-        >
-          <BracesIcon className={ic} />
-          Copy snippet for reading file
-        </DropdownMenuItem>
-        {/* Not shown in WASM */}
-        {node.data.isMarimoFile && !isWasm() && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={handleOpenMarimoFile}>
-              <PlaySquareIcon className={ic} />
-              Open notebook
-            </DropdownMenuItem>
-          </>
-        )}
-        <DropdownMenuSeparator />
-        {!node.data.isDirectory && !disableFileDownloads && (
-          <>
-            <DropdownMenuItem
-              onSelect={async () => {
-                const details = await sendFileDetails({ path: node.data.path });
-                if (details.isBase64 && details.contents) {
-                  const blob = deserializeBlob(
-                    base64ToDataURL(
-                      details.contents as Base64String,
-                      details.mimeType || "application/octet-stream",
-                    ),
-                  );
-                  downloadBlob(blob, node.data.name);
-                } else {
-                  downloadBlob(
-                    new Blob([details.contents || ""]),
-                    node.data.name,
-                  );
-                }
-              }}
-            >
-              <DownloadIcon className={ic} />
-              Download
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </>
-        )}
-        <DropdownMenuItem onSelect={handleDeleteFile} variant="danger">
-          <Trash2Icon className={ic} />
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    );
-  };
 
   return (
     <div
@@ -690,23 +514,138 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
           />
         )}
         {node.isEditing ? (
-          <Edit node={node} />
+          <FileNameInput node={node} />
         ) : (
           <Show node={node} onOpenMarimoFile={handleOpenMarimoFile} />
         )}
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger
-            asChild={true}
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
+        <FileActionsDropdown
+          testId="file-explorer-more-button"
+          iconClassName="w-5 h-5"
+        >
+          {!node.data.isDirectory && (
+            <DropdownMenuItem onSelect={() => node.select()}>
+              <ViewIcon className={MENU_ITEM_ICON_CLASS} />
+              Open file
+            </DropdownMenuItem>
+          )}
+          {!node.data.isDirectory && !isWasm() && (
+            <DropdownMenuItem
+              onSelect={() => {
+                openFile({ path: node.data.path });
+              }}
+            >
+              <ExternalLinkIcon className={MENU_ITEM_ICON_CLASS} />
+              Open file in external editor
+            </DropdownMenuItem>
+          )}
+          {node.data.isDirectory && (
+            <>
+              <DropdownMenuItem onSelect={() => handleCreateNotebook()}>
+                <MarimoPlusIcon className={MENU_ITEM_ICON_CLASS} />
+                Create notebook
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleCreateFile()}>
+                <FilePlus2Icon className={MENU_ITEM_ICON_CLASS} />
+                Create file
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleCreateFolder()}>
+                <FolderPlusIcon className={MENU_ITEM_ICON_CLASS} />
+                Create folder
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
+          <RenameMenuItem onSelect={() => node.edit()} />
+          <DuplicateMenuItem onSelect={handleDuplicate} />
+          <DropdownMenuItem
+            onSelect={async () => {
+              await copyToClipboard(node.data.path);
+              toast({ title: "Copied to clipboard" });
+            }}
           >
-            <MoreActionsButton
-              data-testid="file-explorer-more-button"
-              iconClassName="w-5 h-5"
-            />
-          </DropdownMenuTrigger>
-          {renderActions()}
-        </DropdownMenu>
+            <ListTreeIcon className={MENU_ITEM_ICON_CLASS} />
+            Copy path
+          </DropdownMenuItem>
+          {tree && (
+            <DropdownMenuItem
+              onSelect={async () => {
+                await copyToClipboard(
+                  tree.relativeFromRoot(node.data.path as FilePath),
+                );
+                toast({ title: "Copied to clipboard" });
+              }}
+            >
+              <ListTreeIcon className={MENU_ITEM_ICON_CLASS} />
+              Copy relative path
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => {
+              const { path } = node.data;
+              const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
+              handleInsertCode(pythonCode);
+            }}
+          >
+            <BetweenHorizontalStartIcon className={MENU_ITEM_ICON_CLASS} />
+            Insert snippet for reading file
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={async () => {
+              toast({
+                title: "Copied to clipboard",
+                description:
+                  "Code to open the file has been copied to your clipboard. You can also drag and drop this file into the editor",
+              });
+              const { path } = node.data;
+              const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
+              await copyToClipboard(pythonCode);
+            }}
+          >
+            <BracesIcon className={MENU_ITEM_ICON_CLASS} />
+            Copy snippet for reading file
+          </DropdownMenuItem>
+          {node.data.isMarimoFile && !isWasm() && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={handleOpenMarimoFile}>
+                <PlaySquareIcon className={MENU_ITEM_ICON_CLASS} />
+                Open notebook
+              </DropdownMenuItem>
+            </>
+          )}
+          <DropdownMenuSeparator />
+          {!node.data.isDirectory && !disableFileDownloads && (
+            <>
+              <DropdownMenuItem
+                onSelect={async () => {
+                  const details = await sendFileDetails({
+                    path: node.data.path,
+                  });
+                  if (details.isBase64 && details.contents) {
+                    const blob = deserializeBlob(
+                      base64ToDataURL(
+                        details.contents as Base64String,
+                        details.mimeType || "application/octet-stream",
+                      ),
+                    );
+                    downloadBlob(blob, node.data.name);
+                  } else {
+                    downloadBlob(
+                      new Blob([details.contents || ""]),
+                      node.data.name,
+                    );
+                  }
+                }}
+              >
+                <DownloadIcon className={MENU_ITEM_ICON_CLASS} />
+                Download
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
+          <DeleteMenuItem onSelect={handleDeleteFile} />
+        </FileActionsDropdown>
       </span>
     </div>
   );
