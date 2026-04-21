@@ -448,6 +448,175 @@ def test_format_structure_set() -> None:
     assert format_structure([test_set]) == (["text/plain+set:{1, 2, 3}"])
 
 
+def test_format_structure_dict_non_string_keys_do_not_collide() -> None:
+    """Regression test for https://github.com/marimo-team/marimo/issues/9288.
+
+    JSON object keys are always strings, so a Python dict that mixes
+    equal-looking string and non-string keys (e.g. {"2": ..., 2: ...})
+    must not silently collapse to a single entry once the JSON is parsed
+    in the browser.
+    """
+    import json
+
+    StructuresFormatter().register()
+
+    my_map = {"2": "oh", 2: "no"}
+    mimetype, data = get_and_format(my_map)
+    assert mimetype == "application/json"
+
+    # The serialized form must round-trip through JSON.parse without losing
+    # entries (in the browser, `JSON.parse` keeps only the last duplicate key).
+    parsed = json.loads(data)
+    assert len(parsed) == len(my_map), (
+        f"expected {len(my_map)} entries after JSON round-trip, "
+        f"got {len(parsed)}: {parsed!r} (serialized: {data!r})"
+    )
+    assert parsed == {"2": "oh", "text/plain+int:2": "no"}
+
+
+def test_format_structure_dict_primitive_keys_encoded() -> None:
+    """Non-string primitive keys are mimetype-encoded on the wire."""
+    import json
+
+    StructuresFormatter().register()
+
+    mimetype, data = get_and_format(
+        {
+            "plain": 1,
+            2: "int",
+            2.5: "float",
+            True: "bool_true",
+            False: "bool_false",
+            None: "none",
+        }
+    )
+    assert mimetype == "application/json"
+    parsed = json.loads(data)
+    assert parsed == {
+        "plain": 1,
+        "text/plain+int:2": "int",
+        "text/plain+float:2.5": "float",
+        "text/plain+bool:True": "bool_true",
+        "text/plain+bool:False": "bool_false",
+        "text/plain+none:": "none",
+    }
+
+
+def test_format_structure_dict_bigint_key_encoded_as_int() -> None:
+    """Keys use text/plain+int: regardless of size (no JS precision concern)."""
+    import json
+
+    StructuresFormatter().register()
+
+    big = 2**64
+    _, data = get_and_format({big: "v"})
+    assert json.loads(data) == {f"text/plain+int:{big}": "v"}
+
+
+def test_format_structure_dict_nan_inf_float_keys_are_strict_json() -> None:
+    """NaN/Inf keys must not emit bare `NaN`/`Infinity` (invalid JSON)."""
+    import json
+
+    StructuresFormatter().register()
+
+    _, data = get_and_format(
+        {float("nan"): "n", float("inf"): "p", -float("inf"): "m"}
+    )
+    # Strict JSON parser — fails if we emitted `NaN`/`Infinity` unquoted.
+    parsed = json.loads(data)
+    assert parsed == {
+        "text/plain+float:nan": "n",
+        "text/plain+float:inf": "p",
+        "text/plain+float:-inf": "m",
+    }
+
+
+def test_format_structure_dict_tuple_key_encoded() -> None:
+    """Regression test for #2667 — tuple keys keep their type on the wire."""
+    import json
+
+    StructuresFormatter().register()
+
+    _, data = get_and_format({(1, 2, 3): 4})
+    assert json.loads(data) == {"text/plain+tuple:[1, 2, 3]": 4}
+
+
+def test_format_structure_dict_frozenset_key_encoded() -> None:
+    """Frozenset keys use a dedicated mimetype, distinct from set values."""
+    import json
+
+    StructuresFormatter().register()
+
+    _, data = get_and_format({frozenset({1, 2}): "v"})
+    parsed = json.loads(data)
+    (key,) = parsed
+    assert key.startswith("text/plain+frozenset:")
+    payload = json.loads(key[len("text/plain+frozenset:") :])
+    assert sorted(payload) == [1, 2]
+
+
+def test_format_structure_dict_string_key_that_looks_encoded_is_escaped() -> (
+    None
+):
+    """Literal string keys starting with `text/plain+` are escaped."""
+    import json
+
+    StructuresFormatter().register()
+
+    _, data = get_and_format({"text/plain+int:2": "hello"})
+    assert json.loads(data) == {
+        "text/plain+str:text/plain+int:2": "hello",
+    }
+
+
+def test_format_structure_dict_nested_keys_encoded() -> None:
+    """Encoding applies at every nesting level."""
+    import json
+
+    StructuresFormatter().register()
+
+    _, data = get_and_format({"outer": {1: "inner", (2, 3): "tup"}})
+    assert json.loads(data) == {
+        "outer": {
+            "text/plain+int:1": "inner",
+            "text/plain+tuple:[2, 3]": "tup",
+        }
+    }
+
+
+def test_format_structure_dict_python_level_bool_int_collapse_preserved() -> (
+    None
+):
+    """Python collapses True/1 before we see the dict — encoder preserves that."""
+    import json
+
+    StructuresFormatter().register()
+
+    # True/1/1.0 are hash-equal in Python, so assigning them in sequence
+    # yields a single-entry dict: first-inserted key wins, later assignments
+    # only update the value. Built up programmatically to dodge ruff's
+    # duplicate-literal-key warning.
+    d: dict[object, object] = {}
+    d[True] = False
+    d[1] = "bar"
+    d[1.0] = "baz"
+    assert len(d) == 1
+
+    _, data = get_and_format(d)
+    # That one entry encodes under the bool prefix (first-inserted key wins).
+    assert json.loads(data) == {"text/plain+bool:True": "baz"}
+
+
+def test_format_structure_dict_plain_string_keys_unchanged() -> None:
+    """Common case — plain string-key dicts serialize exactly as before."""
+    StructuresFormatter().register()
+
+    assert get_and_format({"a": 1, "b": 2}) == (
+        "application/json",
+        '{"a": 1, "b": 2}',
+    )
+
+
 def test_format_structure_bigint() -> None:
     bigint = 2**64
     assert format_structure([bigint]) == ([f"text/plain+bigint:{bigint}"])
