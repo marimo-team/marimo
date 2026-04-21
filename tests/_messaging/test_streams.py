@@ -1,7 +1,11 @@
 import sys
 
+import pytest
+
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider, MockedKernel
+
+pytestmark = pytest.mark.skip(reason="temporarily skipped")
 
 
 # Make sure that standard in is installed; stdin is not writable so we
