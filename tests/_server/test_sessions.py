@@ -58,7 +58,7 @@ initialize_asyncio()
 
 app_metadata = AppMetadata(
     query_params={"some_param": "some_value"},
-    filename="test.py",
+    filename=sys.modules["__main__"].__file__,
     cli_args={},
     argv=None,
     app_config=_AppConfig(),

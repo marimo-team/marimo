@@ -4244,7 +4244,10 @@ class TestLaunchKernelEventLoop:
                 is_edit_mode=is_edit_mode,
                 configs={},
                 app_metadata=AppMetadata(
-                    query_params={}, cli_args={}, app_config=_AppConfig()
+                    query_params={},
+                    cli_args={},
+                    app_config=_AppConfig(),
+                    filename=sys.modules["__main__"].__file__,
                 ),
                 user_config=DEFAULT_CONFIG,
                 virtual_file_storage=None,

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pickle
 import queue
+import sys
 from unittest.mock import Mock, patch
 
 import pytest
@@ -157,6 +158,7 @@ class TestHandleCreateKernelFailure:
                 query_params={},
                 cli_args={},
                 app_config={},  # type: ignore[arg-type]
+                filename=sys.modules["__main__"].__file__,
             ),
             user_config=DEFAULT_CONFIG,
             virtual_file_storage="shared_memory",

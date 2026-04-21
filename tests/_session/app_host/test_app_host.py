@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 
@@ -25,6 +27,7 @@ class TestAppHostCommands:
             query_params={},
             cli_args={},
             app_config={},  # type: ignore[arg-type]
+            filename=sys.modules["__main__"].__file__,
         )
         user_config = DEFAULT_CONFIG
 

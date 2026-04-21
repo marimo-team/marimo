@@ -125,6 +125,13 @@ def _save_and_restore_main(
 
     marimo's kernel swaps out the main module via patch_main_module;
     without this fixture, that swap leaks into subsequent tests.
+
+    Some tests may start kernel threads in RUN mode that call
+    patch_main_module(), permanently replacing __main__ with a module whose
+    __file__ points to a now-deleted temp file. On Windows the multiprocessing
+    'spawn' start method reads __main__.__file__ to bootstrap the child
+    process, so a stale path causes FileNotFoundError and the parent hangs on
+    listener.accept().
     """
     main = sys.modules.get("__main__")
     if main is None:
@@ -257,7 +264,7 @@ class MockedKernel:
             user_config=DEFAULT_CONFIG,
             app_metadata=AppMetadata(
                 query_params={},
-                filename=None,
+                filename=sys.modules["__main__"].__file__,
                 cli_args={},
                 argv=None,
                 app_config=_AppConfig(),

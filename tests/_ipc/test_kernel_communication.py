@@ -50,7 +50,10 @@ x = 42"""
         user_config=DEFAULT_CONFIG,
         log_level=GLOBAL_SETTINGS.LOG_LEVEL,
         app_metadata=AppMetadata(
-            query_params={}, cli_args={}, app_config=_AppConfig()
+            query_params={},
+            cli_args={},
+            app_config=_AppConfig(),
+            filename=sys.modules["__main__"].__file__,
         ),
     )
 
