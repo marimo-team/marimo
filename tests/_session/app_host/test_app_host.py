@@ -214,6 +214,8 @@ class TestAppHostPool:
 class TestAppHost:
     def test_start_and_shutdown(self) -> None:
         """App host starts and shuts down cleanly."""
+        import time
+
         from marimo._session.app_host.host import AppHost
 
         app_host = AppHost("/tmp/test_app.py")
@@ -222,6 +224,11 @@ class TestAppHost:
         assert app_host.pid is not None
 
         app_host.shutdown()
+        # shutdown() signals the subprocess but doesn't synchronously
+        # wait for it to exit, so poll briefly for the process to die.
+        deadline = time.monotonic() + 5.0
+        while app_host.is_alive() and time.monotonic() < deadline:
+            time.sleep(0.05)
         assert not app_host.is_alive()
 
 
