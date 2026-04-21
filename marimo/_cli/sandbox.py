@@ -185,10 +185,12 @@ def _normalize_sandbox_dependencies(
 def _resolve_local_path_line(line: str, script_dir: Path) -> str:
     """Resolve a relative local-path requirement to an absolute path.
 
-    >>> _resolve_local_path_line("-e ../pkg ; py<'3.12' # via foo", Path("/a/b"))
+    >>> _resolve_local_path_line(
+    ...     "-e ../pkg ; py<'3.12' # via foo", Path("/a/b")
+    ... )
     '-e /a/pkg ; py<\\'3.12\\' # via foo'
     """
-    rest = line[3:] if line.startswith("-e ") else line
+    rest = line.removeprefix("-e ")
     path_and_comment, _, _ = rest.partition(";")
     path_token, _, _ = path_and_comment.partition(" #")
     path_token = path_token.rstrip()
