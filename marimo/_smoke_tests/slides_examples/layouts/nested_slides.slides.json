@@ -15,7 +15,7 @@
         "codeSnippet": "# Cell 3 (fragment) \u2014 first reveal on the title slide.\nmo.md(\"\"\"\n- Built with `@revealjs/react`\n\"\"\")..."
       },
       {
-        "type": "slide",
+        "type": "fragment",
         "codeSnippet": "# Cell 4 (fragment) \u2014 second reveal on the title slide.\nmo.md(\"\"\"\n- Composed from flat marimo cells\n..."
       },
       {
