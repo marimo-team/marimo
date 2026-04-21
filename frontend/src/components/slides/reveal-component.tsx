@@ -12,7 +12,6 @@ import { Deck, Fragment, Slide, Stack } from "@revealjs/react";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { cn } from "@/utils/cn";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import type { RevealApi } from "reveal.js";
@@ -31,7 +30,6 @@ import { DEFAULT_SLIDE_TYPE, SlidesForm } from "./slide-form";
 
 const ASPECT_RATIO = 16 / 9;
 const COLLAPSED_CONFIG_WIDTH = 36;
-const CONFIG_OPEN_STORAGE_KEY = "marimo:slides:configOpen";
 
 type RuntimeCell = CellRuntimeState & CellData;
 
@@ -114,10 +112,7 @@ const RevealSlidesComponent = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useSlideDimensions(containerRef);
-  const [isConfigOpen, setIsConfigOpen] = useLocalStorage<boolean>(
-    CONFIG_OPEN_STORAGE_KEY,
-    true,
-  );
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const activeCell =
     activeIndex != null ? cellsWithOutput[activeIndex] : undefined;
   // Fall back to the first cell so the config panel has something to edit
