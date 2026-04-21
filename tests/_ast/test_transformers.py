@@ -362,6 +362,18 @@ def test_deprivate_visitor() -> None:
     assert "_cell_123_private_var" not in code_result
 
 
+def test_deprivate_visitor_strips_alias_asname() -> None:
+    """Synthetic asname from import mangling must be stripped for hashing."""
+    code = "from marimo import _output as _cell_abc_output"
+    tree = ast.parse(code)
+
+    result = DeprivateVisitor().visit(tree)
+
+    alias = result.body[0].names[0]
+    assert alias.asname == "_output"
+    assert "_cell_abc" not in ast.unparse(result)
+
+
 def test_remove_returns() -> None:
     """Test the RemoveReturns transformer."""
     code = """

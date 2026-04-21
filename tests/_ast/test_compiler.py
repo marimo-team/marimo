@@ -73,6 +73,30 @@ class TestParseCell:
         assert cell.refs == set()
         assert not cell.imported_namespaces
 
+    @staticmethod
+    def test_private_import_mangling() -> None:
+        # from mod import _private — mangled via asname
+        cell = compile_cell("from marimo import _output")
+        assert "_output" not in cell.defs
+        assert cell.refs == set()
+
+        # from mod import _private as public — public alias, no mangling
+        cell = compile_cell("from marimo import _output as output")
+        assert "output" in cell.defs
+
+        # from mod import public as _private — alias is mangled
+        cell = compile_cell("from marimo import output as _out")
+        assert "_out" not in cell.defs
+        assert cell.refs == set()
+
+        # import _pkg (no dots) — mangled
+        cell = compile_cell("import _mypkg")
+        assert "_mypkg" not in cell.defs
+
+        # import _pkg.sub (dotted) — error, can't safely mangle
+        with pytest.raises(SyntaxError, match="cannot be safely used"):
+            compile_cell("import _pkg.submodule")
+
 
 class TestCompilerFlags:
     @staticmethod

@@ -295,11 +295,25 @@ class ScopedVisitor(ast.NodeVisitor):
                     f"{line} SyntaxError: Importing symbols with `import *` "
                     "is not allowed in marimo."
                 )
-            # Previously we did not mangle. So this is technically breaking
-            # from 0.22.0 (#8762) but now consistent with private naming
-            # conventions.
+            # Mangle _-prefixed imports consistently with other
+            # private naming conventions. We set asname (not name)
+            # because name is the actual module path to import —
+            # changing it would alter what gets imported. asname
+            # only controls the local binding:
+            #   from my_module import _private
+            # becomes:
+            #   from my_module import _private as _mangled
             mangled = self._if_local_then_mangle(basename)
             if mangled != basename:
+                if "." in node.name:
+                    rest = node.name[len(basename) + 1 :]
+                    raise SyntaxError(
+                        f"Dotted import `import {node.name}` binds a "
+                        f"private top-level name `{basename}` which "
+                        f"cannot be safely used. Use "
+                        f"`from {basename} import {rest}` or add an "
+                        f"explicit alias instead."
+                    )
                 node.asname = mangled
             return mangled
         else:

@@ -458,6 +458,11 @@ class DeprivateVisitor(ast.NodeTransformer):
         node.id = unmangle_local(node.id).name
         return node
 
+    def visit_alias(self, node: ast.alias) -> ast.alias:
+        if node.asname:
+            node.asname = unmangle_local(node.asname).name
+        return node
+
     def generic_visit(self, node: ast.AST) -> ast.AST:
         if hasattr(node, "name") and node.name:
             node.name = unmangle_local(node.name).name
