@@ -200,6 +200,9 @@ class ScopedVisitor(ast.NodeVisitor):
             else mangle_prefix
         )
         self.is_local = (lambda _: False) if ignore_local else is_local
+        # Local names referenced but not defined in any scope — candidates
+        # for cross-cell import resolution.
+        self.unresolved_locals: set[Name] = set()
         self.language: Language = "python"
 
     @property
@@ -280,9 +283,6 @@ class ScopedVisitor(ast.NodeVisitor):
             #   import [a.b.c] - we define a
             #   from foo import [a] - we define a
             #   from foo import [*] - we don't define anything
-            #
-            # Note:
-            # Don't mangle - user has no control over package name
             basename = node.name.split(".")[0]
             if basename == "*":
                 # Use the ImportFrom node's line number for consistency
@@ -298,6 +298,9 @@ class ScopedVisitor(ast.NodeVisitor):
                     f"{line} SyntaxError: Importing symbols with `import *` "
                     "is not allowed in marimo."
                 )
+            # Don't mangle — user has no control over package name.
+            # Unresolved references are tracked separately so the
+            # graph can wire them to import-defined names in other cells.
             return basename
         else:
             node.asname = self._if_local_then_mangle(node.asname)
@@ -965,6 +968,7 @@ class ScopedVisitor(ast.NodeVisitor):
             mangled_name = self._if_local_then_mangle(
                 node.id, ignore_scope=True
             )
+            resolved = False
             for block in reversed(self.block_stack):
                 if block == self.block_stack[0]:
                     # At top-level scope: mangle only if the mangled name is
@@ -974,13 +978,21 @@ class ScopedVisitor(ast.NodeVisitor):
                     # underscore-prefixed functions, where the function name
                     # isn't registered in the top-level block until after its
                     # body is visited.
-                    if (
-                        block.is_defined(mangled_name)
-                        or len(self.block_stack) > 1
+                    if block.is_defined(mangled_name) or (
+                        len(self.block_stack) > 1
+                        and not block.is_defined(node.id)
                     ):
                         node.id = mangled_name
+                        resolved = True
+                    elif block.is_defined(node.id):
+                        # Unmangled name defined (e.g. from import) —
+                        # keep as-is, no mangling needed.
+                        resolved = True
                 elif block.is_defined(node.id):
+                    resolved = True
                     break
+            if not resolved and isinstance(node.ctx, ast.Load):
+                self.unresolved_locals.add(node.id)
         else:
             # Not a reference; ast.Load, ast.Del on a variable that's already
             # defined; invoke the callback
