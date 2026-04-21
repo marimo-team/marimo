@@ -126,7 +126,16 @@ def _assert_venv_not_wiped(
     Checking the canary before and after each test pinpoints the exact
     offender: see `tests/_code_mode/test_context.py::TestPackages` for
     the required mocking pattern.
+
+    Under pytest-xdist, other workers run concurrently; the post-check
+    can fire on a worker whose current test did not cause the mutation.
+    We soften the post-check message in that case and recommend
+    rerunning with `-p no:xdist` to identify the culprit.
     """
+    import os
+
+    under_xdist = "PYTEST_XDIST_WORKER" in os.environ
+
     if _venv_canary_path is None:
         # Could not establish a canary (e.g. hypothesis not installed on
         # disk); nothing to protect.
@@ -144,14 +153,25 @@ def _assert_venv_not_wiped(
         )
     yield
     if not _venv_canary_path.exists():
-        pytest.fail(
-            f"Test {request.node.nodeid!r} mutated the shared venv: "
-            f"canary {_venv_canary_path} no longer exists. This test "
-            f"(or a fixture it uses) invoked the real package manager. "
-            f"Mock pm.install/pm.uninstall — see "
-            f"tests/_code_mode/test_context.py::TestPackages for the "
-            f"required pattern."
-        )
+        if under_xdist:
+            pytest.fail(
+                f"Test venv was mutated during or concurrent with "
+                f"{request.node.nodeid!r}: canary {_venv_canary_path} "
+                f"no longer exists. Under xdist the mutator may be a "
+                f"different worker's test. Rerun with `-p no:xdist` "
+                f"to identify the culprit. See "
+                f"tests/_code_mode/test_context.py::TestPackages for "
+                f"the required mocking pattern."
+            )
+        else:
+            pytest.fail(
+                f"Test {request.node.nodeid!r} mutated the shared venv: "
+                f"canary {_venv_canary_path} no longer exists. This test "
+                f"(or a fixture it uses) invoked the real package manager. "
+                f"Mock pm.install/pm.uninstall — see "
+                f"tests/_code_mode/test_context.py::TestPackages for the "
+                f"required pattern."
+            )
 
 
 @pytest.fixture(scope="session")
