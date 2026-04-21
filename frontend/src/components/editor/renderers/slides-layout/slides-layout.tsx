@@ -16,9 +16,8 @@ const LazySlidesComponent = React.lazy(
 );
 
 export const SlidesLayoutRenderer: React.FC<Props> = ({
-  // Currently we don't have layout config
-  // layout,
-  // setLayout,
+  layout,
+  setLayout,
   cells,
   mode,
 }) => {
@@ -47,9 +46,12 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   const slides = (
     <LazySlidesComponent
       cellsWithOutput={cellsWithOutput}
+      layout={layout}
+      setLayout={setLayout}
       activeIndex={resolvedIndex}
       onSlideChange={handleSlideChange}
       deckRef={deckRef}
+      configWidth={250}
     />
   );
 
@@ -62,6 +64,7 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
     <div className="pr-18 pb-5 flex-1 flex flex-row max-h-11/12 gap-2">
       <SlidesMinimap
         cells={cellsWithOutput}
+        thumbnailWidth={220}
         canReorder={!isMultiColumn}
         activeCellId={activeCellId ?? cellsWithOutput[0]?.id ?? null}
         onSlideClick={handleSlideChange}

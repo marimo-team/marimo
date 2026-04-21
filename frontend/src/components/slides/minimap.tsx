@@ -48,8 +48,15 @@ interface ResolvedDropTarget {
   index: number;
 }
 
+interface ThumbnailDimensions {
+  width: number;
+  height: number;
+  scale: number;
+}
+
 interface SlideThumbnailCardProps extends React.HTMLAttributes<HTMLDivElement> {
   cell: SlideCell;
+  dimensions: ThumbnailDimensions;
   isActiveSlide?: boolean;
   isActiveDragSource?: boolean;
   isOverlay?: boolean;
@@ -59,6 +66,7 @@ interface SlideThumbnailCardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 interface SlideThumbnailRowProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   cell: SlideCell;
+  dimensions: ThumbnailDimensions;
   isActiveSlide?: boolean;
   dropIndicator?: DropPosition | null;
   isActiveDragSource?: boolean;
@@ -68,14 +76,22 @@ interface SlideThumbnailRowProps extends React.ButtonHTMLAttributes<HTMLButtonEl
 
 interface SlidesMinimapProps {
   cells: SlideCell[];
+  thumbnailWidth: number;
   canReorder: boolean;
   activeCellId: CellId | null;
   onSlideClick: (index: number) => void;
 }
 
-const THUMBNAIL_WIDTH = 256;
-const THUMBNAIL_HEIGHT = 144;
-const THUMBNAIL_SCALE = 0.3;
+const SLIDE_ASPECT_RATIO = 16 / 9;
+const SLIDE_BASE_WIDTH = 960;
+
+function computeThumbnailDimensions(width: number): ThumbnailDimensions {
+  return {
+    width,
+    height: width / SLIDE_ASPECT_RATIO,
+    scale: width / SLIDE_BASE_WIDTH,
+  };
+}
 const MINIMAP_AUTO_SCROLL = {
   threshold: { x: 0, y: 0.1 },
 };
@@ -156,6 +172,7 @@ function useVisibleCellIds(
 
 export const SlidesMinimap = ({
   cells,
+  thumbnailWidth,
   canReorder,
   activeCellId,
   onSlideClick,
@@ -168,6 +185,7 @@ export const SlidesMinimap = ({
   const [dropTarget, setDropTarget] = useState<ProjectedDropTarget | null>(
     null,
   );
+  const dimensions = computeThumbnailDimensions(thumbnailWidth);
 
   useEffect(() => {
     if (!activeCellId || !containerRef.current) {
@@ -245,6 +263,7 @@ export const SlidesMinimap = ({
           <SlideThumbnailRow
             key={cell.id}
             cell={cell}
+            dimensions={dimensions}
             isActiveSlide={cell.id === activeCellId}
             isVisible={visibleIds.has(cell.id)}
             onClick={() => onSlideClick(index)}
@@ -275,6 +294,7 @@ export const SlidesMinimap = ({
             <SortableSlideThumbnail
               key={cell.id}
               cell={cell}
+              dimensions={dimensions}
               isActive={activeId === cell.id}
               isActiveSlide={cell.id === activeCellId}
               isVisible={visibleIds.has(cell.id)}
@@ -292,6 +312,7 @@ export const SlidesMinimap = ({
         {activeCell && (
           <SlideThumbnailCard
             cell={activeCell}
+            dimensions={dimensions}
             isOverlay={true}
             isActiveDragSource={true}
           />
@@ -320,6 +341,7 @@ const SlideThumbnailsContainer = ({
 
 interface SortableSlideThumbnailProps {
   cell: SlideCell;
+  dimensions: ThumbnailDimensions;
   dropIndicator?: DropPosition | null;
   isActive: boolean;
   isActiveSlide?: boolean;
@@ -329,6 +351,7 @@ interface SortableSlideThumbnailProps {
 
 const SortableSlideThumbnail = ({
   cell,
+  dimensions,
   dropIndicator,
   isActive,
   isActiveSlide,
@@ -343,6 +366,7 @@ const SortableSlideThumbnail = ({
     <SlideThumbnailRow
       ref={setNodeRef}
       cell={cell}
+      dimensions={dimensions}
       dropIndicator={dropIndicator}
       isActiveDragSource={isActive}
       isActiveSlide={isActiveSlide}
@@ -356,6 +380,7 @@ const SortableSlideThumbnail = ({
 
 const SlideThumbnailRow = ({
   cell,
+  dimensions,
   className,
   style,
   dropIndicator,
@@ -397,6 +422,7 @@ const SlideThumbnailRow = ({
       )}
       <SlideThumbnailCard
         cell={cell}
+        dimensions={dimensions}
         isActiveSlide={isActiveSlide}
         isActiveDragSource={isActiveDragSource}
         isVisible={isVisible}
@@ -407,6 +433,7 @@ const SlideThumbnailRow = ({
 
 const SlideThumbnailCard = ({
   cell,
+  dimensions,
   className,
   style,
   isActiveSlide = false,
@@ -416,15 +443,17 @@ const SlideThumbnailCard = ({
   ref,
   ...props
 }: SlideThumbnailCardProps) => {
+  const { width, height, scale } = dimensions;
+
   const outerStyle: React.CSSProperties = {
-    width: THUMBNAIL_WIDTH,
-    height: THUMBNAIL_HEIGHT,
+    width,
+    height,
     contain: "strict",
     ...(isOverlay
       ? null
       : {
           contentVisibility: "auto",
-          containIntrinsicSize: `${THUMBNAIL_WIDTH}px ${THUMBNAIL_HEIGHT}px`,
+          containIntrinsicSize: `${width}px ${height}px`,
         }),
     ...style,
   };
@@ -450,10 +479,10 @@ const SlideThumbnailCard = ({
         <div
           className="flex p-6 box-border pointer-events-none mo-slide-content overflow-hidden"
           style={{
-            transform: `scale(${THUMBNAIL_SCALE})`,
+            transform: `scale(${scale})`,
             transformOrigin: "top left",
-            width: THUMBNAIL_WIDTH / THUMBNAIL_SCALE,
-            height: THUMBNAIL_HEIGHT / THUMBNAIL_SCALE,
+            width: width / scale,
+            height: height / scale,
           }}
         >
           <Slide cellId={cell.id} status={cell.status} output={cell.output} />
