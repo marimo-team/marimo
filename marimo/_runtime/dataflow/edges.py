@@ -258,10 +258,7 @@ def compute_edges_for_cell(
             if name not in other_cell.variable_data:
                 continue
             # Only match if the defining cell has it as an import
-            if any(
-                d.kind == "import"
-                for d in other_cell.variable_data[name]
-            ):
+            if any(d.kind == "import" for d in other_cell.variable_data[name]):
                 parents.add(other_id)
                 # Promote to a real ref so the executor brings it in
                 cell.refs.add(name)
