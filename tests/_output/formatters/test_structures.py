@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from collections import defaultdict
 from typing import Any, cast
@@ -456,7 +457,6 @@ def test_format_structure_dict_non_string_keys_do_not_collide() -> None:
     must not silently collapse to a single entry once the JSON is parsed
     in the browser.
     """
-    import json
 
     StructuresFormatter().register()
 
