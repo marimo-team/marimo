@@ -170,6 +170,37 @@ def patch_random_seed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(UIElement, "_random_seed", random.Random(42))
 
 
+# Temporary diagnostic for CI failure where later tests raise
+# "ModuleNotFoundError: No module named 'numpy.random'" even though a fresh
+# .venv/bin/python can import it fine. Logs the test that flips the import
+# from working to broken (and the inverse), so the poisoning trigger is
+# identifiable from CI output. Remove once the cause is found and fixed.
+_numpy_random_import_state: bool | None = None
+
+
+@pytest.fixture(autouse=True)
+def _detect_numpy_random_poisoning(
+    request: pytest.FixtureRequest,
+) -> Generator[None, None, None]:
+    yield
+    if "numpy" not in sys.modules:
+        return
+    global _numpy_random_import_state
+    try:
+        __import__("numpy.random")
+        currently_works = True
+    except ImportError:
+        currently_works = False
+    if _numpy_random_import_state != currently_works:
+        label = "POISONED" if not currently_works else "RECOVERED"
+        print(
+            f"\n>>> numpy.random {label} by: {request.node.nodeid}",
+            file=sys.stderr,
+            flush=True,
+        )
+        _numpy_random_import_state = currently_works
+
+
 @dataclasses.dataclass
 class _MockStream(ThreadSafeStream):
     """Captures the ops sent through the stream"""
