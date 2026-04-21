@@ -280,9 +280,6 @@ class ScopedVisitor(ast.NodeVisitor):
             #   import [a.b.c] - we define a
             #   from foo import [a] - we define a
             #   from foo import [*] - we don't define anything
-            #
-            # Note:
-            # Don't mangle - user has no control over package name
             basename = node.name.split(".")[0]
             if basename == "*":
                 # Use the ImportFrom node's line number for consistency
@@ -298,7 +295,13 @@ class ScopedVisitor(ast.NodeVisitor):
                     f"{line} SyntaxError: Importing symbols with `import *` "
                     "is not allowed in marimo."
                 )
-            return basename
+            # Previously we did not mangle. So this is technically breaking
+            # from 0.22.0 (#8762) but now consistent with private naming
+            # conventions.
+            mangled = self._if_local_then_mangle(basename)
+            if mangled != basename:
+                node.asname = mangled
+            return mangled
         else:
             node.asname = self._if_local_then_mangle(node.asname)
             return node.asname
