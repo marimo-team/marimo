@@ -174,7 +174,21 @@ describe("getCopyValue", () => {
   it("should handle sets", () => {
     const value = "text/plain+set:[1,2,3]";
     const result = getCopyValue(value);
-    expect(result).toMatchInlineSnapshot(`"{1,2,3}"`);
+    expect(result).toMatchInlineSnapshot(`"{1, 2, 3}"`);
+  });
+
+  it("should handle empty set", () => {
+    // Empty set literal in Python is `set()`, not `{}` (which is a dict).
+    expect(getCopyValue("text/plain+set:[]")).toMatchInlineSnapshot(`"set()"`);
+  });
+
+  it("should handle frozenset values", () => {
+    expect(getCopyValue("text/plain+frozenset:[1,2]")).toMatchInlineSnapshot(
+      `"frozenset({1, 2})"`,
+    );
+    expect(getCopyValue("text/plain+frozenset:[]")).toMatchInlineSnapshot(
+      `"frozenset()"`,
+    );
   });
 
   it("should handle sets in mixed types", () => {
@@ -188,7 +202,7 @@ describe("getCopyValue", () => {
       `
       "{
         "key1": 42,
-        "key2": {1,2,3},
+        "key2": {1, 2, 3},
         "key3": True
       }"
     `,
@@ -308,6 +322,137 @@ describe("determineMaxDisplayLength", () => {
     const value = [[...sample2DArray], [...sample2DArray, longArray]];
     const result = determineMaxDisplayLength(value);
     expect(result).toBe(5);
+  });
+});
+
+describe("getCopyValue with encoded non-string keys", () => {
+  // Keys are encoded by _key_formatter in
+  // marimo/_output/formatters/structures.py. Frontend must round-trip them
+  // to Python literals in the copy output.
+
+  it("decodes int keys unquoted", () => {
+    // JS reorders integer-like string keys to the front of object iteration
+    // (spec-mandated), so `"2"` appears before `"text/plain+int:2"` here.
+    // This is pre-existing and unrelated to the encoding — both entries
+    // survive, which is the regression this guards.
+    const value = { "text/plain+int:2": "no", "2": "oh" };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        "2": "oh",
+        2: "no"
+      }"
+    `);
+  });
+
+  it("decodes large int keys unquoted (no BigInt precision concern)", () => {
+    const value = { "text/plain+int:18446744073709551616": "v" };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        18446744073709551616: "v"
+      }"
+    `);
+  });
+
+  it("decodes float, bool, None, tuple, frozenset keys", () => {
+    const value = {
+      "text/plain+float:2.5": "f",
+      "text/plain+bool:True": "t",
+      "text/plain+bool:False": "b",
+      "text/plain+none:": "n",
+      "text/plain+tuple:[1, 2]": "tup",
+      "text/plain+frozenset:[3, 4]": "fs",
+    };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        2.5: "f",
+        True: "t",
+        False: "b",
+        None: "n",
+        (1, 2): "tup",
+        frozenset({3, 4}): "fs"
+      }"
+    `);
+  });
+
+  it("emits 1-element tuple keys with a trailing comma (Python syntax)", () => {
+    // `(1)` is just `1` in Python — a 1-tuple needs `(1,)`.
+    const value = {
+      "text/plain+tuple:[1]": "one",
+      "text/plain+tuple:[]": "empty",
+    };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        (1,): "one",
+        (): "empty"
+      }"
+    `);
+  });
+
+  it("emits empty frozenset keys as `frozenset()` not `frozenset({})`", () => {
+    // `frozenset({})` reads like it's constructing from an empty dict.
+    const value = {
+      "text/plain+frozenset:[]": "empty",
+      "text/plain+frozenset:[1]": "single",
+    };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        frozenset(): "empty",
+        frozenset({1}): "single"
+      }"
+    `);
+  });
+
+  it("decodes NaN/Inf float keys to valid Python literals", () => {
+    const value = {
+      "text/plain+float:nan": "n",
+      "text/plain+float:inf": "p",
+      "text/plain+float:-inf": "m",
+    };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        float('nan'): "n",
+        float('inf'): "p",
+        -float('inf'): "m"
+      }"
+    `);
+  });
+
+  it("unescapes string keys that looked encoded", () => {
+    const value = {
+      "text/plain+str:text/plain+int:2": "hello",
+    };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        "text/plain+int:2": "hello"
+      }"
+    `);
+  });
+
+  it("decodes keys at every nesting level", () => {
+    const value = {
+      outer: {
+        "text/plain+int:1": "inner",
+        "text/plain+tuple:[2, 3]": "tup",
+      },
+    };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        "outer": {
+          1: "inner",
+          (2, 3): "tup"
+        }
+      }"
+    `);
+  });
+
+  it("leaves plain string keys untouched", () => {
+    const value = { foo: 1, bar: 2 };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        "foo": 1,
+        "bar": 2
+      }"
+    `);
   });
 });
 
