@@ -51,7 +51,18 @@ if TYPE_CHECKING:
     from types import ModuleType
 
 # register import hooks for third-party module formatters
-register_formatters()
+# TEMP diagnostic: when MARIMO_SKIP_REGISTER_FORMATTERS=1, no-op out
+# register_formatters to test whether its meta_path patching causes the
+# "No module named 'numpy.random'" / submodule-import failures.
+import os as _os_early  # noqa: E402
+
+if _os_early.environ.get("MARIMO_SKIP_REGISTER_FORMATTERS") == "1":
+
+    def register_formatters(theme: str = "light") -> None:  # type: ignore[no-redef]
+        del theme
+
+else:
+    register_formatters()
 
 # Initialize mimetypes for consistent behavior across platforms (especially Windows)
 initialize_mimetypes()

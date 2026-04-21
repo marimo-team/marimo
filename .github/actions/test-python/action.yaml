@@ -73,6 +73,7 @@ runs:
       shell: bash
       env:
         MARIMO_POISON_LOG: /tmp/marimo-poison.log
+        MARIMO_SKIP_REGISTER_FORMATTERS: "1"
       run: |
         uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
           -v \
