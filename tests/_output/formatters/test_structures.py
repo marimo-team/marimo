@@ -445,8 +445,32 @@ def test_format_structure_subclasses_with_different_built_in_repr() -> None:
 
 
 def test_format_structure_set() -> None:
+    # Set values now use a JSON-list payload (matching tuple/frozenset
+    # and the key-side encoding) so the frontend renders them with the
+    # same double-quoted element form as the rest of the tree.
     test_set = {1, 2, 3}
-    assert format_structure([test_set]) == (["text/plain+set:{1, 2, 3}"])
+    formatted = format_structure([test_set])
+    assert isinstance(formatted, list)
+    (leaf,) = formatted
+    assert leaf.startswith("text/plain+set:")
+    payload = json.loads(leaf[len("text/plain+set:") :])
+    assert sorted(payload) == [1, 2, 3]
+
+
+def test_format_structure_frozenset() -> None:
+    """Frozenset values use the dedicated text/plain+frozenset: mimetype."""
+    formatted = format_structure([frozenset({1, 2, 3})])
+    assert isinstance(formatted, list)
+    (leaf,) = formatted
+    assert leaf.startswith("text/plain+frozenset:")
+    payload = json.loads(leaf[len("text/plain+frozenset:") :])
+    assert sorted(payload) == [1, 2, 3]
+
+
+def test_format_structure_empty_set_and_frozenset() -> None:
+    """Empty set/frozenset values encode as empty JSON lists."""
+    assert format_structure([set()]) == ["text/plain+set:[]"]
+    assert format_structure([frozenset()]) == ["text/plain+frozenset:[]"]
 
 
 def test_format_structure_dict_non_string_keys_do_not_collide() -> None:

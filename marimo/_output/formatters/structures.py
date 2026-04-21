@@ -114,8 +114,23 @@ def _leaf_formatter(
         return f"text/plain+float:{value}"
     if value is None:
         return value
+    if isinstance(value, frozenset):
+        # Separate branch from `set` so the frontend can emit the right
+        # literal — `{1, 2}` for set, `frozenset({1, 2})` for frozenset,
+        # and `set()` / `frozenset()` for the empty cases.
+        try:
+            return f"text/plain+frozenset:{json.dumps(list(value))}"
+        except TypeError:
+            return f"text/plain:{value}"
     if isinstance(value, set):
-        return f"text/plain+set:{value!s}"
+        # Emit a JSON-list payload so the frontend uses the same
+        # double-quoted element rendering as every other encoded type
+        # (tuples, frozensets as keys, etc.). Falls back to Python's
+        # `str()` form for sets containing non-JSON-safe elements.
+        try:
+            return f"text/plain+set:{json.dumps(list(value))}"
+        except TypeError:
+            return f"text/plain+set:{value!s}"
     if isinstance(value, tuple):
         return f"text/plain+tuple:{json.dumps(value)}"
 

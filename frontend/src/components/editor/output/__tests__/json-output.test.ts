@@ -174,7 +174,21 @@ describe("getCopyValue", () => {
   it("should handle sets", () => {
     const value = "text/plain+set:[1,2,3]";
     const result = getCopyValue(value);
-    expect(result).toMatchInlineSnapshot(`"{1,2,3}"`);
+    expect(result).toMatchInlineSnapshot(`"{1, 2, 3}"`);
+  });
+
+  it("should handle empty set", () => {
+    // Empty set literal in Python is `set()`, not `{}` (which is a dict).
+    expect(getCopyValue("text/plain+set:[]")).toMatchInlineSnapshot(`"set()"`);
+  });
+
+  it("should handle frozenset values", () => {
+    expect(getCopyValue("text/plain+frozenset:[1,2]")).toMatchInlineSnapshot(
+      `"frozenset({1, 2})"`,
+    );
+    expect(getCopyValue("text/plain+frozenset:[]")).toMatchInlineSnapshot(
+      `"frozenset()"`,
+    );
   });
 
   it("should handle sets in mixed types", () => {
@@ -188,7 +202,7 @@ describe("getCopyValue", () => {
       `
       "{
         "key1": 42,
-        "key2": {1,2,3},
+        "key2": {1, 2, 3},
         "key3": True
       }"
     `,

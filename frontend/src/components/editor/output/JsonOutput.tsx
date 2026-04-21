@@ -211,7 +211,10 @@ const LEAF_RENDERERS: Record<string, LeafRenderer> = {
   ),
   "text/plain+float:": (value) => <span>{value}</span>,
   "text/plain+bigint:": (value) => <span>{value}</span>,
-  "text/plain+set:": (value) => <span>set{value}</span>,
+  "text/plain+set:": (value) => <span>{formatSetPayload(value)}</span>,
+  "text/plain+frozenset:": (value) => (
+    <span>{formatFrozensetPayload(value)}</span>
+  ),
   "text/plain+tuple:": (value) => <span>{value}</span>,
   "text/plain:": (value) => <CollapsibleTextOutput text={value} />,
   "application/json:": (value) => (
@@ -408,6 +411,23 @@ function formatFrozensetPayload(jsonList: string): string {
   return `frozenset({${inner}})`;
 }
 
+// Format a JSON-list payload as a Python set literal. Empty → `set()`
+// (not `{}`, which is a dict literal in Python).
+function formatSetPayload(jsonList: string): string {
+  try {
+    const items = JSON.parse(jsonList) as unknown[];
+    if (items.length === 0) {
+      return "set()";
+    }
+    const inner = items.map((x) => JSON.stringify(x)).join(", ");
+    return `{${inner}}`;
+  } catch {
+    // Back-compat: older wire form was `text/plain+set:{1, 2, 3}` (Python
+    // set-literal string, not JSON). Pass it through as-is rather than crash.
+    return jsonList;
+  }
+}
+
 // Renderers for decoded non-string keys. Visual affordances match Python:
 // unquoted primitives, parens for tuple, `frozenset({...})` for frozenset,
 // and the `text/plain+str:` escape re-quotes the original string.
@@ -493,8 +513,10 @@ function pythonJsonReplacer(_key: string, value: unknown): unknown {
       return `${REPLACE_PREFIX}(${leafData(value).slice(1, -1)})${REPLACE_SUFFIX}`;
     }
     if (value.startsWith("text/plain+set:")) {
-      // replace first and last characters [] with {}
-      return `${REPLACE_PREFIX}{${leafData(value).slice(1, -1)}}${REPLACE_SUFFIX}`;
+      return `${REPLACE_PREFIX}${formatSetPayload(leafData(value))}${REPLACE_SUFFIX}`;
+    }
+    if (value.startsWith("text/plain+frozenset:")) {
+      return `${REPLACE_PREFIX}${formatFrozensetPayload(leafData(value))}${REPLACE_SUFFIX}`;
     }
 
     if (MIME_PREFIXES.some((prefix) => value.startsWith(prefix))) {
