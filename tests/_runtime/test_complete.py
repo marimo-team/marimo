@@ -836,12 +836,12 @@ def test_get_completion_options_bails_out_when_timeout_elapsed() -> None:
     script = mock.MagicMock()
 
     # Burn time on the first call so the rest see an expired budget.
-    original_time = time.time
+    original_monotonic = time.monotonic
     times = iter([0.0, 0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0])
 
     with mock.patch(
-        "marimo._runtime.complete.time.time",
-        side_effect=lambda: next(times, original_time()),
+        "marimo._runtime.complete.time.monotonic",
+        side_effect=lambda: next(times, original_monotonic()),
     ):
         options = _get_completion_options(
             completions, script, prefix="", limit=100, timeout=1.0
