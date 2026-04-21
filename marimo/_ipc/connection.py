@@ -13,6 +13,7 @@ import msgspec
 from marimo import _loggers
 from marimo._ipc.queue_proxy import PushQueue, start_receiver_thread
 from marimo._ipc.types import ConnectionInfo
+from marimo._messaging.types import KernelMessage
 from marimo._runtime.commands import (
     BatchableCommand,
     CodeCompletionCommand,
@@ -22,8 +23,6 @@ from marimo._session.queue import QueueType
 
 if typing.TYPE_CHECKING:
     import zmq
-
-    from marimo._messaging.types import KernelMessage
 
 LOGGER = _loggers.marimo_logger()
 ADDR = "tcp://127.0.0.1"
@@ -62,6 +61,7 @@ class Channel(typing.Generic[T]):
             queue=PushQueue(socket, maxsize=maxsize),
         )
 
+    @typing.overload
     @classmethod
     def Pull(
         cls,
@@ -69,12 +69,33 @@ class Channel(typing.Generic[T]):
         *,
         msg_type: type[T],
         maxsize: int = 0,
-    ) -> Channel[T]:
+    ) -> Channel[T]: ...
+
+    @typing.overload
+    @classmethod
+    def Pull(
+        cls,
+        context: zmq.Context[zmq.Socket[bytes]],
+        *,
+        msg_type: typing.Any,
+        maxsize: int = 0,
+    ) -> Channel[typing.Any]: ...
+
+    @classmethod
+    def Pull(
+        cls,
+        context: zmq.Context[zmq.Socket[bytes]],
+        *,
+        msg_type: typing.Any,
+        maxsize: int = 0,
+    ) -> Channel[typing.Any]:
         """Create a pull (receive-only) channel.
 
         Args:
             context: ZeroMQ context for creating sockets
-            msg_type: The type to decode incoming messages as
+            msg_type: The type to decode incoming messages as. Accepts
+                concrete types, union types (e.g. ``A | B``), and NewTypes;
+                msgspec's ``Decoder`` handles all three.
             maxsize: Maximum queue size (0 = unlimited)
         """
         import zmq
@@ -141,7 +162,7 @@ class Connection:
                 Channel.Push(context) if sys.platform == "win32" else None
             ),
             input=Channel.Push(context, maxsize=1),
-            stream=Channel.Pull(context, msg_type=bytes),
+            stream=Channel.Pull(context, msg_type=KernelMessage),
         )
         info = ConnectionInfo(
             control=conn.control.socket.bind_to_random_port(ADDR),
