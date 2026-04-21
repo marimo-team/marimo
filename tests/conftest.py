@@ -200,7 +200,9 @@ def _detect_numpy_random_poisoning(
         elif _numpy_random_import_state is False and in_sys_modules:
             label = "RE_ADDED_TO_SYS_MODULES"
         else:
-            label = "FIRST_SEEN_PRESENT" if in_sys_modules else "FIRST_SEEN_ABSENT"
+            label = (
+                "FIRST_SEEN_PRESENT" if in_sys_modules else "FIRST_SEEN_ABSENT"
+            )
         worker = _os.environ.get("PYTEST_XDIST_WORKER", "main")
         with open(_POISON_LOG, "a") as f:
             f.write(f"[{worker}] {label} by: {request.node.nodeid}\n")
