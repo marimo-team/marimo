@@ -543,8 +543,6 @@ def test_format_structure_dict_tuple_key_encoded() -> None:
 
 def test_format_structure_dict_frozenset_key_encoded() -> None:
     """Frozenset keys use a dedicated mimetype, distinct from set values."""
-    import json
-
     StructuresFormatter().register()
 
     _, data = get_and_format({frozenset({1, 2}): "v"})
@@ -553,6 +551,48 @@ def test_format_structure_dict_frozenset_key_encoded() -> None:
     assert key.startswith("text/plain+frozenset:")
     payload = json.loads(key[len("text/plain+frozenset:") :])
     assert sorted(payload) == [1, 2]
+
+
+def test_format_structure_dict_empty_frozenset_key_encoded() -> None:
+    """Empty frozenset key encodes as `text/plain+frozenset:[]`."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({frozenset(): "v"})
+    assert json.loads(data) == {"text/plain+frozenset:[]": "v"}
+
+
+def test_format_structure_dict_single_element_tuple_key_encoded() -> None:
+    """1-element tuple key encodes as a JSON list of length 1."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({(42,): "v"})
+    assert json.loads(data) == {"text/plain+tuple:[42]": "v"}
+
+
+def test_format_structure_dict_fallback_string_is_escaped() -> None:
+    """A custom key whose `str()` starts with `text/plain+` must be escaped.
+
+    Without the escape the frontend would decode it as a typed key and
+    render it incorrectly. This covers the `str(k)` fallback for unusual
+    hashables.
+    """
+
+    class Hostile:
+        def __str__(self) -> str:
+            return "text/plain+int:99"
+
+        def __hash__(self) -> int:
+            return 0
+
+        def __eq__(self, other: object) -> bool:
+            return isinstance(other, Hostile)
+
+    StructuresFormatter().register()
+
+    _, data = get_and_format({Hostile(): "v"})
+    assert json.loads(data) == {
+        "text/plain+str:text/plain+int:99": "v",
+    }
 
 
 def test_format_structure_dict_string_key_that_looks_encoded_is_escaped() -> (

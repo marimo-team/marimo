@@ -68,13 +68,26 @@ def _key_formatter(k: object) -> object:
         try:
             return f"text/plain+tuple:{json.dumps(list(k))}"
         except TypeError:
-            return str(k)
+            return _escape_fallback(str(k))
     if isinstance(k, frozenset):
         try:
             return f"text/plain+frozenset:{json.dumps(list(k))}"
         except TypeError:
-            return str(k)
-    return str(k)
+            return _escape_fallback(str(k))
+    return _escape_fallback(str(k))
+
+
+def _escape_fallback(s: str) -> str:
+    """Prevent a stringified fallback key from decoding as a typed key.
+
+    The fallback path runs `str(k)` on unusual key types (non-JSON-safe
+    tuple contents, custom hashables, etc.). If that happens to produce
+    a string starting with `text/plain+`, the frontend would decode it
+    as a typed key. Apply the same escape we use for literal string keys.
+    """
+    if s.startswith(_KEY_STR_PREFIX):
+        return f"{_KEY_STR_ESCAPE}{s}"
+    return s
 
 
 def _leaf_formatter(

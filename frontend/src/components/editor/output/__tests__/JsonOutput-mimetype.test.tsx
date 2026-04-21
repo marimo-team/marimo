@@ -61,13 +61,13 @@ describe("JsonOutput with enhanced mimetype handling", () => {
 
     // `text/plain+str:` is the escape prefix — must never survive in output.
     expect(text).not.toContain("text/plain+str:");
-    // Other prefixes must not appear as standalone keys (they still show
+    // Other encoded prefixes must not leak as-is. (They can still appear
     // inside the unescaped original string key `"text/plain+int:2"`,
-    // which is intentional).
-    expect(text).not.toContain("text/plain+bool:True:");
+    // which is intentional — but not for types *other* than int.)
+    expect(text).not.toContain("text/plain+bool:True");
     expect(text).not.toContain("text/plain+tuple:[");
     expect(text).not.toContain("text/plain+frozenset:[");
-    expect(text).not.toContain("text/plain+none::");
+    expect(text).not.toContain("text/plain+none:");
 
     // Decoded visual forms are present with Python-style affordances.
     expect(text).toContain('None:"none_val"');
@@ -80,6 +80,27 @@ describe("JsonOutput with enhanced mimetype handling", () => {
     expect(text).toContain('"text/plain+int:2":"escaped_str_val"');
     // Plain string key unchanged.
     expect(text).toContain('"plain":"unchanged"');
+  });
+
+  it("renders 1-tuple and empty-frozenset keys with correct Python syntax", () => {
+    // Regressions caught in review: `(1)` is not a tuple (needs `(1,)`),
+    // and `frozenset({})` reads like constructing from an empty dict
+    // (should be `frozenset()`). Locks in the tree-view rendering so these
+    // don't slip back.
+    const data = {
+      "text/plain+tuple:[42]": "one_tuple",
+      "text/plain+tuple:[]": "empty_tuple",
+      "text/plain+frozenset:[]": "empty_fs",
+      "text/plain+frozenset:[1]": "one_fs",
+    };
+
+    const { container } = render(<JsonOutput data={data} format="tree" />);
+    const text = container.textContent ?? "";
+
+    expect(text).toContain('(42,):"one_tuple"'); // trailing comma
+    expect(text).toContain('():"empty_tuple"');
+    expect(text).toContain('frozenset():"empty_fs"'); // not `frozenset({})`
+    expect(text).toContain('frozenset({1}):"one_fs"');
   });
 
   it("quotes integer-like string keys to distinguish them from int keys", () => {

@@ -383,6 +383,31 @@ function renderLeaf(leaf: string, render: LeafRenderer): React.ReactNode {
 // See `_key_formatter` in marimo/_output/formatters/structures.py.
 const KEY_ENCODED_PREFIX = "text/plain+";
 
+// Format a JSON-list payload as a Python tuple literal. 1-element tuples
+// need a trailing comma — `(1)` is just `1` in Python, `(1,)` is the tuple.
+function formatTuplePayload(jsonList: string): string {
+  const items = JSON.parse(jsonList) as unknown[];
+  const inner = items.map((x) => JSON.stringify(x)).join(", ");
+  if (items.length === 0) {
+    return "()";
+  }
+  if (items.length === 1) {
+    return `(${inner},)`;
+  }
+  return `(${inner})`;
+}
+
+// Format a JSON-list payload as a Python frozenset literal. Empty → `frozenset()`
+// rather than `frozenset({})` (which reads like a dict).
+function formatFrozensetPayload(jsonList: string): string {
+  const items = JSON.parse(jsonList) as unknown[];
+  if (items.length === 0) {
+    return "frozenset()";
+  }
+  const inner = items.map((x) => JSON.stringify(x)).join(", ");
+  return `frozenset({${inner}})`;
+}
+
 // Renderers for decoded non-string keys. Visual affordances match Python:
 // unquoted primitives, parens for tuple, `frozenset({...})` for frozenset,
 // and the `text/plain+str:` escape re-quotes the original string.
@@ -391,10 +416,8 @@ const KEY_DECODERS: Record<string, (data: string) => React.ReactNode> = {
   "text/plain+float:": (v) => <span>{v}</span>,
   "text/plain+bool:": (v) => <span>{v === "True" ? "True" : "False"}</span>,
   "text/plain+none:": () => <span>None</span>,
-  "text/plain+tuple:": (v) => <span>({v.slice(1, -1)})</span>,
-  "text/plain+frozenset:": (v) => (
-    <span>frozenset({`{${v.slice(1, -1)}}`})</span>
-  ),
+  "text/plain+tuple:": (v) => <span>{formatTuplePayload(v)}</span>,
+  "text/plain+frozenset:": (v) => <span>{formatFrozensetPayload(v)}</span>,
   "text/plain+str:": (v) => <span>"{v}"</span>,
 };
 
@@ -510,9 +533,9 @@ function decodeKeyForCopy(key: string): string {
     case "text/plain+none:":
       return wrap("None");
     case "text/plain+tuple:":
-      return wrap(`(${data.slice(1, -1)})`);
+      return wrap(formatTuplePayload(data));
     case "text/plain+frozenset:":
-      return wrap(`frozenset({${data.slice(1, -1)}})`);
+      return wrap(formatFrozensetPayload(data));
     case "text/plain+str:":
       // `data` is the original Python string; it stays quoted.
       return data;

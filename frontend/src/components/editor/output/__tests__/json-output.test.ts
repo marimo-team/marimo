@@ -360,6 +360,34 @@ describe("getCopyValue with encoded non-string keys", () => {
     `);
   });
 
+  it("emits 1-element tuple keys with a trailing comma (Python syntax)", () => {
+    // `(1)` is just `1` in Python — a 1-tuple needs `(1,)`.
+    const value = {
+      "text/plain+tuple:[1]": "one",
+      "text/plain+tuple:[]": "empty",
+    };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        (1,): "one",
+        (): "empty"
+      }"
+    `);
+  });
+
+  it("emits empty frozenset keys as `frozenset()` not `frozenset({})`", () => {
+    // `frozenset({})` reads like it's constructing from an empty dict.
+    const value = {
+      "text/plain+frozenset:[]": "empty",
+      "text/plain+frozenset:[1]": "single",
+    };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        frozenset(): "empty",
+        frozenset({1}): "single"
+      }"
+    `);
+  });
+
   it("decodes NaN/Inf float keys to valid Python literals", () => {
     const value = {
       "text/plain+float:nan": "n",
