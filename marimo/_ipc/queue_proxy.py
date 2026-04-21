@@ -3,9 +3,10 @@
 
 from __future__ import annotations
 
-import pickle
 import threading
 import typing
+
+import msgspec
 
 from marimo import _loggers
 from marimo._session.queue import QueueType
@@ -16,6 +17,8 @@ T = typing.TypeVar("T")
 
 if typing.TYPE_CHECKING:
     import zmq
+
+    from marimo._ipc.connection import Channel
 
 
 class PushQueue(QueueType[T]):
@@ -40,7 +43,7 @@ class PushQueue(QueueType[T]):
         timeout: float | None = None,  # noqa: ARG002
     ) -> None:
         """Put an item into the queue."""
-        self.socket.send(pickle.dumps(obj))
+        self.socket.send(msgspec.msgpack.encode(obj))
 
     def put_nowait(self, obj: T) -> None:
         """Put an item into the queue without blocking."""
@@ -63,19 +66,21 @@ class PushQueue(QueueType[T]):
 
 
 def start_receiver_thread(
-    receivers: dict[zmq.Socket[bytes], QueueType[typing.Any]],
+    channels: list[Channel[typing.Any]],
 ) -> tuple[threading.Event, threading.Thread]:
     """Start receiver thread."""
     import zmq
 
     def receive_loop(
-        receivers: dict[zmq.Socket[bytes], QueueType[typing.Any]],
+        channels: list[Channel[typing.Any]],
         stop_event: threading.Event,
     ) -> None:
         """Receive messages from sockets and put them in queues using polling."""
         poller = zmq.Poller()
-        for socket in receivers:
-            poller.register(socket, zmq.POLLIN)
+        socket_to_channel: dict[zmq.Socket[bytes], Channel[typing.Any]] = {}
+        for channel in channels:
+            poller.register(channel.socket, zmq.POLLIN)
+            socket_to_channel[channel.socket] = channel
 
         while not stop_event.is_set():
             try:
@@ -83,9 +88,12 @@ def start_receiver_thread(
                 socks = dict(poller.poll(100))
                 for socket, event in socks.items():
                     if event & zmq.POLLIN:
+                        ch = socket_to_channel[socket]
                         msg = socket.recv(flags=zmq.NOBLOCK)
-                        obj = pickle.loads(msg)
-                        receivers[socket].put(obj)
+                        assert ch.decoder is not None, (
+                            "Pull channel must have a decoder"
+                        )
+                        ch.queue.put(ch.decoder.decode(msg))
             except zmq.Again:
                 continue
             except zmq.ZMQError as e:
@@ -101,7 +109,7 @@ def start_receiver_thread(
     stop_event = threading.Event()
     thread = threading.Thread(
         target=receive_loop,
-        args=(receivers, stop_event),
+        args=(channels, stop_event),
         daemon=True,
     )
     thread.start()
