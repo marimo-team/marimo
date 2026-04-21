@@ -87,6 +87,74 @@ def pytest_collection_modifyitems(
 
 
 @pytest.fixture(scope="session")
+def _venv_canary_path() -> Path | None:
+    """Resolve an on-disk file whose existence signals the test venv is intact.
+
+    We use `hypothesis`: it's in the `test` dependency group but not in
+    `[project.dependencies]`, so if a test calls through to the real
+    `UvPackageManager.install`/`uninstall` (which shells out to
+    `uv add`/`uv remove` → `uv sync`), the sync resolves against
+    `[project.dependencies]` only and deletes every test-group package
+    from `.venv`. Watching `hypothesis/__init__.py` catches that
+    mutation with a single stat call.
+    """
+    import importlib.util
+
+    spec = importlib.util.find_spec("hypothesis")
+    if spec is None or spec.origin is None:
+        return None
+    path = Path(spec.origin)
+    return path if path.exists() else None
+
+
+@pytest.fixture(autouse=True)
+def _assert_venv_not_wiped(
+    _venv_canary_path: Path | None, request: pytest.FixtureRequest
+) -> Generator[None, None, None]:
+    """Fail fast if a test mutates the shared test venv.
+
+    The historical failure this guards against: an unmocked call to
+    `UvPackageManager.install`/`uninstall` (e.g. via
+    `ctx.packages.add`/`remove` in code-mode tests) runs
+    `uv add`/`uv remove` against the project's `pyproject.toml`,
+    then `uv sync` resolves only `[project.dependencies]` and deletes
+    every `[dependency-groups].test` package — pytest, hypothesis,
+    numpy, matplotlib, execnet, the `.venv/bin/pytest` shim — from the
+    venv. Subsequent tests cascade into obscure
+    `ModuleNotFoundError`/`FileNotFoundError` failures.
+
+    Checking the canary before and after each test pinpoints the exact
+    offender: see `tests/_code_mode/test_context.py::TestPackages` for
+    the required mocking pattern.
+    """
+    if _venv_canary_path is None:
+        # Could not establish a canary (e.g. hypothesis not installed on
+        # disk); nothing to protect.
+        yield
+        return
+
+    if not _venv_canary_path.exists():
+        pytest.fail(
+            f"Test venv was mutated before {request.node.nodeid!r}: "
+            f"canary {_venv_canary_path} is missing. A previous test "
+            f"invoked the real package manager (likely via "
+            f"ctx.packages.add/remove without mocking pm.install/"
+            f"pm.uninstall). See tests/_code_mode/test_context.py::"
+            f"TestPackages for the required pattern."
+        )
+    yield
+    if not _venv_canary_path.exists():
+        pytest.fail(
+            f"Test {request.node.nodeid!r} mutated the shared venv: "
+            f"canary {_venv_canary_path} no longer exists. This test "
+            f"(or a fixture it uses) invoked the real package manager. "
+            f"Mock pm.install/pm.uninstall — see "
+            f"tests/_code_mode/test_context.py::TestPackages for the "
+            f"required pattern."
+        )
+
+
+@pytest.fixture(scope="session")
 def _fake_main_file(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """A benign empty .py file to assign as __main__.__file__ in tests.
 
