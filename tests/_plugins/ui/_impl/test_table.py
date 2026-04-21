@@ -2261,7 +2261,7 @@ def test_get_data_url_values() -> None:
     from pandas.testing import assert_frame_equal
 
     df = _convert_data_bytes_to_pandas_df(response.data_url, response.format)
-    expected_df = pd.DataFrame({0: [1, 2, 3]})
+    expected_df = pd.DataFrame({"value": [1, 2, 3]})
     assert_frame_equal(df, expected_df)
 
     # Test search
