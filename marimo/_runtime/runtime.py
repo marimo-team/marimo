@@ -3685,6 +3685,19 @@ def launch_kernel(
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
         hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
 
+    main_module = patches.create_main_module(
+        file=app_metadata.filename,
+        input_override=input_override,
+        print_override=print_override,
+        doc=app_metadata.docstring,
+    )
+    if is_subprocess:
+        # Thread-based run mode kernels share sys.modules, so we don't
+        # publish the kernel's __main__ globally at launch — _run_cells
+        # wraps each run in patch_main_module_context, which swaps in and
+        # restores __main__ around cell execution.
+        patches.patch_sys_module(main_module)
+
     kernel = Kernel(
         cell_configs=configs,
         app_metadata=app_metadata,
@@ -3692,12 +3705,7 @@ def launch_kernel(
         stdout=stdout,
         stderr=stderr,
         stdin=stdin,
-        module=patches.patch_main_module(
-            file=app_metadata.filename,
-            input_override=input_override,
-            print_override=print_override,
-            doc=app_metadata.docstring,
-        ),
+        module=main_module,
         debugger_override=debugger,
         user_config=user_config,
         enqueue_control_request=_enqueue_control_request,

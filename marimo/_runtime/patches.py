@@ -230,17 +230,10 @@ def patch_main_module(
     """
     _module = create_main_module(file, input_override, print_override, doc=doc)
 
-    # TODO(akshayka): In run mode, this can introduce races between different
-    # kernel threads, since they each share sys.modules. Unfortunately, Python
-    # doesn't provide a way for different threads to have their own sys.modules
-    # (replacing the dict with a new one isn't guaranteed to have the intended
-    # effect, since CPython C code has a reference to the original dict).
-    # In practice, as far as I can tell, this only causes problems when using
-    # Python pickle, but there may be other subtle issues.
-    #
-    # As a workaround, the runtime can re-patch sys.modules() on each run,
-    # but the issue will still persist as a race condition. Streamlit suffers
-    # from the same issue.
+    # Callers that share sys.modules across kernels (e.g. thread-based run
+    # mode) should prefer create_main_module + patch_main_module_context on
+    # each run instead of calling this helper, which mutates the global
+    # sys.modules["__main__"].
     patch_sys_module(_module)
     return _module
 
