@@ -181,6 +181,44 @@ import os as _os  # noqa: E402
 
 _POISON_LOG = _os.environ.get("MARIMO_POISON_LOG")
 _numpy_random_import_state: bool | None = None
+_probed_once = False
+
+
+def _probe_numpy_random_state(nodeid: str) -> None:
+    """One-shot: capture why `import numpy.random` fails in this process."""
+    global _probed_once
+    if _probed_once:
+        return
+    _probed_once = True
+    import importlib.util
+    import traceback
+
+    numpy_mod = sys.modules.get("numpy")
+    probe: list[str] = [f"=== PROBE triggered at {nodeid} ==="]
+    probe.append(f"numpy module: {numpy_mod!r}")
+    probe.append(f"numpy.__file__: {getattr(numpy_mod, '__file__', '?')}")
+    probe.append(f"numpy.__path__: {getattr(numpy_mod, '__path__', '?')}")
+    probe.append(f"numpy.__spec__: {getattr(numpy_mod, '__spec__', '?')}")
+    try:
+        spec = importlib.util.find_spec("numpy.random")
+        probe.append(f"find_spec('numpy.random'): {spec!r}")
+    except Exception as e:  # noqa: BLE001
+        probe.append(f"find_spec raised: {type(e).__name__}: {e}")
+    try:
+        __import__("numpy.random")
+        probe.append("import numpy.random: SUCCESS (this masks the bug below)")
+    except BaseException as e:  # noqa: BLE001
+        probe.append(f"import numpy.random: {type(e).__name__}: {e}")
+        probe.append("TRACEBACK:\n" + traceback.format_exc())
+    probe.append(f"sys.path: {sys.path}")
+    probe.append(
+        "sys.meta_path: "
+        + str([(type(f).__name__, getattr(f, '__module__', '?')) for f in sys.meta_path])
+    )
+    probe.append("=== END PROBE ===")
+    worker = _os.environ.get("PYTEST_XDIST_WORKER", "main")
+    with open(_POISON_LOG, "a") as f:
+        f.write(f"[{worker}] " + f"\n[{worker}] ".join(probe) + "\n")
 
 
 @pytest.fixture(autouse=True)
@@ -207,6 +245,12 @@ def _detect_numpy_random_poisoning(
         with open(_POISON_LOG, "a") as f:
             f.write(f"[{worker}] {label} by: {request.node.nodeid}\n")
         _numpy_random_import_state = in_sys_modules
+    # On FIRST_SEEN_ABSENT (numpy is loaded but numpy.random never made it in),
+    # run the one-shot probe to capture the actual failure mode. This call
+    # triggers an import and will cache numpy.random if successful, which
+    # masks further detection — that's acceptable once we have the probe.
+    if not in_sys_modules:
+        _probe_numpy_random_state(request.node.nodeid)
 
 
 @dataclasses.dataclass
