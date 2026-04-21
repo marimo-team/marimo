@@ -110,15 +110,10 @@ class TestParseCell:
 
         from marimo._ast.visitor import ScopedVisitor
 
-        code = (
-            "def foo():\n"
-            "    _pkg.sub.attr()\n"
-            "\n"
-            "import _pkg.sub"
-        )
+        code = "def foo():\n    _pkg.sub.attr()\n\nimport _pkg.sub"
         tree = ast.parse(code)
+        v = ScopedVisitor(mangle_prefix="test")
         with pytest.warns(match="cannot be safely used"):
-            v = ScopedVisitor(mangle_prefix="test")
             v.visit(tree)
         # The function body should reference _pkg (unmangled) to
         # match the import, but the visitor mangles it on first pass.
