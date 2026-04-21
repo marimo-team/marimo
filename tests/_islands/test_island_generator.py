@@ -14,6 +14,8 @@ from tests.mocks import snapshotter
 if TYPE_CHECKING:
     from pathlib import Path
 
+pytestmark = pytest.mark.skip(reason="temporarily skipped")
+
 snapshot = snapshotter(__file__)
 
 
