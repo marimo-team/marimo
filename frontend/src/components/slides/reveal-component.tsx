@@ -1,33 +1,39 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useEffect, useRef, useState } from "react";
-import { ChevronRightIcon, ExpandIcon, SettingsIcon } from "lucide-react";
-import { Deck, Slide } from "@revealjs/react";
+import { useEffect, useRef, useState, Fragment as ReactFragment } from "react";
+import useEvent from "react-use-event-hook";
+import {
+  ExpandIcon,
+  EyeOffIcon,
+  PanelRightCloseIcon,
+  PanelRightOpenIcon,
+} from "lucide-react";
+import { Deck, Fragment, Slide, Stack } from "@revealjs/react";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { cn } from "@/utils/cn";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import type { RevealApi } from "reveal.js";
 import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
-import {
-  Select,
-  SelectItem,
-  SelectContent,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
 import "./slides.css";
 import "./reveal-slides.css";
-import type {
-  SlideType,
-  SlidesLayout,
-} from "../editor/renderers/slides-layout/types";
-import type { CellId } from "@/core/cells/ids";
+import type { SlidesLayout } from "../editor/renderers/slides-layout/types";
+import {
+  buildSlideIndices,
+  composeSlides,
+  resolveActiveCellIndex,
+  type ComposedSubslide,
+} from "./compose-slides";
+import { DEFAULT_SLIDE_TYPE, SlidesForm } from "./slide-form";
 
 const ASPECT_RATIO = 16 / 9;
-const COLLAPSED_CONFIG_WIDTH = 32;
-const DEFAULT_SLIDE_TYPE: SlideType = "slide";
+const COLLAPSED_CONFIG_WIDTH = 36;
+const CONFIG_OPEN_STORAGE_KEY = "marimo:slides:configOpen";
+
+type RuntimeCell = CellRuntimeState & CellData;
 
 function useSlideDimensions(ref: React.RefObject<HTMLDivElement | null>) {
   const [dims, setDims] = useState({ width: 960, height: 540 });
@@ -58,6 +64,37 @@ function useSlideDimensions(ref: React.RefObject<HTMLDivElement | null>) {
   return dims;
 }
 
+const SubslideView = ({
+  subslide,
+}: {
+  subslide: ComposedSubslide<RuntimeCell>;
+}) => (
+  <Slide>
+    <div className="h-full w-full overflow-auto flex">
+      <div className="mo-slide-content" style={{ margin: "auto 20px" }}>
+        {subslide.blocks.map((block, i) => {
+          const rendered = block.cells.map((cell) => (
+            <CellOutputSlide
+              key={cell.id}
+              cellId={cell.id}
+              status={cell.status}
+              output={cell.output}
+            />
+          ));
+          if (block.isFragment) {
+            return (
+              <Fragment key={i} as="div">
+                {rendered}
+              </Fragment>
+            );
+          }
+          return <ReactFragment key={i}>{rendered}</ReactFragment>;
+        })}
+      </div>
+    </div>
+  </Slide>
+);
+
 const RevealSlidesComponent = ({
   cellsWithOutput,
   layout,
@@ -67,7 +104,7 @@ const RevealSlidesComponent = ({
   deckRef,
   configWidth = 300, // px
 }: {
-  cellsWithOutput: (CellRuntimeState & CellData)[];
+  cellsWithOutput: RuntimeCell[];
   layout: SlidesLayout;
   setLayout: (layout: SlidesLayout) => void;
   activeIndex?: number;
@@ -77,26 +114,77 @@ const RevealSlidesComponent = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useSlideDimensions(containerRef);
-  const [isConfigOpen, setIsConfigOpen] = useState(true);
-  const activeCellId = cellsWithOutput[activeIndex ?? 0]?.id;
+  const [isConfigOpen, setIsConfigOpen] = useLocalStorage<boolean>(
+    CONFIG_OPEN_STORAGE_KEY,
+    true,
+  );
+  const activeCell =
+    activeIndex != null ? cellsWithOutput[activeIndex] : undefined;
+  const activeCellId = activeCell?.id ?? cellsWithOutput[0]?.id;
+
+  const composition = composeSlides(
+    cellsWithOutput,
+    (cell) => layout.cells.get(cell.id)?.type ?? DEFAULT_SLIDE_TYPE,
+  );
+
+  // Skip cells are dropped from the composed deck to match reveal.js
+  // semantics. When the user selects a skip cell in the minimap we render an
+  // editor-only preview on top of the deck; the deck itself stays put.
+  const skippedPreviewCell =
+    activeCell && layout.cells.get(activeCell.id)?.type === "skip"
+      ? activeCell
+      : null;
+
+  const { cellToTarget, targetToCellIndex } = buildSlideIndices(
+    composition,
+    cellsWithOutput,
+    (c) => c.id,
+  );
 
   useEffect(() => {
     const deck = deckRef.current;
-    if (deck == null || activeIndex == null) {
+    if (deck == null || activeCell == null) {
       return;
     }
-    const { h } = deck.getIndices();
-    if (h !== activeIndex) {
-      deck.slide(activeIndex);
+    const target = cellToTarget.get(activeCell.id);
+    if (!target) {
+      return;
     }
-  }, [activeIndex, deckRef]);
+    const { h, v, f } = deck.getIndices();
+    // For fragment cells, advance to that fragment so it's visible.
+    // For non-fragment cells (target.f === -1), leave f unchanged so we don't
+    // collapse already-revealed fragments on the destination slide.
+    const targetF = target.f >= 0 ? target.f : undefined;
+    if (
+      h !== target.h ||
+      v !== target.v ||
+      (targetF != null && f !== targetF)
+    ) {
+      deck.slide(target.h, target.v, targetF);
+    }
+  }, [activeCell, cellToTarget, deckRef]);
+
+  // Report the current cell index to the parent component
+  const reportCurrentCell = useEvent(() => {
+    const deck = deckRef.current;
+    if (!deck) {
+      return;
+    }
+    const flatIndex = resolveActiveCellIndex(
+      targetToCellIndex,
+      deck.getIndices(),
+    );
+    if (flatIndex != null) {
+      onSlideChange?.(flatIndex);
+    }
+  });
 
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full flex-1 flex flex-row gap-3 items-center"
+      className="relative h-full w-full flex-1 flex flex-row gap-3 items-stretch"
     >
-      <div className="group relative flex-1">
+      <div className="group relative flex-1 flex items-center">
         <Deck
           deckRef={deckRef}
           className="aspect-video overflow-hidden h-full border rounded bg-background mo-slides-theme prose-slides"
@@ -107,44 +195,57 @@ const RevealSlidesComponent = ({
             center: false,
             minScale: 0.2,
             maxScale: 2,
-            keyboardCondition: (event: KeyboardEvent) => {
-              return !Events.fromInput(event);
-            },
+            keyboardCondition: (event: KeyboardEvent) =>
+              !Events.fromInput(event),
           }}
           onSlideChange={() => {
+            reportCurrentCell();
             const deck = deckRef.current;
-            if (deck) {
-              onSlideChange?.(deck.getIndices().h);
-              // Trigger resize so vega-embed re-measures container width
-              if (
-                deck
-                  .getCurrentSlide()
-                  ?.querySelector(".vega-embed, marimo-vega")
-              ) {
-                requestAnimationFrame(() => {
-                  window.dispatchEvent(new Event("resize"));
-                });
-              }
+            // Trigger resize so vega-embed re-measures container width
+            if (
+              deck?.getCurrentSlide()?.querySelector(".vega-embed, marimo-vega")
+            ) {
+              requestAnimationFrame(() => {
+                window.dispatchEvent(new Event("resize"));
+              });
             }
           }}
+          onFragmentShown={reportCurrentCell}
+          onFragmentHidden={reportCurrentCell}
         >
-          {cellsWithOutput.map((cell) => (
-            <Slide key={cell.id}>
-              <div className="h-full w-full overflow-auto flex">
-                <div
-                  className="mo-slide-content"
-                  style={{ margin: "auto 20px" }}
-                >
-                  <CellOutputSlide
-                    cellId={cell.id}
-                    status={cell.status}
-                    output={cell.output}
-                  />
-                </div>
-              </div>
-            </Slide>
-          ))}
+          {composition.stacks.map((stack, i) => {
+            if (stack.subslides.length === 1) {
+              return <SubslideView key={i} subslide={stack.subslides[0]} />;
+            }
+            return (
+              <Stack key={i}>
+                {stack.subslides.map((sub, j) => (
+                  <SubslideView key={j} subslide={sub} />
+                ))}
+              </Stack>
+            );
+          })}
         </Deck>
+        {skippedPreviewCell && (
+          <div
+            className="absolute inset-y-0 left-0 aspect-video h-full w-full z-10 border rounded bg-background flex flex-col overflow-hidden"
+            aria-label="Skipped in presentation"
+          >
+            <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/40">
+              <EyeOffIcon className="h-3.5 w-3.5" />
+              <span>Skipped in presentation</span>
+            </div>
+            <div className="flex-1 overflow-auto flex">
+              <div className="mo-slide-content" style={{ margin: "auto 20px" }}>
+                <CellOutputSlide
+                  cellId={skippedPreviewCell.id}
+                  status={skippedPreviewCell.status}
+                  output={skippedPreviewCell.output}
+                />
+              </div>
+            </div>
+          </div>
+        )}
         <Tooltip content="Fullscreen (F)">
           <Button
             data-testid="marimo-plugin-slides-fullscreen"
@@ -165,90 +266,55 @@ const RevealSlidesComponent = ({
         </Tooltip>
       </div>
 
-      <div
-        className="h-full flex flex-col transition-[width] duration-200 ease-out overflow-hidden -mr-5"
+      <aside
+        className="h-full flex flex-col border-l border-border/60 bg-muted/20 transition-[width] duration-200 ease-out overflow-hidden"
         style={{
           width: isConfigOpen ? configWidth : COLLAPSED_CONFIG_WIDTH,
         }}
+        aria-label="Slide configuration"
       >
-        <div className="flex items-center gap-1">
-          <Tooltip content={isConfigOpen ? "Collapse" : "Expand"}>
+        <header
+          className={cn(
+            "flex items-center h-9 shrink-0 border-b border-border/60",
+            isConfigOpen ? "justify-between px-2" : "justify-center px-0",
+          )}
+        >
+          {isConfigOpen && (
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground pl-1">
+              Slide
+            </span>
+          )}
+          <Tooltip content={isConfigOpen ? "Collapse panel" : "Expand panel"}>
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-muted-foreground"
-              onClick={() => setIsConfigOpen((v) => !v)}
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={() => setIsConfigOpen(!isConfigOpen)}
               aria-expanded={isConfigOpen}
               aria-controls="slide-config-panel"
             >
               {isConfigOpen ? (
-                <ChevronRightIcon className="h-4 w-4" />
+                <PanelRightCloseIcon className="h-4 w-4" />
               ) : (
-                <SettingsIcon className="h-4 w-4" />
+                <PanelRightOpenIcon className="h-4 w-4" />
               )}
             </Button>
           </Tooltip>
-          {isConfigOpen && (
-            <h2 className="text-md font-semibold flex-1 text-center">
-              Slide Configuration
-            </h2>
-          )}
-        </div>
+        </header>
 
         {isConfigOpen && (
-          <SlidesForm
-            layout={layout}
-            setLayout={setLayout}
-            cellId={activeCellId}
-          />
+          <div
+            id="slide-config-panel"
+            className="flex-1 overflow-y-auto overflow-x-hidden"
+          >
+            <SlidesForm
+              layout={layout}
+              setLayout={setLayout}
+              cellId={activeCellId}
+            />
+          </div>
         )}
-      </div>
-    </div>
-  );
-};
-
-const SlidesForm = ({
-  layout,
-  setLayout,
-  cellId,
-}: {
-  layout: SlidesLayout;
-  setLayout: (layout: SlidesLayout) => void;
-  cellId: CellId;
-}) => {
-  const currentSlideType: SlideType =
-    layout.cells.get(cellId)?.type ?? DEFAULT_SLIDE_TYPE;
-
-  const handleSlideTypeChange = (value: SlideType) => {
-    const existingConfig = layout.cells.get(cellId);
-    const newCells = new Map(layout.cells);
-    newCells.set(cellId, { ...existingConfig, type: value });
-    setLayout({
-      ...layout,
-      cells: newCells,
-    });
-  };
-
-  return (
-    <div id="slide-config-panel" className="p-3 mt-5">
-      <div className="flex flex-row gap-2 items-center">
-        <Select
-          value={currentSlideType}
-          onValueChange={(value) => {
-            handleSlideTypeChange(value as SlideType);
-          }}
-        >
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Slide Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="slide">Slide</SelectItem>
-            <SelectItem value="sub-slide">Sub-slide</SelectItem>
-            <SelectItem value="fragment">Fragment</SelectItem>
-            <SelectItem value="skip">Skip</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      </aside>
     </div>
   );
 };

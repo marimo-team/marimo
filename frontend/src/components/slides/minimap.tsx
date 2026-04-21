@@ -29,7 +29,8 @@ import {
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { cn } from "@/utils/cn";
 import { Slide } from "./slide";
-import { InfoIcon } from "lucide-react";
+import { EyeOffIcon, InfoIcon } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 import { Logger } from "@/utils/Logger";
 
 type Props = ICellRendererProps<SlidesLayout>;
@@ -61,6 +62,7 @@ interface SlideThumbnailCardProps extends React.HTMLAttributes<HTMLDivElement> {
   isActiveDragSource?: boolean;
   isOverlay?: boolean;
   isVisible?: boolean;
+  isSkipped?: boolean;
   ref?: React.Ref<HTMLDivElement>;
 }
 
@@ -71,6 +73,7 @@ interface SlideThumbnailRowProps extends React.ButtonHTMLAttributes<HTMLButtonEl
   dropIndicator?: DropPosition | null;
   isActiveDragSource?: boolean;
   isVisible?: boolean;
+  isSkipped?: boolean;
   ref?: React.Ref<HTMLButtonElement>;
 }
 
@@ -79,6 +82,12 @@ interface SlidesMinimapProps {
   thumbnailWidth: number;
   canReorder: boolean;
   activeCellId: CellId | null;
+  /**
+   * Set of cell ids that are marked `skip` in the slides layout. These are
+   * still rendered in the minimap but visually deemphasized to signal they
+   * won't appear in fullscreen presentation mode.
+   */
+  skippedIds?: ReadonlySet<CellId>;
   onSlideClick: (index: number) => void;
 }
 
@@ -175,6 +184,7 @@ export const SlidesMinimap = ({
   thumbnailWidth,
   canReorder,
   activeCellId,
+  skippedIds,
   onSlideClick,
 }: SlidesMinimapProps) => {
   const cellIds = useCellIds();
@@ -266,6 +276,7 @@ export const SlidesMinimap = ({
             dimensions={dimensions}
             isActiveSlide={cell.id === activeCellId}
             isVisible={visibleIds.has(cell.id)}
+            isSkipped={skippedIds?.has(cell.id)}
             onClick={() => onSlideClick(index)}
           />
         ))}
@@ -298,6 +309,7 @@ export const SlidesMinimap = ({
               isActive={activeId === cell.id}
               isActiveSlide={cell.id === activeCellId}
               isVisible={visibleIds.has(cell.id)}
+              isSkipped={skippedIds?.has(cell.id)}
               dropIndicator={
                 dropTarget?.overId === cell.id && activeId !== cell.id
                   ? dropTarget.position
@@ -346,6 +358,7 @@ interface SortableSlideThumbnailProps {
   isActive: boolean;
   isActiveSlide?: boolean;
   isVisible?: boolean;
+  isSkipped?: boolean;
   onClick?: () => void;
 }
 
@@ -356,6 +369,7 @@ const SortableSlideThumbnail = ({
   isActive,
   isActiveSlide,
   isVisible,
+  isSkipped,
   onClick,
 }: SortableSlideThumbnailProps) => {
   const { attributes, listeners, setNodeRef } = useSortable({
@@ -371,6 +385,7 @@ const SortableSlideThumbnail = ({
       isActiveDragSource={isActive}
       isActiveSlide={isActiveSlide}
       isVisible={isVisible}
+      isSkipped={isSkipped}
       onClick={onClick}
       {...attributes}
       {...listeners}
@@ -387,6 +402,7 @@ const SlideThumbnailRow = ({
   isActiveSlide = false,
   isActiveDragSource = false,
   isVisible,
+  isSkipped = false,
   onClick,
   ref,
   ...props
@@ -397,7 +413,7 @@ const SlideThumbnailRow = ({
     ...style,
   };
 
-  return (
+  const button = (
     <button
       ref={ref}
       type="button"
@@ -426,9 +442,19 @@ const SlideThumbnailRow = ({
         isActiveSlide={isActiveSlide}
         isActiveDragSource={isActiveDragSource}
         isVisible={isVisible}
+        isSkipped={isSkipped}
       />
     </button>
   );
+
+  if (isSkipped) {
+    return (
+      <Tooltip content="Skipped in presentation" delayDuration={300}>
+        {button}
+      </Tooltip>
+    );
+  }
+  return button;
 };
 
 const SlideThumbnailCard = ({
@@ -440,6 +466,7 @@ const SlideThumbnailCard = ({
   isActiveDragSource = false,
   isOverlay = false,
   isVisible = false,
+  isSkipped = false,
   ref,
   ...props
 }: SlideThumbnailCardProps) => {
@@ -464,7 +491,7 @@ const SlideThumbnailCard = ({
     <div
       ref={ref}
       className={cn(
-        "border-2 shrink-0 rounded-md relative select-none bg-background cursor-pointer active:cursor-grabbing",
+        "border-2 shrink-0 rounded-md relative select-none bg-background cursor-pointer active:cursor-grabbing overflow-hidden",
         isActiveSlide || isActiveDragSource || isOverlay
           ? "border-blue-500"
           : "border-border",
@@ -487,6 +514,20 @@ const SlideThumbnailCard = ({
         >
           <Slide cellId={cell.id} status={cell.status} output={cell.output} />
         </div>
+      )}
+      {isSkipped && (
+        <>
+          <div
+            className="absolute inset-0 bg-muted/60 pointer-events-none"
+            aria-hidden={true}
+          />
+          <div
+            className="absolute top-1 right-1 rounded-full bg-background/90 border border-border p-1 shadow-sm pointer-events-none"
+            aria-label="Skipped in presentation"
+          >
+            <EyeOffIcon className="h-3 w-3 text-muted-foreground" />
+          </div>
+        </>
       )}
     </div>
   );

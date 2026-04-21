@@ -31,10 +31,25 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
     (cell) => cell.output != null && cell.output.data !== "",
   );
 
+  const skippedIds = new Set<CellId>();
+  for (const c of cellsWithOutput) {
+    if (layout.cells.get(c.id)?.type === "skip") {
+      skippedIds.add(c.id);
+    }
+  }
+
+  // Prefer a non-skipped cell on initial load so the deck lands on a real
+  // slide instead of the skip-preview overlay.
+  const firstNonSkippedIndex = cellsWithOutput.findIndex(
+    (c) => !skippedIds.has(c.id),
+  );
+  const defaultIndex = firstNonSkippedIndex === -1 ? 0 : firstNonSkippedIndex;
+
   const activeSlideIndex = activeCellId
     ? cellsWithOutput.findIndex((c) => c.id === activeCellId)
-    : 0;
-  const resolvedIndex = activeSlideIndex === -1 ? 0 : activeSlideIndex;
+    : defaultIndex;
+  const resolvedIndex =
+    activeSlideIndex === -1 ? defaultIndex : activeSlideIndex;
 
   const handleSlideChange = useEvent((index: number) => {
     const cell = cellsWithOutput[index];
@@ -66,7 +81,8 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
         cells={cellsWithOutput}
         thumbnailWidth={220}
         canReorder={!isMultiColumn}
-        activeCellId={activeCellId ?? cellsWithOutput[0]?.id ?? null}
+        activeCellId={activeCellId ?? cellsWithOutput[defaultIndex]?.id ?? null}
+        skippedIds={skippedIds}
         onSlideClick={handleSlideChange}
       />
       {slides}

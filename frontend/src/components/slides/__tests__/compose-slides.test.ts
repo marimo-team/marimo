@@ -1,0 +1,334 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+import { describe, it, expect } from "vitest";
+import {
+  buildSlideIndices,
+  composeSlides,
+  resolveActiveCellIndex,
+  type ComposeCellType,
+  type ComposeOptions,
+} from "../compose-slides";
+
+interface Cell {
+  id: string;
+  type?: ComposeCellType;
+}
+
+const compose = (cells: Cell[], opts: ComposeOptions = {}) =>
+  composeSlides(cells, (c) => c.type, opts);
+
+/**
+ * Collapse the tree to a readable shape so failures produce tiny, obvious
+ * diffs:
+ *   stacks -> subslides -> blocks -> { f: isFragment, ids: [...] }
+ */
+const shape = (cells: Cell[], opts: ComposeOptions = {}) =>
+  compose(cells, opts).stacks.map((s) =>
+    s.subslides.map((sub) =>
+      sub.blocks.map((b) => ({
+        f: b.isFragment,
+        ids: b.cells.map((x) => x.id),
+      })),
+    ),
+  );
+
+describe("composeSlides", () => {
+  it("returns an empty composition for empty input", () => {
+    expect(compose([])).toEqual({ stacks: [] });
+  });
+
+  it("treats each 'slide' cell as its own stack", () => {
+    expect(
+      shape([
+        { id: "a", type: "slide" },
+        { id: "b", type: "slide" },
+        { id: "c", type: "slide" },
+      ]),
+    ).toEqual([
+      [[{ f: false, ids: ["a"] }]],
+      [[{ f: false, ids: ["b"] }]],
+      [[{ f: false, ids: ["c"] }]],
+    ]);
+  });
+
+  it("nests 'sub-slide' cells under the current slide (vertical stack)", () => {
+    expect(
+      shape([
+        { id: "a", type: "slide" },
+        { id: "b", type: "sub-slide" },
+        { id: "c", type: "sub-slide" },
+        { id: "d", type: "slide" },
+      ]),
+    ).toEqual([
+      [
+        [{ f: false, ids: ["a"] }],
+        [{ f: false, ids: ["b"] }],
+        [{ f: false, ids: ["c"] }],
+      ],
+      [[{ f: false, ids: ["d"] }]],
+    ]);
+  });
+
+  it("wraps fragments in their own block on the current subslide", () => {
+    expect(
+      shape([
+        { id: "a", type: "slide" },
+        { id: "b", type: "fragment" },
+        { id: "c", type: "fragment" },
+      ]),
+    ).toEqual([
+      [
+        [
+          { f: false, ids: ["a"] },
+          { f: true, ids: ["b"] },
+          { f: true, ids: ["c"] },
+        ],
+      ],
+    ]);
+  });
+
+  it("treats undefined (continuation) as appending to the current block", () => {
+    expect(
+      shape([
+        { id: "a", type: "slide" },
+        { id: "b" },
+        { id: "c", type: "fragment" },
+        { id: "d" },
+      ]),
+    ).toEqual([
+      [
+        [
+          { f: false, ids: ["a", "b"] },
+          { f: true, ids: ["c", "d"] },
+        ],
+      ],
+    ]);
+  });
+
+  it("creates an implicit initial subslide when the first cell is a fragment", () => {
+    expect(shape([{ id: "a", type: "fragment" }])).toEqual([
+      [[{ f: true, ids: ["a"] }]],
+    ]);
+  });
+
+  it("creates an implicit initial stack when the first cell is a sub-slide", () => {
+    expect(
+      shape([
+        { id: "a", type: "sub-slide" },
+        { id: "b", type: "sub-slide" },
+      ]),
+    ).toEqual([[[{ f: false, ids: ["a"] }], [{ f: false, ids: ["b"] }]]]);
+  });
+
+  it("creates an implicit initial block when the first cell is a continuation", () => {
+    expect(shape([{ id: "a" }, { id: "b" }])).toEqual([
+      [[{ f: false, ids: ["a", "b"] }]],
+    ]);
+  });
+
+  it("drops 'skip' cells by default", () => {
+    expect(
+      shape([
+        { id: "a", type: "slide" },
+        { id: "b", type: "skip" },
+        { id: "c", type: "fragment" },
+      ]),
+    ).toEqual([
+      [
+        [
+          { f: false, ids: ["a"] },
+          { f: true, ids: ["c"] },
+        ],
+      ],
+    ]);
+  });
+
+  it("keeps 'skip' cells in the current block when dropSkipped=false", () => {
+    expect(
+      shape(
+        [
+          { id: "a", type: "slide" },
+          { id: "b", type: "skip" },
+          { id: "c", type: "fragment" },
+        ],
+        { dropSkipped: false },
+      ),
+    ).toEqual([
+      [
+        [
+          { f: false, ids: ["a", "b"] },
+          { f: true, ids: ["c"] },
+        ],
+      ],
+    ]);
+  });
+
+  it("skip at the very start does not create an empty leading stack", () => {
+    expect(
+      shape([
+        { id: "a", type: "skip" },
+        { id: "b", type: "slide" },
+      ]),
+    ).toEqual([[[{ f: false, ids: ["b"] }]]]);
+  });
+
+  it("supports multiple fragments interleaved with continuations", () => {
+    expect(
+      shape([
+        { id: "a", type: "slide" },
+        { id: "b", type: "fragment" },
+        { id: "c" },
+        { id: "d", type: "fragment" },
+      ]),
+    ).toEqual([
+      [
+        [
+          { f: false, ids: ["a"] },
+          { f: true, ids: ["b", "c"] },
+          { f: true, ids: ["d"] },
+        ],
+      ],
+    ]);
+  });
+
+  it("resets fragment context when a new subslide opens", () => {
+    expect(
+      shape([
+        { id: "a", type: "slide" },
+        { id: "b", type: "fragment" },
+        { id: "c", type: "sub-slide" },
+        { id: "d" },
+      ]),
+    ).toEqual([
+      [
+        [
+          { f: false, ids: ["a"] },
+          { f: true, ids: ["b"] },
+        ],
+        [{ f: false, ids: ["c", "d"] }],
+      ],
+    ]);
+  });
+
+  it("handles a realistic mixed sequence", () => {
+    expect(
+      shape([
+        { id: "title", type: "slide" },
+        { id: "intro1" },
+        { id: "intro2", type: "fragment" },
+        { id: "deep", type: "sub-slide" },
+        { id: "deep-body" },
+        { id: "debug", type: "skip" },
+        { id: "outro", type: "slide" },
+      ]),
+    ).toEqual([
+      [
+        [
+          { f: false, ids: ["title", "intro1"] },
+          { f: true, ids: ["intro2"] },
+        ],
+        [{ f: false, ids: ["deep", "deep-body"] }],
+      ],
+      [[{ f: false, ids: ["outro"] }]],
+    ]);
+  });
+
+  it("is generic over cell shape (preserves object identity)", () => {
+    const a = { id: "a", type: "slide" as const, extra: 42 };
+    const b = { id: "b", type: "fragment" as const, extra: 7 };
+    const result = composeSlides([a, b], (c) => c.type);
+    expect(result.stacks[0].subslides[0].blocks[0].cells[0]).toBe(a);
+    expect(result.stacks[0].subslides[0].blocks[1].cells[0]).toBe(b);
+  });
+});
+
+describe("buildSlideIndices", () => {
+  const build = (cells: Cell[]) => {
+    const composition = composeSlides(cells, (c) => c.type);
+    return buildSlideIndices(composition, cells, (c) => c.id);
+  };
+
+  it("maps each cell to its {h, v, f} location", () => {
+    const cells: Cell[] = [
+      { id: "a", type: "slide" },
+      { id: "b", type: "fragment" },
+      { id: "c", type: "sub-slide" },
+      { id: "d", type: "slide" },
+      { id: "e", type: "fragment" },
+      { id: "f", type: "fragment" },
+    ];
+    const { cellToTarget } = build(cells);
+    expect(cellToTarget.get("a")).toEqual({ h: 0, v: 0, f: -1 });
+    expect(cellToTarget.get("b")).toEqual({ h: 0, v: 0, f: 0 });
+    expect(cellToTarget.get("c")).toEqual({ h: 0, v: 1, f: -1 });
+    expect(cellToTarget.get("d")).toEqual({ h: 1, v: 0, f: -1 });
+    expect(cellToTarget.get("e")).toEqual({ h: 1, v: 0, f: 0 });
+    expect(cellToTarget.get("f")).toEqual({ h: 1, v: 0, f: 1 });
+  });
+
+  it("maps {h, v, f} back to the flat index of the last visible cell", () => {
+    const cells: Cell[] = [
+      { id: "a", type: "slide" },
+      { id: "b", type: "fragment" },
+      { id: "c", type: "fragment" },
+    ];
+    const { targetToCellIndex } = build(cells);
+    // Before any fragment is revealed, the active cell is the last pre-fragment cell.
+    expect(targetToCellIndex.get("0,0,-1")).toBe(0); // "a"
+    // After fragment 0 is shown, active advances to "b".
+    expect(targetToCellIndex.get("0,0,0")).toBe(1); // "b"
+    // After fragment 1 is shown, active advances to "c".
+    expect(targetToCellIndex.get("0,0,1")).toBe(2); // "c"
+  });
+
+  it("populates f=-1 with the first cell when the subslide starts with a fragment", () => {
+    const cells: Cell[] = [{ id: "a", type: "fragment" }];
+    const { targetToCellIndex } = build(cells);
+    expect(targetToCellIndex.get("0,0,-1")).toBe(0);
+    expect(targetToCellIndex.get("0,0,0")).toBe(0);
+  });
+
+  it("records continuation cells under their containing fragment's f index", () => {
+    const cells: Cell[] = [
+      { id: "a", type: "slide" },
+      { id: "b", type: "fragment" },
+      { id: "c" }, // continuation -> same fragment as b
+    ];
+    const { cellToTarget, targetToCellIndex } = build(cells);
+    expect(cellToTarget.get("c")).toEqual({ h: 0, v: 0, f: 0 });
+    // Active cell for that fragment is the last cell in the block -> "c"
+    expect(targetToCellIndex.get("0,0,0")).toBe(2);
+  });
+
+  it("drops skipped cells from the index entirely", () => {
+    const cells: Cell[] = [
+      { id: "a", type: "slide" },
+      { id: "b", type: "skip" },
+    ];
+    const { cellToTarget } = build(cells);
+    expect(cellToTarget.has("a")).toBe(true);
+    expect(cellToTarget.has("b")).toBe(false);
+  });
+});
+
+describe("resolveActiveCellIndex", () => {
+  const map = new Map<string, number>([
+    ["0,0,-1", 0],
+    ["0,0,0", 1],
+    ["0,0,1", 2],
+    ["1,0,-1", 3],
+  ]);
+
+  it("returns the exact match when one exists", () => {
+    expect(resolveActiveCellIndex(map, { h: 0, v: 0, f: 1 })).toBe(2);
+  });
+
+  it("falls back to f=-1 when there is no fragment-specific entry", () => {
+    // reveal may report f=0 for slides without any fragments
+    expect(resolveActiveCellIndex(map, { h: 1, v: 0, f: 0 })).toBe(3);
+  });
+
+  it("returns undefined for unknown stacks", () => {
+    expect(resolveActiveCellIndex(map, { h: 9, v: 0, f: 0 })).toBeUndefined();
+  });
+});
