@@ -22,6 +22,12 @@ export interface Figure {
   frames: PlotlyTypes.Frame[] | null;
 }
 
+export interface SelectedPoint {
+  curveNumber?: unknown;
+  pointIndex?: unknown;
+  pointNumber?: unknown;
+}
+
 export interface PlotProps {
   data: PlotlyTypes.Data[];
   layout: Partial<PlotlyTypes.Layout>;
@@ -31,6 +37,9 @@ export interface PlotProps {
   style?: React.CSSProperties;
   useResizeHandler?: boolean;
   divId?: string;
+  hasSelection?: boolean;
+  selectedPoints?: ReadonlyArray<SelectedPoint>;
+  layoutSelections?: ReadonlyArray<unknown>;
   onRelayout?: (event: PlotlyTypes.PlotRelayoutEvent) => void;
   onRelayouting?: (event: PlotlyTypes.PlotRelayoutEvent) => void;
   onSelected?: (event: PlotlyTypes.PlotSelectionEvent) => void;
@@ -135,6 +144,96 @@ export const Plot = (props: PlotProps) => {
     },
     EVENT_NAMES.map((name) => props[propName(name)]),
   );
+
+  // Escape = clear selection. Plotly only supports double-click, so we wire up
+  // the keyboard shortcut: clear per-point highlights, remove box/lasso
+  // overlays, then notify the plugin to reset state.
+  const { hasSelection, selectedPoints, layoutSelections, onDeselect } = props;
+  useEffect(() => {
+    if (!hasSelection || !onDeselect) {
+      return;
+    }
+    const el = containerRef.current;
+    if (!el) {
+      return;
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) {
+        return;
+      }
+      Plotly.restyle(el, "selectedpoints", null).catch(() => {});
+      Plotly.relayout(el, "selections", null).catch(() => {});
+      onDeselect();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [hasSelection, onDeselect]);
+
+  // Sync selection visuals to Plotly in one atomic `Plotly.update` pass, so
+  // we don't race Plotly's own click animation.
+  //
+  // `selectedpoints` per trace: null = normal render, [] = all greyed,
+  // [i…] = those highlighted, rest greyed. Plotly's default click handling
+  // only updates the clicked trace, so we explicitly set [] on all others to
+  // grey them out. `layout.selections` is cleared whenever the plugin has no
+  // active overlay, otherwise the box/lasso outline sticks around.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) {
+      return;
+    }
+    if (!data.length) {
+      return;
+    }
+
+    const byTrace = new Map<number, number[]>();
+    if (selectedPoints) {
+      for (const point of selectedPoints) {
+        const curve =
+          typeof point.curveNumber === "number" ? point.curveNumber : undefined;
+        if (curve === undefined) {
+          continue;
+        }
+        const pointIdx =
+          typeof point.pointIndex === "number"
+            ? point.pointIndex
+            : typeof point.pointNumber === "number"
+              ? point.pointNumber
+              : undefined;
+        if (pointIdx === undefined) {
+          continue;
+        }
+        const indices = byTrace.get(curve) ?? [];
+        indices.push(pointIdx);
+        byTrace.set(curve, indices);
+      }
+    }
+
+    const traceIndices = data.map((_, i) => i);
+    const anySelection = byTrace.size > 0;
+    const emptyFill: number[] | null = anySelection ? [] : null;
+    const nextSelectedpoints: (number[] | null)[] = traceIndices.map(
+      (i) => byTrace.get(i) ?? emptyFill,
+    );
+
+    const hasActiveOverlay =
+      Array.isArray(layoutSelections) && layoutSelections.length > 0;
+    const layoutUpdate: Partial<PlotlyTypes.Layout> = hasActiveOverlay
+      ? {}
+      : // `null` removes the attribute; cast because Layout's type omits it.
+        ({ selections: null } as Partial<PlotlyTypes.Layout>);
+
+    Plotly.update(
+      el,
+      { selectedpoints: nextSelectedpoints },
+      layoutUpdate,
+      traceIndices,
+    ).catch(() => {});
+  }, [selectedPoints, layoutSelections, data]);
 
   // Window resize handler
   useEffect(() => {
