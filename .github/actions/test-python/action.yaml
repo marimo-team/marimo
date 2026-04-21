@@ -24,56 +24,6 @@ runs:
         python-version: ${{ inputs.python-version }}
         enable-cache: true
 
-    # Diagnostic for the "ModuleNotFoundError: No module named
-    # 'numpy.random' / 'matplotlib.backends.*'" and FileNotFoundError:
-    # '.venv/bin/pytest' failures specific to Ubuntu core-dep runs.
-    # Gated to one representative matrix entry to keep output focused.
-    # Remove once the failures are understood and fixed.
-    - name: Diagnose venv contents
-      if: ${{ inputs.os == 'ubuntu-latest' && inputs.python-version == '3.11' && inputs.dependencies == 'core' }}
-      shell: bash
-      run: |
-        uv sync --python ${{ inputs.python-version }} --group test
-        SP=$(.venv/bin/python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
-
-        echo "=== .venv/bin/ entries ==="
-        ls -la .venv/bin/
-        echo
-        echo "=== .venv/bin/pytest exists? ==="
-        if [ -e .venv/bin/pytest ]; then
-          echo "YES"
-          file .venv/bin/pytest
-          head -3 .venv/bin/pytest || true
-        else
-          echo "NO — this would explain multiprocessing's FileNotFoundError"
-        fi
-        echo
-        echo "=== pytest dist-info RECORD (entry point rows) ==="
-        grep -E '^.venv/bin/pytest|bin/pytest,' "$SP"/pytest-*.dist-info/RECORD 2>/dev/null || echo "(no pytest RECORD entry found)"
-        echo
-        echo "=== direct import probes (.venv/bin/python, NO uv run, NO conftest) ==="
-        .venv/bin/python -c "import numpy.random; print('numpy.random OK')" || echo "numpy.random: FAILED"
-        .venv/bin/python -c "from matplotlib.backends.backend_webagg_core import FigureManagerWebAgg; print('webagg OK')" || echo "webagg: FAILED"
-        echo
-        echo "=== import probes AFTER register_formatters (.venv/bin/python, NO uv run) ==="
-        .venv/bin/python -c "
-        from marimo._output.formatters.formatters import register_formatters
-        register_formatters(theme='light')
-        import numpy.random; print('numpy.random OK')
-        from matplotlib.backends.backend_webagg_core import FigureManagerWebAgg; print('webagg OK')
-        " || echo "with register_formatters: FAILED"
-        echo
-        echo "=== import probes via uv run (no pytest, no conftest) ==="
-        uv run --python ${{ inputs.python-version }} --group test python -c "
-        import numpy.random; print('numpy.random OK')
-        from matplotlib.backends.backend_webagg_core import FigureManagerWebAgg; print('webagg OK')
-        " || echo "uv run python: FAILED"
-        echo
-        echo "=== pytest (isolated, no xdist, no conftest-loaded addopts) ==="
-        uv run --python ${{ inputs.python-version }} --group test pytest \
-          tests/_plugins/stateless/test_mpl.py::test_patch_javascript \
-          -p no:xdist --no-header -q -o addopts= || echo "pytest isolated: FAILED"
-
     # This step is needed since some of our tests rely on the index.html file
     - name: Create assets directory, copy over index.html
       shell: bash
@@ -121,6 +71,8 @@ runs:
     - name: Test changed with base dependencies
       if: ${{ inputs.dependencies == 'core' }}
       shell: bash
+      env:
+        MARIMO_POISON_LOG: /tmp/marimo-poison.log
       run: |
         uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
           -v \
@@ -171,3 +123,16 @@ runs:
           --picked=first \
           --inline-snapshot=disable \
         || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
+
+    # Dump the numpy.random poisoning log from the autouse fixture in
+    # tests/conftest.py. Temporary; remove with the fixture.
+    - name: Dump numpy.random poisoning log
+      if: always()
+      shell: bash
+      run: |
+        if [ -f /tmp/marimo-poison.log ]; then
+          echo "=== numpy.random import state transitions during this run ==="
+          sort -u /tmp/marimo-poison.log
+        else
+          echo "(no poisoning log written — fixture either not loaded or numpy never imported)"
+        fi

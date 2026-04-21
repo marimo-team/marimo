@@ -172,9 +172,14 @@ def patch_random_seed(monkeypatch: pytest.MonkeyPatch) -> None:
 
 # Temporary diagnostic for CI failure where later tests raise
 # "ModuleNotFoundError: No module named 'numpy.random'" even though a fresh
-# .venv/bin/python can import it fine. Logs the test that flips the import
-# from working to broken (and the inverse), so the poisoning trigger is
-# identifiable from CI output. Remove once the cause is found and fixed.
+# .venv/bin/python can import it fine. When MARIMO_POISON_LOG is set, logs
+# tests that flip `import numpy.random` between working and broken into
+# that file so the poisoning trigger is identifiable from CI output.
+# Writes to a file because pytest captures stdout/stderr from fixture
+# teardown and swallows print(). Remove once the cause is found.
+import os as _os  # noqa: E402
+
+_POISON_LOG = _os.environ.get("MARIMO_POISON_LOG")
 _numpy_random_import_state: bool | None = None
 
 
@@ -183,7 +188,7 @@ def _detect_numpy_random_poisoning(
     request: pytest.FixtureRequest,
 ) -> Generator[None, None, None]:
     yield
-    if "numpy" not in sys.modules:
+    if not _POISON_LOG or "numpy" not in sys.modules:
         return
     global _numpy_random_import_state
     try:
@@ -193,11 +198,9 @@ def _detect_numpy_random_poisoning(
         currently_works = False
     if _numpy_random_import_state != currently_works:
         label = "POISONED" if not currently_works else "RECOVERED"
-        print(
-            f"\n>>> numpy.random {label} by: {request.node.nodeid}",
-            file=sys.stderr,
-            flush=True,
-        )
+        worker = _os.environ.get("PYTEST_XDIST_WORKER", "main")
+        with open(_POISON_LOG, "a") as f:
+            f.write(f"[{worker}] {label} by: {request.node.nodeid}\n")
         _numpy_random_import_state = currently_works
 
 
