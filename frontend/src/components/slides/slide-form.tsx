@@ -7,6 +7,7 @@ import {
   Rows2Icon,
   SparklesIcon,
 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
 import type {
@@ -78,25 +79,24 @@ export const SlidesForm = ({
   return (
     <div className="flex flex-col gap-3 p-3">
       <span className="font-semibold text-sm">Slide type</span>
-      <div
-        role="radiogroup"
+      <RadioGroup
         aria-label="Slide type"
+        value={currentSlideType}
+        onValueChange={(value) => handleSlideTypeChange(value as SlideType)}
         className="flex flex-col gap-1.5"
       >
         {SLIDE_TYPE_OPTIONS.map(({ value, label, description, Icon }) => {
           const isSelected = currentSlideType === value;
           return (
-            <button
+            <RadioGroupItem
               key={value}
-              type="button"
-              role="radio"
-              aria-checked={isSelected}
-              onClick={() => handleSlideTypeChange(value)}
+              value={value}
               className={cn(
-                "group text-left rounded-md border p-2.5 transition-colors",
+                "group h-auto w-full text-left rounded-md p-2.5 transition-colors shadow-none! border",
+                "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 isSelected
                   ? "border-primary bg-primary/5"
-                  : "border-border/60 bg-background hover:bg-accent/50 hover:border-border",
+                  : "border-border bg-background hover:bg-accent/50 hover:border-foreground/30",
               )}
             >
               <div className="flex items-start gap-2.5">
@@ -111,16 +111,23 @@ export const SlidesForm = ({
                   <Icon className="h-3.5 w-3.5" />
                 </span>
                 <div>
-                  <p className="text-sm leading-tight">{label}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
+                  <p
+                    className={cn(
+                      "text-sm font-medium leading-tight",
+                      isSelected ? "text-primary" : "text-foreground",
+                    )}
+                  >
+                    {label}
+                  </p>
+                  <p className="mt-0.5 text-xs text-foreground/70">
                     {description}
                   </p>
                 </div>
               </div>
-            </button>
+            </RadioGroupItem>
           );
         })}
-      </div>
+      </RadioGroup>
     </div>
   );
 };

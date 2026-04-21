@@ -108,9 +108,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    # Cell 11 (continuation — no slide type) — flows into the previous block.
+    # Cell 11 (no slide type) — treated as a slide.
     mo.md("""
-    Cells with no slide type stick to whatever container the previous cell opened.
+    Cells with no slide type are treated as slides.
     """)
     return
 

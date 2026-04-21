@@ -35,13 +35,6 @@ export interface Composition<T> {
   stacks: ComposedStack<T>[];
 }
 
-/**
- * The per-cell slide-type. `undefined` means "continuation" — the cell sticks
- * to whatever container the previous cell opened (slide / subslide / fragment).
- * This matches RISE's behavior for cells with no `slide_type` metadata.
- */
-export type ComposeCellType = SlideType | undefined;
-
 export interface ComposeOptions {
   /** Drop `skip` cells entirely. Defaults to true. */
   dropSkipped?: boolean;
@@ -55,20 +48,23 @@ export interface ComposeOptions {
  * declarative React renderer: instead of mutating DOM during the walk, we
  * produce a tree the caller can render however they like.
  *
+ * Callers are responsible for normalizing "no type set" to a concrete
+ * {@link SlideType} before getting here — the convention in this codebase is
+ * that a cell with no configured type is a `"slide"`.
+ *
  * Rules (per cell):
  * - `"slide"`     -> open a new stack + subslide, cell goes in a plain block.
  * - `"sub-slide"` -> open a new subslide inside the current stack.
  * - `"fragment"`  -> open a new fragment block inside the current subslide.
  * - `"skip"`      -> dropped by default; kept (in the current block) when
  *                    `dropSkipped: false`.
- * - `undefined`   -> append to whatever block is currently open (continuation).
  *
  * If the very first cell is a `fragment` or `sub-slide`, a containing stack /
  * subslide is created implicitly.
  */
 export function composeSlides<T>(
   cells: readonly T[],
-  getType: (cell: T) => ComposeCellType,
+  getType: (cell: T) => SlideType,
   opts: ComposeOptions = {},
 ): Composition<T> {
   const dropSkipped = opts.dropSkipped ?? true;
@@ -98,38 +94,37 @@ export function composeSlides<T>(
     block = { isFragment, cells: [] };
     subslide!.blocks.push(block);
   };
-  const appendToCurrent = (cell: T) => {
-    if (!block) {
-      openBlock(false);
-    }
-    block!.cells.push(cell);
-  };
 
   for (const cell of cells) {
     const type = getType(cell);
 
-    if (type === "skip") {
-      if (dropSkipped) {
-        continue;
-      }
-      appendToCurrent(cell);
-      continue;
-    }
-
-    if (type === "slide") {
-      openStack();
-      openSubslide();
-      openBlock(false);
-      block!.cells.push(cell);
-    } else if (type === "sub-slide") {
-      openSubslide();
-      openBlock(false);
-      block!.cells.push(cell);
-    } else if (type === "fragment") {
-      openBlock(true);
-      block!.cells.push(cell);
-    } else {
-      appendToCurrent(cell);
+    switch (type) {
+      case "skip":
+        if (dropSkipped) {
+          break;
+        }
+        // Keep skipped cells in the current block if one is open, otherwise
+        // open a plain block on the current (or implicit) subslide.
+        if (!block) {
+          openBlock(false);
+        }
+        block!.cells.push(cell);
+        break;
+      case "slide":
+        openStack();
+        openSubslide();
+        openBlock(false);
+        block!.cells.push(cell);
+        break;
+      case "sub-slide":
+        openSubslide();
+        openBlock(false);
+        block!.cells.push(cell);
+        break;
+      case "fragment":
+        openBlock(true);
+        block!.cells.push(cell);
+        break;
     }
   }
 

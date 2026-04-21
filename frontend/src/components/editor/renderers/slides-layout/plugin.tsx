@@ -65,11 +65,15 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
         return {};
       }
 
-      return {
-        type: slideConfig.type,
+      const serialized: SlideConfig = {
         // A code snippet is added to help the user / AI understand the cell.
         codeSnippet: `${cell.code.slice(0, 100)}...`,
       };
+      // We don't want to save undefined
+      if (slideConfig.type) {
+        serialized.type = slideConfig.type;
+      }
+      return serialized;
     });
 
     return {

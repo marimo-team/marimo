@@ -120,7 +120,10 @@ const RevealSlidesComponent = ({
   );
   const activeCell =
     activeIndex != null ? cellsWithOutput[activeIndex] : undefined;
-  const activeCellId = activeCell?.id ?? cellsWithOutput[0]?.id;
+  // Fall back to the first cell so the config panel has something to edit
+  // while the deck is still settling on an initial slide. This can still be
+  // `undefined` when the deck is empty; that case is handled below.
+  const activeConfigCell = activeCell ?? cellsWithOutput[0];
 
   const composition = composeSlides(
     cellsWithOutput,
@@ -307,11 +310,23 @@ const RevealSlidesComponent = ({
             id="slide-config-panel"
             className="flex-1 overflow-y-auto overflow-x-hidden"
           >
-            <SlidesForm
-              layout={layout}
-              setLayout={setLayout}
-              cellId={activeCellId}
-            />
+            {activeConfigCell ? (
+              <SlidesForm
+                layout={layout}
+                setLayout={setLayout}
+                cellId={activeConfigCell.id}
+              />
+            ) : (
+              <div className="flex flex-col gap-1.5 p-3 text-xs text-muted-foreground">
+                <span className="font-semibold text-sm text-foreground">
+                  No slides yet
+                </span>
+                <p>
+                  Run a cell that produces output to add it to the deck. Slide
+                  settings will appear here once a slide is selected.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </aside>

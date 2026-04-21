@@ -5,17 +5,22 @@ import {
   buildSlideIndices,
   composeSlides,
   resolveActiveCellIndex,
-  type ComposeCellType,
   type ComposeOptions,
 } from "../compose-slides";
+import type { SlideType } from "@/components/editor/renderers/slides-layout/types";
 
 interface Cell {
   id: string;
-  type?: ComposeCellType;
+  /**
+   * Optional for ergonomics; mirrors the on-disk shape where a missing
+   * `type` means "use the default slide type". The `compose` helper below
+   * normalizes this to `"slide"` before passing through.
+   */
+  type?: SlideType;
 }
 
 const compose = (cells: Cell[], opts: ComposeOptions = {}) =>
-  composeSlides(cells, (c) => c.type, opts);
+  composeSlides(cells, (c) => c.type ?? "slide", opts);
 
 /**
  * Collapse the tree to a readable shape so failures produce tiny, obvious
@@ -87,7 +92,7 @@ describe("composeSlides", () => {
     ]);
   });
 
-  it("treats undefined (continuation) as appending to the current block", () => {
+  it("treats cells with no type as their own new slide (the default)", () => {
     expect(
       shape([
         { id: "a", type: "slide" },
@@ -96,12 +101,14 @@ describe("composeSlides", () => {
         { id: "d" },
       ]),
     ).toEqual([
+      [[{ f: false, ids: ["a"] }]],
       [
         [
-          { f: false, ids: ["a", "b"] },
-          { f: true, ids: ["c", "d"] },
+          { f: false, ids: ["b"] },
+          { f: true, ids: ["c"] },
         ],
       ],
+      [[{ f: false, ids: ["d"] }]],
     ]);
   });
 
@@ -118,12 +125,6 @@ describe("composeSlides", () => {
         { id: "b", type: "sub-slide" },
       ]),
     ).toEqual([[[{ f: false, ids: ["a"] }], [{ f: false, ids: ["b"] }]]]);
-  });
-
-  it("creates an implicit initial block when the first cell is a continuation", () => {
-    expect(shape([{ id: "a" }, { id: "b" }])).toEqual([
-      [[{ f: false, ids: ["a", "b"] }]],
-    ]);
   });
 
   it("drops 'skip' cells by default", () => {
@@ -172,19 +173,20 @@ describe("composeSlides", () => {
     ).toEqual([[[{ f: false, ids: ["b"] }]]]);
   });
 
-  it("supports multiple fragments interleaved with continuations", () => {
+  it("opens a fresh fragment block for each consecutive fragment cell", () => {
     expect(
       shape([
         { id: "a", type: "slide" },
         { id: "b", type: "fragment" },
-        { id: "c" },
+        { id: "c", type: "fragment" },
         { id: "d", type: "fragment" },
       ]),
     ).toEqual([
       [
         [
           { f: false, ids: ["a"] },
-          { f: true, ids: ["b", "c"] },
+          { f: true, ids: ["b"] },
+          { f: true, ids: ["c"] },
           { f: true, ids: ["d"] },
         ],
       ],
@@ -197,7 +199,7 @@ describe("composeSlides", () => {
         { id: "a", type: "slide" },
         { id: "b", type: "fragment" },
         { id: "c", type: "sub-slide" },
-        { id: "d" },
+        { id: "d", type: "fragment" },
       ]),
     ).toEqual([
       [
@@ -205,7 +207,10 @@ describe("composeSlides", () => {
           { f: false, ids: ["a"] },
           { f: true, ids: ["b"] },
         ],
-        [{ f: false, ids: ["c", "d"] }],
+        [
+          { f: false, ids: ["c"] },
+          { f: true, ids: ["d"] },
+        ],
       ],
     ]);
   });
@@ -214,20 +219,22 @@ describe("composeSlides", () => {
     expect(
       shape([
         { id: "title", type: "slide" },
-        { id: "intro1" },
-        { id: "intro2", type: "fragment" },
+        { id: "intro", type: "fragment" },
         { id: "deep", type: "sub-slide" },
-        { id: "deep-body" },
+        { id: "deep-body", type: "fragment" },
         { id: "debug", type: "skip" },
         { id: "outro", type: "slide" },
       ]),
     ).toEqual([
       [
         [
-          { f: false, ids: ["title", "intro1"] },
-          { f: true, ids: ["intro2"] },
+          { f: false, ids: ["title"] },
+          { f: true, ids: ["intro"] },
         ],
-        [{ f: false, ids: ["deep", "deep-body"] }],
+        [
+          { f: false, ids: ["deep"] },
+          { f: true, ids: ["deep-body"] },
+        ],
       ],
       [[{ f: false, ids: ["outro"] }]],
     ]);
@@ -244,7 +251,7 @@ describe("composeSlides", () => {
 
 describe("buildSlideIndices", () => {
   const build = (cells: Cell[]) => {
-    const composition = composeSlides(cells, (c) => c.type);
+    const composition = composeSlides(cells, (c) => c.type ?? "slide");
     return buildSlideIndices(composition, cells, (c) => c.id);
   };
 
@@ -286,18 +293,6 @@ describe("buildSlideIndices", () => {
     const { targetToCellIndex } = build(cells);
     expect(targetToCellIndex.get("0,0,-1")).toBe(0);
     expect(targetToCellIndex.get("0,0,0")).toBe(0);
-  });
-
-  it("records continuation cells under their containing fragment's f index", () => {
-    const cells: Cell[] = [
-      { id: "a", type: "slide" },
-      { id: "b", type: "fragment" },
-      { id: "c" }, // continuation -> same fragment as b
-    ];
-    const { cellToTarget, targetToCellIndex } = build(cells);
-    expect(cellToTarget.get("c")).toEqual({ h: 0, v: 0, f: 0 });
-    // Active cell for that fragment is the last cell in the block -> "c"
-    expect(targetToCellIndex.get("0,0,0")).toBe(2);
   });
 
   it("drops skipped cells from the index entirely", () => {
