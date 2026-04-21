@@ -1395,45 +1395,39 @@ class Kernel:
         """Run cells and any state updates they trigger"""
 
         with run_id_context():
-            # This patch is an attempt to mitigate problems caused by the fact
-            # that in run mode, kernels run in threads and share the same
-            # sys.modules. Races can still happen, but this should help in most
-            # common cases. We could also be more aggressive and run this before
-            # every cell, or even before pickle.dump/pickle.dumps()
-            with patches.patch_main_module_context(self._module):
-                # Snapshot disabled cells that are in an error/cancelled state
-                # BEFORE running, so we can clear them after the run if their
-                # ancestor recovered.
-                pre_run_errored_disabled = {
-                    cid
-                    for cid, cell in self.graph.cells.items()
-                    if self.graph.is_disabled(cid)
-                    and cell.run_result_status
-                    in ("exception", "marimo-error", "cancelled")
-                }
-                while cell_ids := await self._run_cells_internal(cell_ids):
-                    LOGGER.debug("Running state updates ...")
-                    if self.lazy() and cell_ids:
-                        self.graph.set_stale(cell_ids, prune_imports=True)
-                        break
-                LOGGER.debug("Finished run.")
-                # Clear stale error state from disabled cells whose ancestor
-                # recovered. Uses pre-run snapshot since run_result_status is
-                # updated during the run.
-                for cid in pre_run_errored_disabled:
-                    cell_impl = self.graph.cells[cid]
-                    if not self.graph.is_any_ancestor_errored(cid):
-                        cell_impl.set_run_result_status("disabled")
-                        status = cast(
-                            RuntimeStateType,
-                            "idle"
-                            if cell_impl.config.disabled
-                            else "disabled-transitively",
-                        )
-                        cell_impl.set_runtime_state(status)
-                        CellNotificationUtils.broadcast_empty_output(
-                            cell_id=cid, status=status
-                        )
+            # Snapshot disabled cells that are in an error/cancelled state
+            # BEFORE running, so we can clear them after the run if their
+            # ancestor recovered.
+            pre_run_errored_disabled = {
+                cid
+                for cid, cell in self.graph.cells.items()
+                if self.graph.is_disabled(cid)
+                and cell.run_result_status
+                in ("exception", "marimo-error", "cancelled")
+            }
+            while cell_ids := await self._run_cells_internal(cell_ids):
+                LOGGER.debug("Running state updates ...")
+                if self.lazy() and cell_ids:
+                    self.graph.set_stale(cell_ids, prune_imports=True)
+                    break
+            LOGGER.debug("Finished run.")
+            # Clear stale error state from disabled cells whose ancestor
+            # recovered. Uses pre-run snapshot since run_result_status is
+            # updated during the run.
+            for cid in pre_run_errored_disabled:
+                cell_impl = self.graph.cells[cid]
+                if not self.graph.is_any_ancestor_errored(cid):
+                    cell_impl.set_run_result_status("disabled")
+                    status = cast(
+                        RuntimeStateType,
+                        "idle"
+                        if cell_impl.config.disabled
+                        else "disabled-transitively",
+                    )
+                    cell_impl.set_runtime_state(status)
+                    CellNotificationUtils.broadcast_empty_output(
+                        cell_id=cid, status=status
+                    )
 
     async def _if_autorun_then_run_cells(
         self, cell_ids: set[CellId_t]
