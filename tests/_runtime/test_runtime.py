@@ -2214,7 +2214,6 @@ class TestStrictExecution:
         assert "f" in k.globals
         assert k.globals["V"] == 5
 
-
     @staticmethod
     async def test_cell_private_imports(
         execution_kernel: Kernel, exec_req: ExecReqProvider
@@ -2245,7 +2244,6 @@ class TestStrictExecution:
         assert "never_assigned" not in k.globals
         assert "Hello" in k.globals["L"].text
         assert "NameError" in k.stderr.messages[0]
-
 
     @staticmethod
     async def test_cell_copy_works(
