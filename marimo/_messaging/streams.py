@@ -36,6 +36,12 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+# Maximum time to block waiting for the buffered console writer to flush.
+# The flush hook runs on the hot path between cell execution and idle, so
+# we bound the wait even though flushes normally complete in <10ms.
+_FLUSH_CONSOLE_TIMEOUT_S = 5.0
+
+
 # Byte limits on outputs exist for two reasons
 #
 # 1. We use a multiprocessing.Connection object to send outputs from
@@ -143,16 +149,28 @@ class ThreadSafeStream(Stream):
         """Force the buffered console writer to flush immediately.
 
         Blocks until all pending console messages have been sent to the
-        frontend.  This ensures that stderr/stdout output produced during
-        cell execution is delivered before the cell is marked idle.
+        frontend, or until a short timeout elapses if the writer thread
+        is no longer alive.  This ensures that stderr/stdout output
+        produced during cell execution is delivered before the cell is
+        marked idle.
         """
         if not self.redirect_console:
+            return
+        # If the buffered writer isn't alive (e.g., shutdown in progress),
+        # enqueuing a marker would never be drained. Bail out early.
+        if not self.buffered_console_thread.is_alive():
             return
         marker = FlushMarker()
         with self.console_msg_cv:
             self.console_msg_queue.append(marker)
             self.console_msg_cv.notify()
-        marker.done.wait()
+        # Bounded wait: if the writer dies or stalls, don't block the
+        # caller indefinitely.
+        if not marker.done.wait(timeout=_FLUSH_CONSOLE_TIMEOUT_S):
+            LOGGER.warning(
+                "Timed out waiting for console flush after %ss",
+                _FLUSH_CONSOLE_TIMEOUT_S,
+            )
 
     def stop(self) -> None:
         """Teardown resources created by the stream."""
@@ -160,8 +178,8 @@ class ThreadSafeStream(Stream):
         # We don't join the thread in case its processing outputs still; don't
         # want to block the entire program.
         if self.redirect_console:
-            self.console_msg_queue.append(None)
             with self.console_msg_cv:
+                self.console_msg_queue.append(None)
                 self.console_msg_cv.notify()
 
 
@@ -300,15 +318,15 @@ class ThreadSafeStdout(Stdout):
                 "Warning: marimo truncated a very large console output.\n"
             )
             data = data[: int(max_bytes)] + " ... "
-        self._stream.console_msg_queue.append(
-            ConsoleMsg(
-                stream=CellChannel.STDOUT,
-                cell_id=self._stream.cell_id,
-                data=data,
-                mimetype=mimetype,
-            )
-        )
         with self._stream.console_msg_cv:
+            self._stream.console_msg_queue.append(
+                ConsoleMsg(
+                    stream=CellChannel.STDOUT,
+                    cell_id=self._stream.cell_id,
+                    data=data,
+                    mimetype=mimetype,
+                )
+            )
             self._stream.console_msg_cv.notify()
         return len(data)
 

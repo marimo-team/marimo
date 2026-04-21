@@ -118,7 +118,7 @@ def buffered_writer(
 
     outputs_buffered_per_cell: dict[CellId_t, list[ConsoleMsg]] = {}
     while True:
-        flush_marker: Optional[FlushMarker] = None
+        flush_marker: FlushMarker | None = None
         with cv:
             # We wait for messages until the timer (if any) expires
             while timer is None or timer > 0:
