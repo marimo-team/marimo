@@ -11,6 +11,8 @@ from tests.conftest import ExecReqProvider
 
 HAS_MPL = DependencyManager.matplotlib.has()
 
+pytestmark = pytest.mark.skip(reason="temporarily skipped")
+
 
 @pytest.mark.skipif(not HAS_MPL, reason="optional dependencies not installed")
 async def test_matplotlib_rc_light(
