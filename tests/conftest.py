@@ -114,7 +114,7 @@ def _ensure_main_has_file(
     of CI flakiness. Body is a no-op yield; original logic preserved in
     git history at commit prior to this revert."""
     del _fake_main_file
-    yield
+    return
 
 
 @pytest.fixture(autouse=True)
