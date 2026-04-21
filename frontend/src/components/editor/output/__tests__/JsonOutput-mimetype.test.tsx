@@ -39,4 +39,63 @@ describe("JsonOutput with enhanced mimetype handling", () => {
     expect(container).toBeInTheDocument();
     expect(container.querySelector(".marimo-json-output")).toBeInTheDocument();
   });
+
+  it("renders encoded non-string keys with Python-style affordances", () => {
+    // Server-side `_key_formatter` encodes non-string dict keys with
+    // mimetype prefixes; the frontend `keyRenderer` must decode them
+    // so users see the original Python types (unquoted ints, parens for
+    // tuples, etc.) instead of the raw encoded strings.
+    const data = {
+      "text/plain+int:2": "int_val",
+      "text/plain+float:2.5": "float_val",
+      "text/plain+bool:True": "bool_val",
+      "text/plain+none:": "none_val",
+      "text/plain+tuple:[1, 2]": "tuple_val",
+      "text/plain+frozenset:[3, 4]": "fs_val",
+      "text/plain+str:text/plain+int:2": "escaped_str_val",
+      plain: "unchanged",
+    };
+
+    const { container } = render(<JsonOutput data={data} format="tree" />);
+    const text = container.textContent ?? "";
+
+    // `text/plain+str:` is the escape prefix — must never survive in output.
+    expect(text).not.toContain("text/plain+str:");
+    // Other prefixes must not appear as standalone keys (they still show
+    // inside the unescaped original string key `"text/plain+int:2"`,
+    // which is intentional).
+    expect(text).not.toContain("text/plain+bool:True:");
+    expect(text).not.toContain("text/plain+tuple:[");
+    expect(text).not.toContain("text/plain+frozenset:[");
+    expect(text).not.toContain("text/plain+none::");
+
+    // Decoded visual forms are present with Python-style affordances.
+    expect(text).toContain('None:"none_val"');
+    expect(text).toContain('True:"bool_val"');
+    expect(text).toContain('2:"int_val"');
+    expect(text).toContain('2.5:"float_val"');
+    expect(text).toContain('(1, 2):"tuple_val"');
+    expect(text).toContain('frozenset({3, 4}):"fs_val"');
+    // Escaped str key renders as the original literal string (quoted).
+    expect(text).toContain('"text/plain+int:2":"escaped_str_val"');
+    // Plain string key unchanged.
+    expect(text).toContain('"plain":"unchanged"');
+  });
+
+  it("quotes integer-like string keys to distinguish them from int keys", () => {
+    // Without this, `"2"` and the decoded int `2` look identical — the
+    // textea viewer drops quotes from integer-like string keys by default.
+    const data = {
+      "2": "string_two",
+      "text/plain+int:2": "int_two",
+    };
+
+    const { container } = render(<JsonOutput data={data} format="tree" />);
+    const text = container.textContent ?? "";
+
+    expect(text).toContain('"2":"string_two"'); // quoted
+    expect(text).toContain('2:"int_two"'); // unquoted
+    // Non-integer string keys still render without our intervention.
+    expect(text).not.toContain("text/plain+"); // prefix stripped from int key
+  });
 });
