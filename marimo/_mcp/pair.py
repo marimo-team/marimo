@@ -17,18 +17,18 @@ import os
 import sys
 import uuid
 from datetime import date
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 from mcp.types import ImageContent, TextContent
 
-from marimo import _loggers
 from marimo._ai._tools.types import (
     CodeExecutionResult,
     ListSessionsResult,
     MarimoNotebookInfo,
 )
 
-LOGGER = _loggers.marimo_logger()
+if TYPE_CHECKING:
+    from marimo._runtime.commands import HTTPRequest
 
 _IMAGE_MIMETYPES = frozenset(
     {
@@ -134,7 +134,7 @@ def _extract_images(
     return results
 
 
-def _result_to_text(result: CodeExecutionResult) -> object:
+def _result_to_text(result: CodeExecutionResult) -> TextContent:
     """Serialize a CodeExecutionResult to an MCP TextContent."""
     return TextContent(
         type="text",
@@ -142,83 +142,30 @@ def _result_to_text(result: CodeExecutionResult) -> object:
     )
 
 
-def _auto_save(session: object) -> None:
-    """Persist the current notebook state to disk.
+def _build_http_request(
+    screenshot_server_url: str,
+    screenshot_auth_token: str,
+) -> HTTPRequest:
+    """Construct a minimal HTTPRequest carrying screenshot metadata.
 
-    Uses the public ``AppFileManager.save()`` API with a
-    ``SaveNotebookRequest`` built from the session view's
-    ``last_executed_code``.
+    ``_code_mode``'s ``ctx.screenshot()`` reads these keys from
+    ``request.meta`` to point Playwright at the backing HTTP server.
     """
-    from marimo._ast.cell import CellConfig
-    from marimo._ast.names import DEFAULT_CELL_NAME
-    from marimo._server.models.models import SaveNotebookRequest
-    from marimo._session.types import Session
+    from marimo._runtime.commands import HTTPRequest
 
-    if not isinstance(session, Session):
-        return
-
-    fm = session.app_file_manager
-    if fm.path is None:
-        return
-
-    sv = session.session_view
-    # Use the cell ordering from the kernel when available,
-    # otherwise fall back to insertion order of last_executed_code.
-    if sv.cell_ids is not None:
-        ordered_ids = sv.cell_ids.cell_ids
-    else:
-        ordered_ids = list(sv.last_executed_code.keys())
-
-    if not ordered_ids:
-        return
-
-    request = SaveNotebookRequest(
-        cell_ids=ordered_ids,
-        codes=[sv.last_executed_code.get(cid, "") for cid in ordered_ids],
-        names=[DEFAULT_CELL_NAME] * len(ordered_ids),
-        configs=[CellConfig()] * len(ordered_ids),
-        filename=fm.path,
-        persist=True,
+    return HTTPRequest(
+        url={},
+        base_url={},
+        headers={},
+        query_params={},
+        path_params={},
+        cookies={},
+        user={},
+        meta={
+            "screenshot_server_url": screenshot_server_url,
+            "screenshot_auth_token": screenshot_auth_token,
+        },
     )
-
-    try:
-        fm.save(request)
-    except Exception:
-        LOGGER.debug("Auto-save failed for session %s", fm.path)
-
-
-def _record_executed_code(session: object, code: str) -> None:
-    """Record a code execution in the session view via the public API."""
-    from marimo._messaging.notification import UpdateCellIdsNotification
-    from marimo._runtime.commands import ExecuteCellsCommand
-    from marimo._session.types import Session
-    from marimo._types.ids import CellId_t
-
-    if not isinstance(session, Session):
-        return
-
-    new_cell_id = CellId_t(uuid.uuid4().hex[:8])
-    sv = session.session_view
-
-    # Use add_control_request to properly record the executed code
-    # (this calls _touch() and _add_last_run_code internally).
-    sv.add_control_request(
-        ExecuteCellsCommand(cell_ids=[new_cell_id], codes=[code])
-    )
-
-    # Update cell ordering
-    if sv.cell_ids is not None:
-        sv.add_notification(
-            UpdateCellIdsNotification(
-                cell_ids=[*sv.cell_ids.cell_ids, new_cell_id]
-            )
-        )
-    else:
-        sv.add_notification(
-            UpdateCellIdsNotification(
-                cell_ids=list(sv.last_executed_code.keys())
-            )
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -476,7 +423,9 @@ async def _run_stdio_server(port: int | None, sandbox: bool) -> None:
             session_id: The session ID (from create_session).
             code: Python code to execute.
         """
+        from marimo._runtime.commands import ExecuteScratchpadCommand
         from marimo._runtime.scratch import SCRATCH_CELL_ID
+        from marimo._server.models.models import InstantiateNotebookRequest
 
         session = session_manager.get_session(SessionId(session_id))
         if session is None:
@@ -490,13 +439,31 @@ async def _run_stdio_server(port: int | None, sandbox: bool) -> None:
                 )
             ]
 
+        # Build a minimal HTTPRequest with the screenshot metadata that
+        # ``_code_mode``'s ``ctx.screenshot()`` reads from ``request.meta``.
+        http_req = _build_http_request(
+            screenshot_server_url=base_url,
+            screenshot_auth_token=str(session_manager.auth_token),
+        )
+
+        # Seed the dependency graph so ``_code_mode``'s ``run_cell`` can
+        # resolve cells. No-op if the session is already instantiated.
+        session.instantiate(
+            InstantiateNotebookRequest(
+                object_ids=[], values=[], auto_run=False
+            ),
+            http_request=http_req,
+        )
+
         listener = ScratchCellListener()
         with session.scoped(listener):
             async with session.scratchpad_lock:
-                from marimo._runtime.commands import ExecuteScratchpadCommand
-
                 session.put_control_request(
-                    ExecuteScratchpadCommand(code=code),
+                    ExecuteScratchpadCommand(
+                        code=code,
+                        request=http_req,
+                        notebook_cells=tuple(session.document.cells),
+                    ),
                     from_consumer_id=None,
                 )
                 await listener.wait(timeout=EXECUTION_TIMEOUT)
@@ -511,12 +478,7 @@ async def _run_stdio_server(port: int | None, sandbox: bool) -> None:
                     )
                 ]
 
-            result = extract_result(session)
-
-            # Record the executed code in the session view via the
-            # public API, then persist the notebook to disk.
-            _record_executed_code(session, code)
-            _auto_save(session)
+            result = extract_result(session, listener)
 
             contents: list[TextContent | ImageContent] = [
                 _result_to_text(result)

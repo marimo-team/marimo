@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import contextlib
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     import asyncio
@@ -104,7 +104,6 @@ class KernelState(Enum):
     STOPPED = "stopped"
 
 
-@runtime_checkable
 class Session(Protocol):
     """Protocol for session management."""
 
