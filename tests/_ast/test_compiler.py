@@ -99,6 +99,33 @@ class TestParseCell:
         # _pkg stays unmangled — lands in temporaries, not defs
         assert "_pkg" in cell.temporaries
 
+    @staticmethod
+    @pytest.mark.xfail(
+        reason="Dotted _-prefixed imports skip mangling but deferred "
+        "references in function bodies are mangled before the import "
+        "is visited, causing a name mismatch."
+    )
+    def test_dotted_private_import_deferred_ref() -> None:
+        import ast
+
+        from marimo._ast.visitor import ScopedVisitor
+
+        code = (
+            "def foo():\n"
+            "    _pkg.sub.attr()\n"
+            "\n"
+            "import _pkg.sub"
+        )
+        tree = ast.parse(code)
+        with pytest.warns(match="cannot be safely used"):
+            v = ScopedVisitor(mangle_prefix="test")
+            v.visit(tree)
+        # The function body should reference _pkg (unmangled) to
+        # match the import, but the visitor mangles it on first pass.
+        func_body = ast.unparse(tree.body[0].body[0])
+        assert "_pkg" in func_body
+        assert "_test" not in func_body
+
 
 class TestCompilerFlags:
     @staticmethod
