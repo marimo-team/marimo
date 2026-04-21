@@ -110,33 +110,11 @@ def _fake_main_file(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def _ensure_main_has_file(
     _fake_main_file: Path,
 ) -> Generator[None, None, None]:
-    """Make sure main has a file ...
-
-    xdist workers don't always set __file__ on __main__, which causes
-    marimo's kernel (create_main_module) to set __file__=None,
-    breaking tests that rely on __file__ being a real path.
-    """
-    main = sys.modules.get("__main__")
-    if main is None:
-        yield
-        return
-
-    had_file_attr = hasattr(main, "__file__")
-    original_file = getattr(main, "__file__", None)
-
-    if not had_file_attr or original_file is None:
-        main.__file__ = str(_fake_main_file)
-
-    try:
-        yield
-    finally:
-        current_main = sys.modules.get("__main__")
-        if current_main is not None:
-            if had_file_attr:
-                # Restore the original value (which may be None)
-                current_main.__file__ = original_file
-            elif hasattr(current_main, "__file__"):
-                del current_main.__file__
+    """Temporarily disabled to test whether this fixture is the source
+    of CI flakiness. Body is a no-op yield; original logic preserved in
+    git history at commit prior to this revert."""
+    del _fake_main_file
+    yield
 
 
 @pytest.fixture(autouse=True)
