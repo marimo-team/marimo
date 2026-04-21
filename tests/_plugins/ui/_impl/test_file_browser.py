@@ -63,6 +63,43 @@ def test_navigation_restriction() -> None:
     assert "Navigation is restricted" in str(e.value)
 
 
+def test_navigation_restriction_sibling(tmp_path: Path) -> None:
+    """Sibling directories must be rejected, not just direct parents."""
+    restricted = tmp_path / "restricted"
+    sibling = tmp_path / "sibling"
+    restricted.mkdir()
+    sibling.mkdir()
+    (sibling / "secret.txt").touch()
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(RuntimeError):
+        fb._list_directory(ListDirectoryArgs(path=str(sibling)))
+
+
+def test_navigation_restriction_absolute_path(tmp_path: Path) -> None:
+    """Arbitrary absolute paths outside the root must be rejected."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(RuntimeError):
+        fb._list_directory(ListDirectoryArgs(path="/tmp"))
+
+
+def test_navigation_restriction_dotdot_escape(tmp_path: Path) -> None:
+    """Path traversal via .. components must be caught."""
+    restricted = tmp_path / "restricted"
+    sibling = tmp_path / "sibling"
+    restricted.mkdir()
+    sibling.mkdir()
+    (sibling / "secret.txt").touch()
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    traversal = str(restricted / ".." / "sibling")
+    with pytest.raises(RuntimeError):
+        fb._list_directory(ListDirectoryArgs(path=traversal))
+
+
 def test_name_method() -> None:
     fb = file_browser(initial_path=Path.cwd())
     fb._value = [

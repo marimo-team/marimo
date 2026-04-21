@@ -293,10 +293,13 @@ class file_browser(
         # such as CloudPath
         path = self._create_path(args.path)
 
-        if self._restrict_navigation and path in self._initial_path.parents:
-            raise RuntimeError(
-                "Navigation is restricted; navigating to a parent of initial path is not allowed."
-            )
+        if self._restrict_navigation:
+            try:
+                path.resolve().relative_to(self._initial_path.resolve())
+            except ValueError:
+                raise RuntimeError(
+                    "Navigation is restricted; navigating outside the initial path is not allowed."
+                ) from None
         folders: list[TypedFileBrowserFileInfo] = []
         files: list[TypedFileBrowserFileInfo] = []
 
