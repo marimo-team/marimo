@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 # TEMP diagnostic: when MARIMO_SKIP_REGISTER_FORMATTERS=1, no-op out
 # register_formatters to test whether its meta_path patching causes the
 # "No module named 'numpy.random'" / submodule-import failures.
-import os as _os_early  # noqa: E402
+import os as _os_early
 
 if _os_early.environ.get("MARIMO_SKIP_REGISTER_FORMATTERS") == "1":
 
