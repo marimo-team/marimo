@@ -22,7 +22,7 @@ runs:
       uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
       with:
         python-version: ${{ inputs.python-version }}
-        enable-cache: true
+        enable-cache: false
 
     - name: Install uv-managed Python
       shell: bash
