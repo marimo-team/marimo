@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import Any
 from unittest.mock import patch
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 import pytest
 
@@ -847,56 +845,30 @@ def test_build_sandbox_venv_with_additional_deps(tmp_path: Path) -> None:
         cleanup_sandbox_dir(sandbox_dir)
 
 
-def test_uv_export_script_requirements_txt_resolves_relative_paths(
-    tmp_path: Path,
-) -> None:
-    """Test that relative paths in uv export output are resolved to absolute paths.
+def test_resolve_local_path_line() -> None:
+    from marimo._cli.sandbox import _resolve_local_path_line
 
-    Regression test for https://github.com/marimo-team/marimo/issues/8980.
-    uv export returns paths relative to the script file, but these get written
-    to a temp requirements file where uv resolves them relative to CWD instead.
-    """
-    from unittest.mock import MagicMock, patch
+    d = Path("/project/notebooks")
+    _r = lambda p: str((d / p).resolve())  # noqa: E731
 
-    from marimo._cli.sandbox import _uv_export_script_requirements_txt
-
-    script_path = tmp_path / "subdir" / "notebook.py"
-    script_path.parent.mkdir(parents=True)
-    script_path.write_text("# placeholder")
-
-    mock_result = MagicMock()
-    mock_result.stdout = (
-        "-e ../../\n"
-        "../other_pkg\n"
-        "../pkg_with_marker ; python_version<'3.12'\n"
-        "numpy==1.26.0\n"
-        "/absolute/path\n"
-        "\n"
-    )
-
-    with patch("marimo._cli.sandbox.subprocess.run", return_value=mock_result):
-        lines = _uv_export_script_requirements_txt(str(script_path))
-
-    script_dir = script_path.resolve().parent
-    expected_editable = str((script_dir / "../../").resolve())
-    expected_non_editable = str((script_dir / "../other_pkg").resolve())
-
-    # Editable relative path resolved to absolute
-    assert any(
-        line.startswith("-e ") and expected_editable in line for line in lines
-    )
-    # Non-editable relative path resolved to absolute
-    assert any(
-        expected_non_editable in line and not line.startswith("-e ")
-        for line in lines
-    )
-    # Relative path with environment marker: path resolved, marker preserved
-    expected_marker_path = str((script_dir / "../pkg_with_marker").resolve())
-    assert any(
-        expected_marker_path in line and "python_version<'3.12'" in line
-        for line in lines
-    )
-    # Regular dep unchanged
-    assert any("numpy==1.26.0" in line for line in lines)
-    # Absolute path unchanged
-    assert any("/absolute/path" in line for line in lines)
+    # Plain relative
+    assert _resolve_local_path_line("../../mylib", d) == _r("../../mylib")
+    # Editable
+    assert _resolve_local_path_line("-e ../pkg", d) == f"-e {_r('../pkg')}"
+    # Env marker
+    result = _resolve_local_path_line("../pkg ; py<'3.12'", d)
+    assert _r("../pkg") in result and "py<'3.12'" in result
+    # Inline comment
+    result = _resolve_local_path_line("../pkg # via foo", d)
+    assert _r("../pkg") in result and "# via foo" in result
+    # Both marker and comment
+    result = _resolve_local_path_line("../pkg ; py<'3.12' # via foo", d)
+    assert _r("../pkg") in result
+    assert "py<'3.12'" in result
+    assert "# via foo" in result
+    # Spaces in path
+    assert _r("../my lib") in _resolve_local_path_line("../my lib", d)
+    # Non-relative unchanged
+    assert _resolve_local_path_line("numpy==1.26.0", d) == "numpy==1.26.0"
+    assert _resolve_local_path_line("/absolute/path", d) == "/absolute/path"
+    assert _resolve_local_path_line("", d) == ""
