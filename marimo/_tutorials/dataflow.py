@@ -54,7 +54,7 @@ def _(mo):
     cells and edges represent data dependencies. marimo creates this graph by
     analyzing each cell (without running it) to determine its
 
-    - references ("refs*), the global variables it reads but doesn't define;
+    - references ("refs"), the global variables it reads but doesn't define;
     - definitions ("defs"), the global variables it defines.
 
     There is an edge from one cell to another if the latter cell references any
