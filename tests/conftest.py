@@ -202,18 +202,23 @@ def _probe_numpy_random_state(nodeid: str) -> None:
     try:
         spec = importlib.util.find_spec("numpy.random")
         probe.append(f"find_spec('numpy.random'): {spec!r}")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         probe.append(f"find_spec raised: {type(e).__name__}: {e}")
     try:
         __import__("numpy.random")
         probe.append("import numpy.random: SUCCESS (this masks the bug below)")
-    except BaseException as e:  # noqa: BLE001
+    except BaseException as e:
         probe.append(f"import numpy.random: {type(e).__name__}: {e}")
         probe.append("TRACEBACK:\n" + traceback.format_exc())
     probe.append(f"sys.path: {sys.path}")
     probe.append(
         "sys.meta_path: "
-        + str([(type(f).__name__, getattr(f, '__module__', '?')) for f in sys.meta_path])
+        + str(
+            [
+                (type(f).__name__, getattr(f, "__module__", "?"))
+                for f in sys.meta_path
+            ]
+        )
     )
     probe.append("=== END PROBE ===")
     worker = _os.environ.get("PYTEST_XDIST_WORKER", "main")
