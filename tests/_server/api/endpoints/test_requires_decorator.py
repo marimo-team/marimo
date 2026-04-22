@@ -15,6 +15,9 @@ EXEMPT_ENDPOINTS: set[tuple[str, str]] = {
     ("assets.py", "/public-files-sw.js"),
     # Static frontend assets (JS/CSS) must load before auth
     ("assets.py", "/{path:path}"),
+    # `/` does its own scope check so it can emit a relative Location on
+    # unauthenticated redirects (see #9249).
+    ("assets.py", "/"),
 }
 
 ENDPOINTS_DIR = Path(__file__).resolve().parents[4] / (
