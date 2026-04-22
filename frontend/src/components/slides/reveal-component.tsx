@@ -133,10 +133,11 @@ const RevealSlidesComponent = ({
 
   const composition = useMemo(
     () =>
-      composeSlides(
-        cellsWithOutput,
-        (cell) => layout.cells.get(cell.id)?.type ?? DEFAULT_SLIDE_TYPE,
-      ),
+      composeSlides({
+        cells: cellsWithOutput,
+        getType: (cell) =>
+          layout.cells.get(cell.id)?.type ?? DEFAULT_SLIDE_TYPE,
+      }),
     [cellsWithOutput, layout.cells],
   );
 
@@ -149,7 +150,12 @@ const RevealSlidesComponent = ({
       : null;
 
   const { cellToTarget, targetToCellIndex } = useMemo(
-    () => buildSlideIndices(composition, cellsWithOutput, (c) => c.id),
+    () =>
+      buildSlideIndices({
+        composition,
+        cells: cellsWithOutput,
+        getId: (c) => c.id,
+      }),
     [composition, cellsWithOutput],
   );
 

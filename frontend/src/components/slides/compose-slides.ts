@@ -35,11 +35,6 @@ export interface Composition<T> {
   stacks: ComposedStack<T>[];
 }
 
-export interface ComposeOptions {
-  /** Drop `skip` cells entirely. Defaults to true. */
-  dropSkipped?: boolean;
-}
-
 /**
  * Groups a flat list of cells into a tree of stacks / subslides / blocks based
  * on each cell's {@link SlideType}.
@@ -56,43 +51,42 @@ export interface ComposeOptions {
  * - `"slide"`     -> open a new stack + subslide, cell goes in a plain block.
  * - `"sub-slide"` -> open a new subslide inside the current stack.
  * - `"fragment"`  -> open a new fragment block inside the current subslide.
- * - `"skip"`      -> dropped by default; kept (in the current block) when
- *                    `dropSkipped: false`.
+ * - `"skip"`      -> dropped entirely. If a caller wants to preserve these,
+ *                    they can remap the type in `getType`.
  *
  * If the very first cell is a `fragment` or `sub-slide`, a containing stack /
  * subslide is created implicitly.
  */
-export function composeSlides<T>(
-  cells: readonly T[],
-  getType: (cell: T) => SlideType,
-  opts: ComposeOptions = {},
-): Composition<T> {
-  const dropSkipped = opts.dropSkipped ?? true;
+export function composeSlides<T>({
+  cells,
+  getType,
+}: {
+  cells: readonly T[];
+  getType: (cell: T) => SlideType;
+}): Composition<T> {
   const stacks: ComposedStack<T>[] = [];
   let stack: ComposedStack<T> | null = null;
   let subslide: ComposedSubslide<T> | null = null;
-  let block: ComposedBlock<T> | null = null;
 
-  const openStack = () => {
-    stack = { subslides: [] };
-    stacks.push(stack);
+  const openStack = (): ComposedStack<T> => {
+    const next: ComposedStack<T> = { subslides: [] };
+    stacks.push(next);
+    stack = next;
     subslide = null;
-    block = null;
+    return next;
   };
-  const openSubslide = () => {
-    if (!stack) {
-      openStack();
-    }
-    subslide = { blocks: [] };
-    stack!.subslides.push(subslide);
-    block = null;
+  const openSubslide = (): ComposedSubslide<T> => {
+    const parent = stack ?? openStack();
+    const next: ComposedSubslide<T> = { blocks: [] };
+    parent.subslides.push(next);
+    subslide = next;
+    return next;
   };
-  const openBlock = (isFragment: boolean) => {
-    if (!subslide) {
-      openSubslide();
-    }
-    block = { isFragment, cells: [] };
-    subslide!.blocks.push(block);
+  const openBlock = (isFragment: boolean): ComposedBlock<T> => {
+    const parent = subslide ?? openSubslide();
+    const next: ComposedBlock<T> = { isFragment, cells: [] };
+    parent.blocks.push(next);
+    return next;
   };
 
   for (const cell of cells) {
@@ -100,30 +94,18 @@ export function composeSlides<T>(
 
     switch (type) {
       case "skip":
-        if (dropSkipped) {
-          break;
-        }
-        // Keep skipped cells in the current block if one is open, otherwise
-        // open a plain block on the current (or implicit) subslide.
-        if (!block) {
-          openBlock(false);
-        }
-        block!.cells.push(cell);
         break;
       case "slide":
         openStack();
         openSubslide();
-        openBlock(false);
-        block!.cells.push(cell);
+        openBlock(false).cells.push(cell);
         break;
       case "sub-slide":
         openSubslide();
-        openBlock(false);
-        block!.cells.push(cell);
+        openBlock(false).cells.push(cell);
         break;
       case "fragment":
-        openBlock(true);
-        block!.cells.push(cell);
+        openBlock(true).cells.push(cell);
         break;
     }
   }
@@ -166,11 +148,15 @@ export interface SlideIndices<Id> {
  * Build {@link SlideIndices} for a composition so callers can translate
  * between a flat cell list and reveal.js's `{h, v, f}` indices.
  */
-export function buildSlideIndices<T, Id>(
-  composition: Composition<T>,
-  cells: readonly T[],
-  getId: (cell: T) => Id,
-): SlideIndices<Id> {
+export function buildSlideIndices<T, Id>({
+  composition,
+  cells,
+  getId,
+}: {
+  composition: Composition<T>;
+  cells: readonly T[];
+  getId: (cell: T) => Id;
+}): SlideIndices<Id> {
   const cellToTarget = new Map<Id, SlideTarget>();
   const targetToCellIndex = new Map<string, number>();
   const cellIndexById = new Map<Id, number>();

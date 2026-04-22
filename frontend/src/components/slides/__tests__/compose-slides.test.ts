@@ -6,7 +6,6 @@ import {
   composeSlides,
   computeDeckNavigation,
   resolveActiveCellIndex,
-  type ComposeOptions,
 } from "../compose-slides";
 import type { SlideType } from "@/components/editor/renderers/slides-layout/types";
 
@@ -20,16 +19,19 @@ interface Cell {
   type?: SlideType;
 }
 
-const compose = (cells: Cell[], opts: ComposeOptions = {}) =>
-  composeSlides(cells, (c) => c.type ?? "slide", opts);
+const compose = (cells: Cell[]) =>
+  composeSlides({
+    cells,
+    getType: (c) => c.type ?? "slide",
+  });
 
 /**
  * Collapse the tree to a readable shape so failures produce tiny, obvious
  * diffs:
  *   stacks -> subslides -> blocks -> { f: isFragment, ids: [...] }
  */
-const shape = (cells: Cell[], opts: ComposeOptions = {}) =>
-  compose(cells, opts).stacks.map((s) =>
+const shape = (cells: Cell[]) =>
+  compose(cells).stacks.map((s) =>
     s.subslides.map((sub) =>
       sub.blocks.map((b) => ({
         f: b.isFragment,
@@ -128,7 +130,7 @@ describe("composeSlides", () => {
     ).toEqual([[[{ f: false, ids: ["a"] }], [{ f: false, ids: ["b"] }]]]);
   });
 
-  it("drops 'skip' cells by default", () => {
+  it("drops 'skip' cells from the deck", () => {
     expect(
       shape([
         { id: "a", type: "slide" },
@@ -139,26 +141,6 @@ describe("composeSlides", () => {
       [
         [
           { f: false, ids: ["a"] },
-          { f: true, ids: ["c"] },
-        ],
-      ],
-    ]);
-  });
-
-  it("keeps 'skip' cells in the current block when dropSkipped=false", () => {
-    expect(
-      shape(
-        [
-          { id: "a", type: "slide" },
-          { id: "b", type: "skip" },
-          { id: "c", type: "fragment" },
-        ],
-        { dropSkipped: false },
-      ),
-    ).toEqual([
-      [
-        [
-          { f: false, ids: ["a", "b"] },
           { f: true, ids: ["c"] },
         ],
       ],
@@ -244,7 +226,7 @@ describe("composeSlides", () => {
   it("is generic over cell shape (preserves object identity)", () => {
     const a = { id: "a", type: "slide" as const, extra: 42 };
     const b = { id: "b", type: "fragment" as const, extra: 7 };
-    const result = composeSlides([a, b], (c) => c.type);
+    const result = composeSlides({ cells: [a, b], getType: (c) => c.type });
     expect(result.stacks[0].subslides[0].blocks[0].cells[0]).toBe(a);
     expect(result.stacks[0].subslides[0].blocks[1].cells[0]).toBe(b);
   });
@@ -252,8 +234,11 @@ describe("composeSlides", () => {
 
 describe("buildSlideIndices", () => {
   const build = (cells: Cell[]) => {
-    const composition = composeSlides(cells, (c) => c.type ?? "slide");
-    return buildSlideIndices(composition, cells, (c) => c.id);
+    const composition = composeSlides({
+      cells,
+      getType: (c) => c.type ?? "slide",
+    });
+    return buildSlideIndices({ composition, cells, getId: (c) => c.id });
   };
 
   it("maps each cell to its {h, v, f} location", () => {
