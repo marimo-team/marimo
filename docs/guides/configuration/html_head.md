@@ -4,7 +4,7 @@ You can include a custom HTML head file to add additional functionality to your 
 
 !!! note "App mode only"
 
-    Custom HTML head content is only injected in **app mode** (`marimo run`). It is not applied in edit mode. If you need custom styling in edit mode, use [`css_file`](theming.md) instead since CSS works in both modes.
+    Custom HTML head content is only injected in **app mode** (`marimo run`). It is not applied in edit mode. If you need custom styling in edit mode use [`css_file`](theming.md).
 
 To include a custom HTML head file, specify the relative file path in your app configuration. This can be done through the marimo editor UI in the notebook settings (top-right corner).
 
