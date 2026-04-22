@@ -8,15 +8,24 @@ import {
   SparklesIcon,
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
 import type {
+  DeckTransition,
   SlidesLayout,
   SlideType,
 } from "../editor/renderers/slides-layout/types";
 
 export const DEFAULT_SLIDE_TYPE: SlideType = "slide";
-
+export const DEFAULT_DECK_TRANSITION: DeckTransition = "slide";
 interface SlideTypeOption {
   value: SlideType;
   label: string;
@@ -54,7 +63,63 @@ const SLIDE_TYPE_OPTIONS: SlideTypeOption[] = [
   },
 ];
 
+interface DeckTransitionOption {
+  value: DeckTransition;
+  label: string;
+  description: string;
+}
+
+const DECK_TRANSITION_OPTIONS: DeckTransitionOption[] = [
+  { value: "none", label: "None", description: "No animation between slides." },
+  { value: "fade", label: "Fade", description: "Cross-fade between slides." },
+  {
+    value: "slide",
+    label: "Slide",
+    description: "Slides move horizontally / vertically.",
+  },
+  {
+    value: "convex",
+    label: "Convex",
+    description: "Rotate with a convex curve.",
+  },
+  {
+    value: "concave",
+    label: "Concave",
+    description: "Rotate with a concave curve.",
+  },
+  { value: "zoom", label: "Zoom", description: "Zoom into the next slide." },
+];
+
 export const SlidesForm = ({
+  layout,
+  setLayout,
+  cellId,
+}: {
+  layout: SlidesLayout;
+  setLayout: (layout: SlidesLayout) => void;
+  cellId: CellId;
+}) => {
+  return (
+    <Tabs defaultValue="slide" className="flex flex-col flex-1 p-3 gap-3">
+      <TabsList className="grid grid-cols-2">
+        <TabsTrigger value="slide">Slide</TabsTrigger>
+        <TabsTrigger value="deck">Deck</TabsTrigger>
+      </TabsList>
+      <TabsContent value="slide" className="mt-0 flex-1">
+        <SlideConfigForm
+          layout={layout}
+          setLayout={setLayout}
+          cellId={cellId}
+        />
+      </TabsContent>
+      <TabsContent value="deck" className="mt-0 flex-1">
+        <DeckConfigForm layout={layout} setLayout={setLayout} />
+      </TabsContent>
+    </Tabs>
+  );
+};
+
+const SlideConfigForm = ({
   layout,
   setLayout,
   cellId,
@@ -77,7 +142,7 @@ export const SlidesForm = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="flex flex-col gap-3">
       <span className="font-semibold text-sm">Slide type</span>
       <RadioGroup
         aria-label="Slide type"
@@ -128,6 +193,60 @@ export const SlidesForm = ({
           );
         })}
       </RadioGroup>
+    </div>
+  );
+};
+
+const DeckConfigForm = ({
+  layout,
+  setLayout,
+}: {
+  layout: SlidesLayout;
+  setLayout: (layout: SlidesLayout) => void;
+}) => {
+  const currentTransition: DeckTransition =
+    layout.deck?.transition ?? DEFAULT_DECK_TRANSITION;
+  const activeDescription = DECK_TRANSITION_OPTIONS.find(
+    (opt) => opt.value === currentTransition,
+  )?.description;
+
+  const handleTransitionChange = (value: DeckTransition) => {
+    setLayout({
+      ...layout,
+      deck: { ...layout.deck, transition: value },
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
+        <label
+          htmlFor="deck-transition"
+          className="font-semibold text-sm text-foreground"
+        >
+          Transition
+        </label>
+        <Select
+          value={currentTransition}
+          onValueChange={(value) =>
+            handleTransitionChange(value as DeckTransition)
+          }
+        >
+          <SelectTrigger id="deck-transition" aria-label="Slide transition">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {DECK_TRANSITION_OPTIONS.map(({ value, label }) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {activeDescription && (
+          <p className="text-xs text-foreground/70">{activeDescription}</p>
+        )}
+      </div>
     </div>
   );
 };

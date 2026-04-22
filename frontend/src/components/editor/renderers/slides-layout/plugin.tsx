@@ -22,20 +22,24 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
   name: "Slides",
 
   validator: z.object({
-    cells: z
-      .array(
-        z.object({
-          type: z.enum(["slide", "sub-slide", "fragment", "skip"]).optional(),
-          codeSnippet: z.string().optional(),
-        }),
-      )
-      .optional(),
+    cells: z.array(
+      z.object({
+        type: z.enum(["slide", "sub-slide", "fragment", "skip"]).optional(),
+        codeSnippet: z.string().optional(),
+      }),
+    ),
+    deck: z.object({
+      transition: z
+        .enum(["none", "fade", "slide", "convex", "concave", "zoom"])
+        .optional(),
+    }),
   }),
 
   deserializeLayout: (serialized, cells): SlidesLayout => {
-    if (serialized.cells?.length === 0) {
+    if (serialized.cells.length === 0) {
       return {
         cells: new Map(),
+        deck: {},
       };
     }
 
@@ -55,6 +59,7 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
 
     return {
       cells: slideCells,
+      deck: serialized.deck,
     };
   },
 
@@ -78,6 +83,7 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
 
     return {
       cells: serializedCells,
+      deck: layout.deck,
     };
   },
 
@@ -85,5 +91,6 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
 
   getInitialLayout: () => ({
     cells: new Map(),
+    deck: {},
   }),
 };

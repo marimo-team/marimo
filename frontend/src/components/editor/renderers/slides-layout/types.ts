@@ -9,7 +9,8 @@ import type { CellId } from "@/core/cells/ids";
  */
 // oxlint-disable-next-line typescript/consistent-type-definitions
 export type SerializedSlidesLayout = {
-  cells?: SlideConfig[];
+  deck: DeckConfig;
+  cells: SlideConfig[];
 };
 
 export interface SlidesLayout extends Omit<SerializedSlidesLayout, "cells"> {
@@ -21,4 +22,15 @@ export type SlideType = "slide" | "sub-slide" | "fragment" | "skip";
 export interface SlideConfig {
   type?: SlideType;
   codeSnippet?: string;
+}
+
+export type DeckTransition =
+  | "none"
+  | "fade"
+  | "slide"
+  | "convex"
+  | "concave"
+  | "zoom";
+export interface DeckConfig {
+  transition?: DeckTransition;
 }

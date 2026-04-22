@@ -26,7 +26,11 @@ import {
   resolveActiveCellIndex,
   type ComposedSubslide,
 } from "./compose-slides";
-import { DEFAULT_SLIDE_TYPE, SlidesForm } from "./slide-form";
+import {
+  DEFAULT_DECK_TRANSITION,
+  DEFAULT_SLIDE_TYPE,
+  SlidesForm,
+} from "./slide-form";
 
 const ASPECT_RATIO = 16 / 9;
 const COLLAPSED_CONFIG_WIDTH = 36;
@@ -193,6 +197,7 @@ const RevealSlidesComponent = ({
             center: false,
             minScale: 0.2,
             maxScale: 2,
+            transition: layout.deck?.transition ?? DEFAULT_DECK_TRANSITION,
             keyboardCondition: (event: KeyboardEvent) =>
               !Events.fromInput(event),
           }}
@@ -279,7 +284,7 @@ const RevealSlidesComponent = ({
         >
           {isConfigOpen && (
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground pl-1">
-              Slide
+              Configuration
             </span>
           )}
           <Tooltip content={isConfigOpen ? "Collapse panel" : "Expand panel"}>
