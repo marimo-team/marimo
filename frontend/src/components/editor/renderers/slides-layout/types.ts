@@ -9,13 +9,19 @@ import type { CellId } from "@/core/cells/ids";
  */
 // oxlint-disable-next-line typescript/consistent-type-definitions
 export type SerializedSlidesLayout = {
-  deck: DeckConfig;
-  cells: SlideConfig[];
+  // Both fields are optional so files saved before these existed (e.g. the
+  // bare `{}` emitted by earlier marimo versions) still deserialize cleanly.
+  deck?: DeckConfig;
+  cells?: SlideConfig[];
 };
 
-export interface SlidesLayout extends Omit<SerializedSlidesLayout, "cells"> {
+export interface SlidesLayout extends Omit<
+  SerializedSlidesLayout,
+  "cells" | "deck"
+> {
   // We map the cells to their IDs so that we can track them as they move around.
   cells: Map<CellId, SlideConfig>;
+  deck: DeckConfig;
 }
 
 export type SlideType = "slide" | "sub-slide" | "fragment" | "skip";

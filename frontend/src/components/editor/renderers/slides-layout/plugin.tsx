@@ -21,29 +21,30 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
   type: "slides",
   name: "Slides",
 
+  // All fields are optional so layouts saved by older marimo versions will work
   validator: z.object({
-    cells: z.array(
-      z.object({
-        type: z.enum(["slide", "sub-slide", "fragment", "skip"]).optional(),
-        codeSnippet: z.string().optional(),
-      }),
-    ),
-    deck: z.object({
-      transition: z
-        .enum(["none", "fade", "slide", "convex", "concave", "zoom"])
-        .optional(),
-    }),
+    cells: z
+      .array(
+        z.object({
+          type: z.enum(["slide", "sub-slide", "fragment", "skip"]).optional(),
+          codeSnippet: z.string().optional(),
+        }),
+      )
+      .optional(),
+    deck: z
+      .object({
+        transition: z
+          .enum(["none", "fade", "slide", "convex", "concave", "zoom"])
+          .optional(),
+      })
+      .optional(),
   }),
 
   deserializeLayout: (serialized, cells): SlidesLayout => {
-    if (serialized.cells.length === 0) {
-      return {
-        cells: new Map(),
-        deck: {},
-      };
-    }
+    const serializedCells = serialized.cells ?? [];
+    const deck = serialized.deck ?? {};
 
-    if (serialized.cells?.length !== cells.length) {
+    if (serializedCells.length > 0 && serializedCells.length !== cells.length) {
       Logger.warn(
         "Number of cells in layout does not match number of cells in notebook",
       );
@@ -51,41 +52,23 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
 
     const slideCells = new Map<CellId, SlideConfig>();
     for (const [idx, cell] of cells.entries()) {
-      const slideConfig = serialized.cells?.at(idx);
-      if (slideConfig?.type) {
+      const slideConfig = serializedCells.at(idx);
+      if (slideConfig) {
         slideCells.set(cell.id, slideConfig);
       }
     }
 
-    return {
-      cells: slideCells,
-      deck: serialized.deck,
-    };
+    return { cells: slideCells, deck };
   },
 
-  serializeLayout: (layout, cells): SerializedSlidesLayout => {
-    const serializedCells: SlideConfig[] = cells.map((cell) => {
-      const slideConfig = layout.cells.get(cell.id);
-      if (!slideConfig) {
-        return {};
-      }
-
-      const serialized: SlideConfig = {
-        // A code snippet is added to help the user / AI understand the cell.
-        codeSnippet: `${cell.code.slice(0, 100)}...`,
-      };
-      // We don't want to save undefined
-      if (slideConfig.type) {
-        serialized.type = slideConfig.type;
-      }
-      return serialized;
-    });
-
-    return {
-      cells: serializedCells,
-      deck: layout.deck,
-    };
-  },
+  serializeLayout: (layout, cells): SerializedSlidesLayout => ({
+    cells: cells.map((cell) => ({
+      ...layout.cells.get(cell.id),
+      // Let's user or an AI understand the layout.json better
+      codeSnippet: `${cell.code.slice(0, 100)}...`,
+    })),
+    deck: layout.deck,
+  }),
 
   Component: SlidesLayoutRenderer,
 
