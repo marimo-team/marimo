@@ -4,7 +4,7 @@ from __future__ import annotations
 import abc
 import subprocess
 import sys
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING
 
 import msgspec
@@ -114,6 +114,30 @@ class PackageManager(abc.ABC):
             group=group,
             log_callback=log_callback,
         )
+
+    async def stream_install(
+        self,
+        packages: list[str],
+        *,
+        versions: dict[str, str | None] | None = None,
+        log_callback_factory: Callable[[str], LogCallback] | None = None,
+    ) -> AsyncIterator[tuple[str, bool]]:
+        """Install packages and yield (name, success) as each completes.
+
+        The default implementation installs sequentially.  Subclasses (e.g.
+        ``MicropipPackageManager``) may override to batch installs and stream
+        real progress.
+        """
+        for pkg in packages:
+            if self.attempted_to_install(package=pkg):
+                yield (pkg, False)
+                continue
+            version = (versions or {}).get(pkg)
+            cb = log_callback_factory(pkg) if log_callback_factory else None
+            success = await self.install(
+                pkg, version=version, log_callback=cb,
+            )
+            yield (pkg, success)
 
     @abc.abstractmethod
     async def uninstall(self, package: str, group: str | None = None) -> bool:

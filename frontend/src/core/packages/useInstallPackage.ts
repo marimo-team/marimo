@@ -22,16 +22,17 @@ export function useInstallPackages(): {
     setLoading(true);
 
     try {
-      for (const [idx, packageName] of packages.entries()) {
-        const response = await addPackage({ package: packageName });
-        if (response.success) {
+      // Batch all packages into a single install call.
+      // The worker splits by space and passes the full list to micropip,
+      // which resolves and downloads in parallel internally.
+      const response = await addPackage({ package: packages.join(" ") });
+      if (response.success) {
+        for (const packageName of packages) {
           showAddPackageToast(packageName);
-        } else {
-          showAddPackageToast(packageName, response.error);
         }
-        // Wait 1s if there are more packages to install
-        if (idx < packages.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+      } else {
+        for (const packageName of packages) {
+          showAddPackageToast(packageName, response.error);
         }
       }
       onSuccess?.();

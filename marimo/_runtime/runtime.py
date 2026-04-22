@@ -3352,34 +3352,38 @@ class PackagesCallbacks:
 
             return log_callback
 
+        # Mark all as installing up front
         for pkg in missing_packages:
-            if self.package_manager.attempted_to_install(package=pkg):
-                # Already attempted an installation; it must have failed.
-                # Skip the installation.
-                continue
-            package_statuses[pkg] = "installing"
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=package_statuses, source=request.source
-                )
+            if not self.package_manager.attempted_to_install(package=pkg):
+                package_statuses[pkg] = "installing"
+        broadcast_notification(
+            InstallingPackageAlertNotification(
+                packages=package_statuses, source=request.source
             )
-
-            # Send initial "start" log
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=package_statuses,
-                    logs={pkg: f"Installing {pkg}...\n"},
-                    log_status="start",
-                    source=request.source,
+        )
+        for pkg in missing_packages:
+            if package_statuses.get(pkg) == "installing":
+                broadcast_notification(
+                    InstallingPackageAlertNotification(
+                        packages=package_statuses,
+                        logs={pkg: f"Installing {pkg}...\n"},
+                        log_status="start",
+                        source=request.source,
+                    ),
                 )
-            )
 
-            version = request.versions.get(pkg)
-            if await self.package_manager.install(
-                pkg, version=version, log_callback=create_log_callback(pkg)
-            ):
+        # Stream install: batched for micropip, sequential fallback otherwise
+        installable = [
+            pkg for pkg in missing_packages
+            if not self.package_manager.attempted_to_install(package=pkg)
+        ]
+        async for pkg, success in self.package_manager.stream_install(
+            installable,
+            versions=request.versions,
+            log_callback_factory=create_log_callback,
+        ):
+            if success:
                 package_statuses[pkg] = "installed"
-                # Send final "done" log
                 broadcast_notification(
                     InstallingPackageAlertNotification(
                         packages=package_statuses,
@@ -3392,7 +3396,6 @@ class PackagesCallbacks:
                 package_statuses[pkg] = "failed"
                 mod = self.package_manager.package_to_module(pkg)
                 self._kernel.module_registry.excluded_modules.add(mod)
-                # Send final "done" log with error
                 broadcast_notification(
                     InstallingPackageAlertNotification(
                         packages=package_statuses,

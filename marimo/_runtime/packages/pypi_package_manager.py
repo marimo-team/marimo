@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
+import importlib
 import json
 import os
 import subprocess
@@ -8,6 +10,10 @@ import sys
 import tempfile
 from functools import cached_property
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Callable
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -19,7 +25,7 @@ from marimo._runtime.packages.package_manager import (
     LogCallback,
     PackageDescription,
 )
-from marimo._runtime.packages.utils import split_packages
+from marimo._runtime.packages.utils import append_version, split_packages
 from marimo._utils.platform import is_pyodide
 from marimo._utils.subprocess import safe_popen
 from marimo._utils.uv import find_uv_bin
@@ -238,6 +244,157 @@ class MicropipPackageManager(PypiPackageManager):
             if log_callback:
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
+
+    async def stream_install(
+        self,
+        packages: list[str],
+        *,
+        versions: dict[str, str | None] | None = None,
+        log_callback_factory: Callable[[str], LogCallback] | None = None,
+    ) -> AsyncIterator[tuple[str, bool]]:
+        """Batch-install via micropip Transaction internals, streaming progress.
+
+        Creates a single micropip Transaction so that dependency resolution,
+        wheel downloads, and wheel extraction all happen in parallel.  Results
+        are yielded via ``asyncio.as_completed`` as each wheel finishes
+        installing, giving real streaming rather than an all-or-nothing call.
+        """
+        assert is_pyodide()
+
+        try:
+            async for result in self._stream_install_via_transaction(
+                packages, versions=versions, log_callback_factory=log_callback_factory,
+            ):
+                yield result
+        except Exception:
+            # Fallback: if micropip internals changed, use the base sequential path.
+            LOGGER.warning(
+                "micropip Transaction API unavailable, falling back to sequential installs",
+                exc_info=True,
+            )
+            async for result in super().stream_install(
+                packages,
+                versions=versions,
+                log_callback_factory=log_callback_factory,
+            ):
+                yield result
+
+    async def _stream_install_via_transaction(
+        self,
+        packages: list[str],
+        *,
+        versions: dict[str, str | None] | None = None,
+        log_callback_factory: Callable[[str], LogCallback] | None = None,
+    ) -> AsyncIterator[tuple[str, bool]]:
+        import micropip  # type: ignore
+        from micropip._utils import default_environment  # type: ignore
+        from micropip.transaction import Transaction  # type: ignore
+        from packaging.utils import canonicalize_name  # type: ignore
+
+        mgr = micropip._micropip  # singleton PackageManager
+        ctx = default_environment()
+
+        from site import getsitepackages
+
+        wheel_base = Path(getsitepackages()[0])
+
+        # Build flat requirement list with versions
+        flat_requirements: list[str] = []
+        for pkg in packages:
+            version = (versions or {}).get(pkg)
+            versioned = append_version(pkg, version)
+            flat_requirements.extend(split_packages(versioned))
+
+        # Mark all as attempted
+        for pkg in packages:
+            self._attempted_packages.add(pkg)
+
+        # Phase 1: Create Transaction and resolve ALL deps in parallel.
+        # This mirrors what micropip.install() does internally but gives us
+        # access to the resolved wheels before the opaque install phase.
+        transaction = Transaction(
+            _compat_layer=mgr.compat_layer,
+            ctx=ctx,
+            ctx_extras=[],
+            keep_going=True,
+            deps=True,
+            pre=False,
+            fetch_kwargs={},
+            verbose=False,
+            index_urls=mgr.index_urls,
+            constraints=mgr.constraints,
+            reinstall=False,
+        )
+
+        if log_callback_factory:
+            for pkg in packages:
+                log_callback_factory(pkg)(f"Resolving {pkg}...\n")
+
+        await transaction.gather_requirements(flat_requirements)
+
+        # Build set of requested package names (normalized) for filtering
+        requested = {canonicalize_name(p): p for p in packages}
+
+        # Report resolution failures immediately
+        for failed_name in transaction.failed:
+            normalized = canonicalize_name(failed_name)
+            original = requested.pop(normalized, failed_name)
+            if log_callback_factory:
+                log_callback_factory(original)(
+                    f"No compatible wheel found for {original}\n"
+                )
+            yield (original, False)
+
+        # Phase 2: Install wheels, streaming as each completes.
+        async def _install_wheel(wheel) -> str:  # type: ignore[no-untyped-def]
+            await wheel.install(wheel_base, mgr.compat_layer)
+            return wheel.name  # type: ignore[no-any-return]
+
+        if transaction.wheels:
+            tasks = {
+                asyncio.create_task(_install_wheel(w)): w
+                for w in transaction.wheels
+            }
+
+            for future in asyncio.as_completed(tasks):
+                try:
+                    name = await future
+                    normalized = canonicalize_name(name)
+                    if normalized in requested:
+                        original = requested.pop(normalized)
+                        yield (original, True)
+                except Exception:
+                    # Identify the failed wheel from completed tasks
+                    for task, wheel in tasks.items():
+                        if task.done() and task.exception() is not None:
+                            normalized = canonicalize_name(wheel.name)
+                            if normalized in requested:
+                                original = requested.pop(normalized)
+                                yield (original, False)
+
+        # Phase 3: Load pyodide built-in packages.
+        if transaction.pyodide_packages:
+            await mgr.compat_layer.loadPackage(
+                mgr.compat_layer.to_js(
+                    [name for name, _, _ in transaction.pyodide_packages]
+                )
+            )
+            for name, _, _ in transaction.pyodide_packages:
+                normalized = canonicalize_name(name)
+                if normalized in requested:
+                    original = requested.pop(normalized)
+                    yield (original, True)
+
+        importlib.invalidate_caches()
+
+        # Check remaining requested packages -- they may have been installed
+        # as transitive deps under a different name
+        for _normalized, original in list(requested.items()):
+            try:
+                importlib.metadata.version(original)  # type: ignore
+                yield (original, True)
+            except importlib.metadata.PackageNotFoundError:
+                yield (original, False)
 
     async def uninstall(self, package: str, group: str | None = None) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
