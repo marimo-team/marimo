@@ -7,11 +7,14 @@ import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
 import { isTrustedVirtualFileUrl } from "../trusted-url";
 
-/**
- * Snapshot of all atoms that contribute to the "notebook trust established"
- * condition. Tests can flip them independently and we restore afterwards so
- * cases don't bleed into each other (Jotai state is module-global).
- */
+type ExportContextWindow = Window & {
+  __MARIMO_EXPORT_CONTEXT__?: {
+    trusted: true;
+    notebookCode?: string;
+  };
+  __MARIMO_STATIC__?: unknown;
+};
+
 function snapshotTrustState() {
   return {
     hasRunAnyCell: store.get(hasRunAnyCellAtom),
@@ -27,34 +30,35 @@ function restoreTrustState(snapshot: ReturnType<typeof snapshotTrustState>) {
 }
 
 function setAutoInstantiate(value: boolean) {
-  const current = store.get(userConfigAtom);
+  const cleared = parseUserConfig({});
   store.set(userConfigAtom, {
-    ...current,
-    runtime: { ...current.runtime, auto_instantiate: value },
+    ...cleared,
+    runtime: { ...cleared.runtime, auto_instantiate: value },
   });
 }
 
-/**
- * Fully untrusted baseline: no cell run, auto_instantiate off, edit mode.
- * All trust signals off so only the explicit overrides in a given test apply.
- */
 function clearTrustSignals() {
   store.set(hasRunAnyCellAtom, false);
-  store.set(userConfigAtom, parseUserConfig({}));
   setAutoInstantiate(false);
   store.set(initialModeAtom, "edit");
 }
 
 describe("isTrustedVirtualFileUrl", () => {
-  let snapshot: ReturnType<typeof snapshotTrustState>;
+  let windowWithExportContext: ExportContextWindow;
+  let trustStateSnapshot: ReturnType<typeof snapshotTrustState>;
 
   beforeEach(() => {
-    snapshot = snapshotTrustState();
+    windowWithExportContext = window as ExportContextWindow;
+    trustStateSnapshot = snapshotTrustState();
     clearTrustSignals();
+    delete windowWithExportContext.__MARIMO_EXPORT_CONTEXT__;
+    delete windowWithExportContext.__MARIMO_STATIC__;
   });
 
   afterEach(() => {
-    restoreTrustState(snapshot);
+    restoreTrustState(trustStateSnapshot);
+    delete windowWithExportContext.__MARIMO_EXPORT_CONTEXT__;
+    delete windowWithExportContext.__MARIMO_STATIC__;
   });
 
   it.each([
@@ -104,9 +108,9 @@ describe("isTrustedVirtualFileUrl", () => {
    * Data URLs are the WASM / Pyodide fallback shape (see
    * `virtual_file.py`: when `virtual_files_supported=False`, files are
    * emitted directly as base64 data URLs). The tests below cover each
-   * way the "notebook trust" signal can be established.
+   * supported and unsupported trust signal.
    */
-  describe("data URL acceptance mirrors sanitize.ts trust signals", () => {
+  describe("data URL acceptance", () => {
     const SAFE_DATA_URLS = [
       "data:text/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=",
       "data:application/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=",
@@ -114,32 +118,70 @@ describe("isTrustedVirtualFileUrl", () => {
     ];
 
     it.each(SAFE_DATA_URLS)(
-      "accepts %s once the user has run a cell (edit mode)",
+      "accepts %s once the user has run a cell",
       (url) => {
         store.set(hasRunAnyCellAtom, true);
         expect(isTrustedVirtualFileUrl(url)).toBe(true);
       },
     );
 
-    it.each(SAFE_DATA_URLS)(
-      "accepts %s when auto_instantiate is enabled",
-      (url) => {
-        setAutoInstantiate(true);
-        expect(isTrustedVirtualFileUrl(url)).toBe(true);
-      },
-    );
+    it("accepts safe data URL when trusted export context is present", () => {
+      windowWithExportContext.__MARIMO_EXPORT_CONTEXT__ = {
+        trusted: true,
+        notebookCode: "import marimo\napp = marimo.App()",
+      };
+      expect(
+        isTrustedVirtualFileUrl(
+          "data:text/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=",
+        ),
+      ).toBe(true);
+    });
 
-    it.each(SAFE_DATA_URLS)(
-      "accepts %s in read mode (marimo run / static HTML / WASM app)",
-      (url) => {
-        store.set(initialModeAtom, "read");
-        expect(isTrustedVirtualFileUrl(url)).toBe(true);
-      },
-    );
+    it("rejects safe data URL when only read mode is present", () => {
+      store.set(initialModeAtom, "read");
+      expect(
+        isTrustedVirtualFileUrl(
+          "data:text/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=",
+        ),
+      ).toBe(false);
+    });
+
+    it("rejects safe data URL when only auto_instantiate is enabled", () => {
+      setAutoInstantiate(true);
+      expect(
+        isTrustedVirtualFileUrl(
+          "data:text/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=",
+        ),
+      ).toBe(false);
+    });
+
+    it("rejects safe data URL when only a marimo-code tag is present", () => {
+      const tag = document.createElement("marimo-code");
+      tag.textContent = encodeURIComponent("import marimo\napp = marimo.App()");
+      document.body.appendChild(tag);
+      try {
+        expect(
+          isTrustedVirtualFileUrl(
+            "data:text/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=",
+          ),
+        ).toBe(false);
+      } finally {
+        tag.remove();
+      }
+    });
+
+    it("rejects safe data URL when only __MARIMO_STATIC__ is present", () => {
+      windowWithExportContext.__MARIMO_STATIC__ = {};
+      expect(
+        isTrustedVirtualFileUrl(
+          "data:text/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=",
+        ),
+      ).toBe(false);
+    });
 
     it.each([
-      // Non-base64 data URLs are refused (length isn't delimited, attacker
-      // payload could smuggle unescaped characters).
+      // Non-base64 data URLs are refused
+      // (length isn't delimited, attacker payload could smuggle unescaped characters)
       "data:text/javascript,alert(1)",
       "data:text/javascript;charset=utf-8,alert(1)",
       // HTML / SVG / arbitrary types are refused even when trusted.

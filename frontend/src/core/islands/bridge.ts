@@ -10,6 +10,7 @@ import { generateUUID } from "@/utils/uuid";
 import type { CommandMessage, NotificationPayload } from "../kernel/messages";
 import type { EditRequests, RunRequests } from "../network/types";
 import { store as defaultStore } from "../state/jotai";
+import { getMarimoExportContext } from "../static/export-context";
 import { createMarimoFile, parseMarimoIslandApps } from "./parse";
 import { islandsInitializedAtom } from "./state";
 import type { WorkerSchema } from "./worker/worker";
@@ -123,8 +124,11 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       `Starting sessions for ${apps.length} app(s):`,
       apps.map((a) => `${a.id} (${a.cells.length} cells)`),
     );
+    const exportContext =
+      apps.length === 1 ? getMarimoExportContext() : undefined;
+    const notebookCode = exportContext?.notebookCode;
     for (const app of apps) {
-      const file = createMarimoFile(app);
+      const file = notebookCode || createMarimoFile(app);
       Logger.debug(`App ${app.id} marimo file:\n`, file);
       this.startSession({
         code: file,
