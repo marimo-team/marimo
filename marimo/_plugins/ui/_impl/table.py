@@ -262,53 +262,6 @@ def _filter_valid_columns(
     )
 
 
-_DATATYPE_TO_CATEGORY: dict[str, str] = {
-    "string": "str",
-    "boolean": "boolean",
-    "integer": "number",
-    "number": "number",
-    "date": "temporal",
-    "datetime": "temporal",
-    "time": "temporal",
-}
-
-# Use Union[] instead of X | Y in class base — see altair_transformer.py
-# for rationale.
-def _filter_valid_columns(
-    group: FilterGroup,
-    column_dtypes: Mapping[str, str],
-) -> FilterGroup:
-    """Recursively remove conditions on non-existent columns
-    or with invalid operators for the column dtype."""
-    valid_children: list[FilterCondition | FilterGroup] = []
-    for child in group.children:
-        if isinstance(child, FilterCondition):
-            if child.column_id not in column_dtypes:
-                continue
-            category = _DATATYPE_TO_CATEGORY.get(
-                column_dtypes[child.column_id], ""
-            )
-            if not validate_operator_for_dtype(child.operator, category):
-                LOGGER.warning(
-                    "Invalid operator '%s' for dtype '%s' on column '%s'",
-                    child.operator,
-                    column_dtypes[child.column_id],
-                    child.column_id,
-                )
-                continue
-            valid_children.append(child)
-        elif isinstance(child, FilterGroup):
-            filtered = _filter_valid_columns(child, column_dtypes)
-            if filtered.children:
-                valid_children.append(filtered)
-    return FilterGroup(
-        type="group",
-        operator=group.operator,
-        children=tuple(valid_children),
-        negate=group.negate,
-    )
-
-
 # Use Union[] instead of X | Y in class base — see altair_transformer.py
 # for rationale.
 @mddoc
