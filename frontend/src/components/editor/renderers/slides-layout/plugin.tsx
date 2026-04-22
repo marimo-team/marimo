@@ -64,7 +64,7 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
   serializeLayout: (layout, cells): SerializedSlidesLayout => ({
     cells: cells.map((cell) => ({
       ...layout.cells.get(cell.id),
-      // Let's user or an AI understand the layout.json better
+      // Lets a user or an AI understand the layout.json better
       codeSnippet: `${cell.code.slice(0, 100)}...`,
     })),
     deck: layout.deck,

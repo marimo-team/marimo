@@ -1,6 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useEffect, useRef, useState, Fragment as ReactFragment } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  Fragment as ReactFragment,
+} from "react";
 import useEvent from "react-use-event-hook";
 import {
   ExpandIcon,
@@ -14,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
-import type { RevealApi } from "reveal.js";
+import type { RevealApi, RevealConfig } from "reveal.js";
 import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import "./slides.css";
@@ -124,9 +130,13 @@ const RevealSlidesComponent = ({
   // `undefined` when the deck is empty; that case is handled below.
   const activeConfigCell = activeCell ?? cellsWithOutput[0];
 
-  const composition = composeSlides(
-    cellsWithOutput,
-    (cell) => layout.cells.get(cell.id)?.type ?? DEFAULT_SLIDE_TYPE,
+  const composition = useMemo(
+    () =>
+      composeSlides(
+        cellsWithOutput,
+        (cell) => layout.cells.get(cell.id)?.type ?? DEFAULT_SLIDE_TYPE,
+      ),
+    [cellsWithOutput, layout.cells],
   );
 
   // Skip cells are dropped from the composed deck to match reveal.js
@@ -137,10 +147,24 @@ const RevealSlidesComponent = ({
       ? activeCell
       : null;
 
-  const { cellToTarget, targetToCellIndex } = buildSlideIndices(
-    composition,
-    cellsWithOutput,
-    (c) => c.id,
+  const { cellToTarget, targetToCellIndex } = useMemo(
+    () => buildSlideIndices(composition, cellsWithOutput, (c) => c.id),
+    [composition, cellsWithOutput],
+  );
+
+  const deckTransition = layout.deck?.transition ?? DEFAULT_DECK_TRANSITION;
+  const revealConfig: RevealConfig = useMemo(
+    () => ({
+      embedded: true,
+      width,
+      height,
+      center: false,
+      minScale: 0.2,
+      maxScale: 2,
+      transition: deckTransition,
+      keyboardCondition: (event: KeyboardEvent) => !Events.fromInput(event),
+    }),
+    [width, height, deckTransition],
   );
 
   useEffect(() => {
@@ -190,17 +214,7 @@ const RevealSlidesComponent = ({
         <Deck
           deckRef={deckRef}
           className="aspect-video overflow-hidden h-full border rounded bg-background mo-slides-theme prose-slides"
-          config={{
-            embedded: true,
-            width,
-            height,
-            center: false,
-            minScale: 0.2,
-            maxScale: 2,
-            transition: layout.deck?.transition ?? DEFAULT_DECK_TRANSITION,
-            keyboardCondition: (event: KeyboardEvent) =>
-              !Events.fromInput(event),
-          }}
+          config={revealConfig}
           onSlideChange={() => {
             reportCurrentCell();
             const deck = deckRef.current;

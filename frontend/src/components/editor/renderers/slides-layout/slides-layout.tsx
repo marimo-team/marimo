@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 import { numColumnsAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
@@ -27,23 +27,28 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   const [activeCellId, setActiveCellId] = useState<CellId | null>(null);
   const deckRef = useRef<RevealApi | null>(null);
 
-  const cellsWithOutput = cells.filter(
-    (cell) => cell.output != null && cell.output.data !== "",
-  );
-
-  const skippedIds = new Set<CellId>();
-  for (const c of cellsWithOutput) {
-    if (layout.cells.get(c.id)?.type === "skip") {
-      skippedIds.add(c.id);
+  const { cellsWithOutput, skippedIds, defaultIndex } = useMemo(() => {
+    const withOutput = cells.filter(
+      (cell) => cell.output != null && cell.output.data !== "",
+    );
+    const skipped = new Set<CellId>();
+    for (const c of withOutput) {
+      if (layout.cells.get(c.id)?.type === "skip") {
+        skipped.add(c.id);
+      }
     }
-  }
-
-  // Prefer a non-skipped cell on initial load so the deck lands on a real
-  // slide instead of the skip-preview overlay.
-  const firstNonSkippedIndex = cellsWithOutput.findIndex(
-    (c) => !skippedIds.has(c.id),
-  );
-  const defaultIndex = firstNonSkippedIndex === -1 ? 0 : firstNonSkippedIndex;
+    // Prefer a non-skipped cell on initial load so the deck lands on a real
+    // slide instead of the skip-preview overlay.
+    const firstNonSkippedIndex = withOutput.findIndex(
+      (c) => !skipped.has(c.id),
+    );
+    const defaultIdx = firstNonSkippedIndex === -1 ? 0 : firstNonSkippedIndex;
+    return {
+      cellsWithOutput: withOutput,
+      skippedIds: skipped,
+      defaultIndex: defaultIdx,
+    };
+  }, [cells, layout.cells]);
 
   const activeSlideIndex = activeCellId
     ? cellsWithOutput.findIndex((c) => c.id === activeCellId)
