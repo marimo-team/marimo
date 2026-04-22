@@ -130,6 +130,7 @@ class _Namespace(Mapping[str, object]):
             tracked = self._tracked
             module_dict = self._module_dict
             try:
+
                 def _on_value_collected() -> None:
                     tracked.discard(item)
                     if not tracked:
