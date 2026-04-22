@@ -8,8 +8,8 @@ on:
   workflow_dispatch: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -69,8 +69,25 @@ jobs:
       - name: 📚 CLAUDE.md
         run: cp docs/_static/CLAUDE.md .vercel/output/static/CLAUDE.md
 
-      - name: 🚀 Deploy to Vercel
+      # Skip deploy if a newer commit has landed on main while this run was building,
+      # so an older run can't overwrite a newer deploy. The run still completes green.
+      - name: 🔍 Check if still tip of main
+        id: latest
         if: github.ref == 'refs/heads/main'
+        env:
+          GH_SHA: ${{ github.sha }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          LATEST_SHA=$(git ls-remote "https://github.com/${GH_REPO}.git" refs/heads/main | awk '{print $1}')
+          if [ "$LATEST_SHA" = "$GH_SHA" ]; then
+            echo "is_latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_latest=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping deploy — superseded by a newer commit on main ($LATEST_SHA)."
+          fi
+
+      - name: 🚀 Deploy to Vercel
+        if: github.ref == 'refs/heads/main' && steps.latest.outputs.is_latest == 'true'
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
