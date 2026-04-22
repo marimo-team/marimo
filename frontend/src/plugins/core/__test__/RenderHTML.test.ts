@@ -1,5 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { describe, expect, test } from "vitest";
+import type { ExtractAtomValue } from "jotai";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { hasRunAnyCellAtom } from "@/components/editor/cell/useRunCells";
+import { userConfigAtom } from "@/core/config/config";
+import { parseUserConfig } from "@/core/config/config-schema";
+import { initialModeAtom } from "@/core/mode";
+import { store } from "@/core/state/jotai";
 import { visibleForTesting } from "../RenderHTML";
 
 const { parseHtml } = visibleForTesting;
@@ -194,6 +200,85 @@ describe("parseHtml", () => {
         </React.Fragment>
       </React.Fragment>
     `);
+  });
+});
+
+describe("replaceSrcScripts trust gate", () => {
+  let previousHasRunAnyCell: ExtractAtomValue<typeof hasRunAnyCellAtom>;
+  let previousConfig: ExtractAtomValue<typeof userConfigAtom>;
+  let previousMode: ExtractAtomValue<typeof initialModeAtom>;
+  const windowWithExport = window as Window & {
+    __MARIMO_EXPORT_CONTEXT__?: unknown;
+  };
+
+  function clearTrustSignals() {
+    const cleared = parseUserConfig({});
+    store.set(hasRunAnyCellAtom, false);
+    store.set(userConfigAtom, {
+      ...cleared,
+      runtime: { ...cleared.runtime, auto_instantiate: false },
+    });
+    store.set(initialModeAtom, "edit");
+    delete windowWithExport.__MARIMO_EXPORT_CONTEXT__;
+  }
+
+  beforeEach(() => {
+    previousHasRunAnyCell = store.get(hasRunAnyCellAtom);
+    previousConfig = store.get(userConfigAtom);
+    previousMode = store.get(initialModeAtom);
+    clearTrustSignals();
+    for (const s of document.head.querySelectorAll(
+      'script[src^="https://cdn.example.com/"]',
+    )) {
+      s.remove();
+    }
+  });
+
+  afterEach(() => {
+    store.set(hasRunAnyCellAtom, previousHasRunAnyCell);
+    store.set(userConfigAtom, previousConfig);
+    store.set(initialModeAtom, previousMode);
+    delete windowWithExport.__MARIMO_EXPORT_CONTEXT__;
+    for (const s of document.head.querySelectorAll(
+      'script[src^="https://cdn.example.com/"]',
+    )) {
+      s.remove();
+    }
+  });
+
+  test("drops <script src> in untrusted edit mode", () => {
+    parseHtml({
+      html: '<script src="https://cdn.example.com/unrun.js"></script>',
+    });
+    expect(
+      document.head.querySelector(
+        'script[src="https://cdn.example.com/unrun.js"]',
+      ),
+    ).toBeNull();
+  });
+
+  test("loads <script src> once a cell has been run", () => {
+    store.set(hasRunAnyCellAtom, true);
+    parseHtml({
+      html: '<script src="https://cdn.example.com/ok.js"></script>',
+    });
+    expect(
+      document.head.querySelector(
+        'script[src="https://cdn.example.com/ok.js"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  test("loads <script src> when a trusted export context is installed", () => {
+    windowWithExport.__MARIMO_EXPORT_CONTEXT__ = { trusted: true };
+    parseHtml({
+      html: '<script src="https://cdn.example.com/export.js"></script>',
+    });
+    expect(
+      document.head.querySelector(
+        'script[src="https://cdn.example.com/export.js"]',
+      ),
+    ).not.toBeNull();
   });
 });
 

@@ -72,7 +72,11 @@
     <!-- This is a portal for the data editor to render in -->
     <div id="portal" data-testid="glide-portal" style="position: fixed; left: 0; top: 0; z-index: 9999"></div>
     <script data-marimo="true">
-      window.__MARIMO_MOUNT_CONFIG__ = '{{ mount_config }}';
+      Object.defineProperty(window, "__MARIMO_MOUNT_CONFIG__", {
+        value: Object.freeze('{{ mount_config }}'),
+        writable: false,
+        configurable: false,
+      });
     </script>
   </body>
 </html>

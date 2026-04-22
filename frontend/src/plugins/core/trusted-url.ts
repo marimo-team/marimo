@@ -37,6 +37,15 @@ export function isTrustedVirtualFileUrl(url: unknown): url is string {
   return false;
 }
 
+/**
+ * Intentionally narrower than `hasTrustedNotebookContext` in
+ * `@/core/static/export-context`: `auto_instantiate` and `read` mode are
+ * deliberately excluded here. Both can be triggered by DOM-observable page
+ * shape, and accepting inline base64 `data:` JS/CSS payloads on their
+ * strength would let a hostile notebook page smuggle attacker-controlled
+ * script into the same origin. Keep this gate tied only to "user actively
+ * ran a cell" or "first-party exporter installed a trusted runtime marker".
+ */
 function hasNotebookTrustedDataUrlContext(): boolean {
   return store.get(hasRunAnyCellAtom) || hasTrustedExportContext();
 }
