@@ -247,3 +247,31 @@ export function resolveActiveCellIndex(
     targetToCellIndex.get(`${h},${v},-1`)
   );
 }
+
+/**
+ * Decide where the deck should navigate to given the user's current target
+ * cell. Returns `null` when the deck is already in the right place so the
+ * caller can skip the imperative `deck.slide()` call.
+ *
+ * Each minimap entry is a distinct navigation target, so the fragment index
+ * is always pinned:
+ *   - fragment cells (`target.f >= 0`) advance to that fragment
+ *   - non-fragment cells reset to `f = -1` so any revealed fragments on the
+ *     destination slide collapse — otherwise jumping to the parent slide
+ *     from elsewhere in the deck leaves fragments looking "completed"
+ *     instead of clean.
+ */
+export function computeDeckNavigation(
+  current: { h: number; v: number; f: number },
+  target: SlideTarget,
+): SlideTarget | null {
+  const targetF = target.f >= 0 ? target.f : -1;
+  if (
+    current.h === target.h &&
+    current.v === target.v &&
+    current.f === targetF
+  ) {
+    return null;
+  }
+  return { h: target.h, v: target.v, f: targetF };
+}

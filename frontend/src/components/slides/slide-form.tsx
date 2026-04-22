@@ -5,7 +5,7 @@ import {
   LayoutTemplateIcon,
   type LucideIcon,
   Rows2Icon,
-  SparklesIcon,
+  CookieIcon,
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -26,14 +26,15 @@ import type {
 
 export const DEFAULT_SLIDE_TYPE: SlideType = "slide";
 export const DEFAULT_DECK_TRANSITION: DeckTransition = "slide";
-interface SlideTypeOption {
+
+export interface SlideTypeOption {
   value: SlideType;
   label: string;
   description: string;
   Icon: LucideIcon;
 }
 
-const SLIDE_TYPE_OPTIONS: SlideTypeOption[] = [
+export const SLIDE_TYPE_OPTIONS: readonly SlideTypeOption[] = [
   {
     value: "slide",
     label: "Slide",
@@ -52,7 +53,7 @@ const SLIDE_TYPE_OPTIONS: SlideTypeOption[] = [
     value: "fragment",
     label: "Fragment",
     description: "Reveals step-by-step on the current slide without advancing.",
-    Icon: SparklesIcon,
+    Icon: CookieIcon,
   },
   {
     value: "skip",
@@ -62,6 +63,15 @@ const SLIDE_TYPE_OPTIONS: SlideTypeOption[] = [
     Icon: EyeOffIcon,
   },
 ];
+
+/**
+ * Lookup form of {@link SLIDE_TYPE_OPTIONS} for O(1) access by `SlideType`.
+ */
+export const SLIDE_TYPE_OPTIONS_BY_VALUE: Readonly<
+  Record<SlideType, SlideTypeOption>
+> = Object.fromEntries(
+  SLIDE_TYPE_OPTIONS.map((option) => [option.value, option]),
+) as Record<SlideType, SlideTypeOption>;
 
 interface DeckTransitionOption {
   value: DeckTransition;

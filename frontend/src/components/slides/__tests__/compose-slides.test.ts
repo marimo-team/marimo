@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildSlideIndices,
   composeSlides,
+  computeDeckNavigation,
   resolveActiveCellIndex,
   type ComposeOptions,
 } from "../compose-slides";
@@ -325,5 +326,64 @@ describe("resolveActiveCellIndex", () => {
 
   it("returns undefined for unknown stacks", () => {
     expect(resolveActiveCellIndex(map, { h: 9, v: 0, f: 0 })).toBeUndefined();
+  });
+});
+
+describe("computeDeckNavigation", () => {
+  it("returns null when the deck is already on a non-fragment target", () => {
+    expect(
+      computeDeckNavigation({ h: 0, v: 0, f: -1 }, { h: 0, v: 0, f: -1 }),
+    ).toBeNull();
+  });
+
+  it("returns null when the deck is already on the target fragment", () => {
+    expect(
+      computeDeckNavigation({ h: 0, v: 0, f: 1 }, { h: 0, v: 0, f: 1 }),
+    ).toBeNull();
+  });
+
+  it("navigates to a different stack", () => {
+    expect(
+      computeDeckNavigation({ h: 0, v: 0, f: -1 }, { h: 2, v: 0, f: -1 }),
+    ).toEqual({ h: 2, v: 0, f: -1 });
+  });
+
+  it("navigates to a different subslide within the same stack", () => {
+    expect(
+      computeDeckNavigation({ h: 1, v: 0, f: -1 }, { h: 1, v: 2, f: -1 }),
+    ).toEqual({ h: 1, v: 2, f: -1 });
+  });
+
+  it("collapses revealed fragments when jumping to the parent slide", () => {
+    // Regression: previously left `f` unchanged, so the deck would stay on
+    // the last-revealed fragment when the user clicked the parent slide in
+    // the minimap.
+    expect(
+      computeDeckNavigation({ h: 0, v: 0, f: 2 }, { h: 0, v: 0, f: -1 }),
+    ).toEqual({ h: 0, v: 0, f: -1 });
+  });
+
+  it("collapses fragments when jumping to a parent slide in a different stack", () => {
+    expect(
+      computeDeckNavigation({ h: 1, v: 0, f: 3 }, { h: 0, v: 0, f: -1 }),
+    ).toEqual({ h: 0, v: 0, f: -1 });
+  });
+
+  it("advances to a specific fragment on the same slide", () => {
+    expect(
+      computeDeckNavigation({ h: 0, v: 0, f: -1 }, { h: 0, v: 0, f: 2 }),
+    ).toEqual({ h: 0, v: 0, f: 2 });
+  });
+
+  it("rewinds to an earlier fragment on the same slide", () => {
+    expect(
+      computeDeckNavigation({ h: 0, v: 0, f: 3 }, { h: 0, v: 0, f: 1 }),
+    ).toEqual({ h: 0, v: 0, f: 1 });
+  });
+
+  it("jumps across stacks directly to a fragment", () => {
+    expect(
+      computeDeckNavigation({ h: 0, v: 0, f: -1 }, { h: 2, v: 1, f: 0 }),
+    ).toEqual({ h: 2, v: 1, f: 0 });
   });
 });

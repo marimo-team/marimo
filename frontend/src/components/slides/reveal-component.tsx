@@ -29,6 +29,7 @@ import type { SlidesLayout } from "../editor/renderers/slides-layout/types";
 import {
   buildSlideIndices,
   composeSlides,
+  computeDeckNavigation,
   resolveActiveCellIndex,
   type ComposedSubslide,
 } from "./compose-slides";
@@ -176,17 +177,9 @@ const RevealSlidesComponent = ({
     if (!target) {
       return;
     }
-    const { h, v, f } = deck.getIndices();
-    // For fragment cells, advance to that fragment so it's visible.
-    // For non-fragment cells (target.f === -1), leave f unchanged so we don't
-    // collapse already-revealed fragments on the destination slide.
-    const targetF = target.f >= 0 ? target.f : undefined;
-    if (
-      h !== target.h ||
-      v !== target.v ||
-      (targetF != null && f !== targetF)
-    ) {
-      deck.slide(target.h, target.v, targetF);
+    const next = computeDeckNavigation(deck.getIndices(), target);
+    if (next) {
+      deck.slide(next.h, next.v, next.f);
     }
   }, [activeCell, cellToTarget, deckRef]);
 
