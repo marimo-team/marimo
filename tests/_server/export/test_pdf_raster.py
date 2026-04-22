@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import sys
+from dataclasses import dataclass
+from types import ModuleType
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -77,6 +80,7 @@ def test_collect_pdf_png_fallbacks_mixed_targets_use_static_by_default() -> (
     None
 ):
     session_view = SessionView()
+    events: list[Any] = []
     original_anywidget = (
         '&lt;marimo-anywidget data-initial-value=\'{"model_id":"m-live"}\''
         "&gt;&lt;/marimo-anywidget&gt;"
@@ -125,7 +129,9 @@ def test_collect_pdf_png_fallbacks_mixed_targets_use_static_by_default() -> (
         page_url: str,
         targets: list[_pdf_raster._RasterTarget],
         scale: float,
+        status_callback: Any = None,
     ) -> dict[str, str]:
+        del status_callback
         assert page_url.endswith("__marimo_pdf_raster__.html")
         assert scale == 4.0
         assert [target.cell_id for target in targets] == ["3", "2", "1"]
@@ -169,6 +175,7 @@ def test_collect_pdf_png_fallbacks_mixed_targets_use_static_by_default() -> (
                 filepath="demo.py",
                 argv=["--arg", "value"],
                 options=_pdf_raster.PDFRasterizationOptions(),
+                status_callback=events.append,
             )
 
     captures = asyncio.run(_run())
@@ -178,6 +185,9 @@ def test_collect_pdf_png_fallbacks_mixed_targets_use_static_by_default() -> (
         "3": "data:image/png;base64,c3RhdGljMw==",
     }
     live_capture_mock.assert_not_awaited()
+    assert [(event.phase, event.message, event.total) for event in events] == [
+        ("raster", "rasterizing interactive outputs...", 3)
+    ]
     output = session_view.cell_notifications["1"].output
     assert output is not None
     assert output.mimetype == "text/plain"
@@ -215,7 +225,9 @@ def test_collect_pdf_png_fallbacks_static_only_uses_static_capture() -> None:
         page_url: str,
         targets: list[_pdf_raster._RasterTarget],
         scale: float,
+        status_callback: Any = None,
     ) -> dict[str, str]:
+        del status_callback
         assert page_url.endswith("__marimo_pdf_raster__.html")
         assert scale == 4.0
         assert [target.cell_id for target in targets] == ["1"]
@@ -297,10 +309,12 @@ def test_collect_pdf_png_fallbacks_live_mode_uses_live_capture() -> None:
         targets: list[_pdf_raster._RasterTarget],
         scale: float,
         argv: list[str] | None,
+        status_callback: Any = None,
     ) -> dict[str, str]:
         del filepath
         del scale
         del argv
+        del status_callback
         assert [target.cell_id for target in targets] == ["2", "1"]
         return {
             "2": "data:image/png;base64,bGl2ZTI=",
@@ -366,3 +380,139 @@ def test_wait_for_target_ready_uses_settle_wait_for_dynamic_targets() -> None:
 
     assert ready is True
     settle_wait.assert_awaited_once()
+
+
+def test_capture_pngs_from_page_reports_progress_in_notebook_order() -> None:
+    class _TimeoutError(Exception):
+        pass
+
+    events: list[Any] = []
+    visited_locators: list[str] = []
+
+    class _FakeLocator:
+        def __init__(self, selector: str) -> None:
+            self.selector = selector
+            self.first = self
+
+        async def wait_for(self, *args: Any, **kwargs: Any) -> None:
+            del args, kwargs
+
+        async def scroll_into_view_if_needed(
+            self, *args: Any, **kwargs: Any
+        ) -> None:
+            del args, kwargs
+
+        async def screenshot(self, *args: Any, **kwargs: Any) -> bytes:
+            del args, kwargs
+            return self.selector.encode("utf-8")
+
+    class _FakePage:
+        async def goto(self, *args: Any, **kwargs: Any) -> None:
+            del args, kwargs
+
+        async def wait_for_load_state(self, *args: Any, **kwargs: Any) -> None:
+            del args, kwargs
+
+        async def wait_for_function(self, *args: Any, **kwargs: Any) -> None:
+            del args, kwargs
+
+        async def evaluate(self, *args: Any, **kwargs: Any) -> None:
+            del args, kwargs
+
+        def locator(self, selector: str) -> _FakeLocator:
+            visited_locators.append(selector)
+            return _FakeLocator(selector)
+
+    class _FakeContext:
+        def __init__(self, page: _FakePage) -> None:
+            self._page = page
+
+        async def new_page(self) -> _FakePage:
+            return self._page
+
+        async def close(self) -> None:
+            return None
+
+    class _FakeBrowser:
+        def __init__(self, context: _FakeContext) -> None:
+            self._context = context
+
+        async def new_context(self, *args: Any, **kwargs: Any) -> _FakeContext:
+            del args, kwargs
+            return self._context
+
+        async def close(self) -> None:
+            return None
+
+    class _FakeChromium:
+        def __init__(self, browser: _FakeBrowser) -> None:
+            self._browser = browser
+
+        async def launch(self) -> _FakeBrowser:
+            return self._browser
+
+    @dataclass
+    class _FakePlaywright:
+        chromium: _FakeChromium
+
+    class _FakePlaywrightContextManager:
+        def __init__(self, playwright: _FakePlaywright) -> None:
+            self._playwright = playwright
+
+        async def __aenter__(self) -> _FakePlaywright:
+            return self._playwright
+
+        async def __aexit__(self, *args: Any) -> bool:
+            del args
+            return False
+
+    page = _FakePage()
+    context = _FakeContext(page)
+    browser = _FakeBrowser(context)
+    playwright = _FakePlaywright(_FakeChromium(browser))
+
+    fake_async_api = ModuleType("playwright.async_api")
+    fake_async_api.TimeoutError = _TimeoutError
+    fake_async_api.async_playwright = lambda: _FakePlaywrightContextManager(
+        playwright
+    )
+    fake_playwright = ModuleType("playwright")
+    fake_playwright.async_api = fake_async_api  # type: ignore[attr-defined]
+
+    targets = [
+        _pdf_raster._RasterTarget(cell_id="2", expects=("vega",)),
+        _pdf_raster._RasterTarget(cell_id="1", expects=("anywidget",)),
+    ]
+
+    with (
+        patch.dict(
+            sys.modules,
+            {
+                "playwright": fake_playwright,
+                "playwright.async_api": fake_async_api,
+            },
+        ),
+        patch.object(
+            _pdf_raster,
+            "_wait_for_target_ready",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        captures = asyncio.run(
+            _pdf_raster._capture_pngs_from_page(
+                page_url="http://127.0.0.1:1234/demo.html",
+                targets=targets,
+                scale=2.0,
+                status_callback=events.append,
+            )
+        )
+
+    assert list(captures) == ["2", "1"]
+    assert [(event.current, event.total) for event in events] == [
+        (1, 2),
+        (2, 2),
+    ]
+    assert visited_locators == [
+        "#output-2 > .output",
+        "#output-1 > .output",
+    ]

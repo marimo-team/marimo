@@ -31,6 +31,7 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
+from marimo._server.export._status import emit_pdf_export_status
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.templates.templates import (
     static_notebook_template,
@@ -52,6 +53,8 @@ from marimo._version import __version__
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from marimo._server.export._status import PDFExportStatusCallback
 
 LOGGER = _loggers.marimo_logger()
 
@@ -361,6 +364,7 @@ class Exporter:
         png_fallbacks: Mapping[CellId_t, str] | None = None,
         webpdf: bool,
         include_inputs: bool = True,
+        status_callback: PDFExportStatusCallback | None = None,
     ) -> bytes | None:
         """Export notebook as a PDF.
 
@@ -370,6 +374,8 @@ class Exporter:
             png_fallbacks: Optional cell-id keyed image/png fallbacks to
                 inject into notebook outputs before nbconvert.
             include_inputs: Whether to include code cell inputs in the export.
+            status_callback: Optional internal callback for CLI-only PDF
+                export stage updates.
             webpdf: If False, tries standard PDF export (pandoc + TeX) first,
                 falling back to webpdf on failure. If True, uses webpdf
                 directly.
@@ -421,6 +427,11 @@ class Exporter:
                     PDFExporter,
                 )
 
+                emit_pdf_export_status(
+                    status_callback,
+                    phase="render",
+                    message="rendering PDF via standard exporter...",
+                )
                 exporter = PDFExporter()  # type: ignore[no-untyped-call]
                 exporter.exclude_input = not include_inputs
                 pdf_data, _resources = exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
@@ -430,16 +441,37 @@ class Exporter:
                 return None
             except OSError as e:
                 # LatexFailed (IOError) or xelatex not on PATH
+                emit_pdf_export_status(
+                    status_callback,
+                    phase="render_fallback",
+                    message=(
+                        "standard PDF export failed; falling back to WebPDF..."
+                    ),
+                )
                 LOGGER.info(
                     "Standard PDF export failed, falling back to webpdf: %s",
                     e,
                 )
             except (PandocMissing, ConversionException) as e:
+                emit_pdf_export_status(
+                    status_callback,
+                    phase="render_fallback",
+                    message=(
+                        "standard PDF export failed; falling back to WebPDF..."
+                    ),
+                )
                 LOGGER.info(
                     "Standard PDF export failed, falling back to webpdf: %s",
                     e,
                 )
             except Exception as e:
+                emit_pdf_export_status(
+                    status_callback,
+                    phase="render_fallback",
+                    message=(
+                        "standard PDF export failed; falling back to WebPDF..."
+                    ),
+                )
                 LOGGER.error(
                     "Standard PDF export failed, falling back to webpdf.",
                     exc_info=e,
@@ -447,6 +479,11 @@ class Exporter:
 
         from nbconvert import WebPDFExporter
 
+        emit_pdf_export_status(
+            status_callback,
+            phase="render",
+            message="rendering PDF via WebPDF...",
+        )
         web_exporter = WebPDFExporter()  # type: ignore[no-untyped-call]
         web_exporter.exclude_input = not include_inputs
         web_exporter.allow_chromium_download = True
@@ -464,6 +501,7 @@ class Exporter:
         session_view: SessionView | None,
         png_fallbacks: Mapping[CellId_t, str] | None = None,
         include_inputs: bool = True,
+        status_callback: PDFExportStatusCallback | None = None,
     ) -> bytes | None:
         """Export a slides notebook as PDF using reveal.js + Playwright.
 
@@ -481,6 +519,8 @@ class Exporter:
             png_fallbacks: Optional cell-id keyed image/png fallbacks to
                 inject into notebook outputs before conversion.
             include_inputs: Whether to include code cell inputs.
+            status_callback: Optional internal callback for CLI-only PDF
+                export stage updates.
 
         Returns:
             PDF data
@@ -509,6 +549,11 @@ class Exporter:
                 notebook,
                 png_fallbacks=png_fallbacks,
             )
+        emit_pdf_export_status(
+            status_callback,
+            phase="render",
+            message="rendering slides PDF...",
+        )
         return await self._export_slides_as_pdf(notebook, include_inputs)
 
     @staticmethod
