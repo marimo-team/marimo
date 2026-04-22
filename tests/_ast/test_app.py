@@ -1877,14 +1877,10 @@ class TestAppRunMemoryLeak:
         )
 
     @staticmethod
-    def test_scoped_call_function_behavior() -> None:
-        """Functions extracted before defs goes out of scope remain usable if
-        they don't reference notebook globals.
-
-        Known limitation: functions that reference notebook globals will raise
-        `NameError`s after defs are collected. This is a memory/correctness
-        tradeoff, since module level scope is otherwise long lived.
-        """
+    def test_accessed_values_freed_when_not_held() -> None:
+        """Values accessed via defs[key] are tracked and removed from
+        the module dict on namespace collection. If no strong reference
+        is held externally, they are freed immediately."""
         import weakref
 
         app = App()
@@ -1895,32 +1891,73 @@ class TestAppRunMemoryLeak:
                 pass
 
             tracker = _Tracker()
+            result = 42
+            return result, tracker
+
+        def run_and_extract() -> tuple[int, weakref.ref[object]]:
+            _, defs = app.run()
+            ref = weakref.ref(defs["tracker"])
+            return int(defs["result"]), ref
+
+        value, ref = run_and_extract()
+        assert value == 42
+        assert ref() is None
+
+    @staticmethod
+    def test_scoped_call_function_behavior() -> None:
+        """
+        Check that scoped variables are capable of working until all references
+        are cleaned up.
+        """
+        import weakref
+
+        app = App()
+
+        @app.cell
+        def _():
+            class _Tracker:
+                pass
+
+            tracked = _Tracker()
+            implicitly_tracked = _Tracker()
+
+            unreferenced = _Tracker()
 
             def pure():
                 return 1
 
             def uses_global():
-                return len([tracker])
+                return len([tracked, implicitly_tracked])
 
             return pure, uses_global, tracker
 
-        def run_and_extract() -> (
-            tuple[object, object, weakref.ref[object]]
-        ):
-            _, defs = app.run()
-            ref = weakref.ref(defs["tracker"])
-            assert defs["pure"]() == 1
-            assert defs["uses_global"]() == 1
-            return defs["pure"], defs["uses_global"], ref
+        def scope_values():
+            def run_and_extract() -> (
+                tuple[object, object, weakref.ref[object]]
+            ):
+                _, defs = app.run()
+                ref = weakref.ref(defs["tracked"])
+                unref = weakref.ref(defs["unreferenced"])
+                assert defs["pure"]() == 1
+                assert defs["uses_global"]() == 2
+                return defs["pure"], defs["uses_global"], unref, ref
 
-        pure, uses_global, ref = run_and_extract()
+            pure, uses_global, unref, ref = run_and_extract()
 
-        assert ref() is None
-        assert pure() == 1
-        # Known limitation: globals-dependent function breaks
-        with pytest.raises(NameError) as exc_info:
-            uses_global()
-        assert "tracker" in str(exc_info.value)
+            # tracker was accessed (tracked) — freed since no strong
+            # ref held externally.
+            assert unref() is None
+            assert ref() is not None
+            assert pure() == 1
+            # Known limitation: uses_global's dependency was tracked
+            # and freed, so __globals__ lookup fails.
+            assert uses_global() == 2
+            return weakref.ref(uses_global)
+
+        # No strong references exist at this point, so we should clean up.
+        uses_global_ref = scope_values()
+        # All strong refs dropped — function collected.
+        assert uses_global_ref() is None
 
     @staticmethod
     def test_repeated_runs_dont_accumulate() -> None:
