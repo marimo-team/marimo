@@ -1844,3 +1844,102 @@ class TestAppKernelRunnerRegistry:
         registry.remove_runner(app)
         registry.remove_runner(other)
         assert not registry._runners
+
+
+class TestAppRunMemoryLeak:
+    """Ensure memory released after app.run()"""
+
+    @staticmethod
+    def test_scoped_call_frees_memory() -> None:
+        import weakref
+
+        app = App()
+
+        @app.cell
+        def _():
+            class _Payload:
+                pass
+
+            payload = _Payload()
+            result = 42
+            return result, payload
+
+        def run_and_extract() -> tuple[int, weakref.ref[object]]:
+            _, defs = app.run()
+            ref = weakref.ref(defs["payload"])
+            return int(defs["result"]), ref
+
+        value, ref = run_and_extract()
+
+        assert value == 42
+        assert ref() is None, (
+            "Cell objects not freed after scoped app.run() returned"
+        )
+
+    @staticmethod
+    def test_scoped_call_function_behavior() -> None:
+        """Functions extracted before defs goes out of scope remain usable if
+        they don't reference notebook globals.
+
+        Known limitation: functions that reference notebook globals will raise
+        `NameError`s after defs are collected. This is a memory/correctness
+        tradeoff, since module level scope is otherwise long lived.
+        """
+        import weakref
+
+        app = App()
+
+        @app.cell
+        def _():
+            class _Tracker:
+                pass
+
+            tracker = _Tracker()
+
+            def pure():
+                return 1
+
+            def uses_global():
+                return len([tracker])
+
+            return pure, uses_global, tracker
+
+        def run_and_extract() -> (
+            tuple[object, object, weakref.ref[object]]
+        ):
+            _, defs = app.run()
+            ref = weakref.ref(defs["tracker"])
+            assert defs["pure"]() == 1
+            assert defs["uses_global"]() == 1
+            return defs["pure"], defs["uses_global"], ref
+
+        pure, uses_global, ref = run_and_extract()
+
+        assert ref() is None
+        assert pure() == 1
+        # Known limitation: globals-dependent function breaks
+        with pytest.raises(NameError) as exc_info:
+            uses_global()
+        assert "tracker" in str(exc_info.value)
+
+    @staticmethod
+    def test_repeated_runs_dont_accumulate() -> None:
+        """Multiple app.run() calls should not accumulate live objects."""
+        import weakref
+
+        app = App()
+
+        @app.cell
+        def _():
+            class _Ephemeral:
+                pass
+
+            obj = _Ephemeral()
+            return (obj,)
+
+        prev = weakref.ref(type("_Dead", (), {})())
+        for i in range(5):
+            _, defs = app.run()
+            assert prev() is None, f"Run {i}: previous object not freed"
+            prev = weakref.ref(defs["obj"])
+            assert prev() is not None

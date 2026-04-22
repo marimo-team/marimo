@@ -84,10 +84,21 @@ LOGGER = _loggers.marimo_logger()
 
 class _Namespace(Mapping[str, object]):
     def __init__(
-        self, dictionary: dict[str, object], owner: Cell | App
+        self,
+        dictionary: dict[str, object],
+        owner: Cell | App,
+        _module_dict: dict[str, Any] | None = None,
     ) -> None:
         self._dict = dictionary
         self._owner = owner
+        self._module_dict = _module_dict
+
+    def __del__(self) -> None:
+        # Clearing the module dict allows for definitions to become collectible
+        # once this namespace is dropped. Otherwise module globals are long
+        # lived and repeating runs can lead to a memory leak.
+        if self._module_dict is not None:
+            self._module_dict.clear()
 
     def __getitem__(self, item: str) -> object:
         return self._dict[item]
@@ -624,6 +635,7 @@ class App:
                 name: glbls[name] for name in self._defs if name in glbls
             },
             owner=self,
+            _module_dict=glbls,
         )
 
     def run(
