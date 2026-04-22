@@ -421,6 +421,15 @@ class Exporter:
             PandocMissing,
         )
 
+        def _emit_webpdf_fallback_status() -> None:
+            emit_pdf_export_status(
+                status_callback,
+                phase="render_fallback",
+                message=(
+                    "standard PDF export failed; falling back to WebPDF..."
+                ),
+            )
+
         if not webpdf:
             try:
                 from nbconvert import (  # type: ignore[import-not-found]
@@ -441,37 +450,19 @@ class Exporter:
                 return None
             except OSError as e:
                 # LatexFailed (IOError) or xelatex not on PATH
-                emit_pdf_export_status(
-                    status_callback,
-                    phase="render_fallback",
-                    message=(
-                        "standard PDF export failed; falling back to WebPDF..."
-                    ),
-                )
+                _emit_webpdf_fallback_status()
                 LOGGER.info(
                     "Standard PDF export failed, falling back to webpdf: %s",
                     e,
                 )
             except (PandocMissing, ConversionException) as e:
-                emit_pdf_export_status(
-                    status_callback,
-                    phase="render_fallback",
-                    message=(
-                        "standard PDF export failed; falling back to WebPDF..."
-                    ),
-                )
+                _emit_webpdf_fallback_status()
                 LOGGER.info(
                     "Standard PDF export failed, falling back to webpdf: %s",
                     e,
                 )
             except Exception as e:
-                emit_pdf_export_status(
-                    status_callback,
-                    phase="render_fallback",
-                    message=(
-                        "standard PDF export failed; falling back to WebPDF..."
-                    ),
-                )
+                _emit_webpdf_fallback_status()
                 LOGGER.error(
                     "Standard PDF export failed, falling back to webpdf.",
                     exc_info=e,

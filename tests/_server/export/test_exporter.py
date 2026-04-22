@@ -1237,6 +1237,54 @@ class TestPDFExport:
             ("complete", "done."),
         ]
 
+    @pytest.mark.asyncio
+    async def test_run_app_then_export_as_pdf_ignores_status_callback_failures(
+        self,
+        temp_marimo_file: str,
+    ) -> None:
+        def failing_status_callback(event: PDFExportStatusEvent) -> None:
+            raise RuntimeError(f"boom:{event.phase}")
+
+        def fake_export_as_pdf(
+            self: Exporter, *args: Any, **kwargs: Any
+        ) -> bytes:
+            del self, args, kwargs
+            return b"mock_pdf"
+
+        with (
+            patch(
+                "marimo._server.export.run_app_until_completion",
+                side_effect=AssertionError(
+                    "execution should not run without outputs"
+                ),
+            ),
+            patch(
+                "marimo._server.export._pdf_raster.collect_pdf_png_fallbacks",
+                side_effect=AssertionError(
+                    "rasterization should not run without outputs"
+                ),
+            ),
+            patch.object(
+                Exporter,
+                "export_as_pdf",
+                autospec=True,
+                side_effect=fake_export_as_pdf,
+            ),
+        ):
+            pdf_data, did_error = await run_app_then_export_as_pdf(
+                MarimoPath(temp_marimo_file),
+                include_outputs=False,
+                webpdf=False,
+                cli_args={},
+                argv=None,
+                export_as=None,
+                rasterization_options=MagicMock(enabled=False),
+                status_callback=failing_status_callback,
+            )
+
+        assert pdf_data == b"mock_pdf"
+        assert did_error is False
+
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
         or not DependencyManager.nbconvert.has()
