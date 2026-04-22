@@ -31,8 +31,8 @@ describe("WidgetDefRegistry", () => {
   beforeEach(() => {
     registry = new WidgetDefRegistry();
     // Force "no notebook trust" so the `data:` rejection test below
-    // exercises the untrusted branch. Default `auto_instantiate=true`
-    // otherwise legitimately trusts data URLs (the WASM fallback shape).
+    // exercises the untrusted branch. The positive trust path is covered
+    // centrally in trusted-url.test.ts.
     previousConfig = store.get(userConfigAtom);
     previousMode = store.get(initialModeAtom);
     previousHasRunAnyCell = store.get(hasRunAnyCellAtom);

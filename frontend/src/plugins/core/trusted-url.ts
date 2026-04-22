@@ -16,8 +16,9 @@ import { store } from "@/core/state/jotai";
  * attacker-controlled JavaScript at same origin, since the HTML sanitizer
  * lets arbitrary marimo custom elements and attributes through.
  *
- * Some runtimes (WASM, VS Code, and trusted exported notebook contexts such as Quarto islands)
- * have no backend to serve virtual files, so `VirtualFile` falls back to inline base64 data URLs (see `virtual_file.py`).
+ * Some runtimes (WASM, VS Code, and trusted exported notebook contexts such as
+ * Quarto islands) have no backend to serve virtual files, so `VirtualFile`
+ * falls back to inline base64 data URLs (see `virtual_file.py`).
  * We accept those only once the user has explicitly run a cell in the current
  * notebook, or when a first-party export script has installed a trusted
  * notebook export context. Both cases already imply trust in notebook-authored
@@ -41,10 +42,9 @@ function hasNotebookTrustedDataUrlContext(): boolean {
 }
 
 /**
- * Safe data URL formats: JS/CSS inlined as base64. Non-base64 data URLs
- * and other MIME types (HTML, SVG, octet-stream, etc.) are refused
- * because their payload is not length-delimited by base64 and can carry
- * unescaped attacker content.
+ * Safe data URL formats: JS/CSS inlined as base64. Non-base64 data URLs and
+ * other MIME types (HTML, SVG, octet-stream, etc.) are refused because they
+ * broaden the surface for attacker-controlled inline content.
  */
 function isSafeDataUrl(url: string): boolean {
   const isSafeKind =

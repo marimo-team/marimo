@@ -10,6 +10,14 @@ import {
 } from "@/__tests__/branded";
 
 type Base64String = components["schemas"]["Base64String"];
+interface TestIslandApp {
+  id: string;
+  cells: { code: string; idx: number; output: string }[];
+}
+interface TestExportContext {
+  trusted: true;
+  notebookCode?: string;
+}
 
 // Mock browser APIs before any imports
 vi.stubGlobal(
@@ -44,9 +52,11 @@ const {
   mockBridge: vi.fn(),
   mockLoadPackages: vi.fn(),
   mockStartSessionRequest: vi.fn(),
-  mockParseMarimoIslandApps: vi.fn(() => []),
+  mockParseMarimoIslandApps: vi.fn<() => TestIslandApp[]>(() => []),
   mockCreateMarimoFile: vi.fn(),
-  mockGetMarimoExportContext: vi.fn(() => undefined),
+  mockGetMarimoExportContext: vi.fn<() => TestExportContext | undefined>(
+    () => undefined,
+  ),
 }));
 
 vi.mock("@/core/wasm/rpc", () => ({

@@ -13,9 +13,8 @@ const { ensureMplJs, injectCss, resetMplJsLoading } = visibleForTesting;
 
 /**
  * Clear every "notebook trust" signal `isTrustedVirtualFileUrl` consults so
- * the rejection cases below test the actually-untrusted branch. Without
- * this, the default `auto_instantiate=true` would trust `data:` URLs and
- * these assertions would flip.
+ * the rejection cases below test the actually-untrusted branch. Positive
+ * export-context trust is covered centrally in trusted-url.test.ts.
  */
 function clearTrustSignals() {
   store.set(hasRunAnyCellAtom, false);

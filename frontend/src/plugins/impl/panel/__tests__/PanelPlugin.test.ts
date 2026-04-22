@@ -11,8 +11,8 @@ import { loadPanelExtension } from "../PanelPlugin";
 
 /**
  * Force the "no notebook trust" branch so the `data:` URL rejection below
- * actually exercises the untrusted path. Under the default config
- * (`auto_instantiate=true`), data URLs are trusted — that's the WASM case.
+ * actually exercises the untrusted path. Positive export-context trust is
+ * covered centrally in trusted-url.test.ts.
  */
 function clearTrustSignals() {
   store.set(hasRunAnyCellAtom, false);

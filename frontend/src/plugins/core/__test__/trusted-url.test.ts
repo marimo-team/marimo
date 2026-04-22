@@ -171,7 +171,7 @@ describe("isTrustedVirtualFileUrl", () => {
     });
 
     it("rejects safe data URL when only __MARIMO_STATIC__ is present", () => {
-      windowWithExportContext.__MARIMO_STATIC__ = {};
+      windowWithExportContext.__MARIMO_STATIC__ = { files: {} };
       expect(
         isTrustedVirtualFileUrl(
           "data:text/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=",
@@ -180,8 +180,8 @@ describe("isTrustedVirtualFileUrl", () => {
     });
 
     it.each([
-      // Non-base64 data URLs are refused
-      // (length isn't delimited, attacker payload could smuggle unescaped characters)
+      // Non-base64 data URLs are refused because the unencoded payload
+      // broadens the parsing/loading surface for attacker-controlled content.
       "data:text/javascript,alert(1)",
       "data:text/javascript;charset=utf-8,alert(1)",
       // HTML / SVG / arbitrary types are refused even when trusted.
