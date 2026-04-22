@@ -1,5 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ExtractAtomValue } from "jotai";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { hasRunAnyCellAtom } from "@/components/editor/cell/useRunCells";
+import { userConfigAtom } from "@/core/config/config";
+import { parseUserConfig } from "@/core/config/config-schema";
+import { initialModeAtom } from "@/core/mode";
+import { store } from "@/core/state/jotai";
 import { Model } from "../model";
 import type { ModelState, WidgetModelId } from "../types";
 import { visibleForTesting } from "../widget-binding";
@@ -18,9 +24,31 @@ function createMockComm() {
 
 describe("WidgetDefRegistry", () => {
   let registry: InstanceType<typeof WidgetDefRegistry>;
+  let previousConfig: ExtractAtomValue<typeof userConfigAtom>;
+  let previousMode: ExtractAtomValue<typeof initialModeAtom>;
+  let previousHasRunAnyCell: ExtractAtomValue<typeof hasRunAnyCellAtom>;
 
   beforeEach(() => {
     registry = new WidgetDefRegistry();
+    // Force "no notebook trust" so the `data:` rejection test below
+    // exercises the untrusted branch. The positive trust path is covered
+    // centrally in trusted-url.test.ts.
+    previousConfig = store.get(userConfigAtom);
+    previousMode = store.get(initialModeAtom);
+    previousHasRunAnyCell = store.get(hasRunAnyCellAtom);
+    store.set(hasRunAnyCellAtom, false);
+    const cleared = parseUserConfig({});
+    store.set(userConfigAtom, {
+      ...cleared,
+      runtime: { ...cleared.runtime, auto_instantiate: false },
+    });
+    store.set(initialModeAtom, "edit");
+  });
+
+  afterEach(() => {
+    store.set(userConfigAtom, previousConfig);
+    store.set(initialModeAtom, previousMode);
+    store.set(hasRunAnyCellAtom, previousHasRunAnyCell);
   });
 
   it("should cache modules by jsHash and return same promise", () => {

@@ -730,6 +730,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.files,
         )
 
+        assert "__MARIMO_EXPORT_CONTEXT__" in result
+        assert '<marimo-code hidden="">' in result
         snapshot("export1.txt", normalize_index_html(result))
         _assert_no_leftover_replacements(result)
 
@@ -748,6 +750,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             files=self.files,
         )
 
+        assert "__MARIMO_EXPORT_CONTEXT__" in result
+        assert '<marimo-code hidden="">' in result
         snapshot("export2.txt", normalize_index_html(result))
         _assert_no_leftover_replacements(result)
 
@@ -778,6 +782,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             {},
         )
 
+        assert "__MARIMO_EXPORT_CONTEXT__" in result
+        assert '<marimo-code hidden="">' in result
         snapshot("export3.txt", normalize_index_html(result))
         _assert_no_leftover_replacements(result)
 
@@ -814,6 +820,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             {},
         )
 
+        assert "__MARIMO_EXPORT_CONTEXT__" in result
+        assert '<marimo-code hidden="">' in result
         snapshot("export4.txt", normalize_index_html(result))
         _assert_no_leftover_replacements(result)
 
@@ -860,6 +868,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             {},
         )
 
+        assert "__MARIMO_EXPORT_CONTEXT__" in result
+        assert '<marimo-code hidden="">' in result
         snapshot("export5.txt", normalize_index_html(result))
         _assert_no_leftover_replacements(result)
 
@@ -906,6 +916,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         assert css1 in result
         assert css2 in result
         assert "<style title='marimo-custom'>" in result
+        assert "__MARIMO_EXPORT_CONTEXT__" in result
+        assert '<marimo-code hidden="">' in result
         snapshot("export6.txt", normalize_index_html(result))
         _assert_no_leftover_replacements(result)
 
@@ -1140,6 +1152,7 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         assert self.mode in result
         assert json.dumps(self.user_config, sort_keys=True) in result
         assert '<marimo-wasm hidden="">' in result
+        assert "__MARIMO_EXPORT_CONTEXT__" in result
         assert '<marimo-code hidden="">' in result
         assert '"showAppCode": false' in result
         assert "<title>notebook</title>" in result
@@ -1168,6 +1181,7 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         assert css in result
         assert '<marimo-wasm hidden="">' in result
         assert "https://my.cdn.com/assets/" in result
+        assert "__MARIMO_EXPORT_CONTEXT__" in result
         assert '<marimo-code hidden="">' in result
         assert '"showAppCode": true' in result
         _assert_no_leftover_replacements(result)
@@ -1205,6 +1219,7 @@ class TestWasmNotebookTemplate(unittest.TestCase):
 
         assert head in result
         assert '<marimo-wasm hidden="">' in result
+        assert "__MARIMO_EXPORT_CONTEXT__" in result
         assert '<marimo-code hidden="">' in result
         assert '"showAppCode": false' in result
         assert "#save-button" in result

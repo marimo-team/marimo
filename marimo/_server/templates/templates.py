@@ -48,6 +48,24 @@ def json_script(data: Any) -> str:
     return json.dumps(data, sort_keys=True).translate(_json_script_escapes)
 
 
+def _export_context_block(*, notebook_code: str) -> str:
+    """Emit the trusted export marker consumed by islands/export runtime code."""
+    return dedent(
+        f"""
+    <script data-marimo="true">
+        Object.defineProperty(window, "__MARIMO_EXPORT_CONTEXT__", {{
+            value: Object.freeze({{
+                trusted: true,
+                notebookCode: {json_script(notebook_code)},
+            }}),
+            writable: false,
+            configurable: false,
+        }});
+    </script>
+    """
+    )
+
+
 def _get_mount_config(
     *,
     filename: str | None,
@@ -398,6 +416,7 @@ def static_notebook_template(
     </script>
     """
     )
+    static_block += _export_context_block(notebook_code=code)
 
     # Add HTML head file contents if specified
     if app_config.html_head_file:
@@ -550,7 +569,10 @@ def wasm_notebook_template(
 
     body = body.replace(
         "</head>",
-        f'<marimo-code hidden="">{uri_encode_component(code)}</marimo-code></head>',
+        (
+            f"{_export_context_block(notebook_code=code)}"
+            f'<marimo-code hidden="">{uri_encode_component(code)}</marimo-code></head>'
+        ),
     )
 
     return body

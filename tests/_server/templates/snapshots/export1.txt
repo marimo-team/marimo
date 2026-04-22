@@ -72,6 +72,17 @@
     window.__MARIMO_STATIC__.files = {"file1": "File 1 content", "file2": "File 2 content"};
     window.__MARIMO_STATIC__.modelNotifications = [];
 </script>
+
+<script data-marimo="true">
+    Object.defineProperty(window, "__MARIMO_EXPORT_CONTEXT__", {
+        value: Object.freeze({
+            trusted: true,
+            notebookCode: "print('Hello, World!')",
+        }),
+        writable: false,
+        configurable: false,
+    });
+</script>
 </head>
   <body>
     <div id="root"></div>
