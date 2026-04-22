@@ -22,6 +22,7 @@ from marimo._server.ai.config import (
     get_edit_model,
     get_max_tokens,
 )
+from marimo._server.ai.errors import translate_ai_error
 from marimo._server.ai.mcp import MCPServerStatus, get_mcp_client
 from marimo._server.ai.prompts import (
     FIM_MIDDLE_TAG,
@@ -87,13 +88,15 @@ async def safe_stream_wrapper(
         async for chunk in stream_generator:
             yield chunk
     except Exception as e:
+        # Always log the raw provider error for debuggability; surface
+        # a friendlier, actionable message to the user when we can
+        # classify it.
         LOGGER.error("Error in AI streaming response: %s", str(e))
-        # Send an error message using AI SDK stream protocol format
-        # Error Part format: 3:string\n
+        translated = translate_ai_error(e)
         if text_only:
-            yield str(e)
+            yield translated.message
         else:
-            yield convert_to_ai_sdk_messages(str(e), "error")
+            yield convert_to_ai_sdk_messages(translated.message, "error")
 
 
 def get_ai_config(config: MarimoConfig) -> AiConfig:
