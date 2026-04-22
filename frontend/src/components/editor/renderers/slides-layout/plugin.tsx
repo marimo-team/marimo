@@ -52,7 +52,7 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
     const slideCells = new Map<CellId, SlideConfig>();
     for (const [idx, cell] of cells.entries()) {
       const slideConfig = serialized.cells?.at(idx);
-      if (slideConfig) {
+      if (slideConfig?.type) {
         slideCells.set(cell.id, slideConfig);
       }
     }
