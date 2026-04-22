@@ -290,6 +290,37 @@ class AiModelConfig(TypedDict):
 
 
 @dataclass
+class SkillsConfig(TypedDict, total=False):
+    """Configuration for on-disk AI skills.
+
+    Skills are folders containing a ``SKILL.md`` file (frontmatter with
+    ``name``/``description`` plus a markdown body). Discovered skills are
+    automatically injected into the system prompt of every AI chat and
+    inline-refactor call, so the model picks them up transparently without
+    the user having to invoke anything.
+
+    The format follows the `Agent Skills standard <https://agentskills.io>`_
+    used by Claude Code and pi, which means skills authored for those tools
+    work unchanged in marimo when placed in ``~/.agents/skills/`` or
+    ``.agents/skills/``.
+
+    **Keys.**
+
+    - ``custom_paths``: additional directories to scan. Each entry may be a
+      directory containing ``<name>/SKILL.md`` (standard layout) or the path
+      to a specific ``SKILL.md`` file. ``~`` is expanded; relative paths are
+      resolved against the current working directory.
+    - ``include_default_paths``: if ``True`` (default), also scan
+      ``~/.marimo/skills/``, ``.marimo/skills/``, ``~/.agents/skills/``, and
+      ``.agents/skills/``. Later sources override earlier ones when two
+      skills share a name.
+    """
+
+    custom_paths: NotRequired[list[str]]
+    include_default_paths: NotRequired[bool]
+
+
+@dataclass
 class AiConfig(TypedDict, total=False):
     """Configuration options for AI.
 
@@ -300,6 +331,8 @@ class AiConfig(TypedDict, total=False):
     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
     - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
     - `models`: the models to use for AI completions
+    - `skills`: configuration for on-disk AI skills (auto-injected into the
+      system prompt)
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
     - `google`: the Google AI config
@@ -318,6 +351,7 @@ class AiConfig(TypedDict, total=False):
     mode: NotRequired[CopilotMode]
     inline_tooltip: NotRequired[bool]
     models: AiModelConfig
+    skills: NotRequired[SkillsConfig]
 
     # providers
     open_ai: OpenAiConfig
@@ -757,6 +791,10 @@ DEFAULT_CONFIG: MarimoConfig = {
             "custom_models": [],
         },
         "custom_providers": {},
+        "skills": {
+            "custom_paths": [],
+            "include_default_paths": True,
+        },
     },
     "snippets": {
         "custom_paths": [],

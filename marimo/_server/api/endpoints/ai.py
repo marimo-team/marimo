@@ -36,6 +36,7 @@ from marimo._server.ai.providers import (
     get_completion_provider,
     without_wrapping_backticks,
 )
+from marimo._server.ai.skills import discover_skills
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
@@ -49,6 +50,8 @@ from marimo._server.models.models import (
     InvokeAiToolResponse,
     MCPRefreshResponse,
     MCPStatusResponse,
+    SkillInfo,
+    SkillsResponse,
 )
 from marimo._server.responses import StructResponse
 from marimo._server.router import APIRouter
@@ -146,6 +149,7 @@ async def ai_completion(
 
     custom_rules = ai_config.get("rules", None)
     use_ui_messages = len(body.ui_messages) >= 1
+    skills = discover_skills(ai_config.get("skills")).skills
 
     system_prompt = get_refactor_or_insert_notebook_cell_system_prompt(
         language=body.language,
@@ -156,6 +160,7 @@ async def ai_completion(
         selected_text=body.selected_text,
         other_cell_codes=body.include_other_code,
         context=body.context,
+        skills=skills,
     )
     prompt = body.prompt
 
@@ -221,6 +226,7 @@ async def ai_chat(
     )
     ai_config = get_ai_config(config)
     custom_rules = ai_config.get("rules", None)
+    skills = discover_skills(ai_config.get("skills")).skills
 
     # Get the system prompt
     system_prompt = get_chat_system_prompt(
@@ -229,6 +235,7 @@ async def ai_chat(
         include_other_code=body.include_other_code,
         mode=ai_config.get("mode", "manual"),
         session_id=session_id,
+        skills=skills,
     )
 
     max_tokens = get_max_tokens(config)
@@ -571,3 +578,40 @@ async def mcp_refresh(
                 servers={},
             )
         )
+
+
+@router.get("/skills")
+@requires("edit")
+async def list_skills(
+    *,
+    request: Request,
+) -> Response:
+    """
+    responses:
+        200:
+            description: List skills discovered on disk that will be injected into AI system prompts.
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SkillsResponse"
+    """
+    app_state = AppState(request)
+    config = app_state.app_config_manager.get_config(hide_secrets=False)
+    ai_config = config.get("ai") or {}
+    result = discover_skills(ai_config.get("skills"))
+    return StructResponse(
+        SkillsResponse(
+            skills=[
+                SkillInfo(
+                    name=s.name,
+                    description=s.description,
+                    source=str(s.source),
+                    origin=s.origin,
+                    approx_tokens=s.approx_tokens,
+                )
+                for s in result.skills
+            ],
+            scanned_paths=[str(p) for p in result.scanned_paths],
+            warnings=result.warnings,
+        )
+    )

@@ -347,6 +347,34 @@ class MCPStatusResponse(msgspec.Struct, rename="camel"):
     ] = {}  # server_name -> status
 
 
+class SkillInfo(msgspec.Struct, rename="camel"):
+    # Unique identifier (frontmatter ``name``, or parent directory name).
+    name: str
+    # One-line trigger hint shown to the user; also what the model sees to
+    # decide whether the skill is relevant (for agent-driven activation).
+    description: str
+    # Absolute path to the ``SKILL.md`` file; useful for "open in editor".
+    source: str
+    # Where the skill came from: a default search path or a user-configured
+    # path. ``agents`` denotes the ``~/.agents/skills`` / ``.agents/skills``
+    # interop directories shared with Claude Code / pi.
+    origin: Literal[
+        "global", "project", "agents-global", "agents-project", "custom"
+    ]
+    # Approximate token cost when injected into the system prompt. A rough
+    # word-count proxy — good enough for surfacing "heavy" skills in the UI.
+    approx_tokens: int
+
+
+class SkillsResponse(msgspec.Struct, rename="camel"):
+    skills: list[SkillInfo]
+    # Directories that were scanned (absolute, resolved).
+    scanned_paths: list[str]
+    # Non-fatal issues encountered during discovery (e.g. unreadable files,
+    # invalid frontmatter).
+    warnings: list[str] = []
+
+
 class MCPRefreshResponse(BaseResponse):
     error: str | None = None
     servers: dict[str, bool] = {}  # server_name -> connected

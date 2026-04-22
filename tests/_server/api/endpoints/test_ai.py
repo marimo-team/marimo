@@ -1289,3 +1289,75 @@ async def test_safe_stream_wrapper_handles_errors() -> None:
 
     assert chunks[0] == "chunk1"
     assert "Stream failed" in chunks[1]
+
+
+# The ``with_session`` decorator in this repo only passes ``client`` (and
+# optionally ``temp_marimo_file``), so pytest fixtures like ``tmp_path`` /
+# ``monkeypatch`` aren't available inside decorated tests. We use
+# ``tempfile`` + ``unittest.mock.patch`` to build an equivalent sandbox.
+
+
+@with_session(SESSION_ID)
+def test_list_skills_empty(client: TestClient) -> None:
+    """GET /api/ai/skills returns an empty list when nothing is on disk."""
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        sandbox = Path(tmp)
+        with (
+            patch(
+                "marimo._server.ai.skills.GLOBAL_SKILLS_DIR",
+                sandbox / ".marimo" / "skills",
+            ),
+            patch(
+                "marimo._server.ai.skills.AGENTS_GLOBAL_SKILLS_DIR",
+                sandbox / ".agents" / "skills",
+            ),
+            patch("pathlib.Path.cwd", return_value=sandbox),
+        ):
+            response = client.get("/api/ai/skills", headers=HEADERS)
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["skills"] == []
+    assert data["warnings"] == []
+    assert isinstance(data["scannedPaths"], list)
+
+
+@with_session(SESSION_ID)
+def test_list_skills_returns_discovered_skills(client: TestClient) -> None:
+    """A SKILL.md in ``<cwd>/.marimo/skills/`` is surfaced through the API."""
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        sandbox = Path(tmp)
+        skill_dir = sandbox / ".marimo" / "skills" / "review"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "---\nname: review\ndescription: Review code\n---\n\nBody.\n",
+            encoding="utf-8",
+        )
+
+        with (
+            patch(
+                "marimo._server.ai.skills.GLOBAL_SKILLS_DIR",
+                sandbox / "home" / ".marimo" / "skills",
+            ),
+            patch(
+                "marimo._server.ai.skills.AGENTS_GLOBAL_SKILLS_DIR",
+                sandbox / "home" / ".agents" / "skills",
+            ),
+            patch("pathlib.Path.cwd", return_value=sandbox),
+        ):
+            response = client.get("/api/ai/skills", headers=HEADERS)
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert len(data["skills"]) == 1
+    skill = data["skills"][0]
+    assert skill["name"] == "review"
+    assert skill["description"] == "Review code"
+    assert skill["origin"] == "project"
+    assert skill["approxTokens"] > 0

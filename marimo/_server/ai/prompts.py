@@ -1,7 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from marimo._config.config import CopilotMode
+from marimo._server.ai.skills import render_skills_for_system_prompt
 from marimo._server.models.completion import (
     AiCompletionContext,
     Language,
@@ -9,6 +12,9 @@ from marimo._server.models.completion import (
     VariableContext,
 )
 from marimo._types.ids import SessionId
+
+if TYPE_CHECKING:
+    from marimo._server.ai.skills import Skill
 
 FIM_PREFIX_TAG = "<|fim_prefix|>"
 FIM_SUFFIX_TAG = "<|fim_suffix|>"
@@ -105,6 +111,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
     selected_text: str | None,
     other_cell_codes: str | None,
     context: AiCompletionContext | None,
+    skills: list[Skill] | None = None,
 ) -> str:
     if cell_code:
         system_prompt = f"Here's a {language} document from a Python notebook that I'm going to ask you to make an edit to.\n\n"
@@ -194,6 +201,9 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
     if custom_rules and custom_rules.strip():
         system_prompt += f"\n\n## Additional rules:\n{custom_rules}"
 
+    if skills:
+        system_prompt += "\n\n" + render_skills_for_system_prompt(skills)
+
     if context:
         system_prompt += _format_plain_text(context.plain_text)
         system_prompt += _format_variables(context.variables)
@@ -279,6 +289,7 @@ def get_chat_system_prompt(
     include_other_code: str,
     mode: CopilotMode,
     session_id: SessionId,
+    skills: list[Skill] | None = None,
 ) -> str:
     system_prompt: str = f"""
 {_get_mode_intro_message(mode)}
@@ -424,6 +435,9 @@ chart
 
     if custom_rules and custom_rules.strip():
         system_prompt += f"\n\n## Additional rules:\n{custom_rules}"
+
+    if skills:
+        system_prompt += "\n\n" + render_skills_for_system_prompt(skills)
 
     if include_other_code:
         system_prompt += "\n\n" + _tag(
