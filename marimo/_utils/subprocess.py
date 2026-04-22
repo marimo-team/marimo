@@ -281,13 +281,15 @@ def safe_popen(
 _REAP_TASKS: set[asyncio.Task[None]] = set()
 
 
-def _non_blocking_process_finished(pid: int) -> bool:
-    """Returns True if the process has finished."""
-    try:
-        ret, _ = os.waitpid(pid, os.WNOHANG)
-    except ChildProcessError:
-        return True
-    return ret != 0
+def _process_finished(process: ProcessLike) -> bool:
+    """Return whether the process has finished without blocking."""
+    # NB: It is not safe to call os.waitpid() directly because
+    # apparently Popen.poll() and multiprcoessing.Process.is_alive()
+    # assume that they are the ones that reap zombie processes.
+    poll = getattr(process, "poll", None)
+    if poll is not None:
+        return poll() is not None
+    return not process.is_alive()
 
 
 async def cancel_pending_reaps() -> None:
@@ -303,23 +305,24 @@ async def cancel_pending_reaps() -> None:
         await asyncio.gather(*tasks, return_exceptions=True)
 
 
-async def _reap_pid_unix(pgid: int | None, pid: int) -> None:
+async def _reap_process_unix(process: ProcessLike, pgid: int | None) -> None:
+    pid = process.pid
     await asyncio.sleep(5.0)
-    if _non_blocking_process_finished(pid):
+    if _process_finished(process):
         return
 
     LOGGER.warning(
-        "Process %d did not respond to SIGTERM. Force killing.", pid
+        "Process %s did not respond to SIGTERM. Force killing.", pid
     )
     if pgid is not None:
         os.killpg(pgid, signal.SIGKILL)
-    else:
+    elif pid is not None:
         os.kill(pid, signal.SIGKILL)
 
     wait_for_s = 10
     waited_s = 0
     while (
-        not (process_finished := _non_blocking_process_finished(pid))
+        not (process_finished := _process_finished(process))
         and waited_s < wait_for_s
     ):
         await asyncio.sleep(1.0)
@@ -327,7 +330,7 @@ async def _reap_pid_unix(pgid: int | None, pid: int) -> None:
 
     if not process_finished:
         LOGGER.warning(
-            "Waited for 10s, but process %d has still not quit ...", pid
+            "Waited for 10s, but process %s has still not quit ...", pid
         )
         return
 
@@ -353,24 +356,24 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
         process.terminate()
         return
 
-    target_pgid: int = os.getpgid(pid)
-    if target_pgid == os.getpgrp():
+    pgid = os.getpgid(pid)
+    target_pgid: int | None
+    if pgid == os.getpgrp():
         # This should never happen ... the kernel process makes sure to
         # call setsid and become the group leader
-        LOGGER.warning(
-            "The target's pgid matches the server's (%d)", target_pgid
-        )
-        target_pgid = None  # type: ignore
+        LOGGER.warning("The target's pgid matches the server's (%d)", pgid)
+        target_pgid = None
         process.terminate()
     else:
-        os.killpg(target_pgid, signal.SIGTERM)
+        target_pgid = pgid
+        os.killpg(pgid, signal.SIGTERM)
 
-    if _non_blocking_process_finished(pid):
+    if _process_finished(process):
         return
 
     try:
         loop = asyncio.get_running_loop()
-        task = loop.create_task(_reap_pid_unix(target_pgid, pid))
+        task = loop.create_task(_reap_process_unix(process, target_pgid))
         _REAP_TASKS.add(task)
         task.add_done_callback(_REAP_TASKS.discard)
     except RuntimeError:
