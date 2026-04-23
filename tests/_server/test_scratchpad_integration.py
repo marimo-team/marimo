@@ -10,14 +10,17 @@ so when the output changes we see it.
 
 The existing in-process ``TestClient`` fixture mocks the scratchpad
 stream out entirely, so real kernel timing and cross-process
-notification ordering aren't testable there. These tests spawn a
-real ``marimo edit`` subprocess per test and drive it through the
-full HTTP surface: a websocket for session setup and
+notification ordering aren't testable there. These tests share one
+``marimo edit`` subprocess across the module and drive it through
+the full HTTP surface: a websocket for session setup and
 ``completed-run`` synchronization, ``/api/document/transaction`` to
 populate ``session.document`` (required for ``code_mode`` cell
 lookup by name), ``/api/kernel/run`` to register and execute cells,
-and ``/api/kernel/execute`` to hit the scratchpad. The response body
-is snapshotted as SSE lines with volatile tempfile paths scrubbed.
+and ``/api/kernel/execute`` to hit the scratchpad. Each test gets a
+fresh session via a per-test ``session`` fixture that calls
+``/api/kernel/restart_session`` on teardown. The response body is
+snapshotted as SSE lines with volatile paths and version-specific
+traceback noise scrubbed.
 
 Each test's snapshot encodes the **correct** expected output.
 Scenarios currently broken (see issue #9255) are marked
@@ -49,7 +52,8 @@ from marimo._messaging.notebook.changes import (
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
+    from pathlib import Path
 
 
 def _free_port() -> int:
@@ -59,17 +63,35 @@ def _free_port() -> int:
     return port
 
 
-def _wait_for_server(url: str, timeout_s: float = 15.0) -> None:
+def _wait_for_server(
+    url: str,
+    proc: subprocess.Popen[bytes],
+    stderr_path: Path,
+    timeout_s: float = 15.0,
+) -> None:
     import urllib.request
+
+    def _tail() -> str:
+        try:
+            return stderr_path.read_text(errors="replace")[-4000:]
+        except Exception:
+            return ""
 
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            raise RuntimeError(
+                f"marimo server exited with code {proc.returncode} "
+                f"before becoming ready:\n{_tail()}"
+            )
         try:
             with urllib.request.urlopen(url, timeout=1):
                 return
         except Exception:
             time.sleep(0.05)
-    raise TimeoutError(f"marimo server at {url} did not start in {timeout_s}s")
+    raise TimeoutError(
+        f"marimo server at {url} did not start in {timeout_s}s:\n{_tail()}"
+    )
 
 
 @pytest.fixture(scope="module")
@@ -82,37 +104,45 @@ def _server(
     a unique ``session_id`` — each WS connect creates a fresh kernel
     and empty ``session.document``.
     """
+    tmp = tmp_path_factory.mktemp("mnb")
     port = _free_port()
-    notebook = tmp_path_factory.mktemp("mnb") / "nb.py"
+    notebook = tmp / "nb.py"
     notebook.write_text("import marimo\napp = marimo.App()\n")
 
-    proc = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "marimo",
-            "edit",
-            str(notebook),
-            "--headless",
-            "--no-token",
-            "--no-skew-protection",
-            "--port",
-            str(port),
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    base = f"http://127.0.0.1:{port}"
+    # Log stderr to a file so the pipe can't deadlock when the process
+    # outlives many tests. ``_wait_for_server`` tails this on failure.
+    stderr_path = tmp / "marimo-stderr.log"
+    stderr_file = stderr_path.open("wb")
     try:
-        _wait_for_server(base)
-        yield base
-    finally:
-        proc.terminate()
+        proc = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "marimo",
+                "edit",
+                str(notebook),
+                "--headless",
+                "--no-token",
+                "--no-skew-protection",
+                "--port",
+                str(port),
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=stderr_file,
+        )
+        base = f"http://127.0.0.1:{port}"
         try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
+            _wait_for_server(base, proc, stderr_path)
+            yield base
+        finally:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+    finally:
+        stderr_file.close()
 
 
 class _Session:
@@ -148,7 +178,7 @@ class _Session:
 
     def _recv_until(
         self,
-        predicate: object,
+        predicate: Callable[[dict[str, Any]], bool],
         timeout_s: float = 10.0,
     ) -> dict[str, Any]:
         """Drain WS until a message matches ``predicate(msg)``."""
@@ -159,7 +189,7 @@ class _Session:
                 raise TimeoutError("websocket predicate never satisfied")
             raw = self.ws.recv(timeout=remaining)
             msg: dict[str, Any] = json.loads(raw)
-            if predicate(msg):  # type: ignore[operator]
+            if predicate(msg):
                 return msg
 
     def wait_for_completed_run(self, timeout_s: float = 10.0) -> None:
