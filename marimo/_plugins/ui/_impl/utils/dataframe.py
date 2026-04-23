@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union
 
 from narwhals.typing import IntoDataFrame
 
@@ -64,13 +64,14 @@ Numeric = int | float
 ListOrTuple = list[T] | tuple[T, ...]
 
 
-TableData = (
-    list[JSONType]
-    | ListOrTuple[str | int | float | bool | MIME | None]
-    | ListOrTuple[dict[str, JSONType]]
-    | dict[str, ListOrTuple[JSONType]]
-    | IntoDataFrame
-)
+# Use Union[] instead of X | Y — see altair_transformer.py for rationale.
+TableData = Union[
+    list[JSONType],
+    ListOrTuple[Union[str, int, float, bool, MIME, None]],
+    ListOrTuple[dict[str, JSONType]],
+    dict[str, ListOrTuple[JSONType]],
+    IntoDataFrame,
+]
 
 
 def download_as(
