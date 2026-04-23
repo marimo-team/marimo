@@ -9,14 +9,28 @@ declare global {
   }
 }
 
+function isStringToStringRecord(
+  value: unknown,
+): value is Record<string, string> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  for (const entry of Object.values(value)) {
+    if (typeof entry !== "string") {
+      return false;
+    }
+  }
+  return true;
+}
+
 function isMarimoStaticState(
   value: unknown,
 ): value is Readonly<MarimoStaticState> {
-  if (typeof value !== "object" || value === null) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }
   const candidate = value as MarimoStaticState;
-  if (typeof candidate.files !== "object" || candidate.files === null) {
+  if (!isStringToStringRecord(candidate.files)) {
     return false;
   }
   if (

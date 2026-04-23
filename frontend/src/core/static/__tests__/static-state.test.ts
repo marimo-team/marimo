@@ -59,4 +59,22 @@ describe("static-state shape validation", () => {
     setMarimoStatic("pwned");
     expect(isStaticNotebook()).toBe(false);
   });
+
+  it("rejects an array as the state", () => {
+    setMarimoStatic([]);
+    expect(isStaticNotebook()).toBe(false);
+  });
+
+  it("rejects files when it is an array", () => {
+    setMarimoStatic({ files: [], modelNotifications: [] });
+    expect(isStaticNotebook()).toBe(false);
+  });
+
+  it("rejects files that contain non-string values", () => {
+    setMarimoStatic({
+      files: { "/@file/a.txt": 42 },
+      modelNotifications: [],
+    });
+    expect(isStaticNotebook()).toBe(false);
+  });
 });
