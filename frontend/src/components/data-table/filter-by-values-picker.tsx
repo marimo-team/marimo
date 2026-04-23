@@ -9,6 +9,8 @@ import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
+import { Sets } from "@/utils/sets";
+import { smartMatch } from "@/utils/smartMatch";
 import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -104,18 +106,24 @@ const PickerBody = <TData, TValue>({
     }
     const res = await calculateTopKRows({ column: column.id, k: TOP_K_ROWS });
     return res.data;
-  }, []);
+  }, [calculateTopKRows, column.id]);
 
   const filteredData = useMemo(() => {
     if (!data) {
       return [];
     }
     try {
-      return data.filter(([value, _count]) =>
-        value === undefined
-          ? false
-          : String(value).toLowerCase().includes(query.toLowerCase()),
-      );
+      // try to do includes and also smart match for prefixes
+      return data.filter(([value, _count]) => {
+        if (value === undefined) {
+          return false;
+        }
+        const str = String(value);
+        return (
+          smartMatch(query, str) ||
+          str.toLowerCase().includes(query.toLowerCase())
+        );
+      });
     } catch (error_) {
       Logger.error("Error filtering data", error_);
       return [];
@@ -123,22 +131,34 @@ const PickerBody = <TData, TValue>({
   }, [data, query]);
 
   const handleToggle = (value: unknown) => {
-    const next = new Set(chosenValues);
-    if (next.has(value)) {
-      next.delete(value);
-    } else {
-      next.add(value);
-    }
-    onChange([...next]);
+    onChange([...Sets.toggle(chosenValues, value)]);
   };
 
-  const allChecked = chosenValues.size === filteredData.length;
+  const allVisibleChecked =
+    filteredData.length > 0 &&
+    filteredData.every(([value]) => chosenValues.has(value));
+
+  const selectAllState: boolean | "indeterminate" = allVisibleChecked
+    ? true
+    : chosenValues.size > 0
+      ? "indeterminate"
+      : false;
 
   const handleToggleAll = () => {
     if (!data) {
       return;
     }
-    onChange(allChecked ? [] : filteredData.map(([value]) => value));
+    const next = new Set(chosenValues);
+    if (allVisibleChecked) {
+      for (const [value] of filteredData) {
+        next.delete(value);
+      }
+    } else {
+      for (const [value] of filteredData) {
+        next.add(value);
+      }
+    }
+    onChange([...next]);
   };
 
   if (isPending) {
@@ -173,7 +193,7 @@ const PickerBody = <TData, TValue>({
             onSelect={handleToggleAll}
           >
             <Checkbox
-              checked={allChecked}
+              checked={selectAllState}
               aria-label="Select all"
               className="mr-3 h-3.5 w-3.5"
             />
@@ -181,7 +201,7 @@ const PickerBody = <TData, TValue>({
             <span className="font-bold">Count</span>
           </CommandItem>
         )}
-        {filteredData.map(([value, count], rowIndex) => {
+        {filteredData.map(([value, count]) => {
           const isSelected = chosenValues.has(value);
           const valueString = stringifyUnknownValue({ value });
           const sentinel = detectSentinel(
@@ -190,7 +210,7 @@ const PickerBody = <TData, TValue>({
           );
           return (
             <CommandItem
-              key={rowIndex}
+              key={valueString}
               value={valueString}
               className="not-last:border-b rounded-none px-3"
               onSelect={() => handleToggle(value)}
@@ -208,7 +228,7 @@ const PickerBody = <TData, TValue>({
           );
         })}
       </CommandList>
-      {filteredData.length === TOP_K_ROWS && (
+      {data.length === TOP_K_ROWS && (
         <span className="text-xs text-muted-foreground py-1.5 text-center">
           Only showing the top {TOP_K_ROWS} values
         </span>

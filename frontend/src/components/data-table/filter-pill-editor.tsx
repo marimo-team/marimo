@@ -419,7 +419,14 @@ function buildFilterValue({
   draft: DraftValue;
 }): ColumnFilterValue | undefined {
   if (operator === "is_null" || operator === "is_not_null") {
-    return Filter.text({ operator: operator as OperatorType });
+    const op = operator as OperatorType;
+    if (type === "number") {
+      return Filter.number({ operator: op });
+    }
+    if (type === "boolean") {
+      return Filter.boolean({ operator: op });
+    }
+    return Filter.text({ operator: op });
   }
   if (type === "number") {
     if (draft.min === undefined && draft.max === undefined) {
