@@ -109,9 +109,10 @@ class PollingFileWatcher(FileWatcher):
             self._missing_count = 0
 
             # Check for file changes. Note: the file may be removed between
-            # the exists() check above and getmtime() here (common on Windows,
-            # where deletion is asynchronous). In that case getmtime returns
-            # None; skip this cycle so we don't fire a spurious callback.
+            # the exists() check above and the _get_modified() call here
+            # (common on Windows, where deletion is asynchronous). In that
+            # case _get_modified() returns None; skip this cycle so we don't
+            # fire a spurious callback.
             modified = self._get_modified()
             if modified is not None:
                 if self.last_modified is None:
