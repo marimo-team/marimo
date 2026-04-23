@@ -178,8 +178,14 @@ class DataFusionFormatter(FormatterFactory):
             df: datafusion.DataFrame,
         ) -> tuple[KnownMimeType, str]:
             try:
+                # Avoid materializing the entire DataFusion DataFrame during
+                # formatting; only load the first page of data.
                 return table(
-                    df.to_arrow_table(), selection=None, pagination=None
+                    df.limit(get_default_table_page_size()).to_arrow_table(),
+                    selection=None,
+                    pagination=False,
+                    _internal_lazy=True,
+                    _internal_preload=True,
                 )._mime_()
             except BaseException as e:
                 LOGGER.warning("Failed to format DataFusion DataFrame: %s", e)
