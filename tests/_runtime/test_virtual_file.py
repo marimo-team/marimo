@@ -1,10 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import uuid
+
 from marimo._runtime.commands import DeleteCellCommand
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
-from marimo._runtime.virtual_file.storage import InMemoryStorage
+from marimo._runtime.virtual_file.storage import (
+    InMemoryStorage,
+    SharedMemoryStorage,
+    VirtualFileStorageManager,
+)
 from marimo._runtime.virtual_file.virtual_file import (
     VirtualFile,
     VirtualFileLifecycleItem,
@@ -327,6 +333,46 @@ def test_virtual_file_registry_shared_inmemory_storage(
 
     # Ensure old file should still readable
     assert read_virtual_file(vf.filename, 3) == b"abc"
+
+
+def test_virtual_file_registry_shared_shared_memory_storage() -> None:
+    """A shared-memory registry teardown must not clobber another live
+    registry in the same process.
+
+    AppHost-backed run sessions for one notebook share a process but each
+    session gets its own runtime context + VirtualFileRegistry. That is the
+    same multi-registry shape the in-memory regression test above covers;
+    here we assert the shared-memory backend honors the same contract.
+    """
+    manager = VirtualFileStorageManager()
+    original_storage = manager.storage
+    key1 = f"{uuid.uuid4().hex[:8]}.txt"
+    key2 = f"{uuid.uuid4().hex[:8]}.txt"
+    context = type("Context", (), {"virtual_files_supported": True})()
+
+    registry1 = None
+    registry2 = None
+    try:
+        manager.storage = None
+        registry1 = VirtualFileRegistry(storage=SharedMemoryStorage())
+        registry1.add(VirtualFile(filename=key1, buffer=b"one"), context)
+        assert read_virtual_file(key1, 3) == b"one"
+
+        registry2 = VirtualFileRegistry(storage=SharedMemoryStorage())
+        registry2.add(VirtualFile(filename=key2, buffer=b"two"), context)
+        assert read_virtual_file(key2, 3) == b"two"
+
+        registry1.shutdown()
+
+        # A still-live registry must keep serving its files after another
+        # session tears down.
+        assert read_virtual_file(key2, 3) == b"two"
+    finally:
+        manager.storage = original_storage
+        if registry1 is not None:
+            registry1.shutdown()
+        if registry2 is not None:
+            registry2.shutdown()
 
 
 def test_create_and_register_with_context(
