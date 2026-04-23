@@ -84,6 +84,20 @@
   roles: [chat, edit]
   thinking: false
 
+- name: GPT-5.4 Mini
+  model: gpt-5.4-mini
+  description: A faster, more efficient model optimized for high-throughput workloads
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-5.4 Nano
+  model: gpt-5.4-nano
+  description: Most lightweight and cost-efficient variant of the GPT-5.4 family
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: false
+
 - name: GPT-5.3 Chat
   model: gpt-5.3-chat
   description: Most-used model that makes everyday conversations smoother and more useful
@@ -98,19 +112,6 @@
   roles: [chat, edit]
   thinking: false
 
-- name: GPT-5 Mini
-  model: gpt-5-mini
-  description: A faster, cost-efficient version of GPT-5 for well-defined tasks
-  providers: [openai, azure, github]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GPT-5 Nano
-  model: gpt-5-nano
-  description: Fastest, most cost-efficient version of GPT-5
-  providers: [openai, azure]
-  roles: [chat, edit]
-  thinking: false
 
 - name: o3
   model: o3
