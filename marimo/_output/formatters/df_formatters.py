@@ -160,6 +160,34 @@ class PyArrowFormatter(FormatterFactory):
             return table(df, selection=None, pagination=None)._mime_()
 
 
+class DataFusionFormatter(FormatterFactory):
+    @staticmethod
+    def package_name() -> str:
+        return "datafusion"
+
+    def register(self) -> None:
+        from datafusion import (
+            DataFrame as DataFusionDataFrame,  # type: ignore[import-not-found]
+        )
+
+        from marimo._output import formatting
+
+        if not include_opinionated():
+            return
+
+        @formatting.opinionated_formatter(DataFusionDataFrame)
+        def _show_marimo_datafusion_dataframe(
+            df: DataFusionDataFrame,
+        ) -> tuple[KnownMimeType, str]:
+            try:
+                return table(
+                    df.to_arrow_table(), selection=None, pagination=None
+                )._mime_()
+            except BaseException as e:
+                LOGGER.warning("Failed to format DataFusion DataFrame: %s", e)
+                return ("text/html", df._repr_html_())
+
+
 class PySparkFormatter(FormatterFactory):
     @staticmethod
     def package_name() -> str:
