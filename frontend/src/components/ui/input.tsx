@@ -195,7 +195,10 @@ export const OnBlurredInput = React.forwardRef<
       onChange={(event) => setInternalValue(event.target.value)}
       onBlur={() => setValue(internalValue || "")}
       onKeyDown={(event) => {
-        if (event.key !== "Enter") {
+        // Only commit on plain Enter. Shift+Enter should not submit the
+        // enclosing form — let the event bubble naturally (e.g. newline in a
+        // textarea, or no-op in a single-line input).
+        if (event.key !== "Enter" || event.shiftKey) {
           return;
         }
         setValue(internalValue || "");

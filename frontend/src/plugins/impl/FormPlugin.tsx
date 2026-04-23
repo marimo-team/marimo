@@ -144,11 +144,13 @@ export const FormWrapper = <T,>({
           "bg-(--amber-1) border-(--amber-7)": !synchronized && bordered,
         })}
         onKeyDown={(evt) => {
-          // Handle enter + ctrl/meta key
+          // Handle enter + ctrl/meta key — route through the form's onSubmit
+          // so that validation and clearOnSubmit are applied consistently,
+          // just as when the submit button is clicked.
           if (evt.key === "Enter" && (evt.ctrlKey || evt.metaKey)) {
             evt.preventDefault();
             evt.stopPropagation();
-            setValue(newValue);
+            formDiv.current?.requestSubmit();
           }
         }}
       >

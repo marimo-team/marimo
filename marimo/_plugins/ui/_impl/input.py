@@ -1589,7 +1589,10 @@ class form(UIElement[JSONTypeBound | None, T | None]):
     def _convert_value(self, value: JSONTypeBound | None) -> T | None:
         if value is None:
             return None
-        self.element._update(value)
+        # Use _update_value (not _update) to hydrate the wrapped element's
+        # value without triggering its on_change handler — the form's own
+        # on_change is what should fire, not the wrapped element's.
+        self.element._update_value(value)
         return self.element.value
 
 

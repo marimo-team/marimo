@@ -745,3 +745,57 @@ def test_power_scale() -> None:
     assert range_slider.start == 1
     assert range_slider.stop == 9
     assert range_slider.step is None
+
+
+# ---------------------------------------------------------------------------
+# form — on_change double-fire regression tests (issue #8324)
+# ---------------------------------------------------------------------------
+
+
+def test_form_convert_value_does_not_fire_element_on_change() -> None:
+    """Submitting a form must NOT trigger the wrapped element's on_change.
+
+    Before the fix, form._convert_value called element._update(), which
+    always fired the element's on_change callback.  After the fix it calls
+    element._update_value(), which skips that callback.
+    """
+    element_changes: list[Any] = []
+    text = ui.text(on_change=lambda v: element_changes.append(v))
+    f = text.form()
+
+    # Simulate a form submission: the form receives the wrapped element's
+    # serialised value from the frontend.
+    f._update("hello")
+
+    # The form's value should be updated …
+    assert f._value == "hello"
+    # … but the wrapped element's on_change must NOT have been called.
+    assert element_changes == [], (
+        "Wrapped element's on_change fired during form submission — "
+        "this is the double-fire bug described in issue #8324."
+    )
+
+
+def test_form_on_change_fires_once_on_submit() -> None:
+    """The form's own on_change must fire exactly once per submission."""
+    form_changes: list[Any] = []
+    text = ui.text()
+    f = text.form(on_change=lambda v: form_changes.append(v))
+
+    f._update("world")
+
+    assert form_changes == ["world"]
+
+
+def test_form_update_value_does_not_trigger_on_change() -> None:
+    """_update_value is the silent counterpart to _update."""
+    changes: list[Any] = []
+    text = ui.text(on_change=lambda v: changes.append(v))
+
+    text._update_value("silent")
+    assert text._value == "silent"
+    assert changes == [], "_update_value must not trigger on_change"
+
+    # Contrast: _update *should* trigger on_change.
+    text._update("loud")
+    assert changes == ["loud"]
