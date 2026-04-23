@@ -31,6 +31,7 @@ import {
   composeSlides,
   computeDeckNavigation,
   resolveActiveCellIndex,
+  resolveDeckNavigationTarget,
   type ComposedSubslide,
 } from "./compose-slides";
 import {
@@ -44,6 +45,43 @@ const ASPECT_RATIO = 16 / 9;
 const COLLAPSED_CONFIG_WIDTH = 36;
 
 type RuntimeCell = CellRuntimeState & CellData;
+
+/**
+ * reveal.js caches the last visited vertical index on each stack and can
+ * resume there on later horizontal navigation. After minimap-driven jumps we
+ * want stacks to re-enter from the top instead of reusing stale stack state.
+ */
+function clearPreviousVerticalIndices(deck: RevealApi) {
+  const slidesEl = deck.getSlidesElement();
+  if (!slidesEl) {
+    return;
+  }
+
+  for (const stack of slidesEl.querySelectorAll(
+    "section.stack[data-previous-indexv]",
+  )) {
+    stack.removeAttribute("data-previous-indexv");
+  }
+}
+
+const FORWARD_NAV_KEYS = new Set([
+  " ",
+  "Spacebar",
+  "ArrowRight",
+  "ArrowDown",
+  "PageDown",
+]);
+const BACK_NAV_KEYS = new Set(["ArrowLeft", "ArrowUp", "PageUp"]);
+
+function classifyNavKey(event: KeyboardEvent): 1 | -1 | 0 {
+  if (FORWARD_NAV_KEYS.has(event.key)) {
+    return 1;
+  }
+  if (BACK_NAV_KEYS.has(event.key)) {
+    return -1;
+  }
+  return 0;
+}
 
 function useSlideDimensions(ref: React.RefObject<HTMLDivElement | null>) {
   const [dims, setDims] = useState({ width: 960, height: 540 });
@@ -129,9 +167,8 @@ const RevealSlidesComponent = ({
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const activeCell =
     activeIndex != null ? cellsWithOutput[activeIndex] : undefined;
-  // Fall back to the first cell so the config panel has something to edit
-  // while the deck is still settling on an initial slide. This can still be
-  // `undefined` when the deck is empty; that case is handled below.
+  // Fall back to the first cell while the deck settles on an initial slide.
+  // Still `undefined` when the deck is empty (handled below).
   const activeConfigCell = activeCell ?? cellsWithOutput[0];
 
   const composition = useMemo(
@@ -144,9 +181,9 @@ const RevealSlidesComponent = ({
     [cellsWithOutput, layout.cells],
   );
 
-  // Skip cells are dropped from the composed deck to match reveal.js
-  // semantics. When the user selects a skip cell in the minimap we render an
-  // editor-only preview on top of the deck; the deck itself stays put.
+  // Skip cells aren't part of the composed deck. When one is selected in the
+  // minimap we render a preview over the deck and park reveal on a neighboring
+  // real slide; keyboard nav while parked is handled below.
   const skippedPreviewCell =
     activeCell && layout.cells.get(activeCell.id)?.type === "skip"
       ? activeCell
@@ -179,21 +216,31 @@ const RevealSlidesComponent = ({
 
   useEffect(() => {
     const deck = deckRef.current;
-    if (deck == null || activeCell == null) {
+    if (deck == null) {
       return;
     }
-    const target = cellToTarget.get(activeCell.id);
-    if (!target) {
+    const target = resolveDeckNavigationTarget({
+      activeIndex,
+      cells: cellsWithOutput,
+      cellToTarget,
+      getId: (cell) => cell.id,
+    });
+    const next = target && computeDeckNavigation(deck.getIndices(), target);
+    if (!next) {
       return;
     }
-    const next = computeDeckNavigation(deck.getIndices(), target);
-    if (next) {
-      deck.slide(next.h, next.v, next.f);
-    }
-  }, [activeCell, cellToTarget, deckRef]);
+    deck.slide(next.h, next.v, next.f);
+    clearPreviousVerticalIndices(deck);
+  }, [activeIndex, cellToTarget, cellsWithOutput, deckRef]);
 
-  // Report the current cell index to the parent component
+  // Forward the deck's current cell to the parent, except while a skipped
+  // preview is parked: every reveal.js event during that window is an echo
+  // of the programmatic park (possibly with transient indices), so ignoring
+  // them keeps `activeCellId` pinned on the skipped cell.
   const reportCurrentCell = useEvent(() => {
+    if (skippedPreviewCell != null) {
+      return;
+    }
     const deck = deckRef.current;
     if (!deck) {
       return;
@@ -206,6 +253,37 @@ const RevealSlidesComponent = ({
       onSlideChange?.(flatIndex);
     }
   });
+
+  // While parked on a skipped preview, step through minimap order instead of
+  // letting reveal.js advance from the parked slide the user can't see.
+  const handleParkedNavKey = useEvent((event: KeyboardEvent) => {
+    if (!skippedPreviewCell || activeIndex == null) {
+      return;
+    }
+    if (Events.fromInput(event)) {
+      return;
+    }
+    const direction = classifyNavKey(event);
+    if (direction === 0) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const nextIndex = activeIndex + direction;
+    if (nextIndex < 0 || nextIndex >= cellsWithOutput.length) {
+      return;
+    }
+    onSlideChange?.(nextIndex);
+  });
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleParkedNavKey, { capture: true });
+    return () => {
+      document.removeEventListener("keydown", handleParkedNavKey, {
+        capture: true,
+      });
+    };
+  }, [handleParkedNavKey]);
 
   return (
     <div className="flex-1 min-w-0 flex flex-row gap-3">

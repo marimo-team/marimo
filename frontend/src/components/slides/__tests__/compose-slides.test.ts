@@ -5,6 +5,7 @@ import {
   buildSlideIndices,
   composeSlides,
   computeDeckNavigation,
+  resolveDeckNavigationTarget,
   resolveActiveCellIndex,
 } from "../compose-slides";
 import type { SlideType } from "@/components/editor/renderers/slides-layout/types";
@@ -311,6 +312,64 @@ describe("resolveActiveCellIndex", () => {
 
   it("returns undefined for unknown stacks", () => {
     expect(resolveActiveCellIndex(map, { h: 9, v: 0, f: 0 })).toBeUndefined();
+  });
+});
+
+describe("resolveDeckNavigationTarget", () => {
+  const resolve = (cells: Cell[], activeIndex: number | undefined) => {
+    const composition = compose(cells);
+    const { cellToTarget } = buildSlideIndices({
+      composition,
+      cells,
+      getId: (cell) => cell.id,
+    });
+    return resolveDeckNavigationTarget({
+      activeIndex,
+      cells,
+      cellToTarget,
+      getId: (cell) => cell.id,
+    });
+  };
+
+  it("returns the selected cell target when the cell is part of the deck", () => {
+    expect(
+      resolve(
+        [
+          { id: "a", type: "slide" },
+          { id: "b", type: "fragment" },
+        ],
+        1,
+      ),
+    ).toEqual({ h: 0, v: 0, f: 0 });
+  });
+
+  it("parks a skipped cell on the closest earlier deck cell", () => {
+    expect(
+      resolve(
+        [
+          { id: "a", type: "slide" },
+          { id: "skip", type: "skip" },
+          { id: "b", type: "slide" },
+        ],
+        1,
+      ),
+    ).toEqual({ h: 0, v: 0, f: -1 });
+  });
+
+  it("falls forward when a skipped cell appears before any real slide", () => {
+    expect(
+      resolve(
+        [
+          { id: "skip", type: "skip" },
+          { id: "a", type: "slide" },
+        ],
+        0,
+      ),
+    ).toEqual({ h: 0, v: 0, f: -1 });
+  });
+
+  it("returns undefined when there is no real slide to park on", () => {
+    expect(resolve([{ id: "skip", type: "skip" }], 0)).toBeUndefined();
   });
 });
 

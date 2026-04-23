@@ -234,10 +234,88 @@ export function resolveActiveCellIndex(
   );
 }
 
+function findDeckTarget<T, Id>({
+  start,
+  stop,
+  step,
+  cells,
+  cellToTarget,
+  getId,
+}: {
+  start: number;
+  stop: number;
+  step: 1 | -1;
+  cells: readonly T[];
+  cellToTarget: ReadonlyMap<Id, SlideTarget>;
+  getId: (cell: T) => Id;
+}): SlideTarget | undefined {
+  for (let i = start; i !== stop; i += step) {
+    const target = cellToTarget.get(getId(cells[i]));
+    if (target) {
+      return target;
+    }
+  }
+  return undefined;
+}
+
 /**
- * Decide where the deck should navigate to given the user's current target
- * cell. Returns `null` when the deck is already in the right place so the
- * caller can skip the imperative `deck.slide()` call.
+ * Resolve the deck location that should back the currently selected minimap
+ * entry.
+ *
+ * Cells marked `"skip"` are not part of the composed deck; for those we
+ * "park" on the closest real slide in notebook order (preferring the
+ * predecessor). Handling the UI consequences of parking — ignoring reveal.js
+ * echo events and intercepting keyboard nav — is the caller's job.
+ */
+export function resolveDeckNavigationTarget<T, Id>({
+  activeIndex,
+  cells,
+  cellToTarget,
+  getId,
+}: {
+  activeIndex: number | undefined;
+  cells: readonly T[];
+  cellToTarget: ReadonlyMap<Id, SlideTarget>;
+  getId: (cell: T) => Id;
+}): SlideTarget | undefined {
+  if (activeIndex == null) {
+    return undefined;
+  }
+
+  const activeCell = cells[activeIndex];
+  if (!activeCell) {
+    return undefined;
+  }
+
+  const directTarget = cellToTarget.get(getId(activeCell));
+  if (directTarget) {
+    return directTarget;
+  }
+
+  return (
+    findDeckTarget({
+      start: activeIndex - 1,
+      stop: -1,
+      step: -1,
+      cells,
+      cellToTarget,
+      getId,
+    }) ??
+    findDeckTarget({
+      start: activeIndex + 1,
+      stop: cells.length,
+      step: 1,
+      cells,
+      cellToTarget,
+      getId,
+    })
+  );
+}
+
+/**
+ * Decide where the deck should navigate to given the user's target cell, or
+ * `null` if the deck is already there (so the caller can skip the imperative
+ * `deck.slide()` call).
  *
  * Each minimap entry is a distinct navigation target, so the fragment index
  * is always pinned:
@@ -251,13 +329,9 @@ export function computeDeckNavigation(
   current: { h: number; v: number; f: number },
   target: SlideTarget,
 ): SlideTarget | null {
-  const targetF = target.f >= 0 ? target.f : -1;
-  if (
-    current.h === target.h &&
-    current.v === target.v &&
-    current.f === targetF
-  ) {
+  const next = { h: target.h, v: target.v, f: target.f >= 0 ? target.f : -1 };
+  if (current.h === next.h && current.v === next.v && current.f === next.f) {
     return null;
   }
-  return { h: target.h, v: target.v, f: targetF };
+  return next;
 }

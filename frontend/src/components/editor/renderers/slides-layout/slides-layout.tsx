@@ -27,41 +27,32 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   const [activeCellId, setActiveCellId] = useState<CellId | null>(null);
   const deckRef = useRef<RevealApi | null>(null);
 
-  const { cellsWithOutput, skippedIds, slideTypes, defaultIndex } =
-    useMemo(() => {
-      const withOutput = cells.filter(
-        (cell) => cell.output != null && cell.output.data !== "",
-      );
-      const skipped = new Set<CellId>();
-      const types = new Map<CellId, SlideType>();
-      for (const c of withOutput) {
-        const type = layout.cells.get(c.id)?.type;
-        if (type) {
-          types.set(c.id, type);
-        }
-        if (type === "skip") {
-          skipped.add(c.id);
-        }
+  const { cellsWithOutput, skippedIds, slideTypes } = useMemo(() => {
+    const withOutput = cells.filter(
+      (cell) => cell.output != null && cell.output.data !== "",
+    );
+    const skipped = new Set<CellId>();
+    const types = new Map<CellId, SlideType>();
+    for (const c of withOutput) {
+      const type = layout.cells.get(c.id)?.type;
+      if (type) {
+        types.set(c.id, type);
       }
-      // Prefer a non-skipped cell on initial load so the deck lands on a real
-      // slide instead of the skip-preview overlay.
-      const firstNonSkippedIndex = withOutput.findIndex(
-        (c) => !skipped.has(c.id),
-      );
-      const defaultIdx = firstNonSkippedIndex === -1 ? 0 : firstNonSkippedIndex;
-      return {
-        cellsWithOutput: withOutput,
-        skippedIds: skipped,
-        slideTypes: types,
-        defaultIndex: defaultIdx,
-      };
-    }, [cells, layout.cells]);
+      if (type === "skip") {
+        skipped.add(c.id);
+      }
+    }
+    return {
+      cellsWithOutput: withOutput,
+      skippedIds: skipped,
+      slideTypes: types,
+    };
+  }, [cells, layout.cells]);
 
   const activeSlideIndex = activeCellId
     ? cellsWithOutput.findIndex((c) => c.id === activeCellId)
-    : defaultIndex;
-  const resolvedIndex =
-    activeSlideIndex === -1 ? defaultIndex : activeSlideIndex;
+    : 0;
+  const resolvedIndex = activeSlideIndex === -1 ? 0 : activeSlideIndex;
 
   const handleSlideChange = useEvent((index: number) => {
     const cell = cellsWithOutput[index];
@@ -101,7 +92,7 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
         cells={cellsWithOutput}
         thumbnailWidth={220}
         canReorder={!isMultiColumn}
-        activeCellId={activeCellId ?? cellsWithOutput[defaultIndex]?.id ?? null}
+        activeCellId={activeCellId ?? cellsWithOutput[0]?.id ?? null}
         skippedIds={skippedIds}
         slideTypes={slideTypes}
         onSlideClick={handleSlideChange}
