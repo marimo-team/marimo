@@ -82,8 +82,12 @@ async def test_reload_function(
     while retries < 10:
         await asyncio.sleep(INTERVAL)
         retries += 1
-        if k.graph.cells[er_1.cell_id].stale:
+        if (
+            k.graph.cells[er_1.cell_id].stale
+            and k.graph.cells[er_2.cell_id].stale
+        ):
             break
+
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
