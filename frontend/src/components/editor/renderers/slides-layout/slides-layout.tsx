@@ -79,16 +79,24 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
       onSlideChange={handleSlideChange}
       deckRef={deckRef}
       configWidth={250}
+      mode={mode}
     />
   );
 
   if (isReading) {
-    return <div className="p-4 flex flex-1 max-h-[95%]">{slides}</div>;
+    // Cap the deck height and derive width from height via aspect-video so it stays 16:9 without
+    // ballooning to the full viewport on wide screens.
+    return (
+      <div className="p-4 flex flex-1 items-center justify-center min-h-0">
+        <div className="h-full max-h-[95vh] aspect-video max-w-full flex">
+          {slides}
+        </div>
+      </div>
+    );
   }
 
   return (
-    // Use 11/12 to ensure all content fits on the page (no overflow, scrolling required)
-    <div className="pr-18 pb-5 flex-1 flex flex-row max-h-11/12 gap-2">
+    <div className="pr-18 pb-2 flex flex-row gap-2 min-h-0">
       <SlidesMinimap
         cells={cellsWithOutput}
         thumbnailWidth={220}

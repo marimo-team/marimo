@@ -38,6 +38,7 @@ import {
   DEFAULT_SLIDE_TYPE,
   SlidesForm,
 } from "./slide-form";
+import type { AppMode } from "@/core/mode";
 
 const ASPECT_RATIO = 16 / 9;
 const COLLAPSED_CONFIG_WIDTH = 36;
@@ -111,6 +112,7 @@ const RevealSlidesComponent = ({
   activeIndex,
   onSlideChange,
   deckRef,
+  mode,
   configWidth = 300, // px
 }: {
   cellsWithOutput: RuntimeCell[];
@@ -119,6 +121,7 @@ const RevealSlidesComponent = ({
   activeIndex?: number;
   onSlideChange?: (index: number) => void;
   deckRef: React.RefObject<RevealApi | null>;
+  mode: AppMode;
   configWidth?: number;
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -205,144 +208,153 @@ const RevealSlidesComponent = ({
   });
 
   return (
-    <div
-      ref={containerRef}
-      className="relative h-full w-full flex-1 flex flex-row gap-3 items-stretch"
-    >
-      <div className="group relative flex-1 flex items-center">
-        <Deck
-          deckRef={deckRef}
-          className="aspect-video overflow-hidden h-full border rounded bg-background mo-slides-theme prose-slides"
-          config={revealConfig}
-          onSlideChange={() => {
-            reportCurrentCell();
-            const deck = deckRef.current;
-            // Trigger resize so vega-embed re-measures container width
-            if (
-              deck?.getCurrentSlide()?.querySelector(".vega-embed, marimo-vega")
-            ) {
-              requestAnimationFrame(() => {
-                window.dispatchEvent(new Event("resize"));
-              });
-            }
-          }}
-          onFragmentShown={reportCurrentCell}
-          onFragmentHidden={reportCurrentCell}
-        >
-          {composition.stacks.map((stack, i) => {
-            if (stack.subslides.length === 1) {
-              return <SubslideView key={i} subslide={stack.subslides[0]} />;
-            }
-            return (
-              <Stack key={i}>
-                {stack.subslides.map((sub, j) => (
-                  <SubslideView key={j} subslide={sub} />
-                ))}
-              </Stack>
-            );
-          })}
-        </Deck>
-        {skippedPreviewCell && (
-          <div
-            className="absolute inset-y-0 left-0 aspect-video h-full w-full z-10 border rounded bg-background flex flex-col overflow-hidden"
-            aria-label="Skipped in presentation"
+    <div className="flex-1 min-w-0 flex flex-row gap-3">
+      <div
+        ref={containerRef}
+        className="flex-1 min-w-0 flex items-center justify-center overflow-hidden"
+      >
+        <div className="group relative" style={{ width, height }}>
+          <Deck
+            deckRef={deckRef}
+            className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides"
+            config={revealConfig}
+            onSlideChange={() => {
+              reportCurrentCell();
+              const deck = deckRef.current;
+              // Trigger resize so vega-embed re-measures container width
+              if (
+                deck
+                  ?.getCurrentSlide()
+                  ?.querySelector(".vega-embed, marimo-vega")
+              ) {
+                requestAnimationFrame(() => {
+                  window.dispatchEvent(new Event("resize"));
+                });
+              }
+            }}
+            onFragmentShown={reportCurrentCell}
+            onFragmentHidden={reportCurrentCell}
           >
-            <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/40">
-              <EyeOffIcon className="h-3.5 w-3.5" />
-              <span>Skipped in presentation</span>
-            </div>
-            <div className="flex-1 overflow-auto flex">
-              <div className="mo-slide-content" style={{ margin: "auto 20px" }}>
-                <CellOutputSlide
-                  cellId={skippedPreviewCell.id}
-                  status={skippedPreviewCell.status}
-                  output={skippedPreviewCell.output}
-                />
+            {composition.stacks.map((stack, i) => {
+              if (stack.subslides.length === 1) {
+                return <SubslideView key={i} subslide={stack.subslides[0]} />;
+              }
+              return (
+                <Stack key={i}>
+                  {stack.subslides.map((sub, j) => (
+                    <SubslideView key={j} subslide={sub} />
+                  ))}
+                </Stack>
+              );
+            })}
+          </Deck>
+          {skippedPreviewCell && (
+            <div
+              className="absolute inset-0 z-10 border rounded bg-background flex flex-col overflow-hidden"
+              aria-label="Skipped in presentation"
+            >
+              <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/40">
+                <EyeOffIcon className="h-3.5 w-3.5" />
+                <span>Skipped in presentation</span>
+              </div>
+              <div className="flex-1 overflow-auto flex">
+                <div
+                  className="mo-slide-content"
+                  style={{ margin: "auto 20px" }}
+                >
+                  <CellOutputSlide
+                    cellId={skippedPreviewCell.id}
+                    status={skippedPreviewCell.status}
+                    output={skippedPreviewCell.output}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        )}
-        <Tooltip content="Fullscreen (F)">
-          <Button
-            data-testid="marimo-plugin-slides-fullscreen"
-            variant="ghost"
-            size="icon"
-            className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-70 text-muted-foreground transition-opacity h-7 w-7"
-            onClick={() => {
-              deckRef.current
-                ?.getViewportElement()
-                ?.requestFullscreen()
-                .catch((error) => {
-                  Logger.error("Failed to request fullscreen", error);
-                });
-            }}
-          >
-            <ExpandIcon className="h-4 w-4" />
-          </Button>
-        </Tooltip>
-      </div>
-
-      <aside
-        className="h-full flex flex-col border-l border-border/60 bg-muted/20 transition-[width] duration-200 ease-out overflow-hidden"
-        style={{
-          width: isConfigOpen ? configWidth : COLLAPSED_CONFIG_WIDTH,
-        }}
-        aria-label="Slide configuration"
-      >
-        <header
-          className={cn(
-            "flex items-center h-9 shrink-0 border-b border-border/60",
-            isConfigOpen ? "justify-between px-2" : "justify-center px-0",
           )}
-        >
-          {isConfigOpen && (
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground pl-1">
-              Configuration
-            </span>
-          )}
-          <Tooltip content={isConfigOpen ? "Collapse panel" : "Expand panel"}>
+          <Tooltip content="Fullscreen (F)">
             <Button
+              data-testid="marimo-plugin-slides-fullscreen"
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => setIsConfigOpen(!isConfigOpen)}
-              aria-expanded={isConfigOpen}
-              aria-controls="slide-config-panel"
+              className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-70 text-muted-foreground transition-opacity h-7 w-7"
+              onClick={() => {
+                deckRef.current
+                  ?.getViewportElement()
+                  ?.requestFullscreen()
+                  .catch((error) => {
+                    Logger.error("Failed to request fullscreen", error);
+                  });
+              }}
             >
-              {isConfigOpen ? (
-                <PanelRightCloseIcon className="h-4 w-4" />
-              ) : (
-                <PanelRightOpenIcon className="h-4 w-4" />
-              )}
+              <ExpandIcon className="h-4 w-4" />
             </Button>
           </Tooltip>
-        </header>
+        </div>
+      </div>
 
-        {isConfigOpen && (
-          <div
-            id="slide-config-panel"
-            className="flex-1 overflow-y-auto overflow-x-hidden"
-          >
-            {activeConfigCell ? (
-              <SlidesForm
-                layout={layout}
-                setLayout={setLayout}
-                cellId={activeConfigCell.id}
-              />
-            ) : (
-              <div className="flex flex-col gap-1.5 p-3 text-xs text-muted-foreground">
-                <span className="font-semibold text-sm text-foreground">
-                  No slides yet
-                </span>
-                <p>
-                  Run a cell that produces output to add it to the deck. Slide
-                  settings will appear here once a slide is selected.
-                </p>
-              </div>
+      {mode !== "read" && (
+        <aside
+          className="h-full flex flex-col border-l border-border/60 bg-muted/20 transition-[width] duration-200 ease-out overflow-hidden"
+          style={{
+            width: isConfigOpen ? configWidth : COLLAPSED_CONFIG_WIDTH,
+          }}
+          aria-label="Slide configuration"
+        >
+          <header
+            className={cn(
+              "flex items-center h-9 shrink-0 border-b border-border/60",
+              isConfigOpen ? "justify-between px-2" : "justify-center px-0",
             )}
-          </div>
-        )}
-      </aside>
+          >
+            {isConfigOpen && (
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground pl-1">
+                Configuration
+              </span>
+            )}
+            <Tooltip content={isConfigOpen ? "Collapse panel" : "Expand panel"}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => setIsConfigOpen(!isConfigOpen)}
+                aria-expanded={isConfigOpen}
+                aria-controls="slide-config-panel"
+              >
+                {isConfigOpen ? (
+                  <PanelRightCloseIcon className="h-4 w-4" />
+                ) : (
+                  <PanelRightOpenIcon className="h-4 w-4" />
+                )}
+              </Button>
+            </Tooltip>
+          </header>
+
+          {isConfigOpen && (
+            <div
+              id="slide-config-panel"
+              className="flex-1 overflow-y-auto overflow-x-hidden"
+            >
+              {activeConfigCell ? (
+                <SlidesForm
+                  layout={layout}
+                  setLayout={setLayout}
+                  cellId={activeConfigCell.id}
+                />
+              ) : (
+                <div className="flex flex-col gap-1.5 p-3 text-xs text-muted-foreground">
+                  <span className="font-semibold text-sm text-foreground">
+                    No slides yet
+                  </span>
+                  <p>
+                    Run a cell that produces output to add it to the deck. Slide
+                    settings will appear here once a slide is selected.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </aside>
+      )}
     </div>
   );
 };
