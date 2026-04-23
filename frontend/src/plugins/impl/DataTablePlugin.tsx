@@ -251,6 +251,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .nullable()
         .default(null),
       showDownload: z.boolean().default(false),
+      defaultSort: z.string().optional(),
       showFilters: z.boolean().default(false),
       showColumnSummaries: z
         .union([z.boolean(), z.enum(["stats", "chart"])])
@@ -496,8 +497,15 @@ export const LoadingDataTableComponent = memo(
 
     const search = props.search;
     const setValue = props.setValue;
+    const initialSorting = useMemo<SortingState>(
+      () =>
+        props.defaultSort
+          ? [{ id: props.defaultSort, desc: false }]
+          : Arrays.EMPTY,
+      [props.defaultSort],
+    );
     // Sorting/searching state
-    const [sorting, setSorting] = useState<SortingState>([]);
+    const [sorting, setSorting] = useState<SortingState>(initialSorting);
     const [paginationState, setPaginationState] =
       React.useState<PaginationState>({
         pageSize: props.pageSize,
@@ -559,7 +567,11 @@ export const LoadingDataTableComponent = memo(
         searchQuery === "" &&
         paginationState.pageIndex === 0 &&
         filters.length === 0 &&
-        sorting.length === 0 &&
+        (sorting.length === 0 ||
+          (sorting.length === 1 &&
+            Boolean(props.defaultSort) &&
+            sorting[0]?.id === props.defaultSort &&
+            sorting[0]?.desc === false)) &&
         !props.lazy &&
         !pageSizeChanged;
 
