@@ -235,12 +235,33 @@ class _Session:
         return _normalize(body)
 
 
-# Scrub volatile tempfile paths inside JSON-escaped quotes.
-_TMP_PATH_RE = re.compile(r"/(?:var/folders|tmp)/[^\"\s\\]+")
+# Scrub traceback noise that varies across Python versions and platforms.
+# ``body`` contains JSON-encoded traceback strings where ``\n`` renders as
+# the two-character sequence ``\\n`` (backslash + n), and Windows path
+# separators render as ``\\\\`` (two backslashes).
+_PATH_RE = re.compile(
+    # macOS: /var/folders/... or /tmp/...
+    r"/(?:var/folders|tmp)/[^\"\s\\]+"
+    # Windows: C:\\\\... up to the closing \\"
+    r"|[A-Z]:(?:\\\\[^\"\\]+)+"
+)
+# Error-pointer line (Python 3.11+): indented `~~^~~` + trailing \n.
+# Absent on 3.10, so we strip it to make snapshots cross-version stable.
+_POINTER_RE = re.compile(r" +~+\^+~*\\n")
+# Internal marimo frames (e.g. ``File "<tmp>", line 138, in execute_cell``)
+# that Py 3.10 shows but 3.11+ hides. Strip them so tests only match the
+# user-facing ``<module>`` frame.
+_INTERNAL_FRAME_RE = re.compile(
+    r'  File \\"<tmp>\\", line \d+, in (?!<module>)[^\\]+\\n'
+    r" +[^\\]*\\n"
+)
 
 
 def _normalize(body: str) -> list[str]:
-    return _TMP_PATH_RE.sub("<tmp>", body).splitlines()
+    body = _PATH_RE.sub("<tmp>", body)
+    body = _POINTER_RE.sub("", body)
+    body = _INTERNAL_FRAME_RE.sub("", body)
+    return body.splitlines()
 
 
 @pytest.fixture
@@ -332,7 +353,6 @@ def test_state_setter_cascade_error(session: _Session) -> None:
                 'data: {"data": "Traceback (most recent call last):\\n'
                 '  File \\"<tmp>\\", line 3, in <module>\\n'
                 "    result = 1 / get_x()\\n"
-                "             ~~^~~~~~~~~\\n"
                 'ZeroDivisionError: division by zero\\n"}'
             ),
             "",
@@ -414,7 +434,6 @@ def test_multiple_downstream_cells_all_error(session: _Session) -> None:
                 'data: {"data": "Traceback (most recent call last):\\n'
                 '  File \\"<tmp>\\", line 1, in <module>\\n'
                 "    result = 1 / get_x()\\n"
-                "             ~~^~~~~~~~~\\n"
                 'ZeroDivisionError: division by zero\\n"}'
             ),
             "",
@@ -423,7 +442,6 @@ def test_multiple_downstream_cells_all_error(session: _Session) -> None:
                 'data: {"data": "Traceback (most recent call last):\\n'
                 '  File \\"<tmp>\\", line 3, in <module>\\n'
                 "    result_c = 100 / get_x()\\n"
-                "               ~~~~^~~~~~~~~\\n"
                 'ZeroDivisionError: division by zero\\n"}'
             ),
             "",
@@ -513,11 +531,7 @@ def test_ctx_run_cell_cascade_error(session: _Session) -> None:
         [
             "event: stderr",
             (
-                'data: {"data": "Traceback (most recent call last):\\n'
-                '  File \\"<tmp>\\", line 3, in <module>\\n'
-                "    result = 1 / x\\n"
-                "             ~~^~~\\n"
-                'ZeroDivisionError: division by zero\\n"}'
+                'data: {"data": "Traceback (most recent call last):\\n  File \\"<tmp>\\", line 3, in <module>\\n    result = 1 / x\\nZeroDivisionError: division by zero\\n"}'
             ),
             "",
             "event: stdout",
