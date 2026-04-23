@@ -182,6 +182,24 @@ def _normalize_sandbox_dependencies(
     return filtered + [include_features(chosen, additional_features)]
 
 
+def _resolve_local_path_line(line: str, script_dir: Path) -> str:
+    """Resolve a relative local-path requirement to an absolute path.
+
+    >>> _resolve_local_path_line(
+    ...     "-e ../pkg ; py<'3.12' # via foo", Path("/a/b")
+    ... )
+    '-e /a/pkg ; py<\\'3.12\\' # via foo'
+    """
+    rest = line.removeprefix("-e ")
+    path_and_comment, _, _ = rest.partition(";")
+    path_token, _, _ = path_and_comment.partition(" #")
+    path_token = path_token.rstrip()
+    if not path_token.startswith("."):
+        return line
+    resolved = str((script_dir / path_token).resolve())
+    return line.replace(path_token, resolved, 1)
+
+
 def _uv_export_script_requirements_txt(
     name: str | None,
 ) -> list[str]:
@@ -202,7 +220,11 @@ def _uv_export_script_requirements_txt(
         capture_output=True,
         text=True,
     )
-    return result.stdout.split("\n")
+    script_dir = Path(name).resolve().parent
+    return [
+        _resolve_local_path_line(line, script_dir)
+        for line in result.stdout.split("\n")
+    ]
 
 
 def _resolve_requirements_txt_lines(pyproject: PyProjectReader) -> list[str]:
