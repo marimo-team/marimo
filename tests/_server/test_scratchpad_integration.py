@@ -275,7 +275,12 @@ _PATH_RE = re.compile(
     # Windows: C:\\\\... up to the closing \\"
     r"|[A-Z]:(?:\\\\[^\"\\]+)+"
 )
-# Error-pointer line (Python 3.11+): indented `~~^~~` + trailing \n.
+# Absolute paths into the running marimo source tree — present in
+# tracebacks that traverse library frames (e.g. code_mode RuntimeError).
+# Reduce the repo-prefix portion to a stable ``<marimo>`` marker so the
+# tail ``marimo/<subpkg>/<file>.py`` survives for readability.
+_MARIMO_SRC_RE = re.compile(r'\\"/[^"\\]*/(?=marimo/[^"\\]*\.py\\")')
+# Error-pointer line (Python 3.11+): indented `~+\^+~*` + trailing \n.
 # Absent on 3.10, so we strip it to make snapshots cross-version stable.
 _POINTER_RE = re.compile(r" +~+\^+~*\\n")
 # Internal marimo frames (e.g. ``File "<tmp>", line 138, in execute_cell``)
@@ -285,12 +290,31 @@ _INTERNAL_FRAME_RE = re.compile(
     r'  File \\"<tmp>\\", line \d+, in (?!<module>)[^\\]+\\n'
     r" +[^\\]*\\n"
 )
+# Python 3.13 collapsed traceback marker (``...<N lines>...``) that older
+# Python versions don't emit. Strip together with the indent and newline.
+_COLLAPSED_FRAMES_RE = re.compile(r" +\.\.\.<\d+ lines>\.\.\.\\n")
+# Line numbers inside internal marimo frames (``File \"<marimo>/..., line N``)
+# drift when library source edits shift offsets. Zero them out so the test
+# stays stable under unrelated edits to code_mode, runtime, etc.  User-facing
+# ``<tmp>`` frames keep their linenos so scratch-cell line positions remain
+# assertable.
+_MARIMO_FRAME_LINENO_RE = re.compile(r'(File \\"<marimo>/[^\\]*\\"), line \d+')
+# Auto-generated cell IDs from ``CellIdGenerator``: 4 random ascii
+# letters, appearing in code_mode summaries as ``cell 'AbCd'``. Replace
+# with ``cell '<cid>'``.  Scoped to the ``cell '...'`` phrase so
+# unrelated 4-letter tokens (e.g. ``'boom'`` inside a test payload) are
+# untouched.
+_AUTO_CELL_ID_RE = re.compile(r"(cell )'[A-Za-z]{4}'")
 
 
 def _normalize(body: str) -> list[str]:
     body = _PATH_RE.sub("<tmp>", body)
+    body = _MARIMO_SRC_RE.sub(r'\\"<marimo>/', body)
     body = _POINTER_RE.sub("", body)
     body = _INTERNAL_FRAME_RE.sub("", body)
+    body = _COLLAPSED_FRAMES_RE.sub("", body)
+    body = _MARIMO_FRAME_LINENO_RE.sub(r"\1, line N", body)
+    body = _AUTO_CELL_ID_RE.sub(r"\1'<cid>'", body)
     return body.splitlines()
 
 
@@ -595,6 +619,65 @@ def test_ctx_run_cell_cascade_error(session: _Session) -> None:
                 'data: {"success": false, "output": '
                 '{"mimetype": "text/plain", "data": ""}}'
             ),
+            "",
+        ]
+    )
+
+
+def test_ctx_create_cell_multiply_defined(session: _Session) -> None:
+    """``ctx.create_cell`` introducing a duplicate definition errors early.
+
+    The notebook already has ``x = 10`` in ``cell_a``. code_mode's
+    dry-run compile detects the new cell would multiply-define ``x``
+    and raises ``RuntimeError`` before any real mutation — the new
+    cell is never registered and ``x`` stays ``10``.
+    """
+    session.setup_cells(["cell_a"], ["x = 10"])
+
+    lines = session.execute(
+        "import marimo._code_mode as cm\n"
+        "async with cm.get_context() as ctx:\n"
+        '    ctx.create_cell("x = 20")',
+    )
+
+    assert lines == snapshot(
+        [
+            "event: stderr",
+            'data: {"data": "Traceback (most recent call last):\\n  File \\"<marimo>/marimo/_runtime/executor.py\\", line N, in execute_cell_async\\n    await eval(cell.body, glbls)\\n  File \\"<tmp>\\", line 2, in <module>\\n    async with cm.get_context() as ctx:\\n  File \\"<marimo>/marimo/_code_mode/_context.py\\", line N, in __aexit__\\n    self._dry_run_compile(ops)\\n  File \\"<marimo>/marimo/_code_mode/_context.py\\", line N, in _dry_run_compile\\n    raise RuntimeError(\\n    )\\nRuntimeError: Multiply-defined names:\\n  - \'x\' is already defined in cell \'cell_a\' (cell_a)\\n\\nTo skip validation, use: async with cm.get_context(skip_validation=True) as ctx\\n"}',
+            "",
+            "event: done",
+            'data: {"success": false, "output": {"mimetype": "text/plain", "data": ""}}',
+            "",
+        ]
+    )
+
+
+def test_ctx_create_cell_skip_validation(session: _Session) -> None:
+    """``skip_validation=True`` bypasses the dry-run compile check.
+
+    Same setup as above, but the caller opts out of validation — no
+    ``RuntimeError`` is raised and the new cell is registered, as
+    evidenced by the ``created cell`` stdout summary. The kernel's own
+    graph-validity pass still flags the resulting multiply-defined
+    state (visible to the listener as a child error, hence
+    ``success: false``), but no traceback reaches stderr because the
+    new cell never runs — the error is a pure graph-state marker.
+    """
+    session.setup_cells(["cell_a"], ["x = 10"])
+
+    lines = session.execute(
+        "import marimo._code_mode as cm\n"
+        "async with cm.get_context(skip_validation=True) as ctx:\n"
+        '    ctx.create_cell("x = 20")',
+    )
+
+    assert lines == snapshot(
+        [
+            "event: stdout",
+            'data: {"data": "created cell \'<cid>\'\\n"}',
+            "",
+            "event: done",
+            'data: {"success": false, "output": {"mimetype": "text/plain", "data": ""}}',
             "",
         ]
     )
