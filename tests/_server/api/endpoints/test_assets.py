@@ -240,6 +240,40 @@ def test_vfile(client: TestClient) -> None:
     assert response.json() == {"detail": "Invalid virtual file request"}
 
 
+@patch(
+    "marimo._server.api.endpoints.assets.GLOBAL_SETTINGS.DISABLE_AUTH_ON_VIRTUAL_FILES",
+    True,
+)
+def test_vfile_auth_disabled_allows_unauthenticated(
+    client: TestClient,
+) -> None:
+    # Unauthenticated requests normally return 401, but the env flag
+    # lets them through.
+    response = client.get("/@file/empty.txt")
+    assert response.status_code == 200, response.text
+    assert response.content == b""
+
+    response = client.get("/@file/bad.txt")
+    assert response.status_code == 404, response.text
+    assert response.json() == {"detail": "Invalid virtual file request"}
+
+
+@patch(
+    "marimo._server.api.endpoints.assets.GLOBAL_SETTINGS.DISABLE_AUTH_ON_VIRTUAL_FILES",
+    False,
+)
+def test_vfile_auth_enabled_rejects_unauthenticated(
+    client: TestClient,
+) -> None:
+    # With the flag off (the default), unauthenticated requests are rejected.
+    response = client.get("/@file/empty.txt")
+    assert response.status_code == 401, response.text
+
+    # Authenticated requests still work.
+    response = client.get("/@file/empty.txt", headers=token_header())
+    assert response.status_code == 200, response.text
+
+
 def test_vfile_large_streaming(client: TestClient) -> None:
     """Regression test: large virtual files must stream without
     Content-Length mismatch (h11 LocalProtocolError).

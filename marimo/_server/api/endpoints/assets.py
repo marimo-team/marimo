@@ -22,6 +22,7 @@ from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
 from marimo._config.reader import find_nearest_pyproject_toml
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._output.utils import uri_decode_component, uri_encode_component
 from marimo._runtime.virtual_file import (
     EMPTY_VIRTUAL_FILE,
@@ -485,7 +486,6 @@ STATIC_FILES = [
 
 
 @router.get("/@file/{filename_and_length:path}")
-@requires("read")
 def virtual_file(
     request: Request,
 ) -> Response:
@@ -509,6 +509,14 @@ def virtual_file(
         404:
             description: Invalid byte length in virtual file request
     """
+    # Auth is normally required via `@requires("read")`, but can be bypassed
+    # with the `_MARIMO_DISABLE_AUTH_ON_VIRTUAL_FILES` env var for
+    # sandboxed/embedded deployments where virtual file URLs must be
+    # fetched without session auth.
+    if not GLOBAL_SETTINGS.DISABLE_AUTH_ON_VIRTUAL_FILES:
+        if not has_required_scope(request, ["read"]):
+            raise HTTPException(status_code=403)
+
     filename_and_length = request.path_params["filename_and_length"]
 
     LOGGER.debug("Getting virtual file: %s", filename_and_length)
