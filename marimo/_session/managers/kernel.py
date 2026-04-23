@@ -275,6 +275,8 @@ class KernelManagerImpl(KernelManager):
         self.queue_manager.close_queues()
         try:
             try_kill_process_and_group(self.kernel_task)
+        except ProcessLookupError:
+            pass
         except Exception as e:
             LOGGER.warning(e)
         if self._read_conn is not None:

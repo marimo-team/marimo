@@ -400,6 +400,8 @@ class IPCKernelManagerImpl(KernelManager):
             if self._process.poll() is None and self.kernel_task is not None:
                 try:
                     try_kill_process_and_group(self.kernel_task)
+                except ProcessLookupError:
+                    pass
                 except Exception as e:
                     LOGGER.warning(e)
 

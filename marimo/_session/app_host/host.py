@@ -361,6 +361,8 @@ class AppHost:
         if self._process is not None:
             try:
                 try_kill_process_and_group(cast(ProcessLike, self._process))
+            except ProcessLookupError:
+                pass
             except Exception as e:
                 LOGGER.warning(e)
 

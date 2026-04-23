@@ -314,10 +314,13 @@ async def _reap_process_unix(process: ProcessLike, pgid: int | None) -> None:
     LOGGER.warning(
         "Process %s did not respond to SIGTERM. Force killing.", pid
     )
-    if pgid is not None:
-        os.killpg(pgid, signal.SIGKILL)
-    elif pid is not None:
-        os.kill(pid, signal.SIGKILL)
+    try:
+        if pgid is not None:
+            os.killpg(pgid, signal.SIGKILL)
+        elif pid is not None:
+            os.kill(pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return
 
     wait_for_s = 10
     waited_s = 0
