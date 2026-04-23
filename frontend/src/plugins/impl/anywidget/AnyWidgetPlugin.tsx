@@ -68,12 +68,6 @@ const AnyWidgetSlot = (props: Props) => {
     refetch,
   } = useAsyncData(async () => {
     const url = asRemoteURL(jsUrl).toString();
-    if (url.startsWith("data:")) {
-      const base64 = url.split(",")[1];
-      const js = atob(base64);
-      const blob = new Blob([js], { type: "text/javascript" });
-      return await import(/* @vite-ignore */ URL.createObjectURL(blob));
-    }
     return await import(/* @vite-ignore */ url);
     // Re-render on jsHash change (which is a hash of the contents of the file)
     // instead of a jsUrl change because URLs may change without the contents
