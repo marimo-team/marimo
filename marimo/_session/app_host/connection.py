@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import dataclasses
+import os
 from typing import TYPE_CHECKING
 
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -74,6 +75,7 @@ class AppHostConnection:
             stream_addr=f"{_BIND_ADDR}:{stream_port}",
             file_path=file_path,
             log_level=log_level,
+            parent_pid=os.getpid(),
         )
 
         return conn, args

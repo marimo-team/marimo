@@ -19,6 +19,7 @@ from marimo._server.export._raster_mime import (
     TEXT_PLAIN,
     VEGA_MIME_TYPES,
 )
+from marimo._server.export._status import emit_pdf_export_status
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._types.ids import CellId_t
 from marimo._utils.paths import marimo_package_path
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from marimo._ast.app import InternalApp
+    from marimo._server.export._status import PDFExportStatusCallback
     from marimo._session.state.session_view import SessionView
 
 LOGGER = _loggers.marimo_logger()
@@ -332,6 +334,7 @@ async def _collect_static_captures(
     filepath: str | None,
     options: PDFRasterizationOptions,
     static_targets: list[_RasterTarget],
+    status_callback: PDFExportStatusCallback | None = None,
 ) -> dict[CellId_t, str]:
     """Capture PNG fallbacks from exported static HTML for non-live targets."""
 
@@ -369,6 +372,7 @@ async def _collect_static_captures(
             page_url=server.page_url,
             targets=static_targets,
             scale=options.scale,
+            status_callback=status_callback,
         )
         LOGGER.debug(
             "Raster capture static phase complete: %s/%s captured",
@@ -384,6 +388,7 @@ async def _collect_live_captures(
     argv: list[str] | None,
     options: PDFRasterizationOptions,
     live_targets: list[_RasterTarget],
+    status_callback: PDFExportStatusCallback | None = None,
 ) -> dict[CellId_t, str]:
     """Capture PNG fallbacks from a live notebook runtime when required."""
 
@@ -403,6 +408,7 @@ async def _collect_live_captures(
         targets=live_targets,
         scale=options.scale,
         argv=argv,
+        status_callback=status_callback,
     )
     LOGGER.debug(
         "Raster capture live phase complete: %s/%s captured",
@@ -420,6 +426,7 @@ async def collect_pdf_png_fallbacks(
     filepath: str | None,
     argv: list[str] | None = None,
     options: PDFRasterizationOptions,
+    status_callback: PDFExportStatusCallback | None = None,
 ) -> dict[CellId_t, str]:
     """Collect per-cell PNG fallbacks to inject before nbconvert PDF export."""
 
@@ -454,6 +461,12 @@ async def collect_pdf_png_fallbacks(
         server_mode,
         options.scale,
     )
+    emit_pdf_export_status(
+        status_callback,
+        phase="raster",
+        message="rasterizing interactive outputs...",
+        total=len(targets),
+    )
 
     if server_mode == "live":
         LOGGER.debug("Raster capture strategy: live-only.")
@@ -462,6 +475,7 @@ async def collect_pdf_png_fallbacks(
             argv=argv,
             options=options,
             live_targets=targets,
+            status_callback=status_callback,
         )
     else:
         LOGGER.debug("Raster capture strategy: static-only.")
@@ -472,6 +486,7 @@ async def collect_pdf_png_fallbacks(
             filepath=filepath,
             options=options,
             static_targets=targets,
+            status_callback=status_callback,
         )
 
     LOGGER.debug(
@@ -564,6 +579,7 @@ async def _capture_pngs_from_page(
     page_url: str,
     targets: list[_RasterTarget],
     scale: float,
+    status_callback: PDFExportStatusCallback | None = None,
 ) -> dict[CellId_t, str]:
     """Capture PNG screenshots for target outputs from a single page URL."""
 
@@ -622,6 +638,13 @@ async def _capture_pngs_from_page(
         LOGGER.debug("Page network idle, starting target captures...")
 
         for index, target in enumerate(targets, start=1):
+            emit_pdf_export_status(
+                status_callback,
+                phase="raster",
+                message="rasterizing interactive outputs...",
+                current=index,
+                total=len(targets),
+            )
             LOGGER.info(
                 "Rasterizing [%s/%s] cell=%s (%s)",
                 index,
@@ -693,6 +716,7 @@ async def _capture_pngs_from_live_page(
     targets: list[_RasterTarget],
     scale: float,
     argv: list[str] | None,
+    status_callback: PDFExportStatusCallback | None = None,
 ) -> dict[CellId_t, str]:
     """Capture outputs by running notebook in a live marimo server process."""
 
@@ -701,4 +725,5 @@ async def _capture_pngs_from_live_page(
             page_url=server.page_url,
             targets=targets,
             scale=scale,
+            status_callback=status_callback,
         )

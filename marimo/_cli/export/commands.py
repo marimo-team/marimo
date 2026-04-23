@@ -33,6 +33,7 @@ from marimo._server.export import (
     run_app_then_export_as_ipynb,
     run_app_then_export_as_pdf,
 )
+from marimo._server.export._status import PDFExportStatusEvent
 from marimo._server.export.exporter import Exporter
 from marimo._server.utils import asyncio_run
 from marimo._utils.file_watcher import FileWatcher
@@ -59,6 +60,20 @@ _sandbox_message = (
 )
 def export() -> None:
     pass
+
+
+class _PDFExportCLIReporter:
+    def __call__(self, event: PDFExportStatusEvent) -> None:
+        message = event.message
+        if event.current is not None and event.total is not None:
+            progress = f" [{event.current}/{event.total}]"
+            if message.endswith("..."):
+                message = f"{message[:-3]}{progress}..."
+            elif message.endswith("."):
+                message = f"{message[:-1]}{progress}."
+            else:
+                message = f"{message}{progress}"
+        echo(f"{green('Exporting PDF', bold=True)}: {message}", err=True)
 
 
 def watch_and_export(
@@ -735,6 +750,7 @@ def pdf(
         scale=raster_scale,
         server_mode=raster_server,
     )
+    report_status = _PDFExportCLIReporter()
 
     def export_callback(
         file_path: MarimoPath,
@@ -750,6 +766,7 @@ def pdf(
                     cli_args=cli_args,
                     argv=list(args) if include_outputs else None,
                     rasterization_options=rasterization_options,
+                    status_callback=report_status,
                 )
             )
         except ModuleNotFoundError as e:

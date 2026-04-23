@@ -31,6 +31,7 @@ from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.commands import AppMetadata, SerializedCLIArgs
 from marimo._runtime.patches import extract_docstring_from_header
 from marimo._schemas.serialization import NotebookSerialization
+from marimo._server.export._status import emit_pdf_export_status
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_router import AppFileRouter
 from marimo._server.models.export import (
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from marimo._server.export._pdf_raster import PDFRasterizationOptions
+    from marimo._server.export._status import PDFExportStatusCallback
     from marimo._session.state.session_view import SessionView
     from marimo._session.types import Session
     from marimo._types.ids import CellId_t
@@ -242,6 +244,7 @@ async def run_app_then_export_as_pdf(
     export_as: ExportPDFPreset | None,
     include_inputs: bool = True,
     rasterization_options: PDFRasterizationOptions | None = None,
+    status_callback: PDFExportStatusCallback | None = None,
 ) -> tuple[bytes | None, bool]:
     file_router = AppFileRouter.from_filename(filepath)
     file_key = file_router.get_unique_file_key()
@@ -253,6 +256,11 @@ async def run_app_then_export_as_pdf(
     did_error = False
 
     if include_outputs:
+        emit_pdf_export_status(
+            status_callback,
+            phase="execute",
+            message="executing notebook...",
+        )
         with patch_html_for_non_interactive_output():
             # Using quiet=True to suppress runtime stdout/stderr since outputs
             # are captured in the session_view and will be included in the PDF
@@ -262,6 +270,11 @@ async def run_app_then_export_as_pdf(
                 argv,
                 quiet=True,
             )
+        emit_pdf_export_status(
+            status_callback,
+            phase="execute_complete",
+            message="notebook execution finished.",
+        )
 
         if (
             session_view is not None
@@ -279,7 +292,13 @@ async def run_app_then_export_as_pdf(
                 filepath=filepath.absolute_name,
                 argv=argv,
                 options=rasterization_options,
+                status_callback=status_callback,
             )
+    emit_pdf_export_status(
+        status_callback,
+        phase="prepare",
+        message="serializing notebook for PDF rendering...",
+    )
     exporter = Exporter()
     if export_as == "slides":
         pdf_data = await exporter.export_as_slides_pdf(
@@ -287,6 +306,7 @@ async def run_app_then_export_as_pdf(
             session_view=session_view,
             png_fallbacks=png_fallbacks,
             include_inputs=include_inputs,
+            status_callback=status_callback,
         )
     else:
         pdf_data = exporter.export_as_pdf(
@@ -295,6 +315,13 @@ async def run_app_then_export_as_pdf(
             png_fallbacks=png_fallbacks,
             include_inputs=include_inputs,
             webpdf=webpdf,
+            status_callback=status_callback,
+        )
+    if pdf_data is not None:
+        emit_pdf_export_status(
+            status_callback,
+            phase="complete",
+            message="done.",
         )
     return pdf_data, did_error
 

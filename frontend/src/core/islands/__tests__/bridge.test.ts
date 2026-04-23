@@ -10,6 +10,14 @@ import {
 } from "@/__tests__/branded";
 
 type Base64String = components["schemas"]["Base64String"];
+interface TestIslandApp {
+  id: string;
+  cells: { code: string; idx: number; output: string }[];
+}
+interface TestExportContext {
+  trusted: true;
+  notebookCode?: string;
+}
 
 // Mock browser APIs before any imports
 vi.stubGlobal(
@@ -33,8 +41,23 @@ class MockURL {
 vi.stubGlobal("URL", MockURL);
 
 // Mock the worker RPC before importing the bridge
-const mockBridge = vi.fn();
-const mockLoadPackages = vi.fn();
+const {
+  mockBridge,
+  mockLoadPackages,
+  mockStartSessionRequest,
+  mockParseMarimoIslandApps,
+  mockCreateMarimoFile,
+  mockGetMarimoExportContext,
+} = vi.hoisted(() => ({
+  mockBridge: vi.fn(),
+  mockLoadPackages: vi.fn(),
+  mockStartSessionRequest: vi.fn(),
+  mockParseMarimoIslandApps: vi.fn<() => TestIslandApp[]>(() => []),
+  mockCreateMarimoFile: vi.fn(),
+  mockGetMarimoExportContext: vi.fn<() => TestExportContext | undefined>(
+    () => undefined,
+  ),
+}));
 
 vi.mock("@/core/wasm/rpc", () => ({
   getWorkerRPC: () => ({
@@ -42,7 +65,7 @@ vi.mock("@/core/wasm/rpc", () => ({
       request: {
         bridge: mockBridge,
         loadPackages: mockLoadPackages,
-        startSession: vi.fn(),
+        startSession: mockStartSessionRequest,
       },
       send: {
         consumerReady: vi.fn(),
@@ -54,13 +77,17 @@ vi.mock("@/core/wasm/rpc", () => ({
 
 // Mock the parse module to avoid DOM dependencies
 vi.mock("../parse", () => ({
-  parseMarimoIslandApps: () => [],
-  createMarimoFile: vi.fn(),
+  parseMarimoIslandApps: mockParseMarimoIslandApps,
+  createMarimoFile: mockCreateMarimoFile,
 }));
 
 // Mock uuid to have predictable tokens
 vi.mock("@/utils/uuid", () => ({
   generateUUID: () => "test-uuid-12345",
+}));
+
+vi.mock("@/core/static/export-context", () => ({
+  getMarimoExportContext: mockGetMarimoExportContext,
 }));
 
 // Mock getMarimoVersion
@@ -71,6 +98,7 @@ vi.mock("@/core/meta/globals", () => ({
 // Mock the jotai store
 vi.mock("@/core/state/jotai", () => ({
   store: {
+    get: vi.fn(),
     set: vi.fn(),
   },
 }));
@@ -83,7 +111,90 @@ describe("IslandsPyodideBridge", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockParseMarimoIslandApps.mockReturnValue([]);
+    mockCreateMarimoFile.mockReset();
+    mockGetMarimoExportContext.mockReturnValue(undefined);
     bridge = new IslandsPyodideBridge({ autoStartSessions: false });
+  });
+
+  describe("startSessionsForAllApps", () => {
+    it("should prefer trusted export notebook code when there is exactly one reactive app", async () => {
+      mockParseMarimoIslandApps.mockReturnValue([
+        {
+          id: "app-1",
+          cells: [{ code: "x = 1", idx: 0, output: "<div>1</div>" }],
+        },
+      ]);
+      mockGetMarimoExportContext.mockReturnValue({
+        trusted: true,
+        notebookCode:
+          "import marimo\napp = marimo.App()\n@app.cell\ndef __():\n    x = 1\n    return",
+      });
+
+      await (
+        bridge as unknown as { startSessionsForAllApps(): Promise<void> }
+      ).startSessionsForAllApps();
+
+      expect(mockCreateMarimoFile).not.toHaveBeenCalled();
+      expect(mockStartSessionRequest).toHaveBeenCalledWith({
+        appId: "app-1",
+        code: "import marimo\napp = marimo.App()\n@app.cell\ndef __():\n    x = 1\n    return",
+      });
+    });
+
+    it("should keep synthesized per-app files for multiple reactive apps even when export context exists", async () => {
+      mockParseMarimoIslandApps.mockReturnValue([
+        {
+          id: "app-1",
+          cells: [{ code: "x = 1", idx: 0, output: "<div>1</div>" }],
+        },
+        {
+          id: "app-2",
+          cells: [{ code: "y = 2", idx: 0, output: "<div>2</div>" }],
+        },
+      ]);
+      mockGetMarimoExportContext.mockReturnValue({
+        trusted: true,
+        notebookCode: "full notebook should be ignored",
+      });
+      mockCreateMarimoFile
+        .mockReturnValueOnce("generated app 1")
+        .mockReturnValueOnce("generated app 2");
+
+      await (
+        bridge as unknown as { startSessionsForAllApps(): Promise<void> }
+      ).startSessionsForAllApps();
+
+      expect(mockCreateMarimoFile).toHaveBeenCalledTimes(2);
+      expect(mockStartSessionRequest).toHaveBeenNthCalledWith(1, {
+        appId: "app-1",
+        code: "generated app 1",
+      });
+      expect(mockStartSessionRequest).toHaveBeenNthCalledWith(2, {
+        appId: "app-2",
+        code: "generated app 2",
+      });
+    });
+
+    it("should synthesize a file for a single app when no trusted export context is present", async () => {
+      mockParseMarimoIslandApps.mockReturnValue([
+        {
+          id: "app-1",
+          cells: [{ code: "x = 1", idx: 0, output: "<div>1</div>" }],
+        },
+      ]);
+      mockCreateMarimoFile.mockReturnValue("generated app 1");
+
+      await (
+        bridge as unknown as { startSessionsForAllApps(): Promise<void> }
+      ).startSessionsForAllApps();
+
+      expect(mockCreateMarimoFile).toHaveBeenCalledTimes(1);
+      expect(mockStartSessionRequest).toHaveBeenCalledWith({
+        appId: "app-1",
+        code: "generated app 1",
+      });
+    });
   });
 
   describe("sendComponentValues", () => {

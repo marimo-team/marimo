@@ -136,16 +136,31 @@
   thinking: false
 
 # Bedrock
+# To verify/update Bedrock model IDs, see https://github.com/marimo-team/marimo/issues/9280
+
+- name: Claude 4.7 Opus (Bedrock)
+  model: global.anthropic.claude-opus-4-7
+  description: Latest Opus model, strongest for coding and long-running professional tasks
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Claude 4.6 Sonnet (Bedrock)
+  model: global.anthropic.claude-sonnet-4-6
+  description: Most capable Sonnet-class model, with frontier performance across coding, agents, and professional work
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: true
 
 - name: Claude 4.6 Opus (Bedrock)
-  model: global.anthropic.claude-opus-4-6-20260206-v1:0
+  model: global.anthropic.claude-opus-4-6-v1
   description: Strongest model for coding and long-running professional tasks
   providers: [bedrock]
   roles: [chat, edit]
   thinking: true
 
 - name: Claude 4.5 Opus (Bedrock)
-  model: global.anthropic.claude-opus-4-5-20251120-v1:0
+  model: global.anthropic.claude-opus-4-5-20251101-v1:0
   description: Frontier reasoning model optimized for complex software engineering
   providers: [bedrock]
   roles: [chat, edit]
@@ -159,7 +174,7 @@
   thinking: true
 
 - name: Claude 4.5 Haiku (Bedrock)
-  model: global.anthropic.claude-haiku-4-5-latest-v1:0
+  model: global.anthropic.claude-haiku-4-5-20251001-v1:0
   description: Most efficient model, delivering near-frontier intelligence at a fraction of the cost
   providers: [bedrock]
   roles: [chat, edit]

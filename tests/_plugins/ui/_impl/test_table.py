@@ -1261,6 +1261,16 @@ def test_show_download(df: Any) -> None:
 
 DOWNLOAD_FORMATS = ["csv", "json", "parquet"]
 
+# Parquet export requires pandas+pyarrow or polars (see the `_download_as`
+# short-circuit in `table.py`). In environments without those — e.g. the
+# `test` group, which has only pyarrow — skip parquet in the round-trip.
+_CAN_EXPORT_PARQUET = DependencyManager.polars.has() or (
+    DependencyManager.pandas.has() and DependencyManager.pyarrow.has()
+)
+_TESTABLE_DOWNLOAD_FORMATS = (
+    DOWNLOAD_FORMATS if _CAN_EXPORT_PARQUET else ["csv", "json"]
+)
+
 
 @pytest.mark.parametrize(
     "df",
@@ -1335,7 +1345,7 @@ def test_download_as(df: Any) -> None:
         raise ValueError(f"Unsupported format: {format_type}")
 
     # Test base downloads (full data)
-    for format_type in DOWNLOAD_FORMATS:
+    for format_type in _TESTABLE_DOWNLOAD_FORMATS:
         downloaded_df = download_and_convert(format_type, table)
         downloaded_nw = nw.from_native(downloaded_df)
         assert len(downloaded_nw) == len(nw_df)
@@ -1343,7 +1353,7 @@ def test_download_as(df: Any) -> None:
 
     # Test downloads with search filter
     table._search(SearchTableArgs(query="New", page_size=10, page_number=0))
-    for format_type in DOWNLOAD_FORMATS:
+    for format_type in _TESTABLE_DOWNLOAD_FORMATS:
         filtered_df = download_and_convert(format_type, table)
         filtered_nw = nw.from_native(filtered_df)
         assert len(filtered_nw) == 2
@@ -1352,7 +1362,7 @@ def test_download_as(df: Any) -> None:
 
     # Test downloads with row selection (includes search from before)
     table._convert_value(["1"])  # select one row of the filtered view
-    for format_type in DOWNLOAD_FORMATS:
+    for format_type in _TESTABLE_DOWNLOAD_FORMATS:
         selected_df = download_and_convert(format_type, table)
         selected_nw = nw.from_native(selected_df)
         # For row selection, selection is respected (single row)
@@ -2227,10 +2237,14 @@ def test_lazy_dataframe_with_non_lazy_dataframe(df: Any):
 def test_get_data_url_no_deps() -> None:
     table = ui.table([1, 2, 3])
     response = table._get_data_url({})
-    assert response.data_url.startswith("data:application/json;base64,")
-    data = json.loads(from_data_uri(response.data_url)[1])
-    assert data == [{"value": 1}, {"value": 2}, {"value": 3}]
-    assert response.format == "json"
+    # DefaultTableManager.to_csv_str uses the stdlib csv module and works
+    # without pandas/polars/pyarrow, so _to_chart_data_url returns CSV before
+    # falling through to JSON.
+    assert response.data_url.startswith("data:text/csv;base64,")
+    assert from_data_uri(response.data_url)[1].decode("utf-8") == (
+        "value\n1\n2\n3\n"
+    )
+    assert response.format == "csv"
 
 
 @pytest.mark.skipif(
@@ -2257,7 +2271,7 @@ def test_get_data_url_values() -> None:
     from pandas.testing import assert_frame_equal
 
     df = _convert_data_bytes_to_pandas_df(response.data_url, response.format)
-    expected_df = pd.DataFrame({0: [1, 2, 3]})
+    expected_df = pd.DataFrame({"value": [1, 2, 3]})
     assert_frame_equal(df, expected_df)
 
     # Test search
