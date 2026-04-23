@@ -166,18 +166,16 @@ class DataFusionFormatter(FormatterFactory):
         return "datafusion"
 
     def register(self) -> None:
-        from datafusion import (
-            DataFrame as DataFusionDataFrame,  # type: ignore[import-not-found]
-        )
+        import datafusion  # type: ignore[import-not-found]
 
         from marimo._output import formatting
 
         if not include_opinionated():
             return
 
-        @formatting.opinionated_formatter(DataFusionDataFrame)
+        @formatting.opinionated_formatter(datafusion.DataFrame)
         def _show_marimo_datafusion_dataframe(
-            df: DataFusionDataFrame,
+            df: datafusion.DataFrame,
         ) -> tuple[KnownMimeType, str]:
             try:
                 return table(
