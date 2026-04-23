@@ -40,10 +40,7 @@ export const FilterByValuesPicker = <TData, TValue>({
 }: Props<TData, TValue>) => {
   const [open, setOpen] = useState(false);
 
-  const chosenValuesSet = useMemo(
-    () => new Set(chosenValues),
-    [chosenValues],
-  );
+  const chosenValuesSet = useMemo(() => new Set(chosenValues), [chosenValues]);
 
   const selectedValuesStr = useMemo(() => {
     if (chosenValuesSet.size === 0) {
@@ -204,11 +201,7 @@ const PickerBody = <TData, TValue>({
                 className="mr-3 h-3.5 w-3.5"
               />
               <span className="flex-1 overflow-hidden max-h-20 line-clamp-3">
-                {sentinel ? (
-                  <SentinelCell sentinel={sentinel} />
-                ) : (
-                  valueString
-                )}
+                {sentinel ? <SentinelCell sentinel={sentinel} /> : valueString}
               </span>
               <span className="ml-3">{count}</span>
             </CommandItem>
