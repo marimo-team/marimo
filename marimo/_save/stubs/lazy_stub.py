@@ -99,7 +99,9 @@ LAZY_STUB_LOOKUP: dict[str, str] = {
     "builtins.str": "inline",
     "builtins.float": "inline",
     "builtins.bool": "inline",
-    "builtins.bytes": "inline",
+    # bytes can't round-trip through JSON (msgspec encodes as base64
+    # but decodes back as str with Any type). Use pickle instead.
+    "builtins.bytes": "pickle",
     "builtins.NoneType": "inline",
     "marimo._save.stubs.function_stub.FunctionStub": "inline",
     "marimo._save.stubs.class_stub.ClassStub": "inline",
@@ -136,7 +138,21 @@ def _arrow_load(data: bytes, type_hint: str | None = None) -> Any:
     # type_hint is the fq class name written by to_item() at save time.
     # Using it (rather than schema metadata inspection) is explicit and
     # version-stable across pyarrow/polars/pandas releases.
-    DependencyManager.pyarrow.require("to load cached Arrow IPC blobs.")
+    if not DependencyManager.pyarrow.has():
+        from marimo._utils.platform import is_pyodide
+
+        if is_pyodide():
+            import asyncio
+
+            import micropip  # type: ignore[import-not-found]
+
+            asyncio.get_event_loop().run_until_complete(
+                micropip.install("pyarrow")
+            )
+        else:
+            DependencyManager.pyarrow.require(
+                "to load cached Arrow IPC blobs."
+            )
     import pyarrow as pa
 
     reader = pa.ipc.open_file(io.BytesIO(data))

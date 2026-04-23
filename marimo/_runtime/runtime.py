@@ -2568,4 +2568,35 @@ def launch_kernel(
             else:
                 asyncio.run(coro)
 
+            # Flush pending LazyLoader writes and dump export manifests
+            # before the session tears down (so the store is still usable).
+            try:
+                import json as _json
+
+                from marimo._save.loaders.lazy import (
+                    _ACTIVE_LAZY_LOADERS,
+                    LazyLoader,
+                )
+                from marimo._save.stores.store import WasmExportableStore
+
+                LazyLoader.flush_all()
+                for _loader in list(_ACTIVE_LAZY_LOADERS.values()):
+                    _store = _loader.store
+                    if isinstance(_store, WasmExportableStore):
+                        _manifest = _store.export_manifest()
+                        LOGGER.debug(
+                            "Export manifest for %s: %d keys",
+                            _loader.name,
+                            len(_manifest),
+                        )
+                        if _manifest:
+                            _store.put(
+                                ".lazy_export_manifest.json",
+                                _json.dumps(_manifest).encode(),
+                            )
+            except Exception:
+                LOGGER.debug(
+                    "Failed to flush lazy caches on teardown", exc_info=True
+                )
+
         streams.close(use_fd_redirect)

@@ -125,15 +125,23 @@ class Loader(ABC):
         glbls: dict[str, Any] | None = None,
     ) -> Cache:
         start_time = time.time()
+        print(
+            f"[cache] cache_attempt: key.hash={key.hash}, "
+            f"expected_defs={defs | stateful_refs}"
+        )
         loaded = self.load_cache(key, glbls=glbls)
         if not loaded:
+            print("[cache] cache_attempt: load_cache returned None -> MISS")
             return Cache.empty(defs=defs, key=key, stateful_refs=stateful_refs)
         load_time = time.time() - start_time
+        print(f"[cache] cache_attempt: loaded hash={loaded.hash}, loaded_defs={set(loaded.defs)}")
 
         # TODO: Consider more robust verification
         if loaded.hash != key.hash:
+            print(f"[cache] cache_attempt: HASH MISMATCH {loaded.hash} != {key.hash}")
             raise LoaderError("Hash mismatch in loaded cache.")
         if (defs | stateful_refs) != set(loaded.defs):
+            print(f"[cache] cache_attempt: VAR MISMATCH expected={defs | stateful_refs} got={set(loaded.defs)}")
             raise LoaderError("Variable mismatch in loaded cache.")
         self._hits += 1
 

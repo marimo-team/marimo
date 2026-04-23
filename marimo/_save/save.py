@@ -1327,9 +1327,23 @@ def persistent_cache(  # type: ignore[misc]
             "provide one or the other."
         )
 
-    # Providing a save_path forces the store to be a FileStore
+    # Providing a save_path forces the store to be a FileStore.
+    # In Pyodide there is no filesystem; use LazyStore (DictStore-backed).
     if save_path is not None:
-        store = FileStore(save_path)
+        from marimo._utils.platform import is_pyodide
+
+        if is_pyodide():
+            from marimo._save.loaders.lazy import LazyStore
+
+            import warnings
+
+            warnings.warn(
+                "save_path is ignored in WASM — using in-memory store",
+                stacklevel=2,
+            )
+            store = LazyStore()
+        else:
+            store = FileStore(save_path)
 
     partial_args: dict[str, Any] = {}
     if store is not None:

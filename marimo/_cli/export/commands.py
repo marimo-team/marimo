@@ -19,6 +19,7 @@ from marimo._cli.parse_args import parse_args
 from marimo._cli.print import (
     echo,
     green,
+    yellow,
 )
 from marimo._cli.sandbox import maybe_prompt_run_in_sandbox, run_in_sandbox
 from marimo._cli.utils import prompt_to_overwrite
@@ -777,6 +778,56 @@ def pdf(
         force,
         initial_export_in_watch=True,
     )
+
+
+def _execute_and_copy_caches(marimo_file: MarimoPath) -> None:
+    """Execute a notebook headlessly, then copy lazy caches to public/cache/.
+
+    The default LazyStore writes caches to __marimo__/cache/. After execution,
+    we read the export manifest (written by kernel teardown) to copy exactly
+    the files produced in this session to public/cache/, where they'll be
+    bundled by export_public_folder for WASM.
+    """
+    import json
+    import shutil
+
+    from marimo._server.export import run_app_until_completion
+    from marimo._server.file_router import AppFileRouter
+    from marimo._server.utils import asyncio_run
+    from marimo._utils.paths import notebook_output_dir
+
+    file_router = AppFileRouter.from_filename(marimo_file)
+    file_key = file_router.get_unique_file_key()
+    assert file_key is not None
+    file_manager = file_router.get_file_manager(file_key)
+
+    async def _run() -> bool:
+        _view, did_error = await run_app_until_completion(
+            file_manager, cli_args={}, argv=[], quiet=False
+        )
+        return did_error
+
+    did_error = asyncio_run(_run())
+    if did_error:
+        echo(yellow("Warning") + ": some cells had errors during execution.")
+
+    # Copy files listed in the export manifest to public/cache/.
+    notebook_path = Path(marimo_file.absolute_name)
+    cache_src = notebook_output_dir(notebook_path.parent) / "cache"
+    manifest_file = cache_src / ".lazy_export_manifest.json"
+    if manifest_file.exists():
+        keys: list[str] = json.loads(manifest_file.read_text())
+        cache_dst = notebook_path.parent / "public" / "cache"
+        for key in keys:
+            src_file = cache_src / key
+            if src_file.exists():
+                dst_file = cache_dst / key
+                dst_file.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src_file, dst_file)
+        manifest_file.unlink()
+        echo(f"Copied {len(keys)} lazy cache files to public/cache/.")
+    else:
+        echo("No lazy caches to bundle.")
 
 
 @click.command(
