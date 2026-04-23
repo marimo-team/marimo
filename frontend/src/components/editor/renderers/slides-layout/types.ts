@@ -27,7 +27,6 @@ export interface SlidesLayout extends Omit<
 export type SlideType = "slide" | "sub-slide" | "fragment" | "skip";
 export interface SlideConfig {
   type?: SlideType;
-  codeSnippet?: string;
 }
 
 export type DeckTransition =

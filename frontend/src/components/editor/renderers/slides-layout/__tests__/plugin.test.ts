@@ -28,7 +28,7 @@ describe("SlidesLayoutPlugin validator", () => {
   it("accepts a fully populated layout", () => {
     expect(
       SlidesLayoutPlugin.validator.safeParse({
-        cells: [{ type: "slide", codeSnippet: "foo" }, {}],
+        cells: [{ type: "slide" }, {}],
         deck: { transition: "fade" },
       }).success,
     ).toBe(true);
@@ -63,26 +63,28 @@ describe("SlidesLayoutPlugin deserializeLayout", () => {
 
   it("passes through every serialized entry by position (thin passthrough)", () => {
     const layout = SlidesLayoutPlugin.deserializeLayout(
-      { cells: [{}, { type: "fragment" }, { codeSnippet: "x" }] },
+      // Third entry carries an unknown key to prove the deserializer does not
+      // strip fields it does not recognize (forward-compat).
+      // oxlint-disable-next-line typescript/no-explicit-any
+      { cells: [{}, { type: "fragment" }, { notes: "x" } as any] },
       [makeCell("a"), makeCell("b"), makeCell("c")],
     );
     expect([...layout.cells.keys()]).toEqual(["a", "b", "c"]);
     expect(layout.cells.get("a" as CellId)).toEqual({});
     expect(layout.cells.get("b" as CellId)).toEqual({ type: "fragment" });
-    expect(layout.cells.get("c" as CellId)).toEqual({ codeSnippet: "x" });
+    expect(layout.cells.get("c" as CellId)).toEqual({ notes: "x" });
   });
 });
 
 describe("SlidesLayoutPlugin serializeLayout", () => {
-  it("emits a full cells array with a codeSnippet preview for every cell", () => {
+  it("emits one entry per notebook cell (dense, positional)", () => {
+    // Even with no per-cell config, the output array must have one slot per
+    // notebook cell so positional alignment is preserved on reload.
     const serialized = SlidesLayoutPlugin.serializeLayout(
       { cells: new Map(), deck: {} },
       [makeCell("a"), makeCell("b", "print(42)")],
     );
-    expect(serialized.cells).toEqual([
-      { codeSnippet: "print('hi')..." },
-      { codeSnippet: "print(42)..." },
-    ]);
+    expect(serialized.cells).toEqual([{}, {}]);
     expect(serialized.deck).toEqual({});
   });
 
@@ -105,24 +107,6 @@ describe("SlidesLayoutPlugin serializeLayout", () => {
       [makeCell("a")],
     );
     expect(serialized.deck).toEqual({ transition: "fade" });
-  });
-
-  it("regenerates codeSnippet from the current cell code on every save", () => {
-    const cells = [makeCell("a", "print('fresh code here')")];
-    const serialized = SlidesLayoutPlugin.serializeLayout(
-      // Stale snippet in the in-memory map must be overwritten.
-      {
-        cells: new Map([
-          ["a" as CellId, { type: "slide", codeSnippet: "stale..." }],
-        ]),
-        deck: {},
-      },
-      cells,
-    );
-    expect(serialized.cells?.[0]).toEqual({
-      type: "slide",
-      codeSnippet: "print('fresh code here')...",
-    });
   });
 
   it("passes through unknown SlideConfig fields (forward compat)", () => {
@@ -198,13 +182,9 @@ const BACKWARDS_COMPAT_SNAPSHOTS: BackwardsCompatCase[] = [
     // Current serializer output as of this commit. If you change the
     // serializer, add the new shape as an additional snapshot — don't edit
     // this one.
-    label: "current: cells + deck + codeSnippet",
+    label: "current: cells + deck",
     input: {
-      cells: [
-        { type: "slide", codeSnippet: "print('hi')..." },
-        { codeSnippet: "print('hi')..." },
-        { type: "fragment", codeSnippet: "print('hi')..." },
-      ],
+      cells: [{ type: "slide" }, {}, { type: "fragment" }],
       deck: { transition: "slide" },
     },
     expected: {
@@ -303,11 +283,9 @@ describe("SlidesLayoutPlugin backwards compatibility", () => {
       {
         "cells": [
           {
-            "codeSnippet": "print('hello')...",
             "type": "slide",
           },
           {
-            "codeSnippet": "x = 1...",
             "type": "fragment",
           },
         ],

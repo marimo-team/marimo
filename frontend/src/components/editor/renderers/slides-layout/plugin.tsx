@@ -27,7 +27,6 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
       .array(
         z.object({
           type: z.enum(["slide", "sub-slide", "fragment", "skip"]).optional(),
-          codeSnippet: z.string().optional(),
         }),
       )
       .optional(),
@@ -64,8 +63,6 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
   serializeLayout: (layout, cells): SerializedSlidesLayout => ({
     cells: cells.map((cell) => ({
       ...layout.cells.get(cell.id),
-      // Lets a user or an AI understand the layout.json better
-      codeSnippet: `${cell.code.slice(0, 100)}...`,
     })),
     deck: layout.deck,
   }),

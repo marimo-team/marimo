@@ -3,92 +3,70 @@
   "data": {
     "cells": [
       {
-        "codeSnippet": "# Cell 1 (skip) \u2014 has visible output in the notebook, but dropped from the presentation.\nimport mari...",
         "type": "skip"
       },
       {
-        "codeSnippet": "# Cell 2 (slide) \u2014 title slide.\nmo.md(\"\"\"\n# Nested Slides Smoke Test\n\nA deck exercising slides, sub-...",
         "type": "slide"
       },
       {
-        "codeSnippet": "# Cell 3 (fragment) \u2014 first reveal on the title slide.\nmo.md(\"\"\"\n- Built with `@revealjs/react`\n\"\"\")...",
         "type": "fragment"
       },
       {
-        "codeSnippet": "# Cell 4 (fragment) \u2014 second reveal on the title slide.\nmo.md(\"\"\"\n- Composed from flat marimo cells\n...",
         "type": "fragment"
       },
       {
-        "codeSnippet": "# Cell 5 (slide) \u2014 agenda.\nmo.md(\"\"\"\n## Agenda\n\n1. Section A \u2014 sub-slides & fragments\n2. Section B \u2014...",
         "type": "slide"
       },
       {
-        "codeSnippet": "# Cell 6 (slide) \u2014 start of Section A stack.\nmo.md(\"# Section A\").center()...",
         "type": "slide"
       },
       {
-        "codeSnippet": "# Cell 7 (sub-slide) \u2014 A.1 vertical subslide.\nmo.md(\"\"\"\n## A.1 \u2014 Plain text\n\"\"\")...",
         "type": "sub-slide"
       },
       {
-        "codeSnippet": "# Cell 8 (fragment) \u2014 A.1 first bullet.\nmo.md(\"\"\"\n- Fragments reveal incrementally\n\"\"\")...",
         "type": "fragment"
       },
       {
-        "codeSnippet": "# Cell 9 (fragment) \u2014 A.1 second bullet.\nmo.md(\"\"\"\n- Each `fragment` cell is one reveal step\n\"\"\")...",
         "type": "fragment"
       },
       {
-        "codeSnippet": "# Cell 10 (sub-slide) \u2014 A.2 vertical subslide.\nmo.md(\"\"\"\n## A.2 \u2014 Continuation cells\n\"\"\")...",
+        "type": "sub-slide"
+      },
+      {},
+      {
         "type": "sub-slide"
       },
       {
-        "codeSnippet": "# Cell 11 (no slide type) \u2014 treated as a slide.\nmo.md(\"\"\"\nCells with no slide type are treated as sl..."
-      },
-      {
-        "codeSnippet": "# Cell 12 (sub-slide) \u2014 A.3 chart subslide.\nimport numpy as np\n\nx = np.linspace(0, 2 * np.pi, 100)\nm...",
-        "type": "sub-slide"
-      },
-      {
-        "codeSnippet": "# Cell 13 (slide) \u2014 start of Section B stack.\nmo.md(\"# Section B\").center()...",
         "type": "slide"
       },
       {
-        "codeSnippet": "# Cell 14 (sub-slide) \u2014 B.1 hstack.\nmo.vstack(\n    [\n        mo.md(\"## B.1 \u2014 hstack\"),\n        mo.hs...",
         "type": "sub-slide"
       },
       {
-        "codeSnippet": "# Cell 15 (fragment) \u2014 reveals under B.1.\nmo.md(\"\"\"\n_hstack items sized equally_\n\"\"\")...",
         "type": "fragment"
       },
       {
-        "codeSnippet": "# Cell 16 (sub-slide) \u2014 B.2 nested grid.\nmo.vstack(\n    [\n        mo.md(\"## B.2 \u2014 Nested grid\"),\n   ...",
         "type": "sub-slide"
       },
       {
-        "codeSnippet": "# Cell 17 (skip) \u2014 renders visibly in the notebook but is dropped from the presentation.\nsecret = 42...",
         "type": "skip"
       },
       {
-        "codeSnippet": "# Cell 18 (slide) \u2014 Section C title.\nmo.md(\"# Section C \u2014 Fragments\").center()...",
         "type": "slide"
       },
       {
-        "codeSnippet": "# Cell 19 (fragment).\nmo.md(\"\"\"\n### First reveal\n\"\"\")...",
         "type": "fragment"
       },
       {
-        "codeSnippet": "# Cell 20 (fragment).\nmo.md(\"\"\"\n### Second reveal\n\"\"\")...",
         "type": "fragment"
       },
       {
-        "codeSnippet": "# Cell 21 (fragment) \u2014 pulls in the skipped cell's value.\nmo.md(f\"### Third reveal \u2014 secret is **{se...",
         "type": "fragment"
       },
       {
-        "codeSnippet": "# Cell 22 (slide) \u2014 closing slide.\nmo.md(\n    \"\"\"\n    # Thanks!\n\n    Questions?\n    \"\"\"\n).center()...",
         "type": "slide"
       }
-    ]
+    ],
+    "deck": {}
   }
 }
