@@ -1,5 +1,16 @@
 @reference "../../css/globals.css";
 
+@keyframes running-cell-accent-pulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
 /*
  * Cell can have many states:
  * - interactive (can hover, focus, click), while in edit mode
@@ -224,6 +235,62 @@
     .RunButton {
       visibility: visible;
     }
+  }
+
+  /* Running cells get a subtle full-cell signal so the active execution is
+   * legible at a glance without changing selection or editing affordances. */
+  &.running {
+    border-color: color-mix(
+      in srgb,
+      var(--accent-foreground),
+      var(--border) 52%
+    );
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--accent-foreground), transparent 90%),
+      0 10px 28px color-mix(in srgb, var(--accent-foreground), transparent 96%);
+  }
+
+  &.running::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    pointer-events: none;
+    box-shadow: inset 3px 0 0 var(--accent-foreground);
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent), transparent 18%) 0,
+      color-mix(in srgb, var(--accent), transparent 72%) 64px,
+      transparent 140px
+    );
+    animation: running-cell-accent-pulse 1600ms ease-in-out infinite;
+  }
+
+  &.running .cm,
+  &.running .cm-gutters,
+  &.running .output-area,
+  &.running .console-output-area {
+    background-color: color-mix(in srgb, var(--accent), transparent 55%);
+    transition: background-color 140ms ease;
+  }
+
+  &.running:hover {
+    border-color: color-mix(
+      in srgb,
+      var(--accent-foreground),
+      var(--border) 38%
+    );
+  }
+
+  &.running:focus-within {
+    border-color: color-mix(
+      in srgb,
+      var(--accent-foreground),
+      var(--border) 28%
+    );
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--accent-foreground), transparent 86%),
+      0 12px 30px color-mix(in srgb, var(--accent-foreground), transparent 95%);
   }
 
   /* Focus state */

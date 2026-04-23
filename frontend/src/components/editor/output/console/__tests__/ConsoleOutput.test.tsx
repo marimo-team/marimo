@@ -28,6 +28,7 @@ describe("ConsoleOutput integration", () => {
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
+    running: false,
     debuggerActive: false,
     onSubmitDebugger: () => {
       // noop
@@ -59,6 +60,7 @@ describe("ConsoleOutput pdb history", () => {
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
+    running: false,
     debuggerActive: false,
     onSubmitDebugger: vi.fn(),
   };
@@ -219,6 +221,7 @@ describe("ConsoleOutput debounced clearing", () => {
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
+    running: false,
     debuggerActive: false,
     onSubmitDebugger: vi.fn(),
   };
@@ -282,5 +285,111 @@ describe("ConsoleOutput debounced clearing", () => {
 
     // Now the output should be cleared
     expect(screen.queryByText("old output")).not.toBeInTheDocument();
+  });
+});
+
+describe("ConsoleOutput auto-scroll", () => {
+  const createOutput = (data: string): WithResponse<OutputMessage> => ({
+    channel: "stdout",
+    mimetype: "text/plain",
+    data,
+    timestamp: 0,
+    response: undefined,
+  });
+
+  const defaultProps = {
+    cellId: cellId("cell-1"),
+    cellName: "test_cell",
+    consoleOutputs: [] as WithResponse<OutputMessage>[],
+    stale: false,
+    running: true,
+    debuggerActive: false,
+    onSubmitDebugger: vi.fn(),
+  };
+
+  const setScrollMetrics = (
+    element: HTMLElement,
+    {
+      clientHeight,
+      scrollHeight,
+      scrollTop,
+    }: { clientHeight: number; scrollHeight: number; scrollTop: number },
+  ) => {
+    Object.defineProperty(element, "clientHeight", {
+      configurable: true,
+      value: clientHeight,
+    });
+    Object.defineProperty(element, "scrollHeight", {
+      configurable: true,
+      value: scrollHeight,
+    });
+    Object.defineProperty(element, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: scrollTop,
+    });
+  };
+
+  it("follows newly appended output while running when already at the bottom", () => {
+    const { rerender } = renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={[createOutput("line 1")]}
+      />,
+    );
+
+    const consoleArea = screen.getByTestId("console-output-area");
+    setScrollMetrics(consoleArea, {
+      clientHeight: 100,
+      scrollHeight: 300,
+      scrollTop: 200,
+    });
+
+    // Simulate content growth: scrollHeight increases as a new line is added.
+    // The auto-scroll effect should set scrollTop to the new bottom offset.
+    setScrollMetrics(consoleArea, {
+      clientHeight: 100,
+      scrollHeight: 400,
+      scrollTop: 200,
+    });
+
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={[createOutput("line 1"), createOutput("line 2")]}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(consoleArea.scrollTop).toBe(300); // scrollHeight - clientHeight = 400 - 100
+  });
+
+  it("does not auto-scroll when the user has scrolled away from the bottom", () => {
+    const { rerender } = renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={[createOutput("line 1")]}
+      />,
+    );
+
+    const consoleArea = screen.getByTestId("console-output-area");
+    setScrollMetrics(consoleArea, {
+      clientHeight: 100,
+      scrollHeight: 300,
+      scrollTop: 60,
+    });
+    fireEvent.scroll(consoleArea);
+
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={[createOutput("line 1"), createOutput("line 2")]}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(consoleArea.scrollTop).toBe(60);
   });
 });

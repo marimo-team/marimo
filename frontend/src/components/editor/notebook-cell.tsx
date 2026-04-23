@@ -534,6 +534,7 @@ const EditableCellComponent = ({
     interactive: true,
     "needs-run": needsRun,
     "has-error": cellRuntime.errored,
+    running: cellRuntime.status === "running",
     stopped: cellRuntime.stopped,
     disabled: cellData.config.disabled,
     stale: cellRuntime.status === "disabled-transitively",
@@ -731,6 +732,7 @@ const EditableCellComponent = ({
             <ConsoleOutput
               consoleOutputs={cellRuntime.consoleOutputs}
               stale={consoleOutputStale}
+              running={cellRuntime.status === "running"}
               // Empty name if serialization triggered
               cellName={cellRuntime.serialization ? "_" : cellData.name}
               onRefactorWithAI={handleRefactorWithAI}
@@ -1036,6 +1038,7 @@ const SetupCellComponent = ({
     interactive: true,
     "needs-run": needsRun,
     "has-error": cellRuntime.errored,
+    running: cellRuntime.status === "running",
     stopped: cellRuntime.stopped,
   });
 
@@ -1191,6 +1194,7 @@ const SetupCellComponent = ({
             <ConsoleOutput
               consoleOutputs={cellRuntime.consoleOutputs}
               stale={consoleOutputStale}
+              running={cellRuntime.status === "running"}
               // Don't show name
               cellName={"_"}
               onRefactorWithAI={handleRefactorWithAI}

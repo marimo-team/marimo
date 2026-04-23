@@ -8,8 +8,15 @@
 
 import marimo
 
-__generated_with = "0.20.2"
+__generated_with = "0.22.0"
 app = marimo.App(width="medium")
+
+
+@app.cell
+def _():
+    for n in range(1, 1000000000000000):
+        print(f"number: {n}")
+    return
 
 
 @app.cell
@@ -73,7 +80,6 @@ def _(numeric_hist, values):
         for row in selected_rows[:10]
         if isinstance(row.get("pointIndex"), int)
     ]
-
     return mapped_original_values, selected_rows
 
 

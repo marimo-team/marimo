@@ -175,6 +175,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
           data-testid="cell-status"
           data-status="running"
         >
+          <span className="running-state-label">Running</span>
           <CellTimer
             startTime={Time.fromSeconds(runStartTimestamp) || Time.now()}
           />
