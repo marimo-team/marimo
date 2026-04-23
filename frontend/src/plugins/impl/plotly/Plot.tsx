@@ -162,6 +162,26 @@ export const Plot = (props: PlotProps) => {
       if (e.key !== "Escape" || e.defaultPrevented) {
         return;
       }
+      // Don't hijack Escape from text editors elsewhere on the page
+      // (e.g. CodeMirror notebook cells, inputs, search boxes).
+      const active = document.activeElement;
+      if (active instanceof HTMLElement) {
+        const tag = active.tagName;
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT" ||
+          active.isContentEditable
+        ) {
+          return;
+        }
+        // With multiple plots on the page, only clear the one whose
+        // container holds focus. A bare-body activeElement means nothing
+        // in particular is focused, in which case it's fine to clear.
+        if (active !== document.body && !el.contains(active)) {
+          return;
+        }
+      }
       Plotly.restyle(el, "selectedpoints", null).catch(() => {});
       Plotly.relayout(el, "selections", null).catch(() => {});
       onDeselect();
@@ -181,6 +201,11 @@ export const Plot = (props: PlotProps) => {
   // only updates the clicked trace, so we explicitly set [] on all others to
   // grey them out. `layout.selections` is cleared whenever the plugin has no
   // active overlay, otherwise the box/lasso outline sticks around.
+  //
+  // When the plugin is not managing selection state at all (both props
+  // undefined) we leave Plotly alone — the figure may carry persistent
+  // `layout.selections` or per-trace `selectedpoints` that belong to the
+  // user, and wiping them would contradict the figure they passed in.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) {
@@ -189,9 +214,14 @@ export const Plot = (props: PlotProps) => {
     if (!data.length) {
       return;
     }
+    if (selectedPoints === undefined && layoutSelections === undefined) {
+      return;
+    }
 
-    const byTrace = new Map<number, number[]>();
-    if (selectedPoints) {
+    const traceIndices = data.map((_, i) => i);
+    const traceUpdate: Partial<PlotlyTypes.Data> = {};
+    if (selectedPoints !== undefined) {
+      const byTrace = new Map<number, number[]>();
       for (const point of selectedPoints) {
         const curve =
           typeof point.curveNumber === "number" ? point.curveNumber : undefined;
@@ -211,28 +241,23 @@ export const Plot = (props: PlotProps) => {
         indices.push(pointIdx);
         byTrace.set(curve, indices);
       }
+      const anySelection = byTrace.size > 0;
+      const emptyFill: number[] | null = anySelection ? [] : null;
+      (traceUpdate as { selectedpoints: (number[] | null)[] }).selectedpoints =
+        traceIndices.map((i) => byTrace.get(i) ?? emptyFill);
     }
 
-    const traceIndices = data.map((_, i) => i);
-    const anySelection = byTrace.size > 0;
-    const emptyFill: number[] | null = anySelection ? [] : null;
-    const nextSelectedpoints: (number[] | null)[] = traceIndices.map(
-      (i) => byTrace.get(i) ?? emptyFill,
-    );
+    const layoutUpdate: Partial<PlotlyTypes.Layout> = {};
+    if (layoutSelections !== undefined) {
+      const hasActiveOverlay =
+        Array.isArray(layoutSelections) && layoutSelections.length > 0;
+      if (!hasActiveOverlay) {
+        // `null` removes the attribute; cast because Layout's type omits it.
+        (layoutUpdate as { selections: null }).selections = null;
+      }
+    }
 
-    const hasActiveOverlay =
-      Array.isArray(layoutSelections) && layoutSelections.length > 0;
-    const layoutUpdate: Partial<PlotlyTypes.Layout> = hasActiveOverlay
-      ? {}
-      : // `null` removes the attribute; cast because Layout's type omits it.
-        ({ selections: null } as Partial<PlotlyTypes.Layout>);
-
-    Plotly.update(
-      el,
-      { selectedpoints: nextSelectedpoints },
-      layoutUpdate,
-      traceIndices,
-    ).catch(() => {});
+    Plotly.update(el, traceUpdate, layoutUpdate, traceIndices).catch(() => {});
   }, [selectedPoints, layoutSelections, data]);
 
   // Window resize handler

@@ -5,17 +5,14 @@ import { Suspense } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import type { Setter } from "@/plugins/types";
+import type { SelectedPoint } from "../Plot";
 import { PlotlyComponent } from "../PlotlyPlugin";
 
 SetupMocks.resizeObserver();
 
 type CapturedPlotProps = {
   hasSelection?: boolean;
-  selectedPoints?: ReadonlyArray<{
-    curveNumber?: unknown;
-    pointIndex?: unknown;
-    pointNumber?: unknown;
-  }>;
+  selectedPoints?: ReadonlyArray<SelectedPoint>;
   layoutSelections?: ReadonlyArray<unknown>;
   onClick?: (event: {
     points: {
