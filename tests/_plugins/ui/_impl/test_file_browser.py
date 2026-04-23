@@ -63,6 +63,116 @@ def test_navigation_restriction() -> None:
     assert "Navigation is restricted" in str(e.value)
 
 
+def test_navigation_restriction_allows_subdirectory(tmp_path: Path) -> None:
+    """Navigation within the initial directory must succeed."""
+    root = tmp_path / "root"
+    child = root / "child"
+    child.mkdir(parents=True)
+    (child / "file.txt").touch()
+
+    fb = file_browser(initial_path=root, restrict_navigation=True)
+    response = fb._list_directory(ListDirectoryArgs(path=str(child)))
+    assert isinstance(response, ListDirectoryResponse)
+    file_names = [f["name"] for f in response.files]
+    assert "file.txt" in file_names
+
+
+def test_navigation_restriction_sibling(tmp_path: Path) -> None:
+    """Sibling directories must be rejected, not just direct parents."""
+    restricted = tmp_path / "restricted"
+    sibling = tmp_path / "sibling"
+    restricted.mkdir()
+    sibling.mkdir()
+    (sibling / "secret.txt").touch()
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=str(sibling)))
+
+
+def test_navigation_restriction_absolute_path(tmp_path: Path) -> None:
+    """Arbitrary absolute paths outside the root must be rejected."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path="/tmp"))
+
+
+def test_navigation_restriction_symlink_escape(tmp_path: Path) -> None:
+    """A symlink inside the restricted dir pointing outside must be rejected."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.txt").touch()
+
+    # Symlink lives inside restricted/ but resolves outside
+    escape_link = restricted / "escape"
+    try:
+        escape_link.symlink_to(outside)
+    except OSError:
+        pytest.skip("Cannot create symlinks on this system")
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=str(escape_link)))
+
+
+def test_navigation_restriction_symlink_loop(tmp_path: Path) -> None:
+    """Circular symlinks must not hang or silently succeed."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+
+    link_a = restricted / "link_a"
+    link_b = restricted / "link_b"
+    try:
+        link_a.symlink_to(link_b)
+        link_b.symlink_to(link_a)
+    except OSError:
+        pytest.skip("Cannot create symlinks on this system")
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=str(link_a)))
+
+
+def test_navigation_restriction_internal_symlink(tmp_path: Path) -> None:
+    """A symlink that resolves to a path inside the restricted dir is allowed."""
+    restricted = tmp_path / "restricted"
+    child = restricted / "child"
+    child.mkdir(parents=True)
+    (child / "file.txt").touch()
+
+    # Symlink inside restricted/ pointing to another subdir of restricted/
+    alias = restricted / "alias"
+    try:
+        alias.symlink_to(child)
+    except OSError:
+        pytest.skip("Cannot create symlinks on this system")
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    response = fb._list_directory(ListDirectoryArgs(path=str(alias)))
+    assert isinstance(response, ListDirectoryResponse)
+    file_names = [f["name"] for f in response.files]
+    assert "file.txt" in file_names
+
+
+def test_navigation_restriction_dotdot_escape(tmp_path: Path) -> None:
+    """Path traversal via .. components must be caught."""
+    restricted = tmp_path / "restricted"
+    sibling = tmp_path / "sibling"
+    restricted.mkdir()
+    sibling.mkdir()
+    (sibling / "secret.txt").touch()
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    traversal = str(restricted / ".." / "sibling")
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=traversal))
+
+
 def test_name_method() -> None:
     fb = file_browser(initial_path=Path.cwd())
     fb._value = [
