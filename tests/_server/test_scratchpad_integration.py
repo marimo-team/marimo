@@ -22,10 +22,10 @@ fresh session via a per-test ``session`` fixture that calls
 snapshotted as SSE lines with volatile paths and version-specific
 traceback noise scrubbed.
 
-Each test's snapshot encodes the **correct** expected output.
-Scenarios currently broken (see issue #9255) are marked
-``xfail(strict=True)`` so a fix turns them into ``XPASS`` failures
-and the fix PR must remove the markers.
+Each test's snapshot encodes the expected SSE output for that
+scenario — failure cases land in ``done`` with
+``{success: false, output: {mimetype: "text/plain", data: ""}}``;
+error detail arrives earlier in the stream as ``stderr`` SSE events.
 """
 
 from __future__ import annotations
@@ -323,6 +323,33 @@ def test_scratchpad_success(session: _Session) -> None:
     )
 
 
+def test_scratchpad_compile_error(session: _Session) -> None:
+    """Scratchpad code that fails to compile (SyntaxError).
+
+    Guards that compile-time errors reach the client with actionable
+    detail. Compile failures never go through ``redirect_streams`` /
+    ``write_traceback`` (the cell never runs), so the diagnostic has
+    to be emitted explicitly as a ``stderr`` SSE event before ``done``.
+    """
+    lines = session.execute("def :")
+
+    assert lines == snapshot(
+        [
+            "event: stderr",
+            (
+                'data: {"data": "line 1\\n    def :\\n        ^\\nSyntaxError: invalid syntax\\n"}'
+            ),
+            "",
+            "event: done",
+            (
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
+            ),
+            "",
+        ]
+    )
+
+
 def test_scratchpad_itself_errors(session: _Session) -> None:
     """Scratchpad code raises — scratch cell's own error surfaces.
 
@@ -342,19 +369,14 @@ def test_scratchpad_itself_errors(session: _Session) -> None:
             "",
             "event: done",
             (
-                'data: {"success": false, "error": '
-                '{"type": "MarimoExceptionRaisedError", '
-                '"msg": "boom", "exception_type": "ValueError"}}'
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
             ),
             "",
         ]
     )
 
 
-@pytest.mark.xfail(
-    reason="issue #9255: state_updates cascade error is silent",
-    strict=True,
-)
 def test_state_setter_cascade_error(session: _Session) -> None:
     """Scratchpad calls ``set_x(0)`` → downstream cell_b divides by zero.
 
@@ -388,19 +410,14 @@ def test_state_setter_cascade_error(session: _Session) -> None:
             "",
             "event: done",
             (
-                'data: {"success": false, "error": '
-                '{"type": "CellExecutionError", '
-                '"msg": "cell \'cell_b\' raised ZeroDivisionError"}}'
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
             ),
             "",
         ]
     )
 
 
-@pytest.mark.xfail(
-    reason="issue #9255: multi-hop state cascade error is silent",
-    strict=True,
-)
 def test_state_chain_cascade_error(session: _Session) -> None:
     """Nested state chain: ``set_x(0)`` → cell_b calls ``set_y`` →
     slow cell_d divides by zero. Listener must capture cell_d's error
@@ -423,21 +440,24 @@ def test_state_chain_cascade_error(session: _Session) -> None:
 
     assert lines == snapshot(
         [
+            "event: stderr",
+            (
+                'data: {"data": "Traceback (most recent call last):\\n'
+                '  File \\"<tmp>\\", line 3, in <module>\\n'
+                "    z = 1 / get_y()\\n"
+                'ZeroDivisionError: division by zero\\n"}'
+            ),
+            "",
             "event: done",
             (
-                'data: {"success": false, "error": '
-                '{"type": "CellExecutionError", '
-                '"msg": "cell \'cell_d\' raised ZeroDivisionError"}}'
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
             ),
             "",
         ]
     )
 
 
-@pytest.mark.xfail(
-    reason="issue #9255: slow downstream errors missed in partial reports",
-    strict=True,
-)
 def test_multiple_downstream_cells_all_error(session: _Session) -> None:
     """Two downstream cells both error (fast + slow). Both must be
     reported — partial reporting misleads the agent into thinking
@@ -477,20 +497,14 @@ def test_multiple_downstream_cells_all_error(session: _Session) -> None:
             "",
             "event: done",
             (
-                'data: {"success": false, "error": '
-                '{"type": "CellExecutionError", '
-                '"msg": "cell \'cell_b\' raised ZeroDivisionError;'
-                " cell 'cell_c' raised ZeroDivisionError\"}}"
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
             ),
             "",
         ]
     )
 
 
-@pytest.mark.xfail(
-    reason="issue #9255: cascade error hidden when scratchpad also raises",
-    strict=True,
-)
 def test_scratchpad_raises_after_triggering_cascade(
     session: _Session,
 ) -> None:
@@ -522,12 +536,18 @@ def test_scratchpad_raises_after_triggering_cascade(
                 'RuntimeError: scratch explosion\\n"}'
             ),
             "",
+            "event: stderr",
+            (
+                'data: {"data": "Traceback (most recent call last):\\n'
+                '  File \\"<tmp>\\", line 3, in <module>\\n'
+                "    result = 1 / get_x()\\n"
+                'ZeroDivisionError: division by zero\\n"}'
+            ),
+            "",
             "event: done",
             (
-                'data: {"success": false, "error": '
-                '{"type": "CellExecutionError", '
-                '"msg": "RuntimeError: scratch explosion;'
-                " cell 'cell_b' raised ZeroDivisionError\"}}"
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
             ),
             "",
         ]
@@ -572,9 +592,8 @@ def test_ctx_run_cell_cascade_error(session: _Session) -> None:
             "",
             "event: done",
             (
-                'data: {"success": false, "error": '
-                '{"type": "CellExecutionError", '
-                '"msg": "cell \'cell_b\' raised ZeroDivisionError"}}'
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
             ),
             "",
         ]
