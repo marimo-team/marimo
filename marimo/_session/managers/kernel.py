@@ -21,6 +21,7 @@ from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike
 from marimo._session.types import KernelManager, QueueManager
 from marimo._utils.print import print_
+from marimo._utils.subprocess import try_kill_process_and_group
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
@@ -91,6 +92,10 @@ class KernelManagerImpl(KernelManager):
                     self.queue_manager.win32_interrupt_queue,
                     self.profile_path,
                     GLOBAL_SETTINGS.LOG_LEVEL,
+                    # is_ipc
+                    False,
+                    # PID
+                    os.getpid(),
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -249,28 +254,33 @@ class KernelManagerImpl(KernelManager):
                 self.queue_manager.put_control_request(
                     commands.StopKernelCommand()
                 )
-        else:
-            # otherwise we have something that is `ProcessLike`
-            if self.profile_path is not None and self.kernel_task.is_alive():
-                self.queue_manager.put_control_request(
-                    commands.StopKernelCommand()
-                )
-                # Hack: Wait for kernel to exit and write out profile;
-                # joining the process hangs, but not sure why.
-                print_(
-                    "\tWriting profile statistics to",
-                    self.profile_path,
-                    " ...",
-                )
-                while not os.path.exists(self.profile_path):
-                    time.sleep(0.1)
-                time.sleep(1)
+            return
 
-            self.queue_manager.close_queues()
-            if self.kernel_task.is_alive():
-                self.kernel_task.terminate()
-            if self._read_conn is not None:
-                self._read_conn.close()
+        # Otherwise, we have something that is `ProcessLike`
+        if self.profile_path is not None and self.kernel_task.is_alive():
+            self.queue_manager.put_control_request(
+                commands.StopKernelCommand()
+            )
+            # Hack: Wait for kernel to exit and write out profile;
+            # joining the process hangs, but not sure why.
+            print_(
+                "\tWriting profile statistics to",
+                self.profile_path,
+                " ...",
+            )
+            while not os.path.exists(self.profile_path):
+                time.sleep(0.1)
+            time.sleep(1)
+
+        self.queue_manager.close_queues()
+        try:
+            try_kill_process_and_group(self.kernel_task)
+        except ProcessLookupError:
+            pass
+        except Exception as e:
+            LOGGER.warning(e)
+        if self._read_conn is not None:
+            self._read_conn.close()
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:

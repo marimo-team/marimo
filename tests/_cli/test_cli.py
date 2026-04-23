@@ -868,6 +868,105 @@ def test_cli_new() -> None:
     _check_contents(p, b'"serverToken": ', contents)
 
 
+@pytest.mark.skipif(
+    _is_win32(),
+    reason="Parent polling is Unix-only (relies on getppid/killpg)",
+)
+def test_cli_kernel_killed_when_server_killed() -> None:
+    """Orphaned kernels should self-terminate via the parent poller."""
+    import psutil
+    from websockets.sync.client import connect
+
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "new", "-p", str(port), "--headless", "--no-token"]
+    )
+    try:
+        assert _try_fetch(port) is not None
+        # Opening a WebSocket causes the server to spawn a kernel process.
+        with connect(f"ws://localhost:{port}/ws?session_id=s1"):
+            server = psutil.Process(p.pid)
+            deadline = time.time() + 10
+            kernel_pids: list[int] = []
+            while time.time() < deadline:
+                kernel_pids = [c.pid for c in server.children()]
+                if kernel_pids:
+                    break
+                time.sleep(0.2)
+            assert kernel_pids, "expected kernel child process to be spawned"
+
+        # Kill only the server; the kernel's parent poller should notice.
+        p.kill()
+        p.wait(timeout=5)
+
+        deadline = time.time() + 10
+        while time.time() < deadline and any(
+            psutil.pid_exists(pid) for pid in kernel_pids
+        ):
+            time.sleep(0.2)
+
+        still_alive = [pid for pid in kernel_pids if psutil.pid_exists(pid)]
+        assert not still_alive, (
+            f"kernel pids {still_alive} still alive after server killed"
+        )
+    finally:
+        with contextlib.suppress(Exception):
+            p.kill()
+
+
+@pytest.mark.skipif(
+    _is_win32(),
+    reason="Parent polling is Unix-only (relies on getppid/killpg)",
+)
+def test_cli_server_exits_when_ancestor_pid_dies(
+    temp_marimo_file: str,
+) -> None:
+    """When MARIMO_ANCESTOR_PID points at a process that dies, the server's
+    ancestor poller should shut the server down.
+
+    This is the mechanism the single-file sandbox relies on to clean up the
+    inner marimo (and its kernel) when the outer CLI is SIGKILLed — we can't
+    exercise that end-to-end here because the sandbox's inner marimo is
+    installed fresh by uv from PyPI (not the PR's source), so any changes
+    under test wouldn't be present in the inner process. Testing the
+    mechanism directly avoids that."""
+    fake_ancestor = subprocess.Popen(["sleep", "60"])
+    env = os.environ.copy()
+    env["MARIMO_ANCESTOR_PID"] = str(fake_ancestor.pid)
+
+    port = _get_port()
+    # start_new_session so the poller's killpg doesn't touch pytest.
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+        ],
+        env=env,
+        start_new_session=True,
+    )
+    try:
+        assert _try_fetch(port) is not None
+
+        fake_ancestor.kill()
+        fake_ancestor.wait(timeout=5)
+
+        # Poller ticks every 1s; give it a generous window.
+        try:
+            p.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            pytest.fail("server did not exit after ancestor died")
+    finally:
+        with contextlib.suppress(Exception):
+            fake_ancestor.kill()
+        with contextlib.suppress(Exception):
+            os.killpg(os.getpgid(p.pid), signal.SIGKILL)
+
+
 def test_cli_run(temp_marimo_file: str) -> None:
     port = _get_port()
     p = subprocess.Popen(
