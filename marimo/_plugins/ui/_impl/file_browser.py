@@ -298,7 +298,8 @@ class file_browser(
                 path.resolve(strict=True).relative_to(
                     self._initial_path.resolve()
                 )
-            except (ValueError, OSError):
+            # NB. RuntimeError vs OSError depends on the version of python.
+            except (ValueError, RuntimeError, OSError):
                 raise RuntimeError(
                     "Navigation is restricted; navigating outside the initial path is not allowed."
                 ) from None
