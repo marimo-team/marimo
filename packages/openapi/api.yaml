@@ -731,11 +731,21 @@ components:
       title: ColumnStats
       type: object
     CompletedRunNotification:
-      description: Run of submitted cells and descendants completed.
+      description: "Run of submitted cells and descendants completed.\n\n    Attributes:\n\
+        \        run_id: Correlation ID echoed from the command that triggered\n \
+        \           this completion. ``None`` for handlers that don't take a\n   \
+        \         ``run_id`` (everything except ``handle_execute_scratchpad``\n  \
+        \          today). Consumers that want to wait for a specific command's\n\
+        \            completion filter on this field."
       properties:
         op:
           enum:
           - completed-run
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
       required:
       - op
       title: CompletedRunNotification
@@ -1501,7 +1511,12 @@ components:
         \        request: HTTP request context if available.\n        notebook_cells:\
         \ Snapshot of notebook cells from the session document.\n            Used\
         \ to populate the document ContextVar so code_mode can read\n            cell\
-        \ ordering, code, names, and configs."
+        \ ordering, code, names, and configs.\n        run_id: Optional correlation\
+        \ ID. When set, the\n            ``CompletedRunNotification`` emitted at the\
+        \ end of this command\n            carries the same ``run_id`` so a caller\
+        \ holding a\n            ``ScratchCellListener`` can filter for *its* completion\
+        \ and\n            ignore ``CompletedRun`` events from unrelated commands\
+        \ on the\n            same session."
       properties:
         code:
           type: string
@@ -1515,6 +1530,11 @@ components:
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        runId:
+          anyOf:
+          - type: string
           - type: 'null'
           default: null
         type:
@@ -1539,6 +1559,11 @@ components:
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        runId:
+          anyOf:
+          - type: string
           - type: 'null'
           default: null
       required:
