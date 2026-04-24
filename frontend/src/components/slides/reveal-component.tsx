@@ -168,7 +168,6 @@ const RevealSlidesComponent = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useSlideDimensions(containerRef);
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const activeCell =
     activeIndex != null ? cellsWithOutput[activeIndex] : undefined;
   // Fall back to the first cell while the deck settles on an initial slide.
