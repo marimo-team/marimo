@@ -188,11 +188,16 @@ def create_main_module(
     input_override: Callable[[Any], str] | None,
     print_override: Callable[[Any], None] | None,
     doc: str | None = None,
+    name: str = "__main__",
 ) -> types.ModuleType:
     # Every kernel gets its own main module, whose __dict__ attribute
-    # serves as the global namespace
+    # serves as the global namespace. `name` controls both the module's
+    # __name__ attribute and the key it can be registered under in
+    # sys.modules. Thread-based kernels use a unique name so multiple
+    # kernels can coexist in one process's sys.modules without racing on
+    # the shared "__main__" slot.
     _module = types.ModuleType(
-        "__main__",
+        name,
         doc=doc if doc is not None else "Created for the marimo kernel.",
     )
     _module.__dict__.setdefault("__builtin__", globals()["__builtins__"])
@@ -230,17 +235,10 @@ def patch_main_module(
     """
     _module = create_main_module(file, input_override, print_override, doc=doc)
 
-    # TODO(akshayka): In run mode, this can introduce races between different
-    # kernel threads, since they each share sys.modules. Unfortunately, Python
-    # doesn't provide a way for different threads to have their own sys.modules
-    # (replacing the dict with a new one isn't guaranteed to have the intended
-    # effect, since CPython C code has a reference to the original dict).
-    # In practice, as far as I can tell, this only causes problems when using
-    # Python pickle, but there may be other subtle issues.
-    #
-    # As a workaround, the runtime can re-patch sys.modules() on each run,
-    # but the issue will still persist as a race condition. Streamlit suffers
-    # from the same issue.
+    # Callers that share sys.modules across kernels (e.g. thread-based run
+    # mode) should prefer create_main_module + patch_main_module_context on
+    # each run instead of calling this helper, which mutates the global
+    # sys.modules["__main__"].
     patch_sys_module(_module)
     return _module
 
