@@ -69,7 +69,9 @@ follow_symlinks = server_config.get("follow_symlink", False)
 
 def _missing_index_html_detail() -> str:
     repo_root = marimo_package_path().parent
-    if (repo_root / "frontend").exists() and (repo_root / "pyproject.toml").exists():
+    if (repo_root / "frontend").exists() and (
+        repo_root / "pyproject.toml"
+    ).exists():
         return (
             "index.html not found. Frontend assets do not appear to be built "
             "for this source checkout; run `make fe` and restart marimo."
