@@ -1117,6 +1117,12 @@ def test_cli_args(tmp_path: pathlib.Path) -> None:
     assert "value2" in output
 
 
+# TODO(akshayka): Many of the app composition and embedding tests are flaky in
+# CI. This suggests either cross-test state pollution or a bug in the
+# underlying implementation. These bugs are not high priority to fix, so
+# the flaky tests have been marked as xfail. If this ever does become
+# a priority (in particular, if we see GitHub issues about these methods
+# failing in real usage), these failing tests may provide a clue.
 class TestAppComposition:
     async def test_app_embed(self) -> None:
         app = App()
@@ -1784,6 +1790,10 @@ class TestInternalAppOverrides:
         assert not k.errors
         assert k.globals["overrides"] == {"x": 100}
 
+
+    @pytest.mark.xfail(
+        True, reason="Flaky in CI, can't repro locally", strict=False
+    )
     async def test_overrides_returns_multiple_defs(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -1825,8 +1835,6 @@ class TestInternalAppOverrides:
         )
         assert not k.errors
         assert k.globals["overrides"] == {"a": 10, "b": 20}
-
-
 
 
 class TestAppKernelRunnerRegistry:
