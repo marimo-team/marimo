@@ -113,6 +113,7 @@ export const UserConfigSchema = z
         preset: z.enum(["default", "vim"]).prefault("default"),
         overrides: z.record(z.string(), z.string()).prefault({}),
         destructive_delete: z.boolean().prefault(true),
+        enter_command_mode_on_escape: z.boolean().prefault(true),
       })
       .prefault({}),
     runtime: z

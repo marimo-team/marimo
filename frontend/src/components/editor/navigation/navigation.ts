@@ -661,6 +661,7 @@ export function useCellEditorNavigationProps(
   const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
   const keymapPreset = useAtomValue(keymapPresetAtom);
   const hotkeys = useAtomValue(hotkeysAtom);
+  const userConfig = useAtomValue(userConfigAtom);
 
   const vimCommandModeShortcut = useMemo(() => {
     const shortcut = hotkeys.getHotkey("command.vimEnterCommandMode");
@@ -720,7 +721,11 @@ export function useCellEditorNavigationProps(
         }
       } else {
         // For non-vim mode, regular Escape exits to command mode
-        if (evt.key === "Escape") {
+        // Only if the configuration option is enabled
+        if (
+          evt.key === "Escape" &&
+          userConfig.keymap.enter_command_mode_on_escape !== false
+        ) {
           handleEscape();
         }
       }
