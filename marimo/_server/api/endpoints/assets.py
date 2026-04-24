@@ -67,6 +67,16 @@ assets_dir = root / "assets"
 follow_symlinks = server_config.get("follow_symlink", False)
 
 
+def _missing_index_html_detail() -> str:
+    repo_root = marimo_package_path().parent
+    if (repo_root / "frontend").exists() and (repo_root / "pyproject.toml").exists():
+        return (
+            "index.html not found. Frontend assets do not appear to be built "
+            "for this source checkout; run `make fe` and restart marimo."
+        )
+    return "index.html not found and no asset_url configured"
+
+
 def _has_symlinks(directory: Path) -> bool:
     """Check if a directory is a symlink or contains symlinked files."""
     if directory.is_symlink():
@@ -316,7 +326,7 @@ async def index(request: Request) -> Response:
     else:
         raise HTTPException(
             status_code=500,
-            detail="index.html not found and no asset_url configured",
+            detail=_missing_index_html_detail(),
         )
 
     if not file_key:
