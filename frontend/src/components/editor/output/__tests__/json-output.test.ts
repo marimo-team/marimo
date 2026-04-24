@@ -417,6 +417,27 @@ describe("getCopyValue with encoded non-string keys", () => {
     `);
   });
 
+  it("parses tuple/frozenset payloads containing bare NaN/Infinity", () => {
+    // Python's json.dumps emits bare `NaN`/`Infinity` inside the embedded
+    // tuple/frozenset payload strings (JSON spec violation, but ECMA-262-
+    // friendly via the fallback in jsonParseWithSpecialChar). The outer
+    // JSON stays strict because those tokens live inside a JSON string
+    // key/value. Regression for tuple-key payloads that previously broke
+    // the frontend's `JSON.parse` and threw.
+    const value = {
+      "text/plain+tuple:[NaN]": "tn",
+      "text/plain+tuple:[Infinity, -Infinity]": "ti",
+      k: "text/plain+frozenset:[Infinity, 1]",
+    };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        (float('nan'),): "tn",
+        (float('inf'), -float('inf')): "ti",
+        "k": frozenset({float('inf'), 1})
+      }"
+    `);
+  });
+
   it("unescapes string keys that looked encoded", () => {
     const value = {
       "text/plain+str:text/plain+int:2": "hello",

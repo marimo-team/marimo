@@ -18,6 +18,7 @@ import { memo, useState } from "react";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
+import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { isUrl } from "@/utils/urls";
 import { useTheme } from "../../../theme/useTheme";
 import { logNever } from "../../../utils/assertNever";
@@ -386,14 +387,35 @@ function renderLeaf(leaf: string, render: LeafRenderer): React.ReactNode {
 // See `_key_formatter` in marimo/_output/formatters/structures.py.
 const KEY_ENCODED_PREFIX = "text/plain+";
 
+// Format elements for a Python collection literal. Non-finite floats
+// (NaN / Infinity / -Infinity) parse as JS `number` via
+// `jsonParseWithSpecialChar`; `JSON.stringify` on those returns `null`,
+// so render them as the same `float(...)` literals we use for scalar
+// float keys (see `decodeKeyForCopy`).
+function formatCollectionItems(items: unknown[]): string {
+  return items
+    .map((x) => {
+      if (typeof x === "number" && !Number.isFinite(x)) {
+        if (Number.isNaN(x)) {
+          return "float('nan')";
+        }
+        return x > 0 ? "float('inf')" : "-float('inf')";
+      }
+      return JSON.stringify(x);
+    })
+    .join(", ");
+}
+
 // Format a JSON-list payload as a Python tuple literal. 1-element tuples
 // need a trailing comma — `(1)` is just `1` in Python, `(1,)` is the tuple.
+// Uses `jsonParseWithSpecialChar` so bare `NaN`/`Infinity`/`-Infinity`
+// emitted by Python's json.dumps round-trip cleanly.
 function formatTuplePayload(jsonList: string): string {
-  const items = JSON.parse(jsonList) as unknown[];
-  const inner = items.map((x) => JSON.stringify(x)).join(", ");
+  const items = jsonParseWithSpecialChar<unknown[]>(jsonList);
   if (items.length === 0) {
     return "()";
   }
+  const inner = formatCollectionItems(items);
   if (items.length === 1) {
     return `(${inner},)`;
   }
@@ -403,11 +425,11 @@ function formatTuplePayload(jsonList: string): string {
 // Format a JSON-list payload as a Python frozenset literal. Empty → `frozenset()`
 // rather than `frozenset({})` (which reads like a dict).
 function formatFrozensetPayload(jsonList: string): string {
-  const items = JSON.parse(jsonList) as unknown[];
+  const items = jsonParseWithSpecialChar<unknown[]>(jsonList);
   if (items.length === 0) {
     return "frozenset()";
   }
-  const inner = items.map((x) => JSON.stringify(x)).join(", ");
+  const inner = formatCollectionItems(items);
   return `frozenset({${inner}})`;
 }
 
@@ -415,11 +437,11 @@ function formatFrozensetPayload(jsonList: string): string {
 // (not `{}`, which is a dict literal in Python).
 function formatSetPayload(jsonList: string): string {
   try {
-    const items = JSON.parse(jsonList) as unknown[];
+    const items = jsonParseWithSpecialChar<unknown[]>(jsonList);
     if (items.length === 0) {
       return "set()";
     }
-    const inner = items.map((x) => JSON.stringify(x)).join(", ");
+    const inner = formatCollectionItems(items);
     return `{${inner}}`;
   } catch {
     // Back-compat: older wire form was `text/plain+set:{1, 2, 3}` (Python
