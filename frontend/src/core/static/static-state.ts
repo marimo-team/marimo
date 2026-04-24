@@ -5,20 +5,58 @@ import type { MarimoStaticState, StaticVirtualFiles } from "./types";
 
 declare global {
   interface Window {
-    __MARIMO_STATIC__?: MarimoStaticState;
+    __MARIMO_STATIC__?: Readonly<MarimoStaticState>;
   }
 }
 
+function isStringToStringRecord(
+  value: unknown,
+): value is Record<string, string> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  for (const entry of Object.values(value)) {
+    if (typeof entry !== "string") {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isMarimoStaticState(
+  value: unknown,
+): value is Readonly<MarimoStaticState> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const candidate = value as MarimoStaticState;
+  if (!isStringToStringRecord(candidate.files)) {
+    return false;
+  }
+  if (
+    candidate.modelNotifications !== undefined &&
+    !Array.isArray(candidate.modelNotifications)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function getMarimoStaticState(): Readonly<MarimoStaticState> | undefined {
+  const state = window?.__MARIMO_STATIC__;
+  return isMarimoStaticState(state) ? state : undefined;
+}
+
 export function isStaticNotebook(): boolean {
-  return window?.__MARIMO_STATIC__ !== undefined;
+  return getMarimoStaticState() !== undefined;
 }
 
 export function getStaticVirtualFiles(): StaticVirtualFiles {
-  invariant(window.__MARIMO_STATIC__ !== undefined, "Not a static notebook");
-
-  return window.__MARIMO_STATIC__.files;
+  const state = getMarimoStaticState();
+  invariant(state !== undefined, "Not a static notebook");
+  return state.files;
 }
 
 export function getStaticModelNotifications(): ModelLifecycle[] | undefined {
-  return window?.__MARIMO_STATIC__?.modelNotifications;
+  return getMarimoStaticState()?.modelNotifications;
 }
