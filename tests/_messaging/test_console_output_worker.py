@@ -9,6 +9,7 @@ from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import (
     TIMEOUT_S,
     ConsoleMsg,
+    FlushMarker,
     _add_output_to_buffer,
     _can_merge_outputs,
     _write_console_output,
@@ -176,6 +177,74 @@ class TestConsoleOutputWorker:
 
         finally:
             # Signal the writer to terminate
+            with cv:
+                msg_queue.append(None)
+                cv.notify()
+            thread.join(timeout=1.0)
+
+    def test_buffered_writer_flush_marker_flushes_immediately(self) -> None:
+        # A FlushMarker should cause buffered output to be written out
+        # without waiting for the TIMEOUT_S batching window, and the
+        # marker's done event should be set once flushing is complete.
+        stream = MockStream()
+        msg_queue: deque[ConsoleMsg | FlushMarker | None] = deque()
+        cv = threading.Condition()
+
+        thread = threading.Thread(
+            target=buffered_writer, args=(msg_queue, stream, cv)
+        )
+        thread.daemon = True
+        thread.start()
+
+        try:
+            marker = FlushMarker()
+            with cv:
+                msg_queue.append(
+                    ConsoleMsg(
+                        stream=CellChannel.STDOUT,
+                        cell_id="cell1",
+                        data="Hello",
+                        mimetype="text/plain",
+                    )
+                )
+                msg_queue.append(marker)
+                cv.notify()
+
+            # The flush should complete promptly — well before a batching
+            # window would expire.  Give it generous headroom for CI jitter
+            # but assert it happens faster than a multi-batch wait.
+            assert marker.done.wait(timeout=1.0), (
+                "FlushMarker did not signal completion within timeout"
+            )
+            assert len(stream.operations) == 1
+            assert stream.operations[0]["console"]["data"] == "Hello"
+        finally:
+            with cv:
+                msg_queue.append(None)
+                cv.notify()
+            thread.join(timeout=1.0)
+
+    def test_buffered_writer_flush_marker_on_empty_queue(self) -> None:
+        # A FlushMarker on an empty buffer should still signal completion.
+        stream = MockStream()
+        msg_queue: deque[ConsoleMsg | FlushMarker | None] = deque()
+        cv = threading.Condition()
+
+        thread = threading.Thread(
+            target=buffered_writer, args=(msg_queue, stream, cv)
+        )
+        thread.daemon = True
+        thread.start()
+
+        try:
+            marker = FlushMarker()
+            with cv:
+                msg_queue.append(marker)
+                cv.notify()
+
+            assert marker.done.wait(timeout=1.0)
+            assert stream.operations == []
+        finally:
             with cv:
                 msg_queue.append(None)
                 cv.notify()
