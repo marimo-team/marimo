@@ -46,6 +46,9 @@ vi.mock("@/core/codemirror/editing/commands", () => ({
   foldAllBulk: vi.fn(),
   unfoldAllBulk: vi.fn(),
 }));
+vi.mock("@/core/wasm/utils", () => ({
+  isWasm: vi.fn(() => false),
+}));
 vi.mock("../scrollCellIntoView", async (importOriginal) => {
   const actual = await importOriginal();
   return {
@@ -3426,5 +3429,101 @@ describe("createTracebackInfoAtom", () => {
     const traceback = store.get(tracebackAtom);
 
     expect(traceback).toBeUndefined();
+  });
+});
+
+describe("setCells snapshot preservation", () => {
+  const CELL_A = cellId("A");
+  const CELL_B = cellId("B");
+  const newCells: CellData[] = [
+    {
+      id: CELL_A,
+      name: "a",
+      code: "1",
+      edited: false,
+      lastCodeRun: null,
+      lastExecutionTime: null,
+      config: { hide_code: false, disabled: false, column: null },
+      serializedEditorState: null,
+    },
+    {
+      id: CELL_B,
+      name: "b",
+      code: "2",
+      edited: false,
+      lastCodeRun: null,
+      lastExecutionTime: null,
+      config: { hide_code: false, disabled: false, column: null },
+      serializedEditorState: null,
+    },
+  ];
+
+  const hydratedState = () =>
+    MockNotebook.notebookState({
+      cellData: {
+        [CELL_A]: { id: CELL_A, code: "1" },
+        [CELL_B]: { id: CELL_B, code: "2" },
+      },
+      cellRuntime: {
+        [CELL_A]: {
+          output: {
+            channel: "output",
+            mimetype: "text/plain",
+            data: "hydrated-A",
+            timestamp: 0,
+          },
+        },
+        [CELL_B]: {
+          consoleOutputs: [
+            {
+              channel: "stdout",
+              mimetype: "text/plain",
+              data: "hydrated-B-stdout",
+              timestamp: 0,
+            },
+          ],
+        },
+      },
+    });
+
+  beforeEach(async () => {
+    const { isWasm } = await import("@/core/wasm/utils");
+    vi.mocked(isWasm).mockReturnValue(true);
+  });
+
+  it("preserves hydrated output in WASM", () => {
+    const next = exportedForTesting.reducer(hydratedState(), {
+      type: "setCells",
+      payload: newCells,
+    });
+
+    expect(next.cellRuntime[CELL_A].output).toMatchObject({
+      data: "hydrated-A",
+    });
+  });
+
+  it("preserves console-only hydration in WASM", () => {
+    const next = exportedForTesting.reducer(hydratedState(), {
+      type: "setCells",
+      payload: newCells,
+    });
+
+    expect(next.cellRuntime[CELL_B].consoleOutputs).toHaveLength(1);
+    expect(next.cellRuntime[CELL_B].consoleOutputs[0]).toMatchObject({
+      data: "hydrated-B-stdout",
+    });
+  });
+
+  it("resets cells with no prior runtime even in WASM", () => {
+    const empty = MockNotebook.notebookState({ cellData: {} });
+    const next = exportedForTesting.reducer(empty, {
+      type: "setCells",
+      payload: newCells,
+    });
+
+    expect(next.cellRuntime[CELL_A].output).toBeNull();
+    expect(next.cellRuntime[CELL_A].consoleOutputs).toEqual([]);
+    expect(next.cellRuntime[CELL_B].output).toBeNull();
+    expect(next.cellRuntime[CELL_B].consoleOutputs).toEqual([]);
   });
 });
