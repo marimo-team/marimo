@@ -66,6 +66,11 @@ def test_startup_url_ipv6(host: str, expected: str) -> None:
         ("http://example.com:8080", 2972, "127.0.0.1", 8080, "example.com"),
         # IPv6 with brackets and port
         ("[2001:db8::1]:8080", 2972, "127.0.0.1", 8080, "2001:db8::1"),
+        # Bare-port proxy (no host): port applies, host falls back to
+        # the inbound host arg rather than the literal ":8080" string.
+        (":8080", 2972, "0.0.0.0", 8080, "0.0.0.0"),
+        # Empty string proxy is treated as "no proxy".
+        ("", 2972, "127.0.0.1", 2972, "127.0.0.1"),
     ],
 )
 def test_resolve_proxy(

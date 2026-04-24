@@ -157,7 +157,7 @@ def _resolve_proxy(port: int, host: str, proxy: str | None) -> tuple[int, str]:
 
         # parsed.hostname strips brackets from IPv6 addresses
         # (e.g. [::1] → ::1)
-        external_host = parsed.hostname or proxy
+        external_host = parsed.hostname
         parsed_port = parsed.port
     except ValueError:
         LOGGER.warning(
@@ -167,6 +167,13 @@ def _resolve_proxy(port: int, host: str, proxy: str | None) -> tuple[int, str]:
             port,
         )
         return port, host
+
+    # Bare-port inputs like ":8080" leave parsed.hostname empty (urlparse
+    # sees an empty netloc with an explicit port); fall back to the
+    # original `host` arg rather than using the literal proxy string —
+    # which otherwise becomes the nonsense public hostname ":8080".
+    if not external_host:
+        external_host = host
 
     if parsed_port is not None:
         external_port = parsed_port
