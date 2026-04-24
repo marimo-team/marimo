@@ -1,27 +1,22 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import inspect
+import multiprocessing
 import os
+import signal
+import subprocess
 import sys
 import time
-from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 from marimo._ast.app_config import _AppConfig
 from marimo._config.manager import get_default_config_manager
-from marimo._runtime.commands import (
-    AppMetadata,
-    CreateNotebookCommand,
-    ExecuteCellCommand,
-    UpdateUIElementCommand,
-)
-from marimo._session.managers import KernelManagerImpl, QueueManagerImpl
+from marimo._runtime.commands import AppMetadata
+from marimo._session.managers import KernelManagerImpl
 from marimo._session.model import SessionMode
+from marimo._utils.subprocess import try_kill_process_and_group
 
 
 def _is_alive(pid: int) -> bool:
@@ -33,13 +28,60 @@ def _is_alive(pid: int) -> bool:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX only")
-def test_close_kernel_kills_user_spawned_subprocess(tmp_path: Path) -> None:
-    """A subprocess spawned by kernel-executed user code must be killed when
-    the kernel is closed."""
-    pid_file = tmp_path / "child.pid"
+def test_try_kill_process_and_group_kills_grandchild() -> None:
+    """SIGTERM must propagate to the full process group, not just the leader.
 
-    queue_manager = QueueManagerImpl(use_multiprocessing=True)
-    kernel_manager = KernelManagerImpl(
+    Spawns `bash` in its own session (setsid) so it becomes a new process
+    group leader, then forks a grandchild `sleep 60`. Verifies that
+    `try_kill_process_and_group` on the bash parent also kills the
+    grandchild — the property PR #9257 introduced.
+    """
+    p = subprocess.Popen(
+        ["bash", "-c", "sleep 60 & echo $!; exec 1>/dev/null; wait"],
+        start_new_session=True,
+        stdout=subprocess.PIPE,
+    )
+    assert p.stdout is not None
+    grandchild_pid = int(p.stdout.readline().strip())
+    try:
+        try_kill_process_and_group(p)
+        p.wait(timeout=5)
+
+        # The grandchild is reparented to init once bash exits; `kill(pid, 0)`
+        # can briefly return success during the OS teardown window, so poll
+        # with a generous ceiling we never actually approach in practice.
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline and _is_alive(grandchild_pid):
+            time.sleep(0.001)
+        assert not _is_alive(grandchild_pid), (
+            f"grandchild {grandchild_pid} survived process-group kill"
+        )
+    finally:
+        if p.poll() is None:
+            p.kill()
+            p.wait(timeout=5)
+        if _is_alive(grandchild_pid):
+            try:
+                os.kill(grandchild_pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+
+def test_close_kernel_calls_try_kill_process_and_group(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """KernelManagerImpl.close_kernel must route shutdown through
+    try_kill_process_and_group so user-spawned subprocesses are reaped."""
+    captured: list[object] = []
+    monkeypatch.setattr(
+        "marimo._session.managers.kernel.try_kill_process_and_group",
+        captured.append,
+    )
+
+    queue_manager = Mock()
+    queue_manager.win32_interrupt_queue = None
+
+    manager = KernelManagerImpl(
         queue_manager=queue_manager,
         mode=SessionMode.EDIT,
         configs={},
@@ -55,50 +97,11 @@ def test_close_kernel_kills_user_spawned_subprocess(tmp_path: Path) -> None:
         redirect_console_to_browser=False,
     )
 
-    kernel_manager.start_kernel()
-    try:
-        assert kernel_manager.is_alive()
+    fake_task = Mock(spec=multiprocessing.Process)
+    fake_task.is_alive.return_value = False
+    manager.kernel_task = fake_task
 
-        queue_manager.control_queue.put(
-            CreateNotebookCommand(
-                execution_requests=(
-                    ExecuteCellCommand(
-                        cell_id="1",
-                        code=inspect.cleandoc(
-                            f"""
-                            import subprocess
-                            _proc = subprocess.Popen(["sleep", "60"])
-                            with open("{pid_file}", "w") as _f:
-                                _f.write(str(_proc.pid))
-                            """
-                        ),
-                    ),
-                ),
-                cell_ids=("1",),
-                set_ui_element_value_request=UpdateUIElementCommand(
-                    object_ids=[], values=[]
-                ),
-                auto_run=True,
-            )
-        )
+    manager.close_kernel()
 
-        deadline = time.monotonic() + 2
-        while time.monotonic() < deadline and not pid_file.exists():
-            time.sleep(0.05)
-        assert pid_file.exists(), "kernel never spawned the subprocess"
-        child_pid = int(pid_file.read_text())
-        assert _is_alive(child_pid)
-    finally:
-        kernel_manager.close_kernel()
-
-    deadline = time.monotonic() + 2.0
-    while time.monotonic() < deadline and _is_alive(child_pid):
-        time.sleep(0.05)
-    try:
-        assert not _is_alive(child_pid)
-    finally:
-        if _is_alive(child_pid):
-            try:
-                os.kill(child_pid, 9)
-            except ProcessLookupError:
-                pass
+    assert captured == [fake_task]
+    queue_manager.close_queues.assert_called_once()
