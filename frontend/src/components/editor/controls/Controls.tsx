@@ -27,6 +27,7 @@ import { Functions } from "@/utils/functions";
 import {
   canUndoDeletesAtom,
   needsRunAtom,
+  undoLabelAtom,
   useCellActions,
 } from "../../../core/cells/cells";
 import { ConfigButton } from "../../app-config/app-config-button";
@@ -56,6 +57,7 @@ export const Controls = ({
   running,
 }: ControlsProps): JSX.Element => {
   const undoAvailable = useAtomValue(canUndoDeletesAtom);
+  const undoLabel = useAtomValue(undoLabelAtom);
   const needsRun = useAtomValue(needsRunAtom);
   const { undoDeleteCell } = useCellActions();
   const closed = connectionState === WebSocketState.CLOSED;
@@ -63,7 +65,7 @@ export const Controls = ({
   let undoControl: JSX.Element | null = null;
   if (!closed && undoAvailable) {
     undoControl = (
-      <Tooltip content="Undo cell deletion">
+      <Tooltip content={undoLabel}>
         <Button
           data-testid="undo-delete-cell"
           size="medium"
