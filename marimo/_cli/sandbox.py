@@ -245,6 +245,7 @@ def construct_uv_flags(
     temp_file: "tempfile._TemporaryFileWrapper[str]",  # noqa: UP037
     additional_features: list[DepFeatures],
     additional_deps: list[str],
+    python_version_override: str | None = None,
 ) -> list[str]:
     # NB. Used in quarto plugin
 
@@ -283,13 +284,15 @@ def construct_uv_flags(
     if uv_needs_refresh:
         uv_flags.append("--refresh")
 
-    # We use the specified Python version (if any), otherwise
-    # the current Python version
-    python_version = pyproject.python_version
-    if python_version:
-        uv_flags.extend(["--python", python_version])
+    # Python version: explicit override > script metadata > current interpreter
+    if python_version_override:
+        uv_flags.extend(["--python", python_version_override])
     else:
-        uv_flags.extend(["--python", platform.python_version()])
+        python_version = pyproject.python_version
+        if python_version:
+            uv_flags.extend(["--python", python_version])
+        else:
+            uv_flags.extend(["--python", platform.python_version()])
 
     index_url = pyproject.index_url
     if index_url:
@@ -306,6 +309,7 @@ def construct_uv_flags(
             if "url" in config:
                 # Looks like: https://docs.astral.sh/uv/guides/scripts/#using-alternative-package-indexes
                 uv_flags.extend(["--index", config["url"]])
+
     return uv_flags
 
 
@@ -314,6 +318,7 @@ def construct_uv_command(
     name: str | None,
     additional_features: list[DepFeatures],
     additional_deps: list[str],
+    python_version_override: str | None = None,
 ) -> list[str]:
     cmd = ["marimo"] + args
     if "--sandbox" in cmd:
@@ -332,7 +337,11 @@ def construct_uv_command(
         temp_file_path = temp_file.name
         uv_cmd.extend(
             construct_uv_flags(
-                pyproject, temp_file, additional_features, additional_deps
+                pyproject,
+                temp_file,
+                additional_features,
+                additional_deps,
+                python_version_override=python_version_override,
             )
         )
     # Clean up the temporary file after the subprocess has run
@@ -435,6 +444,8 @@ def run_in_sandbox(
     additional_features: list[DepFeatures] | None = None,
     additional_deps: list[str] | None = None,
     extra_env: dict[str, str] | None = None,
+    python_version_override: str | None = None,
+    pyodide_constraints: bool = False,
 ) -> int:
     """Run marimo in a sandboxed uv environment.
 
@@ -459,7 +470,11 @@ def run_in_sandbox(
         _ensure_python_version_in_script_metadata(name)
 
     uv_cmd = construct_uv_command(
-        args, name, additional_features or [], additional_deps or []
+        args,
+        name,
+        additional_features or [],
+        additional_deps or [],
+        python_version_override=python_version_override,
     )
 
     echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}", err=True)
@@ -471,6 +486,22 @@ def run_in_sandbox(
     env["MARIMO_ANCESTOR_PID"] = str(os.getpid())
     if extra_env:
         env.update(extra_env)
+
+    if pyodide_constraints:
+        from marimo._cli.export.pyodide_constraints import (
+            write_constraint_file,
+        )
+
+        constraint_tmp = tempfile.NamedTemporaryFile(
+            mode="w",
+            delete=False,
+            suffix="-pyodide-constraints.txt",
+            encoding="utf-8",
+        )
+        constraint_tmp.close()
+        if write_constraint_file(constraint_tmp.name):
+            env["UV_CONSTRAINT"] = constraint_tmp.name
+        atexit.register(lambda p=constraint_tmp.name: os.unlink(p))
 
     # On Unix, run `uv` in its own session so that (a) the tty no longer
     # delivers SIGINT/SIGTERM to it directly and (b) we can signal the whole

@@ -1033,7 +1033,14 @@ const {
     const cellData = Object.fromEntries(cells.map((cell) => [cell.id, cell]));
 
     const cellRuntime = Object.fromEntries(
-      cells.map((cell) => [cell.id, createCellRuntimeState()]),
+      cells.map((cell) => [
+        cell.id,
+        // Preserve existing runtime state (e.g. from session snapshot)
+        // if the cell already has output.
+        state.cellRuntime[cell.id]?.output != null
+          ? state.cellRuntime[cell.id]
+          : createCellRuntimeState(),
+      ]),
     );
 
     return withScratchCell({
