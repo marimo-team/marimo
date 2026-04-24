@@ -98,6 +98,20 @@ class FilterCondition:
                     max=self.value["max"],
                 ),
             )
+        if self.operator == "between" and isinstance(self.value, RangeValue):
+            # Only compare when both ends are comparable primitives —
+            # strings vs. numbers would raise TypeError. The frontend
+            # surfaces this as a dict; we accept RangeValue for programmatic
+            # construction and still want a cheap sanity check.
+            if (
+                isinstance(self.value.min, (int, float))
+                and isinstance(self.value.max, (int, float))
+                and self.value.min > self.value.max
+            ):
+                raise ValueError(
+                    "'between' filter requires min <= max, got "
+                    f"min={self.value.min!r}, max={self.value.max!r}"
+                )
         if self.operator == "in" or self.operator == "not_in":
             if isinstance(self.value, list):
                 # Hack to convert to tuple for frozen dataclass
@@ -121,6 +135,15 @@ class FilterGroup:
     def __post_init__(self) -> None:
         if isinstance(self.children, list):
             object.__setattr__(self, "children", tuple(self.children))
+        # The operator is declared as Literal["and", "or"] but Python
+        # doesn't enforce literals at runtime. A bogus value here would
+        # silently fall through the downstream "and" combiner path and
+        # produce wrong rows, so reject early.
+        if self.operator not in ("and", "or"):
+            raise ValueError(
+                "FilterGroup.operator must be 'and' or 'or', "
+                f"got {self.operator!r}"
+            )
 
 
 DTYPE_OPERATORS: dict[str, frozenset[Operator]] = {

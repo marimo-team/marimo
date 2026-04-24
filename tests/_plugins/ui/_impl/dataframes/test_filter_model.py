@@ -314,6 +314,53 @@ def test_group_frozen() -> None:
         fg.operator = "or"  # type: ignore[misc]
 
 
+def test_group_rejects_invalid_operator() -> None:
+    # The Literal["and", "or"] annotation is not enforced at runtime by
+    # Python; without __post_init__ validation a bogus operator would
+    # silently fall through to the default "and" combiner and produce
+    # wrong rows.
+    with pytest.raises(ValueError, match="must be 'and' or 'or'"):
+        FilterGroup(type="group", operator="xor", children=())  # type: ignore[arg-type]
+
+
+def test_condition_between_rejects_min_greater_than_max() -> None:
+    # A 'between' filter with min > max matches no rows and is almost
+    # certainly a caller bug — fail loudly at construction time.
+    with pytest.raises(ValueError, match="min <= max"):
+        FilterCondition(
+            type="condition",
+            column_id="x",
+            operator="between",
+            value={"min": 10, "max": 5},
+        )
+
+
+def test_condition_between_allows_equal_min_max() -> None:
+    # Equal bounds are valid (matches the single boundary value).
+    fc = FilterCondition(
+        type="condition",
+        column_id="x",
+        operator="between",
+        value={"min": 5, "max": 5},
+    )
+    assert isinstance(fc.value, RangeValue)
+    assert fc.value.min == 5
+    assert fc.value.max == 5
+
+
+def test_condition_between_allows_string_bounds() -> None:
+    # String bounds (e.g. date strings) can't be compared against numeric
+    # min<=max so they're intentionally not validated — the downstream
+    # engine handles the comparison.
+    fc = FilterCondition(
+        type="condition",
+        column_id="x",
+        operator="between",
+        value={"min": "2024-12-31", "max": "2024-01-01"},
+    )
+    assert isinstance(fc.value, RangeValue)
+
+
 # --- conditions_to_filter_group ---
 
 

@@ -2742,22 +2742,17 @@ class TestTransformHandler:
         "df",
         create_test_dataframes({"A": [1, 2, 3, 4, 5]}),
     )
-    def test_filter_between_min_gt_max_empty(df: DataFrameType) -> None:
-        transform = FilterRowsTransform(
-            type=TransformType.FILTER_ROWS,
-            operation="keep_rows",
-            where=FilterGroup(
-                children=[
-                    FilterCondition(
-                        column_id="A",
-                        operator="between",
-                        value=RangeValue(min=5, max=2),
-                    )
-                ]
-            ),
-        )
-        result = apply(df, transform)
-        assert df_size(result) == 0
+    def test_filter_between_min_gt_max_rejected(df: DataFrameType) -> None:
+        # A 'between' filter with min > max matches no rows and is almost
+        # always a caller bug — FilterCondition now rejects it up-front
+        # instead of silently returning empty results.
+        del df
+        with pytest.raises(ValueError, match="min <= max"):
+            FilterCondition(
+                column_id="A",
+                operator="between",
+                value=RangeValue(min=5, max=2),
+            )
 
     # --- is_empty operator ---
 
