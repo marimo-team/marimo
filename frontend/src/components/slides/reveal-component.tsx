@@ -8,19 +8,14 @@ import {
   Fragment as ReactFragment,
 } from "react";
 import useEvent from "react-use-event-hook";
-import {
-  ExpandIcon,
-  EyeOffIcon,
-  PanelRightCloseIcon,
-  PanelRightOpenIcon,
-} from "lucide-react";
+import { ExpandIcon, EyeOffIcon } from "lucide-react";
 import { Deck, Fragment, Slide, Stack } from "@revealjs/react";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { cn } from "@/utils/cn";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { RuntimeCell } from "@/core/cells/types";
 import type { RevealApi, RevealConfig } from "reveal.js";
+import { useEventListener } from "@/hooks/useEventListener";
 import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import "./slides.css";
@@ -37,14 +32,11 @@ import {
 import {
   DEFAULT_DECK_TRANSITION,
   DEFAULT_SLIDE_TYPE,
-  SlidesForm,
+  SlideSidebar,
 } from "./slide-form";
 import type { AppMode } from "@/core/mode";
 
 const ASPECT_RATIO = 16 / 9;
-const COLLAPSED_CONFIG_WIDTH = 36;
-
-type RuntimeCell = CellRuntimeState & CellData;
 
 /**
  * reveal.js caches the last visited vertical index on each stack and can
@@ -110,6 +102,18 @@ function useSlideDimensions(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 
   return dims;
+}
+
+/**
+ * Trigger a resize event on the window
+ * Vega elements need to be re-measured when the container width changes.
+ */
+function triggerResize(deck: RevealApi | null) {
+  if (deck?.getCurrentSlide()?.querySelector(".vega-embed, marimo-vega")) {
+    requestAnimationFrame(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+  }
 }
 
 const SubslideView = ({
@@ -276,14 +280,7 @@ const RevealSlidesComponent = ({
     onSlideChange?.(nextIndex);
   });
 
-  useEffect(() => {
-    document.addEventListener("keydown", handleParkedNavKey, { capture: true });
-    return () => {
-      document.removeEventListener("keydown", handleParkedNavKey, {
-        capture: true,
-      });
-    };
-  }, [handleParkedNavKey]);
+  useEventListener(document, "keydown", handleParkedNavKey, { capture: true });
 
   return (
     <div className="flex-1 min-w-0 flex flex-row gap-3">
@@ -299,16 +296,7 @@ const RevealSlidesComponent = ({
             onSlideChange={() => {
               reportCurrentCell();
               const deck = deckRef.current;
-              // Trigger resize so vega-embed re-measures container width
-              if (
-                deck
-                  ?.getCurrentSlide()
-                  ?.querySelector(".vega-embed, marimo-vega")
-              ) {
-                requestAnimationFrame(() => {
-                  window.dispatchEvent(new Event("resize"));
-                });
-              }
+              triggerResize(deck);
             }}
             onFragmentShown={reportCurrentCell}
             onFragmentHidden={reportCurrentCell}
@@ -371,67 +359,12 @@ const RevealSlidesComponent = ({
       </div>
 
       {mode !== "read" && (
-        <aside
-          className="h-full flex flex-col border-l border-border/60 bg-muted/20 transition-[width] duration-200 ease-out overflow-hidden"
-          style={{
-            width: isConfigOpen ? configWidth : COLLAPSED_CONFIG_WIDTH,
-          }}
-          aria-label="Slide configuration"
-        >
-          <header
-            className={cn(
-              "flex items-center h-9 shrink-0 border-b border-border/60",
-              isConfigOpen ? "justify-between px-2" : "justify-center px-0",
-            )}
-          >
-            {isConfigOpen && (
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground pl-1">
-                Configuration
-              </span>
-            )}
-            <Tooltip content={isConfigOpen ? "Collapse panel" : "Expand panel"}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={() => setIsConfigOpen(!isConfigOpen)}
-                aria-expanded={isConfigOpen}
-                aria-controls="slide-config-panel"
-              >
-                {isConfigOpen ? (
-                  <PanelRightCloseIcon className="h-4 w-4" />
-                ) : (
-                  <PanelRightOpenIcon className="h-4 w-4" />
-                )}
-              </Button>
-            </Tooltip>
-          </header>
-
-          {isConfigOpen && (
-            <div
-              id="slide-config-panel"
-              className="flex-1 overflow-y-auto overflow-x-hidden"
-            >
-              {activeConfigCell ? (
-                <SlidesForm
-                  layout={layout}
-                  setLayout={setLayout}
-                  cellId={activeConfigCell.id}
-                />
-              ) : (
-                <div className="flex flex-col gap-1.5 p-3 text-xs text-muted-foreground">
-                  <span className="font-semibold text-sm text-foreground">
-                    No slides yet
-                  </span>
-                  <p>
-                    Run a cell that produces output to add it to the deck. Slide
-                    settings will appear here once a slide is selected.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </aside>
+        <SlideSidebar
+          configWidth={configWidth}
+          layout={layout}
+          setLayout={setLayout}
+          activeConfigCell={activeConfigCell}
+        />
       )}
     </div>
   );

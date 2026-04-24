@@ -4,7 +4,8 @@ import { useAtomValue } from "jotai";
 import { numColumnsAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { ICellRendererProps } from "../types";
-import type { SlideType, SlidesLayout } from "./types";
+import type { SlidesLayout } from "./types";
+import { computeSlideCellsInfo } from "./compute-slide-cells";
 import { SlidesMinimap } from "@/components/slides/minimap";
 import useEvent from "react-use-event-hook";
 import type { RevealApi } from "reveal.js";
@@ -27,27 +28,10 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   const [activeCellId, setActiveCellId] = useState<CellId | null>(null);
   const deckRef = useRef<RevealApi | null>(null);
 
-  const { cellsWithOutput, skippedIds, slideTypes } = useMemo(() => {
-    const withOutput = cells.filter(
-      (cell) => cell.output != null && cell.output.data !== "",
-    );
-    const skipped = new Set<CellId>();
-    const types = new Map<CellId, SlideType>();
-    for (const c of withOutput) {
-      const type = layout.cells.get(c.id)?.type;
-      if (type) {
-        types.set(c.id, type);
-      }
-      if (type === "skip") {
-        skipped.add(c.id);
-      }
-    }
-    return {
-      cellsWithOutput: withOutput,
-      skippedIds: skipped,
-      slideTypes: types,
-    };
-  }, [cells, layout.cells]);
+  const { cellsWithOutput, skippedIds, slideTypes } = useMemo(
+    () => computeSlideCellsInfo(cells, layout),
+    [cells, layout],
+  );
 
   const activeSlideIndex = activeCellId
     ? cellsWithOutput.findIndex((c) => c.id === activeCellId)
