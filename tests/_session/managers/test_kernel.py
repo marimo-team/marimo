@@ -38,7 +38,7 @@ def test_try_kill_process_and_group_kills_grandchild() -> None:
     """
     p = subprocess.Popen(
         ["bash", "-c", "sleep 60 & echo $!; exec 1>/dev/null; wait"],
-        preexec_fn=os.setsid,
+        start_new_session=True,
         stdout=subprocess.PIPE,
     )
     assert p.stdout is not None
