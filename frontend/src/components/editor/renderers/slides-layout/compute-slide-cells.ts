@@ -12,6 +12,8 @@ export interface SlideCellsInfo<T extends SlideCellLike> {
   cellsWithOutput: T[];
   skippedIds: Set<CellId>;
   slideTypes: Map<CellId, SlideType>;
+  // Index of the first cell in `cellsWithOutput` that is not skipped
+  startCellIndex: number;
 }
 
 export function computeSlideCellsInfo<T extends SlideCellLike>(
@@ -23,14 +25,26 @@ export function computeSlideCellsInfo<T extends SlideCellLike>(
   );
   const skippedIds = new Set<CellId>();
   const slideTypes = new Map<CellId, SlideType>();
-  for (const cell of cellsWithOutput) {
+
+  let startCell: T | null = null;
+  let startCellIndex = 0;
+
+  for (const [index, cell] of cellsWithOutput.entries()) {
     const type = layout.cells.get(cell.id)?.type;
     if (type) {
       slideTypes.set(cell.id, type);
     }
     if (type === "skip") {
       skippedIds.add(cell.id);
+    } else if (startCell === null) {
+      startCell = cell;
+      startCellIndex = index;
     }
   }
-  return { cellsWithOutput, skippedIds, slideTypes };
+  return {
+    cellsWithOutput,
+    skippedIds,
+    slideTypes,
+    startCellIndex,
+  };
 }

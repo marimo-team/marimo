@@ -28,6 +28,37 @@ describe("computeSlideCellsInfo", () => {
     expect(result.cellsWithOutput).toEqual([]);
     expect(result.skippedIds.size).toBe(0);
     expect(result.slideTypes.size).toBe(0);
+    expect(result.startCellIndex).toBe(0);
+  });
+
+  it("computes firstNonSkippedIndex as the first non-skipped cell", () => {
+    const result = computeSlideCellsInfo(
+      [cell("a"), cell("b"), cell("c")],
+      layoutOf([
+        ["a", { type: "skip" }],
+        ["b", { type: "skip" }],
+        ["c", { type: "slide" }],
+      ]),
+    );
+    expect(result.startCellIndex).toBe(2);
+  });
+
+  it("falls back to 0 when every cell is skipped", () => {
+    // If the user marked everything as skip we still have to land somewhere;
+    // the renderer treats 0 as a safe default rather than rendering nothing.
+    const result = computeSlideCellsInfo(
+      [cell("a"), cell("b")],
+      layoutOf([
+        ["a", { type: "skip" }],
+        ["b", { type: "skip" }],
+      ]),
+    );
+    expect(result.startCellIndex).toBe(0);
+  });
+
+  it("uses index 0 when no cells are skipped", () => {
+    const result = computeSlideCellsInfo([cell("a"), cell("b")], layoutOf([]));
+    expect(result.startCellIndex).toBe(0);
   });
 
   it("filters out cells with no output", () => {

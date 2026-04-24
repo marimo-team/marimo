@@ -28,15 +28,16 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   const [activeCellId, setActiveCellId] = useState<CellId | null>(null);
   const deckRef = useRef<RevealApi | null>(null);
 
-  const { cellsWithOutput, skippedIds, slideTypes } = useMemo(
+  const { cellsWithOutput, skippedIds, slideTypes, startCellIndex } = useMemo(
     () => computeSlideCellsInfo(cells, layout),
     [cells, layout],
   );
 
   const activeSlideIndex = activeCellId
     ? cellsWithOutput.findIndex((c) => c.id === activeCellId)
-    : 0;
-  const resolvedIndex = activeSlideIndex === -1 ? 0 : activeSlideIndex;
+    : startCellIndex;
+  const resolvedIndex =
+    activeSlideIndex === -1 ? startCellIndex : activeSlideIndex;
 
   const handleSlideChange = useEvent((index: number) => {
     const cell = cellsWithOutput[index];
@@ -76,7 +77,9 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
         cells={cellsWithOutput}
         thumbnailWidth={220}
         canReorder={!isMultiColumn}
-        activeCellId={activeCellId ?? cellsWithOutput[0]?.id ?? null}
+        activeCellId={
+          activeCellId ?? cellsWithOutput[startCellIndex]?.id ?? null
+        }
         skippedIds={skippedIds}
         slideTypes={slideTypes}
         onSlideClick={handleSlideChange}
