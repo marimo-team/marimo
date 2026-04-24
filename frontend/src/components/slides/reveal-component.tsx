@@ -172,7 +172,7 @@ const RevealSlidesComponent = ({
     activeIndex != null ? cellsWithOutput[activeIndex] : undefined;
   // Fall back to the first cell while the deck settles on an initial slide.
   // Still `undefined` when the deck is empty (handled below).
-  const activeConfigCell = activeCell ?? cellsWithOutput[0];
+  const activeConfigCell = activeCell ?? cellsWithOutput.at(0);
 
   const composition = useMemo(
     () =>

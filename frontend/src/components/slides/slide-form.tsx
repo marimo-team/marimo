@@ -277,7 +277,7 @@ export const SlideSidebar = ({
   configWidth: number;
   layout: SlidesLayout;
   setLayout: (layout: SlidesLayout) => void;
-  activeConfigCell: RuntimeCell;
+  activeConfigCell?: RuntimeCell;
 }) => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
