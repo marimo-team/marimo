@@ -1,18 +1,19 @@
 import marimo
 
-__generated_with = "0.19.2"
+__generated_with = "0.23.2"
 app = marimo.App()
 
 
 @app.cell
 def _():
     raise ValueError("ancestor error")
+    return
 
 
 @app.cell
 def _(x):
     y = x + 1
-    return (y,)
+    return
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.2"
+__generated_with = "0.23.2"
 app = marimo.App()
 
 
@@ -9,7 +9,7 @@ def _():
     import marimo as mo
 
     mo.stop(True, "Stopped early")
-    return (mo,)
+    return
 
 
 @app.cell
@@ -21,7 +21,7 @@ def _():
 @app.cell
 def _(x):
     y = x + 1
-    return (y,)
+    return
 
 
 if __name__ == "__main__":

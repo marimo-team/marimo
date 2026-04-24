@@ -1,13 +1,13 @@
 import marimo
 
-__generated_with = "0.19.2"
+__generated_with = "0.23.2"
 app = marimo.App()
 
 
 @app.cell
-def _():
+def _(undefined_variable):
     x = undefined_variable  # noqa: F821
-    return (x,)
+    return
 
 
 if __name__ == "__main__":

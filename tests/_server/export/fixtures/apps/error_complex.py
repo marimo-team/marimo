@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.19.2"
+__generated_with = "0.23.2"
 app = marimo.App()
 
 
 @app.cell
-def _(y):  # noqa: F811
+def _(y):
     x = y
     return (x,)
 
@@ -19,7 +19,7 @@ def _():
 @app.cell
 def _(z):
     Z = z  # noqa: N806
-    return (Z,)
+    return
 
 
 @app.cell
@@ -29,7 +29,7 @@ def _():
 
 
 @app.cell
-def _(x, Y):  # noqa: N803
+def _(Y, x):
     y = x
     y = Y  # noqa: F841
     return (y,)

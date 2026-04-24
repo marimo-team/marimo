@@ -68,7 +68,6 @@ from marimo._messaging.notebook.document import (
 from marimo._messaging.notification import (
     CacheClearedNotification,
     CacheInfoNotification,
-    CompletedRunNotification,
     DataColumnPreviewNotification,
     DataSourceConnectionsNotification,
     FunctionCallResultNotification,
@@ -96,6 +95,7 @@ from marimo._messaging.notification import (
 from marimo._messaging.notification_utils import (
     CellNotificationUtils,
     broadcast_notification,
+    broadcast_run_completion,
 )
 from marimo._messaging.print_override import print_override
 from marimo._messaging.streams import (
@@ -2341,14 +2341,14 @@ class Kernel:
         async def handle_instantiate(request: CreateNotebookCommand) -> None:
             with http_request_context(request.request):
                 await self.instantiate(request)
-            broadcast_notification(CompletedRunNotification())
+            broadcast_run_completion()
 
         async def handle_execute_multiple(
             request: ExecuteCellsCommand,
         ) -> None:
             with http_request_context(request.request):
                 await self.run(request.execution_requests)
-            broadcast_notification(CompletedRunNotification())
+            broadcast_run_completion()
 
         async def handle_sync_graph(
             request: SyncGraphCommand,
@@ -2357,7 +2357,7 @@ class Kernel:
                 await self.sync_graph(
                     request.cells, request.run_ids, request.delete_ids
                 )
-            broadcast_notification(CompletedRunNotification())
+            broadcast_run_completion()
 
         async def handle_execute_scratchpad(
             request: ExecuteScratchpadCommand,
@@ -2372,21 +2372,21 @@ class Kernel:
                 http_request_context(request.request),
             ):
                 await self.run_scratchpad(request.code)
-            broadcast_notification(CompletedRunNotification())
+            broadcast_run_completion()
 
         async def handle_execute_stale(
             request: ExecuteStaleCellsCommand,
         ) -> None:
             with http_request_context(request.request):
                 await self.run_stale_cells()
-            broadcast_notification(CompletedRunNotification())
+            broadcast_run_completion()
 
         async def handle_set_ui_element_value(
             request: UpdateUIElementCommand,
         ) -> None:
             with http_request_context(request.request):
                 await self.set_ui_element_value(request, notify_frontend=False)
-            broadcast_notification(CompletedRunNotification())
+            broadcast_run_completion()
 
         async def handle_pdb_request(request: DebugCellCommand) -> None:
             await self.pdb_request(request.cell_id)
@@ -2413,13 +2413,13 @@ class Kernel:
                     ),
                     notify_frontend=False,
                 )
-                broadcast_notification(CompletedRunNotification())
+                broadcast_run_completion()
             elif self.state_updates:
                 # Callbacks during message processing (e.g. widget observe
                 # handlers) may have called mo.state setters. Process
                 # those pending state updates now.
                 await self._run_cells(set())
-                broadcast_notification(CompletedRunNotification())
+                broadcast_run_completion()
 
         async def handle_function_call(request: InvokeFunctionCommand) -> None:
             status, ret, _ = await self.function_call_request(request)
@@ -2441,7 +2441,7 @@ class Kernel:
             request: InstallPackagesCommand,
         ) -> None:
             await self.packages_callbacks.install_missing_packages(request)
-            broadcast_notification(CompletedRunNotification())
+            broadcast_run_completion()
 
         async def handle_stop(request: StopKernelCommand) -> None:
             del request
