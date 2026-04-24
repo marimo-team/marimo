@@ -62,6 +62,31 @@ def broadcast_notification(
         return
 
 
+def broadcast_run_completion(stream: Stream | None = None) -> None:
+    """Broadcast a ``CompletedRunNotification`` after flushing console output.
+
+    Flushing first upgrades the semantics of the completion signal from
+    "cells are done running" to "every output for this run is on the wire."
+    Consumers that snapshot the session state on completion (e.g. the
+    ipynb/PDF exporters) can then rely on stdout/stderr produced during
+    the run being visible in the session view; without the flush, the
+    console worker's 10 ms buffering timer can make them race the signal.
+    """
+    from marimo._messaging.notification import CompletedRunNotification
+
+    if stream is None:
+        try:
+            ctx = get_context()
+        except ContextNotInitializedError:
+            LOGGER.debug("No context initialized.")
+            return
+        else:
+            stream = ctx.stream
+
+    stream.flush_console()
+    broadcast_notification(CompletedRunNotification(), stream)
+
+
 class CellNotificationUtils:
     """Utilities for broadcasting cell notifications."""
 

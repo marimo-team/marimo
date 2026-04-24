@@ -9,6 +9,7 @@ from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import (
     TIMEOUT_S,
     ConsoleMsg,
+    FlushRequest,
     _add_output_to_buffer,
     _can_merge_outputs,
     _write_console_output,
@@ -247,6 +248,190 @@ class TestConsoleOutputWorker:
 
         finally:
             # Signal the writer to terminate
+            with cv:
+                msg_queue.append(None)
+                cv.notify()
+            thread.join(timeout=1.0)
+
+    def test_flush_request_drains_buffer_synchronously(self) -> None:
+        # A FlushRequest must force the worker to write buffered outputs
+        # before its ``done`` event fires, without waiting for the 10ms
+        # timer.
+        stream = MockStream()
+        msg_queue: deque[ConsoleMsg | FlushRequest | None] = deque()
+        cv = threading.Condition()
+
+        thread = threading.Thread(
+            target=buffered_writer, args=(msg_queue, stream, cv)
+        )
+        thread.daemon = True
+        thread.start()
+
+        try:
+            done = threading.Event()
+            with cv:
+                msg_queue.append(
+                    ConsoleMsg(
+                        stream=CellChannel.STDOUT,
+                        cell_id="cell1",
+                        data="buffered",
+                        mimetype="text/plain",
+                    )
+                )
+                msg_queue.append(FlushRequest(done=done))
+                cv.notify()
+
+            # The event should be set well inside the 10ms timer window
+            # if the flush really is synchronous.
+            assert done.wait(timeout=1.0), "FlushRequest.done never fired"
+            assert len(stream.operations) == 1
+            assert stream.operations[0]["console"]["data"] == "buffered"
+
+        finally:
+            with cv:
+                msg_queue.append(None)
+                cv.notify()
+            thread.join(timeout=1.0)
+
+    def test_flush_request_on_empty_buffer_signals_done(self) -> None:
+        # Flushing when nothing is buffered must still return promptly.
+        stream = MockStream()
+        msg_queue: deque[ConsoleMsg | FlushRequest | None] = deque()
+        cv = threading.Condition()
+
+        thread = threading.Thread(
+            target=buffered_writer, args=(msg_queue, stream, cv)
+        )
+        thread.daemon = True
+        thread.start()
+
+        try:
+            done = threading.Event()
+            with cv:
+                msg_queue.append(FlushRequest(done=done))
+                cv.notify()
+
+            assert done.wait(timeout=1.0)
+            assert len(stream.operations) == 0
+
+        finally:
+            with cv:
+                msg_queue.append(None)
+                cv.notify()
+            thread.join(timeout=1.0)
+
+    def test_termination_drops_buffered_outputs(self) -> None:
+        # The non-blocking shutdown contract: a None sentinel causes the
+        # worker to return without writing whatever it still has buffered.
+        # Callers that care about delivery must flush first.
+        stream = MockStream()
+        msg_queue: deque[ConsoleMsg | FlushRequest | None] = deque()
+        cv = threading.Condition()
+
+        thread = threading.Thread(
+            target=buffered_writer, args=(msg_queue, stream, cv)
+        )
+        thread.daemon = True
+        thread.start()
+
+        with cv:
+            msg_queue.append(
+                ConsoleMsg(
+                    stream=CellChannel.STDOUT,
+                    cell_id="cell1",
+                    data="dropped",
+                    mimetype="text/plain",
+                )
+            )
+            msg_queue.append(None)
+            cv.notify()
+
+        thread.join(timeout=1.0)
+        assert not thread.is_alive()
+        assert stream.operations == []
+
+    def test_termination_wakes_pending_flush_request(self) -> None:
+        # If stop() races a concurrent flush_console(), the worker must
+        # still set the flush request's done event before returning,
+        # otherwise the flusher hangs forever.
+        stream = MockStream()
+        msg_queue: deque[ConsoleMsg | FlushRequest | None] = deque()
+        cv = threading.Condition()
+
+        thread = threading.Thread(
+            target=buffered_writer, args=(msg_queue, stream, cv)
+        )
+        thread.daemon = True
+        thread.start()
+
+        done = threading.Event()
+        with cv:
+            msg_queue.append(FlushRequest(done=done))
+            msg_queue.append(None)
+            cv.notify()
+
+        assert done.wait(timeout=1.0), (
+            "FlushRequest.done must fire even on termination"
+        )
+        thread.join(timeout=1.0)
+        assert not thread.is_alive()
+
+    def test_flush_happens_before_subsequent_enqueues(self) -> None:
+        # Writes enqueued *before* a FlushRequest must all be flushed by the
+        # time done fires; writes enqueued *after* the flush must not have
+        # leaked into the batch.
+        stream = MockStream()
+        msg_queue: deque[ConsoleMsg | FlushRequest | None] = deque()
+        cv = threading.Condition()
+
+        thread = threading.Thread(
+            target=buffered_writer, args=(msg_queue, stream, cv)
+        )
+        thread.daemon = True
+        thread.start()
+
+        try:
+            done = threading.Event()
+            with cv:
+                msg_queue.append(
+                    ConsoleMsg(
+                        stream=CellChannel.STDOUT,
+                        cell_id="cell1",
+                        data="pre",
+                        mimetype="text/plain",
+                    )
+                )
+                msg_queue.append(FlushRequest(done=done))
+                cv.notify()
+
+            assert done.wait(timeout=1.0)
+            # At this point only "pre" should be on the wire.
+            assert [op["console"]["data"] for op in stream.operations] == [
+                "pre"
+            ]
+
+            # Subsequent writes go through the normal 10ms path.
+            with cv:
+                msg_queue.append(
+                    ConsoleMsg(
+                        stream=CellChannel.STDOUT,
+                        cell_id="cell1",
+                        data="post",
+                        mimetype="text/plain",
+                    )
+                )
+                cv.notify()
+
+            for _ in range(20):
+                time.sleep(TIMEOUT_S * 2)
+                if len(stream.operations) == 2:
+                    break
+            assert [op["console"]["data"] for op in stream.operations] == [
+                "pre",
+                "post",
+            ]
+
+        finally:
             with cv:
                 msg_queue.append(None)
                 cv.notify()
