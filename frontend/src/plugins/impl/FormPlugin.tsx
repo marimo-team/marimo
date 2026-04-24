@@ -144,11 +144,14 @@ export const FormWrapper = <T,>({
           "bg-(--amber-1) border-(--amber-7)": !synchronized && bordered,
         })}
         onKeyDown={(evt) => {
-          // Handle enter + ctrl/meta key
+          // Handle enter + ctrl/meta key: submit the form to run the full
+          // submit flow (validate → setValue → clearOnSubmit), matching the
+          // Submit button behavior. Without this, Ctrl+Enter bypassed
+          // validation and clear_on_submit.
           if (evt.key === "Enter" && (evt.ctrlKey || evt.metaKey)) {
             evt.preventDefault();
             evt.stopPropagation();
-            setValue(newValue);
+            formDiv.current?.requestSubmit();
           }
         }}
       >
