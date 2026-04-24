@@ -204,7 +204,7 @@ class Html(MIME):
         """
         from marimo._plugins.stateless import flex
 
-        return flex.hstack([self], justify="center")
+        return flex.vstack([_BlockWrapped(self)], align="center", gap=0)
 
     @mddoc
     def right(self) -> Html:
@@ -220,7 +220,7 @@ class Html(MIME):
         """
         from marimo._plugins.stateless import flex
 
-        return flex.hstack([self], justify="end")
+        return flex.vstack([_BlockWrapped(self)], align="end", gap=0)
 
     @mddoc
     def left(self) -> Html:
@@ -236,7 +236,7 @@ class Html(MIME):
         """
         from marimo._plugins.stateless import flex
 
-        return flex.hstack([self], justify="start")
+        return flex.vstack([_BlockWrapped(self)], align="start", gap=0)
 
     @mddoc
     def callout(
@@ -287,6 +287,33 @@ class Html(MIME):
 
     def _repr_html_(self) -> str:
         return self.text
+
+
+class _BlockWrapped(Html):
+    """Wraps another Html in a plain block ``<div>``.
+
+    Used by :meth:`Html.center`, :meth:`Html.left`, and :meth:`Html.right`
+    so that the wrapped content renders inside a single block container
+    (preserving normal block flow and margin collapsing between inner
+    elements) rather than becoming multiple flex-column siblings when the
+    inner wrapper uses ``display: contents`` (as ``mo.md`` does).
+
+    The inner Html is re-rendered on every ``text`` access so mutable
+    children (e.g. ``mo.status.spinner``) keep updating live.
+    """
+
+    def __init__(self, inner: Html) -> None:
+        self._inner = inner
+        super().__init__(self._build_text())
+
+    def _build_text(self) -> str:
+        from marimo._output.builder import h
+
+        return h.div(self._inner.text)
+
+    @property
+    def text(self) -> str:
+        return self._build_text()
 
 
 MARIMO_NO_JS_KEY = "MARIMO_NO_JS"
