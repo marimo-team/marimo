@@ -1734,13 +1734,17 @@ def test_cli_run_double_dash_reaches_splitter(tail_args: list[str]) -> None:
     runner = CliRunner()
     captured: dict[str, Any] = {}
 
-    def _capture(name: str, args: tuple[str, ...]) -> tuple[list[str], tuple[str, ...]]:
+    def _capture(
+        name: str, args: tuple[str, ...]
+    ) -> tuple[list[str], tuple[str, ...]]:
         captured["name"] = name
         captured["args"] = args
         raise click.ClickException("stop after capture")
 
     with (
-        patch("marimo._cli.cli._split_run_paths_and_args", side_effect=_capture),
+        patch(
+            "marimo._cli.cli._split_run_paths_and_args", side_effect=_capture
+        ),
         patch(
             "marimo._cli.cli.sys.argv",
             ["marimo", "run", "notebook.py", "--", *tail_args],
