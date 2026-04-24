@@ -9,6 +9,26 @@ describe("Paths", () => {
     expect(Paths.isAbsolute("/user/docs/Letter.txt")).toBe(true);
     expect(Paths.isAbsolute("C:\\user\\docs\\Letter.txt")).toBe(true);
     expect(Paths.isAbsolute("user/docs/Letter.txt")).toBe(false);
+
+    // Any Windows drive letter, either separator, and any case
+    expect(Paths.isAbsolute("D:\\Users\\x\\a.py")).toBe(true);
+    expect(Paths.isAbsolute("z:/tmp/file")).toBe(true);
+    expect(Paths.isAbsolute("e:\\")).toBe(true);
+
+    // UNC / server paths
+    expect(Paths.isAbsolute("\\\\server\\share\\file")).toBe(true);
+
+    // URI schemes
+    expect(Paths.isAbsolute("s3://bucket/key")).toBe(true);
+    expect(Paths.isAbsolute("gs://bucket/key")).toBe(true);
+    expect(Paths.isAbsolute("file:///tmp/file")).toBe(true);
+    expect(Paths.isAbsolute("http://example.com/x")).toBe(true);
+
+    // Negative cases
+    expect(Paths.isAbsolute("C:file")).toBe(false); // drive without separator
+    expect(Paths.isAbsolute("notebook.py")).toBe(false);
+    expect(Paths.isAbsolute("./relative")).toBe(false);
+    expect(Paths.isAbsolute("")).toBe(false);
   });
 
   describe("dirname", () => {

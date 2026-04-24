@@ -127,9 +127,39 @@ jobs:
           path: frontend/
           retention-days: 1
 
+  # Recheck after the build completes before publishing to npm. The `dev` dist-tag is
+  # mutable — if a stale older run publishes after a newer one, `@dev` gets pointed at
+  # older artifacts. Always runs; returns is_latest=true for non-main callers so this
+  # reusable workflow stays safe outside the push-to-main path.
+  recheck_tip_of_main:
+    name: 🔍 Still tip of main?
+    needs: publish_dev_release
+    runs-on: ubuntu-latest
+    outputs:
+      is_latest: ${{ steps.check.outputs.is_latest }}
+    steps:
+      - id: check
+        env:
+          GH_REF: ${{ github.ref }}
+          GH_SHA: ${{ github.sha }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ "$GH_REF" != "refs/heads/main" ]; then
+            echo "is_latest=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          LATEST_SHA=$(git ls-remote "https://github.com/${GH_REPO}.git" refs/heads/main | awk '{print $1}')
+          if [ "$LATEST_SHA" = "$GH_SHA" ]; then
+            echo "is_latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_latest=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping npm publish — superseded by a newer commit on main ($LATEST_SHA) during build."
+          fi
+
   publish_wasm_dev:
     name: 📤 Publish @marimo-team/frontend to npm
-    needs: publish_dev_release
+    needs: [publish_dev_release, recheck_tip_of_main]
+    if: needs.recheck_tip_of_main.outputs.is_latest == 'true'
     uses: ./.github/workflows/publish-npm.yml
     with:
       package-artifact-name: frontend-dev
@@ -141,7 +171,8 @@ jobs:
 
   publish_islands_dev:
     name: 📤 Publish @marimo-team/islands to npm
-    needs: publish_dev_release
+    needs: [publish_dev_release, recheck_tip_of_main]
+    if: needs.recheck_tip_of_main.outputs.is_latest == 'true'
     uses: ./.github/workflows/publish-npm.yml
     with:
       package-artifact-name: frontend-islands-dev

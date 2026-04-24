@@ -753,18 +753,35 @@ class TestPackages:
     async def test_list_errors_after_add(self, k: Kernel) -> None:
         """list() raises after add() has been called in the same batch."""
         with _ctx(k) as ctx:
-            async with ctx as nb:
-                nb.packages.add("pandas")
-                with pytest.raises(RuntimeError):
-                    nb.packages.list()
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            # Mock install: queued ops still run on context exit and would
+            # otherwise invoke `uv add pandas` against the test venv.
+            with patch.object(
+                pm, "install", new_callable=AsyncMock, return_value=True
+            ):
+                async with ctx as nb:
+                    nb.packages.add("pandas")
+                    with pytest.raises(RuntimeError):
+                        nb.packages.list()
 
     async def test_list_errors_after_remove(self, k: Kernel) -> None:
         """list() raises after remove() has been called in the same batch."""
         with _ctx(k) as ctx:
-            async with ctx as nb:
-                nb.packages.remove("pandas")
-                with pytest.raises(RuntimeError):
-                    nb.packages.list()
+            pm = k.packages_callbacks.package_manager
+            assert pm is not None
+
+            # Mock uninstall: queued ops still run on context exit and would
+            # otherwise invoke `uv remove pandas` against the test venv,
+            # triggering a `uv sync` that wipes every test-group package.
+            with patch.object(
+                pm, "uninstall", new_callable=AsyncMock, return_value=True
+            ):
+                async with ctx as nb:
+                    nb.packages.remove("pandas")
+                    with pytest.raises(RuntimeError):
+                        nb.packages.list()
 
     async def test_add_and_remove_in_same_batch(self, k: Kernel) -> None:
         """add and remove can coexist in the same batch, executed in order."""

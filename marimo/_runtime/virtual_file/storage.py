@@ -176,19 +176,24 @@ class SharedMemoryStorage(VirtualFileStorage):
             del self._storage[key]
 
     def shutdown(self, keys: Iterable[str] | None = None) -> None:
-        del keys  # Always clear all - not shared
         if self._shutting_down:
             return
         try:
             self._shutting_down = True
+            if keys is not None:
+                for key in list(keys):
+                    self.remove(key)
+                return
+
             for shm in self._storage.values():
                 if sys.platform == "win32":
                     shm.close()
                 shm.unlink()
             self._storage.clear()
         finally:
-            self._stale = True
             self._shutting_down = False
+            if keys is None:
+                self._stale = True
 
     def has(self, key: str) -> bool:
         return key in self._storage

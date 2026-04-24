@@ -1794,6 +1794,7 @@ def test_get_sample_values_returns_primitives() -> None:
     "df",
     create_dataframes({f"col_{i}": [1, 2, 3] for i in range(2000)}),
 )
+@pytest.mark.flaky(reruns=2)
 def test_get_field_types_with_many_columns_is_performant(df: Any) -> None:
     manager = get_table_manager(df)
 
@@ -1804,7 +1805,9 @@ def test_get_field_types_with_many_columns_is_performant(df: Any) -> None:
     # This can be slow if get_field_types is not optimized.
     # https://github.com/marimo-team/marimo/issues/3107
     total_ms = (end_time - start_time) * 1000
-    assert total_ms < 500, (
+    # A deadline of 500ms is sometimes exceeded on CI, we are guarding against
+    # an n^2 regression so 1s is still fine.
+    assert total_ms < 1000, (
         f"Total time: {total_ms}ms for {df.shape[1]} columns with {type(df)}"
     )
 

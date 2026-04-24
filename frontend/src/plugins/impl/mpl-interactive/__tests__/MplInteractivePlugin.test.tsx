@@ -1,12 +1,41 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import type { ExtractAtomValue } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { hasRunAnyCellAtom } from "@/components/editor/cell/useRunCells";
+import { userConfigAtom } from "@/core/config/config";
+import { parseUserConfig } from "@/core/config/config-schema";
+import { initialModeAtom } from "@/core/mode";
+import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
 import { visibleForTesting } from "../MplInteractivePlugin";
 
 const { ensureMplJs, injectCss, resetMplJsLoading } = visibleForTesting;
 
+/**
+ * Clear every "notebook trust" signal `isTrustedVirtualFileUrl` consults so
+ * the rejection cases below test the actually-untrusted branch. Positive
+ * export-context trust is covered centrally in trusted-url.test.ts.
+ */
+function clearTrustSignals() {
+  store.set(hasRunAnyCellAtom, false);
+  const cleared = parseUserConfig({});
+  store.set(userConfigAtom, {
+    ...cleared,
+    runtime: { ...cleared.runtime, auto_instantiate: false },
+  });
+  store.set(initialModeAtom, "edit");
+}
+
 describe("MplInteractivePlugin URL validation", () => {
+  let previousConfig: ExtractAtomValue<typeof userConfigAtom>;
+  let previousMode: ExtractAtomValue<typeof initialModeAtom>;
+  let previousHasRunAnyCell: ExtractAtomValue<typeof hasRunAnyCellAtom>;
+
   beforeEach(() => {
+    previousConfig = store.get(userConfigAtom);
+    previousMode = store.get(initialModeAtom);
+    previousHasRunAnyCell = store.get(hasRunAnyCellAtom);
+    clearTrustSignals();
     // Reset module-level script-loading state and any stubs.
     delete (window as { mpl?: unknown }).mpl;
     resetMplJsLoading();
@@ -20,6 +49,9 @@ describe("MplInteractivePlugin URL validation", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    store.set(userConfigAtom, previousConfig);
+    store.set(initialModeAtom, previousMode);
+    store.set(hasRunAnyCellAtom, previousHasRunAnyCell);
   });
 
   describe("ensureMplJs", () => {
@@ -35,6 +67,8 @@ describe("MplInteractivePlugin URL validation", () => {
       "https://evil.example.com/x.js",
       "//evil.example.com/x.js",
       "javascript:alert(1)",
+      // Data URL is rejected only in an untrusted context. WASM/autoInstantiate
+      // intentionally accepts it — covered by trusted-url.test.ts.
       "data:text/javascript;base64,YWxlcnQoMSk=",
       "./@file/x.js?redirect=http://evil.com",
     ])("rejects %s", async (url) => {

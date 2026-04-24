@@ -2,6 +2,10 @@
 
 You can include a custom HTML head file to add additional functionality to your notebook, such as analytics, custom fonts, meta tags, or external scripts. The contents of this file will be injected into the `<head>` section of your notebook.
 
+!!! note "Run mode only"
+
+    Custom HTML head content is only injected in **run mode** (`marimo run`). It is not applied in edit mode. If you need custom styling in edit mode, use [`css_file`](theming.md).
+
 To include a custom HTML head file, specify the relative file path in your app configuration. This can be done through the marimo editor UI in the notebook settings (top-right corner).
 
 This will be reflected in your notebook file:

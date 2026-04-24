@@ -5,7 +5,10 @@ import type { CellId } from "@/core/cells/ids";
 import type { CellColumnId } from "@/utils/id-tree";
 import { useEffect, useRef, useState } from "react";
 import type { ICellRendererProps } from "../editor/renderers/types";
-import type { SlidesLayout } from "../editor/renderers/slides-layout/types";
+import type {
+  SlideType,
+  SlidesLayout,
+} from "../editor/renderers/slides-layout/types";
 import {
   DndContext,
   DragOverlay,
@@ -29,8 +32,10 @@ import {
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { cn } from "@/utils/cn";
 import { Slide } from "./slide";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, type LucideIcon } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 import { Logger } from "@/utils/Logger";
+import { SLIDE_TYPE_OPTIONS_BY_VALUE } from "./slide-form";
 
 type Props = ICellRendererProps<SlidesLayout>;
 type SlideCell = Props["cells"][number];
@@ -48,34 +53,65 @@ interface ResolvedDropTarget {
   index: number;
 }
 
+interface ThumbnailDimensions {
+  width: number;
+  height: number;
+  scale: number;
+}
+
 interface SlideThumbnailCardProps extends React.HTMLAttributes<HTMLDivElement> {
   cell: SlideCell;
+  dimensions: ThumbnailDimensions;
   isActiveSlide?: boolean;
   isActiveDragSource?: boolean;
   isOverlay?: boolean;
   isVisible?: boolean;
+  slideType?: SlideType;
   ref?: React.Ref<HTMLDivElement>;
 }
 
 interface SlideThumbnailRowProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   cell: SlideCell;
+  dimensions: ThumbnailDimensions;
   isActiveSlide?: boolean;
   dropIndicator?: DropPosition | null;
   isActiveDragSource?: boolean;
   isVisible?: boolean;
+  slideType?: SlideType;
   ref?: React.Ref<HTMLButtonElement>;
 }
 
 interface SlidesMinimapProps {
   cells: SlideCell[];
+  thumbnailWidth: number;
   canReorder: boolean;
   activeCellId: CellId | null;
+  // Set of cell ids that are marked `skip` in the slides layout.
+  skippedIds?: ReadonlySet<CellId>;
+  slideTypes?: ReadonlyMap<CellId, SlideType>;
   onSlideClick: (index: number) => void;
 }
 
-const THUMBNAIL_WIDTH = 256;
-const THUMBNAIL_HEIGHT = 144;
-const THUMBNAIL_SCALE = 0.3;
+function getSlideTypeVisual(
+  slideType: SlideType | undefined,
+): { label: string; description: string; Icon: LucideIcon } | null {
+  if (!slideType || slideType === "slide") {
+    return null;
+  }
+  const { label, description, Icon } = SLIDE_TYPE_OPTIONS_BY_VALUE[slideType];
+  return { label, description, Icon };
+}
+
+const SLIDE_ASPECT_RATIO = 16 / 9;
+const SLIDE_BASE_WIDTH = 960;
+
+function computeThumbnailDimensions(width: number): ThumbnailDimensions {
+  return {
+    width,
+    height: width / SLIDE_ASPECT_RATIO,
+    scale: width / SLIDE_BASE_WIDTH,
+  };
+}
 const MINIMAP_AUTO_SCROLL = {
   threshold: { x: 0, y: 0.1 },
 };
@@ -156,8 +192,11 @@ function useVisibleCellIds(
 
 export const SlidesMinimap = ({
   cells,
+  thumbnailWidth,
   canReorder,
   activeCellId,
+  skippedIds,
+  slideTypes,
   onSlideClick,
 }: SlidesMinimapProps) => {
   const cellIds = useCellIds();
@@ -168,6 +207,7 @@ export const SlidesMinimap = ({
   const [dropTarget, setDropTarget] = useState<ProjectedDropTarget | null>(
     null,
   );
+  const dimensions = computeThumbnailDimensions(thumbnailWidth);
 
   useEffect(() => {
     if (!activeCellId || !containerRef.current) {
@@ -245,8 +285,14 @@ export const SlidesMinimap = ({
           <SlideThumbnailRow
             key={cell.id}
             cell={cell}
+            dimensions={dimensions}
             isActiveSlide={cell.id === activeCellId}
             isVisible={visibleIds.has(cell.id)}
+            slideType={resolveSlideType({
+              cellId: cell.id,
+              slideTypes,
+              skippedIds,
+            })}
             onClick={() => onSlideClick(index)}
           />
         ))}
@@ -275,9 +321,15 @@ export const SlidesMinimap = ({
             <SortableSlideThumbnail
               key={cell.id}
               cell={cell}
+              dimensions={dimensions}
               isActive={activeId === cell.id}
               isActiveSlide={cell.id === activeCellId}
               isVisible={visibleIds.has(cell.id)}
+              slideType={resolveSlideType({
+                cellId: cell.id,
+                slideTypes,
+                skippedIds,
+              })}
               dropIndicator={
                 dropTarget?.overId === cell.id && activeId !== cell.id
                   ? dropTarget.position
@@ -292,6 +344,7 @@ export const SlidesMinimap = ({
         {activeCell && (
           <SlideThumbnailCard
             cell={activeCell}
+            dimensions={dimensions}
             isOverlay={true}
             isActiveDragSource={true}
           />
@@ -320,19 +373,23 @@ const SlideThumbnailsContainer = ({
 
 interface SortableSlideThumbnailProps {
   cell: SlideCell;
+  dimensions: ThumbnailDimensions;
   dropIndicator?: DropPosition | null;
   isActive: boolean;
   isActiveSlide?: boolean;
   isVisible?: boolean;
+  slideType?: SlideType;
   onClick?: () => void;
 }
 
 const SortableSlideThumbnail = ({
   cell,
+  dimensions,
   dropIndicator,
   isActive,
   isActiveSlide,
   isVisible,
+  slideType,
   onClick,
 }: SortableSlideThumbnailProps) => {
   const { attributes, listeners, setNodeRef } = useSortable({
@@ -343,10 +400,12 @@ const SortableSlideThumbnail = ({
     <SlideThumbnailRow
       ref={setNodeRef}
       cell={cell}
+      dimensions={dimensions}
       dropIndicator={dropIndicator}
       isActiveDragSource={isActive}
       isActiveSlide={isActiveSlide}
       isVisible={isVisible}
+      slideType={slideType}
       onClick={onClick}
       {...attributes}
       {...listeners}
@@ -356,12 +415,14 @@ const SortableSlideThumbnail = ({
 
 const SlideThumbnailRow = ({
   cell,
+  dimensions,
   className,
   style,
   dropIndicator,
   isActiveSlide = false,
   isActiveDragSource = false,
   isVisible,
+  slideType,
   onClick,
   ref,
   ...props
@@ -397,9 +458,11 @@ const SlideThumbnailRow = ({
       )}
       <SlideThumbnailCard
         cell={cell}
+        dimensions={dimensions}
         isActiveSlide={isActiveSlide}
         isActiveDragSource={isActiveDragSource}
         isVisible={isVisible}
+        slideType={slideType}
       />
     </button>
   );
@@ -407,24 +470,30 @@ const SlideThumbnailRow = ({
 
 const SlideThumbnailCard = ({
   cell,
+  dimensions,
   className,
   style,
   isActiveSlide = false,
   isActiveDragSource = false,
   isOverlay = false,
   isVisible = false,
+  slideType,
   ref,
   ...props
 }: SlideThumbnailCardProps) => {
+  const { width, height, scale } = dimensions;
+  const visual = getSlideTypeVisual(slideType);
+  const isSkipped = slideType === "skip";
+
   const outerStyle: React.CSSProperties = {
-    width: THUMBNAIL_WIDTH,
-    height: THUMBNAIL_HEIGHT,
+    width,
+    height,
     contain: "strict",
     ...(isOverlay
       ? null
       : {
           contentVisibility: "auto",
-          containIntrinsicSize: `${THUMBNAIL_WIDTH}px ${THUMBNAIL_HEIGHT}px`,
+          containIntrinsicSize: `${width}px ${height}px`,
         }),
     ...style,
   };
@@ -435,7 +504,7 @@ const SlideThumbnailCard = ({
     <div
       ref={ref}
       className={cn(
-        "border-2 shrink-0 rounded-md relative select-none bg-background cursor-pointer active:cursor-grabbing",
+        "border-2 shrink-0 rounded-md relative select-none bg-background cursor-pointer active:cursor-grabbing overflow-hidden",
         isActiveSlide || isActiveDragSource || isOverlay
           ? "border-blue-500"
           : "border-border",
@@ -450,14 +519,40 @@ const SlideThumbnailCard = ({
         <div
           className="flex p-6 box-border pointer-events-none mo-slide-content overflow-hidden"
           style={{
-            transform: `scale(${THUMBNAIL_SCALE})`,
+            transform: `scale(${scale})`,
             transformOrigin: "top left",
-            width: THUMBNAIL_WIDTH / THUMBNAIL_SCALE,
-            height: THUMBNAIL_HEIGHT / THUMBNAIL_SCALE,
+            width: width / scale,
+            height: height / scale,
           }}
         >
           <Slide cellId={cell.id} status={cell.status} output={cell.output} />
         </div>
+      )}
+      {isSkipped && (
+        <div
+          className="absolute inset-0 bg-muted/60 pointer-events-none"
+          aria-hidden={true}
+        />
+      )}
+      {visual && (
+        <Tooltip
+          content={
+            <span className="text-xs opacity-80">{visual.description}</span>
+          }
+        >
+          <span
+            className={cn(
+              "absolute top-1 right-1 flex items-center gap-1 rounded-full border p-0.5 font-medium leading-none shadow-xs cursor-help",
+              isSkipped
+                ? "bg-background/90 border-border text-muted-foreground"
+                : "bg-background/95 border-border text-foreground/80",
+            )}
+            aria-label={visual.label}
+          >
+            <visual.Icon className="h-3.5 w-3.5" />
+            {/* <span>{visual.label}</span> */}
+          </span>
+        </Tooltip>
       )}
     </div>
   );
@@ -525,6 +620,32 @@ function resolveDropTarget({
  */
 function asCellId(id: UniqueIdentifier): CellId | null {
   return typeof id === "string" ? (id as CellId) : null;
+}
+
+/**
+ * Resolves the effective slide type for a cell. Falls back to `"skip"` if the
+ * caller-supplied `skippedIds` set marks the cell as skipped, which keeps this
+ * component working when only the legacy `skippedIds` prop is provided.
+ * Returns `undefined` for the default `"slide"` type so callers can skip
+ * rendering any badge.
+ */
+function resolveSlideType({
+  cellId,
+  slideTypes,
+  skippedIds,
+}: {
+  cellId: CellId;
+  slideTypes: ReadonlyMap<CellId, SlideType> | undefined;
+  skippedIds: ReadonlySet<CellId> | undefined;
+}): SlideType | undefined {
+  const type = slideTypes?.get(cellId);
+  if (type && type !== "slide") {
+    return type;
+  }
+  if (skippedIds?.has(cellId)) {
+    return "skip";
+  }
+  return undefined;
 }
 
 export const exportedForTesting = {

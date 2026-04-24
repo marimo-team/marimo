@@ -10,6 +10,7 @@ from typing import (
     Final,
     Literal,
     TypeAlias,
+    Union,
     cast,
 )
 
@@ -56,9 +57,10 @@ VegaSpec = dict[str, Any]
 RowOrientedData = list[dict[str, Any]]
 ColumnOrientedData = dict[str, list[Any]]
 
-ChartDataType = (
-    IntoDataFrame | IntoLazyFrame | RowOrientedData | ColumnOrientedData
-)
+# Use Union[] instead of X | Y — see altair_transformer.py for rationale.
+ChartDataType = Union[
+    IntoDataFrame, IntoLazyFrame, RowOrientedData, ColumnOrientedData
+]
 
 # Union of all possible chart types
 AltairChartType: TypeAlias = "altair.vegalite.v6.api.ChartType"

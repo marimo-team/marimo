@@ -16,6 +16,8 @@ import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { QueryParamPreservingLink } from "@/components/ui/query-param-preserving-link";
 import { Tooltip } from "@/components/ui/tooltip";
 import { DocHoverTarget } from "@/core/documentation/DocHoverTarget";
+import { hasTrustedNotebookContext } from "@/core/static/export-context";
+import { Logger } from "@/utils/Logger";
 import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
 
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
@@ -98,8 +100,27 @@ const replaceSrcScripts = (domNode: DOMNode): JSX.Element | undefined => {
     if (!src) {
       return;
     }
-    // Check if script already exists
-    if (!document.querySelector(`script[src="${src}"]`)) {
+    // Only append notebook-authored scripts when the page is a trusted
+    // context (the user has run a cell, the page is a trusted export, or
+    // we're running in read/app mode). In untrusted edit mode before any
+    // user interaction, drop the script and log a warning. Outer
+    // sanitization will normally strip <script> tags already; this is
+    // defense-in-depth for flows that reparse children with
+    // alwaysSanitizeHtml: false (see registerReactComponent.getChildren).
+    if (!hasTrustedNotebookContext()) {
+      Logger.warn(
+        `[RenderHTML] refusing <script src> in untrusted context: ${src}`,
+      );
+      // oxlint-disable-next-line react/jsx-no-useless-fragment
+      return <></>;
+    }
+    // Check if script already exists. Avoid building a CSS selector from
+    // notebook-provided input, which can throw for valid URLs containing
+    // selector-significant characters (e.g. IPv6 hosts with `[`/`]`).
+    const scriptExists = [...document.querySelectorAll("script[src]")].some(
+      (existingScript) => existingScript.getAttribute("src") === src,
+    );
+    if (!scriptExists) {
       const script = document.createElement("script");
       script.src = src;
       document.head.append(script);

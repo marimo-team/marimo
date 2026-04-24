@@ -118,7 +118,7 @@ def test_index_invalid_access_token_redirects_to_login(
     client: TestClient,
 ) -> None:
     # An invalid token must NOT trigger the token-strip redirect (which
-    # would imply the token was accepted). Instead, `@requires` should
+    # would imply the token was accepted). Instead, the auth guard should
     # redirect the unauthenticated request to the login page. Following
     # the redirect lands on the login HTML.
     response = client.get("/?access_token=wrong-token", follow_redirects=False)
@@ -128,6 +128,48 @@ def test_index_invalid_access_token_redirects_to_login(
     followed = client.get("/?access_token=wrong-token")
     assert followed.status_code == 200
     assert "Login" in followed.text
+
+
+def test_index_unauthenticated_redirect_is_relative(
+    client: TestClient,
+) -> None:
+    # Regression test for https://github.com/marimo-team/marimo/issues/9249.
+    # When a reverse proxy forwards an internal `Host` header, an absolute
+    # Location would send the browser to an unreachable internal address.
+    # The Location must be relative so the browser resolves it against the
+    # public URL it originally used.
+    response = client.get(
+        "/",
+        headers={"Host": "10.0.0.5:60830"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303, response.text
+    location = response.headers["location"]
+    # Must be relative — no scheme, no host.
+    assert location.startswith("/auth/login?"), location
+    assert "://" not in location
+    assert "10.0.0.5" not in location
+
+
+def test_index_unauthenticated_redirect_preserves_next(
+    client: TestClient,
+) -> None:
+    # The original path (and query) must round-trip through the redirect so
+    # the user lands where they were trying to go after logging in.
+    response = client.get(
+        "/?file=foo.py&view-as=present",
+        follow_redirects=False,
+    )
+    assert response.status_code == 303, response.text
+    location = response.headers["location"]
+    assert location.startswith("/auth/login?"), location
+    # next= is percent-encoded; decoding it should yield the original path
+    # with its query string.
+    from urllib.parse import parse_qs, urlparse
+
+    parsed = urlparse(location)
+    next_value = parse_qs(parsed.query)["next"][0]
+    assert next_value == "/?file=foo.py&view-as=present"
 
 
 def test_index_response_has_security_headers(client: TestClient) -> None:
@@ -196,6 +238,40 @@ def test_vfile(client: TestClient) -> None:
     assert response.status_code == 404, response.text
     assert response.headers["content-type"] == "application/json"
     assert response.json() == {"detail": "Invalid virtual file request"}
+
+
+@patch(
+    "marimo._server.api.endpoints.assets.GLOBAL_SETTINGS.DISABLE_AUTH_ON_VIRTUAL_FILES",
+    True,
+)
+def test_vfile_auth_disabled_allows_unauthenticated(
+    client: TestClient,
+) -> None:
+    # Unauthenticated requests normally return 401, but the env flag
+    # lets them through.
+    response = client.get("/@file/empty.txt")
+    assert response.status_code == 200, response.text
+    assert response.content == b""
+
+    response = client.get("/@file/bad.txt")
+    assert response.status_code == 404, response.text
+    assert response.json() == {"detail": "Invalid virtual file request"}
+
+
+@patch(
+    "marimo._server.api.endpoints.assets.GLOBAL_SETTINGS.DISABLE_AUTH_ON_VIRTUAL_FILES",
+    False,
+)
+def test_vfile_auth_enabled_rejects_unauthenticated(
+    client: TestClient,
+) -> None:
+    # With the flag off (the default), unauthenticated requests are rejected.
+    response = client.get("/@file/empty.txt")
+    assert response.status_code == 401, response.text
+
+    # Authenticated requests still work.
+    response = client.get("/@file/empty.txt", headers=token_header())
+    assert response.status_code == 200, response.text
 
 
 def test_vfile_large_streaming(client: TestClient) -> None:

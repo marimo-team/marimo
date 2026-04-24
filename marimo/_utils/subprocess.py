@@ -1,6 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
+import os
+import signal
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from typing import (
@@ -11,6 +14,8 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._session.queue import ProcessLike
+from marimo._utils.platform import is_windows
 
 LOGGER = _loggers.marimo_logger()
 
@@ -271,3 +276,108 @@ def safe_popen(
     except Exception as e:
         LOGGER.error("Failed to create subprocess for command %s: %s", args, e)
         return None
+
+
+_REAP_TASKS: set[asyncio.Task[None]] = set()
+
+
+def _process_finished(process: ProcessLike) -> bool:
+    """Return whether the process has finished without blocking."""
+    # NB: It is not safe to call os.waitpid() directly because
+    # apparently Popen.poll() and multiprcoessing.Process.is_alive()
+    # assume that they are the ones that reap zombie processes.
+    poll = getattr(process, "poll", None)
+    if poll is not None:
+        return poll() is not None
+    return not process.is_alive()
+
+
+async def cancel_pending_reaps() -> None:
+    """Cancel and await any in-flight reap tasks.
+
+    Call from a server shutdown hook so asyncio doesn't emit
+    "Task was destroyed but it is pending" when the loop closes.
+    """
+    tasks = list(_REAP_TASKS)
+    for t in tasks:
+        t.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+async def _reap_process_unix(process: ProcessLike, pgid: int | None) -> None:
+    pid = process.pid
+    await asyncio.sleep(5.0)
+    if _process_finished(process):
+        return
+
+    LOGGER.warning(
+        "Process %s did not respond to SIGTERM. Force killing.", pid
+    )
+    try:
+        if pgid is not None:
+            os.killpg(pgid, signal.SIGKILL)
+        elif pid is not None:
+            os.kill(pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return
+
+    wait_for_s = 10
+    waited_s = 0
+    while (
+        not (process_finished := _process_finished(process))
+        and waited_s < wait_for_s
+    ):
+        await asyncio.sleep(1.0)
+        waited_s += 1
+
+    if not process_finished:
+        LOGGER.warning(
+            "Waited for 10s, but process %s has still not quit ...", pid
+        )
+        return
+
+
+def try_kill_process_and_group(process: ProcessLike) -> None:
+    """Attempt to kill the process group to which process belongs.
+
+    Refuses to kill the group if it the current process belongs to it.
+
+    Regardless, tries to kill the process.
+
+    If running in an event loop, starts a task to reap the process on Unix-like
+    systems. If not running in an event loop, it is the caller's responsibility
+    to reap the process.
+    """
+    pid = process.pid
+    if pid is None:
+        return
+
+    if is_windows():
+        # TODO(akshayka): Investigate whether we need to kill an entire
+        # process group on Windows, and if so how ...
+        process.terminate()
+        return
+
+    pgid = os.getpgid(pid)
+    target_pgid: int | None
+    if pgid == os.getpgrp():
+        # This should never happen ... the kernel process makes sure to
+        # call setsid and become the group leader
+        LOGGER.warning("The target's pgid matches the server's (%d)", pgid)
+        target_pgid = None
+        process.terminate()
+    else:
+        target_pgid = pgid
+        os.killpg(pgid, signal.SIGTERM)
+
+    if _process_finished(process):
+        return
+
+    try:
+        loop = asyncio.get_running_loop()
+        task = loop.create_task(_reap_process_unix(process, target_pgid))
+        _REAP_TASKS.add(task)
+        task.add_done_callback(_REAP_TASKS.discard)
+    except RuntimeError:
+        pass

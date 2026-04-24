@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 
+import msgspec
 import pytest
 from dirty_equals import IsFloat, IsList, IsUUID
 
@@ -18,7 +19,14 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.commands import (
     AppMetadata,
+    BatchableCommand,
+    CodeCompletionCommand,
+    CommandMessage,
     ExecuteCellsCommand,
+    HTTPRequest,
+    ModelCommand,
+    ModelUpdateMessage,
+    UpdateUIElementCommand,
 )
 from marimo._types.ids import CellId_t
 
@@ -259,9 +267,141 @@ def test_queue_manager_connection():
     host_manager.control_queue.put(test_request)
     assert client_manager.control_queue.get(timeout=1) == test_request
 
-    kernel_message = ("test-op", b'{"data": "test"}')
+    kernel_message = b'{"op": "test-op", "data": "test"}'
     client_manager.stream_queue.put(kernel_message)
     assert host_manager.stream_queue.get(timeout=1) == kernel_message
 
     host_manager.close_queues()
     client_manager.close_queues()
+
+
+class TestMsgpackIPC:
+    """Test msgspec msgpack serialization for IPC channels.
+
+    Each IPC channel has a specific type that must survive encode/decode.
+    These tests mirror the channel types in Connection.create/connect:
+
+        control:         CommandMessage (discriminated union)
+        ui_element:      BatchableCommand (discriminated union)
+        completion:      CodeCompletionCommand
+        input:           str
+        win32_interrupt: bool
+        stream:          bytes
+    """
+
+    def test_control_channel(self) -> None:
+        """CommandMessage union dispatches to the correct subtype."""
+        cmd = ExecuteCellsCommand(cell_ids=["c1"], codes=["x=1"])
+        encoded = msgspec.msgpack.encode(cmd)
+        decoded = msgspec.msgpack.Decoder(CommandMessage).decode(encoded)
+        assert decoded == cmd
+
+    def test_control_channel_with_http_request(self) -> None:
+        """HTTPRequest (a @dataclass) survives the round-trip as a nested field."""
+        req = HTTPRequest(
+            url={"path": "/run"},
+            base_url={"path": "/"},
+            headers={"content-type": "application/json"},
+            query_params={"key": ["val1", "val2"]},
+            path_params={},
+            cookies={},
+            meta={},
+            user={},
+        )
+        cmd = ExecuteCellsCommand(cell_ids=["c1"], codes=["x=1"], request=req)
+        encoded = msgspec.msgpack.encode(cmd)
+        decoded = msgspec.msgpack.Decoder(CommandMessage).decode(encoded)
+        assert decoded.request is not None
+        assert decoded.request["url"]["path"] == "/run"
+        assert decoded.request["query_params"]["key"] == ["val1", "val2"]
+
+    def test_ui_element_channel(self) -> None:
+        """BatchableCommand union round-trips both member types."""
+        ui = UpdateUIElementCommand(
+            object_ids=["e1"], values=[{"nested": [1, 2]}], token="tok"
+        )
+        encoded = msgspec.msgpack.encode(ui)
+        assert msgspec.msgpack.Decoder(BatchableCommand).decode(encoded) == ui
+
+        msg = ModelUpdateMessage(state={"k": "v"}, buffer_paths=[])
+        model = ModelCommand(
+            model_id="m1", message=msg, buffers=[b"buf"], token="tok"
+        )
+        encoded = msgspec.msgpack.encode(model)
+        assert (
+            msgspec.msgpack.Decoder(BatchableCommand).decode(encoded) == model
+        )
+
+    def test_completion_channel(self) -> None:
+        cmd = CodeCompletionCommand(id="t", document="x = 1", cell_id="c1")
+        encoded = msgspec.msgpack.encode(cmd)
+        decoded = msgspec.msgpack.Decoder(CodeCompletionCommand).decode(
+            encoded
+        )
+        assert decoded == cmd
+
+    def test_primitive_channels(self) -> None:
+        """str (input), bool (win32_interrupt), and bytes (stream) channels."""
+        for value, typ in [
+            ("user_input", str),
+            (True, bool),
+            (b'{"op": "cell-op"}', bytes),
+        ]:
+            encoded = msgspec.msgpack.encode(value)
+            assert msgspec.msgpack.Decoder(typ).decode(encoded) == value
+
+    def test_unknown_fields_are_ignored(self) -> None:
+        """Decoder silently drops fields it doesn't recognize.
+
+        This matters when the sender is newer than the receiver (e.g.
+        a field was added to a command). msgspec must not reject the
+        message — it should decode the known fields and discard the rest.
+        """
+
+        # A "V2" struct with the same tag but an extra field
+        class ExecuteCellsCommandV2(
+            msgspec.Struct,
+            rename="camel",
+            tag_field="type",
+            tag="execute-cells",
+        ):
+            cell_ids: list[str]
+            codes: list[str]
+            new_field: str = "added_later"
+
+        v2 = ExecuteCellsCommandV2(
+            cell_ids=["c1"], codes=["x=1"], new_field="extra"
+        )
+        encoded = msgspec.msgpack.encode(v2)
+
+        decoded = msgspec.msgpack.Decoder(CommandMessage).decode(encoded)
+        assert type(decoded) is ExecuteCellsCommand
+        assert decoded.cell_ids == ["c1"]
+        assert decoded.codes == ["x=1"]
+
+    def test_missing_optional_fields_get_defaults(self) -> None:
+        """Decoder fills in defaults for fields the sender didn't include.
+
+        This matters when the receiver is newer than the sender (e.g.
+        a field was added with a default, but the sender hasn't been
+        updated yet).
+        """
+
+        class ExecuteCellsCommandV2(
+            msgspec.Struct,
+            rename="camel",
+            tag_field="type",
+            tag="execute-cells",
+        ):
+            cell_ids: list[str]
+            codes: list[str]
+            new_field: str = "default_value"
+
+        old = ExecuteCellsCommand(cell_ids=["c1"], codes=["x=1"])
+        encoded = msgspec.msgpack.encode(old)
+
+        decoded = msgspec.msgpack.Decoder(ExecuteCellsCommandV2).decode(
+            encoded
+        )
+        assert decoded.cell_ids == ["c1"]
+        assert decoded.new_field == "default_value"

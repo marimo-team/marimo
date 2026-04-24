@@ -10,6 +10,26 @@ import type {
 import { prettyError } from "@/utils/errors";
 import { Functions } from "@/utils/functions";
 import { type FilePath, PathBuilder } from "@/utils/paths";
+import { resolvePaths } from "@/utils/pathUtils";
+
+/**
+ * Normalized result of a file mutation: the server response when successful,
+ * `null` when the server rejected the request and a toast was surfaced.
+ */
+export type FileOperationResult = FileUpdateResponse | null;
+
+export function handleFileResponse(
+  response: FileUpdateResponse,
+): FileOperationResult {
+  if (!response.success) {
+    toast({
+      title: "Failed",
+      description: response.message,
+    });
+    return null;
+  }
+  return response;
+}
 
 export class RequestingTree {
   private delegate = new SimpleTree<FileInfo>([]);
@@ -85,15 +105,15 @@ export class RequestingTree {
       });
       return;
     }
-    const currentPath = node.data.path as FilePath;
-    const parentPath = this.path.dirname(currentPath);
-    const newPath = this.path.join(parentPath, newName);
+    const { path, newPath } = resolvePaths({
+      path: node.data.path,
+      name: newName,
+      root: this.rootPath,
+    });
+    const parentPath = this.path.dirname(path);
     const newFile = await this.callbacks
-      .copyFileOrFolder({
-        path: currentPath,
-        newPath: newPath,
-      })
-      .then(this.handleResponse);
+      .copyFileOrFolder({ path, newPath })
+      .then(handleFileResponse);
     if (!newFile?.info) {
       return;
     }
@@ -116,14 +136,18 @@ export class RequestingTree {
       });
       return;
     }
-    const currentPath = node.data.path as FilePath;
-    const newPath = this.path.join(this.path.dirname(currentPath), name);
-    await this.callbacks
-      .renameFileOrFolder({
-        path: currentPath,
-        newPath: newPath,
-      })
-      .then(this.handleResponse);
+    const { path, newPath } = resolvePaths({
+      path: node.data.path,
+      name,
+      root: this.rootPath,
+    });
+    const result = await this.callbacks
+      .renameFileOrFolder({ path, newPath })
+      .then(handleFileResponse);
+    if (!result) {
+      return;
+    }
+
     this.delegate.update({ id, changes: { name, path: newPath } });
     this.onChange(this.delegate.data);
     // Rename all of its children
@@ -136,23 +160,25 @@ export class RequestingTree {
       : this.rootPath;
 
     await Promise.all(
-      fromIds.map((id) => {
-        this.delegate.move({ id, parentId, index: 0 });
+      fromIds.map(async (id) => {
         const node = this.delegate.find(id);
         if (!node) {
-          return Promise.resolve();
+          return;
         }
+        const originalPath = node.data.path;
         const newPath = this.path.join(
           parentPath,
-          this.path.basename(node.data.path as FilePath),
+          this.path.basename(originalPath as FilePath),
         );
+        const result = await this.callbacks
+          .renameFileOrFolder({ path: originalPath, newPath })
+          .then(handleFileResponse);
+        if (!result) {
+          return;
+        }
+
+        this.delegate.move({ id, parentId, index: 0 });
         this.delegate.update({ id, changes: { path: newPath } });
-        return this.callbacks
-          .renameFileOrFolder({
-            path: node.data.path,
-            newPath: newPath,
-          })
-          .then(this.handleResponse);
       }),
     );
 
@@ -162,17 +188,21 @@ export class RequestingTree {
     await this.refreshAll([parentPath]);
   }
 
-  async createFile(
-    name: string,
-    parentId: string | null,
-    type: "file" | "notebook" = "file",
-  ): Promise<void> {
+  async createFile({
+    name,
+    parentId,
+    type = "file",
+  }: {
+    name: string;
+    parentId: string | null;
+    type?: "file" | "notebook";
+  }): Promise<void> {
     const parentPath = parentId
       ? (this.delegate.find(parentId)?.data.path ?? parentId)
       : this.rootPath;
     const newFile = await this.callbacks
       .createFileOrFolder({ path: parentPath, type: type, name: name })
-      .then(this.handleResponse);
+      .then(handleFileResponse);
     if (!newFile?.info) {
       return;
     }
@@ -192,7 +222,7 @@ export class RequestingTree {
       : this.rootPath;
     const newFolder = await this.callbacks
       .createFileOrFolder({ path: parentPath, type: "directory", name: name })
-      .then(this.handleResponse);
+      .then(handleFileResponse);
     if (!newFolder?.info) {
       return;
     }
@@ -216,9 +246,12 @@ export class RequestingTree {
       return;
     }
 
-    await this.callbacks
+    const result = await this.callbacks
       .deleteFileOrFolder({ path: node.data.path })
-      .then(this.handleResponse);
+      .then(handleFileResponse);
+    if (!result) {
+      return;
+    }
     this.delegate.drop({ id });
     this.onChange(this.delegate.data);
   }
@@ -261,19 +294,5 @@ export class RequestingTree {
       return path.slice(root.length) as FilePath;
     }
     return path;
-  };
-
-  private handleResponse = (
-    response: FileUpdateResponse,
-  ): FileUpdateResponse | null => {
-    if (!response.success) {
-      toast({
-        title: "Failed",
-        description: response.message,
-      });
-      return null;
-    }
-
-    return response;
   };
 }

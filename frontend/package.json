@@ -194,7 +194,7 @@
     "@babel/preset-typescript": "^7.25.9",
     "@codecov/vite-plugin": "^1.9.1",
     "@csstools/postcss-light-dark-function": "^2.0.11",
-    "@playwright/test": "^1.58.2",
+    "@playwright/test": "^1.59.1",
     "@storybook/addon-docs": "^10.2.12",
     "@storybook/addon-links": "^10.2.12",
     "@storybook/react-vite": "^10.2.12",
@@ -209,7 +209,7 @@
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "@types/timestring": "^6.0.5",
-    "@vitejs/plugin-react": "^5.1.4",
+    "@vitejs/plugin-react": "^5.2.0",
     "babel-plugin-react-compiler": "19.1.0-rc.3",
     "blob-polyfill": "^7.0.20220408",
     "cross-env": "^7.0.3",
@@ -226,11 +226,11 @@
     "storybook": "^10.2.12",
     "stylelint": "^16.26.1",
     "stylelint-config-standard": "^36.0.1",
-    "tailwindcss": "^4.2.0",
+    "tailwindcss": "^4.2.2",
     "vega-typings": "^2.1.0",
     "vite": "npm:rolldown-vite@7.3.1",
     "vite-plugin-top-level-await": "^1.6.0",
-    "vite-plugin-wasm": "^3.5.0",
+    "vite-plugin-wasm": "^3.6.0",
     "vitest": "^3.2.4"
   }
 }

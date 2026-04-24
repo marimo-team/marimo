@@ -35,6 +35,7 @@ from marimo._session._venv import (
 from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike, QueueType, route_control_request
 from marimo._session.types import KernelManager, QueueManager
+from marimo._utils.subprocess import try_kill_process_and_group
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
@@ -216,6 +217,7 @@ class IPCKernelManagerImpl(KernelManager):
             connection_info=self.connection_info,
             is_run_mode=self.mode == SessionMode.RUN,
             redirect_console_to_browser=self.redirect_console_to_browser,
+            parent_pid=os.getpid(),
         )
 
         venv_config = _get_venv_config(self.config_manager)
@@ -395,14 +397,13 @@ class IPCKernelManagerImpl(KernelManager):
                 commands.StopKernelCommand()
             )
             self.queue_manager.close_queues()
-
-            # Terminate process if still alive
-            if self._process.poll() is None:
-                self._process.terminate()
+            if self._process.poll() is None and self.kernel_task is not None:
                 try:
-                    self._process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    self._process.kill()
+                    try_kill_process_and_group(self.kernel_task)
+                except ProcessLookupError:
+                    pass
+                except Exception as e:
+                    LOGGER.warning(e)
 
         # Always attempt cleanup, even if _process is None
         cleanup_sandbox_dir(self._sandbox_dir)

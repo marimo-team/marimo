@@ -177,6 +177,12 @@ async def test_import_multiprocessing(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
     # https://github.com/marimo-team/marimo/issues/684
+    #
+    # On Windows this also guards against the pytest-spawn interaction:
+    # __main__.__file__ must not point at the pytest.exe zipapp, or the
+    # Manager child's multiprocessing.spawn._fixup_main_from_path will
+    # runpy.run_path() pytest itself and the parent hangs on reader.recv().
+    # See the _fake_main_file fixture in tests/conftest.py.
     await mocked_kernel.k.run(
         [
             exec_req.get(

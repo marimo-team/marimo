@@ -4,12 +4,13 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar, Union
 
 from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
 # Could be a DataFrame from pandas, polars, pyarrow, DataFrameProtocol, etc.
-DataFrameType = IntoDataFrame | IntoLazyFrame
+# Use Union[] instead of X | Y — see altair_transformer.py for rationale.
+DataFrameType = Union[IntoDataFrame, IntoLazyFrame]
 
 ColumnId = str
 ColumnIds = list[ColumnId]

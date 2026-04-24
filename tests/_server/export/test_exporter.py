@@ -20,8 +20,10 @@ from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.notification import CellNotification
 from marimo._server.export import (
     export_as_wasm,
+    run_app_then_export_as_pdf,
     run_app_until_completion,
 )
+from marimo._server.export._status import PDFExportStatusEvent
 from marimo._server.export.exporter import Exporter
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._session.notebook import AppFileManager
@@ -1076,6 +1078,213 @@ class TestPDFExport:
 
             assert "for PDF export" in str(excinfo.value)
 
+    @pytest.mark.asyncio
+    async def test_run_app_then_export_as_pdf_reports_execute_raster_render(
+        self,
+        temp_marimo_file: str,
+        session_view: SessionView,
+    ) -> None:
+        events: list[PDFExportStatusEvent] = []
+
+        async def fake_run_app_until_completion(
+            *args: Any, **kwargs: Any
+        ) -> tuple[SessionView, bool]:
+            del args, kwargs
+            return session_view, False
+
+        async def fake_collect_pdf_png_fallbacks(
+            *args: Any, **kwargs: Any
+        ) -> dict[str, str]:
+            del args
+            status_callback = kwargs["status_callback"]
+            assert status_callback is not None
+            status_callback(
+                PDFExportStatusEvent(
+                    phase="raster",
+                    message="rasterizing interactive outputs...",
+                    total=2,
+                )
+            )
+            status_callback(
+                PDFExportStatusEvent(
+                    phase="raster",
+                    message="rasterizing interactive outputs...",
+                    current=1,
+                    total=2,
+                )
+            )
+            return {"cell-1": "data:image/png;base64,ZmFrZQ=="}
+
+        def fake_export_as_pdf(
+            self: Exporter, *args: Any, **kwargs: Any
+        ) -> bytes:
+            del self, args
+            status_callback = kwargs["status_callback"]
+            assert status_callback is not None
+            status_callback(
+                PDFExportStatusEvent(
+                    phase="render",
+                    message="rendering PDF via WebPDF...",
+                )
+            )
+            return b"mock_pdf"
+
+        with (
+            patch(
+                "marimo._server.export.run_app_until_completion",
+                side_effect=fake_run_app_until_completion,
+            ),
+            patch(
+                "marimo._server.export._pdf_raster.collect_pdf_png_fallbacks",
+                side_effect=fake_collect_pdf_png_fallbacks,
+            ),
+            patch.object(
+                Exporter,
+                "export_as_pdf",
+                autospec=True,
+                side_effect=fake_export_as_pdf,
+            ),
+        ):
+            pdf_data, did_error = await run_app_then_export_as_pdf(
+                MarimoPath(temp_marimo_file),
+                include_outputs=True,
+                webpdf=True,
+                cli_args={},
+                argv=None,
+                export_as=None,
+                rasterization_options=MagicMock(enabled=True),
+                status_callback=events.append,
+            )
+
+        assert pdf_data == b"mock_pdf"
+        assert did_error is False
+        assert [event.phase for event in events] == [
+            "execute",
+            "execute_complete",
+            "raster",
+            "raster",
+            "prepare",
+            "render",
+            "complete",
+        ]
+        assert [event.message for event in events] == [
+            "executing notebook...",
+            "notebook execution finished.",
+            "rasterizing interactive outputs...",
+            "rasterizing interactive outputs...",
+            "serializing notebook for PDF rendering...",
+            "rendering PDF via WebPDF...",
+            "done.",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_run_app_then_export_as_pdf_reports_render_only_without_outputs(
+        self,
+        temp_marimo_file: str,
+    ) -> None:
+        events: list[PDFExportStatusEvent] = []
+
+        def fake_export_as_pdf(
+            self: Exporter, *args: Any, **kwargs: Any
+        ) -> bytes:
+            del self, args
+            status_callback = kwargs["status_callback"]
+            assert status_callback is not None
+            status_callback(
+                PDFExportStatusEvent(
+                    phase="render",
+                    message="rendering PDF via standard exporter...",
+                )
+            )
+            return b"mock_pdf"
+
+        with (
+            patch(
+                "marimo._server.export.run_app_until_completion",
+                side_effect=AssertionError(
+                    "execution should not run without outputs"
+                ),
+            ),
+            patch(
+                "marimo._server.export._pdf_raster.collect_pdf_png_fallbacks",
+                side_effect=AssertionError(
+                    "rasterization should not run without outputs"
+                ),
+            ),
+            patch.object(
+                Exporter,
+                "export_as_pdf",
+                autospec=True,
+                side_effect=fake_export_as_pdf,
+            ),
+        ):
+            pdf_data, did_error = await run_app_then_export_as_pdf(
+                MarimoPath(temp_marimo_file),
+                include_outputs=False,
+                webpdf=False,
+                cli_args={},
+                argv=None,
+                export_as=None,
+                rasterization_options=MagicMock(enabled=False),
+                status_callback=events.append,
+            )
+
+        assert pdf_data == b"mock_pdf"
+        assert did_error is False
+        assert [(event.phase, event.message) for event in events] == [
+            ("prepare", "serializing notebook for PDF rendering..."),
+            ("render", "rendering PDF via standard exporter..."),
+            ("complete", "done."),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_run_app_then_export_as_pdf_ignores_status_callback_failures(
+        self,
+        temp_marimo_file: str,
+    ) -> None:
+        def failing_status_callback(event: PDFExportStatusEvent) -> None:
+            raise RuntimeError(f"boom:{event.phase}")
+
+        def fake_export_as_pdf(
+            self: Exporter, *args: Any, **kwargs: Any
+        ) -> bytes:
+            del self, args, kwargs
+            return b"mock_pdf"
+
+        with (
+            patch(
+                "marimo._server.export.run_app_until_completion",
+                side_effect=AssertionError(
+                    "execution should not run without outputs"
+                ),
+            ),
+            patch(
+                "marimo._server.export._pdf_raster.collect_pdf_png_fallbacks",
+                side_effect=AssertionError(
+                    "rasterization should not run without outputs"
+                ),
+            ),
+            patch.object(
+                Exporter,
+                "export_as_pdf",
+                autospec=True,
+                side_effect=fake_export_as_pdf,
+            ),
+        ):
+            pdf_data, did_error = await run_app_then_export_as_pdf(
+                MarimoPath(temp_marimo_file),
+                include_outputs=False,
+                webpdf=False,
+                cli_args={},
+                argv=None,
+                export_as=None,
+                rasterization_options=MagicMock(enabled=False),
+                status_callback=failing_status_callback,
+            )
+
+        assert pdf_data == b"mock_pdf"
+        assert did_error is False
+
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
         or not DependencyManager.nbconvert.has()
@@ -1411,6 +1620,61 @@ class TestPDFExport:
             mock_webpdf_exporter.assert_called_once()
 
     @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_reports_status_during_fallback_to_webpdf(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+        events: list[PDFExportStatusEvent] = []
+
+        mock_pdf_exporter_instance = MagicMock()
+        mock_pdf_exporter_instance.from_notebook_node.side_effect = OSError(
+            "xelatex not found"
+        )
+
+        mock_webpdf_exporter_instance = MagicMock()
+        mock_webpdf_exporter_instance.from_notebook_node.return_value = (
+            b"fallback_webpdf_data",
+            {},
+        )
+
+        with (
+            patch.object(DependencyManager, "require_many"),
+            patch("nbconvert.PDFExporter") as mock_pdf_exporter,
+            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+        ):
+            mock_pdf_exporter.return_value = mock_pdf_exporter_instance
+            mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app,
+                session_view=session_view,
+                webpdf=False,
+                status_callback=events.append,
+            )
+
+        assert result == b"fallback_webpdf_data"
+        assert [(event.phase, event.message) for event in events] == [
+            ("render", "rendering PDF via standard exporter..."),
+            (
+                "render_fallback",
+                "standard PDF export failed; falling back to WebPDF...",
+            ),
+            ("render", "rendering PDF via WebPDF..."),
+        ]
+
+    @pytest.mark.skipif(
         not DependencyManager.nbformat.has(),
         reason="nbformat not installed",
     )
@@ -1472,12 +1736,17 @@ class TestPDFExport:
                     DependencyManager.playwright, "has", return_value=True
                 ),
             ):
+                events: list[PDFExportStatusEvent] = []
                 result = await exporter.export_as_slides_pdf(
                     app=file_manager.app,
                     session_view=session_view,
+                    status_callback=events.append,
                 )
 
             assert result == b"mock_slides_pdf_data"
+            assert [(event.phase, event.message) for event in events] == [
+                ("render", "rendering slides PDF...")
+            ]
             mock_slides_exporter_cls.assert_called_once()
             mock_slides_exporter_instance.from_notebook_node.assert_called_once()
             notebook = (

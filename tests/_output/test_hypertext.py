@@ -93,19 +93,62 @@ def test_html_batch():
 def test_html_center():
     html = Html("<p>Centered</p>")
     centered = html.center()
-    assert "justify-content: center" in centered.text
+    # center/left/right use a column-direction stack with cross-axis
+    # alignment so multi-block content retains its block flow.
+    assert "flex-direction: column" in centered.text
+    assert "align-items: center" in centered.text
 
 
 def test_html_right():
     html = Html("<p>Right</p>")
     right_aligned = html.right()
-    assert "justify-content: flex-end" in right_aligned.text
+    assert "flex-direction: column" in right_aligned.text
+    assert "align-items: flex-end" in right_aligned.text
 
 
 def test_html_left():
     html = Html("<p>Left</p>")
     left_aligned = html.left()
-    assert "justify-content: flex-start" in left_aligned.text
+    assert "flex-direction: column" in left_aligned.text
+    assert "align-items: flex-start" in left_aligned.text
+
+
+def test_html_center_preserves_multi_block_markdown():
+    # Regression: markdown with multiple top-level blocks (e.g. heading +
+    # paragraph) must not be flattened into a horizontal row when centered,
+    # and must keep normal block-flow spacing (margin collapsing) rather
+    # than gaining extra space from flex-column gaps.
+    html = Html(
+        '<span class="markdown contents"><h1>Title</h1>'
+        '<span class="paragraph">Description</span></span>'
+    )
+    centered = html.center()
+    # Column-direction flex so the wrapper, not individual blocks, gets
+    # aligned; paragraph and heading must not be flex-row siblings.
+    assert "flex-direction: column" in centered.text
+    assert "flex-direction: row" not in centered.text
+    # gap=0 so the alignment wrapper doesn't add extra spacing.
+    assert "gap: 0rem" in centered.text
+    # The content is wrapped in a plain block <div> so inner blocks use
+    # normal block flow (margins collapse, no flex-item semantics leaked
+    # via `display: contents`).
+    assert (
+        '<div><span class="markdown contents"><h1>Title</h1>'
+        '<span class="paragraph">Description</span></span></div>'
+    ) in centered.text
+    # Heading precedes paragraph (document order preserved).
+    assert centered.text.index("<h1>") < centered.text.index("paragraph")
+
+
+def test_html_center_live_updates_propagate():
+    # The block wrapper must re-render on every text access so mutable
+    # children (e.g. spinners) keep updating live.
+    inner = Html("<div>initial</div>")
+    centered = inner.center()
+    assert "initial" in centered.text
+    inner._text = "<div>updated</div>"
+    assert "updated" in centered.text
+    assert "initial" not in centered.text
 
 
 def test_html_callout():

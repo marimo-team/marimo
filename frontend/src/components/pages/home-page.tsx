@@ -14,7 +14,7 @@ import {
   SearchIcon,
 } from "lucide-react";
 import type React from "react";
-import { Suspense, use, useEffect, useRef, useState } from "react";
+import { Suspense, use, useEffect, useMemo, useRef, useState } from "react";
 import {
   type NodeApi,
   type NodeRendererProps,
@@ -22,16 +22,27 @@ import {
   type TreeApi,
 } from "react-arborist";
 import { useLocale } from "react-aria";
+import useEvent from "react-use-event-hook";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
 import {
   FILE_ICON as FILE_TYPE_ICONS,
   type FileIconType as FileType,
   guessFileIconType as guessFileType,
 } from "@/components/editor/file-tree/file-icons";
+import { FileNameInput } from "@/components/editor/file-tree/file-name-input";
+import {
+  DeleteMenuItem,
+  DuplicateMenuItem,
+  FileActionsDropdown,
+  RenameMenuItem,
+  useFileOperations,
+  useNotebookFileActions,
+} from "@/components/editor/file-tree/file-operations";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
@@ -61,7 +72,7 @@ import {
   expandedFoldersAtom,
   includeMarkdownAtom,
   RunningNotebooksContext,
-  WorkspaceRootContext,
+  WorkspaceContext,
 } from "../home/state";
 import { Spinner } from "../icons/spinner";
 import { Input } from "../ui/input";
@@ -131,7 +142,7 @@ const HomePage: React.FC = () => {
             files={recents.files}
           />
           <ErrorBoundary>
-            <WorkspaceNotebooks />
+            <WorkspaceNotebooks onRefreshRecents={recentsResponse.refetch} />
           </ErrorBoundary>
         </div>
       </RunningNotebooksContext>
@@ -139,7 +150,9 @@ const HomePage: React.FC = () => {
   );
 };
 
-const WorkspaceNotebooks: React.FC = () => {
+const WorkspaceNotebooks: React.FC<{ onRefreshRecents: () => void }> = ({
+  onRefreshRecents,
+}) => {
   const { getWorkspaceFiles } = useRequestClient();
   const [includeMarkdown, setIncludeMarkdown] = useAtom(includeMarkdownAtom);
   const [searchText, setSearchText] = useState("");
@@ -152,6 +165,19 @@ const WorkspaceNotebooks: React.FC = () => {
   } = useAsyncData(
     () => getWorkspaceFiles({ includeMarkdown }),
     [includeMarkdown],
+  );
+
+  // Fire-and-forget refresh of both the workspace tree and the "Recent
+  // notebooks" list — file mutations on the workspace tree can affect both,
+  // so we invalidate them together rather than having two refresh triggers.
+  const refreshWorkspace = useEvent(() => {
+    refetch();
+    onRefreshRecents();
+  });
+
+  const workspaceContextValue = useMemo(
+    () => ({ root: workspace?.root ?? "", refreshWorkspace }),
+    [workspace?.root, refreshWorkspace],
   );
 
   if (isPending) {
@@ -167,7 +193,7 @@ const WorkspaceNotebooks: React.FC = () => {
   }
 
   return (
-    <WorkspaceRootContext value={workspace.root}>
+    <WorkspaceContext value={workspaceContextValue}>
       <div className="flex flex-col gap-2">
         {workspace.hasMore && (
           <Banner kind="warn" className="rounded p-4">
@@ -216,7 +242,7 @@ const WorkspaceNotebooks: React.FC = () => {
           <NotebookFileTree searchText={searchText} files={workspace.files} />
         </div>
       </div>
-    </WorkspaceRootContext>
+    </WorkspaceContext>
   );
 };
 
@@ -244,6 +270,8 @@ const NotebookFileTree: React.FC<{
   const [openState, setOpenState] = useAtom(expandedFoldersAtom);
   const openStateIsEmpty = Object.keys(openState).length === 0;
   const ref = useRef<TreeApi<FileInfo>>(undefined);
+  const { root, refreshWorkspace } = use(WorkspaceContext);
+  const { renameFile } = useFileOperations({ root });
 
   useEffect(() => {
     // If empty, collapse all
@@ -251,6 +279,21 @@ const NotebookFileTree: React.FC<{
       ref.current?.closeAll();
     }
   }, [openStateIsEmpty]);
+
+  const handleRename = useEvent(async (id: string, name: string) => {
+    const node = ref.current?.get(id);
+    if (!node) {
+      toast({
+        title: "Failed",
+        description: `Node with id ${id} not found in the tree`,
+      });
+      return;
+    }
+    const result = await renameFile(node.data, name);
+    if (result) {
+      refreshWorkspace();
+    }
+  });
 
   if (files.length === 0) {
     return (
@@ -277,6 +320,9 @@ const NotebookFileTree: React.FC<{
         const prevOpen = openState[id] ?? false;
         setOpenState({ ...openState, [id]: !prevOpen });
       }}
+      onRename={async ({ id, name }) => {
+        await handleRename(id, name);
+      }}
       padding={5}
       rowHeight={35}
       indent={15}
@@ -286,7 +332,6 @@ const NotebookFileTree: React.FC<{
       // Disable interactions
       disableDrop={true}
       disableDrag={true}
-      disableEdit={true}
       disableMultiSelection={true}
     >
       {Node}
@@ -301,11 +346,24 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
 
   const Icon = FILE_TYPE_ICONS[fileType];
   const iconEl = <Icon className="w-5 h-5 shrink-0" strokeWidth={1.5} />;
-  const root = use(WorkspaceRootContext);
+  const { root } = use(WorkspaceContext);
+  const { runningNotebooks } = use(RunningNotebooksContext);
 
   const renderItem = () => {
     const itemClassName =
       "flex items-center pl-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1 overflow-hidden h-full pr-3 gap-2";
+
+    // Inline rename input; react-arborist flips `node.isEditing` when
+    // `node.edit()` is called from the FileActions menu.
+    if (node.isEditing) {
+      return (
+        <div className={itemClassName}>
+          {iconEl}
+          <FileNameInput node={node} />
+        </div>
+      );
+    }
+
     if (node.data.isDirectory) {
       return (
         <span className={itemClassName}>
@@ -322,6 +380,7 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
 
     const isMarkdown =
       relativePath.endsWith(".md") || relativePath.endsWith(".qmd");
+    const isRunning = runningNotebooks.has(relativePath);
 
     return (
       <a
@@ -334,10 +393,19 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
           {node.data.name}
           {isMarkdown && <MarkdownIcon className="ml-2 inline opacity-80" />}
         </span>
-        <SessionShutdownButton filePath={relativePath} />
+
+        <FileActions node={node} isRunning={isRunning} />
+        {/*
+          Trailing action slots. Using a fixed-width row here (rather than
+          conditionally rendered inline elements) keeps every row's right
+          edge aligned even though any individual slot may be empty.
+        */}
+        <div className="w-8 h-8 flex items-center justify-center shrink-0">
+          <SessionShutdownButton filePath={relativePath} />
+        </div>
         <ExternalLinkIcon
           size={20}
-          className="group-hover:opacity-100 opacity-0 text-primary"
+          className="group-hover:opacity-100 opacity-0 text-primary shrink-0"
         />
       </a>
     );
@@ -359,6 +427,44 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
       <FolderArrow node={node} />
       {renderItem()}
     </div>
+  );
+};
+
+const FileActions = ({
+  node,
+  isRunning,
+}: {
+  node: NodeApi<FileInfo>;
+  isRunning: boolean;
+}) => {
+  const { root, refreshWorkspace } = use(WorkspaceContext);
+  const { handleRename, handleDuplicate, handleDelete } =
+    useNotebookFileActions({ node, root, onAfterChange: refreshWorkspace });
+
+  const lockedReason = isRunning
+    ? "Stop the notebook's kernel before renaming or deleting."
+    : undefined;
+
+  return (
+    <FileActionsDropdown
+      testId="workspace-more-button"
+      buttonClassName="w-8 h-8 p-0 shrink-0"
+      contentClassName="print:hidden w-fit min-w-[140px]"
+      preventDefaultOnTrigger={true}
+    >
+      <RenameMenuItem
+        onSelect={handleRename}
+        disabled={isRunning}
+        title={lockedReason}
+      />
+      <DuplicateMenuItem onSelect={handleDuplicate} />
+      <DropdownMenuSeparator />
+      <DeleteMenuItem
+        onSelect={handleDelete}
+        disabled={isRunning}
+        title={lockedReason}
+      />
+    </FileActionsDropdown>
   );
 };
 

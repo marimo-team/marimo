@@ -38,6 +38,7 @@ class KernelArgs(msgspec.Struct):
     # virtual_files_supported is ignored, but kept for backward compatibility
     virtual_files_supported: bool = True
     redirect_console_to_browser: bool = True
+    parent_pid: int | None = None
 
     def encode_json(self) -> bytes:
         return encode_json_bytes(self)

@@ -66,7 +66,9 @@ export interface ICellRendererPlugin<S, L> {
    */
   validator: ZodType<S>;
 
+  // Take a serialized layout and a list of cells, and return a layout object.
   deserializeLayout: (layout: S, cells: CellData[]) => L;
+  // Take the in-memory layout object and a list of cells, and return a serialized layout.
   serializeLayout: (layout: L, cells: CellData[]) => S;
 
   Component: React.FC<ICellRendererProps<L>>;

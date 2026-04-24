@@ -17,6 +17,7 @@ from marimo._output.formatters.arviz_formatters import ArviZFormatter
 from marimo._output.formatters.bokeh_formatters import BokehFormatter
 from marimo._output.formatters.cell import CellFormatter
 from marimo._output.formatters.df_formatters import (
+    DataFusionFormatter,
     IbisFormatter,
     PolarsFormatter,
     PyArrowFormatter,
@@ -52,6 +53,7 @@ if TYPE_CHECKING:
 THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     AltairFormatter.package_name(): AltairFormatter(),
     MatplotlibFormatter.package_name(): MatplotlibFormatter(),
+    DataFusionFormatter.package_name(): DataFusionFormatter(),
     IbisFormatter.package_name(): IbisFormatter(),
     PandasFormatter.package_name(): PandasFormatter(),
     PolarsFormatter.package_name(): PolarsFormatter(),

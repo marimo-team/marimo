@@ -7,7 +7,7 @@ import pickle
 import subprocess
 import sys
 import threading
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
 from marimo._messaging.types import KernelMessage
@@ -23,6 +23,8 @@ from marimo._session.app_host.commands import (
     encode_mgmt_command,
 )
 from marimo._session.app_host.connection import AppHostConnection
+from marimo._session.queue import ProcessLike
+from marimo._utils.subprocess import try_kill_process_and_group
 
 if TYPE_CHECKING:
     import queue
@@ -358,13 +360,11 @@ class AppHost:
 
         if self._process is not None:
             try:
-                self._process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self._process.terminate()
-                try:
-                    self._process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    self._process.kill()
+                try_kill_process_and_group(cast(ProcessLike, self._process))
+            except ProcessLookupError:
+                pass
+            except Exception as e:
+                LOGGER.warning(e)
 
         # Close all sockets (with linger=0).  This interrupts any
         # pending poll()/recv() in _stream_receiver_loop with ETERM,

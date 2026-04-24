@@ -93,3 +93,32 @@ def test_get_table_manager() -> None:
 
 def test_get_default_csv_encoding():
     assert get_default_csv_encoding() == DEFAULT_CSV_ENCODING
+
+
+def test_union_tolerates_string_type_aliases() -> None:
+    """Verify that Union[] handles string-valued type aliases (narwhals compat).
+
+    In narwhals <2.9.0 (e.g. 2.6.0, shipped in Pyodide), types like
+    IntoDataFrame are plain strings at runtime:
+        IntoDataFrame: TypeAlias = "NativeDataFrame"
+
+    The X | Y syntax raises TypeError when one operand is a string, while
+    Union[X, Y] gracefully wraps it in a ForwardRef.  This test guards
+    against regressions if someone converts Union[] back to X | Y in the
+    affected module-level type aliases.
+
+    See: https://github.com/marimo-team/marimo/issues/9152
+    """
+    from typing import Any, ForwardRef, Union
+
+    fake_into_df = "NativeDataFrame"  # simulates narwhals 2.6.0
+
+    # Union[] works with string operands
+    result = Union[dict[Any, Any], fake_into_df]  # type: ignore[valid-type]
+    args = result.__args__
+    assert dict[Any, Any] in args
+    assert ForwardRef("NativeDataFrame") in args
+
+    # X | Y fails with string operands — this is the bug we're guarding against
+    with pytest.raises(TypeError, match="unsupported operand type"):
+        dict[Any, Any] | fake_into_df  # type: ignore[operator]

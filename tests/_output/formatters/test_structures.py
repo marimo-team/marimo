@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
 import sys
 from collections import defaultdict
 from typing import Any, cast
+
+from inline_snapshot import snapshot
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatters.structures import (
@@ -444,8 +447,307 @@ def test_format_structure_subclasses_with_different_built_in_repr() -> None:
 
 
 def test_format_structure_set() -> None:
+    # Set values now use a JSON-list payload (matching tuple/frozenset
+    # and the key-side encoding) so the frontend renders them with the
+    # same double-quoted element form as the rest of the tree.
     test_set = {1, 2, 3}
-    assert format_structure([test_set]) == (["text/plain+set:{1, 2, 3}"])
+    formatted = format_structure([test_set])
+    assert isinstance(formatted, list)
+    (leaf,) = formatted
+    assert leaf.startswith("text/plain+set:")
+    payload = json.loads(leaf[len("text/plain+set:") :])
+    assert sorted(payload) == [1, 2, 3]
+
+
+def test_format_structure_frozenset() -> None:
+    """Frozenset values use the dedicated text/plain+frozenset: mimetype."""
+    formatted = format_structure([frozenset({1, 2, 3})])
+    assert isinstance(formatted, list)
+    (leaf,) = formatted
+    assert leaf.startswith("text/plain+frozenset:")
+    payload = json.loads(leaf[len("text/plain+frozenset:") :])
+    assert sorted(payload) == [1, 2, 3]
+
+
+def test_format_structure_empty_set_and_frozenset() -> None:
+    """Empty set/frozenset values encode as empty JSON lists."""
+    assert format_structure([set()]) == snapshot(["text/plain+set:[]"])
+    assert format_structure([frozenset()]) == snapshot(
+        ["text/plain+frozenset:[]"]
+    )
+
+
+def test_format_structure_dict_non_string_keys_do_not_collide() -> None:
+    """Regression test for https://github.com/marimo-team/marimo/issues/9288.
+
+    JSON object keys are always strings, so a Python dict that mixes
+    equal-looking string and non-string keys (e.g. {"2": ..., 2: ...})
+    must not silently collapse to a single entry once the JSON is parsed
+    in the browser.
+    """
+    StructuresFormatter().register()
+
+    my_map = {"2": "oh", 2: "no"}
+    mimetype, data = get_and_format(my_map)
+    assert mimetype == "application/json"
+
+    # The serialized form must round-trip through JSON.parse without losing
+    # entries (in the browser, `JSON.parse` keeps only the last duplicate key).
+    parsed = json.loads(data)
+    assert len(parsed) == len(my_map)
+    assert parsed == snapshot({"2": "oh", "text/plain+int:2": "no"})
+
+
+def test_format_structure_dict_primitive_keys_encoded() -> None:
+    """Non-string primitive keys are mimetype-encoded on the wire."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format(
+        {
+            "plain": 1,
+            2: "int",
+            2.5: "float",
+            True: "bool_true",
+            False: "bool_false",
+            None: "none",
+        }
+    )
+    assert json.loads(data) == snapshot(
+        {
+            "plain": 1,
+            "text/plain+int:2": "int",
+            "text/plain+float:2.5": "float",
+            "text/plain+bool:True": "bool_true",
+            "text/plain+bool:False": "bool_false",
+            "text/plain+none:": "none",
+        }
+    )
+
+
+def test_format_structure_dict_bigint_key_encoded_as_int() -> None:
+    """Keys use text/plain+int: regardless of size (no JS precision concern)."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({2**64: "v"})
+    assert json.loads(data) == snapshot(
+        {"text/plain+int:18446744073709551616": "v"}
+    )
+
+
+def test_format_structure_dict_nan_inf_float_keys_are_strict_json() -> None:
+    """NaN/Inf keys must not emit bare `NaN`/`Infinity` (invalid JSON)."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format(
+        {float("nan"): "n", float("inf"): "p", -float("inf"): "m"}
+    )
+    # json.loads is strict and would fail if we emitted `NaN`/`Infinity`.
+    assert json.loads(data) == snapshot(
+        {
+            "text/plain+float:nan": "n",
+            "text/plain+float:inf": "p",
+            "text/plain+float:-inf": "m",
+        }
+    )
+
+
+def test_format_structure_dict_tuple_key_encoded() -> None:
+    """Regression test for #2667 — tuple keys keep their type on the wire."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({(1, 2, 3): 4})
+    assert json.loads(data) == snapshot({"text/plain+tuple:[1, 2, 3]": 4})
+
+
+def test_format_structure_dict_frozenset_key_encoded() -> None:
+    """Frozenset keys use a dedicated mimetype, distinct from set values."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({frozenset({1, 2}): "v"})
+    parsed = json.loads(data)
+    (key,) = parsed
+    assert key.startswith("text/plain+frozenset:")
+    # Sort to dodge the non-deterministic frozenset iteration order.
+    payload = sorted(json.loads(key[len("text/plain+frozenset:") :]))
+    assert payload == snapshot([1, 2])
+
+
+def test_format_structure_dict_empty_frozenset_key_encoded() -> None:
+    """Empty frozenset key encodes as `text/plain+frozenset:[]`."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({frozenset(): "v"})
+    assert json.loads(data) == snapshot({"text/plain+frozenset:[]": "v"})
+
+
+def test_format_structure_dict_single_element_tuple_key_encoded() -> None:
+    """1-element tuple key encodes as a JSON list of length 1."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({(42,): "v"})
+    assert json.loads(data) == snapshot({"text/plain+tuple:[42]": "v"})
+
+
+def test_format_structure_dict_fallback_string_is_escaped() -> None:
+    """A custom key whose `str()` starts with `text/plain+` must be escaped.
+
+    Without the escape the frontend would decode it as a typed key and
+    render it incorrectly. This covers the `str(k)` fallback for unusual
+    hashables.
+    """
+
+    class Hostile:
+        def __str__(self) -> str:
+            return "text/plain+int:99"
+
+        def __hash__(self) -> int:
+            return 0
+
+        def __eq__(self, other: object) -> bool:
+            return isinstance(other, Hostile)
+
+    StructuresFormatter().register()
+
+    _, data = get_and_format({Hostile(): "v"})
+    assert json.loads(data) == snapshot(
+        {"text/plain+str:text/plain+int:99": "v"}
+    )
+
+
+def test_format_structure_dict_string_key_that_looks_encoded_is_escaped() -> (
+    None
+):
+    """Literal string keys starting with `text/plain+` are escaped."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({"text/plain+int:2": "hello"})
+    assert json.loads(data) == snapshot(
+        {"text/plain+str:text/plain+int:2": "hello"}
+    )
+
+
+def test_format_structure_dict_nested_keys_encoded() -> None:
+    """Encoding applies at every nesting level."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({"outer": {1: "inner", (2, 3): "tup"}})
+    assert json.loads(data) == snapshot(
+        {
+            "outer": {
+                "text/plain+int:1": "inner",
+                "text/plain+tuple:[2, 3]": "tup",
+            }
+        }
+    )
+
+
+def test_format_structure_dict_python_level_bool_int_collapse_preserved() -> (
+    None
+):
+    """Python collapses True/1 before we see the dict — encoder preserves that."""
+    StructuresFormatter().register()
+
+    # True/1/1.0 are hash-equal in Python, so assigning them in sequence
+    # yields a single-entry dict: first-inserted key wins, later assignments
+    # only update the value. Built up programmatically to dodge ruff's
+    # duplicate-literal-key warning.
+    d: dict[object, object] = {}
+    d[True] = False
+    d[1] = "bar"
+    d[1.0] = "baz"
+    assert len(d) == 1
+
+    _, data = get_and_format(d)
+    # That one entry encodes under the bool prefix (first-inserted key wins).
+    assert json.loads(data) == snapshot({"text/plain+bool:True": "baz"})
+
+
+def test_format_structure_dict_plain_string_keys_unchanged() -> None:
+    """Common case — plain string-key dicts serialize exactly as before."""
+    StructuresFormatter().register()
+
+    assert get_and_format({"a": 1, "b": 2}) == snapshot(
+        ("application/json", '{"a": 1, "b": 2}')
+    )
+
+
+def _reject_non_finite(literal: str) -> float:
+    # `parse_constant` fires for bare `NaN`, `Infinity`, and `-Infinity`.
+    # Python's `json.loads` accepts these by default (non-spec) — passing a
+    # raising hook makes the test match the JS `JSON.parse` behavior we
+    # actually care about.
+    raise AssertionError(f"outer JSON contained bare {literal!r}")
+
+
+def test_format_structure_tuple_key_with_nan_outer_json_is_strict() -> None:
+    """Tuple keys with non-finite floats are embedded strings — the outer
+    JSON must be strict per the JS `JSON.parse` spec (no bare `NaN` /
+    `Infinity` at the top level).
+
+    Those tokens live inside the embedded tuple payload *string*, not at
+    the outer JSON level, so the frontend's outer `JSON.parse` succeeds
+    and it then calls `jsonParseWithSpecialChar` on the embedded
+    payload. Previously the bare token appeared at the top level and
+    broke the outer parse.
+    """
+    StructuresFormatter().register()
+
+    _, data = get_and_format(
+        {(float("nan"),): "n", (float("inf"), -float("inf")): "i"}
+    )
+    # `parse_constant` raises on bare NaN/Infinity at the JSON layer —
+    # matching JS `JSON.parse` strictness. `json.loads` alone accepts
+    # them by default, which is too lenient to test the contract.
+    parsed = json.loads(data, parse_constant=_reject_non_finite)
+    assert parsed == {
+        "text/plain+tuple:[NaN]": "n",
+        "text/plain+tuple:[Infinity, -Infinity]": "i",
+    }
+
+
+def test_format_structure_frozenset_value_with_nan_outer_json_is_strict() -> (
+    None
+):
+    """Frozenset values with non-finite floats parse strictly at the outer level."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({"k": frozenset({float("inf"), 1})})
+    # Outer parse is strict (JS-`JSON.parse`-compatible).
+    parsed = json.loads(data, parse_constant=_reject_non_finite)
+    key = parsed["k"]
+    assert key.startswith("text/plain+frozenset:")
+    # The embedded payload contains bare `Infinity`; the frontend parses
+    # it with `jsonParseWithSpecialChar`. Python's permissive `json.loads`
+    # is fine here because we're just inspecting the embedded content.
+    payload = json.loads(key[len("text/plain+frozenset:") :])
+    assert set(payload) == {1, float("inf")}
+
+
+def test_format_structure_frozenset_key_with_nan_outer_json_is_strict() -> (
+    None
+):
+    """Frozenset keys with non-finite floats parse strictly at the outer level."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({frozenset({float("nan")}): "v"})
+    # Outer parse is strict — the bare `NaN` lives inside the key string.
+    parsed = json.loads(data, parse_constant=_reject_non_finite)
+    (key,) = parsed
+    assert key == "text/plain+frozenset:[NaN]"
+
+
+def test_format_structure_tuple_value_with_nan_is_strict_json() -> None:
+    """Tuple values with non-finite floats round-trip via scalar sentinels.
+
+    Tuple values don't hit the tuple-encoder path because `flatten`
+    recurses into tuples before leaf formatting — each float is handled
+    by `_leaf_formatter` and emitted as its own `text/plain+float:`
+    sentinel string.
+    """
+    StructuresFormatter().register()
+
+    formatted = format_structure([(float("nan"), float("inf"))])
+    assert formatted == [("text/plain+float:nan", "text/plain+float:inf")]
 
 
 def test_format_structure_bigint() -> None:

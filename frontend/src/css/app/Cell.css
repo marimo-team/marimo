@@ -124,6 +124,10 @@
       marimo-table::part(table-footer) {
         padding-inline: 0.25rem;
       }
+
+      marimo-table::part(filter-pills) {
+        padding-bottom: 0;
+      }
     }
 
     & > :first-child {

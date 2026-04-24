@@ -68,9 +68,25 @@
     <link rel="stylesheet" crossorigin crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.css"">
   
 <script data-marimo="true">
-    window.__MARIMO_STATIC__ = {};
-    window.__MARIMO_STATIC__.files = {};
-    window.__MARIMO_STATIC__.modelNotifications = [];
+    Object.defineProperty(window, "__MARIMO_STATIC__", {
+        value: Object.freeze({
+            files: Object.freeze({}),
+            modelNotifications: Object.freeze([]),
+        }),
+        writable: false,
+        configurable: false,
+    });
+</script>
+
+<script data-marimo="true">
+    Object.defineProperty(window, "__MARIMO_EXPORT_CONTEXT__", {
+        value: Object.freeze({
+            trusted: true,
+            notebookCode: "",
+        }),
+        writable: false,
+        configurable: false,
+    });
 </script>
 <style title='marimo-custom'>/* custom css */</style></head>
   <body>
@@ -78,7 +94,8 @@
     <!-- This is a portal for the data editor to render in -->
     <div id="portal" data-testid="glide-portal" style="position: fixed; left: 0; top: 0; z-index: 9999"></div>
     <script data-marimo="true">
-      window.__MARIMO_MOUNT_CONFIG__ = {
+      Object.defineProperty(window, "__MARIMO_MOUNT_CONFIG__", {
+        value: Object.freeze({
             "filename": "notebook.py",
             "cwd": "",
             "lspWorkspace": null,
@@ -92,7 +109,10 @@
             "notebook": {"cells": [], "metadata": {"marimo_version": "0.0.0"}, "version": "1"},
             "session": {"cells": [], "metadata": {"marimo_version": "0.0.0"}, "version": "1"},
             "runtimeConfig": null,
-        };
+        }),
+        writable: false,
+        configurable: false,
+      });
     </script>
   <marimo-code hidden=""></marimo-code>
 <marimo-code-hash hidden="">07da107bb575cc4e02b0e1d6d99cc204</marimo-code-hash>

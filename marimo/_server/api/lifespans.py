@@ -27,6 +27,7 @@ from marimo._server.tokens import AuthToken
 from marimo._server.utils import initialize_mimetypes
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._session.model import SessionMode
+from marimo._utils.subprocess import cancel_pending_reaps
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -257,6 +258,13 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
     # Mimetypes
     initialize_mimetypes()
     yield
+
+
+@contextlib.asynccontextmanager
+async def reap_subprocesses(app: Starlette) -> AsyncIterator[None]:
+    del app
+    yield
+    await cancel_pending_reaps()
 
 
 def _pretty_host(host: str, port: int) -> str:

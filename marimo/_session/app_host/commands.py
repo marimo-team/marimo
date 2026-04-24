@@ -93,6 +93,7 @@ class AppHostArgs(msgspec.Struct):
     # Notebook file path, for debug logs
     file_path: str
     log_level: int
+    parent_pid: int | None
 
     def encode_json(self) -> bytes:
         return msgspec.json.encode(self)

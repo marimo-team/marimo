@@ -68,9 +68,25 @@
     <link rel="stylesheet" crossorigin crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.css"">
   
 <script data-marimo="true">
-    window.__MARIMO_STATIC__ = {};
-    window.__MARIMO_STATIC__.files = {"file1": "File 1 content", "file2": "File 2 content"};
-    window.__MARIMO_STATIC__.modelNotifications = [];
+    Object.defineProperty(window, "__MARIMO_STATIC__", {
+        value: Object.freeze({
+            files: Object.freeze({"file1": "File 1 content", "file2": "File 2 content"}),
+            modelNotifications: Object.freeze([]),
+        }),
+        writable: false,
+        configurable: false,
+    });
+</script>
+
+<script data-marimo="true">
+    Object.defineProperty(window, "__MARIMO_EXPORT_CONTEXT__", {
+        value: Object.freeze({
+            trusted: true,
+            notebookCode: "print('Hello, World!')",
+        }),
+        writable: false,
+        configurable: false,
+    });
 </script>
 </head>
   <body>
@@ -78,7 +94,8 @@
     <!-- This is a portal for the data editor to render in -->
     <div id="portal" data-testid="glide-portal" style="position: fixed; left: 0; top: 0; z-index: 9999"></div>
     <script data-marimo="true">
-      window.__MARIMO_MOUNT_CONFIG__ = {
+      Object.defineProperty(window, "__MARIMO_MOUNT_CONFIG__", {
+        value: Object.freeze({
             "filename": "",
             "cwd": "",
             "lspWorkspace": null,
@@ -92,7 +109,10 @@
             "notebook": {"cells": [{"code": "print('Hello, Cell 1')", "code_hash": "6eea77c855e5bfd73f3d851f474ed789", "config": {}, "id": "cell1", "name": "Cell 1"}, {"code": "print('Hello, Cell 2')", "code_hash": "0dce0226aecd5db222f6a3aa3223214b", "config": {}, "id": "cell2", "name": "Cell 2"}], "metadata": {"marimo_version": "0.0.0"}, "version": "1"},
             "session": {"cells": [{"code_hash": "abc123", "console": [{"name": "stdout", "text": "Hello, Cell 1", "type": "stream"}, {"name": "stderr", "text": "Error in Cell 1", "type": "stream"}], "id": "cell1", "outputs": [{"data": {"text/plain": "Hello, Cell 1"}, "type": "data"}]}, {"code_hash": "def456", "console": [], "id": "cell2", "outputs": []}], "metadata": {"marimo_version": "0.0.0"}, "version": "1"},
             "runtimeConfig": null,
-        };
+        }),
+        writable: false,
+        configurable: false,
+      });
     </script>
   
 <marimo-code hidden="">

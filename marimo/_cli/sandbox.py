@@ -182,6 +182,24 @@ def _normalize_sandbox_dependencies(
     return filtered + [include_features(chosen, additional_features)]
 
 
+def _resolve_local_path_line(line: str, script_dir: Path) -> str:
+    """Resolve a relative local-path requirement to an absolute path.
+
+    >>> _resolve_local_path_line(
+    ...     "-e ../pkg ; py<'3.12' # via foo", Path("/a/b")
+    ... )
+    '-e /a/pkg ; py<\\'3.12\\' # via foo'
+    """
+    rest = line.removeprefix("-e ")
+    path_and_comment, _, _ = rest.partition(";")
+    path_token, _, _ = path_and_comment.partition(" #")
+    path_token = path_token.rstrip()
+    if not path_token.startswith("."):
+        return line
+    resolved = str((script_dir / path_token).resolve())
+    return line.replace(path_token, resolved, 1)
+
+
 def _uv_export_script_requirements_txt(
     name: str | None,
 ) -> list[str]:
@@ -202,7 +220,11 @@ def _uv_export_script_requirements_txt(
         capture_output=True,
         text=True,
     )
-    return result.stdout.split("\n")
+    script_dir = Path(name).resolve().parent
+    return [
+        _resolve_local_path_line(line, script_dir)
+        for line in result.stdout.split("\n")
+    ]
 
 
 def _resolve_requirements_txt_lines(pyproject: PyProjectReader) -> list[str]:
@@ -444,24 +466,37 @@ def run_in_sandbox(
 
     env = os.environ.copy()
     env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+    # Let the inner marimo server poll for our PID so it can shut down if we
+    # get SIGKILLed (signal handlers below can't catch uncatchable signals).
+    env["MARIMO_ANCESTOR_PID"] = str(os.getpid())
     if extra_env:
         env.update(extra_env)
 
-    process = subprocess.Popen(uv_cmd, env=env)
+    # On Unix, run `uv` in its own session so that (a) the tty no longer
+    # delivers SIGINT/SIGTERM to it directly and (b) we can signal the whole
+    # subtree with a single killpg. The signal handlers below are then the
+    # sole path for forwarding signals from the CLI down to uv, the inner
+    # marimo server, and the kernel.
+    if sys.platform == "win32":
+        process = subprocess.Popen(uv_cmd, env=env)
+    else:
+        process = subprocess.Popen(uv_cmd, env=env, start_new_session=True)
 
     def handler(sig: int, frame: object) -> None:
-        del sig
         del frame
         try:
             if sys.platform == "win32":
                 os.kill(process.pid, signal.CTRL_C_EVENT)
             else:
-                os.kill(process.pid, signal.SIGINT)
+                os.killpg(process.pid, sig)
         except ProcessLookupError:
             # Process may have already been terminated.
             pass
 
     signal.signal(signal.SIGINT, handler)
+    if sys.platform != "win32":
+        signal.signal(signal.SIGTERM, handler)
+        signal.signal(signal.SIGHUP, handler)
 
     return process.wait()
 

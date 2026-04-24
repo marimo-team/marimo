@@ -15,6 +15,13 @@ EXEMPT_ENDPOINTS: set[tuple[str, str]] = {
     ("assets.py", "/public-files-sw.js"),
     # Static frontend assets (JS/CSS) must load before auth
     ("assets.py", "/{path:path}"),
+    # `/` does its own scope check so it can emit a relative Location on
+    # unauthenticated redirects (see #9249).
+    ("assets.py", "/"),
+    # Virtual files do their own scope check so the check can be bypassed
+    # via `_MARIMO_DISABLE_AUTH_ON_VIRTUAL_FILES` for sandboxed/embedded
+    # deployments.
+    ("assets.py", "/@file/{filename_and_length:path}"),
 }
 
 ENDPOINTS_DIR = Path(__file__).resolve().parents[4] / (

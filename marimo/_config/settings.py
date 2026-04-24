@@ -21,6 +21,12 @@ class GlobalSettings:
     IN_SECURE_ENVIRONMENT: bool = os.getenv(
         "MARIMO_IN_SECURE_ENVIRONMENT", "false"
     ) in ("true", "1")
+    # Disable authentication on the virtual file endpoint (`/@file/...`).
+    # Useful in sandboxed/embedded deployments where virtual file URLs need
+    # to be fetched in trusted contexts. Default "false", meaning auth is required.
+    DISABLE_AUTH_ON_VIRTUAL_FILES: bool = os.getenv(
+        "_MARIMO_DISABLE_AUTH_ON_VIRTUAL_FILES", "false"
+    ) in ("true", "1")
 
 
 GLOBAL_SETTINGS = GlobalSettings()

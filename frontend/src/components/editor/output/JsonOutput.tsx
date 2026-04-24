@@ -8,6 +8,7 @@ import {
   floatType,
   intType,
   JsonViewer,
+  type JsonViewerKeyRenderer,
   nullType,
   objectType,
   stringType,
@@ -17,6 +18,7 @@ import { memo, useState } from "react";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
+import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { isUrl } from "@/utils/urls";
 import { useTheme } from "../../../theme/useTheme";
 import { logNever } from "../../../utils/assertNever";
@@ -130,6 +132,9 @@ export const JsonOutput: React.FC<Props> = memo(
             collapseStringsAfterLength={COLLAPSED_TEXT_LENGTH}
             // leave the default valueTypes as it was - 'python', only 'json' is changed
             valueTypes={valueTypesMap[valueTypes]}
+            // Render dict keys that carry Python type info (e.g. `int`, `tuple`).
+            // See `_key_formatter` in marimo/_output/formatters/structures.py.
+            keyRenderer={valueTypes === "python" ? keyRenderer : undefined}
             // Don't group arrays, it will make the tree view look like there are nested arrays
             groupArraysAfterLength={Number.MAX_SAFE_INTEGER}
             // Built-in clipboard shifts content on hover
@@ -207,7 +212,10 @@ const LEAF_RENDERERS: Record<string, LeafRenderer> = {
   ),
   "text/plain+float:": (value) => <span>{value}</span>,
   "text/plain+bigint:": (value) => <span>{value}</span>,
-  "text/plain+set:": (value) => <span>set{value}</span>,
+  "text/plain+set:": (value) => <span>{formatSetPayload(value)}</span>,
+  "text/plain+frozenset:": (value) => (
+    <span>{formatFrozensetPayload(value)}</span>
+  ),
   "text/plain+tuple:": (value) => <span>{value}</span>,
   "text/plain:": (value) => <CollapsibleTextOutput text={value} />,
   "application/json:": (value) => (
@@ -375,6 +383,128 @@ function renderLeaf(leaf: string, render: LeafRenderer): React.ReactNode {
   return <span>{leaf}</span>;
 }
 
+// Prefix marking keys that carry encoded type information from Python.
+// See `_key_formatter` in marimo/_output/formatters/structures.py.
+const KEY_ENCODED_PREFIX = "text/plain+";
+
+// Format elements for a Python collection literal. Non-finite floats
+// (NaN / Infinity / -Infinity) parse as JS `number` via
+// `jsonParseWithSpecialChar`; `JSON.stringify` on those returns `null`,
+// so render them as the same `float(...)` literals we use for scalar
+// float keys (see `decodeKeyForCopy`).
+function formatCollectionItems(items: unknown[]): string {
+  return items
+    .map((x) => {
+      if (typeof x === "number" && !Number.isFinite(x)) {
+        if (Number.isNaN(x)) {
+          return "float('nan')";
+        }
+        return x > 0 ? "float('inf')" : "-float('inf')";
+      }
+      return JSON.stringify(x);
+    })
+    .join(", ");
+}
+
+// Format a JSON-list payload as a Python tuple literal. 1-element tuples
+// need a trailing comma — `(1)` is just `1` in Python, `(1,)` is the tuple.
+// Uses `jsonParseWithSpecialChar` so bare `NaN`/`Infinity`/`-Infinity`
+// emitted by Python's json.dumps round-trip cleanly.
+function formatTuplePayload(jsonList: string): string {
+  const items = jsonParseWithSpecialChar<unknown[]>(jsonList);
+  // `jsonParseWithSpecialChar` returns `{}` when both parse passes fail;
+  // fall back to the raw payload so a malformed wire form doesn't crash
+  // rendering/copy. Matches the defensive pattern in `formatSetPayload`.
+  if (!Array.isArray(items)) {
+    return jsonList;
+  }
+  if (items.length === 0) {
+    return "()";
+  }
+  const inner = formatCollectionItems(items);
+  if (items.length === 1) {
+    return `(${inner},)`;
+  }
+  return `(${inner})`;
+}
+
+// Format a JSON-list payload as a Python frozenset literal. Empty → `frozenset()`
+// rather than `frozenset({})` (which reads like a dict).
+function formatFrozensetPayload(jsonList: string): string {
+  const items = jsonParseWithSpecialChar<unknown[]>(jsonList);
+  if (!Array.isArray(items)) {
+    return jsonList;
+  }
+  if (items.length === 0) {
+    return "frozenset()";
+  }
+  const inner = formatCollectionItems(items);
+  return `frozenset({${inner}})`;
+}
+
+// Format a JSON-list payload as a Python set literal. Empty → `set()`
+// (not `{}`, which is a dict literal in Python).
+function formatSetPayload(jsonList: string): string {
+  const items = jsonParseWithSpecialChar<unknown[]>(jsonList);
+  if (!Array.isArray(items)) {
+    // Back-compat: older wire form was `text/plain+set:{1, 2, 3}` (Python
+    // set-literal string, not JSON). Pass it through as-is rather than crash.
+    return jsonList;
+  }
+  if (items.length === 0) {
+    return "set()";
+  }
+  const inner = formatCollectionItems(items);
+  return `{${inner}}`;
+}
+
+// Renderers for decoded non-string keys. Visual affordances match Python:
+// unquoted primitives, parens for tuple, `frozenset({...})` for frozenset,
+// and the `text/plain+str:` escape re-quotes the original string.
+const KEY_DECODERS: Record<string, (data: string) => React.ReactNode> = {
+  "text/plain+int:": (v) => <span>{v}</span>,
+  "text/plain+float:": (v) => <span>{v}</span>,
+  "text/plain+bool:": (v) => <span>{v === "True" ? "True" : "False"}</span>,
+  "text/plain+none:": () => <span>None</span>,
+  "text/plain+tuple:": (v) => <span>{formatTuplePayload(v)}</span>,
+  "text/plain+frozenset:": (v) => <span>{formatFrozensetPayload(v)}</span>,
+  "text/plain+str:": (v) => <span>"{v}"</span>,
+};
+
+function isEncodedKey(key: unknown): key is string {
+  return typeof key === "string" && key.startsWith(KEY_ENCODED_PREFIX);
+}
+
+// `@textea/json-viewer` drops quotes from integer-like string keys, which
+// makes the string `"2"` visually identical to the decoded int `2`. Match
+// the same keys the viewer strips and render them with explicit quotes.
+const INT_LIKE_STRING = /^-?\d+$/;
+
+const keyRenderer: JsonViewerKeyRenderer = Object.assign(
+  ({ path }: DataItemProps) => {
+    const key = path[path.length - 1];
+    if (typeof key !== "string") {
+      return <span>{String(key)}</span>;
+    }
+    if (isEncodedKey(key)) {
+      const [data, mimeType] = leafDataAndMimeType(key);
+      const render = KEY_DECODERS[`${mimeType}:`];
+      return render ? render(data) : <span>{key}</span>;
+    }
+    // Plain integer-like string — quote it so it's distinct from a decoded int.
+    return <span>"{key}"</span>;
+  },
+  {
+    when: ({ path }: DataItemProps) => {
+      const key = path[path.length - 1];
+      return (
+        isEncodedKey(key) ||
+        (typeof key === "string" && INT_LIKE_STRING.test(key))
+      );
+    },
+  },
+);
+
 const MIME_PREFIXES = Object.keys(LEAF_RENDERERS);
 const REPLACE_PREFIX = "<marimo-replace>";
 const REPLACE_SUFFIX = "</marimo-replace>";
@@ -413,8 +543,10 @@ function pythonJsonReplacer(_key: string, value: unknown): unknown {
       return `${REPLACE_PREFIX}(${leafData(value).slice(1, -1)})${REPLACE_SUFFIX}`;
     }
     if (value.startsWith("text/plain+set:")) {
-      // replace first and last characters [] with {}
-      return `${REPLACE_PREFIX}{${leafData(value).slice(1, -1)}}${REPLACE_SUFFIX}`;
+      return `${REPLACE_PREFIX}${formatSetPayload(leafData(value))}${REPLACE_SUFFIX}`;
+    }
+    if (value.startsWith("text/plain+frozenset:")) {
+      return `${REPLACE_PREFIX}${formatFrozensetPayload(leafData(value))}${REPLACE_SUFFIX}`;
     }
 
     if (MIME_PREFIXES.some((prefix) => value.startsWith(prefix))) {
@@ -428,10 +560,61 @@ function pythonJsonReplacer(_key: string, value: unknown): unknown {
   return value;
 }
 
+// Rewrite an encoded key string into the Python literal that should appear
+// unquoted in the copy output. Wrapping in REPLACE_PREFIX/SUFFIX makes the
+// final regex pass strip the surrounding JSON quotes.
+function decodeKeyForCopy(key: string): string {
+  const [data, mimeType] = leafDataAndMimeType(key);
+  const wrap = (s: string) => `${REPLACE_PREFIX}${s}${REPLACE_SUFFIX}`;
+  switch (`${mimeType}:`) {
+    case "text/plain+int:":
+      return wrap(data);
+    case "text/plain+float:":
+      if (data === "nan") {
+        return wrap("float('nan')");
+      }
+      if (data === "inf") {
+        return wrap("float('inf')");
+      }
+      if (data === "-inf") {
+        return wrap("-float('inf')");
+      }
+      return wrap(data);
+    case "text/plain+bool:":
+      return wrap(data === "True" ? "True" : "False");
+    case "text/plain+none:":
+      return wrap("None");
+    case "text/plain+tuple:":
+      return wrap(formatTuplePayload(data));
+    case "text/plain+frozenset:":
+      return wrap(formatFrozensetPayload(data));
+    case "text/plain+str:":
+      // `data` is the original Python string; it stays quoted.
+      return data;
+    default:
+      return key;
+  }
+}
+
+function rewriteEncodedKeys(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(rewriteEncodedKeys);
+  }
+  if (typeof value === "object" && value !== null) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      const newKey = isEncodedKey(k) ? decodeKeyForCopy(k) : k;
+      out[newKey] = rewriteEncodedKeys(v);
+    }
+    return out;
+  }
+  return value;
+}
+
 export function getCopyValue(value: unknown): string {
   // Because this results in valid json, it adds quotes around None and True/False.
   // but we want to make this look like Python, so we remove the quotes.
-  return JSON.stringify(value, pythonJsonReplacer, 2)
+  return JSON.stringify(rewriteEncodedKeys(value), pythonJsonReplacer, 2)
     .replaceAll(`"${REPLACE_PREFIX}`, "")
     .replaceAll(`${REPLACE_SUFFIX}"`, "");
 }

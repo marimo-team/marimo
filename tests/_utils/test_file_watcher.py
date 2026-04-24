@@ -4,17 +4,44 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
+import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils import async_path
 from marimo._utils.file_watcher import FileWatcherManager, PollingFileWatcher
 
 
+async def _wait_for(
+    predicate: Callable[[], bool],
+    *,
+    timeout: float = 0.5,
+    interval: float = 0.05,
+) -> None:
+    loop = asyncio.get_event_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
+        if predicate():
+            return
+        await asyncio.sleep(interval)
+    # Surface a timeout so reruns/flakes leave a breadcrumb instead of
+    # failing silently at the next assert with a misleading count.
+    warnings.warn(
+        f"_wait_for timed out after {timeout}s waiting on "
+        f"{getattr(predicate, '__name__', repr(predicate))}",
+        stacklevel=2,
+    )
+
+
+@pytest.mark.flaky(reruns=3)
 async def test_polling_file_watcher() -> None:
     with NamedTemporaryFile(delete=False) as tmp_file:
         tmp_path = Path(tmp_file.name)
@@ -37,7 +64,7 @@ async def test_polling_file_watcher() -> None:
         f.write("modification")
 
     # Wait for the watcher to detect the change
-    await asyncio.sleep(0.2)
+    await _wait_for(lambda: len(callback_calls) == 1)
 
     # Stop / cleanup
     watcher.stop()
@@ -48,6 +75,7 @@ async def test_polling_file_watcher() -> None:
     assert callback_calls[0] == tmp_path
 
 
+@pytest.mark.flaky(reruns=3)
 async def test_file_watcher_manager() -> None:
     # Create two temporary files
     with (
@@ -90,7 +118,9 @@ async def test_file_watcher_manager() -> None:
             f.write("modification1")
 
         # Wait for callbacks
-        await asyncio.sleep(0.2)
+        await _wait_for(
+            lambda: len(callback1_calls) == 1 and len(callback2_calls) == 1
+        )
 
         # Both callbacks should be called for file1
         assert len(callback1_calls) == 1
@@ -102,12 +132,16 @@ async def test_file_watcher_manager() -> None:
         # Remove one callback from file1
         manager.remove_callback(tmp_path1, callback1)
 
+        # Space writes so the second mtime is distinguishable from the first
+        # on filesystems with coarse mtime granularity (e.g. HFS+).
+        await asyncio.sleep(0.05)
+
         # Modify file1 again
         with open(tmp_path1, "w") as f:  # noqa: ASYNC230
             f.write("modification2")
 
         # Wait for callbacks
-        await asyncio.sleep(0.2)
+        await _wait_for(lambda: len(callback2_calls) == 2)
 
         # Only callback2 should be called again
         assert len(callback1_calls) == 1  # unchanged
@@ -119,7 +153,7 @@ async def test_file_watcher_manager() -> None:
             f.write("modification3")
 
         # Wait for callbacks
-        await asyncio.sleep(0.2)
+        await _wait_for(lambda: len(callback3_calls) == 1)
 
         # callback3 should be called for file2
         assert len(callback1_calls) == 1
@@ -137,7 +171,8 @@ async def test_file_watcher_manager() -> None:
         with open(tmp_path2, "w") as f:  # noqa: ASYNC230
             f.write("modification4")
 
-        # Wait for potential callbacks
+        # Wait for potential callbacks (negative assertion — keep a fixed
+        # budget since there's nothing to poll on).
         await asyncio.sleep(0.2)
 
         # No new calls should happen

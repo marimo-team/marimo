@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import os.path
 import sys
 from typing import Any
@@ -63,6 +64,7 @@ def test_path_finder_find_spec_non_recursive() -> None:
 
 
 HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.polars.has()
+HAS_DATAFUSION = importlib.util.find_spec("datafusion") is not None
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -143,6 +145,35 @@ def test_as_html_opinionated_formatter():
     # With polars DataFrame + Plain
     html = as_html(Plain(pl_df))
     assert "<marimo-table" not in html.text
+
+
+@pytest.mark.skipif(not HAS_DATAFUSION, reason="datafusion is not installed")
+def test_datafusion_formatter() -> None:
+    register_formatters()
+
+    from datafusion import SessionContext
+
+    ctx = SessionContext()
+    df = ctx.from_pydict({"A": [1, 2, 3], "B": ["a", "a", "a"]})
+
+    # With DataFusion DataFrame
+    formatter = get_formatter(df)
+    assert formatter is not None
+    mime, content = formatter(df)
+    assert mime == "text/html"
+    assert "<marimo-table" in content
+
+    # With Plain — opinionated formatter should be bypassed
+    obj = Plain(df)
+    formatter = get_formatter(obj)
+    assert formatter is not None
+    mime, content = formatter(obj)
+    assert mime == "text/html"
+    assert "<marimo-table" not in content
+
+    # as_html should produce the same table output for the bare DataFrame
+    assert "<marimo-table" in as_html(df).text
+    assert "<marimo-table" not in as_html(Plain(df)).text
 
 
 def test_broken_formatter():

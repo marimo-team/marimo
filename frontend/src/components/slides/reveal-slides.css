@@ -37,6 +37,38 @@
   text-align: unset;
 }
 
-.reveal .slides > section {
+.reveal .slides > section,
+.reveal .slides > section > section {
   height: 100%;
+}
+
+/* Reveal.js animates slides by rendering past/future neighbors in the layout
+   and translating them offscreen. Tailwind v4's preflight forces `[hidden]`
+   elements to `display: none !important`, which collapses those neighbors
+   and kills the transition. Reasserting `display: block` inside the same
+   `@layer base` lets selector specificity beat preflight's `[hidden]` rule. */
+@layer base {
+  .reveal .slides > section.past,
+  .reveal .slides > section.future,
+  .reveal .slides > section > section.past,
+  .reveal .slides > section > section.future {
+    display: block !important;
+  }
+}
+
+/* Without this, the slides will animate as if from the edge of the screen. We hide this unless fullscreen */
+.reveal-viewport:not(:fullscreen) {
+  overflow: hidden;
+}
+
+/* Reveal slides can contain multiple blocks on a single subslide (the root
+   cell plus one or more fragments), so we stack vertically and stretch each
+   block to full width so its content stays left-aligned like a single cell
+   would. The base `.mo-slide-content` stays a horizontal shrink-wrap flex for
+   swiper/minimap, which only ever render one child. */
+.reveal .mo-slide-content {
+  flex-direction: column;
+}
+.reveal .mo-slide-content .output {
+  margin: 0;
 }

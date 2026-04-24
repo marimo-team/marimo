@@ -180,6 +180,20 @@ class TestSharedMemoryStorage:
         assert not storage.has("marimo_test_6")
         assert not storage.has("marimo_test_7")
 
+    def test_shutdown_with_keys_only_removes_requested_entries(self) -> None:
+        storage = SharedMemoryStorage()
+        try:
+            storage.store("marimo_test_subset_1", b"data1")
+            storage.store("marimo_test_subset_2", b"data2")
+
+            storage.shutdown(keys=["marimo_test_subset_1"])
+
+            assert not storage.has("marimo_test_subset_1")
+            assert storage.has("marimo_test_subset_2")
+            assert storage.read("marimo_test_subset_2", 5) == b"data2"
+        finally:
+            storage.shutdown()
+
     def test_cross_process_read(self) -> None:
         """Test that shared memory can be read by name from a fresh instance."""
         storage1 = SharedMemoryStorage()

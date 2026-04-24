@@ -52,6 +52,7 @@ def main() -> None:
         is_edit_mode=not args.is_run_mode,
         is_ipc=True,
         redirect_console_to_browser=args.redirect_console_to_browser,
+        parent_pid=args.parent_pid,
     )
 
 

@@ -1246,6 +1246,97 @@ class TestExportPDF:
         call_kwargs = mock_run_app.await_args.kwargs
         assert call_kwargs["export_as"] is None
 
+    @staticmethod
+    def test_export_pdf_reports_stage_status_updates(
+        temp_marimo_file: str,
+        tmp_path: Path,
+    ) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        from marimo._cli.export.commands import pdf as pdf_command
+        from marimo._server.export._status import PDFExportStatusEvent
+
+        output_file = tmp_path / "status.pdf"
+        runner = CliRunner()
+
+        async def fake_run_app(
+            *args: Any, **kwargs: Any
+        ) -> tuple[bytes, bool]:
+            del args
+            status_callback = kwargs["status_callback"]
+            status_callback(
+                PDFExportStatusEvent(
+                    phase="execute",
+                    message="executing notebook...",
+                )
+            )
+            status_callback(
+                PDFExportStatusEvent(
+                    phase="raster",
+                    message="rasterizing interactive outputs...",
+                    current=2,
+                    total=7,
+                )
+            )
+            status_callback(
+                PDFExportStatusEvent(
+                    phase="prepare",
+                    message="serializing notebook for PDF rendering...",
+                )
+            )
+            status_callback(
+                PDFExportStatusEvent(
+                    phase="render",
+                    message="rendering PDF via WebPDF...",
+                )
+            )
+            status_callback(
+                PDFExportStatusEvent(
+                    phase="complete",
+                    message="done.",
+                )
+            )
+            return b"mock_pdf", False
+
+        mock_run_app = AsyncMock(side_effect=fake_run_app)
+
+        with (
+            patch(
+                "marimo._cli.export.commands.DependencyManager.require_many"
+            ),
+            patch(
+                "marimo._cli.export.commands.DependencyManager.playwright.require"
+            ),
+            patch(
+                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                mock_run_app,
+            ),
+        ):
+            result = runner.invoke(
+                pdf_command,
+                [
+                    "--output",
+                    str(output_file),
+                    "--no-sandbox",
+                    temp_marimo_file,
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert output_file.read_bytes() == b"mock_pdf"
+        assert "Exporting PDF: executing notebook..." in result.output
+        assert (
+            "Exporting PDF: rasterizing interactive outputs [2/7]..."
+            in result.output
+        )
+        assert (
+            "Exporting PDF: serializing notebook for PDF rendering..."
+            in result.output
+        )
+        assert "Exporting PDF: rendering PDF via WebPDF..." in result.output
+        assert "Exporting PDF: done." in result.output
+        assert mock_run_app.await_count == 1
+
 
 @pytest.mark.skipif(
     not DependencyManager.playwright.has(),

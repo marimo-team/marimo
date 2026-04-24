@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { hasRunAnyCellAtom } from "@/components/editor/cell/useRunCells";
+import { hasTrustedExportContext } from "@/core/static/export-context";
 import { store } from "@/core/state/jotai";
 
 /**
@@ -15,13 +16,13 @@ import { store } from "@/core/state/jotai";
  * attacker-controlled JavaScript at same origin, since the HTML sanitizer
  * lets arbitrary marimo custom elements and attributes through.
  *
- * Some runtimes (WASM, VS Code) have no backend to serve virtual files, so
- * `VirtualFile` falls back to inline base64 data URLs (see `virtual_file.py`).
+ * Some runtimes (WASM, VS Code, and trusted exported notebook contexts such as
+ * Quarto islands) have no backend to serve virtual files, so `VirtualFile`
+ * falls back to inline base64 data URLs (see `virtual_file.py`).
  * We accept those only once the user has explicitly run a cell in the current
- * notebook — the same trust signal `sanitize.ts` uses to lift HTML
- * sanitization. Running a cell requires deliberate user action and already
- * executes arbitrary Python, so a data URL script loaded afterwards is not a
- * new attack surface.
+ * notebook, or when a first-party export script has installed a trusted
+ * notebook export context. Both cases already imply trust in notebook-authored
+ * code, so loading the matching data URL is not a new attack surface.
  */
 export function isTrustedVirtualFileUrl(url: unknown): url is string {
   if (typeof url !== "string" || url.length === 0) {
@@ -30,16 +31,37 @@ export function isTrustedVirtualFileUrl(url: unknown): url is string {
   if (/^(\.?\/)?@file\/[^?#]+$/.test(url)) {
     return true;
   }
-  if (isSafeDataUrl(url) && store.get(hasRunAnyCellAtom)) {
+  if (isSafeDataUrl(url)) {
     return true;
   }
   return false;
 }
 
+/**
+ * Intentionally narrower than `hasTrustedNotebookContext` in
+ * `@/core/static/export-context`: `auto_instantiate` and `read` mode are
+ * deliberately excluded here. Both can be triggered by DOM-observable page
+ * shape, and accepting inline base64 `data:` JS/CSS payloads on their
+ * strength would let a hostile notebook page smuggle attacker-controlled
+ * script into the same origin. Keep this gate tied only to "user actively
+ * ran a cell" or "first-party exporter installed a trusted runtime marker".
+ */
+function hasNotebookTrustedDataUrlContext(): boolean {
+  return store.get(hasRunAnyCellAtom) || hasTrustedExportContext();
+}
+
+/**
+ * Safe data URL formats: JS/CSS inlined as base64. Non-base64 data URLs and
+ * other MIME types (HTML, SVG, octet-stream, etc.) are refused because they
+ * broaden the surface for attacker-controlled inline content.
+ */
 function isSafeDataUrl(url: string): boolean {
-  return (
+  const isSafeKind =
     url.startsWith("data:text/javascript;base64,") ||
     url.startsWith("data:application/javascript;base64,") ||
-    url.startsWith("data:text/css;base64,")
-  );
+    url.startsWith("data:text/css;base64,");
+  if (!isSafeKind) {
+    return false;
+  }
+  return hasNotebookTrustedDataUrlContext();
 }

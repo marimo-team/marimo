@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import Any
 from unittest.mock import patch
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 import pytest
 
@@ -854,3 +852,34 @@ def test_build_sandbox_venv_with_additional_deps(tmp_path: Path) -> None:
     finally:
         if sandbox_dir is not None:
             cleanup_sandbox_dir(sandbox_dir)
+
+
+def test_resolve_local_path_line() -> None:
+    from marimo._cli.sandbox import _resolve_local_path_line
+
+    d = Path("/project/notebooks")
+    _r = lambda p: str((d / p).resolve())  # noqa: E731
+
+    # Plain relative
+    assert _resolve_local_path_line("../../mylib", d) == _r("../../mylib")
+    # Editable
+    assert _resolve_local_path_line("-e ../pkg", d) == f"-e {_r('../pkg')}"
+    # Env marker
+    result = _resolve_local_path_line("../pkg ; py<'3.12'", d)
+    assert _r("../pkg") in result
+    assert "py<'3.12'" in result
+    # Inline comment
+    result = _resolve_local_path_line("../pkg # via foo", d)
+    assert _r("../pkg") in result
+    assert "# via foo" in result
+    # Both marker and comment
+    result = _resolve_local_path_line("../pkg ; py<'3.12' # via foo", d)
+    assert _r("../pkg") in result
+    assert "py<'3.12'" in result
+    assert "# via foo" in result
+    # Spaces in path
+    assert _r("../my lib") in _resolve_local_path_line("../my lib", d)
+    # Non-relative unchanged
+    assert _resolve_local_path_line("numpy==1.26.0", d) == "numpy==1.26.0"
+    assert _resolve_local_path_line("/absolute/path", d) == "/absolute/path"
+    assert _resolve_local_path_line("", d) == ""

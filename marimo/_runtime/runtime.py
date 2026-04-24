@@ -182,6 +182,9 @@ from marimo._runtime.packages.utils import (
     is_python_isolated,
 )
 from marimo._runtime.params import CLIArgs, QueryParams
+from marimo._runtime.parent_poller import (
+    start_parent_poller,
+)
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import ModuleWatcher
@@ -3554,21 +3557,25 @@ def launch_kernel(
     profile_path: str | None = None,
     log_level: int | None = None,
     is_ipc: bool = False,
+    parent_pid: int | None = None,
 ) -> None:
     if log_level is not None:
         _loggers.set_level(log_level)
     LOGGER.debug("Launching kernel")
 
-    # Determine behavior:
-    # - is_subprocess: edit mode uses Process, IPC uses subprocess - both can receive signals
-    # - Run mode (not edit) uses autorun config regardless of IPC
     is_subprocess = is_edit_mode or is_ipc
-
     loop_factory: Callable[[], asyncio.AbstractEventLoop] | None = None
     if is_subprocess:
         restore_signals()
 
-        # The runtime process inherits the server's loop policy, on Windows, we
+        # Become the leader of a new session/process group before connecting
+        # back to the parent, to avoid race conditions with the parent
+        # process (which assumes its child is in another process group).
+        if sys.platform != "win32":
+            os.setsid()
+            start_parent_poller(parent_pid)
+
+        # The runtime process inherits the server's loop policy. On Windows, we
         # restore the event loop policy to the default ProactorEventLoop, so
         # user code can use asyncio.create_subprocess_exec and other APIs that
         # the SelectorEventLoop does not implement.
@@ -3720,17 +3727,10 @@ def launch_kernel(
         # Subprocess kernels (EDIT and IPC_RUN) can receive signals and need
         # their own formatter registration since they don't share state with
         # the host process.
+        #
+        # Each subprocess kernel needs to install the formatter import hooks
         from marimo._output.formatters.formatters import register_formatters
 
-        # TODO: Windows workaround -- find a way to make the process
-        # its group leader
-        if sys.platform != "win32":
-            # Make this process group leader to prevent it from receiving
-            # signals intended for the parent (server) process,
-            # Ctrl+C in particular.
-            os.setsid()
-
-        # Each subprocess kernel needs to install the formatter import hooks
         register_formatters(theme=user_config["display"]["theme"])
 
         signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))

@@ -8,20 +8,21 @@ import queue
 import sys
 import typing
 
+import msgspec
+
 from marimo import _loggers
 from marimo._ipc.queue_proxy import PushQueue, start_receiver_thread
 from marimo._ipc.types import ConnectionInfo
+from marimo._messaging.types import KernelMessage
+from marimo._runtime.commands import (
+    BatchableCommand,
+    CodeCompletionCommand,
+    CommandMessage,
+)
 from marimo._session.queue import QueueType
 
 if typing.TYPE_CHECKING:
     import zmq
-
-    from marimo._messaging.types import KernelMessage
-    from marimo._runtime.commands import (
-        BatchableCommand,
-        CodeCompletionCommand,
-        CommandMessage,
-    )
 
 LOGGER = _loggers.marimo_logger()
 ADDR = "tcp://127.0.0.1"
@@ -41,6 +42,7 @@ class Channel(typing.Generic[T]):
     kind: typing.Literal["push", "pull"]
     socket: zmq.Socket[bytes]
     queue: QueueType[T]
+    decoder: msgspec.msgpack.Decoder[T] | None = None
 
     @classmethod
     def Push(
@@ -59,14 +61,41 @@ class Channel(typing.Generic[T]):
             queue=PushQueue(socket, maxsize=maxsize),
         )
 
+    @typing.overload
     @classmethod
     def Pull(
-        cls, context: zmq.Context[zmq.Socket[bytes]], *, maxsize: int = 0
-    ) -> Channel[T]:
+        cls,
+        context: zmq.Context[zmq.Socket[bytes]],
+        *,
+        msg_type: type[T],
+        maxsize: int = 0,
+    ) -> Channel[T]: ...
+
+    @typing.overload
+    @classmethod
+    def Pull(
+        cls,
+        context: zmq.Context[zmq.Socket[bytes]],
+        *,
+        msg_type: typing.Any,
+        maxsize: int = 0,
+    ) -> Channel[typing.Any]: ...
+
+    @classmethod
+    def Pull(
+        cls,
+        context: zmq.Context[zmq.Socket[bytes]],
+        *,
+        msg_type: typing.Any,
+        maxsize: int = 0,
+    ) -> Channel[typing.Any]:
         """Create a pull (receive-only) channel.
 
         Args:
             context: ZeroMQ context for creating sockets
+            msg_type: The type to decode incoming messages as. Accepts
+                concrete types, union types (e.g. ``A | B``), and NewTypes;
+                msgspec's ``Decoder`` handles all three.
             maxsize: Maximum queue size (0 = unlimited)
         """
         import zmq
@@ -76,6 +105,7 @@ class Channel(typing.Generic[T]):
             kind="pull",
             socket=socket,
             queue=queue.Queue(maxsize=maxsize),
+            decoder=msgspec.msgpack.Decoder(msg_type),
         )
 
 
@@ -95,22 +125,22 @@ class Connection:
 
     def __post_init__(self) -> None:
         """Start receiver threads for all pull channels."""
-        receivers: dict[zmq.Socket[bytes], QueueType[typing.Any]] = {}
+        pull_channels: list[Channel[typing.Any]] = []
         if self.control.kind == "pull":
-            receivers[self.control.socket] = self.control.queue
+            pull_channels.append(self.control)
         if self.ui_element.kind == "pull":
-            receivers[self.ui_element.socket] = self.ui_element.queue
+            pull_channels.append(self.ui_element)
         if self.completion.kind == "pull":
-            receivers[self.completion.socket] = self.completion.queue
+            pull_channels.append(self.completion)
         if self.win32_interrupt and self.win32_interrupt.kind == "pull":
-            receivers[self.win32_interrupt.socket] = self.win32_interrupt.queue
+            pull_channels.append(self.win32_interrupt)
         if self.input.kind == "pull":
-            receivers[self.input.socket] = self.input.queue
+            pull_channels.append(self.input)
         if self.stream.kind == "pull":
-            receivers[self.stream.socket] = self.stream.queue
+            pull_channels.append(self.stream)
 
         self._stop_event, self._receiver_thread = start_receiver_thread(
-            receivers
+            pull_channels
         )
 
     @classmethod
@@ -132,7 +162,7 @@ class Connection:
                 Channel.Push(context) if sys.platform == "win32" else None
             ),
             input=Channel.Push(context, maxsize=1),
-            stream=Channel.Pull(context),
+            stream=Channel.Pull(context, msg_type=KernelMessage),
         )
         info = ConnectionInfo(
             control=conn.control.socket.bind_to_random_port(ADDR),
@@ -164,13 +194,13 @@ class Connection:
 
         conn = cls(
             context=context,
-            control=Channel.Pull(context),
-            ui_element=Channel.Pull(context),
-            completion=Channel.Pull(context),
-            win32_interrupt=Channel.Pull(context)
+            control=Channel.Pull(context, msg_type=CommandMessage),
+            ui_element=Channel.Pull(context, msg_type=BatchableCommand),
+            completion=Channel.Pull(context, msg_type=CodeCompletionCommand),
+            win32_interrupt=Channel.Pull(context, msg_type=bool)
             if connection_info.win32_interrupt
             else None,
-            input=Channel.Pull(context, maxsize=1),
+            input=Channel.Pull(context, msg_type=str, maxsize=1),
             stream=Channel.Push(context),
         )
 

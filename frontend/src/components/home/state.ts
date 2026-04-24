@@ -15,7 +15,19 @@ export const RunningNotebooksContext = React.createContext<{
   runningNotebooks: new Map(),
   setRunningNotebooks: Functions.NOOP,
 });
-export const WorkspaceRootContext = React.createContext<string>("");
+
+/**
+ * Context providing the workspace root plus a `refreshWorkspace` hook used by
+ * file actions (rename/duplicate/delete) so they can invalidate both the
+ * workspace tree and any sibling views (e.g. recent notebooks) in one call.
+ */
+export const WorkspaceContext = React.createContext<{
+  root: string;
+  refreshWorkspace: () => void;
+}>({
+  root: "",
+  refreshWorkspace: Functions.NOOP,
+});
 
 export const includeMarkdownAtom = atomWithStorage<boolean>(
   "marimo:home:include-markdown",

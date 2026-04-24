@@ -119,6 +119,8 @@ export interface CellRuntimeState {
   serialization?: string | null;
 }
 
+export type RuntimeCell = CellRuntimeState & CellData;
+
 export type WithResponse<T> = T & {
   /**
    * This is not saved to the server, but we update this field

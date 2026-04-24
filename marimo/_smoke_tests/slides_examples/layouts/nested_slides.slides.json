@@ -1,0 +1,72 @@
+{
+  "type": "slides",
+  "data": {
+    "cells": [
+      {
+        "type": "skip"
+      },
+      {
+        "type": "slide"
+      },
+      {
+        "type": "fragment"
+      },
+      {
+        "type": "fragment"
+      },
+      {
+        "type": "slide"
+      },
+      {
+        "type": "slide"
+      },
+      {
+        "type": "sub-slide"
+      },
+      {
+        "type": "fragment"
+      },
+      {
+        "type": "fragment"
+      },
+      {
+        "type": "sub-slide"
+      },
+      {},
+      {
+        "type": "sub-slide"
+      },
+      {
+        "type": "slide"
+      },
+      {
+        "type": "sub-slide"
+      },
+      {
+        "type": "fragment"
+      },
+      {
+        "type": "sub-slide"
+      },
+      {
+        "type": "skip"
+      },
+      {
+        "type": "slide"
+      },
+      {
+        "type": "fragment"
+      },
+      {
+        "type": "fragment"
+      },
+      {
+        "type": "fragment"
+      },
+      {
+        "type": "slide"
+      }
+    ],
+    "deck": {}
+  }
+}

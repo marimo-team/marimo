@@ -20,14 +20,31 @@ HAS_PANDAS = DependencyManager.pandas.has()
 HAS_POLARS = DependencyManager.polars.has()
 
 
+@pytest.fixture
+def duckdb_conn():
+    """Per-test in-memory DuckDB connection.
+
+    Each test gets a fresh, isolated connection.
+    """
+    if not HAS_DUCKDB:
+        pytest.skip("DuckDB not installed")
+    import duckdb
+
+    conn = duckdb.connect(":memory:")
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
 class TestDuckDBRuntimeErrors:
     """Test DuckDB errors that occur during SQL execution."""
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_table_not_found_error(self):
+    def test_table_not_found_error(self, duckdb_conn):
         """Test error when referencing a non-existent table."""
         with pytest.raises(MarimoSQLException) as exc_info:
-            sql("SELECT * FROM nonexistent_table")
+            sql("SELECT * FROM nonexistent_table", engine=duckdb_conn)
 
         error = exc_info.value
         assert "nonexistent_table" in str(error).lower()
@@ -35,33 +52,39 @@ class TestDuckDBRuntimeErrors:
         assert error.sql_statement == "SELECT * FROM nonexistent_table"
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_column_not_found_error(self):
+    def test_column_not_found_error(self, duckdb_conn):
         """Test error when referencing a non-existent column."""
         # Create a test table first
-        sql("CREATE OR REPLACE TABLE test_error_table (id INTEGER, name TEXT)")
+        sql(
+            "CREATE OR REPLACE TABLE test_error_table (id INTEGER, name TEXT)",
+            engine=duckdb_conn,
+        )
 
         with pytest.raises(MarimoSQLException) as exc_info:
-            sql("SELECT invalid_column FROM test_error_table")
+            sql(
+                "SELECT invalid_column FROM test_error_table",
+                engine=duckdb_conn,
+            )
 
         error = exc_info.value
         assert "invalid_column" in str(error)
         assert "test_error_table" in error.sql_statement
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_syntax_error_missing_from(self):
+    def test_syntax_error_missing_from(self, duckdb_conn):
         """Test syntax error when FROM keyword is misspelled."""
         with pytest.raises(MarimoSQLException) as exc_info:
-            sql("SELECT * FRM test_table")
+            sql("SELECT * FRM test_table", engine=duckdb_conn)
 
         error = exc_info.value
         assert "syntax error" in str(error).lower()
         assert "SELECT * FRM test_table" in error.sql_statement
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_syntax_error_malformed_expression(self):
+    def test_syntax_error_malformed_expression(self, duckdb_conn):
         """Test syntax error with malformed SQL expression."""
         with pytest.raises(MarimoSQLException) as exc_info:
-            sql("SELECT ( FROM table")
+            sql("SELECT ( FROM table", engine=duckdb_conn)
 
         error = exc_info.value
         assert (
@@ -73,20 +96,26 @@ class TestDuckDBRuntimeErrors:
         not HAS_DUCKDB or not (HAS_PANDAS or HAS_POLARS),
         reason="DuckDB/Pandas not installed",
     )
-    def test_data_type_error(self):
+    def test_data_type_error(self, duckdb_conn):
         """Test data type conversion errors."""
-        sql("CREATE OR REPLACE TABLE test_type_table (id INTEGER)")
-        sql("INSERT INTO test_type_table VALUES (1)")
+        sql(
+            "CREATE OR REPLACE TABLE test_type_table (id INTEGER)",
+            engine=duckdb_conn,
+        )
+        sql("INSERT INTO test_type_table VALUES (1)", engine=duckdb_conn)
 
         with pytest.raises(MarimoSQLException) as exc_info:
-            sql("SELECT id / 'invalid_string' FROM test_type_table")
+            sql(
+                "SELECT id / 'invalid_string' FROM test_type_table",
+                engine=duckdb_conn,
+            )
 
         error = exc_info.value
         # Error message varies by DuckDB version, just ensure we caught it
         assert len(str(error)) > 0
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_long_sql_statement_truncation(self):
+    def test_long_sql_statement_truncation(self, duckdb_conn):
         """Test that long SQL statements are truncated in error messages."""
         long_query = (
             "SELECT "
@@ -95,7 +124,7 @@ class TestDuckDBRuntimeErrors:
         )
 
         with pytest.raises(MarimoSQLException) as exc_info:
-            sql(long_query)
+            sql(long_query, engine=duckdb_conn)
 
         error = exc_info.value
         assert len(error.sql_statement) == len(long_query)
@@ -155,16 +184,14 @@ class TestErrorUtilityFunctions:
     """Test marimo's SQL error handling utility functions."""
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_is_sql_parse_error_duckdb(self):
+    def test_is_sql_parse_error_duckdb(self, duckdb_conn):
         """Test detection of DuckDB parsing errors."""
-        import duckdb
-
         with pytest.raises(Exception) as exc_info:
-            duckdb.sql("SELECT * FROM nonexistent_table")
+            duckdb_conn.sql("SELECT * FROM nonexistent_table")
         assert is_sql_parse_error(exc_info.value) is True
 
         with pytest.raises(Exception) as exc_info:
-            duckdb.sql("SELECT * FRM invalid_syntax")
+            duckdb_conn.sql("SELECT * FRM invalid_syntax")
         assert is_sql_parse_error(exc_info.value) is True
 
     @pytest.mark.skipif(not HAS_SQLGLOT, reason="SQLGlot not installed")
@@ -188,16 +215,15 @@ class TestErrorUtilityFunctions:
         assert is_sql_parse_error(marimo_sql_exception) is True
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_create_sql_error_from_exception(self):
+    def test_create_sql_error_from_exception(self, duckdb_conn):
         """Test conversion of raw exception to MarimoSQLError."""
-        import duckdb
 
         class MockCell:
             def __init__(self, sql_statement: str):
                 self.sqls = [sql_statement]
 
         try:
-            duckdb.sql("SELECT * FROM nonexistent_table")
+            duckdb_conn.sql("SELECT * FROM nonexistent_table")
         except Exception as e:
             mock_cell = MockCell("SELECT * FROM nonexistent_table")
             error = create_sql_error_from_exception(e, mock_cell)
@@ -210,10 +236,8 @@ class TestErrorUtilityFunctions:
             assert hasattr(error, "hint")
 
     @pytest.mark.requires("duckdb")
-    def test_create_sql_error_long_statement(self):
+    def test_create_sql_error_long_statement(self, duckdb_conn):
         """Test SQL statement truncation in error creation."""
-        import duckdb
-
         long_statement = (
             "SELECT "
             + ", ".join([f"col_{i}" for i in range(100)])
@@ -225,7 +249,7 @@ class TestErrorUtilityFunctions:
                 self.sqls = [sql_statement]
 
         try:
-            duckdb.sql(long_statement)
+            duckdb_conn.sql(long_statement)
         except Exception as e:
             mock_cell = MockCell(long_statement)
             error = create_sql_error_from_exception(e, mock_cell)
@@ -277,10 +301,13 @@ class TestIntegrationAndEdgeCases:
     """Test complete error flow and edge cases."""
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_sql_function_error_flow(self):
+    def test_sql_function_error_flow(self, duckdb_conn):
         """Test complete error flow through mo.sql() function."""
         with pytest.raises(MarimoSQLException) as exc_info:
-            sql("SELECT * FROM definitely_nonexistent_table_12345")
+            sql(
+                "SELECT * FROM definitely_nonexistent_table_12345",
+                engine=duckdb_conn,
+            )
 
         error = exc_info.value
         assert isinstance(error, MarimoSQLException)
@@ -312,34 +339,37 @@ class TestIntegrationAndEdgeCases:
         assert error.sql_statement == ""
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_multiple_errors_in_sequence(self):
+    def test_multiple_errors_in_sequence(self, duckdb_conn):
         """Test handling multiple SQL errors in sequence."""
         # First error
         with pytest.raises(MarimoSQLException):
-            sql("SELECT * FROM table1_nonexistent")
+            sql("SELECT * FROM table1_nonexistent", engine=duckdb_conn)
 
         # Second error should still work
         with pytest.raises(MarimoSQLException):
-            sql("SELECT * FROM table2_nonexistent")
+            sql("SELECT * FROM table2_nonexistent", engine=duckdb_conn)
 
     @pytest.mark.requires("duckdb")
-    def test_error_with_special_characters(self):
+    def test_error_with_special_characters(self, duckdb_conn):
         """Test error handling with SQL containing special characters."""
         with pytest.raises(MarimoSQLException):
-            sql("SELECT * FROM 'table with spaces and quotes'")
+            sql(
+                "SELECT * FROM 'table with spaces and quotes'",
+                engine=duckdb_conn,
+            )
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_duckdb_hints_preserved(self):
+    def test_duckdb_hints_preserved(self, duckdb_conn):
         """Test that DuckDB hints like 'Did you mean?' are preserved in error messages."""
-        import duckdb
-
         # Create a table to generate "Did you mean?" suggestions
-        duckdb.sql(
+        duckdb_conn.sql(
             "CREATE OR REPLACE TABLE test_hints_table (id INT, name TEXT)"
         )
 
         with pytest.raises(MarimoSQLException) as exc_info:
-            sql("SELECT * FROM test_hint")  # Missing 's' in table name
+            sql(
+                "SELECT * FROM test_hint", engine=duckdb_conn
+            )  # Missing 's' in table name
 
         error = exc_info.value
         error_msg = str(error)
@@ -349,17 +379,17 @@ class TestIntegrationAndEdgeCases:
         assert error.hint is None
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_column_candidates_preserved(self):
+    def test_column_candidates_preserved(self, duckdb_conn):
         """Test that column candidate hints are preserved in error messages."""
-        import duckdb
-
         # Create a table to generate candidate binding suggestions
-        duckdb.sql(
+        duckdb_conn.sql(
             "CREATE OR REPLACE TABLE test_columns (id INT, user_name TEXT, email TEXT)"
         )
 
         with pytest.raises(MarimoSQLException) as exc_info:
-            sql("SELECT fullname FROM test_columns")  # Wrong column name
+            sql(
+                "SELECT fullname FROM test_columns", engine=duckdb_conn
+            )  # Wrong column name
 
         error = exc_info.value
         error_msg = str(error)
@@ -369,17 +399,15 @@ class TestIntegrationAndEdgeCases:
         assert error.hint is None
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_hint_field_in_sql_error_struct(self):
+    def test_hint_field_in_sql_error_struct(self, duckdb_conn):
         """Test that MarimoSQLError struct properly includes hint field."""
-        import duckdb
-
         # Create table for hint generation
-        duckdb.sql(
+        duckdb_conn.sql(
             "CREATE OR REPLACE TABLE hint_test_table (id INT, name TEXT)"
         )
 
         try:
-            duckdb.sql("SELECT * FROM hint_test")  # Missing letters
+            duckdb_conn.sql("SELECT * FROM hint_test")  # Missing letters
         except Exception as e:
 
             class MockCell:
@@ -392,17 +420,15 @@ class TestIntegrationAndEdgeCases:
             assert error_struct.hint is None
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    def test_multiline_hints_preserved(self):
+    def test_multiline_hints_preserved(self, duckdb_conn):
         """Test that multiline hints like function candidates are fully captured."""
-        import duckdb
-
         # Create table for multiline hint generation
-        duckdb.sql(
+        duckdb_conn.sql(
             "CREATE OR REPLACE TABLE hint_multiline_table (id INT, name TEXT)"
         )
 
         try:
-            duckdb.sql(
+            duckdb_conn.sql(
                 "SELECT SUBSTRING(name) FROM hint_multiline_table"
             )  # Wrong args
         except Exception as e:

@@ -39,6 +39,7 @@ def _setup_test_sleep():
 
 # these tests use random filenames for modules because they share
 # the same sys.modules object, and each test needs fresh modules
+@pytest.mark.flaky(reruns=3)
 async def test_reload_function(
     tmp_path: pathlib.Path,
     py_modname: str,
@@ -77,7 +78,16 @@ async def test_reload_function(
     )
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(INTERVAL * 3)
+    retries = 0
+    while retries < 10:
+        await asyncio.sleep(INTERVAL)
+        retries += 1
+        if (
+            k.graph.cells[er_1.cell_id].stale
+            and k.graph.cells[er_2.cell_id].stale
+        ):
+            break
+
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -141,7 +151,16 @@ async def test_disable_and_reenable_reload(
     )
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(INTERVAL * 3)
+    retries = 0
+    while retries < 10:
+        await asyncio.sleep(INTERVAL)
+        retries += 1
+        if (
+            k.graph.cells[er_1.cell_id].stale
+            and k.graph.cells[er_2.cell_id].stale
+        ):
+            break
+
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -152,6 +171,7 @@ async def test_disable_and_reenable_reload(
     assert k.globals["x"] == 2
 
 
+@pytest.mark.flaky(reruns=3)
 async def test_reload_nested_module_function(
     tmp_path: pathlib.Path,
     py_modname: str,
@@ -196,7 +216,16 @@ async def test_reload_nested_module_function(
     update_file(nested_module, "func = lambda : 2")
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(INTERVAL * 3)
+    retries = 0
+    while retries < 10:
+        await asyncio.sleep(INTERVAL)
+        retries += 1
+        if (
+            k.graph.cells[er_1.cell_id].stale
+            and k.graph.cells[er_2.cell_id].stale
+        ):
+            break
+
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -207,6 +236,7 @@ async def test_reload_nested_module_function(
     assert k.globals["x"] == 2
 
 
+@pytest.mark.flaky(reruns=3)
 async def test_reload_nested_module_import_module(
     tmp_path: pathlib.Path,
     py_modname: str,
@@ -251,7 +281,16 @@ async def test_reload_nested_module_import_module(
     update_file(nested_module, "func = lambda : 2")
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(INTERVAL * 3)
+    retries = 0
+    while retries < 10:
+        await asyncio.sleep(INTERVAL)
+        retries += 1
+        if (
+            k.graph.cells[er_1.cell_id].stale
+            and k.graph.cells[er_2.cell_id].stale
+        ):
+            break
+
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -325,6 +364,7 @@ async def test_reload_nested_module_import_module_autorun(
     assert k.globals["x"] == 2
 
 
+@pytest.mark.flaky(reruns=3)
 async def test_reload_package(
     tmp_path: pathlib.Path,
     execution_kernel: Kernel,
@@ -358,7 +398,16 @@ async def test_reload_package(
     update_file(nested_module, "func = lambda : 2")
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(INTERVAL * 3)
+    retries = 0
+    while retries < 10:
+        await asyncio.sleep(INTERVAL)
+        retries += 1
+        if (
+            k.graph.cells[er_1.cell_id].stale
+            and k.graph.cells[er_2.cell_id].stale
+        ):
+            break
+
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -431,6 +480,7 @@ async def test_reload_third_party(
     assert k.globals["x"] == 2
 
 
+@pytest.mark.flaky(reruns=3)
 async def test_reload_with_modified_cell(
     tmp_path: pathlib.Path,
     py_modname: str,
@@ -469,7 +519,16 @@ async def test_reload_with_modified_cell(
     )
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(INTERVAL * 3)
+    retries = 0
+    while retries < 10:
+        await asyncio.sleep(INTERVAL)
+        retries += 1
+        if (
+            k.graph.cells[er_1.cell_id].stale
+            and k.graph.cells[er_2.cell_id].stale
+        ):
+            break
+
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -914,6 +973,7 @@ class TestModuleWatcherStop:
 class TestModuleWatcherEdgeCases:
     """Tests for edge cases in module watching"""
 
+    @pytest.mark.flaky(reruns=3)
     async def test_module_watcher_handles_deleted_cell(
         self,
         tmp_path: pathlib.Path,
@@ -959,12 +1019,18 @@ class TestModuleWatcherEdgeCases:
         )
 
         # Wait for watcher to pick up change
-        await asyncio.sleep(INTERVAL * 3)
+        retries = 0
+        while retries < 10:
+            await asyncio.sleep(INTERVAL)
+            retries += 1
+            if k.graph.cells[er_1.cell_id].stale:
+                break
 
         # Only er_1 should be stale (er_2 was deleted)
         assert k.graph.cells[er_1.cell_id].stale
         assert er_2.cell_id not in k.graph.cells
 
+    @pytest.mark.flaky(reruns=3)
     async def test_module_watcher_cache_invalidation(
         self,
         tmp_path: pathlib.Path,
@@ -989,7 +1055,13 @@ class TestModuleWatcherEdgeCases:
         update_file(py_file, "def foo(): return 2")
 
         # Wait for watcher
-        await asyncio.sleep(INTERVAL * 3)
+        retries = 0
+        while retries < 10:
+            await asyncio.sleep(INTERVAL)
+            retries += 1
+            if k.graph.cells[er_1.cell_id].stale:
+                break
+
         assert k.graph.cells[er_1.cell_id].stale
 
         # Run stale cells

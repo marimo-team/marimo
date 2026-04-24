@@ -1,0 +1,111 @@
+name: Test Python
+description: Run the marimo Python test suite for a given Python version and dependency set. Assumes the repo has already been checked out.
+
+inputs:
+  python-version:
+    description: Python version to test against.
+    required: true
+  dependencies:
+    description: Dependency group — "core", "core,optional", or "minimal".
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # Use uv's managed Python rather than the hostedtoolcache build from
+    # actions/setup-python: the hostedtoolcache interpreter has ABI quirks
+    # that caused numpy/matplotlib lazy submodule imports to fail on CI.
+    - name: 🐍 Setup uv
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      with:
+        python-version: ${{ inputs.python-version }}
+        enable-cache: true
+
+    # This step is needed since some of our tests rely on the index.html file
+    - name: Create assets directory, copy over index.html
+      shell: bash
+      run: |
+        mkdir -p marimo/_static/assets
+        cp frontend/index.html marimo/_static/index.html
+        cp frontend/public/favicon.ico marimo/_static/favicon.ico
+
+    # Setup test flags based on conditions
+    - name: Setup test flags
+      id: setup-flags
+      shell: bash
+      run: |
+        # Set CHANGED_FROM: On PRs, compare against base branch; on main, compare against HEAD~1
+        CHANGED_FROM="${{ github.base_ref && format('origin/{0}', github.base_ref) || 'HEAD~1' }}"
+        echo "changed_from=$CHANGED_FROM"
+        echo "changed_from=$CHANGED_FROM" >> $GITHUB_OUTPUT
+
+        # Set INCLUDE_UNCHANGED: true if test-all label, python 3.13 + optional deps, or main branch
+        if [[ "${{ contains(github.event.pull_request.labels.*.name, 'test-all') }}" == "true" ]] || \
+           [[ "${{ inputs.python-version }}" == "3.13" && "${{ inputs.dependencies }}" == "core,optional" ]] || \
+           [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "include_unchanged=true"
+          echo "include_unchanged=true" >> $GITHUB_OUTPUT
+        else
+          echo "include_unchanged=false"
+          echo "include_unchanged=false" >> $GITHUB_OUTPUT
+        fi
+
+    # Test with base dependencies
+    # Exit code 5 = no tests collected (e.g. only CLI test files changed);
+    # treat that as success since CLI tests run in a separate workflow.
+    #
+    # xdist is disabled when the `test-serial` label is applied to a PR,
+    # as an escape hatch when parallelism causes flakes that block a merge.
+    - name: Test changed with base dependencies
+      if: ${{ inputs.dependencies == 'core' }}
+      shell: bash
+      run: |
+        uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
+          -v \
+          ${{ !contains(github.event.pull_request.labels.*.name, 'test-serial') && '-n auto' || '-p no:xdist' }} \
+          -k "not test_cli" \
+          --durations=10 \
+          -p packages.pytest_changed \
+          --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
+          --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
+          --picked=first \
+          --inline-snapshot=disable \
+        || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
+
+    # Test with optional dependencies
+    - name: Test changed with optional dependencies
+      if: ${{ inputs.dependencies == 'core,optional' }}
+      shell: bash
+      run: |
+        uv run --python ${{ inputs.python-version }} --group test-optional pytest tests/ \
+          -v \
+          ${{ !contains(github.event.pull_request.labels.*.name, 'test-serial') && '-n auto' || '-p no:xdist' }} \
+          -k "not test_cli" \
+          --durations=10 \
+          -p packages.pytest_changed \
+          --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
+          --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
+          --picked=first \
+          --inline-snapshot=disable \
+        || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
+
+    # Test with minimal dependencies using lowest resolution
+    # https://docs.astral.sh/uv/concepts/resolution/#lowest-resolution
+    # https://docs.astral.sh/uv/reference/environment/#uv_resolution
+    - name: Test with minimal dependencies (lowest resolution)
+      if: ${{ inputs.dependencies == 'minimal' }}
+      shell: bash
+      env:
+        UV_RESOLUTION: lowest-direct
+      run: |
+        uv run --python ${{ inputs.python-version }} --group test pytest tests/ \
+          -v \
+          ${{ !contains(github.event.pull_request.labels.*.name, 'test-serial') && '-n auto' || '-p no:xdist' }} \
+          -k "not test_cli" \
+          --durations=10 \
+          -p packages.pytest_changed \
+          --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
+          --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
+          --picked=first \
+          --inline-snapshot=disable \
+        || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }

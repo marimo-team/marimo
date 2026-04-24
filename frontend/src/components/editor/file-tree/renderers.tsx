@@ -88,7 +88,7 @@ export const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
       setPaginationState={setPagination}
       wrapperClassName="h-full justify-between pb-1 px-1"
       pagination={true}
-      className="rounded-none border-b flex overflow-hidden"
+      className="rounded-none border-b flex flex-col overflow-hidden"
       rowSelection={Objects.EMPTY}
     />
   );

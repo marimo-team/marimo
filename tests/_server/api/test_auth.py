@@ -41,6 +41,7 @@ async def test_custom_session_middleware_call(app: Starlette):
 
     await middleware(scope, mock_receive, mock_send)
     assert middleware.session_cookie == "session_1234"
+    assert middleware.path == "/"
 
 
 async def test_custom_session_middleware_call_with_port():
@@ -50,6 +51,32 @@ async def test_custom_session_middleware_call_with_port():
 
     await middleware(scope, mock_receive, mock_send)
     assert middleware.session_cookie == "session"
+
+
+def _app_with_base_url(base_url: str) -> Starlette:
+    app = create_starlette_app(base_url=base_url, enable_auth=True)
+    get_starlette_server_state_init(base_url=base_url).apply(app.state)
+    return app
+
+
+async def test_custom_session_middleware_scopes_cookie_to_base_url():
+    app = _app_with_base_url("/marimo1")
+    middleware = CustomSessionMiddleware(app, "secret_key")
+    scope = create_connection(app).scope
+
+    await middleware(scope, mock_receive, mock_send)
+    assert middleware.session_cookie == "session_1234_marimo1"
+    assert middleware.path == "/marimo1"
+
+
+async def test_custom_session_middleware_scopes_cookie_to_nested_base_url():
+    app = _app_with_base_url("/apps/ml/notebook")
+    middleware = CustomSessionMiddleware(app, "secret_key")
+    scope = create_connection(app).scope
+
+    await middleware(scope, mock_receive, mock_send)
+    assert middleware.session_cookie == "session_1234_apps_ml_notebook"
+    assert middleware.path == "/apps/ml/notebook"
 
 
 @pytest.fixture
