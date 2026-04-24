@@ -170,6 +170,7 @@ def enc_hook(obj: Any) -> Any:
             if isinstance(obj, matplotlib.figure.Figure):
                 html = as_html(vstack([str(obj), obj]))
                 mimetype, data = html._mime_()
+                return {"mimetype": mimetype, "data": data}
 
             if isinstance(obj, Axes):
                 html = as_html(vstack([str(obj), obj]))
