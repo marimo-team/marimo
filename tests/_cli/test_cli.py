@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
+import click
 import pytest
 from click.testing import CliRunner
 
@@ -1718,6 +1719,38 @@ def test_cli_run_sandbox_prompt_yes() -> None:
     assert p.poll() is None
     _check_started(port)
     p.kill()
+
+
+@pytest.mark.parametrize(
+    "tail_args",
+    [
+        ["experiment_name=my-exp", "epochs=25"],
+        ["--key", "value"],
+        ["--key"],
+        ["-key", "value"],
+    ],
+)
+def test_cli_run_double_dash_reaches_splitter(tail_args: list[str]) -> None:
+    runner = CliRunner()
+    captured: dict[str, Any] = {}
+
+    def _capture(name: str, args: tuple[str, ...]) -> tuple[list[str], tuple[str, ...]]:
+        captured["name"] = name
+        captured["args"] = args
+        raise click.ClickException("stop after capture")
+
+    with patch("marimo._cli.cli._split_run_paths_and_args", side_effect=_capture):
+        result = runner.invoke(
+            cli_main,
+            ["run", "notebook.py", "--", *tail_args],
+        )
+
+    assert result.exit_code != 0
+    assert "stop after capture" in result.output
+    assert captured["name"] == "notebook.py"
+    # Desired behavior: splitter should receive the `--` sentinel.
+    # This currently fails because click consumes `--` before invoking the command.
+    assert captured["args"] == ("--", *tail_args)
 
 
 def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
