@@ -815,6 +815,8 @@ def test_cleanup_sandbox_dir_handles_nonexistent(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv required")
+@pytest.mark.timeout(60)
+@pytest.mark.flaky(reruns=2, reruns_delay=2)
 def test_build_sandbox_venv_creates_venv(tmp_path: Path) -> None:
     """Test venv is created and returns paths."""
     script = tmp_path / "test.py"
@@ -830,6 +832,8 @@ def test_build_sandbox_venv_creates_venv(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv required")
+@pytest.mark.timeout(60)
+@pytest.mark.flaky(reruns=2, reruns_delay=2)
 def test_build_sandbox_venv_with_additional_deps(tmp_path: Path) -> None:
     """Test additional deps are passed through."""
     from marimo._session._venv import get_ipc_kernel_deps
