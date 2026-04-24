@@ -412,6 +412,12 @@ function formatCollectionItems(items: unknown[]): string {
 // emitted by Python's json.dumps round-trip cleanly.
 function formatTuplePayload(jsonList: string): string {
   const items = jsonParseWithSpecialChar<unknown[]>(jsonList);
+  // `jsonParseWithSpecialChar` returns `{}` when both parse passes fail;
+  // fall back to the raw payload so a malformed wire form doesn't crash
+  // rendering/copy. Matches the defensive pattern in `formatSetPayload`.
+  if (!Array.isArray(items)) {
+    return jsonList;
+  }
   if (items.length === 0) {
     return "()";
   }
@@ -426,6 +432,9 @@ function formatTuplePayload(jsonList: string): string {
 // rather than `frozenset({})` (which reads like a dict).
 function formatFrozensetPayload(jsonList: string): string {
   const items = jsonParseWithSpecialChar<unknown[]>(jsonList);
+  if (!Array.isArray(items)) {
+    return jsonList;
+  }
   if (items.length === 0) {
     return "frozenset()";
   }
@@ -436,18 +445,17 @@ function formatFrozensetPayload(jsonList: string): string {
 // Format a JSON-list payload as a Python set literal. Empty → `set()`
 // (not `{}`, which is a dict literal in Python).
 function formatSetPayload(jsonList: string): string {
-  try {
-    const items = jsonParseWithSpecialChar<unknown[]>(jsonList);
-    if (items.length === 0) {
-      return "set()";
-    }
-    const inner = formatCollectionItems(items);
-    return `{${inner}}`;
-  } catch {
+  const items = jsonParseWithSpecialChar<unknown[]>(jsonList);
+  if (!Array.isArray(items)) {
     // Back-compat: older wire form was `text/plain+set:{1, 2, 3}` (Python
     // set-literal string, not JSON). Pass it through as-is rather than crash.
     return jsonList;
   }
+  if (items.length === 0) {
+    return "set()";
+  }
+  const inner = formatCollectionItems(items);
+  return `{${inner}}`;
 }
 
 // Renderers for decoded non-string keys. Visual affordances match Python:

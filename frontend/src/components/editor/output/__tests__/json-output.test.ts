@@ -438,6 +438,23 @@ describe("getCopyValue with encoded non-string keys", () => {
     `);
   });
 
+  it("falls back to the raw payload for malformed tuple/frozenset", () => {
+    // `jsonParseWithSpecialChar` returns `{}` on parse failure rather
+    // than throwing; without an `Array.isArray` guard, the formatters
+    // would crash on `.length`/`.map`. Pass the raw payload through so
+    // a malformed wire form doesn't break the whole render.
+    const value = {
+      "text/plain+tuple:not a json list": "t",
+      k: "text/plain+frozenset:also broken",
+    };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        not a json list: "t",
+        "k": also broken
+      }"
+    `);
+  });
+
   it("unescapes string keys that looked encoded", () => {
     const value = {
       "text/plain+str:text/plain+int:2": "hello",
