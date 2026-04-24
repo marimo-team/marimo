@@ -671,6 +671,85 @@ def test_format_structure_dict_plain_string_keys_unchanged() -> None:
     )
 
 
+def _reject_non_finite(literal: str) -> float:
+    # `parse_constant` fires for bare `NaN`, `Infinity`, and `-Infinity`.
+    # Python's `json.loads` accepts these by default (non-spec) — passing a
+    # raising hook makes the test match the JS `JSON.parse` behavior we
+    # actually care about.
+    raise AssertionError(f"outer JSON contained bare {literal!r}")
+
+
+def test_format_structure_tuple_key_with_nan_outer_json_is_strict() -> None:
+    """Tuple keys with non-finite floats are embedded strings — the outer
+    JSON must be strict per the JS `JSON.parse` spec (no bare `NaN` /
+    `Infinity` at the top level).
+
+    Those tokens live inside the embedded tuple payload *string*, not at
+    the outer JSON level, so the frontend's outer `JSON.parse` succeeds
+    and it then calls `jsonParseWithSpecialChar` on the embedded
+    payload. Previously the bare token appeared at the top level and
+    broke the outer parse.
+    """
+    StructuresFormatter().register()
+
+    _, data = get_and_format(
+        {(float("nan"),): "n", (float("inf"), -float("inf")): "i"}
+    )
+    # `parse_constant` raises on bare NaN/Infinity at the JSON layer —
+    # matching JS `JSON.parse` strictness. `json.loads` alone accepts
+    # them by default, which is too lenient to test the contract.
+    parsed = json.loads(data, parse_constant=_reject_non_finite)
+    assert parsed == {
+        "text/plain+tuple:[NaN]": "n",
+        "text/plain+tuple:[Infinity, -Infinity]": "i",
+    }
+
+
+def test_format_structure_frozenset_value_with_nan_outer_json_is_strict() -> (
+    None
+):
+    """Frozenset values with non-finite floats parse strictly at the outer level."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({"k": frozenset({float("inf"), 1})})
+    # Outer parse is strict (JS-`JSON.parse`-compatible).
+    parsed = json.loads(data, parse_constant=_reject_non_finite)
+    key = parsed["k"]
+    assert key.startswith("text/plain+frozenset:")
+    # The embedded payload contains bare `Infinity`; the frontend parses
+    # it with `jsonParseWithSpecialChar`. Python's permissive `json.loads`
+    # is fine here because we're just inspecting the embedded content.
+    payload = json.loads(key[len("text/plain+frozenset:") :])
+    assert set(payload) == {1, float("inf")}
+
+
+def test_format_structure_frozenset_key_with_nan_outer_json_is_strict() -> (
+    None
+):
+    """Frozenset keys with non-finite floats parse strictly at the outer level."""
+    StructuresFormatter().register()
+
+    _, data = get_and_format({frozenset({float("nan")}): "v"})
+    # Outer parse is strict — the bare `NaN` lives inside the key string.
+    parsed = json.loads(data, parse_constant=_reject_non_finite)
+    (key,) = parsed
+    assert key == "text/plain+frozenset:[NaN]"
+
+
+def test_format_structure_tuple_value_with_nan_is_strict_json() -> None:
+    """Tuple values with non-finite floats round-trip via scalar sentinels.
+
+    Tuple values don't hit the tuple-encoder path because `flatten`
+    recurses into tuples before leaf formatting — each float is handled
+    by `_leaf_formatter` and emitted as its own `text/plain+float:`
+    sentinel string.
+    """
+    StructuresFormatter().register()
+
+    formatted = format_structure([(float("nan"), float("inf"))])
+    assert formatted == [("text/plain+float:nan", "text/plain+float:inf")]
+
+
 def test_format_structure_bigint() -> None:
     bigint = 2**64
     assert format_structure([bigint]) == ([f"text/plain+bigint:{bigint}"])
