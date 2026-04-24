@@ -1739,7 +1739,13 @@ def test_cli_run_double_dash_reaches_splitter(tail_args: list[str]) -> None:
         captured["args"] = args
         raise click.ClickException("stop after capture")
 
-    with patch("marimo._cli.cli._split_run_paths_and_args", side_effect=_capture):
+    with (
+        patch("marimo._cli.cli._split_run_paths_and_args", side_effect=_capture),
+        patch(
+            "marimo._cli.cli.sys.argv",
+            ["marimo", "run", "notebook.py", "--", *tail_args],
+        ),
+    ):
         result = runner.invoke(
             cli_main,
             ["run", "notebook.py", "--", *tail_args],
