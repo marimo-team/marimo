@@ -21,6 +21,7 @@ from marimo._cli.sandbox import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.inline_script_metadata import PyProjectReader
+from tests.conftest import subprocess_reaper
 
 HAS_UV = DependencyManager.which("uv")
 
@@ -815,24 +816,25 @@ def test_cleanup_sandbox_dir_handles_nonexistent(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv required")
-@pytest.mark.timeout(60)
 @pytest.mark.flaky(reruns=2, reruns_delay=2)
 def test_build_sandbox_venv_creates_venv(tmp_path: Path) -> None:
     """Test venv is created and returns paths."""
     script = tmp_path / "test.py"
     script.write_text("# /// script\n# dependencies = []\n# ///\n")
 
-    sandbox_dir, venv_python = build_sandbox_venv(str(script))
+    sandbox_dir: str | None = None
     try:
+        with subprocess_reaper(60):
+            sandbox_dir, venv_python = build_sandbox_venv(str(script))
         assert os.path.isdir(sandbox_dir)
         assert os.path.exists(venv_python)
         assert "python" in venv_python
     finally:
-        cleanup_sandbox_dir(sandbox_dir)
+        if sandbox_dir is not None:
+            cleanup_sandbox_dir(sandbox_dir)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv required")
-@pytest.mark.timeout(60)
 @pytest.mark.flaky(reruns=2, reruns_delay=2)
 def test_build_sandbox_venv_with_additional_deps(tmp_path: Path) -> None:
     """Test additional deps are passed through."""
@@ -841,11 +843,14 @@ def test_build_sandbox_venv_with_additional_deps(tmp_path: Path) -> None:
     script = tmp_path / "test.py"
     script.write_text("# /// script\n# dependencies = []\n# ///\n")
 
-    sandbox_dir, venv_python = build_sandbox_venv(
-        str(script), additional_deps=get_ipc_kernel_deps()
-    )
+    sandbox_dir: str | None = None
     try:
+        with subprocess_reaper(60):
+            sandbox_dir, venv_python = build_sandbox_venv(
+                str(script), additional_deps=get_ipc_kernel_deps()
+            )
         assert os.path.isdir(sandbox_dir)
         assert os.path.exists(venv_python)
     finally:
-        cleanup_sandbox_dir(sandbox_dir)
+        if sandbox_dir is not None:
+            cleanup_sandbox_dir(sandbox_dir)

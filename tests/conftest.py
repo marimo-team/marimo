@@ -1,11 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import re
 import shutil
 import sys
 import textwrap
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -540,3 +542,48 @@ def pytest_make_collect_report(collector):
             " (tests/conftest.py)."
         )
     return report
+
+
+@contextlib.contextmanager
+def subprocess_reaper(timeout: float | None) -> Generator[None, None, None]:
+    """Bound and reap subprocess children spawned inside the `with` block.
+
+    Enforces a cooperative wall-clock deadline on code that spawns
+    subprocesses, so blocking subprocess calls (e.g. `uv pip install`)
+    cannot outrun pytest-timeout on Windows — where `method=thread` calls
+    `os._exit` and kills the xdist worker before teardown can run.
+
+    When the deadline fires, any new child processes are killed, which
+    unblocks the spawning call so it can raise normally and the test can
+    fail cleanly (and be retried by `@pytest.mark.flaky`).
+
+    On exit (success or failure), any still-running new children are
+    killed as a final sweep.
+
+        with subprocess_reaper(timeout=60):
+            sandbox_dir, python = build_sandbox_venv(str(script))
+    """
+    import psutil
+
+    before = {p.pid for p in psutil.Process().children(recursive=True)}
+
+    def kill_new() -> None:
+        for p in psutil.Process().children(recursive=True):
+            if p.pid in before:
+                continue
+            with contextlib.suppress(
+                psutil.NoSuchProcess, psutil.AccessDenied
+            ):
+                p.kill()
+
+    timer: threading.Timer | None = None
+    if timeout is not None:
+        timer = threading.Timer(timeout, kill_new)
+        timer.daemon = True
+        timer.start()
+    try:
+        yield
+    finally:
+        if timer is not None:
+            timer.cancel()
+        kill_new()
