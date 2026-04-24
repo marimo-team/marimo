@@ -60,8 +60,7 @@ def write_constraint_file(
         return False
     with open(path, "w", encoding="utf-8") as f:
         f.writelines(
-            f"{pkg}=={version}\n"
-            for pkg, version in sorted(versions.items())
+            f"{pkg}=={version}\n" for pkg, version in sorted(versions.items())
         )
     return True
 
@@ -86,9 +85,7 @@ def check_wasm_compatibility(
     except Exception:
         return []
 
-    pyodide_names = {
-        _normalize_name(name) for name in pyodide_packages
-    }
+    pyodide_names = {_normalize_name(name) for name in pyodide_packages}
 
     try:
         result = subprocess.run(
