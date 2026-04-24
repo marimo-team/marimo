@@ -20,6 +20,31 @@ HAS_PANDAS = DependencyManager.pandas.has()
 HAS_POLARS = DependencyManager.polars.has()
 
 
+# Tables created on DuckDB's default in-memory connection by tests below.
+# Both `sql()` without an engine and bare `duckdb.sql(...)` share this
+# singleton, so anything left behind leaks to other tests on the same xdist
+# worker (e.g. tests/_data/test_get_datasets.py::test_get_databases).
+_LEAKED_DUCKDB_TABLES = (
+    "test_error_table",
+    "test_type_table",
+    "test_hints_table",
+    "test_columns",
+    "hint_test_table",
+    "hint_multiline_table",
+)
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_duckdb_default_connection():
+    yield
+    if not HAS_DUCKDB:
+        return
+    import duckdb
+
+    for table in _LEAKED_DUCKDB_TABLES:
+        duckdb.sql(f"DROP TABLE IF EXISTS {table}")
+
+
 class TestDuckDBRuntimeErrors:
     """Test DuckDB errors that occur during SQL execution."""
 
