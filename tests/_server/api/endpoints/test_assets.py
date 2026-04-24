@@ -104,7 +104,9 @@ def test_index_missing_assets_in_source_checkout_shows_build_hint(
         response = client.get("/", headers=token_header())
 
     assert response.status_code == 500
-    assert "run `make fe` and restart marimo" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert "Did you run `make fe`?" in detail
+    assert "Restart marimo after building." in detail
 
 
 def test_index_strips_access_token_query_param(client: TestClient) -> None:
