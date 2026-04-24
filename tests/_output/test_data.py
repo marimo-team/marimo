@@ -90,3 +90,21 @@ def test_sanitize_json_bigint_floats() -> None:
         mo_data.sanitize_json_bigint(data_dict)
         == '{"float":"1.2533979629524805e+17"}'
     )
+
+
+def test_sanitize_json_bigint_non_finite_floats_are_consistent() -> None:
+    # Regression: NaN wasn't caught by is_bigint (NaN comparisons are
+    # always False), but inf/-inf were — so inf stringified to "inf" while
+    # NaN emitted a bare JSON token. All three are now left as floats so
+    # json.dumps emits the same bare `NaN`/`Infinity`/`-Infinity` tokens
+    # the frontend's jsonParseWithSpecialChar fallback handles uniformly.
+    data = [
+        {"v": float("nan")},
+        {"v": float("inf")},
+        {"v": -float("inf")},
+        {"v": 1.0},
+    ]
+    assert (
+        mo_data.sanitize_json_bigint(data)
+        == '[{"v":NaN},{"v":Infinity},{"v":-Infinity},{"v":1.0}]'
+    )

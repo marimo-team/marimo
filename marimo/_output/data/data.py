@@ -205,6 +205,7 @@ def sanitize_json_bigint(
     This is necessary because the frontend will round ints larger than
     Number.MAX_SAFE_INTEGER to Number.MAX_SAFE_INTEGER.
     """
+    import math
     from json import dumps, loads
 
     def convert_key(key: Any) -> Any:
@@ -224,9 +225,20 @@ def sanitize_json_bigint(
             # If the value is outside the safe integer range, convert it to an object with a $bigint key
             # Frontend will convert the object back to an integer.
             return {BIGINT_KEY: str(obj)}
-        elif isinstance(obj, float) and is_bigint(obj):
-            # Decimals are not handled currently, we just convert them to strings.
-            return str(obj)
+        elif isinstance(obj, float):
+            # Non-finite floats (NaN / inf / -inf) must skip the bigint path:
+            # inf passes the bigint range check (inf > MAX_SAFE_INTEGER) and
+            # would stringify to "inf" while NaN slips through to a bare JSON
+            # `NaN` token — an inconsistency that also breaks strict JSON.parse.
+            # Let json.dumps emit bare `NaN`/`Infinity`/`-Infinity` for all
+            # three; the frontend's `jsonParseWithSpecialChar` fallback
+            # converts these uniformly back to Number.NaN / ±Infinity.
+            if not math.isfinite(obj):
+                return obj
+            if is_bigint(obj):
+                # Decimals are not handled currently, we just convert them to strings.
+                return str(obj)
+            return obj
         else:
             return obj
 

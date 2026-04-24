@@ -243,9 +243,11 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert math.isnan(json_data[0]["nans"])
         assert math.isnan(json_data[1]["nans"])
         assert math.isnan(json_data[2]["nans"])
-        assert json_data[0]["infs"] == "inf"
-        assert json_data[1]["infs"] == "-inf"
-        assert json_data[2]["infs"] == "inf"
+        # Non-finite floats now round-trip as floats (bare JSON tokens),
+        # matching the NaN path — previously inf stringified via is_bigint.
+        assert json_data[0]["infs"] == float("inf")
+        assert json_data[1]["infs"] == float("-inf")
+        assert json_data[2]["infs"] == float("inf")
 
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()

@@ -527,11 +527,16 @@ class TestPandasTableManager(unittest.TestCase):
             }
         )
         json_data = self.factory_create_json_from_df(df)
+        # Non-finite floats now emit bare `Infinity`/`-Infinity` (same path
+        # as NaN) so downstream `json.loads` round-trips them as floats and
+        # the frontend's jsonParseWithSpecialChar fallback recognizes all
+        # three uniformly. Previously inf/-inf stringified via is_bigint's
+        # range check while NaN emitted a bare token — inconsistent.
         expected = [
-            {"A": "inf"},
-            {"A": "-inf"},
-            {"A": "inf"},
-            {"A": "-inf"},
+            {"A": float("inf")},
+            {"A": float("-inf")},
+            {"A": float("inf")},
+            {"A": float("-inf")},
         ]
         assert_rows_equal_with_nan(json_data, expected)
 
