@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
+import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
@@ -31,6 +32,13 @@ async def _wait_for(
         if predicate():
             return
         await asyncio.sleep(interval)
+    # Surface a timeout so reruns/flakes leave a breadcrumb instead of
+    # failing silently at the next assert with a misleading count.
+    warnings.warn(
+        f"_wait_for timed out after {timeout}s waiting on "
+        f"{getattr(predicate, '__name__', repr(predicate))}",
+        stacklevel=2,
+    )
 
 
 @pytest.mark.flaky(reruns=3)
