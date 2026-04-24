@@ -22,6 +22,7 @@ from marimo._session.state.serialize import (
     SessionCacheManager,
     SessionCacheWriter,
     _hash_code,
+    _references_virtual_file,
     deserialize_session,
     get_session_cache_file,
     serialize_notebook,
@@ -479,6 +480,25 @@ def test_drop_virtual_file_outputs_ignores_literal_prefix_in_text(
     assert restored_output.data == (
         "marimo stores virtual files under ./@file/ on the server"
     )
+
+
+def test_references_virtual_file_handles_cyclic_data():
+    # A self-referencing dict or list must return False cleanly rather
+    # than raising RecursionError — the check is purely defensive, but
+    # a serializer that blows the stack is a poor failure mode for code
+    # that just decides whether to drop URLs.
+    cyclic_dict: dict[str, object] = {}
+    cyclic_dict["self"] = cyclic_dict
+    assert _references_virtual_file(cyclic_dict) is False
+
+    cyclic_list: list[object] = []
+    cyclic_list.append(cyclic_list)
+    assert _references_virtual_file(cyclic_list) is False
+
+    # Cycle through a nested structure still detects the URL when present.
+    leaf: dict[str, object] = {"html": '<img src="./@file/4-abcd1234.png">'}
+    leaf["self"] = leaf
+    assert _references_virtual_file(leaf) is True
 
 
 def test_drop_virtual_file_outputs_preserves_unrelated_outputs(
