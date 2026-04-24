@@ -557,16 +557,13 @@ async def run_app_until_completion(
         http_request=None,
     )
     await instantiated_event.wait()
-    # Process console messages
-    #
-    # TODO(akshayka): A timing issue with the console output worker
-    # might still exist; the better thing to do would be to flush
-    # the worker, then ask it to quit and join on it. If we have an
-    # issue with some outputs being missed, that's what we should do.
-    session.flush_messages()
-    # Hack: yield to give the session view a chance to process the incoming
-    # console operations.
-    await asyncio.sleep(0.1)
+    # CompletedRunNotification is broadcast only after the kernel flushes
+    # its buffered console-output worker (see ``broadcast_run_completion``),
+    # so stdout/stderr for the run reaches the distributor ahead of the
+    # completion signal. The distributor processes messages in FIFO order
+    # and updates ``session_view`` synchronously from ``session.notify``,
+    # so by the time this await resumes every console message is already
+    # reflected in the view.
 
     if persist_session:
         from marimo._server.export._session_cache import (

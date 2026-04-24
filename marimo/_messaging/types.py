@@ -29,6 +29,15 @@ class Stream(abc.ABC):
         """Tear down resources, if any."""
         return
 
+    def flush_console(self) -> None:
+        """Synchronously drain any pending buffered console output.
+
+        Blocks until every stdout/stderr message enqueued on this stream has
+        been written through to the underlying pipe/queue. The default
+        implementation is a no-op, for streams that don't buffer.
+        """
+        return
+
 
 class NoopStream(Stream):
     def write(self, data: KernelMessage) -> None:

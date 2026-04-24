@@ -14,7 +14,11 @@ from typing import (
 
 from marimo import _loggers
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
+from marimo._messaging.console_output_worker import (
+    ConsoleMsg,
+    FlushRequest,
+    buffered_writer,
+)
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.types import (
     KernelMessage,
@@ -106,7 +110,9 @@ class ThreadSafeStream(Stream):
         if self.redirect_console:
             # Console outputs are buffered
             self.console_msg_cv = threading.Condition(threading.Lock())
-            self.console_msg_queue: deque[ConsoleMsg | None] = deque()
+            self.console_msg_queue: deque[ConsoleMsg | FlushRequest | None] = (
+                deque()
+            )
             self.buffered_console_thread = threading.Thread(
                 target=buffered_writer,
                 args=(self.console_msg_queue, self, self.console_msg_cv),
@@ -132,6 +138,25 @@ class ThreadSafeStream(Stream):
                     deserialize_kernel_notification_name(data),
                     e,
                 )
+
+    def flush_console(self) -> None:
+        """Synchronously drain pending buffered console output.
+
+        Blocks until the buffered-writer thread has written every
+        console message enqueued before this call out to the underlying
+        pipe. Used to guarantee ordering against broadcasts from the main
+        kernel thread (e.g. ``CompletedRunNotification``) — without it,
+        stdout/stderr from the tail end of a run can race the completion
+        signal and arrive at the server after consumers have already
+        snapshotted the session.
+        """
+        if not self.redirect_console:
+            return
+        done = threading.Event()
+        with self.console_msg_cv:
+            self.console_msg_queue.append(FlushRequest(done=done))
+            self.console_msg_cv.notify()
+        done.wait()
 
     def stop(self) -> None:
         """Teardown resources created by the stream."""
