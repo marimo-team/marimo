@@ -37,6 +37,7 @@ interface ComboboxCommonProps<TValue> {
   onSearchChange?: (search: string) => void;
   emptyState?: React.ReactNode;
   className?: string;
+  id?: string;
   keepPopoverOpenOnSelect?: boolean;
 }
 
@@ -93,6 +94,7 @@ export const Combobox = <TValue,>({
   chips = false,
   chipsClassName,
   keepPopoverOpenOnSelect,
+  id,
   ...rest
 }: ComboboxProps<TValue>) => {
   const [open = false, setOpen] = useControllableState({
@@ -169,6 +171,7 @@ export const Combobox = <TValue,>({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild={true}>
           <div
+            id={id}
             className={cn(
               "flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50",
               className,
