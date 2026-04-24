@@ -5,7 +5,6 @@ import type { Column, Table } from "@tanstack/react-table";
 import { CheckIcon, MinusIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useId, useState } from "react";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
-import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
 import { Combobox, ComboboxItem } from "../ui/combobox";
 import { Input } from "../ui/input";
 import { NumberField } from "../ui/number-field";
@@ -419,7 +418,7 @@ function buildFilterValue({
   draft: DraftValue;
 }): ColumnFilterValue | undefined {
   if (operator === "is_null" || operator === "is_not_null") {
-    const op = operator as OperatorType;
+    const op = operator;
     if (type === "number") {
       return Filter.number({ operator: op });
     }
@@ -440,20 +439,20 @@ function buildFilterValue({
     }
     return Filter.text({
       text: draft.text,
-      operator: "contains" as OperatorType,
+      operator: "contains",
     });
   }
   if (type === "boolean") {
     if (operator === "is_true") {
       return Filter.boolean({
         value: true,
-        operator: "is_true" as OperatorType,
+        operator: "is_true",
       });
     }
     if (operator === "is_false") {
       return Filter.boolean({
         value: false,
-        operator: "is_false" as OperatorType,
+        operator: "is_false",
       });
     }
     return undefined;
@@ -464,7 +463,7 @@ function buildFilterValue({
     }
     return Filter.select({
       options: draft.options,
-      operator: (operator === "not_in" ? "not_in" : "in") as OperatorType,
+      operator: operator === "not_in" ? "not_in" : "in",
     });
   }
   return undefined;

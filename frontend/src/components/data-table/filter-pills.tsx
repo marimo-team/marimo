@@ -37,7 +37,7 @@ export const FilterPills = <TData,>({
   }
 
   return (
-    <div className="flex flex-wrap gap-2 px-1 py-2">
+    <div part="filter-pills" className="flex flex-wrap gap-2 px-1 py-2">
       {filters.map((filter) => (
         <FilterPill
           key={filter.id}
@@ -121,7 +121,7 @@ const FilterPill = <TData,>({
       type="button"
       size="icon"
       variant="ghost"
-      className="ml-1 rounded-full text-destructive hover:text-destructive hover:bg-destructive/10"
+      className="ml-1 rounded-full text-destructive/60 hover:text-destructive hover:shadow-none hover:bg-transparent"
       onClick={handleRemove}
       aria-label="Remove filter"
     >
