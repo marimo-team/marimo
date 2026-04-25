@@ -697,14 +697,29 @@ class NarwhalsTableManager(
 
         # Sample 3 values from the column
         SAMPLE_SIZE = 3
+        # Maximum recursion depth for nested struct/list serialization.
+        # Without a cap, deeply nested Polars Struct columns cause
+        # exponential blowup in dataset registration (see #9378).
+        MAX_NESTING_DEPTH = 5
         try:
             from enum import Enum
 
-            def to_primitive(value: Any) -> str | int | float:
+            def to_primitive(
+                value: Any, depth: int = 0
+            ) -> str | int | float:
+                if depth >= MAX_NESTING_DEPTH:
+                    return str(value)
                 if isinstance(value, list):
-                    return str([to_primitive(v) for v in value])
+                    return str(
+                        [to_primitive(v, depth + 1) for v in value]
+                    )
                 elif isinstance(value, dict):
-                    return str({k: to_primitive(v) for k, v in value.items()})
+                    return str(
+                        {
+                            k: to_primitive(v, depth + 1)
+                            for k, v in value.items()
+                        }
+                    )
                 elif isinstance(value, Enum):
                     return value.name
                 elif isinstance(value, (float, int)):
