@@ -704,15 +704,11 @@ class NarwhalsTableManager(
         try:
             from enum import Enum
 
-            def to_primitive(
-                value: Any, depth: int = 0
-            ) -> str | int | float:
+            def to_primitive(value: Any, depth: int = 0) -> str | int | float:
                 if depth >= MAX_NESTING_DEPTH:
                     return str(value)
                 if isinstance(value, list):
-                    return str(
-                        [to_primitive(v, depth + 1) for v in value]
-                    )
+                    return str([to_primitive(v, depth + 1) for v in value])
                 elif isinstance(value, dict):
                     return str(
                         {
