@@ -115,11 +115,13 @@ class _SetupContext:
         cell: Cell,
         app: App,
         hide_code: bool,
+        expand_output: bool,
     ):
         super().__init__()
         self._app = app
         self._cell = cell
         self._hide_code = hide_code
+        self._expand_output = expand_output
         self._glbls: dict[str, Any] = {}
         self._frame: FrameType | None = None
         self._previous: dict[str, Any] = {}
@@ -170,16 +172,22 @@ class _SetupContext:
         self,
         *,
         hide_code: bool = False,
+        expand_output: bool = False,
         **kwargs: Any,  # noqa: ARG002
     ) -> _SetupContext:
         """When called with parameters, create a new context with those parameters."""
         cell = self._app._cell_manager.cell_context(
             app=InternalApp(self._app),
             frame=inspect.stack()[1].frame,
-            config=CellConfig(hide_code=hide_code),
+            config=CellConfig(
+                hide_code=hide_code, expand_output=expand_output
+            ),
         )
         self._app._setup = _SetupContext(
-            app=self._app, cell=cell, hide_code=hide_code
+            app=self._app,
+            cell=cell,
+            hide_code=hide_code,
+            expand_output=expand_output,
         )
         return self._app._setup
 
@@ -352,6 +360,7 @@ class App:
         column: int | None = None,
         disabled: bool = False,
         hide_code: bool = False,
+        expand_output: bool = False,
         **kwargs: Any,
     ) -> Cell | Callable[[Fn[P, R]], Cell]:
         """A decorator to add a cell to the app.
@@ -378,6 +387,7 @@ class App:
             column: The column number to place this cell in.
             disabled: Whether to disable the cell.
             hide_code: Whether to hide the cell's code.
+            expand_output: Whether to expand the cell's output by default.
             **kwargs: For forward-compatibility with future arguments.
         """
         del kwargs
@@ -385,7 +395,12 @@ class App:
         return cast(
             Cell | Callable[[Fn[P, R]], Cell],
             self._cell_manager.cell_decorator(
-                func, column, disabled, hide_code, app=InternalApp(self)
+                func,
+                column,
+                disabled,
+                hide_code,
+                expand_output,
+                app=InternalApp(self),
             ),
         )
 
@@ -412,6 +427,7 @@ class App:
         column: int | None = None,
         disabled: bool = False,
         hide_code: bool = False,
+        expand_output: bool = False,
         **kwargs: Any,
     ) -> Fn[P, R] | Callable[[Fn[P, R]], Fn[P, R]]:
         """A decorator to wrap a callable function into a marimo cell.
@@ -440,6 +456,7 @@ class App:
             column: The column number to place this cell in.
             disabled: Whether to disable the cell.
             hide_code: Whether to hide the cell's code.
+            expand_output: Whether to expand the cell's output by default.
             **kwargs: For forward-compatibility with future arguments.
         """
         del kwargs
@@ -451,6 +468,7 @@ class App:
                 column,
                 disabled,
                 hide_code,
+                expand_output,
                 app=InternalApp(self),
                 top_level=True,
             ),
@@ -469,6 +487,7 @@ class App:
         column: int | None = None,
         disabled: bool = False,
         hide_code: bool = False,
+        expand_output: bool = False,
         **kwargs: Any,
     ) -> Cls | Callable[[Cls], Cls]:
         """A decorator to wrap a class into a marimo cell.
@@ -495,6 +514,7 @@ class App:
             column: The column number to place this cell in.
             disabled: Whether to disable the cell.
             hide_code: Whether to hide the cell's code.
+            expand_output: Whether to expand the cell's output by default.
             **kwargs: For forward-compatibility with future arguments.
         """
         del kwargs
@@ -506,6 +526,7 @@ class App:
                 column,
                 disabled,
                 hide_code,
+                expand_output,
                 app=InternalApp(self),
                 top_level=True,
             ),
@@ -526,8 +547,8 @@ class App:
 
             CONSTANT = "my constant"
 
-        # As a method with hide_code
-        with app.setup(hide_code=True):
+        # As a method with cell config
+        with app.setup(hide_code=True, expand_output=True):
             import my_libraries
             from typing import Any
 
@@ -536,6 +557,7 @@ class App:
 
         Args (when called as method):
             hide_code: Whether to hide the setup cell's code. Defaults to False.
+            expand_output: Whether to expand the setup cell's output by default.
             **kwargs: For forward-compatibility with future arguments.
         """
         # Get the calling context to extract the location of the cell
@@ -543,7 +565,12 @@ class App:
         cell = self._cell_manager.cell_context(
             app=InternalApp(self), frame=frame
         )
-        self._setup = _SetupContext(app=self, cell=cell, hide_code=False)
+        self._setup = _SetupContext(
+            app=self,
+            cell=cell,
+            hide_code=False,
+            expand_output=False,
+        )
         return self._setup
 
     def _unparsable_cell(

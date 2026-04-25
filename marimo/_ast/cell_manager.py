@@ -85,6 +85,7 @@ class CellManager:
         column: int | None,
         disabled: bool,
         hide_code: bool,
+        expand_output: bool,
         app: InternalApp | None = None,
         *,
         top_level: bool = False,
@@ -94,7 +95,10 @@ class CellManager:
         # path. This code is only called when run as a script or imported as a
         # module.
         cell_config = CellConfig(
-            column=column, disabled=disabled, hide_code=hide_code
+            column=column,
+            disabled=disabled,
+            hide_code=hide_code,
+            expand_output=expand_output,
         )
 
         def _register(obj: Obj[P, R]) -> Cell | Obj[P, R]:

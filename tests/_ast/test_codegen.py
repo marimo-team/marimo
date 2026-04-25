@@ -232,13 +232,14 @@ class TestGeneration:
     def test_generate_unparsable_cell_with_config() -> None:
         """Test that generate_unparsable_cell works with non-default CellConfig."""
         code = 'mo.md("markdown in marimo")'
-        config = CellConfig(hide_code=True)
+        config = CellConfig(hide_code=True, expand_output=True)
 
         # This should not raise AttributeError
         raw = codegen.generate_unparsable_cell(code, None, config)
 
         # Verify the config is included in the output
         assert "hide_code=True" in raw
+        assert "expand_output=True" in raw
         # Verify the code is properly included (raw string for code without triple quotes)
         assert 'mo.md("markdown in marimo")' in raw
 
@@ -327,14 +328,19 @@ app._unparsable_cell(
         assert generate(
             "x = 1",
             "named_cell",
-            CellConfig(disabled=True, hide_code=True, column=1),
+            CellConfig(
+                disabled=True,
+                hide_code=True,
+                expand_output=True,
+                column=1,
+            ),
         ) == snapshot(
             '''\
 app._unparsable_cell(
     r"""
     x = 1
     """,
-    column=1, disabled=True, hide_code=True, name="named_cell"
+    column=1, disabled=True, hide_code=True, expand_output=True, name="named_cell"
 )\
 '''
         )
@@ -948,11 +954,13 @@ class TestToFunctionDef:
     def test_with_all_config(self) -> None:
         code = "x = 0"
         cell = compile_cell(code)
-        cell = cell.configure(CellConfig(disabled=True, hide_code=True))
+        cell = cell.configure(
+            CellConfig(disabled=True, hide_code=True, expand_output=True)
+        )
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
             [
-                "@app.cell(disabled=True, hide_code=True)",
+                "@app.cell(disabled=True, hide_code=True, expand_output=True)",
                 "def foo():",
                 "    x = 0",
                 "    return (x,)",
@@ -1039,9 +1047,14 @@ class TestToFunctionDef:
     def test_fn_with_all_config(self) -> None:
         code = "\n".join(["def foo():", "    x = 0", "    return (x,)"])
         cell = compile_cell(code)
-        cell = cell.configure(CellConfig(disabled=True, hide_code=True))
+        cell = cell.configure(
+            CellConfig(disabled=True, hide_code=True, expand_output=True)
+        )
         fndef = codegen.to_top_functiondef(cell)
-        expected = "@app.function(disabled=True, hide_code=True)\n" + code
+        expected = (
+            "@app.function(disabled=True, hide_code=True, expand_output=True)\n"
+            + code
+        )
         assert fndef == expected
 
 

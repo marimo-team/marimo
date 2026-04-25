@@ -210,6 +210,26 @@ describe("toDocumentChanges", () => {
       `);
     });
 
+    it("maps expand_output to expandOutput in set-config", () => {
+      setup("a");
+      const [a] = state.cellIds.inOrderIds;
+
+      const { changes } = resolve(state, {
+        type: "updateCellConfig",
+        payload: { cellId: a, config: { expand_output: true } },
+      });
+
+      expect(changes).toMatchInlineSnapshot(`
+        [
+          {
+            "cellId": "0",
+            "expandOutput": true,
+            "type": "set-config",
+          },
+        ]
+      `);
+    });
+
     it("includes full CellConfig in create-cell", () => {
       setup("a");
 

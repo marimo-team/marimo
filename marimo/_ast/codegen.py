@@ -241,8 +241,17 @@ def build_setup_section(setup_cell: CellImpl | None) -> str:
     if has_only_comments:
         block += "\npass"
 
-    if setup_cell.config.hide_code:
-        setup_line = f"{prefix}with app.setup(hide_code=True):"
+    setup_config = {
+        key: value
+        for key, value in setup_cell.config.asdict_without_defaults().items()
+        if key in {"hide_code", "expand_output"}
+    }
+    if setup_config:
+        config = format_tuple_elements(
+            f"{prefix}with app.setup(...):",
+            tuple(f"{key}={value}" for key, value in setup_config.items()),
+        )
+        setup_line = config[:-1] + ":"
     else:
         setup_line = f"{prefix}with app.setup:"
 

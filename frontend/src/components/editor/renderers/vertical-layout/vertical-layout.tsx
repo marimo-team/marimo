@@ -389,6 +389,7 @@ const VerticalCell = memo(
       const outputArea = (
         <OutputArea
           allowExpand={true}
+          defaultExpanded={config.expand_output === true}
           output={output}
           className={CSSClasses.outputArea}
           cellId={cellId}
@@ -420,6 +421,7 @@ const VerticalCell = memo(
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
             stale={outputStale}
+            defaultExpanded={config.expand_output === true}
             cellName={name}
             onSubmitDebugger={() => null}
             cellId={cellId}
@@ -455,6 +457,7 @@ const VerticalCell = memo(
       >
         <OutputArea
           allowExpand={mode === "edit"}
+          defaultExpanded={config.expand_output === true}
           output={output}
           className={CSSClasses.outputArea}
           cellId={cellId}

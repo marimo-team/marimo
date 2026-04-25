@@ -257,7 +257,7 @@ export function toDocumentChanges(
     }
 
     // updateCellConfig → set-config
-    // Maps CellConfig's snake_case hide_code to the change's camelCase hideCode.
+    // Maps CellConfig's snake_case fields to the change's camelCase fields.
     // Only includes fields that were actually specified in the partial config
     // (from the action payload, not the full cell config).
     case "updateCellConfig": {
@@ -267,6 +267,9 @@ export function toDocumentChanges(
           type: "set-config",
           cellId: cellId,
           ...(config.hide_code != null && { hideCode: config.hide_code }),
+          ...(config.expand_output != null && {
+            expandOutput: config.expand_output,
+          }),
           ...(config.disabled != null && { disabled: config.disabled }),
           ...(config.column != null && { column: config.column }),
         },
@@ -411,7 +414,8 @@ export function fromDocumentChanges(
       // Translates the change's before/after anchor into createNewCell's
       // cellId+before pair. The change carries code, name, and a full CellConfig.
       // createNewCell only accepts hideCode, so name and remaining config
-      // (disabled, column) are applied as separate follow-up actions.
+      // (disabled, column, expand_output) are applied as separate follow-up
+      // actions.
       case "create-cell": {
         let cellId: CellId | "__end__" = "__end__";
         let before = false;
@@ -439,12 +443,19 @@ export function fromDocumentChanges(
             payload: { cellId: change.cellId, name: change.name },
           });
         }
-        if (change.config?.disabled != null || change.config?.column != null) {
+        if (
+          change.config?.disabled != null ||
+          change.config?.column != null ||
+          change.config?.expand_output != null
+        ) {
           actions.push({
             type: "updateCellConfig",
             payload: {
               cellId: change.cellId,
               config: {
+                ...(change.config.expand_output != null && {
+                  expand_output: change.config.expand_output,
+                }),
                 ...(change.config.disabled != null && {
                   disabled: change.config.disabled,
                 }),
@@ -538,7 +549,7 @@ export function fromDocumentChanges(
         break;
 
       // set-config → updateCellConfig
-      // Maps the change's camelCase hideCode back to CellConfig's snake_case
+      // Maps the change's camelCase config keys back to CellConfig's snake_case
       // hide_code. Only includes fields that are non-null (null means
       // "not specified" on the wire, not "clear the value").
       case "set-config":
@@ -548,6 +559,9 @@ export function fromDocumentChanges(
             cellId: change.cellId,
             config: {
               ...(change.hideCode != null && { hide_code: change.hideCode }),
+              ...(change.expandOutput != null && {
+                expand_output: change.expandOutput,
+              }),
               ...(change.disabled != null && { disabled: change.disabled }),
               ...(change.column != null && { column: change.column }),
             },

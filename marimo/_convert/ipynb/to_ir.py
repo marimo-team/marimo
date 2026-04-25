@@ -1300,6 +1300,7 @@ def bind_cell_metadata(
                     hide_code=hide_code,
                     column=marimo_config.get("column"),
                     disabled=marimo_config.get("disabled", False),
+                    expand_output=marimo_config.get("expand_output", False),
                 ),
             )
         )

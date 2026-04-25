@@ -100,6 +100,30 @@ describe("OutputArea null/undefined handling", () => {
   });
 });
 
+describe("OutputArea default expansion", () => {
+  it("starts expanded when defaultExpanded is true", () => {
+    render(
+      <TooltipProvider>
+        <OutputArea
+          output={{
+            channel: "output",
+            data: "Hello World",
+            mimetype: "text/plain",
+            timestamp: 0,
+          }}
+          cellId={cellId("default-expanded")}
+          stale={false}
+          loading={false}
+          allowExpand={true}
+          defaultExpanded={true}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(screen.getByTestId("expand-output-button")).toBeInTheDocument();
+  });
+});
+
 describe("OutputRenderer image and SVG rendering", () => {
   const plainSvgString =
     '<svg><rect x="0" y="0" width="10" height="10"></rect></svg>';

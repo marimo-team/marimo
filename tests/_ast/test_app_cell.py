@@ -52,6 +52,17 @@ def test_decorator_with_args() -> None:
     assert cell.run(x=1) == (None, {"y": 3})
 
 
+def test_decorator_with_expand_output() -> None:
+    def mock_func() -> tuple[int]:
+        x = 1
+        return (x,)
+
+    app = App()
+    cell = app.cell(expand_output=True)(mock_func)
+    assert cell is not None
+    assert cell._cell.config.expand_output is True
+
+
 def test_decorator_with_unknown_args() -> None:
     # Decorator with unknown args
     def __() -> tuple[int]:

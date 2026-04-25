@@ -80,6 +80,7 @@ class SetConfig(msgspec.Struct, frozen=True, tag="set-config", rename="camel"):
     column: int | None = None
     disabled: bool | None = None
     hide_code: bool | None = None
+    expand_output: bool | None = None
 
 
 DocumentChange = (

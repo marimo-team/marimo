@@ -367,6 +367,9 @@ components:
         hide_code:
           default: false
           type: boolean
+        expand_output:
+          default: false
+          type: boolean
       required: []
       title: CellConfig
       type: object
@@ -4473,6 +4476,11 @@ components:
           - type: boolean
           - type: 'null'
           default: null
+        expandOutput:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: null
         type:
           enum:
           - set-config
@@ -7057,4 +7065,3 @@ paths:
       summary: Get the auth token for the current session
       tags:
       - auth
-

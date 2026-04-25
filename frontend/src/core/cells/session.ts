@@ -177,6 +177,9 @@ function createCellDataFromNotebook(
       column: notebookCell.config?.column ?? null,
       disabled: notebookCell.config?.disabled ?? false,
       hide_code: notebookCell.config?.hide_code ?? false,
+      ...(notebookCell.config?.expand_output === true && {
+        expand_output: true,
+      }),
     },
     serializedEditorState: null,
   };

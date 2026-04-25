@@ -299,6 +299,46 @@ def test_edit_mode_reload_sends_config_changes(
     assert config_changes[0].hide_code is True
 
 
+def test_edit_mode_reload_sends_expand_output_changes(
+    tmp_path: Path, mock_session: MagicMock, config_manager_lazy
+) -> None:
+    content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell(expand_output=True)
+        def my_named_cell():
+            x = 1
+            return x
+        """
+    )
+    afm = _make_app(tmp_path, content)
+    cell_ids = list(afm.app.cell_manager.cell_ids())
+    _run_reload(
+        tmp_path,
+        mock_session,
+        config_manager_lazy,
+        content=content,
+        document=NotebookDocument(
+            [
+                NotebookCell(
+                    id=cell_ids[0],
+                    code="x = 1",
+                    name="my_named_cell",
+                    config=CellConfig(expand_output=False),
+                ),
+            ]
+        ),
+    )
+
+    config_changes = _changes_of_type(
+        _get_transaction(mock_session), SetConfig
+    )
+    assert len(config_changes) == 1
+    assert config_changes[0].expand_output is True
+
+
 def test_edit_mode_reload_sends_name_changes(
     tmp_path: Path, mock_session: MagicMock, config_manager_lazy
 ) -> None:

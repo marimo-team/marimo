@@ -51,6 +51,28 @@ describe("ConsoleOutput integration", () => {
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "https://marimo.io");
   });
+
+  it("starts expanded when defaultExpanded is true", () => {
+    const props = {
+      ...defaultProps,
+      defaultExpanded: true,
+      consoleOutputs: [
+        {
+          ...createOutput("console output"),
+          response: undefined,
+        },
+      ],
+    };
+
+    renderWithProvider(<ConsoleOutput {...props} />);
+
+    expect(
+      screen.getByRole("button", { name: "Collapse output" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("console-output-area")).toHaveStyle({
+      maxHeight: "none",
+    });
+  });
 });
 
 describe("ConsoleOutput pdb history", () => {

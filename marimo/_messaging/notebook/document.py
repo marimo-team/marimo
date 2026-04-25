@@ -220,6 +220,9 @@ class NotebookDocument:
                 hide_code=change.hide_code
                 if change.hide_code is not None
                 else cell.config.hide_code,
+                expand_output=change.expand_output
+                if change.expand_output is not None
+                else cell.config.expand_output,
             )
         else:
             assert_never(change)

@@ -173,7 +173,12 @@ def test_serialize_notebook_basic(session_view: SessionView):
         cell_id=CELL1,
         code="print('Hello, world!')",
         name="my_cell",
-        config=CellConfig(column=1, disabled=False, hide_code=True),
+        config=CellConfig(
+            column=1,
+            disabled=False,
+            hide_code=True,
+            expand_output=True,
+        ),
     )
 
     view.cell_notifications[CELL1] = _make_cell_notification(
@@ -199,6 +204,7 @@ def test_serialize_notebook_basic(session_view: SessionView):
     assert cell["config"]["column"] == 1
     assert cell["config"]["disabled"] is False
     assert cell["config"]["hide_code"] is True
+    assert cell["config"]["expand_output"] is True
 
 
 def test_serialize_notebook_multiple_cells(session_view: SessionView):

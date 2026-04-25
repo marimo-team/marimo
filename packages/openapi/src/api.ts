@@ -3599,6 +3599,8 @@ export interface components {
       disabled?: boolean;
       /** @default false */
       hide_code?: boolean;
+      /** @default false */
+      expand_output?: boolean;
     };
     /** Format: cell-id */
     CellId: TypedString<"CellId">;
@@ -6066,6 +6068,8 @@ export interface components {
       disabled?: boolean | null;
       /** @default null */
       hideCode?: boolean | null;
+      /** @default null */
+      expandOutput?: boolean | null;
       /** @enum {unknown} */
       type: "set-config";
     };
