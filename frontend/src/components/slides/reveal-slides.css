@@ -72,3 +72,11 @@
 .reveal .mo-slide-content .output {
   margin: 0;
 }
+
+.reveal .marimo-cell .cm-editor {
+  border-radius: 8px;
+  padding-right: 10px;
+}
+.reveal .marimo-cell .cm-panels {
+  margin-right: 0;
+}

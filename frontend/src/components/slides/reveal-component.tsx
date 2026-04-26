@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import {
+  startTransition,
   useEffect,
   useMemo,
   useRef,
@@ -8,7 +9,7 @@ import {
   Fragment as ReactFragment,
 } from "react";
 import useEvent from "react-use-event-hook";
-import { ExpandIcon, EyeOffIcon } from "lucide-react";
+import { ExpandIcon, EyeOffIcon, PencilIcon } from "lucide-react";
 import { Deck, Fragment, Slide, Stack } from "@revealjs/react";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,8 @@ import {
   DEFAULT_SLIDE_TYPE,
   SlideSidebar,
 } from "./slide-form";
+import { SlideCellView } from "./slide-cell-view";
+import { cn } from "@/utils/cn";
 import type { AppMode } from "@/core/mode";
 
 const ASPECT_RATIO = 16 / 9;
@@ -118,21 +121,34 @@ function triggerResize(deck: RevealApi | null) {
 
 const SubslideView = ({
   subslide,
+  showCode,
 }: {
   subslide: ComposedSubslide<RuntimeCell>;
+  showCode: boolean;
 }) => (
   <Slide>
     <div className="h-full w-full overflow-auto flex">
-      <div className="mo-slide-content" style={{ margin: "auto 20px" }}>
+      <div
+        className={
+          showCode ? "mo-slide-content flex flex-col gap-3" : "mo-slide-content"
+        }
+        style={{
+          margin: "auto 20px",
+        }}
+      >
         {subslide.blocks.map((block, i) => {
-          const rendered = block.cells.map((cell) => (
-            <CellOutputSlide
-              key={cell.id}
-              cellId={cell.id}
-              status={cell.status}
-              output={cell.output}
-            />
-          ));
+          const rendered = block.cells.map((cell) =>
+            showCode ? (
+              <SlideCellView key={cell.id} cell={cell} />
+            ) : (
+              <CellOutputSlide
+                key={cell.id}
+                cellId={cell.id}
+                status={cell.status}
+                output={cell.output}
+              />
+            ),
+          );
           if (block.isFragment) {
             return (
               <Fragment key={i} as="div">
@@ -147,27 +163,36 @@ const SubslideView = ({
   </Slide>
 );
 
+// There is an upstream react bug in dev mode (https://github.com/facebook/react/issues/34840)
+// Uncaught SecurityError: Failed to read a named property '$$typeof' from 'Window'
+// When the iframe
 const RevealSlidesComponent = ({
   cellsWithOutput,
   layout,
   setLayout,
   activeIndex,
   onSlideChange,
-  deckRef,
   mode,
   configWidth = 300, // px
+  isEditable = false,
 }: {
   cellsWithOutput: RuntimeCell[];
   layout: SlidesLayout;
   setLayout: (layout: SlidesLayout) => void;
   activeIndex?: number;
   onSlideChange?: (index: number) => void;
-  deckRef: React.RefObject<RevealApi | null>;
   mode: AppMode;
   configWidth?: number;
+  isEditable?: boolean;
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const deckRef = useRef<RevealApi | null>(null);
   const { width, height } = useSlideDimensions(containerRef);
+
+  const [showCode, setShowCode] = useState(false);
+  const codeToggleEnabled = isEditable;
+  const codeShown = codeToggleEnabled && showCode;
+
   const activeCell =
     activeIndex != null ? cellsWithOutput[activeIndex] : undefined;
   // Fall back to the first cell while the deck settles on an initial slide.
@@ -217,11 +242,7 @@ const RevealSlidesComponent = ({
     [width, height, deckTransition],
   );
 
-  useEffect(() => {
-    const deck = deckRef.current;
-    if (deck == null) {
-      return;
-    }
+  const navigateDeckToActiveCell = useEvent((deck: RevealApi) => {
     const target = resolveDeckNavigationTarget({
       activeIndex,
       cells: cellsWithOutput,
@@ -234,7 +255,43 @@ const RevealSlidesComponent = ({
     }
     deck.slide(next.h, next.v, next.f);
     clearPreviousVerticalIndices(deck);
-  }, [activeIndex, cellToTarget, cellsWithOutput, deckRef]);
+  });
+
+  useEffect(() => {
+    const deck = deckRef.current;
+    if (deck == null) {
+      return;
+    }
+    navigateDeckToActiveCell(deck);
+  }, [activeIndex, cellToTarget, cellsWithOutput, navigateDeckToActiveCell]);
+
+  // Toggling code (re)mounts a CodeMirror editor on the active slide. Defer
+  // the state update so the button/keypress paints first and the heavier mount
+  // can be interrupted by higher-priority work.
+  const toggleShowCode = useEvent(() => {
+    startTransition(() => setShowCode((value) => !value));
+  });
+
+  const handleDeckReady = useEvent((deck: RevealApi) => {
+    navigateDeckToActiveCell(deck);
+    if (codeToggleEnabled) {
+      deck.addKeyBinding(
+        { keyCode: 67, key: "C", description: "Toggle code editor" },
+        toggleShowCode,
+      );
+    }
+  });
+
+  const activeSubslide = useMemo(() => {
+    if (!activeCell) {
+      return null;
+    }
+    const target = cellToTarget.get(activeCell.id);
+    if (!target) {
+      return null;
+    }
+    return { h: target.h, v: target.v };
+  }, [activeCell, cellToTarget]);
 
   // Forward the deck's current cell to the parent, except while a skipped
   // preview is parked: every reveal.js event during that window is an echo
@@ -279,6 +336,11 @@ const RevealSlidesComponent = ({
     onSlideChange?.(nextIndex);
   });
 
+  const handleSlideChange = useEvent(() => {
+    reportCurrentCell();
+    triggerResize(deckRef.current);
+  });
+
   useEventListener(document, "keydown", handleParkedNavKey, { capture: true });
 
   return (
@@ -292,23 +354,36 @@ const RevealSlidesComponent = ({
             deckRef={deckRef}
             className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides"
             config={revealConfig}
-            onSlideChange={() => {
-              reportCurrentCell();
-              const deck = deckRef.current;
-              triggerResize(deck);
-            }}
+            onReady={handleDeckReady}
+            onSlideChange={handleSlideChange}
             onFragmentShown={reportCurrentCell}
             onFragmentHidden={reportCurrentCell}
           >
-            {composition.stacks.map((stack, i) => {
+            {composition.stacks.map((stack, h) => {
               if (stack.subslides.length === 1) {
-                return <SubslideView key={i} subslide={stack.subslides[0]} />;
+                const isActive =
+                  activeSubslide?.h === h && activeSubslide?.v === 0;
+                return (
+                  <SubslideView
+                    key={h}
+                    subslide={stack.subslides[0]}
+                    showCode={codeShown && isActive}
+                  />
+                );
               }
               return (
-                <Stack key={i}>
-                  {stack.subslides.map((sub, j) => (
-                    <SubslideView key={j} subslide={sub} />
-                  ))}
+                <Stack key={h}>
+                  {stack.subslides.map((sub, v) => {
+                    const isActive =
+                      activeSubslide?.h === h && activeSubslide?.v === v;
+                    return (
+                      <SubslideView
+                        key={v}
+                        subslide={sub}
+                        showCode={codeShown && isActive}
+                      />
+                    );
+                  })}
                 </Stack>
               );
             })}
@@ -336,24 +411,45 @@ const RevealSlidesComponent = ({
               </div>
             </div>
           )}
-          <Tooltip content="Fullscreen (F)">
-            <Button
-              data-testid="marimo-plugin-slides-fullscreen"
-              variant="ghost"
-              size="icon"
-              className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-70 text-muted-foreground transition-opacity h-7 w-7"
-              onClick={() => {
-                deckRef.current
-                  ?.getViewportElement()
-                  ?.requestFullscreen()
-                  .catch((error) => {
-                    Logger.error("Failed to request fullscreen", error);
-                  });
-              }}
-            >
-              <ExpandIcon className="h-4 w-4" />
-            </Button>
-          </Tooltip>
+          <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-70 text-muted-foreground transition-opacity">
+            {codeToggleEnabled && (
+              <Tooltip content={codeShown ? "Hide code (C)" : "Show code (C)"}>
+                <Button
+                  data-testid="marimo-plugin-slides-toggle-code"
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "text-muted-foreground h-7 w-7",
+                    codeShown && "text-foreground bg-muted",
+                  )}
+                  aria-pressed={codeShown}
+                  aria-label={codeShown ? "Hide code" : "Show code"}
+                  onClick={toggleShowCode}
+                >
+                  <PencilIcon className="h-4 w-4" />
+                </Button>
+              </Tooltip>
+            )}
+            <Tooltip content="Fullscreen (F)">
+              <Button
+                data-testid="marimo-plugin-slides-fullscreen"
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground h-7 w-7"
+                aria-label="Enter fullscreen"
+                onClick={() => {
+                  deckRef.current
+                    ?.getViewportElement()
+                    ?.requestFullscreen()
+                    .catch((error) => {
+                      Logger.error("Failed to request fullscreen", error);
+                    });
+                }}
+              >
+                <ExpandIcon className="h-4 w-4" />
+              </Button>
+            </Tooltip>
+          </div>
         </div>
       </div>
 

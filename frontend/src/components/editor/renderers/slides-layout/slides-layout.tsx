@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useAtomValue } from "jotai";
 import { numColumnsAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
@@ -8,7 +8,6 @@ import type { SlidesLayout } from "./types";
 import { computeSlideCellsInfo } from "./compute-slide-cells";
 import { SlidesMinimap } from "@/components/slides/minimap";
 import useEvent from "react-use-event-hook";
-import type { RevealApi } from "reveal.js";
 
 type Props = ICellRendererProps<SlidesLayout>;
 
@@ -26,7 +25,6 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   const numColumns = useAtomValue(numColumnsAtom);
   const isMultiColumn = numColumns > 1;
   const [activeCellId, setActiveCellId] = useState<CellId | null>(null);
-  const deckRef = useRef<RevealApi | null>(null);
 
   const { cellsWithOutput, skippedIds, slideTypes, startCellIndex } = useMemo(
     () => computeSlideCellsInfo(cells, layout),
@@ -53,9 +51,9 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
       setLayout={setLayout}
       activeIndex={resolvedIndex}
       onSlideChange={handleSlideChange}
-      deckRef={deckRef}
-      configWidth={250}
+      configWidth={300}
       mode={mode}
+      isEditable={mode !== "read"}
     />
   );
 
