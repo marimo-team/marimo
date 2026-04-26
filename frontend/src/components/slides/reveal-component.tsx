@@ -35,7 +35,7 @@ import {
   DEFAULT_SLIDE_TYPE,
   SlideSidebar,
 } from "./slide-form";
-import { SlideCellView } from "./slide-cell-view";
+import { SlideCellView } from "@/components/slides/slide-cell-view";
 import { cn } from "@/utils/cn";
 import type { AppMode } from "@/core/mode";
 
