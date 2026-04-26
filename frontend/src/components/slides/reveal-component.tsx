@@ -165,7 +165,7 @@ const SubslideView = ({
 
 // There is an upstream react bug in dev mode (https://github.com/facebook/react/issues/34840)
 // Uncaught SecurityError: Failed to read a named property '$$typeof' from 'Window'
-// When the iframe
+// Happens with cells containing iframes / external content
 const RevealSlidesComponent = ({
   cellsWithOutput,
   layout,
@@ -323,6 +323,7 @@ const RevealSlidesComponent = ({
     if (Events.fromInput(event)) {
       return;
     }
+
     const direction = classifyNavKey(event);
     if (direction === 0) {
       return;
