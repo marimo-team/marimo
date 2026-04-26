@@ -1,20 +1,25 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import type { GridLayout } from "@/components/editor/renderers/grid-layout/types";
-import { cellRendererPlugins } from "@/components/editor/renderers/plugins";
+import {
+  getCellRendererPlugin,
+  type LayoutDataByType,
+} from "@/components/editor/renderers/plugins";
 import type { LayoutType } from "@/components/editor/renderers/types";
+import { logNever } from "@/utils/assertNever";
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import { Logger } from "@/utils/Logger";
 import { getNotebook } from "../cells/cells";
 import { notebookCells } from "../cells/utils";
 import { store } from "../state/jotai";
 
-export type LayoutData = GridLayout | undefined;
+export type LayoutData = LayoutDataByType[LayoutType];
+export type SetLayoutDataPayload = {
+  [K in LayoutType]: { layoutView: K; data: LayoutDataByType[K] };
+}[LayoutType];
 
 export interface LayoutState {
   selectedLayout: LayoutType;
-  layoutData: Partial<Record<LayoutType, LayoutData>>;
+  layoutData: Partial<LayoutDataByType>;
 }
 
 export function initialLayoutState(): LayoutState {
@@ -33,10 +38,7 @@ const { valueAtom: layoutStateAtom, useActions } = createReducerAndAtoms(
         selectedLayout: payload,
       };
     },
-    setLayoutData: (
-      state,
-      payload: { layoutView: LayoutType; data: LayoutData },
-    ) => {
+    setLayoutData: (state, payload: SetLayoutDataPayload) => {
       return {
         ...state,
         selectedLayout: payload.layoutView,
@@ -79,25 +81,24 @@ export function getSerializedLayout() {
   if (selectedLayout === "vertical") {
     return null;
   }
-
-  if (layoutData === undefined) {
-    return null;
-  }
-
-  const plugin = cellRendererPlugins.find(
-    (plugin) => plugin.type === selectedLayout,
-  );
-  if (plugin === undefined) {
-    Logger.error(`Unknown layout type: ${selectedLayout}`);
-    return null;
-  }
   const cells = notebookCells(notebook);
+
   // Fall back to the plugin's initial layout when the user has not yet
   // interacted with this layout — otherwise serializers that expect a
   // structured layout object crash on `undefined`.
-  const data = layoutData[selectedLayout] ?? plugin.getInitialLayout(cells);
-  return {
-    type: selectedLayout,
-    data: plugin.serializeLayout(data, cells),
+  const serialize = <K extends LayoutType>(type: K) => {
+    const plugin = getCellRendererPlugin(type);
+    const data = layoutData[type] ?? plugin.getInitialLayout(cells);
+    return { type, data: plugin.serializeLayout(data, cells) };
   };
+
+  switch (selectedLayout) {
+    case "grid":
+      return serialize("grid");
+    case "slides":
+      return serialize("slides");
+    default:
+      logNever(selectedLayout);
+      return null;
+  }
 }

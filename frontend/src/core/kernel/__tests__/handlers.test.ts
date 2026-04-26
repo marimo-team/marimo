@@ -1,9 +1,42 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
+import { Logger } from "@/utils/Logger";
 import { buildCellData, buildLayoutState } from "../handlers";
 import type { NotificationMessageData } from "../messages";
 import { queryParamHandlers } from "../queryParamHandlers";
+
+type KernelReadyMessage = NotificationMessageData<"kernel-ready">;
+
+// Builds a minimal kernel-ready message with a one-cell notebook so the
+// layout-state tests can focus on the `layout` field.
+function makeKernelReady(
+  layout: KernelReadyMessage["layout"],
+): KernelReadyMessage {
+  return {
+    cell_ids: [cellId("cell1")],
+    codes: ["x = 1"],
+    names: ["__"],
+    configs: [{ disabled: false, hide_code: false }],
+    layout,
+    resumed: false,
+    ui_values: {},
+    last_executed_code: {},
+    last_execution_time: {},
+    app_config: {
+      width: "normal",
+      app_title: null,
+      layout_file: null,
+      css_file: null,
+      auto_download: [],
+    },
+    kiosk: false,
+    capabilities: {
+      terminal: false,
+    },
+    auto_instantiated: false,
+  };
+}
 
 // Helper to set up URL and searchParams
 function setupURL(search = "") {
@@ -227,11 +260,11 @@ describe("buildLayoutState", () => {
 
     const cells = buildCellData(kernelReadyData);
     const mockSetLayoutData = vi.fn();
-    const layoutState = buildLayoutState(
-      kernelReadyData,
+    const layoutState = buildLayoutState({
+      data: kernelReadyData,
       cells,
-      mockSetLayoutData,
-    );
+      setLayoutData: mockSetLayoutData,
+    });
 
     expect(layoutState).toMatchInlineSnapshot(`
       {
@@ -275,16 +308,127 @@ describe("buildLayoutState", () => {
 
     const cells = buildCellData(kernelReadyData);
     const mockSetLayoutData = vi.fn();
-    const layoutState = buildLayoutState(
-      kernelReadyData,
+    const layoutState = buildLayoutState({
+      data: kernelReadyData,
       cells,
-      mockSetLayoutData,
-    );
+      setLayoutData: mockSetLayoutData,
+    });
 
     expect(layoutState.selectedLayout).toBe("vertical");
     expect(mockSetLayoutData).toHaveBeenCalledWith({
       layoutView: "vertical",
-      data: expect.any(Array),
+      data: null,
     });
+  });
+
+  it("should build layout state with grid layout", () => {
+    const kernelReadyData = makeKernelReady({
+      type: "grid",
+      data: {
+        columns: 12,
+        rowHeight: 20,
+        cells: [{ position: [0, 0, 4, 3] }],
+      },
+    });
+
+    const cells = buildCellData(kernelReadyData);
+    const mockSetLayoutData = vi.fn();
+    const layoutState = buildLayoutState({
+      data: kernelReadyData,
+      cells,
+      setLayoutData: mockSetLayoutData,
+    });
+
+    expect(layoutState.selectedLayout).toBe("grid");
+    expect(layoutState.layoutData.grid).toBeDefined();
+    expect(layoutState.layoutData.grid?.cells).toEqual([
+      { i: "cell1", x: 0, y: 0, w: 4, h: 3 },
+    ]);
+    expect(mockSetLayoutData).toHaveBeenCalledTimes(1);
+    expect(mockSetLayoutData).toHaveBeenCalledWith({
+      layoutView: "grid",
+      data: layoutState.layoutData.grid,
+    });
+  });
+
+  it("should build layout state with slides layout", () => {
+    const kernelReadyData = makeKernelReady({
+      type: "slides",
+      data: {
+        cells: [{ type: "slide" }],
+        deck: { transition: "fade" },
+      },
+    });
+
+    const cells = buildCellData(kernelReadyData);
+    const mockSetLayoutData = vi.fn();
+    const layoutState = buildLayoutState({
+      data: kernelReadyData,
+      cells,
+      setLayoutData: mockSetLayoutData,
+    });
+
+    expect(layoutState.selectedLayout).toBe("slides");
+    expect(layoutState.layoutData.slides?.deck).toEqual({ transition: "fade" });
+    expect(layoutState.layoutData.slides?.cells.get(cellId("cell1"))).toEqual({
+      type: "slide",
+    });
+    expect(mockSetLayoutData).toHaveBeenCalledTimes(1);
+    expect(mockSetLayoutData).toHaveBeenCalledWith({
+      layoutView: "slides",
+      data: layoutState.layoutData.slides,
+    });
+  });
+
+  it("should ignore unknown layout types and warn", () => {
+    const warnSpy = vi.spyOn(Logger, "warn").mockImplementation(() => {});
+    const kernelReadyData = makeKernelReady({
+      // oxlint-disable-next-line typescript/no-explicit-any
+      type: "totally-bogus" as any,
+      data: {},
+    });
+
+    const cells = buildCellData(kernelReadyData);
+    const mockSetLayoutData = vi.fn();
+    const layoutState = buildLayoutState({
+      data: kernelReadyData,
+      cells,
+      setLayoutData: mockSetLayoutData,
+    });
+
+    expect(layoutState.selectedLayout).toBe("vertical");
+    expect(layoutState.layoutData).toEqual({});
+    expect(mockSetLayoutData).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('unknown layout type "totally-bogus"'),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it("should fall back to default when serialized data is malformed", () => {
+    // Regression: invalid layout JSON used to crash inside the plugin's
+    // deserializer. It should now warn and fall back to the plugin's initial
+    // layout, keeping the app loadable.
+    const warnSpy = vi.spyOn(Logger, "warn").mockImplementation(() => {});
+    const kernelReadyData = makeKernelReady({
+      type: "slides",
+      // oxlint-disable-next-line typescript/no-explicit-any
+      data: { cells: [{ type: "definitely-not-a-slide-type" }] } as any,
+    });
+
+    const cells = buildCellData(kernelReadyData);
+    const mockSetLayoutData = vi.fn();
+    const layoutState = buildLayoutState({
+      data: kernelReadyData,
+      cells,
+      setLayoutData: mockSetLayoutData,
+    });
+
+    expect(layoutState.selectedLayout).toBe("slides");
+    // Initial slides layout is empty (no cells configured).
+    expect(layoutState.layoutData.slides?.cells.size).toBe(0);
+    expect(mockSetLayoutData).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });
