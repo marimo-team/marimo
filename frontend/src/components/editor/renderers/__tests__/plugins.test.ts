@@ -1,9 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
-import { Logger } from "@/utils/Logger";
 import { deserializeLayout, getCellRendererPlugin } from "../plugins";
 
 function makeCell(id: string): CellData {
@@ -69,42 +68,23 @@ describe("deserializeLayout", () => {
     expect(layout).toBeNull();
   });
 
-  it("falls back to the plugin's initial layout when validation fails", () => {
-    // Regression: corrupted layout JSON used to crash inside the plugin's
-    // deserializer. It must now fall back to a default and warn.
-    const warnSpy = vi.spyOn(Logger, "warn").mockImplementation(() => {});
-
-    const layout = deserializeLayout({
-      type: "slides",
-      data: { cells: [{ type: "not-a-real-slide-type" }] },
-      cells: [makeCell("a")],
-    });
-
-    // Initial slides layout has no per-cell entries.
-    expect(layout.cells.size).toBe(0);
-    expect(layout.deck).toEqual({});
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Invalid serialized layout for "slides"'),
-      expect.anything(),
-    );
-    warnSpy.mockRestore();
-  });
-
-  it("falls back to default when grid data is the wrong shape", () => {
-    const warnSpy = vi.spyOn(Logger, "warn").mockImplementation(() => {});
-
+  it("tolerates legacy `null` for optional grid fields", () => {
+    // Older marimo versions wrote unset optional fields as `null`
+    // (e.g. `"maxWidth": null` in `layout_grid_with_sidebar.grid.json`).
+    // Those files must keep loading.
     const layout = deserializeLayout({
       type: "grid",
-      data: "definitely not a grid layout",
-      cells: [makeCell("a")],
+      data: {
+        columns: 24,
+        rowHeight: 20,
+        maxWidth: null,
+        bordered: true,
+        cells: [{ position: [0, 0, 5, 2] }, { position: null }],
+      },
+      cells: [makeCell("a"), makeCell("b")],
     });
 
-    // Should return the grid plugin's initial layout (defined in
-    // grid-layout/plugin.tsx, currently 24 columns) rather than throwing.
-    expect(layout).toEqual(
-      getCellRendererPlugin("grid").getInitialLayout([makeCell("a")]),
-    );
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
+    expect(layout.columns).toBe(24);
+    expect(layout.cells).toEqual([{ i: "a", x: 0, y: 0, w: 5, h: 2 }]);
   });
 });

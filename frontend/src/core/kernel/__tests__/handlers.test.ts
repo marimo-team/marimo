@@ -404,31 +404,4 @@ describe("buildLayoutState", () => {
     );
     warnSpy.mockRestore();
   });
-
-  it("should fall back to default when serialized data is malformed", () => {
-    // Regression: invalid layout JSON used to crash inside the plugin's
-    // deserializer. It should now warn and fall back to the plugin's initial
-    // layout, keeping the app loadable.
-    const warnSpy = vi.spyOn(Logger, "warn").mockImplementation(() => {});
-    const kernelReadyData = makeKernelReady({
-      type: "slides",
-      // oxlint-disable-next-line typescript/no-explicit-any
-      data: { cells: [{ type: "definitely-not-a-slide-type" }] } as any,
-    });
-
-    const cells = buildCellData(kernelReadyData);
-    const mockSetLayoutData = vi.fn();
-    const layoutState = buildLayoutState({
-      data: kernelReadyData,
-      cells,
-      setLayoutData: mockSetLayoutData,
-    });
-
-    expect(layoutState.selectedLayout).toBe("slides");
-    // Initial slides layout is empty (no cells configured).
-    expect(layoutState.layoutData.slides?.cells.size).toBe(0);
-    expect(mockSetLayoutData).toHaveBeenCalledTimes(1);
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
-  });
 });

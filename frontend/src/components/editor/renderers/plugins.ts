@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { CellData } from "@/core/cells/types";
-import { Logger } from "@/utils/Logger";
 import { GridLayoutPlugin } from "./grid-layout/plugin";
 import type { GridLayout, SerializedGridLayout } from "./grid-layout/types";
 import { SlidesLayoutPlugin } from "./slides-layout/plugin";
@@ -58,13 +57,5 @@ export function deserializeLayout<K extends LayoutType>({
   cells: CellData[];
 }): LayoutDataByType[K] {
   const plugin = getCellRendererPlugin(type);
-  const result = plugin.validator.safeParse(data);
-  if (!result.success) {
-    Logger.warn(
-      `Invalid serialized layout for "${type}"; falling back to default.`,
-      result.error,
-    );
-    return plugin.getInitialLayout(cells);
-  }
-  return plugin.deserializeLayout(result.data, cells);
+  return plugin.deserializeLayout(data as SerializedLayoutDataByType[K], cells);
 }
