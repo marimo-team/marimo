@@ -522,6 +522,7 @@ _BINARY_TYPES = {"bit", "bitstring", "binary", "varbinary", "bytea"}
 _UNKNOWN_TYPES = {
     "row",
     "geometry",
+    "inet",
     # Null type (can occur when attaching databases or with unknown column types)
     "null",
     '"null"',

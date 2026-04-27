@@ -2313,6 +2313,119 @@ def test_calculate_top_k_rows():
     )
 
 
+_TOP_K_DATA = {
+    "role": ["admin", "admin", "user", "user", "guest"],
+    "country": ["US", "UK", "US", "US", "UK"],
+}
+
+
+def _filter_role_in(values: list[str]) -> FilterGroup:
+    return FilterGroup(
+        type="group",
+        operator="and",
+        children=[
+            FilterCondition(
+                type="condition",
+                column_id="role",
+                operator="in",
+                value=values,
+            )
+        ],
+    )
+
+
+def _filter_country_eq(value: str) -> FilterGroup:
+    return FilterGroup(
+        type="group",
+        operator="and",
+        children=[
+            FilterCondition(
+                type="condition",
+                column_id="country",
+                operator="equals",
+                value=value,
+            )
+        ],
+    )
+
+
+@pytest.mark.parametrize("df", create_dataframes(_TOP_K_DATA))
+def test_top_k_ignores_same_column_filter(df: Any) -> None:
+    """Editing a filter on a column must not hide values the filter excludes."""
+    table = ui.table(df)
+    table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+            filters=_filter_role_in(["admin", "user"]),
+        )
+    )
+    result = table._calculate_top_k_rows(
+        CalculateTopKRowsArgs(column="role", k=10)
+    )
+    # `guest` is excluded by the active filter but must still appear,
+    # otherwise users can't broaden the filter back out.
+    assert result == CalculateTopKRowsResponse(
+        data=[("admin", 2), ("user", 2), ("guest", 1)],
+    )
+
+
+@pytest.mark.parametrize("df", create_dataframes(_TOP_K_DATA))
+def test_top_k_respects_other_column_filter(df: Any) -> None:
+    table = ui.table(df)
+    table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+            filters=_filter_country_eq("UK"),
+        )
+    )
+    result = table._calculate_top_k_rows(
+        CalculateTopKRowsArgs(column="role", k=10)
+    )
+    # Only UK rows survive: admin (UK) and guest (UK).
+    assert result == CalculateTopKRowsResponse(
+        data=[("admin", 1), ("guest", 1)],
+    )
+
+
+@pytest.mark.parametrize("df", create_dataframes(_TOP_K_DATA))
+def test_top_k_strips_self_filter_keeps_others(df: Any) -> None:
+    table = ui.table(df)
+    table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+            filters=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="role",
+                        operator="in",
+                        value=["admin", "user"],
+                    ),
+                    FilterCondition(
+                        type="condition",
+                        column_id="country",
+                        operator="equals",
+                        value="UK",
+                    ),
+                ],
+            ),
+        )
+    )
+    result = table._calculate_top_k_rows(
+        CalculateTopKRowsArgs(column="role", k=10)
+    )
+    # `role` filter is stripped, `country == UK` still applies:
+    # UK rows are admin + guest. `guest` reappears because role filter is ignored.
+    assert result == CalculateTopKRowsResponse(
+        data=[("admin", 1), ("guest", 1)],
+    )
+
+
 def _convert_data_bytes_to_pandas_df(
     data: str, data_format: str
 ) -> pd.DataFrame:

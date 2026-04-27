@@ -37,7 +37,7 @@ function getPromptCommand(
     case "codex":
       return `codex "$(${base} --codex)"`;
     case "opencode":
-      return `opencode "$(${base} --opencode)"`;
+      return `opencode --prompt "$(${base} --opencode)"`;
     default:
       assertNever(agent);
   }
