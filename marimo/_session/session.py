@@ -15,7 +15,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
-from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
+from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
     NotificationMessage,
 )
@@ -65,7 +65,6 @@ from marimo._utils.repr import format_repr
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
-    from marimo._ast.cell_manager import CellManager
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._server.models.models import InstantiateNotebookRequest
     from marimo._session.app_host import AppHostContext
@@ -75,29 +74,6 @@ LOGGER = _loggers.marimo_logger()
 _DEFAULT_TTL_SECONDS = 120
 
 __all__ = ["Session", "SessionImpl"]
-
-
-def _document_from_cell_manager(cell_manager: CellManager) -> NotebookDocument:
-    """Build a NotebookDocument from a CellManager's current state.
-
-    TODO: CellManager and NotebookDocument track overlapping state (cell
-    ordering, code, names, configs). Once the document model is wired
-    into all consumers, we should reconcile these — either CellManager
-    wraps a NotebookDocument internally, or it is replaced by a
-    different composition. For now, the document is populated from the
-    cell manager at session startup and the two coexist.
-    """
-    return NotebookDocument(
-        [
-            NotebookCell(
-                id=cd.cell_id,
-                code=cd.code,
-                name=cd.name,
-                config=cd.config,
-            )
-            for cd in cell_manager.cell_data()
-        ]
-    )
 
 
 class SessionImpl(Session):
@@ -258,9 +234,6 @@ class SessionImpl(Session):
         self.ttl_seconds = (
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
-        self.document = _document_from_cell_manager(
-            app_file_manager.app.cell_manager
-        )
         self.session_view = SessionView()
         self.config_manager = config_manager
         self.extensions = ExtensionRegistry()
@@ -277,6 +250,19 @@ class SessionImpl(Session):
         # Connect the main consumer after attaching extensions,
         # to avoid calling on_attach on the main consumer twice.
         self.connect_consumer(session_consumer, main=True)
+
+    @property
+    def document(self) -> NotebookDocument:
+        """The notebook document this session reflects.
+
+        Derived from ``self.app_file_manager.app.cell_manager.document``
+        rather than stored, so any code path that swaps the underlying
+        ``CellManager`` or ``app`` (save round-trip, file-watch reload,
+        export reload) is automatically picked up — no rebinding needed
+        at the call sites. Read-only by design: the document's identity
+        belongs to the cell manager.
+        """
+        return self.app_file_manager.app.cell_manager.document
 
     def _attach_extensions(self) -> None:
         """Attach all extensions to the session."""

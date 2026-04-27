@@ -10,6 +10,8 @@ from typing import (
     TypeVar,
 )
 
+from msgspec.structs import replace as structs_replace
+
 from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.cell_id import CellIdGenerator
@@ -23,6 +25,7 @@ from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.parse import fixed_dedent
 from marimo._ast.pytest import process_for_pytest
+from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._schemas.serialization import (
     CellDef,
     SetupCell,
@@ -66,10 +69,16 @@ class CellManager:
         Args:
             prefix (str, optional): Prefix to add to all cell IDs. Defaults to "".
         """
-        self._cell_data: dict[CellId_t, CellData] = {}
+        self._document = NotebookDocument()
+        self._compiled_cells: dict[CellId_t, Cell | None] = {}
         self.prefix = prefix
         self.unparsable = False
         self._cell_id_generator = CellIdGenerator(prefix, seed=42)
+
+    @property
+    def document(self) -> NotebookDocument:
+        """The underlying NotebookDocument tracking cell-list state."""
+        return self._document
 
     def create_cell_id(self) -> CellId_t:
         """Create a new unique cell ID.
@@ -208,13 +217,22 @@ class CellManager:
         if cell_id is None:
             cell_id = self.create_cell_id()
 
-        self._cell_data[cell_id] = CellData(
-            cell_id=cell_id,
-            code=code,
-            name=name,
-            config=config or CellConfig(),
-            cell=cell,
-        )
+        resolved_config = config or CellConfig()
+        existing = self._document.get(cell_id)
+        if existing is not None:
+            existing.code = code
+            existing.name = name
+            existing.config = resolved_config
+        else:
+            self._document._cells.append(
+                NotebookCell(
+                    id=cell_id,
+                    code=code,
+                    name=name,
+                    config=resolved_config,
+                )
+            )
+        self._compiled_cells[cell_id] = cell
 
     def register_ir_cell(
         self, cell_def: CellDef, app: InternalApp | None = None
@@ -263,7 +281,7 @@ class CellManager:
         """
         # If this is the first cell, and its name is setup, assume that it's
         # the setup cell.
-        if len(self._cell_data) == 0 and name == SETUP_CELL_NAME:
+        if len(self._document) == 0 and name == SETUP_CELL_NAME:
             cell_id = self.setup_cell_id
         else:
             cell_id = self.create_cell_id()
@@ -281,13 +299,23 @@ class CellManager:
 
         If no cells exist, creates an empty cell with default configuration.
         """
-        if not self._cell_data:
+        if len(self._document) == 0:
             cell_id = self.create_cell_id()
             self.register_cell(
                 cell_id=cell_id,
                 code="",
                 config=CellConfig(),
             )
+
+    def _synthesize_cell_data(self, nb_cell: NotebookCell) -> CellData:
+        """Build a CellData view from a NotebookCell + the compiled sidecar."""
+        return CellData(
+            cell_id=nb_cell.id,
+            code=nb_cell.code,
+            name=nb_cell.name,
+            config=nb_cell.config,
+            cell=self._compiled_cells.get(nb_cell.id),
+        )
 
     def cell_name(self, cell_id: CellId_t) -> str:
         """Get the name of a cell by its ID.
@@ -301,7 +329,7 @@ class CellManager:
         Raises:
             KeyError: If the cell_id doesn't exist
         """
-        return self._cell_data[cell_id].name
+        return self._document.get_cell(cell_id).name
 
     def names(self) -> Iterable[str]:
         """Get an iterator over all cell names.
@@ -309,8 +337,8 @@ class CellManager:
         Returns:
             Iterable[str]: Iterator yielding each cell's name
         """
-        for cell_data in self._cell_data.values():
-            yield cell_data.name
+        for nb_cell in self._document._cells:
+            yield nb_cell.name
 
     def codes(self) -> Iterable[str]:
         """Get an iterator over all cell codes.
@@ -318,8 +346,8 @@ class CellManager:
         Returns:
             Iterable[str]: Iterator yielding each cell's source code
         """
-        for cell_data in self._cell_data.values():
-            yield cell_data.code
+        for nb_cell in self._document._cells:
+            yield nb_cell.code
 
     def code_lookup(self) -> dict[CellId_t, str]:
         """Get a dict for cell codes.
@@ -327,10 +355,7 @@ class CellManager:
         Returns:
             dict[CellId_t, str]: Dictionary mapping cell to their source code
         """
-        return {
-            cell_id: cell_data.code
-            for cell_id, cell_data in self._cell_data.items()
-        }
+        return {nb_cell.id: nb_cell.code for nb_cell in self._document._cells}
 
     def configs(self) -> Iterable[CellConfig]:
         """Get an iterator over all cell configurations.
@@ -338,8 +363,8 @@ class CellManager:
         Returns:
             Iterable[CellConfig]: Iterator yielding each cell's configuration
         """
-        for cell_data in self._cell_data.values():
-            yield cell_data.config
+        for nb_cell in self._document._cells:
+            yield nb_cell.config
 
     def valid_cells(
         self,
@@ -350,9 +375,10 @@ class CellManager:
             Iterable[tuple[CellId_t, Cell]]: Iterator yielding tuples of (cell_id, cell)
             for each valid cell
         """
-        for cell_data in self._cell_data.values():
-            if cell_data.cell is not None:
-                yield (cell_data.cell_id, cell_data.cell)
+        for nb_cell in self._document._cells:
+            cell = self._compiled_cells.get(nb_cell.id)
+            if cell is not None:
+                yield (nb_cell.id, cell)
 
     def valid_cell_ids(self) -> Iterable[CellId_t]:
         """Get an iterator over IDs of all valid cells.
@@ -360,9 +386,9 @@ class CellManager:
         Returns:
             Iterable[CellId_t]: Iterator yielding cell IDs of valid cells
         """
-        for cell_data in self._cell_data.values():
-            if cell_data.cell is not None:
-                yield cell_data.cell_id
+        for nb_cell in self._document._cells:
+            if self._compiled_cells.get(nb_cell.id) is not None:
+                yield nb_cell.id
 
     def cell_ids(self) -> Iterable[CellId_t]:
         """Get an iterator over all cell IDs in registration order.
@@ -370,7 +396,7 @@ class CellManager:
         Returns:
             Iterable[CellId_t]: Iterator yielding all cell IDs
         """
-        return self._cell_data.keys()
+        return self._document.cell_ids
 
     def has_cell(self, cell_id: CellId_t) -> bool:
         """Check if a cell with the given ID exists.
@@ -381,7 +407,7 @@ class CellManager:
         Returns:
             bool: True if the cell exists, False otherwise
         """
-        return cell_id in self._cell_data
+        return cell_id in self._document
 
     def cells(
         self,
@@ -391,8 +417,8 @@ class CellManager:
         Returns:
             Iterable[Optional[Cell]]: Iterator yielding Cell objects (or None for invalid cells)
         """
-        for cell_data in self._cell_data.values():
-            yield cell_data.cell
+        for nb_cell in self._document._cells:
+            yield self._compiled_cells.get(nb_cell.id)
 
     def config_map(self) -> dict[CellId_t, CellConfig]:
         """Get a mapping of cell IDs to their configurations.
@@ -400,7 +426,9 @@ class CellManager:
         Returns:
             dict[CellId_t, CellConfig]: Dictionary mapping cell IDs to their configurations
         """
-        return {cid: cd.config for cid, cd in self._cell_data.items()}
+        return {
+            nb_cell.id: nb_cell.config for nb_cell in self._document._cells
+        }
 
     def cell_data(self) -> Iterable[CellData]:
         """Get an iterator over all cell data.
@@ -408,7 +436,8 @@ class CellManager:
         Returns:
             Iterable[CellData]: Iterator yielding CellData objects for all cells
         """
-        return self._cell_data.values()
+        for nb_cell in self._document._cells:
+            yield self._synthesize_cell_data(nb_cell)
 
     def code_map(self) -> dict[CellId_t, str]:
         """Get a mapping of cell IDs to their codes.
@@ -416,7 +445,7 @@ class CellManager:
         Returns:
             dict[CellId_t, str]: Dictionary mapping cell IDs to their codes
         """
-        return {cid: cd.code for cid, cd in self._cell_data.items()}
+        return {nb_cell.id: nb_cell.code for nb_cell in self._document._cells}
 
     def cell_data_at(self, cell_id: CellId_t) -> CellData:
         """Get the cell data for a specific cell ID.
@@ -430,7 +459,7 @@ class CellManager:
         Raises:
             KeyError: If the cell_id doesn't exist
         """
-        return self._cell_data[cell_id]
+        return self._synthesize_cell_data(self._document.get_cell(cell_id))
 
     def get_cell_code(self, cell_id: CellId_t) -> str | None:
         """Get the code for a cell by its ID.
@@ -441,9 +470,10 @@ class CellManager:
         Returns:
             Optional[str]: The cell's code, or None if the cell doesn't exist
         """
-        if cell_id not in self._cell_data:
+        nb_cell = self._document.get(cell_id)
+        if nb_cell is None:
             return None
-        return self._cell_data[cell_id].code
+        return nb_cell.code
 
     def get_cell_data(self, cell_id: CellId_t) -> CellData | None:
         """Get the cell data for a specific cell ID.
@@ -454,10 +484,11 @@ class CellManager:
         Returns:
             Optional[CellData]: The cell's data, or None if the cell doesn't exist
         """
-        if cell_id not in self._cell_data:
+        nb_cell = self._document.get(cell_id)
+        if nb_cell is None:
             LOGGER.debug(f"Cell with ID '{cell_id}' not found in cell manager")
             return None
-        return self._cell_data[cell_id]
+        return self._synthesize_cell_data(nb_cell)
 
     def get_cell_data_by_name(self, name: str) -> CellData | None:
         """Find a cell ID by its name.
@@ -469,9 +500,9 @@ class CellManager:
             Optional[CellData]: The data of the first cell with matching name,
             or None if no match is found
         """
-        for cell_data in self._cell_data.values():
-            if cell_data.name.strip("*") == name:
-                return cell_data
+        for nb_cell in self._document._cells:
+            if nb_cell.name.strip("*") == name:
+                return self._synthesize_cell_data(nb_cell)
         return None
 
     def get_cell_id_by_code(self, code: str) -> CellId_t | None:
@@ -484,10 +515,34 @@ class CellManager:
             Optional[CellId_t]: The ID of the first cell with matching code,
             or None if no match is found
         """
-        for cell_id, cell_data in self._cell_data.items():
-            if cell_data.code == code:
-                return cell_id
+        for nb_cell in self._document._cells:
+            if nb_cell.code == code:
+                return nb_cell.id
         return None
+
+    def _replace_state_from(self, other: CellManager) -> None:
+        """Overwrite this manager's content with ``other``'s, in place.
+
+        Identity-preserving substitute for ``self = other``: the
+        underlying ``NotebookDocument`` instance and the
+        ``_compiled_cells`` dict instance are kept; only their contents
+        are replaced. Any object holding a reference to this manager —
+        most notably the owning ``Session`` (which holds
+        ``cell_manager.document`` as ``session.document``) — continues
+        to see live state without rebinding.
+
+        ``unparsable`` is copied. ``_cell_id_generator.seen_ids`` is
+        unioned (never narrowed) so we don't recycle an id seen
+        previously even if it's gone from ``other``.
+
+        Transitional helper: cell-list bulk-replace bypasses
+        ``NotebookDocument.apply``. Goes away once full-document
+        rebuilds are expressed as diff Transactions.
+        """
+        self._document._replace_cells(list(other._document._cells))
+        self._compiled_cells = dict(other._compiled_cells)
+        self.unparsable = other.unparsable
+        self._cell_id_generator.seen_ids |= other._cell_id_generator.seen_ids
 
     def sort_cell_ids_by_similarity(
         self, prev_cell_manager: CellManager
@@ -501,14 +556,19 @@ class CellManager:
         # Create mapping from new to old ids
         id_mapping = match_cell_ids_by_similarity(prev_codes, current_codes)
 
-        # Update the cell data in place
-        new_cell_data: dict[CellId_t, CellData] = {}
+        # Rebuild the document and compiled-cell sidecar with rekeyed entries.
+        # structs_replace produces a fresh NotebookCell per remap rather than
+        # mutating the existing instance's id, keeping each instance's
+        # primary key stable from construction to disposal.
+        new_cells: list[NotebookCell] = []
+        new_compiled: dict[CellId_t, Cell | None] = {}
         for new_id, old_id in id_mapping.items():
-            prev_cell_data = self._cell_data[old_id]
-            prev_cell_data.cell_id = new_id
-            new_cell_data[new_id] = prev_cell_data
+            old_cell = self._document._find_cell(old_id)
+            new_cells.append(structs_replace(old_cell, id=new_id))
+            new_compiled[new_id] = self._compiled_cells.get(old_id)
 
-        self._cell_data = new_cell_data
+        self._document._cells = new_cells
+        self._compiled_cells = new_compiled
 
         # Add the new ids to the set, so we don't reuse them in the future
         for _id in id_mapping:
