@@ -10,6 +10,8 @@ import asyncio
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
+from msgspec.structs import replace as structs_replace
+
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager
 from marimo._messaging.notebook import DocumentChange
@@ -36,6 +38,8 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from marimo._ast.cell_manager import CellManager
+    from marimo._messaging.notebook.document import NotebookDocument
     from marimo._session.types import Session
 
 
@@ -48,16 +52,74 @@ class FileChangeResult:
     changed_cell_ids: set[CellId_t] | None = None
 
 
+def _build_reload_transaction(
+    prev_document: NotebookDocument, cell_manager: CellManager
+) -> Transaction:
+    """Diff the pre-reload document against the post-reload cell manager.
+
+    Used by the file-watch reload path. ``AppFileManager.reload`` swaps in
+    a fresh ``App`` whose document already reflects the new state, so the
+    returned transaction is purely for broadcasting the diff to consumers
+    — it is not applied to any document.
+    """
+    cell_ids = list(cell_manager.cell_ids())
+    new_ids = set(cell_ids)
+    doc_ids = set(prev_document)
+    deleted = doc_ids - new_ids
+
+    changes: list[DocumentChange] = []
+    for cid in deleted:
+        changes.append(DeleteCell(cell_id=cid))
+
+    for cd in cell_manager.cell_data():
+        if cd.cell_id not in doc_ids:
+            changes.append(
+                CreateCell(
+                    cell_id=cd.cell_id,
+                    code=cd.code,
+                    name=cd.name,
+                    config=cd.config,
+                )
+            )
+        else:
+            doc_cell = prev_document.get_cell(cd.cell_id)
+            if cd.code != doc_cell.code:
+                changes.append(SetCode(cell_id=cd.cell_id, code=cd.code))
+            if cd.name != doc_cell.name:
+                changes.append(SetName(cell_id=cd.cell_id, name=cd.name))
+            if cd.config != doc_cell.config:
+                changes.append(
+                    SetConfig(
+                        cell_id=cd.cell_id,
+                        column=cd.config.column,
+                        disabled=cd.config.disabled,
+                        hide_code=cd.config.hide_code,
+                    )
+                )
+
+    if tuple(cell_ids) != tuple(prev_document.cell_ids):
+        changes.append(ReorderCells(cell_ids=tuple(cell_ids)))
+
+    return Transaction(changes=tuple(changes), source="file-watch")
+
+
 class ReloadStrategy(Protocol):
     """Protocol for file reload strategies."""
 
     def handle_reload(
-        self, session: Session, *, changed_cell_ids: set[CellId_t]
+        self,
+        session: Session,
+        *,
+        transaction: Transaction,
+        changed_cell_ids: set[CellId_t],
     ) -> None:
         """Handle reloading after file change.
 
         Args:
             session: The session to reload
+            transaction: Pre-built diff from the pre-reload document to the
+                post-reload state. Strategies that broadcast cell-level
+                changes use this; full-reload strategies can ignore it.
             changed_cell_ids: Set of cell IDs that changed
         """
         ...
@@ -74,7 +136,11 @@ class EditModeReloadStrategy(ReloadStrategy):
         self._config_manager = config_manager
 
     def handle_reload(
-        self, session: Session, *, changed_cell_ids: set[CellId_t]
+        self,
+        session: Session,
+        *,
+        transaction: Transaction,
+        changed_cell_ids: set[CellId_t],
     ) -> None:
         """Handle reload in edit mode with optional auto-run."""
         cell_manager = session.app_file_manager.app.cell_manager
@@ -87,58 +153,22 @@ class EditModeReloadStrategy(ReloadStrategy):
             f"changed_cell_ids: {changed_cell_ids}"
         )
 
-        # Build a transaction by diffing session.document vs new cell_manager.
-        doc = session.document
-        doc_ids = set(doc)
-        new_ids = set(cell_ids)
-        deleted = doc_ids - new_ids
+        deleted = {
+            change.cell_id
+            for change in transaction.changes
+            if isinstance(change, DeleteCell)
+        }
 
-        changes: list[DocumentChange] = []
-
-        # Deletes
-        for cid in deleted:
-            changes.append(DeleteCell(cell_id=cid))
-
-        # Creates and updates
-        for cd in cell_manager.cell_data():
-            if cd.cell_id not in doc_ids:
-                changes.append(
-                    CreateCell(
-                        cell_id=cd.cell_id,
-                        code=cd.code,
-                        name=cd.name,
-                        config=cd.config,
-                    )
-                )
-            else:
-                doc_cell = doc.get_cell(cd.cell_id)
-                if cd.code != doc_cell.code:
-                    changes.append(SetCode(cell_id=cd.cell_id, code=cd.code))
-                if cd.name != doc_cell.name:
-                    changes.append(SetName(cell_id=cd.cell_id, name=cd.name))
-                if cd.config != doc_cell.config:
-                    changes.append(
-                        SetConfig(
-                            cell_id=cd.cell_id,
-                            column=cd.config.column,
-                            disabled=cd.config.disabled,
-                            hide_code=cd.config.hide_code,
-                        )
-                    )
-
-        # Reorder if the lists differ
-        if tuple(cell_ids) != tuple(doc.cell_ids):
-            changes.append(ReorderCells(cell_ids=tuple(cell_ids)))
-
-        if changes:
-            # Broadcast transaction — document.apply() applies to
-            # document and stamps the version before forwarding.
-            transaction = Transaction(
-                changes=tuple(changes), source="file-watch"
-            )
-            applied = session.document.apply(transaction)
+        if transaction.changes:
+            # AppFileManager.reload already brought session.document to the
+            # post-reload state, so we don't apply(); we only broadcast.
+            # Bump the document version manually so the stamped transaction
+            # is consistent with what apply() would produce.
+            new_doc = session.document
+            new_doc._version += 1
+            stamped = structs_replace(transaction, version=new_doc._version)
             session.notify(
-                NotebookDocumentTransactionNotification(transaction=applied),
+                NotebookDocumentTransactionNotification(transaction=stamped),
                 from_consumer_id=None,
             )
 
@@ -169,17 +199,21 @@ class EditModeReloadStrategy(ReloadStrategy):
             )
 
 
-class RunModeReloadStrategy:
+class RunModeReloadStrategy(ReloadStrategy):
     """Reload strategy for run mode.
 
     In run mode, we simply send a reload operation to the frontend.
     """
 
     def handle_reload(
-        self, session: Session, *, changed_cell_ids: set[CellId_t]
+        self,
+        session: Session,
+        *,
+        transaction: Transaction,
+        changed_cell_ids: set[CellId_t],
     ) -> None:
         """Handle reload in run mode by sending Reload operation."""
-        del changed_cell_ids
+        del transaction, changed_cell_ids
         session.notify(ReloadNotification(), from_consumer_id=None)
 
 
@@ -256,6 +290,11 @@ class FileChangeCoordinator:
             )
             return FileChangeResult(handled=False)
 
+        # Snapshot the document before reload swaps in a fresh App. The
+        # property would otherwise return the post-reload doc by the time
+        # we diff, leaving the strategy with no "before" state to compare.
+        prev_document = session.document
+
         # Reload the file manager to get the latest code
         try:
             changed_cell_ids = session.app_file_manager.reload()
@@ -265,9 +304,15 @@ class FileChangeCoordinator:
             LOGGER.error(f"Error loading file: {e}")
             return FileChangeResult(handled=False, error=str(e))
 
+        transaction = _build_reload_transaction(
+            prev_document, session.app_file_manager.app.cell_manager
+        )
+
         # Delegate to the reload strategy
         self._reload_strategy.handle_reload(
-            session, changed_cell_ids=changed_cell_ids
+            session,
+            transaction=transaction,
+            changed_cell_ids=changed_cell_ids,
         )
         return FileChangeResult(
             handled=True, changed_cell_ids=changed_cell_ids
