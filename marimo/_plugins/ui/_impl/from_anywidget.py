@@ -111,6 +111,60 @@ def _sync_widget_state(widget: AnyWidget) -> None:
             )
 
 
+_WIDGET_REF_PREFIX = "anywidget:"
+
+
+def _try_get_widget_model_id(value: Any) -> str | None:
+    """Return the `_model_id` of a value if it looks like an anywidget.
+
+    Detects two shapes:
+    - ipywidgets-derived `AnyWidget` instances (have `_model_id` set by
+      `init_marimo_widget` on construction).
+    - Protocol-based widgets (RFC 0001) that expose a `MimeBundleDescriptor`
+      with a resolved `model_id`. We don't have a stable hook for those yet,
+      so for now we only catch the ipywidgets path — extending detection to
+      the protocol shape can land alongside `WidgetTrait` support.
+    """
+    model_id = getattr(value, "_model_id", None)
+    if isinstance(model_id, str) and model_id:
+        return model_id
+    return None
+
+
+def _replace_widget_refs(value: Any) -> Any:
+    """Recursively replace nested anywidget instances with `anywidget:<id>`.
+
+    Walks dicts, lists, and tuples so widget refs can live anywhere in the
+    state tree (e.g. `{"layout": {"left": <widget>, "right": None}}`).
+    Any value with an `_model_id` attribute is replaced with the wire-format
+    string the frontend's `host.getWidget(ref)` expects.
+
+    Returns a new container if any replacement occurred, otherwise the
+    original value (so untouched state can pass through without a copy).
+    """
+    model_id = _try_get_widget_model_id(value)
+    if model_id is not None:
+        return f"{_WIDGET_REF_PREFIX}{model_id}"
+    if isinstance(value, dict):
+        replaced = {k: _replace_widget_refs(v) for k, v in value.items()}
+        # Preserve identity when nothing changed — avoids a needless copy
+        # on the hot serialization path for widgets without nested refs.
+        if all(replaced[k] is value[k] for k in value):
+            return value
+        return replaced
+    if isinstance(value, list):
+        replaced_list = [_replace_widget_refs(v) for v in value]
+        if all(a is b for a, b in zip(replaced_list, value)):
+            return value
+        return replaced_list
+    if isinstance(value, tuple):
+        replaced_tuple = tuple(_replace_widget_refs(v) for v in value)
+        if all(a is b for a, b in zip(replaced_tuple, value)):
+            return value
+        return replaced_tuple
+    return value
+
+
 def get_anywidget_state(widget: AnyWidget) -> AnyWidgetState:
     """Get the state of an AnyWidget."""
     # Remove widget-specific system traits not needed for the frontend
@@ -142,7 +196,15 @@ def get_anywidget_state(widget: AnyWidget) -> AnyWidgetState:
     # Filter out system traits from the serialized state
     # This should include the binary data,
     # see marimo/_smoke_tests/issues/2366-anywidget-binary.py
-    return {k: v for k, v in state.items() if k not in ignored_traits}
+    filtered = {k: v for k, v in state.items() if k not in ignored_traits}
+
+    # Replace nested AnyWidget values with `anywidget:<model_id>` strings
+    # so the frontend can resolve them via `host.getWidget(ref)`. Children
+    # already have their comms opened (ipywidgets'
+    # `Widget.on_widget_constructed` fires `init_marimo_widget` on
+    # construction), so the frontend has the model registered by the time
+    # the parent's state arrives.
+    return cast(AnyWidgetState, _replace_widget_refs(filtered))
 
 
 def get_anywidget_model_id(widget: AnyWidget) -> WidgetModelId:
