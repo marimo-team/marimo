@@ -144,23 +144,32 @@ class WidgetBinding<T extends ModelState = ModelState> {
     const widget =
       typeof widgetDef === "function" ? await widgetDef() : widgetDef;
 
-    // Call initialize once per model
-    const cleanup = await widget.initialize?.({ model, experimental });
-    if (cleanup) {
+    // Call initialize once per model. `signal` aborts when the binding is
+    // destroyed (cell re-run, hot-reload, model destroyed) — anywidget>=0.11
+    // widgets prefer this over returning a cleanup callback.
+    const cleanup = await widget.initialize?.({
+      model,
+      experimental,
+      signal: bindingSignal,
+    } as Parameters<NonNullable<typeof widget.initialize>>[0]);
+    if (typeof cleanup === "function") {
       bindingSignal.addEventListener("abort", cleanup);
     }
 
     // Store and return the render closure
     this.#render = async (el: HTMLElement, viewSignal: AbortSignal) => {
+      // `renderSignal` aborts when either the view unmounts or the binding
+      // is destroyed. Pass it to render() so widgets can wire web platform
+      // APIs (addEventListener, fetch) directly to view lifetime.
+      const renderSignal = abortSignalAny([viewSignal, bindingSignal]);
       const renderCleanup = await widget.render?.({
         model,
         el,
         experimental,
-      });
+        signal: renderSignal,
+      } as Parameters<NonNullable<typeof widget.render>>[0]);
       if (renderCleanup) {
-        // Cleanup when either the view unmounts or the binding is destroyed
-        const combined = abortSignalAny([viewSignal, bindingSignal]);
-        combined.addEventListener("abort", () => {
+        renderSignal.addEventListener("abort", () => {
           const reason = viewSignal.aborted
             ? "view unmount"
             : "binding destroyed";
