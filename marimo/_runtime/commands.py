@@ -70,6 +70,26 @@ Primitive = str | bool | int | float
 SerializedCLIArgs = dict[str, ListOrValue[Primitive]]
 
 
+def _user_to_dict(user: Any) -> dict[str, Any]:
+    """Normalize an auth user into a serializable dict.
+
+    Starlette's authentication middleware sets ``request.scope["user"]`` to a
+    ``BaseUser`` instance (commonly ``SimpleUser``). Storing the raw object on
+    ``HTTPRequest.user`` breaks msgspec serialization on the IPC path. Convert
+    to a dict matching the documented contract: "info from authentication
+    middleware (e.g., is_authenticated, username)".
+    """
+    if user is None:
+        return {}
+    if isinstance(user, dict):
+        return user
+    return {
+        "username": getattr(user, "username", ""),
+        "is_authenticated": getattr(user, "is_authenticated", False),
+        "display_name": getattr(user, "display_name", ""),
+    }
+
+
 @dataclass
 class HTTPRequest(Mapping[str, Any]):
     """Serializable HTTP request representation.
@@ -159,7 +179,7 @@ class HTTPRequest(Mapping[str, Any]):
             query_params=query_params,
             path_params=request.path_params,
             cookies=request.cookies,
-            user=request.get("user", {}),
+            user=_user_to_dict(request.get("user")),
             meta=request.get("meta", {}),
             # Left out for now. This may contain information that the app author
             # does not want to expose.
