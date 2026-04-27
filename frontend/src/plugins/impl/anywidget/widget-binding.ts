@@ -6,6 +6,7 @@ import { asRemoteURL } from "@/core/runtime/config";
 import { resolveVirtualFileURL } from "@/core/static/files";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { isTrustedVirtualFileUrl } from "@/plugins/core/trusted-url";
+import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import type { Model } from "./model";
 import type { ModelState, WidgetModelId } from "./types";
@@ -113,6 +114,37 @@ class WidgetBinding<T extends ModelState = ModelState> {
   #controller: AbortController | undefined;
   #widgetDef: AnyWidget<T> | undefined;
   #render: RenderFn | undefined;
+  #exports: unknown;
+  #ready: Deferred<unknown>;
+
+  /**
+   * Resolves with the value returned from `initialize` once it has settled.
+   * If `initialize` returns a cleanup function (legacy) or `void`, this
+   * resolves with `undefined`. If it returns an object (anywidget>=0.11
+   * exports), this resolves with that object.
+   *
+   * On hot-reload re-bind, the previous `ready` is rejected so any awaiters
+   * (e.g. a parent's `host.getWidget()`) unblock instead of holding a stale
+   * snapshot.
+   */
+  get ready(): Promise<unknown> {
+    return this.#ready.promise;
+  }
+
+  /**
+   * The object returned from `initialize`, or `undefined` if `initialize`
+   * returned a cleanup function or nothing. Synchronous mirror of `ready`.
+   */
+  get exports(): unknown {
+    return this.#exports;
+  }
+
+  constructor() {
+    this.#ready = new Deferred<unknown>();
+    // Pre-attach a no-op catch so a re-bind rejection of an unawaited
+    // `ready` doesn't surface as an unhandled rejection.
+    this.#ready.promise.catch(() => undefined);
+  }
 
   /**
    * Bind a widget definition to a model.
@@ -126,14 +158,25 @@ class WidgetBinding<T extends ModelState = ModelState> {
       return this.#render;
     }
 
-    // If widgetDef changed (hot reload), destroy old and re-initialize
-    if (this.#render && this.#widgetDef !== widgetDef) {
+    // If widgetDef changed (hot reload), abort the previous binding even if
+    // its `initialize` is still in flight — checking `#widgetDef` (set at
+    // the start of bind) instead of `#render` (set only after init resolves)
+    // catches the in-flight case.
+    if (this.#widgetDef && this.#widgetDef !== widgetDef) {
       Logger.debug(
         "[WidgetBinding] Hot-reload detected, aborting previous binding",
       );
       this.#controller?.abort();
       this.#controller = undefined;
       this.#render = undefined;
+      this.#exports = undefined;
+      // Reject the old ready so any parent awaiting it unblocks instead of
+      // resolving with stale exports from the previous module.
+      this.#ready.reject(
+        new Error("[anywidget] widget bind aborted by re-bind"),
+      );
+      this.#ready = new Deferred<unknown>();
+      this.#ready.promise.catch(() => undefined);
     }
 
     this.#widgetDef = widgetDef;
@@ -147,14 +190,39 @@ class WidgetBinding<T extends ModelState = ModelState> {
     // Call initialize once per model. `signal` aborts when the binding is
     // destroyed (cell re-run, hot-reload, model destroyed) — anywidget>=0.11
     // widgets prefer this over returning a cleanup callback.
-    const cleanup = await widget.initialize?.({
+    const result = await widget.initialize?.({
       model,
       experimental,
       signal: bindingSignal,
     } as Parameters<NonNullable<typeof widget.initialize>>[0]);
-    if (typeof cleanup === "function") {
-      bindingSignal.addEventListener("abort", cleanup);
+
+    // If the binding was destroyed or re-bound mid-initialize, run any
+    // cleanup callback synchronously and bail out without populating exports
+    // or resolving the (now stale) deferred.
+    if (bindingSignal.aborted) {
+      if (typeof result === "function") {
+        try {
+          await result();
+        } catch (error) {
+          Logger.warn("[WidgetBinding] cleanup after abort threw", error);
+        }
+      }
+      return this.#render ?? (async () => undefined);
     }
+
+    // Distinguish anywidget's three return shapes:
+    //   function → legacy cleanup callback (existing behavior)
+    //   object   → widget exports (anywidget>=0.11)
+    //   void     → nothing
+    if (typeof result === "function") {
+      bindingSignal.addEventListener("abort", result);
+      this.#exports = undefined;
+    } else if (typeof result === "object" && result !== null) {
+      this.#exports = result;
+    } else {
+      this.#exports = undefined;
+    }
+    this.#ready.resolve(this.#exports);
 
     // Store and return the render closure
     this.#render = async (el: HTMLElement, viewSignal: AbortSignal) => {
@@ -195,6 +263,11 @@ class WidgetBinding<T extends ModelState = ModelState> {
     this.#controller = undefined;
     this.#widgetDef = undefined;
     this.#render = undefined;
+    this.#exports = undefined;
+    // Unblock any pending awaiters of `ready` (e.g. a parent's
+    // `host.getWidget()`). Idempotent — Deferred ignores resolve/reject
+    // calls after settlement.
+    this.#ready.reject(new Error("[anywidget] binding destroyed"));
   }
 }
 
