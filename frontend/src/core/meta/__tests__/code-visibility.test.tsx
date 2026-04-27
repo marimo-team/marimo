@@ -35,16 +35,10 @@ function wrap(store: ReturnType<typeof createStore>) {
 const cellsWithCode = [{ code: "x = 1" }, { code: "" }];
 const cellsWithoutCode = [{ code: "" }, { code: "" }];
 
-const originalLocation = window.location;
+const originalHref = window.location.href;
 
 function setSearch(search: string) {
-  // jsdom doesn't allow direct assignment to window.location, so swap the
-  // whole object for the duration of a test.
-  Object.defineProperty(window, "location", {
-    value: { ...originalLocation, search },
-    writable: true,
-    configurable: true,
-  });
+  window.history.replaceState(null, "", `/${search}`);
 }
 
 describe("useNotebookCodeAvailable", () => {
@@ -53,11 +47,7 @@ describe("useNotebookCodeAvailable", () => {
   });
 
   afterEach(() => {
-    Object.defineProperty(window, "location", {
-      value: originalLocation,
-      writable: true,
-      configurable: true,
-    });
+    window.history.replaceState(null, "", originalHref);
   });
 
   it("returns true in edit mode regardless of cells", () => {
