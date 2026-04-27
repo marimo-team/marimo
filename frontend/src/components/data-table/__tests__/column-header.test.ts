@@ -43,7 +43,9 @@ describe("seedFromFilter", () => {
   });
 
   it("ignores non-select filters and falls back to defaults", () => {
-    expect(seedFromFilter(Filter.text({ text: "abc" }))).toEqual({
+    expect(
+      seedFromFilter(Filter.text({ text: "abc", operator: "equals" })),
+    ).toEqual({
       values: [],
       operator: "in",
     });
