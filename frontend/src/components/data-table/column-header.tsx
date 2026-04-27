@@ -523,6 +523,26 @@ const TextFilter = <TData, TValue>({
   );
 };
 
+/**
+ * Seed the filter-by-values picker from a column's existing filter value.
+ *
+ * Reopening the picker should reflect what's already applied. Only `select`
+ * filters carry checkbox-style values; other filter shapes (number, text,
+ * etc.) seed an empty list.
+ */
+export function seedFromFilter(value: ColumnFilterValue | undefined): {
+  values: unknown[];
+  operator: Extract<OperatorType, "in" | "not_in">;
+} {
+  if (value && "type" in value && value.type === "select") {
+    return {
+      values: [...value.options],
+      operator: value.operator === "not_in" ? "not_in" : "in",
+    };
+  }
+  return { values: [], operator: "in" };
+}
+
 const PopoverFilterByValues = <TData, TValue>({
   setIsFilterValueOpen,
   calculateTopKRows,
@@ -532,18 +552,12 @@ const PopoverFilterByValues = <TData, TValue>({
   calculateTopKRows?: CalculateTopKRows;
   column: Column<TData, TValue>;
 }) => {
-  // Seed local state from the column's existing filter so reopening the
-  // picker reflects what's already applied. Preserve `not_in` when present;
-  // otherwise default to `in`.
-  const existing = column.getFilterValue() as ColumnFilterValue | undefined;
-  const isSelectFilter =
-    existing && "type" in existing && existing.type === "select";
-  const seededOperator: Extract<OperatorType, "in" | "not_in"> =
-    isSelectFilter && existing.operator === "not_in" ? "not_in" : "in";
-  const seededValues = isSelectFilter ? existing.options : [];
+  const seed = seedFromFilter(
+    column.getFilterValue() as ColumnFilterValue | undefined,
+  );
 
   const [chosenValues, setChosenValues] = useState<Set<unknown>>(
-    () => new Set(seededValues),
+    () => new Set(seed.values),
   );
 
   const handleApply = () => {
@@ -554,7 +568,7 @@ const PopoverFilterByValues = <TData, TValue>({
     column.setFilterValue(
       Filter.select({
         options: [...chosenValues],
-        operator: seededOperator,
+        operator: seed.operator,
       }),
     );
   };
