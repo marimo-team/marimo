@@ -234,19 +234,43 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     this.#comm.sendUpdate(partialData);
   }
 
-  on(eventName: string, callback: EventHandler): void {
+  /**
+   * Register an event listener.
+   *
+   * Passing `signal` ties the listener's lifetime to an `AbortSignal` —
+   * when the signal aborts, the listener is auto-removed. This is the
+   * preferred cleanup mechanism (matches the web platform pattern of
+   * `addEventListener({ signal })`) and is what `modelProxy` uses to
+   * scope listeners to view / binding lifetimes.
+   */
+  on(
+    eventName: string,
+    callback: EventHandler,
+    options?: { signal?: AbortSignal },
+  ): void {
+    const signal = options?.signal;
+    if (signal?.aborted) {
+      return;
+    }
     if (!this.#listeners[eventName]) {
       this.#listeners[eventName] = new Set();
     }
     this.#listeners[eventName].add(callback);
+    signal?.addEventListener("abort", () => this.off(eventName, callback), {
+      once: true,
+    });
   }
 
   #emit<K extends keyof T>(event: `change:${K & string}`, value: T[K]) {
-    if (!this.#listeners[event]) {
+    const listeners = this.#listeners[event];
+    if (!listeners) {
       return;
     }
-    const listeners = this.#listeners[event];
-    for (const listener of listeners) {
+    // Snapshot before iterating: a callback may unregister itself
+    // (typical signal-based abort handler calling `model.off`), and a
+    // Set mutated mid-iteration drops the very next element.
+    // oxlint-disable-next-line no-useless-spread -- snapshot is intentional
+    for (const listener of [...listeners]) {
       try {
         listener(value);
       } catch (error) {
@@ -281,7 +305,9 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     if (!listeners) {
       return;
     }
-    for (const listener of listeners) {
+    // Snapshot before iterating: see `#emit` for rationale.
+    // oxlint-disable-next-line no-useless-spread -- snapshot is intentional
+    for (const listener of [...listeners]) {
       try {
         listener(message.content, buffers);
       } catch (error) {
@@ -296,7 +322,9 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     if (!listeners) {
       return;
     }
-    for (const listener of listeners) {
+    // Snapshot before iterating: see `#emit` for rationale.
+    // oxlint-disable-next-line no-useless-spread -- snapshot is intentional
+    for (const listener of [...listeners]) {
       try {
         listener();
       } catch (error) {
