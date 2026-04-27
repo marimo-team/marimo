@@ -97,6 +97,53 @@ describe("isInteractiveTarget", () => {
     expect(isInteractiveTarget(createMouseEvent(marimoEl, cell))).toBe(true);
   });
 
+  it.each(["marimo-lazy", "marimo-routes"])(
+    "returns false when clicking inside a passive content-wrapper UIElement (%s)",
+    (tag) => {
+      const cell = document.createElement("td");
+      const marimoEl = document.createElement("marimo-ui-element");
+      const wrapper = document.createElement(tag);
+      const inner = document.createElement("div");
+      wrapper.append(inner);
+      marimoEl.append(wrapper);
+      cell.append(marimoEl);
+      expect(isInteractiveTarget(createMouseEvent(inner, cell))).toBe(false);
+      expect(isInteractiveTarget(createMouseEvent(wrapper, cell))).toBe(false);
+    },
+  );
+
+  it.each(["marimo-slider", "marimo-button", "marimo-dropdown"])(
+    "returns true when clicking inside an interactive UIElement (%s)",
+    (tag) => {
+      const cell = document.createElement("td");
+      const marimoEl = document.createElement("marimo-ui-element");
+      const widget = document.createElement(tag);
+      const inner = document.createElement("div");
+      widget.append(inner);
+      marimoEl.append(widget);
+      cell.append(marimoEl);
+      expect(isInteractiveTarget(createMouseEvent(inner, cell))).toBe(true);
+    },
+  );
+
+  it("returns true when an interactive UIElement is rendered alongside content wrappers", () => {
+    // Genuinely interactive UIElements have their own <marimo-ui-element>
+    // wrapper, so closest() finds it before reaching the outer content
+    // wrapper's <marimo-ui-element>.
+    const cell = document.createElement("td");
+    const outerUi = document.createElement("marimo-ui-element");
+    const lazy = document.createElement("marimo-lazy");
+    const innerUi = document.createElement("marimo-ui-element");
+    const slider = document.createElement("marimo-slider");
+    const input = document.createElement("input");
+    slider.append(input);
+    innerUi.append(slider);
+    lazy.append(innerUi);
+    outerUi.append(lazy);
+    cell.append(outerUi);
+    expect(isInteractiveTarget(createMouseEvent(input, cell))).toBe(true);
+  });
+
   it("returns false when clicking a non-interactive div", () => {
     const cell = document.createElement("td");
     const wrapper = document.createElement("div");
