@@ -312,7 +312,7 @@ describe("generateColumns", () => {
     expect(cell?.props.className).toContain("center");
   });
 
-  it("should always left-align column headers regardless of text justification", () => {
+  it("should align column headers to match textJustifyColumns", () => {
     const columns = generateColumns({
       rowHeaders: [],
       selection: null,
@@ -330,7 +330,8 @@ describe("generateColumns", () => {
       columnDef: { meta: col.meta },
     });
 
-    // Even with right justification, header is left-aligned with sort + menu buttons
+    // Right-justified column: outer summary wrapper aligns to end, and the
+    // header row uses flex-row-reverse so the title sits at the right edge.
     const { container: rightContainer } = render(
       <TooltipProvider>
         {/* oxlint-disable-next-line typescript/no-explicit-any */}
@@ -345,12 +346,11 @@ describe("generateColumns", () => {
         "[data-testid='data-table-column-menu-button']",
       ),
     ).toBeTruthy();
-    // No flex-row-reverse or items-end on header
-    const rightWrapper = rightContainer.firstElementChild;
-    expect(rightWrapper?.className).not.toContain("items-end");
-    expect(rightWrapper?.className).not.toContain("flex-row-reverse");
+    expect(rightContainer.firstElementChild?.className).toContain("items-end");
+    expect(rightContainer.querySelector(".flex-row-reverse")).toBeTruthy();
 
-    // Same for center-justified column
+    // Center-justified column: outer summary wrapper centers; header row
+    // keeps natural order.
     const { container: centerContainer } = render(
       <TooltipProvider>
         {/* oxlint-disable-next-line typescript/no-explicit-any */}
@@ -365,9 +365,39 @@ describe("generateColumns", () => {
         "[data-testid='data-table-column-menu-button']",
       ),
     ).toBeTruthy();
-    const centerWrapper = centerContainer.firstElementChild;
-    expect(centerWrapper?.className).not.toContain("items-center");
-    expect(centerWrapper?.className).not.toContain("flex-row-reverse");
+    expect(centerContainer.firstElementChild?.className).toContain(
+      "items-center",
+    );
+    expect(centerContainer.querySelector(".flex-row-reverse")).toBeNull();
+  });
+
+  it("should not auto-align numeric column headers without explicit override", () => {
+    const columns = generateColumns({
+      rowHeaders: [],
+      selection: null,
+      fieldTypes,
+    });
+
+    const mockColumn = (col: (typeof columns)[number]) => ({
+      id: col.id,
+      getCanSort: () => true,
+      getCanFilter: () => false,
+      getIsSorted: () => false,
+      getSortIndex: () => -1,
+      getFilterValue: () => undefined,
+      columnDef: { meta: col.meta },
+    });
+
+    // "age" is numeric: cells auto right-align, but the header stays
+    // left-aligned unless the user explicitly opts in via text_justify_columns.
+    const { container } = render(
+      <TooltipProvider>
+        {/* oxlint-disable-next-line typescript/no-explicit-any */}
+        {(columns[1].header as any)({ column: mockColumn(columns[1]) })}
+      </TooltipProvider>,
+    );
+    expect(container.firstElementChild?.className).not.toContain("items-end");
+    expect(container.querySelector(".flex-row-reverse")).toBeNull();
   });
 
   it("should cycle sort button through asc, desc, and clear on clicks", () => {
