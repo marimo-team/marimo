@@ -625,3 +625,176 @@ class TestSortCellIdsBySimilarity:
         manager = CellManager()
         code_map = manager.code_map()
         assert code_map == {}
+
+
+class TestDocumentProperty:
+    """``cell_manager.document`` exposes the underlying NotebookDocument
+    that holds canonical cell state. Identity matters: ``Session.document``
+    is a property that reads through this; consumers diff against the same
+    instance over time.
+    """
+
+    def test_document_is_stable_across_mutations(self) -> None:
+        cm = CellManager()
+        doc = cm.document
+        cm.register_cell(CELL_A, "x = 1", CellConfig())
+        cm.register_cell(CELL_B, "y = 2", CellConfig())
+        assert cm.document is doc
+
+    def test_document_reflects_registered_cells(self) -> None:
+        cm = CellManager()
+        cm.register_cell(CELL_A, "x = 1", CellConfig())
+        cm.register_cell(CELL_B, "y = 2", CellConfig())
+        assert list(cm.document.cell_ids) == [CELL_A, CELL_B]
+
+
+class TestGetCellDataView:
+    """``get_cell_data`` returns a freshly synthesized ``CellData`` view
+    over the stored ``NotebookCell``. The view is read-only by convention:
+    rebinding a field on the returned object must not leak back into the
+    document, since callers commonly use it as a scratch struct.
+    """
+
+    def test_returns_fresh_instance_each_call(self) -> None:
+        cm = CellManager()
+        cm.register_cell(CELL_A, "x = 1", CellConfig())
+        first = cm.get_cell_data(CELL_A)
+        second = cm.get_cell_data(CELL_A)
+        assert first is not None
+        assert second is not None
+        assert first is not second
+
+    def test_rebinding_code_does_not_persist(self) -> None:
+        cm = CellManager()
+        cm.register_cell(CELL_A, "x = 1", CellConfig())
+        view = cm.get_cell_data(CELL_A)
+        assert view is not None
+        view.code = "MUTATED"
+        refreshed = cm.get_cell_data(CELL_A)
+        assert refreshed is not None
+        assert refreshed.code == "x = 1"
+
+    def test_returns_none_for_missing_cell(self) -> None:
+        cm = CellManager()
+        assert cm.get_cell_data(CELL_A) is None
+
+
+class TestReplaceStateFrom:
+    """``_replace_state_from`` is the in-place substitute for
+    ``self = other``. It preserves identity of ``_document`` and
+    ``_compiled_cells`` so external holders of those references — most
+    notably the owning ``Session`` — see the new state without any
+    rebinding.
+    """
+
+    def test_preserves_document_identity(self) -> None:
+        cm = CellManager()
+        cm.register_cell(CELL_A, "x = 1", CellConfig())
+        doc = cm.document
+
+        other = CellManager()
+        other.register_cell(CELL_B, "y = 2", CellConfig())
+        cm._replace_state_from(other)
+
+        assert cm.document is doc
+
+    def test_preserves_compiled_cells_dict_identity(self) -> None:
+        cm = CellManager()
+        cm.register_cell(CELL_A, "x = 1", CellConfig())
+        compiled = cm._compiled_cells
+
+        other = CellManager()
+        other.register_cell(CELL_B, "y = 2", CellConfig())
+        cm._replace_state_from(other)
+
+        assert cm._compiled_cells is compiled
+
+    def test_replaces_cell_list_contents(self) -> None:
+        cm = CellManager()
+        cm.register_cell(CELL_A, "x = 1", CellConfig())
+
+        other = CellManager()
+        other.register_cell(CELL_B, "y = 2", CellConfig())
+        other.register_cell(CELL_C, "z = 3", CellConfig())
+        cm._replace_state_from(other)
+
+        assert list(cm.cell_ids()) == [CELL_B, CELL_C]
+        assert cm.get_cell_code(CELL_A) is None
+
+    def test_unions_seen_ids_no_narrowing(self) -> None:
+        cm = CellManager()
+        cm.seen_ids.add(CELL_A)
+        # CELL_A is in cm.seen_ids; CELL_B is not.
+
+        other = CellManager()
+        other.seen_ids.add(CELL_B)
+        # other.seen_ids has CELL_B but not CELL_A.
+
+        cm._replace_state_from(other)
+
+        # Union: both are remembered. Generating new ids later should
+        # not collide because seen_ids guards against id reuse.
+        assert CELL_A in cm.seen_ids
+        assert CELL_B in cm.seen_ids
+
+    def test_carries_unparsable_flag(self) -> None:
+        cm = CellManager()
+        assert cm.unparsable is False
+
+        other = CellManager()
+        other.unparsable = True
+        cm._replace_state_from(other)
+
+        assert cm.unparsable is True
+
+
+class TestSortCellIdsByCompiledCells:
+    """``sort_cell_ids_by_similarity`` rekeys ``_compiled_cells`` in
+    lockstep with the document's cell ids. This matters because lookups
+    in ``cell_data()`` join the two by id; drift between them surfaces as
+    "cell exists but has no compiled form" or vice versa.
+    """
+
+    def test_compiled_cells_dict_keys_track_new_ids(self) -> None:
+        prev = CellManager()
+        prev.register_cell(CELL_A, "x = 1", CellConfig())
+
+        curr = CellManager()
+        curr.register_cell(CELL_X, "x = 1", CellConfig())
+        compiled_cell = Cell(
+            _name="cell", _cell=compile_cell("x = 1", cell_id=CELL_X)
+        )
+        curr._compiled_cells[CELL_X] = compiled_cell
+
+        curr.sort_cell_ids_by_similarity(prev)
+
+        # CELL_X was rekeyed to CELL_A (matching code); the compiled
+        # sidecar follows.
+        assert list(curr.cell_ids()) == [CELL_A]
+        assert curr._compiled_cells.get(CELL_A) is compiled_cell
+        assert CELL_X not in curr._compiled_cells
+
+    @pytest.mark.xfail(
+        reason=(
+            "Latent: the inner Cell._cell.cell_id is set at compile time "
+            "and is not rekeyed when sort_cell_ids_by_similarity remaps "
+            "the dict key. Tracked separately."
+        ),
+        strict=True,
+    )
+    def test_inner_cell_id_tracks_outer_key(self) -> None:
+        prev = CellManager()
+        prev.register_cell(CELL_A, "x = 1", CellConfig())
+
+        curr = CellManager()
+        curr.register_cell(CELL_X, "x = 1", CellConfig())
+        curr._compiled_cells[CELL_X] = Cell(
+            _name="cell", _cell=compile_cell("x = 1", cell_id=CELL_X)
+        )
+
+        curr.sort_cell_ids_by_similarity(prev)
+
+        outer_id = next(iter(curr.cell_ids()))
+        compiled = curr._compiled_cells[outer_id]
+        assert compiled is not None
+        assert compiled._cell.cell_id == outer_id

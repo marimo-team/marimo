@@ -19,6 +19,7 @@ from marimo._ast.app import (
     InternalApp,
 )
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.cell import CellConfig
 from marimo._ast.cell_id import is_external_cell_id
 from marimo._ast.errors import (
     CycleError,
@@ -936,12 +937,12 @@ class TestApp:
         original_cell_ids = list(original_internal.cell_manager.cell_ids())
         cloned_cell_ids = list(cloned_internal.cell_manager.cell_ids())
 
-        original_cell = original_internal.cell_manager.cell_data_at(
+        original_cell = original_internal.cell_manager._cell_data[
             original_cell_ids[0]
-        ).cell
-        cloned_cell = cloned_internal.cell_manager.cell_data_at(
+        ].cell
+        cloned_cell = cloned_internal.cell_manager._cell_data[
             cloned_cell_ids[0]
-        ).cell
+        ].cell
 
         assert original_cell is not None
         assert cloned_cell is not None
@@ -1566,7 +1567,7 @@ class TestAppComposition:
         with app1.setup:
             x = 1
 
-        setup_cell = app1._cell_manager.get_cell_data(setup_cell_id)
+        setup_cell = app1._cell_manager._cell_data.get(setup_cell_id)
         assert setup_cell is not None
         assert setup_cell.config.hide_code is False
 
@@ -1575,7 +1576,7 @@ class TestAppComposition:
         with app2.setup():
             x2 = 1
 
-        setup_cell = app2._cell_manager.get_cell_data(setup_cell_id)
+        setup_cell = app2._cell_manager._cell_data.get(setup_cell_id)
         assert setup_cell is not None
         assert setup_cell.config.hide_code is False
 
@@ -1584,7 +1585,7 @@ class TestAppComposition:
         with app3.setup(hide_code=True):
             y = 2
 
-        setup_cell = app3._cell_manager.get_cell_data(setup_cell_id)
+        setup_cell = app3._cell_manager._cell_data.get(setup_cell_id)
         assert setup_cell is not None
         assert setup_cell.config.hide_code is True
 
@@ -1593,7 +1594,7 @@ class TestAppComposition:
         with app4.setup(hide_code=False):
             z = 3
 
-        setup_cell = app4._cell_manager.get_cell_data(setup_cell_id)
+        setup_cell = app4._cell_manager._cell_data.get(setup_cell_id)
         assert setup_cell is not None
         assert setup_cell.config.hide_code is False
 
@@ -1711,6 +1712,116 @@ class TestAppComposition:
         setup_cell_ids = [cid for cid in cell_ids if cid.endswith(SETUP_CELL_NAME)]
         assert len(setup_cell_ids) == 1
         assert is_external_cell_id(setup_cell_ids[0])
+
+
+class TestInternalAppWithData:
+    """``InternalApp.with_data`` rewrites the cell list from the
+    frontend's snapshot during the save round-trip. It must mutate the
+    existing cell manager in place — Session holds
+    ``app.cell_manager.document`` as a property, so swapping in a fresh
+    manager would orphan ``session.document``.
+    """
+
+    def test_preserves_cell_manager_identity(self) -> None:
+        app = App()
+
+        @app.cell
+        def _():
+            x = 1
+            return (x,)
+
+        internal_app = InternalApp(app)
+        cell_manager = internal_app.cell_manager
+        cell_ids = list(cell_manager.cell_ids())
+        codes = list(cell_manager.codes())
+        names = list(cell_manager.names())
+        configs = list(cell_manager.configs())
+
+        internal_app.with_data(
+            cell_ids=cell_ids,
+            codes=[c + "  # edited" for c in codes],
+            names=names,
+            configs=configs,
+        )
+
+        assert internal_app.cell_manager is cell_manager
+
+    def test_preserves_document_identity(self) -> None:
+        app = App()
+
+        @app.cell
+        def _():
+            x = 1
+            return (x,)
+
+        internal_app = InternalApp(app)
+        document = internal_app.cell_manager.document
+        cell_ids = list(internal_app.cell_manager.cell_ids())
+        codes = list(internal_app.cell_manager.codes())
+        names = list(internal_app.cell_manager.names())
+        configs = list(internal_app.cell_manager.configs())
+
+        internal_app.with_data(
+            cell_ids=cell_ids,
+            codes=[c + "  # edited" for c in codes],
+            names=names,
+            configs=configs,
+        )
+
+        assert internal_app.cell_manager.document is document
+
+    def test_carries_compiled_cells_for_surviving_ids(self) -> None:
+        app = App()
+
+        @app.cell
+        def _():
+            x = 1
+            return (x,)
+
+        internal_app = InternalApp(app)
+        cell_id = next(iter(internal_app.cell_manager.cell_ids()))
+        original_compiled = internal_app.cell_manager._compiled_cells[
+            cell_id
+        ]
+        assert original_compiled is not None
+
+        internal_app.with_data(
+            cell_ids=[cell_id],
+            codes=["x = 2  # renamed-only-here"],
+            names=["__"],
+            configs=[CellConfig()],
+        )
+
+        # Same cell id survived, so the compiled sidecar is preserved.
+        # (The save round-trip doesn't recompile; that happens in the
+        # kernel after the save lands.)
+        assert (
+            internal_app.cell_manager._compiled_cells[cell_id]
+            is original_compiled
+        )
+
+    def test_writes_new_codes_and_names(self) -> None:
+        app = App()
+
+        @app.cell
+        def _():
+            x = 1
+            return (x,)
+
+        internal_app = InternalApp(app)
+        cell_id = next(iter(internal_app.cell_manager.cell_ids()))
+
+        internal_app.with_data(
+            cell_ids=[cell_id],
+            codes=["x = 99"],
+            names=["renamed"],
+            configs=[CellConfig()],
+        )
+
+        cd = internal_app.cell_manager.get_cell_data(cell_id)
+        assert cd is not None
+        assert cd.code == "x = 99"
+        assert cd.name == "renamed"
 
 
 class TestInternalAppOverrides:

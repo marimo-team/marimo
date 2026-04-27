@@ -419,6 +419,22 @@ class TestVersion:
         assert doc.version == 1
         assert applied.version == 1
 
+    def test_replace_cells_bumps_version(self) -> None:
+        doc = _doc("a", "b")
+        starting = doc.version
+        doc._replace_cells([_cell("c"), _cell("d")])
+        assert doc.version == starting + 1
+
+    def test_replace_cells_preserves_document_identity(self) -> None:
+        doc = _doc("a")
+        new_cells = [_cell("b"), _cell("c")]
+        doc._replace_cells(new_cells)
+        assert _ids(doc) == ["b", "c"]
+        # Reassigning the cells list — not mutating in place — lets prior
+        # holders (e.g. file-watch diff path) keep a snapshot of the
+        # pre-rebuild state for comparison.
+        assert doc._cells is new_cells
+
 
 # ------------------------------------------------------------------
 # Combined ops
