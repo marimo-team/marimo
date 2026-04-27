@@ -181,3 +181,29 @@ def test_from_request_user_already_dict_passthrough():
         "username": "bob",
         "is_authenticated": True,
     }
+
+
+def test_command_msgspec_json_decode_command_with_http_request():
+    """Regression for the Pyodide path: ``parse_dataclass`` builds a
+    ``msgspec.json`` decoder for any Command containing an ``HTTPRequest``
+    field. msgspec.json rejects unions with two array-like members, so
+    ``Encodable`` must avoid e.g. ``list | tuple`` simultaneously.
+    """
+    from marimo._runtime.commands import ExecuteCellCommand
+
+    # NB: ``Command`` uses ``rename="camel"``, but ``HTTPRequest`` is a
+    # plain ``@dataclass`` whose fields stay snake_case on the wire.
+    payload = (
+        b'{"type":"execute-cell","cellId":"c1","code":"x=1","request":'
+        b'{"url":{"path":"/x"},"base_url":{},"headers":{},'
+        b'"query_params":{},"path_params":{},"cookies":{},"meta":{},'
+        b'"user":{"username":"u","is_authenticated":true,"display_name":"u"}}}'
+    )
+    cmd = msgspec.json.decode(payload, type=ExecuteCellCommand)
+    assert cmd.cell_id == "c1"
+    assert cmd.request is not None
+    assert cmd.request["user"] == {
+        "username": "u",
+        "is_authenticated": True,
+        "display_name": "u",
+    }

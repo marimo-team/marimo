@@ -129,7 +129,7 @@ class HTTPRequest(Mapping[str, Any]):
     path_params: dict[str, Encodable]
     cookies: dict[str, str]
     meta: dict[str, Encodable]  # User-defined storage
-    user: dict[str, Encodable]
+    user: Encodable
 
     # We don't include session or auth because they may contain
     # information that the app author does not want to expose.
