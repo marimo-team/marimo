@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Union
 
 # Values that round-trip through the IPC msgspec encoder.
-# The recursive type defintion breaks msgspec, but mypy is able to handle it and
+# The recursive type definition breaks msgspec, but mypy is able to handle it and
 # give us some garuntees.
 if TYPE_CHECKING:
     import msgspec
