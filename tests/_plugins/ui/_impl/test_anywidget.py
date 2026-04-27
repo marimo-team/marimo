@@ -507,6 +507,82 @@ x = as_marimo_element.count
         assert "_view_name" not in state
 
     @staticmethod
+    async def test_nested_widget_serializes_as_anywidget_ref() -> None:
+        """A widget-valued trait should produce `anywidget:<id>` on the wire.
+
+        Composition (RFC 0001): the parent's frontend `render` calls
+        `host.getWidget(model.get("child"))` which expects this format.
+        """
+
+        class Child(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            value = traitlets.Int(0).tag(sync=True)
+
+        class Parent(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            child = traitlets.Instance(Child, allow_none=True).tag(sync=True)
+
+        child = Child(value=7)
+        parent = Parent(child=child)
+
+        state = get_anywidget_state(parent)
+        assert state["child"] == f"anywidget:{child._model_id}"
+
+    @staticmethod
+    async def test_nested_widget_in_dict_serializes_as_ref() -> None:
+        class Child(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+
+        class Parent(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            # Avoid the name `layout` — it's a reserved ipywidgets system
+            # trait that `get_anywidget_state` filters out.
+            slots = traitlets.Dict().tag(sync=True)
+
+        left = Child()
+        right = Child()
+        parent = Parent(slots={"left": left, "right": right, "gap": 8})
+
+        state = get_anywidget_state(parent)
+        assert state["slots"] == {
+            "left": f"anywidget:{left._model_id}",
+            "right": f"anywidget:{right._model_id}",
+            "gap": 8,
+        }
+
+    @staticmethod
+    async def test_nested_widget_in_list_serializes_as_ref() -> None:
+        class Child(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+
+        class Parent(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            items = traitlets.List().tag(sync=True)
+
+        c1 = Child()
+        c2 = Child()
+        parent = Parent(items=[c1, "spacer", c2])
+
+        state = get_anywidget_state(parent)
+        assert state["items"] == [
+            f"anywidget:{c1._model_id}",
+            "spacer",
+            f"anywidget:{c2._model_id}",
+        ]
+
+    @staticmethod
+    async def test_state_without_widgets_passes_through() -> None:
+        """Walker should not change values when nothing is a widget."""
+
+        class Plain(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            data = traitlets.Dict().tag(sync=True)
+
+        widget = Plain(data={"a": 1, "b": [2, 3], "c": {"d": "x"}})
+        state = get_anywidget_state(widget)
+        assert state["data"] == {"a": 1, "b": [2, 3], "c": {"d": "x"}}
+
+    @staticmethod
     async def test_partial_state_updates() -> None:
         class MultiTraitWidget(_anywidget.AnyWidget):
             _esm = ""
