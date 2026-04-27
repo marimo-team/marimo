@@ -540,7 +540,8 @@ class CellManager:
         rebuilds are expressed as diff Transactions.
         """
         self._document._replace_cells(list(other._document._cells))
-        self._compiled_cells = dict(other._compiled_cells)
+        self._compiled_cells.clear()
+        self._compiled_cells.update(other._compiled_cells)
         self.unparsable = other.unparsable
         self._cell_id_generator.seen_ids |= other._cell_id_generator.seen_ids
 
