@@ -115,19 +115,52 @@ _WIDGET_REF_PREFIX = "anywidget:"
 
 
 def _try_get_widget_model_id(value: Any) -> str | None:
-    """Return the `_model_id` of a value if it looks like an anywidget.
+    """Return the model id of a value if it looks like an anywidget.
 
     Detects two shapes:
-    - ipywidgets-derived `AnyWidget` instances (have `_model_id` set by
-      `init_marimo_widget` on construction).
-    - Protocol-based widgets (RFC 0001) that expose a `MimeBundleDescriptor`
-      with a resolved `model_id`. We don't have a stable hook for those yet,
-      so for now we only catch the ipywidgets path — extending detection to
-      the protocol shape can land alongside `WidgetTrait` support.
+
+    1. ipywidgets-derived ``AnyWidget`` instances. These have ``model_id``
+       set eagerly because marimo registers ``init_marimo_widget`` via
+       ``Widget.on_widget_constructed``, so the comm is already open by
+       the time the parent serializes its state.
+    2. Protocol-based widgets (RFC 0001) — plain classes / dataclasses /
+       pydantic models / msgspec structs — that put a
+       ``MimeBundleDescriptor`` at ``_repr_mimebundle_``. Touching the
+       attribute triggers the descriptor's ``__get__``, which spins up
+       the comm if it hasn't been opened yet. This is exactly the side
+       effect we want when a child is assigned to a parent's trait but
+       never displayed standalone.
     """
-    model_id = getattr(value, "_model_id", None)
+    # ipywidgets path. `model_id` is a property that returns the comm id;
+    # `init_marimo_widget` ensures the comm is open at construction.
+    model_id = getattr(value, "model_id", None)
     if isinstance(model_id, str) and model_id:
         return model_id
+    # Protocol path. Imported lazily so this module doesn't hard-depend
+    # on the `_descriptor` private path; older anywidget versions without
+    # it just skip protocol detection.
+    try:
+        from anywidget._descriptor import (  # type: ignore[import-not-found]
+            MimeBundleDescriptor,
+            ReprMimeBundle,
+        )
+    except ImportError:
+        return None
+    bundle = getattr(value, "_repr_mimebundle_", None)
+    # Defensive: when accessed on a class (not an instance) the descriptor
+    # returns itself; force `__get__` so we always end up with a bundle.
+    if isinstance(bundle, MimeBundleDescriptor):
+        bundle = bundle.__get__(value, type(value))
+    if isinstance(bundle, ReprMimeBundle):
+        # Post-RFC 0001 anywidget exposes `model_id` directly. Older
+        # versions only expose the underlying comm; fall back to its id
+        # so this code keeps working against shipped anywidget too.
+        bundle_id = getattr(bundle, "model_id", None)
+        if not isinstance(bundle_id, str) or not bundle_id:
+            comm = getattr(bundle, "_comm", None)
+            bundle_id = getattr(comm, "comm_id", None)
+        if isinstance(bundle_id, str) and bundle_id:
+            return bundle_id
     return None
 
 

@@ -583,6 +583,43 @@ x = as_marimo_element.count
         assert state["data"] == {"a": 1, "b": [2, 3], "c": {"d": "x"}}
 
     @staticmethod
+    async def test_protocol_widget_serializes_as_anywidget_ref() -> None:
+        """RFC 0001 protocol widgets — plain classes with a
+        `MimeBundleDescriptor` for `_repr_mimebundle_` — should be detected
+        and serialized the same way as ipywidgets-derived AnyWidget."""
+        from dataclasses import dataclass
+
+        from anywidget._descriptor import MimeBundleDescriptor
+
+        @dataclass
+        class ProtocolChild:
+            value: int = 0
+            # Dataclass autodetect lets the descriptor expose `value` as
+            # synced state without a manual `_get_anywidget_state` method.
+            _repr_mimebundle_ = MimeBundleDescriptor(_esm="")
+
+        class Parent(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            child = traitlets.Any(allow_none=True).tag(sync=True)
+
+        protocol_child = ProtocolChild(value=7)
+        # Important: do NOT touch `_repr_mimebundle_` first — the walker
+        # must trigger comm creation itself. Otherwise the test isn't
+        # exercising the lazy-init path that protocol widgets rely on.
+        parent = Parent(child=protocol_child)
+        state = get_anywidget_state(parent)
+
+        ref = state["child"]
+        assert isinstance(ref, str)
+        assert ref.startswith("anywidget:")
+        # The id baked into the ref should match the live bundle's id.
+        # `model_id` lands on `ReprMimeBundle` in anywidget>=0.11; older
+        # versions only expose the underlying comm.
+        bundle = protocol_child._repr_mimebundle_
+        expected_id = getattr(bundle, "model_id", None) or bundle._comm.comm_id
+        assert ref == f"anywidget:{expected_id}"
+
+    @staticmethod
     async def test_partial_state_updates() -> None:
         class MultiTraitWidget(_anywidget.AnyWidget):
             _esm = ""
