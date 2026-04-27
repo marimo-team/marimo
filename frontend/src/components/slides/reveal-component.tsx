@@ -9,7 +9,7 @@ import {
   Fragment as ReactFragment,
 } from "react";
 import useEvent from "react-use-event-hook";
-import { ExpandIcon, EyeOffIcon, PencilIcon } from "lucide-react";
+import { CodeIcon, ExpandIcon, EyeOffIcon } from "lucide-react";
 import { Deck, Fragment, Slide, Stack } from "@revealjs/react";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { Button } from "@/components/ui/button";
@@ -35,8 +35,12 @@ import {
   DEFAULT_SLIDE_TYPE,
   SlideSidebar,
 } from "./slide-form";
-import { SlideCellView } from "@/components/slides/slide-cell-view";
+import {
+  SlideCellView,
+  SlideCellReadOnlyView,
+} from "@/components/slides/slide-cell-view";
 import { cn } from "@/utils/cn";
+import { isIslands } from "@/core/islands/utils";
 import type { AppMode } from "@/core/mode";
 
 const ASPECT_RATIO = 16 / 9;
@@ -122,9 +126,11 @@ function triggerResize(deck: RevealApi | null) {
 const SubslideView = ({
   subslide,
   showCode,
+  isEditable,
 }: {
   subslide: ComposedSubslide<RuntimeCell>;
   showCode: boolean;
+  isEditable: boolean;
 }) => (
   <Slide>
     <div className="h-full w-full overflow-auto flex">
@@ -137,18 +143,23 @@ const SubslideView = ({
         }}
       >
         {subslide.blocks.map((block, i) => {
-          const rendered = block.cells.map((cell) =>
-            showCode ? (
+          const rendered = block.cells.map((cell) => {
+            if (!showCode) {
+              return (
+                <CellOutputSlide
+                  key={cell.id}
+                  cellId={cell.id}
+                  status={cell.status}
+                  output={cell.output}
+                />
+              );
+            }
+            return isEditable ? (
               <SlideCellView key={cell.id} cell={cell} />
             ) : (
-              <CellOutputSlide
-                key={cell.id}
-                cellId={cell.id}
-                status={cell.status}
-                output={cell.output}
-              />
-            ),
-          );
+              <SlideCellReadOnlyView key={cell.id} cell={cell} />
+            );
+          });
           if (block.isFragment) {
             return (
               <Fragment key={i} as="div">
@@ -190,7 +201,7 @@ const RevealSlidesComponent = ({
   const { width, height } = useSlideDimensions(containerRef);
 
   const [showCode, setShowCode] = useState(false);
-  const codeToggleEnabled = isEditable;
+  const codeToggleEnabled = !isIslands();
   const codeShown = codeToggleEnabled && showCode;
 
   const activeCell =
@@ -369,6 +380,7 @@ const RevealSlidesComponent = ({
                     key={h}
                     subslide={stack.subslides[0]}
                     showCode={codeShown && isActive}
+                    isEditable={isEditable}
                   />
                 );
               }
@@ -382,6 +394,7 @@ const RevealSlidesComponent = ({
                         key={v}
                         subslide={sub}
                         showCode={codeShown && isActive}
+                        isEditable={isEditable}
                       />
                     );
                   })}
@@ -427,7 +440,7 @@ const RevealSlidesComponent = ({
                   aria-label={codeShown ? "Hide code" : "Show code"}
                   onClick={toggleShowCode}
                 >
-                  <PencilIcon className="h-4 w-4" />
+                  <CodeIcon className="h-4 w-4" />
                 </Button>
               </Tooltip>
             )}

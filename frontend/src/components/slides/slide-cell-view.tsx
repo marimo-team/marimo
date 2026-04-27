@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
 import { CellEditor } from "@/components/editor/cell/code/cell-editor";
@@ -20,6 +20,8 @@ import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { connectionAtom } from "@/core/network/connection";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
+import { ReadonlyCode } from "../editor/code/readonly-python-code";
+import { languageAdapterFromCode } from "@/core/codemirror/language/extension";
 
 type RuntimeCell = CellRuntimeState & CellData;
 
@@ -135,6 +137,38 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
         outputArea={cellOutputPosition}
       />
       {toolbar}
+    </div>
+  );
+
+  return (
+    <>
+      {cellOutputPosition === "above" && output}
+      {editor}
+      {cellOutputPosition === "below" && output}
+    </>
+  );
+};
+
+export const SlideCellReadOnlyView = ({ cell }: { cell: RuntimeCell }) => {
+  const [userConfig] = useUserConfig();
+  const cellOutputPosition = userConfig.display.cell_output;
+
+  const language = useMemo(() => {
+    const adapter = languageAdapterFromCode(cell.code.trim());
+    return adapter.type === "sql" ? "sql" : "python";
+  }, [cell.code]);
+
+  const output = (
+    <CellOutputSlide
+      cellId={cell.id}
+      status={cell.status}
+      output={cell.output}
+    />
+  );
+
+  const editor = (
+    <div className="marimo-cell">
+      <ReadonlyCode code={cell.code} language={language} showHideCode={false} />
     </div>
   );
 
