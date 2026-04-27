@@ -9,7 +9,7 @@ import {
   TextIcon,
   XIcon,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useLocale } from "react-aria";
 import {
   DropdownMenu,
@@ -22,24 +22,12 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
-import { Logger } from "@/utils/Logger";
 import { capitalize } from "@/utils/strings";
-import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
-import { Checkbox } from "../ui/checkbox";
-import {
-  Command,
-  CommandEmpty,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "../ui/command";
 import { DraggablePopover } from "../ui/draggable-popover";
 import { Input } from "../ui/input";
 import { NumberField } from "../ui/number-field";
@@ -52,8 +40,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { type ColumnFilterForType, Filter } from "./filters";
-import { SentinelCell } from "./sentinel-cell";
+import { FilterByValuesList } from "./filter-by-values-picker";
+import {
+  type ColumnFilterForType,
+  type ColumnFilterValue,
+  Filter,
+} from "./filters";
 import {
   ClearFilterMenuItem,
   FilterButtons,
@@ -66,9 +58,6 @@ import {
   renderSortFilterIcon,
   renderSorts,
 } from "./header-items";
-import { detectSentinel, stringifyUnknownValue } from "./utils";
-
-const TOP_K_ROWS = 30;
 
 interface DataTableColumnHeaderProps<
   TData,
@@ -543,69 +532,19 @@ const PopoverFilterByValues = <TData, TValue>({
   calculateTopKRows?: CalculateTopKRows;
   column: Column<TData, TValue>;
 }) => {
-  const [chosenValues, setChosenValues] = useState<Set<unknown>>(new Set());
-  const [query, setQuery] = useState<string>("");
+  // Seed local state from the column's existing filter so reopening the
+  // picker reflects what's already applied. Preserve `not_in` when present;
+  // otherwise default to `in`.
+  const existing = column.getFilterValue() as ColumnFilterValue | undefined;
+  const isSelectFilter =
+    existing && "type" in existing && existing.type === "select";
+  const seededOperator: Extract<OperatorType, "in" | "not_in"> =
+    isSelectFilter && existing.operator === "not_in" ? "not_in" : "in";
+  const seededValues = isSelectFilter ? existing.options : [];
 
-  const { data, isPending, error } = useAsyncData(async () => {
-    if (!calculateTopKRows) {
-      return null;
-    }
-    const res = await calculateTopKRows({ column: column.id, k: TOP_K_ROWS });
-    return res.data;
-  }, []);
-
-  const filteredData = useMemo(() => {
-    if (!data) {
-      return [];
-    }
-
-    try {
-      return data.filter(([value, _count]) => {
-        // Check if value exists and can be converted to string
-        // Keep null values for filtering
-        return value === undefined
-          ? false
-          : String(value).toLowerCase().includes(query.toLowerCase());
-      });
-    } catch (error_) {
-      Logger.error("Error filtering data", error_);
-      return [];
-    }
-  }, [data, query]);
-
-  let dataTable: React.ReactNode;
-
-  if (isPending) {
-    dataTable = <Spinner size="medium" className="mx-auto mt-12 mb-10" />;
-  }
-
-  if (error) {
-    dataTable = <ErrorBanner error={error} className="my-10 mx-4" />;
-  }
-
-  const handleToggle = (value: unknown) => {
-    setChosenValues((prev) => {
-      const checked = prev.has(value);
-      const newSet = new Set(prev);
-      if (checked) {
-        newSet.delete(value);
-      } else {
-        newSet.add(value);
-      }
-      return newSet;
-    });
-  };
-
-  const handleToggleAll = (checked: boolean) => {
-    if (!data) {
-      return;
-    }
-    if (checked) {
-      setChosenValues(new Set(filteredData.map(([value]) => value)));
-    } else {
-      setChosenValues(new Set());
-    }
-  };
+  const [chosenValues, setChosenValues] = useState<Set<unknown>>(
+    () => new Set(seededValues),
+  );
 
   const handleApply = () => {
     if (chosenValues.size === 0) {
@@ -613,86 +552,12 @@ const PopoverFilterByValues = <TData, TValue>({
       return;
     }
     column.setFilterValue(
-      Filter.select({ options: [...chosenValues], operator: "in" }),
+      Filter.select({
+        options: [...chosenValues],
+        operator: seededOperator,
+      }),
     );
   };
-
-  if (data) {
-    const allChecked = chosenValues.size === filteredData.length;
-
-    dataTable = (
-      <>
-        <Command className="text-sm outline-hidden" shouldFilter={false}>
-          <CommandInput
-            placeholder={`Search among the top ${data.length} values`}
-            autoFocus={true}
-            onValueChange={(value) => setQuery(value.trim())}
-          />
-          <CommandEmpty>No results found.</CommandEmpty>
-          <CommandList className="border-b">
-            {filteredData.length > 0 && (
-              <CommandItem
-                value="__select-all__"
-                className="border-b rounded-none px-3"
-                onSelect={() => handleToggleAll(!allChecked)}
-              >
-                <Checkbox
-                  checked={chosenValues.size === filteredData.length}
-                  aria-label="Select all"
-                  className="mr-3 h-3.5 w-3.5"
-                />
-                <span className="font-bold flex-1">{column.id}</span>
-                <span className="font-bold">Count</span>
-              </CommandItem>
-            )}
-            {filteredData.map(([value, count], rowIndex) => {
-              const isSelected = chosenValues.has(value);
-              const valueString = stringifyUnknownValue({ value });
-              const sentinel = detectSentinel(
-                value,
-                column.columnDef.meta?.dataType,
-              );
-
-              return (
-                <CommandItem
-                  key={rowIndex}
-                  value={valueString}
-                  className="not-last:border-b rounded-none px-3"
-                  onSelect={() => handleToggle(value)}
-                >
-                  <Checkbox
-                    checked={isSelected}
-                    aria-label="Select row"
-                    className="mr-3 h-3.5 w-3.5"
-                  />
-                  <span className="flex-1 overflow-hidden max-h-20 line-clamp-3">
-                    {sentinel ? (
-                      <SentinelCell sentinel={sentinel} />
-                    ) : (
-                      valueString
-                    )}
-                  </span>
-                  <span className="ml-3">{count}</span>
-                </CommandItem>
-              );
-            })}
-          </CommandList>
-          {filteredData.length === TOP_K_ROWS && (
-            <span className="text-xs text-muted-foreground mt-1.5 text-center">
-              Only showing the top {TOP_K_ROWS} values
-            </span>
-          )}
-        </Command>
-        <FilterButtons
-          onApply={handleApply}
-          onClear={() => {
-            setChosenValues(new Set());
-          }}
-          clearButtonDisabled={chosenValues.size === 0}
-        />
-      </>
-    );
-  }
 
   return (
     <DraggablePopover
@@ -709,7 +574,19 @@ const PopoverFilterByValues = <TData, TValue>({
           <XIcon className="h-4 w-4" />
         </Button>
       </PopoverClose>
-      <div className="flex flex-col gap-1.5 py-2">{dataTable}</div>
+      <div className="flex flex-col gap-1.5 py-2">
+        <FilterByValuesList
+          column={column}
+          calculateTopKRows={calculateTopKRows}
+          chosenValues={chosenValues}
+          onChange={(values) => setChosenValues(new Set(values))}
+        />
+        <FilterButtons
+          onApply={handleApply}
+          onClear={() => setChosenValues(new Set())}
+          clearButtonDisabled={chosenValues.size === 0}
+        />
+      </div>
     </DraggablePopover>
   );
 };

@@ -74,7 +74,7 @@ export const FilterByValuesPicker = <TData, TValue>({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0">
-        <PickerBody
+        <FilterByValuesList
           column={column}
           calculateTopKRows={calculateTopKRows}
           chosenValues={chosenValuesSet}
@@ -85,19 +85,22 @@ export const FilterByValuesPicker = <TData, TValue>({
   );
 };
 
-interface PickerBodyProps<TData, TValue> {
+interface FilterByValuesListProps<TData, TValue> {
   column: Column<TData, TValue>;
   calculateTopKRows?: CalculateTopKRows;
   chosenValues: Set<unknown>;
   onChange: (values: unknown[]) => void;
 }
 
-const PickerBody = <TData, TValue>({
+/**
+ * Search + checkbox list that powers the "filter by values" picker.
+ */
+export const FilterByValuesList = <TData, TValue>({
   column,
   calculateTopKRows,
   chosenValues,
   onChange,
-}: PickerBodyProps<TData, TValue>) => {
+}: FilterByValuesListProps<TData, TValue>) => {
   const [query, setQuery] = useState<string>("");
 
   const { data, isPending, error } = useAsyncData(async () => {
