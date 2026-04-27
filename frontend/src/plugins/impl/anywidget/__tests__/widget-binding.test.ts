@@ -316,6 +316,117 @@ describe("WidgetBinding", () => {
     binding.destroy();
     expect(renderProps.signal.aborted).toBe(true);
   });
+
+  it("should expose exports from initialize via `ready` and `exports`", async () => {
+    const exports = { getValue: () => 42 };
+    const widgetDef = {
+      initialize: vi.fn().mockResolvedValue(exports),
+      render: vi.fn(),
+    };
+
+    await binding.bind(widgetDef, model);
+
+    await expect(binding.ready).resolves.toBe(exports);
+    expect(binding.exports).toBe(exports);
+  });
+
+  it("should resolve `ready` with undefined when initialize returns void", async () => {
+    const widgetDef = {
+      initialize: vi.fn(),
+      render: vi.fn(),
+    };
+
+    await binding.bind(widgetDef, model);
+
+    await expect(binding.ready).resolves.toBeUndefined();
+    expect(binding.exports).toBeUndefined();
+  });
+
+  it("should resolve `ready` with undefined when initialize returns a cleanup function", async () => {
+    const cleanup = vi.fn();
+    const widgetDef = {
+      initialize: vi.fn().mockResolvedValue(cleanup),
+      render: vi.fn(),
+    };
+
+    await binding.bind(widgetDef, model);
+
+    await expect(binding.ready).resolves.toBeUndefined();
+    expect(binding.exports).toBeUndefined();
+    // Cleanup is still wired to abort
+    binding.destroy();
+    expect(cleanup).toHaveBeenCalledTimes(1);
+  });
+
+  it("should reject `ready` and re-create it on hot reload", async () => {
+    const widgetDef1 = {
+      initialize: vi.fn().mockResolvedValue({ id: 1 }),
+      render: vi.fn(),
+    };
+    const widgetDef2 = {
+      initialize: vi.fn().mockResolvedValue({ id: 2 }),
+      render: vi.fn(),
+    };
+
+    await binding.bind(widgetDef1, model);
+    const firstReady = binding.ready;
+    await expect(firstReady).resolves.toEqual({ id: 1 });
+
+    await binding.bind(widgetDef2, model);
+    const secondReady = binding.ready;
+
+    expect(secondReady).not.toBe(firstReady);
+    await expect(secondReady).resolves.toEqual({ id: 2 });
+    expect(binding.exports).toEqual({ id: 2 });
+  });
+
+  it("should reject `ready` if hot reload happens while initialize is in flight", async () => {
+    let resolveInit!: (v: object) => void;
+    const widgetDef1 = {
+      initialize: vi.fn().mockReturnValue(
+        new Promise<object>((r) => {
+          resolveInit = r;
+        }),
+      ),
+      render: vi.fn(),
+    };
+    const widgetDef2 = {
+      initialize: vi.fn().mockResolvedValue({ id: 2 }),
+      render: vi.fn(),
+    };
+
+    const bindPromise1 = binding.bind(widgetDef1, model);
+    const firstReady = binding.ready;
+    // Suppress unhandled rejection of the captured promise — we assert it
+    // rejects below.
+    firstReady.catch(() => undefined);
+
+    await binding.bind(widgetDef2, model);
+
+    await expect(firstReady).rejects.toThrow(/aborted by re-bind/);
+
+    // The first widget's initialize eventually resolves but its result is
+    // discarded because the binding signal is aborted.
+    resolveInit({ id: 1 });
+    await bindPromise1;
+    expect(binding.exports).toEqual({ id: 2 });
+  });
+
+  it("should reject `ready` on destroy", async () => {
+    // Don't resolve initialize — simulate a destroy mid-flight.
+    const widgetDef = {
+      initialize: vi.fn().mockReturnValue(new Promise(() => undefined)),
+      render: vi.fn(),
+    };
+
+    void binding.bind(widgetDef, model);
+    const ready = binding.ready;
+    ready.catch(() => undefined);
+
+    binding.destroy();
+
+    await expect(ready).rejects.toThrow(/binding destroyed/);
+  });
 });
 
 describe("BindingManager", () => {
