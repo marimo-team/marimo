@@ -16,13 +16,6 @@ body:
       placeholder: I am hoping to be able to ...
     validations:
       required: true
-  - type: textarea
-    id: suggested-solution
-    attributes:
-      label: Suggested solution
-      description: 'What new feature or behavior would you like to see that would solve your problem? If possible, please provide an example of how the new feature would be used, or how the user experience would change. Thanks!'
-    validations:
-      required: true
   - type: checkboxes
     id: will-submit-pr
     attributes:
@@ -37,7 +30,7 @@ body:
     id: alternative
     attributes:
       label: Alternatives
-      description: "Alternative solutions or features you've considered."
+      description: "Alternatives you've considered."
   - type: textarea
     id: additional-context
     attributes:
