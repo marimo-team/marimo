@@ -47,10 +47,12 @@ df
 
 ```python
 import polars as pl
+import urllib.request
 
-df = pl.read_json(
-"https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
-)
+url = "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
+
+with urllib.request.urlopen(url) as response:
+    df = pl.read_json(response.read())
 df
 ```
 
