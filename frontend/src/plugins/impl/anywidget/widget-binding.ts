@@ -13,6 +13,7 @@ import { isStaticNotebook } from "@/core/static/static-state";
 import { isTrustedVirtualFileUrl } from "@/plugins/core/trusted-url";
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
+import { type Host, createHost } from "./host";
 import type { Model } from "./model";
 import { modelProxy } from "./model-proxy";
 import type { ModelState, WidgetModelId } from "./types";
@@ -258,7 +259,7 @@ class WidgetBinding<T extends ModelState = ModelState> {
    */
   async createView(
     target: { el: HTMLElement },
-    options: { signal: AbortSignal },
+    options: { signal: AbortSignal; host?: Host },
   ): Promise<void> {
     await this.#ready.promise;
     const widget = this.#widget;
@@ -273,11 +274,18 @@ class WidgetBinding<T extends ModelState = ModelState> {
     if (renderSignal.aborted) {
       return;
     }
+    // Each view gets its own `host` scoped to that view's signal — so a
+    // child mounted via `host.getWidget(ref).render({ el })` cascades
+    // teardown when this view tears down, not when the binding does.
+    // Callers (e.g. `host.getWidget`) may pass through a host that's
+    // already scoped to a parent's lifetime; honor that.
+    const host = options.host ?? createHost(renderSignal);
     const renderCleanup = await widget.render({
       model: modelProxy(model, renderSignal),
       el: target.el,
       experimental,
       signal: renderSignal,
+      host,
     } as Parameters<NonNullable<typeof widget.render>>[0]);
     if (renderCleanup) {
       renderSignal.addEventListener("abort", () => {
