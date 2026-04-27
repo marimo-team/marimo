@@ -176,8 +176,8 @@ async function runAnyWidgetModule<T extends AnyWidgetState>(
 
   try {
     const binding = BINDING_MANAGER.getOrCreate(modelId);
-    const render = await binding.bind(widgetDef, model);
-    await render(el, signal);
+    await binding.bind(widgetDef, model);
+    await binding.createView({ el }, { signal });
   } catch (error) {
     Logger.error("Error rendering anywidget", error);
     el.classList.add("text-error");

@@ -131,7 +131,7 @@ describe("WidgetBinding", () => {
     model = new Model<ModelState>({ count: 0 }, createMockComm());
   });
 
-  it("should initialize once and return a render function", async () => {
+  it("should initialize once per bind and run render once per createView", async () => {
     const initCleanup = vi.fn();
     const renderCleanup = vi.fn();
     const widgetDef = {
@@ -139,26 +139,23 @@ describe("WidgetBinding", () => {
       render: vi.fn().mockResolvedValue(renderCleanup),
     };
 
-    const renderFn = await binding.bind(widgetDef, model);
+    await binding.bind(widgetDef, model);
     expect(widgetDef.initialize).toHaveBeenCalledTimes(1);
-    expect(typeof renderFn).toBe("function");
 
-    // Render into an element
     const el = document.createElement("div");
     const controller = new AbortController();
-    await renderFn(el, controller.signal);
+    await binding.createView({ el }, { signal: controller.signal });
     expect(widgetDef.render).toHaveBeenCalledTimes(1);
   });
 
-  it("should return cached render for same widget def", async () => {
+  it("should not re-initialize on a redundant bind with the same widget def", async () => {
     const widgetDef = {
       initialize: vi.fn(),
       render: vi.fn(),
     };
 
-    const render1 = await binding.bind(widgetDef, model);
-    const render2 = await binding.bind(widgetDef, model);
-    expect(render1).toBe(render2);
+    await binding.bind(widgetDef, model);
+    await binding.bind(widgetDef, model);
     // Initialize should only be called once
     expect(widgetDef.initialize).toHaveBeenCalledTimes(1);
   });
@@ -175,10 +172,9 @@ describe("WidgetBinding", () => {
       render: vi.fn(),
     };
 
-    const render1 = await binding.bind(widgetDef1, model);
-    const render2 = await binding.bind(widgetDef2, model);
+    await binding.bind(widgetDef1, model);
+    await binding.bind(widgetDef2, model);
 
-    expect(render1).not.toBe(render2);
     expect(cleanup1).toHaveBeenCalledTimes(1); // Old binding cleaned up
     expect(widgetDef2.initialize).toHaveBeenCalledTimes(1);
   });
@@ -190,10 +186,10 @@ describe("WidgetBinding", () => {
       render: vi.fn().mockResolvedValue(renderCleanup),
     };
 
-    const renderFn = await binding.bind(widgetDef, model);
+    await binding.bind(widgetDef, model);
     const el = document.createElement("div");
     const viewController = new AbortController();
-    await renderFn(el, viewController.signal);
+    await binding.createView({ el }, { signal: viewController.signal });
 
     // Aborting the view signal should trigger render cleanup
     viewController.abort();
@@ -208,10 +204,10 @@ describe("WidgetBinding", () => {
       render: vi.fn().mockResolvedValue(renderCleanup),
     };
 
-    const renderFn = await binding.bind(widgetDef, model);
+    await binding.bind(widgetDef, model);
     const el = document.createElement("div");
     const viewController = new AbortController();
-    await renderFn(el, viewController.signal);
+    await binding.createView({ el }, { signal: viewController.signal });
 
     binding.destroy();
     expect(initCleanup).toHaveBeenCalledTimes(1);
@@ -232,13 +228,12 @@ describe("WidgetBinding", () => {
 
   it("should handle widget with no initialize or render", async () => {
     const widgetDef = {};
-    const renderFn = await binding.bind(widgetDef, model);
-    expect(typeof renderFn).toBe("function");
+    await binding.bind(widgetDef, model);
 
-    // Render should not throw
+    // createView should be a no-op rather than throw
     const el = document.createElement("div");
     const controller = new AbortController();
-    await renderFn(el, controller.signal);
+    await binding.createView({ el }, { signal: controller.signal });
   });
 
   it("should pass an AbortSignal to initialize that aborts on destroy", async () => {
@@ -286,10 +281,10 @@ describe("WidgetBinding", () => {
       render: vi.fn(),
     };
 
-    const renderFn = await binding.bind(widgetDef, model);
+    await binding.bind(widgetDef, model);
     const el = document.createElement("div");
     const viewController = new AbortController();
-    await renderFn(el, viewController.signal);
+    await binding.createView({ el }, { signal: viewController.signal });
 
     const renderProps = widgetDef.render.mock.calls[0][0];
     expect(renderProps.signal).toBeInstanceOf(AbortSignal);
@@ -305,16 +300,65 @@ describe("WidgetBinding", () => {
       render: vi.fn(),
     };
 
-    const renderFn = await binding.bind(widgetDef, model);
+    await binding.bind(widgetDef, model);
     const el = document.createElement("div");
     const viewController = new AbortController();
-    await renderFn(el, viewController.signal);
+    await binding.createView({ el }, { signal: viewController.signal });
 
     const renderProps = widgetDef.render.mock.calls[0][0];
     expect(renderProps.signal.aborted).toBe(false);
 
     binding.destroy();
     expect(renderProps.signal.aborted).toBe(true);
+  });
+
+  it("should auto-clear listeners registered through model when render signal aborts", async () => {
+    // The model passed to render is a `modelProxy` that auto-ties on()
+    // calls to the render signal — so a widget that just calls
+    // model.on(...) without explicit cleanup gets it for free.
+    const cb = vi.fn();
+    const widgetDef = {
+      initialize: vi.fn(),
+      render: vi.fn(({ model: m }) => {
+        m.on("change:count", cb);
+      }),
+    };
+
+    await binding.bind(widgetDef, model);
+    const viewController = new AbortController();
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: viewController.signal },
+    );
+
+    model.set("count", 1);
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    viewController.abort();
+    model.set("count", 2);
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  it("should auto-clear listeners registered through model in initialize on hot reload", async () => {
+    const cb = vi.fn();
+    const widgetDef1 = {
+      initialize: vi.fn(({ model: m }) => {
+        m.on("change:count", cb);
+      }),
+      render: vi.fn(),
+    };
+    const widgetDef2 = {
+      initialize: vi.fn(),
+      render: vi.fn(),
+    };
+
+    await binding.bind(widgetDef1, model);
+    model.set("count", 1);
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    await binding.bind(widgetDef2, model);
+    model.set("count", 2);
+    expect(cb).toHaveBeenCalledTimes(1);
   });
 
   it("should expose exports from initialize via `ready` and `exports`", async () => {

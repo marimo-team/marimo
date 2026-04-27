@@ -1,7 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
-import type { AnyWidget, Experimental } from "@anywidget/types";
+import type {
+  AnyWidget,
+  Experimental,
+  Initialize,
+  Render,
+} from "@anywidget/types";
 import { asRemoteURL } from "@/core/runtime/config";
 import { resolveVirtualFileURL } from "@/core/static/files";
 import { isStaticNotebook } from "@/core/static/static-state";
@@ -9,6 +14,7 @@ import { isTrustedVirtualFileUrl } from "@/plugins/core/trusted-url";
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import type { Model } from "./model";
+import { modelProxy } from "./model-proxy";
 import type { ModelState, WidgetModelId } from "./types";
 
 export const experimental: Experimental = {
@@ -19,8 +25,6 @@ export const experimental: Experimental = {
     throw new Error(message);
   },
 };
-
-export type RenderFn = (el: HTMLElement, signal: AbortSignal) => Promise<void>;
 
 /**
  * Polyfill for AbortSignal.any. Returns a signal that aborts when any of the
@@ -103,17 +107,30 @@ class WidgetDefRegistry {
 }
 
 /**
- * Connects a Model to a resolved AnyWidget definition.
- * Owns the initialize lifecycle and produces a render function.
+ * Resolved widget def — what `initialize` and `render` are actually called
+ * on. `AnyWidget` is either this shape directly or a factory that returns it.
+ */
+interface ResolvedWidget<T extends ModelState> {
+  initialize?: Initialize<T>;
+  render?: Render<T>;
+}
+
+/**
+ * Connects a Model to a resolved AnyWidget definition. Owns the
+ * `initialize` lifecycle and exposes `createView` for mounting one or
+ * more views. A binding may produce many views over its lifetime —
+ * either from the cell's main React mount, or (per anywidget>=0.11)
+ * from a parent's `host.getWidget(ref).render(...)` call.
  *
  * Per AFM spec:
  * - initialize() is called once per model (or once per hot-reload)
- * - render() (the returned function) is called once per view
+ * - render() is called once per view (zero or more per binding)
  */
 class WidgetBinding<T extends ModelState = ModelState> {
   #controller: AbortController | undefined;
   #widgetDef: AnyWidget<T> | undefined;
-  #render: RenderFn | undefined;
+  #widget: ResolvedWidget<T> | undefined;
+  #model: Model<T> | undefined;
   #exports: unknown;
   #ready: Deferred<unknown>;
 
@@ -147,28 +164,26 @@ class WidgetBinding<T extends ModelState = ModelState> {
   }
 
   /**
-   * Bind a widget definition to a model.
-   * If the same def is already bound, returns the cached render function.
-   * If a different def is provided (hot reload), tears down the old binding
-   * and re-initializes.
+   * Bind a widget definition to a model. Idempotent for the same
+   * `(widgetDef, model)` pair. On hot reload (different `widgetDef`), the
+   * previous lifecycle is torn down and `initialize` re-runs.
    */
-  async bind(widgetDef: AnyWidget<T>, model: Model<T>): Promise<RenderFn> {
-    // Already initialized with the same widget - return cached render
-    if (this.#render && this.#widgetDef === widgetDef) {
-      return this.#render;
+  async bind(widgetDef: AnyWidget<T>, model: Model<T>): Promise<void> {
+    // Already initialized with the same widget — nothing to do.
+    if (this.#widgetDef === widgetDef && this.#model === model) {
+      return;
     }
 
     // If widgetDef changed (hot reload), abort the previous binding even if
     // its `initialize` is still in flight — checking `#widgetDef` (set at
-    // the start of bind) instead of `#render` (set only after init resolves)
-    // catches the in-flight case.
+    // the start of bind) catches the in-flight case.
     if (this.#widgetDef && this.#widgetDef !== widgetDef) {
       Logger.debug(
         "[WidgetBinding] Hot-reload detected, aborting previous binding",
       );
       this.#controller?.abort();
       this.#controller = undefined;
-      this.#render = undefined;
+      this.#widget = undefined;
       this.#exports = undefined;
       // Reject the old ready so any parent awaiting it unblocks instead of
       // resolving with stale exports from the previous module.
@@ -180,25 +195,28 @@ class WidgetBinding<T extends ModelState = ModelState> {
     }
 
     this.#widgetDef = widgetDef;
+    this.#model = model;
     this.#controller = new AbortController();
     const bindingSignal = this.#controller.signal;
 
-    // Resolve the widget definition (call if it's a function)
-    const widget =
-      typeof widgetDef === "function" ? await widgetDef() : widgetDef;
+    // Resolve the widget definition (call if it's a factory function).
+    const widget = (
+      typeof widgetDef === "function" ? await widgetDef() : widgetDef
+    ) as ResolvedWidget<T>;
 
     // Call initialize once per model. `signal` aborts when the binding is
-    // destroyed (cell re-run, hot-reload, model destroyed) — anywidget>=0.11
-    // widgets prefer this over returning a cleanup callback.
+    // destroyed (cell re-run, hot-reload, model destroyed). Listeners
+    // registered via `model.on(...)` inside `initialize` are auto-cleared
+    // when `bindingSignal` fires (via `modelProxy`).
     const result = await widget.initialize?.({
-      model,
+      model: modelProxy(model, bindingSignal),
       experimental,
       signal: bindingSignal,
     } as Parameters<NonNullable<typeof widget.initialize>>[0]);
 
     // If the binding was destroyed or re-bound mid-initialize, run any
-    // cleanup callback synchronously and bail out without populating exports
-    // or resolving the (now stale) deferred.
+    // cleanup callback and bail out without populating exports or
+    // resolving the (now stale) deferred.
     if (bindingSignal.aborted) {
       if (typeof result === "function") {
         try {
@@ -207,7 +225,7 @@ class WidgetBinding<T extends ModelState = ModelState> {
           Logger.warn("[WidgetBinding] cleanup after abort threw", error);
         }
       }
-      return this.#render ?? (async () => undefined);
+      return;
     }
 
     // Distinguish anywidget's three return shapes:
@@ -222,34 +240,56 @@ class WidgetBinding<T extends ModelState = ModelState> {
     } else {
       this.#exports = undefined;
     }
+
+    this.#widget = widget;
     this.#ready.resolve(this.#exports);
+  }
 
-    // Store and return the render closure
-    this.#render = async (el: HTMLElement, viewSignal: AbortSignal) => {
-      // `renderSignal` aborts when either the view unmounts or the binding
-      // is destroyed. Pass it to render() so widgets can wire web platform
-      // APIs (addEventListener, fetch) directly to view lifetime.
-      const renderSignal = abortSignalAny([viewSignal, bindingSignal]);
-      const renderCleanup = await widget.render?.({
-        model,
-        el,
-        experimental,
-        signal: renderSignal,
-      } as Parameters<NonNullable<typeof widget.render>>[0]);
-      if (renderCleanup) {
-        renderSignal.addEventListener("abort", () => {
-          const reason = viewSignal.aborted
-            ? "view unmount"
-            : "binding destroyed";
-          Logger.debug(
-            `[WidgetBinding] Render cleanup triggered (reason: ${reason})`,
-          );
-          renderCleanup();
-        });
-      }
-    };
-
-    return this.#render;
+  /**
+   * Mount a view of this widget into `el`. Safe to call many times —
+   * each view has its own combined signal that aborts when either the
+   * caller's `signal` fires or the binding is destroyed. Listeners
+   * registered via `model.on(...)` inside `render` are auto-cleared on
+   * abort (via `modelProxy`).
+   *
+   * Awaits `ready` first so callers can call `createView` before
+   * `bind` has finished `initialize`. If the binding has been destroyed
+   * or re-bound, the awaited `ready` rejects and `createView` throws.
+   */
+  async createView(
+    target: { el: HTMLElement },
+    options: { signal: AbortSignal },
+  ): Promise<void> {
+    await this.#ready.promise;
+    const widget = this.#widget;
+    const model = this.#model;
+    const bindingSignal = this.#controller?.signal;
+    if (!widget?.render || !model || !bindingSignal) {
+      return;
+    }
+    // `renderSignal` aborts when either the caller's view unmounts or
+    // the binding itself is destroyed.
+    const renderSignal = abortSignalAny([options.signal, bindingSignal]);
+    if (renderSignal.aborted) {
+      return;
+    }
+    const renderCleanup = await widget.render({
+      model: modelProxy(model, renderSignal),
+      el: target.el,
+      experimental,
+      signal: renderSignal,
+    } as Parameters<NonNullable<typeof widget.render>>[0]);
+    if (renderCleanup) {
+      renderSignal.addEventListener("abort", () => {
+        const reason = options.signal.aborted
+          ? "view unmount"
+          : "binding destroyed";
+        Logger.debug(
+          `[WidgetBinding] Render cleanup triggered (reason: ${reason})`,
+        );
+        renderCleanup();
+      });
+    }
   }
 
   /**
@@ -262,11 +302,11 @@ class WidgetBinding<T extends ModelState = ModelState> {
     this.#controller?.abort();
     this.#controller = undefined;
     this.#widgetDef = undefined;
-    this.#render = undefined;
+    this.#widget = undefined;
+    this.#model = undefined;
     this.#exports = undefined;
     // Unblock any pending awaiters of `ready` (e.g. a parent's
-    // `host.getWidget()`). Idempotent — Deferred ignores resolve/reject
-    // calls after settlement.
+    // `host.getWidget()`).
     this.#ready.reject(new Error("[anywidget] binding destroyed"));
   }
 }
