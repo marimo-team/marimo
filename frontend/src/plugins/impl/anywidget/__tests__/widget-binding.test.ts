@@ -240,6 +240,82 @@ describe("WidgetBinding", () => {
     const controller = new AbortController();
     await renderFn(el, controller.signal);
   });
+
+  it("should pass an AbortSignal to initialize that aborts on destroy", async () => {
+    const widgetDef = {
+      initialize: vi.fn(),
+      render: vi.fn(),
+    };
+
+    await binding.bind(widgetDef, model);
+
+    expect(widgetDef.initialize).toHaveBeenCalledTimes(1);
+    const initProps = widgetDef.initialize.mock.calls[0][0];
+    expect(initProps.signal).toBeInstanceOf(AbortSignal);
+    expect(initProps.signal.aborted).toBe(false);
+
+    binding.destroy();
+    expect(initProps.signal.aborted).toBe(true);
+  });
+
+  it("should pass an AbortSignal to initialize that aborts on hot reload", async () => {
+    const widgetDef1 = {
+      initialize: vi.fn(),
+      render: vi.fn(),
+    };
+    const widgetDef2 = {
+      initialize: vi.fn(),
+      render: vi.fn(),
+    };
+
+    await binding.bind(widgetDef1, model);
+    const firstSignal = widgetDef1.initialize.mock.calls[0][0].signal;
+    expect(firstSignal.aborted).toBe(false);
+
+    await binding.bind(widgetDef2, model);
+    expect(firstSignal.aborted).toBe(true);
+
+    const secondSignal = widgetDef2.initialize.mock.calls[0][0].signal;
+    expect(secondSignal).not.toBe(firstSignal);
+    expect(secondSignal.aborted).toBe(false);
+  });
+
+  it("should pass a combined AbortSignal to render that aborts on view unmount", async () => {
+    const widgetDef = {
+      initialize: vi.fn(),
+      render: vi.fn(),
+    };
+
+    const renderFn = await binding.bind(widgetDef, model);
+    const el = document.createElement("div");
+    const viewController = new AbortController();
+    await renderFn(el, viewController.signal);
+
+    const renderProps = widgetDef.render.mock.calls[0][0];
+    expect(renderProps.signal).toBeInstanceOf(AbortSignal);
+    expect(renderProps.signal.aborted).toBe(false);
+
+    viewController.abort();
+    expect(renderProps.signal.aborted).toBe(true);
+  });
+
+  it("should pass a render signal that also aborts on binding destroy", async () => {
+    const widgetDef = {
+      initialize: vi.fn(),
+      render: vi.fn(),
+    };
+
+    const renderFn = await binding.bind(widgetDef, model);
+    const el = document.createElement("div");
+    const viewController = new AbortController();
+    await renderFn(el, viewController.signal);
+
+    const renderProps = widgetDef.render.mock.calls[0][0];
+    expect(renderProps.signal.aborted).toBe(false);
+
+    binding.destroy();
+    expect(renderProps.signal.aborted).toBe(true);
+  });
 });
 
 describe("BindingManager", () => {
