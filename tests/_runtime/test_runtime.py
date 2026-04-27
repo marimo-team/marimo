@@ -56,7 +56,7 @@ from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._session.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests._messaging.mocks import MockStderr, MockStream
-from tests.conftest import ExecReqProvider, MockedKernel
+from tests.conftest import ExecReqProvider, MockedKernel, mock_pyodide
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine, Sequence
@@ -1342,14 +1342,10 @@ except NameError:
     @pytest.mark.skipif(
         sys.platform == "win32", reason="Windows paths behave differently"
     )
-    @patch.dict(
-        sys.modules,
-        {
-            "pyodide": Mock(),
-            "js": Mock(
-                location="https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js"
-            ),
-        },
+    @mock_pyodide(
+        js=Mock(
+            location="https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js"
+        ),
     )
     async def test_notebook_location_for_pyodide(
         self, any_kernel: Kernel, exec_req: ExecReqProvider

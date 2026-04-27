@@ -32,14 +32,12 @@ class TestIsWindows:
 
 
 class TestIsPyodide:
-    def test_is_pyodide_when_not_loaded(self) -> None:
-        # By default, pyodide should not be in sys.modules
+    def test_is_pyodide_on_normal_platform(self) -> None:
+        # By default, sys.platform is not emscripten in the test environment
         assert not is_pyodide()
 
-    def test_is_pyodide_when_loaded(self) -> None:
-        with patch(
-            "marimo._utils.platform.sys.modules", {"pyodide": object()}
-        ):
+    def test_is_pyodide_on_emscripten(self) -> None:
+        with patch("marimo._utils.platform.sys.platform", "emscripten"):
             assert is_pyodide()
 
 

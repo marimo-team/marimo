@@ -10,7 +10,7 @@ def is_windows() -> bool:
 
 
 def is_pyodide() -> bool:
-    return "pyodide" in sys.modules
+    return sys.platform == "emscripten"
 
 
 def check_shared_memory_available() -> tuple[bool, str]:
