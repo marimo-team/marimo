@@ -26,7 +26,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Literal, Protocol, overload
+from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, overload
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -1274,15 +1274,17 @@ class AsyncCodeModeContext:
             )
         # Read trusted server URL and auth token injected by the
         # /execute endpoint (from server config, not request headers).
-        server_url: str | None = request.meta.get("screenshot_server_url")
+        server_url = cast(
+            "str | None", request.meta.get("screenshot_server_url")
+        )
         if server_url is None:
             raise ScreenshotError(
                 "Cannot take screenshots: screenshot_server_url not "
                 "found in request.meta.  This endpoint may not "
                 "support screenshots."
             )
-        screenshot_auth_token: str | None = request.meta.get(
-            "screenshot_auth_token"
+        screenshot_auth_token = cast(
+            "str | None", request.meta.get("screenshot_auth_token")
         )
 
         # Lazy-init the screenshot session (browser reuse).
