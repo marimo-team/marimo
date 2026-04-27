@@ -36,11 +36,12 @@ import {
   SlideSidebar,
 } from "./slide-form";
 import {
-  SlideCellView,
   SlideCellReadOnlyView,
+  SlideCellView,
 } from "@/components/slides/slide-cell-view";
 import { cn } from "@/utils/cn";
 import { isIslands } from "@/core/islands/utils";
+import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import type { AppMode } from "@/core/mode";
 
 const ASPECT_RATIO = 16 / 9;
@@ -201,7 +202,8 @@ const RevealSlidesComponent = ({
   const { width, height } = useSlideDimensions(containerRef);
 
   const [showCode, setShowCode] = useState(false);
-  const codeToggleEnabled = !isIslands();
+  const codeAvailable = useNotebookCodeAvailable(cellsWithOutput);
+  const codeToggleEnabled = !isIslands() && codeAvailable;
   const codeShown = codeToggleEnabled && showCode;
 
   const activeCell =
