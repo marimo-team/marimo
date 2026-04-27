@@ -937,12 +937,12 @@ class TestApp:
         original_cell_ids = list(original_internal.cell_manager.cell_ids())
         cloned_cell_ids = list(cloned_internal.cell_manager.cell_ids())
 
-        original_cell = original_internal.cell_manager._cell_data[
+        original_cell = original_internal.cell_manager.cell_data_at(
             original_cell_ids[0]
-        ].cell
-        cloned_cell = cloned_internal.cell_manager._cell_data[
+        ).cell
+        cloned_cell = cloned_internal.cell_manager.cell_data_at(
             cloned_cell_ids[0]
-        ].cell
+        ).cell
 
         assert original_cell is not None
         assert cloned_cell is not None
@@ -1567,7 +1567,7 @@ class TestAppComposition:
         with app1.setup:
             x = 1
 
-        setup_cell = app1._cell_manager._cell_data.get(setup_cell_id)
+        setup_cell = app1._cell_manager.cell_data_at(setup_cell_id)
         assert setup_cell is not None
         assert setup_cell.config.hide_code is False
 
@@ -1576,7 +1576,7 @@ class TestAppComposition:
         with app2.setup():
             x2 = 1
 
-        setup_cell = app2._cell_manager._cell_data.get(setup_cell_id)
+        setup_cell = app2._cell_manager.cell_data_at(setup_cell_id)
         assert setup_cell is not None
         assert setup_cell.config.hide_code is False
 
@@ -1585,7 +1585,7 @@ class TestAppComposition:
         with app3.setup(hide_code=True):
             y = 2
 
-        setup_cell = app3._cell_manager._cell_data.get(setup_cell_id)
+        setup_cell = app3._cell_manager.cell_data_at(setup_cell_id)
         assert setup_cell is not None
         assert setup_cell.config.hide_code is True
 
@@ -1594,7 +1594,7 @@ class TestAppComposition:
         with app4.setup(hide_code=False):
             z = 3
 
-        setup_cell = app4._cell_manager._cell_data.get(setup_cell_id)
+        setup_cell = app4._cell_manager.cell_data_at(setup_cell_id)
         assert setup_cell is not None
         assert setup_cell.config.hide_code is False
 
