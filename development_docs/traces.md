@@ -2,21 +2,69 @@
 
 ## Server traces
 
-For debugging purposes, we emit OpenTelemetry traces from the server. We emit traces to `~/.marimo/traces/spans.jsonl`. We don't emit any sensitive information in the traces, and these traces stay local to your machine. The traces get wiped on each sever restart.
+For debugging purposes, we emit OpenTelemetry traces from the server. By
+default, traces are written to a local JSONL file. When an OTLP endpoint is
+configured, traces are exported via gRPC instead, letting marimo participate in
+distributed tracing stacks such as Jaeger, Grafana Tempo, or GCP Cloud Trace.
 
-You can analyze the traces using tools like Jaeger or Zipkin, or our marimo notebook:
+### Prerequisites
+
+Tracing requires the `otel` extra (or a development install, which includes
+the same packages):
+
+```bash
+pip install "marimo[otel]"
+```
+
+### Enable Traces
+
+Set `MARIMO_TRACING=true` to turn tracing on:
+
+```bash
+MARIMO_TRACING=true marimo run notebook.py
+```
+
+### Local file export (default)
+
+With no additional configuration, spans are written to
+`~/.marimo/traces/spans.jsonl` (the exact path depends on your platform's
+XDG state directory). The file is cleared on each server restart and never
+leaves your machine.
+
+You can analyze local traces with Jaeger, Zipkin, or the bundled notebook:
 
 ```bash
 marimo edit scripts/analyze_traces.py
 ```
 
-### Enable Traces
+### OTLP export
 
-To enable traces, set the `MARIMO_TRACING` environment variable to `true`:
+To export traces to a remote collector, set the standard OpenTelemetry
+environment variables:
 
 ```bash
-MARIMO_TRACING=true ./your_server_command
+MARIMO_TRACING=true \
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
+OTEL_SERVICE_NAME=marimo \
+marimo run notebook.py
 ```
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | gRPC endpoint of an OTLP collector | _(unset — file export)_ |
+| `OTEL_SERVICE_NAME` | `service.name` resource attribute | `marimo` |
+| `OTEL_RESOURCE_ATTRIBUTES` | Comma-separated `key=value` pairs added to the resource | _(empty)_ |
+
+If the gRPC exporter package is not installed, marimo logs a warning and falls
+back to the local file exporter.
+
+### Distributed trace propagation
+
+The `OpenTelemetryMiddleware` extracts incoming W3C `traceparent` headers, so
+when another service calls marimo (e.g., via the MCP HTTP endpoint), the
+resulting spans are linked as children of the caller's trace. No extra
+configuration is needed — propagation works automatically whenever tracing is
+enabled.
 
 ## Profiling the kernel
 

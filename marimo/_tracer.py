@@ -83,6 +83,19 @@ class MockTracer:
 TRACE_FILENAME = os.path.join("traces", "spans.jsonl")
 
 
+def _build_resource() -> Any:
+    """Build an OTel Resource from standard OTEL_* environment variables."""
+    from opentelemetry.sdk.resources import Resource
+
+    service_name = os.environ.get("OTEL_SERVICE_NAME", "marimo")
+    attrs: dict[str, str] = {"service.name": service_name}
+    for pair in os.environ.get("OTEL_RESOURCE_ATTRIBUTES", "").split(","):
+        if "=" in pair:
+            k, v = pair.split("=", 1)
+            attrs[k.strip()] = v.strip()
+    return Resource.create(attrs)
+
+
 def _set_tracer_provider() -> None:
     if is_pyodide() or GLOBAL_SETTINGS.TRACING is False:
         return
@@ -103,37 +116,63 @@ def _set_tracer_provider() -> None:
     except Exception:
         return
 
-    class FileExporter(SpanExporter):
-        def __init__(self, file_path: Path) -> None:
-            self.file_path = file_path
-            # Clear file
-            self.file_path.write_bytes(b"")
+    otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
 
-        def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
-            try:
-                with self.file_path.open("a", encoding="utf-8") as f:
-                    for span in spans:
-                        f.write(span.to_json(cast(Any, None)))
-                        f.write("\n")
-                return SpanExportResult.SUCCESS
-            except Exception as e:
-                LOGGER.exception(e)
-                return SpanExportResult.FAILURE
+    if otlp_endpoint:
+        try:
+            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+                OTLPSpanExporter,
+            )
+        except ImportError:
+            LOGGER.warning(
+                "opentelemetry-exporter-otlp-proto-grpc not installed; "
+                "install marimo[otel] for OTLP export. Falling back to file export.",
+            )
+            otlp_endpoint = None
 
-        def shutdown(self) -> None:
-            pass
+    if otlp_endpoint:
+        resource = _build_resource()
+        provider = TracerProvider(resource=resource)
+        provider.add_span_processor(
+            BatchSpanProcessor(
+                OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True),
+            ),
+        )
+        LOGGER.debug(
+            "OTel tracer: OTLP export to %s",
+            otlp_endpoint,
+        )
+    else:
 
-    # Create a directory for logs if it doesn't exist
-    config_ready = ConfigReader.for_filename(TRACE_FILENAME)
-    filepath = config_ready.filepath
-    filepath.parent.mkdir(parents=True, exist_ok=True)
+        class FileExporter(SpanExporter):
+            def __init__(self, file_path: Path) -> None:
+                self.file_path = file_path
+                self.file_path.write_bytes(b"")
 
-    # Create a file exporter
-    file_exporter: FileExporter = FileExporter(filepath)
+            def export(
+                self,
+                spans: Sequence[ReadableSpan],
+            ) -> SpanExportResult:
+                try:
+                    with self.file_path.open("a", encoding="utf-8") as f:
+                        for span in spans:
+                            f.write(span.to_json(cast(Any, None)))
+                            f.write("\n")
+                    return SpanExportResult.SUCCESS
+                except Exception as e:
+                    LOGGER.exception(e)
+                    return SpanExportResult.FAILURE
 
-    provider = TracerProvider()
-    processor = BatchSpanProcessor(file_exporter)
-    provider.add_span_processor(processor)
+            def shutdown(self) -> None:
+                pass
+
+        config_ready = ConfigReader.for_filename(TRACE_FILENAME)
+        filepath = config_ready.filepath
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+
+        provider = TracerProvider()
+        provider.add_span_processor(BatchSpanProcessor(FileExporter(filepath)))
+        LOGGER.debug("OTel tracer: file export to %s", filepath)
 
     # Sets the global default tracer provider
     trace.set_tracer_provider(provider)
