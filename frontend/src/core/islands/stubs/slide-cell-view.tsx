@@ -5,9 +5,9 @@ import { Logger } from "@/utils/Logger";
 
 /**
  * Build-time stub for `@/components/slides/slide-cell-view`, wired up via
- * `resolve.alias` in `frontend/islands/vite.config.mts`. Islands embeds run
- * in `mode === "read"`, so the slides deck never enables the "show code"
- * toggle and `SlideCellView` is unreachable at runtime there.
+ * `resolve.alias` in `frontend/islands/vite.config.mts`. Islands embeds gate
+ * off the slides "show code" toggle entirely (see `useNotebookCodeAvailable`
+ * + `isIslands()`), so neither view is reachable at runtime there.
  *
  * Replacing the module at build time keeps the entire CodeMirror /
  * Codeium / `@bufbuild/protobuf` import subtree out of the islands bundle,
@@ -18,6 +18,13 @@ import { Logger } from "@/utils/Logger";
 export const SlideCellView = (_props: { cell: RuntimeCell }) => {
   Logger.warn(
     "SlideCellView islands stub rendered; this should never happen in a read-only embed.",
+  );
+  return null;
+};
+
+export const SlideCellReadOnlyView = (_props: { cell: RuntimeCell }) => {
+  Logger.warn(
+    "SlideCellReadOnlyView islands stub rendered; this should never happen in a read-only embed.",
   );
   return null;
 };
