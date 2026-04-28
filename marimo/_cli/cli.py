@@ -879,7 +879,8 @@ def _collect_marimo_files(paths: list[str]) -> _CollectedRunFiles:
             for file_info in flatten_files(file_infos):
                 if not file_info.is_marimo_file:
                     continue
-                if "__marimo__" in Path(file_info.path).parts:
+                parts = set(Path(file_info.path).parts)
+                if {"__marimo__", "__marimo_build__"} & parts:
                     continue
                 absolute_path = str(directory / file_info.path)
                 files_by_path[absolute_path] = MarimoFile(
@@ -1253,6 +1254,133 @@ def run(
 )
 def recover(name: Path) -> None:
     click.echo(codegen.recover(name))
+
+
+@main.command(
+    help="""Pre-execute the input-free DAG slice of a notebook.
+
+`marimo build` walks the cell dependency graph of NAME and runs every
+cell that has no transitive dependency on a runtime input
+(``mo.ui.*``, ``mo.cli_args``, ...). For each compilable cell that
+produces a persistable value, the build either:
+
+\b
+  - replaces the cell with a tiny loader that reads the artifact
+    from disk (a *loader* cell) — used when the cell has an explicit
+    name or its def is needed by a verbatim cell, or
+  - elides the cell entirely — used when no remaining cell needs
+    its def.
+
+Cells that depend on a UI element, define non-persistable values
+(modules, lambdas, generators), or have no defined globals (display-
+only cells) are emitted verbatim and run at notebook-load time.
+
+The result is a "compiled" notebook that opens and runs in seconds
+because the expensive precomputation has already happened. Re-running
+``marimo build`` is incremental: artifacts are content-addressed by a
+Merkle hash over the cell's source plus its compilable ancestors, so
+unchanged cells reuse their existing files. Stale artifacts are
+garbage-collected after every successful build.
+
+\b
+Output layout (default ``--output-dir``):
+
+    \b
+    <notebook_dir>/__marimo_build__/<stem>/
+        <stem>.py             — the compiled notebook
+        <def>-<hex12>.parquet — one file per dataframe def
+        <def>-<hex12>.json    — one file per JSON def
+        .manifest.json        — used for stale-artifact GC
+
+\b
+Examples:
+
+    \b
+    marimo build sales_dashboard.py
+    marimo build sales_dashboard.py -o build/
+    marimo build sales_dashboard.py --force
+"""
+)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(
+        exists=True, file_okay=True, dir_okay=False, path_type=Path
+    ),
+)
+@click.option(
+    "-o",
+    "--output-dir",
+    default=None,
+    type=click.Path(file_okay=False, path_type=Path),
+    help=(
+        "Directory to write artifacts and the compiled notebook. "
+        "Defaults to ``<notebook_dir>/__marimo_build__/<stem>/``."
+    ),
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help=(
+        "Recompute every artifact, even if its content-addressed file "
+        "already exists."
+    ),
+)
+@click.option(
+    "-v/-q",
+    "--verbose/--quiet",
+    "verbose",
+    is_flag=True,
+    default=True,
+    help="Whether to print per-cell status to stdout.",
+)
+def build(
+    name: Path,
+    output_dir: Path | None,
+    force: bool,
+    verbose: bool,
+) -> None:
+    from marimo._build import build_notebook
+    from marimo._build.runner import BuildExecutionError
+
+    try:
+        result = build_notebook(name, output_dir=output_dir, force=force)
+    except BuildExecutionError as e:
+        # Friendly one-line message; the full traceback is rarely
+        # useful (the cell's own traceback is what the user wants and
+        # it's already chained as __cause__). Surface remediation.
+        raise click.ClickException(
+            f"{e}\n\n"
+            "Fix the cell, or wire its inputs through `mo.ui.*` / "
+            "`mo.cli_args` to mark it non-compilable so the build "
+            "skips it."
+        ) from e
+    if verbose:
+        from collections import Counter
+
+        from marimo._build.build import CellStatus
+
+        for entry in result.cell_statuses:
+            click.echo(f"  {entry.status:10s} {entry.display_name}")
+        click.echo("")
+        click.echo(f"  compiled notebook: {result.compiled_notebook}")
+        click.echo(f"  artifacts:         {len(result.artifacts)}")
+        # Summary line in fixed order so the output is stable; zero
+        # counts are dropped to keep the line tidy.
+        counts = Counter(e.status for e in result.cell_statuses)
+        ordered: tuple[CellStatus, ...] = (
+            "compiled",
+            "cached",
+            "elided",
+            "kept",
+            "setup",
+        )
+        summary = ", ".join(f"{counts[s]} {s}" for s in ordered if counts[s])
+        if summary:
+            click.echo(f"  cells:             {summary}")
+        if result.deleted:
+            click.echo(f"  stale artifacts:   {len(result.deleted)} removed")
 
 
 @main.command(

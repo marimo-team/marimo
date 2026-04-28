@@ -121,6 +121,7 @@ marimo/_lsp/
 .marimo.toml
 .mypy_cache/
 __marimo__
+__marimo_build__
 .aider*
 
 # pixi environments
