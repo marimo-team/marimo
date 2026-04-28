@@ -48,21 +48,14 @@ def _is_url(source: Any) -> bool:
 
 
 def _fetch_url_bytes(url: str) -> bytes:
-    """Fetch a URL synchronously via XHR (text + binary). Pyodide-only."""
-    from js import (  # type: ignore[import-not-found,import-untyped]
-        Uint8Array,
-        XMLHttpRequest,
-    )
+    """Sync fetch via urllib — works in pyodide thanks to pyodide_http's
+    patch_all (installed at marimo startup), which routes urllib through JS
+    fetch. Single sync path for text and binary.
+    """
+    import urllib.request
 
-    xhr = XMLHttpRequest.new()
-    xhr.open("GET", url, False)
-    xhr.responseType = "arraybuffer"
-    xhr.send(None)
-    if xhr.status < 200 or xhr.status >= 300:
-        raise OSError(
-            f"Failed to fetch {url}: HTTP {xhr.status} {xhr.statusText}"
-        )
-    return bytes(Uint8Array.new(xhr.response).to_py())
+    with urllib.request.urlopen(url) as response:
+        return response.read()  # type: ignore[no-any-return]
 
 
 def _resolve_to_bytes(source: Any) -> bytes:
