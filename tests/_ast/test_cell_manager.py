@@ -82,6 +82,23 @@ class TestCellManager:
         cell_id = next(iter(cell_manager.cell_ids()))
         assert cell_id.startswith("test_")
 
+    def test_register_cell_records_explicit_id_in_seen_ids(
+        self, cell_manager: CellManager
+    ) -> None:
+        # Externally-supplied ids (e.g. from frontend save round-trip /
+        # InternalApp.with_data) must be tracked so subsequent
+        # create_cell_id() calls don't produce a colliding id.
+        explicit_id = CellId_t("test_external")
+        cell_manager.register_cell(
+            cell_id=explicit_id,
+            code="x = 1",
+            config=CellConfig(),
+        )
+
+        assert explicit_id in cell_manager.seen_ids
+        for _ in range(50):
+            assert cell_manager.create_cell_id() != explicit_id
+
     def test_ensure_one_cell(self, cell_manager: CellManager) -> None:
         assert len(list(cell_manager.cell_ids())) == 0
         cell_manager.ensure_one_cell()

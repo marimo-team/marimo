@@ -216,6 +216,8 @@ class CellManager:
         """
         if cell_id is None:
             cell_id = self.create_cell_id()
+        else:
+            self._cell_id_generator.seen_ids.add(cell_id)
 
         resolved_config = config or CellConfig()
         existing = self._document.get(cell_id)
