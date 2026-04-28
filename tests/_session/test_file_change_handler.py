@@ -31,6 +31,7 @@ from marimo._session.file_change_handler import (
     EditModeReloadStrategy,
     FileChangeCoordinator,
     RunModeReloadStrategy,
+    _build_reload_transaction,
 )
 from marimo._session.notebook import AppFileManager
 from marimo._types.ids import CellId_t
@@ -106,12 +107,18 @@ def _run_reload(
     """
     afm = _make_app(tmp_path, content)
     mock_session.app_file_manager = afm
-    mock_session.document = (
-        document if document is not None else NotebookDocument()
-    )
+    prev_document = document if document is not None else NotebookDocument()
+    mock_session.document = prev_document
     strategy = EditModeReloadStrategy(config_manager)
     cell_ids = list(afm.app.cell_manager.cell_ids())
-    strategy.handle_reload(mock_session, changed_cell_ids=set(cell_ids))
+    transaction = _build_reload_transaction(
+        prev_document, afm.app.cell_manager
+    )
+    strategy.handle_reload(
+        mock_session,
+        transaction=transaction,
+        changed_cell_ids=set(cell_ids),
+    )
     return afm, cell_ids
 
 
@@ -228,13 +235,16 @@ def test_edit_mode_reload_with_deleted_cells(
     afm = _make_app(tmp_path, SINGLE_CELL_NOTEBOOK)
     mock_session.app_file_manager = afm
     cell_ids = list(afm.app.cell_manager.cell_ids())
-    mock_session.document = _make_document_with_extra_cell(
-        cell_ids, deleted_id
-    )
+    prev_document = _make_document_with_extra_cell(cell_ids, deleted_id)
+    mock_session.document = prev_document
 
     strategy = EditModeReloadStrategy(config)
+    transaction = _build_reload_transaction(
+        prev_document, afm.app.cell_manager
+    )
     strategy.handle_reload(
         mock_session,
+        transaction=transaction,
         changed_cell_ids=set(cell_ids) | {deleted_id},
     )
 
@@ -516,7 +526,9 @@ def test_reload_detects_only_changed_cell_in_multi_cell(
 
 def test_run_mode_reload_strategy(mock_session: MagicMock) -> None:
     RunModeReloadStrategy().handle_reload(
-        mock_session, changed_cell_ids={CellId_t("cell1")}
+        mock_session,
+        transaction=Transaction(changes=(), source="file-watch"),
+        changed_cell_ids={CellId_t("cell1")},
     )
     mock_session.notify.assert_called_once()
     assert isinstance(mock_session.notify.call_args[0][0], ReloadNotification)

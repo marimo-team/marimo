@@ -228,6 +228,20 @@ class NotebookDocument:
     # Helpers
     # ------------------------------------------------------------------
 
+    def _replace_cells(self, cells: list[NotebookCell]) -> None:
+        """Bulk-replace the cell list in place, bypassing ``apply``.
+
+        Transitional. Used for full-document rebuilds (save round-trip)
+        until those flows are expressed as diff Transactions. The
+        ``_cells`` attribute is reassigned (not mutated element-wise)
+        so any external holder of the prior list keeps a snapshot of
+        pre-rebuild state — useful for diff comparison. Bumps
+        ``version`` so observers see the state change like they would
+        after ``apply()``.
+        """
+        self._cells = cells
+        self._version += 1
+
     def _find_index(self, cell_id: CellId_t) -> int:
         for i, cell in enumerate(self._cells):
             if cell.id == cell_id:
