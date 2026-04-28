@@ -1012,7 +1012,7 @@ def test_show_column_summaries_modes():
 class TestTableBinValues:
     @pytest.mark.parametrize(
         "df",
-        create_dataframes({"a": [None] * 20}, exclude=["duckdb"]),
+        create_dataframes({"a": [None] * 20}),
     )
     def test_bin_values_all_nulls(self, df: Any) -> None:
         table = ui.table(df)
