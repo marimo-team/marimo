@@ -227,7 +227,7 @@ def test_polars_write_json_patch(tmp_path: Path):
         # Patch to fallback to write_csv
         unpatch = patch_polars_for_wasm()
 
-        expected_json = '[{"a": "1", "b": "x"}, {"a": "2", "b": "y"}]'
+        expected_json = '[{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]'
 
         # Test it succeeds with file path
         df.write_json(file_path)
@@ -456,5 +456,28 @@ class TestPolarsIoWasmPatch:
                 # Pass an unsupported source type so the fallback raises.
                 with pytest.raises(NameError, match="simulated wasm failure"):
                     pl.read_csv(12345)  # type: ignore[arg-type]
+            finally:
+                unpatch()
+
+    @staticmethod
+    @mock_pyodide()
+    def test_missing_pyarrow_bubbles_module_not_found_error() -> None:
+        """ModuleNotFoundError must propagate so marimo can prompt to install."""
+        import polars as pl
+
+        from marimo._dependencies.dependencies import DependencyManager
+
+        with (
+            patch(
+                "polars.read_csv",
+                side_effect=NameError("simulated wasm failure"),
+            ),
+            patch.object(DependencyManager.pyarrow, "has", return_value=False),
+        ):
+            unpatch = patch_polars_for_wasm()
+            try:
+                with pytest.raises(ModuleNotFoundError) as exc_info:
+                    pl.read_csv(io.BytesIO(b"a,b\n1,x\n"))
+                assert exc_info.value.name == "pyarrow"
             finally:
                 unpatch()

@@ -59,10 +59,17 @@ class WasmPatchSet:
             try:
                 return original(*args, **kwargs)
             except catch as original_exc:
+                original_tb = original_exc.__traceback__
                 try:
                     return fallback(original, *args, **kwargs)
+                except ModuleNotFoundError:
+                    # Let missing-dependency errors bubble up so marimo can
+                    # prompt the user to install the package.
+                    raise
                 except Exception as fallback_exc:
-                    raise original_exc from fallback_exc
+                    raise original_exc.with_traceback(
+                        original_tb
+                    ) from fallback_exc
 
         setattr(owner, attr, wrapper)
 

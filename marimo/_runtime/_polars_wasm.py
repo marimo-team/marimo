@@ -150,11 +150,16 @@ def _make_fallback(fmt: str, lazy: bool) -> Callable[..., Any]:
     """Decode ``source`` via pyarrow and return polars."""
     import polars as pl
 
+    from marimo._dependencies.dependencies import DependencyManager
+
     reader = _ARROW_READERS[fmt]
 
     def _fallback(
         original: Callable[..., Any], *args: Any, **kwargs: Any
     ) -> Any:
+        DependencyManager.pyarrow.require(
+            f"to read polars {fmt} sources in WASM"
+        )
         del original
         if not args:
             source = kwargs.pop("source", None)
@@ -192,21 +197,14 @@ def _write_json_fallback(
     *_args: Any,
     **_kwargs: Any,
 ) -> str | None:
-    """Round-trip the frame through CSV and emit JSON manually."""
+    """Convert the frame to dicts and emit JSON.
+
+    ``to_dicts`` preserves types and handles quoting/embedded delimiters
+    correctly (unlike a naive CSV split), and avoids I/O so it works in WASM.
+    """
     import json
 
-    buffer = io.BytesIO()
-    self.write_csv(buffer)
-    buffer.seek(0)
-    csv_content = buffer.read().decode("utf-8")
-
-    lines = csv_content.strip().split("\n")
-    json_data: list[dict[str, str]] = []
-    if lines:
-        headers: list[str] = lines[0].split(",")
-        for line in lines[1:]:
-            values: list[str] = line.split(",")
-            json_data.append(dict(zip(headers, values, strict=False)))
+    json_data = self.to_dicts()
 
     if file is None:
         return json.dumps(json_data)
