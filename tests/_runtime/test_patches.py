@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from marimo._runtime._polars_wasm import patch_polars_for_wasm
-from marimo._runtime._wasm_patches import WasmPatchSet
+from marimo._runtime._wasm._patches import WasmPatchSet
+from marimo._runtime._wasm._polars import patch_polars_for_wasm
 from marimo._runtime.capture import capture_stderr
 from marimo._runtime.runtime import Kernel
 from marimo._utils.platform import is_pyodide

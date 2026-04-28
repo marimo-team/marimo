@@ -25,7 +25,7 @@ import pathlib
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
-from marimo._runtime._wasm_patches import Unpatch, WasmPatchSet
+from marimo._runtime._wasm._patches import Unpatch, WasmPatchSet
 from marimo._utils.platform import is_pyodide
 
 if TYPE_CHECKING:

@@ -19,7 +19,7 @@ from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.plain_text import plain_text
 from marimo._plugins.ui._impl import tabs
 from marimo._plugins.ui._impl.table import get_default_table_page_size, table
-from marimo._runtime._polars_wasm import patch_polars_for_wasm
+from marimo._runtime._wasm._polars import patch_polars_for_wasm
 
 LOGGER = _loggers.marimo_logger()
 

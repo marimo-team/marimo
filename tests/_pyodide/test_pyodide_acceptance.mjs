@@ -354,7 +354,7 @@ print("\\nmo.watch.file works correctly in Pyodide execution context!")
     await pyodide.runPythonAsync(`
 import io
 import polars as pl
-from marimo._runtime._polars_wasm import _make_fallback, _write_json_fallback
+from marimo._runtime._wasm._polars import _make_fallback, _write_json_fallback
 
 # Importing polars triggers the formatter's register(), which calls
 # patch_polars_for_wasm() and wraps pl.read_csv etc. functools.wraps copies
