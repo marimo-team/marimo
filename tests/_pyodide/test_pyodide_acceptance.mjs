@@ -17,11 +17,13 @@ import path from "node:path";
 
 
 /**
- * Start a CORS-enabled HTTP server to serve the wheel file
+ * Start a CORS-enabled HTTP server to serve the wheel file plus any extra
+ * files registered at runtime via `addFile(name, buffer, contentType)`.
  */
 function startWheelServer(wheelPath) {
   const wheelDir = path.dirname(wheelPath);
   const wheelFilename = path.basename(wheelPath);
+  const extraFiles = new Map(); // name -> { data: Buffer, contentType: string }
 
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
@@ -49,10 +51,19 @@ function startWheelServer(wheelPath) {
           res.writeHead(200);
           res.end(data);
         });
-      } else {
-        res.writeHead(404);
-        res.end("Not found");
+        return;
       }
+
+      const extra = extraFiles.get(requestedFile);
+      if (extra) {
+        res.setHeader("Content-Type", extra.contentType);
+        res.writeHead(200);
+        res.end(extra.data);
+        return;
+      }
+
+      res.writeHead(404);
+      res.end("Not found");
     });
 
     // Listen on a random available port
@@ -60,7 +71,14 @@ function startWheelServer(wheelPath) {
       const address = server.address();
       const port = typeof address === 'object' && address !== null && 'port' in address ? address.port : 0;
       console.log(`Wheel server started at http://127.0.0.1:${port}`);
-      resolve({ server, port, wheelFilename });
+      resolve({
+        server,
+        port,
+        wheelFilename,
+        addFile: (name, data, contentType = "application/octet-stream") => {
+          extraFiles.set(name, { data, contentType });
+        },
+      });
     });
 
     server.on("error", reject);
@@ -319,6 +337,62 @@ print(f"Final file content verified: '{final_content}' - OK")
 
 print("\\nmo.watch.file works correctly in Pyodide execution context!")
 `);
+
+    // Step 7: Test polars WASM I/O patches (read_csv / read_parquet / scan_csv)
+    console.log("Step 7: Testing polars WASM I/O patches...");
+
+    // Tiny CSV served from the in-memory server.
+    serverInfo.addFile(
+      "test.csv",
+      Buffer.from("a,b\n1,x\n2,y\n"),
+      "text/csv",
+    );
+
+    // Load polars + pyarrow (pyarrow is the patch's fallback decoder).
+    await pyodide.loadPackage(["polars", "pyarrow"]);
+
+    // Generate a tiny parquet in-pyodide and register it on the server so we
+    // can exercise read_parquet over HTTP without shipping a binary fixture.
+    const parquetBytes = await pyodide.runPythonAsync(`
+import io, polars as pl
+buf = io.BytesIO()
+pl.DataFrame({"a": [1, 2], "b": ["x", "y"]}).write_parquet(buf)
+buf.getvalue()
+`);
+    serverInfo.addFile(
+      "test.parquet",
+      Buffer.from(parquetBytes),
+      "application/octet-stream",
+    );
+
+    const csvUrl = `http://127.0.0.1:${serverInfo.port}/test.csv`;
+    const parquetUrl = `http://127.0.0.1:${serverInfo.port}/test.parquet`;
+
+    await pyodide.runPythonAsync(`
+import polars as pl
+
+# read_csv from URL
+df = pl.read_csv(${JSON.stringify(csvUrl)})
+assert df.shape == (2, 2), f"unexpected csv shape: {df.shape}"
+assert df.columns == ["a", "b"], f"unexpected csv columns: {df.columns}"
+print(f"  - pl.read_csv(url): {df.shape} OK")
+
+# read_parquet from URL
+df2 = pl.read_parquet(${JSON.stringify(parquetUrl)})
+assert df2.shape == (2, 2), f"unexpected parquet shape: {df2.shape}"
+assert df2["b"].to_list() == ["x", "y"], f"unexpected parquet values: {df2['b'].to_list()}"
+print(f"  - pl.read_parquet(url): {df2.shape} OK")
+
+# scan_csv from URL -> LazyFrame
+lf = pl.scan_csv(${JSON.stringify(csvUrl)})
+assert isinstance(lf, pl.LazyFrame), f"expected LazyFrame, got {type(lf).__name__}"
+collected = lf.collect()
+assert collected.shape == (2, 2), f"unexpected scan_csv shape: {collected.shape}"
+print(f"  - pl.scan_csv(url).collect(): {collected.shape} OK")
+
+print("polars WASM I/O patches verified")
+`);
+    console.log("");
 
     console.log("");
     console.log("Verification results:", result);

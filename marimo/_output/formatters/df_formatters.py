@@ -19,7 +19,7 @@ from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.plain_text import plain_text
 from marimo._plugins.ui._impl import tabs
 from marimo._plugins.ui._impl.table import get_default_table_page_size, table
-from marimo._runtime.patches import patch_polars_write_json
+from marimo._runtime._polars_wasm import patch_polars_for_wasm
 
 LOGGER = _loggers.marimo_logger()
 
@@ -89,7 +89,7 @@ class PolarsFormatter(FormatterFactory):
         if not include_opinionated():
             return None
 
-        unpatch_polars_write_json = patch_polars_write_json()
+        unpatch_polars = patch_polars_for_wasm()
 
         @formatting.opinionated_formatter(pl.DataFrame)
         def _show_marimo_dataframe(
@@ -137,7 +137,7 @@ class PolarsFormatter(FormatterFactory):
                 }
             )._mime_()
 
-        return unpatch_polars_write_json
+        return unpatch_polars
 
 
 class PyArrowFormatter(FormatterFactory):
