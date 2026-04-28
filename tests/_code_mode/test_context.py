@@ -331,12 +331,14 @@ class TestUpdateCell:
         self, k: Kernel
     ) -> None:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
-        k.user_config["save"]["format_on_save"] = False
 
-        with patch(
-            "marimo._code_mode._context.DefaultFormatter.format",
-            new_callable=AsyncMock,
-        ) as mock_format:
+        with (
+            patch.dict(k.user_config["save"], {"format_on_save": False}),
+            patch(
+                "marimo._code_mode._context.DefaultFormatter.format",
+                new_callable=AsyncMock,
+            ) as mock_format,
+        ):
             with _ctx(k) as ctx:
                 async with ctx as nb:
                     nb.edit_cell("0", code="x=  42")
@@ -346,12 +348,14 @@ class TestUpdateCell:
 
     async def test_update_code_formats_when_enabled(self, k: Kernel) -> None:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
-        k.user_config["save"]["format_on_save"] = True
 
-        with patch(
-            "marimo._code_mode._context.DefaultFormatter.format",
-            new=AsyncMock(return_value={"0": "x = 42"}),
-        ) as mock_format:
+        with (
+            patch.dict(k.user_config["save"], {"format_on_save": True}),
+            patch(
+                "marimo._code_mode._context.DefaultFormatter.format",
+                new=AsyncMock(return_value={"0": "x = 42"}),
+            ) as mock_format,
+        ):
             with _ctx(k) as ctx:
                 async with ctx as nb:
                     nb.edit_cell("0", code="x=  42")
