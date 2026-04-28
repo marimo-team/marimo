@@ -49,7 +49,10 @@ def _is_url(source: Any) -> bool:
 
 def _fetch_url_bytes(url: str) -> bytes:
     """Fetch a URL synchronously via XHR (text + binary). Pyodide-only."""
-    from js import Uint8Array, XMLHttpRequest  # type: ignore[import-not-found]
+    from js import (  # type: ignore[import-not-found,import-untyped]
+        Uint8Array,
+        XMLHttpRequest,
+    )
 
     xhr = XMLHttpRequest.new()
     xhr.open("GET", url, False)

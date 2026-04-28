@@ -351,12 +351,16 @@ print("\\nmo.watch.file works correctly in Pyodide execution context!")
     // Load polars + pyarrow (pyarrow is the patch's fallback decoder).
     await pyodide.loadPackage(["polars", "pyarrow"]);
 
-    // Generate a tiny parquet in-pyodide and register it on the server so we
-    // can exercise read_parquet over HTTP without shipping a binary fixture.
+    // Generate a tiny parquet in-pyodide via pyarrow (polars.write_parquet
+    // doesn't work in pyodide either) and register it on the server so we can
+    // exercise read_parquet over HTTP without shipping a binary fixture.
     const parquetBytes = await pyodide.runPythonAsync(`
-import io, polars as pl
+import io
+import pyarrow as pa
+import pyarrow.parquet as pq
+table = pa.table({"a": [1, 2], "b": ["x", "y"]})
 buf = io.BytesIO()
-pl.DataFrame({"a": [1, 2], "b": ["x", "y"]}).write_parquet(buf)
+pq.write_table(table, buf)
 buf.getvalue()
 `);
     serverInfo.addFile(
