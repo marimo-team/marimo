@@ -13,7 +13,6 @@ permissions:
   contents: read
 
 env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
   MARIMO_SKIP_UPDATE_CHECK: 1
 
@@ -38,6 +37,9 @@ jobs:
     name: 🧹 Lint frontend
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # required for Doppler OIDC
     defaults:
       run:
         shell: bash
@@ -47,6 +49,18 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+
+      - name: 🔐 Fetch Doppler secrets
+        # Skip on PRs from forks: id-token write is downgraded to read, so OIDC fails.
+        # Downstream tokens (TURBO_TOKEN, CODECOV_TOKEN) are optional and tolerate empty.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: dopplerhq/secrets-fetch-action@cd2efbf9a404504316435873eff298b82f7e0562 # v1.3.0
+        id: secrets
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: marimo-oss
+          doppler-config: ci_test
 
       - name: 📥 Install repo
         uses: ./.github/actions/install
@@ -58,6 +72,8 @@ jobs:
 
       - name: 🧹 Lint
         id: lint
+        env:
+          TURBO_TOKEN: ${{ steps.secrets.outputs.TURBO_TOKEN }}
         run: pnpm turbo lint
 
       - name: 🔒 Verify clean git tree after lint
@@ -98,6 +114,9 @@ jobs:
     name: 🧪 Test frontend
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # required for Doppler OIDC
     defaults:
       run:
         working-directory: ./frontend
@@ -109,6 +128,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 🔐 Fetch Doppler secrets
+        # Skip on PRs from forks: id-token write is downgraded to read, so OIDC fails.
+        # Downstream tokens (TURBO_TOKEN, CODECOV_TOKEN) are optional and tolerate empty.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: dopplerhq/secrets-fetch-action@cd2efbf9a404504316435873eff298b82f7e0562 # v1.3.0
+        id: secrets
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: marimo-oss
+          doppler-config: ci_test
+
       - name: 📥 Install repo
         uses: ./.github/actions/install
 
@@ -117,6 +148,8 @@ jobs:
 
       - name: 🔎 Type check
         id: typecheck
+        env:
+          TURBO_TOKEN: ${{ steps.secrets.outputs.TURBO_TOKEN }}
         run: pnpm turbo typecheck
 
       - name: 🔒 Verify clean git tree after typecheck
@@ -132,6 +165,8 @@ jobs:
 
       - name: 🧪 Test
         id: test
+        env:
+          TURBO_TOKEN: ${{ steps.secrets.outputs.TURBO_TOKEN }}
         run: pnpm turbo test
 
       - name: Summarize typecheck failure
@@ -161,6 +196,9 @@ jobs:
     name: 📦 Build frontend
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # required for Doppler OIDC
     defaults:
       run:
         working-directory: ./frontend
@@ -171,6 +209,18 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+
+      - name: 🔐 Fetch Doppler secrets
+        # Skip on PRs from forks: id-token write is downgraded to read, so OIDC fails.
+        # Downstream tokens (TURBO_TOKEN, CODECOV_TOKEN) are optional and tolerate empty.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: dopplerhq/secrets-fetch-action@cd2efbf9a404504316435873eff298b82f7e0562 # v1.3.0
+        id: secrets
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: marimo-oss
+          doppler-config: ci_test
 
       - name: 📥 Install repo
         uses: ./.github/actions/install
@@ -191,12 +241,14 @@ jobs:
         run: pnpm turbo build
         env:
           NODE_ENV: production
+          TURBO_TOKEN: ${{ steps.secrets.outputs.TURBO_TOKEN }}
 
       - name: 📦 Build islands frontend
         env:
           NODE_ENV: production
           VITE_MARIMO_ISLANDS: "true"
           VITE_MARIMO_VERSION: "0.0.0"
+          TURBO_TOKEN: ${{ steps.secrets.outputs.TURBO_TOKEN }}
         run: |
           npm version 0.0.0 --no-git-tag-version
           pnpm turbo build:islands
