@@ -201,20 +201,21 @@ def _write_json_fallback(
 
     ``to_dicts`` preserves types and handles quoting/embedded delimiters
     correctly (unlike a naive CSV split), and avoids I/O so it works in WASM.
+    ``default=str`` covers temporal/decimal types that aren't JSON-native.
     """
     import json
 
     json_data = self.to_dicts()
 
     if file is None:
-        return json.dumps(json_data)
+        return json.dumps(json_data, default=str)
     if isinstance(file, io.IOBase):
-        json.dump(json_data, file)
+        json.dump(json_data, file, default=str)
     elif isinstance(file, pathlib.Path):
-        file.write_text(json.dumps(json_data))
+        file.write_text(json.dumps(json_data, default=str))
     else:
         with open(file, "w", encoding="utf-8") as f:
-            json.dump(json_data, f)
+            json.dump(json_data, f, default=str)
     return None
 
 
