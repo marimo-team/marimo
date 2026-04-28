@@ -221,9 +221,7 @@ class TestTracePropagationThroughRealApp:
                 headers={"traceparent": traceparent},
             )
 
-        mcp_spans = [
-            s for s in exporter.spans if "/mcp" in (s.name or "")
-        ]
+        mcp_spans = [s for s in exporter.spans if "/mcp" in (s.name or "")]
         assert len(mcp_spans) >= 1, (
             f"Expected a span for /mcp/server, got: {[s.name for s in exporter.spans]}"
         )
@@ -248,9 +246,7 @@ class TestTracePropagationThroughRealApp:
             client = TestClient(app, raise_server_exceptions=False)
             client.get("/mcp/server")
 
-        mcp_spans = [
-            s for s in exporter.spans if "/mcp" in (s.name or "")
-        ]
+        mcp_spans = [s for s in exporter.spans if "/mcp" in (s.name or "")]
         assert len(mcp_spans) >= 1, (
             f"Expected a span for /mcp/server, got: {[s.name for s in exporter.spans]}"
         )
