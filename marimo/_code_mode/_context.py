@@ -1609,7 +1609,10 @@ class AsyncCodeModeContext:
     # ------------------------------------------------------------------
 
     async def _format_plan(self, plan: list[_PlanEntry]) -> list[_PlanEntry]:
-        """Format new/changed code in the plan with the default formatter."""
+        """Format new/changed code when save-time formatting is enabled."""
+        if not self._kernel.user_config["save"]["format_on_save"]:
+            return plan
+
         existing_code = {cell.id: cell.code for cell in self._document.cells}
 
         to_format: dict[CellId_t, str] = {}
