@@ -31,6 +31,7 @@ class PrivateStateCaptureRule(GraphRule):
     ```python
     _cache = {}
 
+
     def square(x):
         if x in _cache:
             return _cache[x] + 1
@@ -49,7 +50,10 @@ class PrivateStateCaptureRule(GraphRule):
         self, graph: DirectedGraph, ctx: RuleContext
     ) -> None:
         for cell_id, cell in graph.cells.items():
-            for variable_name, variable_data_list in cell.variable_data.items():
+            for (
+                variable_name,
+                variable_data_list,
+            ) in cell.variable_data.items():
                 for variable_data in variable_data_list:
                     if variable_data.kind not in {"function", "class"}:
                         continue
@@ -67,7 +71,11 @@ class PrivateStateCaptureRule(GraphRule):
                     line, column = self._get_variable_line_info(
                         cell_id, variable_name, ctx
                     )
-                    kind = "Function" if variable_data.kind == "function" else "Class"
+                    kind = (
+                        "Function"
+                        if variable_data.kind == "function"
+                        else "Class"
+                    )
                     refs = ", ".join(f"`{ref}`" for ref in private_refs)
                     await ctx.add_diagnostic(
                         Diagnostic(

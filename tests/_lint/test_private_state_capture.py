@@ -8,7 +8,7 @@ from marimo._lint import run_check
 def test_private_state_capture_warns_on_captured_cache(tmp_path) -> None:
     notebook_file = Path(tmp_path) / "cached.py"
     notebook_file.write_text(
-        '''import marimo
+        """import marimo
 
 __generated_with = "0.23.2"
 app = marimo.App()
@@ -30,7 +30,7 @@ def __():
 
 if __name__ == "__main__":
     app.run()
-'''
+"""
     )
 
     linter = run_check((str(notebook_file),), formatter="json")
