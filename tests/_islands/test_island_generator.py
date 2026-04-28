@@ -151,6 +151,45 @@ def __(mo):
     assert "The answer is 42" in stub2.output.data
 
 
+async def test_from_file_propagates_filename_to_cells(tmp_path: Path):
+    # Regression test for #9391: cells rendered through
+    # ``MarimoIslandGenerator.from_file()`` must see ``__file__`` and
+    # ``mo.notebook_dir()`` resolve to the notebook source, not to the
+    # host process's ``__main__`` (which under installed CLIs is a
+    # launcher shim).
+    marimo_file = tmp_path / "nb.py"
+    marimo_file.write_text(
+        """
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    import marimo as mo
+    return (mo,)
+
+@app.cell
+def __(mo):
+    mo.md(f"FILE={__file__} | DIR={mo.notebook_dir()}")
+    return ()
+        """
+    )
+
+    generator = MarimoIslandGenerator.from_file(str(marimo_file))
+    await generator.build()
+
+    captured = generator._stubs[1].output
+    assert captured is not None
+    data = captured.data
+    assert str(marimo_file) in data, (
+        f"expected __file__ to resolve to {marimo_file}, got: {data}"
+    )
+    assert str(marimo_file.parent) in data, (
+        f"expected notebook_dir() to resolve to {marimo_file.parent}, got: {data}"
+    )
+
+
 def test_render_head():
     generator = MarimoIslandGenerator()
     head_html = generator.render_head()
