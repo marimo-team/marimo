@@ -99,7 +99,7 @@
             "scale": "theta"
           },
           "tooltip": {
-            "signal": "{\"bool_col\": isValid(datum[\"bool_col\"]) ? datum[\"bool_col\"] : \"\"+datum[\"bool_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+            "signal": "{\"bool_col\": isValid(datum[\"bool_col\"]) ? isArray(datum[\"bool_col\"]) ? join(datum[\"bool_col\"], '\\n') : datum[\"bool_col\"] : \"\"+datum[\"bool_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
           },
           "x": {
             "mult": 0.5,
@@ -146,7 +146,7 @@
             "signal": "scale(\"theta\", 0.5 * datum[\"count_start\"] + 0.5 * datum[\"count_end\"])"
           },
           "tooltip": {
-            "signal": "{\"bool_col\": isValid(datum[\"bool_col\"]) ? datum[\"bool_col\"] : \"\"+datum[\"bool_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+            "signal": "{\"bool_col\": isValid(datum[\"bool_col\"]) ? isArray(datum[\"bool_col\"]) ? join(datum[\"bool_col\"], '\\n') : datum[\"bool_col\"] : \"\"+datum[\"bool_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
           },
           "x": {
             "mult": 0.5,
