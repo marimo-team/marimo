@@ -234,6 +234,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from marimo._runtime import commands
     from marimo._runtime.packages.package_manager import PackageDescription
     from marimo._server.ai.tools.types import ToolDefinition
+    from marimo._server.api.endpoints import build as build_endpoint
     from marimo._server.api.router import build_routes
     from marimo._server.models import (
         completion,
@@ -457,6 +458,13 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.UpdateUserConfigRequest,
         models.ModelRequest,
         models.ValidateSQLRequest,
+        # Build panel
+        build_endpoint.BuildPreviewRequest,
+        build_endpoint.BuildPreviewCellResponse,
+        build_endpoint.BuildPreviewResponse,
+        build_endpoint.BuildRunRequest,
+        build_endpoint.BuildRunResponse,
+        build_endpoint.BuildCancelRequest,
     ]
 
     # Hack to get the unions to be included in the schema

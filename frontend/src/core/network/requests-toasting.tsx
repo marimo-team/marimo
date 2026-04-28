@@ -78,6 +78,9 @@ export function createErrorToastingRequests(
     invokeAiTool: "Failed to invoke AI tool",
     clearCache: "Failed to clear cache",
     getCacheInfo: "", // No toast
+    getBuildPreview: "", // No toast
+    runBuild: "Failed to start build",
+    cancelBuild: "Failed to cancel build",
     listStorageEntries: "Failed to list storage entries",
     downloadStorage: "Failed to download storage entry",
   };

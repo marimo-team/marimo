@@ -31,6 +31,7 @@ interface ElementsBuilder {
     variables: Variables,
     hidePureMarkdown: boolean,
     hideReusableFunctions: boolean,
+    buildHidden?: ReadonlySet<CellId>,
   ) => { nodes: Node<NodeData>[]; edges: Edge[] };
 }
 
@@ -79,11 +80,15 @@ export class VerticalElementsBuilder implements ElementsBuilder {
     variables: Variables,
     _hidePureMarkdown: boolean,
     _hideReusableFunctions: boolean,
+    buildHidden?: ReadonlySet<CellId>,
   ) {
     let prevY = 0;
     const nodes: Node<NodeData>[] = [];
     const edges: Edge[] = [];
     for (const [cellId, cellAtom] of Arrays.zip(cellIds, cellAtoms)) {
+      if (buildHidden?.has(cellId)) {
+        continue;
+      }
       const node = this.createNode(cellId, cellAtom, prevY);
       nodes.push(node);
       prevY = node.position.y + (node.height || 0);
@@ -147,6 +152,7 @@ export class TreeElementsBuilder implements ElementsBuilder {
     variables: Variables,
     hidePureMarkdown: boolean,
     hideReusableFunctions: boolean,
+    buildHidden?: ReadonlySet<CellId>,
   ) {
     const nodes: Node<NodeData>[] = [];
     const edges: Edge[] = [];
@@ -191,8 +197,14 @@ export class TreeElementsBuilder implements ElementsBuilder {
       if (hideReusableFunctions && isReusable && !hasEdge) {
         continue;
       }
+      // Build-status filters take precedence: when a user asks to hide
+      // elided/compiled cells we hide them unconditionally — even if
+      // they're connected to the rest of the graph — because the whole
+      // point is to declutter the graph for the not-yet-built parts.
+      if (buildHidden?.has(cellId)) {
+        continue;
+      }
 
-      // Show every cell that wasn't filtered out
       nodes.push(this.createNode(cellId, cellAtom));
     }
 

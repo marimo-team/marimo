@@ -25,6 +25,9 @@ const graphViewAtom = atom<LayoutDirection>("TB");
 const graphViewSettings = atom<GraphSettings>({
   hidePureMarkdown: true,
   hideReusableFunctions: false,
+  showBuildStatus: false,
+  hideElidedCells: false,
+  hideCompiledCells: false,
 });
 
 export const DependencyGraph: React.FC<Props> = (props) => {

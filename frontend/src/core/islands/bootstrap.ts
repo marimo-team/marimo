@@ -195,6 +195,7 @@ function handleMessage(
       case "cache-info":
       case "kernel-startup-error":
       case "notebook-document-transaction":
+      case "build-event":
         return;
 
       case "kernel-ready":

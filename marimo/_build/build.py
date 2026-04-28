@@ -29,14 +29,26 @@ from marimo._ast.app import InternalApp
 from marimo._ast.load import load_app
 from marimo._build.classify import classify_static
 from marimo._build.codegen import CellArtifact, emit_compiled_notebook
+from marimo._build.events import (
+    BuildCancelledEvent,
+    BuildError,
+    CellClassified,
+    CellPlanned,
+    PhaseFinished,
+    PhaseStarted,
+    build_done_from_result,
+)
 from marimo._build.hash import compilable_hash, short_hash
 from marimo._build.plan import CellKind, compute_plan
-from marimo._build.runner import BuildRunner
+from marimo._build.runner import BuildCancelled, BuildRunner
 from marimo._build.serialize import write_artifact
 from marimo._version import __version__
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._ast.cell import CellImpl
+    from marimo._build.events import BuildProgressEvent
     from marimo._types.ids import CellId_t
 
 
@@ -112,6 +124,8 @@ def build_notebook(
     output_dir: str | Path | None = None,
     *,
     force: bool = False,
+    progress_callback: Callable[[BuildProgressEvent], None] | None = None,
+    should_cancel: Callable[[], bool] | None = None,
 ) -> BuildResult:
     """Pre-execute the input-free DAG slice and emit a compiled notebook.
 
@@ -125,6 +139,14 @@ def build_notebook(
     force:
         Recompute every artifact, even if its content-addressed file
         already exists on disk.
+    progress_callback:
+        Optional sink for :class:`BuildProgressEvent`s emitted as the
+        pipeline advances. The CLI ignores it; the editor's Build panel
+        forwards events to the frontend over the websocket.
+    should_cancel:
+        Optional poll fn checked between cells in the runner. Returning
+        True raises :class:`BuildCancelled`, which this function
+        re-raises after emitting a ``cancelled`` progress event.
     """
     notebook_path = Path(notebook_path).resolve()
     if not notebook_path.exists():
@@ -137,6 +159,39 @@ def build_notebook(
     output_dir = Path(output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    def _emit(event: BuildProgressEvent) -> None:
+        if progress_callback is not None:
+            progress_callback(event)
+
+    try:
+        return _build_notebook_inner(
+            notebook_path=notebook_path,
+            output_dir=output_dir,
+            force=force,
+            emit=_emit,
+            progress_callback=progress_callback,
+            should_cancel=should_cancel,
+        )
+    except BuildCancelled:
+        _emit(BuildCancelledEvent())
+        raise
+    except Exception as e:
+        # Best-effort tail event so the UI can show a terminal error
+        # state. The CLI rewraps these in click.ClickException; the
+        # exception still propagates.
+        _emit(BuildError(message=str(e)))
+        raise
+
+
+def _build_notebook_inner(
+    *,
+    notebook_path: Path,
+    output_dir: Path,
+    force: bool,
+    emit: Callable[[BuildProgressEvent], None],
+    progress_callback: Callable[[BuildProgressEvent], None] | None,
+    should_cancel: Callable[[], bool] | None,
+) -> BuildResult:
     app = load_app(notebook_path)
     if app is None:
         raise RuntimeError(
@@ -145,18 +200,50 @@ def build_notebook(
         )
 
     internal = InternalApp(app)
+    from marimo._build.events import StaticKind
+
+    emit(PhaseStarted(phase="classify"))
     classification = classify_static(internal.graph, internal.cell_manager)
+    setup_id = internal.cell_manager.setup_cell_id
+    for cid, cell in internal.graph.cells.items():
+        name = internal.cell_manager.cell_name(cid)
+        static_kind: StaticKind
+        if cid == setup_id:
+            static_kind = "setup"
+        elif cid in classification.compilable:
+            static_kind = "compilable"
+        else:
+            static_kind = "non_compilable"
+        emit(
+            CellClassified(
+                cell_id=cid,
+                name=name,
+                display_name=display_name(name, cell),
+                static_kind=static_kind,
+            )
+        )
+    emit(PhaseFinished(phase="classify"))
 
-    runner = BuildRunner(internal, classification)
+    emit(PhaseStarted(phase="execute"))
+    runner = BuildRunner(
+        internal,
+        classification,
+        progress_callback=progress_callback,
+        should_cancel=should_cancel,
+    )
     runner.run()
+    emit(PhaseFinished(phase="execute"))
 
+    emit(PhaseStarted(phase="plan"))
     plan = compute_plan(
         graph=internal.graph,
         cell_manager=internal.cell_manager,
         classification=classification,
         captured_defs=runner.captured_defs,
     )
+    emit(PhaseFinished(phase="plan"))
 
+    emit(PhaseStarted(phase="persist"))
     # Hashes are computed against the *statically* compilable subgraph,
     # because parents that aren't compilable have their data inlined
     # into the cell's source at build time and therefore don't
@@ -196,7 +283,9 @@ def build_notebook(
 
         artifacts_by_cell[cell_id] = cell_artifacts
         loader_statuses[cell_id] = "cached" if was_cached else "compiled"
+    emit(PhaseFinished(phase="persist"))
 
+    emit(PhaseStarted(phase="codegen"))
     source = emit_compiled_notebook(
         app=internal,
         plan=plan,
@@ -205,6 +294,7 @@ def build_notebook(
     )
     compiled_path = output_dir / notebook_path.name
     compiled_path.write_text(source, encoding="utf-8")
+    emit(PhaseFinished(phase="codegen"))
 
     # Build the per-cell status list in source order. Loaders pull
     # from loader_statuses (compiled vs cached); everything else maps
@@ -213,12 +303,24 @@ def build_notebook(
     for cell_id, cell_plan in plan.cells.items():
         status = loader_statuses.get(cell_id) or _status_for(cell_plan.kind)
         name = internal.cell_manager.cell_name(cell_id)
-        cell = internal.graph.cells.get(cell_id)
+        # ``plan.cells`` is built from ``internal.graph.cells`` so this
+        # lookup always succeeds; the .get() spelling is purely for
+        # mypy's benefit since ``cell`` was rebound earlier in this
+        # function and we can't shadow the narrower type.
+        label = display_name(name, internal.graph.cells.get(cell_id))
         cell_statuses.append(
             CellStatusEntry(
                 cell_id=cell_id,
                 name=name,
-                display_name=_display_name(name, cell),
+                display_name=label,
+                status=status,
+            )
+        )
+        emit(
+            CellPlanned(
+                cell_id=cell_id,
+                name=name,
+                display_name=label,
                 status=status,
             )
         )
@@ -240,15 +342,19 @@ def build_notebook(
         json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
     )
 
+    emit(PhaseStarted(phase="gc"))
     deleted = _gc_stale(output_dir, written, compiled_path)
+    emit(PhaseFinished(phase="gc"))
 
-    return BuildResult(
+    result = BuildResult(
         output_dir=output_dir,
         compiled_notebook=compiled_path,
         artifacts=sorted(written),
         deleted=deleted,
         cell_statuses=cell_statuses,
     )
+    emit(build_done_from_result(result))
+    return result
 
 
 def _status_for(kind: CellKind) -> CellStatus:
@@ -271,7 +377,7 @@ def _status_for(kind: CellKind) -> CellStatus:
 _DISPLAY_NAME_MAX = 40
 
 
-def _display_name(name: str, cell: CellImpl | None) -> str:
+def display_name(name: str, cell: CellImpl | None) -> str:
     """Best-effort human label for a cell.
 
     Order of preference:
@@ -292,6 +398,11 @@ def _display_name(name: str, cell: CellImpl | None) -> str:
     if cell.defs:
         return ", ".join(sorted(cell.defs))
     return _last_statement_label(cell.mod) or "_"
+
+
+# Backwards-compatible alias for the underscore-prefixed spelling that
+# was used internally before this helper had any external callers.
+_display_name = display_name
 
 
 def _last_statement_label(mod: ast.Module) -> str | None:

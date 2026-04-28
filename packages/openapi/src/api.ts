@@ -284,6 +284,143 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/build/cancel": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["BuildCancelRequest"];
+        };
+      };
+      responses: {
+        /** @description Cancel an in-flight build (idempotent). */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["BaseResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/build/preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["BuildPreviewRequest"];
+        };
+      };
+      responses: {
+        /** @description Predict each cell's outcome in the compiled notebook. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["BuildPreviewResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/build/run": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["BuildRunRequest"];
+        };
+      };
+      responses: {
+        /** @description Schedule a build; progress streams via WebSocket BuildEvent ops. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["BuildRunResponse"];
+          };
+        };
+        /** @description Notebook must be saved before building. */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A build is already in flight for this session. */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/cache/clear": {
     parameters: {
       query?: never;
@@ -3542,6 +3679,68 @@ export interface components {
       profile_name?: string;
       region_name?: string;
     };
+    /** BuildCancelRequest */
+    BuildCancelRequest: {
+      buildId: string;
+    };
+    /**
+     * BuildEventNotification
+     * @description Streaming progress for an in-flight ``marimo build`` run.
+     *
+     *         A single build emits many of these in sequence: phase boundaries,
+     *         one per cell as it executes, and a terminal ``done`` / ``error``
+     *         / ``cancelled`` event.
+     *
+     *         Attributes:
+     *             build_id: Identifies the build this event belongs to. Multiple
+     *                 builds can theoretically interleave (e.g. user starts one,
+     *                 cancels it, starts another); the frontend uses this to
+     *                 ignore late events from a previous build.
+     *             event_type: The event kind (``phase_started``, ``cell_executed``, ...).
+     *                 Mirrors :class:`marimo._build.events.BuildProgressEvent`.
+     *             payload: Event-specific fields (cell_id, name, phase, etc).
+     */
+    BuildEventNotification: {
+      build_id: string;
+      event_type: string;
+      /** @enum {unknown} */
+      op: "build-event";
+      payload: Record<string, any>;
+    };
+    /** BuildPreviewCellResponse */
+    BuildPreviewCellResponse: {
+      cellId: string;
+      confidence: string;
+      displayName: string;
+      name: string;
+      predictedKind: string | null;
+    };
+    /**
+     * BuildPreviewRequest
+     * @description No body needed today; struct kept for future fields (e.g. dry_run).
+     */
+    BuildPreviewRequest: Record<string, any>;
+    /** BuildPreviewResponse */
+    BuildPreviewResponse: {
+      /** @default [] */
+      cells?: components["schemas"]["BuildPreviewCellResponse"][];
+      /** @default true */
+      success?: boolean;
+    };
+    /** BuildRunRequest */
+    BuildRunRequest: {
+      /** @default false */
+      force?: boolean;
+      /** @default null */
+      outputDir?: string | null;
+    };
+    /** BuildRunResponse */
+    BuildRunResponse: {
+      /** @default  */
+      buildId?: string;
+      /** @default true */
+      success?: boolean;
+    };
     /**
      * CacheClearedNotification
      * @description Execution cache cleared result.
@@ -4945,7 +5144,8 @@ export interface components {
         | components["schemas"]["CacheClearedNotification"]
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
-        | components["schemas"]["NotebookDocumentTransactionNotification"];
+        | components["schemas"]["NotebookDocumentTransactionNotification"]
+        | components["schemas"]["BuildEventNotification"];
     };
     /**
      * LanguageServersConfig

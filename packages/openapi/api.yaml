@@ -298,6 +298,107 @@ components:
       required: []
       title: BedrockConfig
       type: object
+    BuildCancelRequest:
+      properties:
+        buildId:
+          type: string
+      required:
+      - buildId
+      title: BuildCancelRequest
+      type: object
+    BuildEventNotification:
+      description: "Streaming progress for an in-flight ``marimo build`` run.\n\n\
+        \    A single build emits many of these in sequence: phase boundaries,\n \
+        \   one per cell as it executes, and a terminal ``done`` / ``error``\n   \
+        \ / ``cancelled`` event.\n\n    Attributes:\n        build_id: Identifies\
+        \ the build this event belongs to. Multiple\n            builds can theoretically\
+        \ interleave (e.g. user starts one,\n            cancels it, starts another);\
+        \ the frontend uses this to\n            ignore late events from a previous\
+        \ build.\n        event_type: The event kind (``phase_started``, ``cell_executed``,\
+        \ ...).\n            Mirrors :class:`marimo._build.events.BuildProgressEvent`.\n\
+        \        payload: Event-specific fields (cell_id, name, phase, etc)."
+      properties:
+        build_id:
+          type: string
+        event_type:
+          type: string
+        op:
+          enum:
+          - build-event
+        payload:
+          type: object
+      required:
+      - op
+      - build_id
+      - event_type
+      - payload
+      title: BuildEventNotification
+      type: object
+    BuildPreviewCellResponse:
+      properties:
+        cellId:
+          type: string
+        confidence:
+          type: string
+        displayName:
+          type: string
+        name:
+          type: string
+        predictedKind:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - cellId
+      - name
+      - displayName
+      - predictedKind
+      - confidence
+      title: BuildPreviewCellResponse
+      type: object
+    BuildPreviewRequest:
+      description: No body needed today; struct kept for future fields (e.g. dry_run).
+      properties: {}
+      required: []
+      title: BuildPreviewRequest
+      type: object
+    BuildPreviewResponse:
+      properties:
+        cells:
+          default: []
+          items:
+            $ref: '#/components/schemas/BuildPreviewCellResponse'
+          type: array
+        success:
+          default: true
+          type: boolean
+      required: []
+      title: BuildPreviewResponse
+      type: object
+    BuildRunRequest:
+      properties:
+        force:
+          default: false
+          type: boolean
+        outputDir:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      required: []
+      title: BuildRunRequest
+      type: object
+    BuildRunResponse:
+      properties:
+        buildId:
+          default: ''
+          type: string
+        success:
+          default: true
+          type: boolean
+      required: []
+      title: BuildRunResponse
+      type: object
     CacheClearedNotification:
       description: "Execution cache cleared result.\n\n    Attributes:\n        bytes_freed:\
         \ Bytes freed by clearing cache."
@@ -2611,10 +2712,12 @@ components:
           - $ref: '#/components/schemas/CacheInfoNotification'
           - $ref: '#/components/schemas/FocusCellNotification'
           - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
+          - $ref: '#/components/schemas/BuildEventNotification'
           discriminator:
             mapping:
               alert: '#/components/schemas/AlertNotification'
               banner: '#/components/schemas/BannerNotification'
+              build-event: '#/components/schemas/BuildEventNotification'
               cache-cleared: '#/components/schemas/CacheClearedNotification'
               cache-info: '#/components/schemas/CacheInfoNotification'
               cell-op: '#/components/schemas/CellNotification'
@@ -5679,6 +5782,71 @@ paths:
               schema:
                 $ref: '#/components/schemas/MCPStatusResponse'
           description: Get MCP server status
+  /api/build/cancel:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildCancelRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+          description: Cancel an in-flight build (idempotent).
+  /api/build/preview:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildPreviewRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuildPreviewResponse'
+          description: Predict each cell's outcome in the compiled notebook.
+  /api/build/run:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildRunRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuildRunResponse'
+          description: Schedule a build; progress streams via WebSocket BuildEvent
+            ops.
+        400:
+          description: Notebook must be saved before building.
+        409:
+          description: A build is already in flight for this session.
   /api/cache/clear:
     post:
       parameters:

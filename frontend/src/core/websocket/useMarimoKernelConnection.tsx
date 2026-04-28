@@ -27,6 +27,7 @@ import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useAlertActions } from "../alerts/state";
+import { applyBuildEvent, buildStateAtom } from "../build/atoms";
 import { cacheInfoAtom } from "../cache/requests";
 import { SCRATCH_CELL_ID } from "../cells/ids";
 import { useRunsActions } from "../cells/runs";
@@ -125,6 +126,7 @@ export function useMarimoKernelConnection(opts: {
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
   const setCacheInfo = useSetAtom(cacheInfoAtom);
+  const setBuildState = useSetAtom(buildStateAtom);
   const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
   const {
     setNamespaces: setStorageNamespaces,
@@ -295,6 +297,11 @@ export function useMarimoKernelConnection(opts: {
       case "cache-info":
         setCacheInfo(msg.data);
         return;
+      case "build-event": {
+        const event = msg.data;
+        setBuildState((prev) => applyBuildEvent(prev, event));
+        return;
+      }
       case "cache-cleared":
         // Cache cleared, could refresh cache info if needed
         return;

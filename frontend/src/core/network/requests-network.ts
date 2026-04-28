@@ -510,6 +510,30 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    getBuildPreview: async () => {
+      return getClient()
+        .POST("/api/build/preview", {
+          body: {},
+          params: getParams(),
+        })
+        .then(handleResponse);
+    },
+    runBuild: async (request) => {
+      return getClient()
+        .POST("/api/build/run", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponse);
+    },
+    cancelBuild: async (request) => {
+      return getClient()
+        .POST("/api/build/cancel", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponse);
+    },
     listStorageEntries: (request) => {
       return getClient()
         .POST("/api/storage/list_entries", {

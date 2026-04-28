@@ -61,6 +61,7 @@ import { derefNotNull } from "../../utils/dereference";
 import { Functions } from "../../utils/functions";
 import { Logger } from "../../utils/Logger";
 import { renderShortcut } from "../shortcuts/renderShortcut";
+import { BuildKindChip } from "./cell/BuildKindChip";
 import { CellStatusComponent } from "./cell/CellStatus";
 import { CreateCellButton } from "./cell/CreateCellButton";
 import {
@@ -640,6 +641,7 @@ const EditableCellComponent = ({
                 outputArea={cellOutput}
               />
               <CellRightSideActions
+                cellId={cellId}
                 className={cn(
                   isMarkdownCodeHidden && cellOutput === "below" && "top-14",
                 )}
@@ -772,6 +774,7 @@ const EditableCellComponent = ({
 
 const CellRightSideActions = memo(
   (props: {
+    cellId: CellId;
     className?: string;
     disabled: boolean | undefined;
     edited: boolean;
@@ -785,6 +788,7 @@ const CellRightSideActions = memo(
     uninstantiated: boolean;
   }) => {
     const {
+      cellId,
       className,
       disabled = false,
       edited,
@@ -799,18 +803,21 @@ const CellRightSideActions = memo(
     } = props;
 
     const cellStatusComponent = (
-      <CellStatusComponent
-        status={status}
-        staleInputs={staleInputs}
-        interrupted={interrupted}
-        editing={true}
-        edited={edited}
-        disabled={disabled}
-        elapsedTime={runElapsedTimeMs}
-        runStartTimestamp={runStartTimestamp}
-        uninstantiated={uninstantiated}
-        lastRunStartTimestamp={lastRunStartTimestamp}
-      />
+      <div className="flex items-center gap-1">
+        <BuildKindChip cellId={cellId} />
+        <CellStatusComponent
+          status={status}
+          staleInputs={staleInputs}
+          interrupted={interrupted}
+          editing={true}
+          edited={edited}
+          disabled={disabled}
+          elapsedTime={runElapsedTimeMs}
+          runStartTimestamp={runStartTimestamp}
+          uninstantiated={uninstantiated}
+          lastRunStartTimestamp={lastRunStartTimestamp}
+        />
+      </div>
     );
 
     return (
@@ -1138,6 +1145,7 @@ const SetupCellComponent = ({
                 showLanguageToggles={false}
               />
               <CellRightSideActions
+                cellId={cellId}
                 edited={cellData.edited}
                 status={cellRuntime.status}
                 isCellStatusInline={false}

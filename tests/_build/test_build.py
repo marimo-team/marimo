@@ -278,6 +278,72 @@ def test_cell_statuses_preserve_anonymous_cells(tmp_path: Path) -> None:
     ]
 
 
+def test_progress_callback_streams_phases_and_cells(tmp_path: Path) -> None:
+    """Every phase boundary, executed cell, and the final ``done`` event fires.
+
+    The exact set of cells we run depends on the fixture, but we lock
+    in the *shape* of the stream: phases bracket the work, cells fire
+    in execute order, and the terminal event is always ``done``.
+    """
+    from marimo._build.events import (
+        BuildDone,
+        CellExecuted,
+        CellExecuting,
+        PhaseFinished,
+        PhaseStarted,
+    )
+
+    notebook = _copy_fixture(tmp_path)
+    events: list[object] = []
+    build_notebook(notebook, progress_callback=events.append)
+
+    phases_started = [e.phase for e in events if isinstance(e, PhaseStarted)]
+    phases_finished = [e.phase for e in events if isinstance(e, PhaseFinished)]
+    assert phases_started == [
+        "classify",
+        "execute",
+        "plan",
+        "persist",
+        "codegen",
+        "gc",
+    ]
+    assert phases_started == phases_finished
+
+    # Every executing event has a matching executed event in order.
+    executing = [e.name for e in events if isinstance(e, CellExecuting)]
+    executed = [e.name for e in events if isinstance(e, CellExecuted)]
+    assert executing == executed
+    # All executed cells have non-negative timing.
+    for e in events:
+        if isinstance(e, CellExecuted):
+            assert e.elapsed_ms >= 0
+
+    # The terminal event is the BuildDone summary.
+    assert isinstance(events[-1], BuildDone)
+
+
+def test_should_cancel_aborts_between_cells(tmp_path: Path) -> None:
+    """Setting the cancel flag mid-flight raises ``BuildCancelled``."""
+    from marimo._build.events import CellExecuting
+    from marimo._build.runner import BuildCancelled
+
+    notebook = _copy_fixture(tmp_path)
+    cancel = False
+
+    def progress(event: object) -> None:
+        nonlocal cancel
+        # Cancel as soon as the first cell starts executing.
+        if isinstance(event, CellExecuting):
+            cancel = True
+
+    with pytest.raises(BuildCancelled):
+        build_notebook(
+            notebook,
+            progress_callback=progress,
+            should_cancel=lambda: cancel,
+        )
+
+
 def test_manifest_indexes_artifacts_by_def_name(tmp_path: Path) -> None:
     """The manifest is a ``{def_name: {file, kind}}`` map, not a flat list."""
     import json

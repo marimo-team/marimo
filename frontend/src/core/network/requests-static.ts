@@ -93,6 +93,9 @@ export function createStaticRequests(): EditRequests & RunRequests {
     invokeAiTool: throwNotInEditMode,
     clearCache: throwNotInEditMode,
     getCacheInfo: throwNotInEditMode,
+    getBuildPreview: throwNotInEditMode,
+    runBuild: throwNotInEditMode,
+    cancelBuild: throwNotInEditMode,
     listStorageEntries: throwNotInEditMode,
     downloadStorage: throwNotInEditMode,
   };

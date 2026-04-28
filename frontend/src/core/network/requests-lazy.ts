@@ -76,6 +76,9 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   writeSecret: "throwError",
   clearCache: "throwError",
   getCacheInfo: "throwError",
+  getBuildPreview: "throwError",
+  runBuild: "throwError",
+  cancelBuild: "throwError",
 
   // Operations that throw errors (sessionless but not supported offline)
   saveUserConfig: "throwError",

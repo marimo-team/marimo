@@ -21,6 +21,7 @@ executing a cell is mutating the shared ``glbls`` dict.
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any
 
 from marimo._messaging.types import NoopStream
@@ -40,8 +41,11 @@ from marimo._runtime.patches import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._ast.app import InternalApp
     from marimo._build.classify import Classification
+    from marimo._build.events import BuildProgressEvent
     from marimo._types.ids import CellId_t
 
 
@@ -59,6 +63,14 @@ class BuildExecutionError(RuntimeError):
         self.cell_name = cell_name
 
 
+class BuildCancelled(RuntimeError):
+    """Raised when ``should_cancel`` returns True between cells.
+
+    Carries no payload — the caller already knows it asked for the
+    cancellation.
+    """
+
+
 class BuildRunner:
     """Run every statically compilable cell of a notebook.
 
@@ -69,6 +81,13 @@ class BuildRunner:
     classification:
         Static classification produced by
         :func:`marimo._build.classify.classify_static`.
+    progress_callback:
+        Optional sink for per-cell ``cell_executing`` /
+        ``cell_executed`` events. Called synchronously from the runner
+        thread; keep it cheap (e.g., enqueue onto a thread-safe queue).
+    should_cancel:
+        Optional poll fn checked between cells. Returning True raises
+        :class:`BuildCancelled` from :meth:`run`.
 
     Attributes:
     ----------
@@ -83,10 +102,15 @@ class BuildRunner:
         self,
         app: InternalApp,
         classification: Classification,
+        *,
+        progress_callback: Callable[[BuildProgressEvent], None] | None = None,
+        should_cancel: Callable[[], bool] | None = None,
     ) -> None:
         self.app = app
         self._classification = classification
         self._executor = get_executor(ExecutionConfig())
+        self._progress_callback = progress_callback
+        self._should_cancel = should_cancel
         self.captured_defs: dict[CellId_t, dict[str, Any]] = {}
 
     def run(self) -> None:
@@ -106,6 +130,12 @@ class BuildRunner:
                 teardown_context()
 
     def _run_inner(self) -> None:
+        from marimo._build.events import (
+            CellExecuted,
+            CellExecuting,
+            CellFailed,
+        )
+
         docstring = extract_docstring_from_header(self.app._app._header)
         with patch_main_module_context(
             create_main_module(
@@ -130,8 +160,26 @@ class BuildRunner:
                 if cid not in self._classification.compilable:
                     continue
 
+                if self._should_cancel is not None and self._should_cancel():
+                    raise BuildCancelled()
+
                 cell = self.app.graph.cells[cid]
                 cell_name = self.app.cell_manager.cell_name(cid)
+                # Imported lazily to keep build.py the canonical home
+                # for the helper while still surfacing the same label
+                # everywhere a runner emits an event.
+                from marimo._build.build import display_name
+
+                cell_label = display_name(cell_name, cell)
+                if self._progress_callback is not None:
+                    self._progress_callback(
+                        CellExecuting(
+                            cell_id=cid,
+                            name=cell_name,
+                            display_name=cell_label,
+                        )
+                    )
+                t0 = time.perf_counter()
                 with get_context().with_cell_id(cid):
                     try:
                         self._executor.execute_cell(
@@ -144,11 +192,30 @@ class BuildRunner:
                         # surface the underlying error with the cell
                         # name attached.
                         cause = e.__cause__ or e
+                        if self._progress_callback is not None:
+                            self._progress_callback(
+                                CellFailed(
+                                    cell_id=cid,
+                                    name=cell_name,
+                                    display_name=cell_label,
+                                    error=f"{type(cause).__name__}: {cause}",
+                                )
+                            )
                         raise BuildExecutionError(cell_name, cause) from cause
 
                 self.captured_defs[cid] = {
                     name: glbls[name] for name in cell.defs if name in glbls
                 }
+                if self._progress_callback is not None:
+                    elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                    self._progress_callback(
+                        CellExecuted(
+                            cell_id=cid,
+                            name=cell_name,
+                            display_name=cell_label,
+                            elapsed_ms=elapsed_ms,
+                        )
+                    )
 
     def _populate_setup_globals(
         self, glbls: dict[str, Any], setup_id: CellId_t

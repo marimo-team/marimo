@@ -7,6 +7,7 @@ import {
   DatabaseZapIcon,
   FileTextIcon,
   FolderTreeIcon,
+  HammerIcon,
   KeyRoundIcon,
   type LucideIcon,
   NetworkIcon,
@@ -35,6 +36,7 @@ export type PanelType =
   | "documentation"
   | "snippets"
   | "ai"
+  | "build"
   // Developer panel defaults
   | "errors"
   | "scratchpad"
@@ -124,6 +126,15 @@ export const PANELS: PanelDescriptor[] = [
     tooltip: "Explore dependencies",
     defaultSection: "sidebar",
     additionalKeywords: ["graph", "imports"],
+  },
+  {
+    type: "build",
+    Icon: HammerIcon,
+    label: "Build",
+    tooltip: "Pre-compute & compile the notebook",
+    defaultSection: "sidebar",
+    hidden: isWasm(),
+    additionalKeywords: ["compile", "precompute", "artifact", "marimo build"],
   },
   // Developer panel defaults
   {

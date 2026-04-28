@@ -15,10 +15,14 @@ import ReactFlow, {
   useNodesState,
   useReactFlow,
 } from "reactflow";
+import { useAtomValue } from "jotai";
 import {
+  BuildStatusContext,
   EdgeMarkerContext,
   nodeTypes,
 } from "@/components/dependency-graph/custom-node";
+import { buildPreviewAtom, buildStateAtom } from "@/core/build/atoms";
+import { cellBuildKind } from "@/core/build/cell-kind";
 import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
@@ -51,6 +55,38 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   layoutDirection,
   settings,
 }) => {
+  const buildState = useAtomValue(buildStateAtom);
+  const preview = useAtomValue(buildPreviewAtom);
+
+  // Cells whose compiled-notebook outcome is hidden by the build-status
+  // filters. Recompute lazily so toggling the panel checkbox is cheap
+  // even on big notebooks.
+  const buildHidden = React.useMemo(() => {
+    if (
+      !settings.showBuildStatus ||
+      (!settings.hideElidedCells && !settings.hideCompiledCells)
+    ) {
+      return undefined;
+    }
+    const hidden = new Set<CellId>();
+    for (const cellId of cellIds) {
+      const kind = cellBuildKind(cellId, buildState, preview);
+      if (settings.hideElidedCells && kind === "elided") {
+        hidden.add(cellId);
+      } else if (settings.hideCompiledCells && kind === "loader") {
+        hidden.add(cellId);
+      }
+    }
+    return hidden;
+  }, [
+    cellIds,
+    buildState,
+    preview,
+    settings.showBuildStatus,
+    settings.hideElidedCells,
+    settings.hideCompiledCells,
+  ]);
+
   // oxlint-disable-next-line react/hook-use-state
   const [initial] = useState(() => {
     let elements = elementsBuilder.createElements(
@@ -59,6 +95,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
       variables,
       settings.hidePureMarkdown,
       settings.hideReusableFunctions,
+      buildHidden,
     );
     elements = layoutElements({
       nodes: elements.nodes,
@@ -96,6 +133,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
         variables,
         settings.hidePureMarkdown,
         settings.hideReusableFunctions,
+        buildHidden,
       ),
     );
   }, [
@@ -105,6 +143,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
     syncChanges,
     settings.hidePureMarkdown,
     settings.hideReusableFunctions,
+    buildHidden,
   ]);
 
   const [selection, setSelection] = useState<GraphSelection>();
@@ -116,6 +155,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
 
   return (
     <EdgeMarkerContext value={layoutDirection}>
+      <BuildStatusContext value={settings.showBuildStatus}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -185,6 +225,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
         />
         {children}
       </ReactFlow>
+      </BuildStatusContext>
     </EdgeMarkerContext>
   );
 };

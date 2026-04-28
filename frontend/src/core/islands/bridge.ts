@@ -267,6 +267,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   invokeAiTool = throwNotImplemented;
   clearCache = throwNotImplemented;
   getCacheInfo = throwNotImplemented;
+  getBuildPreview = throwNotImplemented;
+  runBuild = throwNotImplemented;
+  cancelBuild = throwNotImplemented;
   listStorageEntries = throwNotImplemented;
   downloadStorage = throwNotImplemented;
 

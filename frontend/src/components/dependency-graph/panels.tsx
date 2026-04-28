@@ -45,6 +45,9 @@ export const GraphToolbar: React.FC<Props> = memo(
 
     const markdownCheckboxId = useId();
     const functionsCheckboxId = useId();
+    const buildStatusCheckboxId = useId();
+    const hideElidedCheckboxId = useId();
+    const hideCompiledCheckboxId = useId();
 
     const settingsButton = (
       <Popover>
@@ -80,6 +83,47 @@ export const GraphToolbar: React.FC<Props> = memo(
                 Hide reusable functions
               </Label>
             </div>
+            <div className="flex items-center gap-2 pt-2 border-t">
+              <Checkbox
+                data-testid="show-build-status-checkbox"
+                id={buildStatusCheckboxId}
+                checked={settings.showBuildStatus}
+                onCheckedChange={(checked) =>
+                  handleSettingChange("showBuildStatus", Boolean(checked))
+                }
+              />
+              <Label htmlFor={buildStatusCheckboxId}>Show build status</Label>
+            </div>
+            {settings.showBuildStatus && (
+              <div className="flex flex-col gap-2 pl-6">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    data-testid="hide-elided-cells-checkbox"
+                    id={hideElidedCheckboxId}
+                    checked={settings.hideElidedCells}
+                    onCheckedChange={(checked) =>
+                      handleSettingChange("hideElidedCells", Boolean(checked))
+                    }
+                  />
+                  <Label htmlFor={hideElidedCheckboxId}>
+                    Hide elided cells
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    data-testid="hide-compiled-cells-checkbox"
+                    id={hideCompiledCheckboxId}
+                    checked={settings.hideCompiledCells}
+                    onCheckedChange={(checked) =>
+                      handleSettingChange("hideCompiledCells", Boolean(checked))
+                    }
+                  />
+                  <Label htmlFor={hideCompiledCheckboxId}>
+                    Hide compiled cells
+                  </Label>
+                </div>
+              </div>
+            )}
           </div>
         </PopoverContent>
       </Popover>

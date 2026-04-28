@@ -104,6 +104,13 @@ export type InvokeAiToolRequest = schemas["InvokeAiToolRequest"];
 export type InvokeAiToolResponse = schemas["InvokeAiToolResponse"];
 export type ClearCacheRequest = schemas["ClearCacheRequest"];
 export type GetCacheInfoRequest = schemas["GetCacheInfoRequest"];
+export type BuildPreviewRequest = schemas["BuildPreviewRequest"];
+export type BuildPreviewResponse = schemas["BuildPreviewResponse"];
+export type BuildPreviewCellResponse = schemas["BuildPreviewCellResponse"];
+export type BuildRunRequest = schemas["BuildRunRequest"];
+export type BuildRunResponse = schemas["BuildRunResponse"];
+export type BuildCancelRequest = schemas["BuildCancelRequest"];
+export type BuildEventNotification = schemas["BuildEventNotification"];
 export type LspHealthResponse = schemas["LspHealthResponse"];
 export type LspRestartRequest = schemas["LspRestartRequest"];
 export type LspRestartResponse = schemas["LspRestartResponse"];
@@ -210,6 +217,10 @@ export interface EditRequests {
   // Cache requests
   clearCache: () => Promise<null>;
   getCacheInfo: () => Promise<null>;
+  // Build requests
+  getBuildPreview: () => Promise<BuildPreviewResponse>;
+  runBuild: (request: BuildRunRequest) => Promise<BuildRunResponse>;
+  cancelBuild: (request: BuildCancelRequest) => Promise<{ success: boolean }>;
   // Storage requests
   listStorageEntries: (request: StorageListEntriesRequest) => Promise<null>;
   downloadStorage: (request: StorageDownloadRequest) => Promise<null>;

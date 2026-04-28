@@ -809,6 +809,38 @@ class NotebookDocumentTransactionNotification(
     transaction: Transaction
 
 
+# A loose schema for the per-event payload carried by ``BuildEvent``.
+# We deliberately do *not* introduce one msgspec type per event kind:
+# the build pipeline is the only producer, and the editor's Build
+# panel deserializes these straight into TypeScript fields. Keeping
+# the wire shape as a free-form dict keeps the kernel-side code
+# small and lets us add fields without an op-version bump.
+BuildEventPayload = dict[str, Any]
+
+
+class BuildEventNotification(Notification, tag="build-event"):
+    """Streaming progress for an in-flight ``marimo build`` run.
+
+    A single build emits many of these in sequence: phase boundaries,
+    one per cell as it executes, and a terminal ``done`` / ``error``
+    / ``cancelled`` event.
+
+    Attributes:
+        build_id: Identifies the build this event belongs to. Multiple
+            builds can theoretically interleave (e.g. user starts one,
+            cancels it, starts another); the frontend uses this to
+            ignore late events from a previous build.
+        event_type: The event kind (``phase_started``, ``cell_executed``, ...).
+            Mirrors :class:`marimo._build.events.BuildProgressEvent`.
+        payload: Event-specific fields (cell_id, name, phase, etc).
+    """
+
+    name: ClassVar[str] = "build-event"
+    build_id: str
+    event_type: str
+    payload: BuildEventPayload
+
+
 NotificationMessage = (
     # Cell operations
     CellNotification
@@ -860,4 +892,6 @@ NotificationMessage = (
     | FocusCellNotification
     # Document
     | NotebookDocumentTransactionNotification
+    # Build
+    | BuildEventNotification
 )

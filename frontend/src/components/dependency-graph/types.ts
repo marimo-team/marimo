@@ -18,4 +18,14 @@ export type GraphSelection =
 export interface GraphSettings {
   hidePureMarkdown: boolean;
   hideReusableFunctions: boolean;
+  /**
+   * Recolor nodes by their compiled-notebook outcome
+   * (loader / elided / verbatim) — predicted from the live preview, or
+   * exact when a build has run.
+   */
+  showBuildStatus: boolean;
+  /** Hide cells that would be removed from the compiled notebook. */
+  hideElidedCells: boolean;
+  /** Hide cells that compile to an artifact loader. */
+  hideCompiledCells: boolean;
 }
