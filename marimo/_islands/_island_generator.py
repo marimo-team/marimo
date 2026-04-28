@@ -249,6 +249,10 @@ class MarimoIslandGenerator:
         self._app = InternalApp(App())
         self._stubs: list[MarimoIslandStub] = []
         self._config = _AppConfig()
+        # When constructed via ``from_file``, this records the notebook
+        # source path so cells see ``__file__`` / ``mo.notebook_dir()``
+        # resolve to the notebook rather than to the host process.
+        self._source_filename: str | None = None
 
     @staticmethod
     def from_file(
@@ -267,6 +271,7 @@ class MarimoIslandGenerator:
         file_manager = load_notebook(filename)
 
         generator = MarimoIslandGenerator()
+        generator._source_filename = filename
         stubs = []
         for cell_data in file_manager.app.cell_manager.cell_data():
             stubs.append(
@@ -338,7 +343,9 @@ class MarimoIslandGenerator:
             raise ValueError("You can only call build() once")
 
         (session, did_error) = await run_app_until_completion(
-            file_manager=AppFileManager.from_app(self._app),
+            file_manager=AppFileManager.from_app(
+                self._app, filename=self._source_filename
+            ),
             cli_args={},
             argv=None,
         )
