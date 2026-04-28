@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING, cast
@@ -278,7 +279,10 @@ class MarimoIslandGenerator:
         file_manager = file_router.get_file_manager(file_key)
 
         generator = MarimoIslandGenerator()
-        generator._source_filename = filename
+        # Resolve at capture time so a chdir between ``from_file`` and
+        # ``build`` doesn't change which absolute path cells see for
+        # ``__file__`` / ``mo.notebook_dir()``.
+        generator._source_filename = os.path.abspath(filename)
         stubs = []
         for cell_data in file_manager.app.cell_manager.cell_data():
             stubs.append(
