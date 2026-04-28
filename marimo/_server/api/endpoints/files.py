@@ -181,14 +181,6 @@ async def save(
     session = app_state.require_current_session()
     contents = session.app_file_manager.save(body)
 
-    # Rebuild the document from the updated cell manager so that
-    # reconnections (which read session.document) reflect the saved state.
-    from marimo._session.session import _document_from_cell_manager
-
-    session.document = _document_from_cell_manager(
-        session.app_file_manager.app.cell_manager
-    )
-
     return PlainTextResponse(content=contents)
 
 

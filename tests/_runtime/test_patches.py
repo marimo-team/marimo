@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import io
-import sys
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -14,7 +13,7 @@ from marimo._runtime.patches import patch_polars_write_json
 from marimo._runtime.runtime import Kernel
 from marimo._utils.platform import is_pyodide
 from tests._messaging.mocks import MockStream
-from tests.conftest import ExecReqProvider
+from tests.conftest import ExecReqProvider, mock_pyodide
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -211,7 +210,7 @@ async def test_webbrowser_easter_egg(
     not DependencyManager.polars.has(),
     reason="Polars is not installed",
 )
-@patch.dict(sys.modules, {"pyodide": Mock()})
+@mock_pyodide()
 def test_polars_write_json_patch(tmp_path: Path):
     import polars as pl
 

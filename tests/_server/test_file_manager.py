@@ -501,7 +501,7 @@ if __name__ == "__main__":
     temp_file.write_text(modified_content)
 
     # Reload the file
-    changed_cell_ids = manager.reload()
+    _, changed_cell_ids = manager.reload()
 
     # The cell IDs should be reordered to match the original code
     reloaded_cell_ids = list(manager.app.cell_manager.cell_ids())
@@ -551,7 +551,7 @@ if __name__ == "__main__":
     temp_file.write_text(modified_content)
 
     # Reload the file
-    changed_cell_ids = manager.reload()
+    _, changed_cell_ids = manager.reload()
 
     # Check that the code was updated
     reloaded_code = next(iter(manager.app.cell_manager.codes()))
@@ -606,7 +606,7 @@ if __name__ == "__main__":
     temp_file.write_text(modified_content)
 
     # Reload the file
-    changed_cell_ids = manager.reload()
+    _, changed_cell_ids = manager.reload()
 
     # Check that the new cell was added
     codes = list(manager.app.cell_manager.codes())
@@ -699,7 +699,7 @@ if __name__ == "__main__":
     )
 
     # Reload the app
-    changed_cell_ids = manager.reload()
+    _, changed_cell_ids = manager.reload()
     assert changed_cell_ids == {cell_two}
 
     # Check that the graph was updated
@@ -748,7 +748,7 @@ if __name__ == "__main__":
     )
 
     # Reload the app
-    changed_cell_ids = manager.reload()
+    _, changed_cell_ids = manager.reload()
     # Technically cell 1 did change since it was deleted.
     assert changed_cell_ids == {cell_one, cell_two}
 
@@ -923,7 +923,7 @@ if __name__ == "__main__":
     temp_file.write_text(modified_content)
 
     # Reload the file
-    changed_cell_ids = manager.reload()
+    _, changed_cell_ids = manager.reload()
 
     # The deleted cell should be included in changed_cell_ids
     reloaded_cell_ids = list(manager.app.cell_manager.cell_ids())
@@ -984,7 +984,7 @@ if __name__ == "__main__":
     temp_file.write_text(modified_content)
 
     # Reload the file
-    changed_cell_ids = manager.reload()
+    _, changed_cell_ids = manager.reload()
 
     # Two cells should be deleted and included in changed_cell_ids
     reloaded_cell_ids = list(manager.app.cell_manager.cell_ids())

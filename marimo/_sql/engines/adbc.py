@@ -534,7 +534,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
                 return pl.from_arrow(arrow_table)
 
             def convert_to_pandas() -> pd.DataFrame:
-                return arrow_table.to_pandas()
+                return cast("pd.DataFrame", arrow_table.to_pandas())
 
             result = convert_to_output(
                 sql_output_format=sql_output_format,

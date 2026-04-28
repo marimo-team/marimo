@@ -196,7 +196,7 @@ def _apply_format_locales(embed_options: dict[str, Any]) -> dict[str, Any]:
             if DependencyManager.vl_convert_python.has():
                 import vl_convert as vlc  # type: ignore
 
-                return dict(vlc.get_time_format_locale(locale))
+                return dict(vlc.get_time_format_locale(locale))  # type: ignore[arg-type]
             else:
                 with urlopen(
                     TIME_FORMAT_LOCALE_URL.format(locale=locale),
@@ -212,7 +212,7 @@ def _apply_format_locales(embed_options: dict[str, Any]) -> dict[str, Any]:
             if DependencyManager.vl_convert_python.has():
                 import vl_convert as vlc  # type: ignore
 
-                return dict(vlc.get_format_locale(locale))
+                return dict(vlc.get_format_locale(locale))  # type: ignore[arg-type]
             else:
                 with urlopen(
                     FORMAT_LOCALE_URL.format(locale=locale),

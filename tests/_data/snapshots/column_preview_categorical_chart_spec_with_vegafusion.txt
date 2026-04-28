@@ -96,7 +96,7 @@
             "signal": "max(0.25, bandwidth('y'))"
           },
           "tooltip": {
-            "signal": "{\"category_col\": isValid(datum[\"category_col\"]) ? datum[\"category_col\"] : \"\"+datum[\"category_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+            "signal": "{\"category_col\": isValid(datum[\"category_col\"]) ? isArray(datum[\"category_col\"]) ? join(datum[\"category_col\"], '\\n') : datum[\"category_col\"] : \"\"+datum[\"category_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
           },
           "x": {
             "field": "count_end",
@@ -140,7 +140,7 @@
             "signal": "format(datum[\"percentage\"], \".2%\")"
           },
           "tooltip": {
-            "signal": "{\"category_col\": isValid(datum[\"category_col\"]) ? datum[\"category_col\"] : \"\"+datum[\"category_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+            "signal": "{\"category_col\": isValid(datum[\"category_col\"]) ? isArray(datum[\"category_col\"]) ? join(datum[\"category_col\"], '\\n') : datum[\"category_col\"] : \"\"+datum[\"category_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
           },
           "x": {
             "field": "count",

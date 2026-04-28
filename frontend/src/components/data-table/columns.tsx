@@ -197,9 +197,17 @@ export function generateColumns<T>({
         const stats = chartSpecModel?.getColumnStats(key);
         const dtype = column.columnDef.meta?.dtype;
         const headerTitle = headerTooltip?.[key];
+        const headerJustify = textJustifyColumns?.[key];
+
         const dtypeHeader =
           showDataTypes && dtype ? (
-            <div className="flex flex-row gap-1">
+            <div
+              className={cn(
+                "flex flex-row gap-1",
+                headerJustify === "center" && "justify-center",
+                headerJustify === "right" && "justify-end",
+              )}
+            >
               <span className="text-xs text-muted-foreground">{dtype}</span>
               {stats && typeof stats.nulls === "number" && stats.nulls > 0 && (
                 <span className="text-xs text-muted-foreground">
@@ -233,6 +241,7 @@ export function generateColumns<T>({
             header={headerWithTooltip}
             subheader={dtypeHeader}
             column={column}
+            justify={headerJustify}
             calculateTopKRows={calculateTopKRows}
             table={table}
           />
@@ -247,6 +256,8 @@ export function generateColumns<T>({
           <div
             className={cn(
               "flex flex-col h-full pt-0.5 pb-3 justify-between items-start",
+              headerJustify === "center" && "items-center",
+              headerJustify === "right" && "items-end",
             )}
           >
             {dataTableColumnHeader}

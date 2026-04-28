@@ -83,6 +83,32 @@ def test_index_when_new_file(client: TestClient) -> None:
     assert "<title>marimo</title>" in content
 
 
+def test_index_missing_assets_in_source_checkout_shows_build_hint(
+    client: TestClient, tmp_path: Path
+) -> None:
+    source_root = tmp_path / "repo"
+    source_root.mkdir()
+    (source_root / "frontend").mkdir()
+    (source_root / "pyproject.toml").write_text("")
+
+    missing_static_root = tmp_path / "missing_static"
+    missing_static_root.mkdir()
+
+    with (
+        patch("marimo._server.api.endpoints.assets.root", missing_static_root),
+        patch(
+            "marimo._server.api.endpoints.assets.marimo_package_path",
+            return_value=source_root / "marimo",
+        ),
+    ):
+        response = client.get("/", headers=token_header())
+
+    assert response.status_code == 500
+    detail = response.json()["detail"]
+    assert "Did you run `make fe`?" in detail
+    assert "Restart marimo after building." in detail
+
+
 def test_index_strips_access_token_query_param(client: TestClient) -> None:
     # A valid `?access_token=` in the URL should 303 to the same path with
     # the token removed, carrying a session cookie so the follow-up request

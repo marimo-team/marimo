@@ -110,10 +110,14 @@ class Session(Protocol):
     initialization_id: str
     app_file_manager: AppFileManager
     config_manager: MarimoConfigManager
-    document: NotebookDocument
     session_view: SessionView
     ttl_seconds: int
     scratchpad_lock: asyncio.Lock
+
+    @property
+    def document(self) -> NotebookDocument:
+        """The notebook document this session reflects."""
+        ...
 
     @property
     def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:

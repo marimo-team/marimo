@@ -81,7 +81,7 @@
             "signal": "max(0.25, bandwidth('y'))"
           },
           "tooltip": {
-            "signal": "{\"B\": isValid(datum[\"B\"]) ? datum[\"B\"] : \"\"+datum[\"B\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+            "signal": "{\"B\": isValid(datum[\"B\"]) ? isArray(datum[\"B\"]) ? join(datum[\"B\"], '\\n') : datum[\"B\"] : \"\"+datum[\"B\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
           },
           "x": {
             "field": "count_end",
@@ -125,7 +125,7 @@
             "signal": "format(datum[\"percentage\"], \".2%\")"
           },
           "tooltip": {
-            "signal": "{\"B\": isValid(datum[\"B\"]) ? datum[\"B\"] : \"\"+datum[\"B\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+            "signal": "{\"B\": isValid(datum[\"B\"]) ? isArray(datum[\"B\"]) ? join(datum[\"B\"], '\\n') : datum[\"B\"] : \"\"+datum[\"B\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
           },
           "x": {
             "field": "count",
