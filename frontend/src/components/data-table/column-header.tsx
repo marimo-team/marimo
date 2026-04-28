@@ -66,6 +66,7 @@ interface DataTableColumnHeaderProps<
   column: Column<TData, TValue>;
   header: React.ReactNode;
   subheader?: React.ReactNode;
+  justify?: "left" | "center" | "right";
   calculateTopKRows?: CalculateTopKRows;
   table?: Table<TData>;
 }
@@ -74,6 +75,7 @@ export const DataTableColumnHeader = <TData, TValue>({
   column,
   header,
   subheader,
+  justify,
   className,
   calculateTopKRows,
   table,
@@ -89,7 +91,13 @@ export const DataTableColumnHeader = <TData, TValue>({
   // No sorting or filtering
   if (!column.getCanSort() && !column.getCanFilter()) {
     return (
-      <div className={cn(className)}>
+      <div
+        className={cn(
+          justify === "center" && "text-center",
+          justify === "right" && "text-right",
+          className,
+        )}
+      >
         {header}
         {subheader}
       </div>
@@ -103,9 +111,24 @@ export const DataTableColumnHeader = <TData, TValue>({
       <div
         className={cn("group flex flex-col my-1 w-full select-none", className)}
       >
-        <div className="flex items-center gap-1">
-          <span>{header}</span>
-          {column.getCanSort() && <SortButton column={column} />}
+        <div
+          className={cn(
+            "flex items-center gap-1",
+            justify === "right" && "flex-row-reverse",
+            justify === "center" && "mx-auto",
+          )}
+        >
+          {justify === "center" ? (
+            <>
+              {column.getCanSort() && <SortButton column={column} />}
+              <span>{header}</span>
+            </>
+          ) : (
+            <>
+              <span>{header}</span>
+              {column.getCanSort() && <SortButton column={column} />}
+            </>
+          )}
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild={true}>
               <button
