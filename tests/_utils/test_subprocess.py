@@ -162,13 +162,17 @@ async def test_try_kill_process_and_group_sigkills_stubborn_child(
     """try_kill_process_and_group schedules a reap task that escalates to
     SIGKILL when the child ignores SIGTERM.
     """
-    # Skip the reaper's real 5s/1s waits so the test is fast.
+    # Cap the reaper's real 5s/1s waits to 50ms so the test is fast, but
+    # leave enough wall-clock time for the kernel to deliver SIGKILL and
+    # for the reaper's own `poll()` to reap the zombie. Zeroing the delay
+    # entirely lets the reaper exit before the child is reaped, after which
+    # `_is_alive` (which sees zombies as alive) would spin to timeout.
     real_sleep = asyncio.sleep
 
-    async def no_wait(_delay: float) -> None:
-        await real_sleep(0)
+    async def short_sleep(_delay: float) -> None:
+        await real_sleep(0.05)
 
-    monkeypatch.setattr(asyncio, "sleep", no_wait)
+    monkeypatch.setattr(asyncio, "sleep", short_sleep)
 
     script = (
         "import signal, time\n"
