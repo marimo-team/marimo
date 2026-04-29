@@ -79,19 +79,20 @@ class DataflowFileBundle:
     async def ensure_session(self) -> Session:
         """Look up the session for this file or create one with an anchor.
 
-        Both newly created sessions and pre-existing sessions that haven't
-        run any cells yet are kicked off with an instantiate request so
-        cells execute, ``mo.api.input`` elements register, and the schema
-        can be computed. The "session exists but isn't instantiated" case
-        happens when ``marimo edit`` is running but the editor's browser
-        tab hasn't yet sent the WS instantiate message.
+        Always fires an ``auto_run=True`` instantiate request: the kernel
+        early-returns when ``graph.cells`` is already populated, so this is
+        idempotent and a no-op once cells have run. We can't use a host-side
+        heuristic to skip the request because ``last_executed_code`` is
+        populated during *registration* (even with ``auto_run=False``, which
+        is the marimo edit default when ``runtime.auto_instantiate`` is off),
+        so the bundle would otherwise see an "instantiated" session that has
+        an empty kernel ``globals`` and produce an empty schema.
         """
         async with self._lock:
             if self._session is not None and not self._session_closed():
-                if not _has_run_cells(self._session):
-                    self._session.instantiate(
-                        _empty_instantiate_request(), http_request=None
-                    )
+                self._session.instantiate(
+                    _empty_instantiate_request(), http_request=None
+                )
                 return self._session
 
             existing = self._session_manager.get_session_by_file_key(
@@ -99,10 +100,9 @@ class DataflowFileBundle:
             )
             if existing is not None:
                 self._attach_to_session(existing)
-                if not _has_run_cells(existing):
-                    existing.instantiate(
-                        _empty_instantiate_request(), http_request=None
-                    )
+                existing.instantiate(
+                    _empty_instantiate_request(), http_request=None
+                )
                 return existing
 
             anchor = DataflowAnchorConsumer(
@@ -355,17 +355,6 @@ def _empty_instantiate_request() -> Any:
     from marimo._server.models.models import InstantiateNotebookRequest
 
     return InstantiateNotebookRequest(object_ids=[], values=[])
-
-
-def _has_run_cells(session: Session) -> bool:
-    """Heuristic for "this session has been instantiated."
-
-    The session view's ``last_executed_code`` is populated as cells run;
-    empty means the kernel is waiting for an instantiate. Used by
-    ``DataflowFileBundle.ensure_session`` to fire a kernel-side instantiate
-    when the editor created the session but no browser tab has yet hit it.
-    """
-    return bool(session.session_view.last_executed_code)
 
 
 def _has_non_dataflow_consumer(session: Session) -> bool:
