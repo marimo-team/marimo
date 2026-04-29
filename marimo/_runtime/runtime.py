@@ -1406,8 +1406,22 @@ class Kernel:
         else:
             return cells_registered_without_error.union(stale_cells)
 
-    async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
-        """Run cells and any state updates they trigger"""
+    async def _run_cells(
+        self,
+        cell_ids: set[CellId_t],
+        *,
+        scope: set[CellId_t] | None = None,
+    ) -> None:
+        """Run cells and any state updates they trigger.
+
+        Args:
+            cell_ids: Roots to run; descendants are added in autorun mode.
+            scope: Optional cell-id allow-list applied after expansion.
+                Used by the dataflow API to skip cells whose outputs no
+                consumer is subscribed to. ``None`` means no restriction;
+                a follow-up reactive run inherits the scope so transitive
+                state updates remain bounded by the same closure.
+        """
 
         with run_id_context():
             # This patch is an attempt to mitigate problems caused by the fact
@@ -1426,7 +1440,9 @@ class Kernel:
                     and cell.run_result_status
                     in ("exception", "marimo-error", "cancelled")
                 }
-                while cell_ids := await self._run_cells_internal(cell_ids):
+                while cell_ids := await self._run_cells_internal(
+                    cell_ids, scope=scope
+                ):
                     LOGGER.debug("Running state updates ...")
                     if self.lazy() and cell_ids:
                         self.graph.set_stale(cell_ids, prune_imports=True)
@@ -1468,8 +1484,13 @@ class Kernel:
             if isinstance(error, MarimoStrictExecutionError):
                 self.errors[cell_id] = (error,)
 
-    async def _run_cells_internal(self, roots: set[CellId_t]) -> set[CellId_t]:
-        """Run cells, send outputs to frontends
+    async def _run_cells_internal(
+        self,
+        roots: set[CellId_t],
+        *,
+        scope: set[CellId_t] | None = None,
+    ) -> set[CellId_t]:
+        """Run cells, send outputs to frontends.
 
         Returns set of cells that need to be re-run due to state updates.
         """
@@ -1519,6 +1540,7 @@ class Kernel:
             execution_context=self._install_execution_context,
             hooks=run_hooks,
             user_config=self.user_config,
+            scope=scope,
         )
 
         # I/O
@@ -2075,6 +2097,7 @@ class Kernel:
                     self.stream,
                 )
 
+        scope: set[CellId_t] | None = None
         if dataflow_scope is not None and dataflow_scope.subscribed:
             from marimo._runtime.dataflow import (
                 cells_for_subscription,
@@ -2084,23 +2107,32 @@ class Kernel:
             needed = cells_for_subscription(
                 self.graph, set(dataflow_scope.subscribed)
             )
-            scoped = referring_cells & needed
-            referring_cells = prune_cells_for_subscription(
+            # Apply partial-override pruning on the closure: cells whose
+            # only contribution to the demand is fully covered by the
+            # provided inputs can be skipped without affecting subscribed
+            # outputs. Always exclude cells that *define* an overridden
+            # input — re-running them would replace the live ``mo.api.input``
+            # element and break the registry.
+            input_definers: set[CellId_t] = set()
+            for var in dataflow_scope.overridden_inputs:
+                input_definers.update(self.graph.get_defining_cells(var))
+            candidate = needed - input_definers
+            scope = prune_cells_for_subscription(
                 self.graph,
-                scoped,
+                candidate,
                 set(dataflow_scope.overridden_inputs),
                 set(dataflow_scope.subscribed),
             )
 
         if self.reactive_execution_mode == "autorun":
-            await self._run_cells(referring_cells)
+            await self._run_cells(referring_cells, scope=scope)
         else:
             # Any cells referring to a UI element cannot be import cells,
             # so not necessary to specify `prune_imports`.
             self.graph.set_stale(referring_cells)
             # Process any state updates that may have been queued by the
             # on_change handlers.
-            await self._run_cells(set())
+            await self._run_cells(set(), scope=scope)
 
         for component in updated_components:
             try:

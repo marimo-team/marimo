@@ -133,6 +133,7 @@ class Runner:
         excluded_cells: set[CellId_t] | None = None,
         execution_context: ExecutionContextManager | None = None,
         user_config: MarimoConfig | None = None,
+        scope: set[CellId_t] | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -155,12 +156,14 @@ class Runner:
         # so that they can be transitioned out of error if a future
         # run request repairs the graph
         self.roots = roots
+        self.scope: set[CellId_t] | None = scope
         self.cells_to_run: deque[CellId_t] = deque(
             Runner.compute_cells_to_run(
                 self.graph,
                 self.roots,
                 self.excluded_cells,
                 self.execution_mode,
+                scope=self.scope,
             )
         )
 
@@ -182,6 +185,7 @@ class Runner:
         roots: set[CellId_t],
         excluded_cells: set[CellId_t],
         execution_mode: OnCellChangeType,
+        scope: set[CellId_t] | None = None,
     ) -> list[CellId_t]:
         # Runner always runs stale ancestors, if any.
         cells_to_run = roots.union(
@@ -201,6 +205,15 @@ class Runner:
                 cells_to_run,
                 relatives=dataflow.get_import_block_relatives(graph),
             )
+
+        # Dataflow scope: a per-run subset (closure of subscribed variables)
+        # used by the dataflow API to skip cells whose outputs nobody is
+        # subscribed to. ``scope=None`` is the default and means "no
+        # restriction"; an empty set means "run nothing", which is also
+        # the right answer if the subscribed variables don't intersect
+        # the reactive set.
+        if scope is not None:
+            cells_to_run = cells_to_run & scope
 
         sorted_cells = dataflow.topological_sort(
             graph,

@@ -82,7 +82,7 @@ def compute_histogram(filtered):
         histogram = [
             {"bucket": k, "count": v} for k, v in sorted(_buckets.items())
         ]
-    return (histogram,)
+    return
 
 
 @app.cell

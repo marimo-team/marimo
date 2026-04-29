@@ -77,7 +77,13 @@ class DataflowFileBundle:
         return self._session
 
     async def ensure_session(self) -> Session:
-        """Look up the session for this file or create one with an anchor."""
+        """Look up the session for this file or create one with an anchor.
+
+        Newly created sessions are kicked off with an explicit instantiate
+        request so cells run, ``mo.api.input`` UI elements get registered,
+        and the schema can be computed. Reused sessions are assumed to
+        already have been instantiated by whoever opened them first.
+        """
         async with self._lock:
             if self._session is not None and not self._session_closed():
                 return self._session
@@ -102,6 +108,9 @@ class DataflowFileBundle:
             )
             self._anchor = anchor
             self._attach_to_session(session)
+            session.instantiate(
+                _empty_instantiate_request(), http_request=None
+            )
             return session
 
     def _session_closed(self) -> bool:
@@ -204,9 +213,13 @@ class DataflowFileBundle:
                 event = await consumer.get_event(timeout=timeout)
                 if event is None:
                     break
-                yield event
+                # The consumer emits a done RunEvent on receiving
+                # CompletedRunNotification — use it as our loop terminator
+                # but suppress on the wire; the canonical done event with
+                # elapsed_ms is yielded below.
                 if isinstance(event, RunEvent) and event.status == "done":
                     break
+                yield event
         finally:
             session.disconnect_consumer(consumer)
             session.put_control_request(
@@ -319,6 +332,13 @@ class DataflowSessionManager:
             )
             self._bundles[file_key] = bundle
         return bundle
+
+
+def _empty_instantiate_request() -> Any:
+    """Build a minimal ``InstantiateNotebookRequest`` with no UI overrides."""
+    from marimo._server.models.models import InstantiateNotebookRequest
+
+    return InstantiateNotebookRequest(object_ids=[], values=[])
 
 
 __all__ = [

@@ -69,7 +69,7 @@ class DataflowRunRequest(msgspec.Struct, rename="camel"):
 def _dataflow_manager(request: Request) -> DataflowSessionManager:
     """Return the per-server :class:`DataflowSessionManager`, lazy-initing it."""
     app_state = AppState(request)
-    state = app_state.app.state
+    state = app_state.state
     mgr = getattr(state, "dataflow_manager", None)
     if mgr is None:
         mgr = DataflowSessionManager(app_state.session_manager)
