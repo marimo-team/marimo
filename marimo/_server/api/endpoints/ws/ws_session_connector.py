@@ -158,6 +158,12 @@ class SessionConnector:
     ) -> tuple[Session, ConnectionType]:
         """Resume a previous session."""
         LOGGER.debug("Resuming session %s", self.params.session_id)
+        # An ORPHANED session typically has no main consumer, but a phantom
+        # consumer (e.g. the dataflow API anchor) can hold the main slot
+        # while still reporting ORPHANED so the editor doesn't see the
+        # session as occupied. Disconnect any lingering main before
+        # re-attaching ourselves.
+        session.disconnect_main_consumer()
         self.handler._reconnect_session(session, replay=True)
         return session, ConnectionType.RESUME
 

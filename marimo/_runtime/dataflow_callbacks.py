@@ -136,29 +136,45 @@ class DataflowCallbacks:
         """
         self._subscriptions[request.consumer_id] = frozenset(request.subscribed)
 
-        scope = DataflowScope(
-            subscribed=frozenset(request.subscribed),
-            overridden_inputs=frozenset(self._input_names_for(request.inputs)),
+        # The pruning scope is advisory and only honored when ``prune`` is
+        # set; otherwise the kernel runs the full reactive graph (e.g. when
+        # the host-side bundle sees an editor websocket attached and wants
+        # the editor to render every cell update).
+        scope = (
+            DataflowScope(
+                subscribed=frozenset(request.subscribed),
+                overridden_inputs=frozenset(
+                    self._input_names_for(request.inputs)
+                ),
+            )
+            if request.prune
+            else None
         )
 
+        object_ids = list(request.inputs.keys())
+        values = [
+            self._coerce_input_value(object_id, value)
+            for object_id, value in request.inputs.items()
+        ]
         update_cmd = UpdateUIElementCommand(
-            object_ids=list(request.inputs.keys()),
-            values=list(request.inputs.values()),
+            object_ids=object_ids,
+            values=values,
             request=request.request,
         )
 
         previous_run_id = self._current_run_id
         self._current_run_id = request.run_id
         try:
-            ran = await self._kernel.set_ui_element_value(
+            # ``notify_frontend=True`` so an attached editor sees the slider
+            # / dropdown / etc. move when the dataflow API drives them.
+            # ``set_ui_element_value`` always invokes the runner (even with
+            # empty inputs/referrers), so the on-finish hook always fires
+            # and emits ``dataflow-var`` events for the subscribed vars.
+            await self._kernel.set_ui_element_value(
                 update_cmd,
-                notify_frontend=False,
+                notify_frontend=True,
                 dataflow_scope=scope,
             )
-            if not ran:
-                # No cells were queued (empty inputs or no referrers): the
-                # on-finish hook didn't fire, so emit a snapshot directly.
-                self._broadcast_values_for_run(request.run_id)
         except Exception:
             LOGGER.exception("Scoped run failed")
         finally:
@@ -290,6 +306,35 @@ class DataflowCallbacks:
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
+
+    def _coerce_input_value(
+        self, object_id: UIElementId, value: Any
+    ) -> Any:
+        """Wrap user-friendly values into the wire shape the widget expects.
+
+        Most ``mo.api.input`` widgets accept their value as-is, but a few
+        (e.g. ``mo.ui.dropdown``) take a ``list`` even when only one option
+        is selected. The dataflow API exposes the user-facing kind in the
+        schema (e.g. ``string`` for a single-select dropdown) so callers send
+        a plain string; we wrap it here before the kernel routes the
+        ``UpdateUIElementCommand`` into ``UIElement._convert_value``.
+        """
+        try:
+            from marimo._plugins.ui._impl.input import dropdown
+            from marimo._runtime.context.types import get_context
+
+            ctx = get_context()
+            element = ctx.ui_element_registry.get_object(object_id)
+        except Exception:
+            return value
+
+        if isinstance(element, dropdown) and not isinstance(
+            value, (list, tuple)
+        ):
+            if value is None:
+                return []
+            return [value]
+        return value
 
     @staticmethod
     def _input_names_for(inputs: dict[UIElementId, Any]) -> set[str]:

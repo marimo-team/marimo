@@ -59,6 +59,14 @@ class DataflowAnchorConsumer(SessionConsumer):
     we install one of these as the main consumer. It silently drops every
     notification it receives — broadcasts to dataflow SSE clients happen on
     *non-main* consumers attached per request.
+
+    The anchor reports its connection as ``ORPHANED`` so the editor's
+    "already connected" check
+    (:meth:`marimo._server.session_manager.SessionManager.any_clients_connected`)
+    treats the session as available. An editor websocket can then attach
+    without the user being prompted to take over; the anchor is bumped out
+    of the main slot via the standard handover path and the bundle keeps
+    the session alive on subsequent dataflow requests.
     """
 
     def __init__(self, consumer_id: str = "dataflow-anchor") -> None:
@@ -72,7 +80,7 @@ class DataflowAnchorConsumer(SessionConsumer):
         del notification
 
     def connection_state(self) -> ConnectionState:
-        return ConnectionState.OPEN
+        return ConnectionState.ORPHANED
 
     def on_attach(
         self, session: Session, event_bus: SessionEventBus

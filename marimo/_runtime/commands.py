@@ -935,18 +935,19 @@ class ScopedRunCommand(Command):
     scope so the kernel can prune its reactive cell set when no editor
     consumer is observing the session.
 
-    The scope is *advisory*: the kernel honors it only when no non-dataflow
-    consumer (typically an editor websocket) is attached. With an editor
-    attached, the full reactive graph runs so the editor sees every change;
-    the dataflow consumer still filters its emissions to subscribed vars.
-
     Attributes:
         consumer_id: Identifier of the dataflow SSE consumer driving this run.
         run_id: Client-supplied run identifier; echoed in emitted events.
         inputs: Map of UI element ``object_id`` to new value.
-        subscribed: Variables the consumer wants updated values for. Used
-            both for pruning (when the kernel honors scope) and for filtering
-            the post-run value broadcast.
+        subscribed: Variables the consumer wants emitted values for after the
+            run. The kernel always uses this for filtering ``dataflow-var``
+            broadcasts; it's also used for cell pruning when ``prune`` is
+            true.
+        prune: If true, the kernel prunes its reactive cell set to those
+            needed for ``subscribed``. The host-side bundle sets this only
+            when no non-dataflow consumer (e.g. an editor websocket) is
+            attached, so editor-attached runs always exercise the full
+            reactive graph.
         request: HTTP request context if available.
     """
 
@@ -954,6 +955,7 @@ class ScopedRunCommand(Command):
     run_id: str
     inputs: dict[UIElementId, Any]
     subscribed: list[str]
+    prune: bool = False
     request: HTTPRequest | None = None
 
 

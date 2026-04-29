@@ -194,11 +194,17 @@ class DataflowFileBundle:
         )
         session.connect_consumer(consumer, main=False)
 
+        # Pruning is honored only when no non-dataflow consumer is in the
+        # room: an attached editor expects every cell update so it can
+        # render outputs the dataflow client doesn't subscribe to.
+        prune = not _has_non_dataflow_consumer(session)
+
         scoped = ScopedRunCommand(
             consumer_id=consumer_id,
             run_id=run_id,
             inputs=self._resolve_inputs(inputs),
             subscribed=sorted(subscribed),
+            prune=prune,
             request=request,
         )
         session.put_control_request(
@@ -339,6 +345,25 @@ def _empty_instantiate_request() -> Any:
     from marimo._server.models.models import InstantiateNotebookRequest
 
     return InstantiateNotebookRequest(object_ids=[], values=[])
+
+
+def _has_non_dataflow_consumer(session: Session) -> bool:
+    """True when the session has any consumer that isn't a dataflow primitive.
+
+    Used by ``DataflowFileBundle.run`` to disable subscription pruning when
+    an editor websocket (or any other observer) is attached: scoped runs
+    skip cells that the editor would want to render, so we fall back to
+    a full reactive run and let the dataflow consumer filter on the wire.
+    """
+    for consumer in session.room.consumers:
+        if isinstance(
+            consumer, (DataflowAnchorConsumer, DataflowSseConsumer)
+        ):
+            continue
+        if isinstance(consumer, _SchemaListener):
+            continue
+        return True
+    return False
 
 
 __all__ = [
