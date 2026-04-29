@@ -90,6 +90,7 @@ __all__ = [  # noqa: RUF022
     "__version__",
 ]
 import marimo._ai as ai
+import marimo._dataflow.api as api
 import marimo._islands as islands
 from marimo._ast.app import App
 from marimo._ast.cell import Cell

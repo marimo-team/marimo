@@ -137,6 +137,9 @@ class SkewProtectionMiddleware:
         # If /api/kernel/execute, skip (agent-only endpoint)
         if request.url.path.rstrip("/").endswith("/api/kernel/execute"):
             return await self.app(scope, receive, send)
+        # Dataflow API is designed for external consumers; skip skew protection
+        if "/api/v1/dataflow/" in request.url.path:
+            return await self.app(scope, receive, send)
         # If ws, skip
         if request.url.path.startswith("/ws") or request.url.path.endswith(
             "/ws"

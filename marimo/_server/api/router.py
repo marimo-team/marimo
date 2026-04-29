@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from marimo._server.api.endpoints.ai import router as ai_router
 from marimo._server.api.endpoints.assets import router as assets_router
+from marimo._server.api.endpoints.dataflow import router as dataflow_router
 from marimo._server.api.endpoints.cache import router as cache_router
 from marimo._server.api.endpoints.config import router as config_router
 from marimo._server.api.endpoints.datasources import (
@@ -83,6 +84,9 @@ def build_routes(base_url: str = "") -> list[BaseRoute]:
         packages_router, prefix="/api/packages", name="packages"
     )
     app_router.include_router(lsp_router, prefix="/api/lsp", name="lsp")
+    app_router.include_router(
+        dataflow_router, prefix="/api/v1/dataflow", name="dataflow"
+    )
     app_router.include_router(health_router, name="health")
     app_router.include_router(ws_router, name="ws")
     app_router.include_router(assets_router, name="assets")
