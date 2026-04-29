@@ -81,6 +81,10 @@ class DataflowCallbacks:
         # ``None`` means "this run came from somewhere else (editor, init)";
         # the hook synthesizes an editor-tagged run id in that case.
         self._current_run_id: str | None = None
+        # Vars already streamed in the current run (per cell post-exec).
+        # The on-finish hook treats this as a "skip set" when emitting any
+        # remaining subscribed vars and clears it for the next run.
+        self._emitted_this_run: set[str] = set()
 
     @property
     def subscriptions(self) -> dict[str, frozenset[str]]:
@@ -167,12 +171,14 @@ class DataflowCallbacks:
 
         previous_run_id = self._current_run_id
         self._current_run_id = request.run_id
+        # Defensive: a previous run that was interrupted before its on-finish
+        # hook fired could leave stale entries here.
+        self._emitted_this_run.clear()
         try:
             # ``notify_frontend=True`` so an attached editor sees the slider
             # / dropdown / etc. move when the dataflow API drives them.
-            # ``set_ui_element_value`` always invokes the runner (even with
-            # empty inputs/referrers), so the on-finish hook always fires
-            # and emits ``dataflow-var`` events for the subscribed vars.
+            # The post-execution hook streams subscribed vars per cell; the
+            # on-finish hook backstops anything not produced this run.
             await self._kernel.set_ui_element_value(
                 update_cmd,
                 notify_frontend=True,
@@ -223,8 +229,19 @@ class DataflowCallbacks:
             )
         )
 
-    def _broadcast_values_for_run(self, run_id: str) -> None:
-        """Emit ``dataflow-var`` events for every (consumer, subscribed var)."""
+    def _broadcast_values_for_run(
+        self,
+        run_id: str,
+        *,
+        only: set[str] | None = None,
+    ) -> None:
+        """Emit ``dataflow-var`` events for every (consumer, subscribed var).
+
+        ``only`` filters to a subset of variable names — used by the per-cell
+        streaming path to emit just the vars produced by the cell that
+        finished. The on-finish hook passes ``None`` to backstop any vars not
+        already streamed.
+        """
         if not self._subscriptions:
             return
 
@@ -233,7 +250,8 @@ class DataflowCallbacks:
 
         glbls = self._kernel.globals
         for consumer_id, vars_ in self._subscriptions.items():
-            for var_name in sorted(vars_):
+            target = vars_ if only is None else (vars_ & only)
+            for var_name in sorted(target):
                 self._seq += 1
                 if var_name not in glbls:
                     broadcast_notification(
@@ -284,19 +302,48 @@ class DataflowCallbacks:
                     )
                 )
 
-    def on_kernel_run_finished(self, ctx: Any) -> None:
-        """Kernel ``OnFinishHook`` that emits the post-run dataflow values.
+    def on_cell_post_execution(
+        self, cell: Any, ctx: Any, run_result: Any
+    ) -> None:
+        """Kernel ``PostExecutionHook`` that streams subscribed vars per cell.
 
-        Registered once on the kernel's hooks. Fires after every reactive
-        run regardless of who triggered it (dataflow client, editor slider
-        drag, code execution). Skips when no consumer is subscribed so the
-        hook is free in the no-dataflow case.
+        Fires after every cell finishes (in topological order). Looks at the
+        cell's ``defs`` and emits any subscribed var the cell produced —
+        consumers see updates progressively as cells finish, instead of
+        waiting until the whole reactive run is done.
         """
-        del ctx
+        del ctx, run_result
         if not self._subscriptions:
             return
+
+        produced = set(getattr(cell, "defs", ())) - self._emitted_this_run
+        relevant = produced & self.union_subscriptions()
+        if not relevant:
+            return
+
         run_id = self._current_run_id or f"editor-{int(time.time() * 1000)}"
-        self._broadcast_values_for_run(run_id)
+        self._broadcast_values_for_run(run_id, only=relevant)
+        self._emitted_this_run.update(relevant)
+
+    def on_kernel_run_finished(self, ctx: Any) -> None:
+        """Kernel ``OnFinishHook`` that backstops any unstreamed subscribed vars.
+
+        The post-execution hook covers vars produced by cells that ran in this
+        reactive cycle. Anything subscribed but not produced (e.g., a static
+        global, or a UI input that didn't get touched) gets emitted here so
+        consumers always see a snapshot of every subscription per run. Resets
+        the per-run dedup set for the next reactive cycle.
+        """
+        del ctx
+        try:
+            if not self._subscriptions:
+                return
+            run_id = self._current_run_id or f"editor-{int(time.time() * 1000)}"
+            remaining = self.union_subscriptions() - self._emitted_this_run
+            if remaining:
+                self._broadcast_values_for_run(run_id, only=remaining)
+        finally:
+            self._emitted_this_run.clear()
 
     def maybe_broadcast_schema(self) -> None:
         """Idempotent broadcast of the current schema.

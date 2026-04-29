@@ -52,6 +52,8 @@ export function App() {
   const histogram = variables.histogram?.value as
     | Array<{ bucket: string; count: number }>
     | undefined;
+  const slowThreshold = variables.slow_threshold?.value as number | undefined;
+  const slowThresholdRunId = variables.slow_threshold?.runId;
 
   const setInput = (name: string, value: unknown) =>
     setInputs((prev) => ({ ...prev, [name]: value }));
@@ -115,6 +117,23 @@ export function App() {
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {subscribe.includes("slow_threshold") && (
+          <section style={styles.card}>
+            <h2 style={styles.cardTitle}>Slow threshold (streamed)</h2>
+            <p style={styles.meta}>
+              This cell sleeps 0.5s. With per-cell streaming, the panels
+              above land first; this number arrives once the slow cell
+              finishes.
+            </p>
+            <div style={styles.statValue}>
+              {slowThreshold === undefined ? "…" : slowThreshold}
+            </div>
+            {slowThresholdRunId && (
+              <p style={styles.meta}>run: {slowThresholdRunId}</p>
+            )}
           </section>
         )}
 

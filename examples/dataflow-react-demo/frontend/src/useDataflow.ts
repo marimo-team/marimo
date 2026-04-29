@@ -78,7 +78,7 @@ export function useDataflow() {
         body: JSON.stringify(body),
       });
 
-      if (!resp.ok) {
+      if (!resp.ok || !resp.body) {
         setState((s) => ({
           ...s,
           loading: false,
@@ -87,51 +87,79 @@ export function useDataflow() {
         return;
       }
 
-      // Extract session ID from header
       const sid = resp.headers.get("x-dataflow-session-id");
       if (sid) sessionIdRef.current = sid;
 
-      // Parse SSE from response body
-      const text = await resp.text();
-      const events = parseSSE(text);
+      // Stream SSE events as they arrive so subscribed variables that finish
+      // first (e.g. `stats` while a slow cell is still running) land in the
+      // UI immediately instead of after the whole run.
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-      const vars: Record<string, VarUpdate> = {};
-      let runId: string | null = null;
-      let elapsed: number | null = null;
-
-      for (const event of events) {
+      const applyEvent = (event: ParsedEvent) => {
         if (event.type === "var") {
           const d = event.data;
-          vars[d.name as string] = {
+          const update: VarUpdate = {
             name: d.name as string,
             kind: d.kind as string,
             value: d.value,
             encoding: d.encoding as string,
             runId: d.run_id as string,
           };
+          setState((s) => ({
+            ...s,
+            variables: { ...s.variables, [update.name]: update },
+          }));
         } else if (event.type === "var-error") {
-          vars[event.data.name as string] = {
+          const update: VarUpdate = {
             name: event.data.name as string,
             kind: "error",
             value: event.data.error,
             encoding: "json",
             runId: event.data.run_id as string,
           };
+          setState((s) => ({
+            ...s,
+            variables: { ...s.variables, [update.name]: update },
+          }));
         } else if (event.type === "run") {
-          runId = event.data.run_id as string;
           if (event.data.status === "done") {
-            elapsed = (event.data.elapsed_ms as number) ?? null;
+            setState((s) => ({
+              ...s,
+              loading: false,
+              runId: event.data.run_id as string,
+              elapsed: (event.data.elapsed_ms as number) ?? null,
+            }));
+          } else {
+            setState((s) => ({
+              ...s,
+              runId: event.data.run_id as string,
+            }));
           }
         }
-      }
+      };
 
-      setState((s) => ({
-        ...s,
-        variables: { ...s.variables, ...vars },
-        loading: false,
-        runId,
-        elapsed,
-      }));
+      // SSE messages are separated by a blank line. Buffer until we see one,
+      // parse the completed block, and keep any trailing partial chunk for
+      // the next read.
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buffer.indexOf("\n\n")) !== -1) {
+          const block = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          const event = parseSSEBlock(block);
+          if (event) applyEvent(event);
+        }
+      }
+      const tail = buffer.trim();
+      if (tail) {
+        const event = parseSSEBlock(tail);
+        if (event) applyEvent(event);
+      }
     },
     [],
   );
@@ -144,27 +172,20 @@ interface ParsedEvent {
   data: Record<string, unknown>;
 }
 
-function parseSSE(text: string): ParsedEvent[] {
-  const events: ParsedEvent[] = [];
-  const blocks = text.split("\n\n");
-  for (const block of blocks) {
-    const lines = block.split("\n");
-    let eventType = "";
-    let data = "";
-    for (const line of lines) {
-      if (line.startsWith("event: ")) {
-        eventType = line.slice(7);
-      } else if (line.startsWith("data: ")) {
-        data = line.slice(6);
-      }
-    }
-    if (eventType && data) {
-      try {
-        events.push({ type: eventType, data: JSON.parse(data) });
-      } catch {
-        // skip malformed
-      }
+function parseSSEBlock(block: string): ParsedEvent | null {
+  let eventType = "";
+  let data = "";
+  for (const line of block.split("\n")) {
+    if (line.startsWith("event: ")) {
+      eventType = line.slice(7);
+    } else if (line.startsWith("data: ")) {
+      data = line.slice(6);
     }
   }
-  return events;
+  if (!eventType || !data) return null;
+  try {
+    return { type: eventType, data: JSON.parse(data) };
+  } catch {
+    return null;
+  }
 }

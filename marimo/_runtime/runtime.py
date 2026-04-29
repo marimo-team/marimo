@@ -570,8 +570,10 @@ class Kernel:
         self.cache_callbacks = CacheCallbacks(self)
         self.external_storage_callbacks = ExternalStorageCallbacks(self)
         self.dataflow_callbacks = DataflowCallbacks(self)
-        # Register on-finish broadcast for dataflow consumers. Cheap when
-        # no consumer has subscribed.
+        # Per-cell streaming + on-finish backstop for dataflow consumers.
+        # Both hooks short-circuit when no consumer has subscribed, so the
+        # cost is one branch in the no-dataflow case.
+        hooks.add_post_execution(self.dataflow_callbacks.on_cell_post_execution)
         hooks.add_on_finish(self.dataflow_callbacks.on_kernel_run_finished)
 
         # Apply pythonpath from config at initialization

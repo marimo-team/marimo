@@ -37,6 +37,7 @@ from marimo._runtime.commands import (
     CreateNotebookCommand,
     ExecuteCellCommand,
     ExecuteCellsCommand,
+    ScopedRunCommand,
     SyncGraphCommand,
     UpdateUIElementCommand,
 )
@@ -207,6 +208,14 @@ class SessionView:
 
         if isinstance(request, UpdateUIElementCommand):
             for object_id, value in request.ids_and_values:
+                self._add_ui_value(object_id, value)
+        elif isinstance(request, ScopedRunCommand):
+            # Dataflow API runs drive UI elements through the kernel directly,
+            # so reflect them in the session view too. Otherwise an editor that
+            # connects after a dataflow client has been driving inputs would
+            # render UI widgets at their constructor defaults instead of the
+            # current values.
+            for object_id, value in request.inputs.items():
                 self._add_ui_value(object_id, value)
         elif isinstance(request, (ExecuteCellsCommand, SyncGraphCommand)):
             for execution_request in request.execution_requests:
