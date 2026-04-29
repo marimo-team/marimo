@@ -134,6 +134,7 @@ from marimo._runtime.commands import (
     ExecuteScratchpadCommand,
     ExecuteStaleCellsCommand,
     GetCacheInfoCommand,
+    GetDataflowSchemaCommand,
     InstallPackagesCommand,
     InvokeFunctionCommand,
     ListDataSourceConnectionCommand,
@@ -144,7 +145,10 @@ from marimo._runtime.commands import (
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
     RefreshSecretsCommand,
+    RemoveDataflowSubscriptionsCommand,
     RenameNotebookCommand,
+    ScopedRunCommand,
+    SetDataflowSubscriptionsCommand,
     StopKernelCommand,
     StorageDownloadCommand,
     StorageListEntriesCommand,
@@ -153,6 +157,10 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
     ValidateSQLCommand,
+)
+from marimo._runtime.dataflow_callbacks import (
+    DataflowCallbacks,
+    DataflowScope,
 )
 from marimo._runtime.context import (
     ContextNotInitializedError,
@@ -561,6 +569,10 @@ class Kernel:
         self.sql_callbacks = SqlCallbacks(self)
         self.cache_callbacks = CacheCallbacks(self)
         self.external_storage_callbacks = ExternalStorageCallbacks(self)
+        self.dataflow_callbacks = DataflowCallbacks(self)
+        # Register on-finish broadcast for dataflow consumers. Cheap when
+        # no consumer has subscribed.
+        hooks.add_on_finish(self.dataflow_callbacks.on_kernel_run_finished)
 
         # Apply pythonpath from config at initialization
         pythonpath = user_config["runtime"].get("pythonpath")
@@ -1883,6 +1895,7 @@ class Kernel:
         request: UpdateUIElementCommand,
         *,
         notify_frontend: bool,
+        dataflow_scope: DataflowScope | None = None,
     ) -> bool:
         """Set the value of a UI element bound to a global variable.
 
@@ -1901,6 +1914,13 @@ class Kernel:
                 kernel-initiated changes (e.g. code_mode's
                 ``set_ui_value``) where the frontend has no other way to
                 learn about the update.
+            dataflow_scope: Pruning hint from the dataflow API. When set
+                and ``subscribed`` is non-empty, the reactive cell set is
+                intersected with the closure of the subscribed variables
+                so cells outside that closure are skipped. Honored only
+                if no editor consumer is observing the run; the dataflow
+                API decides whether to send the scope based on Room
+                membership before issuing the command.
 
         Returns True if any ui elements were set, False otherwise
         """
@@ -2054,6 +2074,23 @@ class Kernel:
                     VariableValuesNotification(variables=variable_values),
                     self.stream,
                 )
+
+        if dataflow_scope is not None and dataflow_scope.subscribed:
+            from marimo._runtime.dataflow import (
+                cells_for_subscription,
+                prune_cells_for_subscription,
+            )
+
+            needed = cells_for_subscription(
+                self.graph, set(dataflow_scope.subscribed)
+            )
+            scoped = referring_cells & needed
+            referring_cells = prune_cells_for_subscription(
+                self.graph,
+                scoped,
+                set(dataflow_scope.overridden_inputs),
+                set(dataflow_scope.subscribed),
+            )
 
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(referring_cells)
@@ -2505,6 +2542,21 @@ class Kernel:
         handler.register(ClearCacheCommand, self.cache_callbacks.clear_cache)
         handler.register(
             GetCacheInfoCommand, self.cache_callbacks.get_cache_info
+        )
+        # Dataflow API
+        handler.register(
+            SetDataflowSubscriptionsCommand,
+            self.dataflow_callbacks.set_subscriptions,
+        )
+        handler.register(
+            RemoveDataflowSubscriptionsCommand,
+            self.dataflow_callbacks.remove_subscriptions,
+        )
+        handler.register(
+            GetDataflowSchemaCommand, self.dataflow_callbacks.get_schema
+        )
+        handler.register(
+            ScopedRunCommand, self.dataflow_callbacks.scoped_run
         )
 
         return handler

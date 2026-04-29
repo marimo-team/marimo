@@ -38,7 +38,8 @@ from marimo._dataflow.serialize import infer_kind
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
-    from marimo._dataflow.runtime import DataflowRuntime
+    from marimo._runtime.commands import AppMetadata
+    from marimo._runtime.dataflow.graph import DirectedGraph
 
 
 def _kind_for_ui_element(element: Any) -> Kind:
@@ -88,16 +89,14 @@ def _free_var_input_schema(name: str, value: Any) -> InputSchema:
 
 
 def _collect_outputs_and_triggers(
-    app: InternalApp,
+    graph: DirectedGraph,
 ) -> tuple[set[str], list[str]]:
     """Walk the graph, collect public defs and side-effect cell names."""
-    graph = app.graph
     all_defs: set[str] = set()
     trigger_cells: list[str] = []
 
-    for cell_id in app.execution_order:
-        cell = graph.cells.get(cell_id)
-        if cell is None or graph.is_disabled(cell_id):
+    for cell_id, cell in graph.cells.items():
+        if graph.is_disabled(cell_id):
             continue
 
         cell_defs = {
@@ -147,17 +146,37 @@ def _output_annotations(
     return out
 
 
-def compute_dataflow_schema(runtime: DataflowRuntime) -> DataflowSchema:
-    """Compute the dataflow schema by introspecting an initialized runtime.
+def _list_input_elements(
+    globals_: dict[str, Any],
+) -> dict[str, Any]:
+    """Return ``{name: element}`` for every ``mo.api.input`` UI element."""
+    from marimo._plugins.ui._core.ui_element import UIElement
 
-    Must be called on the runtime's worker thread (where the script context
-    is installed). `DataflowFileBundle.get_schema` handles thread routing.
+    out: dict[str, Any] = {}
+    for name, val in globals_.items():
+        if isinstance(val, UIElement) and hasattr(val, DATAFLOW_INPUT_MARKER):
+            out[name] = val
+    return out
+
+
+def compute_dataflow_schema_from_globals(
+    *,
+    graph: DirectedGraph,
+    globals_: dict[str, Any],
+    schema_id: str | None = None,
+    app: AppMetadata | None = None,
+) -> DataflowSchema:
+    """Build a ``DataflowSchema`` from a kernel's graph and current globals.
+
+    Inputs come from globals: any ``mo.api.input``-tagged ``UIElement``.
+    Outputs and triggers come from graph analysis. Output kinds are inferred
+    from the current globals values. ``schema_id`` is auto-derived from the
+    set of input/output/trigger names when not supplied so identical graph
+    shapes hash to the same id.
     """
-    runtime._initialize_blocking()
-    app = runtime._app
-    glbls = runtime.globals
+    del app  # reserved for future use; unused today
 
-    input_elements = runtime.list_input_elements()
+    input_elements = _list_input_elements(globals_)
     inputs: list[InputSchema] = sorted(
         (
             _input_schema_from_element(name, element)
@@ -167,13 +186,9 @@ def compute_dataflow_schema(runtime: DataflowRuntime) -> DataflowSchema:
     )
 
     if not inputs:
-        # Fallback for notebooks that don't use `mo.api.input` yet: detect
-        # free variables. Useful while migrating.
-        graph = app.graph
         all_refs: set[str] = set()
-        for cell_id in app.execution_order:
-            cell = graph.cells.get(cell_id)
-            if cell is None or graph.is_disabled(cell_id):
+        for cell_id, cell in graph.cells.items():
+            if graph.is_disabled(cell_id):
                 continue
             all_refs.update(
                 r
@@ -191,15 +206,15 @@ def compute_dataflow_schema(runtime: DataflowRuntime) -> DataflowSchema:
         }
         inputs = sorted(
             (
-                _free_var_input_schema(name, glbls.get(name))
+                _free_var_input_schema(name, globals_.get(name))
                 for name in free_vars
             ),
             key=lambda s: s.name,
         )
 
-    all_defs, trigger_cells = _collect_outputs_and_triggers(app)
-    output_anns = _output_annotations(glbls)
-    trigger_anns = _trigger_annotations(glbls)
+    all_defs, trigger_cells = _collect_outputs_and_triggers(graph)
+    output_anns = _output_annotations(globals_)
+    trigger_anns = _trigger_annotations(globals_)
 
     import types as _types
 
@@ -208,7 +223,7 @@ def compute_dataflow_schema(runtime: DataflowRuntime) -> DataflowSchema:
     for name in sorted(all_defs):
         if name in input_names:
             continue
-        value = glbls.get(name)
+        value = globals_.get(name)
         # Modules in cell defs are typically imports — never useful as
         # dataflow outputs and just clutter the schema.
         if isinstance(value, _types.ModuleType):
@@ -240,18 +255,33 @@ def compute_dataflow_schema(runtime: DataflowRuntime) -> DataflowSchema:
         for name in trigger_names
     ]
 
-    schema_bytes = msgspec.json.encode(
-        {
-            "inputs": [i.name for i in inputs],
-            "outputs": [o.name for o in outputs],
-            "triggers": [t.name for t in triggers],
-        }
-    )
-    schema_id = hashlib.sha256(schema_bytes).hexdigest()[:16]
+    if schema_id is None:
+        schema_bytes = msgspec.json.encode(
+            {
+                "inputs": [i.name for i in inputs],
+                "outputs": [o.name for o in outputs],
+                "triggers": [t.name for t in triggers],
+            }
+        )
+        schema_id = hashlib.sha256(schema_bytes).hexdigest()[:16]
 
     return DataflowSchema(
         inputs=inputs,
         outputs=outputs,
         triggers=triggers,
         schema_id=schema_id,
+    )
+
+
+def compute_dataflow_schema(app: InternalApp) -> DataflowSchema:
+    """Static-analysis schema for an `InternalApp`.
+
+    Falls back to free-variable detection (no globals are available without
+    a runtime). Used by tooling that can inspect a notebook without running
+    it; the kernel-driven path goes through
+    :func:`compute_dataflow_schema_from_globals`.
+    """
+    return compute_dataflow_schema_from_globals(
+        graph=app.graph,
+        globals_={},
     )

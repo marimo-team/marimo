@@ -200,6 +200,69 @@ def prune_cells_for_overrides(
     return [cid for cid in execution_order if cid not in cells_to_prune]
 
 
+def cells_for_subscription(
+    graph: DirectedGraph,
+    subscribed: set[str],
+) -> set[CellId_t]:
+    """Return the cells whose execution is needed to produce ``subscribed``.
+
+    The closure is the union of every defining cell of every subscribed
+    variable plus all of those cells' transitive ancestors.
+    """
+    sink_cells: set[CellId_t] = set()
+    for var_name in subscribed:
+        sink_cells.update(graph.get_defining_cells(var_name))
+    if not sink_cells:
+        return set()
+    return transitive_closure(graph, sink_cells, children=False)
+
+
+def prune_cells_for_subscription(
+    graph: DirectedGraph,
+    candidate_cells: set[CellId_t],
+    overridden_inputs: set[str],
+    subscribed: set[str],
+) -> set[CellId_t]:
+    """Drop cells whose definitions are fully demand-satisfied without running.
+
+    A cell may be pruned from ``candidate_cells`` when none of its defs are
+    *both* demanded (subscribed-or-needed-by-another-candidate) *and*
+    un-provided (not present in ``overridden_inputs``).
+
+    Crucially this is a *partial-override-safe* prune: a cell defining
+    ``(a, b, c)`` where the client overrode only ``a`` is allowed to run
+    so ``b`` and ``c`` are produced, unless every consumer of ``b`` and
+    ``c`` is itself prunable.
+    """
+    if not overridden_inputs and not subscribed:
+        return candidate_cells
+
+    # All variables referenced by anything we're considering running.
+    needed_refs: set[str] = set()
+    for cid in candidate_cells:
+        cell = graph.cells.get(cid)
+        if cell is not None:
+            needed_refs.update(cell.refs)
+    demand = subscribed | needed_refs
+
+    cells_to_prune: set[CellId_t] = set()
+    for cid in candidate_cells:
+        cell = graph.cells.get(cid)
+        if cell is None or not cell.defs:
+            continue
+        has_unprovided_demanded_def = False
+        for d in cell.defs:
+            if d in overridden_inputs:
+                continue
+            if d in demand:
+                has_unprovided_demanded_def = True
+                break
+        if not has_unprovided_demanded_def:
+            cells_to_prune.add(cid)
+
+    return candidate_cells - cells_to_prune
+
+
 def get_import_block_relatives(
     graph: DirectedGraph,
 ) -> Callable[[CellId_t, bool], set[CellId_t]]:
@@ -254,10 +317,12 @@ __all__ = [
     "Edge",
     "EdgeWithVar",
     "Runner",
+    "cells_for_subscription",
     "get_cycles",
     "get_import_block_relatives",
     "induced_subgraph",
     "prune_cells_for_overrides",
+    "prune_cells_for_subscription",
     "topological_sort",
     "transitive_closure",
 ]

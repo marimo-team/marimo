@@ -879,6 +879,84 @@ class GetCacheInfoCommand(Command):
     """
 
 
+# ---------------------------------------------------------------------------
+# Dataflow API commands
+#
+# These drive marimo's "dataflow API" mode: a notebook served as a typed
+# reactive function via HTTP/SSE, where clients push input overrides and
+# receive variable-level updates. See `marimo._dataflow.protocol` and
+# `development_docs/dataflow_api.md` for the wire shape.
+# ---------------------------------------------------------------------------
+
+
+class SetDataflowSubscriptionsCommand(Command):
+    """Register the variables a dataflow consumer wants real values for.
+
+    The kernel uses the union of all consumers' subscriptions to decide which
+    variables to serialize and broadcast as ``DataflowVarNotification``s.
+    Each consumer filters the broadcast stream by ``consumer_id`` to receive
+    only its own events.
+
+    Attributes:
+        consumer_id: Identifier of the dataflow SSE consumer.
+        subscribed: Variable names this consumer wants updates for.
+    """
+
+    consumer_id: str
+    subscribed: list[str]
+
+
+class RemoveDataflowSubscriptionsCommand(Command):
+    """Drop a dataflow consumer's subscription entry.
+
+    Sent on consumer detach so the kernel can prune its subscription map
+    and stop serializing values that nobody wants.
+
+    Attributes:
+        consumer_id: Identifier of the dataflow SSE consumer.
+    """
+
+    consumer_id: str
+
+
+class GetDataflowSchemaCommand(Command):
+    """Request a fresh ``dataflow-schema`` broadcast.
+
+    Used by the dataflow API on attach when no schema has been broadcast
+    yet (e.g. before the initial reactive run completes).
+    """
+
+
+class ScopedRunCommand(Command):
+    """Apply input overrides and run reactively, optionally pruned to a scope.
+
+    The dataflow API uses this as the single per-request command instead of
+    issuing ``UpdateUIElementCommand`` directly: it carries a subscription
+    scope so the kernel can prune its reactive cell set when no editor
+    consumer is observing the session.
+
+    The scope is *advisory*: the kernel honors it only when no non-dataflow
+    consumer (typically an editor websocket) is attached. With an editor
+    attached, the full reactive graph runs so the editor sees every change;
+    the dataflow consumer still filters its emissions to subscribed vars.
+
+    Attributes:
+        consumer_id: Identifier of the dataflow SSE consumer driving this run.
+        run_id: Client-supplied run identifier; echoed in emitted events.
+        inputs: Map of UI element ``object_id`` to new value.
+        subscribed: Variables the consumer wants updated values for. Used
+            both for pruning (when the kernel honors scope) and for filtering
+            the post-run value broadcast.
+        request: HTTP request context if available.
+    """
+
+    consumer_id: str
+    run_id: str
+    inputs: dict[UIElementId, Any]
+    subscribed: list[str]
+    request: HTTPRequest | None = None
+
+
 CommandMessage = (
     # Notebook operations
     CreateNotebookCommand
@@ -916,6 +994,11 @@ CommandMessage = (
     # Cache management
     | ClearCacheCommand
     | GetCacheInfoCommand
+    # Dataflow API
+    | SetDataflowSubscriptionsCommand
+    | RemoveDataflowSubscriptionsCommand
+    | GetDataflowSchemaCommand
+    | ScopedRunCommand
     # Kernel operations
     | StopKernelCommand
 )
