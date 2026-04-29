@@ -79,13 +79,19 @@ class DataflowFileBundle:
     async def ensure_session(self) -> Session:
         """Look up the session for this file or create one with an anchor.
 
-        Newly created sessions are kicked off with an explicit instantiate
-        request so cells run, ``mo.api.input`` UI elements get registered,
-        and the schema can be computed. Reused sessions are assumed to
-        already have been instantiated by whoever opened them first.
+        Both newly created sessions and pre-existing sessions that haven't
+        run any cells yet are kicked off with an instantiate request so
+        cells execute, ``mo.api.input`` elements register, and the schema
+        can be computed. The "session exists but isn't instantiated" case
+        happens when ``marimo edit`` is running but the editor's browser
+        tab hasn't yet sent the WS instantiate message.
         """
         async with self._lock:
             if self._session is not None and not self._session_closed():
+                if not _has_run_cells(self._session):
+                    self._session.instantiate(
+                        _empty_instantiate_request(), http_request=None
+                    )
                 return self._session
 
             existing = self._session_manager.get_session_by_file_key(
@@ -93,6 +99,10 @@ class DataflowFileBundle:
             )
             if existing is not None:
                 self._attach_to_session(existing)
+                if not _has_run_cells(existing):
+                    existing.instantiate(
+                        _empty_instantiate_request(), http_request=None
+                    )
                 return existing
 
             anchor = DataflowAnchorConsumer(
@@ -345,6 +355,17 @@ def _empty_instantiate_request() -> Any:
     from marimo._server.models.models import InstantiateNotebookRequest
 
     return InstantiateNotebookRequest(object_ids=[], values=[])
+
+
+def _has_run_cells(session: Session) -> bool:
+    """Heuristic for "this session has been instantiated."
+
+    The session view's ``last_executed_code`` is populated as cells run;
+    empty means the kernel is waiting for an instantiate. Used by
+    ``DataflowFileBundle.ensure_session`` to fire a kernel-side instantiate
+    when the editor created the session but no browser tab has yet hit it.
+    """
+    return bool(session.session_view.last_executed_code)
 
 
 def _has_non_dataflow_consumer(session: Session) -> bool:
