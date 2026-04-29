@@ -429,3 +429,169 @@ Phase 3 plumbs the editor websocket against it.
 - `marimo/__init__.py` — export `api`.
 - `packages/openapi/api.yaml` — regenerate after each phase that adds models.
 - `examples/dataflow-react-demo/` — phase 4.
+
+---
+
+## Phase 3 plan — unify on the real `Session`/`Kernel`
+
+Phase 2 built `DataflowRuntime`: a self-contained in-process execution
+path that prunes aggressively. It works, but it's a parallel reactive
+engine that doesn't know about marimo's real `Session`/`Kernel`/`Room`
+machinery — which means an editor websocket can never observe or drive
+its state. Adding editor parity *alongside* `DataflowRuntime` would ship
+two backends, defer the production-critical questions (cross-process
+schema, kernel-side pruning, subprocess startup cost), and leave us
+with a "later" tag we'd never come back to with proper rigor.
+
+Phase 3 unifies. The real `Session` becomes the only execution backend
+for the dataflow API. `DataflowRuntime` is deleted at the end of the
+phase. Headless production and editor-attached debugging differ only
+in *which consumers are attached to the Room*:
+
+| Deployment | Editor mounted? | Cell exec strategy when dataflow runs |
+|------------|-----------------|---------------------------------------|
+| Prod / headless (`marimo dataflow serve`) | No | Pruned to subscription closure |
+| Dev / debug (`marimo edit --enable-dataflow`) | Yes | Full reactive graph |
+
+The kernel decides which strategy to take by inspecting the Room's
+consumer list at the moment a scoped run command arrives: if any
+non-dataflow consumer is attached, run the full graph. Otherwise,
+prune. This makes "editor attached → debug fidelity" automatic without
+a server-startup mode flag.
+
+### 3.1 — New kernel concerns
+
+We add to the `Kernel` runtime:
+
+- **`SetDataflowSubscriptionsCommand(consumer_id, subscribed)`** —
+  per-consumer subscription registry. Tells the kernel which variables
+  this consumer wants real (serialized) values for.
+- **`GetDataflowSchemaCommand`** — triggers a schema rebuild +
+  broadcast. Sent on first attach; otherwise the kernel re-broadcasts
+  on its own when the input set changes.
+- **`ScopedRunCommand(inputs, subscribed_for_pruning)`** — drives a
+  scoped run that may prune the cell set. Used by the dataflow
+  consumer; the editor never sends this. Equivalent to:
+  `set_ui_element_value(inputs)` + a post-step that filters cells via
+  the existing `_dataflow/pruning.compute_cells_to_run` algorithm,
+  *iff* no non-dataflow consumer is in the Room.
+
+And to the broadcast side:
+
+- **`dataflow-schema` op** — `DataflowSchema` payload. Broadcast once
+  after the initial defaults run completes, and on any subsequent run
+  that materially changes the set of `mo.api.input` elements.
+- **`dataflow-var` op** — emitted from a post-execution hook for any
+  cell that defined a subscribed variable. Carries the serialized
+  value (JSON; Arrow follow-up) and `Kind`. Per-consumer routing via
+  `from_consumer_id` so the Room only delivers to the requesting
+  consumer.
+
+The implementation lives in a small `DataflowKernelExtension` (the
+existing `_runtime` package's hook system, not the session-side
+`SessionExtension`s) so the production path is one `Kernel` running one
+graph with one set of post-execution hooks.
+
+### 3.2 — Pruning, kernel-side
+
+The pruning logic in `_dataflow/pruning.py` already computes the right
+cell set given inputs + subscriptions. It moves from `DataflowRuntime`
+to a function the kernel's reactive runner can call when handling
+`ScopedRunCommand`. The change in the kernel is small: instead of the
+default reactive closure, call `compute_cells_to_run(...)` first and
+then run those.
+
+Gating: at the start of `ScopedRunCommand` handling, the kernel reads
+its Room's consumer list. If anything other than `DataflowSseConsumer`
+instances are attached, ignore the subscription scope and run the full
+reactive set. The dataflow consumer still filters its emissions, so
+the wire stays cheap regardless.
+
+### 3.3 — Schema, cross-process
+
+Schema introspection moves into the kernel: it walks its own globals
+for `mo.api.input` UI elements (already marked with
+`DATAFLOW_INPUT_MARKER`) and builds a `DataflowSchema` after each run
+that could have changed inputs. The schema is broadcast as
+`dataflow-schema`; the consumer caches the most recent broadcast on
+the session view (existing `SessionView` machinery handles persistence
+across consumer reattachments).
+
+Content-hash invalidation is implicit: changing the file restarts the
+kernel, which re-broadcasts the schema. We no longer cache schemas in
+the dataflow layer.
+
+### 3.4 — `DataflowSseConsumer`
+
+A `SessionConsumer` (`main=False`, kiosk-style) that:
+
+- Owns an `asyncio.Queue[DataflowEvent]`.
+- Receives every `KernelMessage` via `notify(...)`.
+- Forwards `dataflow-schema` / `dataflow-var` directly, translates
+  `completed-run` → `RunEvent`, ignores editor-only ops (cell-op,
+  datasets, completions, focus, etc.).
+- Sends `SetDataflowSubscriptionsCommand` on attach to scope kernel
+  emissions to this consumer.
+
+The SSE endpoint drains the queue.
+
+### 3.5 — `DataflowFileBundle` rewires onto `SessionManager`
+
+`DataflowFileBundle` becomes a thin facade:
+
+- Look up an existing `Session` for the file via
+  `SessionManager.get_session_by_file_key`. If none, create one via
+  `SessionManager.create_session` with no editor consumer attached.
+- `get_schema()` reads the latest `dataflow-schema` from the session
+  view, or sends `GetDataflowSchemaCommand` and awaits.
+- `run(inputs, subscribed)` attaches a fresh `DataflowSseConsumer`,
+  sends `ScopedRunCommand`, awaits `CompletedRunNotification`, returns
+  buffered events. (For SSE streaming the consumer stays attached.)
+
+`DataflowRuntime`, `tests/_dataflow/test_runtime.py`, and the
+schema-cache plumbing in `DataflowFileBundle` are deleted.
+
+### 3.6 — CLI / server
+
+- `marimo edit --enable-dataflow` — mounts the dataflow router on the
+  existing edit Starlette app. Editor + dataflow.
+- `marimo dataflow serve <file>` — new subcommand; same server, no
+  editor routes, only the dataflow router. Production deployment.
+
+Both run through the same `SessionManager`. The flag/subcommand only
+changes which routers are mounted.
+
+### 3.7 — Demo
+
+The demo's standalone `serve.py` is deleted. The README walks the user
+through `marimo dataflow serve notebook.py` (prod) and
+`marimo edit --enable-dataflow notebook.py` (with the React demo and
+editor side-by-side). The React app gains an "Open in editor" link.
+
+### 3.8 — Browser verification
+
+The acceptance criterion:
+
+1. Start `marimo edit --enable-dataflow examples/dataflow-react-demo/notebook.py`.
+2. Open the React demo in tab A, the marimo editor in tab B.
+3. Move a slider in A → A's output updates, B's slider moves, B's
+   downstream cell outputs (including charts not subscribed by A)
+   update — that's the "free debugging view."
+4. Move a slider in B → B's outputs update reactively; A's subscribed
+   variables update on the SSE stream.
+5. Close B; A continues working unchanged.
+
+### 3.9 — Sequencing within phase 3
+
+1. New control commands + notification ops in `commands.py` /
+   `notification.py`. Pure protocol additions.
+2. `DataflowKernelExtension` post-execution hook + schema broadcast.
+   Unit tests in-kernel (existing kernel test scaffolding).
+3. Pruning gate in `ScopedRunCommand` handler. Unit tests for both
+   gates (editor attached vs. not).
+4. `DataflowSseConsumer` + integration test that drives a real
+   `SessionImpl` end-to-end via the queue manager.
+5. `DataflowFileBundle` rewire; delete `DataflowRuntime`.
+6. CLI mounts (`--enable-dataflow` and `marimo dataflow serve`).
+7. Demo cleanup; browser verify.
+8. Docs update.
