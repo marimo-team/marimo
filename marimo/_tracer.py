@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -81,19 +81,37 @@ class MockTracer:
 
 
 TRACE_FILENAME = os.path.join("traces", "spans.jsonl")
+OTLPProtocol = Literal["grpc", "http/protobuf"]
 
 
-def _build_resource() -> Any:
-    """Build an OTel Resource from standard OTEL_* environment variables."""
-    from opentelemetry.sdk.resources import Resource
+def _otlp_endpoint_configured() -> bool:
+    return bool(
+        os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+        or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+    )
 
-    service_name = os.environ.get("OTEL_SERVICE_NAME", "marimo")
-    attrs: dict[str, str] = {"service.name": service_name}
-    for pair in os.environ.get("OTEL_RESOURCE_ATTRIBUTES", "").split(","):
-        if "=" in pair:
-            k, v = pair.split("=", 1)
-            attrs[k.strip()] = v.strip()
-    return Resource.create(attrs)
+
+def _otlp_protocol() -> OTLPProtocol | None:
+    protocol = (
+        (
+            os.environ.get("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL")
+            or os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL")
+            or "http/protobuf"
+        )
+        .strip()
+        .lower()
+    )
+    protocol = protocol or "http/protobuf"
+
+    if protocol in ("grpc", "http/protobuf"):
+        return cast(OTLPProtocol, protocol)
+
+    LOGGER.warning(
+        "Unsupported OTLP protocol %r; expected 'grpc' or "
+        "'http/protobuf'. Falling back to file export.",
+        protocol,
+    )
+    return None
 
 
 def _set_tracer_provider() -> None:
@@ -103,6 +121,7 @@ def _set_tracer_provider() -> None:
     DependencyManager.opentelemetry.require("for tracing.")
 
     from opentelemetry import trace
+    from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
     from opentelemetry.sdk.trace.export import (
         BatchSpanProcessor,
@@ -116,31 +135,48 @@ def _set_tracer_provider() -> None:
     except Exception:
         return
 
-    otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
-
-    if otlp_endpoint:
+    otlp_protocol = _otlp_protocol() if _otlp_endpoint_configured() else None
+    OTLPSpanExporter: Any | None = None
+    if otlp_protocol == "grpc":
         try:
             from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-                OTLPSpanExporter,
+                OTLPSpanExporter as GrpcOTLPSpanExporter,
             )
+
+            OTLPSpanExporter = GrpcOTLPSpanExporter
         except ImportError:
             LOGGER.warning(
                 "opentelemetry-exporter-otlp-proto-grpc not installed; "
                 "install marimo[otel] for OTLP export. Falling back to file export.",
             )
-            otlp_endpoint = None
+    elif otlp_protocol == "http/protobuf":
+        try:
+            from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+                OTLPSpanExporter as HttpOTLPSpanExporter,
+            )
 
-    if otlp_endpoint:
-        resource = _build_resource()
+            OTLPSpanExporter = HttpOTLPSpanExporter
+        except ImportError:
+            LOGGER.warning(
+                "opentelemetry-exporter-otlp-proto-http not installed; "
+                "install marimo[otel] for OTLP export. Falling back to file export.",
+            )
+
+    if OTLPSpanExporter is not None:
+        resource = Resource.create(
+            {
+                "service.name": "marimo",
+            },
+        )
         provider = TracerProvider(resource=resource)
         provider.add_span_processor(
             BatchSpanProcessor(
-                OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True),
+                OTLPSpanExporter(),
             ),
         )
         LOGGER.debug(
-            "OTel tracer: OTLP export to %s",
-            otlp_endpoint,
+            "OTel tracer: OTLP export via %s",
+            otlp_protocol,
         )
     else:
 

@@ -119,6 +119,7 @@ mcp = [
 otel = [
     "opentelemetry-api~=1.28.0",
     "opentelemetry-sdk~=1.28.0",
+    "opentelemetry-exporter-otlp-proto-http~=1.28.0",
     "opentelemetry-exporter-otlp-proto-grpc~=1.28.0",
 ]
 
@@ -129,6 +130,7 @@ dev = [
     # For tracing debugging
     "opentelemetry-api~=1.28.0",
     "opentelemetry-sdk~=1.28.0",
+    "opentelemetry-exporter-otlp-proto-http~=1.28.0",
     "opentelemetry-exporter-otlp-proto-grpc~=1.28.0",
     # For SQL
     "duckdb>=1.0.0",

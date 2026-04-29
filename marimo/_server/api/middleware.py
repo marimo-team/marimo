@@ -204,7 +204,7 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
 
         from opentelemetry.propagate import extract
 
-        ctx = extract(carrier=dict(request.headers))
+        ctx = extract(carrier=request.headers)
 
         with server_tracer.start_as_current_span(
             f"{request.method} {request.url.path}",

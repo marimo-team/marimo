@@ -24,7 +24,73 @@ class TestSetTracerProvider:
     def teardown_method(self) -> None:
         _reset_otel()
 
-    def test_otlp_exporter_when_endpoint_set(
+    def test_http_otlp_exporter_when_generic_endpoint_set(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        try:
+            import opentelemetry.exporter.otlp.proto.http.trace_exporter  # noqa: F401
+        except ImportError:
+            pytest.skip("opentelemetry-exporter-otlp-proto-http not installed")
+
+        monkeypatch.setenv(
+            "OTEL_EXPORTER_OTLP_ENDPOINT",
+            "http://localhost:4318",
+        )
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_PROTOCOL", raising=False)
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", raising=False)
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "test-marimo")
+
+        mock_exporter_cls = MagicMock()
+        mock_exporter_cls.return_value = MagicMock()
+
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
+
+        with patch(
+            "opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter",
+            mock_exporter_cls,
+        ):
+            from marimo._tracer import _set_tracer_provider
+
+            _set_tracer_provider()
+
+        mock_exporter_cls.assert_called_once_with()
+
+    def test_http_otlp_exporter_when_trace_endpoint_set(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        try:
+            import opentelemetry.exporter.otlp.proto.http.trace_exporter  # noqa: F401
+        except ImportError:
+            pytest.skip("opentelemetry-exporter-otlp-proto-http not installed")
+
+        monkeypatch.setenv(
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+            "http://localhost:4318/v1/traces",
+        )
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_PROTOCOL", raising=False)
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", raising=False)
+        mock_exporter_cls = MagicMock()
+        mock_exporter_cls.return_value = MagicMock()
+
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
+
+        with patch(
+            "opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter",
+            mock_exporter_cls,
+        ):
+            from marimo._tracer import _set_tracer_provider
+
+            _set_tracer_provider()
+
+        mock_exporter_cls.assert_called_once_with()
+
+    def test_grpc_otlp_exporter_when_protocol_set(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -34,10 +100,10 @@ class TestSetTracerProvider:
             pytest.skip("opentelemetry-exporter-otlp-proto-grpc not installed")
 
         monkeypatch.setenv(
-            "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"
+            "OTEL_EXPORTER_OTLP_ENDPOINT",
+            "http://localhost:4317",
         )
-        monkeypatch.setenv("OTEL_SERVICE_NAME", "test-marimo")
-
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
         mock_exporter_cls = MagicMock()
         mock_exporter_cls.return_value = MagicMock()
 
@@ -53,16 +119,16 @@ class TestSetTracerProvider:
 
             _set_tracer_provider()
 
-        mock_exporter_cls.assert_called_once_with(
-            endpoint="http://localhost:4317",
-            insecure=True,
-        )
+        mock_exporter_cls.assert_called_once_with()
 
     def test_file_exporter_when_no_endpoint(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_PROTOCOL", raising=False)
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", raising=False)
 
         from opentelemetry import trace
         from opentelemetry.sdk.trace import TracerProvider
@@ -85,12 +151,13 @@ class TestSetTracerProvider:
         assert isinstance(processor, BatchSpanProcessor)
         assert type(processor.span_exporter).__name__ == "FileExporter"
 
-    def test_otlp_fallback_to_file_when_grpc_missing(
+    def test_otlp_fallback_to_file_when_selected_exporter_missing(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setenv(
-            "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"
+            "OTEL_EXPORTER_OTLP_ENDPOINT",
+            "http://localhost:4318",
         )
 
         from marimo._config.settings import GLOBAL_SETTINGS
@@ -99,7 +166,7 @@ class TestSetTracerProvider:
 
         with patch.dict(
             "sys.modules",
-            {"opentelemetry.exporter.otlp.proto.grpc.trace_exporter": None},
+            {"opentelemetry.exporter.otlp.proto.http.trace_exporter": None},
         ):
             from marimo._tracer import _set_tracer_provider
 
@@ -107,42 +174,45 @@ class TestSetTracerProvider:
 
         from opentelemetry import trace
         from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
         provider = trace.get_tracer_provider()
         assert isinstance(provider, TracerProvider)
         processors = provider._active_span_processor._span_processors  # type: ignore[attr-defined]
         assert len(processors) > 0
-        assert type(processors[0].span_exporter).__name__ == "FileExporter"
+        processor = processors[0]
+        assert isinstance(processor, BatchSpanProcessor)
+        assert type(processor.span_exporter).__name__ == "FileExporter"
 
-    def test_resource_attributes_parsed(
+    def test_otlp_fallback_to_file_when_protocol_unsupported(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        monkeypatch.setenv("OTEL_SERVICE_NAME", "my-service")
         monkeypatch.setenv(
-            "OTEL_RESOURCE_ATTRIBUTES",
-            "deployment.environment=staging,service.namespace=test",
+            "OTEL_EXPORTER_OTLP_ENDPOINT",
+            "http://localhost:4318",
         )
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http/json")
 
-        from marimo._tracer import _build_resource
+        from marimo._config.settings import GLOBAL_SETTINGS
 
-        resource = _build_resource()
-        attrs = dict(resource.attributes)
-        assert attrs["service.name"] == "my-service"
-        assert attrs["deployment.environment"] == "staging"
-        assert attrs["service.namespace"] == "test"
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
 
-    def test_resource_defaults_to_marimo(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
-        monkeypatch.delenv("OTEL_RESOURCE_ATTRIBUTES", raising=False)
+        from marimo._tracer import _set_tracer_provider
 
-        from marimo._tracer import _build_resource
+        _set_tracer_provider()
 
-        resource = _build_resource()
-        assert resource.attributes["service.name"] == "marimo"
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+        provider = trace.get_tracer_provider()
+        assert isinstance(provider, TracerProvider)
+        processors = provider._active_span_processor._span_processors  # type: ignore[attr-defined]
+        assert len(processors) > 0
+        processor = processors[0]
+        assert isinstance(processor, BatchSpanProcessor)
+        assert type(processor.span_exporter).__name__ == "FileExporter"
 
     def test_noop_when_tracing_disabled(
         self,
