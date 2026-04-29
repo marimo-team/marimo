@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.2"
+__generated_with = "0.23.3"
 app = marimo.App(
     width="medium",
     layout_file="layouts/nested_slides.slides.json",
@@ -43,8 +43,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    # Cell 4 (fragment) — second reveal on the title slide.
-    mo.md("""
+    mo.md(r"""
     - Composed from flat marimo cells
     """)
     return
@@ -224,6 +223,255 @@ def _(mo):
 def _(mo, secret):
     # Cell 21 (fragment) — pulls in the skipped cell's value.
     mo.md(f"### Third reveal — secret is **{secret}**")
+    return
+
+
+@app.cell
+def _(mo):
+    _bios_df = {
+        "first_name": ["Jane", "Alex", "Doe", "Maria", "Li", "Omar"],
+        "last_name": ["Smith", "Johnson", "Brown", "Garcia", "Wei", "Ali"],
+        "age": [29, 35, 42, 28, 31, 45],
+        "occupation": [
+            "Data Scientist",
+            "Product Manager",
+            "Software Engineer",
+            "UX Designer",
+            "Researcher",
+            "Entrepreneur",
+        ],
+        "location": [
+            "San Francisco, CA",
+            "New York, NY",
+            "Austin, TX",
+            "Boston, MA",
+            "Seattle, WA",
+            "Dubai, UAE",
+        ],
+        "email": [
+            "jane.smith@example.com",
+            "alex.johnson@example.com",
+            "doe.brown@example.com",
+            "maria.garcia@example.com",
+            "li.wei@example.com",
+            "omar.ali@example.com",
+        ],
+        "bio": [
+            "Data scientist focused on applied ML and visualization.",
+            "Product manager with a background in UX and analytics.",
+            "Backend engineer specializing in scalable systems.",
+            "UX designer crafting human-centered digital experiences.",
+            "Researcher working on human-computer interaction.",
+            "Founder and operator of several tech startups.",
+        ],
+        "interests": [
+            "hiking, photography, cooking",
+            "reading, strategy games, travel",
+            "open-source, biking, woodworking",
+            "illustration, prototyping, user research",
+            "machine learning, teaching, chess",
+            "investing, mentoring, sailing",
+        ],
+        "joined_date": [
+            "2019-06-12",
+            "2017-09-03",
+            "2015-02-18",
+            "2020-11-01",
+            "2018-04-22",
+            "2010-08-30",
+        ],
+        "followers": [1240, 5400, 2870, 920, 1500, 10300],
+        "active": [True, True, True, True, True, False],
+    }
+
+    tbl = mo.ui.table(_bios_df)
+    tbl
+    return
+
+
+@app.cell
+def _(mo):
+    _bios_df = {
+        "first_name": ["Jane", "Alex", "Doe", "Maria", "Li", "Omar"],
+        "last_name": ["Smith", "Johnson", "Brown", "Garcia", "Wei", "Ali"],
+        "age": [29, 35, 42, 28, 31, 45],
+        "occupation": [
+            "Data Scientist",
+            "Product Manager",
+            "Software Engineer",
+            "UX Designer",
+            "Researcher",
+            "Entrepreneur",
+        ],
+        "location": [
+            "San Francisco, CA",
+            "New York, NY",
+            "Austin, TX",
+            "Boston, MA",
+            "Seattle, WA",
+            "Dubai, UAE",
+        ],
+        "email": [
+            "jane.smith@example.com",
+            "alex.johnson@example.com",
+            "doe.brown@example.com",
+            "maria.garcia@example.com",
+            "li.wei@example.com",
+            "omar.ali@example.com",
+        ],
+        "bio": [
+            "Data scientist focused on applied ML and visualization.",
+            "Product manager with a background in UX and analytics.",
+            "Backend engineer specializing in scalable systems.",
+            "UX designer crafting human-centered digital experiences.",
+            "Researcher working on human-computer interaction.",
+            "Founder and operator of several tech startups.",
+        ],
+        "interests": [
+            "hiking, photography, cooking",
+            "reading, strategy games, travel",
+            "open-source, biking, woodworking",
+            "illustration, prototyping, user research",
+            "machine learning, teaching, chess",
+            "investing, mentoring, sailing",
+        ],
+        "joined_date": [
+            "2019-06-12",
+            "2017-09-03",
+            "2015-02-18",
+            "2020-11-01",
+            "2018-04-22",
+            "2010-08-30",
+        ],
+        "followers": [1240, 5400, 2870, 920, 1500, 10300],
+        "active": [True, True, True, True, True, False],
+    }
+
+    mo.ui.table(_bios_df)
+    return
+
+
+@app.cell
+def _(mo):
+    _bios_df = {
+        "first_name": ["Jane", "Alex", "Doe", "Maria", "Li", "Omar"],
+        "last_name": ["Smith", "Johnson", "Brown", "Garcia", "Wei", "Ali"],
+        "age": [29, 35, 42, 28, 31, 45],
+        "occupation": [
+            "Data Scientist",
+            "Product Manager",
+            "Software Engineer",
+            "UX Designer",
+            "Researcher",
+            "Entrepreneur",
+        ],
+        "location": [
+            "San Francisco, CA",
+            "New York, NY",
+            "Austin, TX",
+            "Boston, MA",
+            "Seattle, WA",
+            "Dubai, UAE",
+        ],
+        "email": [
+            "jane.smith@example.com",
+            "alex.johnson@example.com",
+            "doe.brown@example.com",
+            "maria.garcia@example.com",
+            "li.wei@example.com",
+            "omar.ali@example.com",
+        ],
+        "bio": [
+            "Data scientist focused on applied ML and visualization.",
+            "Product manager with a background in UX and analytics.",
+            "Backend engineer specializing in scalable systems.",
+            "UX designer crafting human-centered digital experiences.",
+            "Researcher working on human-computer interaction.",
+            "Founder and operator of several tech startups.",
+        ],
+        "interests": [
+            "hiking, photography, cooking",
+            "reading, strategy games, travel",
+            "open-source, biking, woodworking",
+            "illustration, prototyping, user research",
+            "machine learning, teaching, chess",
+            "investing, mentoring, sailing",
+        ],
+        "joined_date": [
+            "2019-06-12",
+            "2017-09-03",
+            "2015-02-18",
+            "2020-11-01",
+            "2018-04-22",
+            "2010-08-30",
+        ],
+        "followers": [1240, 5400, 2870, 920, 1500, 10300],
+        "active": [True, True, True, True, True, False],
+    }
+
+    mo.ui.table(_bios_df)
+    return
+
+
+@app.cell
+def _(mo):
+    _bios_df = {
+        "first_name": ["Jane", "Alex", "Doe", "Maria", "Li", "Omar"],
+        "last_name": ["Smith", "Johnson", "Brown", "Garcia", "Wei", "Ali"],
+        "age": [29, 35, 42, 28, 31, 45],
+        "occupation": [
+            "Data Scientist",
+            "Product Manager",
+            "Software Engineer",
+            "UX Designer",
+            "Researcher",
+            "Entrepreneur",
+        ],
+        "location": [
+            "San Francisco, CA",
+            "New York, NY",
+            "Austin, TX",
+            "Boston, MA",
+            "Seattle, WA",
+            "Dubai, UAE",
+        ],
+        "email": [
+            "jane.smith@example.com",
+            "alex.johnson@example.com",
+            "doe.brown@example.com",
+            "maria.garcia@example.com",
+            "li.wei@example.com",
+            "omar.ali@example.com",
+        ],
+        "bio": [
+            "Data scientist focused on applied ML and visualization.",
+            "Product manager with a background in UX and analytics.",
+            "Backend engineer specializing in scalable systems.",
+            "UX designer crafting human-centered digital experiences.",
+            "Researcher working on human-computer interaction.",
+            "Founder and operator of several tech startups.",
+        ],
+        "interests": [
+            "hiking, photography, cooking",
+            "reading, strategy games, travel",
+            "open-source, biking, woodworking",
+            "illustration, prototyping, user research",
+            "machine learning, teaching, chess",
+            "investing, mentoring, sailing",
+        ],
+        "joined_date": [
+            "2019-06-12",
+            "2017-09-03",
+            "2015-02-18",
+            "2020-11-01",
+            "2018-04-22",
+            "2010-08-30",
+        ],
+        "followers": [1240, 5400, 2870, 920, 1500, 10300],
+        "active": [True, True, True, True, True, False],
+    }
+
+    mo.ui.table(_bios_df)
     return
 
 
