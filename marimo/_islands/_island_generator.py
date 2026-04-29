@@ -14,9 +14,8 @@ from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
-from marimo._session.notebook import AppFileManager
+from marimo._session.notebook import AppFileManager, load_notebook
 from marimo._types.ids import CellId_t
-from marimo._utils.marimo_path import MarimoPath
 from marimo._version import __version__
 
 if sys.platform == "win32":  # handling for windows
@@ -265,13 +264,7 @@ class MarimoIslandGenerator:
         - filename (str): Marimo .py filename to convert to reactive HTML.
         - display_code (bool): Whether to display the code in HTML snippets.
         """
-        from marimo._server.file_router import AppFileRouter
-
-        path = MarimoPath(filename)
-        file_router = AppFileRouter.from_filename(path)
-        file_key = file_router.get_unique_file_key()
-        assert file_key is not None
-        file_manager = file_router.get_file_manager(file_key)
+        file_manager = load_notebook(filename)
 
         generator = MarimoIslandGenerator()
         stubs = []

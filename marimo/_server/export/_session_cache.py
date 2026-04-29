@@ -6,7 +6,7 @@ from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from marimo._server.file_router import AppFileRouter
+from marimo._session.notebook import load_notebook
 from marimo._session.state.serialize import (
     get_session_cache_file,
     serialize_session_view,
@@ -41,14 +41,7 @@ def _hash_code_for_session_compare(code: str | None) -> str | None:
 def current_notebook_code_hashes(
     notebook: MarimoPath,
 ) -> tuple[str | None, ...]:
-    file_router = AppFileRouter.from_filename(notebook)
-    file_key = file_router.get_unique_file_key()
-    if file_key is None:
-        raise RuntimeError(
-            "Expected a unique file key when checking staleness for "
-            f"{notebook.absolute_name}"
-        )
-    file_manager = file_router.get_file_manager(file_key)
+    file_manager = load_notebook(notebook.absolute_name)
     return tuple(
         _hash_code_for_session_compare(cell_data.code)
         for cell_data in file_manager.app.cell_manager.cell_data()

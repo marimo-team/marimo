@@ -14,8 +14,6 @@ from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.file_router import (
-    LazyListOfFilesAppFileRouter,
-    ListOfFilesAppFileRouter,
     count_files,
     flatten_files,
 )
@@ -102,9 +100,7 @@ async def workspace_files(
         )
         from marimo._server.models.files import FileInfo
 
-        if session_manager.watch and isinstance(
-            session_manager.file_router, LazyListOfFilesAppFileRouter
-        ):
+        if session_manager.watch:
             # In watched folder mode, refresh the index to include new/removed files since the previous request.
             session_manager.file_router.mark_stale()
 
@@ -164,16 +160,13 @@ async def workspace_files(
             file_count=file_count,
         )
 
-    # Maybe enable markdown
-    root = ""
-    if isinstance(session_manager.file_router, LazyListOfFilesAppFileRouter):
-        # Mark stale in case new files are added
-        session_manager.file_router.mark_stale()
-        # Toggle markdown
-        session_manager.file_router = (
-            session_manager.file_router.toggle_markdown(body.include_markdown)
-        )
-        root = session_manager.file_router.directory
+    # Mark stale (no-op for routers without cached listings) and toggle
+    # markdown inclusion (no-op-returns-self for non-directory routers).
+    session_manager.file_router.mark_stale()
+    session_manager.file_router = session_manager.file_router.toggle_markdown(
+        body.include_markdown
+    )
+    root = session_manager.file_router.directory or ""
 
     # Run file scanning in thread pool to avoid blocking the server
     files = await asyncio.to_thread(lambda: session_manager.file_router.files)
@@ -294,19 +287,13 @@ async def tutorial(
 
     atexit.register(temp_dir.cleanup)
 
-    # Register the temp directory with the file router so it can be accessed
-    # This is needed for directory-based routers to allow temp tutorial files
+    # Register the temp file/directory with the router so it can be accessed.
+    # Each method is a no-op on routers that don't support that capability.
     app_state = AppState(request)
-    if isinstance(
-        app_state.session_manager.file_router, LazyListOfFilesAppFileRouter
-    ):
-        app_state.session_manager.file_router.register_temp_dir(temp_dir.name)
-    elif isinstance(
-        app_state.session_manager.file_router, ListOfFilesAppFileRouter
-    ):
-        app_state.session_manager.file_router.register_allowed_file(
-            path.absolute_name
-        )
+    app_state.session_manager.file_router.register_temp_dir(temp_dir.name)
+    app_state.session_manager.file_router.register_allowed_file(
+        path.absolute_name
+    )
 
     return MarimoFile(
         name=os.path.basename(path.absolute_name),
