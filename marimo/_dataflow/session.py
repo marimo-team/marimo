@@ -140,13 +140,16 @@ class DataflowFileBundle:
     # ------------------------------------------------------------------
 
     async def get_schema(self, *, timeout: float = 30.0) -> DataflowSchema:
-        """Return the latest schema, requesting a fresh broadcast if needed."""
-        session = await self.ensure_session()
-        if self._schema is not None:
-            return self._schema
+        """Return a fresh schema by asking the kernel to re-broadcast it.
 
-        # Trigger a fresh broadcast in case auto-instantiate happened before
-        # we attached our schema listener.
+        We always re-fetch rather than returning ``self._schema``: notebook
+        edits (cells added, removed, renamed) update the kernel's graph but
+        nothing on the host side knows to invalidate a cached schema. The
+        round-trip is cheap (control-queue + globals/graph walk + JSON), so
+        it's not worth the cache-invalidation complexity to skip it.
+        """
+        session = await self.ensure_session()
+        self._schema_event.clear()
         session.put_control_request(
             GetDataflowSchemaCommand(),
             from_consumer_id=ConsumerId(self._anchor.consumer_id)

@@ -18,7 +18,6 @@ import time
 import traceback
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
 
 from marimo import _loggers as loggers
 from marimo._messaging.notification import (
@@ -71,7 +70,11 @@ class DataflowCallbacks:
     def __init__(self, kernel: Kernel) -> None:
         self._kernel = kernel
         self._subscriptions: dict[str, frozenset[str]] = {}
-        self._schema_id: str = uuid4().hex
+        # Track the most recently broadcast content-derived schema id.
+        # ``compute_dataflow_schema_from_globals`` returns a fresh id keyed
+        # on the input/output/trigger names, so notebook edits naturally
+        # bump the id and SSE clients see a new schema event.
+        self._schema_id: str | None = None
         self._seq: int = 0
         # Set for the duration of a scoped run so the on-finish hook can
         # tag emitted ``dataflow-var`` events with the originating run id.
@@ -84,7 +87,7 @@ class DataflowCallbacks:
         return self._subscriptions
 
     @property
-    def schema_id(self) -> str:
+    def schema_id(self) -> str | None:
         return self._schema_id
 
     def union_subscriptions(self) -> frozenset[str]:
@@ -196,11 +199,12 @@ class DataflowCallbacks:
             schema = compute_dataflow_schema_from_globals(
                 graph=self._kernel.graph,
                 globals_=self._kernel.globals,
-                schema_id=self._schema_id,
             )
         except Exception:
             LOGGER.exception("Failed to compute dataflow schema")
             return
+
+        self._schema_id = schema.schema_id
 
         # Internal mapping for the host-side bundle to translate
         # name-keyed wire requests into id-keyed kernel commands.
@@ -214,7 +218,7 @@ class DataflowCallbacks:
         broadcast_notification(
             DataflowSchemaNotification(
                 schema=_to_dict(schema),
-                schema_id=self._schema_id,
+                schema_id=schema.schema_id,
                 input_object_ids=input_object_ids,
             )
         )
