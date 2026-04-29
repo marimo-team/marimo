@@ -107,6 +107,19 @@ def _is_alive(pid: int) -> bool:
     return True
 
 
+def _wait_until_dead(pid: int, timeout_s: float = 5.0) -> None:
+    """Poll until the kernel has reaped `pid`, then assert.
+
+    Tolerates the latency between SIGKILL delivery and the kernel actually
+    tearing the process down — a bare `assert not _is_alive(pid)` immediately
+    after a kill is racy.
+    """
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline and _is_alive(pid):
+        time.sleep(0.05)
+    assert not _is_alive(pid)
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX only")
 def test_try_kill_process_and_group_kills_pgroup_spares_new_session() -> None:
     """Covers the shutdown path used by KernelManagerImpl, IPCKernelManagerImpl,
@@ -129,11 +142,7 @@ def test_try_kill_process_and_group_kills_pgroup_spares_new_session() -> None:
         # wait() reaps the child so it doesn't linger as a zombie.
         assert leader.wait(timeout=5) is not None
 
-        deadline = time.monotonic() + 5.0
-        while time.monotonic() < deadline and _is_alive(child_pg_pid):
-            time.sleep(0.05)
-
-        assert not _is_alive(child_pg_pid)
+        _wait_until_dead(child_pg_pid)
         assert _is_alive(child_newpg_pid)
     finally:
         for pid in (leader.pid, child_pg_pid, child_newpg_pid):
@@ -174,7 +183,7 @@ async def test_try_kill_process_and_group_sigkills_stubborn_child(
         try_kill_process_and_group(cast(ProcessLike, proc))
         # Drain the reap task(s) scheduled on the current loop.
         await asyncio.gather(*list(_REAP_TASKS), return_exceptions=True)
-        assert not _is_alive(proc.pid)
+        _wait_until_dead(proc.pid)
     finally:
         with contextlib.suppress(ProcessLookupError):
             os.killpg(pgid, signal.SIGKILL)
