@@ -288,6 +288,8 @@ export const SlideSidebar = ({
         width: isConfigOpen ? configWidth : COLLAPSED_CONFIG_WIDTH,
       }}
       aria-label="Slide configuration"
+      // Prevent keys from bubbling up to reveal.js's document-level keydown listener and moving the deck.
+      onKeyDown={(e) => e.stopPropagation()}
     >
       <header
         className={cn(

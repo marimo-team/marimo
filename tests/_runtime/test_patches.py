@@ -7,15 +7,16 @@ from unittest.mock import patch
 
 import pytest
 
-from marimo._dependencies.dependencies import DependencyManager
+from marimo._runtime._wasm._patches import WasmPatchSet
+from marimo._runtime._wasm._polars import patch_polars_for_wasm
 from marimo._runtime.capture import capture_stderr
-from marimo._runtime.patches import patch_polars_write_json
 from marimo._runtime.runtime import Kernel
 from marimo._utils.platform import is_pyodide
 from tests._messaging.mocks import MockStream
 from tests.conftest import ExecReqProvider, mock_pyodide
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -206,10 +207,7 @@ async def test_webbrowser_easter_egg(
     assert "<img" in outputs[-1]
 
 
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(),
-    reason="Polars is not installed",
-)
+@pytest.mark.requires("polars")
 @mock_pyodide()
 def test_polars_write_json_patch(tmp_path: Path):
     import polars as pl
@@ -227,9 +225,9 @@ def test_polars_write_json_patch(tmp_path: Path):
             df.write_json(file_path)
 
         # Patch to fallback to write_csv
-        unpatch_polars_write_json = patch_polars_write_json()
+        unpatch = patch_polars_for_wasm()
 
-        expected_json = '[{"a": "1", "b": "x"}, {"a": "2", "b": "y"}]'
+        expected_json = '[{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]'
 
         # Test it succeeds with file path
         df.write_json(file_path)
@@ -247,9 +245,239 @@ def test_polars_write_json_patch(tmp_path: Path):
         # Test it succeeds with None
         assert df.write_json() == expected_json
 
-        # Patch the patch
-        unpatch_polars_write_json()
+        # Unpatch
+        unpatch()
 
         # Test it fails again
         with pytest.raises(ValueError, match="Test error"):
             df.write_json(file_path)
+
+
+def _const_fallback(value: object) -> Callable[..., object]:
+    """Build a fallback that ignores its arguments and returns ``value``."""
+
+    def _fb(*_args: object, **_kwargs: object) -> object:
+        return value
+
+    return _fb
+
+
+class TestWasmPatchSet:
+    @staticmethod
+    def test_noop_outside_pyodide() -> None:
+        import types
+
+        mod = types.SimpleNamespace(fn=lambda x: x + 1)
+        original = mod.fn
+        patches = WasmPatchSet()
+        patches.patch(mod, "fn", _const_fallback(999))
+        # Outside pyodide, no patch is installed.
+        assert mod.fn is original
+        assert mod.fn(1) == 2
+        patches.unpatch_all()()
+
+    @staticmethod
+    @mock_pyodide()
+    def test_fallback_on_caught_exception() -> None:
+        import types
+
+        def divide_by_zero(_x: int) -> float:
+            return 1 / 0
+
+        mod = types.SimpleNamespace(fn=divide_by_zero)
+        patches = WasmPatchSet()
+        patches.patch(
+            mod,
+            "fn",
+            _const_fallback("fallback"),
+            catch=(ZeroDivisionError,),
+        )
+        assert mod.fn(0) == "fallback"
+
+        unpatch = patches.unpatch_all()
+        unpatch()
+        with pytest.raises(ZeroDivisionError):
+            mod.fn(0)
+
+    @staticmethod
+    @mock_pyodide()
+    def test_fallback_failure_chains_original_error() -> None:
+        import types
+
+        def boom(*_: object, **__: object) -> object:
+            raise NameError("primary boom")
+
+        def fallback_fail(*_: object, **__: object) -> object:
+            raise RuntimeError("fallback boom")
+
+        mod = types.SimpleNamespace(fn=boom)
+        patches = WasmPatchSet()
+        patches.patch(mod, "fn", fallback_fail)
+
+        with pytest.raises(NameError, match="primary boom") as exc_info:
+            mod.fn()
+        assert isinstance(exc_info.value.__cause__, RuntimeError)
+        patches.unpatch_all()()
+
+    @staticmethod
+    @mock_pyodide()
+    def test_skips_missing_attr() -> None:
+        import types
+
+        mod = types.SimpleNamespace()
+        patches = WasmPatchSet()
+        # Should silently skip without raising.
+        patches.patch(mod, "missing", _const_fallback(None))
+        assert not hasattr(mod, "missing")
+        patches.unpatch_all()()
+
+
+@pytest.mark.requires("polars", "pyarrow")
+class TestPolarsIoWasmPatch:
+    @staticmethod
+    def test_noop_outside_pyodide() -> None:
+        import polars as pl
+
+        original = pl.read_csv
+        unpatch = patch_polars_for_wasm()
+        assert pl.read_csv is original
+        unpatch()
+        assert pl.read_csv is original
+
+    @staticmethod
+    @mock_pyodide()
+    def test_read_csv_falls_back_on_name_error() -> None:
+        import polars as pl
+
+        csv_bytes = b"a,b\n1,x\n2,y\n"
+        with patch(
+            "polars.read_csv",
+            side_effect=NameError("simulated wasm failure"),
+        ):
+            unpatch = patch_polars_for_wasm()
+            try:
+                df = pl.read_csv(io.BytesIO(csv_bytes))
+                assert df.shape == (2, 2)
+                assert df.columns == ["a", "b"]
+                assert df["b"].to_list() == ["x", "y"]
+            finally:
+                unpatch()
+
+    @staticmethod
+    @mock_pyodide()
+    def test_read_csv_falls_back_on_generic_exception() -> None:
+        import polars as pl
+
+        csv_bytes = b"a,b\n1,x\n"
+        with patch(
+            "polars.read_csv",
+            side_effect=RuntimeError("network unavailable"),
+        ):
+            unpatch = patch_polars_for_wasm()
+            try:
+                df = pl.read_csv(io.BytesIO(csv_bytes))
+                assert df.shape == (1, 2)
+            finally:
+                unpatch()
+
+    @staticmethod
+    @mock_pyodide()
+    def test_scan_csv_returns_lazyframe() -> None:
+        import polars as pl
+
+        csv_bytes = b"a,b\n1,x\n2,y\n"
+        with patch(
+            "polars.scan_csv",
+            side_effect=NameError("simulated wasm failure"),
+        ):
+            unpatch = patch_polars_for_wasm()
+            try:
+                lf = pl.scan_csv(io.BytesIO(csv_bytes))
+                assert isinstance(lf, pl.LazyFrame)
+                assert lf.collect().shape == (2, 2)
+            finally:
+                unpatch()
+
+    @staticmethod
+    @mock_pyodide()
+    def test_read_parquet_falls_back(tmp_path: Path) -> None:
+        import polars as pl
+
+        df_in = pl.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+        path = tmp_path / "test.parquet"
+        df_in.write_parquet(path)
+        parquet_bytes = path.read_bytes()
+
+        with patch(
+            "polars.read_parquet",
+            side_effect=NameError("simulated wasm failure"),
+        ):
+            unpatch = patch_polars_for_wasm()
+            try:
+                df = pl.read_parquet(io.BytesIO(parquet_bytes))
+                assert df.shape == (3, 2)
+                assert df["a"].to_list() == [1, 2, 3]
+            finally:
+                unpatch()
+
+    @staticmethod
+    @mock_pyodide()
+    def test_unpatch_restores_original() -> None:
+        import polars as pl
+
+        unpatch = patch_polars_for_wasm()
+        try:
+            assert pl.read_csv is not None
+            patched = pl.read_csv
+            unpatch()
+            assert pl.read_csv is not patched
+        finally:
+            # idempotent — calling again should be safe
+            unpatch()
+
+    @staticmethod
+    @mock_pyodide()
+    def test_unpatch_is_idempotent() -> None:
+        unpatch = patch_polars_for_wasm()
+        unpatch()
+        unpatch()  # second call must not raise
+
+    @staticmethod
+    @mock_pyodide()
+    def test_fallback_propagates_original_error_when_fallback_fails() -> None:
+        import polars as pl
+
+        with patch(
+            "polars.read_csv",
+            side_effect=NameError("simulated wasm failure"),
+        ):
+            unpatch = patch_polars_for_wasm()
+            try:
+                # Pass an unsupported source type so the fallback raises.
+                with pytest.raises(NameError, match="simulated wasm failure"):
+                    pl.read_csv(12345)  # type: ignore[arg-type]
+            finally:
+                unpatch()
+
+    @staticmethod
+    @mock_pyodide()
+    def test_missing_pyarrow_bubbles_module_not_found_error() -> None:
+        """ModuleNotFoundError must propagate so marimo can prompt to install."""
+        import polars as pl
+
+        from marimo._dependencies.dependencies import DependencyManager
+
+        with (
+            patch(
+                "polars.read_csv",
+                side_effect=NameError("simulated wasm failure"),
+            ),
+            patch.object(DependencyManager.pyarrow, "has", return_value=False),
+        ):
+            unpatch = patch_polars_for_wasm()
+            try:
+                with pytest.raises(ModuleNotFoundError) as exc_info:
+                    pl.read_csv(io.BytesIO(b"a,b\n1,x\n"))
+                assert exc_info.value.name == "pyarrow"
+            finally:
+                unpatch()

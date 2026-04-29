@@ -13,6 +13,7 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write # required for Doppler OIDC
 
 env:
   UV_EXCLUDE_NEWER: "7 days"
@@ -24,6 +25,15 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
+      - name: 🔐 Fetch Doppler secrets
+        uses: dopplerhq/secrets-fetch-action@cd2efbf9a404504316435873eff298b82f7e0562 # v1.3.0
+        id: secrets
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: marimo-oss
+          doppler-config: ci_docs
+
       - name: 🐍 Setup uv
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
@@ -34,16 +44,18 @@ jobs:
         run: npm install --global vercel@latest
 
       - name: ⬇️ Pull Vercel Environment Information
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ steps.secrets.outputs.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ steps.secrets.outputs.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ steps.secrets.outputs.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production
 
       - name: 📚 Build docs
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ steps.secrets.outputs.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ steps.secrets.outputs.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ steps.secrets.outputs.VERCEL_TOKEN }}
+        run: vercel build --prod
 
       - name: 📝 Generate markdown versions of docs
         run: |
@@ -88,7 +100,8 @@ jobs:
 
       - name: 🚀 Deploy to Vercel
         if: github.ref == 'refs/heads/main' && steps.latest.outputs.is_latest == 'true'
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ steps.secrets.outputs.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ steps.secrets.outputs.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ steps.secrets.outputs.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod
