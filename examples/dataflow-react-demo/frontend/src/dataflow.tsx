@@ -110,6 +110,16 @@ export class DataflowClient {
   private inputListeners = new Map<string, Set<() => void>>();
   private schemaListeners = new Set<() => void>();
   private statusListeners = new Set<() => void>();
+  // Catch-all listeners for the debug surface; fired any time *any*
+  // variable updates or the subscribed set changes.
+  private valuesListeners = new Set<() => void>();
+  private subscriptionsListeners = new Set<() => void>();
+  // Snapshots cached as stable references for ``useSyncExternalStore``.
+  // They're rebuilt only when their version counter advances.
+  private subscriptionsSnapshot: string[] = [];
+  private valuesSnapshot: Record<string, VarUpdate> = {};
+  private valuesVersion = 0;
+  private valuesSnapshotVersion = 0;
 
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private inflight: AbortController | null = null;
@@ -203,17 +213,46 @@ export class DataflowClient {
   retain(name: string): () => void {
     const next = (this.subRefcount.get(name) ?? 0) + 1;
     this.subRefcount.set(name, next);
-    if (next === 1 && this.autoRun && this.schema) {
-      this.scheduleRun();
+    if (next === 1) {
+      this.bumpSubscriptions();
+      if (this.autoRun && this.schema) this.scheduleRun();
     }
     let released = false;
     return () => {
       if (released) return;
       released = true;
       const cur = (this.subRefcount.get(name) ?? 1) - 1;
-      if (cur <= 0) this.subRefcount.delete(name);
-      else this.subRefcount.set(name, cur);
+      if (cur <= 0) {
+        this.subRefcount.delete(name);
+        this.bumpSubscriptions();
+      } else {
+        this.subRefcount.set(name, cur);
+      }
     };
+  }
+
+  /** Names with at least one mounted observer, sorted for stable rendering. */
+  getSubscriptions(): string[] {
+    return this.subscriptionsSnapshot;
+  }
+
+  subscribeSubscriptions(cb: () => void): () => void {
+    this.subscriptionsListeners.add(cb);
+    return () => this.subscriptionsListeners.delete(cb);
+  }
+
+  /** Snapshot of every variable received this session (for debug views). */
+  getValuesSnapshot(): Record<string, VarUpdate> {
+    if (this.valuesSnapshotVersion !== this.valuesVersion) {
+      this.valuesSnapshot = Object.fromEntries(this.values);
+      this.valuesSnapshotVersion = this.valuesVersion;
+    }
+    return this.valuesSnapshot;
+  }
+
+  subscribeValuesSnapshot(cb: () => void): () => void {
+    this.valuesListeners.add(cb);
+    return () => this.valuesListeners.delete(cb);
   }
 
   // ---------- inputs ----------
@@ -422,11 +461,18 @@ export class DataflowClient {
   private notifyVar(name: string): void {
     const ls = this.varListeners.get(name);
     if (ls) for (const cb of ls) cb();
+    this.valuesVersion++;
+    this.notifyAll(this.valuesListeners);
   }
 
   private notifyInput(name: string): void {
     const ls = this.inputListeners.get(name);
     if (ls) for (const cb of ls) cb();
+  }
+
+  private bumpSubscriptions(): void {
+    this.subscriptionsSnapshot = Array.from(this.subRefcount.keys()).sort();
+    this.notifyAll(this.subscriptionsListeners);
   }
 
   private notifyAll(listeners: Set<() => void>): void {
@@ -549,6 +595,33 @@ export function useDataflowStatus(): RunStatus {
 export function useDataflowRun(): () => void {
   const client = useClient();
   return useCallback(() => client.run(), [client]);
+}
+
+/**
+ * Names currently subscribed to (refcount > 0). Useful for debug views;
+ * mirrors the ``subscribe`` set the client sends on each ``/run``.
+ */
+export function useDataflowSubscriptions(): string[] {
+  const client = useClient();
+  return useSyncExternalStore(
+    useCallback((cb) => client.subscribeSubscriptions(cb), [client]),
+    () => client.getSubscriptions(),
+    () => client.getSubscriptions(),
+  );
+}
+
+/**
+ * Snapshot of every variable received in this session, keyed by name.
+ * Re-renders on *any* variable update, so prefer ``useDataflowValue`` in
+ * production components and reserve this for debug surfaces.
+ */
+export function useDataflowValuesSnapshot(): Record<string, VarUpdate> {
+  const client = useClient();
+  return useSyncExternalStore(
+    useCallback((cb) => client.subscribeValuesSnapshot(cb), [client]),
+    () => client.getValuesSnapshot(),
+    () => client.getValuesSnapshot(),
+  );
 }
 
 /** Escape hatch for advanced use: get the underlying client. */

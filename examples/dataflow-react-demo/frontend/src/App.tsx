@@ -1,11 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   DataflowProvider,
   type InputSchema,
   useDataflowInput,
   useDataflowSchema,
   useDataflowStatus,
+  useDataflowSubscriptions,
   useDataflowValue,
+  useDataflowValuesSnapshot,
+  type VarUpdate,
 } from "./dataflow";
 
 export function App() {
@@ -17,6 +20,11 @@ export function App() {
 }
 
 function Page() {
+  // Conditional mount — flipping this off un-mounts ``<SlowThreshold />``,
+  // which releases its retain on ``slow_threshold`` and the next /run is
+  // pruned to skip the 0.5s sleep cell entirely.
+  const [showSlow, setShowSlow] = useState(true);
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -27,13 +35,14 @@ function Page() {
       </header>
 
       <div style={styles.grid}>
-        <Inputs />
+        <Inputs showSlow={showSlow} onToggleSlow={setShowSlow} />
         <Stats />
-        <SlowThreshold />
+        {showSlow && <SlowThreshold />}
         <Histogram />
         <Table />
       </div>
 
+      <DebugFooter />
       <SchemaFooter />
     </div>
   );
@@ -41,7 +50,13 @@ function Page() {
 
 // ---------- Inputs ----------
 
-function Inputs() {
+function Inputs({
+  showSlow,
+  onToggleSlow,
+}: {
+  showSlow: boolean;
+  onToggleSlow: (v: boolean) => void;
+}) {
   const schema = useDataflowSchema();
   const status = useDataflowStatus();
 
@@ -51,6 +66,16 @@ function Inputs() {
       {schema?.inputs.map((input) => (
         <DynamicInput key={input.name} input={input} />
       ))}
+      <div style={styles.inputGroup}>
+        <label style={styles.checkbox}>
+          <input
+            type="checkbox"
+            checked={showSlow}
+            onChange={(e) => onToggleSlow(e.target.checked)}
+          />
+          Subscribe to <code>slow_threshold</code>
+        </label>
+      </div>
       {status.elapsedMs !== null && (
         <p style={styles.meta}>
           Computed in {status.elapsedMs.toFixed(0)}ms
@@ -250,6 +275,73 @@ function SchemaFooter() {
   );
 }
 
+function DebugFooter() {
+  // Reads the catch-all snapshot, so this re-renders on every var update.
+  // That's deliberate for a debug view; production components should reach
+  // for ``useDataflowValue(name)`` to scope their re-renders.
+  const subscribed = useDataflowSubscriptions();
+  const values = useDataflowValuesSnapshot();
+  return (
+    <footer style={styles.footer}>
+      <details>
+        <summary style={styles.detailsSummary}>
+          Subscribed variables ({subscribed.length})
+        </summary>
+        {subscribed.length === 0 ? (
+          <p style={styles.meta}>No mounted components subscribing.</p>
+        ) : (
+          <table style={styles.debugTable}>
+            <thead>
+              <tr>
+                <th style={styles.th}>name</th>
+                <th style={styles.th}>kind</th>
+                <th style={styles.th}>run id</th>
+                <th style={styles.th}>value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subscribed.map((name) => (
+                <DebugRow key={name} name={name} update={values[name]} />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </details>
+    </footer>
+  );
+}
+
+function DebugRow({
+  name,
+  update,
+}: {
+  name: string;
+  update: VarUpdate | undefined;
+}) {
+  return (
+    <tr>
+      <td style={styles.td}>
+        <code>{name}</code>
+      </td>
+      <td style={styles.td}>{update?.kind ?? "—"}</td>
+      <td style={styles.td}>
+        <code>{update?.runId ?? "—"}</code>
+      </td>
+      <td style={styles.td}>
+        <pre style={styles.preInline}>
+          {update === undefined
+            ? "(pending)"
+            : truncate(JSON.stringify(update.value, null, 2), 400)}
+        </pre>
+      </td>
+    </tr>
+  );
+}
+
+function truncate(s: string, max: number): string {
+  return s.length <= max ? s : `${s.slice(0, max)}…`;
+}
+
 const styles: Record<string, React.CSSProperties> = {
   container: {
     maxWidth: 1200,
@@ -284,6 +376,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   inputGroup: { marginBottom: "1rem" },
   label: { display: "block", marginBottom: "0.4rem", fontWeight: 500 },
+  checkbox: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.4rem",
+    fontSize: "0.9rem",
+  },
   slider: { width: "100%" },
   select: {
     width: "100%",
@@ -354,5 +452,21 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 8,
     fontSize: "0.8rem",
     overflow: "auto",
+  },
+  preInline: {
+    background: "#f1f3f5",
+    padding: "0.4rem 0.6rem",
+    borderRadius: 4,
+    fontSize: "0.75rem",
+    margin: 0,
+    maxWidth: 480,
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+  },
+  debugTable: {
+    width: "100%",
+    borderCollapse: "collapse",
+    fontSize: "0.85rem",
+    marginTop: "0.75rem",
   },
 };
