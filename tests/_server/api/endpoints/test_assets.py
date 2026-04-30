@@ -340,6 +340,61 @@ def test_vfile_large_streaming(client: TestClient) -> None:
         manager.storage = original_storage
 
 
+def test_vfile_download_query_param_sets_content_disposition(
+    client: TestClient,
+) -> None:
+    """`?download=1` forces Content-Disposition: attachment so the browser
+    saves the response instead of rendering it inline. This covers iframed
+    deployments where <a download> is silently ignored."""
+    from marimo._runtime.virtual_file.storage import (
+        InMemoryStorage,
+        VirtualFileStorageManager,
+    )
+
+    manager = VirtualFileStorageManager()
+    original_storage = manager.storage
+    storage = InMemoryStorage()
+    manager.storage = storage
+
+    try:
+        data = b'[{"a": 1}]'
+        filename = "data.json"
+        storage.store(filename, data)
+        byte_length = len(data)
+
+        # Without ?download=1 — no Content-Disposition.
+        response = client.get(
+            f"/@file/{byte_length}-{filename}",
+            headers=token_header(),
+        )
+        assert response.status_code == 200
+        assert "content-disposition" not in response.headers
+
+        # With ?download=1 — attachment header is set.
+        response = client.get(
+            f"/@file/{byte_length}-{filename}?download=1",
+            headers=token_header(),
+        )
+        assert response.status_code == 200
+        assert response.content == data
+        cd = response.headers.get("content-disposition", "")
+        assert cd.startswith("attachment")
+        assert "data.json" in cd
+
+        # Custom download filename via ?filename=...
+        response = client.get(
+            f"/@file/{byte_length}-{filename}"
+            "?download=1&filename=my-export.json",
+            headers=token_header(),
+        )
+        assert response.status_code == 200
+        cd = response.headers.get("content-disposition", "")
+        assert cd.startswith("attachment")
+        assert "my-export.json" in cd
+    finally:
+        manager.storage = original_storage
+
+
 def test_public_file_serving(client: TestClient) -> None:
     # Setup app state with a mock notebook
     app_state = AppState.from_app(cast(Any, client.app))
