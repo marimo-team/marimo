@@ -6,6 +6,7 @@ import inspect
 import os
 import sys
 import threading
+import weakref
 from collections.abc import (
     Callable,
     Iterable,
@@ -83,14 +84,66 @@ LOGGER = _loggers.marimo_logger()
 
 
 class _Namespace(Mapping[str, object]):
+    """Thin read-only mapping returned by ``app.run()``.
+
+    Performs additional ref-counting to prevent memory leaks, and correctly
+    clear module scope.
+    """
+
     def __init__(
-        self, dictionary: dict[str, object], owner: Cell | App
+        self,
+        dictionary: dict[str, object],
+        owner: Cell | App,
+        _module_dict: dict[str, Any] | None = None,
+        _required_refs: dict[str, set[str]] | None = None,
     ) -> None:
         self._dict = dictionary
         self._owner = owner
+        self._module_dict = _module_dict
+        # Closures capture tracked/module_dict, NOT self, to avoid
+        # preventing the _Namespace from being collected.
+        self._tracked: set[str] = set()
+        if _module_dict is not None:
+            tracked = self._tracked
+            required_refs = _required_refs or {}
+
+            def _on_namespace_collected() -> None:
+                # Compute names needed by any tracked variable
+                needed: set[str] = set()
+                for key in tracked:
+                    needed |= required_refs.get(key, set())
+                # Only remove tracked keys whose deps are satisfied
+                removable = tracked - needed
+                for key in removable:
+                    _module_dict.pop(key, None)
+                # Narrow tracked to removable — only those will
+                # fire finalizers when external refs drop.
+                tracked.difference_update(needed)
+                if not tracked:
+                    _module_dict.clear()
+
+            weakref.finalize(self, _on_namespace_collected)
 
     def __getitem__(self, item: str) -> object:
-        return self._dict[item]
+        val = self._dict[item]
+        if self._module_dict is not None and item not in self._tracked:
+            tracked = self._tracked
+            module_dict = self._module_dict
+            try:
+
+                def _on_value_collected() -> None:
+                    tracked.discard(item)
+                    if not tracked:
+                        module_dict.clear()
+
+                weakref.finalize(val, _on_value_collected)
+                tracked.add(item)
+            except TypeError:
+                pass  # not weakref-able (int, str, …)
+        return val
+
+    def __contains__(self, item: object) -> bool:
+        return item in self._dict
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._dict)
@@ -618,12 +671,33 @@ class App:
             if not self._graph.is_disabled(cid) and cid in outputs
         )
 
+    @staticmethod
+    def _build_required_refs(
+        graph: dataflow.DirectedGraph,
+    ) -> dict[str, set[str]]:
+        """Map each defined name to the set of names it depends on.
+
+        Used by _Namespace to avoid removing values that tracked
+        functions still need from the module dict.
+        """
+        required_refs: dict[str, set[str]] = {}
+        for cell in graph.cells.values():
+            for name, vdata_list in cell.variable_data.items():
+                refs: set[str] = set()
+                for vdata in vdata_list:
+                    refs |= vdata.required_refs
+                if refs:
+                    required_refs[name] = refs
+        return required_refs
+
     def _globals_to_defs(self, glbls: dict[str, Any]) -> _Namespace:
         return _Namespace(
             dictionary={
                 name: glbls[name] for name in self._defs if name in glbls
             },
             owner=self,
+            _module_dict=glbls,
+            _required_refs=self._build_required_refs(self._graph),
         )
 
     def run(
