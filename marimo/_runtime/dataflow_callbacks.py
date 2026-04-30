@@ -37,6 +37,8 @@ from marimo._runtime.commands import (
 from marimo._types.ids import UIElementId
 
 if TYPE_CHECKING:
+    from collections.abc import Set as AbstractSet
+
     from marimo._runtime.runtime import Kernel
 
 LOGGER = loggers.marimo_logger()
@@ -237,7 +239,7 @@ class DataflowCallbacks:
         self,
         run_id: str,
         *,
-        only: set[str] | None = None,
+        only: AbstractSet[str] | None = None,
     ) -> None:
         """Emit ``dataflow-var`` events for every (consumer, subscribed var).
 
@@ -424,4 +426,5 @@ def _to_dict(struct: Any) -> dict[str, Any]:
     import msgspec
 
     encoded = msgspec.json.encode(struct)
-    return msgspec.json.decode(encoded)
+    decoded: dict[str, Any] = msgspec.json.decode(encoded)
+    return decoded

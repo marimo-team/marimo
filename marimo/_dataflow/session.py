@@ -33,6 +33,8 @@ from marimo._runtime.commands import (
     RemoveDataflowSubscriptionsCommand,
     ScopedRunCommand,
 )
+from marimo._session.consumer import SessionConsumer
+from marimo._session.model import ConnectionState
 from marimo._types.ids import ConsumerId, SessionId, UIElementId
 
 if TYPE_CHECKING:
@@ -272,7 +274,7 @@ class DataflowFileBundle:
         }
 
 
-class _SchemaListener:
+class _SchemaListener(SessionConsumer):
     """Lightweight session consumer that forwards schemas to the bundle."""
 
     def __init__(self, bundle: DataflowFileBundle) -> None:
@@ -299,16 +301,16 @@ class _SchemaListener:
             return
         self._bundle._on_schema_received(schema, decoded.input_object_ids)
 
-    def connection_state(self) -> Any:
-        from marimo._session.model import ConnectionState
-
+    def connection_state(self) -> ConnectionState:
         return ConnectionState.OPEN
 
-    def on_attach(self, session: Any, event_bus: Any) -> None:
+    def on_attach(self, session: Session, event_bus: Any) -> None:
         del session, event_bus
 
     def on_detach(self) -> None:
-        pass
+        # Nothing to clean up — the listener owns no resources of its own;
+        # ``Session`` removes it from its consumer set on disconnect.
+        ...
 
 
 def _decode_schema(notification: DataflowSchemaNotification) -> DataflowSchema:
@@ -368,7 +370,7 @@ def _has_non_dataflow_consumer(session: Session) -> bool:
     skip cells that the editor would want to render, so we fall back to
     a full reactive run and let the dataflow consumer filter on the wire.
     """
-    for consumer in session.room.consumers:
+    for consumer in session.consumers:
         if isinstance(consumer, (DataflowAnchorConsumer, DataflowSseConsumer)):
             continue
         if isinstance(consumer, _SchemaListener):

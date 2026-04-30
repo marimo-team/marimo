@@ -22,11 +22,12 @@ Usage:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass as _dataclass, field as _field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from marimo._plugins.ui._core.ui_element import UIElement
 
 

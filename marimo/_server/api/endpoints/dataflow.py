@@ -7,21 +7,24 @@ Exposes a marimo notebook as a typed reactive function via:
 - ``POST /api/v1/dataflow/run`` — push input overrides, stream subscribed
   variable values back as Server-Sent Events.
 
-These run on the same Starlette app as the editor when ``marimo edit`` is
-launched with ``--enable-dataflow`` (or under ``marimo dataflow serve``).
-The dataflow API and the editor websocket are both ``SessionConsumer``s
-on the *same* :class:`Session`, so values pushed by one are observable
-by the other in real time.
+These run on the same Starlette app as the editor — ``marimo edit`` always
+exposes them. The dataflow API and the editor websocket are both
+``SessionConsumer``s on the *same* :class:`Session`, so values pushed by
+one are observable by the other in real time.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import msgspec
-from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+    from starlette.requests import Request
 
 from marimo import _loggers
 from marimo._dataflow.protocol import (
@@ -73,7 +76,9 @@ def _dataflow_manager(request: Request) -> DataflowSessionManager:
     mgr = getattr(state, "dataflow_manager", None)
     if mgr is None:
         mgr = DataflowSessionManager(app_state.session_manager)
-        state.dataflow_manager = mgr
+        # Starlette's app.state is intentionally a dynamic attribute bag,
+        # so the assignment is invisible to mypy.
+        state.dataflow_manager = mgr  # type: ignore[attr-defined]
     return mgr
 
 
@@ -160,7 +165,7 @@ async def run_dataflow(request: Request) -> Response:
         else {o.name for o in schema.outputs}
     )
 
-    async def event_stream():
+    async def event_stream() -> AsyncGenerator[str, None]:
         async for event in bundle.run(
             inputs=body.inputs,
             subscribed=subscribed,
