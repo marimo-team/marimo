@@ -111,6 +111,32 @@ export const PlotlyComponent = memo(
         setValue((prev) => ({ ...prev, dragmode }));
       },
     );
+    const handleClearSelection = useEvent(() => {
+      setValue((prev) => ({
+        ...prev,
+        selections: Arrays.EMPTY,
+        points: Arrays.EMPTY,
+        indices: Arrays.EMPTY,
+        range: undefined,
+        lasso: undefined,
+      }));
+    });
+
+    const hasSelection = useMemo(() => {
+      if (!value) {
+        return false;
+      }
+      const points = value.points;
+      const indices = value.indices;
+      const selections = value.selections;
+      return (
+        (Array.isArray(points) && points.length > 0) ||
+        (Array.isArray(indices) && indices.length > 0) ||
+        (Array.isArray(selections) && selections.length > 0) ||
+        value.range !== undefined ||
+        value.lasso !== undefined
+      );
+    }, [value]);
 
     const configMemo = useDeepCompareMemoize(config);
     const plotlyConfig = useMemo((): Partial<Plotly.Config> => {
@@ -153,6 +179,9 @@ export const PlotlyComponent = memo(
       <LazyPlot
         {...figure}
         layout={layout}
+        hasSelection={hasSelection}
+        selectedPoints={value?.points}
+        layoutSelections={value?.selections}
         onRelayout={(layoutUpdate) => {
           // Persist dragmode in the state to keep it across re-renders
           if ("dragmode" in layoutUpdate) {
@@ -174,18 +203,7 @@ export const PlotlyComponent = memo(
             setValue((prev) => ({ ...prev, ...obj }));
           }
         }}
-        onDeselect={useEvent(() => {
-          setValue((prev) => {
-            return {
-              ...prev,
-              selections: Arrays.EMPTY,
-              points: Arrays.EMPTY,
-              indices: Arrays.EMPTY,
-              range: undefined,
-              lasso: undefined,
-            };
-          });
-        })}
+        onDeselect={handleClearSelection}
         onTreemapClick={useEvent((evt: Readonly<Plotly.PlotMouseEvent>) => {
           if (!evt) {
             return;
@@ -232,17 +250,31 @@ export const PlotlyComponent = memo(
             return;
           }
 
+          // plotly_selected also fires for plain clicks under
+          // clickmode="event+select". Those events have no range/lassoPoints
+          // but may still carry a stale overlay in evt.selections — detect
+          // the click case and clear the overlay so only the click sticks.
+          const hasRange = evt.range !== undefined;
+          const rawLasso =
+            "lassoPoints" in evt
+              ? (evt.lassoPoints as
+                  | { x?: unknown[]; y?: unknown[] }
+                  | undefined)
+              : undefined;
+          const hasLasso = rawLasso !== undefined;
+          const isClickSelection = !hasRange && !hasLasso;
+
           setValue((prev) => ({
             ...prev,
-            selections:
-              "selections" in evt ? (evt.selections as unknown[]) : [],
+            selections: isClickSelection
+              ? Arrays.EMPTY
+              : "selections" in evt
+                ? (evt.selections as unknown[])
+                : [],
             points: extractPoints(evt.points),
             indices: extractIndices(evt.points),
-            range: evt.range,
-            lasso:
-              "lassoPoints" in evt
-                ? (evt.lassoPoints as { x?: unknown[]; y?: unknown[] })
-                : undefined,
+            range: hasRange ? evt.range : undefined,
+            lasso: hasLasso ? rawLasso : undefined,
           }));
         })}
         className="w-full"
