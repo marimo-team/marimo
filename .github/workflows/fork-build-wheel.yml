@@ -1,0 +1,167 @@
+name: Build wheel for fork
+
+# Builds a marimo wheel from any branch on this fork and attaches it to a
+# per-branch GitHub Release, so the wheel can be installed anonymously via:
+#
+#   uvx --from <release-asset-url> marimo
+#
+# This workflow is intended only for the personal fork; upstream releases are
+# handled by `release.yml` / `release-dev.yml`.
+#
+# How it works:
+#   - Triggers on every push to any branch (and via manual dispatch).
+#   - Builds the frontend (reusing the existing `build-frontend` composite action)
+#     and then `uv build`s the wheel + sdist.
+#   - Patches the version to `<patch+1>-dev<n_commits>` so each commit gets a
+#     unique, PEP 440-normalized version string in the filename.
+#   - Creates or updates a GitHub Release tagged `wheels-<branch-slug>` and
+#     attaches the wheel/sdist as release assets. The release URL is stable
+#     per branch, so the install command only changes when the wheel filename
+#     does (i.e. when the version bumps).
+#
+# To restrict which branches build (e.g. only `main` and `feat/**`), narrow
+# the `push.branches` filter below.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['**']
+    paths-ignore:
+      - 'docs/**'
+      - 'development_docs/**'
+      - '**/*.md'
+
+permissions:
+  contents: write  # required to create/update Releases on this repo
+
+env:
+  TURBO_TEAM: marimo
+
+jobs:
+  build_wheel:
+    name: 📦 Build & publish wheel
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # full history + tags so `git describe` / commit-count math works
+          fetch-depth: 0
+
+      - name: 📦 Build frontend
+        uses: ./.github/actions/build-frontend
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
+
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+
+      - name: 🔨 Patch version
+        id: version
+        env:
+          NO_COLOR: 1
+        run: |
+          set -euo pipefail
+          base=$(uv version --short | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}')
+          # Only consider real release tags (X.Y.Z), not the `wheels-*` tags this
+          # workflow creates on the fork.
+          last_tag=$(git describe --tags --abbrev=0 --match='[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo "")
+          if [ -n "$last_tag" ]; then
+            n_commits=$(git rev-list "${last_tag}..HEAD" --count)
+          else
+            n_commits=$(git rev-list HEAD --count)
+          fi
+          version="${base}-dev${n_commits}"
+          uv version "$version"
+          normalized=$(uv version --short)
+          echo "version=$normalized" >> "$GITHUB_OUTPUT"
+          echo "Built version: $normalized"
+
+      - name: 🏷️ Compute release tag
+        id: meta
+        env:
+          REF_NAME: ${{ github.head_ref || github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          slug=$(echo "$REF_NAME" | tr '/' '-' | tr -cd 'A-Za-z0-9._-')
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+          echo "tag=wheels-${slug}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: 📦 Build wheel & sdist
+        run: uv build
+
+      - name: 📤 Upload dist as workflow artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: marimo-wheel-${{ steps.meta.outputs.slug }}
+          path: dist/
+          retention-days: 14
+
+      - name: 🚀 Publish to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          REF_NAME: ${{ github.head_ref || github.ref_name }}
+          SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
+          FULL_SHA: ${{ github.sha }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          wheel=$(ls dist/marimo-*.whl | head -n1)
+          wheel_name=$(basename "$wheel")
+          wheel_url="https://github.com/${REPO}/releases/download/${TAG}/${wheel_name}"
+
+          # Build release notes via printf to avoid YAML-indent whitespace
+          # leaking into the markdown (which would break the code fences).
+          run_url="https://github.com/${REPO}/actions/runs/${{ github.run_id }}"
+          commit_url="https://github.com/${REPO}/commit/${FULL_SHA}"
+          {
+            printf 'Automated wheel build from `%s` @ [`%s`](%s).\n\n' \
+              "$REF_NAME" "$SHORT_SHA" "$commit_url"
+            printf 'Built by [run #%s](%s).\n\n' "${{ github.run_number }}" "$run_url"
+            printf '## Install\n\n'
+            printf '```\nuvx --from %s marimo\n```\n\n' "$wheel_url"
+            printf 'Or with uv / pip:\n\n'
+            printf '```\nuv pip install %s\npip install %s\n```\n' \
+              "$wheel_url" "$wheel_url"
+          } > release_notes.md
+
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Release $TAG exists; uploading assets with --clobber"
+            gh release upload "$TAG" dist/* --repo "$REPO" --clobber
+            # `--target` retargets the underlying git tag at the new commit so
+            # the release tracks the tip of the branch.
+            gh release edit "$TAG" --repo "$REPO" \
+              --target "$FULL_SHA" \
+              --title "Wheel build: ${REF_NAME}" \
+              --notes-file release_notes.md \
+              --prerelease
+          else
+            echo "Creating release $TAG"
+            gh release create "$TAG" dist/* --repo "$REPO" \
+              --target "$FULL_SHA" \
+              --prerelease \
+              --title "Wheel build: ${REF_NAME}" \
+              --notes-file release_notes.md
+          fi
+
+          {
+            echo "## 📦 Wheel published"
+            echo
+            echo "- **Branch:** \`${REF_NAME}\` @ \`${SHORT_SHA}\`"
+            echo "- **Version:** \`${VERSION}\`"
+            echo "- **Release:** [${TAG}](https://github.com/${REPO}/releases/tag/${TAG})"
+            echo
+            echo '### Install'
+            echo
+            echo '```'
+            echo "uvx --from ${wheel_url} marimo"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
