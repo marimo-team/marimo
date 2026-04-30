@@ -1119,6 +1119,15 @@ def run(
         run_in_sandbox,
     )
 
+    # click consumes `--` as an option terminator and does not pass it
+    # through to `args`. Recover this sentinel from raw argv so splitting
+    # logic can preserve "args after --" semantics.
+    if "--" not in args and "--" in sys.argv[1:]:
+        double_dash_index = sys.argv[1:].index("--")
+        tail_after_double_dash = tuple(sys.argv[double_dash_index + 2 :])
+        if tail_after_double_dash == args:
+            args = ("--",) + args
+
     paths, notebook_args = _split_run_paths_and_args(name, args)
 
     if len(paths) == 1 and prompt_run_in_docker_container(
