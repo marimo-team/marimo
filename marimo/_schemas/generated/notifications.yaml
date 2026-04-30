@@ -340,11 +340,21 @@ components:
       title: ColumnStats
       type: object
     CompletedRunNotification:
-      description: Run of submitted cells and descendants completed.
+      description: "Run of submitted cells and descendants completed.\n\n    Attributes:\n\
+        \        run_id: Correlation ID echoed from the command that triggered\n \
+        \           this completion. ``None`` for handlers that don't take a\n   \
+        \         ``run_id`` (everything except ``handle_execute_scratchpad``\n  \
+        \          today). Consumers that want to wait for a specific command's\n\
+        \            completion filter on this field."
       properties:
         op:
           enum:
           - completed-run
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
       required:
       - op
       title: CompletedRunNotification
@@ -957,6 +967,11 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+        traceback:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         type:
           enum:
           - exception

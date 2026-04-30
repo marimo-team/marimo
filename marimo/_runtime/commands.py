@@ -360,6 +360,12 @@ class ExecuteScratchpadCommand(Command):
         notebook_cells: Snapshot of notebook cells from the session document.
             Used to populate the document ContextVar so code_mode can read
             cell ordering, code, names, and configs.
+        run_id: Optional correlation ID. When set, the
+            ``CompletedRunNotification`` emitted at the end of this command
+            carries the same ``run_id`` so a caller holding a
+            ``ScratchCellListener`` can filter for *its* completion and
+            ignore ``CompletedRun`` events from unrelated commands on the
+            same session.
     """
 
     code: str
@@ -367,6 +373,7 @@ class ExecuteScratchpadCommand(Command):
     request: HTTPRequest | None = None
     # Document snapshot — set by the execution endpoint from session.document.
     notebook_cells: tuple[NotebookCell, ...] | None = None
+    run_id: str | None = None
 
 
 class RenameNotebookCommand(Command):

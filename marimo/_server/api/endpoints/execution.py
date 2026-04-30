@@ -297,8 +297,14 @@ async def execute_code(
 
     async def sse_generator() -> AsyncGenerator[str, None]:
         disconnect_task = asyncio.create_task(_watch_disconnect())
+        # Correlation ID: tags both the scratchpad command and the
+        # listener so we wait for *our* completion and ignore
+        # ``CompletedRun`` events from other commands on this session
+        # (e.g. the ``session.instantiate`` call above, or concurrent
+        # browser activity).
+        run_id = str(uuid4())
         try:
-            listener = ScratchCellListener()
+            listener = ScratchCellListener(run_id=run_id)
             with session.scoped(listener):
                 async with session.scratchpad_lock:
                     http_req = HTTPRequest.from_request(request)
@@ -320,6 +326,7 @@ async def execute_code(
                             code=body.code,
                             request=http_req,
                             notebook_cells=tuple(session.document.cells),
+                            run_id=run_id,
                         ),
                         from_consumer_id=None,
                     )

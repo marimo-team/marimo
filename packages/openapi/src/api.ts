@@ -3805,10 +3805,19 @@ export interface components {
     /**
      * CompletedRunNotification
      * @description Run of submitted cells and descendants completed.
+     *
+     *         Attributes:
+     *             run_id: Correlation ID echoed from the command that triggered
+     *                 this completion. ``None`` for handlers that don't take a
+     *                 ``run_id`` (everything except ``handle_execute_scratchpad``
+     *                 today). Consumers that want to wait for a specific command's
+     *                 completion filter on this field.
      */
     CompletedRunNotification: {
       /** @enum {unknown} */
       op: "completed-run";
+      /** @default null */
+      run_id?: string | null;
     };
     /**
      * CompletionConfig
@@ -4267,6 +4276,12 @@ export interface components {
      *             notebook_cells: Snapshot of notebook cells from the session document.
      *                 Used to populate the document ContextVar so code_mode can read
      *                 cell ordering, code, names, and configs.
+     *             run_id: Optional correlation ID. When set, the
+     *                 ``CompletedRunNotification`` emitted at the end of this command
+     *                 carries the same ``run_id`` so a caller holding a
+     *                 ``ScratchCellListener`` can filter for *its* completion and
+     *                 ignore ``CompletedRun`` events from unrelated commands on the
+     *                 same session.
      */
     ExecuteScratchpadCommand: {
       code: string;
@@ -4274,6 +4289,8 @@ export interface components {
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
+      /** @default null */
+      runId?: string | null;
       /** @enum {unknown} */
       type: "execute-scratchpad";
     };
@@ -4284,6 +4301,8 @@ export interface components {
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
+      /** @default null */
+      runId?: string | null;
     };
     /**
      * ExecuteStaleCellsCommand
