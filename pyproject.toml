@@ -116,6 +116,13 @@ mcp = [
     "pydantic>2",
 ]
 
+otel = [
+    "opentelemetry-api~=1.28.0",
+    "opentelemetry-sdk~=1.28.0",
+    "opentelemetry-exporter-otlp-proto-http~=1.28.0",
+    "opentelemetry-exporter-otlp-proto-grpc~=1.28.0",
+]
+
 [dependency-groups]
 dev = [
     # Typo checking
@@ -123,6 +130,8 @@ dev = [
     # For tracing debugging
     "opentelemetry-api~=1.28.0",
     "opentelemetry-sdk~=1.28.0",
+    "opentelemetry-exporter-otlp-proto-http~=1.28.0",
+    "opentelemetry-exporter-otlp-proto-grpc~=1.28.0",
     # For SQL
     "duckdb>=1.0.0",
     "sqlglot[c]>=26.8.0",

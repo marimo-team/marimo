@@ -202,9 +202,14 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
         if not GLOBAL_SETTINGS.TRACING:
             return await call_next(request)
 
+        from opentelemetry.propagate import extract
+
+        ctx = extract(carrier=request.headers)
+
         with server_tracer.start_as_current_span(
             f"{request.method} {request.url.path}",
             kind=self.trace.SpanKind.SERVER,
+            context=ctx,
             attributes={
                 "http.method": request.method,
                 "http.target": request.url.path or "",
