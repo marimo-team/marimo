@@ -151,7 +151,19 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
     }
     const rawName = (result.filename ?? "").trim();
     const baseName = Filenames.withoutExtension(rawName) || "download";
-    downloadByURL(result.url, `${baseName}.${format}`);
+    const downloadName = `${baseName}.${format}`;
+    // Append ?download=1 so the server returns Content-Disposition: attachment.
+    // This forces a save even when <a download> is ignored — e.g., inside
+    // sandboxed iframes that lack `allow-downloads`.
+    const separator = result.url.includes("?") ? "&" : "?";
+    const params = new URLSearchParams({
+      download: "1",
+      filename: downloadName,
+    });
+    downloadByURL(
+      `${result.url}${separator}${params.toString()}`,
+      downloadName,
+    );
   };
 
   const handleClipboardCopy = async (
