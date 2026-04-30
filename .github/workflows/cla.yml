@@ -19,6 +19,8 @@ permissions:
 
 jobs:
   CLAAssistant:
+    # Only run on the canonical upstream repository; forks don't enforce a CLA.
+    if: github.repository_owner == 'marimo-team'
     runs-on: ubuntu-latest
     steps:
       - name: 🔐 Fetch Doppler secrets
