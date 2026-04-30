@@ -53,10 +53,9 @@ import { Filenames } from "@/utils/filenames";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { cellDomProps } from "../../common";
 import type { ICellRendererPlugin, ICellRendererProps } from "../types";
+import type { SerializedVerticalLayout, VerticalLayout } from "./types.ts";
 import { useDelayVisibility } from "./useDelayVisibility";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
-
-type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
 
 const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
@@ -453,15 +452,15 @@ const VerticalCell = memo(
 VerticalCell.displayName = "VerticalCell";
 
 export const VerticalLayoutPlugin: ICellRendererPlugin<
-  VerticalLayout,
+  SerializedVerticalLayout,
   VerticalLayout
 > = {
   type: "vertical",
   name: "Vertical",
-  validator: z.any(),
+  validator: z.unknown(),
   Component: VerticalLayoutRenderer,
-  deserializeLayout: (serialized) => serialized,
-  serializeLayout: (layout) => layout,
+  deserializeLayout: () => null,
+  serializeLayout: () => null,
   getInitialLayout: () => null,
 };
 
