@@ -133,6 +133,7 @@ class Runner:
         excluded_cells: set[CellId_t] | None = None,
         execution_context: ExecutionContextManager | None = None,
         user_config: MarimoConfig | None = None,
+        scope: set[CellId_t] | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -155,14 +156,32 @@ class Runner:
         # so that they can be transitioned out of error if a future
         # run request repairs the graph
         self.roots = roots
-        self.cells_to_run: deque[CellId_t] = deque(
-            Runner.compute_cells_to_run(
+        self.scope: set[CellId_t] | None = scope
+        if self.scope is None:
+            self.cells_to_run: deque[CellId_t] = deque(
+                Runner.compute_cells_to_run(
+                    self.graph,
+                    self.roots,
+                    self.excluded_cells,
+                    self.execution_mode,
+                )
+            )
+        else:
+            # When pruning, mark cells that would have run reactively but
+            # were dropped from this run as stale. The editor (or a future
+            # ``run_stale_cells`` call) can then catch up the cells outside
+            # the dataflow client's subscription closure on demand.
+            unscoped = Runner.compute_cells_to_run(
                 self.graph,
                 self.roots,
                 self.excluded_cells,
                 self.execution_mode,
             )
-        )
+            scoped = [cid for cid in unscoped if cid in self.scope]
+            for cid in unscoped:
+                if cid not in self.scope and cid in self.graph.cells:
+                    self.graph.cells[cid].set_stale(stale=True)
+            self.cells_to_run = deque(scoped)
 
         # tracks cancelled cells: raising cell -> descendants, with O(1) lookup
         self.cancelled_cells = CancelledCells()

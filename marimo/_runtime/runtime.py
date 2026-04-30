@@ -134,6 +134,7 @@ from marimo._runtime.commands import (
     ExecuteScratchpadCommand,
     ExecuteStaleCellsCommand,
     GetCacheInfoCommand,
+    GetDataflowSchemaCommand,
     InstallPackagesCommand,
     InvokeFunctionCommand,
     ListDataSourceConnectionCommand,
@@ -144,7 +145,10 @@ from marimo._runtime.commands import (
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
     RefreshSecretsCommand,
+    RemoveDataflowSubscriptionsCommand,
     RenameNotebookCommand,
+    ScopedRunCommand,
+    SetDataflowSubscriptionsCommand,
     StopKernelCommand,
     StorageDownloadCommand,
     StorageListEntriesCommand,
@@ -166,6 +170,10 @@ from marimo._runtime.context.kernel_context import (
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._runtime.dataflow_callbacks import (
+    DataflowCallbacks,
+    DataflowScope,
+)
 from marimo._runtime.input_override import getpass_override, input_override
 from marimo._runtime.packages.import_error_extractors import (
     extract_missing_module_from_cause_chain,
@@ -561,6 +569,14 @@ class Kernel:
         self.sql_callbacks = SqlCallbacks(self)
         self.cache_callbacks = CacheCallbacks(self)
         self.external_storage_callbacks = ExternalStorageCallbacks(self)
+        self.dataflow_callbacks = DataflowCallbacks(self)
+        # Per-cell streaming + on-finish backstop for dataflow consumers.
+        # Both hooks short-circuit when no consumer has subscribed, so the
+        # cost is one branch in the no-dataflow case.
+        hooks.add_post_execution(
+            self.dataflow_callbacks.on_cell_post_execution
+        )
+        hooks.add_on_finish(self.dataflow_callbacks.on_kernel_run_finished)
 
         # Apply pythonpath from config at initialization
         pythonpath = user_config["runtime"].get("pythonpath")
@@ -1394,8 +1410,22 @@ class Kernel:
         else:
             return cells_registered_without_error.union(stale_cells)
 
-    async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
-        """Run cells and any state updates they trigger"""
+    async def _run_cells(
+        self,
+        cell_ids: set[CellId_t],
+        *,
+        scope: set[CellId_t] | None = None,
+    ) -> None:
+        """Run cells and any state updates they trigger.
+
+        Args:
+            cell_ids: Roots to run; descendants are added in autorun mode.
+            scope: Optional cell-id allow-list applied after expansion.
+                Used by the dataflow API to skip cells whose outputs no
+                consumer is subscribed to. ``None`` means no restriction;
+                a follow-up reactive run inherits the scope so transitive
+                state updates remain bounded by the same closure.
+        """
 
         with run_id_context():
             # This patch is an attempt to mitigate problems caused by the fact
@@ -1414,7 +1444,9 @@ class Kernel:
                     and cell.run_result_status
                     in ("exception", "marimo-error", "cancelled")
                 }
-                while cell_ids := await self._run_cells_internal(cell_ids):
+                while cell_ids := await self._run_cells_internal(
+                    cell_ids, scope=scope
+                ):
                     LOGGER.debug("Running state updates ...")
                     if self.lazy() and cell_ids:
                         self.graph.set_stale(cell_ids, prune_imports=True)
@@ -1456,8 +1488,13 @@ class Kernel:
             if isinstance(error, MarimoStrictExecutionError):
                 self.errors[cell_id] = (error,)
 
-    async def _run_cells_internal(self, roots: set[CellId_t]) -> set[CellId_t]:
-        """Run cells, send outputs to frontends
+    async def _run_cells_internal(
+        self,
+        roots: set[CellId_t],
+        *,
+        scope: set[CellId_t] | None = None,
+    ) -> set[CellId_t]:
+        """Run cells, send outputs to frontends.
 
         Returns set of cells that need to be re-run due to state updates.
         """
@@ -1507,6 +1544,7 @@ class Kernel:
             execution_context=self._install_execution_context,
             hooks=run_hooks,
             user_config=self.user_config,
+            scope=scope,
         )
 
         # I/O
@@ -1883,6 +1921,7 @@ class Kernel:
         request: UpdateUIElementCommand,
         *,
         notify_frontend: bool,
+        dataflow_scope: DataflowScope | None = None,
     ) -> bool:
         """Set the value of a UI element bound to a global variable.
 
@@ -1901,6 +1940,13 @@ class Kernel:
                 kernel-initiated changes (e.g. code_mode's
                 ``set_ui_value``) where the frontend has no other way to
                 learn about the update.
+            dataflow_scope: Pruning hint from the dataflow API. When set
+                and ``subscribed`` is non-empty, the reactive cell set is
+                intersected with the closure of the subscribed variables
+                so cells outside that closure are skipped. Honored only
+                if no editor consumer is observing the run; the dataflow
+                API decides whether to send the scope based on Room
+                membership before issuing the command.
 
         Returns True if any ui elements were set, False otherwise
         """
@@ -2055,15 +2101,42 @@ class Kernel:
                     self.stream,
                 )
 
+        scope: set[CellId_t] | None = None
+        if dataflow_scope is not None and dataflow_scope.subscribed:
+            from marimo._runtime.dataflow import (
+                cells_for_subscription,
+                prune_cells_for_subscription,
+            )
+
+            needed = cells_for_subscription(
+                self.graph, set(dataflow_scope.subscribed)
+            )
+            # Apply partial-override pruning on the closure: cells whose
+            # only contribution to the demand is fully covered by the
+            # provided inputs can be skipped without affecting subscribed
+            # outputs. Always exclude cells that *define* an overridden
+            # input — re-running them would replace the live ``mo.api.input``
+            # element and break the registry.
+            input_definers: set[CellId_t] = set()
+            for var in dataflow_scope.overridden_inputs:
+                input_definers.update(self.graph.get_defining_cells(var))
+            candidate = needed - input_definers
+            scope = prune_cells_for_subscription(
+                self.graph,
+                candidate,
+                set(dataflow_scope.overridden_inputs),
+                set(dataflow_scope.subscribed),
+            )
+
         if self.reactive_execution_mode == "autorun":
-            await self._run_cells(referring_cells)
+            await self._run_cells(referring_cells, scope=scope)
         else:
             # Any cells referring to a UI element cannot be import cells,
             # so not necessary to specify `prune_imports`.
             self.graph.set_stale(referring_cells)
             # Process any state updates that may have been queued by the
             # on_change handlers.
-            await self._run_cells(set())
+            await self._run_cells(set(), scope=scope)
 
         for component in updated_components:
             try:
@@ -2506,6 +2579,19 @@ class Kernel:
         handler.register(
             GetCacheInfoCommand, self.cache_callbacks.get_cache_info
         )
+        # Dataflow API
+        handler.register(
+            SetDataflowSubscriptionsCommand,
+            self.dataflow_callbacks.set_subscriptions,
+        )
+        handler.register(
+            RemoveDataflowSubscriptionsCommand,
+            self.dataflow_callbacks.remove_subscriptions,
+        )
+        handler.register(
+            GetDataflowSchemaCommand, self.dataflow_callbacks.get_schema
+        )
+        handler.register(ScopedRunCommand, self.dataflow_callbacks.scoped_run)
 
         return handler
 

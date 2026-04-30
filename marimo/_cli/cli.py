@@ -19,6 +19,7 @@ from marimo import _loggers
 from marimo._ast import codegen
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
+from marimo._cli.dataflow.commands import dataflow
 from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
 from marimo._cli.errors import (
@@ -1667,5 +1668,6 @@ def check(
 main.command()(convert)
 main.add_command(export)
 main.add_command(config)
+main.add_command(dataflow)
 main.add_command(development)
 main.add_command(pair)

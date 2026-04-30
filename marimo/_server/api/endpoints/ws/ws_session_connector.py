@@ -158,8 +158,26 @@ class SessionConnector:
     ) -> tuple[Session, ConnectionType]:
         """Resume a previous session."""
         LOGGER.debug("Resuming session %s", self.params.session_id)
+        # An ORPHANED session typically has no main consumer, but a phantom
+        # consumer (e.g. the dataflow API anchor) can hold the main slot
+        # while still reporting ORPHANED so the editor doesn't see the
+        # session as occupied. Disconnect any lingering main before
+        # re-attaching ourselves.
+        session.disconnect_main_consumer()
         self.handler._reconnect_session(session, replay=True)
+        # Backfill cells that the kernel marked stale during pruned
+        # dataflow runs. ExecuteStaleCellsCommand is a no-op when nothing
+        # is stale, so this is safe for editor-only sessions too.
+        self._backfill_stale_cells(session)
         return session, ConnectionType.RESUME
+
+    def _backfill_stale_cells(self, session: Session) -> None:
+        from marimo._runtime.commands import ExecuteStaleCellsCommand
+
+        session.put_control_request(
+            ExecuteStaleCellsCommand(),
+            from_consumer_id=None,
+        )
 
     @property
     def _is_run_mode(self) -> bool:

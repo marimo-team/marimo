@@ -135,6 +135,7 @@ nav:
       - Run notebooks as apps: guides/apps.md
       - Run notebooks as scripts: guides/scripts.md
       - Build notebooks: guides/building.md
+      - Run as a dataflow API (experimental): guides/dataflow_api.md
       - Reuse functions and classes: guides/reusing_functions.md
       - Run in the cloud with molab: guides/molab.md
       - Export to other formats:

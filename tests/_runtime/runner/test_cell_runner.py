@@ -255,6 +255,39 @@ async def test_sibling_cells_of_stopped_ancestor_both_cancelled(
     assert k.graph.cells["s2"].run_result_status == "cancelled"
 
 
+async def test_scope_marks_pruned_descendants_stale(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Pruned cells should be marked stale so the editor can backfill them.
+
+    When a dataflow client subscribes to ``y`` only, the runner skips the
+    ``z`` cell. ``z`` then needs to look stale so a subsequent
+    ``run_stale_cells`` (e.g. fired when an editor takes over the session)
+    catches it up to ``x``'s new value.
+    """
+    await k.run(
+        [
+            exec_req.get_with_id("x", "x = 1"),
+            exec_req.get_with_id("y", "y = x + 1"),
+            exec_req.get_with_id("z", "z = x + 100"),
+        ]
+    )
+    assert k.globals["z"] == 101
+    assert not k.graph.cells["z"].stale
+
+    runner = Runner(
+        roots={"x"},
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=NotebookCellHooks(),
+        scope={"x", "y"},
+    )
+    assert "z" not in runner.cells_to_run
+    assert k.graph.cells["z"].stale
+    assert not k.graph.cells["y"].stale
+
+
 async def test_converging_runs_when_all_branches_trigger(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:

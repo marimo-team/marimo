@@ -3,7 +3,7 @@ name: Build wheel for fork
 # Builds a marimo wheel from any branch on this fork and attaches it to a
 # per-branch GitHub Release, so the wheel can be installed anonymously via:
 #
-#   uvx --from <release-asset-url> marimo
+#   uvx --from 'marimo[recommended] @ <release-asset-url>' marimo
 #
 # This workflow is intended only for the personal fork; upstream releases are
 # handled by `release.yml` / `release-dev.yml`.
@@ -127,7 +127,8 @@ jobs:
               "$REF_NAME" "$SHORT_SHA" "$commit_url"
             printf 'Built by [run #%s](%s).\n\n' "${{ github.run_number }}" "$run_url"
             printf '## Install\n\n'
-            printf '```\nuvx --from %s marimo\n```\n\n' "$wheel_url"
+            printf '```\nuvx --from '\''marimo[recommended] @ %s'\'' marimo\n```\n\n' \
+              "$wheel_url"
             printf 'Or with uv / pip:\n\n'
             printf '```\nuv pip install %s\npip install %s\n```\n' \
               "$wheel_url" "$wheel_url"
@@ -162,6 +163,6 @@ jobs:
             echo '### Install'
             echo
             echo '```'
-            echo "uvx --from ${wheel_url} marimo"
+            echo "uvx --from 'marimo[recommended] @ ${wheel_url}' marimo"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
