@@ -82,6 +82,9 @@ def setup_code_mcp_server(
         Returns a list of active sessions, each with 'name', 'path',
         and 'session_id' fields.
         Use the session_id with execute_code to run code in that session.
+
+        If no sessions are found, use the `create_session` tool to start
+        a new session.
         """
         state = AppStateBase.from_app(app)
         session_manager = state.session_manager
@@ -141,6 +144,36 @@ def setup_code_mcp_server(
                 )
 
             return extract_result(session, listener)
+
+    @mcp.tool()
+    async def create_session() -> dict[str, str]:
+        """Create a new marimo notebook session.
+
+        Returns the session_id of the newly created session.
+        Use this session_id with execute_code to run code.
+        """
+        import uuid
+
+        from marimo._server.file_router import AppFileRouter
+        from marimo._session.consumer import NoOpSessionConsumer
+
+        state = AppStateBase.from_app(app)
+        session_manager = state.session_manager
+
+        session_id = SessionId(uuid.uuid4().hex[:8])
+        file_key = f"{AppFileRouter.NEW_FILE}_{session_id}"
+
+        session_manager.create_session(
+            session_id=session_id,
+            session_consumer=NoOpSessionConsumer(f"mcp-{session_id}"),
+            query_params={},
+            file_key=file_key,
+            auto_instantiate=True,
+        )
+
+        return {
+            "session_id": session_id,
+        }
 
     # Build the streamable HTTP app
     mcp_app = mcp.streamable_http_app()
