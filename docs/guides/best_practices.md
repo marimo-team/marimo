@@ -74,3 +74,42 @@ for interactive elements](../guides/interactivity.md).
 Write cells whose outputs and behavior are the same
 when given the same inputs (references); such cells are called idempotent. This
 will help you avoid bugs and cache expensive intermediate computations.
+
+## `.gitignore` best practices
+
+When using marimo with version control (e.g., git), you should ignore
+certain directories that marimo creates automatically. Add these patterns to
+your `.gitignore` file:
+
+```gitignore
+# Ignore all marimo auto-generated directories
+**/__marimo__/
+```
+
+This single pattern covers all marimo-managed directories, including:
+
+- `__marimo__/cache/` — persistent cache files created by [`mo.persistent_cache`][marimo.persistent_cache]
+- `__marimo__/session/` — session snapshot JSON files
+- `__marimo__/assets/` — generated thumbnail images for OpenGraph previews
+
+!!! tip "When to commit `__marimo__` files"
+
+    In most cases, you should exclude the entire `__marimo__/` directory from
+    version control. However, there are exceptions:
+
+    - **Session snapshots**: If you want to include outputs in [static HTML previews](publishing/github.md),
+      commit the notebook's corresponding session JSON file in `__marimo__/session/`.
+    - **Thumbnails**: If you've generated [OpenGraph preview images](publishing/opengraph.md),
+      you may want to commit `__marimo__/assets/<notebook_stem>/opengraph.png`
+      so they appear when sharing notebook links.
+
+    For these cases, you can use a more selective `.gitignore`:
+
+    ```gitignore
+    # Ignore cache only (recommended for most projects)
+    **/__marimo__/cache/
+
+    # Allow session snapshots and assets to be committed when needed
+    !**/__marimo__/session/
+    !**/__marimo__/assets/
+    ```
