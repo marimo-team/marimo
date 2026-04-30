@@ -70,7 +70,22 @@ export interface RunStatus {
   loading: boolean;
   error: string | null;
   runId: string | null;
+  /**
+   * Wall-clock from request queue to the kernel's
+   * ``CompletedRunNotification`` — i.e. the time for the *full* run the
+   * kernel decided to execute. With an editor attached this includes
+   * cells outside the subscription closure and is not what most apps
+   * want to display.
+   */
   elapsedMs: number | null;
+  /** Time from request start to the first ``var`` event arrival. */
+  firstVarMs: number | null;
+  /**
+   * Time from request start to the moment every subscribed variable
+   * has arrived. This is "when the UI was ready" and is usually the
+   * number app developers want.
+   */
+  subscriptionsResolvedMs: number | null;
   schemaId: string | null;
 }
 
@@ -99,8 +114,15 @@ export class DataflowClient {
     error: null,
     runId: null,
     elapsedMs: null,
+    firstVarMs: null,
+    subscriptionsResolvedMs: null,
     schemaId: null,
   };
+  // Per-run timing bookkeeping. ``runStartedAt`` is captured client-side
+  // right before the fetch so the elapsed numbers include network RTT,
+  // which is what the user actually waits on.
+  private runStartedAt: number | null = null;
+  private pendingSubscribed = new Set<string>();
   // Refcount of components currently observing each variable. Used as the
   // ``subscribe`` set on /run so the kernel only computes what the UI cares
   // about; mounting/unmounting components dynamically reshapes the graph.
@@ -338,7 +360,15 @@ export class DataflowClient {
     const inputs: Record<string, unknown> = {};
     for (const [k, v] of this.inputs) inputs[k] = v;
 
-    this.setStatus({ loading: true, error: null, elapsedMs: null });
+    this.runStartedAt = performance.now();
+    this.pendingSubscribed = new Set(subscribed);
+    this.setStatus({
+      loading: true,
+      error: null,
+      elapsedMs: null,
+      firstVarMs: null,
+      subscriptionsResolvedMs: null,
+    });
 
     try {
       const resp = await fetch(`${this.baseUrl}/run`, {
@@ -409,6 +439,7 @@ export class DataflowClient {
       };
       this.values.set(update.name, update);
       this.notifyVar(update.name);
+      this.noteVarArrival(update.name);
     } else if (event === "var-error") {
       const name = data.name as string;
       const update: VarUpdate = {
@@ -421,6 +452,7 @@ export class DataflowClient {
       };
       this.values.set(name, update);
       this.notifyVar(name);
+      this.noteVarArrival(name);
       this.setStatus({ error: `${name}: ${String(data.error ?? "error")}` });
     } else if (event === "schema") {
       // Fold in any inline schema updates (currently /schema is the canonical
@@ -449,6 +481,25 @@ export class DataflowClient {
         });
       }
     }
+  }
+
+  /**
+   * Update timing fields when a subscribed variable lands. ``firstVarMs``
+   * is the TTFV (time-to-first-var); ``subscriptionsResolvedMs`` fires
+   * once every variable in the request's ``subscribe`` set has reported.
+   */
+  private noteVarArrival(name: string): void {
+    if (this.runStartedAt === null) return;
+    const dt = performance.now() - this.runStartedAt;
+    const patch: Partial<RunStatus> = {};
+    if (this.status.firstVarMs === null) patch.firstVarMs = dt;
+    if (
+      this.pendingSubscribed.delete(name) &&
+      this.pendingSubscribed.size === 0
+    ) {
+      patch.subscriptionsResolvedMs = dt;
+    }
+    if (Object.keys(patch).length > 0) this.setStatus(patch);
   }
 
   // ---------- notify helpers ----------

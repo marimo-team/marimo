@@ -76,14 +76,31 @@ function Inputs({
           Subscribe to <code>slow_threshold</code>
         </label>
       </div>
-      {status.elapsedMs !== null && (
-        <p style={styles.meta}>
-          Computed in {status.elapsedMs.toFixed(0)}ms
-          {status.loading && " (running...)"}
-        </p>
-      )}
+      <RunMeta />
       {status.error && <p style={styles.error}>{status.error}</p>}
     </section>
+  );
+}
+
+function RunMeta() {
+  const status = useDataflowStatus();
+  const parts: string[] = [];
+  if (status.subscriptionsResolvedMs !== null) {
+    parts.push(
+      `subscribed vars in ${status.subscriptionsResolvedMs.toFixed(0)}ms`,
+    );
+  } else if (status.firstVarMs !== null) {
+    parts.push(`first var in ${status.firstVarMs.toFixed(0)}ms`);
+  }
+  if (status.elapsedMs !== null) {
+    parts.push(`run done in ${status.elapsedMs.toFixed(0)}ms`);
+  } else if (status.loading) {
+    parts.push("running...");
+  }
+  return parts.length === 0 ? null : (
+    <p style={styles.meta} title="Subscribed vars time = when your UI was ready. Run done = when the kernel finished every cell, including ones outside your subscription closure.">
+      {parts.join(" · ")}
+    </p>
   );
 }
 
