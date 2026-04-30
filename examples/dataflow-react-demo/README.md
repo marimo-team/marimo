@@ -6,7 +6,8 @@ change is that `mo.api.input(...)` UI elements are remote-controllable
 from outside the kernel.
 
 > User-facing docs: [`docs/guides/dataflow_api.md`](../../docs/guides/dataflow_api.md).
-> Agent-facing recipe: `marimo dataflow agent`.
+> Agent skill: install with `gh skill install marimo-team/marimo dataflow`,
+> or print it via `marimo dataflow skill`.
 
 ## Architecture
 

@@ -342,13 +342,26 @@ as distinct `SessionConsumer`s. Practical consequences:
 ```text
 marimo dataflow client                # print TypeScript client to stdout
 marimo dataflow client --path         # print path to bundled file
-marimo dataflow agent                 # print agent recipe (AGENT.md)
-marimo dataflow agent --path          # print path (for skill loaders)
+marimo dataflow skill                 # print agent skill (SKILL.md)
+marimo dataflow skill --path          # print skill *directory* path
 ```
 
-The TypeScript client and `AGENT.md` ship inside the marimo wheel; any
-environment with `marimo` installed can vendor them without a separate
-download. See [`examples/dataflow-react-demo/`](https://github.com/marimo-team/marimo/tree/main/examples/dataflow-react-demo)
+The TypeScript client and the agent skill ship inside the marimo wheel,
+so any environment with `marimo` installed can vendor them without a
+separate download. The skill follows the open
+[Agent Skills](https://github.com/cli/cli/tree/trunk/internal/skills) spec
+at `marimo/_dataflow/skills/dataflow/SKILL.md`, so the GitHub CLI can
+install it directly:
+
+```bash
+# From the repo (with the GitHub CLI):
+gh skill install marimo-team/marimo dataflow --agent claude-code
+
+# Without cloning the repo (needs only marimo + gh installed):
+gh skill install --from-local "$(marimo dataflow skill --path)" dataflow --agent claude-code
+```
+
+See [`examples/dataflow-react-demo/`](https://github.com/marimo-team/marimo/tree/main/examples/dataflow-react-demo)
 for an end-to-end demo.
 
 ## Pitfalls

@@ -32,7 +32,7 @@ def _bundled(*parts: str) -> Path:
     ("subcommand", "needle"),
     [
         ("client", "DataflowProvider"),
-        ("agent", "Dataflow API — Agent Recipe"),
+        ("skill", "Dataflow API — Agent Recipe"),
     ],
 )
 def test_dataflow_dump_to_stdout(subcommand: str, needle: str) -> None:
@@ -45,25 +45,55 @@ def test_dataflow_dump_to_stdout(subcommand: str, needle: str) -> None:
 
 
 @pytest.mark.xfail(condition=is_windows(), reason="flaky on Windows")
-@pytest.mark.parametrize(
-    ("subcommand", "asset_parts"),
-    [
-        ("client", ("_dataflow", "clients", "typescript", "dataflow.tsx")),
-        ("agent", ("_dataflow", "clients", "AGENT.md")),
-    ],
-)
-def test_dataflow_path_flag(
-    subcommand: str, asset_parts: tuple[str, ...]
-) -> None:
-    """``--path`` resolves to the bundled file and the bytes match."""
+def test_client_path_returns_file() -> None:
+    """``client --path`` resolves to the dataflow.tsx file."""
     p = subprocess.run(
-        ["marimo", "dataflow", subcommand, "--path"],
+        ["marimo", "dataflow", "client", "--path"],
         capture_output=True,
     )
     assert p.returncode == 0, p.stderr.decode()
     reported = Path(p.stdout.decode().strip())
-    assert reported.exists(), reported
-    expected_bytes = _bundled(*asset_parts).read_bytes()
-    assert reported.read_bytes() == expected_bytes
-    # Sanity check: the contents are stable enough for downstream hashing.
-    assert hashlib.sha256(expected_bytes).hexdigest()
+    assert reported.is_file(), reported
+    expected = _bundled("_dataflow", "clients", "typescript", "dataflow.tsx")
+    assert reported.read_bytes() == expected.read_bytes()
+    assert hashlib.sha256(expected.read_bytes()).hexdigest()
+
+
+@pytest.mark.xfail(condition=is_windows(), reason="flaky on Windows")
+def test_skill_path_returns_gh_compatible_root() -> None:
+    """``skill --path`` returns a directory whose ``skills/dataflow/SKILL.md``
+    layout matches what ``gh skill install --from-local <root> dataflow``
+    expects.
+    """
+    p = subprocess.run(
+        ["marimo", "dataflow", "skill", "--path"],
+        capture_output=True,
+    )
+    assert p.returncode == 0, p.stderr.decode()
+    reported = Path(p.stdout.decode().strip())
+    assert reported.is_dir(), reported
+    skill_md = reported / "skills" / "dataflow" / "SKILL.md"
+    assert skill_md.is_file(), (
+        f"expected skills/dataflow/SKILL.md under {reported}"
+    )
+    expected = _bundled(
+        "_dataflow", "skills", "dataflow", "SKILL.md"
+    ).read_bytes()
+    assert skill_md.read_bytes() == expected
+
+
+@pytest.mark.xfail(condition=is_windows(), reason="flaky on Windows")
+def test_skill_md_has_frontmatter() -> None:
+    """SKILL.md follows the agent-skills spec (YAML frontmatter at top)."""
+    p = subprocess.run(
+        ["marimo", "dataflow", "skill"],
+        capture_output=True,
+    )
+    assert p.returncode == 0
+    text = p.stdout.decode()
+    assert text.startswith("---\n"), "SKILL.md must start with YAML frontmatter"
+    end = text.find("\n---\n", 4)
+    assert end != -1, "SKILL.md frontmatter must close with `---`"
+    front = text[4:end]
+    assert "name: dataflow" in front
+    assert "description:" in front

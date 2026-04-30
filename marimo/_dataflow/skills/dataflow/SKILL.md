@@ -1,11 +1,22 @@
+---
+name: dataflow
+description: Build apps on top of marimo's dataflow API — expose a notebook as a typed reactive function over Server-Sent Events and consume it from a TypeScript/React client. Use when the user asks to build a frontend (React, Svelte, raw fetch) backed by a marimo notebook, subscribe to specific notebook variables, drive notebook inputs from an app, or stream pruned graph outputs.
+---
+
 # Dataflow API — Agent Recipe
 
 > **Status:** experimental. Wire shape may change between minor versions of marimo.
 
-This file is the canonical instruction sheet for AI agents building on top of
-marimo's dataflow API. Print it with `marimo dataflow agent` (the path is also
-exposed via `marimo dataflow agent --path` for skill loaders that prefer file
-references).
+This is the canonical instruction sheet for AI agents building on top of
+marimo's dataflow API. Install the skill with the GitHub CLI:
+
+```bash
+gh skill install marimo-team/marimo dataflow --agent claude-code  # or cursor, codex, ...
+# or, if you only have marimo installed (no repo clone):
+gh skill install --from-local "$(marimo dataflow skill --path)" dataflow --agent claude-code
+```
+
+The raw markdown is also accessible via `marimo dataflow skill` (stdout).
 
 ## When to use it
 
