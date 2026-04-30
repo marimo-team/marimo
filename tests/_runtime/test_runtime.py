@@ -2211,6 +2211,37 @@ class TestStrictExecution:
         assert k.globals["V"] == 5
 
     @staticmethod
+    async def test_cell_private_imports(
+        execution_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = execution_kernel
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import _output
+                    from marimo import _sql
+                    def f(x):
+                       return _output.md.md(x)
+                    """
+                ),
+                exec_req.get(
+                    """
+                  L = f("Hello")
+                  """
+                ),
+                exec_req.get("L; never_assigned = _sql"),
+            ]
+        )
+        assert not k.errors
+        assert not k.stderr.messages, k.stderr.messages
+        assert "_output" in k.globals
+        assert "_sql" in k.globals
+        assert "L" in k.globals
+        assert "never_assigned" in k.globals
+        assert "Hello" in k.globals["L"].text
+
+    @staticmethod
     async def test_cell_copy_works(
         strict_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:

@@ -176,6 +176,8 @@ class CellImpl:
 
     # Markdown content of the cell if it exists
     markdown: str | None = None
+    # Unresolved _-prefixed names that may reference imports from other cells
+    import_refs: set[Name] = dataclasses.field(default_factory=set)
 
     # ------------------ Mutable fields --------------------------------------
     #

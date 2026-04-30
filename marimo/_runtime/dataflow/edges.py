@@ -246,6 +246,23 @@ def compute_edges_for_cell(
         } - {cell_id}
         children.update(other_ids_deleting_name)
 
+    # Resolve unresolved _-prefixed locals against import-defined names
+    # in other cells. This lets `_sql` in one cell find
+    # `from marimo import _sql` in another without making all locals refs.
+    for name in cell.import_refs:
+        other_ids = definitions.definitions.get(name, set()) - {cell_id}
+        for other_id in other_ids:
+            if not _is_valid_cell_reference(other_id, name, topology):
+                continue
+            other_cell = topology.cells[other_id]
+            if name not in other_cell.variable_data:
+                continue
+            # Only match if the defining cell has it as an import
+            if any(d.kind == "import" for d in other_cell.variable_data[name]):
+                parents.add(other_id)
+                # Promote to a real ref so the executor brings it in
+                cell.refs.add(name)
+
     # Finally, if this cell deletes a variable, we make it a child of
     # all other cells that reference this variable.
     for name in cell.deleted_refs:
