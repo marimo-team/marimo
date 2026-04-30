@@ -346,6 +346,45 @@ describe("insertImage", () => {
     );
   });
 
+  test("normalizes Windows backslashes to forward slashes in image path", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    // mock filenameAtom with Windows-style absolute path
+    vi.spyOn(store, "get").mockImplementation((atom) => {
+      if (atom === filenameAtom) {
+        return "C:\\Users\\user\\Development\\project\\notebook.py";
+      }
+      if (atom === requestClientAtom) {
+        return mockRequestClient;
+      }
+    });
+
+    // Server returns Windows-style absolute path
+    mockRequestClient.sendCreateFileOrFolder.mockResolvedValueOnce({
+      success: true,
+      message: null,
+      info: {
+        path: "C:\\Users\\user\\Development\\project\\public\\hello.png",
+        name: "hello.png",
+        children: [],
+        id: "",
+        isDirectory: false,
+        isMarimoFile: false,
+        lastModified: null,
+      },
+    });
+
+    await insertImage(view, mockPngFile());
+
+    // Should normalize backslashes to forward slashes
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, ![alt](public/hello.png)world!"`,
+    );
+  });
+
   test("converts absolute path to relative path in nested directory", async () => {
     view = createEditor("Hello, world!");
     view.dispatch({

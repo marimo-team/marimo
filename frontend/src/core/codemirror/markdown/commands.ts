@@ -363,6 +363,11 @@ export async function insertImage(view: EditorView, file: File) {
             savedFilePath = Paths.rest(savedFilePath, notebookDir);
           }
 
+          // Normalize backslashes to forward slashes for markdown image URLs
+          if (savedFilePath) {
+            savedFilePath = savedFilePath.replaceAll("\\", "/");
+          }
+
           toast({
             title: "Image uploaded successfully",
             description: `We've uploaded your image at ${savedFilePath}`,
