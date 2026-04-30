@@ -157,15 +157,31 @@ class Runner:
         # run request repairs the graph
         self.roots = roots
         self.scope: set[CellId_t] | None = scope
-        self.cells_to_run: deque[CellId_t] = deque(
-            Runner.compute_cells_to_run(
+        if self.scope is None:
+            self.cells_to_run: deque[CellId_t] = deque(
+                Runner.compute_cells_to_run(
+                    self.graph,
+                    self.roots,
+                    self.excluded_cells,
+                    self.execution_mode,
+                )
+            )
+        else:
+            # When pruning, mark cells that would have run reactively but
+            # were dropped from this run as stale. The editor (or a future
+            # ``run_stale_cells`` call) can then catch up the cells outside
+            # the dataflow client's subscription closure on demand.
+            unscoped = Runner.compute_cells_to_run(
                 self.graph,
                 self.roots,
                 self.excluded_cells,
                 self.execution_mode,
-                scope=self.scope,
             )
-        )
+            scoped = [cid for cid in unscoped if cid in self.scope]
+            for cid in unscoped:
+                if cid not in self.scope and cid in self.graph.cells:
+                    self.graph.cells[cid].set_stale(stale=True)
+            self.cells_to_run = deque(scoped)
 
         # tracks cancelled cells: raising cell -> descendants, with O(1) lookup
         self.cancelled_cells = CancelledCells()
@@ -185,7 +201,6 @@ class Runner:
         roots: set[CellId_t],
         excluded_cells: set[CellId_t],
         execution_mode: OnCellChangeType,
-        scope: set[CellId_t] | None = None,
     ) -> list[CellId_t]:
         # Runner always runs stale ancestors, if any.
         cells_to_run = roots.union(
@@ -205,15 +220,6 @@ class Runner:
                 cells_to_run,
                 relatives=dataflow.get_import_block_relatives(graph),
             )
-
-        # Dataflow scope: a per-run subset (closure of subscribed variables)
-        # used by the dataflow API to skip cells whose outputs nobody is
-        # subscribed to. ``scope=None`` is the default and means "no
-        # restriction"; an empty set means "run nothing", which is also
-        # the right answer if the subscribed variables don't intersect
-        # the reactive set.
-        if scope is not None:
-            cells_to_run = cells_to_run & scope
 
         sorted_cells = dataflow.topological_sort(
             graph,

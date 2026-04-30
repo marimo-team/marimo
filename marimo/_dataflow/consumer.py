@@ -76,15 +76,13 @@ class DataflowAnchorConsumer(SessionConsumer):
     def consumer_id(self) -> ConsumerId:
         return self._id
 
-    def notify(self, notification: KernelMessage) -> None:  # noqa: D401
+    def notify(self, notification: KernelMessage) -> None:
         del notification
 
     def connection_state(self) -> ConnectionState:
         return ConnectionState.ORPHANED
 
-    def on_attach(
-        self, session: Session, event_bus: SessionEventBus
-    ) -> None:
+    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del session, event_bus
 
     def on_detach(self) -> None:
@@ -143,9 +141,7 @@ class DataflowSseConsumer(SessionConsumer):
     def connection_state(self) -> ConnectionState:
         return ConnectionState.CLOSED if self._closed else ConnectionState.OPEN
 
-    def on_attach(
-        self, session: Session, event_bus: SessionEventBus
-    ) -> None:
+    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del session, event_bus
 
     def on_detach(self) -> None:
@@ -200,9 +196,7 @@ class DataflowSseConsumer(SessionConsumer):
             )
         )
 
-    def _handle_var_error(
-        self, decoded: DataflowVarErrorNotification
-    ) -> None:
+    def _handle_var_error(self, decoded: DataflowVarErrorNotification) -> None:
         if decoded.consumer_id != str(self._id):
             return
         if decoded.var_name not in self._subscribed:

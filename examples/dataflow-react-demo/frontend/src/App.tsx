@@ -1,225 +1,73 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useDataflow, type InputSchema } from "./useDataflow";
+import { useMemo } from "react";
+import {
+  DataflowProvider,
+  type InputSchema,
+  useDataflowInput,
+  useDataflowSchema,
+  useDataflowStatus,
+  useDataflowValue,
+} from "./dataflow";
 
 export function App() {
-  const { schema, variables, loading, error, elapsed, fetchSchema, run } =
-    useDataflow();
+  return (
+    <DataflowProvider baseUrl="/api/v1/dataflow">
+      <Page />
+    </DataflowProvider>
+  );
+}
 
-  // Inputs are driven by the schema. The frontend doesn't hardcode anything
-  // about which inputs exist or what their constraints are — it reads them
-  // from `GET /schema` and renders accordingly.
-  const [inputs, setInputs] = useState<Record<string, unknown>>({});
-  const [subscribe, setSubscribe] = useState<string[]>([]);
-
-  useEffect(() => {
-    fetchSchema();
-  }, [fetchSchema]);
-
-  // Initialize input state from schema defaults and pick reasonable
-  // default subscriptions on first schema load.
-  useEffect(() => {
-    if (!schema) return;
-    setInputs((current) => {
-      const next = { ...current };
-      for (const input of schema.inputs) {
-        if (next[input.name] === undefined) {
-          next[input.name] = input.default;
-        }
-      }
-      return next;
-    });
-    setSubscribe((current) =>
-      current.length === 0
-        ? schema.outputs.slice(0, 3).map((o) => o.name)
-        : current,
-    );
-  }, [schema]);
-
-  const handleRun = useCallback(() => {
-    run(inputs, subscribe);
-  }, [run, inputs, subscribe]);
-
-  useEffect(() => {
-    if (schema && Object.keys(inputs).length > 0) {
-      handleRun();
-    }
-  }, [inputs, subscribe, schema]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const stats = variables.stats?.value as Record<string, number> | undefined;
-  const table = variables.table?.value as
-    | Array<Record<string, unknown>>
-    | undefined;
-  const histogram = variables.histogram?.value as
-    | Array<{ bucket: string; count: number }>
-    | undefined;
-  const slowThreshold = variables.slow_threshold?.value as number | undefined;
-  const slowThresholdRunId = variables.slow_threshold?.runId;
-
-  const setInput = (name: string, value: unknown) =>
-    setInputs((prev) => ({ ...prev, [name]: value }));
-
+function Page() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
         <h1 style={styles.title}>marimo Dataflow API Demo</h1>
         <p style={styles.subtitle}>
-          Schema-driven inputs · streaming outputs · variable subscriptions
+          Schema-driven inputs · per-variable subscriptions · streaming outputs
         </p>
       </header>
 
       <div style={styles.grid}>
-        <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Inputs</h2>
-          {schema?.inputs.map((input) => (
-            <DynamicInput
-              key={input.name}
-              input={input}
-              value={inputs[input.name]}
-              onChange={(v) => setInput(input.name, v)}
-            />
-          ))}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Subscriptions</label>
-            {schema?.outputs.map((o) => (
-              <label key={o.name} style={styles.checkbox}>
-                <input
-                  type="checkbox"
-                  checked={subscribe.includes(o.name)}
-                  onChange={(e) =>
-                    setSubscribe((prev) =>
-                      e.target.checked
-                        ? [...prev, o.name]
-                        : prev.filter((s) => s !== o.name),
-                    )
-                  }
-                />
-                {o.name} <span style={styles.kind}>({o.kind})</span>
-              </label>
-            ))}
-          </div>
-          {elapsed !== null && (
-            <p style={styles.meta}>
-              Computed in {elapsed.toFixed(0)}ms
-              {loading && " (running...)"}
-            </p>
-          )}
-          {error && <p style={styles.error}>{error}</p>}
-        </section>
-
-        {stats && (
-          <section style={styles.card}>
-            <h2 style={styles.cardTitle}>Statistics</h2>
-            <div style={styles.statsGrid}>
-              {Object.entries(stats).map(([key, val]) => (
-                <div key={key} style={styles.statItem}>
-                  <div style={styles.statValue}>{val}</div>
-                  <div style={styles.statLabel}>{key}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {subscribe.includes("slow_threshold") && (
-          <section style={styles.card}>
-            <h2 style={styles.cardTitle}>Slow threshold (streamed)</h2>
-            <p style={styles.meta}>
-              This cell sleeps 0.5s. With per-cell streaming, the panels
-              above land first; this number arrives once the slow cell
-              finishes.
-            </p>
-            <div style={styles.statValue}>
-              {slowThreshold === undefined ? "…" : slowThreshold}
-            </div>
-            {slowThresholdRunId && (
-              <p style={styles.meta}>run: {slowThresholdRunId}</p>
-            )}
-          </section>
-        )}
-
-        {histogram && histogram.length > 0 && (
-          <section style={styles.card}>
-            <h2 style={styles.cardTitle}>Value Distribution</h2>
-            <div style={styles.histogram}>
-              {histogram.map((h) => (
-                <div key={h.bucket} style={styles.histBar}>
-                  <div
-                    style={{
-                      ...styles.histFill,
-                      height: `${Math.min(h.count * 20, 100)}%`,
-                    }}
-                  />
-                  <span style={styles.histLabel}>{h.bucket}</span>
-                  <span style={styles.histCount}>{h.count}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {table && table.length > 0 && (
-          <section style={{ ...styles.card, gridColumn: "1 / -1" }}>
-            <h2 style={styles.cardTitle}>
-              Filtered Data ({table.length} rows)
-            </h2>
-            <div style={styles.tableWrap}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    {Object.keys(table[0]).map((col) => (
-                      <th key={col} style={styles.th}>
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {table.map((row, i) => (
-                    <tr key={i}>
-                      {Object.values(row).map((val, j) => (
-                        <td key={j} style={styles.td}>
-                          {String(val)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
+        <Inputs />
+        <Stats />
+        <SlowThreshold />
+        <Histogram />
+        <Table />
       </div>
 
-      {schema && (
-        <footer style={styles.footer}>
-          <details>
-            <summary style={styles.detailsSummary}>
-              Schema (id: {schema.schemaId})
-            </summary>
-            <pre style={styles.pre}>{JSON.stringify(schema, null, 2)}</pre>
-          </details>
-        </footer>
-      )}
+      <SchemaFooter />
     </div>
   );
 }
 
-interface DynamicInputProps {
-  input: InputSchema;
-  value: unknown;
-  onChange: (value: unknown) => void;
+// ---------- Inputs ----------
+
+function Inputs() {
+  const schema = useDataflowSchema();
+  const status = useDataflowStatus();
+
+  return (
+    <section style={styles.card}>
+      <h2 style={styles.cardTitle}>Inputs</h2>
+      {schema?.inputs.map((input) => (
+        <DynamicInput key={input.name} input={input} />
+      ))}
+      {status.elapsedMs !== null && (
+        <p style={styles.meta}>
+          Computed in {status.elapsedMs.toFixed(0)}ms
+          {status.loading && " (running...)"}
+        </p>
+      )}
+      {status.error && <p style={styles.error}>{status.error}</p>}
+    </section>
+  );
 }
 
-function DynamicInput({ input, value, onChange }: DynamicInputProps) {
-  const ui = input.constraints?.ui;
-  const label = (
-    <label style={styles.label}>
-      {input.description ?? input.name}
-      {ui === "slider" && (
-        <strong style={{ marginLeft: 6 }}>{String(value)}</strong>
-      )}
-    </label>
+function DynamicInput({ input }: { input: InputSchema }) {
+  const [value, setValue] = useDataflowInput<unknown>(
+    input.name,
+    input.default,
   );
+  const ui = input.constraints?.ui;
 
   const node = useMemo(() => {
     if (ui === "slider") {
@@ -230,7 +78,7 @@ function DynamicInput({ input, value, onChange }: DynamicInputProps) {
           max={input.constraints?.max as number | undefined}
           step={(input.constraints?.step as number | undefined) ?? 1}
           value={Number(value ?? 0)}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => setValue(Number(e.target.value))}
           style={styles.slider}
         />
       );
@@ -240,7 +88,7 @@ function DynamicInput({ input, value, onChange }: DynamicInputProps) {
       return (
         <select
           value={String(value ?? "")}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => setValue(e.target.value)}
           style={styles.select}
         >
           {options.map((opt) => (
@@ -256,7 +104,7 @@ function DynamicInput({ input, value, onChange }: DynamicInputProps) {
         <input
           type="checkbox"
           checked={Boolean(value)}
-          onChange={(e) => onChange(e.target.checked)}
+          onChange={(e) => setValue(e.target.checked)}
         />
       );
     }
@@ -264,17 +112,141 @@ function DynamicInput({ input, value, onChange }: DynamicInputProps) {
       <input
         type="text"
         value={String(value ?? "")}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => setValue(e.target.value)}
         style={styles.select}
       />
     );
-  }, [ui, value, input.constraints, onChange]);
+  }, [ui, value, input.constraints, setValue]);
 
   return (
     <div style={styles.inputGroup}>
-      {label}
+      <label style={styles.label}>
+        {input.description ?? input.name}
+        {ui === "slider" && (
+          <strong style={{ marginLeft: 6 }}>{String(value)}</strong>
+        )}
+      </label>
       {node}
     </div>
+  );
+}
+
+// ---------- Outputs ----------
+//
+// Each output is a focused component that subscribes to *one* variable.
+// Mounting the component adds it to the server's subscription set, so the
+// kernel only computes what's actually rendered. Re-renders are scoped to
+// just the variable each component reads.
+
+function Stats() {
+  const stats = useDataflowValue<Record<string, number>>("stats");
+  if (!stats) return null;
+  return (
+    <section style={styles.card}>
+      <h2 style={styles.cardTitle}>Statistics</h2>
+      <div style={styles.statsGrid}>
+        {Object.entries(stats).map(([key, val]) => (
+          <div key={key} style={styles.statItem}>
+            <div style={styles.statValue}>{val}</div>
+            <div style={styles.statLabel}>{key}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SlowThreshold() {
+  // The notebook sleeps 0.5s before producing this; with per-cell streaming
+  // the panels above land first and this number trickles in once its cell
+  // finishes — visible proof that the SSE stream is incremental, not batched.
+  const value = useDataflowValue<number>("slow_threshold");
+  return (
+    <section style={styles.card}>
+      <h2 style={styles.cardTitle}>Slow threshold (streamed)</h2>
+      <p style={styles.meta}>
+        This cell sleeps 0.5s. Other panels render first; this number
+        arrives once the slow cell finishes.
+      </p>
+      <div style={styles.statValue}>
+        {value === undefined ? "…" : value}
+      </div>
+    </section>
+  );
+}
+
+function Histogram() {
+  const histogram = useDataflowValue<Array<{ bucket: string; count: number }>>(
+    "histogram",
+  );
+  if (!histogram || histogram.length === 0) return null;
+  return (
+    <section style={styles.card}>
+      <h2 style={styles.cardTitle}>Value Distribution</h2>
+      <div style={styles.histogram}>
+        {histogram.map((h) => (
+          <div key={h.bucket} style={styles.histBar}>
+            <div
+              style={{
+                ...styles.histFill,
+                height: `${Math.min(h.count * 20, 100)}%`,
+              }}
+            />
+            <span style={styles.histLabel}>{h.bucket}</span>
+            <span style={styles.histCount}>{h.count}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Table() {
+  const table = useDataflowValue<Array<Record<string, unknown>>>("table");
+  if (!table || table.length === 0) return null;
+  return (
+    <section style={{ ...styles.card, gridColumn: "1 / -1" }}>
+      <h2 style={styles.cardTitle}>Filtered Data ({table.length} rows)</h2>
+      <div style={styles.tableWrap}>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              {Object.keys(table[0]).map((col) => (
+                <th key={col} style={styles.th}>
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.map((row, i) => (
+              <tr key={i}>
+                {Object.values(row).map((val, j) => (
+                  <td key={j} style={styles.td}>
+                    {String(val)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function SchemaFooter() {
+  const schema = useDataflowSchema();
+  if (!schema) return null;
+  return (
+    <footer style={styles.footer}>
+      <details>
+        <summary style={styles.detailsSummary}>
+          Schema (id: {schema.schemaId})
+        </summary>
+        <pre style={styles.pre}>{JSON.stringify(schema, null, 2)}</pre>
+      </details>
+    </footer>
   );
 }
 
@@ -320,14 +292,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #dee2e6",
     fontSize: "0.9rem",
   },
-  checkbox: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.4rem",
-    marginBottom: "0.3rem",
-    fontSize: "0.9rem",
-  },
-  kind: { color: "#6c757d", fontSize: "0.8rem" },
   meta: { color: "#6c757d", fontSize: "0.85rem", marginTop: "1rem" },
   error: { color: "#dc3545", fontSize: "0.85rem", marginTop: "0.5rem" },
   statsGrid: {
@@ -337,7 +301,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   statItem: { textAlign: "center" },
   statValue: { fontSize: "1.8rem", fontWeight: 700, color: "#0f3460" },
-  statLabel: { fontSize: "0.8rem", color: "#6c757d", textTransform: "uppercase" },
+  statLabel: {
+    fontSize: "0.8rem",
+    color: "#6c757d",
+    textTransform: "uppercase",
+  },
   histogram: {
     display: "flex",
     alignItems: "flex-end",

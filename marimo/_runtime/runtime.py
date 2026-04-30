@@ -158,10 +158,6 @@ from marimo._runtime.commands import (
     UpdateUserConfigCommand,
     ValidateSQLCommand,
 )
-from marimo._runtime.dataflow_callbacks import (
-    DataflowCallbacks,
-    DataflowScope,
-)
 from marimo._runtime.context import (
     ContextNotInitializedError,
     ExecutionContext,
@@ -174,6 +170,10 @@ from marimo._runtime.context.kernel_context import (
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._runtime.dataflow_callbacks import (
+    DataflowCallbacks,
+    DataflowScope,
+)
 from marimo._runtime.input_override import getpass_override, input_override
 from marimo._runtime.packages.import_error_extractors import (
     extract_missing_module_from_cause_chain,
@@ -573,7 +573,9 @@ class Kernel:
         # Per-cell streaming + on-finish backstop for dataflow consumers.
         # Both hooks short-circuit when no consumer has subscribed, so the
         # cost is one branch in the no-dataflow case.
-        hooks.add_post_execution(self.dataflow_callbacks.on_cell_post_execution)
+        hooks.add_post_execution(
+            self.dataflow_callbacks.on_cell_post_execution
+        )
         hooks.add_on_finish(self.dataflow_callbacks.on_kernel_run_finished)
 
         # Apply pythonpath from config at initialization
@@ -2589,9 +2591,7 @@ class Kernel:
         handler.register(
             GetDataflowSchemaCommand, self.dataflow_callbacks.get_schema
         )
-        handler.register(
-            ScopedRunCommand, self.dataflow_callbacks.scoped_run
-        )
+        handler.register(ScopedRunCommand, self.dataflow_callbacks.scoped_run)
 
         return handler
 

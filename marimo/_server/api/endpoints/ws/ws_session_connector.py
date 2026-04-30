@@ -165,7 +165,19 @@ class SessionConnector:
         # re-attaching ourselves.
         session.disconnect_main_consumer()
         self.handler._reconnect_session(session, replay=True)
+        # Backfill cells that the kernel marked stale during pruned
+        # dataflow runs. ExecuteStaleCellsCommand is a no-op when nothing
+        # is stale, so this is safe for editor-only sessions too.
+        self._backfill_stale_cells(session)
         return session, ConnectionType.RESUME
+
+    def _backfill_stale_cells(self, session: Session) -> None:
+        from marimo._runtime.commands import ExecuteStaleCellsCommand
+
+        session.put_control_request(
+            ExecuteStaleCellsCommand(),
+            from_consumer_id=None,
+        )
 
     @property
     def _is_run_mode(self) -> bool:

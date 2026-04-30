@@ -72,3 +72,41 @@ Drive the slider in either UI and watch the other update.
 - **Editor parity** — opening `marimo edit notebook.py` and the React app
   side-by-side keeps the slider, table, and stats in sync regardless of
   which surface drives the input.
+
+## Frontend API (`frontend/src/dataflow.tsx`)
+
+A minimal, framework-agnostic client plus React hooks. The hooks scope
+re-renders to a single variable, so `<Stats>` doesn't re-render when
+`histogram` updates.
+
+```tsx
+import {
+  DataflowProvider,
+  useDataflowSchema,
+  useDataflowValue,
+  useDataflowInput,
+  useDataflowStatus,
+} from "./dataflow";
+
+<DataflowProvider baseUrl="/api/v1/dataflow">
+  <Inputs />
+  <Stats />
+  <Histogram />
+</DataflowProvider>;
+
+function Stats() {
+  // Mounting auto-subscribes; unmounting auto-unsubscribes. The kernel
+  // prunes any cells whose outputs no mounted component reads.
+  const stats = useDataflowValue<Record<string, number>>("stats");
+  // ... renders only when `stats` changes ...
+}
+
+function ThresholdSlider() {
+  // Reads default from the schema; setValue debounces a /run.
+  const [value, setValue] = useDataflowInput<number>("threshold");
+  return <input type="range" value={value} onChange={...} />;
+}
+```
+
+The store is exposed via `useDataflowClient()` for advanced cases (manual
+runs, custom batching, talking to multiple notebooks from one app, etc.).

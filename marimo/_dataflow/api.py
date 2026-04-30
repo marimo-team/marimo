@@ -22,9 +22,9 @@ Usage:
 
 from __future__ import annotations
 
-from dataclasses import dataclass as _dataclass
-from dataclasses import field as _field
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from dataclasses import dataclass as _dataclass, field as _field
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._core.ui_element import UIElement
@@ -77,8 +77,6 @@ class _TriggerAnnotation:
             func.__dataflow_annotations__ = []
         func.__dataflow_annotations__.append(self)
         return func
-
-
 
 
 def input(  # noqa: A001 - matches public name `mo.api.input`
@@ -155,7 +153,9 @@ def input(  # noqa: A001 - matches public name `mo.api.input`
         constraints["max"] = max
         if step is not None:
             constraints["step"] = step
-    elif min is not None or max is not None or isinstance(default, (int, float)):
+    elif (
+        min is not None or max is not None or isinstance(default, (int, float))
+    ):
         element = mo_ui.number(
             start=min,
             stop=max,
@@ -204,7 +204,7 @@ def output(
 
 
 def trigger(*, description: str | None = None) -> _TriggerAnnotation:
-    """Decorator marking a side-effect cell as an explicitly invokable trigger.
+    """Decorator marking a side-effect cell as an explicitly invocable trigger.
 
     Args:
         description: Human-readable description of the side effect.

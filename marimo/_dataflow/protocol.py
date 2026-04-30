@@ -14,7 +14,6 @@ from typing import Any, Literal
 
 import msgspec
 
-
 # ---------------------------------------------------------------------------
 # Kind — closed type system for variables
 # ---------------------------------------------------------------------------
@@ -102,7 +101,9 @@ class SchemaEvent(msgspec.Struct, tag="schema", tag_field="type"):
     schema_id: str
 
 
-class SchemaChangedEvent(msgspec.Struct, tag="schema-changed", tag_field="type"):
+class SchemaChangedEvent(
+    msgspec.Struct, tag="schema-changed", tag_field="type"
+):
     schema_id: str
 
 

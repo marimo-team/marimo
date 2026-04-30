@@ -490,15 +490,23 @@ existing `Stream`/`Room` fan-out:
 The pruning algorithm lives in `marimo/_runtime/dataflow/`
 (`cells_for_subscription`, `prune_cells_for_subscription`). Crucially
 it runs **after** the runner's autorun expansion, not before:
-`Runner.compute_cells_to_run` accepts an optional `scope` allow-list
-that intersects the expanded set just before the topological sort. The
-kernel computes the scope in `set_ui_element_value` whenever a
-`DataflowScope` is provided, and otherwise runs the full reactive
-graph.
+`Runner.__init__` intersects the runner's expanded set with the scope
+just before the topological sort. The kernel computes the scope in
+`set_ui_element_value` whenever a `DataflowScope` is provided, and
+otherwise runs the full reactive graph.
 
 Cells that *define* an overridden input are explicitly excluded from
 the scope so re-running them doesn't recreate the live `mo.api.input`
 UI element and break the registry binding.
+
+**Backfill on editor takeover.** Cells that the runner *would* have run
+reactively but were dropped by the scope are marked `stale=True`. When
+an editor websocket later attaches to the dataflow-anchored session
+(`SessionConnector._resume_session`), it enqueues an
+`ExecuteStaleCellsCommand` which catches up exactly those cells. The
+result: a headless dataflow run with `prune=True` followed by an
+editor connect produces a fully-fresh notebook view rather than mixing
+fresh subscribed outputs with stale `display`/chart cells.
 
 ### 3.3 — Schema, cross-process
 

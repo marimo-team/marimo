@@ -369,9 +369,7 @@ def _has_non_dataflow_consumer(session: Session) -> bool:
     a full reactive run and let the dataflow consumer filter on the wire.
     """
     for consumer in session.room.consumers:
-        if isinstance(
-            consumer, (DataflowAnchorConsumer, DataflowSseConsumer)
-        ):
+        if isinstance(consumer, (DataflowAnchorConsumer, DataflowSseConsumer)):
             continue
         if isinstance(consumer, _SchemaListener):
             continue

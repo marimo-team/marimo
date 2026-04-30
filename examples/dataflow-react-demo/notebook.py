@@ -109,5 +109,15 @@ def display(category, mo, stats, table, threshold):
     return
 
 
+@app.cell
+def _(threshold):
+    # a slow thing that uses the input but isn't in the app
+    import time
+    time.sleep(0.5)
+    slow_threshold = threshold.value
+    slow_threshold
+    return
+
+
 if __name__ == "__main__":
     app.run()

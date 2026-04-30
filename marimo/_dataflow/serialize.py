@@ -125,6 +125,7 @@ def _to_arrow_ipc_ref(value: Any) -> str:
     writer.write_table(table)
     writer.close()
     buf = sink.getvalue()
-    return "data:application/vnd.apache.arrow.stream;base64," + base64.b64encode(
-        buf.to_pybytes()
-    ).decode("ascii")
+    return (
+        "data:application/vnd.apache.arrow.stream;base64,"
+        + base64.b64encode(buf.to_pybytes()).decode("ascii")
+    )

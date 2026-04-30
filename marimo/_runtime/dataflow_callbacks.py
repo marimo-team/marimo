@@ -107,7 +107,9 @@ class DataflowCallbacks:
     async def set_subscriptions(
         self, request: SetDataflowSubscriptionsCommand
     ) -> None:
-        self._subscriptions[request.consumer_id] = frozenset(request.subscribed)
+        self._subscriptions[request.consumer_id] = frozenset(
+            request.subscribed
+        )
         LOGGER.debug(
             "Dataflow consumer %s subscribed to %s",
             request.consumer_id,
@@ -119,9 +121,7 @@ class DataflowCallbacks:
         self, request: RemoveDataflowSubscriptionsCommand
     ) -> None:
         self._subscriptions.pop(request.consumer_id, None)
-        LOGGER.debug(
-            "Dataflow consumer %s detached", request.consumer_id
-        )
+        LOGGER.debug("Dataflow consumer %s detached", request.consumer_id)
         broadcast_notification(CompletedRunNotification())
 
     async def get_schema(self, request: GetDataflowSchemaCommand) -> None:
@@ -141,7 +141,9 @@ class DataflowCallbacks:
         cells are queued and we emit values directly so the consumer still
         gets a snapshot.
         """
-        self._subscriptions[request.consumer_id] = frozenset(request.subscribed)
+        self._subscriptions[request.consumer_id] = frozenset(
+            request.subscribed
+        )
 
         # The pruning scope is advisory and only honored when ``prune`` is
         # set; otherwise the kernel runs the full reactive graph (e.g. when
@@ -198,7 +200,9 @@ class DataflowCallbacks:
     def _broadcast_schema(self) -> None:
         """Snapshot the current schema and broadcast it on the kernel stream."""
         from marimo._dataflow.api import DATAFLOW_INPUT_MARKER
-        from marimo._dataflow.schema import compute_dataflow_schema_from_globals
+        from marimo._dataflow.schema import (
+            compute_dataflow_schema_from_globals,
+        )
         from marimo._plugins.ui._core.ui_element import UIElement
 
         try:
@@ -295,7 +299,9 @@ class DataflowCallbacks:
                         run_id=run_id,
                         seq=self._seq,
                         var_name=var_name,
-                        kind=kind.value if isinstance(kind, Kind) else str(kind),
+                        kind=kind.value
+                        if isinstance(kind, Kind)
+                        else str(kind),
                         encoding="json",
                         value=json_value,
                         ref=ref,
@@ -338,7 +344,9 @@ class DataflowCallbacks:
         try:
             if not self._subscriptions:
                 return
-            run_id = self._current_run_id or f"editor-{int(time.time() * 1000)}"
+            run_id = (
+                self._current_run_id or f"editor-{int(time.time() * 1000)}"
+            )
             remaining = self.union_subscriptions() - self._emitted_this_run
             if remaining:
                 self._broadcast_values_for_run(run_id, only=remaining)
@@ -358,9 +366,7 @@ class DataflowCallbacks:
     # Internals
     # ------------------------------------------------------------------
 
-    def _coerce_input_value(
-        self, object_id: UIElementId, value: Any
-    ) -> Any:
+    def _coerce_input_value(self, object_id: UIElementId, value: Any) -> Any:
         """Wrap user-friendly values into the wire shape the widget expects.
 
         Most ``mo.api.input`` widgets accept their value as-is, but a few
@@ -414,7 +420,7 @@ class DataflowCallbacks:
 
 
 def _to_dict(struct: Any) -> dict[str, Any]:
-    """msgspec → dict round-trip for embedding a schema in a notification."""
+    """Msgspec → dict round-trip for embedding a schema in a notification."""
     import msgspec
 
     encoded = msgspec.json.encode(struct)

@@ -155,7 +155,9 @@ async def run_dataflow(request: Request) -> Response:
     schema = await bundle.get_schema()
 
     subscribed = (
-        set(body.subscribe) if body.subscribe else {o.name for o in schema.outputs}
+        set(body.subscribe)
+        if body.subscribe
+        else {o.name for o in schema.outputs}
     )
 
     async def event_stream():
