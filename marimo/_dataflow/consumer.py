@@ -30,7 +30,6 @@ from marimo._dataflow.protocol import (
     OutputSchema,
     RunEvent,
     SchemaEvent,
-    TriggerSchema,
     VarErrorEvent,
     VarEvent,
 )
@@ -233,7 +232,6 @@ def _decode_schema(raw: dict[str, Any], schema_id: str) -> DataflowSchema:
         schema = DataflowSchema(
             inputs=schema.inputs,
             outputs=schema.outputs,
-            triggers=schema.triggers,
             schema_id=schema_id,
         )
     return schema
@@ -258,7 +256,6 @@ __all__ = [
     "DataflowSseConsumer",
     "InputSchema",
     "OutputSchema",
-    "TriggerSchema",
     "make_run_done_event",
     "make_run_started_event",
 ]

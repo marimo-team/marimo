@@ -3,8 +3,9 @@
 
 The schema is **kernel-derived**: we run the notebook once with default UI
 element values and walk the resulting `mo.api.input(...)` UI elements to
-build the input list. Outputs and triggers come from static graph analysis
-plus annotation hints. The schema is then cached on the file's content hash.
+build the input list. Outputs come from static graph analysis plus
+``mo.api.output(...)`` annotation hints. The schema is then cached on the
+file's content hash.
 
 This means:
 
@@ -25,14 +26,12 @@ from marimo._dataflow.api import (
     DATAFLOW_INPUT_MARKER,
     _InputMetadata,
     _OutputAnnotation,
-    _TriggerAnnotation,
 )
 from marimo._dataflow.protocol import (
     DataflowSchema,
     InputSchema,
     Kind,
     OutputSchema,
-    TriggerSchema,
 )
 from marimo._dataflow.serialize import infer_kind
 
@@ -88,46 +87,29 @@ def _free_var_input_schema(name: str, value: Any) -> InputSchema:
     return InputSchema(name=name, kind=infer_kind(value))
 
 
-def _collect_outputs_and_triggers(
-    graph: DirectedGraph,
-) -> tuple[set[str], list[str]]:
-    """Walk the graph, collect public defs and side-effect cell names."""
+def _collect_public_defs(graph: DirectedGraph) -> set[str]:
+    """Walk the graph and collect every cell-defined public variable name."""
     all_defs: set[str] = set()
-    trigger_cells: list[str] = []
-
     for cell_id, cell in graph.cells.items():
         if graph.is_disabled(cell_id):
             continue
-
-        cell_defs = {
+        all_defs.update(
             d for d in cell.defs if not is_local(d) and not is_mangled_local(d)
-        }
-        cell_refs = {
-            r for r in cell.refs if not is_local(r) and not is_mangled_local(r)
-        }
-        all_defs.update(cell_defs)
-        if not cell_defs and cell_refs:
-            cell_name = (
-                cell.config.name
-                if hasattr(cell.config, "name") and cell.config.name
-                else None
-            )
-            if cell_name:
-                trigger_cells.append(cell_name)
-    return all_defs, trigger_cells
+        )
+    return all_defs
 
 
-def _trigger_annotations(
-    globals_: dict[str, Any],
-) -> dict[str, _TriggerAnnotation]:
-    """Find `@mo.api.trigger`-decorated callables in globals."""
-    out: dict[str, _TriggerAnnotation] = {}
-    for name, val in globals_.items():
-        if callable(val) and hasattr(val, "__dataflow_annotations__"):
-            for ann in val.__dataflow_annotations__:
-                if isinstance(ann, _TriggerAnnotation):
-                    out[name] = ann
-    return out
+def _is_typing_helper(value: Any) -> bool:
+    """True for typing constructs like ``Annotated``, ``Optional``, etc.
+
+    These are commonly imported into cells (``from typing import Annotated``)
+    and end up in ``cell.defs``, but they're never useful as dataflow
+    outputs — they're metadata, not data.
+    """
+    module = getattr(type(value), "__module__", "") or ""
+    return module in ("typing", "typing_extensions") or module.startswith(
+        ("typing.", "typing_extensions.")
+    )
 
 
 def _output_annotations(
@@ -169,10 +151,10 @@ def compute_dataflow_schema_from_globals(
     """Build a ``DataflowSchema`` from a kernel's graph and current globals.
 
     Inputs come from globals: any ``mo.api.input``-tagged ``UIElement``.
-    Outputs and triggers come from graph analysis. Output kinds are inferred
-    from the current globals values. ``schema_id`` is auto-derived from the
-    set of input/output/trigger names when not supplied so identical graph
-    shapes hash to the same id.
+    Outputs come from graph analysis. Output kinds are inferred from the
+    current globals values. ``schema_id`` is auto-derived from the set of
+    input/output names when not supplied so identical graph shapes hash to
+    the same id.
     """
     del app  # reserved for future use; unused today
 
@@ -212,9 +194,8 @@ def compute_dataflow_schema_from_globals(
             key=lambda s: s.name,
         )
 
-    all_defs, trigger_cells = _collect_outputs_and_triggers(graph)
+    all_defs = _collect_public_defs(graph)
     output_anns = _output_annotations(globals_)
-    trigger_anns = _trigger_annotations(globals_)
 
     import types as _types
 
@@ -224,9 +205,10 @@ def compute_dataflow_schema_from_globals(
         if name in input_names:
             continue
         value = globals_.get(name)
-        # Modules in cell defs are typically imports — never useful as
-        # dataflow outputs and just clutter the schema.
-        if isinstance(value, _types.ModuleType):
+        # Modules and typing helpers (Annotated, Optional, ...) end up in
+        # cell defs via ``from typing import ...`` / ``import foo``; neither
+        # is useful as a dataflow output.
+        if isinstance(value, _types.ModuleType) or _is_typing_helper(value):
             continue
         kind = infer_kind(value)
         ann = output_anns.get(name)
@@ -242,25 +224,11 @@ def compute_dataflow_schema_from_globals(
         else:
             outputs.append(OutputSchema(name=name, kind=kind))
 
-    trigger_names = sorted(set(trigger_cells) | set(trigger_anns.keys()))
-    triggers: list[TriggerSchema] = [
-        TriggerSchema(
-            name=name,
-            description=(
-                trigger_anns[name].description
-                if name in trigger_anns
-                else None
-            ),
-        )
-        for name in trigger_names
-    ]
-
     if schema_id is None:
         schema_bytes = msgspec.json.encode(
             {
                 "inputs": [i.name for i in inputs],
                 "outputs": [o.name for o in outputs],
-                "triggers": [t.name for t in triggers],
             }
         )
         schema_id = hashlib.sha256(schema_bytes).hexdigest()[:16]
@@ -268,7 +236,6 @@ def compute_dataflow_schema_from_globals(
     return DataflowSchema(
         inputs=inputs,
         outputs=outputs,
-        triggers=triggers,
         schema_id=schema_id,
     )
 

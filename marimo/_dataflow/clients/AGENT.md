@@ -134,12 +134,145 @@ That's the whole story for the happy path. The rest of this file is reference.
 
 | API                  | Description                                                         |
 | -------------------- | ------------------------------------------------------------------- |
-| `mo.api.input(...)`  | Declare a remote-controllable UI element (slider/number/dropdown/switch/text/text_area, inferred from kwargs). Returns a regular `mo.ui` element. |
-| `mo.api.output(...)` | Optional `typing.Annotated` annotation to attach a description / kind hint to an output variable. |
-| `mo.api.trigger(...)` | Decorator marking a side-effect cell as an explicit `POST /trigger` target. |
+| `mo.api.input(...)`  | Declare a remote-controllable UI element (slider/number/dropdown/switch/text/text_area, inferred from kwargs). Returns a regular `mo.ui` element. Pass `ui=mo.ui.<element>(...)` for full control. |
+| `mo.api.output(...)` | Optional `typing.Annotated` annotation to attach a description / kind hint to an output. Annotations land in the schema in marimo's *relaxed* kernel mode (the default for `marimo edit`). Strict mode runs cells in isolated namespaces and won't pick them up. |
 
 Outputs are inferred automatically: every name returned by an `@app.cell`
 function becomes a candidate output. There is no opt-in step required.
+
+## Side-effect cells (the "trigger" pattern)
+
+For cells you want to fire on demand — write to a database, send an email,
+push to an external API — use marimo's idiomatic pattern: a
+`mo.ui.run_button` gated by `mo.stop`. Wrap the button in `mo.api.input`
+to expose it through the dataflow API.
+
+```python
+@app.cell
+def inputs():
+    threshold = mo.api.input(min=0, max=100, default=20)
+    send = mo.api.input(
+        ui=mo.ui.run_button(label="Send notifications"),
+        description="Email all customers in the filtered list",
+    )
+    return send, threshold
+
+
+@app.cell
+def filtered(threshold):
+    rows = [r for r in customers() if r["score"] >= threshold.value]
+    return (rows,)
+
+
+@app.cell
+def send_notifications(send, rows):
+    mo.stop(not send.value)         # gate
+    for row in rows:
+        send_email(row["address"])  # the actual side effect
+    n_sent = len(rows)
+    return (n_sent,)
+```
+
+Why this works:
+
+- **Reads graph state** — the side-effect cell consumes any ref it wants.
+- **Never auto-fires** — `run_button.value` defaults to False and resets to
+  False after every run, so dragging the slider doesn't refire the cell.
+- **Composes with subscriptions** — subscribe to `n_sent` to surface
+  confirmation in your UI, or skip the subscription and the cell still
+  runs but its output isn't streamed.
+- **Editor parity** — the same button is clickable from the editor view
+  for debugging.
+
+The schema flags these inputs with `constraints.ui === "run_button"`. The
+TypeScript client special-cases them: `setInput` on a run-button input
+fires `/run` immediately (no debounce) and resets the local cache to
+`false` so subsequent runs don't refire the side effect.
+
+```tsx
+function SendButton() {
+  const [, setSend] = useDataflowInput<boolean>("send");
+  const nSent = useDataflowValue<number>("n_sent");
+  return (
+    <>
+      <button onClick={() => setSend(true)}>Send notifications</button>
+      {nSent !== undefined && <p>Sent {nSent} notifications.</p>}
+    </>
+  );
+}
+```
+
+## Render a control from a schema input
+
+The schema's `constraints.ui` carries the underlying `mo.ui.*` element
+name (`"slider"`, `"dropdown"`, `"switch"`, `"text"`, `"run_button"`,
+etc.). Switch on it to render the appropriate control. This component is
+intentionally *not* exported from `dataflow.tsx` — keep your protocol
+client free of UI opinions and copy this in when you need it.
+
+```tsx
+import {
+  type InputSchema,
+  useDataflowInput,
+  useDataflowValue,
+} from "./dataflow";
+
+export function DynamicInput({ input }: { input: InputSchema }) {
+  const [value, setValue] = useDataflowInput<unknown>(input.name, input.default);
+  const ui = input.constraints?.ui;
+
+  if (ui === "run_button") {
+    return (
+      <button onClick={() => setValue(true)}>
+        {input.description ?? input.name}
+      </button>
+    );
+  }
+  if (ui === "slider") {
+    return (
+      <label>
+        {input.description ?? input.name}: <strong>{String(value)}</strong>
+        <input
+          type="range"
+          min={input.constraints?.min as number | undefined}
+          max={input.constraints?.max as number | undefined}
+          step={(input.constraints?.step as number | undefined) ?? 1}
+          value={Number(value ?? 0)}
+          onChange={(e) => setValue(Number(e.target.value))}
+        />
+      </label>
+    );
+  }
+  if (ui === "dropdown") {
+    const options = (input.constraints?.options as unknown[]) ?? [];
+    return (
+      <select value={String(value ?? "")} onChange={(e) => setValue(e.target.value)}>
+        {options.map((opt) => (
+          <option key={String(opt)} value={String(opt)}>{String(opt)}</option>
+        ))}
+      </select>
+    );
+  }
+  if (ui === "switch") {
+    return (
+      <input
+        type="checkbox"
+        checked={Boolean(value)}
+        onChange={(e) => setValue(e.target.checked)}
+      />
+    );
+  }
+  return (
+    <input
+      type="text"
+      value={String(value ?? "")}
+      onChange={(e) => setValue(e.target.value)}
+    />
+  );
+}
+```
+
+Wrap with your UI kit (Radix, shadcn, MUI, etc.) for production.
 
 ## Wire protocol
 
@@ -154,7 +287,6 @@ Returns JSON `DataflowSchema`:
 {
   "inputs":   [{"name":"threshold","kind":"integer","default":20,"constraints":{"min":0,"max":100,"ui":"slider"}}],
   "outputs":  [{"name":"stats","kind":"any"}],
-  "triggers": [],
   "schemaId": "f3a1c2d8e4b9..."
 }
 ```
@@ -188,7 +320,6 @@ Response: `text/event-stream` with the closed event union:
 | `var`              | `{name, kind, value, encoding, runId, seq}`               |
 | `var-error`        | `{name, runId, error, traceback?}`                        |
 | `superseded`       | `{runId}` — a newer run has displaced this one            |
-| `trigger-result`   | `{name, runId, status, error?}`                           |
 | `heartbeat`        | `{timestamp}`                                             |
 
 `var` events stream as soon as the producing cell finishes — they don't wait

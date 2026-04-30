@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Public declarative API for dataflow inputs, outputs, and triggers.
+"""Public declarative API for dataflow inputs and outputs.
 
 `mo.api.input(...)` produces a configured `mo.ui` element that doubles as
 both an interactive control (when the notebook runs in an editor) and a
@@ -9,6 +9,13 @@ A notebook with `mo.api.input(...)` declarations is a fully runnable marimo
 notebook on its own; the dataflow API just promotes those UI elements to
 externally addressable inputs.
 
+For side-effect cells you want to fire on demand (write to a database,
+send an email, etc.), use marimo's existing idiom: ``mo.ui.run_button()``
+gated by ``mo.stop(not button.value)``. Wrap the button in
+``mo.api.input(ui=...)`` to expose it through the dataflow API. There is
+no separate "trigger" mechanism — the run button + ``mo.stop`` pattern
+already gives you graph-aware, never-auto-runs side effects.
+
 Usage:
 
     import marimo as mo
@@ -17,7 +24,8 @@ Usage:
     def _():
         threshold = mo.api.input(min=0, max=100, default=50)
         category = mo.api.input(options=["all", "A", "B"], default="all")
-        return threshold, category
+        send = mo.api.input(ui=mo.ui.run_button(label="Send"))
+        return category, send, threshold
 """
 
 from __future__ import annotations
@@ -61,23 +69,6 @@ class _OutputAnnotation:
     kind: str | None = None
     description: str | None = None
     accepts: list[str] | None = None
-
-
-@_dataclass(frozen=True)
-class _TriggerAnnotation:
-    """Metadata for a side-effect trigger.
-
-    Returned by `mo.api.trigger(...)` and used as a decorator. Treat as
-    opaque; the public construction API is `mo.api.trigger(...)`.
-    """
-
-    description: str | None = None
-
-    def __call__(self, func: Any) -> Any:
-        if not hasattr(func, "__dataflow_annotations__"):
-            func.__dataflow_annotations__ = []
-        func.__dataflow_annotations__.append(self)
-        return func
 
 
 def input(  # noqa: A001 - matches public name `mo.api.input`
@@ -202,12 +193,3 @@ def output(
     return _OutputAnnotation(
         kind=kind, description=description, accepts=accepts
     )
-
-
-def trigger(*, description: str | None = None) -> _TriggerAnnotation:
-    """Decorator marking a side-effect cell as an explicitly invocable trigger.
-
-    Args:
-        description: Human-readable description of the side effect.
-    """
-    return _TriggerAnnotation(description=description)

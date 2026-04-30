@@ -75,19 +75,18 @@ class OutputSchema(msgspec.Struct, rename="camel"):
     accepts: list[str] | None = None
 
 
-class TriggerSchema(msgspec.Struct, rename="camel"):
-    """Describes a named side-effect that can be invoked explicitly."""
-
-    name: str
-    description: str | None = None
-
-
 class DataflowSchema(msgspec.Struct, rename="camel"):
-    """Full schema for a dataflow-mode notebook."""
+    """Full schema for a dataflow-mode notebook.
+
+    Side-effect cells (write-to-db, send-email, etc.) are not a separate
+    schema slot. They show up as inputs whose ``constraints.ui`` is
+    ``"run_button"`` paired with cells that read those buttons and gate
+    on ``mo.stop(not button.value)``. See the dataflow API guide for the
+    canonical pattern.
+    """
 
     inputs: list[InputSchema]
     outputs: list[OutputSchema]
-    triggers: list[TriggerSchema]
     schema_id: str
 
 
@@ -134,15 +133,6 @@ class VarErrorEvent(msgspec.Struct, tag="var-error", tag_field="type"):
     traceback: str | None = None
 
 
-class TriggerResultEvent(
-    msgspec.Struct, tag="trigger-result", tag_field="type"
-):
-    name: str
-    run_id: str
-    status: Literal["ok", "error"]
-    error: str | None = None
-
-
 class HeartbeatEvent(msgspec.Struct, tag="heartbeat", tag_field="type"):
     timestamp: float
 
@@ -154,7 +144,6 @@ DataflowEvent = (
     | SupersededEvent
     | VarEvent
     | VarErrorEvent
-    | TriggerResultEvent
     | HeartbeatEvent
 )
 

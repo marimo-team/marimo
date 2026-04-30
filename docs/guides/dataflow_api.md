@@ -59,10 +59,14 @@ switch, or text — inferred from the kwargs. The notebook is still fully
 runnable in the editor; the API just promotes those elements to addressable
 inputs.
 
-Output variables are inferred automatically from the names returned by each
-`@app.cell`. Use `typing.Annotated[..., mo.api.output(...)]` to attach a
-description or kind hint, and `@mo.api.trigger(...)` to expose a
-side-effect cell as an explicit `POST /trigger` target.
+Output variables are inferred automatically from the names returned by
+each `@app.cell`. Use `typing.Annotated[..., mo.api.output(...)]` to
+attach a description or kind hint to a specific output (works in
+marimo's *relaxed* kernel mode, the default for `marimo edit`).
+
+For side-effect cells you want to fire on demand — write to a database,
+send an email — see [Side-effect cells](#side-effect-cells-the-trigger-pattern)
+below.
 
 ### 2. Launch the kernel
 
@@ -145,11 +149,80 @@ export default defineConfig({
 
 ## Python API reference
 
-| API                   | Description                                                                                                                                  |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mo.api.input(...)`   | Declare a remote-controllable UI element. Type is inferred: `min`+`max` → slider, `options=[...]` → dropdown, `default=bool` → switch, etc.  |
-| `mo.api.output(...)`  | Optional `typing.Annotated` annotation to attach a description / kind hint to an output variable.                                            |
-| `mo.api.trigger(...)` | Decorator marking a side-effect cell as an explicit `POST /trigger` target.                                                                  |
+| API                  | Description                                                                                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mo.api.input(...)`  | Declare a remote-controllable UI element. Type is inferred: `min`+`max` → slider, `options=[...]` → dropdown, `default=bool` → switch, etc. Pass `ui=mo.ui.<element>(...)` for full control.       |
+| `mo.api.output(...)` | Optional `typing.Annotated` annotation to attach a description / kind hint to an output. Annotations land in the schema in marimo's *relaxed* kernel mode (the default for `marimo edit`).        |
+
+There is intentionally no `mo.api.trigger` decorator. For side-effect
+cells, use the [run-button + `mo.stop()` pattern](#side-effect-cells-the-trigger-pattern)
+below — it composes with the rest of marimo's reactive plumbing without
+adding a parallel mechanism.
+
+## Side-effect cells (the "trigger" pattern)
+
+For cells you want to fire on demand — write to a database, send an
+email, push to an external API — gate the cell with `mo.stop()` keyed
+off a `mo.ui.run_button`. Wrap the button in `mo.api.input(...)` to
+expose it through the dataflow API:
+
+```python
+@app.cell
+def inputs():
+    threshold = mo.api.input(min=0, max=100, default=20)
+    send = mo.api.input(
+        ui=mo.ui.run_button(label="Send notifications"),
+        description="Email all customers in the filtered list",
+    )
+    return send, threshold
+
+
+@app.cell
+def filtered(threshold):
+    rows = [r for r in customers() if r["score"] >= threshold.value]
+    return (rows,)
+
+
+@app.cell
+def send_notifications(send, rows):
+    mo.stop(not send.value)
+    for row in rows:
+        send_email(row["address"])
+    n_sent = len(rows)
+    return (n_sent,)
+```
+
+Properties:
+
+- **Reads graph state.** The side-effect cell consumes `rows` (or any
+  ref). It's a normal cell in the reactive graph.
+- **Never auto-fires.** `run_button.value` defaults to `False` and is
+  reset to `False` after every successful run, so changing other inputs
+  doesn't refire the cell.
+- **Composes with subscriptions.** Subscribe to `n_sent` to get
+  confirmation in your UI. Skip the subscription and the cell still
+  runs, but the value isn't streamed.
+- **Editor parity.** The same button is clickable from the editor view.
+
+### TypeScript ergonomics
+
+The schema flags these inputs with `constraints.ui === "run_button"`.
+The TypeScript client special-cases them: `setInput` on a run-button
+input fires `/run` immediately (no debounce) and resets the local cache
+to `false` so subsequent autoruns don't keep refiring the side effect.
+
+```tsx
+function SendButton() {
+  const [, setSend] = useDataflowInput<boolean>("send");
+  const nSent = useDataflowValue<number>("n_sent");
+  return (
+    <>
+      <button onClick={() => setSend(true)}>Send notifications</button>
+      {nSent !== undefined && <p>Sent {nSent} notifications.</p>}
+    </>
+  );
+}
+```
 
 ## Wire protocol
 
@@ -170,7 +243,6 @@ Returns JSON `DataflowSchema`:
     }
   ],
   "outputs": [{ "name": "stats", "kind": "any" }],
-  "triggers": [],
   "schemaId": "f3a1c2d8e4b9..."
 }
 ```
@@ -204,7 +276,6 @@ Response: `text/event-stream` with the closed event union below.
 | `var`            | `{name, kind, value, encoding, runId, seq}`             | Streamed as soon as the producing cell finishes                    |
 | `var-error`      | `{name, runId, error, traceback?}`                      | Cell failed while computing this variable                          |
 | `superseded`     | `{runId}`                                               | A newer run displaced this one                                     |
-| `trigger-result` | `{name, runId, status, error?}`                         | Result of a `mo.api.trigger`                                       |
 | `heartbeat`      | `{timestamp}`                                           | Keep-alive                                                         |
 
 `var` events stream as each cell finishes, not at end-of-run. Slow

@@ -52,7 +52,6 @@ export interface OutputSchema {
 export interface DataflowSchema {
   inputs: InputSchema[];
   outputs: OutputSchema[];
-  triggers: Array<{ name: string }>;
   schemaId: string;
 }
 
@@ -103,7 +102,7 @@ export interface DataflowClientOptions {
 
 export class DataflowClient {
   private readonly baseUrl: string;
-  private readonly autoRun: boolean;
+  private autoRun: boolean;
   private readonly debounceMs: number;
 
   private schema: DataflowSchema | null = null;
@@ -152,6 +151,11 @@ export class DataflowClient {
     this.baseUrl = opts.baseUrl;
     this.autoRun = opts.autoRun ?? true;
     this.debounceMs = opts.debounceMs ?? 50;
+  }
+
+  /** Enable or disable autorun on input changes. Run buttons always fire. */
+  setAutoRun(value: boolean): void {
+    this.autoRun = value;
   }
 
   // ---------- schema ----------
@@ -297,10 +301,36 @@ export class DataflowClient {
   }
 
   setInput(name: string, value: unknown): void {
-    if (Object.is(this.inputs.get(name), value)) return;
+    const runButton = this.isRunButton(name);
+    // Run buttons are fire-once: every ``setInput`` should produce a run,
+    // even if the local cache already says ``true``. For every other input
+    // skip the round-trip when the value didn't actually change.
+    if (!runButton && Object.is(this.inputs.get(name), value)) return;
+
     this.inputs.set(name, value);
     this.notifyInput(name);
+
+    if (runButton) {
+      // Fire immediately (no debounce). The first synchronous chunk of
+      // ``runNow`` snapshots ``this.inputs`` into the request body before
+      // yielding on ``await fetch(...)``, so resetting the local cache to
+      // ``false`` *after* ``run()`` returns is safe — the in-flight request
+      // still carries ``true``. This mirrors ``mo.ui.run_button``'s
+      // server-side auto-reset on the client so subsequent autoruns don't
+      // keep resending ``true`` and refiring the side effect.
+      this.run();
+      this.inputs.set(name, false);
+      this.notifyInput(name);
+      return;
+    }
+
     if (this.autoRun) this.scheduleRun();
+  }
+
+  private isRunButton(name: string): boolean {
+    if (!this.schema) return false;
+    const input = this.schema.inputs.find((i) => i.name === name);
+    return input?.constraints?.ui === "run_button";
   }
 
   // ---------- status ----------
@@ -441,6 +471,10 @@ export class DataflowClient {
       this.notifyVar(update.name);
       this.noteVarArrival(update.name);
     } else if (event === "var-error") {
+      // Per-variable failures (e.g. a subscribed var whose cell ``mo.stop``'d
+      // or raised) clear the variable's value but do *not* trip the run-level
+      // ``status.error``. Consumers reading the variable see ``undefined``;
+      // unrelated subscribers keep their values.
       const name = data.name as string;
       const update: VarUpdate = {
         name,
@@ -453,7 +487,6 @@ export class DataflowClient {
       this.values.set(name, update);
       this.notifyVar(name);
       this.noteVarArrival(name);
-      this.setStatus({ error: `${name}: ${String(data.error ?? "error")}` });
     } else if (event === "schema") {
       // Fold in any inline schema updates (currently /schema is the canonical
       // source; we still fire schema listeners so live edits in the editor
@@ -544,6 +577,14 @@ export interface DataflowProviderProps extends DataflowClientOptions {
 export function DataflowProvider({ children, ...opts }: DataflowProviderProps) {
   const clientRef = useRef<DataflowClient | null>(null);
   if (!clientRef.current) clientRef.current = new DataflowClient(opts);
+
+  // Forward live prop changes to the existing client instance instead of
+  // rebuilding it; rebuilding would drop subscriptions and invalidate any
+  // values already on screen.
+  const { autoRun } = opts;
+  useEffect(() => {
+    if (autoRun !== undefined) clientRef.current!.setAutoRun(autoRun);
+  }, [autoRun]);
 
   useEffect(() => {
     const client = clientRef.current!;

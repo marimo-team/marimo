@@ -3,7 +3,7 @@
 
 Exposes a marimo notebook as a typed reactive function via:
 
-- ``GET  /api/v1/dataflow/schema`` — typed input/output/trigger schema.
+- ``GET  /api/v1/dataflow/schema`` — typed input/output schema.
 - ``POST /api/v1/dataflow/run`` — push input overrides, stream subscribed
   variable values back as Server-Sent Events.
 
@@ -34,7 +34,6 @@ from marimo._dataflow.protocol import (
     SchemaChangedEvent,
     SchemaEvent,
     SupersededEvent,
-    TriggerResultEvent,
     VarErrorEvent,
     VarEvent,
     encode_event,
@@ -56,7 +55,6 @@ _EVENT_TYPE_NAMES: dict[type, str] = {
     SchemaEvent: "schema",
     SchemaChangedEvent: "schema-changed",
     SupersededEvent: "superseded",
-    TriggerResultEvent: "trigger-result",
 }
 
 
@@ -112,7 +110,7 @@ async def get_schema(request: Request) -> Response:
           required: false
     responses:
         200:
-            description: Dataflow schema (inputs, outputs, triggers)
+            description: Dataflow schema (inputs, outputs)
             content:
                 application/json:
                     schema:

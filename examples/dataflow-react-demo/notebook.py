@@ -26,7 +26,11 @@ def inputs():
         default="all",
         description="Category filter",
     )
-    return category, mo, threshold
+    send = mo.api.input(
+        ui=mo.ui.run_button(label="Send notifications"),
+        description="Send notifications for the filtered rows",
+    )
+    return category, mo, send, threshold
 
 
 @app.cell
@@ -46,7 +50,9 @@ def load_data(category, threshold):
 
     filtered = [row for row in raw_data if row["value"] >= threshold.value]
     if category.value != "all":
-        filtered = [row for row in filtered if row["category"] == category.value]
+        filtered = [
+            row for row in filtered if row["category"] == category.value
+        ]
     return (filtered,)
 
 
@@ -93,13 +99,29 @@ def format_table(filtered):
 
 
 @app.cell
-def display(category, mo, stats, table, threshold):
+def send_notifications(filtered, mo, send):
+    """Side-effect cell — fires only when the run button is clicked.
+
+    This is the canonical "trigger" pattern: a `mo.ui.run_button` gated by
+    `mo.stop` so the cell never auto-runs as part of the reactive graph,
+    even when its other refs (`filtered`) change. Subscribe to `n_sent`
+    via the dataflow API to surface confirmation in the React app.
+    """
+    mo.stop(not send.value)
+    # Replace with the real side effect (db write, email send, ...).
+    n_sent = len(filtered)
+    return
+
+
+@app.cell
+def display(category, mo, send, stats, table, threshold):
     """Render a debug view of the inputs and outputs in the editor."""
     mo.vstack(
         [
             mo.md("### Inputs"),
             threshold,
             category,
+            send,
             mo.md("### Stats"),
             mo.md(f"`{stats}`"),
             mo.md("### Sample rows"),
@@ -113,6 +135,7 @@ def display(category, mo, stats, table, threshold):
 def _(threshold):
     # a slow thing that uses the input but isn't in the app
     import time
+
     time.sleep(0.5)
     slow_threshold = threshold.value
     slow_threshold

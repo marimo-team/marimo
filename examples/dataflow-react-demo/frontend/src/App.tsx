@@ -12,19 +12,34 @@ import {
 } from "./dataflow";
 
 export function App() {
+  // Drive autoRun from React state so the toggle in <Inputs/> reconfigures
+  // the existing client (no remount, no lost subscriptions).
+  const [autoRun, setAutoRun] = useState(true);
+  const [showSlow, setShowSlow] = useState(true);
+
   return (
-    <DataflowProvider baseUrl="/api/v1/dataflow">
-      <Page />
+    <DataflowProvider baseUrl="/api/v1/dataflow" autoRun={autoRun}>
+      <Page
+        autoRun={autoRun}
+        onToggleAutoRun={setAutoRun}
+        showSlow={showSlow}
+        onToggleSlow={setShowSlow}
+      />
     </DataflowProvider>
   );
 }
 
-function Page() {
-  // Conditional mount — flipping this off un-mounts ``<SlowThreshold />``,
-  // which releases its retain on ``slow_threshold`` and the next /run is
-  // pruned to skip the 0.5s sleep cell entirely.
-  const [showSlow, setShowSlow] = useState(true);
-
+function Page({
+  autoRun,
+  onToggleAutoRun,
+  showSlow,
+  onToggleSlow,
+}: {
+  autoRun: boolean;
+  onToggleAutoRun: (v: boolean) => void;
+  showSlow: boolean;
+  onToggleSlow: (v: boolean) => void;
+}) {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -35,8 +50,14 @@ function Page() {
       </header>
 
       <div style={styles.grid}>
-        <Inputs showSlow={showSlow} onToggleSlow={setShowSlow} />
+        <Inputs
+          autoRun={autoRun}
+          onToggleAutoRun={onToggleAutoRun}
+          showSlow={showSlow}
+          onToggleSlow={onToggleSlow}
+        />
         <Stats />
+        <NotifResult />
         {showSlow && <SlowThreshold />}
         <Histogram />
         <Table />
@@ -51,9 +72,13 @@ function Page() {
 // ---------- Inputs ----------
 
 function Inputs({
+  autoRun,
+  onToggleAutoRun,
   showSlow,
   onToggleSlow,
 }: {
+  autoRun: boolean;
+  onToggleAutoRun: (v: boolean) => void;
   showSlow: boolean;
   onToggleSlow: (v: boolean) => void;
 }) {
@@ -74,6 +99,16 @@ function Inputs({
             onChange={(e) => onToggleSlow(e.target.checked)}
           />
           Subscribe to <code>slow_threshold</code>
+        </label>
+      </div>
+      <div style={styles.inputGroup}>
+        <label style={styles.checkbox}>
+          <input
+            type="checkbox"
+            checked={autoRun}
+            onChange={(e) => onToggleAutoRun(e.target.checked)}
+          />
+          Autorun on input change (run buttons always fire)
         </label>
       </div>
       <RunMeta />
@@ -112,6 +147,17 @@ function DynamicInput({ input }: { input: InputSchema }) {
   const ui = input.constraints?.ui;
 
   const node = useMemo(() => {
+    if (ui === "run_button") {
+      return (
+        <button
+          type="button"
+          onClick={() => setValue(true)}
+          style={styles.button}
+        >
+          {input.description ?? input.name}
+        </button>
+      );
+    }
     if (ui === "slider") {
       return (
         <input
@@ -160,6 +206,9 @@ function DynamicInput({ input }: { input: InputSchema }) {
     );
   }, [ui, value, input.constraints, setValue]);
 
+  if (ui === "run_button") {
+    return <div style={styles.inputGroup}>{node}</div>;
+  }
   return (
     <div style={styles.inputGroup}>
       <label style={styles.label}>
@@ -170,6 +219,26 @@ function DynamicInput({ input }: { input: InputSchema }) {
       </label>
       {node}
     </div>
+  );
+}
+
+function NotifResult() {
+  // Subscribed to the side-effect cell's output. The cell only runs when
+  // someone clicks the Send button (gated by ``mo.stop(not send.value)``),
+  // so this stays empty until that happens.
+  const nSent = useDataflowValue<number>("n_sent");
+  return (
+    <section style={styles.card}>
+      <h2 style={styles.cardTitle}>Side-effect cell</h2>
+      <p style={styles.meta}>
+        <code>send_notifications</code> only fires when you click the Send
+        button (the <code>run_button</code> input bypasses autoRun and resets
+        to <code>false</code> after each run). Subscribed to <code>n_sent</code>:
+      </p>
+      <div style={styles.statValue}>
+        {nSent === undefined ? "—" : `Sent ${nSent}`}
+      </div>
+    </section>
   );
 }
 
@@ -355,7 +424,8 @@ function DebugRow({
   );
 }
 
-function truncate(s: string, max: number): string {
+function truncate(s: string | undefined, max: number): string {
+  if (s === undefined) return "undefined";
   return s.length <= max ? s : `${s.slice(0, max)}…`;
 }
 
@@ -400,6 +470,17 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "0.9rem",
   },
   slider: { width: "100%" },
+  button: {
+    width: "100%",
+    padding: "0.6rem 1rem",
+    borderRadius: 6,
+    border: "1px solid #4361ee",
+    background: "#4361ee",
+    color: "#fff",
+    fontSize: "0.9rem",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
   select: {
     width: "100%",
     padding: "0.5rem",
