@@ -18,6 +18,10 @@ interface UseConnectionTransportOptions {
   onError: (event: WebSocketEventMap["error"]) => void;
 }
 
+// Per-`reconnect()` retry budget for partysocket. After exhaustion, partysocket
+// stops silently; treat `retryCount >= MAX_RETRIES` as the give-up signal.
+export const MAX_RETRIES = 10;
+
 function createConnectionTransport(
   options: Pick<UseConnectionTransportOptions, "url" | "static">,
 ): IConnectionTransport {
@@ -33,8 +37,7 @@ function createConnectionTransport(
   // Cast needed: ReconnectingWebSocket types readyState as `number`
   // but IConnectionTransport expects `0 | 1 | 2 | 3`
   return new ReconnectingWebSocket(urlProvider, undefined, {
-    // We don't want Infinity retries
-    maxRetries: 10,
+    maxRetries: MAX_RETRIES,
     debug: false,
     startClosed: true,
     // long timeout -- the server can become slow when many notebooks

@@ -79,7 +79,7 @@ export const EditApp: React.FC<AppProps> = ({
     };
   }, []);
 
-  const { connection } = useMarimoKernelConnection({
+  const { connection, reconnect } = useMarimoKernelConnection({
     autoInstantiate: userConfig.runtime.auto_instantiate,
     setCells: (cells, layout) => {
       setCells(cells);
@@ -146,6 +146,7 @@ export const EditApp: React.FC<AppProps> = ({
         connection={connection}
         isRunning={isRunning}
         width={appConfig.width}
+        onReconnect={reconnect}
       >
         <AppHeader
           connection={connection}

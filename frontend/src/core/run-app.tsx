@@ -34,7 +34,7 @@ export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
     };
   }, []);
 
-  const { connection } = useMarimoKernelConnection({
+  const { connection, reconnect } = useMarimoKernelConnection({
     autoInstantiate: true,
     setCells: setCells,
     sessionId: getSessionId(),
@@ -77,6 +77,7 @@ export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
       connection={connection}
       isRunning={isRunning}
       width={appConfig.width}
+      onReconnect={reconnect}
     >
       <AppHeader connection={connection} className="sm:pt-8">
         {galleryHref && (

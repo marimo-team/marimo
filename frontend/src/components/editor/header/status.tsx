@@ -13,7 +13,8 @@ import { cn } from "@/utils/cn";
 export const StatusOverlay: React.FC<{
   connection: ConnectionStatus;
   isRunning: boolean;
-}> = ({ connection, isRunning }) => {
+  onReconnect?: () => void;
+}> = ({ connection, isRunning, onReconnect }) => {
   const { mode } = useAtomValue(viewStateAtom);
   const isClosed = connection.state === WebSocketState.CLOSED;
   const isOpen = connection.state === WebSocketState.OPEN;
@@ -28,7 +29,9 @@ export const StatusOverlay: React.FC<{
         )}
       >
         {isOpen && isRunning && <RunningIcon />}
-        {isClosed && !connection.canTakeover && <DisconnectedIcon />}
+        {isClosed && !connection.canTakeover && (
+          <DisconnectedIcon onReconnect={onReconnect} />
+        )}
         {isClosed && connection.canTakeover && <LockedIcon />}
       </div>
     </>
@@ -37,11 +40,24 @@ export const StatusOverlay: React.FC<{
 
 const topLeftStatus = "print:hidden pointer-events-auto hover:cursor-pointer";
 
-const DisconnectedIcon = () => (
-  <Tooltip content="App disconnected">
-    <div className={topLeftStatus}>
+const DisconnectedIcon: React.FC<{ onReconnect?: () => void }> = ({
+  onReconnect,
+}) => (
+  <Tooltip
+    content={
+      onReconnect ? "App disconnected — click to reconnect" : "App disconnected"
+    }
+  >
+    <button
+      type="button"
+      className={cn(topLeftStatus, "bg-transparent border-0 p-0")}
+      aria-label={onReconnect ? "Reconnect to app" : "App disconnected"}
+      data-testid="disconnected-indicator"
+      onClick={onReconnect}
+      disabled={!onReconnect}
+    >
       <UnlinkIcon className="w-[25px] h-[25px] text-(--red-11)" />
-    </div>
+    </button>
   </Tooltip>
 );
 
