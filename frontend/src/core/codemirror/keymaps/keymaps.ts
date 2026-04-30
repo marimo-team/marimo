@@ -92,6 +92,8 @@ export function keymapBundle(
 // We can add more from the default keymap if needed over time,
 // but there are currently 50+ commands in the default keymap
 const OVERRIDDEN_COMMANDS = new Set<Command | undefined>([
+  copyLineDown,
+  copyLineUp,
   toggleComment,
   toggleBlockComment,
 ]);
@@ -110,6 +112,14 @@ const overrideKeymap = (keymap: HotkeyProvider): readonly KeyBinding[] => {
     {
       key: keymap.getHotkey("cell.toggleBlockComment").key,
       run: toggleBlockComment,
+    },
+    {
+      key: keymap.getHotkey("cell.copyLineUp").key,
+      run: copyLineUp,
+    },
+    {
+      key: keymap.getHotkey("cell.copyLineDown").key,
+      run: copyLineDown,
     },
   ];
 };

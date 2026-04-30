@@ -2,7 +2,10 @@
 
 import { defaultKeymap as originalDefaultKeymap } from "@codemirror/commands";
 import { describe, expect, it } from "vitest";
-import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import {
+  HotkeyProvider,
+  OverridingHotkeyProvider,
+} from "@/core/hotkeys/hotkeys";
 import { visibleForTesting } from "../keymaps";
 
 const { defaultKeymap, defaultVimKeymap, overrideKeymap, OVERRIDDEN_COMMANDS } =
@@ -39,5 +42,19 @@ describe("keymaps", () => {
     for (const command of OVERRIDDEN_COMMANDS) {
       expect(keys.some((k) => k.run === command)).toBe(true);
     }
+  });
+
+  it("should use hotkey provider values for copy line commands", () => {
+    const copyLineUp = "Ctrl-Shift-u";
+    const copyLineDown = "Ctrl-Shift-d";
+    const keys = overrideKeymap(
+      new OverridingHotkeyProvider({
+        "cell.copyLineUp": copyLineUp,
+        "cell.copyLineDown": copyLineDown,
+      }),
+    );
+
+    expect(keys.some((k) => k.key === copyLineUp)).toBe(true);
+    expect(keys.some((k) => k.key === copyLineDown)).toBe(true);
   });
 });
