@@ -101,6 +101,52 @@ print(x)`);
     `);
   });
 
+  test("selects the nearest in-scope local definition", async () => {
+    const code = `\
+a = 10
+
+def my_func():
+    a = 20
+    print(a)`;
+    view = createEditor(code);
+    const result = goToVariableDefinition(view, "a", code.lastIndexOf("a"));
+
+    expect(result).toBe(true);
+    await tick();
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      a = 10
+
+      def my_func():
+          a = 20
+          ^
+          print(a)
+      "
+    `);
+  });
+
+  test("selects the nearest in-scope parameter definition", async () => {
+    const code = `\
+a = 10
+
+def my_func(a):
+    print(a)`;
+    view = createEditor(code);
+    const result = goToVariableDefinition(view, "a", code.lastIndexOf("a"));
+
+    expect(result).toBe(true);
+    await tick();
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      a = 10
+
+      def my_func(a):
+                  ^
+          print(a)
+      "
+    `);
+  });
+
   test("selects outer-scope function declaration", async () => {
     view = createEditor(`\
 def x():

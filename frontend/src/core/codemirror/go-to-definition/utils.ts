@@ -18,10 +18,16 @@ function getWordUnderCursor(state: EditorState) {
   const { from, to } = state.selection.main;
   if (from === to) {
     const { startToken, endToken } = getPositionAtWordBounds(state.doc, from);
-    return state.doc.sliceString(startToken, endToken);
+    return {
+      position: startToken,
+      word: state.doc.sliceString(startToken, endToken),
+    };
   }
 
-  return state.doc.sliceString(from, to);
+  return {
+    position: from,
+    word: state.doc.sliceString(from, to),
+  };
 }
 
 /**
@@ -51,15 +57,15 @@ function isPrivateVariable(variableName: string) {
  */
 export function goToDefinitionAtCursorPosition(view: EditorView): boolean {
   const { state } = view;
-  const variableName = getWordUnderCursor(state);
-  if (!variableName) {
+  const { position, word } = getWordUnderCursor(state);
+  if (!word) {
     return false;
   }
   // Close popovers/tooltips
   closeCompletion(view);
   view.dispatch({ effects: closeHoverTooltips });
 
-  return goToDefinition(view, variableName);
+  return goToDefinition(view, word, position);
 }
 
 /**
@@ -69,7 +75,19 @@ export function goToDefinitionAtCursorPosition(view: EditorView): boolean {
 export function goToDefinition(
   view: EditorView,
   variableName: string,
+  usagePosition?: number,
 ): boolean {
+  if (usagePosition !== undefined) {
+    const foundLocally = goToVariableDefinition(
+      view,
+      variableName,
+      usagePosition,
+    );
+    if (foundLocally) {
+      return true;
+    }
+  }
+
   // The variable may exist in another cell
   const editorWithVariable = getEditorForVariable(view, variableName);
   if (!editorWithVariable) {
