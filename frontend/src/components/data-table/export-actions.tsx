@@ -154,16 +154,18 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
     const downloadName = `${baseName}.${format}`;
     // Append ?download=1 so the server returns Content-Disposition: attachment.
     // This forces a save even when <a download> is ignored — e.g., inside
-    // sandboxed iframes that lack `allow-downloads`.
-    const separator = result.url.includes("?") ? "&" : "?";
-    const params = new URLSearchParams({
-      download: "1",
-      filename: downloadName,
-    });
-    downloadByURL(
-      `${result.url}${separator}${params.toString()}`,
-      downloadName,
-    );
+    // sandboxed iframes that lack `allow-downloads`. Skip for data: URLs
+    // (used in pyodide/wasm) since query params would corrupt the payload.
+    let downloadUrl = result.url;
+    if (!downloadUrl.startsWith("data:")) {
+      const separator = downloadUrl.includes("?") ? "&" : "?";
+      const params = new URLSearchParams({
+        download: "1",
+        filename: downloadName,
+      });
+      downloadUrl = `${downloadUrl}${separator}${params.toString()}`;
+    }
+    downloadByURL(downloadUrl, downloadName);
   };
 
   const handleClipboardCopy = async (
