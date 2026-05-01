@@ -48,7 +48,7 @@ You can also connect to marimo notebooks running on [molab](https://molab.marimo
 To connect an agent, start a notebook on molab and open the actions panel in the upper right corner. From this menu you need to click "Pair with an agent". 
 
 <div align="center">
-  <img src="/_static/marimo-pair-molab.png"/>
+  <img src="/_static/marimo-pair-molab.png" alt="Screenshot of a molab notebook showing the option to pair with an agent from the actions panel"/>
 </div>
 
 This will open up a menu with all the instructions to connect your local agent. You can then use your agent from the terminal as normal, but all the Python code would be written into the notebook in the molab sandbox.
