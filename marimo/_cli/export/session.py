@@ -26,8 +26,8 @@ from marimo._server.export._session_cache import (
     serialize_session_snapshot,
     write_session_snapshot,
 )
-from marimo._server.file_router import AppFileRouter
 from marimo._server.utils import asyncio_run
+from marimo._session.notebook import load_notebook
 from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils.marimo_path import MarimoPath
 
@@ -65,14 +65,7 @@ async def _export_session_snapshot(
     if venv_python is None:
         cli_args = parse_args(notebook_args) if notebook_args else {}
 
-        file_router = AppFileRouter.from_filename(marimo_path)
-        file_key = file_router.get_unique_file_key()
-        if file_key is None:
-            raise RuntimeError(
-                "Expected a unique file key when exporting a single "
-                f"notebook: {marimo_path.absolute_name}"
-            )
-        file_manager = file_router.get_file_manager(file_key)
+        file_manager = load_notebook(marimo_path.absolute_name)
 
         session_view, did_error = await run_app_until_completion(
             file_manager,
@@ -109,19 +102,15 @@ import sys
 
 from marimo._cli.parse_args import parse_args
 from marimo._server.export import run_app_until_completion
-from marimo._server.file_router import AppFileRouter
 from marimo._server.export._session_cache import serialize_session_snapshot
+from marimo._session.notebook import load_notebook
 from marimo._utils.marimo_path import MarimoPath
 
 payload = json.loads(sys.argv[1])
 path = MarimoPath(payload["path"])
 args = payload.get("args") or []
 
-file_router = AppFileRouter.from_filename(path)
-file_key = file_router.get_unique_file_key()
-if file_key is None:
-    raise RuntimeError("Expected a unique file key for session export.")
-file_manager = file_router.get_file_manager(file_key)
+file_manager = load_notebook(path.absolute_name)
 
 cli_args = parse_args(tuple(args)) if args else {}
 session_view, did_error = asyncio.run(

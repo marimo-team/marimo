@@ -758,20 +758,16 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
         # Run the notebook to get actual outputs
         click.echo(f"Running notebook {file_path.name}...")
         from marimo._server.export import run_app_until_completion
-        from marimo._server.file_router import AppFileRouter
         from marimo._server.utils import asyncio_run
+        from marimo._session.notebook import load_notebook
         from marimo._session.state.serialize import (
             serialize_notebook,
             serialize_session_view,
         )
         from marimo._utils.code import hash_code
-        from marimo._utils.marimo_path import MarimoPath
 
         # Create file manager for the notebook
-        file_router = AppFileRouter.from_filename(MarimoPath(file_path))
-        file_key = file_router.get_unique_file_key()
-        assert file_key is not None
-        file_manager = file_router.get_file_manager(file_key)
+        file_manager = load_notebook(file_path)
 
         # Run the notebook to completion and get session view
         session_view, did_error = asyncio_run(

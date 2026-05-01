@@ -90,44 +90,24 @@ class AppFileRouter(abc.ABC):
         assert key is not None, "Expected a single file"
         return self.get_file_manager(key, defaults)
 
+    @abc.abstractmethod
     def get_file_manager(
         self,
         key: MarimoFileKey,
         defaults: AppDefaults | None = None,
     ) -> AppFileManager:
-        """
-        Given a key, return an AppFileManager.
-        """
-        defaults = defaults or AppDefaults()
+        """Given a key, return an ``AppFileManager``."""
 
-        if key.startswith(AppFileRouter.NEW_FILE):
-            return AppFileManager(None, defaults=defaults)
-
-        if os.path.exists(key):
-            return AppFileManager(key, defaults=defaults)
-
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail=f"File {key} not found",
-        )
-
+    @abc.abstractmethod
     def resolve_file_path(self, key: MarimoFileKey) -> str | None:
         """Resolve a file key to an absolute file path, without loading the app.
 
-        This is useful for endpoints that need file-backed resources (e.g. thumbnails)
-        without the overhead of parsing/loading a notebook.
+        This is useful for endpoints that need file-backed resources (e.g.
+        thumbnails) without the overhead of parsing/loading a notebook.
 
-        Returns:
-            Absolute file path if resolvable, otherwise None (e.g. new file).
+        Returns the absolute file path if resolvable, otherwise ``None`` (for
+        the new-file sentinel).
         """
-        if key.startswith(AppFileRouter.NEW_FILE):
-            return None
-        if os.path.exists(key):
-            return key
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail=f"File {key} not found",
-        )
 
     @abc.abstractmethod
     def get_unique_file_key(self) -> MarimoFileKey | None:
@@ -148,6 +128,44 @@ class AppFileRouter(abc.ABC):
         Get all files in a recursive tree.
         """
 
+    # Optional capabilities — subclasses override only if they support them.
+
+    def register_allowed_file(self, filepath: str) -> None:
+        """Allow a file path that wasn't part of the original collection.
+
+        No-op by default; routers that maintain a fixed allowlist override.
+        """
+        del filepath
+
+    def register_temp_dir(self, temp_dir: str) -> None:
+        """Register a temp directory as allowed for file access.
+
+        No-op by default; only directory-backed routers override.
+        """
+        del temp_dir
+
+    def is_file_in_allowed_temp_dir(self, filepath: str) -> bool:
+        """Whether a file lives inside an allowed temp directory.
+
+        Returns ``False`` by default; only directory-backed routers override.
+        """
+        del filepath
+        return False
+
+    def mark_stale(self) -> None:  # noqa: B027 — intentional no-op default
+        """Invalidate any cached listing.
+
+        No-op by default; lazy directory routers override.
+        """
+
+    def toggle_markdown(self, include_markdown: bool) -> AppFileRouter:
+        """Return a router with markdown inclusion toggled.
+
+        No-op by default — returns ``self``. Lazy directory routers override.
+        """
+        del include_markdown
+        return self
+
 
 class NewFileAppFileRouter(AppFileRouter):
     def get_unique_file_key(self) -> MarimoFileKey | None:
@@ -159,6 +177,34 @@ class NewFileAppFileRouter(AppFileRouter):
     @property
     def files(self) -> list[FileInfo]:
         return []
+
+    def get_file_manager(
+        self,
+        key: MarimoFileKey,
+        defaults: AppDefaults | None = None,
+    ) -> AppFileManager:
+        defaults = defaults or AppDefaults()
+        if key.startswith(AppFileRouter.NEW_FILE):
+            return AppFileManager(None, defaults=defaults)
+        # Fall back to loading any existing path. This is used by callers
+        # (and tests) that bootstrap with ``new_file()`` but then create
+        # sessions for concrete files.
+        if os.path.exists(key):
+            return AppFileManager(key, defaults=defaults)
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"File {key} not found",
+        )
+
+    def resolve_file_path(self, key: MarimoFileKey) -> str | None:
+        if key.startswith(AppFileRouter.NEW_FILE):
+            return None
+        if os.path.exists(key):
+            return key
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"File {key} not found",
+        )
 
 
 class ListOfFilesAppFileRouter(AppFileRouter):

@@ -549,6 +549,17 @@ def virtual_file(
 
     chunks = read_virtual_file_chunked(filename, int(byte_length))
     mimetype, _ = mimetypes.guess_type(filename)
+    headers = {
+        "Cache-Control": "max-age=86400",
+    }
+    # When ?download=1 is set, force a save dialog. This bypasses cases
+    # where <a download> is ignored (e.g., sandboxed iframes without
+    # allow-downloads, or some Permissions-Policy configurations).
+    if request.query_params.get("download") == "1":
+        from marimo._convert.common.filename import make_download_headers
+
+        download_filename = request.query_params.get("filename") or filename
+        headers.update(make_download_headers(download_filename))
     # Do NOT set Content-Length here. StreamingResponse with an explicit
     # Content-Length causes h11 LocalProtocolError ("Too little data for
     # declared Content-Length") for large files. Omitting it lets h11 use
@@ -556,9 +567,7 @@ def virtual_file(
     return StreamingResponse(
         content=chunks,
         media_type=mimetype,
-        headers={
-            "Cache-Control": "max-age=86400",
-        },
+        headers=headers,
     )
 
 
