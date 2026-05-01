@@ -4,6 +4,8 @@ from __future__ import annotations
 import pytest
 
 from marimo._runtime.virtual_file.storage import (
+    DiskStorage,
+    FallbackStorage,
     InMemoryStorage,
     SharedMemoryStorage,
     VirtualFileStorageManager,
@@ -283,6 +285,210 @@ class TestSharedMemoryStorage:
             assert regular == chunked == data
         finally:
             storage.shutdown()
+
+
+class TestDiskStorage:
+    @pytest.fixture
+    def storage(self, tmp_path) -> DiskStorage:
+        return DiskStorage(base_dir=tmp_path)
+
+    def test_store_and_read(self, storage: DiskStorage) -> None:
+        storage.store("k", b"hello world")
+        assert storage.read("k", 11) == b"hello world"
+
+    def test_read_with_byte_length(self, storage: DiskStorage) -> None:
+        storage.store("k", b"hello world")
+        assert storage.read("k", 5) == b"hello"
+
+    def test_read_nonexistent_raises_keyerror(
+        self, storage: DiskStorage
+    ) -> None:
+        with pytest.raises(KeyError, match="Virtual file not found"):
+            storage.read("missing", 10)
+
+    def test_read_chunked(self, storage: DiskStorage) -> None:
+        data = b"a" * 100
+        storage.store("k", data)
+        chunks = list(storage.read_chunked("k", 100, chunk_size=30))
+        assert b"".join(chunks) == data
+        assert len(chunks) == 4
+
+    def test_read_chunked_with_byte_length(self, storage: DiskStorage) -> None:
+        storage.store("k", b"hello world")
+        chunks = list(storage.read_chunked("k", 5))
+        assert b"".join(chunks) == b"hello"
+
+    def test_read_chunked_nonexistent_raises_keyerror(
+        self, storage: DiskStorage
+    ) -> None:
+        with pytest.raises(KeyError, match="Virtual file not found"):
+            list(storage.read_chunked("missing", 10))
+
+    def test_remove(self, storage: DiskStorage) -> None:
+        storage.store("k", b"hi")
+        assert storage.has("k")
+        storage.remove("k")
+        assert not storage.has("k")
+
+    def test_remove_nonexistent_no_error(self, storage: DiskStorage) -> None:
+        storage.remove("missing")
+
+    def test_has(self, storage: DiskStorage) -> None:
+        assert not storage.has("k")
+        storage.store("k", b"hi")
+        assert storage.has("k")
+
+    def test_shutdown_only_removes_owned_keys(self, tmp_path) -> None:
+        # Two instances share a directory; shutdown of one must not nuke the
+        # other's files (mirrors the cross-process kernel/server scenario).
+        a = DiskStorage(base_dir=tmp_path)
+        b = DiskStorage(base_dir=tmp_path)
+        a.store("ak", b"a-data")
+        b.store("bk", b"b-data")
+        a.shutdown()
+        assert not (tmp_path / "ak").exists()
+        assert (tmp_path / "bk").exists()
+        b.shutdown()
+
+    def test_shutdown_with_keys(self, storage: DiskStorage) -> None:
+        storage.store("k1", b"d1")
+        storage.store("k2", b"d2")
+        storage.shutdown(keys=["k1"])
+        assert not storage.has("k1")
+        assert storage.has("k2")
+        assert not storage.stale  # only full shutdown sets stale
+
+    def test_shutdown_full_marks_stale(self, storage: DiskStorage) -> None:
+        assert not storage.stale
+        storage.shutdown()
+        assert storage.stale
+
+    def test_cross_process_read_via_path(self, tmp_path) -> None:
+        # A second instance pointing at the same dir can read what the first
+        # wrote — the foundation of cross-process serving.
+        writer = DiskStorage(base_dir=tmp_path)
+        writer.store("shared", b"shared bytes")
+        reader = DiskStorage(base_dir=tmp_path)
+        assert reader.read("shared", 12) == b"shared bytes"
+        writer.shutdown()
+
+
+class _RaisingStorage(InMemoryStorage):
+    """Test double: raises OSError on store, otherwise behaves normally."""
+
+    def __init__(self, errno: int = 28) -> None:
+        super().__init__()
+        self._errno = errno
+        self.store_calls = 0
+
+    def store(self, key: str, buffer: bytes) -> None:  # noqa: ARG002
+        self.store_calls += 1
+        raise OSError(self._errno, "No space left on device")
+
+
+class TestFallbackStorage:
+    def test_requires_at_least_one_backend(self) -> None:
+        with pytest.raises(ValueError, match="at least one"):
+            FallbackStorage([])
+
+    def test_uses_first_backend_when_healthy(self) -> None:
+        primary = InMemoryStorage()
+        secondary = InMemoryStorage()
+        fb = FallbackStorage([primary, secondary])
+        fb.store("k", b"data")
+        assert primary.has("k")
+        assert not secondary.has("k")
+        assert fb.read("k", 4) == b"data"
+
+    def test_falls_back_on_oserror(self) -> None:
+        primary = _RaisingStorage()
+        secondary = InMemoryStorage()
+        fb = FallbackStorage([primary, secondary])
+        fb.store("k", b"data")
+        assert primary.store_calls == 1
+        assert secondary.has("k")
+        assert fb.read("k", 4) == b"data"
+
+    def test_reraises_when_all_backends_fail(self) -> None:
+        a = _RaisingStorage(errno=28)
+        b = _RaisingStorage(errno=12)
+        fb = FallbackStorage([a, b])
+        with pytest.raises(OSError) as exc:
+            fb.store("k", b"data")
+        # Last error is propagated
+        assert exc.value.errno == 12
+
+    def test_routing_directs_reads_and_removes(self) -> None:
+        primary = _RaisingStorage()
+        secondary = InMemoryStorage()
+        fb = FallbackStorage([primary, secondary])
+        fb.store("k", b"hello")
+        assert fb.has("k")
+        assert b"".join(fb.read_chunked("k", 5, chunk_size=2)) == b"hello"
+        fb.remove("k")
+        assert not fb.has("k")
+        assert not secondary.has("k")
+
+    def test_probe_path_for_unrouted_keys(self, tmp_path) -> None:
+        # Mirrors the cross-process reader scenario: write via one instance,
+        # read via a fresh FallbackStorage that has no routing entry.
+        writer = DiskStorage(base_dir=tmp_path)
+        writer.store("shared", b"shared bytes")
+        reader = FallbackStorage(
+            [InMemoryStorage(), DiskStorage(base_dir=tmp_path)]
+        )
+        assert reader.has("shared")
+        assert reader.read("shared", 12) == b"shared bytes"
+        chunks = list(reader.read_chunked("shared", 12, chunk_size=4))
+        assert b"".join(chunks) == b"shared bytes"
+        writer.shutdown()
+
+    def test_read_missing_raises_keyerror(self) -> None:
+        fb = FallbackStorage([InMemoryStorage(), InMemoryStorage()])
+        with pytest.raises(KeyError, match="Virtual file not found"):
+            fb.read("missing", 10)
+        with pytest.raises(KeyError, match="Virtual file not found"):
+            list(fb.read_chunked("missing", 10))
+
+    def test_skips_stale_backends(self, tmp_path) -> None:
+        stale_disk = DiskStorage(base_dir=tmp_path)
+        stale_disk.shutdown()  # marks _stale = True
+        assert stale_disk.stale
+        ok = InMemoryStorage()
+        fb = FallbackStorage([stale_disk, ok])
+        fb.store("k", b"hi")
+        assert ok.has("k")
+
+    def test_shutdown_propagates_to_all_backends(self) -> None:
+        a = InMemoryStorage()
+        b = InMemoryStorage()
+        fb = FallbackStorage([a, b])
+        fb.store("k1", b"d1")
+        # Manually populate b to simulate independent state
+        b.store("k2", b"d2")
+        fb.shutdown()
+        assert not a.has("k1")
+        assert not b.has("k2")
+
+    def test_shutdown_with_keys_propagates(self) -> None:
+        a = InMemoryStorage()
+        b = InMemoryStorage()
+        fb = FallbackStorage([a, b])
+        fb.store("k1", b"d1")
+        b.store("k2", b"d2")
+        fb.shutdown(keys=["k1", "k2"])
+        assert not a.has("k1")
+        assert not b.has("k2")
+
+    def test_stale_iff_all_backends_stale(self, tmp_path) -> None:
+        a = DiskStorage(base_dir=str(tmp_path / "a"))
+        b = DiskStorage(base_dir=str(tmp_path / "b"))
+        fb = FallbackStorage([a, b])
+        assert not fb.stale
+        a.shutdown()
+        assert not fb.stale
+        b.shutdown()
+        assert fb.stale
 
 
 class TestVirtualFileStorageManager:

@@ -152,6 +152,8 @@ def create_kernel_context(
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.state import StateRegistry
     from marimo._runtime.virtual_file import (
+        DiskStorage,
+        FallbackStorage,
         InMemoryStorage,
         SharedMemoryStorage,
         VirtualFileRegistry,
@@ -163,8 +165,11 @@ def create_kernel_context(
     # Storage is chosen explicitly by the caller. None means virtual files
     # are not supported; we still construct an (inert) InMemoryStorage so
     # the registry has a backend, but ctx.virtual_files_supported is False.
+    # In EDIT mode, fall back to disk if shared memory cannot allocate
+    # (e.g., /dev/shm is full). Disk is cross-process readable, so the
+    # main-process server can still serve files via the /@file endpoint.
     storage: VirtualFileStorage = (
-        SharedMemoryStorage()
+        FallbackStorage([SharedMemoryStorage(), DiskStorage()])
         if virtual_file_storage == "shared_memory"
         else InMemoryStorage()
     )
