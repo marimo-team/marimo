@@ -5,6 +5,7 @@ import base64
 import dataclasses
 import mimetypes
 import random
+import re
 import string
 import threading
 from typing import TYPE_CHECKING, cast
@@ -31,6 +32,21 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 _ALPHABET = string.ascii_letters + string.digits
+
+# Matches the shape produced by `random_filename`:
+#   <thread_id_digits>-<8 alphanumerics>.<extension>
+# The extension is restricted to a conservative set (alphanumeric plus
+# `._-`) and capped in length so that an attacker who controls the
+# `/@file/{...:path}` URL segment cannot smuggle through control
+# characters, path separators, or a filename matching some other
+# process's POSIX shared-memory segment name.
+_VALID_VFILE_NAME = re.compile(
+    r"^[0-9]+-[A-Za-z0-9]{8}\.[A-Za-z0-9._-]{1,32}$"
+)
+
+
+def _is_valid_vfile_name(filename: str) -> bool:
+    return bool(_VALID_VFILE_NAME.fullmatch(filename))
 
 
 def random_filename(ext: str) -> str:
@@ -300,6 +316,8 @@ def _without_leading_dot(ext: str) -> str:
 
 
 def read_virtual_file(filename: str, byte_length: int) -> bytes:
+    if not _is_valid_vfile_name(filename):
+        raise HTTPException(HTTPStatus.NOT_FOUND, detail="File not found")
     try:
         return VirtualFileStorageManager().read(filename, byte_length)
     except KeyError as err:
@@ -326,6 +344,8 @@ def read_virtual_file_chunked(
     Yields chunks of bytes, avoiding holding the entire file in memory
     as a single bytes object.
     """
+    if not _is_valid_vfile_name(filename):
+        raise HTTPException(HTTPStatus.NOT_FOUND, detail="File not found")
     try:
         yield from VirtualFileStorageManager().read_chunked(
             filename, byte_length

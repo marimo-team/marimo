@@ -161,8 +161,13 @@ class SharedMemoryStorage(VirtualFileStorage):
         view = None
         try:
             shm = shared_memory.SharedMemory(name=key)
+            # Slice clamps to actual segment size; iterate over the
+            # clamped length, not the requested byte_length, so a huge
+            # byte_length from the URL doesn't trigger a long sequence
+            # of empty yields after the segment is exhausted.
             view = shm.buf[:byte_length]
-            for i in range(0, byte_length, chunk_size):
+            actual_length = len(view)
+            for i in range(0, actual_length, chunk_size):
                 yield bytes(view[i : i + chunk_size])
         except FileNotFoundError as err:
             raise KeyError(f"Virtual file not found: {key}") from err
@@ -283,6 +288,14 @@ class DiskStorage(VirtualFileStorage):
             if base_dir is not None
             else Path(tempfile.gettempdir()) / "marimo-vfs"
         )
+        # Refuse a base dir that already exists as a symlink. Defends
+        # against the classic shared-/tmp pre-creation attack where a
+        # co-tenant pre-creates `/tmp/marimo-vfs` as a symlink to
+        # somewhere they control, redirecting all our writes.
+        if self._base_dir.is_symlink():
+            raise OSError(
+                f"Refusing to use {self._base_dir}: path is a symlink"
+            )
         self._owned_keys: set[str] = set()
         self._stale = False
 
@@ -369,7 +382,12 @@ class DiskStorage(VirtualFileStorage):
             self._stale = True
 
     def has(self, key: str) -> bool:
-        return self._path(key).exists()
+        # Invalid keys never exist — return False rather than raising so
+        # FallbackStorage probing handles hostile keys gracefully.
+        try:
+            return self._path(key).exists()
+        except KeyError:
+            return False
 
 
 class FallbackStorage(VirtualFileStorage):

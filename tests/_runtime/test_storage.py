@@ -417,9 +417,10 @@ class TestDiskStorage:
         with pytest.raises(KeyError, match="Invalid virtual file key"):
             list(storage.read_chunked(key, 10))
         with pytest.raises(KeyError, match="Invalid virtual file key"):
-            storage.has(key)
-        with pytest.raises(KeyError, match="Invalid virtual file key"):
             storage.remove(key)
+        # has() is a query and must return False (not raise) so that
+        # FallbackStorage probing doesn't crash on hostile keys.
+        assert storage.has(key) is False
 
     def test_traversal_does_not_create_outside_base_dir(
         self, tmp_path
@@ -652,14 +653,129 @@ class TestKernelResilience:
         fb.shutdown(keys=["k"])
         assert not good.has("k")
 
+    def test_read_endpoint_blocks_arbitrary_shared_memory_access(
+        self,
+    ) -> None:
+        """Demonstrates the cross-process SHM read attack: an authenticated
+        client requests /@file/<size>-<arbitrary_shm_name>; without
+        filename validation, the server's cross-process fallback opens
+        that segment by name and serves its contents. With validation,
+        non-marimo-shaped filenames are rejected at the boundary.
+        """
+        from multiprocessing import shared_memory
+
+        # Simulate another process's shared memory segment.
+        name = "not_a_marimo_virtual_file_name"
+        shm = shared_memory.SharedMemory(name=name, create=True, size=64)
+        shm.buf[:6] = b"secret"
+        try:
+            manager = VirtualFileStorageManager()
+            original = manager.storage
+            manager.storage = None  # force cross-process probe path
+            try:
+                with pytest.raises(HTTPException) as exc:
+                    read_virtual_file(name, 6)
+                assert exc.value.status_code == 404
+                with pytest.raises(HTTPException) as exc:
+                    list(read_virtual_file_chunked(name, 6))
+                assert exc.value.status_code == 404
+            finally:
+                manager.storage = original
+        finally:
+            shm.close()
+            shm.unlink()
+
+    @pytest.mark.parametrize(
+        "filename",
+        [
+            "/etc/passwd",
+            "../../etc/passwd",
+            "with space.png",
+            "no-extension",
+            "..",
+            "",
+            "12345-abcdefgh.\npng",  # control char
+        ],
+    )
+    def test_read_endpoint_rejects_unmarimo_filenames(
+        self, filename: str
+    ) -> None:
+        with pytest.raises(HTTPException) as exc:
+            read_virtual_file(filename, 10)
+        assert exc.value.status_code == 404
+        with pytest.raises(HTTPException) as exc:
+            list(read_virtual_file_chunked(filename, 10))
+        assert exc.value.status_code == 404
+
+    def test_read_endpoint_accepts_marimo_filenames(self) -> None:
+        """Sanity: legitimate random_filename outputs pass validation
+        (then KeyError-out as 'not found' since nothing is stored).
+        Confirms validation isn't over-restrictive.
+        """
+        manager = VirtualFileStorageManager()
+        original = manager.storage
+        try:
+            manager.storage = InMemoryStorage()
+            with pytest.raises(HTTPException) as exc:
+                read_virtual_file("12345-AbCdEf12.png", 10)
+            assert exc.value.status_code == 404
+            assert exc.value.detail == "File not found"
+        finally:
+            manager.storage = original
+
+    def test_shared_memory_chunked_huge_byte_length_terminates(self) -> None:
+        """SharedMemoryStorage.read_chunked must bound iterations by
+        the actual segment size, not the URL-supplied byte_length.
+        Otherwise an attacker requesting /@file/<huge>-<key> causes the
+        loop to yield (huge / chunk_size) chunks — a DoS that can keep
+        a worker busy for arbitrarily long.
+
+        Note: shm segments are page-allocated, so a 2-byte store actually
+        backs onto ~one page; we just need to confirm the response stays
+        bounded near the page size, not anywhere near byte_length.
+        """
+        storage = SharedMemoryStorage()
+        try:
+            storage.store("marimo_dos_test", b"hi")
+            chunks = list(
+                storage.read_chunked(
+                    "marimo_dos_test",
+                    byte_length=10**10,
+                    chunk_size=1024,
+                )
+            )
+            total = sum(len(c) for c in chunks)
+            # A 2-byte store should never expand into megabytes of
+            # response just because the URL asked for a huge length.
+            assert total < 10**6, (
+                f"DoS regression: returned {total} bytes for a 2-byte file"
+            )
+            assert len(chunks) > 0
+            assert chunks[0].startswith(b"hi")
+        finally:
+            storage.shutdown()
+
+    def test_disk_storage_rejects_symlinked_base_dir(self, tmp_path) -> None:
+        """DiskStorage must refuse to use a base_dir that exists as
+        a symlink — defends against the classic /tmp pre-creation attack
+        where a co-tenant pre-creates `/tmp/marimo-vfs` as a symlink to
+        an attacker-controlled directory.
+        """
+        target = tmp_path / "real"
+        target.mkdir()
+        link = tmp_path / "link"
+        link.symlink_to(target)
+        with pytest.raises(OSError, match="symlink"):
+            DiskStorage(base_dir=link)
+
     def test_disk_storage_read_chunked_propagates_mid_stream_error(
         self, tmp_path
     ) -> None:
-        """Document existing behaviour: DiskStorage.read_chunked is a
-        generator — if the file disappears or an OSError occurs after the
-        first chunk has been yielded, subsequent reads raise. The HTTP
-        layer above must tolerate this; this test pins the behaviour so we
-        notice if it changes.
+        """DiskStorage.read_chunked is a generator. If the file is
+        removed mid-stream, the open fd survives (POSIX inode semantics)
+        and remaining chunks still come from the file's contents — not
+        from disk lookup of the (now-missing) name. Captures this
+        behaviour so any change is intentional.
         """
         storage = DiskStorage(base_dir=tmp_path)
         storage.store("k", b"x" * 1000)

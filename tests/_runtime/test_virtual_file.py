@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import uuid
-
 from marimo._runtime.commands import DeleteCellCommand
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
@@ -15,6 +13,7 @@ from marimo._runtime.virtual_file.virtual_file import (
     VirtualFile,
     VirtualFileLifecycleItem,
     VirtualFileRegistry,
+    random_filename,
     read_virtual_file,
 )
 from tests.conftest import ExecReqProvider, MockedKernel
@@ -346,8 +345,10 @@ def test_virtual_file_registry_shared_shared_memory_storage() -> None:
     """
     manager = VirtualFileStorageManager()
     original_storage = manager.storage
-    key1 = f"{uuid.uuid4().hex[:8]}.txt"
-    key2 = f"{uuid.uuid4().hex[:8]}.txt"
+    # Use the real filename shape (random_filename output) so the
+    # validation in read_virtual_file accepts these keys.
+    key1 = random_filename("txt")
+    key2 = random_filename("txt")
     context = type("Context", (), {"virtual_files_supported": True})()
 
     registry1 = None
