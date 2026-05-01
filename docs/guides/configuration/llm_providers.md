@@ -73,6 +73,7 @@ You can configure the following providers:
 * Mistral
 * Ollama
 * OpenAI
+* OpenCode Go
 * OpenRouter
 * Weights & Biases
 * Together AI
@@ -302,6 +303,30 @@ base_url = "https://api.inference.wandb.ai/v1/"  # Optional, this is the default
 ```
 
 See available models at the [Weights & Biases documentation](https://docs.wandb.ai/inference). Make sure to prepend `wandb/` to the model name.
+
+### OpenCode Go
+
+Access curated open coding models tested and benchmarked for coding agents through the OpenCode Go gateway.
+
+**Requirements**
+
+* Sign in at [opencode.ai/auth](https://opencode.ai/auth), subscribe to Go, and copy your API key
+* `pip install openai` or `uv add openai` (OpenCode Go is OpenAI‑compatible)
+
+**Configuration**
+
+```toml title="marimo.toml"
+[ai.models]
+# Use opencode-go/ prefix for OpenCode Go models. Examples:
+chat_model = "opencode-go/kimi-k2.6"
+edit_model = "opencode-go/qwen3.6-plus"
+
+[ai.opencode_go]
+api_key = "your-opencode-api-key"
+base_url = "https://opencode.ai/zen/go/v1/"  # Optional, this is the default
+```
+
+You can also set the `OPENCODE_API_KEY` environment variable instead of `api_key`. See available models at the [OpenCode Go documentation](https://opencode.ai/docs/go/). Make sure to prepend `opencode-go/` to the model slug.
 
 ### Local models with Ollama { #using-ollama }
 
