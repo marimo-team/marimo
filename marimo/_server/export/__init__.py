@@ -370,10 +370,7 @@ async def run_app_then_export_as_wasm(
         serialize_session_view,
     )
 
-    file_router = AppFileRouter.from_filename(path)
-    file_key = file_router.get_unique_file_key()
-    assert file_key is not None
-    file_manager = file_router.get_file_manager(file_key)
+    file_manager = load_notebook(path.absolute_name)
     file_manager.app.inline_layout_file()
 
     config = get_default_config_manager(current_path=file_manager.path)
