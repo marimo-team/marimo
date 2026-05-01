@@ -49,7 +49,7 @@ To connect an agent, open the actions panel in the upper right corner and click 
 
 <div align="center">
   <figure>
-    <img src="/_static/docs-sql-df.png"/>
+    <img src="/_static/marimo-pair-molab.png"/>
     <figcaption>Query a dataframe using SQL!</figcaption>
   </figure>
 </div>
