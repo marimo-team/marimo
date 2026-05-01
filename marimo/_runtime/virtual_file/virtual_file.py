@@ -307,6 +307,15 @@ def read_virtual_file(filename: str, byte_length: int) -> bytes:
             HTTPStatus.NOT_FOUND,
             detail="File not found",
         ) from err
+    except OSError as err:
+        # Storage backend hit an I/O error (e.g. shared memory unlinked
+        # mid-read, disk read failed). Treat as not-found from the
+        # client's perspective rather than crashing the server worker.
+        LOGGER.warning("I/O error reading virtual file %s: %s", filename, err)
+        raise HTTPException(
+            HTTPStatus.NOT_FOUND,
+            detail="File not readable",
+        ) from err
 
 
 def read_virtual_file_chunked(
@@ -325,4 +334,10 @@ def read_virtual_file_chunked(
         raise HTTPException(
             HTTPStatus.NOT_FOUND,
             detail="File not found",
+        ) from err
+    except OSError as err:
+        LOGGER.warning("I/O error reading virtual file %s: %s", filename, err)
+        raise HTTPException(
+            HTTPStatus.NOT_FOUND,
+            detail="File not readable",
         ) from err

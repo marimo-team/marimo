@@ -10,6 +10,11 @@ from marimo._runtime.virtual_file.storage import (
     SharedMemoryStorage,
     VirtualFileStorageManager,
 )
+from marimo._runtime.virtual_file.virtual_file import (
+    read_virtual_file,
+    read_virtual_file_chunked,
+)
+from marimo._utils.http import HTTPException
 
 
 class TestInMemoryStorageReadChunked:
@@ -270,6 +275,20 @@ class TestSharedMemoryStorage:
         finally:
             storage1.shutdown()
 
+    @pytest.mark.parametrize(
+        "key",
+        # Keys the OS shared-memory namespace will reject with OSError or
+        # ValueError rather than FileNotFoundError. Covers the broadened
+        # exception catch in has(): probing must return False, not crash.
+        ["", "/", "//", "with/slash", "x" * 4096],
+    )
+    def test_has_returns_false_on_invalid_keys(self, key: str) -> None:
+        storage = SharedMemoryStorage()
+        try:
+            assert storage.has(key) is False
+        finally:
+            storage.shutdown()
+
     def test_read_chunked_data_integrity(self) -> None:
         """Test that chunked read produces identical data to regular read."""
         storage = SharedMemoryStorage()
@@ -372,6 +391,47 @@ class TestDiskStorage:
         assert reader.read("shared", 12) == b"shared bytes"
         writer.shutdown()
 
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "../escape",
+            "../../etc/passwd",
+            "foo/bar",
+            "foo\\bar",
+            "..",
+            ".",
+            "",
+            "with\x00null",
+        ],
+    )
+    def test_rejects_path_traversal_keys(
+        self, storage: DiskStorage, key: str
+    ) -> None:
+        # The /@file/{...:path} HTTP route forwards raw URL segments as
+        # keys. DiskStorage must reject path-traversal keys before
+        # touching the filesystem so an attacker can't escape base_dir.
+        with pytest.raises(KeyError, match="Invalid virtual file key"):
+            storage.store(key, b"data")
+        with pytest.raises(KeyError, match="Invalid virtual file key"):
+            storage.read(key, 10)
+        with pytest.raises(KeyError, match="Invalid virtual file key"):
+            list(storage.read_chunked(key, 10))
+        with pytest.raises(KeyError, match="Invalid virtual file key"):
+            storage.has(key)
+        with pytest.raises(KeyError, match="Invalid virtual file key"):
+            storage.remove(key)
+
+    def test_traversal_does_not_create_outside_base_dir(
+        self, tmp_path
+    ) -> None:
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        base = tmp_path / "base"
+        storage = DiskStorage(base_dir=base)
+        with pytest.raises(KeyError):
+            storage.store("../outside/leak", b"secret")
+        assert not (outside / "leak").exists()
+
 
 class _RaisingStorage(InMemoryStorage):
     """Test double: raises OSError on store, otherwise behaves normally."""
@@ -417,6 +477,18 @@ class TestFallbackStorage:
             fb.store("k", b"data")
         # Last error is propagated
         assert exc.value.errno == 12
+
+    def test_raises_oserror_when_all_backends_stale(self, tmp_path) -> None:
+        # If every backend is stale, no store is attempted and last_err
+        # stays None — must raise an explicit OSError, not an
+        # AssertionError (or TypeError under `python -O`).
+        a = DiskStorage(base_dir=tmp_path / "a")
+        a.shutdown()
+        b = DiskStorage(base_dir=tmp_path / "b")
+        b.shutdown()
+        fb = FallbackStorage([a, b])
+        with pytest.raises(OSError, match="stale"):
+            fb.store("k", b"data")
 
     def test_routing_directs_reads_and_removes(self) -> None:
         primary = _RaisingStorage()
@@ -489,6 +561,117 @@ class TestFallbackStorage:
         assert not fb.stale
         b.shutdown()
         assert fb.stale
+
+
+class _FailingReadStorage(InMemoryStorage):
+    """Stores normally but raises on read — simulates a storage segment that
+    was successfully created but becomes unreadable later (corrupted shared
+    memory, disk I/O error mid-stream, etc.).
+    """
+
+    def __init__(self, exc: BaseException) -> None:
+        super().__init__()
+        self._exc = exc
+
+    def read(self, key: str, byte_length: int) -> bytes:  # noqa: ARG002
+        raise self._exc
+
+    def read_chunked(self, key, byte_length, chunk_size=...):  # type: ignore[override]  # noqa: ARG002
+        raise self._exc
+
+    def has(self, key: str) -> bool:  # noqa: ARG002
+        return True
+
+
+class _FailingShutdownStorage(InMemoryStorage):
+    """Raises on shutdown. Used to verify that one bad backend doesn't
+    block cleanup of the others.
+    """
+
+    def shutdown(self, keys=None) -> None:  # noqa: ARG002
+        raise OSError(5, "I/O error during shutdown")
+
+
+class TestKernelResilience:
+    """Failure-mode tests: confirm that storage errors don't crash the
+    kernel or the HTTP server beyond the affected request/cell.
+    """
+
+    def test_read_oserror_returns_404_not_500(self) -> None:
+        """An OSError raised during read should surface as a 404
+        HTTPException (treated as 'not found' from the client's POV) rather
+        than propagating to the server worker as a 500. Otherwise a single
+        flaky read crashes the streaming response.
+        """
+        manager = VirtualFileStorageManager()
+        original = manager.storage
+        try:
+            manager.storage = _FailingReadStorage(
+                OSError(5, "I/O error reading shared memory")
+            )
+            with pytest.raises(HTTPException) as exc:
+                read_virtual_file("any-name", 10)
+            assert exc.value.status_code == 404
+        finally:
+            manager.storage = original
+
+    def test_read_chunked_oserror_returns_404_not_500(self) -> None:
+        manager = VirtualFileStorageManager()
+        original = manager.storage
+        try:
+            manager.storage = _FailingReadStorage(
+                OSError(5, "I/O error reading shared memory")
+            )
+            with pytest.raises(HTTPException) as exc:
+                list(read_virtual_file_chunked("any-name", 10))
+            assert exc.value.status_code == 404
+        finally:
+            manager.storage = original
+
+    def test_fallback_shutdown_tolerates_per_backend_failures(self) -> None:
+        """If one backend's shutdown raises, the others must still get
+        their shutdown called. Otherwise a transient cleanup error during
+        session end leaks shared memory and disk files.
+        """
+        bad = _FailingShutdownStorage()
+        good = InMemoryStorage()
+        good.store("k", b"data")
+        fb = FallbackStorage([bad, good])
+        # Should not raise; the bad backend's failure should be logged and
+        # the good backend should still be shut down.
+        fb.shutdown()
+        assert not good.has("k"), (
+            "good backend was not shut down because bad backend raised"
+        )
+
+    def test_fallback_shutdown_with_keys_tolerates_failures(self) -> None:
+        bad = _FailingShutdownStorage()
+        good = InMemoryStorage()
+        good.store("k", b"data")
+        fb = FallbackStorage([bad, good])
+        fb.shutdown(keys=["k"])
+        assert not good.has("k")
+
+    def test_disk_storage_read_chunked_propagates_mid_stream_error(
+        self, tmp_path
+    ) -> None:
+        """Document existing behaviour: DiskStorage.read_chunked is a
+        generator — if the file disappears or an OSError occurs after the
+        first chunk has been yielded, subsequent reads raise. The HTTP
+        layer above must tolerate this; this test pins the behaviour so we
+        notice if it changes.
+        """
+        storage = DiskStorage(base_dir=tmp_path)
+        storage.store("k", b"x" * 1000)
+        gen = storage.read_chunked("k", 1000, chunk_size=100)
+        first = next(gen)
+        assert len(first) == 100
+        # Delete the file out from under the generator.
+        (tmp_path / "k").unlink()
+        # Remaining chunks should still come from the open file handle
+        # (POSIX semantics: the inode lives until the fd is closed).
+        rest = b"".join(gen)
+        assert len(first) + len(rest) == 1000
 
 
 class TestVirtualFileStorageManager:
