@@ -48,10 +48,7 @@ You can also connect to marimo notebooks running on [molab](https://molab.marimo
 To connect an agent, open the actions panel in the upper right corner and click "Pair with an agent". 
 
 <div align="center">
-  <figure>
-    <img src="/_static/marimo-pair-molab.png"/>
-    <figcaption>Query a dataframe using SQL!</figcaption>
-  </figure>
+  <img src="/_static/marimo-pair-molab.png"/>
 </div>
 
 This will open up a menu with all the instructions for your agent. From here you can use your agent from the terminal as normal, but all the Python code would be written into the notebook in the molab sandbox.
