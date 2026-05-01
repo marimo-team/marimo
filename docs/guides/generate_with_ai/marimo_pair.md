@@ -40,3 +40,18 @@ Then pair on your first notebook by pasting the following in your agent CLI:
 ```
 /marimo-pair pair with me on my_notebook.py
 ```
+
+## Sandbox with molab 
+
+You can also connect to marimo notebooks running on [molab](https://molab.marimo.io/notebooks). This gives you a free sandbox to work from and also makes it easy to share your work afterwards. 
+
+To connect an agent, open the actions panel in the upper right corner and click "Pair with an agent". 
+
+<div align="center">
+  <figure>
+    <img src="/_static/docs-sql-df.png"/>
+    <figcaption>Query a dataframe using SQL!</figcaption>
+  </figure>
+</div>
+
+This will open up a menu with all the instructions for your agent. From here you can use your agent from the terminal as normal, but all the Python code would be written into the notebook in the molab sandbox.
