@@ -317,9 +317,11 @@ def test_vfile_large_streaming(client: TestClient) -> None:
     manager.storage = storage
 
     try:
-        # ~2 MB file, similar to a large anywidget ESM bundle
+        # ~2 MB file, similar to a large anywidget ESM bundle.
+        # Filename matches the random_filename pattern enforced by
+        # read_virtual_file_chunked (digits-8 alphanumeric.ext).
         data = b"x" * (2 * 1024 * 1024)
-        filename = "test-large.js"
+        filename = "12345-AbCdEf12.js"
         storage.store(filename, data)
         byte_length = len(data)
 

@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from marimo._runtime.virtual_file.storage import (
@@ -768,14 +770,18 @@ class TestKernelResilience:
         with pytest.raises(OSError, match="symlink"):
             DiskStorage(base_dir=link)
 
-    def test_disk_storage_read_chunked_propagates_mid_stream_error(
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="POSIX inode semantics; Windows refuses to unlink open files",
+    )
+    def test_disk_storage_read_chunked_survives_mid_stream_unlink(
         self, tmp_path
     ) -> None:
-        """DiskStorage.read_chunked is a generator. If the file is
-        removed mid-stream, the open fd survives (POSIX inode semantics)
-        and remaining chunks still come from the file's contents — not
-        from disk lookup of the (now-missing) name. Captures this
-        behaviour so any change is intentional.
+        """DiskStorage.read_chunked is a generator. On POSIX, if the file
+        is removed mid-stream, the open fd survives (inode lives until
+        the fd is closed) and remaining chunks still come from the
+        file's contents. Captures this behaviour so any change is
+        intentional.
         """
         storage = DiskStorage(base_dir=tmp_path)
         storage.store("k", b"x" * 1000)

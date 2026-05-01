@@ -343,9 +343,18 @@ def read_virtual_file_chunked(
 
     Yields chunks of bytes, avoiding holding the entire file in memory
     as a single bytes object.
+
+    Validation happens here (before returning the generator) rather than
+    inside `_read_chunks` so that an invalid filename raises *before*
+    StreamingResponse starts sending headers — otherwise the framework
+    raises "Caught handled exception, but response already started".
     """
     if not _is_valid_vfile_name(filename):
         raise HTTPException(HTTPStatus.NOT_FOUND, detail="File not found")
+    return _read_chunks(filename, byte_length)
+
+
+def _read_chunks(filename: str, byte_length: int) -> Iterator[bytes]:
     try:
         yield from VirtualFileStorageManager().read_chunked(
             filename, byte_length
