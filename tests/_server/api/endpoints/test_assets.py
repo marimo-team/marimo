@@ -360,7 +360,7 @@ def test_vfile_download_query_param_sets_content_disposition(
 
     try:
         data = b'[{"a": 1}]'
-        filename = "data.json"
+        filename = "12345-xYzWaBcD.json"
         storage.store(filename, data)
         byte_length = len(data)
 
@@ -381,7 +381,7 @@ def test_vfile_download_query_param_sets_content_disposition(
         assert response.content == data
         cd = response.headers.get("content-disposition", "")
         assert cd.startswith("attachment")
-        assert "data.json" in cd
+        assert filename in cd
 
         # Custom download filename via ?filename=...
         response = client.get(

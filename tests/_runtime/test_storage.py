@@ -613,7 +613,7 @@ class TestKernelResilience:
                 OSError(5, "I/O error reading shared memory")
             )
             with pytest.raises(HTTPException) as exc:
-                read_virtual_file("any-name", 10)
+                read_virtual_file("12345-AbCdEfGh.bin", 10)
             assert exc.value.status_code == 404
         finally:
             manager.storage = original
@@ -626,7 +626,7 @@ class TestKernelResilience:
                 OSError(5, "I/O error reading shared memory")
             )
             with pytest.raises(HTTPException) as exc:
-                list(read_virtual_file_chunked("any-name", 10))
+                list(read_virtual_file_chunked("12345-AbCdEfGh.bin", 10))
             assert exc.value.status_code == 404
         finally:
             manager.storage = original
