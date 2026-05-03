@@ -62,8 +62,8 @@ const replaceVirtualFileSrc = (domNode: DOMNode): JSX.Element | undefined => {
     const src = domNode.attribs.src;
     if (src.includes("/@file/") || src.startsWith("@file/")) {
       const absoluteSrc = resolveVirtualFileUrl(src);
-      const props = { ...domNode.attribs, src: absoluteSrc };
-      return React.createElement(domNode.name, props);
+      domNode.attribs.src = absoluteSrc;
+      return undefined;
     }
   }
 };
