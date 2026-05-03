@@ -42,7 +42,7 @@ function resolveVirtualFileUrl(src: string): string {
   if (!base.pathname.endsWith("/")) {
     base.pathname += "/";
   }
-  return new URL(src.replace(/^\.\//,""), base).toString();
+  return new URL(src.replace(/^\.\//, ""), base).toString();
 }
 
 // Rewrite relative @file virtual-file URLs to absolute URLs so they resolve
@@ -123,7 +123,10 @@ const replaceValidIframes = (domNode: DOMNode) => {
         key = key.slice(1, -1);
       }
       // Rewrite relative @file URLs to absolute (same fix as replaceVirtualFileSrc)
-      if (key === "src" && (value.includes("/@file/") || value.startsWith("@file/"))) {
+      if (
+        key === "src" &&
+        (value.includes("/@file/") || value.startsWith("@file/"))
+      ) {
         value = resolveVirtualFileUrl(value);
       }
       element.setAttribute(key, value);
