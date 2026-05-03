@@ -19,6 +19,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { DocHoverTarget } from "@/core/documentation/DocHoverTarget";
 import { hasTrustedNotebookContext } from "@/core/static/export-context";
 import { Logger } from "@/utils/Logger";
+import { getRuntimeManager } from "@/core/runtime/config";
 import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
 
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
@@ -33,6 +34,39 @@ interface Options {
   alwaysSanitizeHtml?: boolean;
   additionalReplacements?: ReplacementFn[];
 }
+// Resolve a virtual file URL (./@file/... or @file/...) to an absolute URL
+// using the runtime base, ensuring a trailing slash so the notebook-ID path
+// segment is never dropped during relative resolution.
+function resolveVirtualFileUrl(src: string): string {
+  const base = getRuntimeManager().httpURL;
+  if (!base.pathname.endsWith("/")) {
+    base.pathname += "/";
+  }
+  return new URL(src.replace(/^\.\//,""), base).toString();
+}
+
+// Rewrite relative @file virtual-file URLs to absolute URLs so they resolve
+// correctly even when the page URL has no trailing slash (e.g., molab edit mode).
+// The virtual file URL is generated as "./@file/SIZE-filename" (relative). When
+// the page URL has no trailing slash (e.g., /notebooks/nb_xxx), the browser
+// resolves "./@file/..." to "/notebooks/@file/..." — dropping the notebook ID.
+// We fix this by resolving against the runtime base URL with a guaranteed
+// trailing slash, making the URL unambiguous.
+const VIRTUAL_FILE_SRC_TAGS = new Set(["img", "source", "audio", "video"]);
+const replaceVirtualFileSrc = (domNode: DOMNode): JSX.Element | undefined => {
+  if (
+    domNode instanceof Element &&
+    VIRTUAL_FILE_SRC_TAGS.has(domNode.name) &&
+    domNode.attribs?.src
+  ) {
+    const src = domNode.attribs.src;
+    if (src.includes("/@file/") || src.startsWith("@file/")) {
+      const absoluteSrc = resolveVirtualFileUrl(src);
+      const props = { ...domNode.attribs, src: absoluteSrc };
+      return React.createElement(domNode.name, props);
+    }
+  }
+};
 
 const replaceValidTags = (domNode: DOMNode) => {
   // Don't render invalid tags
@@ -87,6 +121,10 @@ const replaceValidIframes = (domNode: DOMNode) => {
       // valueless attributes (e.g. "allowfullscreen")
       if (key.startsWith('"') && key.endsWith('"')) {
         key = key.slice(1, -1);
+      }
+      // Rewrite relative @file URLs to absolute (same fix as replaceVirtualFileSrc)
+      if (key === "src" && (value.includes("/@file/") || value.startsWith("@file/"))) {
+        value = resolveVirtualFileUrl(value);
       }
       element.setAttribute(key, value);
     });
@@ -305,6 +343,7 @@ function parseHtml({
   additionalReplacements = [],
 }: Pick<Options, "html" | "additionalReplacements">) {
   const renderFunctions: ReplacementFn[] = [
+    replaceVirtualFileSrc,
     replaceValidTags,
     replaceValidIframes,
     replaceSrcScripts,

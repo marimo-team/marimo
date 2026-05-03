@@ -129,3 +129,44 @@ describe("renderHTML sanitization integration", () => {
     );
   });
 });
+
+describe("replaceVirtualFileSrc - virtual file URL rewriting", () => {
+  test("rewrites ./@file/ img src to absolute URL", () => {
+    const html = '<img src="./@file/12345-abc.png" alt="test">';
+    const { container } = render(
+      renderHTML({ html, alwaysSanitizeHtml: false }),
+    );
+    const img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    // Should be absolute, not relative
+    expect(img?.getAttribute("src")).not.toMatch(/^\.\//);
+    expect(img?.getAttribute("src")).toContain("/@file/12345-abc.png");
+  });
+
+  test("rewrites @file/ img src (no leading ./) to absolute URL", () => {
+    const html = '<img src="@file/12345-abc.png" alt="test">';
+    const { container } = render(
+      renderHTML({ html, alwaysSanitizeHtml: false }),
+    );
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("src")).toContain("/@file/12345-abc.png");
+  });
+
+  test("does not rewrite non-@file img src", () => {
+    const html = '<img src="https://example.com/image.png" alt="test">';
+    const { container } = render(
+      renderHTML({ html, alwaysSanitizeHtml: false }),
+    );
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("src")).toBe("https://example.com/image.png");
+  });
+
+  test("does not rewrite data: URL img src", () => {
+    const html = '<img src="data:image/png;base64,abc==" alt="test">';
+    const { container } = render(
+      renderHTML({ html, alwaysSanitizeHtml: false }),
+    );
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("src")).toBe("data:image/png;base64,abc==");
+  });
+});
