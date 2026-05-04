@@ -11,7 +11,7 @@ from marimo import _loggers
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
 from marimo._server.codes import WebSocketCodes
-from marimo._server.file_router import MarimoFileKey
+from marimo._server.workspace import MarimoFileKey
 from marimo._types.ids import SessionId
 
 LOGGER = _loggers.marimo_logger()
@@ -73,7 +73,7 @@ class WebSocketConnectionValidator:
         # Extract file_key
         file_key: MarimoFileKey | None = (
             self.app_state.query_params(FILE_QUERY_PARAM_KEY)
-            or self.app_state.session_manager.file_router.get_unique_file_key()
+            or self.app_state.session_manager.workspace.get_unique_file_key()
         )
 
         if file_key is None:
@@ -106,7 +106,7 @@ class WebSocketConnectionValidator:
         """
         file_key: MarimoFileKey | None = (
             self.app_state.query_params(FILE_QUERY_PARAM_KEY)
-            or self.app_state.session_manager.file_router.get_unique_file_key()
+            or self.app_state.session_manager.workspace.get_unique_file_key()
         )
 
         if file_key is None:

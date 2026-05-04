@@ -17,7 +17,7 @@ from marimo._types.ids import SessionId
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from marimo._server.file_router import MarimoFileKey
+    from marimo._server.workspace import MarimoFileKey
 
 
 class SessionResumeStrategy(Protocol):

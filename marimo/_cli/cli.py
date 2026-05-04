@@ -45,14 +45,18 @@ from marimo._cli.utils import (
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._lint import run_check
 from marimo._mcp.setup import McpType
-from marimo._server.file_router import (
-    AppFileRouter,
-    LazyListOfFilesAppFileRouter,
-    flatten_files,
-)
 from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.models.home import MarimoFile
 from marimo._server.start import start
+from marimo._server.workspace import (
+    DirectoryWorkspace,
+    EmptyWorkspace,
+    FixedFilesWorkspace,
+    NotebookWorkspace,
+    SingleFileWorkspace,
+    flatten_files,
+    infer_workspace,
+)
 from marimo._session.model import SessionMode
 from marimo._tutorials import (
     Tutorial,
@@ -580,7 +584,7 @@ def edit(
         check_for_updates(print_latest_version)
 
     start(
-        file_router=AppFileRouter.infer(name),
+        workspace=infer_workspace(name),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
@@ -735,7 +739,7 @@ def new(
         run_in_sandbox(sys.argv[1:], name=None, additional_features=["lsp"])
         return
 
-    file_router: AppFileRouter | None = None
+    workspace: NotebookWorkspace | None = None
 
     if prompt is None:
         # We support unix-style prompting, cat prompt.txt | marimo new
@@ -763,7 +767,7 @@ def new(
                 suffix=".py", mode="w", encoding="utf-8", delete=False
             ) as temp_file:
                 temp_file.write(notebook_content)
-            file_router = AppFileRouter.infer(temp_file.name)
+            workspace = infer_workspace(temp_file.name)
 
             def _cleanup() -> None:
                 try:
@@ -783,11 +787,11 @@ def new(
                 f"Failed to generate notebook: {e!s}"
             ) from e
 
-    if file_router is None:
-        file_router = AppFileRouter.new_file()
+    if workspace is None:
+        workspace = EmptyWorkspace()
 
     start(
-        file_router=file_router,
+        workspace=workspace,
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
@@ -900,12 +904,12 @@ def _collect_marimo_files(paths: list[str]) -> _CollectedRunFiles:
     return _CollectedRunFiles(files=files, root_dir=root_dir)
 
 
-def _create_run_file_router(
+def _create_run_workspace(
     validated_paths: list[str], *, watch: bool
-) -> AppFileRouter:
-    """Create the file router for `marimo run`.
+) -> NotebookWorkspace:
+    """Create the workspace for `marimo run`.
 
-    For `--watch` with a single directory, use a lazy directory router so the
+    For `--watch` with a single directory, use a directory workspace so the
     gallery index can reflect file additions/deletions on subsequent requests.
     For all other invocation shapes, preserve static snapshot behavior.
     """
@@ -914,22 +918,18 @@ def _create_run_file_router(
         and len(validated_paths) == 1
         and Path(validated_paths[0]).is_dir()
     ):
-        return LazyListOfFilesAppFileRouter(
-            validated_paths[0], include_markdown=True
-        )
+        return DirectoryWorkspace(validated_paths[0], include_markdown=True)
 
     has_directory = any(Path(path).is_dir() for path in validated_paths)
     is_multi = has_directory or len(validated_paths) > 1
     if is_multi:
         marimo_files = _collect_marimo_files(validated_paths)
-        return AppFileRouter.from_files(
+        return FixedFilesWorkspace(
             marimo_files.files,
             directory=marimo_files.root_dir,
-            allow_single_file_key=False,
-            allow_dynamic=False,
         )
 
-    return AppFileRouter.from_filename(MarimoPath(validated_paths[0]))
+    return SingleFileWorkspace.from_path(MarimoPath(validated_paths[0]))
 
 
 @main.command(
@@ -1210,10 +1210,10 @@ def run(
                 "pyzmq",
             )
 
-    file_router = _create_run_file_router(validated_paths, watch=watch)
+    workspace = _create_run_workspace(validated_paths, watch=watch)
 
     start(
-        file_router=file_router,
+        workspace=workspace,
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
@@ -1342,7 +1342,7 @@ def tutorial(
     path = create_temp_tutorial_file(name, temp_dir)
 
     start(
-        file_router=AppFileRouter.from_filename(path),
+        workspace=SingleFileWorkspace.from_path(path),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
         host=host,

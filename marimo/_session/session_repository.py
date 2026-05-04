@@ -13,7 +13,7 @@ from marimo._types.ids import ConsumerId, SessionId
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from marimo._server.file_router import MarimoFileKey
+    from marimo._server.workspace import MarimoFileKey
 
 
 class SessionRepository:
