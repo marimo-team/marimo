@@ -1,7 +1,7 @@
 click>=8.0,<9
 docutils>=0.16.0
 itsdangerous>=2.0.0
-jedi>=0.18.0
+jedi>=0.18.0,<0.20.0
 loro>=1.10.0
 markdown>=3.6,<4
 msgspec>=0.20.0
