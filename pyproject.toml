@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.23.4"
+version = "0.23.5"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments; we need a very compelling reason for each dependency added.
@@ -12,8 +12,8 @@ description = "A library for making reactive notebooks and apps"
 dependencies = [
     # For maintainable cli
     "click>=8.0,<9",
-    # code completion
-    "jedi>=0.18.0",
+    # code completion (upper bound applied temporarily for resolution)
+    "jedi>=0.18.0,<0.20.0",
     # compile markdown to html
     "markdown>=3.6,<4",
     # add features to markdown
@@ -116,6 +116,13 @@ mcp = [
     "pydantic>2",
 ]
 
+otel = [
+    "opentelemetry-api~=1.28.0",
+    "opentelemetry-sdk~=1.28.0",
+    "opentelemetry-exporter-otlp-proto-http~=1.28.0",
+    "opentelemetry-exporter-otlp-proto-grpc~=1.28.0",
+]
+
 [dependency-groups]
 dev = [
     # Typo checking
@@ -123,6 +130,8 @@ dev = [
     # For tracing debugging
     "opentelemetry-api~=1.28.0",
     "opentelemetry-sdk~=1.28.0",
+    "opentelemetry-exporter-otlp-proto-http~=1.28.0",
+    "opentelemetry-exporter-otlp-proto-grpc~=1.28.0",
     # For SQL
     "duckdb>=1.0.0",
     "sqlglot[c]>=26.8.0",
