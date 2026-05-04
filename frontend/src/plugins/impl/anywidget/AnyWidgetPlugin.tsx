@@ -11,7 +11,7 @@ import type { IPluginProps } from "@/plugins/types";
 import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
-import { MODEL_MANAGER, type Model } from "./model";
+import { getMarimoInternal, MODEL_MANAGER, type Model } from "./model";
 import type { ModelState, WidgetModelId } from "./types";
 import { BINDING_MANAGER, WIDGET_DEF_REGISTRY } from "./widget-binding";
 
@@ -178,6 +178,9 @@ async function runAnyWidgetModule<T extends AnyWidgetState>(
     const binding = BINDING_MANAGER.getOrCreate(modelId);
     const render = await binding.bind(widgetDef, model);
     await render(el, signal);
+    // Replay current model values so render listeners observe hydrated state
+    // even if backend updates arrived before listeners were attached.
+    getMarimoInternal(model).reemitState();
   } catch (error) {
     Logger.error("Error rendering anywidget", error);
     el.classList.add("text-error");
