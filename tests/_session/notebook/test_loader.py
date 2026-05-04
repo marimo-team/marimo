@@ -72,8 +72,19 @@ def test_load_notebook_loads_cells(tmp_path: Path) -> None:
     assert "x = 1" in cells[0].code
 
 
+def test_load_notebook_advances_document_version(tmp_path: Path) -> None:
+    nb = _write_notebook(tmp_path / "nb.py")
+    fm = load_notebook(nb)
+    assert fm.app.cell_manager.document.version > 0
+
+
 def test_new_notebook_returns_unbacked_manager() -> None:
     fm = new_notebook()
     assert isinstance(fm, AppFileManager)
     assert fm.path is None
     assert fm.filename is None
+
+
+def test_new_notebook_advances_document_version() -> None:
+    fm = new_notebook()
+    assert fm.app.cell_manager.document.version > 0

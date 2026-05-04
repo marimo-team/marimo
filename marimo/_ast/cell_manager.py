@@ -10,8 +10,6 @@ from typing import (
     TypeVar,
 )
 
-from msgspec.structs import replace as structs_replace
-
 from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.cell_id import CellIdGenerator
@@ -25,6 +23,7 @@ from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.parse import fixed_dedent
 from marimo._ast.pytest import process_for_pytest
+from marimo._messaging.notebook.changes import CreateCell, Transaction
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._schemas.serialization import (
     CellDef,
@@ -220,20 +219,19 @@ class CellManager:
             self._cell_id_generator.seen_ids.add(cell_id)
 
         resolved_config = config or CellConfig()
-        existing = self._document.get(cell_id)
-        if existing is not None:
-            existing.code = code
-            existing.name = name
-            existing.config = resolved_config
-        else:
-            self._document._cells.append(
-                NotebookCell(
-                    id=cell_id,
-                    code=code,
-                    name=name,
-                    config=resolved_config,
-                )
+        self._document.apply(
+            Transaction(
+                changes=(
+                    CreateCell(
+                        cell_id=cell_id,
+                        code=code,
+                        name=name,
+                        config=resolved_config,
+                    ),
+                ),
+                source="cell_manager",
             )
+        )
         self._compiled_cells[cell_id] = cell
 
     def register_ir_cell(
@@ -556,26 +554,19 @@ class CellManager:
         """
         prev_codes = prev_cell_manager.code_lookup()
         current_codes = self.code_lookup()
-        # Create mapping from new to old ids
+        # match_cell_ids_by_similarity returns {new_id: old_id};
+        # _rekey expects {old_id: new_id}.
         id_mapping = match_cell_ids_by_similarity(prev_codes, current_codes)
+        rekey = {old_id: new_id for new_id, old_id in id_mapping.items()}
 
-        # Rebuild the document and compiled-cell sidecar with rekeyed entries.
-        # structs_replace produces a fresh NotebookCell per remap rather than
-        # mutating the existing instance's id, keeping each instance's
-        # primary key stable from construction to disposal.
-        new_cells: list[NotebookCell] = []
-        new_compiled: dict[CellId_t, Cell | None] = {}
-        for new_id, old_id in id_mapping.items():
-            old_cell = self._document._find_cell(old_id)
-            new_cells.append(structs_replace(old_cell, id=new_id))
-            new_compiled[new_id] = self._compiled_cells.get(old_id)
+        self._document._rekey(rekey)
+        self._compiled_cells = {
+            rekey.get(old_id, old_id): cell
+            for old_id, cell in self._compiled_cells.items()
+        }
 
-        self._document._cells = new_cells
-        self._compiled_cells = new_compiled
-
-        # Add the new ids to the set, so we don't reuse them in the future
-        for _id in id_mapping:
-            self._cell_id_generator.seen_ids.add(_id)
+        for new_id in id_mapping:
+            self._cell_id_generator.seen_ids.add(new_id)
 
     @property
     def seen_ids(self) -> set[CellId_t]:
