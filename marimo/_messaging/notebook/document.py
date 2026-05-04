@@ -249,7 +249,18 @@ class NotebookDocument:
         Each rekeyed cell is replaced by a fresh ``NotebookCell`` so its
         primary key is stable from construction to disposal. Bumps
         ``version`` so observers see the rekey as a state change.
+
+        Raises ``ValueError`` if the rekey would produce duplicate ids.
         """
+        final_ids: set[CellId_t] = set()
+        for c in self._cells:
+            new_id = mapping.get(c.id, c.id)
+            if new_id in final_ids:
+                raise ValueError(
+                    f"Rekey would produce duplicate cell id {new_id!r}"
+                )
+            final_ids.add(new_id)
+
         self._cells = [
             structs_replace(c, id=mapping[c.id]) if c.id in mapping else c
             for c in self._cells
