@@ -120,8 +120,14 @@ def _create_model_message(
             buffers=bbuffers,
         )
     elif method == "echo_update":
-        # echo_update is for multi-client sync acknowledgment, skip it
-        return None
+        # Preserve frontend-driven trait changes for reconnect replay.
+        # anywidget/ipywidgets can emit echo_update as the synchronisation
+        # acknowledgement path; dropping it causes stale replay state.
+        return ModelUpdate(
+            state=state,
+            buffer_paths=buffer_paths,
+            buffers=bbuffers,
+        )
     else:
         LOGGER.warning("Unknown method: %s, skipping", method)
         return None
