@@ -491,3 +491,19 @@ def test_is_different_from_default():
 
     config = CellConfig(hide_code=False)
     assert not config.is_different_from_default()
+
+
+def test_cell_config_configure_dict_is_partial():
+    config = CellConfig(disabled=True, column=2)
+    config.configure({"hide_code": True})
+    assert config.hide_code is True
+    assert config.disabled is True
+    assert config.column == 2
+
+
+def test_cell_config_configure_struct_writes_all_fields():
+    config = CellConfig(disabled=True, column=2)
+    config.configure(CellConfig(hide_code=True))
+    assert config.hide_code is True
+    assert config.disabled is False
+    assert config.column is None
