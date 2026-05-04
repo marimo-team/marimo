@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import msgspec
 
 from marimo._ast.cell import CellConfig
@@ -96,6 +98,8 @@ DocumentChange = (
 # Transaction
 # ------------------------------------------------------------------
 
+TransactionSource = Literal["frontend", "kernel", "code-mode", "file-watch"]
+
 
 class Transaction(msgspec.Struct, frozen=True, rename="camel"):
     """An atomic batch of changes applied to a NotebookDocument.
@@ -106,5 +110,5 @@ class Transaction(msgspec.Struct, frozen=True, rename="camel"):
     """
 
     changes: tuple[DocumentChange, ...]
-    source: str
+    source: TransactionSource
     version: int | None = None

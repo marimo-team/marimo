@@ -18,6 +18,7 @@ from marimo._messaging.notebook.changes import (
     SetConfig,
     SetName,
     Transaction,
+    TransactionSource,
 )
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
@@ -71,7 +72,7 @@ def _document_from(app_file_manager: AppFileManager) -> NotebookDocument:
 
 
 def _serialize_tx(
-    *changes: DocumentChange, source: str = "kernel"
+    *changes: DocumentChange, source: TransactionSource = "code-mode"
 ) -> KernelMessage:
     return serialize_kernel_message(
         NotebookDocumentTransactionNotification(
