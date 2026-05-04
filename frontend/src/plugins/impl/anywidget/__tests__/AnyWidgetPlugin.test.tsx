@@ -115,4 +115,38 @@ describe("LoadedSlot", () => {
       expect(newMockWidget.render).toHaveBeenCalled();
     });
   });
+
+  it("should hydrate view state even when listener attaches late", async () => {
+    mockModel = new Model(
+      { count: 8 },
+      {
+        sendUpdate: vi.fn().mockResolvedValue(undefined),
+        sendCustomMessage: vi.fn().mockResolvedValue(undefined),
+      },
+    );
+    MODEL_MANAGER.set(modelId, mockModel);
+
+    const lateListenerWidget = {
+      initialize: vi.fn(),
+      render: vi.fn(({ model, el }) => {
+        // Simulate a widget view that starts with a local default and
+        // relies on change events for hydration.
+        el.textContent = "count is 5";
+        const onCount = () => {
+          el.textContent = `count is ${model.get("count")}`;
+        };
+        model.on("change:count", onCount);
+        return () => model.off("change:count", onCount);
+      }),
+    };
+
+    const { container } = render(
+      <LoadedSlot {...mockProps} widget={lateListenerWidget} />,
+    );
+
+    await waitFor(() => {
+      expect(lateListenerWidget.render).toHaveBeenCalled();
+      expect(container.textContent).toContain("count is 8");
+    });
+  });
 });
