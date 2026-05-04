@@ -5053,7 +5053,11 @@ components:
               propertyName: type
           type: array
         source:
-          type: string
+          enum:
+          - code-mode
+          - file-watch
+          - frontend
+          - kernel
         version:
           anyOf:
           - type: integer
