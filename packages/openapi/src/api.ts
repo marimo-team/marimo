@@ -6431,7 +6431,13 @@ export interface components {
         | components["schemas"]["SetName"]
         | components["schemas"]["SetConfig"]
       )[];
-      source: string;
+      /** @enum {unknown} */
+      source:
+        | "cell-manager"
+        | "code-mode"
+        | "file-watch"
+        | "frontend"
+        | "kernel";
       /** @default null */
       version?: number | null;
     };

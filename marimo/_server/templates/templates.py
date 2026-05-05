@@ -503,6 +503,8 @@ def wasm_notebook_template(
     code: str,
     show_code: bool,
     asset_url: str | None = None,
+    session_snapshot: NotebookSessionV1 | None = None,
+    notebook_snapshot: NotebookV1 | None = None,
 ) -> str:
     """Template for WASM notebooks."""
     import re
@@ -536,6 +538,8 @@ def wasm_notebook_template(
             version=version,
             show_app_code=show_code,
             runtime_config=None,
+            session_snapshot=session_snapshot,
+            notebook_snapshot=notebook_snapshot,
         ),
     )
 

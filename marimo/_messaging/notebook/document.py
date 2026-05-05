@@ -242,6 +242,31 @@ class NotebookDocument:
         self._cells = cells
         self._version += 1
 
+    def _rekey(self, mapping: dict[CellId_t, CellId_t]) -> None:
+        """Rekey cells by an old-id to new-id mapping, preserving order.
+
+        Cells whose id is not in ``mapping`` keep their existing id.
+        Each rekeyed cell is replaced by a fresh ``NotebookCell`` so its
+        primary key is stable from construction to disposal. Bumps
+        ``version`` so observers see the rekey as a state change.
+
+        Raises ``ValueError`` if the rekey would produce duplicate ids.
+        """
+        final_ids: set[CellId_t] = set()
+        for c in self._cells:
+            new_id = mapping.get(c.id, c.id)
+            if new_id in final_ids:
+                raise ValueError(
+                    f"Rekey would produce duplicate cell id {new_id!r}"
+                )
+            final_ids.add(new_id)
+
+        self._cells = [
+            structs_replace(c, id=mapping[c.id]) if c.id in mapping else c
+            for c in self._cells
+        ]
+        self._version += 1
+
     def _find_index(self, cell_id: CellId_t) -> int:
         for i, cell in enumerate(self._cells):
             if cell.id == cell_id:
