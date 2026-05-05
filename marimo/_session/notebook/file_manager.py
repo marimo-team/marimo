@@ -122,7 +122,11 @@ class AppFileManager:
             AppFileManager instance
         """
         manager = AppFileManager(None)
-        manager._filename = _maybe_path(filename)
+        # Snapshot to an absolute path at assignment time so a later
+        # ``chdir`` cannot change which file ``self.path`` resolves to.
+        manager.filename = (
+            os.path.abspath(str(filename)) if filename is not None else None
+        )
         manager.app = app
         return manager
 

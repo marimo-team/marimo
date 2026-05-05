@@ -59,3 +59,29 @@ class TestAppFileManagerFilenames:
             file_manager.rename(str(target_path))
 
         assert "already exists" in str(exc_info.value.detail)
+
+    def test_from_app_snapshots_relative_filename_to_absolute(
+        self, tmp_path: Path
+    ) -> None:
+        # ``AppFileManager.from_app(..., filename=...)`` must snapshot a
+        # relative ``filename`` to an absolute path at call time so a
+        # later ``chdir`` cannot shift which file ``self.path`` resolves
+        # to (which is what ``AppMetadata.filename`` / ``__file__`` are
+        # built from).
+        import os
+
+        from marimo._ast.app import App, InternalApp
+
+        nb_dir = tmp_path / "notebooks"
+        nb_dir.mkdir()
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(nb_dir)
+            manager = AppFileManager.from_app(
+                InternalApp(App()), filename="nb.py"
+            )
+            expected = str(nb_dir / "nb.py")
+            os.chdir(tmp_path)
+            assert manager.path == expected
+        finally:
+            os.chdir(original_cwd)
