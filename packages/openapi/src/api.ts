@@ -6432,7 +6432,12 @@ export interface components {
         | components["schemas"]["SetConfig"]
       )[];
       /** @enum {unknown} */
-      source: "code-mode" | "file-watch" | "frontend" | "kernel";
+      source:
+        | "cell_manager"
+        | "code-mode"
+        | "file-watch"
+        | "frontend"
+        | "kernel";
       /** @default null */
       version?: number | null;
     };
