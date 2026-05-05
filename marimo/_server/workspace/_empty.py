@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from marimo._server.workspace._base import (
@@ -12,6 +13,7 @@ from marimo._server.workspace._base import (
     NotebookWorkspace,
     file_not_found,
 )
+from marimo._utils.paths import normalize_path
 
 if TYPE_CHECKING:
     from marimo._server.models.files import FileInfo
@@ -41,5 +43,8 @@ class EmptyWorkspace(NotebookWorkspace):
         if key.startswith(NEW_FILE):
             return None
         if os.path.exists(key):
-            return key
+            # Match sibling workspaces: return an absolute normalized path so
+            # downstream comparisons (e.g. session lookups) don't trip on
+            # relative-vs-absolute mismatches.
+            return str(normalize_path(Path(key)))
         raise file_not_found(key)

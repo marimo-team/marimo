@@ -332,6 +332,23 @@ class TestNotebookWorkspace(unittest.TestCase):
             workspace.load("/this/path/does/not/exist.py")
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
+    def test_empty_workspace_resolve_returns_absolute_normalized(self):
+        """``resolve`` must return an absolute, normalized path so downstream
+        lookups (session keys, comparisons) don't mismatch between relative
+        and absolute spellings of the same file.
+        """
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(self.test_dir)
+            relative_key = os.path.basename(self.test_file1.name)
+            workspace = EmptyWorkspace()
+            resolved = workspace.resolve(relative_key)
+            assert resolved is not None
+            assert os.path.isabs(resolved)
+            assert os.path.samefile(resolved, self.test_file1.name)
+        finally:
+            os.chdir(original_cwd)
+
     def test_empty_workspace_load_with_existing_path_falls_back(self):
         """``marimo new`` boots an EmptyWorkspace; opening a recent file must
         still work via the unconditional existence fallback.
