@@ -152,12 +152,12 @@ class _DataclassParser:
                     f"Value '{value}' does not fit any type of the literal"
                 )
             return value  # type: ignore[no-any-return]
-        elif type(cls) is type(Enum) and issubclass(cls, Enum):
+        elif isinstance(cls, type) and issubclass(cls, Enum):
             return cls(value)  # type: ignore[return-value]
         elif dataclasses.is_dataclass(cls):
             return self.build_dataclass(value, cls)  # type: ignore[return-value]
 
-        if issubclass(cls, msgspec.Struct):
+        if isinstance(cls, type) and issubclass(cls, msgspec.Struct):
             return _parse_msgspec(
                 value, strict=not self.allow_unknown_keys, cls=cls
             )  # type: ignore[return-value]

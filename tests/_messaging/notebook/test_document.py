@@ -435,6 +435,47 @@ class TestVersion:
         # pre-rebuild state for comparison.
         assert doc._cells is new_cells
 
+    def test_rekey_bumps_version(self) -> None:
+        doc = _doc("a", "b")
+        starting = doc.version
+        doc._rekey({CellId_t("a"): CellId_t("x")})
+        assert doc.version == starting + 1
+        assert _ids(doc) == ["x", "b"]
+
+
+class TestRekey:
+    def test_renames_mapped_cells(self) -> None:
+        doc = _doc("a", "b", "c")
+        doc._rekey(
+            {CellId_t("a"): CellId_t("x"), CellId_t("c"): CellId_t("z")}
+        )
+        assert _ids(doc) == ["x", "b", "z"]
+
+    def test_preserves_unmapped_cells(self) -> None:
+        doc = _doc("a", "b")
+        doc._rekey({CellId_t("a"): CellId_t("x")})
+        assert _ids(doc) == ["x", "b"]
+
+    def test_rejects_duplicate_target_ids(self) -> None:
+        doc = _doc("a", "b")
+        with pytest.raises(ValueError, match="duplicate"):
+            doc._rekey(
+                {CellId_t("a"): CellId_t("x"), CellId_t("b"): CellId_t("x")}
+            )
+
+    def test_rejects_target_colliding_with_unmapped(self) -> None:
+        doc = _doc("a", "b")
+        with pytest.raises(ValueError, match="duplicate"):
+            doc._rekey({CellId_t("a"): CellId_t("b")})
+
+    def test_failed_validation_does_not_mutate(self) -> None:
+        doc = _doc("a", "b")
+        starting = doc.version
+        with pytest.raises(ValueError):
+            doc._rekey({CellId_t("a"): CellId_t("b")})
+        assert _ids(doc) == ["a", "b"]
+        assert doc.version == starting
+
 
 # ------------------------------------------------------------------
 # Combined ops

@@ -18,6 +18,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._cli.print import red
+from marimo._messaging.notebook.changes import TransactionSource
 from marimo._messaging.notebook.document import NotebookCell
 from marimo._messaging.notification import (
     AlertNotification,
@@ -260,7 +261,7 @@ class NotificationListenerExtension(SessionExtension):
         consider a middleware chain instead of inline dispatch.
         """
         notif: KernelMessage | NotificationMessage = msg
-        kernel_transaction_applied = False
+        applied_source: TransactionSource | None = None
 
         name = try_deserialize_kernel_notification_name(msg)
         if name == NotebookDocumentTransactionNotification.name:
@@ -273,7 +274,7 @@ class NotificationListenerExtension(SessionExtension):
                 notif = NotebookDocumentTransactionNotification(
                     transaction=applied
                 )
-                kernel_transaction_applied = applied.source == "kernel"
+                applied_source = applied.source
             except Exception:
                 LOGGER.warning(
                     "Failed to decode/apply kernel document transaction"
@@ -281,16 +282,23 @@ class NotificationListenerExtension(SessionExtension):
 
         session.notify(notif, from_consumer_id=None)
 
-        if kernel_transaction_applied:
-            self._maybe_autosave(session)
+        if applied_source is not None:
+            self._maybe_autosave(session, applied_source)
 
-    def _maybe_autosave(self, session: Session) -> None:
-        """Best-effort persistence of kernel-driven mutations to disk.
+    def _maybe_autosave(
+        self, session: Session, source: TransactionSource
+    ) -> None:
+        """Best-effort persistence of code-mode mutations to disk.
 
+        Only ``source="code-mode"`` transactions persist; ``"kernel"``
+        bookkeeping (e.g. instantiation cell-order broadcasts) is skipped
+        so opening or running a notebook never rewrites it on disk.
         Skipped in run mode and for unnamed notebooks. Failures surface as
         an ``AlertNotification`` toast; they never raise out of the
         interceptor.
         """
+        if source != "code-mode":
+            return
         if self.kernel_manager.mode != SessionMode.EDIT:
             return
 
