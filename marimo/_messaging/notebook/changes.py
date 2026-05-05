@@ -98,7 +98,9 @@ DocumentChange = (
 # Transaction
 # ------------------------------------------------------------------
 
-TransactionSource = Literal["frontend", "kernel", "code-mode", "file-watch"]
+TransactionSource = Literal[
+    "frontend", "kernel", "code-mode", "file-watch", "cell_manager"
+]
 
 
 class Transaction(msgspec.Struct, frozen=True, rename="camel"):
