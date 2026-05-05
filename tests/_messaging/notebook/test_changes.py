@@ -49,7 +49,12 @@ class TestChangesFrozen:
             op.name = "bar"  # type: ignore[misc]
 
     def test_set_config_frozen(self) -> None:
-        op = SetConfig(cell_id=CellId_t("a"), hide_code=True)
+        op = SetConfig(
+            cell_id=CellId_t("a"),
+            column=None,
+            disabled=False,
+            hide_code=True,
+        )
         with pytest.raises(AttributeError):
             op.hide_code = False  # type: ignore[misc]
 

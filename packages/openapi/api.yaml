@@ -4454,7 +4454,7 @@ components:
       title: SetCode
       type: object
     SetConfig:
-      description: Partially update a cell's config. None fields are unchanged.
+      description: Replace a cell's config.
       properties:
         cellId:
           $ref: '#/components/schemas/CellId'
@@ -4462,23 +4462,19 @@ components:
           anyOf:
           - type: integer
           - type: 'null'
-          default: null
         disabled:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          default: null
+          type: boolean
         hideCode:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          default: null
+          type: boolean
         type:
           enum:
           - set-config
       required:
       - type
       - cellId
+      - column
+      - disabled
+      - hideCode
       title: SetConfig
       type: object
     SetName:

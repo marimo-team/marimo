@@ -211,15 +211,9 @@ class NotebookDocument:
         elif isinstance(change, SetConfig):
             cell = self._find_cell(change.cell_id)
             cell.config = CellConfig(
-                column=change.column
-                if change.column is not None
-                else cell.config.column,
-                disabled=change.disabled
-                if change.disabled is not None
-                else cell.config.disabled,
-                hide_code=change.hide_code
-                if change.hide_code is not None
-                else cell.config.hide_code,
+                column=change.column,
+                disabled=change.disabled,
+                hide_code=change.hide_code,
             )
         else:
             assert_never(change)

@@ -76,12 +76,12 @@ class SetName(msgspec.Struct, frozen=True, tag="set-name", rename="camel"):
 
 
 class SetConfig(msgspec.Struct, frozen=True, tag="set-config", rename="camel"):
-    """Partially update a cell's config. None fields are unchanged."""
+    """Replace a cell's config."""
 
     cell_id: CellId_t
-    column: int | None = None
-    disabled: bool | None = None
-    hide_code: bool | None = None
+    column: int | None
+    disabled: bool
+    hide_code: bool
 
 
 DocumentChange = (

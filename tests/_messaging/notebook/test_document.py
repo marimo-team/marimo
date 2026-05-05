@@ -277,54 +277,85 @@ class TestSetName:
 
 
 class TestSetConfig:
-    def test_partial_hide_code(self) -> None:
-        doc = _doc("a")
-        doc.apply(_tx(SetConfig(cell_id=CellId_t("a"), hide_code=True)))
-        cfg = doc.get_cell(CellId_t("a")).config
-        assert cfg.hide_code is True
-        assert cfg.disabled is False  # unchanged default
-
-    def test_partial_disabled(self) -> None:
-        doc = _doc("a")
-        doc.apply(_tx(SetConfig(cell_id=CellId_t("a"), disabled=True)))
-        cfg = doc.get_cell(CellId_t("a")).config
-        assert cfg.disabled is True
-        assert cfg.hide_code is False  # unchanged default
-
-    def test_multiple_fields(self) -> None:
+    def test_sets_hide_code(self) -> None:
         doc = _doc("a")
         doc.apply(
             _tx(
-                SetConfig(cell_id=CellId_t("a"), hide_code=True, disabled=True)
+                SetConfig(
+                    cell_id=CellId_t("a"),
+                    column=None,
+                    disabled=False,
+                    hide_code=True,
+                )
             )
         )
         cfg = doc.get_cell(CellId_t("a")).config
-        assert cfg.hide_code is True
-        assert cfg.disabled is True
+        assert cfg == CellConfig(column=None, disabled=False, hide_code=True)
 
-    def test_all_none_is_noop(self) -> None:
+    def test_sets_disabled(self) -> None:
         doc = _doc("a")
-        doc.apply(_tx(SetConfig(cell_id=CellId_t("a"))))
+        doc.apply(
+            _tx(
+                SetConfig(
+                    cell_id=CellId_t("a"),
+                    column=None,
+                    disabled=True,
+                    hide_code=False,
+                )
+            )
+        )
         cfg = doc.get_cell(CellId_t("a")).config
-        assert cfg == CellConfig()
+        assert cfg == CellConfig(column=None, disabled=True, hide_code=False)
 
-    def test_preserves_existing(self) -> None:
-        """Setting one field preserves other non-default fields."""
+    def test_replaces_existing(self) -> None:
+        # SetConfig is a full replacement: prior fields are overwritten,
+        # not merged. This is what makes ``column=None`` a meaningful reset
+        # rather than a sentinel for "leave unchanged".
         doc = NotebookDocument(
             [
                 NotebookCell(
                     id=CellId_t("a"),
                     code="",
                     name="__",
-                    config=CellConfig(hide_code=True, column=2),
+                    config=CellConfig(column=2, disabled=True, hide_code=True),
                 )
             ]
         )
-        doc.apply(_tx(SetConfig(cell_id=CellId_t("a"), disabled=True)))
+        doc.apply(
+            _tx(
+                SetConfig(
+                    cell_id=CellId_t("a"),
+                    column=0,
+                    disabled=False,
+                    hide_code=False,
+                )
+            )
+        )
         cfg = doc.get_cell(CellId_t("a")).config
-        assert cfg.disabled is True
-        assert cfg.hide_code is True  # preserved
-        assert cfg.column == 2  # preserved
+        assert cfg == CellConfig(column=0, disabled=False, hide_code=False)
+
+    def test_column_reset_to_none(self) -> None:
+        doc = NotebookDocument(
+            [
+                NotebookCell(
+                    id=CellId_t("a"),
+                    code="",
+                    name="__",
+                    config=CellConfig(column=1),
+                )
+            ]
+        )
+        doc.apply(
+            _tx(
+                SetConfig(
+                    cell_id=CellId_t("a"),
+                    column=None,
+                    disabled=False,
+                    hide_code=False,
+                )
+            )
+        )
+        assert doc.get_cell(CellId_t("a")).config.column is None
 
 
 # ------------------------------------------------------------------

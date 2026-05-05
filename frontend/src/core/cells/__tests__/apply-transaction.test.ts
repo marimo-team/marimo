@@ -469,10 +469,10 @@ describe("applyTransactionChanges column rebuild", () => {
     const [a, b, c, d] = state.cellIds.inOrderIds;
     apply([
       { type: "reorder-cells", cellIds: [a, b, c, d] },
-      { type: "set-config", cellId: a, column: 0 },
-      { type: "set-config", cellId: b, column: 1 },
-      { type: "set-config", cellId: c, column: 0 },
-      { type: "set-config", cellId: d, column: 1 },
+      { type: "set-config", cellId: a, column: 0, disabled: false, hideCode: false },
+      { type: "set-config", cellId: b, column: 1, disabled: false, hideCode: false },
+      { type: "set-config", cellId: c, column: 0, disabled: false, hideCode: false },
+      { type: "set-config", cellId: d, column: 1, disabled: false, hideCode: false },
     ]);
     // a and c in col0; b and d in col1. Order within each column follows
     // the reorder-cells order.
@@ -487,7 +487,7 @@ describe("applyTransactionChanges column rebuild", () => {
   it("set-config without reorder-cells moves the cell to the new column", () => {
     setup("a", "b", "c");
     const [, b] = state.cellIds.inOrderIds;
-    apply([{ type: "set-config", cellId: b, column: 1 }]);
+    apply([{ type: "set-config", cellId: b, column: 1, disabled: false, hideCode: false }]);
     // Without reorder-cells, the flat order comes from the current tree.
     // b gets explicit col=1; a and c stay with default null → follow the
     // previous cell's column (a → col0 because prev=0; c → col1 because
@@ -503,7 +503,15 @@ describe("applyTransactionChanges column rebuild", () => {
   it("no column change: set-config only touching other fields does not repartition", () => {
     setup("a", "b", "c");
     const [, b] = state.cellIds.inOrderIds;
-    apply([{ type: "set-config", cellId: b, hideCode: true }]);
+    apply([
+      {
+        type: "set-config",
+        cellId: b,
+        column: null,
+        disabled: false,
+        hideCode: true,
+      },
+    ]);
     // All three cells remain in a single column. No rebuild triggered.
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
       "
@@ -525,8 +533,8 @@ describe("applyTransactionChanges column rebuild", () => {
     const [a, b] = state.cellIds.inOrderIds;
     apply([
       { type: "reorder-cells", cellIds: [a, b] },
-      { type: "set-config", cellId: a, column: 0 },
-      { type: "set-config", cellId: b, column: 1 },
+      { type: "set-config", cellId: a, column: 0, disabled: false, hideCode: false },
+      { type: "set-config", cellId: b, column: 1, disabled: false, hideCode: false },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
       "
@@ -550,8 +558,8 @@ describe("applyTransactionChanges column rebuild", () => {
     const [a, b, c, d] = state.cellIds.inOrderIds;
     apply([
       { type: "reorder-cells", cellIds: [a, b, c, d] },
-      { type: "set-config", cellId: a, column: 0 },
-      { type: "set-config", cellId: c, column: 1 },
+      { type: "set-config", cellId: a, column: 0, disabled: false, hideCode: false },
+      { type: "set-config", cellId: c, column: 1, disabled: false, hideCode: false },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
       "
@@ -562,8 +570,8 @@ describe("applyTransactionChanges column rebuild", () => {
     // Now merge everything back to col 0.
     apply([
       { type: "reorder-cells", cellIds: [a, b, c, d] },
-      { type: "set-config", cellId: c, column: 0 },
-      { type: "set-config", cellId: d, column: 0 },
+      { type: "set-config", cellId: c, column: 0, disabled: false, hideCode: false },
+      { type: "set-config", cellId: d, column: 0, disabled: false, hideCode: false },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
       "
@@ -609,8 +617,8 @@ describe("applyTransactionChanges column rebuild", () => {
       { type: "reorder-cells", cellIds: [a, b, c] },
       { type: "set-code", cellId: a, code: "x = 1" },
       { type: "set-name", cellId: b, name: "middle" },
-      { type: "set-config", cellId: a, column: 0 },
-      { type: "set-config", cellId: b, column: 1 },
+      { type: "set-config", cellId: a, column: 0, disabled: false, hideCode: false },
+      { type: "set-config", cellId: b, column: 1, disabled: false, hideCode: false },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
       "
@@ -658,8 +666,8 @@ describe("applyTransactionChanges column rebuild", () => {
     // Split into two columns. Only a and c are anchors.
     apply([
       { type: "reorder-cells", cellIds: [a, b, c, d] },
-      { type: "set-config", cellId: a, column: 0 },
-      { type: "set-config", cellId: c, column: 1 },
+      { type: "set-config", cellId: a, column: 0, disabled: false, hideCode: false },
+      { type: "set-config", cellId: c, column: 1, disabled: false, hideCode: false },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
       "
@@ -670,7 +678,7 @@ describe("applyTransactionChanges column rebuild", () => {
     // Move the c anchor to col 0. d has no explicit column so it follows c.
     apply([
       { type: "reorder-cells", cellIds: [a, b, c, d] },
-      { type: "set-config", cellId: c, column: 0 },
+      { type: "set-config", cellId: c, column: 0, disabled: false, hideCode: false },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
       "
@@ -686,9 +694,9 @@ describe("applyTransactionChanges column rebuild", () => {
     const [a, b, c, d] = state.cellIds.inOrderIds;
     apply([
       { type: "reorder-cells", cellIds: [a, b, c, d] },
-      { type: "set-config", cellId: a, column: 0 },
-      { type: "set-config", cellId: c, column: 1 },
-      { type: "set-config", cellId: d, column: 1 },
+      { type: "set-config", cellId: a, column: 0, disabled: false, hideCode: false },
+      { type: "set-config", cellId: c, column: 1, disabled: false, hideCode: false },
+      { type: "set-config", cellId: d, column: 1, disabled: false, hideCode: false },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
       "
@@ -700,7 +708,7 @@ describe("applyTransactionChanges column rebuild", () => {
     // does NOT follow c.
     apply([
       { type: "reorder-cells", cellIds: [a, b, c, d] },
-      { type: "set-config", cellId: c, column: 0 },
+      { type: "set-config", cellId: c, column: 0, disabled: false, hideCode: false },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
       "
@@ -719,8 +727,8 @@ describe("applyTransactionChanges column rebuild", () => {
     const [a, b, c, d] = state.cellIds.inOrderIds;
     apply([
       // set-config appears FIRST in the transaction.
-      { type: "set-config", cellId: a, column: 0 },
-      { type: "set-config", cellId: c, column: 1 },
+      { type: "set-config", cellId: a, column: 0, disabled: false, hideCode: false },
+      { type: "set-config", cellId: c, column: 1, disabled: false, hideCode: false },
       // reorder-cells comes afterwards.
       { type: "reorder-cells", cellIds: [a, b, c, d] },
     ]);
@@ -741,9 +749,9 @@ describe("applyTransactionChanges column rebuild", () => {
     setup("a", "b", "c", "d");
     const [a, b, c, d] = state.cellIds.inOrderIds;
     apply([
-      { type: "set-config", cellId: a, column: 0 },
+      { type: "set-config", cellId: a, column: 0, disabled: false, hideCode: false },
       { type: "set-code", cellId: a, code: "x = 1" },
-      { type: "set-config", cellId: c, column: 1 },
+      { type: "set-config", cellId: c, column: 1, disabled: false, hideCode: false },
       { type: "reorder-cells", cellIds: [a, b, c, d] },
       { type: "set-name", cellId: d, name: "last" },
     ]);
@@ -769,8 +777,8 @@ describe("applyTransactionChanges column rebuild", () => {
     const [a, b, c, d] = state.cellIds.inOrderIds;
     apply([
       { type: "reorder-cells", cellIds: [a, b, c, d] },
-      { type: "set-config", cellId: a, column: 0 },
-      { type: "set-config", cellId: c, column: 1 },
+      { type: "set-config", cellId: a, column: 0, disabled: false, hideCode: false },
+      { type: "set-config", cellId: c, column: 1, disabled: false, hideCode: false },
     ]);
     expect(prettyColumns(state)).toMatchInlineSnapshot(`
       "

@@ -6056,16 +6056,13 @@ export interface components {
     };
     /**
      * SetConfig
-     * @description Partially update a cell's config. None fields are unchanged.
+     * @description Replace a cell's config.
      */
     SetConfig: {
       cellId: components["schemas"]["CellId"];
-      /** @default null */
-      column?: number | null;
-      /** @default null */
-      disabled?: boolean | null;
-      /** @default null */
-      hideCode?: boolean | null;
+      column: number | null;
+      disabled: boolean;
+      hideCode: boolean;
       /** @enum {unknown} */
       type: "set-config";
     };
