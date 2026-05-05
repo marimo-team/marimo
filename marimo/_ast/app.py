@@ -185,7 +185,7 @@ class _SetupContext:
                 changes=(
                     SetConfig(cell_id=cm.setup_cell_id, hide_code=hide_code),
                 ),
-                source="cell_manager",
+                source="cell-manager",
             )
         )
         self._cell._cell.configure({"hide_code": hide_code})

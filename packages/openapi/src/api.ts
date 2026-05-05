@@ -6433,7 +6433,7 @@ export interface components {
       )[];
       /** @enum {unknown} */
       source:
-        | "cell_manager"
+        | "cell-manager"
         | "code-mode"
         | "file-watch"
         | "frontend"

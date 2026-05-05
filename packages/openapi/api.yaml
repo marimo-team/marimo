@@ -5054,7 +5054,7 @@ components:
           type: array
         source:
           enum:
-          - cell_manager
+          - cell-manager
           - code-mode
           - file-watch
           - frontend
