@@ -174,7 +174,14 @@ class TestKernelSourcedAutoSave:
     ) -> None:
         ext._on_kernel_message(
             session,
-            _serialize_tx(SetConfig(cell_id=existing_cell_id, hide_code=True)),
+            _serialize_tx(
+                SetConfig(
+                    cell_id=existing_cell_id,
+                    column=None,
+                    disabled=False,
+                    hide_code=True,
+                )
+            ),
         )
         contents = notebook_path.read_text()
         assert "hide_code=True" in contents or "hide_code: true" in contents

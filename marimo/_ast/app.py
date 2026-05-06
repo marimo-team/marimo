@@ -180,10 +180,16 @@ class _SetupContext:
         place rather than re-registering.
         """
         cm = self._app._cell_manager
+        existing_cfg = cm.document.get_cell(cm.setup_cell_id).config
         cm.document.apply(
             Transaction(
                 changes=(
-                    SetConfig(cell_id=cm.setup_cell_id, hide_code=hide_code),
+                    SetConfig(
+                        cell_id=cm.setup_cell_id,
+                        column=existing_cfg.column,
+                        disabled=existing_cfg.disabled,
+                        hide_code=hide_code,
+                    ),
                 ),
                 source="cell-manager",
             )
