@@ -83,14 +83,14 @@ If you prefer a slideshow-like experience, you can use the slides layout. Enable
 <video muted controls loop playsinline width="100%" src="/_static/docs-slides-view.mp4" aria-label="Video showing the slides layout editor">
 </video>
 
-Features
+#### Features
 
 - A slide minimap on the left where you can drag and drop slides to rearrange them.
 - A config sidebar on the right where you can configure the type of each slide.
 - Edit code and run cells by clicking the Code toggle or using the keyboard shortcut `C`.
 - Powered by [reveal.js](https://revealjs.com/), so you can use most of its features like keyboard shortcuts, navigation, etc.
 
-Couple of things to note
+#### Notes
 
 - The order of the slides is determined by the order of the cells in the notebook.
 - For PDF export, use `marimo export pdf notebook.py --as=slides --raster-server=live` for slide-style output with better capture compatibility.
