@@ -80,7 +80,7 @@ Enable the grid editor in the app preview, via a dropdown:
 
 If you prefer a slideshow-like experience, you can use the slides layout. Enable the slides layout in the app preview, via the same dropdown as above.
 
-<video muted controls loop playsinline width="100%" align="center" src="/_static/docs-slides-view.mp4" alt="Video showing the slides layout editor">
+<video muted controls loop playsinline width="100%" src="/_static/docs-slides-view.mp4" aria-label="Video showing the slides layout editor">
 </video>
 
 Features
