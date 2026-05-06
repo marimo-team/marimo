@@ -88,7 +88,7 @@ Features
 - A slide minimap on the left where you can drag and drop slides to rearrange them.
 - A config sidebar on the right where you can configure the type of each slide.
 - Edit code and run cells by clicking the Code toggle or using the keyboard shortcut `C`.
-- Powered by [reveal.js](https://revealjs.com/), so you can use most of it's features like keyboard shortcuts, navigation, etc.
+- Powered by [reveal.js](https://revealjs.com/), so you can use most of its features like keyboard shortcuts, navigation, etc.
 
 Couple of things to note
 
