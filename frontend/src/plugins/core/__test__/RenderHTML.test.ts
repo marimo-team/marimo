@@ -83,13 +83,13 @@ describe("parseHtml", () => {
     expect(result.key).toBeNull();
   });
 
-  test("img with data: URI uses bounded hashed key", () => {
+  test("img with data: URI is not keyed (inline, no network fetch)", () => {
     const longPayload = "A".repeat(10_000);
     const html = `<img src="data:image/png;base64,${longPayload}">`;
     const result = parseHtml({ html }) as React.ReactElement;
-    // Key should not embed the full payload; format: data:<hash>-<index>
-    expect(result.key).toMatch(/^data:[0-9a-z]+-0$/);
-    expect(result.key!.length).toBeLessThan(50);
+    // No remount-on-src needed for inline images, so we leave the key
+    // unset rather than bloat it with the base64 payload.
+    expect(result.key).toBeNull();
   });
 
   test("img wrapped by data-tooltip is still keyed by src", () => {

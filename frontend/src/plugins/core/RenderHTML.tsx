@@ -170,33 +170,32 @@ const addCopyButtonToCodehilite: TransformFn = (
   }
 };
 
-// djb2 — small, stable, non-crypto hash. Used to bound the React key for
-// <img src="data:..."> where the raw src can be megabytes of base64.
-const djb2 = (str: string): string => {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0;
-  }
-  return (hash >>> 0).toString(36);
-};
-
-// Build a React key for an <img> derived from its src so the element
-// remounts when src changes, instead of reusing the existing DOM node.
-// Reusing an <img> across src changes can leave the previous image painted
-// (e.g. when the new request is slow/blocked, served stale by a CDN, or
-// fails CORS), so the user sees the old image even though the HTML source
-// is up to date.
-const imageKeyFor = (domNode: DOMNode, index: number): string | undefined => {
+// Decorator (not a match-and-replace transform): applies a src-based key
+// to <img> elements so they remount on src change. Reusing an <img> across
+// src changes can leave the previous image painted (e.g. when the new
+// request is slow/blocked, served stale by a CDN, or fails CORS), so the
+// user sees the old image even though the HTML source is up to date.
+//
+// Runs unconditionally after the match-and-replace transforms so it still
+// applies when an <img> was already wrapped by, say, wrapTooltipTargets.
+const keyImagesBySrc: TransformFn = (
+  reactNode: ReactNode,
+  domNode: DOMNode,
+  index: number,
+): JSX.Element | undefined => {
   if (!(domNode instanceof Element) || domNode.name !== "img") {
     return undefined;
   }
   const src = domNode.attribs?.src;
-  if (!src) {
+  if (!src || !isValidElement(reactNode)) {
     return undefined;
   }
-  // data: URIs can be very large; hash them so keys stay bounded.
-  const keyPart = src.startsWith("data:") ? `data:${djb2(src)}` : src;
-  return `${keyPart}-${index}`;
+  // data: URIs are inline — no network fetch — so they can't go stale.
+  // Skip to avoid bloating the React key with a megabyte base64 payload.
+  if (src.startsWith("data:")) {
+    return undefined;
+  }
+  return cloneElement(reactNode, { key: `${src}-${index}` });
 };
 
 // Wrap elements with data-marimo-doc attribute in a DocHoverTarget
@@ -311,6 +310,8 @@ function parseHtml({
     ...additionalReplacements,
   ];
 
+  // Match-and-replace transforms: the first one that returns a value wins
+  // (short-circuits the rest).
   const transformFunctions: TransformFn[] = [
     addCopyButtonToCodehilite,
     preserveQueryParamsInAnchorLinks,
@@ -319,6 +320,12 @@ function parseHtml({
     removeWrappingBodyTags,
     removeWrappingHtmlTags,
   ];
+
+  // Decorators: run unconditionally on the result of the transform pipeline
+  // and may further wrap/clone it. Used for cross-cutting concerns that
+  // should apply regardless of which (if any) match-and-replace transform
+  // ran above.
+  const decoratorFunctions: TransformFn[] = [keyImagesBySrc];
 
   return parse(html, {
     replace: (domNode: DOMNode, index: number) => {
@@ -339,12 +346,11 @@ function parseHtml({
           break;
         }
       }
-      // Apply src-based key for <img> elements unconditionally so they
-      // remount on src changes, even when wrapped by an earlier transform
-      // (e.g. data-tooltip / data-marimo-doc).
-      const imageKey = imageKeyFor(domNode, index);
-      if (imageKey !== undefined && isValidElement(result)) {
-        result = cloneElement(result, { key: imageKey });
+      for (const decorate of decoratorFunctions) {
+        const decorated = decorate(result, domNode, index);
+        if (decorated) {
+          result = decorated;
+        }
       }
       return result as JSX.Element;
     },
