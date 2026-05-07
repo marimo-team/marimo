@@ -163,6 +163,17 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
     def __init__(self, figure: Figure | SubFigure) -> None:
         self._figure = figure
 
+        # Restore the figure's DPI to its pre-scaling value before creating a
+        # new canvas. matplotlib's FigureCanvasBase.__init__ unconditionally
+        # sets ``figure._original_dpi = figure.dpi``; if a previous WebAgg
+        # canvas already scaled ``figure.dpi`` up by the device pixel ratio
+        # (e.g., 100 -> 200 on a HiDPI display), the new canvas would treat
+        # the scaled value as "original" and scale it again on the next
+        # ``set_device_pixel_ratio`` event, compounding on every cell rerun.
+        original_dpi = getattr(figure, "_original_dpi", None)
+        if original_dpi is not None and figure.dpi != original_dpi:
+            figure.dpi = original_dpi
+
         # Create FigureManagerWebAgg
         self._figure_manager = new_figure_manager_given_figure(
             id(figure), figure

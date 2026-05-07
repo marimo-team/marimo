@@ -243,6 +243,44 @@ class TestMplCleanupHandle:
 
 
 @pytest.mark.requires("matplotlib")
+class TestDpiPreservationOnRerun:
+    """Re-running a cell that wraps the same figure should not compound DPI.
+
+    matplotlib's ``FigureCanvasBase.__init__`` unconditionally captures
+    ``figure._original_dpi = figure.dpi``. After a HiDPI client connects
+    and scales ``figure.dpi`` up by the device pixel ratio, a subsequent
+    canvas creation on the same figure would treat that scaled value as
+    "original" and scale it again — making the resolution compound on
+    every rerun (see issue #9466).
+    """
+
+    def test_dpi_does_not_compound_across_reruns(self) -> None:
+        import matplotlib.pyplot as plt
+
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            mpl_interactive,
+        )
+
+        fig, ax = plt.subplots(figsize=(5, 5), dpi=100)
+        ax.plot([1, 2, 3])
+
+        for _ in range(3):
+            with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
+                element = mpl_interactive(fig)
+            # Simulate the HiDPI handshake from the frontend.
+            element._figure_manager.handle_json(
+                {"type": "set_device_pixel_ratio", "device_pixel_ratio": 2}
+            )
+            element._figure_manager.handle_json(
+                {"type": "resize", "width": 500, "height": 500}
+            )
+            assert fig.dpi == 200
+            assert tuple(fig.get_size_inches()) == (5.0, 5.0)
+
+        plt.close(fig)
+
+
+@pytest.mark.requires("matplotlib")
 class TestMplInteractiveArgs:
     """Test that mpl_interactive passes correct args to the UIElement."""
 
