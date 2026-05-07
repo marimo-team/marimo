@@ -599,7 +599,7 @@ def virtual_file(
     )
 
 
-_RANGE_RE = re.compile(r"^bytes=(\d*)-(\d*)$")
+_RANGE_RE = re.compile(r"^bytes=(\d*)-(\d*)$", re.IGNORECASE)
 
 
 def _parse_range_header(

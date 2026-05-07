@@ -420,6 +420,14 @@ def test_vfile_range_requests(client: TestClient) -> None:
         assert (
             response.headers.get("content-range") == f"bytes */{byte_length}"
         )
+
+        # Range unit token is case-insensitive per RFC 9110.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "Bytes=0-99"},
+        )
+        assert response.status_code == 206, response.text
+        assert response.content == data[:100]
     finally:
         manager.storage = original_storage
 
