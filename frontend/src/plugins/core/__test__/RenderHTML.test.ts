@@ -60,6 +60,60 @@ describe("parseHtml", () => {
     `);
   });
 
+  test("img has key derived from src so React remounts on src change", () => {
+    const html = '<img src="https://cdn.example.com/a.png" alt="a">';
+    const result = parseHtml({ html }) as React.ReactElement;
+    expect(result.key).toBe("https://cdn.example.com/a.png-0");
+  });
+
+  test("multiple imgs each get distinct keys", () => {
+    const html =
+      '<div><img src="https://cdn.example.com/a.png"><img src="https://cdn.example.com/b.png"></div>';
+    const result = parseHtml({ html }) as React.ReactElement<{
+      children: React.ReactElement[];
+    }>;
+    const children = result.props.children;
+    expect(children[0].key).toBe("https://cdn.example.com/a.png-0");
+    expect(children[1].key).toBe("https://cdn.example.com/b.png-1");
+  });
+
+  test("img without src is left alone", () => {
+    const html = "<img>";
+    const result = parseHtml({ html }) as React.ReactElement;
+    expect(result.key).toBeNull();
+  });
+
+  test("img with data: URI is not keyed (inline, no network fetch)", () => {
+    const longPayload = "A".repeat(10_000);
+    const html = `<img src="data:image/png;base64,${longPayload}">`;
+    const result = parseHtml({ html }) as React.ReactElement;
+    // No remount-on-src needed for inline images, so we leave the key
+    // unset rather than bloat it with the base64 payload.
+    expect(result.key).toBeNull();
+  });
+
+  test("img with uppercase DATA: URI is also skipped (scheme is case-insensitive)", () => {
+    const html = `<img src="DATA:image/png;base64,${"A".repeat(100)}">`;
+    const result = parseHtml({ html }) as React.ReactElement;
+    expect(result.key).toBeNull();
+  });
+
+  test("img wrapped by data-tooltip is still keyed by src", () => {
+    const html =
+      '<img src="https://cdn.example.com/a.png" data-tooltip="hi" alt="a">';
+    const result = parseHtml({ html }) as React.ReactElement;
+    // Outer Tooltip carries the src-based key so it remounts on src change,
+    // forcing the inner <img> to remount as well.
+    expect(result.key).toBe("https://cdn.example.com/a.png-0");
+  });
+
+  test("img wrapped by data-marimo-doc is still keyed by src", () => {
+    const html =
+      '<img src="https://cdn.example.com/b.png" data-marimo-doc="foo.bar">';
+    const result = parseHtml({ html }) as React.ReactElement;
+    expect(result.key).toBe("https://cdn.example.com/b.png-0");
+  });
+
   test("codehilite with copy button", () => {
     const html =
       '<div class="codehilite"><pre><code>console.log("Hello");</code></pre></div>';

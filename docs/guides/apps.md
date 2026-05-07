@@ -80,11 +80,19 @@ Enable the grid editor in the app preview, via a dropdown:
 
 If you prefer a slideshow-like experience, you can use the slides layout. Enable the slides layout in the app preview, via the same dropdown as above.
 
-Unlike the grid layout, the slides are much less customizable:
+<video muted controls loop playsinline width="100%" src="/_static/docs-slides-view.mp4" aria-label="Video showing the slides layout editor">
+</video>
+
+#### Features
+
+- A slide minimap on the left where you can drag and drop slides to rearrange them.
+- A config sidebar on the right where you can configure the type of each slide.
+- Edit code and run cells by clicking the Code toggle or using the keyboard shortcut `C`.
+- Powered by [reveal.js](https://revealjs.com/), so you can use most of its features like keyboard shortcuts, navigation, etc.
+
+#### Notes
 
 - The order of the slides is determined by the order of the cells in the notebook.
-- The slides do not support drag-and-drop rearrangement or resizing.
-- All outputs are shown and all code is hidden.
 - For PDF export, use `marimo export pdf notebook.py --as=slides --raster-server=live` for slide-style output with better capture compatibility.
 
 If you need more control over the layout, please file an issue on [GitHub](https://github.com/marimo-team/marimo/issues),

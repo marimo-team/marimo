@@ -226,12 +226,82 @@
 
 # Weights & Biases Models
 
+- name: DeepSeek V3.1
+  model: deepseek-ai/DeepSeek-V3.1
+  description: Large hybrid Mixture-of-Experts model that supports both thinking and non-thinking modes
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Google Gemma 4 31B
+  model: google/gemma-4-31B-it
+  description: Vision and text model designed for advanced reasoning, agentic workflows, and longer context
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
+
+- name: IBM Granite 4.1 8B
+  model: ibm-granite/granite-4.1-8b
+  description: Long-context text model with enhanced tool calling and instruction following
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Meta Llama 3.3 70B (W&B)
+  model: meta-llama/Llama-3.3-70B-Instruct
+  description: Multilingual model excelling in conversational tasks, detailed instruction-following, and coding
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Meta Llama 3.1 70B (W&B)
+  model: meta-llama/Llama-3.1-70B-Instruct
+  description: Multilingual chatbot model optimized for responsiveness
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: false
+
 - name: Meta Llama 3.1 8B (W&B)
   model: meta-llama/Llama-3.1-8B-Instruct
   description: Efficient conversational model optimized for responsive multilingual chatbot interactions
   providers: [wandb]
   roles: [chat, edit]
   thinking: false
+
+- name: Microsoft Phi 4 Mini 3.8B
+  model: microsoft/Phi-4-mini-instruct
+  description: Compact instruction-tuned model for resource-constrained environments
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: false
+
+- name: MiniMax M2.5
+  model: MiniMaxAI/MiniMax-M2.5
+  description: Mixture-of-Experts model with a highly sparse architecture designed for high-throughput and low latency
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Moonshot AI Kimi K2.6
+  model: moonshotai/Kimi-K2.6
+  description: Multimodal Mixture-of-Experts model with 32B activated parameters and 1T total parameters
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Moonshot AI Kimi K2.5
+  model: moonshotai/Kimi-K2.5
+  description: Multimodal Mixture-of-Experts model optimized for complex tool use, reasoning, and code synthesis
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
+
+- name: NVIDIA Nemotron 3 Super 120B
+  model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8
+  description: LatentMoE model for agentic, reasoning, and conversational capabilities
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
 
 - name: OpenAI GPT OSS 120B
   model: openai/gpt-oss-120b
@@ -247,37 +317,51 @@
   roles: [chat, edit]
   thinking: true
 
-- name: DeepSeek V3-0324
-  model: deepseek-ai/DeepSeek-V3-0324
-  description: Robust Mixture-of-Experts model tailored for high-complexity language processing and comprehensive document analysis
+- name: OpenPipe Qwen3 14B Instruct
+  model: OpenPipe/Qwen3-14B-Instruct
+  description: Multilingual instruction-tuned model optimized for agents
   providers: [wandb]
   roles: [chat, edit]
   thinking: false
 
-- name: Meta Llama 3.3 70B (W&B)
-  model: meta-llama/Llama-3.3-70B-Instruct
-  description: Multilingual model excelling in conversational tasks, detailed instruction-following, and coding
+- name: Qwen3.5 35B A3B
+  model: Qwen/Qwen3.5-35B-A3B
+  description: Multimodal Mixture-of-Experts model for chat, reasoning, and agentic tasks
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Qwen3 235B A22B Thinking-2507
+  model: Qwen/Qwen3-235B-A22B-Thinking-2507
+  description: Mixture-of-Experts model with reasoning capabilities for structured reasoning, math, and long-form generation
+  providers: [wandb]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Qwen3 235B A22B Instruct-2507
+  model: Qwen/Qwen3-235B-A22B-Instruct-2507
+  description: Multilingual Mixture-of-Experts instruction model optimized for logical reasoning
   providers: [wandb]
   roles: [chat, edit]
   thinking: false
 
-- name: DeepSeek R1-0528
-  model: deepseek-ai/DeepSeek-R1-0528
-  description: Optimized for precise reasoning tasks including complex coding, math, and structured document analysis
+- name: Qwen3 30B A3B Instruct-2507
+  model: Qwen/Qwen3-30B-A3B-Instruct-2507
+  description: Mixture-of-Experts model with enhanced reasoning, coding, and long-context understanding
   providers: [wandb]
   roles: [chat, edit]
-  thinking: true
+  thinking: false
 
-- name: MoonshotAI Kimi K2
-  model: moonshotai/Kimi-K2-Instruct
-  description: Mixture-of-Experts model optimized for complex tool use, reasoning, and code synthesis
+- name: Qwen3 Coder 480B A35B
+  model: Qwen/Qwen3-Coder-480B-A35B-Instruct
+  description: Mixture-of-Experts model optimized for agentic coding tasks such as function calling and tool use
   providers: [wandb]
   roles: [chat, edit]
-  thinking: true
+  thinking: false
 
-- name: Z.AI GLM 4.5
-  model: zai-org/GLM-4.5
-  description: Mixture-of-Experts model with user-controllable thinking/non-thinking modes for strong reasoning, code generation, and agent alignment
+- name: Z.AI GLM 5.1
+  model: zai-org/GLM-5.1
+  description: Mixture-of-Experts model for long-horizon agentic engineering and advanced reasoning
   providers: [wandb]
   roles: [chat, edit]
   thinking: true

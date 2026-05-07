@@ -105,16 +105,28 @@ class AppFileManager:
         self._filename = _maybe_path(value)
 
     @staticmethod
-    def from_app(app: InternalApp) -> AppFileManager:
+    def from_app(
+        app: InternalApp,
+        filename: str | Path | None = None,
+    ) -> AppFileManager:
         """Create AppFileManager from an existing InternalApp.
 
         Args:
             app: The internal app to wrap
+            filename: Optional source path for the notebook. When set,
+                ``AppMetadata.filename`` (and therefore ``__file__`` /
+                ``mo.notebook_dir()`` inside cells) resolves to the source
+                file rather than the host process's ``__main__``.
 
         Returns:
             AppFileManager instance
         """
         manager = AppFileManager(None)
+        # Snapshot to an absolute path at assignment time so a later
+        # ``chdir`` cannot change which file ``self.path`` resolves to.
+        manager.filename = (
+            os.path.abspath(str(filename)) if filename is not None else None
+        )
         manager.app = app
         return manager
 
