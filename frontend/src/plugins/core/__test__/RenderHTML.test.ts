@@ -92,6 +92,12 @@ describe("parseHtml", () => {
     expect(result.key).toBeNull();
   });
 
+  test("img with uppercase DATA: URI is also skipped (scheme is case-insensitive)", () => {
+    const html = `<img src="DATA:image/png;base64,${"A".repeat(100)}">`;
+    const result = parseHtml({ html }) as React.ReactElement;
+    expect(result.key).toBeNull();
+  });
+
   test("img wrapped by data-tooltip is still keyed by src", () => {
     const html =
       '<img src="https://cdn.example.com/a.png" data-tooltip="hi" alt="a">';

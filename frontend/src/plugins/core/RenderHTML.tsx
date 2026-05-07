@@ -192,7 +192,8 @@ const keyImagesBySrc: TransformFn = (
   }
   // data: URIs are inline — no network fetch — so they can't go stale.
   // Skip to avoid bloating the React key with a megabyte base64 payload.
-  if (src.startsWith("data:")) {
+  // URI schemes are case-insensitive per RFC 3986.
+  if (/^data:/i.test(src)) {
     return undefined;
   }
   return cloneElement(reactNode, { key: `${src}-${index}` });
