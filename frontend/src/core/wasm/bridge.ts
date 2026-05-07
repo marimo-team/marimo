@@ -639,8 +639,9 @@ export function createPyodideConnection(): IConnectionTransport {
 // in the worker; the optional "::controller" suffix tells getController.ts
 // that the host page provides a custom /wasm/controller.js and that the
 // dynamic import should be attempted. Hosts opt in by setting
-// `window.__MARIMO_HAS_WASM_CONTROLLER__ = true` before this module loads.
-function getWasmWorkerName(): string {
+// `window.__MARIMO_HAS_WASM_CONTROLLER__ = true` before
+// PyodideBridge/worker initialization.
+export function getWasmWorkerName(): string {
   const hasCustomController =
     typeof window !== "undefined" &&
     (window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: boolean })
