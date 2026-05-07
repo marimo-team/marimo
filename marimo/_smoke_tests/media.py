@@ -93,6 +93,22 @@ def _(mo):
 
 @app.cell
 def _(mo):
+    # Regression test for #9460: mo.audio with a numpy array goes through the
+    # virtual file endpoint, which must serve HTTP Range requests so Safari's
+    # <audio> element will play it. Open this notebook in Safari and confirm
+    # the player is enabled and audible.
+    import math
+
+    import numpy as np
+
+    _sr = 44100
+    _samples = 0.01 * np.sin(math.tau * np.cumsum(np.linspace(660, 110, 100000)) / _sr)
+    mo.audio(_samples, _sr, normalize=False)
+    return
+
+
+@app.cell
+def _(mo):
     mo.video(
         src="https://v3.cdnpk.net/videvo_files/video/free/2013-08/large_watermarked/hd0992_preview.mp4",
         rounded=True,
