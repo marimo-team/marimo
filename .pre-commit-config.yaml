@@ -34,7 +34,7 @@ repos:
     rev: v0.15.10
     hooks:
       # Run the linter
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
       # Run the formatter
       - id: ruff-format
@@ -53,4 +53,4 @@ repos:
       - id: oxfmt
         args: [--write, --config, .oxfmtrc.json]
         files: ^(frontend/src/|packages/)
-        'types_or': [javascript, jsx, ts, tsx]
+        "types_or": [javascript, jsx, ts, tsx]
