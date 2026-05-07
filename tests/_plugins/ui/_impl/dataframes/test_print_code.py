@@ -517,7 +517,12 @@ def test_print_code_result_matches_actual_transform_pandas(
                     key=lambda col: col.astype(str),
                 ).reset_index(drop=True)
 
-        pd.testing.assert_frame_equal(code_result, real_result)
+        # Pivot can produce dtype differences between native pandas
+        # (object) and narwhals (StringDtype) for string-valued columns.
+        check_dtype = transform.type != TransformType.PIVOT
+        pd.testing.assert_frame_equal(
+            code_result, real_result, check_dtype=check_dtype
+        )
 
 
 @given(
