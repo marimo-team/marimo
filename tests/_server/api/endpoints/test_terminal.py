@@ -71,7 +71,9 @@ def test_terminal_ws_wrong_token(client: TestClient) -> None:
 
 
 class TestCreateShellEnvironment:
-    def test_create_shell_environment_default_cwd(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_create_shell_environment_default_cwd(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test shell environment creation with default working directory."""
         monkeypatch.delenv("SHELL", raising=False)
 
@@ -82,7 +84,9 @@ class TestCreateShellEnvironment:
         assert "LANG" in env
         assert "LC_ALL" in env
 
-    def test_create_shell_environment_custom_cwd(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_create_shell_environment_custom_cwd(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test shell environment creation with custom working directory."""
         monkeypatch.delenv("SHELL", raising=False)
 
@@ -95,7 +99,10 @@ class TestCreateShellEnvironment:
     @patch("os.getcwd")
     @patch("pathlib.Path.home")
     def test_create_shell_environment_fallback_cwd(
-        self, mock_home: Mock, mock_getcwd: Mock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_home: Mock,
+        mock_getcwd: Mock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test shell environment creation when getcwd fails."""
         monkeypatch.delenv("SHELL", raising=False)
@@ -111,7 +118,10 @@ class TestCreateShellEnvironment:
     @patch("os.getcwd")
     @patch("pathlib.Path.home")
     def test_create_shell_environment_ultimate_fallback(
-        self, mock_home: Mock, mock_getcwd: Mock, monkeypatch: pytest.MonkeyPatch
+        self,
+        mock_home: Mock,
+        mock_getcwd: Mock,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test shell environment creation when both getcwd and home fail."""
         monkeypatch.delenv("SHELL", raising=False)
