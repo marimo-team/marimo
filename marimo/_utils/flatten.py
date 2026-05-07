@@ -292,11 +292,14 @@ def contains_instance(value: Any, instance: Any) -> bool:
             return False
         seen.add(id(value))
 
-        if isinstance(value, (tuple, list)):
-            return any(_contains_instance(v) for v in value)
-        elif isinstance(value, dict):
-            return any(_contains_instance(v) for v in value.values())
-        else:
-            return isinstance(value, instance)
+        try:
+            if isinstance(value, (tuple, list)):
+                return any(_contains_instance(v) for v in value)
+            elif isinstance(value, dict):
+                return any(_contains_instance(v) for v in value.values())
+        except Exception:
+            # .__iter__() or .values() raised. Cannot probe container.
+            return False
+        return isinstance(value, instance)
 
     return _contains_instance(value)
