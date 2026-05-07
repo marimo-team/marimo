@@ -145,6 +145,14 @@ describe("sanitizeHtml", () => {
     );
   });
 
+  test("preserves marimo-mermaid with theme attributes", () => {
+    const html =
+      "<marimo-mermaid data-diagram='&quot;graph TD\\nA --&gt; B&quot;' data-theme='&quot;base&quot;' data-theme_variables='{&quot;primaryColor&quot;: &quot;#E8EEF5&quot;, &quot;lineColor&quot;: &quot;#475569&quot;}'></marimo-mermaid>";
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<marimo-mermaid data-diagram="&quot;graph TD\\nA --> B&quot;" data-theme="&quot;base&quot;" data-theme_variables="{&quot;primaryColor&quot;: &quot;#E8EEF5&quot;, &quot;lineColor&quot;: &quot;#475569&quot;}"></marimo-mermaid>"`,
+    );
+  });
+
   test("keeps style tags with FORCE_BODY", () => {
     const html = "<style>body { color: red; }</style><p>Text</p>";
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(
