@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.23.5"
 app = marimo.App()
 
 
@@ -12,6 +12,7 @@ def _():
     import requests
     from io import BytesIO
     import base64
+
     return BytesIO, base64, mo, requests
 
 
