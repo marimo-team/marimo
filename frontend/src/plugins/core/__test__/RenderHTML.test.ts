@@ -60,6 +60,29 @@ describe("parseHtml", () => {
     `);
   });
 
+  test("img has key derived from src so React remounts on src change", () => {
+    const html = '<img src="https://cdn.example.com/a.png" alt="a">';
+    const result = parseHtml({ html }) as React.ReactElement;
+    expect(result.key).toBe("https://cdn.example.com/a.png-0");
+  });
+
+  test("multiple imgs each get distinct keys", () => {
+    const html =
+      '<div><img src="https://cdn.example.com/a.png"><img src="https://cdn.example.com/b.png"></div>';
+    const result = parseHtml({ html }) as React.ReactElement<{
+      children: React.ReactElement[];
+    }>;
+    const children = result.props.children;
+    expect(children[0].key).toBe("https://cdn.example.com/a.png-0");
+    expect(children[1].key).toBe("https://cdn.example.com/b.png-1");
+  });
+
+  test("img without src is left alone", () => {
+    const html = "<img>";
+    const result = parseHtml({ html }) as React.ReactElement;
+    expect(result.key).toBeNull();
+  });
+
   test("codehilite with copy button", () => {
     const html =
       '<div class="codehilite"><pre><code>console.log("Hello");</code></pre></div>';

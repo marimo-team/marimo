@@ -6,6 +6,7 @@ import parse, {
   type HTMLReactParserOptions,
 } from "html-react-parser";
 import React, {
+  cloneElement,
   isValidElement,
   type JSX,
   type ReactNode,
@@ -169,6 +170,24 @@ const addCopyButtonToCodehilite: TransformFn = (
   }
 };
 
+// Key <img> elements by their src so React remounts the element when the
+// src changes, instead of reusing the existing DOM node. Reusing an <img>
+// across src changes can leave the previous image painted (e.g. when the
+// new request is slow/blocked, served stale by a CDN, or fails CORS), so
+// the user sees the old image even though the HTML source is up to date.
+const keyImagesBySrc: TransformFn = (
+  reactNode: ReactNode,
+  domNode: DOMNode,
+  index: number,
+): JSX.Element | undefined => {
+  if (domNode instanceof Element && domNode.name === "img") {
+    const src = domNode.attribs?.src;
+    if (src && isValidElement(reactNode)) {
+      return cloneElement(reactNode, { key: `${src}-${index}` });
+    }
+  }
+};
+
 // Wrap elements with data-marimo-doc attribute in a DocHoverTarget
 const wrapDocHoverTargets: TransformFn = (
   reactNode: ReactNode,
@@ -286,6 +305,7 @@ function parseHtml({
     preserveQueryParamsInAnchorLinks,
     wrapDocHoverTargets,
     wrapTooltipTargets,
+    keyImagesBySrc,
     removeWrappingBodyTags,
     removeWrappingHtmlTags,
   ];
