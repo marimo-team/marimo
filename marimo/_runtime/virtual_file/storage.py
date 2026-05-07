@@ -38,11 +38,18 @@ class VirtualFileStorage(Protocol):
         key: str,
         byte_length: int,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
+        start: int = 0,
     ) -> Iterator[bytes]:
         """Read buffer data by key in chunks.
 
         Yields chunks of bytes, avoiding allocating the full buffer at once.
         Useful for streaming large files over HTTP.
+
+        Args:
+            key: storage key
+            byte_length: total number of bytes to yield (after applying ``start``)
+            chunk_size: chunk size in bytes
+            start: offset in bytes to begin reading from (default 0)
 
         Raises:
             KeyError: If key not found
@@ -146,6 +153,7 @@ class SharedMemoryStorage(VirtualFileStorage):
         key: str,
         byte_length: int,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
+        start: int = 0,
     ) -> Iterator[bytes]:
         if is_pyodide():
             raise RuntimeError(
@@ -155,7 +163,7 @@ class SharedMemoryStorage(VirtualFileStorage):
         view = None
         try:
             shm = shared_memory.SharedMemory(name=key)
-            view = shm.buf[:byte_length]
+            view = shm.buf[start : start + byte_length]
             for i in range(0, byte_length, chunk_size):
                 yield bytes(view[i : i + chunk_size])
         except FileNotFoundError as err:
@@ -225,12 +233,13 @@ class InMemoryStorage(VirtualFileStorage):
         key: str,
         byte_length: int,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
+        start: int = 0,
     ) -> Iterator[bytes]:
         if key not in self._storage:
             raise KeyError(f"Virtual file not found: {key}")
         buffer = self._storage[key]
-        end = min(byte_length, len(buffer))
-        for i in range(0, end, chunk_size):
+        end = min(start + byte_length, len(buffer))
+        for i in range(start, end, chunk_size):
             yield buffer[i : min(i + chunk_size, end)]
 
     def remove(self, key: str) -> None:
@@ -288,6 +297,7 @@ class VirtualFileStorageManager:
         filename: str,
         byte_length: int,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
+        start: int = 0,
     ) -> Iterator[bytes]:
         """Read from storage in chunks, with cross-process fallback.
 
@@ -301,7 +311,9 @@ class VirtualFileStorageManager:
         storage = self.storage
         if storage is None:
             yield from SharedMemoryStorage().read_chunked(
-                filename, byte_length, chunk_size
+                filename, byte_length, chunk_size, start
             )
         else:
-            yield from storage.read_chunked(filename, byte_length, chunk_size)
+            yield from storage.read_chunked(
+                filename, byte_length, chunk_size, start
+            )
