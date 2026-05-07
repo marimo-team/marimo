@@ -97,6 +97,11 @@
       overflow: auto;
     }
 
+    &:hover .output-area,
+    &:focus-within .output-area {
+      overflow: visible !important;
+    }
+
     /* Special case for particular components */
 
     .output-area:has(
