@@ -148,6 +148,48 @@ def test_mpl_interactive_fallback_when_virtual_files_not_supported() -> None:
 
 
 @pytest.mark.requires("matplotlib")
+def test_mpl_interactive_subfigure_falls_back_to_png() -> None:
+    """SubFigure cannot be attached to a WebAgg canvas (matplotlib limitation),
+    so mo.mpl.interactive should fall back to a static PNG and warn.
+    """
+    import warnings
+
+    import matplotlib.pyplot as plt
+
+    from marimo._plugins.stateless.mpl._mpl import (
+        NonInteractiveMplHtml,
+        interactive,
+    )
+    from marimo._runtime.context.kernel_context import KernelRuntimeContext
+
+    parent = plt.figure(figsize=(8, 4), dpi=100)
+    sub_left, _sub_right = parent.subfigures(1, 2)
+    sub_left.subplots().plot([1, 2, 3])
+
+    mock_ctx = MagicMock(spec=KernelRuntimeContext)
+    mock_ctx.virtual_files_supported = True
+
+    with (
+        patch(
+            "marimo._plugins.stateless.mpl._mpl.get_context",
+            return_value=mock_ctx,
+        ),
+        warnings.catch_warnings(record=True) as captured,
+    ):
+        warnings.simplefilter("always")
+        result = interactive(sub_left)
+
+    assert isinstance(result, NonInteractiveMplHtml)
+
+    # A UserWarning explaining the fallback should have been emitted.
+    subfigure_warnings = [w for w in captured if "SubFigure" in str(w.message)]
+    assert len(subfigure_warnings) == 1
+    assert issubclass(subfigure_warnings[0].category, UserWarning)
+
+    plt.close(parent)
+
+
+@pytest.mark.requires("matplotlib")
 def test_new_figure_manager_suppresses_thread_warning() -> None:
     """Regression test for https://github.com/marimo-team/marimo/issues/8747.
 
