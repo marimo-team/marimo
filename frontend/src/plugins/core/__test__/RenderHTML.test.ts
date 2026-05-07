@@ -83,6 +83,31 @@ describe("parseHtml", () => {
     expect(result.key).toBeNull();
   });
 
+  test("img with data: URI uses bounded hashed key", () => {
+    const longPayload = "A".repeat(10_000);
+    const html = `<img src="data:image/png;base64,${longPayload}">`;
+    const result = parseHtml({ html }) as React.ReactElement;
+    // Key should not embed the full payload; format: data:<hash>-<index>
+    expect(result.key).toMatch(/^data:[0-9a-z]+-0$/);
+    expect(result.key!.length).toBeLessThan(50);
+  });
+
+  test("img wrapped by data-tooltip is still keyed by src", () => {
+    const html =
+      '<img src="https://cdn.example.com/a.png" data-tooltip="hi" alt="a">';
+    const result = parseHtml({ html }) as React.ReactElement;
+    // Outer Tooltip carries the src-based key so it remounts on src change,
+    // forcing the inner <img> to remount as well.
+    expect(result.key).toBe("https://cdn.example.com/a.png-0");
+  });
+
+  test("img wrapped by data-marimo-doc is still keyed by src", () => {
+    const html =
+      '<img src="https://cdn.example.com/b.png" data-marimo-doc="foo.bar">';
+    const result = parseHtml({ html }) as React.ReactElement;
+    expect(result.key).toBe("https://cdn.example.com/b.png-0");
+  });
+
   test("codehilite with copy button", () => {
     const html =
       '<div class="codehilite"><pre><code>console.log("Hello");</code></pre></div>';

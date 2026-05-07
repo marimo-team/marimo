@@ -170,22 +170,33 @@ const addCopyButtonToCodehilite: TransformFn = (
   }
 };
 
-// Key <img> elements by their src so React remounts the element when the
-// src changes, instead of reusing the existing DOM node. Reusing an <img>
-// across src changes can leave the previous image painted (e.g. when the
-// new request is slow/blocked, served stale by a CDN, or fails CORS), so
-// the user sees the old image even though the HTML source is up to date.
-const keyImagesBySrc: TransformFn = (
-  reactNode: ReactNode,
-  domNode: DOMNode,
-  index: number,
-): JSX.Element | undefined => {
-  if (domNode instanceof Element && domNode.name === "img") {
-    const src = domNode.attribs?.src;
-    if (src && isValidElement(reactNode)) {
-      return cloneElement(reactNode, { key: `${src}-${index}` });
-    }
+// djb2 — small, stable, non-crypto hash. Used to bound the React key for
+// <img src="data:..."> where the raw src can be megabytes of base64.
+const djb2 = (str: string): string => {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0;
   }
+  return (hash >>> 0).toString(36);
+};
+
+// Build a React key for an <img> derived from its src so the element
+// remounts when src changes, instead of reusing the existing DOM node.
+// Reusing an <img> across src changes can leave the previous image painted
+// (e.g. when the new request is slow/blocked, served stale by a CDN, or
+// fails CORS), so the user sees the old image even though the HTML source
+// is up to date.
+const imageKeyFor = (domNode: DOMNode, index: number): string | undefined => {
+  if (!(domNode instanceof Element) || domNode.name !== "img") {
+    return undefined;
+  }
+  const src = domNode.attribs?.src;
+  if (!src) {
+    return undefined;
+  }
+  // data: URIs can be very large; hash them so keys stay bounded.
+  const keyPart = src.startsWith("data:") ? `data:${djb2(src)}` : src;
+  return `${keyPart}-${index}`;
 };
 
 // Wrap elements with data-marimo-doc attribute in a DocHoverTarget
@@ -305,7 +316,6 @@ function parseHtml({
     preserveQueryParamsInAnchorLinks,
     wrapDocHoverTargets,
     wrapTooltipTargets,
-    keyImagesBySrc,
     removeWrappingBodyTags,
     removeWrappingHtmlTags,
   ];
@@ -321,13 +331,22 @@ function parseHtml({
       return domNode;
     },
     transform: (reactNode: ReactNode, domNode: DOMNode, index: number) => {
+      let result: ReactNode = reactNode as JSX.Element;
       for (const transformFunction of transformFunctions) {
-        const transformed = transformFunction(reactNode, domNode, index);
+        const transformed = transformFunction(result, domNode, index);
         if (transformed) {
-          return transformed;
+          result = transformed;
+          break;
         }
       }
-      return reactNode as JSX.Element;
+      // Apply src-based key for <img> elements unconditionally so they
+      // remount on src changes, even when wrapped by an earlier transform
+      // (e.g. data-tooltip / data-marimo-doc).
+      const imageKey = imageKeyFor(domNode, index);
+      if (imageKey !== undefined && isValidElement(result)) {
+        result = cloneElement(result, { key: imageKey });
+      }
+      return result as JSX.Element;
     },
   });
 }
