@@ -3,6 +3,13 @@
 
 # Anthropic
 
+- name: Claude Opus 4.7
+  model: claude-opus-4-7
+  description: Latest Opus model, strongest for coding and long-running professional tasks
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: true
+
 - name: Claude Sonnet 4.6
   model: claude-sonnet-4-6
   description: Most capable Sonnet-class model, with frontier performance across coding, agents, and professional work
