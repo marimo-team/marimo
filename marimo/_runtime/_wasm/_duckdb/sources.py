@@ -1,0 +1,160 @@
+# Copyright 2026 Marimo. All rights reserved.
+"""Resolve sqlglot table nodes to remote file sources.
+
+Handles direct URL tables and reader calls such as
+``read_csv('https://example.com/cars.csv')``.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from marimo._runtime._wasm._duckdb.io import (
+    RemoteFileSource,
+    reader_for_url,
+    remote_file_from_url,
+    remote_file_source_from_reader_args,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from sqlglot import exp
+
+# SQL options can parse to falsy values such as false, 0, or ""; this marks
+# unsupported expressions without conflating them with valid literal values.
+_MISSING = object()
+
+
+def remote_file_source_from_table(
+    table: exp.Table,
+) -> RemoteFileSource | None:
+    table_name = table.name
+    if table_name:
+        reader = reader_for_url(table_name)
+        remote_file = remote_file_from_url(table_name)
+        if reader is not None and remote_file is not None:
+            return RemoteFileSource((remote_file,), reader.name)
+
+    table_expr = table.this
+    if table_expr is None:
+        return None
+
+    function_name = _table_function_name(table_expr)
+    if function_name is None:
+        return None
+
+    args = _table_function_args(table_expr)
+    source = _read_function_source(args)
+    if source is None:
+        return None
+
+    raw_options = _read_function_options(args[1:])
+    if raw_options is None:
+        return None
+    return remote_file_source_from_reader_args(
+        function_name, source, raw_options
+    )
+
+
+def _table_function_name(table_expr: exp.Expression) -> str | None:
+    import sqlglot.expressions as exp
+
+    # sqlglot versions model first-party DuckDB readers either as explicit
+    # Read* nodes or as generic anonymous table functions.
+    read_csv = getattr(exp, "ReadCSV", None)
+    if read_csv is not None and isinstance(table_expr, read_csv):
+        return "read_csv"
+
+    read_parquet = getattr(exp, "ReadParquet", None)
+    if read_parquet is not None and isinstance(table_expr, read_parquet):
+        return "read_parquet"
+
+    if isinstance(table_expr, exp.Anonymous):
+        return str(table_expr.this).lower()
+    return None
+
+
+def _table_function_args(table_expr: exp.Expression) -> list[exp.Expression]:
+    import sqlglot.expressions as exp
+
+    read_csv = getattr(exp, "ReadCSV", None)
+    if read_csv is not None and isinstance(table_expr, read_csv):
+        first = [table_expr.this] if table_expr.this is not None else []
+        return [*first, *table_expr.expressions]
+    return list(table_expr.expressions)
+
+
+def _read_function_source(
+    args: Sequence[exp.Expression],
+) -> str | tuple[str, ...] | None:
+    import sqlglot.expressions as exp
+
+    if not args:
+        return None
+    source_expr = args[0]
+    if isinstance(source_expr, exp.Literal) and source_expr.is_string:
+        return str(source_expr.this)
+
+    if isinstance(source_expr, exp.Array) and source_expr.expressions:
+        urls: list[str] = []
+        for item_expr in source_expr.expressions:
+            if not (
+                isinstance(item_expr, exp.Literal) and item_expr.is_string
+            ):
+                return None
+            urls.append(str(item_expr.this))
+        return tuple(urls)
+
+    return None
+
+
+def _read_function_options(
+    option_exprs: Sequence[exp.Expression],
+) -> dict[str, Any] | None:
+    options: dict[str, Any] = {}
+    for option_expr in option_exprs:
+        option = _read_function_option(option_expr)
+        if option is None:
+            return None
+        key, value = option
+        options[key] = value
+    return options
+
+
+def _read_function_option(
+    option_expr: exp.Expression,
+) -> tuple[str, Any] | None:
+    import sqlglot.expressions as exp
+
+    property_eq = getattr(exp, "PropertyEQ", None)
+    option_classes = (
+        (exp.EQ,) if property_eq is None else (exp.EQ, property_eq)
+    )
+    if not isinstance(option_expr, option_classes):
+        return None
+
+    value_expr = option_expr.args.get("expression")
+    if value_expr is None:
+        return None
+
+    value = _literal_value(value_expr)
+    if value is _MISSING:
+        return None
+
+    key = getattr(option_expr.this, "name", None)
+    if key is None:
+        return None
+    return key.lower(), value
+
+
+def _literal_value(value_expr: exp.Expression) -> Any:
+    import sqlglot.expressions as exp
+
+    if isinstance(value_expr, exp.Boolean):
+        return value_expr.this
+    if isinstance(value_expr, exp.Literal):
+        if value_expr.is_string:
+            return value_expr.this
+        return value_expr.to_py()
+    return _MISSING
