@@ -30,6 +30,13 @@ _JSON_SUFFIXES = (
     ".jsonl",
     ".json",
 )
+_JSON_OBJECT_FUNCTIONS = frozenset(
+    {
+        "read_json_objects",
+        "read_json_objects_auto",
+        "read_ndjson_objects",
+    }
+)
 
 
 def read_csv_dataframe(
@@ -76,9 +83,14 @@ def read_json_dataframe(
 
 
 def read_json_objects_dataframe(
-    data: bytes, options: Mapping[str, Any], *, url: str
+    data: bytes, options: Mapping[str, Any], *, url: str, function_name: str
 ) -> pd.DataFrame:
     """Read JSON-object bytes through DuckDB's SQL-only table function."""
+    if function_name not in _JSON_OBJECT_FUNCTIONS:
+        raise ValueError(
+            f"Unsupported DuckDB JSON object reader: {function_name}"
+        )
+
     return _read_temp_dataframe(
         data,
         suffix=_temp_suffix(
@@ -86,12 +98,14 @@ def read_json_objects_dataframe(
             suffixes=_JSON_SUFFIXES,
             default=".json",
         ),
-        reader=lambda path: _read_json_objects_path(path, options),
+        reader=lambda path: _read_json_objects_path(
+            path, options, function_name
+        ),
     )
 
 
 def _read_json_objects_path(
-    path: str, options: Mapping[str, Any]
+    path: str, options: Mapping[str, Any], function_name: str
 ) -> pd.DataFrame:
     import duckdb
 
@@ -101,7 +115,7 @@ def _read_json_objects_path(
     query_args = ["?"]
     query_args.extend(f"{key} := ?" for key, _ in option_items)
     return duckdb.sql(
-        f"SELECT * FROM read_json_objects_auto({', '.join(query_args)})",
+        f"SELECT * FROM {function_name}({', '.join(query_args)})",
         params=[path, *(value for _, value in option_items)],
     ).df()
 

@@ -84,10 +84,11 @@ def _table_function_args(table_expr: exp.Expression) -> list[exp.Expression]:
     """Return table-function args despite sqlglot reader-node differences."""
     import sqlglot.expressions as exp
 
-    read_csv = getattr(exp, "ReadCSV", None)
-    if read_csv is not None and isinstance(table_expr, read_csv):
-        first = [table_expr.this] if table_expr.this is not None else []
-        return [*first, *table_expr.expressions]
+    for node_name in ("ReadCSV", "ReadParquet"):
+        read_node = getattr(exp, node_name, None)
+        if read_node is not None and isinstance(table_expr, read_node):
+            first = [table_expr.this] if table_expr.this is not None else []
+            return [*first, *table_expr.expressions]
     return list(table_expr.expressions)
 
 

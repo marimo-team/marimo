@@ -55,6 +55,7 @@ class RemoteFile:
 @dataclass(frozen=True)
 class _ReadRequest:
     file: _FetchedBytes
+    function_name: str
     options: Mapping[str, Any]
 
 
@@ -219,6 +220,7 @@ class _JsonObjectsReader:
             request.file.data,
             _json_reader_options(request.options),
             url=request.file.url,
+            function_name=request.function_name,
         )
 
 
@@ -272,6 +274,7 @@ class RemoteFileSource:
     files: tuple[RemoteFile, ...]
     reader_name: _ReaderName
     options: tuple[tuple[str, Any], ...] = ()
+    function_name: str | None = None
 
     def read_options(self) -> dict[str, Any]:
         """Expose sorted, hashable options as regular reader kwargs."""
@@ -302,7 +305,13 @@ class RemoteFileSource:
         fetched = file.fetch()
         options = self.read_options()
         reader = _reader_by_name(self.reader_name)
-        df = reader.read_dataframe(_ReadRequest(file=fetched, options=options))
+        df = reader.read_dataframe(
+            _ReadRequest(
+                file=fetched,
+                function_name=self.function_name or reader.function_names[0],
+                options=options,
+            )
+        )
         filename = options.get("filename")
         if filename is True:
             return append_filename_column(df, fetched.url, "filename")
@@ -336,7 +345,12 @@ def remote_file_source_from_reader_args(
     options = reader.read_options(function_name, raw_options)
     if options is None:
         return None
-    return RemoteFileSource(files, reader.name, tuple(sorted(options.items())))
+    return RemoteFileSource(
+        files,
+        reader.name,
+        tuple(sorted(options.items())),
+        function_name=function_name,
+    )
 
 
 def _remote_files_from_source_arg(

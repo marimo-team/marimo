@@ -14,6 +14,9 @@ from marimo._runtime._wasm._duckdb import (
     patch_duckdb_for_wasm,
     patch_duckdb_query_for_wasm,
 )
+from marimo._runtime._wasm._duckdb.sources import (
+    remote_file_source_from_table,
+)
 from marimo._sql.engines.duckdb import DuckDBEngine
 from tests.conftest import ExecReqProvider, mock_pyodide
 
@@ -583,6 +586,65 @@ class TestDuckDBWasmQueryPatch:
             )
             is None
         )
+
+    @staticmethod
+    def test_read_parquet_node_preserves_this_argument() -> None:
+        from sqlglot import exp
+
+        table = exp.Table(
+            this=exp.ReadParquet(
+                this=exp.Literal.string("https://example.com/a.parquet")
+            )
+        )
+
+        source = remote_file_source_from_table(table)
+
+        assert source is not None
+        assert source.reader_name == "parquet"
+        assert [file.url for file in source.files] == [
+            "https://example.com/a.parquet"
+        ]
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "function_name",
+        [
+            "read_json_objects",
+            "read_json_objects_auto",
+            "read_ndjson_objects",
+        ],
+    )
+    def test_json_objects_reader_preserves_requested_function(
+        monkeypatch: pytest.MonkeyPatch, function_name: str
+    ) -> None:
+        import duckdb
+        import pandas as pd
+
+        from marimo._runtime._wasm._duckdb.dataframe import (
+            read_json_objects_dataframe,
+        )
+
+        queries: list[str] = []
+
+        class Relation:
+            def df(self) -> pd.DataFrame:
+                return pd.DataFrame({"json": []})
+
+        def fake_sql(query: str, *, params: list[object]) -> Relation:
+            del params
+            queries.append(query)
+            return Relation()
+
+        monkeypatch.setattr(duckdb, "sql", fake_sql)
+
+        read_json_objects_dataframe(
+            b'{"a":1}\n',
+            {},
+            url="https://example.com/a.json",
+            function_name=function_name,
+        )
+
+        assert queries == [f"SELECT * FROM {function_name}(?)"]
 
     @staticmethod
     @pytest.mark.parametrize(
