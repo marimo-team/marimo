@@ -1,5 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Map DuckDB remote files to readers."""
+"""Resolve DuckDB remote file reads into fetch and DataFrame reader steps.
+
+DuckDB's native network scanner is unavailable in Pyodide. This module is the
+compatibility layer that recognizes supported URL shapes, validates the reader
+options we can reproduce, fetches bytes through WASM fetch shim, and
+dispatches to a local DataFrame reader. Unsupported readers or option
+combinations return ``None`` so callers can use the unpatched DuckDB path
+and surface the underlying error.
+"""
 
 from __future__ import annotations
 
@@ -40,6 +48,7 @@ class RemoteFile:
     fetcher_name: str
 
     def fetch(self) -> _FetchedBytes:
+        """Fetch through a named strategy so sources stay hashable."""
         return _fetcher_by_name(self.fetcher_name).fetch(self.url)
 
 
@@ -265,9 +274,11 @@ class RemoteFileSource:
     options: tuple[tuple[str, Any], ...] = ()
 
     def read_options(self) -> dict[str, Any]:
+        """Expose sorted, hashable options as regular reader kwargs."""
         return dict(self.options)
 
     def read_dataframe(self) -> pd.DataFrame:
+        """Read one or more remote files using DuckDB-compatible concat rules."""
         frames = [self._read_file_dataframe(file) for file in self.files]
         if len(frames) == 1:
             return frames[0]
@@ -287,6 +298,7 @@ class RemoteFileSource:
         return pd.concat(frames, ignore_index=True)
 
     def _read_file_dataframe(self, file: RemoteFile) -> pd.DataFrame:
+        """Fetch bytes, decode them, then apply DuckDB's filename option."""
         fetched = file.fetch()
         options = self.read_options()
         reader = _reader_by_name(self.reader_name)
@@ -300,6 +312,7 @@ class RemoteFileSource:
 
 
 def remote_file_from_url(url: str) -> RemoteFile | None:
+    """Return a fetchable remote file only for URL schemes marimo supports."""
     fetcher = _fetcher_for_url(url)
     if fetcher is None:
         return None
@@ -311,6 +324,7 @@ def remote_file_source_from_reader_args(
     source: Any,
     raw_options: Mapping[str, Any],
 ) -> RemoteFileSource | None:
+    """Map a DuckDB reader call to a reproducible remote DataFrame source."""
     reader = reader_for_function(function_name)
     if reader is None:
         return None
@@ -328,6 +342,7 @@ def remote_file_source_from_reader_args(
 def _remote_files_from_source_arg(
     source: Any,
 ) -> tuple[RemoteFile, ...] | None:
+    """Accept DuckDB source shapes that are static URL strings or URL lists."""
     if isinstance(source, str):
         file = remote_file_from_url(source)
         return (file,) if file is not None else None
@@ -372,6 +387,7 @@ def _reader_by_name(
 
 
 def reader_for_url(url: str) -> _DataFrameReader | None:
+    """Infer a reader from direct URL table syntax such as ``FROM 'x.csv'``."""
     path = urlparse(url).path.lower()
     return next(
         (
@@ -386,6 +402,7 @@ def reader_for_url(url: str) -> _DataFrameReader | None:
 def reader_for_function(
     function_name: str,
 ) -> _DataFrameReader | None:
+    """Resolve DuckDB table-function names to marimo's fallback readers."""
     return next(
         (
             reader
@@ -397,6 +414,7 @@ def reader_for_function(
 
 
 def _csv_reader_options(options: Mapping[str, Any]) -> dict[str, Any]:
+    """Drop options implemented outside DuckDB's CSV reader call."""
     return {
         key: value
         for key, value in options.items()
@@ -405,6 +423,7 @@ def _csv_reader_options(options: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _json_reader_options(options: Mapping[str, Any]) -> dict[str, Any]:
+    """Translate DuckDB JSON option spelling to DuckDB Python API spelling."""
     return {
         key: _normalize_json_reader_option(key, value)
         for key, value in options.items()
@@ -413,12 +432,14 @@ def _json_reader_options(options: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _normalize_delimiter(value: Any) -> Any:
+    """Convert SQL's escaped tab literal to the byte delimiter DuckDB expects."""
     if value == r"\t":
         return "\t"
     return value
 
 
 def _normalize_json_reader_option(key: str, value: Any) -> Any:
+    """Normalize JSON values whose SQL names differ from Python reader values."""
     if key == "compression":
         return _normalize_json_compression(value)
     if key == "format":
@@ -427,6 +448,7 @@ def _normalize_json_reader_option(key: str, value: Any) -> Any:
 
 
 def _normalize_json_compression(value: Any) -> str:
+    """Map SQL compression aliases to DuckDB Python JSON reader values."""
     compression = str(value).lower()
     if compression == "auto":
         return "auto_detect"
@@ -436,6 +458,7 @@ def _normalize_json_compression(value: Any) -> str:
 
 
 def _normalize_json_format(value: Any) -> str:
+    """Map DuckDB SQL JSON format aliases to Python reader values."""
     fmt = str(value).lower()
     if fmt == "ndjson":
         return "newline_delimited"
@@ -445,6 +468,7 @@ def _normalize_json_format(value: Any) -> str:
 
 
 def _apply_json_option(options: dict[str, Any], key: str, value: Any) -> bool:
+    """Keep JSON options only when the fallback can safely pass them through."""
     if key == "format":
         options["format"] = _normalize_json_format(value)
         return True
@@ -457,12 +481,14 @@ def _apply_json_option(options: dict[str, Any], key: str, value: Any) -> bool:
 
 
 def _is_safe_reader_option_name(key: str) -> bool:
+    """Reject option names that cannot be passed as Python reader kwargs."""
     return key.isidentifier()
 
 
 def _apply_common_table_option(
     options: dict[str, Any], key: str, value: Any
 ) -> bool:
+    """Handle options marimo applies after per-file reads are decoded."""
     if key == "filename" and isinstance(value, bool | str):
         options["filename"] = value
         return True
@@ -475,6 +501,7 @@ def _apply_common_table_option(
 def _apply_compression_option(
     options: dict[str, Any], key: str, value: Any
 ) -> bool:
+    """Accept only compression modes supported by the byte-fetch fallback."""
     if key == "compression" and _is_supported_compression(value):
         options["compression"] = str(value).lower()
         return True
@@ -484,10 +511,12 @@ def _apply_compression_option(
 def _apply_shared_source_option(
     options: dict[str, Any], key: str, value: Any
 ) -> bool:
+    """Apply source options shared by CSV, parquet, and JSON fallbacks."""
     return _apply_compression_option(
         options, key, value
     ) or _apply_common_table_option(options, key, value)
 
 
 def _is_supported_compression(value: Any) -> bool:
+    """Limit compression to modes the fallback knows how to preserve."""
     return str(value).lower() in {"auto", "none", "gzip"}

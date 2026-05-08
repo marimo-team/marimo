@@ -1,5 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Decode fetched DuckDB file bytes into pandas DataFrames."""
+"""Decode fetched DuckDB file bytes into pandas DataFrames.
+
+The WASM patch fetches remote bytes in Python, but DuckDB's Python readers
+still expect local paths for CSV, JSON, and parquet parsing. This module
+materializes fetched bytes through short-lived temp files where DuckDB parsing
+is needed and synthesizes DataFrames for ``read_text`` and ``read_blob``.
+"""
 
 from __future__ import annotations
 
@@ -29,6 +35,7 @@ _JSON_SUFFIXES = (
 def read_csv_dataframe(
     data: bytes, options: Mapping[str, Any], *, url: str
 ) -> pd.DataFrame:
+    """Read CSV/TSV bytes with a suffix that preserves compression hints."""
     import duckdb
 
     return _read_temp_dataframe(
@@ -71,6 +78,7 @@ def read_json_dataframe(
 def read_json_objects_dataframe(
     data: bytes, options: Mapping[str, Any], *, url: str
 ) -> pd.DataFrame:
+    """Read JSON-object bytes through DuckDB's SQL-only table function."""
     return _read_temp_dataframe(
         data,
         suffix=_temp_suffix(
@@ -99,6 +107,7 @@ def _read_json_objects_path(
 
 
 def read_text_dataframe(data: bytes, url: str) -> pd.DataFrame:
+    """Match DuckDB's ``read_text`` shape for an already-fetched object."""
     import pandas as pd
 
     return pd.DataFrame(
@@ -112,6 +121,7 @@ def read_text_dataframe(data: bytes, url: str) -> pd.DataFrame:
 
 
 def read_blob_dataframe(data: bytes, url: str) -> pd.DataFrame:
+    """Match DuckDB's ``read_blob`` shape for an already-fetched object."""
     import pandas as pd
 
     return pd.DataFrame(
@@ -127,6 +137,7 @@ def read_blob_dataframe(data: bytes, url: str) -> pd.DataFrame:
 def append_filename_column(
     df: pd.DataFrame, url: str, column_name: str
 ) -> pd.DataFrame:
+    """Apply DuckDB's filename option after bytes have been decoded."""
     if column_name in df.columns:
         raise ValueError(
             f'Option filename adds column "{column_name}", but a column with this '
@@ -158,6 +169,7 @@ def _read_temp_dataframe(
 
 
 def _temp_suffix(url: str, *, suffixes: tuple[str, ...], default: str) -> str:
+    """Preserve file extensions so DuckDB can infer format details."""
     path = urlparse(url).path.lower()
     for suffix in suffixes:
         if path.endswith(suffix):

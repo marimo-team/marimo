@@ -1,18 +1,19 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""WASM-only DuckDB fallbacks for remote file scans.
+"""Install WASM-only DuckDB fallbacks for remote file scans.
 
 DuckDB-WASM cannot use ``httpfs``. marimo fetches supported URLs itself,
 materializes supported files as pandas DataFrames, then hands those frames
-back to DuckDB.
+back to DuckDB through replacement scans.
 
 We have two concrete use cases to patch:
 
 * **Direct read methods** — ``duckdb.read_csv/read_parquet/read_json`` are
-  wrapped with :class:`WasmPatchSet`; supported remote URLs are fetched by
+  wrapped with :class:`WasmPatchSet`. Supported remote URLs are fetched by
   marimo and returned as DuckDB relations.
 * **SQL remote scans** — raw DuckDB APIs and marimo's ``mo.sql`` path call the
-  same rewrite helper, which replaces supported URLs with generated
-  replacement-scan tables backed by fetched pandas DataFrames.
+  same sqlglot rewrite helper. It replaces supported URL scans with generated
+  table names and evaluates the original DuckDB call with fetched DataFrames
+  in scope so DuckDB replacement scans can resolve them.
 """
 
 from __future__ import annotations
@@ -212,15 +213,19 @@ def patch_duckdb_query_for_wasm(
     *,
     reserved_names: Sequence[str] = (),
 ) -> WasmDuckDBQueryPatch | None:
-    """Rewrite remote file sources to generated DataFrame names.
+    """Replace supported remote file reads with generated table names.
 
-    Example: ``SELECT * FROM read_csv('https://example.com/cars.csv')``
-    becomes ``SELECT * FROM __marimo_wasm_duckdb_remote_0``, and
-    ``tables["__marimo_wasm_duckdb_remote_0"]`` holds the fetched DataFrame.
+    For example, ``SELECT * FROM read_csv('https://example.com/cars.csv')``
+    becomes ``SELECT * FROM __marimo_wasm_duckdb_remote_0`` when suffix ``0``
+    is free. The returned ``tables`` mapping binds that name to the fetched
+    DataFrame. If the query or ``reserved_names`` already use that identifier,
+    the rewriter uses the next free suffix.
 
-    In Pyodide this raises if sqlglot is unavailable. Returns ``None`` when
-    not running in Pyodide, when the query has no supported remote file
-    source, or when the query cannot be parsed.
+    In Pyodide this raises if sqlglot is unavailable. Returns ``None`` when:
+
+    - marimo is not running in Pyodide;
+    - the query has no supported remote file source;
+    - the query cannot be parsed.
     """
     if not is_pyodide():
         return None
@@ -419,6 +424,8 @@ def _make_sql_api_wrapper(
     query_arg_index: int,
     query_kwarg_names: tuple[str, ...],
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Wrap DuckDB SQL APIs while preserving the caller's local namespace."""
+
     def _make_wrapper(original: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(original)
         def _wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -451,6 +458,7 @@ def _query_argument(
     query_arg_index: int,
     query_kwarg_names: tuple[str, ...],
 ) -> Any:
+    """Find the query text without assuming the caller used positional args."""
     if len(args) > query_arg_index:
         return args[query_arg_index]
     for name in query_kwarg_names:
@@ -467,6 +475,7 @@ def _replace_query_argument(
     query_arg_index: int,
     query_kwarg_names: tuple[str, ...],
 ) -> tuple[tuple[Any, ...], dict[str, Any]]:
+    """Replace the query at the same call site shape used by the caller."""
     kwargs_dict = dict(kwargs)
     if len(args) > query_arg_index:
         patched_args = list(args)
@@ -490,6 +499,7 @@ def _eval_duckdb_original_call(
     binding_names: _EvalBindingNames,
     extra_locals: Mapping[str, Any] | None = None,
 ) -> Any:
+    """Evaluate the original call where DuckDB can see replacement DataFrames."""
     locals_for_eval = dict(eval_locals)
     if extra_locals is not None:
         locals_for_eval.update(extra_locals)
@@ -551,6 +561,7 @@ def _duckdb_catalog_names(
     original: Callable[..., Any],
     args: tuple[Any, ...],
 ) -> tuple[str, ...]:
+    """Reserve existing DuckDB table names before generating replacements."""
     try:
         relation = _show_duckdb_tables(original, args)
         rows = relation.fetchall()
@@ -563,6 +574,7 @@ def _show_duckdb_tables(
     original: Callable[..., Any],
     args: tuple[Any, ...],
 ) -> Any:
+    """Run ``SHOW TABLES`` through the same DuckDB entry point being patched."""
     import duckdb
 
     original_call = inspect.unwrap(original)
@@ -614,6 +626,7 @@ def _direct_reader_source(
     *,
     call_spec: _DirectReaderCallSpec,
 ) -> tuple[RemoteFileSource, Any] | None:
+    """Return a remote source only for direct reader calls we can emulate."""
     options = dict(kwargs)
     try:
         source, rest_args = _pop_source_argument(
@@ -646,6 +659,7 @@ def _pop_source_argument(
     *,
     call_spec: _DirectReaderCallSpec,
 ) -> tuple[Any, tuple[Any, ...]]:
+    """Remove the source argument so remaining kwargs are pure reader options."""
     source_positional_index = call_spec.source_positional_index
     if len(args) > source_positional_index:
         return (
@@ -688,6 +702,7 @@ def _replace_remote_sources(
     statements: Sequence[exp.Expression],
     table_names: _RemoteTableNames,
 ) -> list[exp.Expression]:
+    """Replace supported remote table nodes while preserving aliases."""
     from sqlglot import exp
 
     def replace_table(node: exp.Expression) -> exp.Expression:
@@ -715,6 +730,7 @@ def _replace_remote_sources(
 def _reserved_sql_names(
     statements: Sequence[exp.Expression],
 ) -> tuple[str, ...]:
+    """Collect SQL identifiers that generated table names must not shadow."""
     from sqlglot import exp
 
     names: set[str] = set()
@@ -731,6 +747,7 @@ def _reserved_sql_names(
 def _format_duckdb_query(
     statements: Sequence[exp.Expression], *, original_query: str
 ) -> str:
+    """Serialize sqlglot statements without dropping a trailing semicolon."""
     patched_query = "; ".join(
         statement.sql(dialect="duckdb") for statement in statements
     )

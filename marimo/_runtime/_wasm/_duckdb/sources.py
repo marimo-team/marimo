@@ -1,8 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Resolve sqlglot table nodes to remote file sources.
+"""Resolve sqlglot DuckDB table nodes to remote file sources.
 
-Handles direct URL tables and reader calls such as
-``read_csv('https://example.com/cars.csv')``.
+The SQL patch should only rewrite queries it can execute with fetched
+DataFrames. This module recognizes direct URL table syntax and supported
+``read_*`` table functions, extracts literal URL/options from sqlglot's AST,
+and returns ``None`` for dynamic expressions so they continue through DuckDB
+unchanged.
 """
 
 from __future__ import annotations
@@ -29,6 +32,7 @@ _MISSING = object()
 def remote_file_source_from_table(
     table: exp.Table,
 ) -> RemoteFileSource | None:
+    """Return a remote source for supported direct URLs or reader calls."""
     table_name = table.name
     if table_name:
         reader = reader_for_url(table_name)
@@ -58,6 +62,7 @@ def remote_file_source_from_table(
 
 
 def _table_function_name(table_expr: exp.Expression) -> str | None:
+    """Normalize sqlglot's version-dependent DuckDB reader node names."""
     import sqlglot.expressions as exp
 
     # sqlglot versions model first-party DuckDB readers either as explicit
@@ -76,6 +81,7 @@ def _table_function_name(table_expr: exp.Expression) -> str | None:
 
 
 def _table_function_args(table_expr: exp.Expression) -> list[exp.Expression]:
+    """Return table-function args despite sqlglot reader-node differences."""
     import sqlglot.expressions as exp
 
     read_csv = getattr(exp, "ReadCSV", None)
@@ -88,6 +94,7 @@ def _table_function_args(table_expr: exp.Expression) -> list[exp.Expression]:
 def _read_function_source(
     args: Sequence[exp.Expression],
 ) -> str | tuple[str, ...] | None:
+    """Accept only literal URL sources that can be fetched before execution."""
     import sqlglot.expressions as exp
 
     if not args:
@@ -112,6 +119,7 @@ def _read_function_source(
 def _read_function_options(
     option_exprs: Sequence[exp.Expression],
 ) -> dict[str, Any] | None:
+    """Decode literal keyword options from a DuckDB table-function call."""
     options: dict[str, Any] = {}
     for option_expr in option_exprs:
         option = _read_function_option(option_expr)
@@ -125,6 +133,7 @@ def _read_function_options(
 def _read_function_option(
     option_expr: exp.Expression,
 ) -> tuple[str, Any] | None:
+    """Return one static option or ``None`` for unsupported expressions."""
     import sqlglot.expressions as exp
 
     property_eq = getattr(exp, "PropertyEQ", None)
@@ -149,6 +158,7 @@ def _read_function_option(
 
 
 def _literal_value(value_expr: exp.Expression) -> Any:
+    """Convert sqlglot literals while preserving falsy values via _MISSING."""
     import sqlglot.expressions as exp
 
     if isinstance(value_expr, exp.Boolean):
