@@ -427,10 +427,11 @@ async def restart_session(
     session = app_state.require_current_session()
     session_manager.close_session(session_id)
 
-    # Close RTC doc if it exists
+    # Close RTC doc if it exists. Empty ``?file=`` falls back to the workspace
+    # key — same as a missing query param — to preserve the prior or-chain.
     raw_file_key = app_state.query_params(FILE_QUERY_PARAM_KEY)
     file_key: FileKey | None
-    if raw_file_key is not None:
+    if raw_file_key:
         file_key = parse_file_key(raw_file_key)
     else:
         file_key = session_manager.workspace.get_unique_file_key()
@@ -522,9 +523,10 @@ async def takeover_endpoint(
     app_state = AppState(request)
 
     raw_file_key = app_state.query_params(FILE_QUERY_PARAM_KEY)
+    # Empty ``?file=`` falls back to the workspace key — same as missing.
     file_key: FileKey | None = (
         parse_file_key(raw_file_key)
-        if raw_file_key is not None
+        if raw_file_key
         else app_state.session_manager.workspace.get_unique_file_key()
     )
     if file_key is None:

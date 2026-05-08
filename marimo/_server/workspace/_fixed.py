@@ -15,7 +15,6 @@ from marimo._server.workspace._base import (
 from marimo._server.workspace._keys import (
     FileKey,
     NewFileKey,
-    PathFileKey,
 )
 from marimo._utils.paths import normalize_path
 
@@ -68,7 +67,6 @@ class FixedFilesWorkspace(NotebookWorkspace):
     def resolve(self, key: FileKey) -> str | None:
         if isinstance(key, NewFileKey):
             raise file_not_found(key)
-        assert isinstance(key, PathFileKey)
 
         filepath = Path(key.path)
         if not filepath.is_absolute() and self._directory:

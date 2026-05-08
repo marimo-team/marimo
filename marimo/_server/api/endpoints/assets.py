@@ -198,9 +198,10 @@ def og_thumbnail(*, request: Request) -> Response:
 
     app_state = AppState(request)
     raw_file_key = app_state.query_params(FILE_QUERY_PARAM_KEY)
+    # Empty ``?file=`` falls back to the workspace key — same as missing.
     file_key: FileKey | None = (
         parse_file_key(raw_file_key)
-        if raw_file_key is not None
+        if raw_file_key
         else app_state.session_manager.workspace.get_unique_file_key()
     )
     if file_key is None:
@@ -316,9 +317,11 @@ async def index(request: Request) -> Response:
     index_html = root / "index.html"
 
     file_key_from_query = app_state.query_params(FILE_QUERY_PARAM_KEY)
+    # Empty ``?file=`` falls back to the workspace key — same as missing —
+    # which preserves the homepage rendering when no file is selected.
     file_key: FileKey | None = (
         parse_file_key(file_key_from_query)
-        if file_key_from_query is not None
+        if file_key_from_query
         else app_state.session_manager.workspace.get_unique_file_key()
     )
 

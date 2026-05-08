@@ -71,7 +71,6 @@ class SingleFileWorkspace(NotebookWorkspace):
     def resolve(self, key: FileKey) -> str | None:
         if isinstance(key, NewFileKey):
             return None
-        assert isinstance(key, PathFileKey)
 
         filepath = Path(key.path)
         normalized_path = normalize_path(filepath)

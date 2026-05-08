@@ -16,7 +16,6 @@ from marimo._server.workspace._base import (
 from marimo._server.workspace._keys import (
     FileKey,
     NewFileKey,
-    PathFileKey,
 )
 from marimo._utils.http import HTTPException, HTTPStatus
 
@@ -78,7 +77,6 @@ class DirectoryWorkspace(NotebookWorkspace):
     def resolve(self, key: FileKey) -> str | None:
         if isinstance(key, NewFileKey):
             return None
-        assert isinstance(key, PathFileKey)
 
         directory = Path(self._directory)
         filepath = Path(key.path)

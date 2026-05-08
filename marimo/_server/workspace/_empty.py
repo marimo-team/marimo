@@ -14,7 +14,6 @@ from marimo._server.workspace._base import (
 from marimo._server.workspace._keys import (
     FileKey,
     NewFileKey,
-    PathFileKey,
 )
 from marimo._utils.paths import normalize_path
 
@@ -45,7 +44,6 @@ class EmptyWorkspace(NotebookWorkspace):
     def resolve(self, key: FileKey) -> str | None:
         if isinstance(key, NewFileKey):
             return None
-        assert isinstance(key, PathFileKey)
         if os.path.exists(key.path):
             # Match sibling workspaces: return an absolute normalized path so
             # downstream comparisons (e.g. session lookups) don't trip on
