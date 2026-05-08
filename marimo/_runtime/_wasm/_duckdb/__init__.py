@@ -433,6 +433,8 @@ def _make_sql_api_wrapper(
             if frame is None or frame.f_back is None:
                 return original(*args, **kwargs)
             caller_frame = frame.f_back
+            eval_globals = caller_frame.f_globals
+            eval_locals = caller_frame.f_locals
             try:
                 return run_duckdb_sql_with_wasm_patch(
                     original,
@@ -440,10 +442,11 @@ def _make_sql_api_wrapper(
                     kwargs,
                     query_arg_index=query_arg_index,
                     query_kwarg_names=query_kwarg_names,
-                    eval_globals=caller_frame.f_globals,
-                    eval_locals=caller_frame.f_locals,
+                    eval_globals=eval_globals,
+                    eval_locals=eval_locals,
                 )
             finally:
+                del caller_frame
                 del frame
 
         return _wrapper
@@ -688,6 +691,7 @@ def _require_sqlglot() -> None:
 
 def _parse_duckdb_query(query: str) -> list[exp.Expression] | None:
     import sqlglot
+    from sqlglot import exp as sqlglot_exp
 
     try:
         parsed = sqlglot.parse(query, read="duckdb")
@@ -695,7 +699,11 @@ def _parse_duckdb_query(query: str) -> list[exp.Expression] | None:
         LOGGER.debug("Failed to parse DuckDB query for WASM patch: %s", e)
         return None
 
-    return [statement for statement in parsed if statement is not None]
+    return [
+        statement
+        for statement in parsed
+        if isinstance(statement, sqlglot_exp.Expression)
+    ]
 
 
 def _replace_remote_sources(
