@@ -20,7 +20,7 @@ from __future__ import annotations
 import functools
 import inspect
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -46,35 +46,111 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
-# DuckDB SQL APIs also accept non-string query objects; this marks "not found".
+
+class _EvalBindingNames(NamedTuple):
+    original: str
+    args: str
+    kwargs: str
+
+
+class _SqlApiSpec(NamedTuple):
+    query_positional_index: int
+    query_keyword_names: tuple[str, ...]
+
+
+class _DirectReaderSpec(NamedTuple):
+    source_keyword_names: tuple[str, ...]
+
+
+class _DirectReaderCallSpec(NamedTuple):
+    source_positional_index: int
+    connection_positional_index: int | None
+
+
+# DuckDB SQL APIs can receive non-string query objects. This sentinel lets us
+# tell an omitted query argument apart from a present value such as None.
 _MISSING = object()
-_DIRECT_READER_NAMES: tuple[str, ...] = (
-    "read_csv",
-    "read_parquet",
-    "read_json",
-)
 _SQL_CALL_EXPRESSION = "{original}(*{args}, **{kwargs})"
-_SQL_HELPER_NAME_BASES = (
-    "__marimo_wasm_duckdb_original",
-    "__marimo_wasm_duckdb_args",
-    "__marimo_wasm_duckdb_kwargs",
+
+# The SQL wrappers invoke the original DuckDB callable through eval so DuckDB
+# can still see caller-local replacement scans. These are the local binding
+# names used for that eval call after collision checks.
+_EVAL_BINDING_NAME_BASES = _EvalBindingNames(
+    original="__marimo_wasm_duckdb_original",
+    args="__marimo_wasm_duckdb_args",
+    kwargs="__marimo_wasm_duckdb_kwargs",
 )
-_MODULE_SQL_FUNCTIONS: dict[str, tuple[int, tuple[str, ...]]] = {
-    "sql": (0, ("query",)),
-    "query": (0, ("query",)),
-    "execute": (0, ("query",)),
-    "query_df": (2, ("sql_query", "query")),
+
+# Module-level DuckDB SQL functions put the SQL string in different argument
+# slots. The specs identify where wrappers should look for the query text.
+_MODULE_SQL_FUNCTIONS: dict[str, _SqlApiSpec] = {
+    "sql": _SqlApiSpec(
+        query_positional_index=0,
+        query_keyword_names=("query",),
+    ),
+    "query": _SqlApiSpec(
+        query_positional_index=0,
+        query_keyword_names=("query",),
+    ),
+    "execute": _SqlApiSpec(
+        query_positional_index=0,
+        query_keyword_names=("query",),
+    ),
+    "query_df": _SqlApiSpec(
+        query_positional_index=2,
+        query_keyword_names=("sql_query", "query"),
+    ),
 }
-_CONNECTION_SQL_METHODS: dict[str, tuple[int, tuple[str, ...]]] = {
-    "sql": (1, ("query",)),
-    "query": (1, ("query",)),
-    "execute": (1, ("query",)),
+
+# Bound connection methods include the connection as args[0], so their query
+# argument starts one slot later than the module-level functions.
+_CONNECTION_SQL_METHODS: dict[str, _SqlApiSpec] = {
+    "sql": _SqlApiSpec(
+        query_positional_index=1,
+        query_keyword_names=("query",),
+    ),
+    "query": _SqlApiSpec(
+        query_positional_index=1,
+        query_keyword_names=("query",),
+    ),
+    "execute": _SqlApiSpec(
+        query_positional_index=1,
+        query_keyword_names=("query",),
+    ),
 }
-_SOURCE_KWARGS: dict[str, tuple[str, ...]] = {
-    "read_csv": ("path_or_buffer", "source", "file", "path"),
-    "read_parquet": ("file_glob", "file_globs", "source", "file", "path"),
-    "read_json": ("path_or_buffer", "source", "file", "path"),
+
+# Direct reader APIs use reader-specific keyword names for the file source.
+_DIRECT_READER_SPECS: dict[str, _DirectReaderSpec] = {
+    "read_csv": _DirectReaderSpec(
+        source_keyword_names=("path_or_buffer", "source", "file", "path"),
+    ),
+    "read_parquet": _DirectReaderSpec(
+        source_keyword_names=(
+            "file_glob",
+            "file_globs",
+            "source",
+            "file",
+            "path",
+        ),
+    ),
+    "read_json": _DirectReaderSpec(
+        source_keyword_names=("path_or_buffer", "source", "file", "path"),
+    ),
 }
+
+# Module-level direct readers receive the file source as their first positional
+# argument. They may also receive an explicit connection= keyword.
+_MODULE_DIRECT_READER_CALL = _DirectReaderCallSpec(
+    source_positional_index=0,
+    connection_positional_index=None,
+)
+
+# Connection direct readers receive the bound connection as args[0], followed
+# by the file source as args[1].
+_CONNECTION_DIRECT_READER_CALL = _DirectReaderCallSpec(
+    source_positional_index=1,
+    connection_positional_index=0,
+)
 
 
 @dataclass(frozen=True)
@@ -90,13 +166,6 @@ class WasmDuckDBSqlResult:
     """Result of a DuckDB SQL API call that was rewritten for WASM."""
 
     value: Any
-
-
-@dataclass(frozen=True)
-class _EvalBindingNames:
-    original: str
-    args: str
-    kwargs: str
 
 
 class _RemoteTableNames:
@@ -191,14 +260,13 @@ def patch_duckdb_for_wasm() -> Unpatch:
     _require_sqlglot()
 
     patches = WasmPatchSet()
-    for function_name in _DIRECT_READER_NAMES:
+    for function_name in _DIRECT_READER_SPECS:
         patches.replace(
             duckdb,
             function_name,
             _make_direct_reader_wrapper(
                 function_name,
-                source_arg_index=0,
-                connection_arg_index=None,
+                call_spec=_MODULE_DIRECT_READER_CALL,
             ),
         )
         patches.replace(
@@ -206,32 +274,25 @@ def patch_duckdb_for_wasm() -> Unpatch:
             function_name,
             _make_direct_reader_wrapper(
                 function_name,
-                source_arg_index=1,
-                connection_arg_index=0,
+                call_spec=_CONNECTION_DIRECT_READER_CALL,
             ),
         )
-    for function_name, (
-        query_index,
-        query_kwargs,
-    ) in _MODULE_SQL_FUNCTIONS.items():
+    for function_name, spec in _MODULE_SQL_FUNCTIONS.items():
         patches.replace(
             duckdb,
             function_name,
             _make_sql_api_wrapper(
-                query_arg_index=query_index,
-                query_kwarg_names=query_kwargs,
+                query_arg_index=spec.query_positional_index,
+                query_kwarg_names=spec.query_keyword_names,
             ),
         )
-    for method_name, (
-        query_index,
-        query_kwargs,
-    ) in _CONNECTION_SQL_METHODS.items():
+    for method_name, spec in _CONNECTION_SQL_METHODS.items():
         patches.replace(
             duckdb.DuckDBPyConnection,
             method_name,
             _make_sql_api_wrapper(
-                query_arg_index=query_index,
-                query_kwarg_names=query_kwargs,
+                query_arg_index=spec.query_positional_index,
+                query_kwarg_names=spec.query_keyword_names,
             ),
         )
     return patches.unpatch_all()
@@ -466,11 +527,11 @@ def _identifier_string_args(args: tuple[Any, ...]) -> tuple[str, ...]:
 
 def _eval_binding_names(reserved_names: Sequence[str]) -> _EvalBindingNames:
     used = set(reserved_names)
-    original = _unused_name(_SQL_HELPER_NAME_BASES[0], used)
+    original = _unused_name(_EVAL_BINDING_NAME_BASES.original, used)
     used.add(original)
-    args = _unused_name(_SQL_HELPER_NAME_BASES[1], used)
+    args = _unused_name(_EVAL_BINDING_NAME_BASES.args, used)
     used.add(args)
-    kwargs = _unused_name(_SQL_HELPER_NAME_BASES[2], used)
+    kwargs = _unused_name(_EVAL_BINDING_NAME_BASES.kwargs, used)
     return _EvalBindingNames(original=original, args=args, kwargs=kwargs)
 
 
@@ -515,8 +576,7 @@ def _show_duckdb_tables(
 def _make_direct_reader_wrapper(
     function_name: str,
     *,
-    source_arg_index: int,
-    connection_arg_index: int | None,
+    call_spec: _DirectReaderCallSpec,
 ) -> WrapperFactory:
     def _wrap(original: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(original)
@@ -525,8 +585,7 @@ def _make_direct_reader_wrapper(
                 function_name,
                 args,
                 kwargs,
-                source_arg_index=source_arg_index,
-                connection_arg_index=connection_arg_index,
+                call_spec=call_spec,
             )
             if source_info is None:
                 return original(*args, **kwargs)
@@ -553,8 +612,7 @@ def _direct_reader_source(
     args: tuple[Any, ...],
     kwargs: Mapping[str, Any],
     *,
-    source_arg_index: int,
-    connection_arg_index: int | None,
+    call_spec: _DirectReaderCallSpec,
 ) -> tuple[RemoteFileSource, Any] | None:
     options = dict(kwargs)
     try:
@@ -562,17 +620,17 @@ def _direct_reader_source(
             function_name,
             args,
             options,
-            source_arg_index=source_arg_index,
+            call_spec=call_spec,
         )
     except TypeError:
         return None
     if rest_args:
         return None
 
-    if connection_arg_index is None:
+    if call_spec.connection_positional_index is None:
         connection = options.pop("connection", None)
     else:
-        connection = args[connection_arg_index]
+        connection = args[call_spec.connection_positional_index]
     source_info = remote_file_source_from_reader_args(
         function_name, source, options
     )
@@ -586,14 +644,18 @@ def _pop_source_argument(
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
     *,
-    source_arg_index: int,
+    call_spec: _DirectReaderCallSpec,
 ) -> tuple[Any, tuple[Any, ...]]:
-    if len(args) > source_arg_index:
-        return args[source_arg_index], args[source_arg_index + 1 :]
+    source_positional_index = call_spec.source_positional_index
+    if len(args) > source_positional_index:
+        return (
+            args[source_positional_index],
+            args[source_positional_index + 1 :],
+        )
 
-    for key in _SOURCE_KWARGS[function_name]:
+    for key in _DIRECT_READER_SPECS[function_name].source_keyword_names:
         if key in kwargs:
-            return kwargs.pop(key), args[source_arg_index + 1 :]
+            return kwargs.pop(key), args[source_positional_index + 1 :]
 
     raise TypeError(f"Missing source argument for duckdb.{function_name}")
 
