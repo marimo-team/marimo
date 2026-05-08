@@ -1,5 +1,6 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -172,154 +173,140 @@ def test_anthropic_process_part_text_file() -> None:
 
 
 @pytest.mark.parametrize(
-    ("model_name", "base_url", "expected"),
+    ("provider_kind", "model_name", "base_url", "expected_thinking"),
     [
+        # OpenAI: profile drives the decision via supports_thinking.
+        pytest.param("openai", "o1-mini", None, True, id="openai_o1_mini"),
         pytest.param(
-            "o1-mini",
-            None,
-            True,
-            id="o1_mini_no_base_url",
-        ),
-        pytest.param(
+            "openai",
             "o1-preview",
-            None,
-            True,
-            id="o1_preview_no_base_url",
-        ),
-        pytest.param(
-            "o1",
-            None,
-            True,
-            id="o1_no_base_url",
-        ),
-        pytest.param(
-            "o1-2024-12-17",
             "https://api.openai.com/v1",
             True,
-            id="o1_dated_openai_base_url",
+            id="openai_o1_preview_official_url",
+        ),
+        pytest.param("openai", "o3", None, True, id="openai_o3"),
+        pytest.param("openai", "o3-mini", None, True, id="openai_o3_mini"),
+        pytest.param("openai", "gpt-5", None, True, id="openai_gpt5"),
+        pytest.param(
+            "openai", "gpt-4", None, False, id="openai_gpt4_no_thinking"
         ),
         pytest.param(
-            "o3-mini",
-            None,
-            True,
-            id="o3_mini_no_base_url",
+            "openai", "gpt-4o", None, False, id="openai_gpt4o_no_thinking"
         ),
+        # Custom base URL (litellm/vLLM/Together/etc.) suppresses thinking
+        # even when the model name looks like a reasoning model: third-party
+        # endpoints often don't accept `reasoning_effort`.
         pytest.param(
-            "gpt-5-turbo",
-            None,
-            True,
-            id="gpt5_turbo_no_base_url",
-        ),
-        pytest.param(
-            "gpt-5-preview",
-            None,
-            True,
-            id="gpt5_preview_no_base_url",
-        ),
-        pytest.param(
-            "openai/o1-mini",
-            None,
-            True,
-            id="openai_prefix_o1_mini_no_base_url",
-        ),
-        pytest.param(
-            "openai/o1-preview",
-            None,
-            True,
-            id="openai_prefix_o1_preview_no_base_url",
-        ),
-        pytest.param(
-            "openai/gpt-5-turbo",
-            None,
-            True,
-            id="openai_prefix_gpt5_no_base_url",
-        ),
-        pytest.param(
+            "openai",
             "o1-mini",
             "https://custom.api.com/v1",
             False,
-            id="o1_custom_base_url",
+            id="openai_o1_custom_base_url",
         ),
         pytest.param(
-            "o1-preview",
+            "openai",
+            "gpt-5",
             "https://litellm.proxy.com/api/v1",
             False,
-            id="o1_litellm_proxy",
+            id="openai_gpt5_litellm_proxy",
+        ),
+        # Azure: thinking is always suppressed (only custom Azure deployments
+        # support reasoning_effort, which we don't expose yet).
+        pytest.param(
+            "azure",
+            "o1-mini",
+            "https://my.openai.azure.com/openai/deployments/o1-mini?api-version=2024-12-01-preview",
+            False,
+            id="azure_o1_mini",
         ),
         pytest.param(
-            "gpt-4",
-            None,
+            "azure",
+            "gpt-5",
+            "https://my.openai.azure.com/openai/deployments/gpt-5?api-version=2024-12-01-preview",
             False,
-            id="gpt4_no_base_url",
-        ),
-        pytest.param(
-            "gpt-4o",
-            None,
-            False,
-            id="gpt4o_no_base_url",
-        ),
-        pytest.param(
-            "gpt-4",
-            "https://custom.api.com/v1",
-            False,
-            id="gpt4_custom_base_url",
-        ),
-        pytest.param(
-            "olive-model",
-            None,
-            False,
-            id="model_starting_with_o_but_not_reasoning",
-        ),
-        pytest.param(
-            "openrouter/o1-mini",
-            None,
-            False,
-            id="openrouter_prefix_not_openai",
+            id="azure_gpt5",
         ),
     ],
 )
 @pytest.mark.requires("pydantic_ai")
-def test_is_reasoning_model(
-    model_name: str, base_url: str | None, expected: bool
+def test_openai_default_thinking(
+    provider_kind: str,
+    model_name: str,
+    base_url: str | None,
+    expected_thinking: bool,
 ) -> None:
-    """Test that _is_reasoning_model correctly identifies reasoning models."""
+    """The base url heuristic + pydantic-ai's profile drive the on/off decision.
+
+    `openai_reasoning_summary` rides on the same profile-driven path: it is
+    set iff `thinking` is, so we never send it to non-reasoning models or to
+    custom OpenAI-compatible endpoints that wouldn't accept it.
+    """
     config = AnyProviderConfig(api_key="test-key", base_url=base_url)
-    provider = OpenAIProvider(model_name, config)
-    assert provider._is_reasoning_model(model_name) == expected
+    provider: OpenAIProvider = (
+        AzureOpenAIProvider(model_name, config)
+        if provider_kind == "azure"
+        else OpenAIProvider(model_name, config)
+    )
+    model = provider.create_model(max_tokens=512)
+    settings = provider._build_agent_settings(model)
+
+    has_thinking = settings is not None and settings.get("thinking") is True
+    has_summary = (
+        settings is not None and "openai_reasoning_summary" in settings
+    )
+    assert has_thinking == expected_thinking
+    assert has_summary == expected_thinking
 
 
 @pytest.mark.parametrize(
-    ("model_name", "expected"),
+    (
+        "model_name",
+        "expected_model_settings",
+        "expected_agent_thinking",
+    ),
     [
         pytest.param(
-            "claude-opus-4-20250514",
+            "claude-opus-4-7",
+            # Opus 4.7 disallows sampling settings, so no temperature.
+            {"max_tokens": 1024},
             True,
-            id="claude_opus_4",
+            id="opus_4_7_adaptive_no_sampling",
         ),
         pytest.param(
-            "claude-sonnet-4-20250514",
+            "claude-opus-4-6",
+            {"max_tokens": 1024, "temperature": 1},
             True,
-            id="claude_sonnet_4",
+            id="opus_4_6",
         ),
         pytest.param(
-            "claude-haiku-4-5-20250514",
+            "claude-sonnet-4-6",
+            {"max_tokens": 1024, "temperature": 1},
             True,
-            id="claude_haiku_4_5",
+            id="sonnet_4_6",
+        ),
+        pytest.param(
+            "claude-opus-4-5-20251101",
+            {"max_tokens": 1024, "temperature": 1},
+            True,
+            id="opus_4_5",
         ),
         pytest.param(
             "claude-3-7-sonnet-20250219",
+            {"max_tokens": 1024, "temperature": 1},
             True,
-            id="claude_3_7_sonnet",
+            id="sonnet_3_7",
         ),
+        # NOTE: pydantic-ai's profile reports `supports_thinking=True` for all
+        # Anthropic models — even 3.5 — so by trusting it we end up enabling
+        # thinking on 3.5 too. The Anthropic API will reject thinking for 3.5
+        # at request time. We accept that trade-off in exchange for not
+        # maintaining our own per-model gate; if pydantic-ai's profile gets
+        # corrected upstream, behavior here will follow automatically.
         pytest.param(
             "claude-3-5-sonnet-20241022",
-            False,
-            id="claude_3_5_sonnet_not_thinking",
-        ),
-        pytest.param(
-            "claude-3-opus-20240229",
-            False,
-            id="claude_3_opus_not_thinking",
+            {"max_tokens": 1024, "temperature": 1},
+            True,
+            id="sonnet_3_5_trusts_profile",
         ),
     ],
 )
@@ -328,13 +315,106 @@ def test_is_reasoning_model(
     or not DependencyManager.pydantic_ai.has(),
     reason="anthropic or pydantic_ai not installed",
 )
-def test_anthropic_is_extended_thinking_model(
-    model_name: str, expected: bool
+def test_anthropic_settings_split(
+    model_name: str,
+    expected_model_settings: dict[str, Any],
+    expected_agent_thinking: bool,
 ) -> None:
-    """Test that is_extended_thinking_model correctly identifies thinking models."""
+    """Verify the model-level settings (temperature) and agent-level thinking flag."""
     config = AnyProviderConfig(api_key="test-key", base_url=None)
     provider = AnthropicProvider(model_name, config)
-    assert provider.is_extended_thinking_model(model_name) == expected
+    model = provider.create_model(max_tokens=1024)
+    assert dict(model.settings) == expected_model_settings
+
+    agent_settings = provider._build_agent_settings(model)
+    actual_thinking = (
+        agent_settings is not None and agent_settings.get("thinking") is True
+    )
+    assert actual_thinking == expected_agent_thinking
+
+
+@pytest.mark.parametrize(
+    ("model_name", "expected_payload_kind"),
+    [
+        # Adaptive-only / adaptive-supported models route to {'type': 'adaptive'}.
+        pytest.param("claude-opus-4-7", "adaptive", id="opus_4_7_adaptive"),
+        pytest.param("claude-opus-4-6", "adaptive", id="opus_4_6_adaptive"),
+        pytest.param(
+            "claude-sonnet-4-6", "adaptive", id="sonnet_4_6_adaptive"
+        ),
+        # Older models route to {'type': 'enabled', 'budget_tokens': N}.
+        pytest.param(
+            "claude-opus-4-5-20251101", "enabled", id="opus_4_5_manual"
+        ),
+        pytest.param(
+            "claude-3-7-sonnet-20250219", "enabled", id="sonnet_3_7_manual"
+        ),
+    ],
+)
+@pytest.mark.skipif(
+    not DependencyManager.anthropic.has()
+    or not DependencyManager.pydantic_ai.has(),
+    reason="anthropic or pydantic_ai not installed",
+)
+def test_anthropic_thinking_payload_translation(
+    model_name: str, expected_payload_kind: str
+) -> None:
+    """End-to-end: per-model Anthropic API payload via pydantic-ai's profile.
+
+    Opus 4.7 is the critical case here: it only accepts `{"type": "adaptive"}`
+    and rejects `{"type": "enabled", "budget_tokens": ...}` with HTTP 400.
+    """
+    from pydantic_ai.models import ModelRequestParameters
+    from pydantic_ai.models.anthropic import AnthropicModel
+
+    config = AnyProviderConfig(api_key="test-key", base_url=None)
+    provider = AnthropicProvider(model_name, config)
+    model = provider.create_model(max_tokens=1024)
+    assert isinstance(model, AnthropicModel)
+
+    # Combine the model-level settings (temperature) with the agent-level
+    # thinking flag the way pydantic-ai does at request time.
+    merged = dict(model.settings or {})
+    merged.update(provider._build_agent_settings(model) or {})
+
+    prepared_settings, prepared_params = model.prepare_request(
+        merged, ModelRequestParameters()
+    )
+    payload = model._translate_thinking(  # type: ignore[attr-defined]
+        prepared_settings or {}, prepared_params
+    )
+    if expected_payload_kind == "adaptive":
+        assert payload == {"type": "adaptive"}
+    else:
+        assert payload["type"] == "enabled"
+        assert payload["budget_tokens"] > 0
+
+
+@pytest.mark.parametrize(
+    ("model_name", "expected_thinking"),
+    [
+        pytest.param("gemini-3-pro-preview", True, id="gemini_3_pro"),
+        pytest.param("gemini-2.5-pro", True, id="gemini_2_5_pro"),
+        pytest.param(
+            "gemini-2.0-flash", False, id="gemini_2_0_flash_not_thinking"
+        ),
+    ],
+)
+@pytest.mark.skipif(
+    not DependencyManager.google_ai.has()
+    or not DependencyManager.pydantic_ai.has(),
+    reason="google or pydantic_ai not installed",
+)
+def test_google_default_thinking(
+    model_name: str, expected_thinking: bool
+) -> None:
+    """Google's profile correctly distinguishes thinking vs non-thinking models."""
+    config = AnyProviderConfig(api_key="test-key", base_url=None)
+    provider = GoogleProvider(model_name, config)
+    model = provider.create_model(max_tokens=512)
+    settings = provider._build_agent_settings(model)
+    actual = settings is not None and settings.get("thinking") is True
+    assert actual == expected_thinking
 
 
 @pytest.mark.requires("pydantic_ai")

@@ -8,11 +8,11 @@ from unittest.mock import MagicMock, Mock
 import pytest
 
 from marimo._config.manager import get_default_config_manager
-from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import LspServer
 from marimo._server.session.listeners import RecentsTrackerListener
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
+from marimo._server.workspace import NEW_FILE, EmptyWorkspace, infer_workspace
 from marimo._session import (
     KernelManager,
     Session,
@@ -64,7 +64,7 @@ def mock_session():
 @pytest.fixture
 def session_manager():
     return SessionManager(
-        file_router=AppFileRouter.new_file(),
+        workspace=EmptyWorkspace(),
         mode=SessionMode.EDIT,
         quiet=False,
         include_code=True,
@@ -100,7 +100,7 @@ async def test_create_session_new(
         session_id,
         mock_session_consumer,
         query_params={},
-        file_key=AppFileRouter.NEW_FILE,
+        file_key=NEW_FILE,
         auto_instantiate=False,
     )
     assert session_id in session_manager.sessions
@@ -137,7 +137,7 @@ def test_maybe_resume_session_for_new_file(
 
     # Resume the same session_id with a new file -> doesn't match
     resumed_session = session_manager.maybe_resume_session(
-        session_id, AppFileRouter.NEW_FILE
+        session_id, NEW_FILE
     )
     assert resumed_session is None
 
@@ -150,7 +150,7 @@ def test_maybe_resume_session_for_new_file(
 
     # Resume with a different session_id -> doesn't match
     resumed_session = session_manager.maybe_resume_session(
-        "different_session_id", AppFileRouter.NEW_FILE
+        "different_session_id", NEW_FILE
     )
     assert resumed_session is None
 
@@ -199,9 +199,7 @@ def test_any_clients_connected_new_file(
 ) -> None:
     add_session(session_manager, session_id, mock_session)
     mock_session.app_file_manager = AppFileManager(filename=None)
-    assert (
-        session_manager.any_clients_connected(AppFileRouter.NEW_FILE) is False
-    )
+    assert session_manager.any_clients_connected(NEW_FILE) is False
     assert session_manager.any_clients_connected("different_file.py") is False
 
 
@@ -212,9 +210,7 @@ def test_any_clients_connected_existing_file(
 ) -> None:
     add_session(session_manager, session_id, mock_session)
     mock_session.app_file_manager = AppFileManager(filename=temp_marimo_file)
-    assert (
-        session_manager.any_clients_connected(AppFileRouter.NEW_FILE) is False
-    )
+    assert session_manager.any_clients_connected(NEW_FILE) is False
     assert session_manager.any_clients_connected(temp_marimo_file) is True
     assert session_manager.any_clients_connected("different_file.py") is False
 
@@ -288,7 +284,7 @@ def test_session_manager_auth_token_edit_mode_with_provided_token():
     """Test that provided auth token is used in EDIT mode"""
     provided_token = AuthToken("custom-edit-token")
     session_manager = SessionManager(
-        file_router=AppFileRouter.new_file(),
+        workspace=EmptyWorkspace(),
         mode=SessionMode.EDIT,
         quiet=False,
         include_code=True,
@@ -309,7 +305,7 @@ def test_session_manager_auth_token_edit_mode_with_provided_token():
 def test_session_manager_auth_token_edit_mode_without_provided_token():
     """Test that random auth token is generated in EDIT mode when none provided"""
     session_manager = SessionManager(
-        file_router=AppFileRouter.new_file(),
+        workspace=EmptyWorkspace(),
         mode=SessionMode.EDIT,
         quiet=False,
         include_code=True,
@@ -334,7 +330,7 @@ def test_session_manager_auth_token_run_mode_with_provided_token():
     """Test that provided auth token is used in RUN mode"""
     provided_token = AuthToken("custom-run-token")
     session_manager = SessionManager(
-        file_router=AppFileRouter.new_file(),
+        workspace=EmptyWorkspace(),
         mode=SessionMode.RUN,
         quiet=False,
         include_code=True,
@@ -376,7 +372,7 @@ def test_session_manager_auth_token_run_mode_without_provided_token(
     file_path.write_text(notebook_content)
 
     session_manager = SessionManager(
-        file_router=AppFileRouter.infer(str(file_path)),
+        workspace=infer_workspace(str(file_path)),
         mode=SessionMode.RUN,
         quiet=False,
         include_code=True,
@@ -396,7 +392,7 @@ def test_session_manager_auth_token_run_mode_without_provided_token(
 
     # Create another session manager with the same code - should have same token
     session_manager2 = SessionManager(
-        file_router=AppFileRouter.infer(str(file_path)),
+        workspace=infer_workspace(str(file_path)),
         mode=SessionMode.RUN,
         quiet=False,
         include_code=True,
