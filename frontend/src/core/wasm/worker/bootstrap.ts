@@ -163,7 +163,7 @@ export class DefaultWasmController implements WasmController {
   private async loadNotebookDeps(code: string, foundPackages: Set<string>) {
     const pyodide = this.requirePyodide;
 
-    if (code.includes("mo.sql")) {
+    if (code.includes("mo.sql") || code.includes("duckdb")) {
       // We need pandas and duckdb for mo.sql
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;

@@ -141,7 +141,7 @@ const requestHandler = createRPCRequestHandler({
     const span = t.startSpan("loadPackages");
     await pyodideReadyPromise; // Make sure loading is done
 
-    if (code.includes("mo.sql")) {
+    if (code.includes("mo.sql") || code.includes("duckdb")) {
       // Add pandas and duckdb to the code
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;
