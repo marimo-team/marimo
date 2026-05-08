@@ -19,6 +19,7 @@ LOGGER = _loggers.marimo_logger()
 
 Unpatch = Callable[[], None]
 Fallback = Callable[..., Any]
+WrapperFactory = Callable[[Callable[..., Any]], Callable[..., Any]]
 
 
 class WasmPatchSet:
@@ -71,6 +72,34 @@ class WasmPatchSet:
                         original_tb
                     ) from fallback_exc
 
+        setattr(owner, attr, wrapper)
+
+        def _unpatch() -> None:
+            # Only restore if we're still the active wrapper.
+            if getattr(owner, attr, None) is wrapper:
+                setattr(owner, attr, original)
+
+        self._unpatches.append(_unpatch)
+
+    def replace(
+        self,
+        owner: Any,
+        attr: str,
+        wrapper_factory: WrapperFactory,
+    ) -> None:
+        """Replace ``owner.attr`` with a WASM-only wrapper.
+
+        Unlike ``patch``, this does not call the original first. Use this for
+        APIs where an original call can have side effects before failing.
+        """
+        if not self._active:
+            return
+
+        original = getattr(owner, attr, None)
+        if original is None:
+            return
+
+        wrapper = wrapper_factory(original)
         setattr(owner, attr, wrapper)
 
         def _unpatch() -> None:
