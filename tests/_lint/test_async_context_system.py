@@ -283,7 +283,7 @@ def __():
 
     async def test_multiple_definitions_rule(self):
         """Test MultipleDefinitionsRule with context."""
-        # Create notebook with multiple definitions
+        # Create notebook with chain shadowing (valid with implicit edges)
         code = """import marimo
 app = marimo.App()
 
@@ -294,7 +294,7 @@ def _():
 
 @app.cell
 def _():
-    x = 2  # Should trigger multiple definitions
+    x = 2  # Valid chain shadowing
     return
 """
         notebook = parse_notebook(code)
@@ -304,9 +304,8 @@ def _():
         await rule.check(ctx)
 
         diagnostics = await ctx.get_diagnostics()
-        assert len(diagnostics) > 0
-        assert diagnostics[0].severity == Severity.BREAKING
-        assert "multiple cells" in diagnostics[0].message
+        # Chain shadowing is now valid, so no diagnostics expected
+        assert len(diagnostics) == 0
 
     async def test_unparsable_rule(self):
         """Test UnparsableRule with context."""

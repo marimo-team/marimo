@@ -9,7 +9,11 @@ snapshot = snapshotter(__file__)
 
 
 def test_multiple_definitions_snapshot():
-    """Test snapshot for multiple definitions error."""
+    """Test snapshot for multiple definitions error.
+
+    With chain shadowing, simple redefinitions are now valid.
+    This test verifies no errors are produced.
+    """
     file = "tests/_lint/test_files/multiple_definitions.py"
     with open(file) as f:
         code = f.read()
@@ -17,12 +21,8 @@ def test_multiple_definitions_snapshot():
     notebook = parse_notebook(code, filepath=file)
     errors = lint_notebook(notebook)
 
-    # Format errors for snapshot
-    error_output = []
-    for error in errors:
-        error_output.append(error.format())
-
-    snapshot("multiple_definitions_errors.txt", "\n".join(error_output))
+    # Chain shadowing makes this valid
+    assert len(errors) == 0
 
 
 def test_cycle_dependencies_snapshot():

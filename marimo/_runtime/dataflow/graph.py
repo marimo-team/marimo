@@ -264,8 +264,41 @@ class DirectedGraph(GraphTopology):
         return imports
 
     def get_multiply_defined(self) -> list[Name]:
-        """Return a list of names that are defined in multiple cells."""
-        return self.definition_registry.get_multiply_defined()
+        """Return names that are invalidly defined in multiple cells.
+
+        Allows chain shadowing: definitions are permitted if they form a
+        linear chain in the dependency graph.
+        """
+        from marimo._runtime.dataflow import topological_sort
+
+        topo_order = topological_sort(self, self.topology.cells.keys())
+        position = {cid: i for i, cid in enumerate(topo_order)}
+        registration_order = {
+            cid: i for i, cid in enumerate(self.topology.cells.keys())
+        }
+
+        def _sort_key(cid: CellId_t) -> int:
+            return position.get(
+                cid, len(topo_order) + registration_order.get(cid, 0)
+            )
+
+        result: list[Name] = []
+        for (
+            name,
+            defining_cells,
+        ) in self.definition_registry.definitions.items():
+            if len(defining_cells) <= 1:
+                continue
+
+            sorted_cells = sorted(defining_cells, key=_sort_key)
+            for i in range(len(sorted_cells) - 1):
+                if sorted_cells[i + 1] not in self.descendants(
+                    sorted_cells[i]
+                ):
+                    result.append(name)
+                    break
+
+        return result
 
     def get_deleted_nonlocal_ref(self) -> list[Name]:
         """Get names that are deleted but defined elsewhere."""

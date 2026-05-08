@@ -358,13 +358,13 @@ class TestExportHTML:
         assert "<marimo-code" in html
 
     @staticmethod
-    def test_export_html_with_multiple_definitions(
-        temp_marimo_file_with_multiple_definitions: str,
+    def test_export_html_with_cycle(
+        temp_marimo_file_with_cycle: str,
     ) -> None:
-        p = _run_export("html", temp_marimo_file_with_multiple_definitions)
+        p = _run_export("html", temp_marimo_file_with_cycle)
         _assert_failure(p)
         # Errors but still produces HTML
-        assert "MultipleDefinitionError" in p.stderr
+        assert "CycleError" in p.stderr
         assert "<marimo-code" in p.output
 
     @pytest.mark.skipif(
@@ -578,14 +578,14 @@ class TestExportScript:
         )
 
     @staticmethod
-    def test_export_script_with_multiple_definitions(
-        temp_marimo_file_with_multiple_definitions: str,
+    def test_export_script_with_cycle(
+        temp_marimo_file_with_cycle: str,
     ) -> None:
-        p = _run_export("script", temp_marimo_file_with_multiple_definitions)
+        p = _run_export("script", temp_marimo_file_with_cycle)
         _assert_failure(p)
-        # MultipleDefinitionError is uncaught; CliRunner stores it in exception
+        # CycleError is uncaught; CliRunner stores it in exception
         error_message = str(p.exception) if p.exception else p.output
-        assert "multiple definitions of the name x" in error_message
+        assert "cycle" in error_message.lower()
 
     @staticmethod
     def test_export_script_with_errors(
@@ -872,19 +872,18 @@ class TestExportIpynb:
         not DependencyManager.nbformat.has(),
         reason="This test requires nbformat.",
     )
-    def test_export_ipynb_with_multiple_definitions(
-        self, temp_marimo_file_with_multiple_definitions: str
+    def test_export_ipynb_with_cycle(
+        self, temp_marimo_file_with_cycle: str
     ) -> None:
         p = _run_export(
             "ipynb",
-            temp_marimo_file_with_multiple_definitions,
+            temp_marimo_file_with_cycle,
             "--include-outputs",
         )
         _assert_failure(p)
         # Error is now captured in the ipynb output as a proper Jupyter error
         output = p.output
-        assert "multiple-defs" in output
-        assert "was defined by another cell" in output
+        assert "cycle" in output
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has() or is_windows(),

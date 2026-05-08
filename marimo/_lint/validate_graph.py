@@ -50,19 +50,22 @@ def check_for_errors(
 def check_for_multiple_definitions(
     graph: DirectedGraph,
 ) -> dict[CellId_t, list[MultipleDefinitionError]]:
-    """Check whether multiple cells define the same global name."""
-    errors = defaultdict(list)
-    defs = sorted(set().union(*(cell.defs for cell in graph.cells.values())))
-    for name in defs:
+    """Check whether multiple cells define the same global name.
+
+    Allows chain shadowing: multiple definitions are permitted if they
+    form a linear chain in the dependency graph. Delegates chain
+    validation to graph.get_multiply_defined().
+    """
+    errors: dict[CellId_t, list[MultipleDefinitionError]] = defaultdict(list)
+    for name in graph.get_multiply_defined():
         defining_cells = graph.definitions[name]
-        if len(defining_cells) > 1:
-            for cid in defining_cells:
-                errors[cid].append(
-                    MultipleDefinitionError(
-                        name=str(name),
-                        cells=tuple(sorted(defining_cells - {cid})),
-                    )
+        for cid in defining_cells:
+            errors[cid].append(
+                MultipleDefinitionError(
+                    name=name,
+                    cells=tuple(sorted(c for c in defining_cells if c != cid)),
                 )
+            )
     return errors
 
 

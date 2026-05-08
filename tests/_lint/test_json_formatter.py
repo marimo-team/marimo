@@ -155,7 +155,7 @@ if __name__ == "__main__":
         """Test run_check with JSON format on a file with issues."""
         tmpdir = tmp_path
         notebook_file = Path(tmpdir) / "issues.py"
-        # Create notebook with duplicate variable definition
+        # Create notebook with a cycle (still a breaking error)
         notebook_content = """import marimo
 
 __generated_with = "0.15.0"
@@ -163,12 +163,12 @@ app = marimo.App()
 
 @app.cell
 def __():
-    import marimo as mo
+    x = y
     return
 
 @app.cell
 def __():
-    import marimo as mo  # Duplicate definition
+    y = x  # Creates cycle
     return
 """
         notebook_file.write_text(notebook_content)
@@ -193,7 +193,7 @@ def __():
 
         assert diagnostic["filename"] == str(notebook_file)
         assert diagnostic["severity"] == "breaking"
-        assert "multiple" in diagnostic["message"].lower()
+        assert "circular" in diagnostic["message"].lower()
 
         # Check summary
         summary = result["summary"]
@@ -358,12 +358,12 @@ app = marimo.App()
 
 @app.cell
 def __():
-    import marimo as mo
+    x = y
     return
 
 @app.cell
 def __():
-    import marimo as mo  # Duplicate
+    y = x
     return
 
 if __name__ == "__main__":
@@ -390,7 +390,7 @@ if __name__ == "__main__":
         ]
         assert len(diagnostic_issues) == 1
         assert diagnostic_issues[0]["severity"] == "breaking"
-        assert "multiple" in diagnostic_issues[0]["message"].lower()
+        assert "circular" in diagnostic_issues[0]["message"].lower()
 
         # Check errors — only missing.py, not broken_file (skipped)
         error_issues = [i for i in result["issues"] if i["type"] == "error"]

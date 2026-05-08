@@ -11,7 +11,13 @@ def __():
 
 @app.cell
 def __():
-    x = 2
+    y = x  # noqa: F821
+    return (y,)
+
+
+@app.cell
+def __():
+    x = y  # noqa: F821
     return (x,)
 
 

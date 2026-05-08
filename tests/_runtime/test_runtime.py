@@ -23,7 +23,6 @@ from marimo._messaging.errors import (
     MarimoInternalError,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
-    MultipleDefinitionError,
 )
 from marimo._messaging.notification import (
     CellNotification,
@@ -625,7 +624,7 @@ class TestExecution:
         assert "2" not in stale_cell_ids
 
     # Test errors in marimo semantics
-    async def test_kernel_simultaneous_multiple_definition_error(
+    async def test_kernel_chain_shadowing_valid(
         self,
         any_kernel: Kernel,
     ) -> None:
@@ -637,12 +636,11 @@ class TestExecution:
             ]
         )
 
-        assert "x" not in k.globals
-        assert set(k.errors.keys()) == {"0", "1"}
-        assert k.errors["0"] == (MultipleDefinitionError("x", ("1",)),)
-        assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
+        # Chain shadowing is now valid (implicit edge 0->1)
+        assert k.globals["x"] == 1
+        assert not k.errors
 
-    async def test_kernel_new_multiple_definition_does_not_invalidate(
+    async def test_kernel_chain_shadowing_rerun(
         self,
         any_kernel: Kernel,
     ) -> None:
@@ -651,20 +649,21 @@ class TestExecution:
         assert k.globals["x"] == 0
         assert not k.errors
 
-        # cell 0 should not be invalidated by the introduction of cell 1
-        await k.run([ExecuteCellCommand(cell_id="1", code="x=0")])
-        assert k.globals["x"] == 0
-        assert set(k.errors.keys()) == {"1"}
-        assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
+        # cell 1 shadows x with implicit edge from cell 0
+        await k.run([ExecuteCellCommand(cell_id="1", code="x=1")])
+        assert k.globals["x"] == 1
+        assert not k.errors
 
-        # re-running cell 0 should invalidate it
-        await k.run([ExecuteCellCommand(cell_id="0", code="x=0")])
-        assert "x" not in k.globals
-        assert set(k.errors.keys()) == {"0", "1"}
-        assert k.errors["0"] == (MultipleDefinitionError("x", ("1",)),)
-        assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
+        # re-running cell 0 and its descendant cell 1
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="x=2"),
+                ExecuteCellCommand(cell_id="1", code="x=3"),
+            ]
+        )
+        assert k.globals["x"] == 3
 
-    async def test_clear_multiple_definition_error(
+    async def test_clear_chain_shadowing_error(
         self, any_kernel: Kernel
     ) -> None:
         k = any_kernel
@@ -674,23 +673,19 @@ class TestExecution:
                 ExecuteCellCommand(cell_id="1", code="x=1"),
             ]
         )
-        assert "x" not in k.globals
-        assert set(k.errors.keys()) == {"0", "1"}
-        assert k.errors["0"] == (MultipleDefinitionError("x", ("1",)),)
-        assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
+        # Chain shadowing is valid, both cells run
+        assert k.globals["x"] == 1
+        assert not k.errors
 
-        # Rename second occurrence of x to y; should eliminate error and run
-        # both cells
+        # Rename second occurrence of x to y.
+        # Cell 1 no longer shadows x. In eager mode, only cell 1 re-runs.
+        # In lazy mode, cell 0 does NOT become stale (it has no children
+        # referencing it after cell 1 stops defining x).
         await k.run([ExecuteCellCommand(cell_id="1", code="y=1")])
         assert k.globals["y"] == 1
-        if k.lazy():
-            assert k.graph.cells["0"].stale
-            await k.run([er])
         assert not k.graph.cells["0"].stale
-        assert k.globals["x"] == 0
-        assert not k.errors
 
-    async def test_clear_multiple_definition_error_with_delete(
+    async def test_clear_chain_shadowing_with_delete(
         self, any_kernel: Kernel
     ) -> None:
         k = any_kernel
@@ -700,42 +695,29 @@ class TestExecution:
                 ExecuteCellCommand(cell_id="1", code="x=1"),
             ]
         )
-        assert "x" not in k.globals
-        assert set(k.errors.keys()) == {"0", "1"}
-        assert k.errors["0"] == (MultipleDefinitionError("x", ("1",)),)
-        assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
+        # Chain shadowing is valid
+        assert k.globals["x"] == 1
+        assert not k.errors
 
-        # issue delete request for cell 1 to clear error and run cell 0
+        # Delete cell 1 (shadowing cell).
+        # Deleting a child does NOT make the parent stale in any mode.
+        # Cell 0 must be explicitly re-run to restore x=0.
         await k.delete_cell(DeleteCellCommand(cell_id="1"))
-        if k.lazy():
-            assert k.graph.cells[er.cell_id].stale
-            await k.run([er])
         assert not k.graph.cells[er.cell_id].stale
+        await k.run([er])
         assert k.globals["x"] == 0
         assert not k.errors
 
-    async def test_new_errors_update_old_ones(
-        self, any_kernel: Kernel
-    ) -> None:
+    async def test_chain_shadowing_no_errors(self, any_kernel: Kernel) -> None:
         k = any_kernel
         await k.run([ExecuteCellCommand(cell_id="0", code="x=0")])
         await k.run([ExecuteCellCommand(cell_id="1", code="x, y = 1, 2")])
-        assert set(k.errors.keys()) == {"1"}
-        assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
+        # Chain shadowing is valid
+        assert not k.errors
 
-        # errors propagated back to cell 1, even though we are not running it
+        # Adding another cell in the chain is also valid
         await k.run([ExecuteCellCommand(cell_id="2", code="x, y = 3, 4")])
-        assert set(k.errors.keys()) == {"1", "2"}
-        assert k.errors["1"] == (
-            MultipleDefinitionError("x", ("0", "2")),
-            MultipleDefinitionError("y", ("2",)),
-        )
-        assert k.errors["2"] == (
-            MultipleDefinitionError("x", ("0", "1")),
-            MultipleDefinitionError("y", ("1",)),
-        )
-
-        assert k.globals["x"] == 0
+        assert not k.errors
 
     async def test_cycle_error(self, any_kernel: Kernel) -> None:
         k = any_kernel
@@ -897,10 +879,10 @@ except NameError:
         assert "_sys" not in k.globals
         assert k.globals["msize"] == sys.maxsize
 
-    async def test_cell_transitioned_to_error_is_not_stale(
-        self, lazy_kernel: Kernel
+    async def test_cell_transitioned_to_cycle_error_is_not_stale(
+        self, any_kernel: Kernel
     ) -> None:
-        k = lazy_kernel
+        k = any_kernel
         await k.run(
             [
                 ExecuteCellCommand(cell_id="0", code="x=0"),
@@ -915,13 +897,14 @@ except NameError:
             ]
         )
 
-        # introduce an error to cell 1; it shouldn't be stale
+        # introduce a cycle error involving cell 1
         await k.run(
             [
-                ExecuteCellCommand(cell_id="1", code="x=0"),
+                ExecuteCellCommand(cell_id="1", code="y=x"),
+                ExecuteCellCommand(cell_id="2", code="x=y"),
             ]
         )
-        assert set(k.errors.keys()) == {"1"}
+        assert "1" in k.errors
         assert not k.graph.cells["1"].stale
 
     async def test_cell_transitioned_to_syntax_error_is_not_stale(
@@ -2050,10 +2033,10 @@ except NameError:
         assert "y" not in k.globals
         assert k.globals["z"] == 15
 
-    async def test_sync_graph_error_propagation(
+    async def test_sync_graph_chain_shadowing_valid(
         self, any_kernel: Kernel
     ) -> None:
-        """Test error propagation when sync introduces errors."""
+        """Test chain shadowing is valid during sync."""
         k = any_kernel
         # Setup: Cell 0 defines x
         await k.run(
@@ -2064,19 +2047,16 @@ except NameError:
         assert "x" in k.globals
         assert not k.errors
 
-        # Action: Sync with new cell 1 that also defines x (multiple definition)
-        # Running both cells to trigger the error in both
+        # Action: Sync with new cell 1 that shadows x (valid chain)
         await k.sync_graph(
             cells={"0": "x = 1", "1": "x = 2"},
             run_ids=["0", "1"],
             delete_ids=[],
         )
 
-        # Verify: Multiple definition error in both cells
-        assert "x" not in k.globals
-        assert set(k.errors.keys()) == {"0", "1"}
-        assert isinstance(k.errors["0"][0], MultipleDefinitionError)
-        assert isinstance(k.errors["1"][0], MultipleDefinitionError)
+        # Verify: Chain shadowing is valid, x = 2
+        assert k.globals["x"] == 2
+        assert not k.errors
 
     async def test_sync_graph_empty_sync(self, any_kernel: Kernel) -> None:
         """Test no-op sync when already in sync."""
@@ -2431,21 +2411,6 @@ class TestImports:
             ]
         )
         assert k.globals["x"] == x
-
-    async def test_transition_out_of_error_triggers_run(
-        self, k: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        await k.run(
-            [
-                exec_req.get("import random"),
-                er := exec_req.get("import random"),
-                exec_req.get("random; x = 0"),
-            ]
-        )
-        assert "x" not in k.globals
-
-        await k.delete_cell(DeleteCellCommand(cell_id=er.cell_id))
-        assert "x" in k.globals
 
     async def test_different_import_same_def(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -3742,11 +3707,13 @@ class TestErrorHandling:
         await k.run(
             [
                 exec_req.get("x = 10"),
-                exec_req.get("x = 20"),
+                exec_req.get("y = x"),
+                exec_req.get("x = y"),
             ]
         )
         cell_notifications = run_mode_kernel.stream.cell_notifications
         error_cell_notification = _filter_to_error_ops(cell_notifications)
+        # Cycle error on cells 1 and 2
         assert len(error_cell_notification) == 2
         for op in error_cell_notification:
             errors = _parse_error_output(op)

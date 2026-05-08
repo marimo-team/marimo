@@ -345,24 +345,24 @@ app = marimo.App()
 
 @app.cell
 def _():
-    x = 1
+    x = y
     return
 
 @app.cell
 def _():
-    x = 2  # Multiple definitions
+    y = x  # Cycle
     return
 """)
 
     async def test_real_rules_with_early_stopping(self):
         """Test real rules with early stopping."""
-        from marimo._lint.rules.breaking import MultipleDefinitionsRule
+        from marimo._lint.rules.breaking import CycleDependenciesRule
         from marimo._lint.rules.formatting import GeneralFormattingRule
 
         # Stop on first breaking error
         config = EarlyStoppingConfig(stop_on_breaking=True)
         checker = RuleEngine(
-            [MultipleDefinitionsRule(), GeneralFormattingRule()],
+            [CycleDependenciesRule(), GeneralFormattingRule()],
             early_stopping=config,
         )
 
@@ -375,7 +375,7 @@ def _():
             if diagnostic.severity == Severity.BREAKING:
                 break
 
-        # Should have at least one breaking diagnostic (multiple definitions)
+        # Should have at least one breaking diagnostic (cycle)
         breaking_diagnostics = [
             d for d in diagnostics if d.severity == Severity.BREAKING
         ]

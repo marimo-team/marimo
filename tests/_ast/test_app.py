@@ -338,11 +338,11 @@ class TestApp:
             x = 0
             return (x,)
 
-        with pytest.raises(MultipleDefinitionError):
-            app.run()
+        # Chain shadowing is now valid
+        app.run()
 
     @staticmethod
-    def test_multiple_definitions_missing_args_rets() -> None:
+    def test_chain_shadowing_missing_args_rets() -> None:
         app = App()
 
         @app.cell
@@ -353,8 +353,8 @@ class TestApp:
         def two() -> None:
             x = 0  # noqa: F841
 
-        with pytest.raises(MultipleDefinitionError):
-            app.run()
+        # Chain shadowing is now valid
+        app.run()
 
     @staticmethod
     def test_delete_nonlocal_ok() -> None:

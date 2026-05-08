@@ -1631,3 +1631,170 @@ def test_is_any_ancestor_errored_marimo_error() -> None:
     # Fix cell 0
     graph.cells["0"].set_run_result_status("success")
     assert not graph.is_any_ancestor_errored("1")
+
+
+class TestChainShadowing:
+    """Tests for chain shadowing: allowing variable redefinition
+    when cells form a linear chain in the dependency graph."""
+
+    def test_valid_chain_shadowing_two_cells(self):
+        graph = dataflow.DirectedGraph()
+        code = "x = 1"
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        code = "x = 2"
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        # With implicit shadowing edge, cell 1 depends on cell 0
+        assert graph.parents == {"0": set(), "1": {"0"}}
+        assert graph.children == {"0": {"1"}, "1": set()}
+
+        multiply_defined = graph.get_multiply_defined()
+        assert multiply_defined == []
+
+    def test_valid_chain_shadowing_three_cells(self):
+        graph = dataflow.DirectedGraph()
+        code = "x = 1"
+        graph.register_cell("0", parse_cell(code))
+
+        code = "x = 2"
+        graph.register_cell("1", parse_cell(code))
+
+        code = "x = 3"
+        graph.register_cell("2", parse_cell(code))
+
+        # Chain: 0 -> 1 -> 2
+        assert graph.parents == {
+            "0": set(),
+            "1": {"0"},
+            "2": {"1"},
+        }
+
+        multiply_defined = graph.get_multiply_defined()
+        assert multiply_defined == []
+
+    def test_valid_chain_with_explicit_reference(self):
+        graph = dataflow.DirectedGraph()
+        code = "x = 1"
+        graph.register_cell("0", parse_cell(code))
+
+        code = "x = x + 1"
+        graph.register_cell("1", parse_cell(code))
+
+        # Explicit reference already creates edge
+        assert graph.parents == {"0": set(), "1": {"0"}}
+
+        multiply_defined = graph.get_multiply_defined()
+        assert multiply_defined == []
+
+    def test_valid_chain_with_intermediate_use(self):
+        graph = dataflow.DirectedGraph()
+        code = "x = 1"
+        graph.register_cell("0", parse_cell(code))
+
+        code = "y = x"
+        graph.register_cell("1", parse_cell(code))
+
+        code = "x = 2"
+        graph.register_cell("2", parse_cell(code))
+
+        # x chain: 0 -> 2 (implicit edge)
+        # y depends on 0
+        # 2 doesn't depend on 1 because 1 doesn't define x
+        assert "0" in graph.parents["2"]
+
+        multiply_defined = graph.get_multiply_defined()
+        assert multiply_defined == []
+
+    def test_valid_fork_shadowing(self):
+        graph = dataflow.DirectedGraph()
+        code = "x = 1"
+        graph.register_cell("0", parse_cell(code))
+
+        code = "y = x"
+        graph.register_cell("1", parse_cell(code))
+
+        code = "x = 2"
+        graph.register_cell("2", parse_cell(code))
+
+        code = "x = 3"
+        graph.register_cell("3", parse_cell(code))
+
+        # Cell 2 has implicit edge from 0
+        # Cell 3 has implicit edge from 2 (most recent definer)
+        # Chain is valid: 0 -> 2 -> 3
+        multiply_defined = graph.get_multiply_defined()
+        assert multiply_defined == []
+
+    def test_valid_sibling_shadowing(self):
+        graph = dataflow.DirectedGraph()
+        code = "x = 1"
+        graph.register_cell("0", parse_cell(code))
+
+        code = "y = 2"
+        graph.register_cell("1", parse_cell(code))
+
+        # Cell 2 defines x without depending on 0
+        # BUT implicit edge will add 0 -> 2, making it valid!
+        code = "x = 2"
+        graph.register_cell("2", parse_cell(code))
+
+        multiply_defined = graph.get_multiply_defined()
+        assert multiply_defined == []
+
+    def test_chain_shadowing_execution_order(self):
+        graph = dataflow.DirectedGraph()
+        code = "x = 1"
+        graph.register_cell("0", parse_cell(code))
+
+        code = "x = 2"
+        graph.register_cell("1", parse_cell(code))
+
+        code = "y = x"
+        graph.register_cell("2", parse_cell(code))
+
+        # Cell 2 references x, so it depends on ALL definers of x
+        # (both 0 and 1). With implicit edge, 1 also depends on 0.
+        assert graph.parents["2"] == {"0", "1"}
+
+        topo = dataflow.topological_sort(graph, graph.cells.keys())
+        assert topo == ["0", "1", "2"]
+
+    def test_multiple_chains_interleaved(self):
+        graph = dataflow.DirectedGraph()
+        code = "x = 1; y = 10"
+        graph.register_cell("0", parse_cell(code))
+
+        code = "x = 2"
+        graph.register_cell("1", parse_cell(code))
+
+        code = "y = 20"
+        graph.register_cell("2", parse_cell(code))
+
+        code = "z = x + y"
+        graph.register_cell("3", parse_cell(code))
+
+        # x chain: 0 -> 1
+        # y chain: 0 -> 2
+        # z depends on 1 and 2
+        assert "1" in graph.parents["3"]
+        assert "2" in graph.parents["3"]
+
+        multiply_defined = graph.get_multiply_defined()
+        assert multiply_defined == []
+
+    def test_cycle_breaks_chain_ordering(self):
+        """Cells in cycles are sorted by registration order fallback."""
+        graph = dataflow.DirectedGraph()
+        # Create a cycle: 0 -> 1 -> 2 -> 0
+        # Both 0 and 1 define x
+        graph.register_cell("0", parse_cell("x, z = y, 0"))
+        graph.register_cell("1", parse_cell("y, z = x, 0"))
+
+        # z is defined in both cells which are in a cycle
+        # _sort_key should use registration order for cells not in topo order
+        multiply_defined = graph.get_multiply_defined()
+        # z forms a chain (0 -> 1 via implicit edge), which is valid
+        assert multiply_defined == []

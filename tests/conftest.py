@@ -513,8 +513,8 @@ temp_md_marimo_file = _make_temp_fixture("notebook.md", "with_md")
 temp_marimo_file_with_errors = _make_temp_fixture(
     "notebook_with_errors.py", "with_errors"
 )
-temp_marimo_file_with_multiple_definitions = _make_temp_fixture(
-    "notebook_with_multiple_definitions.py", "with_multiple_definitions"
+temp_marimo_file_with_cycle = _make_temp_fixture(
+    "notebook_with_cycle.py", "with_cycle"
 )
 
 

@@ -246,6 +246,32 @@ def compute_edges_for_cell(
         } - {cell_id}
         children.update(other_ids_deleting_name)
 
+    # Implicit shadowing edges: if this cell defines a variable that
+    # already exists in the graph, but doesn't explicitly depend on any
+    # cell that defines it, add an implicit edge from the most recent
+    # definer. This creates a deterministic chain for variable shadowing.
+    # Only applies within the same variable kind (language/type).
+    registration_order = {
+        cid: i for i, cid in enumerate(topology.cells.keys())
+    }
+    for name in cell.defs:
+        if name not in cell.variable_data:
+            continue
+        variable = cell.variable_data[name][-1]
+        # Find existing definers of the same kind
+        typed_def = (name, variable.kind)
+        existing_definers = definitions.typed_definitions.get(
+            typed_def, set()
+        ) - {cell_id}
+        if existing_definers and not (existing_definers & parents):
+            # This cell shadows a name but has no explicit dependency
+            # on any definer. Add implicit edge from most recent definer.
+            most_recent = max(
+                existing_definers, key=lambda c: registration_order.get(c, -1)
+            )
+            if _is_valid_cell_reference(most_recent, name, topology):
+                parents.add(most_recent)
+
     # Finally, if this cell deletes a variable, we make it a child of
     # all other cells that reference this variable.
     for name in cell.deleted_refs:
