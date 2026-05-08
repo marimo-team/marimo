@@ -114,7 +114,7 @@ def test_refresh_session(client: TestClient) -> None:
 def test_save_session(client: TestClient) -> None:
     filename = (
         get_session_manager(client)
-        .file_router.get_single_app_file_manager()
+        .workspace.get_single_app_file_manager()
         .filename
     )
     with client.websocket_connect(_create_ws_url("123")) as websocket:
@@ -263,7 +263,7 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
 
         # Write to the notebook file to add a new cell
         # we write it as the second to last cell
-        filename = session_manager.file_router.get_unique_file_key()
+        filename = session_manager.workspace.get_unique_file_key()
         assert filename
         with open(filename) as f:
             content = f.read()

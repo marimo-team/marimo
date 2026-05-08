@@ -128,6 +128,17 @@ def interactive(figure: Figure | SubFigure | Axes) -> Html:
     if not ctx.virtual_files_supported:
         return NonInteractiveMplHtml(figure)
 
+    # Figure::figure returns self; SubFigure::figure returns the parent Figure
+    is_subfigure = figure.figure is not figure
+    if is_subfigure:
+        warnings.warn(
+            message="SubFigure is not supported in interactive mode; "
+            "rendering as static PNG instead. "
+            "Consider using a regular Figure instead.",
+            stacklevel=2,
+        )
+        return NonInteractiveMplHtml(figure=figure)
+
     from marimo._plugins.ui._impl.from_mpl_interactive import mpl_interactive
 
     return mpl_interactive(figure)

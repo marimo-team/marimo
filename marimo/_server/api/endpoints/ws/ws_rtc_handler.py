@@ -12,8 +12,8 @@ if TYPE_CHECKING:
     from loro import DiffEvent, ExportMode, LoroDoc
     from starlette.websockets import WebSocket
 
-    from marimo._server.file_router import MarimoFileKey
     from marimo._server.rtc.doc import LoroDocManager
+    from marimo._server.workspace import MarimoFileKey
 
 LOGGER = _loggers.marimo_logger()
 

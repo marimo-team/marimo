@@ -14,13 +14,18 @@ from marimo._server.api.endpoints.assets import (
     _inject_service_worker,
 )
 from marimo._server.api.utils import parse_title
-from marimo._server.file_router import AppFileRouter
+from marimo._server.workspace import (
+    DirectoryWorkspace,
+    EmptyWorkspace,
+    FixedFilesWorkspace,
+    SingleFileWorkspace,
+)
 from marimo._session.model import SessionMode
 from marimo._utils.marimo_path import MarimoPath
 from tests._server.mocks import (
-    file_router_scope,
     token_header,
-    with_file_router,
+    with_workspace,
+    workspace_scope,
 )
 
 if TYPE_CHECKING:
@@ -39,7 +44,7 @@ def test_index(client: TestClient) -> None:
     response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
     content = response.text
-    filename = session_manager.file_router.get_unique_file_key()
+    filename = session_manager.workspace.get_unique_file_key()
     title = parse_title(filename)
     assert f"<marimo-filename hidden>{filename}</marimo-filename>" in content
     assert filename is not None
@@ -51,7 +56,7 @@ def test_index(client: TestClient) -> None:
     assert "public-files-sw.js" in content
 
 
-@with_file_router(AppFileRouter.from_files([]))
+@with_workspace(FixedFilesWorkspace([]))
 def test_index_when_empty(client: TestClient) -> None:
     # Login page
     response = client.get("/")  # no header
@@ -67,7 +72,7 @@ def test_index_when_empty(client: TestClient) -> None:
     assert "<title>marimo</title>" in content
 
 
-@with_file_router(AppFileRouter.new_file())
+@with_workspace(EmptyWorkspace())
 def test_index_when_new_file(client: TestClient) -> None:
     # Login page
     response = client.get("/")  # no header
@@ -206,8 +211,8 @@ def test_index_response_has_security_headers(client: TestClient) -> None:
 
 
 def test_index_with_directory(client: TestClient, tmp_path: Path) -> None:
-    with file_router_scope(
-        client, AppFileRouter.from_directory(str(tmp_path))
+    with workspace_scope(
+        client, DirectoryWorkspace(str(tmp_path), include_markdown=False)
     ):
         response = client.get("/", headers=token_header())
         assert response.status_code == 200, response.text
@@ -223,8 +228,8 @@ def test_index_with_directory_run_mode(
     app_state = AppState.from_app(cast(Any, client.app))
     app_state.session_manager.mode = SessionMode.RUN
 
-    with file_router_scope(
-        client, AppFileRouter.from_directory(str(tmp_path))
+    with workspace_scope(
+        client, DirectoryWorkspace(str(tmp_path), include_markdown=False)
     ):
         response = client.get("/", headers=token_header())
         assert response.status_code == 200, response.text
@@ -398,7 +403,7 @@ def test_vfile_download_query_param_sets_content_disposition(
 def test_public_file_serving(client: TestClient) -> None:
     # Setup app state with a mock notebook
     app_state = AppState.from_app(cast(Any, client.app))
-    file_key = app_state.session_manager.file_router.get_unique_file_key()
+    file_key = app_state.session_manager.workspace.get_unique_file_key()
     assert file_key is not None
     assert file_key.endswith(".py")
 
@@ -438,7 +443,7 @@ def test_service_worker(client: TestClient) -> None:
 def test_public_file_security(client: TestClient) -> None:
     # Setup app state
     app_state = AppState.from_app(cast(Any, client.app))
-    file_key = app_state.session_manager.file_router.get_unique_file_key()
+    file_key = app_state.session_manager.workspace.get_unique_file_key()
     assert file_key is not None
     assert file_key.endswith(".py")
 
@@ -615,8 +620,8 @@ def test_index_lsp_workspace_with_filename(
     notebook_file = subdir.joinpath("notebook.py")
     notebook_file.touch()
 
-    with file_router_scope(
-        client, AppFileRouter.from_filename(MarimoPath(notebook_file))
+    with workspace_scope(
+        client, SingleFileWorkspace.from_path(MarimoPath(notebook_file))
     ):
         response = client.get("/", headers=token_header())
         root_uri = json.dumps(temp_project_dir.as_uri())
@@ -631,8 +636,9 @@ def test_index_lsp_workspace_with_root_directory(
     temp_project_dir = tmp_path
     temp_project_dir.joinpath("pyproject.toml").touch()
 
-    with file_router_scope(
-        client, AppFileRouter.from_directory(str(temp_project_dir))
+    with workspace_scope(
+        client,
+        DirectoryWorkspace(str(temp_project_dir), include_markdown=False),
     ):
         response = client.get("/?file=__new__file.py", headers=token_header())
         root_path = temp_project_dir
@@ -651,7 +657,9 @@ def test_index_lsp_workspace_with_sub_directory(
     subdir = temp_project_dir.joinpath("subdir")
     subdir.mkdir()
 
-    with file_router_scope(client, AppFileRouter.from_directory(str(subdir))):
+    with workspace_scope(
+        client, DirectoryWorkspace(str(subdir), include_markdown=False)
+    ):
         response = client.get("/?file=__new__file.py", headers=token_header())
         root_path = temp_project_dir
         root_uri = json.dumps(root_path.as_uri())
@@ -661,7 +669,7 @@ def test_index_lsp_workspace_with_sub_directory(
         assert f'"documentUri": {document_uri}' in response.text
 
 
-@with_file_router(AppFileRouter.new_file())
+@with_workspace(EmptyWorkspace())
 def test_index_lsp_workspace_fallback_to_cwd(client: TestClient) -> None:
     response = client.get("/", headers=token_header())
     root_path = Path.cwd()

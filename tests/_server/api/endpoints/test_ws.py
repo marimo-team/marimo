@@ -163,7 +163,7 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
-        filename = session_manager.file_router.get_unique_file_key()
+        filename = session_manager.workspace.get_unique_file_key()
         assert filename
         with open(filename, "a") as f:  # noqa: ASYNC230
             f.write("\n# test")
@@ -710,7 +710,7 @@ async def test_edit_mode_without_session_ttl_no_delayed_cleanup(
 def test_missing_file_key_closes_connection(client: TestClient) -> None:
     """Test that missing file key causes connection to close.
 
-    This can happen when file_router.get_unique_file_key() returns None.
+    This can happen when workspace.get_unique_file_key() returns None.
     """
     from unittest.mock import patch
 
@@ -718,7 +718,7 @@ def test_missing_file_key_closes_connection(client: TestClient) -> None:
 
     # Mock get_unique_file_key to return None
     with patch.object(
-        session_manager.file_router,
+        session_manager.workspace,
         "get_unique_file_key",
         return_value=None,
     ):

@@ -194,16 +194,14 @@ def og_thumbnail(*, request: Request) -> Response:
     app_state = AppState(request)
     file_key = (
         app_state.query_params(FILE_QUERY_PARAM_KEY)
-        or app_state.session_manager.file_router.get_unique_file_key()
+        or app_state.session_manager.workspace.get_unique_file_key()
     )
     if not file_key:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail="File not found"
         )
 
-    notebook_path = app_state.session_manager.file_router.resolve_file_path(
-        file_key
-    )
+    notebook_path = app_state.session_manager.workspace.resolve(file_key)
     if notebook_path is None:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail="File not found"
@@ -313,7 +311,7 @@ async def index(request: Request) -> Response:
     file_key_from_query = app_state.query_params(FILE_QUERY_PARAM_KEY)
     file_key = (
         file_key_from_query
-        or app_state.session_manager.file_router.get_unique_file_key()
+        or app_state.session_manager.workspace.get_unique_file_key()
     )
 
     # Try local index.html first, fallback to asset_url if local file doesn't exist
@@ -374,7 +372,7 @@ async def index(request: Request) -> Response:
                     LOGGER.debug("Failed to pre-compute notebook snapshot")
 
         filename = app_manager.filename
-        directory = app_state.session_manager.file_router.directory
+        directory = app_state.session_manager.workspace.directory
         lsp_workspace = _resolve_lsp_workspace(filename, directory)
 
         # Make filename relative to file router's directory if possible
