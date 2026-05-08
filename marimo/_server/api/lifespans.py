@@ -25,7 +25,7 @@ from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import initialize_mimetypes
 from marimo._server.uvicorn_utils import close_uvicorn
-from marimo._server.workspace import NEW_FILE
+from marimo._server.workspace import NewFileKey
 from marimo._session.model import SessionMode
 from marimo._utils.subprocess import cancel_pending_reaps
 
@@ -170,7 +170,7 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
             file_name=file.name if file else None,
             url=_startup_url(state),
             run=manager.mode == SessionMode.RUN,
-            new=workspace.get_unique_file_key() == NEW_FILE,
+            new=isinstance(workspace.get_unique_file_key(), NewFileKey),
             network=state.host == "0.0.0.0",
             startup_tip=state.startup_tip,
         )

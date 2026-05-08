@@ -31,7 +31,11 @@ from marimo._server.models.models import (
 )
 from marimo._server.router import APIRouter
 from marimo._server.uvicorn_utils import close_uvicorn
-from marimo._server.workspace import MarimoFileKey
+from marimo._server.workspace import (
+    FileKey,
+    PathFileKey,
+    parse_file_key,
+)
 from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
@@ -424,11 +428,14 @@ async def restart_session(
     session_manager.close_session(session_id)
 
     # Close RTC doc if it exists
-    file_key: MarimoFileKey | None = (
-        app_state.query_params(FILE_QUERY_PARAM_KEY)
-        or session_manager.workspace.get_unique_file_key()
-        or session.app_file_manager.path
-    )
+    raw_file_key = app_state.query_params(FILE_QUERY_PARAM_KEY)
+    file_key: FileKey | None
+    if raw_file_key is not None:
+        file_key = parse_file_key(raw_file_key)
+    else:
+        file_key = session_manager.workspace.get_unique_file_key()
+        if file_key is None and session.app_file_manager.path is not None:
+            file_key = PathFileKey(session.app_file_manager.path)
     if file_key is not None:
         await DOC_MANAGER.remove_doc(file_key)
     else:
@@ -514,9 +521,11 @@ async def takeover_endpoint(
     """
     app_state = AppState(request)
 
-    file_key: MarimoFileKey | None = (
-        app_state.query_params(FILE_QUERY_PARAM_KEY)
-        or app_state.session_manager.workspace.get_unique_file_key()
+    raw_file_key = app_state.query_params(FILE_QUERY_PARAM_KEY)
+    file_key: FileKey | None = (
+        parse_file_key(raw_file_key)
+        if raw_file_key is not None
+        else app_state.session_manager.workspace.get_unique_file_key()
     )
     if file_key is None:
         LOGGER.error("No file key provided")

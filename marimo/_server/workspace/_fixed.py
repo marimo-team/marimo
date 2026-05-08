@@ -8,11 +8,14 @@ from typing import TYPE_CHECKING
 
 from marimo._server.models.files import FileInfo
 from marimo._server.workspace._base import (
-    NEW_FILE,
-    MarimoFileKey,
     NotebookWorkspace,
     file_not_found,
     normalize_allowlist_entry,
+)
+from marimo._server.workspace._keys import (
+    FileKey,
+    NewFileKey,
+    PathFileKey,
 )
 from marimo._utils.paths import normalize_path
 
@@ -59,14 +62,15 @@ class FixedFilesWorkspace(NotebookWorkspace):
     def single_file(self) -> MarimoFile | None:
         return None
 
-    def get_unique_file_key(self) -> MarimoFileKey | None:
+    def get_unique_file_key(self) -> FileKey | None:
         return None
 
-    def resolve(self, key: MarimoFileKey) -> str | None:
-        if key.startswith(NEW_FILE):
+    def resolve(self, key: FileKey) -> str | None:
+        if isinstance(key, NewFileKey):
             raise file_not_found(key)
+        assert isinstance(key, PathFileKey)
 
-        filepath = Path(key)
+        filepath = Path(key.path)
         if not filepath.is_absolute() and self._directory:
             filepath = Path(self._directory) / filepath
         normalized_path = normalize_path(filepath)

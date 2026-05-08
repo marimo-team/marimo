@@ -8,6 +8,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from marimo._server.app_defaults import AppDefaults
+from marimo._server.workspace._keys import (
+    FileKey,
+    NewFileKey,
+    PathFileKey,
+    serialize_file_key,
+)
 from marimo._session.notebook import AppFileManager
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
@@ -18,14 +24,6 @@ if TYPE_CHECKING:
 
     from marimo._server.models.files import FileInfo
     from marimo._server.models.home import MarimoFile
-
-# Wire-format key for an untitled notebook. The string boundary is preserved
-# for HTTP query params and session initialization IDs.
-NEW_FILE: str = "__new__"
-
-# Some unique identifier for a file. Phase 3 will replace this with a tagged
-# union (NewFileKey | PathFileKey).
-MarimoFileKey = str
 
 
 class NotebookWorkspace(abc.ABC):
@@ -50,11 +48,11 @@ class NotebookWorkspace(abc.ABC):
         """If this workspace represents a single notebook, return it."""
 
     @abc.abstractmethod
-    def get_unique_file_key(self) -> MarimoFileKey | None:
+    def get_unique_file_key(self) -> FileKey | None:
         """The unique file key for this workspace, if any."""
 
     @abc.abstractmethod
-    def resolve(self, key: MarimoFileKey) -> str | None:
+    def resolve(self, key: FileKey) -> str | None:
         """Resolve a key to an absolute path; ``None`` for new files.
 
         Useful for endpoints that need file-backed resources (e.g. thumbnails)
@@ -63,7 +61,7 @@ class NotebookWorkspace(abc.ABC):
 
     def load(
         self,
-        key: MarimoFileKey,
+        key: FileKey,
         defaults: AppDefaults | None = None,
     ) -> AppFileManager:
         """Load the notebook for the given key into an ``AppFileManager``.
@@ -127,11 +125,11 @@ class NotebookWorkspace(abc.ABC):
         del include_markdown
 
 
-def file_not_found(key: MarimoFileKey) -> HTTPException:
+def file_not_found(key: FileKey) -> HTTPException:
     """Build the standard 404 response for an unresolvable file key."""
     return HTTPException(
         status_code=HTTPStatus.NOT_FOUND,
-        detail=f"File {key} not found",
+        detail=f"File {serialize_file_key(key)} not found",
     )
 
 
@@ -165,3 +163,16 @@ def flatten_files(files: list[FileInfo]) -> Iterator[FileInfo]:
             stack.extend(file.children)
         else:
             yield file
+
+
+__all__ = [
+    "FileKey",
+    "NewFileKey",
+    "NotebookWorkspace",
+    "PathFileKey",
+    "count_files",
+    "file_not_found",
+    "flatten_files",
+    "normalize_allowlist_entry",
+    "serialize_file_key",
+]
