@@ -741,6 +741,25 @@ class TestDuckDBWasmQueryPatch:
         assert patch_result is not None
         assert "FROM __marimo_wasm_duckdb_remote_1" in patch_result.query
 
+    @staticmethod
+    def test_does_not_rewrite_create_view_remote_source() -> None:
+        with (
+            mock_pyodide(),
+            patch(
+                "marimo._runtime._wasm._fetch.fetch_url_bytes",
+                return_value=b"make,mpg\nford,25\n",
+            ) as fetch_url_bytes,
+        ):
+            patch_result = patch_duckdb_query_for_wasm(
+                """
+                CREATE OR REPLACE VIEW remote_cars AS
+                SELECT * FROM 'https://datasets.marimo.app/cars.csv'
+                """,
+            )
+
+        assert patch_result is None
+        fetch_url_bytes.assert_not_called()
+
 
 class TestDuckDBWasmMoSqlIntegration:
     @staticmethod
@@ -820,7 +839,7 @@ class TestDuckDBWasmMoSqlIntegration:
                             ORDER BY make
                             '''
                         ).fetchall()
-                        duckdb.close()
+                        duckdb.sql("DROP TABLE IF EXISTS __marimo_wasm_create_once")
                         """
                     ),
                 ]
@@ -935,7 +954,6 @@ class TestDuckDBWasmSqlApiPatch:
                 rows = relation.fetchall()
             finally:
                 unpatch()
-                duckdb.close()
 
         assert rows == [(7, 25)]
         fetch_url_bytes.assert_called_once_with(
@@ -976,7 +994,9 @@ class TestDuckDBWasmSqlApiPatch:
                 rows = relation.fetchall()
             finally:
                 unpatch()
-                duckdb.close()
+                duckdb.sql(
+                    'DROP TABLE IF EXISTS "__MARIMO_WASM_DUCKDB_REMOTE_0"'
+                )
 
         assert rows == [(7, 25)]
 
@@ -1041,7 +1061,7 @@ class TestDuckDBWasmSqlApiPatch:
                 ).fetchall()
             finally:
                 unpatch()
-                duckdb.close()
+                duckdb.sql(f"DROP TABLE IF EXISTS {table_name}")
 
         assert rows == [("ford",)]
 
@@ -1071,7 +1091,7 @@ class TestDuckDBWasmSqlApiPatch:
                 ).fetchall()
             finally:
                 unpatch()
-                duckdb.close()
+                duckdb.sql(f"DROP TABLE IF EXISTS {table_name}")
 
         assert rows == [("ford", 25), ("toyota", 18)]
         fetch_url_bytes.assert_called_once_with(

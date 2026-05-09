@@ -235,6 +235,8 @@ def patch_duckdb_query_for_wasm(
     statements = statements or _parse_duckdb_query(query)
     if statements is None:
         return None
+    if _contains_remote_view_definition(statements):
+        return None
 
     table_names = _RemoteTableNames(
         (*reserved_names, *_reserved_sql_names(statements))
@@ -378,6 +380,8 @@ def try_run_duckdb_sql_with_wasm_patch(
 
     statements = _parse_duckdb_query(query)
     if statements is None or not _contains_supported_remote_source(statements):
+        return None
+    if _contains_remote_view_definition(statements):
         return None
 
     namespace_names = _reserved_namespace_names(
@@ -722,6 +726,20 @@ def _contains_supported_remote_source(
         remote_file_source_from_table(table) is not None
         for statement in statements
         for table in statement.find_all(exp.Table)
+    )
+
+
+def _contains_remote_view_definition(
+    statements: Sequence[exp.Expression],
+) -> bool:
+    """Views persist SQL text, so replacement-scan locals would go stale."""
+    from sqlglot import exp
+
+    return any(
+        isinstance(statement, exp.Create)
+        and str(statement.args.get("kind")).upper() == "VIEW"
+        and _contains_supported_remote_source((statement,))
+        for statement in statements
     )
 
 
