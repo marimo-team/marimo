@@ -84,6 +84,13 @@
 
 # OpenAI
 
+- name: GPT-5.5
+  model: gpt-5.5
+  description: Newest frontier model for the most complex professional work
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: true
+
 - name: GPT-5.4
   model: gpt-5.4
   description: The latest frontier-grade model, unifying the Codex and GPT lines into a single system
