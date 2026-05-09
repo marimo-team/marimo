@@ -8,12 +8,14 @@ describe("shouldLoadDuckDBPackages", () => {
     expect(shouldLoadDuckDBPackages('df = mo.sql("SELECT 1")')).toBe(true);
   });
 
-  it("loads for detected duckdb imports and usage", () => {
+  it("loads for duckdb text", () => {
     expect(shouldLoadDuckDBPackages("import duckdb")).toBe(true);
     expect(shouldLoadDuckDBPackages("from duckdb import sql")).toBe(true);
+    expect(shouldLoadDuckDBPackages("import pandas, duckdb")).toBe(true);
     expect(shouldLoadDuckDBPackages("rows = duckdb.sql('SELECT 1')")).toBe(
       true,
     );
+    expect(shouldLoadDuckDBPackages("name = 'duckdb'")).toBe(true);
   });
 
   it("loads when package discovery found duckdb", () => {
@@ -22,13 +24,7 @@ describe("shouldLoadDuckDBPackages", () => {
     ).toBe(true);
   });
 
-  it("ignores incidental duckdb text", () => {
-    expect(shouldLoadDuckDBPackages("# duckdb is mentioned here")).toBe(false);
-    expect(shouldLoadDuckDBPackages("# duckdb.sql is mentioned here")).toBe(
-      false,
-    );
-    expect(shouldLoadDuckDBPackages("name = 'duckdb'")).toBe(false);
-    expect(shouldLoadDuckDBPackages("name = 'duckdb.sql'")).toBe(false);
-    expect(shouldLoadDuckDBPackages('name = "duckdb.sql"')).toBe(false);
+  it("does not load without mo.sql, duckdb text, or discovery", () => {
+    expect(shouldLoadDuckDBPackages("print('hello')")).toBe(false);
   });
 });
