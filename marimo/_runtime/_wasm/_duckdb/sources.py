@@ -31,10 +31,12 @@ _MISSING = object()
 
 def remote_file_source_from_table(
     table: exp.Table,
+    *,
+    query: str | None = None,
 ) -> RemoteFileSource | None:
     """Return a remote source for supported direct URLs or reader calls."""
     table_name = table.name
-    if table_name:
+    if table_name and _is_single_quoted_table_identifier(table, query):
         reader = reader_for_url(table_name)
         remote_file = remote_file_from_url(table_name)
         if reader is not None and remote_file is not None:
@@ -58,6 +60,25 @@ def remote_file_source_from_table(
         return None
     return remote_file_source_from_reader_args(
         function_name, source, raw_options
+    )
+
+
+def _is_single_quoted_table_identifier(
+    table: exp.Table, query: str | None
+) -> bool:
+    """Distinguish DuckDB file scans from ordinary quoted identifiers."""
+    if query is None:
+        return False
+    meta = getattr(table.this, "meta", {})
+    start = meta.get("start")
+    end = meta.get("end")
+    if not isinstance(start, int) or not isinstance(end, int):
+        return False
+    return (
+        0 <= start
+        and end < len(query)
+        and query[start] == "'"
+        and query[end] == "'"
     )
 
 

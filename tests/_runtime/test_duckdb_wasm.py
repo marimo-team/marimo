@@ -1239,6 +1239,88 @@ class TestDuckDBWasmSqlApiPatch:
         )
 
     @staticmethod
+    @pytest.mark.parametrize("api_kind", ["sql", "query", "execute"])
+    def test_module_methods_with_connection_avoid_existing_catalog_table_names(
+        api_kind: str,
+    ) -> None:
+        import duckdb
+
+        connection = duckdb.connect(":memory:")
+        result_table = "__marimo_duckdb_wasm_module_conn_result"
+        try:
+            connection.sql(
+                """
+                CREATE OR REPLACE TABLE "__MARIMO_WASM_DUCKDB_REMOTE_0"
+                AS SELECT 99 AS mpg
+                """
+            )
+            with (
+                mock_pyodide(),
+                patch(
+                    "marimo._runtime._wasm._fetch.fetch_url_bytes",
+                    return_value=b"mpg\n25\n",
+                ) as fetch_url_bytes,
+            ):
+                unpatch = patch_duckdb_for_wasm()
+                try:
+                    if api_kind == "execute":
+                        duckdb.execute(
+                            f"""
+                            CREATE OR REPLACE TABLE {result_table} AS
+                            SELECT mpg
+                            FROM 'https://datasets.marimo.app/cars.csv'
+                            """,
+                            connection=connection,
+                        )
+                        rows = connection.sql(
+                            f"SELECT mpg FROM {result_table}"
+                        ).fetchall()
+                    else:
+                        rows = getattr(duckdb, api_kind)(
+                            """
+                            SELECT mpg
+                            FROM 'https://datasets.marimo.app/cars.csv'
+                            """,
+                            connection=connection,
+                        ).fetchall()
+                finally:
+                    unpatch()
+        finally:
+            connection.close()
+
+        assert rows == [(25,)]
+        fetch_url_bytes.assert_called_once_with(
+            "https://datasets.marimo.app/cars.csv"
+        )
+
+    @staticmethod
+    def test_double_quoted_url_table_identifier_is_not_remote_source() -> None:
+        import duckdb
+
+        table_name = '"https://datasets.marimo.app/cars.csv"'
+        try:
+            duckdb.sql(
+                f"CREATE OR REPLACE TABLE {table_name} AS SELECT 42 AS x"
+            )
+            with (
+                mock_pyodide(),
+                patch(
+                    "marimo._runtime._wasm._fetch.fetch_url_bytes",
+                    return_value=b"x\n7\n",
+                ) as fetch_url_bytes,
+            ):
+                unpatch = patch_duckdb_for_wasm()
+                try:
+                    rows = duckdb.sql(f"SELECT x FROM {table_name}").fetchall()
+                finally:
+                    unpatch()
+        finally:
+            duckdb.sql(f"DROP TABLE IF EXISTS {table_name}")
+
+        assert rows == [(42,)]
+        fetch_url_bytes.assert_not_called()
+
+    @staticmethod
     @mock_pyodide()
     def test_unpatch_restores_module_functions_and_connection_methods() -> (
         None

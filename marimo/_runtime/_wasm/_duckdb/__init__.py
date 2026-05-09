@@ -235,13 +235,15 @@ def patch_duckdb_query_for_wasm(
     statements = statements or _parse_duckdb_query(query)
     if statements is None:
         return None
-    if _contains_remote_view_definition(statements):
+    if _contains_remote_view_definition(statements, query=query):
         return None
 
     table_names = _RemoteTableNames(
         (*reserved_names, *_reserved_sql_names(statements))
     )
-    patched_statements = _replace_remote_sources(statements, table_names)
+    patched_statements = _replace_remote_sources(
+        statements, table_names, query=query
+    )
     if not table_names:
         return None
 
@@ -379,9 +381,11 @@ def try_run_duckdb_sql_with_wasm_patch(
         return None
 
     statements = _parse_duckdb_query(query)
-    if statements is None or not _contains_supported_remote_source(statements):
+    if statements is None or not _contains_supported_remote_source(
+        statements, query=query
+    ):
         return None
-    if _contains_remote_view_definition(statements):
+    if _contains_remote_view_definition(statements, query=query):
         return None
 
     namespace_names = _reserved_namespace_names(
@@ -389,7 +393,7 @@ def try_run_duckdb_sql_with_wasm_patch(
         eval_locals,
         (
             *reserved_names,
-            *_duckdb_catalog_names(original, args),
+            *_duckdb_catalog_names(original, args, kwargs_dict),
             *_identifier_string_args(args),
             *_identifier_string_args(tuple(kwargs_dict.values())),
         ),
@@ -573,10 +577,11 @@ def _unused_name(base: str, used: set[str]) -> str:
 def _duckdb_catalog_names(
     original: Callable[..., Any],
     args: tuple[Any, ...],
+    kwargs: Mapping[str, Any],
 ) -> tuple[str, ...]:
     """Reserve existing DuckDB table names before generating replacements."""
     try:
-        relation = _show_duckdb_tables(original, args)
+        relation = _show_duckdb_tables(original, args, kwargs)
         rows = relation.fetchall()
     except Exception:
         return ()
@@ -586,6 +591,7 @@ def _duckdb_catalog_names(
 def _show_duckdb_tables(
     original: Callable[..., Any],
     args: tuple[Any, ...],
+    kwargs: Mapping[str, Any],
 ) -> Any:
     """Run ``SHOW TABLES`` through the same DuckDB entry point being patched."""
     import duckdb
@@ -593,6 +599,9 @@ def _show_duckdb_tables(
     original_call = inspect.unwrap(original)
     if args and isinstance(args[0], duckdb.DuckDBPyConnection):
         return inspect.unwrap(type(args[0]).sql)(args[0], "SHOW TABLES")
+    connection = kwargs.get("connection")
+    if isinstance(connection, duckdb.DuckDBPyConnection):
+        return inspect.unwrap(type(connection).sql)(connection, "SHOW TABLES")
     if original_call is inspect.unwrap(duckdb.query_df):
         return inspect.unwrap(duckdb.sql)("SHOW TABLES")
     return original_call("SHOW TABLES")
@@ -691,12 +700,14 @@ def _require_pandas() -> None:
     DependencyManager.pandas.require(
         "to read remote DuckDB file sources in WASM"
     )
+    import pandas  # noqa: F401
 
 
 def _require_sqlglot() -> None:
     DependencyManager.sqlglot.require(
         "to rewrite remote DuckDB SQL sources in WASM"
     )
+    import sqlglot  # noqa: F401
 
 
 def _parse_duckdb_query(query: str) -> list[exp.Expression] | None:
@@ -718,12 +729,14 @@ def _parse_duckdb_query(query: str) -> list[exp.Expression] | None:
 
 def _contains_supported_remote_source(
     statements: Sequence[exp.Expression],
+    *,
+    query: str,
 ) -> bool:
     """Check for rewrite work before paying for DuckDB catalog inspection."""
     from sqlglot import exp
 
     return any(
-        remote_file_source_from_table(table) is not None
+        remote_file_source_from_table(table, query=query) is not None
         for statement in statements
         for table in statement.find_all(exp.Table)
     )
@@ -731,6 +744,8 @@ def _contains_supported_remote_source(
 
 def _contains_remote_view_definition(
     statements: Sequence[exp.Expression],
+    *,
+    query: str,
 ) -> bool:
     """Views persist SQL text, so replacement-scan locals would go stale."""
     from sqlglot import exp
@@ -738,7 +753,7 @@ def _contains_remote_view_definition(
     return any(
         isinstance(statement, exp.Create)
         and str(statement.args.get("kind")).upper() == "VIEW"
-        and _contains_supported_remote_source((statement,))
+        and _contains_supported_remote_source((statement,), query=query)
         for statement in statements
     )
 
@@ -746,6 +761,8 @@ def _contains_remote_view_definition(
 def _replace_remote_sources(
     statements: Sequence[exp.Expression],
     table_names: _RemoteTableNames,
+    *,
+    query: str,
 ) -> list[exp.Expression]:
     """Replace supported remote table nodes while preserving aliases."""
     from sqlglot import exp
@@ -754,7 +771,7 @@ def _replace_remote_sources(
         if not isinstance(node, exp.Table):
             return node
 
-        source = remote_file_source_from_table(node)
+        source = remote_file_source_from_table(node, query=query)
         if source is None:
             return node
 
