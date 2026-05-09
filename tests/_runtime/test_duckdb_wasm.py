@@ -954,6 +954,7 @@ class TestDuckDBWasmSqlApiPatch:
                 rows = relation.fetchall()
             finally:
                 unpatch()
+                duckdb.sql("DROP VIEW IF EXISTS query_df_local")
 
         assert rows == [(7, 25)]
         fetch_url_bytes.assert_called_once_with(
@@ -994,6 +995,7 @@ class TestDuckDBWasmSqlApiPatch:
                 rows = relation.fetchall()
             finally:
                 unpatch()
+                duckdb.sql("DROP VIEW IF EXISTS query_df_local_collision")
                 duckdb.sql(
                     'DROP TABLE IF EXISTS "__MARIMO_WASM_DUCKDB_REMOTE_0"'
                 )
