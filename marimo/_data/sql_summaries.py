@@ -65,13 +65,9 @@ def get_sql_stats(
         FROM {table_name}
         """
 
-    relation = wrapped_sql(stats_query, connection=None)
-    if relation is None:
-        raise ValueError(
-            f"Column {column_name} not found in table {table_name}"
-        )
-
-    stats_result: tuple[int, ...] | None = relation.fetchone()
+    stats_result: tuple[int, ...] | None = wrapped_sql(
+        stats_query, connection=None
+    ).fetchone()
     if stats_result is None:
         raise ValueError(
             f"Column {column_name} not found in table {table_name}"

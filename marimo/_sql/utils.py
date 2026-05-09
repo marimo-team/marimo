@@ -9,7 +9,6 @@ from marimo._config.config import SqlOutputType
 from marimo._data.models import DataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime._wasm._duckdb import (
-    WasmDuckDBSqlResult,
     try_run_duckdb_sql_with_wasm_patch,
 )
 from marimo._runtime.context.types import (
@@ -28,6 +27,8 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 CHEAP_DISCOVERY_DATABASES = ["duckdb", "sqlite", "mysql", "postgresql"]
+# DuckDB SQL can return None for DDL, so keep "patch did not apply" distinct.
+_NO_WASM_DUCKDB_RESULT = object()
 
 
 def _try_wasm_duckdb_sql(
@@ -36,7 +37,7 @@ def _try_wasm_duckdb_sql(
     glbls: dict[str, Any],
     *,
     reserved_names: tuple[str, ...] = (),
-) -> WasmDuckDBSqlResult | None:
+) -> object:
     import duckdb
 
     if connection is duckdb:
@@ -58,13 +59,13 @@ def _try_wasm_duckdb_sql(
         eval_locals=glbls,
         reserved_names=reserved_names,
     )
-    return result
+    return _NO_WASM_DUCKDB_RESULT if result is None else result.value
 
 
 def wrapped_sql(
     query: str,
     connection: duckdb.DuckDBPyConnection | None,
-) -> duckdb.DuckDBPyRelation | None:
+) -> duckdb.DuckDBPyRelation:
     DependencyManager.duckdb.require("to execute sql")
 
     # In Python globals() are scoped to modules; since this function
@@ -81,13 +82,12 @@ def wrapped_sql(
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        relation: duckdb.DuckDBPyRelation | None
         result = _try_wasm_duckdb_sql(query, connection, globals())
-        if result is None:
+        if result is _NO_WASM_DUCKDB_RESULT:
             # No WASM rewrite was needed; use DuckDB's normal SQL path.
             relation = connection.sql(query=query)
         else:
-            relation = cast(duckdb.DuckDBPyRelation | None, result.value)
+            relation = cast(duckdb.DuckDBPyRelation, result)
     else:
         install_connection = (
             ctx.execution_context.with_connection
@@ -101,7 +101,7 @@ def wrapped_sql(
                 ctx.globals,
                 reserved_names=tuple(ctx.globals),
             )
-            if result is None:
+            if result is _NO_WASM_DUCKDB_RESULT:
                 # Run in kernel globals so DuckDB replacement scans see user data.
                 relation = eval(
                     "connection.sql(query=query)",
@@ -109,7 +109,7 @@ def wrapped_sql(
                     {"query": query, "connection": connection},
                 )
             else:
-                relation = cast(duckdb.DuckDBPyRelation | None, result.value)
+                relation = cast(duckdb.DuckDBPyRelation, result)
 
     return relation
 
@@ -121,7 +121,7 @@ def _try_wasm_duckdb_execute(
     glbls: dict[str, Any],
     *,
     reserved_names: tuple[str, ...] = (),
-) -> WasmDuckDBSqlResult | None:
+) -> object:
     import duckdb
 
     if connection is duckdb:
@@ -143,7 +143,7 @@ def _try_wasm_duckdb_execute(
         eval_locals=glbls,
         reserved_names=reserved_names,
     )
-    return result
+    return _NO_WASM_DUCKDB_RESULT if result is None else result.value
 
 
 def execute_duckdb_sql(
@@ -167,10 +167,10 @@ def execute_duckdb_sql(
         ctx = get_context()
     except ContextNotInitializedError:
         result = _try_wasm_duckdb_execute(query, params, connection, globals())
-        if result is None:
+        if result is _NO_WASM_DUCKDB_RESULT:
             # No WASM rewrite was needed; preserve DuckDB's parameterized path.
             return connection.execute(query, params)
-        return cast(duckdb.DuckDBPyConnection, result.value)
+        return cast(duckdb.DuckDBPyConnection, result)
     else:
         install_connection = (
             ctx.execution_context.with_connection
@@ -185,7 +185,7 @@ def execute_duckdb_sql(
                 ctx.globals,
                 reserved_names=tuple(ctx.globals),
             )
-            if result is None:
+            if result is _NO_WASM_DUCKDB_RESULT:
                 # Run in kernel globals so parameterized SQL can scan user data.
                 value = eval(
                     "connection.execute(query, params)",
@@ -197,7 +197,7 @@ def execute_duckdb_sql(
                     },
                 )
             else:
-                value = result.value
+                value = result
             return cast(duckdb.DuckDBPyConnection, value)
 
 
