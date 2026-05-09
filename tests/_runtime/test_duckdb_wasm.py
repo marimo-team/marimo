@@ -996,6 +996,25 @@ class TestDuckDBWasmSqlApiPatch:
         assert rows == [(3,)]
 
     @staticmethod
+    def test_module_sql_skips_catalog_lookup_without_remote_source() -> None:
+        import duckdb
+
+        with (
+            mock_pyodide(),
+            patch(
+                "marimo._runtime._wasm._duckdb._duckdb_catalog_names"
+            ) as catalog_names,
+        ):
+            unpatch = patch_duckdb_for_wasm()
+            try:
+                rows = duckdb.sql("SELECT 1").fetchall()
+            finally:
+                unpatch()
+
+        assert rows == [(1,)]
+        catalog_names.assert_not_called()
+
+    @staticmethod
     def test_module_execute_rewrites_before_side_effects() -> None:
         import duckdb
 

@@ -211,6 +211,7 @@ def _duckdb_identifier_key(name: str) -> str:
 def patch_duckdb_query_for_wasm(
     query: str,
     *,
+    statements: Sequence[exp.Expression] | None = None,
     reserved_names: Sequence[str] = (),
 ) -> WasmDuckDBQueryPatch | None:
     """Replace supported remote file reads with generated table names.
@@ -231,7 +232,7 @@ def patch_duckdb_query_for_wasm(
         return None
 
     _require_sqlglot()
-    statements = _parse_duckdb_query(query)
+    statements = statements or _parse_duckdb_query(query)
     if statements is None:
         return None
 
@@ -375,6 +376,10 @@ def try_run_duckdb_sql_with_wasm_patch(
     if not isinstance(query, str):
         return None
 
+    statements = _parse_duckdb_query(query)
+    if statements is None or not _contains_supported_remote_source(statements):
+        return None
+
     namespace_names = _reserved_namespace_names(
         eval_globals,
         eval_locals,
@@ -389,6 +394,7 @@ def try_run_duckdb_sql_with_wasm_patch(
 
     wasm_patch = patch_duckdb_query_for_wasm(
         query,
+        statements=statements,
         reserved_names=(
             *namespace_names,
             binding_names.original,
@@ -704,6 +710,19 @@ def _parse_duckdb_query(query: str) -> list[exp.Expression] | None:
         for statement in parsed
         if isinstance(statement, sqlglot_exp.Expression)
     ]
+
+
+def _contains_supported_remote_source(
+    statements: Sequence[exp.Expression],
+) -> bool:
+    """Check for rewrite work before paying for DuckDB catalog inspection."""
+    from sqlglot import exp
+
+    return any(
+        remote_file_source_from_table(table) is not None
+        for statement in statements
+        for table in statement.find_all(exp.Table)
+    )
 
 
 def _replace_remote_sources(
