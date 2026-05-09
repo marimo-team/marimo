@@ -10,3 +10,30 @@ export function isWasm(): boolean {
     document.querySelector("marimo-wasm") !== null
   );
 }
+
+const DUCKDB_IMPORT = /^(import\s+duckdb\b|from\s+duckdb\s+import\b)/;
+const DUCKDB_USAGE = /(^|[^"'#])\bduckdb\s*\./;
+
+function hasDuckDBImportOrUsage(code: string): boolean {
+  return code.split("\n").some((line) => {
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith("#")) {
+      return false;
+    }
+    if (DUCKDB_IMPORT.test(trimmed)) {
+      return true;
+    }
+    return DUCKDB_USAGE.test(line.split("#")[0]);
+  });
+}
+
+export function shouldLoadDuckDBPackages(
+  code: string,
+  foundPackages?: ReadonlySet<string>,
+): boolean {
+  return (
+    code.includes("mo.sql") ||
+    foundPackages?.has("duckdb") === true ||
+    hasDuckDBImportOrUsage(code)
+  );
+}

@@ -9,6 +9,7 @@ import { WasmFileSystem } from "./fs";
 import { getMarimoWheel } from "./getMarimoWheel";
 import { t } from "./tracer";
 import type { SerializedBridge, WasmController } from "./types";
+import { shouldLoadDuckDBPackages } from "../utils";
 
 const MAKE_SNAPSHOT = false;
 
@@ -163,8 +164,8 @@ export class DefaultWasmController implements WasmController {
   private async loadNotebookDeps(code: string, foundPackages: Set<string>) {
     const pyodide = this.requirePyodide;
 
-    if (code.includes("mo.sql") || code.includes("duckdb")) {
-      // We need pandas and duckdb for mo.sql
+    if (shouldLoadDuckDBPackages(code, foundPackages)) {
+      // DuckDB SQL and remote readers need these packages loaded up front.
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;
       code = `import sqlglot\n${code}`;
