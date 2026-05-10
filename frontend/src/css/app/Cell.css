@@ -97,11 +97,6 @@
       overflow: auto;
     }
 
-    &:hover .output-area:not(:has(> .output:only-child > marimo-ui-element:only-child > marimo-table)),
-    &:focus-within .output-area:not(:has(> .output:only-child > marimo-ui-element:only-child > marimo-table)) {
-      overflow: visible !important;
-    }
-
     /* Special case for particular components */
 
     .output-area:has(
