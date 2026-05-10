@@ -150,6 +150,7 @@ from marimo._runtime.commands import (
     StorageListEntriesCommand,
     SyncGraphCommand,
     UpdateCellConfigCommand,
+    UpdateQueryParamsCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
     ValidateSQLCommand,
@@ -2432,6 +2433,19 @@ class Kernel:
                 ),
             )
 
+        async def handle_update_query_params(
+            request: UpdateQueryParamsCommand,
+        ) -> None:
+            # Update the kernel's query_params state
+            self.query_params._params.clear()
+            self.query_params._params.update(request.query_params)
+            # Trigger state update to re-run dependent cells
+            self.query_params._set_value(self.query_params._params)
+            # Process the state updates
+            if self.state_updates:
+                await self._run_cells(set())
+            broadcast_notification(CompletedRunNotification())
+
         async def handle_set_user_config(
             request: UpdateUserConfigCommand,
         ) -> None:
@@ -2461,6 +2475,7 @@ class Kernel:
         handler.register(RenameNotebookCommand, handle_rename)
         handler.register(UpdateCellConfigCommand, self.set_cell_config)
         handler.register(UpdateUIElementCommand, handle_set_ui_element_value)
+        handler.register(UpdateQueryParamsCommand, handle_update_query_params)
         handler.register(ModelCommand, handle_receive_model_message)
         handler.register(UpdateUserConfigCommand, handle_set_user_config)
         handler.register(StopKernelCommand, handle_stop)

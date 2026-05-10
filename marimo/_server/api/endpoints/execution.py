@@ -115,6 +115,36 @@ async def set_model_values(
     return await dispatch_control_request(request, ModelRequest)
 
 
+@router.post("/update_query_params")
+@requires("read")
+async def update_query_params(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/UpdateQueryParamsRequest"
+    responses:
+        200:
+            description: Update query parameters from browser navigation
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    from marimo._server.models.models import UpdateQueryParamsRequest
+    return await dispatch_control_request(request, UpdateQueryParamsRequest)
+
+
 @router.post("/instantiate")
 @requires("edit")
 async def instantiate(

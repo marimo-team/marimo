@@ -37,3 +37,24 @@ export const queryParamHandlers = {
     return;
   },
 };
+
+/**
+ * Parse URL query parameters into the format expected by the kernel.
+ */
+export function parseQueryParams(): Record<string, string | string[]> {
+  const url = new URL(window.location.href);
+  const params: Record<string, string | string[]> = {};
+
+  for (const [key, value] of url.searchParams.entries()) {
+    const existing = params[key];
+    if (existing === undefined) {
+      params[key] = value;
+    } else if (Array.isArray(existing)) {
+      existing.push(value);
+    } else {
+      params[key] = [existing, value];
+    }
+  }
+
+  return params;
+}

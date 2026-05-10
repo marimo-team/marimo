@@ -93,6 +93,7 @@ export type StdinRequest = schemas["StdinRequest"];
 export type SuccessResponse = schemas["SuccessResponse"];
 export type UpdateUIElementValuesRequest =
   schemas["UpdateUIElementValuesRequest"];
+export type UpdateQueryParamsRequest = schemas["UpdateQueryParamsRequest"];
 export type UsageResponse =
   paths["/api/usage"]["get"]["responses"]["200"]["content"]["application/json"];
 export type WorkspaceFilesRequest = schemas["WorkspaceFilesRequest"];
@@ -120,6 +121,7 @@ export interface RunRequests {
   sendModelValue: (request: ModelRequest) => Promise<null>;
   sendInstantiate: (request: InstantiateNotebookRequest) => Promise<null>;
   sendFunctionRequest: (request: InvokeFunctionRequest) => Promise<null>;
+  sendUpdateQueryParams: (request: UpdateQueryParamsRequest) => Promise<null>;
 }
 
 /**

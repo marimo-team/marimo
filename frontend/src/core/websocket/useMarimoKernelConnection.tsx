@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtom, useSetAtom } from "jotai";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
@@ -51,7 +51,7 @@ import {
   handleKernelReady,
   handleRemoveUIElements,
 } from "../kernel/handlers";
-import { queryParamHandlers } from "../kernel/queryParamHandlers";
+import { queryParamHandlers, parseQueryParams } from "../kernel/queryParamHandlers";
 import type { SessionId } from "../kernel/session";
 import { kernelStateAtom } from "../kernel/state";
 import { type LayoutState, useLayoutActions } from "../layout/layout";
@@ -467,6 +467,21 @@ export function useMarimoKernelConnection(opts: {
       tryReconnecting();
     },
   });
+
+  // Listen for browser back/forward navigation to update query params
+  useEffect(() => {
+    const handlePopState = () => {
+      const queryParams = parseQueryParams();
+      // Import at runtime to avoid circular dependency
+      import("../network/requests").then(({ getRequestClient }) => {
+        const client = getRequestClient();
+        void client.sendUpdateQueryParams({ queryParams });
+      });
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   return { connection };
 }
