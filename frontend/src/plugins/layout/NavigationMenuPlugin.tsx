@@ -4,14 +4,14 @@ import React from "react";
 import { z } from "zod";
 import {
   NavigationMenu,
-  NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
-  NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip } from "@/components/ui/tooltip";
+import { ChevronDownIcon } from "@radix-ui/react-icons";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { cn } from "@/utils/cn";
 import { appendQueryParams } from "@/utils/urls";
@@ -77,6 +77,22 @@ const NavMenuComponent = ({
   items,
   orientation,
 }: PropsWithChildren<NavMenuComponentProps>): JSX.Element => {
+  const [openMenu, setOpenMenu] = React.useState<string | null>(null);
+  const timeoutRef = React.useRef<NodeJS.Timeout>(null);
+
+  const handleMouseEnter = (label: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setOpenMenu(label);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => {
+      setOpenMenu(null);
+    }, 200);
+  };
+
   const maybeWithTooltip = (
     component: JSX.Element,
     description?: string | null,
@@ -109,30 +125,54 @@ const NavMenuComponent = ({
   const renderMenuItem = (item: MenuItem | MenuItemGroup) => {
     if ("items" in item) {
       return orientation === "horizontal" ? (
-        <NavigationMenu orientation="horizontal" key={item.label}>
-          <NavigationMenuList>
-            <NavigationMenuItem>
-              <NavigationMenuTrigger>
+        <NavigationMenuItem key={item.label}>
+          <Popover
+            open={openMenu === item.label}
+            onOpenChange={(open) => !open && setOpenMenu(null)}
+          >
+            <PopoverTrigger
+              asChild={true}
+              onMouseEnter={() => handleMouseEnter(item.label)}
+              onMouseLeave={handleMouseLeave}
+            >
+              <button
+                className={cn(
+                  navigationMenuTriggerStyle(),
+                  "flex items-center",
+                )}
+              >
                 {renderHTML({ html: item.label })}
-              </NavigationMenuTrigger>
-              <NavigationMenuContent>
-                <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
-                  {item.items.map((subItem) => (
-                    <ListItem
-                      key={subItem.label}
-                      label={subItem.label}
-                      href={preserveQueryParams(subItem.href)}
-                      target={target(subItem.href)}
-                    >
-                      {subItem.description &&
-                        renderHTML({ html: subItem.description })}
-                    </ListItem>
-                  ))}
-                </ul>
-              </NavigationMenuContent>
-            </NavigationMenuItem>
-          </NavigationMenuList>
-        </NavigationMenu>
+                <ChevronDownIcon
+                  className={cn(
+                    "relative top-px ml-1 h-3 w-3 transition duration-300",
+                    openMenu === item.label && "rotate-180",
+                  )}
+                  aria-hidden="true"
+                />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-auto p-0"
+              align="start"
+              onMouseEnter={() => handleMouseEnter(item.label)}
+              onMouseLeave={handleMouseLeave}
+            >
+              <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
+                {item.items.map((subItem) => (
+                  <ListItem
+                    key={subItem.label}
+                    label={subItem.label}
+                    href={preserveQueryParams(subItem.href)}
+                    target={target(subItem.href)}
+                  >
+                    {subItem.description &&
+                      renderHTML({ html: subItem.description })}
+                  </ListItem>
+                ))}
+              </ul>
+            </PopoverContent>
+          </Popover>
+        </NavigationMenuItem>
       ) : (
         <NavigationMenuItem key={item.label}>
           <div
@@ -203,25 +243,23 @@ const ListItem = React.forwardRef<
 >(({ className, label, children, ...props }, ref) => {
   return (
     <li>
-      <NavigationMenuLink asChild={true}>
-        <a
-          ref={ref}
-          className={cn(
-            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-            className,
-          )}
-          {...props}
-        >
-          <div className="text-base font-medium leading-none">
-            {renderHTML({ html: label })}
-          </div>
-          {children && (
-            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-              {children}
-            </p>
-          )}
-        </a>
-      </NavigationMenuLink>
+      <a
+        ref={ref}
+        className={cn(
+          "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+          className,
+        )}
+        {...props}
+      >
+        <div className="text-base font-medium leading-none">
+          {renderHTML({ html: label })}
+        </div>
+        {children && (
+          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+            {children}
+          </p>
+        )}
+      </a>
     </li>
   );
 });
