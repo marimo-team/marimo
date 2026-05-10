@@ -25,7 +25,6 @@ from marimo._runtime.commands import (
     ModelCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
-    SerializedQueryParams,
     StorageDownloadCommand,
     StorageListEntriesCommand,
     UpdateCellConfigCommand,

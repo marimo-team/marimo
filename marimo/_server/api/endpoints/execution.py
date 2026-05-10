@@ -142,6 +142,7 @@ async def update_query_params(
                         $ref: "#/components/schemas/SuccessResponse"
     """
     from marimo._server.models.models import UpdateQueryParamsRequest
+
     return await dispatch_control_request(request, UpdateQueryParamsRequest)
 
 

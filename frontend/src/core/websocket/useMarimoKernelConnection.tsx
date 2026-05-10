@@ -51,7 +51,10 @@ import {
   handleKernelReady,
   handleRemoveUIElements,
 } from "../kernel/handlers";
-import { queryParamHandlers, parseQueryParams } from "../kernel/queryParamHandlers";
+import {
+  queryParamHandlers,
+  parseQueryParams,
+} from "../kernel/queryParamHandlers";
 import type { SessionId } from "../kernel/session";
 import { kernelStateAtom } from "../kernel/state";
 import { type LayoutState, useLayoutActions } from "../layout/layout";
