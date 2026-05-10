@@ -132,7 +132,7 @@ const NavMenuComponent = ({
         <NavigationMenuItem key={item.label}>
           <Popover
             open={openMenu === item.label}
-            onOpenChange={(open) => !open && setOpenMenu(null)}
+            onOpenChange={(open) => setOpenMenu(open ? item.label : null)}
           >
             <PopoverTrigger
               asChild={true}
