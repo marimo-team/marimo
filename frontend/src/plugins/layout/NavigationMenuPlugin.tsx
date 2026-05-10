@@ -9,7 +9,11 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Tooltip } from "@/components/ui/tooltip";
 import { ChevronDownIcon } from "@radix-ui/react-icons";
 import { renderHTML } from "@/plugins/core/RenderHTML";
