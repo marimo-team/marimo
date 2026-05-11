@@ -1,23 +1,31 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { DataUIPart, ToolUIPart, UIMessage } from "ai";
+import type {
+  ChatAddToolApproveResponseFunction,
+  DataUIPart,
+  ToolUIPart,
+  UIMessage,
+} from "ai";
+import { ExternalLinkIcon, FileTextIcon } from "lucide-react";
 import React from "react";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
 import { MarkdownRenderer } from "../markdown/markdown-renderer";
-import { AttachmentRenderer } from "./chat-components";
+import { AttachmentRenderer, SourceChip } from "./chat-components";
 import { ReasoningAccordion } from "./reasoning-accordion";
-import { ToolCallAccordion } from "./tool-call-accordion";
+import { ToolCallView } from "./tool-call/tool-call-view";
 
 export const renderUIMessage = ({
   message,
   isStreamingReasoning,
   isLast,
+  addToolApprovalResponse,
 }: {
   message: UIMessage;
   isStreamingReasoning: boolean;
   isLast: boolean;
+  addToolApprovalResponse?: ChatAddToolApproveResponseFunction;
 }) => {
   return (
     <>{message.parts.map((part, index) => renderUIMessagePart(part, index))}</>
@@ -29,14 +37,18 @@ export const renderUIMessage = ({
   ) {
     if (isToolPart(part)) {
       return (
-        <ToolCallAccordion
+        <ToolCallView
           key={index}
           index={index}
           toolName={part.type}
           result={part.output}
+          errorText={part.state === "output-error" ? part.errorText : undefined}
           className="my-2"
           state={part.state}
           input={part.input}
+          approval={part.approval}
+          onApprove={addToolApprovalResponse}
+          isLive={isLast}
         />
       );
     }
@@ -69,7 +81,7 @@ export const renderUIMessage = ({
             isStreaming={
               isStreamingReasoning &&
               isLast &&
-              // If there are multiple reasoning parts, only show the last one
+              // If there are multiple reasoning parts, only stream the last one
               index === (message.parts.length || 0) - 1
             }
           />
@@ -78,18 +90,40 @@ export const renderUIMessage = ({
         return <AttachmentRenderer attachment={part} key={index} />;
       case "dynamic-tool":
         return (
-          <ToolCallAccordion
+          <ToolCallView
             key={index}
             toolName={part.toolName}
             result={part.output}
+            errorText={
+              part.state === "output-error" ? part.errorText : undefined
+            }
             state={part.state}
             input={part.input}
+            approval={part.approval}
+            onApprove={addToolApprovalResponse}
+            isLive={isLast}
           />
         );
       case "source-document":
+        return (
+          <SourceChip
+            key={index}
+            icon={<FileTextIcon className="h-3 w-3 shrink-0" />}
+            title={part.title}
+            subtitle={part.filename}
+          />
+        );
       case "source-url":
+        return (
+          <SourceChip
+            key={index}
+            icon={<ExternalLinkIcon className="h-3 w-3 shrink-0" />}
+            title={part.title ?? part.url}
+            subtitle={part.title ? part.url : undefined}
+            href={part.url}
+          />
+        );
       case "step-start":
-        Logger.debug("Found non-renderable part", part);
         return null;
       default:
         logNever(part);
