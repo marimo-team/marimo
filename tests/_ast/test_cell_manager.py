@@ -99,6 +99,22 @@ class TestCellManager:
         for _ in range(50):
             assert cell_manager.create_cell_id() != explicit_id
 
+    def test_register_cell_rejects_duplicate_id(
+        self, cell_manager: CellManager
+    ) -> None:
+        cell_manager.register_cell(TEST_CELL1, "x = 1", CellConfig())
+        with pytest.raises(ValueError, match="already exists"):
+            cell_manager.register_cell(TEST_CELL1, "x = 2", CellConfig())
+
+    def test_register_cell_bumps_document_version(
+        self, cell_manager: CellManager
+    ) -> None:
+        assert cell_manager.document.version == 0
+        cell_manager.register_cell(TEST_CELL1, "x = 1", CellConfig())
+        assert cell_manager.document.version == 1
+        cell_manager.register_cell(TEST_CELL2, "y = 2", CellConfig())
+        assert cell_manager.document.version == 2
+
     def test_ensure_one_cell(self, cell_manager: CellManager) -> None:
         assert len(list(cell_manager.cell_ids())) == 0
         cell_manager.ensure_one_cell()
@@ -790,6 +806,17 @@ class TestSortCellIdsByCompiledCells:
         assert list(curr.cell_ids()) == [CELL_A]
         assert curr._compiled_cells.get(CELL_A) is compiled_cell
         assert CELL_X not in curr._compiled_cells
+
+    def test_sort_bumps_document_version(self) -> None:
+        prev = CellManager()
+        prev.register_cell(CELL_A, "x = 1", CellConfig())
+
+        curr = CellManager()
+        curr.register_cell(CELL_X, "x = 1", CellConfig())
+
+        version_before = curr.document.version
+        curr.sort_cell_ids_by_similarity(prev)
+        assert curr.document.version > version_before
 
     @pytest.mark.xfail(
         reason=(

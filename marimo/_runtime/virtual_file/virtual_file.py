@@ -310,16 +310,21 @@ def read_virtual_file(filename: str, byte_length: int) -> bytes:
 
 
 def read_virtual_file_chunked(
-    filename: str, byte_length: int
+    filename: str, byte_length: int, start: int = 0
 ) -> Iterator[bytes]:
     """Read a virtual file in chunks for streaming responses.
 
     Yields chunks of bytes, avoiding holding the entire file in memory
     as a single bytes object.
+
+    Args:
+        filename: virtual file name
+        byte_length: number of bytes to read (after applying ``start``)
+        start: offset in bytes to begin reading from (for HTTP Range requests)
     """
     try:
         yield from VirtualFileStorageManager().read_chunked(
-            filename, byte_length
+            filename, byte_length, start=start
         )
     except KeyError as err:
         raise HTTPException(

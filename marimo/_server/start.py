@@ -23,10 +23,6 @@ from marimo._server.api import lifespans
 from marimo._server.config import (
     StarletteServerStateInit,
 )
-from marimo._server.file_router import (
-    AppFileRouter,
-    LazyListOfFilesAppFileRouter,
-)
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
 from marimo._server.main import create_starlette_app
 from marimo._server.registry import LIFESPAN_REGISTRY
@@ -37,6 +33,10 @@ from marimo._server.utils import (
     initialize_fd_limit,
 )
 from marimo._server.uvicorn_utils import initialize_signals
+from marimo._server.workspace import (
+    DirectoryWorkspace,
+    NotebookWorkspace,
+)
 from marimo._session.model import SessionMode
 from marimo._tracer import LOGGER
 from marimo._utils.lifespans import Lifespans
@@ -209,7 +209,7 @@ def _check_proxy_base_url_conflict(proxy: str | None, base_url: str) -> None:
 
 def start(
     *,
-    file_router: AppFileRouter,
+    workspace: NotebookWorkspace,
     mode: SessionMode,
     development_mode: bool,
     quiet: bool,
@@ -272,9 +272,9 @@ def start(
 
     # This is the path that will be used to read the project configuration
     start_path: str | None = None
-    if (single_file := file_router.maybe_get_single_file()) is not None:
+    if (single_file := workspace.single_file()) is not None:
         start_path = single_file.path
-    elif (directory := file_router.directory) is not None:
+    elif (directory := workspace.directory) is not None:
         start_path = directory
     else:
         start_path = os.getcwd()
@@ -294,7 +294,7 @@ def start(
     if (
         mode == SessionMode.RUN
         and watch
-        and isinstance(file_router, LazyListOfFilesAppFileRouter)
+        and isinstance(workspace, DirectoryWorkspace)
     ):
         LOGGER.warning(
             "Using `marimo run <folder> --watch`: gallery files are "
@@ -315,7 +315,7 @@ def start(
             }
         )
 
-    is_multi = file_router.get_unique_file_key() is None
+    is_multi = workspace.get_unique_file_key() is None
     isolate_apps = is_multi and config_reader.experimental.get(
         "isolate_apps", False
     )
@@ -330,7 +330,7 @@ def start(
         )
 
     session_manager = SessionManager(
-        file_router=file_router,
+        workspace=workspace,
         mode=mode,
         quiet=quiet,
         include_code=include_code,

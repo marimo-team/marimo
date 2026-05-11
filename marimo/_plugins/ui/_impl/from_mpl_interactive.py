@@ -163,6 +163,12 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
     def __init__(self, figure: Figure | SubFigure) -> None:
         self._figure = figure
 
+        # SubFigure delegates dpi/size_inches to its parent Figure;
+        # Figure.figure returns self, so this works for both.
+        root = figure.figure
+        self._original_dpi = root.get_dpi()
+        self._original_size_inches = tuple(root.get_size_inches())
+
         # Create FigureManagerWebAgg
         self._figure_manager = new_figure_manager_given_figure(
             id(figure), figure
@@ -233,7 +239,11 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
             ctx = get_context()
             ctx.cell_lifecycle_registry.add(
                 _MplCleanupHandle(
-                    self._comm, self._figure_manager, self._sync_ws
+                    comm=self._comm,
+                    figure_manager=self._figure_manager,
+                    sync_ws=self._sync_ws,
+                    original_dpi=self._original_dpi,
+                    original_size_inches=self._original_size_inches,
                 )
             )
         except ContextNotInitializedError:
@@ -302,12 +312,16 @@ class _MplCleanupHandle(CellLifecycleItem):
     def __init__(
         self,
         comm: MarimoComm,
+        original_dpi: float,
+        original_size_inches: tuple[float, float],
         figure_manager: Any = None,
         sync_ws: Any = None,
     ) -> None:
         self._comm = comm
         self._figure_manager = figure_manager
         self._sync_ws = sync_ws
+        self._original_dpi = original_dpi
+        self._original_size_inches = original_size_inches
 
     def create(self, context: RuntimeContext) -> None:
         del context
@@ -324,8 +338,17 @@ class _MplCleanupHandle(CellLifecycleItem):
                 pass
         if self._figure_manager is not None:
             try:
+                # get the root figure (in case of Subfigure) which handles dpi
+                root = self._figure_manager.canvas.figure.figure
+                root.set_dpi(self._original_dpi)
+                root.set_size_inches(*self._original_size_inches)
+            except Exception:
+                pass
+
+            try:
                 self._figure_manager.canvas.close()
             except Exception:
                 pass
+
         self._comm.close()
         return True

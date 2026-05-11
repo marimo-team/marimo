@@ -20,17 +20,18 @@ from marimo._runtime.commands import (
     SerializedQueryParams,
 )
 from marimo._server.app_defaults import AppDefaults
-from marimo._server.file_router import (
-    AppFileRouter,
-    MarimoFileKey,
-    flatten_files,
-)
 from marimo._server.lsp import LspServer
 from marimo._server.recents import RecentFilesManager
 from marimo._server.resume_strategies import create_resume_strategy
 from marimo._server.session.listeners import RecentsTrackerListener
 from marimo._server.token_manager import TokenManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
+from marimo._server.workspace import (
+    NEW_FILE,
+    MarimoFileKey,
+    NotebookWorkspace,
+    flatten_files,
+)
 from marimo._session.app_host import AppHostContext, AppHostPool
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
@@ -70,7 +71,7 @@ class SessionManager:
     def __init__(
         self,
         *,
-        file_router: AppFileRouter,
+        workspace: NotebookWorkspace,
         mode: SessionMode,
         quiet: bool,
         include_code: bool,
@@ -86,7 +87,7 @@ class SessionManager:
         isolate_apps: bool = False,
     ) -> None:
         # Core configuration
-        self.file_router = file_router
+        self.workspace = workspace
         self.mode = mode
         self.quiet = quiet
         self.include_code = include_code
@@ -111,11 +112,11 @@ class SessionManager:
 
         def _get_code() -> str:
             defaults = AppDefaults.from_config_manager(config_manager)
-            if file_router.get_unique_file_key() is not None:
-                app = file_router.get_single_app_file_manager(defaults).app
+            if workspace.get_unique_file_key() is not None:
+                app = workspace.get_single_app_file_manager(defaults).app
                 return "".join(code for code in app.cell_manager.codes())
 
-            files = list(flatten_files(file_router.files))
+            files = list(flatten_files(workspace.files))
             entries = [
                 f"{file.path}:{file.last_modified or 0.0}"
                 for file in files
@@ -161,11 +162,9 @@ class SessionManager:
     def app_manager(self, key: MarimoFileKey) -> AppFileManager:
         """Get the app manager for the given key."""
         defaults = AppDefaults.from_config_manager(self._config_manager)
-        if self.mode is SessionMode.EDIT and not key.startswith(
-            AppFileRouter.NEW_FILE
-        ):
-            self.file_router.register_allowed_file(key)
-        return self.file_router.get_file_manager(key, defaults)
+        if self.mode is SessionMode.EDIT and not key.startswith(NEW_FILE):
+            self.workspace.register_allowed_path(key)
+        return self.workspace.load(key, defaults)
 
     def create_session(
         self,
@@ -185,13 +184,9 @@ class SessionManager:
 
         # Get app file manager
         defaults = AppDefaults.from_config_manager(self._config_manager)
-        if self.mode is SessionMode.EDIT and not file_key.startswith(
-            AppFileRouter.NEW_FILE
-        ):
-            self.file_router.register_allowed_file(file_key)
-        app_file_manager = self.file_router.get_file_manager(
-            file_key, defaults
-        )
+        if self.mode is SessionMode.EDIT and not file_key.startswith(NEW_FILE):
+            self.workspace.register_allowed_path(file_key)
+        app_file_manager = self.workspace.load(file_key, defaults)
 
         # Create the session
         from marimo._runtime.commands import AppMetadata
@@ -356,7 +351,7 @@ class SessionManager:
 
     def any_clients_connected(self, key: MarimoFileKey) -> bool:
         """Returns True if at least one client has an open socket."""
-        if key.startswith(AppFileRouter.NEW_FILE):
+        if key.startswith(NEW_FILE):
             return False
 
         sessions_for_file = self._repository.get_by_file_path(key)

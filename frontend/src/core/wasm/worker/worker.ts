@@ -375,7 +375,8 @@ const namesThatRequireSync = new Set<keyof RawBridge>([
 ]);
 
 function getMarimoVersion() {
-  return self.name; // We store the version in the worker name
+  // Worker name is "<version>" or "<version>::<capability>" — see bridge.ts.
+  return self.name.split("::")[0];
 }
 
 const pyodideReadyPromise = t.wrapAsync(loadPyodideAndPackages)();

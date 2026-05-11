@@ -328,6 +328,8 @@ class Exporter:
         mode: Literal["edit", "run"],
         show_code: bool,
         asset_url: str | None = None,
+        session_snapshot: NotebookSessionV1 | None = None,
+        notebook_snapshot: NotebookV1 | None = None,
     ) -> tuple[str, str]:
         """Export notebook as a WASM-powered standalone HTML file."""
         index_html = get_html_contents()
@@ -350,6 +352,8 @@ class Exporter:
             code=code,
             asset_url=asset_url,
             show_code=show_code,
+            session_snapshot=session_snapshot,
+            notebook_snapshot=notebook_snapshot,
         )
 
         download_filename = get_download_filename(filename, "wasm.html")

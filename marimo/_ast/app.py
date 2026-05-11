@@ -42,6 +42,7 @@ from marimo._ast.parse import ast_parse
 from marimo._ast.variables import BUILTINS
 from marimo._convert.converters import MarimoConvert
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.notebook.changes import SetConfig, Transaction
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._runtime import dataflow
@@ -172,16 +173,30 @@ class _SetupContext:
         hide_code: bool = False,
         **kwargs: Any,  # noqa: ARG002
     ) -> _SetupContext:
-        """When called with parameters, create a new context with those parameters."""
-        cell = self._app._cell_manager.cell_context(
-            app=InternalApp(self._app),
-            frame=inspect.stack()[1].frame,
-            config=CellConfig(hide_code=hide_code),
+        """When called with parameters, update the setup cell config.
+
+        The setup cell was already registered when ``app.setup`` ran
+        (the property getter); this call updates that cell's config in
+        place rather than re-registering.
+        """
+        cm = self._app._cell_manager
+        existing_cfg = cm.document.get_cell(cm.setup_cell_id).config
+        cm.document.apply(
+            Transaction(
+                changes=(
+                    SetConfig(
+                        cell_id=cm.setup_cell_id,
+                        column=existing_cfg.column,
+                        disabled=existing_cfg.disabled,
+                        hide_code=hide_code,
+                    ),
+                ),
+                source="cell-manager",
+            )
         )
-        self._app._setup = _SetupContext(
-            app=self._app, cell=cell, hide_code=hide_code
-        )
-        return self._app._setup
+        self._cell._cell.configure({"hide_code": hide_code})
+        self._hide_code = hide_code
+        return self
 
 
 @dataclass

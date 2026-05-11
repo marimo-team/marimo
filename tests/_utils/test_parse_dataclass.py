@@ -944,3 +944,30 @@ def test_dataclass_with_nested_msgspec_struct() -> None:
     # Test as dict
     parsed = parse_raw(data, Nested, allow_unknown_keys=True)
     assert parsed == Nested(config=StructClass(limit=10))
+
+
+def test_wrong_container_type_error_message() -> None:
+    """Test that wrong container types produce clear error messages, not TypeError."""
+
+    @dataclass
+    class ArgsWithList:
+        session_id: CellId_t
+        cell_ids: list[CellId_t]
+
+    # Test wrong type for list field (string instead of list)
+    with pytest.raises(ValueError) as exc_info:
+        parse_raw(
+            {"session_id": "test", "cell_ids": "not_a_list"}, ArgsWithList
+        )
+    assert "does not fit" in str(exc_info.value)
+
+    # Test wrong type for list field (dict instead of list)
+    with pytest.raises(ValueError) as exc_info:
+        parse_raw({"session_id": "test", "cell_ids": {"a": 1}}, ArgsWithList)
+    assert "does not fit" in str(exc_info.value)
+
+    # Test valid list
+    result = parse_raw(
+        {"session_id": "test", "cell_ids": ["c1", "c2"]}, ArgsWithList
+    )
+    assert result.cell_ids == ["c1", "c2"]

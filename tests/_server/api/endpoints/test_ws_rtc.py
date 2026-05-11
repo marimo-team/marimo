@@ -105,7 +105,7 @@ async def test_loro_cleanup_on_session_close(
     doc = LoroDoc()
     initial_code = doc.export(ExportMode.Snapshot())
 
-    file_key = get_session_manager(client).file_router.get_unique_file_key()
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
     assert file_key is not None
 
     with (
@@ -199,7 +199,7 @@ async def test_rtc_degrades_without_loro(client: TestClient) -> None:
     """
     from unittest.mock import patch
 
-    file_key = get_session_manager(client).file_router.get_unique_file_key()
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
     assert file_key is not None
 
     # Clear any existing docs
@@ -237,7 +237,7 @@ async def test_rtc_degrades_without_loro(client: TestClient) -> None:
 )
 async def test_ws_sync_without_existing_session(client: TestClient) -> None:
     """Test that ws_sync endpoint requires an existing session."""
-    file_key = get_session_manager(client).file_router.get_unique_file_key()
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
     assert file_key is not None
 
     ws_sync_url = f"/ws_sync?file={file_key}&access_token=fake-token"
@@ -258,7 +258,7 @@ async def test_ws_sync_without_existing_session(client: TestClient) -> None:
 )
 async def test_ws_sync_cleanup_on_main_disconnect(client: TestClient) -> None:
     """Test that ws_sync clients are cleaned up when main session disconnects."""
-    file_key = get_session_manager(client).file_router.get_unique_file_key()
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
     assert file_key is not None
 
     # Clear any existing docs

@@ -52,6 +52,12 @@ class TestInMemoryStorageReadChunked:
         assert len(chunks[-1]) <= chunk_size
         assert b"".join(chunks) == data
 
+    def test_read_chunked_with_start_offset(self) -> None:
+        storage = InMemoryStorage()
+        storage.store("test_key", b"hello world")
+        chunks = list(storage.read_chunked("test_key", 5, start=6))
+        assert b"".join(chunks) == b"world"
+
 
 class TestInMemoryStorage:
     def test_store_and_read(self) -> None:
@@ -267,6 +273,17 @@ class TestSharedMemoryStorage:
             assert b"".join(chunks) == data
         finally:
             storage1.shutdown()
+
+    def test_read_chunked_with_start_offset(self) -> None:
+        storage = SharedMemoryStorage()
+        try:
+            storage.store("marimo_chunk_offset", b"hello world")
+            chunks = list(
+                storage.read_chunked("marimo_chunk_offset", 5, start=6)
+            )
+            assert b"".join(chunks) == b"world"
+        finally:
+            storage.shutdown()
 
     def test_read_chunked_data_integrity(self) -> None:
         """Test that chunked read produces identical data to regular read."""

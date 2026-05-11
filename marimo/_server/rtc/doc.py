@@ -5,7 +5,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
-from marimo._server.file_router import MarimoFileKey
+from marimo._server.workspace import MarimoFileKey
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:

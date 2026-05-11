@@ -1587,7 +1587,7 @@ class AsyncCodeModeContext:
             internal_ops=ops,
         )
         if doc_ops:
-            tx = Transaction(changes=tuple(doc_ops), source="kernel")
+            tx = Transaction(changes=tuple(doc_ops), source="code-mode")
             # Apply to local snapshot so _cell_label can read names.
             self._document.apply(tx)
             self.notify(

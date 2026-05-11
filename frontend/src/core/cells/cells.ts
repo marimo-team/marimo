@@ -29,6 +29,7 @@ import { isErrorMime } from "../mime";
 import type { CellConfig } from "../network/types";
 import { isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
+import { isWasm } from "../wasm/utils";
 import { prepareCellForExecution, transitionCell } from "./cell";
 import { documentTransactionMiddleware } from "./document-changes";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
@@ -1032,8 +1033,20 @@ const {
   setCells: (state, cells: CellData[]) => {
     const cellData = Object.fromEntries(cells.map((cell) => [cell.id, cell]));
 
+    // WASM has no server-side SessionView to replay outputs, so the
+    // snapshot hydrated by notebookStateFromSession is the only source.
+    const preserveSnapshot = isWasm();
+    const runtimeFor = (cellId: CellId): CellRuntimeState => {
+      if (!preserveSnapshot) {
+        return createCellRuntimeState();
+      }
+      const prev = state.cellRuntime[cellId];
+      const hasSnapshot =
+        prev && (prev.output != null || prev.consoleOutputs.length > 0);
+      return hasSnapshot ? prev : createCellRuntimeState();
+    };
     const cellRuntime = Object.fromEntries(
-      cells.map((cell) => [cell.id, createCellRuntimeState()]),
+      cells.map((cell) => [cell.id, runtimeFor(cell.id)]),
     );
 
     return withScratchCell({

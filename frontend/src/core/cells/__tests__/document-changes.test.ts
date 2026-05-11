@@ -203,6 +203,8 @@ describe("toDocumentChanges", () => {
         [
           {
             "cellId": "0",
+            "column": null,
+            "disabled": false,
             "hideCode": true,
             "type": "set-config",
           },
@@ -246,6 +248,8 @@ describe("toDocumentChanges", () => {
           {
             "cellId": "1",
             "column": 1,
+            "disabled": false,
+            "hideCode": false,
             "type": "set-config",
           },
           {
@@ -273,11 +277,15 @@ describe("toDocumentChanges", () => {
           {
             "cellId": "1",
             "column": 1,
+            "disabled": false,
+            "hideCode": false,
             "type": "set-config",
           },
           {
             "cellId": "2",
             "column": 1,
+            "disabled": false,
+            "hideCode": false,
             "type": "set-config",
           },
           {
@@ -310,11 +318,15 @@ describe("toDocumentChanges", () => {
           {
             "cellId": "1",
             "column": 0,
+            "disabled": false,
+            "hideCode": false,
             "type": "set-config",
           },
           {
             "cellId": "2",
             "column": 0,
+            "disabled": false,
+            "hideCode": false,
             "type": "set-config",
           },
           {
@@ -358,6 +370,8 @@ describe("toDocumentChanges", () => {
           {
             "cellId": "1",
             "column": 1,
+            "disabled": false,
+            "hideCode": false,
             "type": "set-config",
           },
           {

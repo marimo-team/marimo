@@ -59,6 +59,7 @@ interface CellArrayProps {
   mode: AppMode;
   userConfig: UserConfig;
   appConfig: AppConfig;
+  hideControls?: boolean;
 }
 
 export const CellArray: React.FC<CellArrayProps> = (props) => {
@@ -82,6 +83,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   mode,
   userConfig,
   appConfig,
+  hideControls = false,
 }) => {
   const actions = useCellActions();
   const { theme } = useTheme();
@@ -147,6 +149,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
             mode={mode}
             userConfig={userConfig}
             theme={theme}
+            hideControls={hideControls}
           />
         ))}
       </div>
@@ -166,6 +169,7 @@ const CellColumn: React.FC<{
   mode: AppMode;
   userConfig: UserConfig;
   theme: Theme;
+  hideControls: boolean;
 }> = ({
   columnId,
   index,
@@ -174,6 +178,7 @@ const CellColumn: React.FC<{
   mode,
   userConfig,
   theme,
+  hideControls,
 }) => {
   const cellIds = useCellIds();
   const column = cellIds.get(columnId);
@@ -191,13 +196,15 @@ const CellColumn: React.FC<{
       width={appConfig.width}
       canDelete={columnsLength > 1}
       footer={
-        <AddCellButtons
-          columnId={columnId}
-          className={cn(
-            appConfig.width === "columns" &&
-              "opacity-0 group-hover/column:opacity-100",
-          )}
-        />
+        hideControls ? null : (
+          <AddCellButtons
+            columnId={columnId}
+            className={cn(
+              appConfig.width === "columns" &&
+                "opacity-0 group-hover/column:opacity-100",
+            )}
+          />
+        )
       }
     >
       <SortableContext

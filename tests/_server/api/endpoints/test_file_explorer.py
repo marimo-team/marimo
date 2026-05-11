@@ -122,7 +122,7 @@ def test_update_file_with_session(client: TestClient) -> None:
     # Enable watch mode (file watcher is set up automatically)
     sm.watch = True
 
-    file_path = sm.file_router.get_unique_file_key()
+    file_path = sm.workspace.get_unique_file_key()
     assert file_path
     file_path = Path(file_path)
     assert file_path.exists()

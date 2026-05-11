@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import msgspec
 
 from marimo._ast.cell import CellConfig
@@ -74,12 +76,12 @@ class SetName(msgspec.Struct, frozen=True, tag="set-name", rename="camel"):
 
 
 class SetConfig(msgspec.Struct, frozen=True, tag="set-config", rename="camel"):
-    """Partially update a cell's config. None fields are unchanged."""
+    """Replace a cell's config."""
 
     cell_id: CellId_t
-    column: int | None = None
-    disabled: bool | None = None
-    hide_code: bool | None = None
+    column: int | None
+    disabled: bool
+    hide_code: bool
 
 
 DocumentChange = (
@@ -96,6 +98,10 @@ DocumentChange = (
 # Transaction
 # ------------------------------------------------------------------
 
+TransactionSource = Literal[
+    "frontend", "kernel", "code-mode", "file-watch", "cell-manager"
+]
+
 
 class Transaction(msgspec.Struct, frozen=True, rename="camel"):
     """An atomic batch of changes applied to a NotebookDocument.
@@ -106,5 +112,5 @@ class Transaction(msgspec.Struct, frozen=True, rename="camel"):
     """
 
     changes: tuple[DocumentChange, ...]
-    source: str
+    source: TransactionSource
     version: int | None = None

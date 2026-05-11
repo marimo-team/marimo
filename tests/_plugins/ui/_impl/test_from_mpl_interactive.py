@@ -6,6 +6,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+mpl = pytest.importorskip("matplotlib")
+mpl.use(
+    "Agg"
+)  # Non-interactive backend; avoids DPR pre-inflation on HiDPI hosts.
+
 
 @pytest.mark.requires("matplotlib")
 class TestSyncWebSocket:
@@ -181,6 +186,63 @@ class TestHandleDownload:
 
 
 @pytest.mark.requires("matplotlib")
+class TestDpiPreservationOnRerun:
+    """Re-running a cell that wraps the same figure should not compound DPI.
+
+    matplotlib's ``FigureCanvasBase.__init__`` unconditionally captures
+    ``figure._original_dpi = figure.dpi``. After a HiDPI client connects
+    and scales ``figure.dpi`` up by the device pixel ratio, a subsequent
+    canvas creation on the same figure would treat that scaled value as
+    "original" and scale it again — making the resolution compound on
+    every rerun (see issue #9466).
+    """
+
+    def test_dpi_does_not_compound_across_reruns(self) -> None:
+        import matplotlib.pyplot as plt
+
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            _MplCleanupHandle,
+            mpl_interactive,
+        )
+
+        fig, ax = plt.subplots(figsize=(5, 5), dpi=100)
+        ax.plot([1, 2, 3])
+
+        for _ in range(3):
+            with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
+                element = mpl_interactive(fig)
+
+            # Simulate the HiDPI handshake from the frontend.
+            element._figure_manager.handle_json(
+                {"type": "set_device_pixel_ratio", "device_pixel_ratio": 2}
+            )
+            element._figure_manager.handle_json(
+                {"type": "resize", "width": 500, "height": 500}
+            )
+            # While the canvas is live, dpi reflects the device-scaled value.
+            assert fig.dpi == 200
+            assert tuple(fig.get_size_inches()) == (5.0, 5.0)
+
+            # Simulate cell teardown — the cleanup handle is what marimo
+            # registers via cell_lifecycle_registry; running it directly
+            # avoids needing a live runtime context in the test.
+            cleanup = _MplCleanupHandle(
+                comm=element._comm,
+                figure_manager=element._figure_manager,
+                sync_ws=element._sync_ws,
+                original_dpi=element._original_dpi,
+                original_size_inches=element._original_size_inches,
+            )
+            cleanup.dispose(context=MagicMock(), deletion=False)
+
+            # After dispose the figure is restored to the user's intent.
+            assert fig.dpi == 100
+            assert tuple(fig.get_size_inches()) == (5.0, 5.0)
+
+        plt.close(fig)
+
+
+@pytest.mark.requires("matplotlib")
 class TestMplCleanupHandle:
     """Test that _MplCleanupHandle properly closes the comm."""
 
@@ -190,7 +252,9 @@ class TestMplCleanupHandle:
         )
 
         mock_comm = MagicMock()
-        handle = _MplCleanupHandle(mock_comm)
+        handle = _MplCleanupHandle(
+            mock_comm, original_dpi=100, original_size_inches=(5.0, 5.0)
+        )
         result = handle.dispose(context=MagicMock(), deletion=False)
 
         assert result is True
@@ -202,7 +266,9 @@ class TestMplCleanupHandle:
         )
 
         mock_comm = MagicMock()
-        handle = _MplCleanupHandle(mock_comm)
+        handle = _MplCleanupHandle(
+            mock_comm, original_dpi=100, original_size_inches=(5.0, 5.0)
+        )
         result = handle.dispose(context=MagicMock(), deletion=True)
 
         assert result is True
@@ -216,7 +282,13 @@ class TestMplCleanupHandle:
         mock_comm = MagicMock()
         mock_manager = MagicMock()
         mock_ws = MagicMock()
-        handle = _MplCleanupHandle(mock_comm, mock_manager, mock_ws)
+        handle = _MplCleanupHandle(
+            mock_comm,
+            figure_manager=mock_manager,
+            sync_ws=mock_ws,
+            original_dpi=100,
+            original_size_inches=(5.0, 5.0),
+        )
         result = handle.dispose(context=MagicMock(), deletion=False)
 
         assert result is True
@@ -234,7 +306,13 @@ class TestMplCleanupHandle:
         mock_manager.remove_web_socket.side_effect = RuntimeError("boom")
         mock_manager.canvas.close.side_effect = RuntimeError("boom")
         mock_ws = MagicMock()
-        handle = _MplCleanupHandle(mock_comm, mock_manager, mock_ws)
+        handle = _MplCleanupHandle(
+            mock_comm,
+            figure_manager=mock_manager,
+            sync_ws=mock_ws,
+            original_dpi=100,
+            original_size_inches=(5.0, 5.0),
+        )
         # Should not raise even if manager cleanup fails
         result = handle.dispose(context=MagicMock(), deletion=False)
 

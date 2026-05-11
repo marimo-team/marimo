@@ -81,9 +81,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
       new URL("./worker/save-worker.ts", import.meta.url),
       {
         type: "module",
-        // Pass the version to the worker
+        // Pass the version (and optional capability suffix) to the worker
         /* @vite-ignore */
-        name: getMarimoVersion(),
+        name: getWasmWorkerName(),
       },
     );
 
@@ -101,9 +101,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
       new URL("./worker/worker.ts", import.meta.url),
       {
         type: "module",
-        // Pass the version to the worker
+        // Pass the version (and optional capability suffix) to the worker
         /* @vite-ignore */
-        name: getMarimoVersion(),
+        name: getWasmWorkerName(),
       },
     );
 
@@ -633,4 +633,18 @@ export function createPyodideConnection(): IConnectionTransport {
   return BasicTransport.withProducerCallback((callback) => {
     PyodideBridge.INSTANCE.attachMessageConsumer(callback);
   });
+}
+
+// Compose the worker name. The version prefix is read by getMarimoVersion()
+// in the worker; the optional "::controller" suffix tells getController.ts
+// that the host page provides a custom /wasm/controller.js and that the
+// dynamic import should be attempted. Hosts opt in by setting
+// `window.__MARIMO_HAS_WASM_CONTROLLER__ = true` before
+// PyodideBridge/worker initialization.
+export function getWasmWorkerName(): string {
+  const hasCustomController =
+    typeof window !== "undefined" &&
+    (window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: boolean })
+      .__MARIMO_HAS_WASM_CONTROLLER__ === true;
+  return getMarimoVersion() + (hasCustomController ? "::controller" : "");
 }
