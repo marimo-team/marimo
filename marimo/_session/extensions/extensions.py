@@ -22,6 +22,7 @@ from marimo._messaging.notebook.changes import TransactionSource
 from marimo._messaging.notebook.document import NotebookCell
 from marimo._messaging.notification import (
     AlertNotification,
+    BannerNotification,
     NotebookDocumentTransactionNotification,
     NotificationMessage,
 )
@@ -89,15 +90,34 @@ class HeartbeatExtension(SessionExtension):
 
         def _check_alive() -> None:
             if session.kernel_state() == KernelState.STOPPED:
+                exit_info = session.kernel_exit_info()
                 LOGGER.debug("Kernel died, invoking cleanup callback")
+                reason = (
+                    exit_info.message if exit_info is not None else "unknown"
+                )
+                # Notify the frontend before closing the WS, so the user sees
+                # a persistent banner with the real cause instead of just a
+                # "disconnected" UI.
+                try:
+                    session.notify(
+                        BannerNotification(
+                            title="Kernel died",
+                            description=html.escape(reason),
+                            variant="danger",
+                            action="restart",
+                        ),
+                        from_consumer_id=None,
+                    )
+                except Exception:
+                    LOGGER.exception("Failed to broadcast kernel-died banner")
                 session.close()
                 print_()
                 filename = session.app_file_manager.filename
                 filename_str = filename or "unknown"
                 print_tabbed(
                     red(
-                        "The Python kernel for file "
-                        f"{filename_str} died unexpectedly."
+                        f"The Python kernel for file {filename_str} died: "
+                        f"{reason}"
                     )
                 )
                 print_()
