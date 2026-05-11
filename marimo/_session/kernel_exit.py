@@ -10,6 +10,7 @@ which on a container is almost always the cgroup OOM killer.
 from __future__ import annotations
 
 import os
+import sys
 
 from marimo._session.types import KernelExitInfo
 
@@ -38,6 +39,17 @@ def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
             exitcode=exitcode,
             cause="exit",
             message=f"exited with code {exitcode}",
+        )
+
+    # ``exitcode < 0`` only occurs on POSIX (Windows never returns negative
+    # exitcodes). The signal-name and cgroup OOM logic below assumes Linux
+    # conventions, so on other platforms we return a minimal description
+    # without making platform-specific claims.
+    if sys.platform != "linux":
+        return KernelExitInfo(
+            exitcode=exitcode,
+            cause="abnormal",
+            message=f"terminated abnormally (exitcode {exitcode})",
         )
 
     signal_num = -exitcode
