@@ -186,7 +186,7 @@ def _resolve_proxy(port: int, host: str, proxy: str | None) -> tuple[int, str]:
     # Glue path back onto host so the printed URL includes it.
     # Expected behavior in <=0.22, so maintained for existing workflows.
     if parsed.path:
-        external_host = f"{external_host}{parsed.path.rstrip('/')}"
+        external_host = f"{external_host}{parsed.path}"
 
     return external_port, external_host
 

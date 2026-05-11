@@ -178,6 +178,15 @@ def test_cli_accepts_proxy_without_path_and_explicit_base_url() -> None:
     )
 
 
+def test_startup_url_preserves_proxy_trailing_slash() -> None:
+    """jupyter-server-proxy requires the trailing / on the URL the user
+    opens; #9495 reporter's exact case.
+    """
+    port, host = _resolve_proxy(2718, "127.0.0.1", "example.com/proxy/2718/")
+    state = _make_state(host=host, port=port, base_url="")
+    assert _startup_url(state) == "http://example.com/proxy/2718/"
+
+
 def test_startup_url_proxy_path_equivalent_to_explicit_base_url() -> None:
     """Set base_url when proxy path is supplied."""
     # Branch A: path embedded in --proxy, no separate --base-url
