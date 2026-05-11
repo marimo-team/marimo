@@ -295,6 +295,8 @@ _MARIMO_SRC_RE = re.compile(
 
 def _marimo_src_repl(m: re.Match[str]) -> str:
     return '\\"<marimo>/' + m.group(1).replace("\\\\", "/") + '\\"'
+
+
 # Error-pointer line (Python 3.11+): indented PEP 657 location underline.
 # Python emits this in two flavors: ``~~~^~~~`` (call-site, with tildes
 # flanking the carets) and ``^^^^`` (pure multi-caret spans, e.g. an
