@@ -38,14 +38,6 @@ def test_mo_mermaid_theme_defaults_to_base_with_theme_variables() -> None:
     )
 
 
-def test_mo_mermaid_rejects_invalid_theme() -> None:
-    with pytest.raises(
-        ValueError,
-        match="theme must be one of",
-    ):
-        mermaid("graph TD\nA --> B", theme=cast(Any, "invalid"))
-
-
 def test_mo_mermaid_rejects_theme_variables_with_non_base_theme() -> None:
     with pytest.raises(
         ValueError, match="theme_variables require theme='base'"
@@ -55,3 +47,10 @@ def test_mo_mermaid_rejects_theme_variables_with_non_base_theme() -> None:
             theme="neutral",
             theme_variables={"primaryColor": "#E8EEF5"},
         )
+
+
+def test_mo_mermaid_accepts_any_theme_string() -> None:
+    assert (
+        mermaid("graph TD\nA --> B", theme=cast(Any, "custom-new-theme")).text
+        == "<marimo-mermaid data-diagram='&quot;graph TD&#92;nA --&gt; B&quot;' data-theme='&quot;custom-new-theme&quot;'></marimo-mermaid>"
+    )

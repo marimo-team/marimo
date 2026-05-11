@@ -9,7 +9,7 @@ import type {
 
 interface Data {
   diagram: string;
-  theme?: "base" | "dark" | "default" | "forest" | "neutral" | "null";
+  theme?: string;
   theme_variables?: Record<string, string>;
 }
 
@@ -18,9 +18,7 @@ export class MermaidPlugin implements IStatelessPlugin<Data> {
 
   validator = z.object({
     diagram: z.string(),
-    theme: z
-      .enum(["base", "dark", "default", "forest", "neutral", "null"])
-      .optional(),
+    theme: z.string().optional(),
     theme_variables: z.record(z.string(), z.string()).optional(),
   });
 

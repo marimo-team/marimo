@@ -30,13 +30,21 @@ describe("MermaidPlugin validator", () => {
     });
   });
 
-  test("rejects unsupported theme", () => {
+  test("accepts any string as theme", () => {
     const plugin = new MermaidPlugin();
     const result = plugin.validator.safeParse({
       diagram: "graph TD\nA --> B",
       theme: "invalid",
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      return;
+    }
+
+    expect(result.data).toEqual({
+      diagram: "graph TD\nA --> B",
+      theme: "invalid",
+    });
   });
 });

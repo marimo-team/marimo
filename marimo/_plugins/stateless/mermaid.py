@@ -1,36 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal
-
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._utils.dicts import remove_none_values
 
-MermaidTheme = Literal[
-    "base",
-    "dark",
-    "default",
-    "forest",
-    "neutral",
-    "null",
-]
-
-_MERMAID_THEMES: set[MermaidTheme] = {
-    "base",
-    "dark",
-    "default",
-    "forest",
-    "neutral",
-    "null",
-}
-
 
 @mddoc
 def mermaid(
     diagram: str,
-    theme: MermaidTheme | None = None,
+    theme: str | None = None,
     theme_variables: dict[str, str] | None = None,
 ) -> Html:
     """Render a diagram with Mermaid.
@@ -41,8 +21,9 @@ def mermaid(
 
     Args:
         diagram: a string containing a Mermaid diagram
-        theme: optional Mermaid theme (`base`, `dark`, `default`,
-            `forest`, `neutral`, or `null`). If not provided, marimo picks
+        theme: optional Mermaid theme. See
+            https://mermaid.js.org/config/theming.html#available-themes
+            for available themes. If not provided, marimo picks
             a default based on app theme, unless `theme_variables` are
             provided.
         theme_variables: optional Mermaid `themeVariables` overrides.
@@ -78,17 +59,13 @@ def mermaid(
         )
         ```
     """
-    if theme is not None and theme not in _MERMAID_THEMES:
-        raise ValueError(
-            f"theme must be one of {sorted(_MERMAID_THEMES)}, got {theme!r}"
-        )
-
     if theme_variables is not None:
         if theme is None:
             theme = "base"
         elif theme != "base":
             raise ValueError(
-                f"theme_variables require theme='base'. Got theme={theme!r}."
+                f"theme_variables require theme='base'. Got theme={theme!r}. "
+                "See https://mermaid.js.org/config/theming.html"
             )
 
     return Html(
