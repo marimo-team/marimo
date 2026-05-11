@@ -73,18 +73,15 @@ def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
     # conventions (POSIX signal numbers per multiprocessing.Process.exitcode,
     # see https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.exitcode,
     # and Linux-specific cgroup files under /sys/fs/cgroup). On other
-    # platforms (including darwin) we can't query cgroup OOM state, but a
-    # forced kernel termination is almost always OOM in practice, so we lead
-    # with that hypothesis.
+    # platforms (including darwin) we have no way to confirm OOM, so we
+    # surface a generic failure rather than guessing -- claiming OOM for
+    # every SIGKILL would mislead users when the real cause is a crash,
+    # ``kill -9``, or something else.
     if sys.platform != "linux":
         return KernelExitInfo(
             exitcode=exitcode,
             cause="abnormal",
-            message=(
-                "The kernel ran out of memory and was stopped by the "
-                "operating system. Free large variables (e.g. `del x`), "
-                f"reduce data sizes, then {_RESTART_HINT.lower()}"
-            ),
+            message=(f"The kernel was stopped unexpectedly. {_RESTART_HINT}"),
         )
 
     signal_num = -exitcode
@@ -110,18 +107,13 @@ def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
                     f"sandbox. {_RESTART_HINT}"
                 ),
             )
-        usage = (
-            f" Peak memory: {peak_mib} MiB." if peak_mib is not None else ""
-        )
+        # SIGKILL without cgroup-confirmed OOM: the cause is genuinely
+        # unknown (could be ``kill -9``, an external OOM-killer outside our
+        # cgroup, a crash, etc.). Be honest rather than guessing OOM.
         return KernelExitInfo(
             exitcode=exitcode,
             cause="sigkill",
-            message=(
-                "The kernel likely ran out of memory and was stopped."
-                + usage
-                + " Free large variables (e.g. `del x`), reduce data sizes, "
-                f"then {_RESTART_HINT.lower()}"
-            ),
+            message=(f"The kernel was stopped unexpectedly. {_RESTART_HINT}"),
         )
     elif signal_num == _SIGSEGV:
         return KernelExitInfo(

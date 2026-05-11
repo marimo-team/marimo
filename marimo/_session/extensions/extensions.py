@@ -89,7 +89,13 @@ class HeartbeatExtension(SessionExtension):
         """Start the heartbeat monitoring."""
 
         async def _check_alive() -> None:
-            if session.kernel_state() == KernelState.STOPPED:
+            # Outer guard: an unhandled exception here would kill the
+            # heartbeat task and we'd never detect future kernel deaths in
+            # this session's lifetime. CancelledError is re-raised so detach
+            # still cleanly stops the task.
+            try:
+                if session.kernel_state() != KernelState.STOPPED:
+                    return
                 exit_info = session.kernel_exit_info()
                 LOGGER.debug("Kernel died, invoking cleanup callback")
                 reason = (
@@ -98,9 +104,11 @@ class HeartbeatExtension(SessionExtension):
                 # Notify the frontend before closing the WS so the user sees
                 # a persistent banner with the real cause instead of just a
                 # "disconnected" UI. ``notify`` only queues the frame on each
-                # consumer's send queue; yield to the event loop afterwards so
-                # the WS writer task drains it before ``session.close`` detaches
-                # the consumers.
+                # consumer's send queue; yield to the event loop afterwards
+                # so the WS writer task drains it before ``session.close``
+                # detaches the consumers. Inner guard isolates a broadcast
+                # failure from cleanup -- we still want to close the session
+                # and log even if the banner can't be delivered.
                 try:
                     session.notify(
                         BannerNotification(
@@ -125,6 +133,10 @@ class HeartbeatExtension(SessionExtension):
                     )
                 )
                 print_()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                LOGGER.exception("Unexpected error in kernel heartbeat check")
 
         async def _heartbeat() -> None:
             while True:

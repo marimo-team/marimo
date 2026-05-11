@@ -42,14 +42,15 @@ def test_segfault_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_sigkill_without_oom_signal(monkeypatch: pytest.MonkeyPatch) -> None:
-    # No cgroup files readable -> SIGKILL but cause not classified as OOM.
+    # No cgroup files readable -> SIGKILL with no OOM evidence.
+    # We must NOT claim OOM since the real cause could be a manual kill,
+    # an external OOM-killer outside our cgroup, a crash, etc.
     _force_linux(monkeypatch)
     monkeypatch.setattr(kernel_exit, "_read_int", lambda _path: None)
     monkeypatch.setattr(kernel_exit, "_read_kv", lambda _path, _key: None)
     info = classify_kernel_exit(-9)
     assert info.cause == "sigkill"
-    # Even without cgroup OOM confirmation, lead with OOM as the likely cause.
-    assert "out of memory" in info.message.lower()
+    assert "out of memory" not in info.message.lower()
     assert "restart" in info.message.lower()
 
 
@@ -106,13 +107,12 @@ def test_other_signal_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_negative_exitcode_on_non_linux(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # On Windows/macOS we can't confirm OOM via cgroups but a forced kernel
-    # termination is almost always OOM in practice; lead with that diagnosis
-    # and include an actionable next step. Don't leak raw signal jargon.
+    # On Windows/macOS we have no way to confirm OOM; surface a generic
+    # failure rather than guessing. Don't leak raw signal jargon either.
     monkeypatch.setattr(sys, "platform", "win32")
     info = classify_kernel_exit(-9)
     assert info.cause == "abnormal"
-    assert "out of memory" in info.message.lower()
+    assert "out of memory" not in info.message.lower()
     assert "restart" in info.message.lower()
     assert "SIGKILL" not in info.message
     assert "exitcode" not in info.message.lower()
@@ -120,7 +120,8 @@ def test_negative_exitcode_on_non_linux(
     monkeypatch.setattr(sys, "platform", "darwin")
     info = classify_kernel_exit(-11)
     assert info.cause == "abnormal"
-    assert "out of memory" in info.message.lower()
+    assert "out of memory" not in info.message.lower()
+    assert "restart" in info.message.lower()
 
 
 def test_positive_exitcode_on_non_linux(
