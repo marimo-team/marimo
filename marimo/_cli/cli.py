@@ -47,7 +47,7 @@ from marimo._lint import run_check
 from marimo._mcp.setup import McpType
 from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.models.home import MarimoFile
-from marimo._server.start import _check_proxy_base_url_conflict, start
+from marimo._server.start import start
 from marimo._server.workspace import (
     DirectoryWorkspace,
     EmptyWorkspace,
@@ -583,7 +583,7 @@ def edit(
         # Check for version updates after preflight checks pass.
         check_for_updates(print_latest_version)
 
-    _check_proxy_base_url_conflict(proxy, base_url)
+    base_url = validators.check_proxy_base_url(proxy, base_url)
 
     start(
         workspace=infer_workspace(name),
@@ -792,7 +792,7 @@ def new(
     if workspace is None:
         workspace = EmptyWorkspace()
 
-    _check_proxy_base_url_conflict(proxy, base_url)
+    base_url = validators.check_proxy_base_url(proxy, base_url)
 
     start(
         workspace=workspace,
@@ -1216,7 +1216,7 @@ def run(
 
     workspace = _create_run_workspace(validated_paths, watch=watch)
 
-    _check_proxy_base_url_conflict(proxy, base_url)
+    base_url = validators.check_proxy_base_url(proxy, base_url)
 
     start(
         workspace=workspace,
@@ -1347,6 +1347,8 @@ def tutorial(
     temp_dir = tempfile.TemporaryDirectory()
     path = create_temp_tutorial_file(name, temp_dir)
 
+    base_url = validators.check_proxy_base_url(proxy, "")
+
     start(
         workspace=SingleFileWorkspace.from_path(path),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
@@ -1366,6 +1368,7 @@ def tutorial(
             token_password=token_password,
             token_password_file=token_password_file,
         ),
+        base_url=base_url,
         redirect_console_to_browser=False,
         ttl_seconds=None,
         startup_tip=choose_startup_tip(click.get_current_context()),

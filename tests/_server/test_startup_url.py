@@ -148,6 +148,36 @@ def test_cli_accepts_proxy_path_matching_base_url() -> None:
     )
 
 
+def test_cli_tutorial_routes_proxy_path_to_base_url() -> None:
+    """`tutorial` has no --base-url flag; the proxy path must still be
+    captured (regression caught by codex review).
+    """
+    from unittest.mock import patch
+
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main as cli_main
+
+    runner = CliRunner()
+    with patch("marimo._cli.cli.start") as mock_start:
+        result = runner.invoke(
+            cli_main,
+            [
+                "tutorial",
+                "--proxy",
+                "example.com/foo",
+                "--no-token",
+                "--headless",
+                "intro",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert mock_start.call_count == 1
+    # Proxy path should have flowed into base_url
+    assert mock_start.call_args.kwargs["base_url"] == "/foo"
+
+
 def test_cli_accepts_proxy_without_path_and_explicit_base_url() -> None:
     from unittest.mock import patch
 
@@ -178,28 +208,80 @@ def test_cli_accepts_proxy_without_path_and_explicit_base_url() -> None:
     )
 
 
-def test_startup_url_preserves_proxy_trailing_slash() -> None:
-    """jupyter-server-proxy requires the trailing / on the URL the user
-    opens; #9495 reporter's exact case.
+def test_check_proxy_base_url_normalizes_trailing_slash() -> None:
+    """The validator strips the trailing / from the proxy path so the
+    resulting base_url matches the --base-url validator's own contract
+    (no trailing /). The redirect route at "/" supplies the trailing /
+    for proxies that need it.
     """
-    port, host = _resolve_proxy(2718, "127.0.0.1", "example.com/proxy/2718/")
-    state = _make_state(host=host, port=port, base_url="")
-    assert _startup_url(state) == "http://example.com/proxy/2718/"
+    from marimo._cli.cli_validators import check_proxy_base_url
+
+    assert (
+        check_proxy_base_url("example.com/proxy/2718/", "") == "/proxy/2718"
+    )
 
 
 def test_startup_url_proxy_path_equivalent_to_explicit_base_url() -> None:
-    """Set base_url when proxy path is supplied."""
+    """`--proxy host/foo` ≡ `--proxy host --base-url=/foo` in printed URL —
+    after the CLI validator merges the proxy path into base_url.
+    """
+    from marimo._cli.cli_validators import check_proxy_base_url
+
     # Branch A: path embedded in --proxy, no separate --base-url
     port_a, host_a = _resolve_proxy(
         2718, "127.0.0.1", "example.com/proxy/2718"
     )
-    state_a = _make_state(host=host_a, port=port_a, base_url="")
+    effective_a = check_proxy_base_url("example.com/proxy/2718", "")
+    state_a = _make_state(host=host_a, port=port_a, base_url=effective_a)
 
     # Branch B: same intent expressed as --proxy host + --base-url /path
     port_b, host_b = _resolve_proxy(2718, "127.0.0.1", "example.com")
     state_b = _make_state(host=host_b, port=port_b, base_url="/proxy/2718")
 
     assert _startup_url(state_a) == _startup_url(state_b)
+
+
+def test_build_routes_redirects_root_to_base_url() -> None:
+    """When base_url is set, hitting "/" must 302 to "{base_url}/" so
+    users who open the un-prefixed host land on the app.
+    """
+    from starlette.responses import RedirectResponse
+    from starlette.routing import Route
+
+    from marimo._server.api.router import build_routes
+
+    routes = build_routes(base_url="/proxy/2718")
+    root_routes = [
+        r for r in routes if isinstance(r, Route) and r.path == "/"
+    ]
+    assert len(root_routes) == 1, "expected a single redirect route at /"
+
+    # Fire the endpoint directly and assert the redirect target.
+    response = root_routes[0].endpoint(None)  # type: ignore[arg-type]
+    assert isinstance(response, RedirectResponse)
+    assert response.headers["location"] == "/proxy/2718/"
+
+
+def test_build_routes_no_redirect_when_base_url_empty() -> None:
+    """No base_url → no extra root route (existing behavior preserved)."""
+    from starlette.routing import Route
+
+    from marimo._server.api.router import build_routes
+
+    routes = build_routes(base_url="")
+    assert not any(isinstance(r, Route) and r.path == "/" for r in routes)
+
+
+def test_startup_url_proxy_with_non_default_port_preserves_path() -> None:
+    """Path lives in state.base_url (not state.host), so port + bracketing
+    compose cleanly.
+    """
+    from marimo._cli.cli_validators import check_proxy_base_url
+
+    port, host = _resolve_proxy(2718, "127.0.0.1", "example.com:8080/foo")
+    effective = check_proxy_base_url("example.com:8080/foo", "")
+    state = _make_state(host=host, port=port, base_url=effective)
+    assert _startup_url(state) == "http://example.com:8080/foo"
 
 
 def test_startup_url_getnameinfo_failure() -> None:
