@@ -37,7 +37,7 @@ import type { IConnectionTransport } from "../websocket/transports/transport";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC } from "./rpc";
 import { createShareableLink } from "./share";
-import { wasmInitializationAtom } from "./state";
+import { wasmInitializationAtom, wasmInitStatusAtom } from "./state";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
 import type { SaveWorkerSchema } from "./worker/save-worker";
@@ -119,6 +119,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       // By initializing after, we get hits on cached network requests
       this.saveRpc = this.getSaveWorker();
       this.setInterruptBuffer();
+      store.set(wasmInitStatusAtom, "ready");
       this.initialized.resolve();
     });
     this.rpc.addMessageListener("initializingMessage", ({ message }) => {
@@ -134,6 +135,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
           variant: "danger",
         });
       }
+      store.set(wasmInitStatusAtom, "error");
       this.initialized.reject(new Error(error));
     });
     this.rpc.addMessageListener("kernelMessage", ({ message }) => {
