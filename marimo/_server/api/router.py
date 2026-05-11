@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from starlette.responses import RedirectResponse
+from starlette.routing import Route
+
 from marimo._server.api.endpoints.ai import router as ai_router
 from marimo._server.api.endpoints.assets import router as assets_router
 from marimo._server.api.endpoints.cache import router as cache_router
@@ -87,4 +90,17 @@ def build_routes(base_url: str = "") -> list[BaseRoute]:
     app_router.include_router(ws_router, name="ws")
     app_router.include_router(assets_router, name="assets")
 
-    return app_router.routes
+    routes = list(app_router.routes)
+    if base_url:
+        # Bounce a hit on the bare root over to the prefixed app so users
+        # who open the un-prefixed host land on something instead of 404.
+        target = f"{base_url}/"
+        routes.append(
+            Route(
+                "/",
+                lambda _: RedirectResponse(target),
+                methods=["GET"],
+                include_in_schema=False,
+            )
+        )
+    return routes
