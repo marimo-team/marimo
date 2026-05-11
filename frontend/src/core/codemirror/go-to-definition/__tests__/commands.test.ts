@@ -161,10 +161,9 @@ s = {x for x in range(10)}`;
     await tick();
     // Should jump to the comprehension target `x` (after `for`), not the
     // outer `x = 100`. The Lezer Python grammar emits
-    // `SetComprehensionExpression`, but the code looks for `SetComprehension`,
-    // so the comprehension never creates a scope and the for-target is not
-    // collected — `findScopedDefinitionPosition` returns null and the
-    // fallback `findFirstMatchingVariable` lands on `x = 100`.
+    // `SetComprehensionExpression`, and we now correctly match it in
+    // SCOPE_CREATING_NODES, so the comprehension creates a scope and the
+    // for-target is collected correctly.
     expect(renderEditorView(view)).toMatchInlineSnapshot(`
       "
       x = 100
@@ -212,9 +211,8 @@ class Foo:
     await tick();
     // Should jump to `x = 100` at module scope. In Python, methods do NOT see
     // their enclosing class body's names — class scopes are skipped in LEGB
-    // lookup once a function boundary has been crossed. `getScopeChain` walks
-    // straight up and pushes the `ClassDefinition` onto the chain, so the
-    // method's lookup finds the class-body `x = 10` instead.
+    // lookup once a function boundary has been crossed. We now correctly skip
+    // ClassDefinition in getScopeChain once a function boundary is crossed.
     expect(renderEditorView(view)).toMatchInlineSnapshot(`
       "
       x = 100
@@ -241,11 +239,9 @@ a = 10`;
     expect(result).toBe(true);
     await tick();
     // Should jump to `a = 10` at the bottom. Python allows forward references
-    // from within nested functions to module-level names. POSITION_SENSITIVE_SCOPES
-    // includes `"global"`, so the global declaration is filtered out (its `from`
-    // is after the usage), the lookup returns null, and the fallback
-    // `findFirstMatchingVariable` lands on the `a` inside `return a` — i.e.
-    // go-to-definition jumps to itself.
+    // from within nested functions to module-level names. We now correctly omit
+    // "global" from POSITION_SENSITIVE_SCOPES, allowing forward references to
+    // global-level definitions declared after the usage position.
     expect(renderEditorView(view)).toMatchInlineSnapshot(`
       "
       def foo():
