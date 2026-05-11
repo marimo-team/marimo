@@ -126,7 +126,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
       store.set(wasmInitializationAtom, message);
     });
     this.rpc.addMessageListener("initializedError", ({ error }) => {
-      // If already resolved, show a toast
+      // If already initialized, surface as a toast and leave the deferred /
+      // init status alone — the worker is healthy, this is a runtime error.
       if (this.initialized.status === "resolved") {
         Logger.error(error);
         toast({
@@ -134,6 +135,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
           description: error,
           variant: "danger",
         });
+        return;
       }
       store.set(wasmInitStatusAtom, "error");
       this.initialized.reject(new Error(error));
