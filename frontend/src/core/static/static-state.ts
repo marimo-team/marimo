@@ -43,7 +43,11 @@ function isMarimoStaticState(
 }
 
 function getMarimoStaticState(): Readonly<MarimoStaticState> | undefined {
-  const state = window?.__MARIMO_STATIC__;
+  // `typeof window` guard handles the identifier-undeclared case (e.g.
+  // leaked async work firing after jsdom teardown in tests); `?.` only
+  // short-circuits on null/undefined.
+  const state =
+    typeof window === "undefined" ? undefined : window.__MARIMO_STATIC__;
   return isMarimoStaticState(state) ? state : undefined;
 }
 
