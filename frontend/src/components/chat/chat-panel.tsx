@@ -8,6 +8,7 @@ import {
   type ChatAddToolApproveResponseFunction,
   DefaultChatTransport,
   type FileUIPart,
+  safeValidateUIMessages,
   type TextUIPart,
 } from "ai";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
@@ -486,6 +487,19 @@ const ChatPanelBody = () => {
       api: runtimeManager.getAiURL("chat").toString(),
       headers: () => runtimeManager.headers(),
       prepareSendMessagesRequest: async (options) => {
+        // Canary: flag outgoing messages that don't match the AI SDK's own
+        // schema. The server-side sanitizer in `_pydantic_ai_utils.py` corrects these before validation;
+        // this log surfaces drift early without affecting the request.
+        const validation = await safeValidateUIMessages({
+          messages: options.messages,
+        });
+        if (!validation.success) {
+          Logger.debug(
+            "Outgoing chat messages failed AI SDK schema validation",
+            validation.error,
+          );
+        }
+
         const completionBody = await buildCompletionRequestBody(
           options.messages,
         );
