@@ -322,9 +322,11 @@ def test_vfile_large_streaming(client: TestClient) -> None:
     manager.storage = storage
 
     try:
-        # ~2 MB file, similar to a large anywidget ESM bundle
+        # ~2 MB file, similar to a large anywidget ESM bundle.
+        # Filename matches the random_filename pattern enforced by
+        # read_virtual_file_chunked (digits-8 alphanumeric.ext).
         data = b"x" * (2 * 1024 * 1024)
-        filename = "test-large.js"
+        filename = "12345-AbCdEf12.js"
         storage.store(filename, data)
         byte_length = len(data)
 
@@ -363,7 +365,7 @@ def test_vfile_download_query_param_sets_content_disposition(
 
     try:
         data = b'[{"a": 1}]'
-        filename = "data.json"
+        filename = "12345-xYzWaBcD.json"
         storage.store(filename, data)
         byte_length = len(data)
 
@@ -384,7 +386,7 @@ def test_vfile_download_query_param_sets_content_disposition(
         assert response.content == data
         cd = response.headers.get("content-disposition", "")
         assert cd.startswith("attachment")
-        assert "data.json" in cd
+        assert filename in cd
 
         # Custom download filename via ?filename=...
         response = client.get(

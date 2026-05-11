@@ -8,6 +8,8 @@ created during notebook execution.
 from __future__ import annotations
 
 from marimo._runtime.virtual_file.storage import (
+    DiskStorage,
+    FallbackStorage,
     InMemoryStorage,
     SharedMemoryStorage,
     VirtualFileStorage,
@@ -31,6 +33,8 @@ __all__ = [  # noqa: RUF022
     "VirtualFileStorageType",
     "SharedMemoryStorage",
     "InMemoryStorage",
+    "DiskStorage",
+    "FallbackStorage",
     "VirtualFileStorageManager",
     # Virtual files
     "VirtualFile",
