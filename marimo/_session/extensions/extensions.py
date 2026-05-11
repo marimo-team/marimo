@@ -88,26 +88,30 @@ class HeartbeatExtension(SessionExtension):
     def _start(self, session: Session) -> None:
         """Start the heartbeat monitoring."""
 
-        def _check_alive() -> None:
+        async def _check_alive() -> None:
             if session.kernel_state() == KernelState.STOPPED:
                 exit_info = session.kernel_exit_info()
                 LOGGER.debug("Kernel died, invoking cleanup callback")
                 reason = (
                     exit_info.message if exit_info is not None else "unknown"
                 )
-                # Notify the frontend before closing the WS, so the user sees
+                # Notify the frontend before closing the WS so the user sees
                 # a persistent banner with the real cause instead of just a
-                # "disconnected" UI.
+                # "disconnected" UI. ``notify`` only queues the frame on each
+                # consumer's send queue; yield to the event loop afterwards so
+                # the WS writer task drains it before ``session.close`` detaches
+                # the consumers.
                 try:
                     session.notify(
                         BannerNotification(
-                            title="Kernel died",
+                            title="Kernel stopped",
                             description=html.escape(reason),
                             variant="danger",
                             action="restart",
                         ),
                         from_consumer_id=None,
                     )
+                    await asyncio.sleep(0.1)
                 except Exception:
                     LOGGER.exception("Failed to broadcast kernel-died banner")
                 session.close()
@@ -125,7 +129,7 @@ class HeartbeatExtension(SessionExtension):
         async def _heartbeat() -> None:
             while True:
                 await asyncio.sleep(1)
-                _check_alive()
+                await _check_alive()
 
         try:
             loop = asyncio.get_event_loop()

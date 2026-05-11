@@ -78,7 +78,11 @@ class TestHeartbeatExtension:
         mock_session.kernel_exit_info.return_value = KernelExitInfo(
             exitcode=-9,
             cause="oom",
-            message="out of memory (peak 1952 MiB / limit 2048 MiB)",
+            message=(
+                "The kernel ran out of memory and was stopped. "
+                "Notebook used 1952 MiB of the 2048 MiB limit. "
+                "Click Restart to start a fresh kernel."
+            ),
         )
         extension = HeartbeatExtension()
         extension.on_attach(mock_session, event_bus)
@@ -94,6 +98,7 @@ class TestHeartbeatExtension:
         assert banner.variant == "danger"
         assert banner.action == "restart"
         assert "out of memory" in banner.description
+        assert "restart" in banner.description.lower()
         extension.on_detach()
 
 

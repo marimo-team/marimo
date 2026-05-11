@@ -48,7 +48,9 @@ def test_sigkill_without_oom_signal(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(kernel_exit, "_read_kv", lambda _path, _key: None)
     info = classify_kernel_exit(-9)
     assert info.cause == "sigkill"
-    assert "SIGKILL" in info.message
+    # Even without cgroup OOM confirmation, lead with OOM as the likely cause.
+    assert "out of memory" in info.message.lower()
+    assert "restart" in info.message.lower()
 
 
 def test_sigkill_with_cgroup_oom_v1(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -98,23 +100,27 @@ def test_other_signal_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
     info = classify_kernel_exit(-15)  # SIGTERM
     assert info.cause == "signal_15"
     assert "signal 15" in info.message
+    assert "restart" in info.message.lower()
 
 
 def test_negative_exitcode_on_non_linux(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # On Windows/macOS we return a generic abnormal-termination message
-    # without claiming a signal name or attempting cgroup reads.
+    # On Windows/macOS we can't confirm OOM via cgroups but a forced kernel
+    # termination is almost always OOM in practice; lead with that diagnosis
+    # and include an actionable next step. Don't leak raw signal jargon.
     monkeypatch.setattr(sys, "platform", "win32")
     info = classify_kernel_exit(-9)
     assert info.cause == "abnormal"
-    assert "exitcode -9" in info.message
+    assert "out of memory" in info.message.lower()
+    assert "restart" in info.message.lower()
     assert "SIGKILL" not in info.message
+    assert "exitcode" not in info.message.lower()
 
     monkeypatch.setattr(sys, "platform", "darwin")
     info = classify_kernel_exit(-11)
     assert info.cause == "abnormal"
-    assert "exitcode -11" in info.message
+    assert "out of memory" in info.message.lower()
 
 
 def test_positive_exitcode_on_non_linux(
@@ -125,3 +131,4 @@ def test_positive_exitcode_on_non_linux(
     info = classify_kernel_exit(1)
     assert info.cause == "exit"
     assert "code 1" in info.message
+    assert "restart" in info.message.lower()

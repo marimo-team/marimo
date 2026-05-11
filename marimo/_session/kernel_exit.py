@@ -36,39 +36,55 @@ _CGROUP_V2_EVENTS = "/sys/fs/cgroup/memory.events"
 _CGROUP_V2_PEAK = "/sys/fs/cgroup/memory.peak"
 
 
+_RESTART_HINT = "Click Restart to start a fresh kernel."
+
+
 def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
-    """Return a KernelExitInfo describing how the kernel exited."""
+    """Return a KernelExitInfo describing how the kernel exited.
+
+    Messages are end-user-facing: each one names the cause in plain language
+    and ends with a concrete next step (typically pressing Restart, sometimes
+    paired with advice on freeing memory or trimming inputs).
+    """
     if exitcode is None:
         return KernelExitInfo(
             exitcode=None,
             cause="unknown",
-            message="kernel exit status unavailable",
+            message=f"The kernel stopped unexpectedly. {_RESTART_HINT}",
         )
     if exitcode == 0:
         return KernelExitInfo(
             exitcode=0,
             cause="success",
-            message="exited cleanly",
+            message=f"The kernel finished cleanly. {_RESTART_HINT}",
         )
     if exitcode > 0:
         return KernelExitInfo(
             exitcode=exitcode,
             cause="exit",
-            message=f"exited with code {exitcode}",
+            message=(
+                f"The kernel exited with error code {exitcode}. "
+                f"{_RESTART_HINT}"
+            ),
         )
 
     # ``exitcode < 0`` only occurs on POSIX (Windows never returns negative
     # exitcodes). The signal-name and cgroup OOM logic below assumes Linux
     # conventions (POSIX signal numbers per multiprocessing.Process.exitcode,
     # see https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.exitcode,
-    # and Linux-specific cgroup files under /sys/fs/cgroup), so on other
-    # platforms (including darwin) we return a minimal description without
-    # making platform-specific claims.
+    # and Linux-specific cgroup files under /sys/fs/cgroup). On other
+    # platforms (including darwin) we can't query cgroup OOM state, but a
+    # forced kernel termination is almost always OOM in practice, so we lead
+    # with that hypothesis.
     if sys.platform != "linux":
         return KernelExitInfo(
             exitcode=exitcode,
             cause="abnormal",
-            message=f"terminated abnormally (exitcode {exitcode})",
+            message=(
+                "The kernel ran out of memory and was stopped by the "
+                "operating system. Free large variables (e.g. `del x`), "
+                f"reduce data sizes, then {_RESTART_HINT.lower()}"
+            ),
         )
 
     signal_num = -exitcode
@@ -76,10 +92,10 @@ def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
         peak_mib = _peak_rss_mib()
         if _was_oom_killed():
             limit_mib = _memory_limit_mib()
-            suffix = (
-                f" (peak {peak_mib} MiB / limit {limit_mib} MiB)"
+            usage = (
+                f" Notebook used {peak_mib} MiB of the {limit_mib} MiB limit."
                 if peak_mib is not None and limit_mib is not None
-                else f" (peak {peak_mib} MiB)"
+                else f" Peak memory: {peak_mib} MiB."
                 if peak_mib is not None
                 else ""
             )
@@ -87,26 +103,43 @@ def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
                 exitcode=exitcode,
                 cause="oom",
                 message=(
-                    "out of memory" + suffix + "; "
-                    "free large objects or use a larger sandbox"
+                    "The kernel ran out of memory and was stopped."
+                    + usage
+                    + " Free large variables (e.g. `del x; import gc; "
+                    "gc.collect()`), reduce data sizes, or request a larger "
+                    f"sandbox. {_RESTART_HINT}"
                 ),
             )
-        suffix = f" (peak {peak_mib} MiB)" if peak_mib is not None else ""
+        usage = (
+            f" Peak memory: {peak_mib} MiB." if peak_mib is not None else ""
+        )
         return KernelExitInfo(
             exitcode=exitcode,
             cause="sigkill",
-            message="killed by SIGKILL" + suffix,
+            message=(
+                "The kernel likely ran out of memory and was stopped."
+                + usage
+                + " Free large variables (e.g. `del x`), reduce data sizes, "
+                f"then {_RESTART_HINT.lower()}"
+            ),
         )
     elif signal_num == _SIGSEGV:
         return KernelExitInfo(
             exitcode=exitcode,
             cause="segfault",
-            message="segmentation fault (native extension crashed)",
+            message=(
+                "A native extension crashed the kernel (segmentation "
+                f"fault). {_RESTART_HINT} If it recurs, try a different "
+                "version of the package that triggered it."
+            ),
         )
     return KernelExitInfo(
         exitcode=exitcode,
         cause=f"signal_{signal_num}",
-        message=f"killed by signal {signal_num}",
+        message=(
+            f"The kernel was stopped by the operating system (signal "
+            f"{signal_num}). {_RESTART_HINT}"
+        ),
     )
 
 
