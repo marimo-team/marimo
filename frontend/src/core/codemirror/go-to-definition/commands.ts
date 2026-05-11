@@ -9,13 +9,13 @@ const SCOPE_CREATING_NODES = new Set([
   "FunctionDefinition",
   "LambdaExpression",
   "ArrayComprehensionExpression",
-  "SetComprehension",
+  "SetComprehensionExpression",
   "DictionaryComprehensionExpression",
   "ComprehensionExpression",
   "ClassDefinition",
 ]);
 
-const POSITION_SENSITIVE_SCOPES = new Set(["ClassDefinition", "global"]);
+const POSITION_SENSITIVE_SCOPES = new Set(["ClassDefinition"]);
 
 interface ScopeContext {
   id: number;
@@ -260,7 +260,7 @@ function collectMatchingDeclarations(
 
     case "ArrayComprehensionExpression":
     case "DictionaryComprehensionExpression":
-    case "SetComprehension":
+    case "SetComprehensionExpression":
     case "ComprehensionExpression":
     case "ForStatement":
       collectForTargets(node, state, variableName, currentScope, declarations);
