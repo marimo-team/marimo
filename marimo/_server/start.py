@@ -7,6 +7,7 @@ import threading
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlparse
 
+import click
 import uvicorn
 
 from marimo._cli.print import echo
@@ -182,7 +183,28 @@ def _resolve_proxy(port: int, host: str, proxy: str | None) -> tuple[int, str]:
     else:
         external_port = 80
 
+    # Glue path back onto host so the printed URL includes it.
+    # Expected behavior in <=0.22, so maintained for existing workflows.
+    if parsed.path:
+        external_host = f"{external_host}{parsed.path.rstrip('/')}"
+
     return external_port, external_host
+
+
+def _check_proxy_base_url_conflict(proxy: str | None, base_url: str) -> None:
+    if not proxy:
+        return
+    parse_target = proxy if "://" in proxy else f"//{proxy}"
+    try:
+        proxy_path = urlparse(parse_target).path.rstrip("/")
+    except ValueError:
+        return
+    if proxy_path and base_url and proxy_path != base_url.rstrip("/"):
+        raise click.BadParameter(
+            f"--proxy path {proxy_path!r} conflicts with --base-url "
+            f"{base_url!r}; use one or make them match.",
+            param_hint="--proxy",
+        )
 
 
 def start(

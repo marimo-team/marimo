@@ -52,7 +52,7 @@ from marimo._server.file_router import (
 )
 from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.models.home import MarimoFile
-from marimo._server.start import start
+from marimo._server.start import _check_proxy_base_url_conflict, start
 from marimo._session.model import SessionMode
 from marimo._tutorials import (
     Tutorial,
@@ -579,6 +579,8 @@ def edit(
         # Check for version updates after preflight checks pass.
         check_for_updates(print_latest_version)
 
+    _check_proxy_base_url_conflict(proxy, base_url)
+
     start(
         file_router=AppFileRouter.infer(name),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
@@ -785,6 +787,8 @@ def new(
 
     if file_router is None:
         file_router = AppFileRouter.new_file()
+
+    _check_proxy_base_url_conflict(proxy, base_url)
 
     start(
         file_router=file_router,
@@ -1211,6 +1215,8 @@ def run(
             )
 
     file_router = _create_run_file_router(validated_paths, watch=watch)
+
+    _check_proxy_base_url_conflict(proxy, base_url)
 
     start(
         file_router=file_router,
