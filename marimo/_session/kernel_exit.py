@@ -10,13 +10,23 @@ which on a container is almost always the cgroup OOM killer.
 from __future__ import annotations
 
 import os
+import signal
 import sys
 
 from marimo._session.types import KernelExitInfo
 
-# Set by the container runtime / launcher to the pod's memory limit in MiB.
-# Used purely to enrich OOM messages; safe to leave unset.
-_MEMORY_LIMIT_ENV = "MARIMO_KERNEL_MEMORY_LIMIT_MB"
+# POSIX signal numbers used for kernel-exit classification. We pull them from
+# the ``signal`` module so the branches read naturally, with numeric fallbacks
+# for Windows (which doesn't define SIGKILL). The surrounding code is gated to
+# Linux at runtime, so the fallbacks only matter for tests that monkeypatch
+# ``sys.platform``.
+_SIGKILL = getattr(signal, "SIGKILL", 9)
+_SIGSEGV = getattr(signal, "SIGSEGV", 11)
+
+# Set by the container runtime / launcher to the pod's memory limit in
+# mebibytes (binary, 1 MiB = 1024 * 1024 bytes). Used purely to enrich OOM
+# messages; safe to leave unset.
+_MEMORY_LIMIT_ENV = "MARIMO_KERNEL_MEMORY_LIMIT_MIB"
 
 # cgroup v1 paths (used in molab's gVisor sandbox today). v2 uses different
 # filenames under /sys/fs/cgroup directly; we try both.
@@ -34,7 +44,13 @@ def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
             cause="unknown",
             message="kernel exit status unavailable",
         )
-    if exitcode >= 0:
+    if exitcode == 0:
+        return KernelExitInfo(
+            exitcode=0,
+            cause="success",
+            message="exited cleanly",
+        )
+    if exitcode > 0:
         return KernelExitInfo(
             exitcode=exitcode,
             cause="exit",
@@ -43,8 +59,11 @@ def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
 
     # ``exitcode < 0`` only occurs on POSIX (Windows never returns negative
     # exitcodes). The signal-name and cgroup OOM logic below assumes Linux
-    # conventions, so on other platforms we return a minimal description
-    # without making platform-specific claims.
+    # conventions (POSIX signal numbers per multiprocessing.Process.exitcode,
+    # see https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.exitcode,
+    # and Linux-specific cgroup files under /sys/fs/cgroup), so on other
+    # platforms (including darwin) we return a minimal description without
+    # making platform-specific claims.
     if sys.platform != "linux":
         return KernelExitInfo(
             exitcode=exitcode,
@@ -53,7 +72,7 @@ def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
         )
 
     signal_num = -exitcode
-    if signal_num == 9:
+    if signal_num == _SIGKILL:
         peak_mib = _peak_rss_mib()
         if _was_oom_killed():
             limit_mib = _memory_limit_mib()
@@ -78,7 +97,7 @@ def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
             cause="sigkill",
             message="killed by SIGKILL" + suffix,
         )
-    if signal_num == 11:
+    elif signal_num == _SIGSEGV:
         return KernelExitInfo(
             exitcode=exitcode,
             cause="segfault",

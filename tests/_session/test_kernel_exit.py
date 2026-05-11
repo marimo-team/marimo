@@ -22,11 +22,13 @@ def test_unknown_when_exitcode_none() -> None:
     assert info.exitcode is None
 
 
-def test_normal_exit() -> None:
+def test_success_exit() -> None:
     info = classify_kernel_exit(0)
-    assert info.cause == "exit"
-    assert "code 0" in info.message
+    assert info.cause == "success"
+    assert info.exitcode == 0
 
+
+def test_nonzero_exit() -> None:
     info = classify_kernel_exit(2)
     assert info.cause == "exit"
     assert "code 2" in info.message
