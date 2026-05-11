@@ -85,10 +85,18 @@ function getScopeChain(tree: Tree, usagePosition: number): ScopeContext[] {
 
   while (currentNode) {
     if (SCOPE_CREATING_NODES.has(currentNode.name)) {
-      scopeChain.push({
-        id: currentNode.from,
-        type: currentNode.name,
-      });
+      // Skip ClassDefinition if we've already seen a function/lambda.
+      const inFunctionLikeScope = scopeChain.some(
+        (scope) =>
+          scope.type === "FunctionDefinition" ||
+          scope.type === "LambdaExpression",
+      );
+      if (!(inFunctionLikeScope && currentNode.name === "ClassDefinition")) {
+        scopeChain.push({
+          id: currentNode.from,
+          type: currentNode.name,
+        });
+      }
     }
     currentNode = currentNode.parent;
   }
