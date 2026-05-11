@@ -70,6 +70,9 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   setSorting?: OnChangeFn<SortingState>; // controlled sorting
   // Pagination
   totalRows: number | TooManyRows;
+  // JSON-serialized size of the currently-rendered data. Forwarded to
+  // ExportMenu so hosts can size-gate the Export button via downloadSizeLimitAtom.
+  sizeBytes?: number | null;
   totalColumns: number;
   pagination?: boolean;
   manualPagination?: boolean; // server-side pagination
@@ -121,6 +124,7 @@ const DataTableInternal = <TData,>({
   selection,
   totalColumns,
   totalRows,
+  sizeBytes,
   manualSorting = false,
   sorting,
   setSorting,
@@ -309,6 +313,7 @@ const DataTableInternal = <TData,>({
             togglePanel={togglePanel}
             isAnyPanelOpen={isAnyPanelOpen}
             downloadAs={downloadAs}
+            sizeBytes={sizeBytes}
           />
           <Table
             className={cn(

@@ -34,6 +34,7 @@ interface TableTopBarProps extends Partial<ExportActionProps> {
   showTableExplorer?: boolean;
   togglePanel?: (panelType: PanelType) => void;
   isAnyPanelOpen?: boolean;
+  sizeBytes?: number | null;
 }
 
 export const TableTopBar: React.FC<TableTopBarProps> = ({
@@ -48,6 +49,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
   togglePanel,
   isAnyPanelOpen,
   downloadAs,
+  sizeBytes,
 }) => {
   const [internalValue, setInternalValue] = useState(searchQuery || "");
   const debouncedSearch = useDebounce(internalValue, 500);
@@ -130,7 +132,9 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
             Explore
           </Button>
         )}
-        {downloadAs && <ExportMenu downloadAs={downloadAs} />}
+        {downloadAs && (
+          <ExportMenu downloadAs={downloadAs} sizeBytes={sizeBytes} />
+        )}
       </div>
     </div>
   );
