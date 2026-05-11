@@ -85,6 +85,114 @@ def test_resolve_proxy(
     assert host == expected_host
 
 
+def test_cli_errors_when_proxy_path_conflicts_with_base_url() -> None:
+    """Passing both `--proxy host/foo` and `--base-url /bar` is ambiguous."""
+    from unittest.mock import patch
+
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main as cli_main
+
+    runner = CliRunner()
+    # Patch the symbol the edit command imported, so the test never
+    # actually launches a server even if validation fails to fire.
+    with patch("marimo._cli.cli.start") as mock_start:
+        result = runner.invoke(
+            cli_main,
+            [
+                "edit",
+                "--proxy",
+                "example.com/foo",
+                "--base-url",
+                "/bar",
+                "--no-token",
+                "--headless",
+                "--skip-update-check",
+            ],
+        )
+
+    assert result.exit_code != 0, result.output
+    assert mock_start.call_count == 0, (
+        "start() should not be invoked when --proxy and --base-url "
+        f"conflict; output was: {result.output!r}"
+    )
+
+
+def test_cli_accepts_proxy_path_matching_base_url() -> None:
+    from unittest.mock import patch
+
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main as cli_main
+
+    runner = CliRunner()
+    with patch("marimo._cli.cli.start") as mock_start:
+        result = runner.invoke(
+            cli_main,
+            [
+                "edit",
+                "--proxy",
+                "example.com/foo",
+                "--base-url",
+                "/foo",
+                "--no-token",
+                "--headless",
+                "--skip-update-check",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert mock_start.call_count == 1, (
+        "start() should be invoked when --proxy path matches --base-url; "
+        f"output was: {result.output!r}"
+    )
+
+
+def test_cli_accepts_proxy_without_path_and_explicit_base_url() -> None:
+    from unittest.mock import patch
+
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main as cli_main
+
+    runner = CliRunner()
+    with patch("marimo._cli.cli.start") as mock_start:
+        result = runner.invoke(
+            cli_main,
+            [
+                "edit",
+                "--proxy",
+                "example.com:8080",
+                "--base-url",
+                "/foo",
+                "--no-token",
+                "--headless",
+                "--skip-update-check",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert mock_start.call_count == 1, (
+        "start() should be invoked when --proxy has no path; "
+        f"output was: {result.output!r}"
+    )
+
+
+def test_startup_url_proxy_path_equivalent_to_explicit_base_url() -> None:
+    """Set base_url when proxy path is supplied."""
+    # Branch A: path embedded in --proxy, no separate --base-url
+    port_a, host_a = _resolve_proxy(
+        2718, "127.0.0.1", "example.com/proxy/2718"
+    )
+    state_a = _make_state(host=host_a, port=port_a, base_url="")
+
+    # Branch B: same intent expressed as --proxy host + --base-url /path
+    port_b, host_b = _resolve_proxy(2718, "127.0.0.1", "example.com")
+    state_b = _make_state(host=host_b, port=port_b, base_url="/proxy/2718")
+
+    assert _startup_url(state_a) == _startup_url(state_b)
+
+
 def test_startup_url_getnameinfo_failure() -> None:
     """If getnameinfo raises (e.g. host not resolvable), URL is still valid."""
     from unittest.mock import patch
