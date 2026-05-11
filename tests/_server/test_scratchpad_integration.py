@@ -277,9 +277,24 @@ _PATH_RE = re.compile(
 )
 # Absolute paths into the running marimo source tree — present in
 # tracebacks that traverse library frames (e.g. code_mode RuntimeError).
-# Reduce the repo-prefix portion to a stable ``<marimo>`` marker so the
-# tail ``marimo/<subpkg>/<file>.py`` survives for readability.
-_MARIMO_SRC_RE = re.compile(r'\\"/[^"\\]*/(?=marimo/[^"\\]*\.py\\")')
+# Match both Unix (``/…/marimo/…py``) and Windows (``C:\\…\\marimo\\…py``)
+# forms, reduce the repo-prefix portion to a stable ``<marimo>`` marker, and
+# slash-normalize the captured tail so the snapshot compares equal across
+# platforms.  Run before ``_PATH_RE`` so Windows source paths are claimed
+# here rather than scrubbed to ``<tmp>``.
+_MARIMO_SRC_RE = re.compile(
+    r'\\"'
+    r"(?:"
+    r"/(?:[^\"\\]|\\\\)*/"  # Unix prefix: /…/
+    r"|[A-Z]:\\\\(?:(?:[^\"\\]|\\\\)*\\\\)?"  # Windows prefix: C:\\(…\\)?
+    r")"
+    r"(marimo(?:/|\\\\)(?:[^\"\\]|\\\\)*?\.py)"  # marimo<sep>…<file>.py
+    r'\\"'
+)
+
+
+def _marimo_src_repl(m: re.Match[str]) -> str:
+    return '\\"<marimo>/' + m.group(1).replace("\\\\", "/") + '\\"'
 # Error-pointer line (Python 3.11+): indented PEP 657 location underline.
 # Python emits this in two flavors: ``~~~^~~~`` (call-site, with tildes
 # flanking the carets) and ``^^^^`` (pure multi-caret spans, e.g. an
@@ -318,8 +333,8 @@ _AUTO_CELL_ID_RE = re.compile(r"(cell )'[A-Za-z]{4}'")
 
 
 def _normalize(body: str) -> list[str]:
+    body = _MARIMO_SRC_RE.sub(_marimo_src_repl, body)
     body = _PATH_RE.sub("<tmp>", body)
-    body = _MARIMO_SRC_RE.sub(r'\\"<marimo>/', body)
     body = _POINTER_RE.sub("", body)
     body = _INTERNAL_FRAME_RE.sub("", body)
     body = _COLLAPSED_FRAMES_RE.sub("", body)
