@@ -10,7 +10,7 @@ import { Logger } from "@/utils/Logger";
 
 interface Props {
   diagram: string;
-  theme?: MermaidConfig["theme"];
+  theme?: string;
   themeVariables?: Record<string, string>;
   config?: MermaidConfig;
 }
@@ -72,7 +72,7 @@ const Mermaid: React.FC<Props> = ({ diagram, theme, themeVariables }) => {
   const resolvedTheme = theme ?? (darkMode ? "dark" : "forest");
   mermaid.initialize({
     ...DEFAULT_CONFIG,
-    theme: resolvedTheme,
+    theme: resolvedTheme as MermaidConfig["theme"],
     themeVariables,
     darkMode: darkMode,
   });
