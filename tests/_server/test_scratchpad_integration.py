@@ -280,9 +280,19 @@ _PATH_RE = re.compile(
 # Reduce the repo-prefix portion to a stable ``<marimo>`` marker so the
 # tail ``marimo/<subpkg>/<file>.py`` survives for readability.
 _MARIMO_SRC_RE = re.compile(r'\\"/[^"\\]*/(?=marimo/[^"\\]*\.py\\")')
-# Error-pointer line (Python 3.11+): indented `~+\^+~*` + trailing \n.
-# Absent on 3.10, so we strip it to make snapshots cross-version stable.
-_POINTER_RE = re.compile(r" +~+\^+~*\\n")
+# Error-pointer line (Python 3.11+): indented PEP 657 location underline.
+# Python emits this in two flavors: ``~~~^~~~`` (call-site, with tildes
+# flanking the carets) and ``^^^^`` (pure multi-caret spans, e.g. an
+# expression range). Absent on 3.10, so we strip both for cross-version
+# parity. Single-caret pointers (`        ^`) come from the classic
+# SyntaxError source-position marker, which is present on all versions,
+# so we don't strip them.
+_POINTER_RE = re.compile(r" +(?:~+\^+~*|\^{2,})\\n")
+# Python 3.13's collapsed-frames view keeps the closing ``)`` on its own
+# line for multi-line ``raise Foo(...)`` after ``_COLLAPSED_FRAMES_RE``
+# elides the middle; 3.10–3.12 don't show it at all. Strip the lone
+# closer for cross-version parity.
+_RAISE_CLOSING_PAREN_RE = re.compile(r"(raise \w+\(\\n) +\)\\n")
 # Internal marimo frames (e.g. ``File "<tmp>", line 138, in execute_cell``)
 # that Py 3.10 shows but 3.11+ hides. Strip them so tests only match the
 # user-facing ``<module>`` frame.
@@ -313,6 +323,7 @@ def _normalize(body: str) -> list[str]:
     body = _POINTER_RE.sub("", body)
     body = _INTERNAL_FRAME_RE.sub("", body)
     body = _COLLAPSED_FRAMES_RE.sub("", body)
+    body = _RAISE_CLOSING_PAREN_RE.sub(r"\1", body)
     body = _MARIMO_FRAME_LINENO_RE.sub(r"\1, line N", body)
     body = _AUTO_CELL_ID_RE.sub(r"\1'<cid>'", body)
     return body.splitlines()
@@ -643,7 +654,7 @@ def test_ctx_create_cell_multiply_defined(session: _Session) -> None:
     assert lines == snapshot(
         [
             "event: stderr",
-            'data: {"data": "Traceback (most recent call last):\\n  File \\"<marimo>/marimo/_runtime/executor.py\\", line N, in execute_cell_async\\n    await eval(cell.body, glbls)\\n  File \\"<tmp>\\", line 2, in <module>\\n    async with cm.get_context() as ctx:\\n  File \\"<marimo>/marimo/_code_mode/_context.py\\", line N, in __aexit__\\n    self._dry_run_compile(ops)\\n  File \\"<marimo>/marimo/_code_mode/_context.py\\", line N, in _dry_run_compile\\n    raise RuntimeError(\\n    )\\nRuntimeError: Multiply-defined names:\\n  - \'x\' is already defined in cell \'cell_a\' (cell_a)\\n\\nTo skip validation, use: async with cm.get_context(skip_validation=True) as ctx\\n"}',
+            'data: {"data": "Traceback (most recent call last):\\n  File \\"<marimo>/marimo/_runtime/executor.py\\", line N, in execute_cell_async\\n    await eval(cell.body, glbls)\\n  File \\"<tmp>\\", line 2, in <module>\\n    async with cm.get_context() as ctx:\\n  File \\"<marimo>/marimo/_code_mode/_context.py\\", line N, in __aexit__\\n    self._dry_run_compile(ops)\\n  File \\"<marimo>/marimo/_code_mode/_context.py\\", line N, in _dry_run_compile\\n    raise RuntimeError(\\nRuntimeError: Multiply-defined names:\\n  - \'x\' is already defined in cell \'cell_a\' (cell_a)\\n\\nTo skip validation, use: async with cm.get_context(skip_validation=True) as ctx\\n"}',
             "",
             "event: done",
             'data: {"success": false, "output": {"mimetype": "text/plain", "data": ""}}',
