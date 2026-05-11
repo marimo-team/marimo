@@ -385,6 +385,42 @@ describe("insertImage", () => {
     );
   });
 
+  test("normalizes Windows backslash paths to forward slashes in image URL", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    vi.spyOn(store, "get").mockImplementation((atom) => {
+      if (atom === filenameAtom) {
+        return "C:\\Users\\user\\project\\notebook.py";
+      }
+      if (atom === requestClientAtom) {
+        return mockRequestClient;
+      }
+    });
+
+    mockRequestClient.sendCreateFileOrFolder.mockResolvedValueOnce({
+      success: true,
+      message: null,
+      info: {
+        path: "C:\\Users\\user\\project\\public\\hello.png",
+        name: "hello.png",
+        children: [],
+        id: "",
+        isDirectory: false,
+        isMarimoFile: false,
+        lastModified: null,
+      },
+    });
+
+    await insertImage(view, mockPngFile());
+
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, ![alt](public/hello.png)world!"`,
+    );
+  });
+
   test("saves image as file different extension", async () => {
     view = createEditor("Hello, world!");
     view.dispatch({

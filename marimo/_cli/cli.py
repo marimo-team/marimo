@@ -583,6 +583,8 @@ def edit(
         # Check for version updates after preflight checks pass.
         check_for_updates(print_latest_version)
 
+    base_url = validators.check_proxy_base_url(proxy, base_url)
+
     start(
         workspace=infer_workspace(name),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
@@ -789,6 +791,8 @@ def new(
 
     if workspace is None:
         workspace = EmptyWorkspace()
+
+    base_url = validators.check_proxy_base_url(proxy, base_url)
 
     start(
         workspace=workspace,
@@ -1212,6 +1216,8 @@ def run(
 
     workspace = _create_run_workspace(validated_paths, watch=watch)
 
+    base_url = validators.check_proxy_base_url(proxy, base_url)
+
     start(
         workspace=workspace,
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
@@ -1341,6 +1347,8 @@ def tutorial(
     temp_dir = tempfile.TemporaryDirectory()
     path = create_temp_tutorial_file(name, temp_dir)
 
+    base_url = validators.check_proxy_base_url(proxy, "")
+
     start(
         workspace=SingleFileWorkspace.from_path(path),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
@@ -1360,6 +1368,7 @@ def tutorial(
             token_password=token_password,
             token_password_file=token_password_file,
         ),
+        base_url=base_url,
         redirect_console_to_browser=False,
         ttl_seconds=None,
         startup_tip=choose_startup_tip(click.get_current_context()),

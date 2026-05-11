@@ -166,6 +166,7 @@ export const UserConfigSchema = z
         ollama: AiConfigSchema.optional(),
         openrouter: AiConfigSchema.optional(),
         wandb: AiConfigSchema.optional(),
+        opencode_go: AiConfigSchema.optional(),
         open_ai_compatible: AiConfigSchema.optional(),
         azure: AiConfigSchema.optional(),
         bedrock: z

@@ -3408,6 +3408,7 @@ export interface components {
      *         - `github`: the GitHub config
      *         - `openrouter`: the OpenRouter config
      *         - `wandb`: the Weights & Biases config
+     *         - `opencode_go`: the OpenCode Go config
      *         - `custom_providers`: a dict of custom OpenAI-compatible providers
      *         - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
      */
@@ -3428,6 +3429,7 @@ export interface components {
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];
       open_ai_compatible?: components["schemas"]["OpenAiConfig"];
+      opencode_go?: components["schemas"]["OpenAiConfig"];
       openrouter?: components["schemas"]["OpenAiConfig"];
       rules?: string;
       wandb?: components["schemas"]["OpenAiConfig"];

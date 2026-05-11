@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from marimo._messaging.notification import BannerNotification
 from marimo._session.events import SessionEventBus
 from marimo._session.extensions.extensions import (
     CacheMode,
@@ -24,7 +25,7 @@ from marimo._session.extensions.types import (
     ExtensionRegistry,
 )
 from marimo._session.model import ConnectionState, SessionMode
-from marimo._session.types import KernelState
+from marimo._session.types import KernelExitInfo, KernelState
 from marimo._types.ids import CellId_t, RequestId, SessionId
 
 
@@ -74,12 +75,30 @@ class TestHeartbeatExtension:
     async def test_detects_dead_kernel(self, mock_session, event_bus) -> None:
         """Test that heartbeat detects when kernel dies and closes session."""
         mock_session.kernel_state.return_value = KernelState.STOPPED
+        mock_session.kernel_exit_info.return_value = KernelExitInfo(
+            exitcode=-9,
+            cause="oom",
+            message=(
+                "The kernel ran out of memory and was stopped. "
+                "Notebook used 1952 MiB of the 2048 MiB limit. "
+                "Click Restart to start a fresh kernel."
+            ),
+        )
         extension = HeartbeatExtension()
         extension.on_attach(mock_session, event_bus)
 
         await asyncio.sleep(1.5)
 
         mock_session.close.assert_called_once()
+        # A persistent banner is broadcast before the session closes, so the
+        # frontend can show the cause instead of just a "disconnected" toast.
+        mock_session.notify.assert_called_once()
+        banner = mock_session.notify.call_args.args[0]
+        assert isinstance(banner, BannerNotification)
+        assert banner.variant == "danger"
+        assert banner.action == "restart"
+        assert "out of memory" in banner.description
+        assert "restart" in banner.description.lower()
         extension.on_detach()
 
 

@@ -538,17 +538,20 @@ def virtual_file(
             detail="Invalid virtual file request",
         )
 
-    byte_length, filename = filename_and_length.split("-", 1)
-    if not byte_length.isdigit():
+    byte_length_str, filename = filename_and_length.split("-", 1)
+    if not byte_length_str.isdigit():
         raise HTTPException(
             status_code=404,
             detail="Invalid byte length in virtual file request",
         )
+    total_size = int(byte_length_str)
 
-    chunks = read_virtual_file_chunked(filename, int(byte_length))
     mimetype, _ = mimetypes.guess_type(filename)
     headers = {
         "Cache-Control": "max-age=86400",
+        # Advertise range support so Safari (which requires it for media
+        # playback) will load <audio>/<video> sources. See #9460.
+        "Accept-Ranges": "bytes",
     }
     # When ?download=1 is set, force a save dialog. This bypasses cases
     # where <a download> is ignored (e.g., sandboxed iframes without
@@ -558,15 +561,74 @@ def virtual_file(
 
         download_filename = request.query_params.get("filename") or filename
         headers.update(make_download_headers(download_filename))
-    # Do NOT set Content-Length here. StreamingResponse with an explicit
-    # Content-Length causes h11 LocalProtocolError ("Too little data for
-    # declared Content-Length") for large files. Omitting it lets h11 use
+
+    range_header = request.headers.get("range")
+    if range_header is not None:
+        parsed = _parse_range_header(range_header, total_size)
+        if parsed is None:
+            return Response(
+                status_code=416,
+                headers={**headers, "Content-Range": f"bytes */{total_size}"},
+            )
+        start, end = parsed
+        length = end - start + 1
+        chunks = read_virtual_file_chunked(filename, length, start=start)
+        partial_headers = {
+            **headers,
+            "Content-Range": f"bytes {start}-{end}/{total_size}",
+            "Content-Length": str(length),
+        }
+        return StreamingResponse(
+            content=chunks,
+            status_code=206,
+            media_type=mimetype,
+            headers=partial_headers,
+        )
+
+    # Do NOT set Content-Length on full responses. StreamingResponse with an
+    # explicit Content-Length causes h11 LocalProtocolError ("Too little data
+    # for declared Content-Length") for large files. Omitting it lets h11 use
     # chunked transfer encoding instead. See #8917.
+    chunks = read_virtual_file_chunked(filename, total_size)
     return StreamingResponse(
         content=chunks,
         media_type=mimetype,
         headers=headers,
     )
+
+
+_RANGE_RE = re.compile(r"^bytes=(\d*)-(\d*)$", re.IGNORECASE)
+
+
+def _parse_range_header(
+    range_header: str, total_size: int
+) -> tuple[int, int] | None:
+    """Parse a single-range HTTP ``Range`` header.
+
+    Returns ``(start, end)`` byte offsets (inclusive) on success, or
+    ``None`` if the range is unsatisfiable. Multi-range requests are
+    treated as unsatisfiable since marimo only supports single ranges.
+    """
+    match = _RANGE_RE.match(range_header.strip())
+    if match is None or total_size == 0:
+        return None
+    start_str, end_str = match.group(1), match.group(2)
+    if start_str == "" and end_str == "":
+        return None
+    if start_str == "":
+        # Suffix range: last N bytes.
+        suffix = int(end_str)
+        if suffix == 0:
+            return None
+        start = max(total_size - suffix, 0)
+        end = total_size - 1
+    else:
+        start = int(start_str)
+        end = int(end_str) if end_str else total_size - 1
+    if start >= total_size or end < start:
+        return None
+    end = min(end, total_size - 1)
+    return start, end
 
 
 @router.get("/public-files-sw.js")

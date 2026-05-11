@@ -137,6 +137,7 @@ export const EditApp: React.FC<AppProps> = ({
       mode={viewState.mode}
       userConfig={userConfig}
       appConfig={appConfig}
+      hideControls={hideControls}
     />
   );
 

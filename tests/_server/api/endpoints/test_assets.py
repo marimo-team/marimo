@@ -345,6 +345,98 @@ def test_vfile_large_streaming(client: TestClient) -> None:
         manager.storage = original_storage
 
 
+def test_vfile_range_requests(client: TestClient) -> None:
+    """Virtual files must support HTTP Range requests so that Safari can
+    play media (audio/video) — Safari's <audio> element refuses to load
+    sources whose server doesn't return 206 Partial Content for range
+    probes.
+
+    See https://github.com/marimo-team/marimo/issues/9460
+    """
+    from marimo._runtime.virtual_file.storage import (
+        InMemoryStorage,
+        VirtualFileStorageManager,
+    )
+
+    manager = VirtualFileStorageManager()
+    original_storage = manager.storage
+    storage = InMemoryStorage()
+    manager.storage = storage
+
+    try:
+        data = bytes(range(256)) * 8  # 2048 bytes of deterministic content
+        filename = "test-audio.wav"
+        storage.store(filename, data)
+        byte_length = len(data)
+        url = f"/@file/{byte_length}-{filename}"
+
+        # Plain GET advertises Accept-Ranges so clients know they can probe.
+        response = client.get(url, headers=token_header())
+        assert response.status_code == 200, response.text
+        assert response.headers.get("accept-ranges") == "bytes"
+        assert response.content == data
+
+        # Bounded range returns 206 with Content-Range and exact bytes.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "bytes=0-99"},
+        )
+        assert response.status_code == 206, response.text
+        assert (
+            response.headers.get("content-range")
+            == f"bytes 0-99/{byte_length}"
+        )
+        assert response.headers.get("content-length") == "100"
+        assert response.headers.get("accept-ranges") == "bytes"
+        assert response.content == data[0:100]
+
+        # Open-ended range (start-) serves to the end of the file.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "bytes=50-"},
+        )
+        assert response.status_code == 206, response.text
+        end = byte_length - 1
+        assert (
+            response.headers.get("content-range")
+            == f"bytes 50-{end}/{byte_length}"
+        )
+        assert response.content == data[50:]
+
+        # Suffix range (-N) returns the last N bytes.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "bytes=-50"},
+        )
+        assert response.status_code == 206, response.text
+        start = byte_length - 50
+        assert (
+            response.headers.get("content-range")
+            == f"bytes {start}-{end}/{byte_length}"
+        )
+        assert response.content == data[-50:]
+
+        # Out-of-range start → 416 with Content-Range advertising the size.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": f"bytes={byte_length}-"},
+        )
+        assert response.status_code == 416, response.text
+        assert (
+            response.headers.get("content-range") == f"bytes */{byte_length}"
+        )
+
+        # Range unit token is case-insensitive per RFC 9110.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "Bytes=0-99"},
+        )
+        assert response.status_code == 206, response.text
+        assert response.content == data[:100]
+    finally:
+        manager.storage = original_storage
+
+
 def test_vfile_download_query_param_sets_content_disposition(
     client: TestClient,
 ) -> None:

@@ -131,6 +131,28 @@ def test_display_protocol():
     assert result.data == "<p>mime test</p>"
 
 
+def test_getattr_trap_does_not_recurse():
+    """Objects whose __getattr__ returns same-type objects (e.g.
+    pandas.api.typing.Expression) must not trigger infinite recursion in the
+    formatter via the _display_ / _mime_ / _repr_*_ protocols.
+    Regression test for https://github.com/marimo-team/marimo/issues/9494.
+    """
+
+    class GetattrTrap:
+        def __getattr__(self, name: str) -> GetattrTrap:
+            if name.startswith("__"):
+                raise AttributeError(name)
+            return GetattrTrap()
+
+        def __repr__(self) -> str:
+            return "GetattrTrap()"
+
+    result = try_format(GetattrTrap())
+    assert result.exception is None
+    assert result.traceback is None
+    assert "GetattrTrap()" in result.data
+
+
 def test_error_handling():
     """Test error handling during formatting."""
     obj = ErrorObject("test")
