@@ -147,6 +147,116 @@ def my_func(a):
     `);
   });
 
+  test("selects the comprehension target inside a set comprehension", async () => {
+    const code = `\
+x = 100
+s = {x for x in range(10)}`;
+    view = createEditor(code);
+    // Go-to-definition on the `x` before `for` (the expression part of the
+    // comprehension).
+    const usagePosition = code.indexOf("{x") + 1;
+    const result = goToVariableDefinition(view, "x", usagePosition);
+
+    expect(result).toBe(true);
+    await tick();
+    // Should jump to the comprehension target `x` (after `for`), not the
+    // outer `x = 100`. The Lezer Python grammar emits
+    // `SetComprehensionExpression`, but the code looks for `SetComprehension`,
+    // so the comprehension never creates a scope and the for-target is not
+    // collected — `findScopedDefinitionPosition` returns null and the
+    // fallback `findFirstMatchingVariable` lands on `x = 100`.
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      x = 100
+      s = {x for x in range(10)}
+                 ^
+      "
+    `);
+  });
+
+  test("selects the comprehension target inside a dict comprehension", async () => {
+    const code = `\
+x = 100
+d = {x: x for x in range(10)}`;
+    view = createEditor(code);
+    const usagePosition = code.indexOf("{x") + 1;
+    const result = goToVariableDefinition(view, "x", usagePosition);
+
+    expect(result).toBe(true);
+    await tick();
+    // Positive control: `DictionaryComprehensionExpression` matches the grammar
+    // and is in SCOPE_CREATING_NODES, so this should jump to the comprehension
+    // target `x` (after `for`).
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      x = 100
+      d = {x: x for x in range(10)}
+                    ^
+      "
+    `);
+  });
+
+  test("skips enclosing class scope when resolving from inside a method", async () => {
+    const code = `\
+x = 100
+class Foo:
+    x = 10
+    def method(self):
+        return x`;
+    view = createEditor(code);
+    // Go-to-definition on the `x` inside `return x`.
+    const usagePosition = code.lastIndexOf("x");
+    const result = goToVariableDefinition(view, "x", usagePosition);
+
+    expect(result).toBe(true);
+    await tick();
+    // Should jump to `x = 100` at module scope. In Python, methods do NOT see
+    // their enclosing class body's names — class scopes are skipped in LEGB
+    // lookup once a function boundary has been crossed. `getScopeChain` walks
+    // straight up and pushes the `ClassDefinition` onto the chain, so the
+    // method's lookup finds the class-body `x = 10` instead.
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      x = 100
+      ^
+      class Foo:
+          x = 10
+          def method(self):
+              return x
+      "
+    `);
+  });
+
+  test("resolves a global forward-reference from inside a function", async () => {
+    const code = `\
+def foo():
+    return a
+
+a = 10`;
+    view = createEditor(code);
+    // Go-to-definition on the `a` inside `return a`.
+    const usagePosition = code.indexOf("return a") + "return ".length;
+    const result = goToVariableDefinition(view, "a", usagePosition);
+
+    expect(result).toBe(true);
+    await tick();
+    // Should jump to `a = 10` at the bottom. Python allows forward references
+    // from within nested functions to module-level names. POSITION_SENSITIVE_SCOPES
+    // includes `"global"`, so the global declaration is filtered out (its `from`
+    // is after the usage), the lookup returns null, and the fallback
+    // `findFirstMatchingVariable` lands on the `a` inside `return a` — i.e.
+    // go-to-definition jumps to itself.
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      def foo():
+          return a
+
+      a = 10
+      ^
+      "
+    `);
+  });
+
   test("selects outer-scope function declaration", async () => {
     view = createEditor(`\
 def x():

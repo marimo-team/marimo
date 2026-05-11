@@ -56,11 +56,11 @@ def test():
 
     const notebook = initialNotebookState();
     notebook.cellHandles[globalCell] = {
-      current: { editorView: globalView },
-    } as never;
+      current: { editorView: globalView, editorViewOrNull: globalView },
+    };
     notebook.cellHandles[localCell] = {
-      current: { editorView: localView },
-    } as never;
+      current: { editorView: localView, editorViewOrNull: localView },
+    };
 
     store.set(notebookAtom, notebook);
     store.set(variablesAtom, {
