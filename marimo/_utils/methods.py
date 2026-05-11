@@ -19,16 +19,19 @@ def is_callable_method(obj: Any, attr: str) -> bool:
     """
     # Use getattr_static first so that we don't trigger __getattr__ traps
     # (e.g. pandas Expression returns a new Expression for any attribute).
+    # Note this is a static lookup that also matches instance attributes —
+    # it just bypasses __getattr__ / __getattribute__.
     try:
         inspect.getattr_static(obj, attr)
     except AttributeError:
         return False
 
-    # The attribute is defined on the class; safely fetch the bound value
-    # so we still resolve properties/descriptors and check callability.
+    # Resolve the actual value so properties/descriptors still work. Swallow
+    # any exception (e.g. property getters that raise) so protocol detection
+    # stays robust and never crashes formatting.
     try:
         method = getattr(obj, attr)
-    except AttributeError:
+    except Exception:
         return False
 
     if inspect.isclass(obj) and not isinstance(method, types.MethodType):
