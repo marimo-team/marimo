@@ -10,7 +10,11 @@ import { buttonVariants } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { cn } from "@/utils/cn";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
-import { notebookIsRunningAtom, useCellActions } from "./cells/cells";
+import {
+  hasCellsAtom,
+  notebookIsRunningAtom,
+  useCellActions,
+} from "./cells/cells";
 import type { AppConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
@@ -42,10 +46,13 @@ export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
 
   const isRunning = useAtomValue(notebookIsRunningAtom);
   const isConnecting = isAppConnecting(connection.state);
+  // Skip the "Connecting..." gate when we already have cells to show — from
+  // an embedded snapshot or a prior connection.
+  const hasExistingCells = useAtomValue(hasCellsAtom);
 
   const renderCells = () => {
     // If we are connecting for more than 2 seconds, show a spinner
-    if (isConnecting) {
+    if (isConnecting && !hasExistingCells) {
       return (
         <DelayMount milliseconds={2000} fallback={null}>
           <Spinner className="mx-auto" />

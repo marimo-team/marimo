@@ -103,5 +103,6 @@ const rpc = createRPC<SaveWorkerSchema, ParentSchema>({
 rpc.send("ready", {});
 
 function getMarimoVersion() {
-  return self.name; // We store the version in the worker name
+  // Worker name is "<version>" or "<version>::<capability>" — see bridge.ts.
+  return self.name.split("::")[0];
 }

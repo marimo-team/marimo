@@ -44,7 +44,7 @@ export const Labeled: React.FC<PropsWithChildren<Props>> = ({
   }
 
   const labelElement = (
-    <div part="label" className="m-0 p-0">
+    <div part="label" className="inline-flex items-center m-0 p-0">
       <Label htmlFor={id} className={cn("font-prose", labelClassName)}>
         {renderHTML({ html: label })}
       </Label>

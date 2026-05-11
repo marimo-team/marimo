@@ -176,8 +176,11 @@ def test_get_variable_preview_memory_numpy() -> None:
 
     mem_diff_mb = (mem_after - mem_before) / (1024 * 1024)
 
-    # Memory shouldn't increase significantly during preview
-    assert mem_diff_mb < 1, (
+    # Memory shouldn't increase significantly during preview.
+    # Threshold is well under the 100MB array size so we still catch
+    # full copies, but loose enough to absorb allocator noise on
+    # macOS arm64 runners.
+    assert mem_diff_mb < 5, (
         f"Memory increased by {mem_diff_mb}MB during preview"
     )
     assert preview == "[1. 1. 1. ... 1. 1. 1.]"
@@ -197,8 +200,11 @@ def test_get_variable_preview_bytesarray() -> None:
 
     mem_diff_mb = (mem_after - mem_before) / (1024 * 1024)
 
-    # Memory shouldn't increase significantly during preview
-    assert mem_diff_mb < 1, (
+    # Memory shouldn't increase significantly during preview.
+    # Threshold is well under the 100MB bytearray size so we still catch
+    # full copies, but loose enough to absorb allocator noise on
+    # macOS arm64 runners.
+    assert mem_diff_mb < 5, (
         f"Memory increased by {mem_diff_mb}MB during preview"
     )
     assert (

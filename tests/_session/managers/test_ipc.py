@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -105,6 +106,17 @@ class TestIPCKernelManagerImpl:
 
         # venv_python property should return the stored value
         assert kernel_manager.venv_python == "/path/to/sandbox/venv/python"
+
+
+class TestSubprocessWrapper:
+    def test_exitcode_uses_popen_returncode(self) -> None:
+        from marimo._session.managers.ipc import _SubprocessWrapper
+
+        process = MagicMock()
+        process.poll.return_value = -9
+        wrapper = _SubprocessWrapper(process)
+
+        assert wrapper.exitcode == -9
 
 
 @pytest.mark.requires("zmq")

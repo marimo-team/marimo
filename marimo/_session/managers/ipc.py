@@ -427,6 +427,11 @@ class _SubprocessWrapper(ProcessLike):
     def pid(self) -> int | None:
         return self._process.pid
 
+    @property
+    def exitcode(self) -> int | None:
+        """Mirror multiprocessing.Process.exitcode for exit diagnostics."""
+        return self._process.poll()
+
     def is_alive(self) -> bool:
         return self._process.poll() is None
 

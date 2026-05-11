@@ -70,7 +70,7 @@ class InterruptHandler:
                     return
 
                 response = input(
-                    f"\r{TAB}Are you sure you want to quit? (y/n): "
+                    f"\r{TAB}Are you sure you want to quit? (y/N): "
                 )
                 self._time_of_last_confirmation = time.time()
                 if response.lower().strip() == "y":

@@ -84,6 +84,13 @@
 
 # OpenAI
 
+- name: GPT-5.5
+  model: gpt-5.5
+  description: Newest frontier model for the most complex professional work
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: true
+
 - name: GPT-5.4
   model: gpt-5.4
   description: The latest frontier-grade model, unifying the Codex and GPT lines into a single system
@@ -372,3 +379,103 @@
   providers: [wandb]
   roles: [chat, edit]
   thinking: true
+
+# OpenCode Go Models
+
+- name: Kimi K2.6 (OpenCode Go)
+  model: kimi-k2.6
+  description: Latest Kimi Mixture-of-Experts model optimized for complex tool use and reasoning
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Kimi K2.5 (OpenCode Go)
+  model: kimi-k2.5
+  description: Mixture-of-Experts model optimized for complex tool use and reasoning
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: true
+
+- name: MiMo V2.5 Pro (OpenCode Go)
+  model: mimo-v2.5-pro
+  description: MiMo V2.5 Pro coding model with enhanced reasoning
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: true
+
+- name: MiMo V2.5 (OpenCode Go)
+  model: mimo-v2.5
+  description: MiMo V2.5 efficient coding model
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: false
+
+- name: MiMo V2 Pro (OpenCode Go)
+  model: mimo-v2-pro
+  description: MiMo V2 Pro model for coding tasks
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: false
+
+- name: MiMo V2 Omni (OpenCode Go)
+  model: mimo-v2-omni
+  description: MiMo V2 Omni multimodal model
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GLM 5.1 (OpenCode Go)
+  model: glm-5.1
+  description: Mixture-of-Experts model with user-controllable thinking/non-thinking modes
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: true
+
+- name: GLM 5 (OpenCode Go)
+  model: glm-5
+  description: Efficient Mixture-of-Experts model for coding tasks
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: false
+
+- name: MiniMax M2.7 (OpenCode Go)
+  model: minimax-m2.7
+  description: MiniMax M2.7 model with advanced reasoning
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: true
+
+- name: MiniMax M2.5 (OpenCode Go)
+  model: minimax-m2.5
+  description: MiniMax M2.5 model with efficient inference
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Qwen 3.6 Plus (OpenCode Go)
+  model: qwen3.6-plus
+  description: Qwen 3.6 Plus for complex reasoning and coding
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Qwen 3.5 Plus (OpenCode Go)
+  model: qwen3.5-plus
+  description: Qwen 3.5 Plus efficient coding model
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: false
+
+- name: DeepSeek V4 Pro (OpenCode Go)
+  model: deepseek-v4-pro
+  description: DeepSeek V4 Pro coding model with strong reasoning
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: true
+
+- name: DeepSeek V4 Flash (OpenCode Go)
+  model: deepseek-v4-flash
+  description: DeepSeek V4 Flash low-latency coding model
+  providers: [opencode-go]
+  roles: [chat, edit]
+  thinking: false
