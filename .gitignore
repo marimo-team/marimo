@@ -132,3 +132,6 @@ pixi.lock
 
 # mkdocs
 site
+
+.agents/
+*skills*
