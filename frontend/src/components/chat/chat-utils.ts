@@ -1,11 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { components } from "@marimo-team/marimo-api";
-import type {
-  ChatAddToolOutputFunction,
-  FileUIPart,
-  ToolUIPart,
-  UIMessage,
+import {
+  type ChatAddToolOutputFunction,
+  type FileUIPart,
+  isToolUIPart,
+  type ToolUIPart,
+  type UIMessage,
 } from "ai";
 import { useState } from "react";
 import useEvent from "react-use-event-hook";
@@ -213,9 +214,7 @@ export function hasPendingToolCalls(messages: UIMessage[]): boolean {
     return false;
   }
 
-  const toolParts = parts.filter((part) =>
-    part.type.startsWith("tool-"),
-  ) as ToolUIPart[];
+  const toolParts = parts.filter(isToolUIPart);
 
   if (toolParts.length === 0) {
     return false;

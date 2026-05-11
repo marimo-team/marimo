@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/utils/cn";
+import { isUrl } from "@/utils/urls";
 import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -205,7 +206,10 @@ export const SourceChip = ({
   const className =
     "inline-flex max-w-full items-center gap-1.5 rounded-md border bg-muted/50 px-2 py-1 my-1 text-xs text-muted-foreground";
 
-  if (href) {
+  // Only treat absolute http(s) URLs as safe to render as a clickable link.
+  // Source URLs come from model output (e.g. citations) and could otherwise
+  // smuggle in `javascript:`/`data:` schemes.
+  if (href && isUrl(href)) {
     return (
       <a
         href={href}

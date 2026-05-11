@@ -5,6 +5,18 @@ import { InfoIcon } from "lucide-react";
 import React from "react";
 import { z } from "zod";
 
+// A value worth rendering: drop null/undefined and empty containers
+// (`{}`, `[]`), but keep meaningful primitives (`0`, `false`, `""`).
+function isUninformative(value: unknown): boolean {
+  if (value == null) {
+    return true;
+  }
+  if (typeof value === "object") {
+    return isEmpty(value);
+  }
+  return false;
+}
+
 // Zod schema matching the Python SuccessResult dataclass
 const SuccessResultSchema = z.looseObject({
   status: z.string().default("success"),
@@ -56,7 +68,7 @@ const PrettySuccessResult: React.FC<{ data: SuccessResult }> = ({ data }) => {
       {rest && (
         <div className="space-y-3">
           {Object.entries(rest).map(([key, value]) => {
-            if (isEmpty(value)) {
+            if (isUninformative(value)) {
               return null;
             }
             return (
