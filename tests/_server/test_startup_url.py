@@ -216,9 +216,7 @@ def test_check_proxy_base_url_normalizes_trailing_slash() -> None:
     """
     from marimo._cli.cli_validators import check_proxy_base_url
 
-    assert (
-        check_proxy_base_url("example.com/proxy/2718/", "") == "/proxy/2718"
-    )
+    assert check_proxy_base_url("example.com/proxy/2718/", "") == "/proxy/2718"
 
 
 def test_startup_url_proxy_path_equivalent_to_explicit_base_url() -> None:
@@ -251,9 +249,7 @@ def test_build_routes_redirects_root_to_base_url() -> None:
     from marimo._server.api.router import build_routes
 
     routes = build_routes(base_url="/proxy/2718")
-    root_routes = [
-        r for r in routes if isinstance(r, Route) and r.path == "/"
-    ]
+    root_routes = [r for r in routes if isinstance(r, Route) and r.path == "/"]
     assert len(root_routes) == 1, "expected a single redirect route at /"
 
     # Fire the endpoint directly and assert the redirect target.
