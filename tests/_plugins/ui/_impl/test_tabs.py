@@ -43,3 +43,18 @@ def test_tabs_lazy() -> None:
     assert tab.value == "Tab 1"
     # Verify lazy loading is enabled by checking the slotted HTML contains lazy
     assert "marimo-lazy" in tab.text
+
+
+def test_tabs_default_orientation_is_horizontal() -> None:
+    tab = ui.tabs({"Tab 1": "Content 1", "Tab 2": "Content 2"})
+    assert tab._component_args["orientation"] == "horizontal"  # pyright: ignore[reportPrivateUsage]
+
+
+def test_tabs_vertical_orientation() -> None:
+    tab = ui.tabs(
+        {"Tab 1": "Content 1", "Tab 2": "Content 2"},
+        orientation="vertical",
+    )
+    assert tab._component_args["orientation"] == "vertical"  # pyright: ignore[reportPrivateUsage]
+    # Orientation should not affect selection behavior
+    assert tab.value == "Tab 1"
