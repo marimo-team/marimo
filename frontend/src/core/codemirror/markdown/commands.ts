@@ -313,7 +313,6 @@ export async function insertImage(view: EditorView, file: File) {
   // If the file is base64 encoded, we can save it locally to prevent large file strings
   try {
     if (dataUrl.startsWith("data:")) {
-      const base64 = dataUrl.split(",")[1];
       let inputFilename = prompt(
         "We can save your image as a file. Enter a filename.",
         file.name,
@@ -348,7 +347,7 @@ export async function insertImage(view: EditorView, file: File) {
           path: publicFolderPath as FilePath,
           type: "file",
           name: inputFilename,
-          contents: base64,
+          file,
         });
 
         if (createFileRes.success) {

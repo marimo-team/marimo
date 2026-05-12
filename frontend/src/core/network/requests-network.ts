@@ -6,6 +6,19 @@ import { API, createClientWithRuntimeManager } from "./api";
 import { waitForConnectionOpen } from "./connection";
 import type { EditRequests, RunRequests } from "./types";
 
+/**
+ * Options for POSTing FormData via openapi-fetch. openapi-fetch types
+ * request bodies from the JSON schema, so we bypass the body type and
+ * override the serializer to pass the FormData through unchanged; the
+ * browser then sets the multipart Content-Type with boundary.
+ */
+function multipartInit(formData: FormData) {
+  return {
+    body: formData as never,
+    bodySerializer: (body: unknown) => body as never,
+  };
+}
+
 const { handleResponse, handleResponseReturnNull } = API;
 
 export function createNetworkRequests(): EditRequests & RunRequests {
@@ -298,10 +311,15 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     sendCreateFileOrFolder: async (request) => {
       await waitForConnectionOpen();
+      const formData = new FormData();
+      formData.append("path", request.path);
+      formData.append("type", request.type);
+      formData.append("name", request.name);
+      if (request.file) {
+        formData.append("file", request.file, request.name);
+      }
       return getClient()
-        .POST("/api/files/create", {
-          body: request,
-        })
+        .POST("/api/files/create", multipartInit(formData))
         .then(handleResponse);
     },
     sendDeleteFileOrFolder: async (request) => {

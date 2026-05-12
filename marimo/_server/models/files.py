@@ -1,12 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
 import msgspec
 
 from marimo._metadata.opengraph import OpenGraphMetadata
 from marimo._server.models.models import BaseResponse
+
+FileCreateType = Literal["file", "directory", "notebook"]
 
 
 class FileInfo(msgspec.Struct, rename="camel"):
@@ -46,11 +48,29 @@ class FileCreateRequest(msgspec.Struct, rename="camel"):
     # The path where to create the file or directory
     path: str
     # 'file', 'directory', or 'notebook'
-    type: Literal["file", "directory", "notebook"]
+    type: FileCreateType
     # The name of the file or directory
     name: str
-    # The contents of the file, base64-encoded
+    # The contents of the file, base64-encoded. Used by the WASM/Pyodide RPC
+    # bridge, which cannot send multipart over the JS<->Py JSON boundary.
+    # The HTTP endpoint instead receives the raw file bytes via multipart/form-data.
     contents: str | None = None
+
+
+class FileCreateMultipartRequest(msgspec.Struct, rename="camel"):
+    """multipart/form-data body for POST /api/files/create."""
+
+    # The path where to create the file or directory
+    path: str
+    # 'file', 'directory', or 'notebook'
+    type: FileCreateType
+    # The name of the file or directory
+    name: str
+    # The raw file bytes (optional). When omitted, an empty file is created
+    # (or, for 'notebook' type, a default notebook template).
+    file: Annotated[
+        str | None, msgspec.Meta(extra_json_schema={"format": "binary"})
+    ] = None
 
 
 class FileSearchRequest(msgspec.Struct, rename="camel"):

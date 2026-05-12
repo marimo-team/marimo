@@ -33,6 +33,8 @@ dependencies = [
     # - starlette 0.36.0 introduced a bug
     # - starlette 0.37.2 fixed httpx 0.28 compatibility
     "starlette>=0.37.2",
+    # multipart form parsing for file uploads (Starlette's request.form() requires it)
+    "python-multipart>=0.0.18",
     # websockets for use with starlette, and for lsp
     "websockets >= 14.2.0",
     # loro for collaborative editing

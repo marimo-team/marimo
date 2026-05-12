@@ -71,15 +71,14 @@ def test_file_details_binary(client: TestClient) -> None:
 
 
 def test_create_and_delete_file_or_directory(client: TestClient) -> None:
-    # Create a file
+    # Create a file with no contents (empty file)
     response = client.post(
         "/api/files/create",
         headers=HEADERS,
-        json={
+        data={
             "path": test_dir,
             "type": "file",
             "name": "new_file.txt",
-            "contents": "",
         },
     )
     assert response.status_code == 200, response.text
@@ -95,6 +94,89 @@ def test_create_and_delete_file_or_directory(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert response.json()["success"] is True
+
+
+def test_create_file_with_binary_contents(client: TestClient) -> None:
+    raw_bytes = b"\xff\xfe\xfd\x00\x80marimo"
+    response = client.post(
+        "/api/files/create",
+        headers=HEADERS,
+        data={
+            "path": test_dir,
+            "type": "file",
+            "name": "binary_upload.bin",
+        },
+        files={"file": ("binary_upload.bin", raw_bytes)},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["success"] is True
+
+    created_path = os.path.join(test_dir, "binary_upload.bin")
+    with open(created_path, "rb") as f:
+        assert f.read() == raw_bytes
+    os.remove(created_path)
+
+
+def test_create_directory(client: TestClient) -> None:
+    response = client.post(
+        "/api/files/create",
+        headers=HEADERS,
+        data={
+            "path": test_dir,
+            "type": "directory",
+            "name": "new_subdir",
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["success"] is True
+    new_dir = os.path.join(test_dir, "new_subdir")
+    assert os.path.isdir(new_dir)
+    os.rmdir(new_dir)
+
+
+def test_create_rejects_invalid_type(client: TestClient) -> None:
+    response = client.post(
+        "/api/files/create",
+        headers=HEADERS,
+        data={
+            "path": test_dir,
+            "type": "not_a_real_type",
+            "name": "x.txt",
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is False
+    assert "type" in body["message"].lower()
+
+
+def test_create_rejects_missing_fields(client: TestClient) -> None:
+    response = client.post(
+        "/api/files/create",
+        headers=HEADERS,
+        data={"type": "file"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is False
+
+
+def test_create_rejects_path_traversal_name(client: TestClient) -> None:
+    response = client.post(
+        "/api/files/create",
+        headers=HEADERS,
+        data={
+            "path": test_dir,
+            "type": "file",
+            "name": "../escaped.txt",
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is False
+    # Confirm nothing was written outside test_dir
+    parent_path = os.path.join(os.path.dirname(test_dir), "escaped.txt")
+    assert not os.path.exists(parent_path)
 
 
 def test_update_file(client: TestClient) -> None:

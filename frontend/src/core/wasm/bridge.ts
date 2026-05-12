@@ -3,6 +3,7 @@
 
 import { toast } from "@/components/ui/use-toast";
 import { userConfigAtom } from "@/core/config/config";
+import { serializeBlob } from "@/utils/blob";
 import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
@@ -431,9 +432,21 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendCreateFileOrFolder: EditRequests["sendCreateFileOrFolder"] = async (
     request,
   ) => {
+    // The WASM RPC boundary can only carry JSON, so we base64-encode the
+    // file bytes here. The HTTP transport uses multipart/form-data instead.
+    let contents: string | null = null;
+    if (request.file) {
+      const dataUrl = await serializeBlob(request.file);
+      contents = dataUrl.split(",")[1] ?? "";
+    }
     const response = await this.rpc.proxy.request.bridge({
       functionName: "create_file_or_directory",
-      payload: request,
+      payload: {
+        path: request.path,
+        type: request.type,
+        name: request.name,
+        contents,
+      },
     });
     return response as FileCreateResponse;
   };

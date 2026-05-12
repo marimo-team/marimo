@@ -116,18 +116,17 @@ def download_as(
             if csv_encoding is not None
             else get_default_csv_encoding()
         )
-        vfile = mo_data.csv(
-            manager.to_csv(encoding=encoding, separator=csv_separator)
-        )
+        payload = manager.to_csv(encoding=encoding, separator=csv_separator)
+        vfile = mo_data.csv(payload)
     elif ext == "json":
         # Use strict JSON to ensure compliance with JSON spec
-        vfile = mo_data.json(
-            manager.to_json(
-                encoding=None, ensure_ascii=json_ensure_ascii, strict_json=True
-            )
+        payload = manager.to_json(
+            encoding=None, ensure_ascii=json_ensure_ascii, strict_json=True
         )
+        vfile = mo_data.json(payload)
     elif ext == "parquet":
-        vfile = mo_data.parquet(manager.to_parquet())
+        payload = manager.to_parquet()
+        vfile = mo_data.parquet(payload)
     else:
         raise ValueError("format must be one of 'csv', 'json', or 'parquet'.")
 
