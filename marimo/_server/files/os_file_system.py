@@ -146,6 +146,19 @@ class OSFileSystem(FileSystem):
             )
         if name.strip() == "":
             raise ValueError("Cannot create file or directory with empty name")
+        # Names that traverse out of `path` or escape via separators are
+        # rejected. Validation belongs here (not in the endpoint) so every
+        # caller of OSFileSystem — HTTP, WASM bridge, scripts — is covered.
+        if (
+            "/" in name
+            or "\\" in name
+            or "\x00" in name
+            or name in (".", "..")
+        ):
+            raise ValueError(
+                f"Invalid name {name!r}: must not contain path separators "
+                "or refer to a parent directory"
+            )
 
         full_path = Path(path) / name
         full_path = _generate_unique_path(full_path)

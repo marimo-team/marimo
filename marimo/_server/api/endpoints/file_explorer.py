@@ -1,19 +1,18 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
 from marimo import _loggers
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_request
+from marimo._server.api.utils import parse_multipart_request, parse_request
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.files import (
     FileCopyRequest,
     FileCopyResponse,
-    FileCreateRequest,
+    FileCreateMultipartRequest,
     FileCreateResponse,
     FileDeleteRequest,
     FileDeleteResponse,
@@ -109,9 +108,9 @@ async def create_file_or_directory(
     """
     requestBody:
         content:
-            application/json:
+            multipart/form-data:
                 schema:
-                    $ref: "#/components/schemas/FileCreateRequest"
+                    $ref: "#/components/schemas/FileCreateMultipartRequest"
     responses:
         200:
             description: Create a new file or directory
@@ -120,16 +119,15 @@ async def create_file_or_directory(
                     schema:
                         $ref: "#/components/schemas/FileCreateResponse"
     """
-    body = await parse_request(request, cls=FileCreateRequest)
     try:
-        decoded_contents = (
-            base64.b64decode(body.contents)
-            if body.contents is not None
-            else None
+        parsed = await parse_multipart_request(
+            request, FileCreateMultipartRequest
         )
-
         info = file_system.create_file_or_directory(
-            body.path, body.type, body.name, decoded_contents
+            parsed.body.path,
+            parsed.body.type,
+            parsed.body.name,
+            parsed.files.get("file"),
         )
         return FileCreateResponse(success=True, info=info)
     except Exception as e:

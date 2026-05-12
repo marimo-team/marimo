@@ -246,7 +246,7 @@ describe("insertImage", () => {
       path: "public",
       type: "file",
       name: "hello.png",
-      contents: "AQID",
+      file: expect.any(File),
     });
 
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
@@ -291,7 +291,7 @@ describe("insertImage", () => {
       path: "nested/public", // store in public folder of notebook directory
       type: "file",
       name: "hello.png",
-      contents: "AQID",
+      file: expect.any(File),
     });
 
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
@@ -337,7 +337,7 @@ describe("insertImage", () => {
       path: "/Users/user/Development/project/public",
       type: "file",
       name: "hello.png",
-      contents: "AQID",
+      file: expect.any(File),
     });
 
     // Should convert absolute path to relative path

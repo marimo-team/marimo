@@ -883,3 +883,40 @@ def test_base_exception_handling():
     assert "to json panic" in str(exc_info.value)
     assert exc_info.value.error == str(exc_info.value)
     assert type(table.value) is type(df)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_render_args_carry_size_bytes() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"a": [1, 2, 3]})
+    subject = ui.dataframe(df)
+    args = subject._component_args  # type: ignore[attr-defined]
+    assert args["size-bytes"] == len(
+        subject._manager.to_json(strict_json=True)
+    )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_get_dataframe_response_carries_size_bytes() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"a": [1, 2, 3]})
+    subject = ui.dataframe(df)
+    response = subject._get_dataframe(EmptyArgs())
+    assert response.size_bytes == len(
+        subject._manager.to_json(strict_json=True)
+    )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_get_json_size_bytes_fails_open() -> None:
+    import pandas as pd
+
+    subject = ui.dataframe(pd.DataFrame({"a": [1]}))
+
+    class _Boom:
+        def to_json(self, **_: object) -> str:
+            raise RuntimeError("boom")
+
+    assert subject._get_json_size_bytes(_Boom()) is None  # type: ignore[arg-type]

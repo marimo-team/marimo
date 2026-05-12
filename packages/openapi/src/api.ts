@@ -1145,7 +1145,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["FileCreateRequest"];
+          "multipart/form-data": components["schemas"]["FileCreateMultipartRequest"];
         };
       };
       responses: {
@@ -4355,6 +4355,21 @@ export interface components {
       /** @default null */
       message?: string | null;
       success: boolean;
+    };
+    /**
+     * FileCreateMultipartRequest
+     * @description multipart/form-data body for POST /api/files/create.
+     */
+    FileCreateMultipartRequest: {
+      /**
+       * Format: binary
+       * @default null
+       */
+      file?: string | null;
+      name: string;
+      path: string;
+      /** @enum {unknown} */
+      type: "directory" | "file" | "notebook";
     };
     /** FileCreateRequest */
     FileCreateRequest: {

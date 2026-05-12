@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useAtomValue } from "jotai";
 import {
   BracesIcon,
   BrickWallIcon,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import React from "react";
 import { useLocale } from "react-aria";
+import { downloadSizeLimitAtom } from "./download-policy/atoms";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -84,6 +86,11 @@ export interface ExportActionProps {
     error?: string | null;
     missing_packages?: string[] | null;
   }>;
+  // JSON-serialized size of the currently-rendered data. Used together with
+  // downloadSizeLimitAtom to disable the Export button when a host (e.g.,
+  // marimo-lsp inside VS Code) declares a download size cap. Null/undefined
+  // means "no info" and the gate stays disabled (fail-open).
+  sizeBytes?: number | null;
 }
 
 const labelForDownloadFormat = (format: DownloadFormat): string =>
@@ -94,12 +101,19 @@ const labelForCopyFormat = (format: CopyFormat): string =>
 export const ExportMenu: React.FC<ExportActionProps> = (props) => {
   const { locale } = useLocale();
   const [open, setOpen] = React.useState(false);
+  const policy = useAtomValue(downloadSizeLimitAtom);
+  const disabled = !!(
+    policy &&
+    props.sizeBytes != null &&
+    props.sizeBytes > policy.limitBytes
+  );
 
   const button = (
     <Button
       data-testid="export-button"
       size="xs"
       variant="text"
+      disabled={disabled}
       className={cn(
         "print:hidden text-xs gap-1",
         open ? "text-primary" : "text-muted-foreground",
@@ -113,7 +127,10 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
   const resolveDownloadUrl = async (
     format: DownloadFormat,
     onRetry: () => void,
-  ): Promise<{ url: string; filename: string } | null> => {
+  ): Promise<{
+    url: string;
+    filename: string;
+  } | null> => {
     let response: Awaited<ReturnType<typeof props.downloadAs>>;
     try {
       response = await props.downloadAs({ format });
@@ -143,7 +160,10 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
       return null;
     }
 
-    return { url: response.url, filename: response.filename };
+    return {
+      url: response.url,
+      filename: response.filename,
+    };
   };
 
   const handleDownload = async (format: DownloadFormat) => {
@@ -229,8 +249,15 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
 
   return (
     <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
-      <Tooltip content="Export" open={open ? false : undefined}>
-        <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
+      <Tooltip
+        content={disabled ? policy?.unavailableMessage : "Export"}
+        open={open ? false : undefined}
+      >
+        <DropdownMenuTrigger asChild={true} disabled={disabled}>
+          <span tabIndex={disabled ? 0 : -1} className="inline-flex">
+            {button}
+          </span>
+        </DropdownMenuTrigger>
       </Tooltip>
       <DropdownMenuContent side="bottom" className="print:hidden">
         <DropdownMenuLabel className="text-xs text-muted-foreground">

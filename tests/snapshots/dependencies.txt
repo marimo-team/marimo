@@ -10,6 +10,7 @@ packaging
 psutil>=5.0
 pygments>=2.19,<3
 pymdown-extensions>=10.21.2,<11
+python-multipart>=0.0.18
 pyyaml>=6.0.1
 pyzmq>=27.1.0; python_version < '3.15'
 starlette>=0.37.2
