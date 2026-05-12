@@ -55,16 +55,12 @@ class PyodideLockfile(msgspec.Struct, kw_only=True):
     packages: dict[str, PyodidePackage] = {}
 
 
-def _read_lockfile(pyodide_version: str) -> PyodideLockfile:
-    del (
-        pyodide_version
-    )  # the marimo-hosted lockfile is version-pinned server-side
+def _read_lockfile() -> PyodideLockfile:
     override = os.environ.get(PYODIDE_LOCK_FILE_ENV)
     if override:
         with open(override, "rb") as f:
             payload = f.read()
     else:
-        # Cloudflare blocks the default `Python-urllib/...` User-Agent;
         # `marimo._utils.requests` ships its own `marimo/<version>` UA.
         payload = (
             requests.get(_LOCKFILE_URL, timeout=30).raise_for_status().content
@@ -72,9 +68,7 @@ def _read_lockfile(pyodide_version: str) -> PyodideLockfile:
     return msgspec.json.decode(payload, type=PyodideLockfile)
 
 
-def fetch_pyodide_package_versions(
-    pyodide_version: str = PYODIDE_VERSION,
-) -> dict[str, str]:
+def fetch_pyodide_package_versions() -> dict[str, str]:
     """Fetch pyodide-lock.json and return {package_name: version}.
 
     Reads from the path in `$MARIMO_PYODIDE_LOCK_FILE` if set, otherwise
@@ -82,7 +76,7 @@ def fetch_pyodide_package_versions(
     `package_type == "package"` are included; test packages
     (names ending in `-tests`) are excluded.
     """
-    lockfile = _read_lockfile(pyodide_version)
+    lockfile = _read_lockfile()
     return {
         spec.name: spec.version
         for spec in lockfile.packages.values()
@@ -92,14 +86,13 @@ def fetch_pyodide_package_versions(
 
 def write_constraint_file(
     path: str,
-    pyodide_version: str = PYODIDE_VERSION,
 ) -> bool:
     """Fetch Pyodide lockfile and write a pip constraints file.
 
     Returns True on success, False if the lockfile couldn't be fetched.
     """
     try:
-        versions = fetch_pyodide_package_versions(pyodide_version)
+        versions = fetch_pyodide_package_versions()
     except Exception:
         LOGGER.warning(
             "Could not fetch Pyodide lockfile — "
