@@ -67,10 +67,7 @@ function parsePayload(payload: string): ParseResult {
       error: "Missing required field: request_id or provider",
     };
   }
-  // `provider` is part of the wire protocol but only `"google"` is
-  // implemented today. Reject anything else explicitly so a shim
-  // typo (or a malicious cell) doesn't render an auth UI that
-  // silently funnels through the Google-specific bridge.
+  // Only "google" is supported; the bridge below is Google-specific.
   if (providerRaw !== "google") {
     return {
       payload: null,
