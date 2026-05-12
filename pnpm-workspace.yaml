@@ -14,3 +14,7 @@ minimumReleaseAgeExclude:
   - postcss@8.5.10
 blockExoticSubdeps: true
 trustPolicy: no-downgrade
+trustPolicyExclude:
+  # Maintainer dropped provenance after 3.4.1 (registry signature unchanged).
+  # Not a known takeover — likely a CI pipeline change.
+  - "@textea/json-viewer@4.0.1"
