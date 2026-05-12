@@ -2483,6 +2483,7 @@ components:
           - $ref: '#/components/schemas/UpdateCellConfigCommand'
           - $ref: '#/components/schemas/InstallPackagesCommand'
           - $ref: '#/components/schemas/UpdateUIElementCommand'
+          - $ref: '#/components/schemas/UpdateQueryParamsCommand'
           - $ref: '#/components/schemas/ModelCommand'
           - $ref: '#/components/schemas/InvokeFunctionCommand'
           - $ref: '#/components/schemas/UpdateUserConfigCommand'
@@ -2526,6 +2527,7 @@ components:
               storage-list-entries: '#/components/schemas/StorageListEntriesCommand'
               sync-graph: '#/components/schemas/SyncGraphCommand'
               update-cell-config: '#/components/schemas/UpdateCellConfigCommand'
+              update-query-params: '#/components/schemas/UpdateQueryParamsCommand'
               update-ui-element: '#/components/schemas/UpdateUIElementCommand'
               update-user-config: '#/components/schemas/UpdateUserConfigCommand'
               validate-sql: '#/components/schemas/ValidateSQLCommand'
@@ -5191,6 +5193,42 @@ components:
       - cellIdsToOutput
       title: UpdateCellOutputsRequest
       type: object
+    UpdateQueryParamsCommand:
+      description: "Update query parameters from browser navigation.\n\n    Triggered\
+        \ when user navigates using browser back/forward buttons.\n    Updates query\
+        \ params state and re-executes dependent cells.\n\n    Attributes:\n     \
+        \   query_params: New query parameter values from URL."
+      properties:
+        queryParams:
+          additionalProperties:
+            anyOf:
+            - type: string
+            - items:
+                type: string
+              type: array
+          type: object
+        type:
+          enum:
+          - update-query-params
+      required:
+      - type
+      - queryParams
+      title: UpdateQueryParamsCommand
+      type: object
+    UpdateQueryParamsRequest:
+      properties:
+        queryParams:
+          additionalProperties:
+            anyOf:
+            - type: string
+            - items:
+                type: string
+              type: array
+          type: object
+      required:
+      - queryParams
+      title: UpdateQueryParamsRequest
+      type: object
     UpdateUIElementCommand:
       description: "Update UI element values.\n\n    Triggered when users interact\
         \ with UI elements (sliders, inputs, dropdowns, etc.).\n    Updates element\
@@ -6701,6 +6739,26 @@ paths:
                     type: string
                 type: object
           description: Successfully closed existing sessions
+  /api/kernel/update_query_params:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateQueryParamsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Update query parameters from browser navigation
   /api/lsp/health:
     get:
       responses:

@@ -63,6 +63,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendSave: "waitForConnectionOpen",
   invokeAiTool: "waitForConnectionOpen",
   sendFunctionRequest: "waitForConnectionOpen",
+  sendUpdateQueryParams: "waitForConnectionOpen",
 
   // Session-based operations that wait for connection
   sendRename: "waitForConnectionOpen",

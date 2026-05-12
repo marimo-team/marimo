@@ -20,6 +20,7 @@ export function createErrorToastingRequests(
     sendModelValue: "Failed to update model value",
     sendInstantiate: "Failed to instantiate",
     sendFunctionRequest: "Failed to send function request",
+    sendUpdateQueryParams: "Failed to update query params",
     sendRestart: "Failed to restart",
     sendDocumentTransaction: "Failed to sync document transaction",
     sendRun: "Failed to run",

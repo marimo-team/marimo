@@ -27,6 +27,7 @@ from marimo._server.models.models import (
     InvokeFunctionRequest,
     ModelRequest,
     SuccessResponse,
+    UpdateQueryParamsRequest,
     UpdateUIElementValuesRequest,
 )
 from marimo._server.router import APIRouter
@@ -141,8 +142,6 @@ async def update_query_params(
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    from marimo._server.models.models import UpdateQueryParamsRequest
-
     return await dispatch_control_request(request, UpdateQueryParamsRequest)
 
 
