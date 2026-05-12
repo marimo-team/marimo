@@ -140,18 +140,10 @@ def write_adc(
     _atomic_write_json(resolved_adc, adc_doc, mode=0o600)
     _atomic_write_json(resolved_sidecar, sidecar_doc, mode=0o600)
 
-    # google.auth.default() reads GOOGLE_APPLICATION_CREDENTIALS first,
-    # so we have to think about that env var on every write:
-    #
-    #   - Non-default ADC path: point the env var at it so libraries
-    #     discover the freshly-written file. Remember the path so we
-    #     can clean it up later.
-    #   - Default ADC path: if the env var currently points at a path
-    #     **we** set during a previous non-default write, clear it so
-    #     the default-path file we just wrote is what discovery picks
-    #     up. We never touch the env var when its current value
-    #     wasn't set by us (e.g. a user-provided service-account key
-    #     path).
+    # google.auth.default() reads GOOGLE_APPLICATION_CREDENTIALS
+    # first, so point it at a non-default ADC, and clear it when we
+    # revert to the default path (but only if we set it ourselves —
+    # never clobber a user-provided service-account key).
     if resolved_adc != default_adc_path():
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(resolved_adc)
         _ENV_VAR_PATHS_WE_OWN.add(str(resolved_adc))
