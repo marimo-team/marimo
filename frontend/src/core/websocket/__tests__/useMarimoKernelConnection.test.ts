@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { describe, expect, it } from "vitest";
-import { classifyCloseEvent } from "../close-handler";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Logger } from "@/utils/Logger";
+import { classifyCloseEvent } from "../useMarimoKernelConnection";
 import { WebSocketClosedReason, WebSocketState } from "../types";
 
 const MAX_RETRIES = 10;
@@ -11,7 +12,7 @@ function classify(
   retryCount = 0,
   maxRetries = MAX_RETRIES,
 ) {
-  return classifyCloseEvent({ reason, code: 1006 }, { retryCount, maxRetries });
+  return classifyCloseEvent({ reason }, { retryCount, maxRetries });
 }
 
 describe("classifyCloseEvent", () => {
@@ -45,10 +46,17 @@ describe("classifyCloseEvent", () => {
       expect(decision.kind).toBe("gave-up");
     });
 
-    it("treats unknown reason strings as transient", () => {
+    it("treats unknown reason strings as transient and logs a warning", () => {
+      const logger = vi.spyOn(Logger, "warn").mockImplementation(() => {});
       const decision = classify("something-else", 3);
       expect(decision.kind).toBe("retry");
+      expect(logger).toHaveBeenCalled();
+      logger.mockRestore();
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe("terminal closes (server-initiated)", () => {
