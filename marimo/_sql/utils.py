@@ -31,22 +31,22 @@ CHEAP_DISCOVERY_DATABASES = ["duckdb", "sqlite", "mysql", "postgresql"]
 _NO_WASM_DUCKDB_RESULT = object()
 
 
-def _try_wasm_duckdb_sql(
+def _try_wasm_duckdb(
+    method_name: str,
     query: str,
     connection: Any,
     glbls: dict[str, Any],
-    *,
-    reserved_names: tuple[str, ...] = (),
+    *trailing_args: Any,
 ) -> object:
     import duckdb
 
     if connection is duckdb:
-        original = duckdb.sql
-        args: tuple[Any, ...] = (query,)
+        original = getattr(duckdb, method_name)
+        args: tuple[Any, ...] = (query, *trailing_args)
         query_arg_index = 0
     else:
-        original = type(connection).sql
-        args = (connection, query)
+        original = getattr(type(connection), method_name)
+        args = (connection, query, *trailing_args)
         query_arg_index = 1
 
     result = try_run_duckdb_sql_with_wasm_patch(
@@ -57,7 +57,6 @@ def _try_wasm_duckdb_sql(
         query_kwarg_names=("query",),
         eval_globals=glbls,
         eval_locals=glbls,
-        reserved_names=reserved_names,
     )
     return _NO_WASM_DUCKDB_RESULT if result is None else result.value
 
@@ -81,7 +80,7 @@ def wrapped_sql(
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        result = _try_wasm_duckdb_sql(query, connection, globals())
+        result = _try_wasm_duckdb("sql", query, connection, globals())
         if result is _NO_WASM_DUCKDB_RESULT:
             # No WASM rewrite was needed; use DuckDB's normal SQL path.
             relation = connection.sql(query=query)
@@ -94,11 +93,11 @@ def wrapped_sql(
             else nullcontext
         )
         with install_connection(connection):
-            result = _try_wasm_duckdb_sql(
+            result = _try_wasm_duckdb(
+                "sql",
                 query,
                 connection,
                 ctx.globals,
-                reserved_names=tuple(ctx.globals),
             )
             if result is _NO_WASM_DUCKDB_RESULT:
                 # Run in kernel globals so DuckDB replacement scans see user data.
@@ -111,38 +110,6 @@ def wrapped_sql(
                 relation = cast(duckdb.DuckDBPyRelation, result)
 
     return relation
-
-
-def _try_wasm_duckdb_execute(
-    query: str,
-    params: list[Any],
-    connection: Any,
-    glbls: dict[str, Any],
-    *,
-    reserved_names: tuple[str, ...] = (),
-) -> object:
-    import duckdb
-
-    if connection is duckdb:
-        original = duckdb.execute
-        args: tuple[Any, ...] = (query, params)
-        query_arg_index = 0
-    else:
-        original = type(connection).execute
-        args = (connection, query, params)
-        query_arg_index = 1
-
-    result = try_run_duckdb_sql_with_wasm_patch(
-        original,
-        args,
-        {},
-        query_arg_index=query_arg_index,
-        query_kwarg_names=("query",),
-        eval_globals=glbls,
-        eval_locals=glbls,
-        reserved_names=reserved_names,
-    )
-    return _NO_WASM_DUCKDB_RESULT if result is None else result.value
 
 
 def execute_duckdb_sql(
@@ -164,7 +131,9 @@ def execute_duckdb_sql(
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        result = _try_wasm_duckdb_execute(query, params, connection, globals())
+        result = _try_wasm_duckdb(
+            "execute", query, connection, globals(), params
+        )
         if result is _NO_WASM_DUCKDB_RESULT:
             # No WASM rewrite was needed; preserve DuckDB's parameterized path.
             return connection.execute(query, params)
@@ -176,12 +145,12 @@ def execute_duckdb_sql(
             else nullcontext
         )
         with install_connection(connection):
-            result = _try_wasm_duckdb_execute(
+            result = _try_wasm_duckdb(
+                "execute",
                 query,
-                params,
                 connection,
                 ctx.globals,
-                reserved_names=tuple(ctx.globals),
+                params,
             )
             if result is _NO_WASM_DUCKDB_RESULT:
                 # Run in kernel globals so parameterized SQL can scan user data.

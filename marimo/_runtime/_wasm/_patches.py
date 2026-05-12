@@ -48,38 +48,30 @@ class WasmPatchSet:
         No-op outside pyodide or if ``attr`` is missing (e.g. renamed across
         polars versions).
         """
-        if not self._active:
-            return
 
-        original = getattr(owner, attr, None)
-        if original is None:
-            return
-
-        @functools.wraps(original)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            try:
-                return original(*args, **kwargs)
-            except catch as original_exc:
-                original_tb = original_exc.__traceback__
+        def wrapper_factory(
+            original: Callable[..., Any],
+        ) -> Callable[..., Any]:
+            @functools.wraps(original)
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
                 try:
-                    return fallback(original, *args, **kwargs)
-                except ModuleNotFoundError:
-                    # Let missing-dependency errors bubble up so marimo can
-                    # prompt the user to install the package.
-                    raise
-                except Exception as fallback_exc:
-                    raise original_exc.with_traceback(
-                        original_tb
-                    ) from fallback_exc
+                    return original(*args, **kwargs)
+                except catch as original_exc:
+                    original_tb = original_exc.__traceback__
+                    try:
+                        return fallback(original, *args, **kwargs)
+                    except ModuleNotFoundError:
+                        # Let missing-dependency errors bubble up so marimo can
+                        # prompt the user to install the package.
+                        raise
+                    except Exception as fallback_exc:
+                        raise original_exc.with_traceback(
+                            original_tb
+                        ) from fallback_exc
 
-        setattr(owner, attr, wrapper)
+            return wrapper
 
-        def _unpatch() -> None:
-            # Only restore if we're still the active wrapper.
-            if getattr(owner, attr, None) is wrapper:
-                setattr(owner, attr, original)
-
-        self._unpatches.append(_unpatch)
+        self.replace(owner, attr, wrapper_factory)
 
     def replace(
         self,
