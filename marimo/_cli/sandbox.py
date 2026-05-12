@@ -503,7 +503,14 @@ def run_in_sandbox(
         constraint_path = constraint_tmp.name
         if write_constraint_file(constraint_path):
             env["UV_CONSTRAINT"] = constraint_path
-        atexit.register(lambda: os.unlink(constraint_path))
+
+        def cleanup_constraint_file() -> None:
+            try:
+                os.unlink(constraint_path)
+            except FileNotFoundError:
+                pass
+
+        atexit.register(cleanup_constraint_file)
 
     # On Unix, run `uv` in its own session so that (a) the tty no longer
     # delivers SIGINT/SIGTERM to it directly and (b) we can signal the whole

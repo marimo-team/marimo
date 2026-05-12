@@ -52,7 +52,7 @@ class PyodideLockfile(msgspec.Struct, kw_only=True):
     Other fields (`info`, `package` indices, etc.) are ignored.
     """
 
-    packages: dict[str, PyodidePackage] = {}
+    packages: dict[str, PyodidePackage] = msgspec.field(default_factory=dict)
 
 
 def _read_lockfile() -> PyodideLockfile:
