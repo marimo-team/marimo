@@ -524,12 +524,20 @@ class ThreadSafeStdin(Stdin):
             )
 
         max_bytes = std_stream_max_bytes()
-        if sys.getsizeof(payload) > max_bytes:
-            raise ValueError(f"auth request payload exceeds {max_bytes} bytes")
+        # Measure UTF-8 wire bytes, not Python object size. `sys.getsizeof`
+        # would include ~49 bytes of PyObject overhead and reports the
+        # in-memory representation (1/2/4 bytes per code point), neither
+        # of which matches what crosses the stdin channel.
+        payload_bytes = len(payload.encode("utf-8"))
+        if payload_bytes > max_bytes:
+            raise ValueError(
+                f"auth request payload exceeds {max_bytes} bytes "
+                f"(got {payload_bytes})"
+            )
 
         _auth_debug_log(
             "kernel -> frontend: sending auth request "
-            f"(cell_id={self._stream.cell_id}, payload_bytes={len(payload)})"
+            f"(cell_id={self._stream.cell_id}, payload_bytes={payload_bytes})"
         )
 
         with self._stream.console_msg_cv:
@@ -546,7 +554,7 @@ class ThreadSafeStdin(Stdin):
         response = self._stream.input_queue.get()
         _auth_debug_log(
             "kernel <- frontend: received auth response "
-            f"(response_bytes={len(response)})"
+            f"(response_bytes={len(response.encode('utf-8'))})"
         )
         return response
 
