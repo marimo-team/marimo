@@ -516,17 +516,25 @@ def _query_parity_cases() -> list[QueryParityCase]:
     ]
 
 
+def test_patch_duckdb_for_wasm_noop_outside_pyodide() -> None:
+    import duckdb
+
+    original_read_csv = duckdb.read_csv
+    original_sql = duckdb.sql
+    original_connection_sql = duckdb.DuckDBPyConnection.sql
+
+    unpatch = patch_duckdb_for_wasm()
+
+    assert duckdb.read_csv is original_read_csv
+    assert duckdb.sql is original_sql
+    assert duckdb.DuckDBPyConnection.sql is original_connection_sql
+    unpatch()
+    assert duckdb.read_csv is original_read_csv
+    assert duckdb.sql is original_sql
+    assert duckdb.DuckDBPyConnection.sql is original_connection_sql
+
+
 class TestDuckDBWasmDirectReadPatch:
-    @staticmethod
-    def test_noop_outside_pyodide() -> None:
-        import duckdb
-
-        original = duckdb.read_csv
-        unpatch = patch_duckdb_for_wasm()
-        assert duckdb.read_csv is original
-        unpatch()
-        assert duckdb.read_csv is original
-
     @staticmethod
     def test_patch_installation_does_not_require_sqlglot() -> None:
         import duckdb
@@ -626,7 +634,35 @@ class TestDuckDBWasmQueryPatch:
         ]
 
     @staticmethod
-    def test_direct_literal_without_token_metadata_is_remote_source() -> None:
+    @pytest.mark.parametrize(
+        ("query", "expected_source"),
+        [
+            (
+                "SELECT * FROM 'https://example.com/a.csv'",
+                True,
+            ),
+            (
+                'SELECT * FROM "https://example.com/a.csv"',
+                False,
+            ),
+            (
+                """
+                SELECT 1, 'https://example.com/a.csv' AS label
+                FROM "https://example.com/a.csv"
+                """,
+                False,
+            ),
+        ],
+        ids=[
+            "direct-literal",
+            "double-quoted-identifier",
+            "string-literal-and-double-quoted-identifier",
+        ],
+    )
+    def test_token_metadata_fallback_detects_single_quoted_remote_sources(
+        query: str,
+        expected_source: bool,
+    ) -> None:
         from sqlglot import exp
 
         table = exp.Table(
@@ -635,51 +671,18 @@ class TestDuckDBWasmQueryPatch:
 
         source = remote_file_source_from_table(
             table,
-            query="SELECT * FROM 'https://example.com/a.csv'",
+            query=query,
         )
+
+        if not expected_source:
+            assert source is None
+            return
 
         assert source is not None
         assert source.reader_name == "csv"
         assert [file.url for file in source.files] == [
             "https://example.com/a.csv"
         ]
-
-    @staticmethod
-    def test_double_quoted_identifier_without_token_metadata_is_not_remote_source() -> (
-        None
-    ):
-        from sqlglot import exp
-
-        table = exp.Table(
-            this=exp.Identifier(this="https://example.com/a.csv", quoted=True)
-        )
-
-        source = remote_file_source_from_table(
-            table,
-            query='SELECT * FROM "https://example.com/a.csv"',
-        )
-
-        assert source is None
-
-    @staticmethod
-    def test_string_literal_without_token_metadata_does_not_make_identifier_remote() -> (
-        None
-    ):
-        from sqlglot import exp
-
-        table = exp.Table(
-            this=exp.Identifier(this="https://example.com/a.csv", quoted=True)
-        )
-
-        source = remote_file_source_from_table(
-            table,
-            query="""
-            SELECT 1, 'https://example.com/a.csv' AS label
-            FROM "https://example.com/a.csv"
-            """,
-        )
-
-        assert source is None
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -1007,19 +1010,6 @@ class TestDuckDBWasmSqlUtils:
 
 
 class TestDuckDBWasmSqlApiPatch:
-    @staticmethod
-    def test_noop_outside_pyodide() -> None:
-        import duckdb
-
-        original_sql = duckdb.sql
-        original_connection_sql = duckdb.DuckDBPyConnection.sql
-        unpatch = patch_duckdb_for_wasm()
-        assert duckdb.sql is original_sql
-        assert duckdb.DuckDBPyConnection.sql is original_connection_sql
-        unpatch()
-        assert duckdb.sql is original_sql
-        assert duckdb.DuckDBPyConnection.sql is original_connection_sql
-
     @staticmethod
     def test_module_sql_rewrites_remote_literal_and_preserves_params() -> None:
         import duckdb
