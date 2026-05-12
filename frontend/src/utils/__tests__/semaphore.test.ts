@@ -87,6 +87,11 @@ describe("Semaphore", () => {
     expect(order).toEqual([0, 1, 2, 3]);
   });
 
+  it("throws on release() beyond initial permit count", () => {
+    const sem = new Semaphore(2);
+    expect(() => sem.release()).toThrow(/more times than acquire/);
+  });
+
   it("supports manual acquire/release", async () => {
     const sem = new Semaphore(2);
     await sem.acquire();
@@ -197,8 +202,9 @@ describe("mapWithConcurrency", () => {
     ).rejects.toThrow("nope");
   });
 
-  it("throws on invalid concurrency", () => {
+  it("throws on invalid concurrency, even for empty input", () => {
     expect(() => mapWithConcurrency([1, 2, 3], 0, async (n) => n)).toThrow();
+    expect(() => mapWithConcurrency([], 0, async (n: number) => n)).toThrow();
   });
 
   it("passes the index to fn", async () => {

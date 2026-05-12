@@ -5,6 +5,7 @@
  * tasks. Waiters are released in FIFO order.
  */
 export class Semaphore {
+  private readonly maxPermits: number;
   private permits: number;
   private waiters: Array<() => void> = [];
 
@@ -14,6 +15,7 @@ export class Semaphore {
         `Semaphore permits must be a positive integer, got ${permits}`,
       );
     }
+    this.maxPermits = permits;
     this.permits = permits;
   }
 
@@ -43,6 +45,11 @@ export class Semaphore {
       next();
       return;
     }
+    if (this.permits >= this.maxPermits) {
+      throw new Error(
+        "Semaphore.release() called more times than acquire() — refusing to exceed initial permit count",
+      );
+    }
     this.permits++;
   }
 
@@ -59,8 +66,9 @@ export class Semaphore {
 
 /**
  * Map over `items` with bounded parallelism. Preserves input order in the
- * result. Rejects with the first error encountered (like `Promise.all`); other
- * in-flight tasks are awaited but their results are discarded.
+ * result. Rejects as soon as the first task rejects (like `Promise.all`);
+ * already-started tasks keep running to completion in the background but
+ * their results are dropped.
  */
 // oxlint-disable-next-line marimo/prefer-object-params -- map-style helper, mirrors Array.prototype.map
 export function mapWithConcurrency<T, R>(
@@ -68,10 +76,12 @@ export function mapWithConcurrency<T, R>(
   concurrency: number,
   fn: (item: T, index: number) => Promise<R>,
 ): Promise<R[]> {
+  // Validate concurrency before the empty-input fast path so misconfiguration
+  // is never silently accepted.
+  const sem = new Semaphore(concurrency);
   if (items.length === 0) {
     return Promise.resolve([]);
   }
-  const sem = new Semaphore(concurrency);
   return Promise.all(
     items.map((item, index) => sem.run(() => fn(item, index))),
   );
