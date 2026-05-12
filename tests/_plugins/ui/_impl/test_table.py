@@ -1400,9 +1400,7 @@ def test_json_size_bytes_cached_per_manager_identity() -> None:
             "second call with same manager identity should hit cache"
         )
         table._get_json_size_bytes(other_manager)
-        assert call_count == 2, (
-            "different manager identity should recompute"
-        )
+        assert call_count == 2, "different manager identity should recompute"
 
 
 def test_json_size_bytes_fails_open() -> None:
@@ -1418,18 +1416,14 @@ def test_json_size_bytes_fails_open() -> None:
 def test_render_args_carry_size_bytes() -> None:
     table = ui.table([{"a": 1}, {"a": 2}])
     args = table._component_args  # type: ignore[attr-defined]
-    assert args["size-bytes"] == len(
-        table._manager.to_json(strict_json=True)
-    )
+    assert args["size-bytes"] == len(table._manager.to_json(strict_json=True))
 
 
 def test_search_response_carries_size_bytes() -> None:
     data = [{"a": i} for i in range(10)]
     table = ui.table(data)
     # Unfiltered branch — should report _manager's size.
-    unfiltered = table._search(
-        SearchTableArgs(page_size=5, page_number=0)
-    )
+    unfiltered = table._search(SearchTableArgs(page_size=5, page_number=0))
     assert unfiltered.size_bytes == len(
         table._manager.to_json(strict_json=True)
     )
