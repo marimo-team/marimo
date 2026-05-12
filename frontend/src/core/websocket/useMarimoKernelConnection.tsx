@@ -72,7 +72,11 @@ import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
 import { isWasm } from "../wasm/utils";
-import { type ConnectionStatus, WebSocketClosedReason, WebSocketState } from "./types";
+import {
+  type ConnectionStatus,
+  WebSocketClosedReason,
+  WebSocketState,
+} from "./types";
 
 const SUPPORTS_LAZY_KERNELS = true;
 
