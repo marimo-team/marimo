@@ -45,11 +45,13 @@ class _FetchedBytes:
 @dataclass(frozen=True)
 class RemoteFile:
     url: str
-    fetcher_name: str
 
     def fetch(self) -> _FetchedBytes:
-        """Fetch through a named strategy so sources stay hashable."""
-        return _fetcher_by_name(self.fetcher_name).fetch(self.url)
+        """Fetch through the browser-backed Pyodide HTTP shim."""
+        return _FetchedBytes(
+            url=self.url,
+            data=_fetch.fetch_url_bytes(self.url),
+        )
 
 
 @dataclass(frozen=True)
@@ -57,14 +59,6 @@ class _ReadRequest:
     file: _FetchedBytes
     function_name: str
     options: Mapping[str, Any]
-
-
-class _ByteFetcher(Protocol):
-    name: str
-
-    def can_fetch(self, url: str) -> bool: ...
-
-    def fetch(self, url: str) -> _FetchedBytes: ...
 
 
 class _DataFrameReader(Protocol):
@@ -79,16 +73,6 @@ class _DataFrameReader(Protocol):
     ) -> dict[str, Any] | None: ...
 
     def read_dataframe(self, request: _ReadRequest) -> pd.DataFrame: ...
-
-
-class _HttpFetcher:
-    name: str = "http"
-
-    def can_fetch(self, url: str) -> bool:
-        return urlparse(url).scheme in {"http", "https"}
-
-    def fetch(self, url: str) -> _FetchedBytes:
-        return _FetchedBytes(url=url, data=_fetch.fetch_url_bytes(url))
 
 
 class _CsvReader:
@@ -258,7 +242,6 @@ class _BlobReader:
         return read_blob_dataframe(request.file.data, request.file.url)
 
 
-_FETCHERS: tuple[_ByteFetcher, ...] = (_HttpFetcher(),)
 _READERS: tuple[_DataFrameReader, ...] = (
     _CsvReader(),
     _ParquetReader(),
@@ -322,10 +305,9 @@ class RemoteFileSource:
 
 def remote_file_from_url(url: str) -> RemoteFile | None:
     """Return a fetchable remote file only for URL schemes marimo supports."""
-    fetcher = _fetcher_for_url(url)
-    if fetcher is None:
+    if urlparse(url).scheme not in {"http", "https"}:
         return None
-    return RemoteFile(url=url, fetcher_name=fetcher.name)
+    return RemoteFile(url=url)
 
 
 def remote_file_source_from_reader_args(
@@ -375,20 +357,6 @@ def _remote_files_from_source_arg(
         return tuple(files) if files else None
 
     return None
-
-
-def _fetcher_for_url(url: str) -> _ByteFetcher | None:
-    return next(
-        (fetcher for fetcher in _FETCHERS if fetcher.can_fetch(url)),
-        None,
-    )
-
-
-def _fetcher_by_name(name: str) -> _ByteFetcher:
-    for fetcher in _FETCHERS:
-        if fetcher.name == name:
-            return fetcher
-    raise KeyError(f"Unknown DuckDB WASM fetcher: {name}")
 
 
 def _reader_by_name(

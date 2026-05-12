@@ -47,11 +47,11 @@ def remote_file_source_from_table(
     if table_expr is None:
         return None
 
-    function_name = _table_function_name(table_expr)
-    if function_name is None:
+    table_function = _table_function_call(table_expr)
+    if table_function is None:
         return None
 
-    args = _table_function_args(table_expr)
+    function_name, args = table_function
     source = _read_function_source(args)
     if source is None:
         return None
@@ -99,35 +99,26 @@ def _query_has_single_quoted_table_reference(
     )
 
 
-def _table_function_name(table_expr: exp.Expression) -> str | None:
-    """Normalize sqlglot's version-dependent DuckDB reader node names."""
+def _table_function_call(
+    table_expr: exp.Expression,
+) -> tuple[str, list[exp.Expression]] | None:
+    """Return a normalized DuckDB reader name and its arguments."""
     import sqlglot.expressions as exp
 
     # sqlglot versions model first-party DuckDB readers either as explicit
     # Read* nodes or as generic anonymous table functions.
-    read_csv = getattr(exp, "ReadCSV", None)
-    if read_csv is not None and isinstance(table_expr, read_csv):
-        return "read_csv"
-
-    read_parquet = getattr(exp, "ReadParquet", None)
-    if read_parquet is not None and isinstance(table_expr, read_parquet):
-        return "read_parquet"
-
-    if isinstance(table_expr, exp.Anonymous):
-        return str(table_expr.this).lower()
-    return None
-
-
-def _table_function_args(table_expr: exp.Expression) -> list[exp.Expression]:
-    """Return table-function args despite sqlglot reader-node differences."""
-    import sqlglot.expressions as exp
-
-    for node_name in ("ReadCSV", "ReadParquet"):
+    for node_name, function_name in (
+        ("ReadCSV", "read_csv"),
+        ("ReadParquet", "read_parquet"),
+    ):
         read_node = getattr(exp, node_name, None)
         if read_node is not None and isinstance(table_expr, read_node):
             first = [table_expr.this] if table_expr.this is not None else []
-            return [*first, *table_expr.expressions]
-    return list(table_expr.expressions)
+            return function_name, [*first, *table_expr.expressions]
+
+    if isinstance(table_expr, exp.Anonymous):
+        return str(table_expr.this).lower(), list(table_expr.expressions)
+    return None
 
 
 def _read_function_source(
