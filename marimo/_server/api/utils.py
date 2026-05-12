@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import webbrowser
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from shutil import which
@@ -25,6 +26,9 @@ from marimo._types.ids import ConsumerId
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from starlette.datastructures import UploadFile
     from starlette.requests import Request
 
     from marimo._session.session import Session
@@ -44,20 +48,31 @@ S = TypeVar("S", bound=msgspec.Struct)
 
 @dataclass
 class MultipartRequest(Generic[S]):
-    """Result of parsing a multipart/form-data request body."""
+    """Result of parsing a multipart/form-data request body.
+
+    `files` carries the raw `UploadFile` objects (not yet read) so callers
+    can stream chunks via `.read(size)`. For small payloads, callers can
+    simply `await upload.read()` to materialize the whole body.
+    """
 
     body: S
-    files: dict[str, bytes]
+    files: dict[str, UploadFile]
 
 
+@asynccontextmanager
 async def parse_multipart_request(
     request: Request, cls: type[S]
-) -> MultipartRequest[S]:
-    """Parse a multipart/form-data body into a msgspec.Struct + file bytes.
+) -> AsyncIterator[MultipartRequest[S]]:
+    """Parse a multipart/form-data body into a msgspec.Struct + uploads.
 
     String form fields are validated against `cls`. File upload parts are
-    read fully into memory and returned in `files`, keyed by form-field
-    name (callers look them up explicitly rather than via the struct).
+    yielded as `UploadFile` objects (un-read) in `files`, keyed by
+    form-field name, so callers can stream them to disk instead of buffering.
+
+    Used as an async context manager so the underlying form (and its
+    spooled temp files / fds) are closed automatically when the caller
+    is done — `UploadFile` parts remain readable for the entire body of
+    the `async with` block.
 
     Raises msgspec.ValidationError if required string fields are missing
     or invalid.
@@ -66,18 +81,16 @@ async def parse_multipart_request(
     # without starlette (e.g. pyodide).
     from starlette.datastructures import UploadFile
 
-    # Use as an async context manager so any spooled temp files backing
-    # UploadFile parts are closed after parsing.
     async with request.form() as form:
         string_payload: dict[str, Any] = {}
-        files: dict[str, bytes] = {}
+        files: dict[str, UploadFile] = {}
         for key, value in form.multi_items():
             if isinstance(value, UploadFile):
-                files[key] = await value.read()
+                files[key] = value
             elif isinstance(value, str):
                 string_payload[key] = value
-    body = msgspec.convert(string_payload, cls, strict=False)
-    return MultipartRequest(body=body, files=files)
+        body = msgspec.convert(string_payload, cls, strict=False)
+        yield MultipartRequest(body=body, files=files)
 
 
 @runtime_checkable

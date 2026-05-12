@@ -8,6 +8,8 @@ import pytest
 
 from marimo._server.files.os_file_system import (
     OSFileSystem,
+    UploadTooLargeError,
+    _claim_unique_path,
     _generate_unique_path,
     _is_allowed_paths,
 )
@@ -131,6 +133,164 @@ def test_create_rejects_path_traversal(
         fs.create_file_or_directory(str(test_dir), "file", name, b"data")
     # No file should have been written anywhere in or above test_dir
     assert not (test_dir.parent / "escaped.txt").exists()
+
+
+class _ChunkedSource:
+    """Minimal async byte source emitting predetermined chunks.
+
+    If ``fail_after`` is set, raises ``RuntimeError`` after that many reads
+    have returned data — useful for simulating mid-stream upload failures.
+    """
+
+    def __init__(
+        self, chunks: list[bytes], *, fail_after: int | None = None
+    ) -> None:
+        self._chunks = list(chunks)
+        self._fail_after = fail_after
+        self._reads = 0
+
+    async def read(self, size: int = -1, /) -> bytes:
+        if self._fail_after is not None and self._reads >= self._fail_after:
+            raise RuntimeError("stream failed")
+        if not self._chunks:
+            return b""
+        # Honor size by returning the next chunk if it fits, else slicing.
+        chunk = self._chunks[0]
+        if size < 0 or len(chunk) <= size:
+            out = self._chunks.pop(0)
+        else:
+            out, self._chunks[0] = chunk[:size], chunk[size:]
+        self._reads += 1
+        return out
+
+
+def _part_files(directory: Path) -> list[Path]:
+    return list(directory.glob("*.part"))
+
+
+async def test_stream_create_file_writes_chunks(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    source = _ChunkedSource([b"hello ", b"streamed ", b"world"])
+    info = await fs.stream_create_file(str(test_dir), "out.bin", source)
+    out_path = test_dir / "out.bin"
+    assert out_path.read_bytes() == b"hello streamed world"
+    assert info.path == str(out_path)
+    assert _part_files(test_dir) == []
+
+
+async def test_stream_create_file_writes_empty_file(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    info = await fs.stream_create_file(
+        str(test_dir), "empty.bin", _ChunkedSource([])
+    )
+    out_path = test_dir / "empty.bin"
+    assert out_path.exists()
+    assert out_path.read_bytes() == b""
+    assert info.path == str(out_path)
+    assert _part_files(test_dir) == []
+
+
+async def test_stream_create_file_generates_unique_path(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    (test_dir / "dup.bin").write_bytes(b"existing")
+    info = await fs.stream_create_file(
+        str(test_dir), "dup.bin", _ChunkedSource([b"new"])
+    )
+    assert info.path == str(test_dir / "dup_1.bin")
+    assert (test_dir / "dup.bin").read_bytes() == b"existing"
+    assert (test_dir / "dup_1.bin").read_bytes() == b"new"
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "../escape.bin",
+        "../../escape.bin",
+        "subdir/nested.bin",
+        "..",
+        ".",
+        "with\\backslash.bin",
+        "embed\x00null.bin",
+        "",
+        "   ",
+    ],
+)
+async def test_stream_create_file_rejects_traversal(
+    test_dir: Path, fs: OSFileSystem, name: str
+) -> None:
+    with pytest.raises(ValueError):
+        await fs.stream_create_file(
+            str(test_dir), name, _ChunkedSource([b"x"])
+        )
+    # Nothing should have been written into the parent or test_dir.
+    assert not (test_dir.parent / "escape.bin").exists()
+    assert _part_files(test_dir) == []
+
+
+async def test_stream_create_file_cleans_up_on_immediate_failure(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    source = _ChunkedSource([], fail_after=0)
+    with pytest.raises(RuntimeError):
+        await fs.stream_create_file(str(test_dir), "no_file.bin", source)
+    assert not (test_dir / "no_file.bin").exists()
+    assert _part_files(test_dir) == []
+
+
+async def test_stream_create_file_cleans_up_on_mid_stream_failure(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    # The realistic case: a few chunks already written when the source
+    # raises (network drop, client disconnect, etc).
+    source = _ChunkedSource([b"first ", b"second ", b"third"], fail_after=2)
+    with pytest.raises(RuntimeError):
+        await fs.stream_create_file(str(test_dir), "partial.bin", source)
+    assert not (test_dir / "partial.bin").exists()
+    assert _part_files(test_dir) == []
+
+
+async def test_stream_create_file_enforces_size_cap(
+    test_dir: Path, fs: OSFileSystem, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Shrink the cap so the test is fast; the production value is 1 GiB.
+    monkeypatch.setattr(
+        "marimo._server.files.os_file_system.MAX_UPLOAD_BYTES", 8
+    )
+    source = _ChunkedSource([b"aaaa", b"bbbb", b"too much"])
+    # Raises the specific subclass so the endpoint can map it to a 413.
+    with pytest.raises(UploadTooLargeError, match="exceeds maximum size"):
+        await fs.stream_create_file(str(test_dir), "big.bin", source)
+    assert not (test_dir / "big.bin").exists()
+    assert _part_files(test_dir) == []
+
+
+async def test_stream_create_file_claims_path_atomically(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    # Simulate the TOCTOU race: a concurrent caller creates the same name
+    # while we're streaming. With atomic O_CREAT|O_EXCL reservation we
+    # must NOT overwrite the concurrent file.
+    (test_dir / "race.bin").write_bytes(b"existing")
+    info = await fs.stream_create_file(
+        str(test_dir), "race.bin", _ChunkedSource([b"new"])
+    )
+    assert info.path == str(test_dir / "race_1.bin")
+    assert (test_dir / "race.bin").read_bytes() == b"existing"
+    assert (test_dir / "race_1.bin").read_bytes() == b"new"
+
+
+def test_claim_unique_path_atomic_reservation(test_dir: Path) -> None:
+    # First claim takes the bare name and reserves an empty file.
+    claimed_a = _claim_unique_path(test_dir / "claim.bin")
+    assert claimed_a == test_dir / "claim.bin"
+    assert claimed_a.exists()
+    # Second claim must NOT reuse the reserved path, even though it's empty.
+    claimed_b = _claim_unique_path(test_dir / "claim.bin")
+    assert claimed_b == test_dir / "claim_1.bin"
+    assert claimed_b.exists()
 
 
 def test_list_files(test_dir: Path, fs: OSFileSystem) -> None:

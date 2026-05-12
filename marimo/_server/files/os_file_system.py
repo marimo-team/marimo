@@ -8,9 +8,10 @@ import platform
 import re
 import shutil
 import subprocess
+import tempfile
 from collections import deque
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Protocol
 
 from marimo import _loggers
 from marimo._server.files.file_system import FileSystem
@@ -35,6 +36,33 @@ DISALLOWED_NAMES = [
     ".",
     "..",
 ]
+
+# 1 MiB. Large enough to amortize syscall overhead, small enough to keep
+# peak memory bounded when streaming.
+_STREAM_CHUNK_SIZE = 1024 * 1024
+
+# Hard cap on streamed uploads. Streaming removes the implicit OOM ceiling
+# that buffered uploads had, so without a cap an authenticated client could
+# exhaust disk. 1 GiB covers normal notebook-data use cases with margin.
+MAX_UPLOAD_BYTES = 1024 * 1024 * 1024
+
+
+class UploadTooLargeError(ValueError):
+    """Raised when a streamed upload exceeds `MAX_UPLOAD_BYTES`.
+
+    Separate type (vs. a bare `ValueError`) so the HTTP layer can map it
+    to a 413 response instead of the generic error path.
+    """
+
+
+class AsyncByteSource(Protocol):
+    """Anything that can be drained chunk-by-chunk into a file.
+
+    Starlette's `UploadFile` satisfies this; so does any object exposing
+    an async `read(size)` returning bytes.
+    """
+
+    async def read(self, size: int = -1, /) -> bytes: ...
 
 
 class OSFileSystem(FileSystem):
@@ -133,6 +161,23 @@ class OSFileSystem(FileSystem):
         except UnicodeDecodeError:
             return file_path.read_bytes()
 
+    @staticmethod
+    def _validate_create_name(name: str) -> None:
+        """Reject names that are empty, reserved, or traverse out of the
+        parent. Centralized so HTTP, WASM, and streaming paths all share it.
+        """
+        if name in DISALLOWED_NAMES:
+            raise ValueError(
+                f"Cannot create file or directory with name {name}"
+            )
+        if name.strip() == "":
+            raise ValueError("Cannot create file or directory with empty name")
+        if "/" in name or "\\" in name or "\x00" in name:
+            raise ValueError(
+                f"Invalid name {name!r}: must not contain path separators "
+                "or refer to a parent directory"
+            )
+
     def create_file_or_directory(
         self,
         path: str,
@@ -140,25 +185,7 @@ class OSFileSystem(FileSystem):
         name: str,
         contents: bytes | None,
     ) -> FileInfo:
-        if name in DISALLOWED_NAMES:
-            raise ValueError(
-                f"Cannot create file or directory with name {name}"
-            )
-        if name.strip() == "":
-            raise ValueError("Cannot create file or directory with empty name")
-        # Names that traverse out of `path` or escape via separators are
-        # rejected. Validation belongs here (not in the endpoint) so every
-        # caller of OSFileSystem — HTTP, WASM bridge, scripts — is covered.
-        if (
-            "/" in name
-            or "\\" in name
-            or "\x00" in name
-            or name in (".", "..")
-        ):
-            raise ValueError(
-                f"Invalid name {name!r}: must not contain path separators "
-                "or refer to a parent directory"
-            )
+        self._validate_create_name(name)
 
         full_path = Path(path) / name
         full_path = _generate_unique_path(full_path)
@@ -191,6 +218,71 @@ class OSFileSystem(FileSystem):
                 contents.decode("latin-1") if contents is not None else None
             ),
         ).file
+
+    async def stream_create_file(
+        self,
+        path: str,
+        name: str,
+        source: AsyncByteSource,
+    ) -> FileInfo:
+        """Stream-write an uploaded file to disk, chunk by chunk.
+
+        Avoids loading the full payload into memory (the HTTP multipart
+        path can otherwise buffer 100 MB at once). Writes to a ``.part``
+        temp file and atomically renames on success so a failed upload
+        doesn't leave a half-written file at the final path.
+        """
+        self._validate_create_name(name)
+
+        parent = Path(path)
+        os.makedirs(parent, exist_ok=True)
+
+        # Atomically claim the destination with O_CREAT|O_EXCL so concurrent
+        # uploads can't both pick the same numbered suffix and clobber each
+        # other between `_generate_unique_path` and the final rename.
+        full_path = _claim_unique_path(parent / name)
+
+        # `NamedTemporaryFile` gives us a guaranteed-unique sibling path for
+        # the in-progress `.part` file (same reasoning as above).
+        tmp = tempfile.NamedTemporaryFile(
+            dir=full_path.parent,
+            prefix=full_path.name + ".",
+            suffix=".part",
+            delete=False,
+        )
+        tmp_path = tmp.name
+        try:
+            # Sync writes are bounded to ~1 MiB per chunk, with an `await`
+            # in between; event loop blockage is brief and an async file
+            # library would only add a dependency for marginal gain.
+            written = 0
+            with tmp:
+                while chunk := await source.read(_STREAM_CHUNK_SIZE):
+                    written += len(chunk)
+                    if written > MAX_UPLOAD_BYTES:
+                        raise UploadTooLargeError(
+                            f"Upload exceeds maximum size of "
+                            f"{MAX_UPLOAD_BYTES} bytes"
+                        )
+                    tmp.write(chunk)
+            # Replaces our empty marker at `full_path`. Atomic on POSIX
+            # and Windows (Python 3.3+).
+            os.replace(tmp_path, full_path)
+        except BaseException:
+            # Clean up both the `.part` and the reserved empty marker.
+            # If `os.replace` already succeeded, the marker is gone and
+            # `FileNotFoundError` is the expected outcome there.
+            for p in (tmp_path, str(full_path)):
+                try:
+                    os.unlink(p)
+                except FileNotFoundError:
+                    pass
+            raise
+
+        # Use the metadata-only helper: `get_details` would re-read the
+        # file contents (and base64-encode binary), defeating the point of
+        # streaming for large uploads.
+        return self._get_file_info(str(full_path))
 
     def delete_file_or_directory(self, path: str) -> bool:
         if os.path.isdir(path):
@@ -483,6 +575,33 @@ def _generate_unique_path(new_path: str | Path) -> Path:
         if not new_path.exists():
             return new_path
         i += 1
+
+
+def _claim_unique_path(target: Path) -> Path:
+    """Like `_generate_unique_path`, but atomically reserves the chosen name.
+
+    Opens with O_CREAT|O_EXCL so two concurrent callers can never end up
+    with the same path — whichever loses the race sees `FileExistsError`
+    and tries the next numbered suffix. Returns the claimed path (an empty
+    file at that location); the caller is responsible for writing into it
+    (or replacing it).
+    """
+    name_without_extension = target.stem
+    extension = target.suffix
+    candidate = target
+    i = 0
+    while True:
+        try:
+            fd = os.open(
+                candidate, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644
+            )
+            os.close(fd)
+            return candidate
+        except FileExistsError:
+            i += 1
+            candidate = target.parent / (
+                f"{name_without_extension}_{i}{extension}"
+            )
 
 
 def _is_allowed_paths(path: str | Path, new_path: str | Path) -> bool:

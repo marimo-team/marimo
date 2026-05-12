@@ -179,6 +179,27 @@ def test_create_rejects_path_traversal_name(client: TestClient) -> None:
     assert not os.path.exists(parent_path)
 
 
+def test_create_returns_413_when_upload_exceeds_size_cap(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Shrink the cap so a small payload trips it.
+    monkeypatch.setattr(
+        "marimo._server.files.os_file_system.MAX_UPLOAD_BYTES", 4
+    )
+    response = client.post(
+        "/api/files/create",
+        headers=HEADERS,
+        data={
+            "path": test_dir,
+            "type": "file",
+            "name": "too_big.bin",
+        },
+        files={"file": ("too_big.bin", b"way too much data")},
+    )
+    assert response.status_code == 413, response.text
+    assert not os.path.exists(os.path.join(test_dir, "too_big.bin"))
+
+
 def test_update_file(client: TestClient) -> None:
     response = client.post(
         "/api/files/update",
