@@ -11,7 +11,6 @@ import click
 
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.export.cloudflare import create_cloudflare_files
-from marimo._cli.export.pyodide_constraints import PYODIDE_PYTHON_VERSION
 from marimo._cli.export.session import session
 from marimo._cli.export.thumbnail import thumbnail
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
@@ -25,6 +24,7 @@ from marimo._cli.sandbox import maybe_prompt_run_in_sandbox, run_in_sandbox
 from marimo._cli.utils import prompt_to_overwrite
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
+from marimo._pyodide.pyodide_constraints import PYODIDE_PYTHON_VERSION
 from marimo._server.api.utils import parse_title
 from marimo._server.export import (
     ExportResult,
@@ -234,17 +234,11 @@ def html(
     args: tuple[str],
 ) -> None:
     """Run a notebook and export it as an HTML file."""
-    import sys
-
     # Set default, if not provided
     if sandbox is None:
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
-
         sandbox = maybe_prompt_run_in_sandbox(name)
 
     if sandbox:
-        from marimo._cli.sandbox import run_in_sandbox
-
         run_in_sandbox(sys.argv[1:], name=name)
         return
 
@@ -320,11 +314,7 @@ def script(
     """
     Export a marimo notebook as a flat script, in topological order.
     """
-    import sys
-
     if sandbox:
-        from marimo._cli.sandbox import run_in_sandbox
-
         run_in_sandbox(sys.argv[1:], name=name)
         return
 
@@ -391,11 +381,7 @@ def md(
     """
     Export a marimo notebook as a code fenced markdown document.
     """
-    import sys
-
     if sandbox:
-        from marimo._cli.sandbox import run_in_sandbox
-
         run_in_sandbox(sys.argv[1:], name=name)
         return
 
@@ -488,18 +474,12 @@ def ipynb(
     """
     Export a marimo notebook as a Jupyter notebook in topological order.
     """
-    import sys
-
     if include_outputs:
         # Set default, if not provided
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
-
         if sandbox is None:
             sandbox = maybe_prompt_run_in_sandbox(name)
 
         if sandbox:
-            from marimo._cli.sandbox import run_in_sandbox
-
             run_in_sandbox(
                 sys.argv[1:],
                 name=name,
@@ -660,8 +640,6 @@ def pdf(
     args: tuple[str],
 ) -> None:
     """Run a notebook and export it as a PDF file."""
-    import sys
-
     if not include_outputs:
         rasterize_source = ctx.get_parameter_source("rasterize_outputs")
         raster_scale_source = ctx.get_parameter_source("raster_scale")
@@ -678,13 +656,9 @@ def pdf(
     if include_outputs:
         # Set default, if not provided
         if sandbox is None:
-            from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
-
             sandbox = maybe_prompt_run_in_sandbox(name)
 
         if sandbox:
-            from marimo._cli.sandbox import run_in_sandbox
-
             export_deps = ["nbformat"]
             # Adding webpdf extras to sandbox even if `webpdf` is False, since standard PDF export may fall back to it.
             export_deps.append("nbconvert[webpdf]")
@@ -880,7 +854,8 @@ and cannot be opened directly from the file system (e.g. file://).
     default=False,
     help=(
         "Execute the notebook before exporting and embed outputs as a "
-        "preview. Runs in the current Python environment."
+        "preview. Runs in an isolated environment pinned to WASM-compatible "
+        "packages when possible."
     ),
 )
 @click.argument(
@@ -913,14 +888,18 @@ def html_wasm(
     _BOOTSTRAPPED_ENV = "MARIMO_HTML_WASM_SANDBOX_BOOTSTRAPPED"
     if execute and os.environ.get(_BOOTSTRAPPED_ENV) != "1":
         if sandbox is not False and DependencyManager.which("uv"):
-            run_in_sandbox(
-                sys.argv[1:],
-                name=name,
-                pyodide_constraints=True,
-                python_version_override=PYODIDE_PYTHON_VERSION,
-                extra_env={_BOOTSTRAPPED_ENV: "1"},
+            # Surface inner export failures via the outer process exit code
+            # — the bootstrap shell is a transparent wrapper, not its own
+            # success/failure boundary.
+            sys.exit(
+                run_in_sandbox(
+                    sys.argv[1:],
+                    name=name,
+                    pyodide_constraints=True,
+                    python_version_override=PYODIDE_PYTHON_VERSION,
+                    extra_env={_BOOTSTRAPPED_ENV: "1"},
+                )
             )
-            return
         if sandbox is not False:
             echo(
                 "warn: uv not found; running --execute in current "

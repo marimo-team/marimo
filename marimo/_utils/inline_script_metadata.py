@@ -316,17 +316,19 @@ def with_pinned_dependencies(
 def pin_pep723_dependencies_for_wasm(code: str, path: MarimoPath) -> str:
     """Pin a notebook's PEP 723 deps for embedding in a WASM HTML export.
 
-    Snapshots the running interpreter's package versions, intersects with
-    the Pyodide lockfile (when reachable) so we never embed a pin Pyodide
-    can't honour, and rewrites the PEP 723 `dependencies` block. Also
-    warns about top-level dependencies that aren't shipped in pyodide-lock
-    — those may fail to install via micropip in the browser. The lock
+    For each top-level dep also shipped in the Pyodide lockfile, pin to the
+    *lockfile* version — that's what micropip will install in the browser,
+    so embedding any other pin would be a lie that breaks the export. If
+    the lockfile fetch fails, degrade to pinning the locally installed
+    version (best-effort; the WASM runtime falls back to its bundled
+    lockfile). Also warns about top-level dependencies that aren't shipped
+    in pyodide-lock — those may fail to install via micropip. The lock
     kind is "resolved" when we ran inside the html-wasm sandbox, otherwise
     "observed".
     """
     from importlib.metadata import distributions
 
-    from marimo._cli.export.pyodide_constraints import (
+    from marimo._pyodide.pyodide_constraints import (
         fetch_pyodide_package_versions,
         normalize_package_name,
     )
@@ -338,20 +340,26 @@ def pin_pep723_dependencies_for_wasm(code: str, path: MarimoPath) -> str:
         if name and version:
             installed[normalize_package_name(name)] = version
 
-    pyodide_names: set[str] = set()
+    pyodide_versions: dict[str, str] = {}
     try:
-        pyodide_names = {
-            normalize_package_name(n) for n in fetch_pyodide_package_versions()
+        pyodide_versions = {
+            normalize_package_name(n): v
+            for n, v in fetch_pyodide_package_versions().items()
         }
+        # Pin to lockfile versions for names the browser can actually
+        # install. Restricting to installed names keeps the pin set small
+        # and noise-free (an irrelevant pin for an unused dep is harmless
+        # but unnecessary churn).
         pins = {
-            name: version
-            for name, version in installed.items()
-            if name in pyodide_names
+            name: pyodide_versions[name]
+            for name in installed
+            if name in pyodide_versions
         }
     except Exception:
         # Fetch failures degrade to pinning whatever is installed; the
         # WASM micropip will still try its bundled lockfile first.
         pins = installed
+    pyodide_names = set(pyodide_versions)
 
     # Warn about top-level deps not bundled in pyodide. micropip *may*
     # still install pure-python ones from PyPI in the browser; native

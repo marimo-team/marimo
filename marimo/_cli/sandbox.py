@@ -285,6 +285,10 @@ def construct_uv_flags(
         uv_flags.append("--refresh")
 
     # Python version: explicit override > script metadata > current interpreter.
+    # The override deliberately wins over the script's `requires-python` —
+    # `html-wasm --execute` needs the sandbox interpreter to match Pyodide
+    # (3.12), even if the script declares something else. Any resulting
+    # desync from the script's stated requirement is by design.
     if python_version_override:
         uv_flags.extend(["--python", python_version_override])
     elif pyproject.python_version:
@@ -485,7 +489,7 @@ def run_in_sandbox(
         env.update(extra_env)
 
     if pyodide_constraints:
-        from marimo._cli.export.pyodide_constraints import (
+        from marimo._pyodide.pyodide_constraints import (
             write_constraint_file,
         )
 

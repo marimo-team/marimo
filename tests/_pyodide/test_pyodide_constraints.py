@@ -2,22 +2,17 @@
 from __future__ import annotations
 
 import json
-import sys
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
-from marimo._cli.export.pyodide_constraints import (
+from marimo._pyodide.pyodide_constraints import (
     fetch_pyodide_package_versions,
     normalize_package_name,
     write_constraint_file,
 )
+from marimo._utils.requests import Response
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -48,37 +43,30 @@ _FAKE_LOCKFILE = {
 }
 
 
-class _FakeResponse:
-    def __init__(self, payload: bytes):
-        self._payload = payload
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, *args: object) -> None:
-        pass
-
-    def read(self) -> bytes:
-        return self._payload
+def _fake_response(payload: dict[str, object]) -> Response:
+    return Response(
+        status_code=200,
+        content=json.dumps(payload).encode("utf-8"),
+        headers={},
+    )
 
 
-def _patched_urlopen(payload: dict[str, object]):
-    body = json.dumps(payload).encode("utf-8")
+def _patched_get(payload: dict[str, object]):
     return patch(
-        "marimo._cli.export.pyodide_constraints.urllib.request.urlopen",
-        return_value=_FakeResponse(body),
+        "marimo._pyodide.pyodide_constraints.requests.get",
+        return_value=_fake_response(payload),
     )
 
 
 def test_fetch_pyodide_package_versions_filters_test_and_non_package() -> None:
-    with _patched_urlopen(_FAKE_LOCKFILE):
+    with _patched_get(_FAKE_LOCKFILE):
         versions = fetch_pyodide_package_versions("0.27.7")
     assert versions == {"numpy": "2.0.2", "pandas": "2.2.3"}
 
 
 def test_write_constraint_file_sorts_and_pins(tmp_path: Path) -> None:
     target = tmp_path / "constraints.txt"
-    with _patched_urlopen(_FAKE_LOCKFILE):
+    with _patched_get(_FAKE_LOCKFILE):
         ok = write_constraint_file(str(target))
     assert ok is True
     assert target.read_text() == "numpy==2.0.2\npandas==2.2.3\n"
@@ -89,7 +77,7 @@ def test_write_constraint_file_returns_false_on_fetch_failure(
 ) -> None:
     target = tmp_path / "constraints.txt"
     with patch(
-        "marimo._cli.export.pyodide_constraints.urllib.request.urlopen",
+        "marimo._pyodide.pyodide_constraints.requests.get",
         side_effect=OSError("offline"),
     ):
         ok = write_constraint_file(str(target))
@@ -112,10 +100,10 @@ def test_lockfile_env_override_reads_local_file(
     lockfile.write_text(json.dumps(_FAKE_LOCKFILE))
     monkeypatch.setenv("MARIMO_PYODIDE_LOCK_FILE", str(lockfile))
 
-    # urlopen would raise loudly if hit; assert we never call it.
+    # requests.get would raise loudly if hit; assert we never call it.
     with patch(
-        "marimo._cli.export.pyodide_constraints.urllib.request.urlopen",
-        side_effect=AssertionError("urlopen should not be called"),
+        "marimo._pyodide.pyodide_constraints.requests.get",
+        side_effect=AssertionError("requests.get should not be called"),
     ):
         versions = fetch_pyodide_package_versions("0.27.7")
     assert versions == {"numpy": "2.0.2", "pandas": "2.2.3"}

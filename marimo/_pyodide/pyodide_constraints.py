@@ -1,15 +1,21 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Resolve Pyodide-compatible package constraints from pyodide-lock.json."""
+"""Resolve Pyodide-compatible package constraints from pyodide-lock.json.
+
+The lockfile is fetched from `wasm.marimo.app` (which serves a marimo-patched
+fork of upstream `pyodide-lock.json`). Set `MARIMO_PYODIDE_LOCK_FILE` to read
+a local copy instead — useful for offline / air-gapped environments and for
+testing.
+"""
 
 from __future__ import annotations
 
-import json
 import os
 import re
-import urllib.request
-from typing import Any
+
+import msgspec
 
 from marimo import _loggers
+from marimo._utils import requests
 from marimo._version import __version__
 
 LOGGER = _loggers.marimo_logger()
@@ -21,7 +27,7 @@ PYODIDE_VERSION = "0.27.7"
 PYODIDE_PYTHON_VERSION = "3.12"
 
 # Env var pointing at a local pyodide-lock.json. Lets offline / air-gapped
-# users supply the lockfile out-of-band instead of fetching from the CDN.
+# users supply the lockfile out-of-band instead of fetching from the host.
 PYODIDE_LOCK_FILE_ENV = "MARIMO_PYODIDE_LOCK_FILE"
 
 # We host our own version of
@@ -32,37 +38,55 @@ PYODIDE_LOCK_FILE_ENV = "MARIMO_PYODIDE_LOCK_FILE"
 _LOCKFILE_URL = f"https://wasm.marimo.app/pyodide-lock.json?v={__version__}"
 
 
-def _read_lockfile(pyodide_version: str) -> dict[str, Any]:
-    del pyodide_version  # the marimo-hosted lockfile is version-pinned server-side
+class PyodidePackage(msgspec.Struct, kw_only=True):
+    """A single package entry inside pyodide-lock.json."""
+
+    name: str
+    version: str
+    package_type: str = ""
+
+
+class PyodideLockfile(msgspec.Struct, kw_only=True):
+    """Top-level shape of pyodide-lock.json.
+
+    Other fields (`info`, `package` indices, etc.) are ignored.
+    """
+
+    packages: dict[str, PyodidePackage] = {}
+
+
+def _read_lockfile(pyodide_version: str) -> PyodideLockfile:
+    del (
+        pyodide_version
+    )  # the marimo-hosted lockfile is version-pinned server-side
     override = os.environ.get(PYODIDE_LOCK_FILE_ENV)
     if override:
         with open(override, "rb") as f:
-            return json.loads(f.read())  # type: ignore[no-any-return]
-    # Cloudflare blocks the default `Python-urllib/...` User-Agent.
-    req = urllib.request.Request(
-        _LOCKFILE_URL, headers={"User-Agent": "marimo-cli"}
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read())  # type: ignore[no-any-return]
+            payload = f.read()
+    else:
+        # Cloudflare blocks the default `Python-urllib/...` User-Agent;
+        # `marimo._utils.requests` ships its own `marimo/<version>` UA.
+        payload = (
+            requests.get(_LOCKFILE_URL, timeout=30).raise_for_status().content
+        )
+    return msgspec.json.decode(payload, type=PyodideLockfile)
 
 
 def fetch_pyodide_package_versions(
     pyodide_version: str = PYODIDE_VERSION,
 ) -> dict[str, str]:
-    """Fetch pyodide-lock.json and return {package_name: version} dict.
+    """Fetch pyodide-lock.json and return {package_name: version}.
 
-    Reads from the path in $MARIMO_PYODIDE_LOCK_FILE if set, otherwise
-    fetches from the Pyodide CDN. Only includes entries with
-    package_type == "package" and excludes test packages
-    (names ending in "-tests").
+    Reads from the path in `$MARIMO_PYODIDE_LOCK_FILE` if set, otherwise
+    fetches from `wasm.marimo.app`. Only entries with
+    `package_type == "package"` are included; test packages
+    (names ending in `-tests`) are excluded.
     """
-    data = _read_lockfile(pyodide_version)
-    packages = data.get("packages", {})
+    lockfile = _read_lockfile(pyodide_version)
     return {
-        spec["name"]: spec["version"]
-        for spec in packages.values()
-        if spec.get("package_type") == "package"
-        and not spec["name"].endswith("-tests")
+        spec.name: spec.version
+        for spec in lockfile.packages.values()
+        if spec.package_type == "package" and not spec.name.endswith("-tests")
     }
 
 
