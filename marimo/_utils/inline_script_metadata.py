@@ -211,6 +211,101 @@ def is_marimo_dependency(dependency: str) -> bool:
     return without_version == "marimo" or without_version.startswith("marimo[")
 
 
+def _normalize_pep503(name: str) -> str:
+    """Normalize a project name per PEP 503."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+# Captures the leading bare project name (with optional extras) of a PEP 508
+# dependency string. Stops at the first version specifier, marker, or URL
+# delimiter.
+_DEP_NAME_RE = re.compile(
+    r"^(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[^\]]+\])?)"
+)
+
+
+def _pin_dep(dep: str, pins: dict[str, str]) -> str:
+    """Replace any version specifier in `dep` with the pinned version.
+
+    Returns `dep` unchanged if the name doesn't appear in `pins`, or if the
+    dependency uses a URL/VCS source (we don't override explicit URLs).
+    """
+    stripped = dep.strip()
+    if not stripped or "@" in stripped or stripped.startswith(("git+", "http")):
+        return dep
+
+    match = _DEP_NAME_RE.match(stripped)
+    if match is None:
+        return dep
+
+    name_with_extras = match.group("name")
+    bare_name = name_with_extras.split("[", 1)[0]
+    canonical = _normalize_pep503(bare_name)
+    if canonical not in pins:
+        return dep
+
+    rest = stripped[match.end() :]
+    # Preserve any environment marker (`; python_version >= ...`).
+    marker = ""
+    if ";" in rest:
+        _, _, marker_text = rest.partition(";")
+        marker = f";{marker_text}"
+
+    return f"{name_with_extras}=={pins[canonical]}{marker}"
+
+
+def with_pinned_dependencies(
+    code: str,
+    pins: dict[str, str],
+    *,
+    lock_kind: str,
+) -> str:
+    """Rewrite the PEP 723 [run] dependencies block to pin top-level names.
+
+    Args:
+        code: Notebook source containing (optionally) a PEP 723 block.
+        pins: Mapping of canonical (PEP 503) package name → version string.
+        lock_kind: Annotation written to `[tool.marimo.export] lock_kind`,
+            e.g. "resolved" or "observed".
+
+    Names not in `pins` are left as-is. URL/VCS dependencies are not
+    rewritten. If the script has no PEP 723 block, `code` is returned
+    unchanged.
+    """
+    from marimo._utils.scripts import (
+        REGEX,
+        read_pyproject_from_script,
+        write_pyproject_to_script,
+    )
+
+    project = read_pyproject_from_script(code)
+    if project is None:
+        return code
+
+    deps = project.get("dependencies")
+    if isinstance(deps, list):
+        project["dependencies"] = [
+            _pin_dep(str(dep), pins) for dep in deps
+        ]
+
+    tool = project.setdefault("tool", {})
+    if not isinstance(tool, dict):
+        tool = {}
+        project["tool"] = tool
+    marimo_tool = tool.setdefault("marimo", {})
+    if not isinstance(marimo_tool, dict):
+        marimo_tool = {}
+        tool["marimo"] = marimo_tool
+    export_section = marimo_tool.setdefault("export", {})
+    if not isinstance(export_section, dict):
+        export_section = {}
+        marimo_tool["export"] = export_section
+    export_section["lock_kind"] = lock_kind
+
+    new_block = write_pyproject_to_script(project)
+    return re.sub(REGEX, new_block, code, count=1)
+
+
 def get_headers_from_markdown(contents: str) -> dict[str, str]:
     from marimo._convert.markdown.to_ir import extract_frontmatter
 

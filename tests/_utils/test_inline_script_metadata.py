@@ -432,3 +432,104 @@ def test_script_metadata_hash_from_filename_changes_with_dependencies(
     assert script_metadata_hash_from_filename(
         str(first)
     ) != script_metadata_hash_from_filename(str(second))
+
+
+def test_with_pinned_dependencies_pins_known_names() -> None:
+    from marimo._utils.inline_script_metadata import (
+        with_pinned_dependencies,
+    )
+
+    src = """# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "polars",
+#     "duckdb>=1.0",
+# ]
+# ///
+
+import polars
+"""
+    out = with_pinned_dependencies(
+        src,
+        {"polars": "1.20.0", "duckdb": "1.1.3"},
+        lock_kind="resolved",
+    )
+    assert "polars==1.20.0" in out
+    assert "duckdb==1.1.3" in out
+    assert 'lock_kind = "resolved"' in out
+
+
+def test_with_pinned_dependencies_leaves_unpinned_alone() -> None:
+    from marimo._utils.inline_script_metadata import (
+        with_pinned_dependencies,
+    )
+
+    src = """# /// script
+# dependencies = [
+#     "polars",
+#     "scikit-learn",
+# ]
+# ///
+"""
+    out = with_pinned_dependencies(
+        src,
+        {"polars": "1.20.0"},
+        lock_kind="observed",
+    )
+    assert "polars==1.20.0" in out
+    # scikit-learn wasn't in pins; left untouched.
+    assert "scikit-learn" in out
+    assert "scikit-learn==" not in out
+
+
+def test_with_pinned_dependencies_preserves_url_deps() -> None:
+    from marimo._utils.inline_script_metadata import (
+        with_pinned_dependencies,
+    )
+
+    src = """# /// script
+# dependencies = [
+#     "polars",
+#     "private @ https://example.com/private-1.0-py3-none-any.whl",
+# ]
+# ///
+"""
+    out = with_pinned_dependencies(
+        src,
+        {"polars": "1.20.0", "private": "9.9.9"},
+        lock_kind="resolved",
+    )
+    assert "polars==1.20.0" in out
+    assert "https://example.com/private-1.0-py3-none-any.whl" in out
+    assert "private==9.9.9" not in out
+
+
+def test_with_pinned_dependencies_canonicalizes_names() -> None:
+    from marimo._utils.inline_script_metadata import (
+        with_pinned_dependencies,
+    )
+
+    src = """# /// script
+# dependencies = ["Scikit_Learn"]
+# ///
+"""
+    out = with_pinned_dependencies(
+        src,
+        {"scikit-learn": "1.5.0"},
+        lock_kind="observed",
+    )
+    assert "Scikit_Learn==1.5.0" in out
+
+
+def test_with_pinned_dependencies_no_block_returns_unchanged() -> None:
+    from marimo._utils.inline_script_metadata import (
+        with_pinned_dependencies,
+    )
+
+    src = "import polars\n"
+    out = with_pinned_dependencies(
+        src,
+        {"polars": "1.20.0"},
+        lock_kind="resolved",
+    )
+    assert out == src

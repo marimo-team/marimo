@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -9,6 +11,7 @@ import click
 
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.export.cloudflare import create_cloudflare_files
+from marimo._cli.export.pyodide_constraints import PYODIDE_PYTHON_VERSION
 from marimo._cli.export.session import session
 from marimo._cli.export.thumbnail import thumbnail
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
@@ -18,6 +21,7 @@ from marimo._cli.print import (
     echo,
     green,
 )
+from marimo._cli.sandbox import maybe_prompt_run_in_sandbox, run_in_sandbox
 from marimo._cli.utils import prompt_to_overwrite
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
@@ -898,24 +902,43 @@ def html_wasm(
     args: tuple[str, ...],
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
-    import sys
-
     if execute and watch:
         raise click.UsageError(
             "--execute and --watch cannot be used together."
         )
 
-    # Set default, if not provided
-    if sandbox is None:
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+    # When --execute is set, take ownership of sandboxing so we can layer
+    # the pyodide-lock constraints on top. Re-entry marker keeps the
+    # in-sandbox invocation from looping back here.
+    _BOOTSTRAPPED_ENV = "MARIMO_HTML_WASM_SANDBOX_BOOTSTRAPPED"
+    if execute and os.environ.get(_BOOTSTRAPPED_ENV) != "1":
+        if sandbox is not False and DependencyManager.which("uv"):
+            run_in_sandbox(
+                sys.argv[1:],
+                name=name,
+                pyodide_constraints=True,
+                python_version_override=PYODIDE_PYTHON_VERSION,
+                extra_env={_BOOTSTRAPPED_ENV: "1"},
+            )
+            return
+        if sandbox is not False:
+            echo(
+                "warn: uv not found; running --execute in current "
+                "environment without isolation or pyodide-lock "
+                "verification. Install uv "
+                "(https://docs.astral.sh/uv) for verified exports.",
+                err=True,
+            )
 
-        sandbox = maybe_prompt_run_in_sandbox(name)
+    # No --execute (or already bootstrapped): keep the standard
+    # --sandbox prompt path.
+    if not execute:
+        if sandbox is None:
+            sandbox = maybe_prompt_run_in_sandbox(name)
 
-    if sandbox:
-        from marimo._cli.sandbox import run_in_sandbox
-
-        run_in_sandbox(sys.argv[1:], name=name)
-        return
+        if sandbox:
+            run_in_sandbox(sys.argv[1:], name=name)
+            return
 
     out_dir = output
     filename = "index.html"
