@@ -5,9 +5,9 @@ import { ArrowLeftIcon } from "lucide-react";
 import { useEffect } from "react";
 import { AppContainer } from "@/components/editor/app-container";
 import { AppHeader } from "@/components/editor/header/app-header";
+import { ProgressiveBoundary } from "@/components/lifecycle/ProgressiveBoundary";
 import { Spinner } from "@/components/icons/spinner";
 import { buttonVariants } from "@/components/ui/button";
-import { DelayMount } from "@/components/utils/delay-mount";
 import { cn } from "@/utils/cn";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import {
@@ -19,7 +19,6 @@ import type { AppConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
 import { useRequestClient } from "./network/requests";
-import { isAppConnecting } from "./websocket/connection-utils";
 import { useMarimoKernelConnection } from "./websocket/useMarimoKernelConnection";
 
 interface AppProps {
@@ -45,26 +44,6 @@ export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
   });
 
   const isRunning = useAtomValue(notebookIsRunningAtom);
-  const isConnecting = isAppConnecting(connection.state);
-  // Skip the "Connecting..." gate when we already have cells to show — from
-  // an embedded snapshot or a prior connection.
-  const hasExistingCells = useAtomValue(hasCellsAtom);
-
-  const renderCells = () => {
-    // If we are connecting for more than 2 seconds, show a spinner
-    if (isConnecting && !hasExistingCells) {
-      return (
-        <DelayMount milliseconds={2000} fallback={null}>
-          <Spinner className="mx-auto" />
-          <p className="text-center text-sm text-muted-foreground mt-2">
-            Connecting...
-          </p>
-        </DelayMount>
-      );
-    }
-
-    return <CellsRenderer appConfig={appConfig} mode="read" />;
-  };
 
   const galleryHref = (() => {
     if (typeof window === "undefined") {
@@ -103,7 +82,20 @@ export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
           </div>
         )}
       </AppHeader>
-      {renderCells()}
+      <ProgressiveBoundary
+        requires={hasCellsAtom}
+        delay={2000}
+        fallback={
+          <>
+            <Spinner className="mx-auto" />
+            <p className="text-center text-sm text-muted-foreground mt-2">
+              Connecting...
+            </p>
+          </>
+        }
+      >
+        <CellsRenderer appConfig={appConfig} mode="read" />
+      </ProgressiveBoundary>
     </AppContainer>
   );
 };
