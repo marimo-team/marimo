@@ -239,6 +239,9 @@ export const OutputRenderer: React.FC<{
           .
         </Banner>
       );
+    case "application/x-marimo-auth-request":
+      // Auth requests are only emitted on the stdin channel
+      return null;
     default:
       logNever(mimetype);
       if (renderFallback) {
