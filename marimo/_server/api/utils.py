@@ -18,7 +18,6 @@ from typing import (
 )
 
 import msgspec
-from starlette.datastructures import UploadFile
 
 from marimo._runtime.commands import CommandMessage
 from marimo._server.models.models import SuccessResponse
@@ -63,6 +62,10 @@ async def parse_multipart_request(
     Raises msgspec.ValidationError if required string fields are missing
     or invalid.
     """
+    # Imported lazily so this module stays import-safe in environments
+    # without starlette (e.g. pyodide).
+    from starlette.datastructures import UploadFile
+
     # Use as an async context manager so any spooled temp files backing
     # UploadFile parts are closed after parsing.
     async with request.form() as form:
