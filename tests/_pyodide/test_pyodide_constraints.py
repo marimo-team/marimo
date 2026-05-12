@@ -60,7 +60,7 @@ def _patched_get(payload: dict[str, object]):
 
 def test_fetch_pyodide_package_versions_filters_test_and_non_package() -> None:
     with _patched_get(_FAKE_LOCKFILE):
-        versions = fetch_pyodide_package_versions("0.27.7")
+        versions = fetch_pyodide_package_versions()
     assert versions == {"numpy": "2.0.2", "pandas": "2.2.3"}
 
 
@@ -105,7 +105,7 @@ def test_lockfile_env_override_reads_local_file(
         "marimo._pyodide.pyodide_constraints.requests.get",
         side_effect=AssertionError("requests.get should not be called"),
     ):
-        versions = fetch_pyodide_package_versions("0.27.7")
+        versions = fetch_pyodide_package_versions()
     assert versions == {"numpy": "2.0.2", "pandas": "2.2.3"}
 
 
@@ -115,4 +115,4 @@ def test_lockfile_env_override_missing_file_raises(
     """A bad path bubbles the OSError so write_constraint_file degrades."""
     monkeypatch.setenv("MARIMO_PYODIDE_LOCK_FILE", "/no/such/file")
     with pytest.raises(OSError):
-        fetch_pyodide_package_versions("0.27.7")
+        fetch_pyodide_package_versions()
