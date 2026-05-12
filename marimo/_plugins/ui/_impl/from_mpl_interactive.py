@@ -274,23 +274,37 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
             self._handle_download(fmt)
             return
         else:
-            # Forward to figure manager (mouse events, toolbar actions, etc.)
-            self._figure_manager.handle_json(event)  # type: ignore[no-untyped-call]
+            # Forward to figure manager (mouse events, toolbar actions, etc.).
+            # Swallow callback exceptions so a buggy handler can't kill the
+            # kernel subprocess; the exception propagates up through the comm
+            # manager and terminates asyncio.run otherwise.
+            try:
+                self._figure_manager.handle_json(event)  # type: ignore[no-untyped-call]
+            except Exception:
+                LOGGER.exception(
+                    "mpl_interactive handle_json failed for event type %s",
+                    msg_type,
+                )
 
     def _handle_download(self, fmt: str) -> None:
         """Render figure to the requested format and send back via comm."""
-        buf = io.BytesIO()
-        self._figure_manager.canvas.figure.savefig(
-            buf, format=fmt, bbox_inches="tight"
-        )
-        blob = buf.getvalue()
-        self._comm.send(
-            data={
-                "method": "custom",
-                "content": {"type": "download", "format": fmt},
-            },
-            buffers=[blob],
-        )
+        try:
+            buf = io.BytesIO()
+            self._figure_manager.canvas.figure.savefig(
+                buf, format=fmt, bbox_inches="tight"
+            )
+            blob = buf.getvalue()
+            self._comm.send(
+                data={
+                    "method": "custom",
+                    "content": {"type": "download", "format": fmt},
+                },
+                buffers=[blob],
+            )
+        except Exception:
+            LOGGER.exception(
+                "mpl_interactive download failed (fmt=%s)", fmt
+            )
 
     def _convert_value(
         self, value: ModelIdRef | dict[str, Any]
