@@ -81,9 +81,7 @@ def test_write_constraint_file_sorts_and_pins(tmp_path: Path) -> None:
     with _patched_urlopen(_FAKE_LOCKFILE):
         ok = write_constraint_file(str(target))
     assert ok is True
-    assert (
-        target.read_text() == "numpy==2.0.2\npandas==2.2.3\n"
-    )
+    assert target.read_text() == "numpy==2.0.2\npandas==2.2.3\n"
 
 
 def test_write_constraint_file_returns_false_on_fetch_failure(

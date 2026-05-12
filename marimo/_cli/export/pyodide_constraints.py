@@ -76,8 +76,7 @@ def write_constraint_file(
         return False
     with open(path, "w", encoding="utf-8") as f:
         f.writelines(
-            f"{pkg}=={version}\n"
-            for pkg, version in sorted(versions.items())
+            f"{pkg}=={version}\n" for pkg, version in sorted(versions.items())
         )
     return True
 

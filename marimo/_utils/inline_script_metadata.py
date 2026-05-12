@@ -231,7 +231,11 @@ def _pin_dep(dep: str, pins: dict[str, str]) -> str:
     dependency uses a URL/VCS source (we don't override explicit URLs).
     """
     stripped = dep.strip()
-    if not stripped or "@" in stripped or stripped.startswith(("git+", "http")):
+    if (
+        not stripped
+        or "@" in stripped
+        or stripped.startswith(("git+", "http"))
+    ):
         return dep
 
     match = _DEP_NAME_RE.match(stripped)
@@ -284,9 +288,7 @@ def with_pinned_dependencies(
 
     deps = project.get("dependencies")
     if isinstance(deps, list):
-        project["dependencies"] = [
-            _pin_dep(str(dep), pins) for dep in deps
-        ]
+        project["dependencies"] = [_pin_dep(str(dep), pins) for dep in deps]
 
     tool = project.setdefault("tool", {})
     if not isinstance(tool, dict):

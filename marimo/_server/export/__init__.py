@@ -109,8 +109,7 @@ def _pin_pep723_dependencies(code: str, path: MarimoPath) -> str:
     pyodide_names: set[str] = set()
     try:
         pyodide_names = {
-            normalize_package_name(n)
-            for n in fetch_pyodide_package_versions()
+            normalize_package_name(n) for n in fetch_pyodide_package_versions()
         }
         pins = {
             name: version
