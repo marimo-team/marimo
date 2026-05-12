@@ -75,6 +75,8 @@ const TabComponent = ({
   }
 
   const isVertical = orientation === "vertical";
+  const childArray =
+    children == null ? [] : Array.isArray(children) ? children : [children];
 
   return (
     <Labeled label={label} align="top" fullWidth={true}>
@@ -102,13 +104,11 @@ const TabComponent = ({
           ))}
         </TabsList>
         <div className={cn(isVertical && "flex-1 min-w-0")}>
-          {(Array.isArray(children) ? children : [children]).map(
-            (child, index) => (
-              <TabsContent key={index} value={index.toString()}>
-                {child}
-              </TabsContent>
-            ),
-          )}
+          {childArray.map((child, index) => (
+            <TabsContent key={index} value={index.toString()}>
+              {child}
+            </TabsContent>
+          ))}
         </div>
       </Tabs>
     </Labeled>

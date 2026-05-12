@@ -132,4 +132,23 @@ describe("TabsPlugin", () => {
     // contains a real <strong> element.
     expect(boldTab.querySelector("strong")).not.toBeNull();
   });
+
+  it("renders no tabpanels when tabs and children are empty", () => {
+    // When the Python side passes `tabs={}`, slotted HTML is empty and the
+    // resulting React children are null/undefined. We should render zero
+    // `TabsContent`s — not a stray one paired to a non-existent trigger.
+    const plugin = new TabsPlugin();
+    const host = document.createElement("div");
+    const props: IPluginProps<string, z.infer<TabsPlugin["validator"]>> = {
+      data: plugin.validator.parse({ tabs: [], label: null }),
+      value: "",
+      setValue: vi.fn(),
+      host,
+      functions: {},
+      children: null,
+    };
+    render(plugin.render(props));
+    expect(screen.queryAllByRole("tab")).toHaveLength(0);
+    expect(screen.queryAllByRole("tabpanel")).toHaveLength(0);
+  });
 });

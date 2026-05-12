@@ -36,7 +36,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2. Many horizontal tabs (the original bug repro)
+    ## 2. Many horizontal tabs
 
     With 100 tabs, the tab bar should be **horizontally scrollable** — every
     tab is reachable. Try scrolling with the trackpad/mouse wheel and using
