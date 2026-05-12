@@ -31,6 +31,7 @@ from marimo._ast.cell import CellConfig
 from marimo._cli.cli import (
     _collect_marimo_files,
     _create_run_file_router,
+    _split_run_paths_and_args,
     main as cli_main,
 )
 from marimo._config.manager import get_default_config_manager
@@ -1735,20 +1736,17 @@ def test_cli_run_double_dash_reaches_splitter(tail_args: list[str]) -> None:
     captured: dict[str, Any] = {}
 
     def _capture(
-        name: str, args: tuple[str, ...]
+        name: str,
+        args: tuple[str, ...],
+        args_after_separator: tuple[str, ...] | None = None,
     ) -> tuple[list[str], tuple[str, ...]]:
         captured["name"] = name
         captured["args"] = args
+        captured["args_after_separator"] = args_after_separator
         raise click.ClickException("stop after capture")
 
-    with (
-        patch(
-            "marimo._cli.cli._split_run_paths_and_args", side_effect=_capture
-        ),
-        patch(
-            "marimo._cli.cli.sys.argv",
-            ["marimo", "run", "notebook.py", "--", *tail_args],
-        ),
+    with patch(
+        "marimo._cli.cli._split_run_paths_and_args", side_effect=_capture
     ):
         result = runner.invoke(
             cli_main,
@@ -1758,9 +1756,35 @@ def test_cli_run_double_dash_reaches_splitter(tail_args: list[str]) -> None:
     assert result.exit_code != 0
     assert "stop after capture" in result.output
     assert captured["name"] == "notebook.py"
-    # Desired behavior: splitter should receive the `--` sentinel.
-    # This currently fails because click consumes `--` before invoking the command.
-    assert captured["args"] == ("--", *tail_args)
+    assert captured["args"] == tuple(tail_args)
+    assert captured["args_after_separator"] == tuple(tail_args)
+
+
+@pytest.mark.parametrize(
+    ("args", "args_after_separator", "expected"),
+    [
+        (
+            ("experiment_name=my-exp",),
+            ("experiment_name=my-exp",),
+            (["notebook.py"], ("experiment_name=my-exp",)),
+        ),
+        (
+            ("other.py", "arg=value"),
+            ("arg=value",),
+            (["notebook.py", "other.py"], ("arg=value",)),
+        ),
+        (("other.py",), None, (["notebook.py", "other.py"], ())),
+    ],
+)
+def test_split_run_paths_and_args_with_click_separator_state(
+    args: tuple[str, ...],
+    args_after_separator: tuple[str, ...] | None,
+    expected: tuple[list[str], tuple[str, ...]],
+) -> None:
+    assert (
+        _split_run_paths_and_args("notebook.py", args, args_after_separator)
+        == expected
+    )
 
 
 def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
