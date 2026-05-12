@@ -10,6 +10,7 @@ unchanged.
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 from marimo._runtime._wasm._duckdb.io import (
@@ -73,12 +74,28 @@ def _is_single_quoted_table_identifier(
     start = meta.get("start")
     end = meta.get("end")
     if not isinstance(start, int) or not isinstance(end, int):
-        return False
+        return _query_has_single_quoted_table_reference(query, table.name)
     return (
         0 <= start
         and end < len(query)
         and query[start] == "'"
         and query[end] == "'"
+    )
+
+
+def _query_has_single_quoted_table_reference(
+    query: str, table_name: str
+) -> bool:
+    if not table_name:
+        return False
+
+    quoted_table = re.escape(f"'{table_name}'")
+    return any(
+        re.search(pattern, query, flags=re.IGNORECASE) is not None
+        for pattern in (
+            rf"(?:^|[()\s])FROM\s+{quoted_table}",
+            rf"\bJOIN\s+{quoted_table}",
+        )
     )
 
 

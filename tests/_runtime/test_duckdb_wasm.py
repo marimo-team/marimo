@@ -626,6 +626,62 @@ class TestDuckDBWasmQueryPatch:
         ]
 
     @staticmethod
+    def test_direct_literal_without_token_metadata_is_remote_source() -> None:
+        from sqlglot import exp
+
+        table = exp.Table(
+            this=exp.Identifier(this="https://example.com/a.csv", quoted=True)
+        )
+
+        source = remote_file_source_from_table(
+            table,
+            query="SELECT * FROM 'https://example.com/a.csv'",
+        )
+
+        assert source is not None
+        assert source.reader_name == "csv"
+        assert [file.url for file in source.files] == [
+            "https://example.com/a.csv"
+        ]
+
+    @staticmethod
+    def test_double_quoted_identifier_without_token_metadata_is_not_remote_source() -> (
+        None
+    ):
+        from sqlglot import exp
+
+        table = exp.Table(
+            this=exp.Identifier(this="https://example.com/a.csv", quoted=True)
+        )
+
+        source = remote_file_source_from_table(
+            table,
+            query='SELECT * FROM "https://example.com/a.csv"',
+        )
+
+        assert source is None
+
+    @staticmethod
+    def test_string_literal_without_token_metadata_does_not_make_identifier_remote() -> (
+        None
+    ):
+        from sqlglot import exp
+
+        table = exp.Table(
+            this=exp.Identifier(this="https://example.com/a.csv", quoted=True)
+        )
+
+        source = remote_file_source_from_table(
+            table,
+            query="""
+            SELECT 1, 'https://example.com/a.csv' AS label
+            FROM "https://example.com/a.csv"
+            """,
+        )
+
+        assert source is None
+
+    @staticmethod
     @pytest.mark.parametrize(
         "function_name",
         [
