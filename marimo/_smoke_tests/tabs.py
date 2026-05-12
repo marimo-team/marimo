@@ -105,22 +105,66 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    user = mo.vstack(
+    _user = mo.vstack(
         [
             mo.md("**Edit user**"),
-            mo.ui.text(label="First name"),
-            mo.ui.text(label="Last name"),
+            mo.ui.text(label="First name", value="Ada", placeholder="First name"),
+            mo.ui.text(
+                label="Last name", value="Lovelace", placeholder="Last name"
+            ),
+            mo.ui.text(
+                label="Email",
+                value="ada@example.com",
+                placeholder="name@example.com",
+            ),
+            mo.ui.text(
+                label="Phone",
+                value="+1 (555) 123-4567",
+                placeholder="+1 (555) ...",
+            ),
+            mo.ui.dropdown(
+                options=[
+                    "Developer",
+                    "Designer",
+                    "Product Manager",
+                    "Admin",
+                    "Other",
+                ],
+                value="Developer",
+                label="Role",
+            ),
         ]
     )
-    org = mo.vstack(
+    _org = mo.vstack(
         [
             mo.md("**Edit organization**"),
-            mo.ui.text(label="Organization", value="marimo"),
-            mo.ui.number(label="Employees", start=0, stop=1000),
+            mo.ui.text(
+                label="Organization",
+                value="marimo",
+                placeholder="Organization name",
+            ),
+            mo.ui.text(
+                label="Website",
+                value="https://marimo.ai",
+                placeholder="https://...",
+            ),
+            mo.ui.number(label="Employees", start=0, stop=10000, value=42),
+            mo.ui.dropdown(
+                options=[
+                    "Software",
+                    "Healthcare",
+                    "Finance",
+                    "Education",
+                    "Non-profit",
+                    "Other",
+                ],
+                value="Software",
+                label="Industry",
+            ),
         ]
     )
     mo.ui.tabs(
-        {"🧙 User": user, "🏢 Organization": org},
+        {"🧙 User": _user, "🏢 Organization": _org},
         orientation="vertical",
     )
     return

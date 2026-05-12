@@ -84,13 +84,13 @@ const TabComponent = ({
         value={internalValue}
         onValueChange={handleChange}
         orientation={orientation}
-        className={cn(isVertical && "flex flex-row items-start gap-3")}
+        className={cn(isVertical && "flex flex-row gap-3")}
       >
         <TabsList
           className={cn(
             "scrollbar-thin",
             isVertical
-              ? "flex flex-col items-stretch h-auto max-h-none shrink-0"
+              ? "flex flex-col items-stretch justify-start h-auto max-h-none shrink-0 min-w-[10rem] overflow-y-auto"
               : "max-w-full overflow-x-auto justify-start",
           )}
         >
