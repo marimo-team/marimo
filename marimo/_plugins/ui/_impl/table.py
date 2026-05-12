@@ -71,6 +71,7 @@ from marimo._runtime.context.types import (
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.hashable import is_hashable
+from marimo._utils.memoize import memoize_last_value
 from marimo._utils.methods import getcallable
 from marimo._utils.narwhals_utils import (
     can_narwhalify_lazyframe,
@@ -165,6 +166,8 @@ class SearchTableResponse:
     # Unformatted data mirroring the same shape/page as `data`,
     # provided when format_mapping is applied.
     raw_data: str | None = None
+    # JSON-serialized size of the currently-rendered (searched/filtered) data.
+    size_bytes: int | None = None
 
 
 @dataclass
@@ -794,6 +797,11 @@ class table(
                 "data": search_result_data,
                 "raw-data": search_result_raw_data,
                 "total-rows": total_rows,
+                "size-bytes": (
+                    self._get_json_size_bytes(self._manager)
+                    if not _internal_lazy
+                    else None
+                ),
                 "total-columns": num_columns,
                 "max-columns": max_columns_arg,
                 "banner-text": self._get_banner_text(),
@@ -915,6 +923,20 @@ class table(
                     indices
                 )
             return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
+
+    @memoize_last_value
+    def _get_json_size_bytes(self, manager: TableManager[Any]) -> int | None:
+        """Size in bytes of the manager's JSON serialization.
+
+        JSON is the largest format we export, so this is a conservative size estimate:
+        if the JSON fits under a host's download limit, CSV and Parquet will
+        too. Memoized on manager identity — recomputed when filters/search
+        produce a new ``_searched_manager``.
+        """
+        try:
+            return len(manager.to_json(strict_json=True))
+        except Exception:
+            return None
 
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the table data in the specified format.
@@ -1619,6 +1641,7 @@ class table(
                     offset, args.page_size, total_rows
                 ),
                 raw_data=raw_data,
+                size_bytes=self._get_json_size_bytes(self._manager),
             )
 
         filter_function = (
@@ -1649,6 +1672,7 @@ class table(
                 offset, args.page_size, total_rows
             ),
             raw_data=raw_data,
+            size_bytes=self._get_json_size_bytes(result),
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:

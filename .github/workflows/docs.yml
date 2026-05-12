@@ -41,7 +41,7 @@ jobs:
           python-version: 3.12
 
       - name: ⚡ Install Vercel CLI
-        run: npm install --global vercel@latest
+        run: npm install --ignore-scripts --global vercel@50.44.0
 
       - name: ⬇️ Pull Vercel Environment Information
         env:

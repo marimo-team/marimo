@@ -1,5 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { mapWithConcurrency } from "./semaphore";
+
+const FILE_READ_CONCURRENCY = 5;
+
 /**
  * Converts a Blob or File to either a base64-encoded string or a data URL.
  *
@@ -35,11 +39,8 @@ export function blobToString(
  * Returns a promised array of tuples [file name, file contents].
  */
 export function filesToBase64(files: File[]): Promise<[string, string][]> {
-  return Promise.all(
-    files.map((file) =>
-      blobToString(file, "base64").then(
-        (contents) => [file.name, contents] as [string, string],
-      ),
-    ),
-  );
+  return mapWithConcurrency(files, FILE_READ_CONCURRENCY, async (file) => {
+    const contents = await blobToString(file, "base64");
+    return [file.name, contents] as [string, string];
+  });
 }

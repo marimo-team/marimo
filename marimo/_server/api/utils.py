@@ -5,14 +5,19 @@ import os
 import subprocess
 import sys
 import webbrowser
+from dataclasses import dataclass
 from pathlib import Path
 from shutil import which
 from typing import (
     TYPE_CHECKING,
+    Any,
+    Generic,
     Protocol,
     TypeVar,
     runtime_checkable,
 )
+
+import msgspec
 
 from marimo._runtime.commands import CommandMessage
 from marimo._server.models.models import SuccessResponse
@@ -32,6 +37,47 @@ async def parse_request(
     return parse_raw(
         await request.body(), cls=cls, allow_unknown_keys=allow_unknown_keys
     )
+
+
+S = TypeVar("S", bound=msgspec.Struct)
+
+
+@dataclass
+class MultipartRequest(Generic[S]):
+    """Result of parsing a multipart/form-data request body."""
+
+    body: S
+    files: dict[str, bytes]
+
+
+async def parse_multipart_request(
+    request: Request, cls: type[S]
+) -> MultipartRequest[S]:
+    """Parse a multipart/form-data body into a msgspec.Struct + file bytes.
+
+    String form fields are validated against `cls`. File upload parts are
+    read fully into memory and returned in `files`, keyed by form-field
+    name (callers look them up explicitly rather than via the struct).
+
+    Raises msgspec.ValidationError if required string fields are missing
+    or invalid.
+    """
+    # Imported lazily so this module stays import-safe in environments
+    # without starlette (e.g. pyodide).
+    from starlette.datastructures import UploadFile
+
+    # Use as an async context manager so any spooled temp files backing
+    # UploadFile parts are closed after parsing.
+    async with request.form() as form:
+        string_payload: dict[str, Any] = {}
+        files: dict[str, bytes] = {}
+        for key, value in form.multi_items():
+            if isinstance(value, UploadFile):
+                files[key] = await value.read()
+            elif isinstance(value, str):
+                string_payload[key] = value
+    body = msgspec.convert(string_payload, cls, strict=False)
+    return MultipartRequest(body=body, files=files)
 
 
 @runtime_checkable
