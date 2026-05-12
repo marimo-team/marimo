@@ -552,9 +552,26 @@ class ThreadSafeStdin(Stdin):
             self._stream.console_msg_cv.notify()
 
         response = self._stream.input_queue.get()
+        # Defensive: the input queue is normally fed by the kernel's
+        # stdin handler with a str, but the shim contract is opaque
+        # JSON and we don't want the caller to crash on a malformed
+        # producer (e.g. a buggy frontend pushing bytes, or a future
+        # producer forgetting to decode). Enforce the str + size cap
+        # here so misuse surfaces as a clear ValueError instead of
+        # downstream encode-time errors or unbounded memory blowups.
+        if not isinstance(response, str):
+            raise TypeError(
+                f"auth response must be a str, not {type(response).__name__}"
+            )
+        response_bytes = len(response.encode("utf-8"))
+        if response_bytes > max_bytes:
+            raise ValueError(
+                f"auth response exceeds {max_bytes} bytes "
+                f"(got {response_bytes})"
+            )
         _auth_debug_log(
             "kernel <- frontend: received auth response "
-            f"(response_bytes={len(response.encode('utf-8'))})"
+            f"(response_bytes={response_bytes})"
         )
         return response
 

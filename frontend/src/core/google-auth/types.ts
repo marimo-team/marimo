@@ -89,14 +89,39 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((s) => typeof s === "string");
 }
 
-export function isMarimoGauthResult(
-  value: unknown,
-): value is MarimoGauthResultMessage {
+const KNOWN_GAUTH_ERROR_CODES: readonly GauthErrorCode[] = [
+  "unauthorized",
+  "user_cancelled",
+  "popup_blocked",
+  "scope_denied",
+  "link_required",
+  "rate_limited",
+  "server_error",
+  "timeout",
+];
+
+function isGauthErrorCode(value: unknown): value is GauthErrorCode {
+  return (
+    typeof value === "string" &&
+    (KNOWN_GAUTH_ERROR_CODES as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * Validates the envelope fields shared by every result variant
+ * (`type` / `protocol_version` / `request_id`). The status-specific
+ * payload check is layered on top by `isMarimoGauthResult` so each
+ * variant only accepts its own required fields.
+ */
+function hasResultEnvelope(value: unknown): value is {
+  type: "MARIMO_GAUTH_RESULT";
+  protocol_version: number;
+  request_id: string;
+  status: unknown;
+} {
   if (typeof value !== "object" || value === null) {
     return false;
   }
-  // The `in` operator narrows `value` to include the property as
-  // `unknown`, letting us read it without a Record-cast.
   return (
     "type" in value &&
     value.type === "MARIMO_GAUTH_RESULT" &&
@@ -104,9 +129,46 @@ export function isMarimoGauthResult(
     typeof value.protocol_version === "number" &&
     "request_id" in value &&
     typeof value.request_id === "string" &&
-    "status" in value &&
-    (value.status === "ok" || value.status === "error")
+    "status" in value
   );
+}
+
+function isMarimoGauthResultOk(
+  value: unknown,
+): value is MarimoGauthResultOkMessage {
+  if (!hasResultEnvelope(value) || value.status !== "ok") {
+    return false;
+  }
+  return (
+    "access_token" in value &&
+    typeof value.access_token === "string" &&
+    "expires_at" in value &&
+    typeof value.expires_at === "number" &&
+    "scope" in value &&
+    typeof value.scope === "string" &&
+    "token_type" in value &&
+    value.token_type === "Bearer"
+  );
+}
+
+function isMarimoGauthResultError(
+  value: unknown,
+): value is MarimoGauthResultErrorMessage {
+  if (!hasResultEnvelope(value) || value.status !== "error") {
+    return false;
+  }
+  return (
+    "error_code" in value &&
+    isGauthErrorCode(value.error_code) &&
+    "error_message" in value &&
+    typeof value.error_message === "string"
+  );
+}
+
+export function isMarimoGauthResult(
+  value: unknown,
+): value is MarimoGauthResultMessage {
+  return isMarimoGauthResultOk(value) || isMarimoGauthResultError(value);
 }
 
 export function isMarimoGauthNeedsLink(

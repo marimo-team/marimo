@@ -49,6 +49,7 @@ def test_write_adc_contents(adc_paths):
 def test_write_adc_custom_path_sets_env(tmp_path, monkeypatch):
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    monkeypatch.setattr(_adc, "_ENV_VAR_PATHS_WE_OWN", set())
     custom_adc = tmp_path / "custom" / "adc.json"
 
     _adc.write_adc(
@@ -59,6 +60,48 @@ def test_write_adc_custom_path_sets_env(tmp_path, monkeypatch):
     )
 
     assert os.environ["GOOGLE_APPLICATION_CREDENTIALS"] == str(custom_adc)
+
+
+def test_write_adc_default_path_clears_our_stale_env_var(tmp_path, monkeypatch):
+    """Writing to the default path must clear a stale env var **we** set.
+
+    Regression: the docstring promised this behavior but the original
+    implementation never unset the variable, so a later default-path
+    write would still be shadowed by the earlier custom-path env var.
+    """
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    monkeypatch.setattr(_adc, "_ENV_VAR_PATHS_WE_OWN", set())
+    custom_adc = tmp_path / "custom" / "adc.json"
+
+    _adc.write_adc(
+        access_token="t",
+        expires_at=1,
+        scopes=[],
+        adc_path=custom_adc,
+    )
+    assert os.environ["GOOGLE_APPLICATION_CREDENTIALS"] == str(custom_adc)
+
+    # Subsequent write to the default path: the previously-set env
+    # var was ours, so we must remove it.
+    _adc.write_adc(access_token="t", expires_at=1, scopes=[])
+    assert "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ
+
+
+def test_write_adc_default_path_preserves_user_env_var(tmp_path, monkeypatch):
+    """A user-set env var (e.g. service account key) must not be clobbered.
+
+    If ``GOOGLE_APPLICATION_CREDENTIALS`` points somewhere we never set
+    it to, we have to assume it's intentional and leave it alone.
+    """
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    user_path = tmp_path / "user-service-account.json"
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", str(user_path))
+    monkeypatch.setattr(_adc, "_ENV_VAR_PATHS_WE_OWN", set())
+
+    _adc.write_adc(access_token="t", expires_at=1, scopes=[])
+
+    assert os.environ["GOOGLE_APPLICATION_CREDENTIALS"] == str(user_path)
 
 
 def test_write_adc_file_mode_is_restrictive(adc_paths):

@@ -28,7 +28,7 @@ export const AUTH_REQUEST_MIMETYPE = "application/x-marimo-auth-request";
  */
 interface AuthRequestPayload {
   request_id: string;
-  provider: string;
+  provider: "google";
   scopes: string[];
   include_granted_scopes?: boolean;
   hosted_domain?: string | null;
@@ -59,19 +59,29 @@ function parsePayload(payload: string): ParseResult {
     "request_id" in raw && typeof raw.request_id === "string"
       ? raw.request_id
       : null;
-  const provider =
+  const providerRaw =
     "provider" in raw && typeof raw.provider === "string" ? raw.provider : null;
-  const scopesRaw = "scopes" in raw ? raw.scopes : undefined;
-  // `Array.isArray` widens to `any[]`; filter narrows each element.
-  const scopes: string[] = Array.isArray(scopesRaw)
-    ? scopesRaw.filter((s): s is string => typeof s === "string")
-    : [];
-  if (!requestId || !provider) {
+  if (!requestId || !providerRaw) {
     return {
       payload: null,
       error: "Missing required field: request_id or provider",
     };
   }
+  // `provider` is part of the wire protocol but only `"google"` is
+  // implemented today. Reject anything else explicitly so a shim
+  // typo (or a malicious cell) doesn't render an auth UI that
+  // silently funnels through the Google-specific bridge.
+  if (providerRaw !== "google") {
+    return {
+      payload: null,
+      error: `Unsupported auth provider: ${providerRaw}`,
+    };
+  }
+  const scopesRaw = "scopes" in raw ? raw.scopes : undefined;
+  // `Array.isArray` widens to `any[]`; filter narrows each element.
+  const scopes: string[] = Array.isArray(scopesRaw)
+    ? scopesRaw.filter((s): s is string => typeof s === "string")
+    : [];
   const includeGrantedScopes =
     "include_granted_scopes" in raw &&
     typeof raw.include_granted_scopes === "boolean"
@@ -84,7 +94,7 @@ function parsePayload(payload: string): ParseResult {
   return {
     payload: {
       request_id: requestId,
-      provider,
+      provider: "google",
       scopes,
       include_granted_scopes: includeGrantedScopes,
       hosted_domain: hostedDomain,

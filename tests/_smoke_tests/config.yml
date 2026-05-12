@@ -79,6 +79,12 @@ files:
   # Login
   integrations/google_sheets.py:
     skip: true
+  # Interactive: blocks on sys.stdin._request_auth
+  google_auth_round_trip.py:
+    skip: true
+  # Interactive + requires editable marimo-google-auth install.
+  google_colab_auth_round_trip.py:
+    skip: true
   embeddings/debugging_embeddings.py:
     skip: true
   embeddings/embedding_numbers.py:

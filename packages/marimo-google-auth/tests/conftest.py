@@ -62,6 +62,8 @@ def adc_paths(tmp_path, monkeypatch: pytest.MonkeyPatch):
     Returns a ``(adc_path, sidecar_path)`` tuple. Also ensures
     ``GOOGLE_APPLICATION_CREDENTIALS`` is reset around the test.
     """
+    from google.colab import _adc
+
     adc_path = tmp_path / "adc.json"
     sidecar_path = tmp_path / "sidecar.json"
 
@@ -69,8 +71,11 @@ def adc_paths(tmp_path, monkeypatch: pytest.MonkeyPatch):
     # paths, so we exercise the production path-construction logic too.
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
 
-    # Reset the env var (test isolation).
+    # Reset the env var and the process-local "paths we set" set so
+    # tests don't see GOOGLE_APPLICATION_CREDENTIALS leakage from
+    # prior cases that wrote to a custom path.
     monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    monkeypatch.setattr(_adc, "_ENV_VAR_PATHS_WE_OWN", set())
 
     return adc_path, sidecar_path
 

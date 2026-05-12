@@ -121,6 +121,13 @@ export function startGoogleAuthFromParent(
     if (settled) {
       return;
     }
+    // Token injection guard: only the parent frame is allowed to
+    // deliver auth results. Any other window posting at us — sibling
+    // iframes, devtools-injected scripts, opened popups — is a
+    // spoof attempt and must be ignored without inspection.
+    if (event.source !== window.parent) {
+      return;
+    }
     if (isMarimoGauthResult(event.data)) {
       const result = event.data;
       if (result.request_id !== requestId) {

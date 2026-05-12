@@ -48,6 +48,27 @@ describe("startGoogleAuthFromParent", () => {
   let parentPostedMessages: unknown[] = [];
   let mockParent: { postMessage: (msg: unknown, origin: string) => void };
 
+  /**
+   * Dispatch a `message` event that the iframe-side handler will
+   * accept. We force `event.source === window.parent` because the
+   * production handler rejects everything else as a token-injection
+   * spoof attempt. Tests must opt into "looks like the parent" via
+   * this helper so the security check stays unit-tested rather than
+   * silently bypassed.
+   */
+  function dispatchFromParent(data: unknown): void {
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data,
+        // jsdom's MessageEvent constructor types `source` as
+        // `MessageEventSource | null`; our mock parent is a plain
+        // object, so cast through `unknown` rather than fabricating a
+        // full Window.
+        source: window.parent as unknown as Window,
+      }),
+    );
+  }
+
   beforeEach(() => {
     parentPostedMessages = [];
     mockParent = {
@@ -92,7 +113,7 @@ describe("startGoogleAuthFromParent", () => {
       scope: "https://www.googleapis.com/auth/drive",
       token_type: "Bearer",
     };
-    window.dispatchEvent(new MessageEvent("message", { data: reply }));
+    dispatchFromParent(reply);
 
     await expect(handle.promise).resolves.toEqual(reply);
   });
@@ -116,7 +137,7 @@ describe("startGoogleAuthFromParent", () => {
       missing_scopes: ["https://www.googleapis.com/auth/drive"],
       additional_scopes: ["https://www.googleapis.com/auth/drive"],
     };
-    window.dispatchEvent(new MessageEvent("message", { data: needsLink }));
+    dispatchFromParent(needsLink);
 
     expect(onNeedsLink).toHaveBeenCalledTimes(1);
     const [msg, sendOpenLink] = onNeedsLink.mock.calls[0]!;
@@ -141,33 +162,25 @@ describe("startGoogleAuthFromParent", () => {
       onNeedsLink,
     });
 
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        data: {
-          type: "MARIMO_GAUTH_NEEDS_LINK",
-          protocol_version: PROTOCOL_VERSION,
-          request_id: "req-3",
-          missing_scopes: ["a"],
-          additional_scopes: ["a"],
-        },
-      }),
-    );
+    dispatchFromParent({
+      type: "MARIMO_GAUTH_NEEDS_LINK",
+      protocol_version: PROTOCOL_VERSION,
+      request_id: "req-3",
+      missing_scopes: ["a"],
+      additional_scopes: ["a"],
+    });
 
     // Some time later, parent finishes the popup flow.
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        data: {
-          type: "MARIMO_GAUTH_RESULT",
-          protocol_version: PROTOCOL_VERSION,
-          request_id: "req-3",
-          status: "ok",
-          access_token: "tok",
-          expires_at: 0,
-          scope: "a",
-          token_type: "Bearer",
-        },
-      }),
-    );
+    dispatchFromParent({
+      type: "MARIMO_GAUTH_RESULT",
+      protocol_version: PROTOCOL_VERSION,
+      request_id: "req-3",
+      status: "ok",
+      access_token: "tok",
+      expires_at: 0,
+      scope: "a",
+      token_type: "Bearer",
+    });
 
     await expect(handle.promise).resolves.toMatchObject({
       status: "ok",
@@ -183,16 +196,44 @@ describe("startGoogleAuthFromParent", () => {
       timeoutMs: 50,
     });
 
+    dispatchFromParent({
+      type: "MARIMO_GAUTH_RESULT",
+      protocol_version: PROTOCOL_VERSION,
+      request_id: "req-other",
+      status: "ok",
+      access_token: "wrong",
+      expires_at: 0,
+      scope: "",
+      token_type: "Bearer",
+    });
+
+    await expect(handle.promise).rejects.toMatchObject({
+      name: "GauthParentBridgeError",
+      code: "timeout",
+    });
+  });
+
+  it("rejects messages whose event.source is not window.parent", async () => {
+    const handle = startGoogleAuthFromParent({
+      requestId: "req-spoof",
+      scopes: ["a"],
+      timeoutMs: 50,
+    });
+
+    // Forged result message dispatched without a `source` set — i.e.
+    // pretending to come from no particular window. The handler must
+    // ignore it and time out instead of resolving with the attacker's
+    // `access_token`.
     window.dispatchEvent(
       new MessageEvent("message", {
         data: {
           type: "MARIMO_GAUTH_RESULT",
           protocol_version: PROTOCOL_VERSION,
-          request_id: "req-other",
+          request_id: "req-spoof",
           status: "ok",
-          access_token: "wrong",
+          access_token: "attacker-token",
           expires_at: 0,
-          scope: "",
+          scope: "a",
           token_type: "Bearer",
         },
       }),

@@ -73,6 +73,13 @@ _REFRESH_TOKEN_SENTINEL = (
 _CLIENT_ID_SENTINEL = "marimo-google-auth.stub.apps.googleusercontent.com"
 _CLIENT_SECRET_SENTINEL = "MARIMO_GOOGLE_AUTH:NOT_A_REAL_CLIENT_SECRET"
 
+# Custom (non-default) ADC paths we have set ``GOOGLE_APPLICATION_CREDENTIALS``
+# to during this process. When ``write_adc`` later writes to the *default* ADC
+# path, we use this set to detect (and unset) a stale env var we own —
+# without ever clobbering a service-account key the user pointed the env var
+# at themselves.
+_ENV_VAR_PATHS_WE_OWN: set[str] = set()
+
 
 def default_adc_path() -> Path:
     """Standard ADC discovery path used by ``google.auth.default()``.
@@ -133,13 +140,32 @@ def write_adc(
     _atomic_write_json(resolved_adc, adc_doc, mode=0o600)
     _atomic_write_json(resolved_sidecar, sidecar_doc, mode=0o600)
 
-    # Only override the env var when ADC isn't at the default path.
     # google.auth.default() reads GOOGLE_APPLICATION_CREDENTIALS first,
-    # so setting it would shadow the default. For the default path, we
-    # *unset* it iff it's pointing somewhere stale we wrote earlier.
+    # so we have to think about that env var on every write:
+    #
+    #   - Non-default ADC path: point the env var at it so libraries
+    #     discover the freshly-written file. Remember the path so we
+    #     can clean it up later.
+    #   - Default ADC path: if the env var currently points at a path
+    #     **we** set during a previous non-default write, clear it so
+    #     the default-path file we just wrote is what discovery picks
+    #     up. We never touch the env var when its current value
+    #     wasn't set by us (e.g. a user-provided service-account key
+    #     path).
     if resolved_adc != default_adc_path():
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(resolved_adc)
+        _ENV_VAR_PATHS_WE_OWN.add(str(resolved_adc))
         LOGGER.debug("set GOOGLE_APPLICATION_CREDENTIALS=%s", resolved_adc)
+    else:
+        current = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        if current is not None and current in _ENV_VAR_PATHS_WE_OWN:
+            os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
+            _ENV_VAR_PATHS_WE_OWN.discard(current)
+            LOGGER.debug(
+                "cleared stale GOOGLE_APPLICATION_CREDENTIALS=%s "
+                "(we now write to the default ADC path)",
+                current,
+            )
 
     return resolved_adc
 
