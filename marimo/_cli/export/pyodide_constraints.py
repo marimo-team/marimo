@@ -33,7 +33,9 @@ _LOCKFILE_URL = f"https://wasm.marimo.app/pyodide-lock.json?v={__version__}"
 
 
 def _read_lockfile(pyodide_version: str) -> dict[str, Any]:
-    del pyodide_version  # the marimo-hosted lockfile is version-pinned server-side
+    del (
+        pyodide_version
+    )  # the marimo-hosted lockfile is version-pinned server-side
     override = os.environ.get(PYODIDE_LOCK_FILE_ENV)
     if override:
         with open(override, "rb") as f:
