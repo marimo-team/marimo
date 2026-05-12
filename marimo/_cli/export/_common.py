@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any
 
 import click
 
-from marimo._server.file_router import flatten_files
 from marimo._server.files.directory_scanner import DirectoryScanner
+from marimo._server.workspace import flatten_files
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
 

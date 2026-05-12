@@ -18,9 +18,9 @@ from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from marimo._server.file_router import MarimoFileKey
     from marimo._server.rtc.doc import LoroDocManager
     from marimo._server.session_manager import SessionManager
+    from marimo._server.workspace import MarimoFileKey
     from marimo._session import Session
 
 LOGGER = _loggers.marimo_logger()

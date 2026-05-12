@@ -1535,6 +1535,77 @@ def test_get_sample_values(df: Any) -> None:
     assert sample_values == ["b'bytes1'", "b'bytes2'", "b'bytes3'"]
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="polars not installed")
+def test_get_sample_values_nested_struct_is_bounded() -> None:
+    import polars as pl
+
+    def build_payload(row_idx: int, depth: int):
+        base = {
+            "kind": chr(65 + (row_idx % 26)),
+            "scores": [row_idx + 1, row_idx + 2, row_idx + 3],
+            "meta": {"city": "Zurich", "active": row_idx % 2 == 0},
+        }
+        if depth == 0:
+            return base
+        return {
+            "level": depth,
+            "items": [
+                base,
+                {
+                    "branch": row_idx,
+                    "child": build_payload(row_idx, depth - 1),
+                },
+            ],
+            "summary": {"row": row_idx, "depth": depth},
+        }
+
+    df = pl.DataFrame({"payload": [build_payload(i, 8) for i in range(3)]})
+    manager = NarwhalsTableManager.from_dataframe(
+        nw.from_native(df, eager_only=True)
+    )
+
+    t0 = time.perf_counter()
+    samples = manager.get_sample_values("payload")
+    elapsed = time.perf_counter() - t0
+
+    assert len(samples) == 3
+    assert elapsed < 1.0, (
+        f"get_sample_values took {elapsed:.2f}s (expected < 1s)"
+    )
+    for s in samples:
+        assert isinstance(s, str)
+        assert len(s) < 1_000_000
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="polars not installed")
+def test_get_sample_values_nested_struct_is_json() -> None:
+    import polars as pl
+
+    df = pl.DataFrame({"x": [{"a": 1, "b": [1, 2, 3]}]})
+    manager = NarwhalsTableManager.from_dataframe(
+        nw.from_native(df, eager_only=True)
+    )
+
+    samples = manager.get_sample_values("x")
+    assert len(samples) == 1
+    assert samples[0].startswith('{"')
+    parsed = json.loads(samples[0])
+    assert parsed == {"a": 1, "b": [1, 2, 3]}
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="polars not installed")
+def test_get_sample_values_nested_struct_with_non_json_leaf() -> None:
+    import polars as pl
+
+    df = pl.DataFrame({"x": [{"when": datetime.datetime(2026, 1, 1), "n": 1}]})
+    manager = NarwhalsTableManager.from_dataframe(
+        nw.from_native(df, eager_only=True)
+    )
+    samples = manager.get_sample_values("x")
+    assert len(samples) == 1
+    assert "2026" in samples[0]
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",

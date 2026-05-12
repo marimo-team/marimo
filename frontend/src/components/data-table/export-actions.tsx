@@ -12,7 +12,7 @@ import { useLocale } from "react-aria";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
-import { downloadByURL } from "@/utils/download";
+import { downloadByURL, withLoadingToast } from "@/utils/download";
 import { prettyError } from "@/utils/errors";
 import { Filenames } from "@/utils/filenames";
 import {
@@ -32,17 +32,6 @@ import {
 } from "../ui/dropdown-menu";
 import { Tooltip } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
-
-type DownloadFormat = "csv" | "json" | "parquet";
-
-export interface ExportActionProps {
-  downloadAs: (req: { format: DownloadFormat }) => Promise<{
-    url: string;
-    filename: string;
-    error?: string | null;
-    missing_packages?: string[] | null;
-  }>;
-}
 
 const FILE_TYPES = {
   CSV: {
@@ -84,8 +73,23 @@ const copyOptions = [
   FILE_TYPES.CSV,
   FILE_TYPES.MARKDOWN,
 ];
+
+type DownloadFormat = (typeof downloadOptions)[number]["format"];
+type CopyFormat = (typeof copyOptions)[number]["format"];
+
+export interface ExportActionProps {
+  downloadAs: (req: { format: DownloadFormat }) => Promise<{
+    url: string;
+    filename: string;
+    error?: string | null;
+    missing_packages?: string[] | null;
+  }>;
+}
+
 const labelForDownloadFormat = (format: DownloadFormat): string =>
   downloadOptions.find((opt) => opt.format === format)?.label ?? format;
+const labelForCopyFormat = (format: CopyFormat): string =>
+  copyOptions.find((opt) => opt.format === format)?.label ?? format;
 
 export const ExportMenu: React.FC<ExportActionProps> = (props) => {
   const { locale } = useLocale();
@@ -143,71 +147,84 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
   };
 
   const handleDownload = async (format: DownloadFormat) => {
-    const result = await resolveDownloadUrl(format, () => {
-      void handleDownload(format);
-    });
-    if (!result) {
-      return;
+    const label = labelForDownloadFormat(format);
+    const ok = await withLoadingToast(
+      `Preparing ${label} export...`,
+      async () => {
+        const result = await resolveDownloadUrl(format, () => {
+          void handleDownload(format);
+        });
+        if (!result) {
+          return false;
+        }
+        const rawName = (result.filename ?? "").trim();
+        const baseName = Filenames.withoutExtension(rawName) || "download";
+        const downloadName = `${baseName}.${format}`;
+        // Append ?download=1 so the server returns Content-Disposition: attachment.
+        // This forces a save even when <a download> is ignored — e.g., inside
+        // sandboxed iframes that lack `allow-downloads`. Skip for data: URLs
+        // (used in pyodide/wasm) since query params would corrupt the payload.
+        let downloadUrl = result.url;
+        if (!downloadUrl.startsWith("data:")) {
+          const separator = downloadUrl.includes("?") ? "&" : "?";
+          const params = new URLSearchParams({
+            download: "1",
+            filename: downloadName,
+          });
+          downloadUrl = `${downloadUrl}${separator}${params.toString()}`;
+        }
+        downloadByURL(downloadUrl, downloadName);
+        return true;
+      },
+    );
+    if (ok) {
+      toast({ title: `${label} download started` });
     }
-    const rawName = (result.filename ?? "").trim();
-    const baseName = Filenames.withoutExtension(rawName) || "download";
-    const downloadName = `${baseName}.${format}`;
-    // Append ?download=1 so the server returns Content-Disposition: attachment.
-    // This forces a save even when <a download> is ignored — e.g., inside
-    // sandboxed iframes that lack `allow-downloads`. Skip for data: URLs
-    // (used in pyodide/wasm) since query params would corrupt the payload.
-    let downloadUrl = result.url;
-    if (!downloadUrl.startsWith("data:")) {
-      const separator = downloadUrl.includes("?") ? "&" : "?";
-      const params = new URLSearchParams({
-        download: "1",
-        filename: downloadName,
-      });
-      downloadUrl = `${downloadUrl}${separator}${params.toString()}`;
-    }
-    downloadByURL(downloadUrl, downloadName);
   };
 
-  const handleClipboardCopy = async (
-    format: (typeof copyOptions)[number]["format"],
-  ) => {
-    const sourceFormat: DownloadFormat = format === "csv" ? "csv" : "json";
-    const result = await resolveDownloadUrl(sourceFormat, () => {
-      void handleClipboardCopy(format);
-    });
-    if (!result) {
-      return;
-    }
+  const handleClipboardCopy = async (format: CopyFormat) => {
+    await withLoadingToast(
+      `Preparing ${labelForCopyFormat(format)} for clipboard...`,
+      async () => {
+        const sourceFormat: DownloadFormat = format === "csv" ? "csv" : "json";
+        const result = await resolveDownloadUrl(sourceFormat, () => {
+          void handleClipboardCopy(format);
+        });
+        if (!result) {
+          return;
+        }
 
-    let text: string;
-    switch (format) {
-      case "tsv": {
-        const json = await fetchJson(result.url);
-        text = jsonToTSV(json, locale);
-        break;
-      }
-      case "json": {
-        const json = await fetchJson(result.url);
-        text = JSON.stringify(json, null, 2);
-        break;
-      }
-      case "csv":
-        text = await fetchText(result.url);
-        break;
-      case "markdown": {
-        const json = await fetchJson(result.url);
-        text = jsonToMarkdown(json);
-        break;
-      }
-      default:
-        logNever(format);
-        return;
-    }
+        let text: string;
+        switch (format) {
+          case "tsv": {
+            const json = await fetchJson(result.url);
+            text = jsonToTSV(json, locale);
+            break;
+          }
+          case "json": {
+            const json = await fetchJson(result.url);
+            text = JSON.stringify(json, null, 2);
+            break;
+          }
+          case "csv":
+            text = await fetchText(result.url);
+            break;
+          case "markdown": {
+            const json = await fetchJson(result.url);
+            text = jsonToMarkdown(json);
+            break;
+          }
+          default:
+            logNever(format);
+            return;
+        }
 
-    await copyToClipboard(text);
-    toast({
-      title: "Copied to clipboard",
-    });
+        await copyToClipboard(text);
+        toast({
+          title: "Copied to clipboard",
+        });
+      },
+    );
   };
 
   return (

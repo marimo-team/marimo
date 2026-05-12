@@ -49,7 +49,7 @@ def text_to_notebook(prompt: str) -> str:
     if _should_show_terms(state.accepted_text_to_notebook_terms_at):
         # User hasn't accepted terms
         print_(bold(TERMS))
-        print_(bold("Do you accept these terms? (y/n)"))
+        print_(bold("Do you accept these terms? (y/N)"))
 
         response = input().strip().lower()
         if response != "y":

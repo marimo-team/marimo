@@ -360,7 +360,10 @@ export async function insertImage(view: EditorView, file: File) {
             notebookDir &&
             savedFilePath.startsWith(notebookDir)
           ) {
-            savedFilePath = Paths.rest(savedFilePath, notebookDir);
+            savedFilePath = Paths.rest(savedFilePath, notebookDir).replaceAll(
+              "\\",
+              "/",
+            );
           }
 
           toast({

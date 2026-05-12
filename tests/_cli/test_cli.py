@@ -29,16 +29,16 @@ from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
 from marimo._cli.cli import (
     _collect_marimo_files,
-    _create_run_file_router,
+    _create_run_workspace,
     main as cli_main,
 )
 from marimo._config.manager import get_default_config_manager
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._server.file_router import (
-    LazyListOfFilesAppFileRouter,
-    ListOfFilesAppFileRouter,
-)
 from marimo._server.templates.templates import get_version
+from marimo._server.workspace import (
+    DirectoryWorkspace,
+    FixedFilesWorkspace,
+)
 from marimo._utils.platform import is_windows
 from marimo._utils.toml import toml_reader
 
@@ -1173,30 +1173,30 @@ def test_collect_marimo_files_excludes_marimo_generated_markdown(
     assert str(generated_md) not in paths
 
 
-def test_create_run_file_router_watch_single_directory_is_lazy(
+def test_create_run_workspace_watch_single_directory_is_lazy(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "one.py").write_text(
         "import marimo\napp = marimo.App()\n", encoding="utf-8"
     )
 
-    router = _create_run_file_router([str(tmp_path)], watch=True)
-    assert isinstance(router, LazyListOfFilesAppFileRouter)
-    assert router.include_markdown is True
+    workspace = _create_run_workspace([str(tmp_path)], watch=True)
+    assert isinstance(workspace, DirectoryWorkspace)
+    assert workspace.include_markdown is True
 
 
-def test_create_run_file_router_no_watch_single_directory_is_static(
+def test_create_run_workspace_no_watch_single_directory_is_static(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "one.py").write_text(
         "import marimo\napp = marimo.App()\n", encoding="utf-8"
     )
 
-    router = _create_run_file_router([str(tmp_path)], watch=False)
-    assert isinstance(router, ListOfFilesAppFileRouter)
+    workspace = _create_run_workspace([str(tmp_path)], watch=False)
+    assert isinstance(workspace, FixedFilesWorkspace)
 
 
-def test_create_run_file_router_watch_mixed_paths_is_static(
+def test_create_run_workspace_watch_mixed_paths_is_static(
     tmp_path: Path,
 ) -> None:
     directory = tmp_path / "gallery"
@@ -1209,10 +1209,10 @@ def test_create_run_file_router_watch_mixed_paths_is_static(
         "import marimo\napp = marimo.App()\n", encoding="utf-8"
     )
 
-    router = _create_run_file_router(
+    workspace = _create_run_workspace(
         [str(directory), str(standalone)], watch=True
     )
-    assert isinstance(router, ListOfFilesAppFileRouter)
+    assert isinstance(workspace, FixedFilesWorkspace)
 
 
 def test_cli_run_with_show_code(temp_marimo_file: str) -> None:

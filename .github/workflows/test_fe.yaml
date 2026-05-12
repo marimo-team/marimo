@@ -30,6 +30,7 @@ jobs:
             frontend:
               - 'frontend/**'
               - 'packages/**'
+              - 'pnpm-workspace.yaml'
 
   lint_frontend:
     needs: changes

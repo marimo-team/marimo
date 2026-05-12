@@ -3408,6 +3408,7 @@ export interface components {
      *         - `github`: the GitHub config
      *         - `openrouter`: the OpenRouter config
      *         - `wandb`: the Weights & Biases config
+     *         - `opencode_go`: the OpenCode Go config
      *         - `custom_providers`: a dict of custom OpenAI-compatible providers
      *         - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
      */
@@ -3428,6 +3429,7 @@ export interface components {
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];
       open_ai_compatible?: components["schemas"]["OpenAiConfig"];
+      opencode_go?: components["schemas"]["OpenAiConfig"];
       openrouter?: components["schemas"]["OpenAiConfig"];
       rules?: string;
       wandb?: components["schemas"]["OpenAiConfig"];
@@ -6056,16 +6058,13 @@ export interface components {
     };
     /**
      * SetConfig
-     * @description Partially update a cell's config. None fields are unchanged.
+     * @description Replace a cell's config.
      */
     SetConfig: {
       cellId: components["schemas"]["CellId"];
-      /** @default null */
-      column?: number | null;
-      /** @default null */
-      disabled?: boolean | null;
-      /** @default null */
-      hideCode?: boolean | null;
+      column: number | null;
+      disabled: boolean;
+      hideCode: boolean;
       /** @enum {unknown} */
       type: "set-config";
     };
@@ -6432,7 +6431,12 @@ export interface components {
         | components["schemas"]["SetConfig"]
       )[];
       /** @enum {unknown} */
-      source: "code-mode" | "file-watch" | "frontend" | "kernel";
+      source:
+        | "cell-manager"
+        | "code-mode"
+        | "file-watch"
+        | "frontend"
+        | "kernel";
       /** @default null */
       version?: number | null;
     };

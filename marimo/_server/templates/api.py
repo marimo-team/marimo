@@ -7,6 +7,7 @@ to HTML without needing to use internal template functions directly.
 
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -25,6 +26,7 @@ from marimo._session.model import SessionMode
 from marimo._utils.code import hash_code
 
 
+@functools.lru_cache(maxsize=1)
 def _get_html_template() -> str:
     """Get the base HTML template."""
     from marimo._utils.paths import marimo_package_path

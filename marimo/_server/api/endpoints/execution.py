@@ -18,7 +18,6 @@ from marimo._server.api.endpoints.ws.ws_connection_validator import (
 )
 from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._server.api.utils import dispatch_control_request, parse_request
-from marimo._server.file_router import MarimoFileKey
 from marimo._server.models.models import (
     BaseResponse,
     DebugCellRequest,
@@ -32,6 +31,7 @@ from marimo._server.models.models import (
 )
 from marimo._server.router import APIRouter
 from marimo._server.uvicorn_utils import close_uvicorn
+from marimo._server.workspace import MarimoFileKey
 from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
@@ -426,7 +426,7 @@ async def restart_session(
     # Close RTC doc if it exists
     file_key: MarimoFileKey | None = (
         app_state.query_params(FILE_QUERY_PARAM_KEY)
-        or session_manager.file_router.get_unique_file_key()
+        or session_manager.workspace.get_unique_file_key()
         or session.app_file_manager.path
     )
     if file_key is not None:
@@ -461,7 +461,7 @@ async def shutdown(
     LOGGER.debug("Received shutdown request")
     app_state = AppState(request)
     session_manager = app_state.session_manager
-    file_router = session_manager.file_router
+    workspace = session_manager.workspace
 
     def shutdown_server() -> None:
         app_state.session_manager.shutdown()
@@ -470,7 +470,7 @@ async def shutdown(
     # If we are only operating on a single file (new or explicit file),
     # and there are no other sessions (user may have opened another notebook
     # from the file explorer) then we should shutdown the whole server
-    key = file_router.get_unique_file_key()
+    key = workspace.get_unique_file_key()
     if key and len(session_manager.sessions) <= 1:
         shutdown_server()
         return SuccessResponse()
@@ -516,7 +516,7 @@ async def takeover_endpoint(
 
     file_key: MarimoFileKey | None = (
         app_state.query_params(FILE_QUERY_PARAM_KEY)
-        or app_state.session_manager.file_router.get_unique_file_key()
+        or app_state.session_manager.workspace.get_unique_file_key()
     )
     if file_key is None:
         LOGGER.error("No file key provided")

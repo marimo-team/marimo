@@ -325,3 +325,42 @@ def test_contains_instance_recursive() -> None:
     for _ in range(5):
         value.append(value)
     assert contains_instance(value, A) is True
+
+
+def test_contains_instance_no_iter_tuple() -> None:
+    class NoIterTuple(tuple):
+        def __iter__(self):
+            raise AttributeError("iter throws")
+
+    collection = NoIterTuple((1, 2, 3))
+    assert contains_instance(collection, NoIterTuple) is False
+    assert contains_instance(collection, tuple) is False
+    assert (
+        contains_instance(collection, int) is False
+    )  # Cannot probe opaque collection
+
+
+def test_contains_instance_no_iter_list() -> None:
+    class NoIterList(list):
+        def __iter__(self):
+            raise AttributeError("iter throws")
+
+    collection = NoIterList([1, 2, 3])
+    assert contains_instance(collection, NoIterList) is False
+    assert contains_instance(collection, list) is False
+    assert (
+        contains_instance(collection, int) is False
+    )  # Cannot probe opaque collection
+
+
+def test_contains_instance_no_iter_dict() -> None:
+    class NoValuesDict(dict):
+        def values(self):
+            raise AttributeError("values() throws")
+
+    collection = NoValuesDict({"a": 1, "b": 2, "c": 3})
+    assert contains_instance(collection, NoValuesDict) is False
+    assert contains_instance(collection, dict) is False
+    assert (
+        contains_instance(collection, int) is False
+    )  # Cannot probe opaque collection

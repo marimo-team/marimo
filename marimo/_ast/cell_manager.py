@@ -229,7 +229,7 @@ class CellManager:
                         config=resolved_config,
                     ),
                 ),
-                source="cell_manager",
+                source="cell-manager",
             )
         )
         self._compiled_cells[cell_id] = cell

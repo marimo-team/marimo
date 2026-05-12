@@ -13,10 +13,6 @@ from starlette.responses import JSONResponse
 from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
-from marimo._server.file_router import (
-    count_files,
-    flatten_files,
-)
 from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.models.home import (
     MarimoFile,
@@ -28,6 +24,10 @@ from marimo._server.models.home import (
     WorkspaceFilesResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._server.workspace import (
+    count_files,
+    flatten_files,
+)
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._tutorials import create_temp_tutorial_file  # type: ignore
 from marimo._utils.http import HTTPException, HTTPStatus
@@ -60,9 +60,9 @@ async def read_code(
                         $ref: "#/components/schemas/RecentFilesResponse"
     """
     app_state = AppState(request)
-    # Pass the file router's directory to filter and relativize paths
+    # Pass the workspace's directory to filter and relativize paths
     directory = None
-    dir_str = app_state.session_manager.file_router.directory
+    dir_str = app_state.session_manager.workspace.directory
     if dir_str:
         directory = pathlib.Path(dir_str)
     files = app_state.session_manager.recents.get_recents(directory)
@@ -102,23 +102,21 @@ async def workspace_files(
 
         if session_manager.watch:
             # In watched folder mode, refresh the index to include new/removed files since the previous request.
-            session_manager.file_router.mark_stale()
+            session_manager.workspace.invalidate()
 
         base_url = app_state.base_url
         mode = session_manager.mode.value
 
         def get_files_with_metadata() -> list[FileInfo]:
-            files = session_manager.file_router.files
+            files = session_manager.workspace.files
             marimo_files = [
                 file for file in flatten_files(files) if file.is_marimo_file
             ]
             result: list[FileInfo] = []
             for file in marimo_files:
                 try:
-                    resolved_path = (
-                        session_manager.file_router.resolve_file_path(
-                            file.path
-                        )
+                    resolved_path = session_manager.workspace.resolve(
+                        file.path
                     )
                 except HTTPException as e:
                     if e.status_code == HTTPStatus.NOT_FOUND:
@@ -155,21 +153,19 @@ async def workspace_files(
         has_more = file_count >= MAX_FILES
         return WorkspaceFilesResponse(
             files=marimo_files,
-            root=session_manager.file_router.directory or "",
+            root=session_manager.workspace.directory or "",
             has_more=has_more,
             file_count=file_count,
         )
 
-    # Mark stale (no-op for routers without cached listings) and toggle
-    # markdown inclusion (no-op-returns-self for non-directory routers).
-    session_manager.file_router.mark_stale()
-    session_manager.file_router = session_manager.file_router.toggle_markdown(
-        body.include_markdown
-    )
-    root = session_manager.file_router.directory or ""
+    # Both calls are no-ops on workspaces that don't support these
+    # capabilities (single-file, fixed-files, empty).
+    session_manager.workspace.invalidate()
+    session_manager.workspace.set_include_markdown(body.include_markdown)
+    root = session_manager.workspace.directory or ""
 
     # Run file scanning in thread pool to avoid blocking the server
-    files = await asyncio.to_thread(lambda: session_manager.file_router.files)
+    files = await asyncio.to_thread(lambda: session_manager.workspace.files)
 
     file_count = count_files(files)
     has_more = file_count >= MAX_FILES
@@ -184,8 +180,8 @@ async def workspace_files(
 
 def _get_active_sessions(app_state: AppState) -> list[MarimoFile]:
     """Get list of active sessions with prettified paths."""
-    # Get directory from file router for path relativization
-    base_dir = app_state.session_manager.file_router.directory
+    # Get directory from workspace for path relativization
+    base_dir = app_state.session_manager.workspace.directory
 
     files: list[MarimoFile] = []
     for session_id, session in app_state.session_manager.sessions.items():
@@ -287,11 +283,11 @@ async def tutorial(
 
     atexit.register(temp_dir.cleanup)
 
-    # Register the temp file/directory with the router so it can be accessed.
-    # Each method is a no-op on routers that don't support that capability.
+    # Register the temp file/directory with the workspace so it can be accessed.
+    # Each method is a no-op on workspaces that don't support that capability.
     app_state = AppState(request)
-    app_state.session_manager.file_router.register_temp_dir(temp_dir.name)
-    app_state.session_manager.file_router.register_allowed_file(
+    app_state.session_manager.workspace.register_temp_dir(temp_dir.name)
+    app_state.session_manager.workspace.register_allowed_path(
         path.absolute_name
     )
 

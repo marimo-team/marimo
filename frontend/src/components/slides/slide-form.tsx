@@ -8,6 +8,7 @@ import {
   CookieIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
+  KeyboardIcon,
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -28,6 +29,7 @@ import type {
 import { useState } from "react";
 import { Tooltip } from "../ui/tooltip";
 import { Button } from "../ui/button";
+import { Kbd } from "../ui/kbd";
 import type { RuntimeCell } from "@/core/cells/types";
 
 export const DEFAULT_SLIDE_TYPE: SlideType = "slide";
@@ -132,7 +134,48 @@ const SlidesForm = ({
       <TabsContent value="deck" className="mt-0 flex-1">
         <DeckConfigForm layout={layout} setLayout={setLayout} />
       </TabsContent>
+      <hr />
+      <KeyboardTips />
     </Tabs>
+  );
+};
+
+const KEYBOARD_TIPS: { keys: string[]; description: string }[] = [
+  { keys: ["F"], description: "Enter fullscreen" },
+  { keys: ["C"], description: "Toggle code editor" },
+];
+
+const KEYBOARD_SHORTCUTS_URL =
+  "https://vlaaad.github.io/reveal/keyboard-shortcuts";
+
+const KeyboardTips = () => {
+  return (
+    <div className="flex flex-col gap-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-1.5 font-medium text-foreground/80">
+        <KeyboardIcon className="h-3.5 w-3.5" />
+        <span>Shortcuts</span>
+      </div>
+      <ul className="flex flex-col gap-1.5">
+        {KEYBOARD_TIPS.map(({ keys, description }) => (
+          <li key={description} className="flex items-center justify-between">
+            <span>{description}</span>
+            <span className="flex gap-1">
+              {keys.map((key) => (
+                <Kbd key={key}>{key}</Kbd>
+              ))}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <a
+        href={KEYBOARD_SHORTCUTS_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-link hover:underline"
+      >
+        See all shortcuts
+      </a>
+    </div>
   );
 };
 

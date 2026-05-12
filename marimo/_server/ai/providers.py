@@ -38,14 +38,16 @@ from marimo._utils.http import HTTPStatus
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, AsyncIterator
 
-    from anthropic.types.beta import BetaThinkingConfigParam
     from openai import AsyncOpenAI
-    from openai.types.shared.reasoning_effort import ReasoningEffort
     from pydantic_ai import Agent, DeferredToolRequests, FunctionToolset
     from pydantic_ai.models import Model
     from pydantic_ai.models.bedrock import BedrockConverseModel
     from pydantic_ai.models.google import GoogleModel
-    from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
+    from pydantic_ai.models.openai import (
+        OpenAIChatModel,
+        OpenAIResponsesModel,
+        OpenAIResponsesModelSettings,
+    )
     from pydantic_ai.providers import Provider
     from pydantic_ai.providers.anthropic import (
         AnthropicProvider as PydanticAnthropic,
@@ -55,6 +57,7 @@ if TYPE_CHECKING:
     )
     from pydantic_ai.providers.google import GoogleProvider as PydanticGoogle
     from pydantic_ai.providers.openai import OpenAIProvider as PydanticOpenAI
+    from pydantic_ai.settings import ModelSettings, ThinkingLevel
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
     from starlette.responses import StreamingResponse
 
@@ -127,10 +130,30 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         toolset, output_type = self._get_toolsets_and_output_type(tools)
         return Agent(
             model,
+            model_settings=self._build_agent_settings(model),
             toolsets=[toolset] if tools else None,
             instructions=system_prompt,
             output_type=output_type,
         )
+
+    def _build_agent_settings(self, model: Model) -> ModelSettings | None:
+        """Settings applied at agent level on every request."""
+        from pydantic_ai.settings import ModelSettings
+
+        thinking = self._default_thinking(model)
+        if thinking is None:
+            return None
+        if not (
+            model.profile.supports_thinking
+            or model.profile.thinking_always_enabled
+        ):
+            return None
+        return ModelSettings(thinking=thinking)
+
+    def _default_thinking(self, model: Model) -> ThinkingLevel | None:
+        """Default unified thinking flag. Return None to skip."""
+        del model
+        return True
 
     def convert_messages(
         self, messages: list[ServerUIMessage]
@@ -277,11 +300,7 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
         return GoogleModel(
             model_name=self.model,
             provider=self.provider,
-            settings=GoogleModelSettings(
-                max_tokens=max_tokens,
-                # Works on non-thinking models too
-                google_thinking_config={"include_thoughts": True},
-            ),
+            settings=GoogleModelSettings(max_tokens=max_tokens),
         )
 
 
@@ -367,9 +386,9 @@ class OpenAIClientMixin:
 
 
 class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
-    # Medium effort provides a balance between speed and accuracy
     # https://openai.com/index/openai-o3-mini/
-    DEFAULT_REASONING_EFFORT: ReasoningEffort = "medium"
+    # 'auto' lets OpenAI decide between detailed/concise based on the prompt;
+    # marimo wants reasoning summaries surfaced for display.
     DEFAULT_REASONING_SUMMARY: Literal["detailed", "concise", "auto"] = "auto"
 
     def create_provider(self, config: AnyProviderConfig) -> PydanticOpenAI:
@@ -386,62 +405,41 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
             OpenAIResponsesModelSettings,
         )
 
-        is_reasoning_model = self._is_reasoning_model(self.model)
-
-        settings = (
-            OpenAIResponsesModelSettings(
-                max_tokens=max_tokens,
-                openai_reasoning_summary=self.DEFAULT_REASONING_SUMMARY,
-                openai_reasoning_effort=self.DEFAULT_REASONING_EFFORT,
-            )
-            if is_reasoning_model
-            else OpenAIResponsesModelSettings(max_tokens=max_tokens)
-        )
         return OpenAIResponsesModel(
             model_name=self.model,
             provider=self.provider,
-            settings=settings,
+            settings=OpenAIResponsesModelSettings(max_tokens=max_tokens),
         )
 
-    def _is_reasoning_model(self, model: str) -> bool:
-        """
-        Check if reasoning_effort should be added to the request.
-        Only add for actual OpenAI reasoning models, not for OpenAI-compatible APIs.
+    def _build_agent_settings(self, model: Model) -> ModelSettings | None:
+        # `reasoning.summary` is only valid for OpenAI reasoning models (gpt-5
+        # and the o-series).
+        settings = super()._build_agent_settings(model)
+        if settings is not None and "thinking" in settings:
+            extra: OpenAIResponsesModelSettings = {
+                "openai_reasoning_summary": self.DEFAULT_REASONING_SUMMARY,
+            }
+            settings.update(extra)
+        return settings
 
-        OpenAI-compatible APIs (identified by custom base_url) may not support
-        the reasoning_effort parameter even if the model name suggests it's a
-        reasoning model.
-        """
-        import re
-
-        # Check for reasoning model patterns: o{digit} or gpt-5, with optional openai/ prefix
-        reasoning_patterns = [
-            r"^openai/o\d",  # openai/o1, openai/o3, etc.
-            r"^o\d",  # o1, o3, etc.
-            r"^openai/gpt-5",  # openai/gpt-5*
-            r"^gpt-5",  # gpt-5*
-        ]
-
-        is_reasoning_model_name = any(
-            re.match(pattern, model) for pattern in reasoning_patterns
-        )
-
-        if not is_reasoning_model_name:
-            return False
-
-        # If using a custom base_url that's not OpenAI, don't assume reasoning is supported
-        return not (
+    def _default_thinking(self, model: Model) -> ThinkingLevel | None:
+        # OpenAI-compatible third-party endpoints (custom base_url) may not
+        # accept `reasoning_effort` even when the model name looks like a
+        # reasoning model. Suppress the unified thinking flag in that case.
+        if (
             self.config.base_url
             and "api.openai.com" not in self.config.base_url
-        )
+        ):
+            return None
+        return super()._default_thinking(model)
 
 
 class AzureOpenAIProvider(OpenAIProvider):
-    def _is_reasoning_model(self, model: str) -> bool:
-        # https://learn.microsoft.com/en-us/answers/questions/5519548/does-gpt-5-via-azure-support-reasoning-effort-and
-        # Only custom models support reasoning effort, we can expose this as a parameter in the future
+    # Only custom Azure deployments support `reasoning_effort`, and we don't expose that config yet.
+    # https://learn.microsoft.com/en-us/answers/questions/5519548/does-gpt-5-via-azure-support-reasoning-effort-and
+    def _default_thinking(self, model: Model) -> ThinkingLevel | None:
         del model
-        return False
+        return None
 
     def _handle_azure_openai(self, base_url: str) -> tuple[str, str, str]:
         """Handle Azure OpenAI.
@@ -689,14 +687,24 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
             )
             model = self.create_model(max_tokens)
 
+        agent_settings = ModelSettings(max_tokens=max_tokens)
+        agent_settings.update(self._build_agent_settings(model) or {})
+
         toolset, output_type = self._get_toolsets_and_output_type(tools)
         return Agent(
             model,
-            model_settings=ModelSettings(max_tokens=max_tokens),
+            model_settings=agent_settings,
             toolsets=[toolset] if tools else None,
             instructions=system_prompt,
             output_type=output_type,
         )
+
+    def _default_thinking(self, model: Model) -> ThinkingLevel | None:
+        # Custom OpenAI-compatible endpoints (Together, vLLM, LM Studio, ...)
+        # often don't honor `reasoning_effort`
+        if self._is_openai_compatible():
+            return None
+        return super()._default_thinking(model)
 
 
 class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
@@ -705,18 +713,9 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
     # https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-latency?utm_source=chatgpt.com
     DEFAULT_TEMPERATURE = 0.2
 
-    # Extended thinking defaults based on:
+    # Extended thinking requires temperature of 1.
     # https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
-    # Extended thinking requires temperature of 1
     DEFAULT_EXTENDED_THINKING_TEMPERATURE = 1
-    EXTENDED_THINKING_MODEL_PREFIXES = [
-        "claude-opus-4",
-        "claude-sonnet-4",
-        "claude-haiku-4-5",
-        "claude-3-7-sonnet",
-    ]
-    # 1024 tokens is the minimum budget for extended thinking
-    DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS = 1024
 
     def create_provider(self, config: AnyProviderConfig) -> PydanticAnthropic:
         from pydantic_ai.providers.anthropic import (
@@ -730,36 +729,33 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
             AnthropicModel,
             AnthropicModelSettings,
         )
+        from pydantic_ai.profiles.anthropic import (
+            AnthropicModelProfile,
+            anthropic_model_profile,
+        )
 
-        is_thinking_model = self.is_extended_thinking_model(self.model)
-        thinking_config: BetaThinkingConfigParam = {"type": "disabled"}
-        if is_thinking_model:
-            thinking_config = {
-                "type": "enabled",
-                "budget_tokens": self.DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS,
-            }
+        settings: AnthropicModelSettings = {"max_tokens": max_tokens}
+
+        # Anthropic extended thinking requires temperature=1; non-thinking
+        # models keep our default coding temperature. Some adaptive-only
+        # models (Opus 4.7+) reject sampling settings entirely — skip
+        # `temperature` for them so pydantic-ai doesn't drop it with a warning.
+        profile = AnthropicModelProfile.from_profile(
+            anthropic_model_profile(self.model)
+        )
+        if not getattr(
+            profile, "anthropic_disallows_sampling_settings", False
+        ):
+            settings["temperature"] = (
+                self.DEFAULT_EXTENDED_THINKING_TEMPERATURE
+                if profile.supports_thinking
+                else self.DEFAULT_TEMPERATURE
+            )
 
         return AnthropicModel(
             model_name=self.model,
             provider=self.provider,
-            settings=AnthropicModelSettings(
-                max_tokens=max_tokens,
-                temperature=self.get_temperature(),
-                anthropic_thinking=thinking_config,
-            ),
-        )
-
-    def is_extended_thinking_model(self, model: str) -> bool:
-        return any(
-            model.startswith(prefix)
-            for prefix in self.EXTENDED_THINKING_MODEL_PREFIXES
-        )
-
-    def get_temperature(self) -> float:
-        return (
-            self.DEFAULT_EXTENDED_THINKING_TEMPERATURE
-            if self.is_extended_thinking_model(self.model)
-            else self.DEFAULT_TEMPERATURE
+            settings=settings,
         )
 
     def convert_messages(
@@ -825,10 +821,7 @@ class BedrockProvider(PydanticProvider["PydanticBedrock"]):
         return BedrockConverseModel(
             model_name=self.model,
             provider=self.provider,
-            settings=BedrockModelSettings(
-                max_tokens=max_tokens,
-                # TODO: Add reasoning support
-            ),
+            settings=BedrockModelSettings(max_tokens=max_tokens),
         )
 
 

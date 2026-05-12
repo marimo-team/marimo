@@ -10,6 +10,8 @@ import { Logger } from "@/utils/Logger";
 
 interface Props {
   diagram: string;
+  theme?: string;
+  themeVariables?: Record<string, string>;
   config?: MermaidConfig;
 }
 
@@ -62,14 +64,16 @@ function randomAlpha() {
   ).join("");
 }
 
-const Mermaid: React.FC<Props> = ({ diagram }) => {
+const Mermaid: React.FC<Props> = ({ diagram, theme, themeVariables }) => {
   // oxlint-disable-next-line react/hook-use-state
   const [id] = useState(() => randomAlpha());
 
   const darkMode = useTheme().theme === "dark";
+  const resolvedTheme = theme ?? (darkMode ? "dark" : "forest");
   mermaid.initialize({
     ...DEFAULT_CONFIG,
-    theme: darkMode ? "dark" : "forest",
+    theme: resolvedTheme as MermaidConfig["theme"],
+    themeVariables,
     darkMode: darkMode,
   });
 
@@ -86,7 +90,7 @@ const Mermaid: React.FC<Props> = ({ diagram }) => {
       });
 
     return result.svg;
-  }, [trimmedDiagram, id, darkMode]);
+  }, [trimmedDiagram, id, darkMode, resolvedTheme, themeVariables]);
 
   if (error) {
     return <ErrorBanner error={error} />;

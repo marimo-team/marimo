@@ -5,6 +5,7 @@ import { Logger } from "@/utils/Logger";
 import { KnownQueryParams } from "../constants";
 import { isIslands } from "../islands/utils";
 import { getSessionId, type SessionId } from "../kernel/session";
+import { isStaticNotebook } from "../static/static-state";
 import { isWasm } from "../wasm/utils";
 import type { RuntimeConfig } from "./types";
 
@@ -178,8 +179,8 @@ export class RuntimeManager {
   }
 
   async isHealthy(): Promise<boolean> {
-    // Always healthy if WASM
-    if (isWasm() || isIslands()) {
+    // Always healthy if WASM, Islands, or a static notebook (no server)
+    if (isWasm() || isIslands() || isStaticNotebook()) {
       return true;
     }
 

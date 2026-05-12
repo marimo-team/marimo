@@ -45,6 +45,7 @@ from marimo._session.extensions.types import (
     ExtensionRegistry,
     SessionExtension,
 )
+from marimo._session.kernel_exit import classify_kernel_exit
 from marimo._session.managers import (
     KernelManagerImpl,
     QueueManagerImpl,
@@ -54,6 +55,7 @@ from marimo._session.notebook import AppFileManager
 from marimo._session.room import Room
 from marimo._session.state.session_view import SessionView
 from marimo._session.types import (
+    KernelExitInfo,
     KernelManager,
     KernelState,
     QueueManager,
@@ -337,6 +339,16 @@ class SessionImpl(Session):
     def kernel_pid(self) -> int | None:
         """Get the PID of the kernel."""
         return self._kernel_manager.pid
+
+    def kernel_exit_info(self) -> KernelExitInfo | None:
+        """Describe how the kernel exited."""
+        task = self._kernel_manager.kernel_task
+        if task is None or task.is_alive():
+            return None
+        # ``exitcode`` is provided by multiprocessing.Process; threads don't
+        # have one, so we treat absence as "unknown".
+        exitcode = getattr(task, "exitcode", None)
+        return classify_kernel_exit(exitcode)
 
     def put_control_request(
         self,

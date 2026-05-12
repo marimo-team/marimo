@@ -164,6 +164,16 @@ class TestSetTracerProvider:
 
         monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
 
+        # Import these BEFORE entering patch.dict("sys.modules", ...).
+        # On exit, patch.dict clears sys.modules and restores the snapshot
+        # taken at entry, which wipes any modules first loaded inside the
+        # block. If opentelemetry.sdk.trace is only imported inside, the
+        # post-block re-import creates a new TracerProvider class and
+        # isinstance() against the provider built inside the block fails.
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
         with patch.dict(
             "sys.modules",
             {"opentelemetry.exporter.otlp.proto.http.trace_exporter": None},
@@ -171,10 +181,6 @@ class TestSetTracerProvider:
             from marimo._tracer import _set_tracer_provider
 
             _set_tracer_provider()
-
-        from opentelemetry import trace
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
         provider = trace.get_tracer_provider()
         assert isinstance(provider, TracerProvider)
