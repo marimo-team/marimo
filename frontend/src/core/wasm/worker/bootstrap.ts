@@ -165,7 +165,7 @@ export class DefaultWasmController implements WasmController {
     const pyodide = this.requirePyodide;
 
     if (shouldLoadDuckDBPackages(code, foundPackages)) {
-      // DuckDB SQL and remote readers need these packages loaded up front.
+      // We need pandas and duckdb for mo.sql and for remote duckdb sources
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;
       code = `import sqlglot\n${code}`;

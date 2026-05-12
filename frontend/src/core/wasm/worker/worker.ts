@@ -143,7 +143,7 @@ const requestHandler = createRPCRequestHandler({
     await pyodideReadyPromise; // Make sure loading is done
 
     if (shouldLoadDuckDBPackages(code)) {
-      // DuckDB SQL and remote readers need these packages loaded up front.
+      // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;
       code = `import sqlglot\n${code}`;
