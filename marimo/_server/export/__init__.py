@@ -41,6 +41,9 @@ from marimo._server.models.models import InstantiateNotebookRequest
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager, load_notebook
 from marimo._types.ids import ConsumerId
+from marimo._utils.inline_script_metadata import (
+    pin_pep723_dependencies_for_wasm,
+)
 from marimo._utils.marimo_path import MarimoPath
 
 LOGGER = _loggers.marimo_logger()
@@ -74,85 +77,6 @@ class ExportResult:
         if isinstance(self.contents, str):
             return self.contents
         return self.contents.decode("utf-8")
-
-
-def _pin_pep723_dependencies(code: str, path: MarimoPath) -> str:
-    """Annotate the embedded notebook with installed-version pins.
-
-    Snapshots the running interpreter's package versions, intersects with
-    the Pyodide lockfile (when reachable) so we never embed a pin Pyodide
-    can't honour, and rewrites the PEP 723 `dependencies` block. Also
-    warns about top-level dependencies that aren't shipped in pyodide-lock
-    — those may fail to install via micropip in the browser. The lock
-    kind is "resolved" when we ran inside the html-wasm sandbox, otherwise
-    "observed".
-    """
-    import re
-    from importlib.metadata import distributions
-
-    from marimo._cli.export.pyodide_constraints import (
-        fetch_pyodide_package_versions,
-        normalize_package_name,
-    )
-    from marimo._utils.inline_script_metadata import (
-        PyProjectReader,
-        with_pinned_dependencies,
-    )
-
-    installed: dict[str, str] = {}
-    for dist in distributions():
-        name = dist.metadata["Name"]
-        version = dist.version
-        if name and version:
-            installed[normalize_package_name(name)] = version
-
-    pyodide_names: set[str] = set()
-    try:
-        pyodide_names = {
-            normalize_package_name(n) for n in fetch_pyodide_package_versions()
-        }
-        pins = {
-            name: version
-            for name, version in installed.items()
-            if name in pyodide_names
-        }
-    except Exception:
-        # Fetch failures degrade to pinning whatever is installed; the
-        # WASM micropip will still try its bundled lockfile first.
-        pins = installed
-
-    # Warn about top-level deps not bundled in pyodide. micropip *may*
-    # still install pure-python ones from PyPI in the browser; native
-    # ones (jax, torch, numpy alternatives) will fail. We don't know
-    # which from here, so emit a single advisory.
-    if pyodide_names:
-        try:
-            pyproject = PyProjectReader.from_filename(path.absolute_name)
-            top_level: list[str] = []
-            for dep in pyproject.dependencies:
-                match = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)", dep.strip())
-                if match is None:
-                    continue
-                canonical = normalize_package_name(match.group(1))
-                if canonical == "marimo" or canonical in pyodide_names:
-                    continue
-                top_level.append(match.group(1))
-            if top_level:
-                echo(
-                    "warn: these dependencies are not bundled in the "
-                    "Pyodide lockfile and may fail to install in the "
-                    "browser: " + ", ".join(sorted(set(top_level))),
-                    err=True,
-                )
-        except Exception as e:
-            LOGGER.debug("Skipped wasm compat warn: %s", e)
-
-    lock_kind = (
-        "resolved"
-        if os.environ.get("MARIMO_HTML_WASM_SANDBOX_BOOTSTRAPPED") == "1"
-        else "observed"
-    )
-    return with_pinned_dependencies(code, pins, lock_kind=lock_kind)
 
 
 def _as_ir(path: MarimoPath) -> NotebookSerialization:
@@ -470,7 +394,7 @@ async def run_app_then_export_as_wasm(
         session_view, file_manager.app.cell_manager
     )
 
-    code = _pin_pep723_dependencies(file_manager.app.to_py(), path)
+    code = pin_pep723_dependencies_for_wasm(file_manager.app.to_py(), path)
 
     html, filename = Exporter().export_as_wasm(
         filename=file_manager.filename,
