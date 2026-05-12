@@ -12,6 +12,7 @@ import { Controls } from "@/components/editor/controls/Controls";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { FilenameForm } from "@/components/editor/header/filename-form";
 import { MultiCellActionToolbar } from "@/components/editor/navigation/multi-cell-action-toolbar";
+import { ProgressiveBoundary } from "@/components/lifecycle/ProgressiveBoundary";
 import { cn } from "@/utils/cn";
 import { Paths } from "@/utils/paths";
 import { AppContainer } from "../components/editor/app-container";
@@ -62,7 +63,6 @@ export const EditApp: React.FC<AppProps> = ({
     useCellActions();
   const viewState = useAtomValue(viewStateAtom);
   const numColumns = useAtomValue(numColumnsAtom);
-  const hasCells = useAtomValue(hasCellsAtom);
   const filename = useFilename();
   const setLastSavedNotebook = useSetAtom(lastSavedNotebookAtom);
   const { sendComponentValues, sendInterrupt } = useRequestClient();
@@ -163,13 +163,16 @@ export const EditApp: React.FC<AppProps> = ({
           )}
         </AppHeader>
 
-        {/* Don't render until we have a single cell */}
-        {hasCells && (
+        {/* Don't render until we have a single cell. NotStartedConnectionAlert
+            still covers the "no remote runtime started" prompt. */}
+        <ProgressiveBoundary
+          requires={hasCellsAtom}
+          fallback={<NotStartedConnectionAlert />}
+        >
           <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
             {editableCellsArray}
           </CellsRenderer>
-        )}
-        {!hasCells && <NotStartedConnectionAlert />}
+        </ProgressiveBoundary>
       </AppContainer>
       <MultiCellActionToolbar />
       {!hideControls && (
