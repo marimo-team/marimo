@@ -113,11 +113,10 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
       data-testid="export-button"
       size="xs"
       variant="text"
-      aria-disabled={disabled}
+      disabled={disabled}
       className={cn(
         "print:hidden text-xs gap-1",
         open ? "text-primary" : "text-muted-foreground",
-        disabled && "opacity-50 cursor-not-allowed",
       )}
     >
       <DownloadIcon className="w-3.5 h-3.5" />
@@ -249,16 +248,16 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
   };
 
   return (
-    <DropdownMenu
-      modal={false}
-      open={open}
-      onOpenChange={(next) => setOpen(next && !disabled)}
-    >
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
       <Tooltip
         content={disabled ? policy?.unavailableMessage : "Export"}
         open={open ? false : undefined}
       >
-        <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
+        <DropdownMenuTrigger asChild={true} disabled={disabled}>
+          <span tabIndex={disabled ? 0 : -1} className="inline-flex">
+            {button}
+          </span>
+        </DropdownMenuTrigger>
       </Tooltip>
       <DropdownMenuContent side="bottom" className="print:hidden">
         <DropdownMenuLabel className="text-xs text-muted-foreground">
