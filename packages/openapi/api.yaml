@@ -1664,6 +1664,30 @@ components:
       - success
       title: FileCopyResponse
       type: object
+    FileCreateMultipartRequest:
+      description: multipart/form-data body for POST /api/files/create.
+      properties:
+        file:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          format: binary
+        name:
+          type: string
+        path:
+          type: string
+        type:
+          enum:
+          - directory
+          - file
+          - notebook
+      required:
+      - path
+      - type
+      - name
+      title: FileCreateMultipartRequest
+      type: object
     FileCreateRequest:
       properties:
         contents:
@@ -6077,9 +6101,9 @@ paths:
     post:
       requestBody:
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: '#/components/schemas/FileCreateRequest'
+              $ref: '#/components/schemas/FileCreateMultipartRequest'
       responses:
         200:
           content:

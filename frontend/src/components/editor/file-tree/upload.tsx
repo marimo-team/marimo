@@ -3,7 +3,6 @@
 import { type DropzoneOptions, useDropzone } from "react-dropzone";
 import { toast } from "@/components/ui/use-toast";
 import { useRequestClient } from "@/core/network/requests";
-import { serializeBlob } from "@/utils/blob";
 import { withLoadingToast } from "@/utils/download";
 import { Logger } from "@/utils/Logger";
 import { type FilePath, PathBuilder } from "@/utils/paths";
@@ -69,17 +68,11 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
                 PathBuilder.guessDeliminator(filePath).dirname(filePath);
             }
 
-            // File contents are sent base64-encoded to support arbitrary
-            // bytes data
-            //
-            // get the raw base64-encoded data from a string starting with
-            // data:*/*;base64,
-            const base64 = (await serializeBlob(file)).split(",")[1];
             await sendCreateFileOrFolder({
               path: directoryPath,
               type: "file",
               name: file.name,
-              contents: base64,
+              file,
             });
             progress.increment(1);
           }
