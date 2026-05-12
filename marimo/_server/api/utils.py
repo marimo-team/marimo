@@ -63,14 +63,16 @@ async def parse_multipart_request(
     Raises msgspec.ValidationError if required string fields are missing
     or invalid.
     """
-    form = await request.form()
-    string_payload: dict[str, Any] = {}
-    files: dict[str, bytes] = {}
-    for key, value in form.multi_items():
-        if isinstance(value, UploadFile):
-            files[key] = await value.read()
-        elif isinstance(value, str):
-            string_payload[key] = value
+    # Use as an async context manager so any spooled temp files backing
+    # UploadFile parts are closed after parsing.
+    async with request.form() as form:
+        string_payload: dict[str, Any] = {}
+        files: dict[str, bytes] = {}
+        for key, value in form.multi_items():
+            if isinstance(value, UploadFile):
+                files[key] = await value.read()
+            elif isinstance(value, str):
+                string_payload[key] = value
     body = msgspec.convert(string_payload, cls, strict=False)
     return MultipartRequest(body=body, files=files)
 
