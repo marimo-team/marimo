@@ -88,6 +88,7 @@ const TabComponent = ({
       >
         <TabsList
           className={cn(
+            "scrollbar-thin",
             isVertical
               ? "flex flex-col items-stretch h-auto max-h-none shrink-0"
               : "max-w-full overflow-x-auto justify-start",
