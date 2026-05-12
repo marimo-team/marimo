@@ -15,9 +15,16 @@ minimumReleaseAgeExclude:
 blockExoticSubdeps: true
 trustPolicy: no-downgrade
 trustPolicyExclude:
-  # Maintainer dropped provenance after 3.4.1 (registry signature unchanged).
-  # Not a known takeover — likely a CI pipeline change.
+  # Transitive/direct deps where the resolved version lacks SLSA provenance
+  # but an earlier-published version had it. Verified no known takeovers as
+  # of 2026-05-12 — these are publishing-pipeline changes, not incidents.
+  - "@octokit/endpoint@9.0.6"
+  - "@octokit/plugin-paginate-rest@9.2.2"
+  - "@swc/core@1.12.14"
   - "@textea/json-viewer@4.0.1"
-  # Provenance present on 2.5.x and 3.x, dropped only in 2.6.0.
-  # ^2.6.0 range can't bump to 3.x without code changes.
+  - "chokidar@4.0.3"
+  - "semver@5.7.2"
+  - "semver@6.3.1"
   - "tailwind-merge@2.6.0"
+  - "undici@5.29.0"
+  - "undici-types@6.21.0"
