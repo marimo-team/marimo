@@ -18,3 +18,6 @@ trustPolicyExclude:
   # Maintainer dropped provenance after 3.4.1 (registry signature unchanged).
   # Not a known takeover — likely a CI pipeline change.
   - "@textea/json-viewer@4.0.1"
+  # Provenance present on 2.5.x and 3.x, dropped only in 2.6.0.
+  # ^2.6.0 range can't bump to 3.x without code changes.
+  - "tailwind-merge@2.6.0"
