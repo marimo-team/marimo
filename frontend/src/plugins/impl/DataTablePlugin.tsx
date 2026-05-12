@@ -622,6 +622,7 @@ export const LoadingDataTableComponent = memo(
       useDeepCompareMemoize(props.fieldTypes),
       props.data,
       props.totalRows,
+      props.sizeBytes,
       props.lazy,
       props.cellHoverTexts,
       props.cellStyles,

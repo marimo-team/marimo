@@ -797,7 +797,11 @@ class table(
                 "data": search_result_data,
                 "raw-data": search_result_raw_data,
                 "total-rows": total_rows,
-                "size-bytes": self._get_json_size_bytes(self._manager),
+                "size-bytes": (
+                    self._get_json_size_bytes(self._manager)
+                    if not _internal_lazy
+                    else None
+                ),
                 "total-columns": num_columns,
                 "max-columns": max_columns_arg,
                 "banner-text": self._get_banner_text(),
