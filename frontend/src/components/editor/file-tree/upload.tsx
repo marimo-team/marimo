@@ -6,9 +6,11 @@ import { useRequestClient } from "@/core/network/requests";
 import { withLoadingToast } from "@/utils/download";
 import { Logger } from "@/utils/Logger";
 import { type FilePath, PathBuilder } from "@/utils/paths";
+import { mapWithConcurrency } from "@/utils/semaphore";
 import { refreshRoot } from "./state";
 
 const MAX_SIZE = 1024 * 1024 * 100; // 100MB
+const UPLOAD_CONCURRENCY = 5;
 
 export function useFileExplorerUpload(options: DropzoneOptions = {}) {
   const { sendCreateFileOrFolder } = useRequestClient();
@@ -58,24 +60,28 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
         loadingTitle,
         async (progress) => {
           progress.addTotal(acceptedFiles.length);
-          for (const file of acceptedFiles) {
-            // We strip the leading slash since File.path can return
-            // `/path/to/file`.
-            const filePath = stripLeadingSlash(getPath(file));
-            let directoryPath = "" as FilePath;
-            if (filePath) {
-              directoryPath =
-                PathBuilder.guessDeliminator(filePath).dirname(filePath);
-            }
+          await mapWithConcurrency(
+            acceptedFiles,
+            UPLOAD_CONCURRENCY,
+            async (file) => {
+              // We strip the leading slash since File.path can return
+              // `/path/to/file`.
+              const filePath = stripLeadingSlash(getPath(file));
+              let directoryPath = "" as FilePath;
+              if (filePath) {
+                directoryPath =
+                  PathBuilder.guessDeliminator(filePath).dirname(filePath);
+              }
 
-            await sendCreateFileOrFolder({
-              path: directoryPath,
-              type: "file",
-              name: file.name,
-              file,
-            });
-            progress.increment(1);
-          }
+              await sendCreateFileOrFolder({
+                path: directoryPath,
+                type: "file",
+                name: file.name,
+                file,
+              });
+              progress.increment(1);
+            },
+          );
           await refreshRoot();
         },
         onFinish,
