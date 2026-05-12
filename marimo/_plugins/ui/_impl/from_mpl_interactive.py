@@ -302,9 +302,7 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
                 buffers=[blob],
             )
         except Exception:
-            LOGGER.exception(
-                "mpl_interactive download failed (fmt=%s)", fmt
-            )
+            LOGGER.exception("mpl_interactive download failed (fmt=%s)", fmt)
 
     def _convert_value(
         self, value: ModelIdRef | dict[str, Any]
