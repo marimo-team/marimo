@@ -11,13 +11,16 @@ export function isWasm(): boolean {
   );
 }
 
+const DUCKDB_USAGE_PATTERN =
+  /(^|\n)\s*(?:import\s+[^\n#]*\bduckdb\b|from\s+duckdb\b|[^\n#]*\bduckdb\s*\.)/;
+
 export function shouldLoadDuckDBPackages(
   code: string,
   foundPackages?: ReadonlySet<string>,
 ): boolean {
   return (
     code.includes("mo.sql") ||
-    code.includes("duckdb") ||
+    DUCKDB_USAGE_PATTERN.test(code) ||
     foundPackages?.has("duckdb") === true
   );
 }

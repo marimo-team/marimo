@@ -67,6 +67,7 @@ def wrapped_sql(
     connection: duckdb.DuckDBPyConnection | None,
 ) -> duckdb.DuckDBPyRelation:
     DependencyManager.duckdb.require("to execute sql")
+    import duckdb
 
     # In Python globals() are scoped to modules; since this function
     # is in a different module than user code, globals() doesn't return
@@ -75,8 +76,6 @@ def wrapped_sql(
     # However, duckdb needs access to the kernel's globals. For this reason,
     # we manually exec duckdb and provide it with the kernel's globals.
     if connection is None:
-        import duckdb
-
         connection = cast(duckdb.DuckDBPyConnection, duckdb)
 
     try:
@@ -157,10 +156,9 @@ def execute_duckdb_sql(
     parameterized queries ($1, $2, ...) for safe value interpolation.
     """
     DependencyManager.duckdb.require("to execute sql")
+    import duckdb
 
     if connection is None:
-        import duckdb
-
         connection = cast(duckdb.DuckDBPyConnection, duckdb)
 
     try:

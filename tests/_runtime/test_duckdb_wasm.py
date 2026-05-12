@@ -528,6 +528,26 @@ class TestDuckDBWasmDirectReadPatch:
         assert duckdb.read_csv is original
 
     @staticmethod
+    def test_patch_installation_does_not_require_sqlglot() -> None:
+        import duckdb
+
+        original = duckdb.read_csv
+        with (
+            mock_pyodide(),
+            patch(
+                "marimo._runtime._wasm._duckdb._require_sqlglot",
+                side_effect=AssertionError("sqlglot should be lazy"),
+            ),
+        ):
+            unpatch = patch_duckdb_for_wasm()
+            try:
+                assert duckdb.read_csv is not original
+            finally:
+                unpatch()
+
+        assert duckdb.read_csv is original
+
+    @staticmethod
     @pytest.mark.parametrize("api_kind", ["module", "connection"])
     @pytest.mark.parametrize(
         "case",
@@ -855,6 +875,81 @@ class TestDuckDBWasmMoSqlIntegration:
         )
 
 
+class TestDuckDBWasmSqlUtils:
+    @staticmethod
+    def test_wrapped_sql_rewrites_remote_literal_with_explicit_connection() -> (
+        None
+    ):
+        import duckdb
+
+        from marimo._sql.utils import wrapped_sql
+
+        connection = duckdb.connect(":memory:")
+        try:
+            with (
+                mock_pyodide(),
+                patch(
+                    "marimo._runtime._wasm._fetch.fetch_url_bytes",
+                    return_value=b"make,mpg\nford,25\ntoyota,18\n",
+                ) as fetch_url_bytes,
+            ):
+                relation = wrapped_sql(
+                    """
+                    SELECT make
+                    FROM 'https://datasets.marimo.app/cars.csv'
+                    WHERE mpg > 20
+                    """,
+                    connection,
+                )
+                rows = relation.fetchall()
+        finally:
+            connection.close()
+
+        assert rows == [("ford",)]
+        fetch_url_bytes.assert_called_once_with(
+            "https://datasets.marimo.app/cars.csv"
+        )
+
+    @staticmethod
+    def test_execute_duckdb_sql_rewrites_remote_literal_with_explicit_connection() -> (
+        None
+    ):
+        import duckdb
+
+        from marimo._sql.utils import execute_duckdb_sql
+
+        table_name = "__marimo_duckdb_wasm_sql_utils_execute_test"
+        connection = duckdb.connect(":memory:")
+        try:
+            with (
+                mock_pyodide(),
+                patch(
+                    "marimo._runtime._wasm._fetch.fetch_url_bytes",
+                    return_value=b"make,mpg\nford,25\ntoyota,18\n",
+                ) as fetch_url_bytes,
+            ):
+                execute_duckdb_sql(
+                    f"""
+                    CREATE OR REPLACE TABLE {table_name} AS
+                    SELECT make
+                    FROM 'https://datasets.marimo.app/cars.csv'
+                    WHERE mpg > ?
+                    """,
+                    [20],
+                    connection,
+                )
+                rows = connection.sql(
+                    f"SELECT make FROM {table_name} ORDER BY make"
+                ).fetchall()
+        finally:
+            connection.close()
+
+        assert rows == [("ford",)]
+        fetch_url_bytes.assert_called_once_with(
+            "https://datasets.marimo.app/cars.csv"
+        )
+
+
 class TestDuckDBWasmSqlApiPatch:
     @staticmethod
     def test_noop_outside_pyodide() -> None:
@@ -1035,6 +1130,27 @@ class TestDuckDBWasmSqlApiPatch:
 
         assert rows == [(1,)]
         catalog_names.assert_not_called()
+
+    @staticmethod
+    def test_module_sql_without_remote_source_does_not_require_sqlglot() -> (
+        None
+    ):
+        import duckdb
+
+        with (
+            mock_pyodide(),
+            patch(
+                "marimo._runtime._wasm._duckdb._require_sqlglot",
+                side_effect=AssertionError("sqlglot should be lazy"),
+            ),
+        ):
+            unpatch = patch_duckdb_for_wasm()
+            try:
+                rows = duckdb.sql("SELECT 1").fetchall()
+            finally:
+                unpatch()
+
+        assert rows == [(1,)]
 
     @staticmethod
     def test_module_execute_rewrites_before_side_effects() -> None:

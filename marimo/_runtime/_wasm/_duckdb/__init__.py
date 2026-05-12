@@ -222,17 +222,22 @@ def patch_duckdb_query_for_wasm(
     DataFrame. If the query or ``reserved_names`` already use that identifier,
     the rewriter uses the next free suffix.
 
-    In Pyodide this raises if sqlglot is unavailable. Returns ``None`` when:
+    In Pyodide this raises if sqlglot is unavailable and the query may contain
+    a remote source. Returns ``None`` when:
 
     - marimo is not running in Pyodide;
+    - the query has no remote URL;
     - the query has no supported remote file source;
     - the query cannot be parsed.
     """
     if not is_pyodide():
         return None
 
-    _require_sqlglot()
-    statements = statements or _parse_duckdb_query(query)
+    if statements is None:
+        if not _query_may_contain_remote_file_source(query):
+            return None
+        _require_sqlglot()
+        statements = _parse_duckdb_query(query)
     if statements is None:
         return None
     if _contains_remote_view_definition(statements, query=query):
@@ -264,10 +269,6 @@ def patch_duckdb_for_wasm() -> Unpatch:
         import duckdb
     except ImportError:
         return lambda: None
-
-    # DuckDB's WASM patch set is atomic: direct reader and SQL API wrappers
-    # install together, and SQL rewriting hard-requires sqlglot.
-    _require_sqlglot()
 
     patches = WasmPatchSet()
     for function_name in _DIRECT_READER_SPECS:
@@ -379,7 +380,10 @@ def try_run_duckdb_sql_with_wasm_patch(
     )
     if not isinstance(query, str):
         return None
+    if not _query_may_contain_remote_file_source(query):
+        return None
 
+    _require_sqlglot()
     statements = _parse_duckdb_query(query)
     if statements is None or not _contains_supported_remote_source(
         statements, query=query
@@ -708,6 +712,10 @@ def _require_sqlglot() -> None:
         "to rewrite remote DuckDB SQL sources in WASM"
     )
     import sqlglot  # noqa: F401
+
+
+def _query_may_contain_remote_file_source(query: str) -> bool:
+    return "https://" in query or "http://" in query
 
 
 def _parse_duckdb_query(query: str) -> list[exp.Expression] | None:
