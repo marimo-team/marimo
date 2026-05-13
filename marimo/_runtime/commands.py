@@ -12,6 +12,7 @@ from typing import (
     Literal,
     TypeVar,
     Union,
+    cast,
 )
 from uuid import uuid4
 
@@ -22,6 +23,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
 from marimo._messaging.notebook.document import NotebookCell
+from marimo._types.encodable import Encodable
 from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 
 LOGGER = _loggers.marimo_logger()
@@ -70,6 +72,38 @@ Primitive = str | bool | int | float
 SerializedCLIArgs = dict[str, ListOrValue[Primitive]]
 
 
+def _user_to_dict(user: Any) -> dict[str, Encodable]:
+    """Normalize an auth user into a serializable dict.
+
+    Starlette's authentication middleware sets ``request.scope["user"]`` to a
+    ``BaseUser`` instance (commonly ``SimpleUser``). Storing the raw object on
+    ``HTTPRequest.user`` breaks msgspec serialization on the IPC path. Convert
+    to a dict matching the documented contract: "info from authentication
+    middleware (e.g., is_authenticated, username)".
+    """
+    if user is None:
+        return {}
+    if isinstance(user, dict):
+        return user
+    return {
+        "username": getattr(user, "username", ""),
+        "is_authenticated": getattr(user, "is_authenticated", False),
+        "display_name": getattr(user, "display_name", ""),
+    }
+
+
+def _meta_to_dict(meta: Any) -> dict[str, Encodable]:
+    """Normalize user-defined ``request.scope["meta"]`` at the boundary.
+
+    Trusted shape per the public contract (``mo.app_meta().request``); we
+    just enforce dict-ness at the seam. Non-``Encodable`` values inside will
+    surface at IPC encode time rather than being silently coerced.
+    """
+    if meta is None or not isinstance(meta, dict):
+        return {}
+    return cast("dict[str, Encodable]", meta)
+
+
 @dataclass
 class HTTPRequest(Mapping[str, Any]):
     """Serializable HTTP request representation.
@@ -88,14 +122,14 @@ class HTTPRequest(Mapping[str, Any]):
         user: User info from authentication middleware (e.g., is_authenticated, username).
     """
 
-    url: dict[str, Any]  # Serialized URL
-    base_url: dict[str, Any]  # Serialized URL
+    url: dict[str, Encodable]  # Serialized URL
+    base_url: dict[str, Encodable]  # Serialized URL
     headers: dict[str, str]  # Raw headers
     query_params: dict[str, list[str]]  # Raw query params
-    path_params: dict[str, Any]
+    path_params: dict[str, Encodable]
     cookies: dict[str, str]
-    meta: dict[str, Any]  # User-defined storage
-    user: Any
+    meta: dict[str, Encodable]  # User-defined storage
+    user: Encodable
 
     # We don't include session or auth because they may contain
     # information that the app author does not want to expose.
@@ -121,11 +155,11 @@ class HTTPRequest(Mapping[str, Any]):
             return self.__dict__
 
     def __repr__(self) -> str:
-        return f"HTTPRequest(path={self.url['path']}, params={len(self.query_params)})"
+        return f"HTTPRequest(path={self.url['path']!r}, params={len(self.query_params)})"
 
     @staticmethod
     def from_request(request: HTTPConnection) -> HTTPRequest:
-        def _url_to_dict(url: URL) -> dict[str, Any]:
+        def _url_to_dict(url: URL) -> dict[str, Encodable]:
             return {
                 "path": url.path,
                 "port": url.port,
@@ -159,8 +193,8 @@ class HTTPRequest(Mapping[str, Any]):
             query_params=query_params,
             path_params=request.path_params,
             cookies=request.cookies,
-            user=request.get("user", {}),
-            meta=request.get("meta", {}),
+            user=_user_to_dict(request.get("user")),
+            meta=_meta_to_dict(request.get("meta")),
             # Left out for now. This may contain information that the app author
             # does not want to expose.
             # session=request.session if "session" in request else {},
@@ -758,7 +792,7 @@ class ModelUpdateMessage(
         buffer_paths: Paths within state dict pointing to binary buffers.
     """
 
-    state: dict[str, Any]
+    state: dict[str, Encodable]
     buffer_paths: list[list[str | int]]
 
     def into_comm_payload_content(self) -> dict[str, Any]:
@@ -780,7 +814,7 @@ class ModelCustomMessage(
         content: Arbitrary content for the custom message.
     """
 
-    content: Any
+    content: Encodable
 
     def into_comm_payload_content(self) -> dict[str, Any]:
         return {

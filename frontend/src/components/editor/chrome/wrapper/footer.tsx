@@ -18,6 +18,7 @@ import {
 } from "./footer-items/backend-status";
 import { CopilotStatusIcon } from "./footer-items/copilot-status";
 import { MachineStats } from "./footer-items/machine-stats";
+import { PyodideStatus } from "./footer-items/pyodide-status";
 import { RTCStatus } from "./footer-items/rtc-status";
 import { RuntimeSettings } from "./footer-items/runtime-settings";
 import { useSetDependencyPanelTab } from "./useDependencyPanelTab";
@@ -85,6 +86,7 @@ export const Footer: React.FC = () => {
 
       <div className="mx-auto" />
 
+      <PyodideStatus />
       <ConnectingKernelIndicatorItem />
 
       <ShowInKioskMode>

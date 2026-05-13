@@ -11,7 +11,8 @@ Running a notebook as a script is useful when your notebook has side-effects,
 like writing to disk. Print statements and other console outputs will show
 up in your terminal.
 
-marimo ntoebooks can also [double as importable modules, providing libraries
+marimo notebooks can also [double as importable
+modules](https://docs.marimo.io/guides/reusing_functions/), providing libraries
 of functions and classes that you can reuse in other programs:
 
 ```python

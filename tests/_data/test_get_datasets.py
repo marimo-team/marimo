@@ -660,6 +660,10 @@ def test_db_type_to_data_type_various() -> None:
     assert _db_type_to_data_type("blob") == "string"
     assert _db_type_to_data_type("guid") == "string"
     assert _db_type_to_data_type("nvarchar") == "string"
+    assert _db_type_to_data_type("char") == "string"
+    assert _db_type_to_data_type("bpchar") == "string"
+    assert _db_type_to_data_type("string") == "string"
+    assert _db_type_to_data_type("uuid") == "string"
 
     # Binary types (represented as string)
     assert _db_type_to_data_type("binary") == "string"
@@ -682,6 +686,7 @@ def test_db_type_to_data_type_various() -> None:
     assert _db_type_to_data_type("null") == "unknown"
     assert _db_type_to_data_type("json") == "unknown"
     assert _db_type_to_data_type("row") == "unknown"
+    assert _db_type_to_data_type("inet") == "unknown"
 
 
 @pytest.mark.requires("duckdb")

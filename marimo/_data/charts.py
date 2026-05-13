@@ -82,7 +82,9 @@ NUMBER_STROKE = "#8e4ec6"  # purple-9
 COMMON_CONFIG = 'properties(width="container").configure_view(stroke=None)'
 
 
-def add_common_config(chart: alt.Chart | alt.LayerChart) -> alt.Chart:
+def add_common_config(
+    chart: alt.Chart | alt.LayerChart | alt.FacetChart,
+) -> alt.Chart:
     return chart.properties(width="container").configure_view(stroke=None)  # type: ignore
 
 

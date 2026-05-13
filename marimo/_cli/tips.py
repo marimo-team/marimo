@@ -52,6 +52,10 @@ CLI_STARTUP_TIPS: Final[tuple[CliTip, ...]] = (
         command="marimo export thumbnail folder/",
     ),
     CliTip(
+        text="Pair-program with AI agents on running notebooks",
+        link="https://links.marimo.app/marimo-pair",
+    ),
+    CliTip(
         text="Coming from Jupyter?",
         link="https://docs.marimo.io/guides/coming_from/jupyter/",
     ),

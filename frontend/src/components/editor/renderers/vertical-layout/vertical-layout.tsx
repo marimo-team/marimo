@@ -34,6 +34,7 @@ import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses, KnownQueryParams } from "@/core/constants";
 import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
 import { kernelStateAtom } from "@/core/kernel/state";
+import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { isErrorMime } from "@/core/mime";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
@@ -83,23 +84,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
       : showCodeByQueryParam === "true";
   });
 
-  const evaluateCanShowCode = () => {
-    const cellsHaveCode = cells.some((cell) => Boolean(cell.code));
-
-    if (kioskMode) {
-      return true;
-    }
-
-    // Only show code if in read mode and there is at least one cell with code
-
-    // If it is a static-notebook or wasm-read-only-notebook, code is always included,
-    // but it can be turned it off via a query parameter (include-code=false)
-
-    const includeCode = urlParams.get(KnownQueryParams.includeCode);
-    return mode === "read" && includeCode !== "false" && cellsHaveCode;
-  };
-
-  const canShowCode = evaluateCanShowCode();
+  const canShowCode = useNotebookCodeAvailable(cells);
 
   const renderCell = (cell: CellRuntimeState & CellData) => {
     return (

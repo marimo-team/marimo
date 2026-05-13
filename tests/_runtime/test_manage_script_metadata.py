@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import pathlib
-import sys
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, Mock, call, patch
 
@@ -27,7 +26,7 @@ from marimo._runtime.packages.pypi_package_manager import (
 )
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.runner import cell_runner
-from tests.conftest import MockedKernel
+from tests.conftest import MockedKernel, mock_pyodide
 
 if TYPE_CHECKING:
     import pathlib
@@ -235,7 +234,7 @@ async def test_manage_script_metadata_pip_noop(
         assert "" == f.read()
 
 
-@patch.dict(sys.modules, {"pyodide": Mock()})
+@mock_pyodide()
 async def test_install_missing_packages_micropip(
     mocked_kernel: MockedKernel,
 ) -> None:
@@ -255,7 +254,7 @@ async def test_install_missing_packages_micropip(
         ]
 
 
-@patch.dict(sys.modules, {"pyodide": Mock()})
+@mock_pyodide()
 async def test_install_missing_packages_micropip_with_versions(
     mocked_kernel: MockedKernel,
 ) -> None:
@@ -275,7 +274,7 @@ async def test_install_missing_packages_micropip_with_versions(
         ]
 
 
-@patch.dict(sys.modules, {"pyodide": Mock(), "already_installed": Mock()})
+@mock_pyodide(already_installed=Mock())
 async def test_install_missing_packages_micropip_other_modules(
     mocked_kernel: MockedKernel,
 ) -> None:
@@ -299,7 +298,7 @@ async def test_install_missing_packages_micropip_other_modules(
         ]
 
 
-@patch.dict(sys.modules, {"pyodide": Mock()})
+@mock_pyodide()
 async def test_missing_packages_hook(
     mocked_kernel: MockedKernel,
 ) -> None:

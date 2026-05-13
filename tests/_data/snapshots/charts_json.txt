@@ -1,6 +1,6 @@
 # boolean
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.1.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
   "config": {
     "view": {
       "continuousHeight": 300,
@@ -160,7 +160,7 @@
 
 # date
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.1.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
   "config": {
     "axis": {
       "grid": false
@@ -327,7 +327,7 @@
         "strokeWidth": 1,
         "type": "rule"
       },
-      "name": "view_08552f810e029e90_2",
+      "name": "view_f88a3e6c17252800_2",
       "transform": [
         {
           "filter": "datum.some_column != null"
@@ -363,7 +363,7 @@
         "type": "point"
       },
       "views": [
-        "view_08552f810e029e90_2"
+        "view_f88a3e6c17252800_2"
       ]
     }
   ],
@@ -372,7 +372,7 @@
 
 # datetime
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.1.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
   "config": {
     "axis": {
       "grid": false
@@ -539,7 +539,7 @@
         "strokeWidth": 1,
         "type": "rule"
       },
-      "name": "view_08552f810e029e90_2",
+      "name": "view_f88a3e6c17252800_2",
       "transform": [
         {
           "filter": "datum.some_column != null"
@@ -575,7 +575,7 @@
         "type": "point"
       },
       "views": [
-        "view_08552f810e029e90_2"
+        "view_f88a3e6c17252800_2"
       ]
     }
   ],
@@ -584,7 +584,7 @@
 
 # time
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.1.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
   "config": {
     "axis": {
       "grid": false
@@ -751,7 +751,7 @@
         "strokeWidth": 1,
         "type": "rule"
       },
-      "name": "view_08552f810e029e90_2",
+      "name": "view_f88a3e6c17252800_2",
       "transform": [
         {
           "filter": "datum.some_column != null"
@@ -787,7 +787,7 @@
         "type": "point"
       },
       "views": [
-        "view_08552f810e029e90_2"
+        "view_f88a3e6c17252800_2"
       ]
     }
   ],
@@ -796,7 +796,7 @@
 
 # integer
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.1.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
   "config": {
     "view": {
       "continuousHeight": 300,
@@ -857,7 +857,7 @@
 
 # number
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.1.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
   "config": {
     "view": {
       "continuousHeight": 300,
@@ -919,7 +919,7 @@
 
 # string
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.1.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
   "config": {
     "axis": {
       "grid": false
@@ -1117,7 +1117,7 @@
 
 # string (limit to 10 items)
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.1.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
   "config": {
     "axis": {
       "grid": false
@@ -1321,7 +1321,7 @@
 
 # unknown
 {
-  "$schema": "https://vega.github.io/schema/vega-lite/v6.1.0.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
   "config": {
     "view": {
       "continuousHeight": 300,

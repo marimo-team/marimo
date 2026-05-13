@@ -6,6 +6,7 @@ import parse, {
   type HTMLReactParserOptions,
 } from "html-react-parser";
 import React, {
+  cloneElement,
   isValidElement,
   type JSX,
   type ReactNode,
@@ -169,6 +170,35 @@ const addCopyButtonToCodehilite: TransformFn = (
   }
 };
 
+// Decorator (not a match-and-replace transform): applies a src-based key
+// to <img> elements so they remount on src change. Reusing an <img> across
+// src changes can leave the previous image painted (e.g. when the new
+// request is slow/blocked, served stale by a CDN, or fails CORS), so the
+// user sees the old image even though the HTML source is up to date.
+//
+// Runs unconditionally after the match-and-replace transforms so it still
+// applies when an <img> was already wrapped by, say, wrapTooltipTargets.
+const keyImagesBySrc: TransformFn = (
+  reactNode: ReactNode,
+  domNode: DOMNode,
+  index: number,
+): JSX.Element | undefined => {
+  if (!(domNode instanceof Element) || domNode.name !== "img") {
+    return undefined;
+  }
+  const src = domNode.attribs?.src;
+  if (!src || !isValidElement(reactNode)) {
+    return undefined;
+  }
+  // data: URIs are inline — no network fetch — so they can't go stale.
+  // Skip to avoid bloating the React key with a megabyte base64 payload.
+  // URI schemes are case-insensitive per RFC 3986.
+  if (/^data:/i.test(src)) {
+    return undefined;
+  }
+  return cloneElement(reactNode, { key: `${src}-${index}` });
+};
+
 // Wrap elements with data-marimo-doc attribute in a DocHoverTarget
 const wrapDocHoverTargets: TransformFn = (
   reactNode: ReactNode,
@@ -281,6 +311,8 @@ function parseHtml({
     ...additionalReplacements,
   ];
 
+  // Match-and-replace transforms: the first one that returns a value wins
+  // (short-circuits the rest).
   const transformFunctions: TransformFn[] = [
     addCopyButtonToCodehilite,
     preserveQueryParamsInAnchorLinks,
@@ -289,6 +321,12 @@ function parseHtml({
     removeWrappingBodyTags,
     removeWrappingHtmlTags,
   ];
+
+  // Decorators: run unconditionally on the result of the transform pipeline
+  // and may further wrap/clone it. Used for cross-cutting concerns that
+  // should apply regardless of which (if any) match-and-replace transform
+  // ran above.
+  const decoratorFunctions: TransformFn[] = [keyImagesBySrc];
 
   return parse(html, {
     replace: (domNode: DOMNode, index: number) => {
@@ -301,13 +339,21 @@ function parseHtml({
       return domNode;
     },
     transform: (reactNode: ReactNode, domNode: DOMNode, index: number) => {
+      let result: ReactNode = reactNode as JSX.Element;
       for (const transformFunction of transformFunctions) {
-        const transformed = transformFunction(reactNode, domNode, index);
+        const transformed = transformFunction(result, domNode, index);
         if (transformed) {
-          return transformed;
+          result = transformed;
+          break;
         }
       }
-      return reactNode as JSX.Element;
+      for (const decorate of decoratorFunctions) {
+        const decorated = decorate(result, domNode, index);
+        if (decorated) {
+          result = decorated;
+        }
+      }
+      return result as JSX.Element;
     },
   });
 }

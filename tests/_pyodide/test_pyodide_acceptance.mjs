@@ -17,11 +17,13 @@ import path from "node:path";
 
 
 /**
- * Start a CORS-enabled HTTP server to serve the wheel file
+ * Start a CORS-enabled HTTP server to serve the wheel file plus any extra
+ * files registered at runtime via `addFile(name, buffer, contentType)`.
  */
 function startWheelServer(wheelPath) {
   const wheelDir = path.dirname(wheelPath);
   const wheelFilename = path.basename(wheelPath);
+  const extraFiles = new Map(); // name -> { data: Buffer, contentType: string }
 
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
@@ -49,10 +51,19 @@ function startWheelServer(wheelPath) {
           res.writeHead(200);
           res.end(data);
         });
-      } else {
-        res.writeHead(404);
-        res.end("Not found");
+        return;
       }
+
+      const extra = extraFiles.get(requestedFile);
+      if (extra) {
+        res.setHeader("Content-Type", extra.contentType);
+        res.writeHead(200);
+        res.end(extra.data);
+        return;
+      }
+
+      res.writeHead(404);
+      res.end("Not found");
     });
 
     // Listen on a random available port
@@ -60,7 +71,14 @@ function startWheelServer(wheelPath) {
       const address = server.address();
       const port = typeof address === 'object' && address !== null && 'port' in address ? address.port : 0;
       console.log(`Wheel server started at http://127.0.0.1:${port}`);
-      resolve({ server, port, wheelFilename });
+      resolve({
+        server,
+        port,
+        wheelFilename,
+        addFile: (name, data, contentType = "application/octet-stream") => {
+          extraFiles.set(name, { data, contentType });
+        },
+      });
     });
 
     server.on("error", reject);
@@ -319,6 +337,69 @@ print(f"Final file content verified: '{final_content}' - OK")
 
 print("\\nmo.watch.file works correctly in Pyodide execution context!")
 `);
+
+    // Step 7: Test polars WASM I/O patches (read_csv / read_parquet / scan_csv)
+    //
+    // Sync HTTP isn't available in Node.js pyodide (no XHR shim, no
+    // SharedArrayBuffer/Atomics setup), so we can't exercise the URL fetch
+    // end-to-end through the wrapper here — that's covered by unit tests.
+    // Instead, verify two things in a real pyodide runtime: (1) the polars
+    // formatter actually wrapped pl.read_csv on import, and (2) the pyarrow
+    // fallback decoders return a polars DataFrame when called with bytes.
+    console.log("Step 7: Testing polars WASM I/O patches...");
+
+    // Load polars + pyarrow (pyarrow is the patch's fallback decoder).
+    await pyodide.loadPackage(["polars", "pyarrow"]);
+
+    await pyodide.runPythonAsync(`
+import io
+import polars as pl
+from marimo._runtime._wasm._polars import _make_fallback, _write_json_fallback
+
+# Importing polars triggers the formatter's register(), which calls
+# patch_polars_for_wasm() and wraps pl.read_csv etc. functools.wraps copies
+# __wrapped__, so we can confirm the wrapper is in place.
+assert hasattr(pl.read_csv, "__wrapped__"), "pl.read_csv should be wrapped in pyodide"
+assert hasattr(pl.scan_csv, "__wrapped__"), "pl.scan_csv should be wrapped in pyodide"
+assert hasattr(pl.read_parquet, "__wrapped__"), "pl.read_parquet should be wrapped in pyodide"
+print("  - polars I/O wrappers installed: OK")
+
+# Exercise the fallback decoders directly with bytes.
+csv_bytes = b"a,b\\n1,x\\n2,y\\n"
+df = _make_fallback("csv", lazy=False)(None, io.BytesIO(csv_bytes))
+assert df.shape == (2, 2), f"unexpected csv shape: {df.shape}"
+assert df.columns == ["a", "b"], f"unexpected csv columns: {df.columns}"
+assert df["b"].to_list() == ["x", "y"], f"unexpected csv values: {df['b'].to_list()}"
+print(f"  - csv fallback: {df.shape} OK")
+
+lf = _make_fallback("csv", lazy=True)(None, io.BytesIO(csv_bytes))
+assert isinstance(lf, pl.LazyFrame), f"expected LazyFrame, got {type(lf).__name__}"
+assert lf.collect().shape == (2, 2)
+print(f"  - scan_csv fallback returns LazyFrame: OK")
+
+import pyarrow as pa
+import pyarrow.parquet as pq
+table = pa.table({"a": [1, 2], "b": ["x", "y"]})
+parquet_buf = io.BytesIO()
+pq.write_table(table, parquet_buf)
+df2 = _make_fallback("parquet", lazy=False)(None, io.BytesIO(parquet_buf.getvalue()))
+assert df2.shape == (2, 2), f"unexpected parquet shape: {df2.shape}"
+assert df2["b"].to_list() == ["x", "y"], f"unexpected parquet values: {df2['b'].to_list()}"
+print(f"  - parquet fallback: {df2.shape} OK")
+
+# write_json fallback handles temporal types (default=str).
+import datetime
+df3 = pl.DataFrame({
+    "a": [1, 2],
+    "d": [datetime.date(2026, 1, 1), datetime.date(2026, 1, 2)],
+})
+out = _write_json_fallback(None, df3)
+assert "2026-01-01" in out, f"expected serialized date in output: {out}"
+print(f"  - write_json fallback handles dates: OK")
+
+print("polars WASM I/O patches verified")
+`);
+    console.log("");
 
     console.log("");
     console.log("Verification results:", result);

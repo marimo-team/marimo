@@ -219,12 +219,19 @@ export const RenameMenuItem = ({
   onSelect,
   disabled,
   title,
+  testId,
 }: {
   onSelect: (evt: Event) => void;
   disabled?: boolean;
   title?: string;
+  testId?: string;
 }) => (
-  <DropdownMenuItem onSelect={onSelect} disabled={disabled} title={title}>
+  <DropdownMenuItem
+    onSelect={onSelect}
+    disabled={disabled}
+    title={title}
+    data-testid={testId}
+  >
     <Edit3Icon className={MENU_ITEM_ICON_CLASS} />
     Rename
   </DropdownMenuItem>
@@ -234,12 +241,19 @@ export const DuplicateMenuItem = ({
   onSelect,
   disabled,
   title,
+  testId,
 }: {
   onSelect: (evt: Event) => void;
   disabled?: boolean;
   title?: string;
+  testId?: string;
 }) => (
-  <DropdownMenuItem onSelect={onSelect} disabled={disabled} title={title}>
+  <DropdownMenuItem
+    onSelect={onSelect}
+    disabled={disabled}
+    title={title}
+    data-testid={testId}
+  >
     <CopyIcon className={MENU_ITEM_ICON_CLASS} />
     Duplicate
   </DropdownMenuItem>
@@ -249,16 +263,19 @@ export const DeleteMenuItem = ({
   onSelect,
   disabled,
   title,
+  testId,
 }: {
   onSelect: (evt: Event) => void;
   disabled?: boolean;
   title?: string;
+  testId?: string;
 }) => (
   <DropdownMenuItem
     onSelect={onSelect}
     variant="danger"
     disabled={disabled}
     title={title}
+    data-testid={testId}
   >
     <Trash2Icon className={MENU_ITEM_ICON_CLASS} />
     Delete

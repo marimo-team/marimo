@@ -1,13 +1,17 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import contextlib
 import dataclasses
+import functools
+import inspect
 import re
 import shutil
 import sys
 import textwrap
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from unittest.mock import Mock, patch
 
 import pytest
 from _pytest import runner
@@ -49,6 +53,8 @@ from marimo._types.ids import CellId_t
 if TYPE_CHECKING:
     from collections.abc import Generator
     from types import ModuleType
+
+    from typing_extensions import Self
 
 # register import hooks for third-party module formatters
 register_formatters()
@@ -542,6 +548,73 @@ class ExecReqProvider:
 @pytest.fixture
 def exec_req() -> ExecReqProvider:
     return ExecReqProvider()
+
+
+class MockPyodide:
+    """Simulate running in a Pyodide environment.
+
+    Patches ``sys.platform`` to ``"emscripten"`` so ``is_pyodide()`` returns
+    True, and stubs ``pyodide`` (plus any ``extra_modules``) in
+    ``sys.modules`` so ``import pyodide`` (and friends) succeeds.
+
+    Usable as a context manager or as a decorator on sync or async tests::
+
+        with mock_pyodide():
+            ...
+
+        @mock_pyodide()
+        async def test_foo(...): ...
+
+        @mock_pyodide(already_installed=Mock())
+        def test_bar(...): ...
+    """
+
+    def __init__(self, **extra_modules: Any) -> None:
+        self._extra_modules = extra_modules
+        self._stack: contextlib.ExitStack | None = None
+
+    def __enter__(self) -> Self:
+        modules = {"pyodide": Mock(), **self._extra_modules}
+        stack = contextlib.ExitStack()
+        stack.__enter__()
+        stack.enter_context(patch.object(sys, "platform", "emscripten"))
+        stack.enter_context(patch.dict(sys.modules, modules))
+        self._stack = stack
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        assert self._stack is not None
+        self._stack.__exit__(*exc)
+        self._stack = None
+
+    def __call__(self, func: Any) -> Any:
+        extra = self._extra_modules
+        if inspect.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+                with MockPyodide(**extra):
+                    return await func(*args, **kwargs)
+
+            return async_wrapper
+
+        @functools.wraps(func)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            with MockPyodide(**extra):
+                return func(*args, **kwargs)
+
+        return sync_wrapper
+
+
+# Lowercase alias for context-manager-style usage at call sites.
+mock_pyodide = MockPyodide
+
+
+@pytest.fixture
+def pyodide_env() -> Generator[None, None, None]:
+    """Pytest fixture that simulates running in a Pyodide environment."""
+    with mock_pyodide():
+        yield
 
 
 # Library fixtures for direct marimo integration with pytest.

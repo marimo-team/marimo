@@ -71,6 +71,7 @@ from marimo._runtime.context.types import (
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.hashable import is_hashable
+from marimo._utils.memoize import memoize_last_value
 from marimo._utils.methods import getcallable
 from marimo._utils.narwhals_utils import (
     can_narwhalify_lazyframe,
@@ -165,6 +166,8 @@ class SearchTableResponse:
     # Unformatted data mirroring the same shape/page as `data`,
     # provided when format_mapping is applied.
     raw_data: str | None = None
+    # JSON-serialized size of the currently-rendered (searched/filtered) data.
+    size_bytes: int | None = None
 
 
 @dataclass
@@ -225,6 +228,45 @@ _DATATYPE_TO_CATEGORY: dict[str, str] = {
     "datetime": "temporal",
     "time": "temporal",
 }
+
+
+def _filters_reference_column(
+    group: FilterGroup, target_column: ColumnName
+) -> bool:
+    """True if any condition in the tree targets `target_column`."""
+    for child in group.children:
+        if isinstance(child, FilterCondition):
+            if child.column_id == target_column:
+                return True
+        elif isinstance(child, FilterGroup):
+            if _filters_reference_column(child, target_column):
+                return True
+    return False
+
+
+def _strip_filters_for_column(
+    group: FilterGroup, target_column: ColumnName
+) -> FilterGroup:
+    """Recursively remove conditions referencing the target column."""
+    valid_children: list[FilterCondition | FilterGroup] = []
+    for child in group.children:
+        if (
+            isinstance(child, FilterCondition)
+            and child.column_id == target_column
+        ):
+            continue
+        elif isinstance(child, FilterGroup):
+            stripped_child = _strip_filters_for_column(child, target_column)
+            if stripped_child.children:
+                valid_children.append(stripped_child)
+        else:
+            valid_children.append(child)
+    return FilterGroup(
+        type="group",
+        operator=group.operator,
+        children=tuple(valid_children),
+        negate=group.negate,
+    )
 
 
 def _filter_valid_columns(
@@ -579,6 +621,11 @@ class table(
             num_rows = self._manager.get_num_rows(force=True)
             total_rows = num_rows if num_rows is not None else "too_many"
 
+        # Most recent filter/query state from the frontend; used to rescope
+        # filter-aware computations like top-K. None until the first _search call.
+        self._current_filters: FilterGroup | None = None
+        self._current_query: str | None = None
+
         # Set the default value for show_column_summaries,
         # if it is not set by the user
         if show_column_summaries is None:
@@ -750,6 +797,11 @@ class table(
                 "data": search_result_data,
                 "raw-data": search_result_raw_data,
                 "total-rows": total_rows,
+                "size-bytes": (
+                    self._get_json_size_bytes(self._manager)
+                    if not _internal_lazy
+                    else None
+                ),
                 "total-columns": num_columns,
                 "max-columns": max_columns_arg,
                 "banner-text": self._get_banner_text(),
@@ -871,6 +923,20 @@ class table(
                     indices
                 )
             return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
+
+    @memoize_last_value
+    def _get_json_size_bytes(self, manager: TableManager[Any]) -> int | None:
+        """Size in bytes of the manager's JSON serialization.
+
+        JSON is the largest format we export, so this is a conservative size estimate:
+        if the JSON fits under a host's download limit, CSV and Parquet will
+        too. Memoized on manager identity — recomputed when filters/search
+        produce a new ``_searched_manager``.
+        """
+        try:
+            return len(manager.to_json(strict_json=True))
+        except Exception:
+            return None
 
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the table data in the specified format.
@@ -1289,12 +1355,29 @@ class table(
     def _calculate_top_k_rows(
         self, args: CalculateTopKRowsArgs
     ) -> CalculateTopKRowsResponse:
-        """Calculate the top k rows in the table, grouped by column.
-        Returns a table of the top k rows, grouped by column with the count.
+        """Calculate the top k values for a column, with counts.
+
+        If the active filter set targets this column, those conditions are
+        stripped before computing top-K so the picker can surface values the
+        user's current filter would otherwise hide. Filters on other columns
+        and the search query still apply.
         """
         column, k = args.column, args.k
         try:
-            data = self._searched_manager.calculate_top_k_rows(column, k)
+            manager = self._searched_manager
+            current_filters = self._current_filters
+            if (
+                current_filters is not None
+                and current_filters.children
+                and _filters_reference_column(current_filters, column)
+            ):
+                stripped = _strip_filters_for_column(current_filters, column)
+                manager = self._apply_filters_query_sort(
+                    stripped if stripped.children else None,
+                    self._current_query,
+                    None,
+                )
+            data = manager.calculate_top_k_rows(column, k)
             return CalculateTopKRowsResponse(data=data)
         # Some libs will panic like Polars, which are only caught with BaseException
         except BaseException as e:
@@ -1508,6 +1591,9 @@ class table(
         if max_columns == MAX_COLUMNS_NOT_PROVIDED:
             max_columns = self._max_columns
 
+        self._current_filters = args.filters
+        self._current_query = args.query
+
         def clamp_rows_and_columns(
             manager: TableManager[Any],
         ) -> tuple[str, str | None]:
@@ -1555,6 +1641,7 @@ class table(
                     offset, args.page_size, total_rows
                 ),
                 raw_data=raw_data,
+                size_bytes=self._get_json_size_bytes(self._manager),
             )
 
         filter_function = (
@@ -1585,6 +1672,7 @@ class table(
                 offset, args.page_size, total_rows
             ),
             raw_data=raw_data,
+            size_bytes=self._get_json_size_bytes(result),
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:

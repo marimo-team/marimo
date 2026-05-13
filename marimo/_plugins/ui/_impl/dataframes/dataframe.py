@@ -72,6 +72,9 @@ class GetDataFrameResponse:
     column_types_per_step: list[FieldTypes]
     python_code: str | None = None
     sql_code: str | None = None
+    # JSON-serialized size of the current (post-transform) data; see
+    # ``SearchTableResponse.size_bytes`` for usage.
+    size_bytes: int | None = None
 
 
 @dataclass
@@ -196,6 +199,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                 "columns": self._get_column_types(),
                 "dataframe-name": dataframe_name,
                 "total": rows,
+                "size-bytes": self._get_json_size_bytes(self._manager),
                 "page-size": page_size,
                 "show-download": show_download,
                 "download-csv-encoding": download_csv_encoding,
@@ -267,6 +271,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             sql_code=self._handler.as_sql_code(
                 self._transform_container._snapshot_df
             ),
+            size_bytes=response.size_bytes,
         )
 
     def _get_column_values(
@@ -333,6 +338,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         return SearchTableResponse(
             data=data,
             total_rows=result.get_num_rows(force=True) or 0,
+            size_bytes=self._get_json_size_bytes(result),
         )
 
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
@@ -391,3 +397,11 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         if limit is not None:
             tm = tm.take(limit, 0)
         return tm
+
+    @memoize_last_value
+    def _get_json_size_bytes(self, manager: TableManager[Any]) -> int | None:
+        """JSON-serialized size of ``manager``; see table._get_json_size_bytes."""
+        try:
+            return len(manager.to_json(strict_json=True))
+        except Exception:
+            return None

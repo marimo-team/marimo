@@ -13,7 +13,6 @@ from marimo._server.ai.tools.tool_manager import setup_tool_manager
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.api.interrupt import InterruptHandler
 from marimo._server.api.utils import open_url_in_browser
-from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import any_lsp_server_running
 from marimo._server.print import (
     print_experimental_features,
@@ -26,6 +25,7 @@ from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import initialize_mimetypes
 from marimo._server.uvicorn_utils import close_uvicorn
+from marimo._server.workspace import NEW_FILE
 from marimo._session.model import SessionMode
 from marimo._utils.subprocess import cancel_pending_reaps
 
@@ -159,18 +159,18 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     manager: SessionManager = state.session_manager
     quiet = state.quiet
-    file_router = manager.file_router
+    workspace = manager.workspace
     mcp_server_enabled = state.mcp_server_enabled
     skew_protection_enabled = state.skew_protection
 
     # Startup message
     if not quiet:
-        file = file_router.maybe_get_single_file()
+        file = workspace.single_file()
         print_startup(
             file_name=file.name if file else None,
             url=_startup_url(state),
             run=manager.mode == SessionMode.RUN,
-            new=file_router.get_unique_file_key() == AppFileRouter.NEW_FILE,
+            new=workspace.get_unique_file_key() == NEW_FILE,
             network=state.host == "0.0.0.0",
             startup_tip=state.startup_tip,
         )

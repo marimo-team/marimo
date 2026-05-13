@@ -112,6 +112,27 @@ def test_create_with_disallowed_name(test_dir: Path, fs: OSFileSystem) -> None:
         fs.create_file_or_directory(str(test_dir), "file", ".", None)
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "../escaped.txt",
+        "../../escaped.txt",
+        "subdir/nested.txt",
+        "..",
+        ".",
+        "with\\backslash.txt",
+        "embed\x00null.txt",
+    ],
+)
+def test_create_rejects_path_traversal(
+    test_dir: Path, fs: OSFileSystem, name: str
+) -> None:
+    with pytest.raises(ValueError):
+        fs.create_file_or_directory(str(test_dir), "file", name, b"data")
+    # No file should have been written anywhere in or above test_dir
+    assert not (test_dir.parent / "escaped.txt").exists()
+
+
 def test_list_files(test_dir: Path, fs: OSFileSystem) -> None:
     test_create_file(test_dir, fs)
     test_create_directory(test_dir, fs)

@@ -327,6 +327,42 @@ class TestUpdateCell:
                 ]
             )
 
+    async def test_update_code_skips_formatting_when_disabled(
+        self, k: Kernel
+    ) -> None:
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with (
+            patch.dict(k.user_config["save"], {"format_on_save": False}),
+            patch(
+                "marimo._code_mode._context.DefaultFormatter.format",
+                new_callable=AsyncMock,
+            ) as mock_format,
+        ):
+            with _ctx(k) as ctx:
+                async with ctx as nb:
+                    nb.edit_cell("0", code="x=  42")
+
+        mock_format.assert_not_awaited()
+        assert _graph_codes(k) == {"0": "x=  42"}
+
+    async def test_update_code_formats_when_enabled(self, k: Kernel) -> None:
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with (
+            patch.dict(k.user_config["save"], {"format_on_save": True}),
+            patch(
+                "marimo._code_mode._context.DefaultFormatter.format",
+                new=AsyncMock(return_value={"0": "x = 42"}),
+            ) as mock_format,
+        ):
+            with _ctx(k) as ctx:
+                async with ctx as nb:
+                    nb.edit_cell("0", code="x=  42")
+
+        mock_format.assert_awaited_once()
+        assert _graph_codes(k) == {"0": "x = 42"}
+
 
 class TestCombined:
     async def test_delete_and_add(self, k: Kernel) -> None:

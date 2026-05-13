@@ -156,10 +156,13 @@ function columnChanges(
   for (const [cellId, newCol] of newColumns) {
     const prevCol = prevColumns.get(cellId);
     if (prevCol !== newCol) {
+      const cell = getCell(cellId, newState);
       changes.push({
         type: "set-config",
         cellId: cellId,
         column: newCol,
+        disabled: cell?.config.disabled ?? false,
+        hideCode: cell?.config.hide_code ?? false,
       });
     }
   }
@@ -257,18 +260,21 @@ export function toDocumentChanges(
     }
 
     // updateCellConfig → set-config
-    // Maps CellConfig's snake_case hide_code to the change's camelCase hideCode.
-    // Only includes fields that were actually specified in the partial config
-    // (from the action payload, not the full cell config).
+    // SetConfig is full-replacement: emit the cell's complete config from
+    // newState (which already merged the action's partial payload).
     case "updateCellConfig": {
-      const { cellId, config } = action.payload;
+      const { cellId } = action.payload;
+      const cell = getCell(cellId, newState);
+      if (!cell) {
+        return [];
+      }
       return [
         {
           type: "set-config",
           cellId: cellId,
-          ...(config.hide_code != null && { hideCode: config.hide_code }),
-          ...(config.disabled != null && { disabled: config.disabled }),
-          ...(config.column != null && { column: config.column }),
+          column: cell.config.column ?? null,
+          disabled: cell.config.disabled ?? false,
+          hideCode: cell.config.hide_code ?? false,
         },
       ];
     }
@@ -538,18 +544,15 @@ export function fromDocumentChanges(
         break;
 
       // set-config → updateCellConfig
-      // Maps the change's camelCase hideCode back to CellConfig's snake_case
-      // hide_code. Only includes fields that are non-null (null means
-      // "not specified" on the wire, not "clear the value").
       case "set-config":
         actions.push({
           type: "updateCellConfig",
           payload: {
             cellId: change.cellId,
             config: {
-              ...(change.hideCode != null && { hide_code: change.hideCode }),
-              ...(change.disabled != null && { disabled: change.disabled }),
-              ...(change.column != null && { column: change.column }),
+              column: change.column,
+              disabled: change.disabled,
+              hide_code: change.hideCode,
             },
           },
         });
@@ -650,7 +653,7 @@ export function applyTransactionChanges(
     ) {
       continue;
     }
-    if (change.type === "set-config" && change.column != null) {
+    if (change.type === "set-config") {
       hasColumnChange = true;
     }
     if (change.type === "create-cell" && change.config?.column != null) {

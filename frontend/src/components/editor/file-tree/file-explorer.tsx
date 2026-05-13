@@ -523,7 +523,10 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
           iconClassName="w-5 h-5"
         >
           {!node.data.isDirectory && (
-            <DropdownMenuItem onSelect={() => node.select()}>
+            <DropdownMenuItem
+              onSelect={() => node.select()}
+              data-testid="file-explorer-open-file-menu-item"
+            >
               <ViewIcon className={MENU_ITEM_ICON_CLASS} />
               Open file
             </DropdownMenuItem>
@@ -533,6 +536,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
               onSelect={() => {
                 openFile({ path: node.data.path });
               }}
+              data-testid="file-explorer-open-external-menu-item"
             >
               <ExternalLinkIcon className={MENU_ITEM_ICON_CLASS} />
               Open file in external editor
@@ -540,28 +544,44 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
           )}
           {node.data.isDirectory && (
             <>
-              <DropdownMenuItem onSelect={() => handleCreateNotebook()}>
+              <DropdownMenuItem
+                onSelect={() => handleCreateNotebook()}
+                data-testid="file-explorer-create-notebook-menu-item"
+              >
                 <MarimoPlusIcon className={MENU_ITEM_ICON_CLASS} />
                 Create notebook
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleCreateFile()}>
+              <DropdownMenuItem
+                onSelect={() => handleCreateFile()}
+                data-testid="file-explorer-create-file-menu-item"
+              >
                 <FilePlus2Icon className={MENU_ITEM_ICON_CLASS} />
                 Create file
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleCreateFolder()}>
+              <DropdownMenuItem
+                onSelect={() => handleCreateFolder()}
+                data-testid="file-explorer-create-folder-menu-item"
+              >
                 <FolderPlusIcon className={MENU_ITEM_ICON_CLASS} />
                 Create folder
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}
-          <RenameMenuItem onSelect={() => node.edit()} />
-          <DuplicateMenuItem onSelect={handleDuplicate} />
+          <RenameMenuItem
+            onSelect={() => node.edit()}
+            testId="file-explorer-rename-menu-item"
+          />
+          <DuplicateMenuItem
+            onSelect={handleDuplicate}
+            testId="file-explorer-duplicate-menu-item"
+          />
           <DropdownMenuItem
             onSelect={async () => {
               await copyToClipboard(node.data.path);
               toast({ title: "Copied to clipboard" });
             }}
+            data-testid="file-explorer-copy-path-menu-item"
           >
             <ListTreeIcon className={MENU_ITEM_ICON_CLASS} />
             Copy path
@@ -574,6 +594,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
                 );
                 toast({ title: "Copied to clipboard" });
               }}
+              data-testid="file-explorer-copy-relative-path-menu-item"
             >
               <ListTreeIcon className={MENU_ITEM_ICON_CLASS} />
               Copy relative path
@@ -586,6 +607,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
               const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
               handleInsertCode(pythonCode);
             }}
+            data-testid="file-explorer-insert-snippet-menu-item"
           >
             <BetweenHorizontalStartIcon className={MENU_ITEM_ICON_CLASS} />
             Insert snippet for reading file
@@ -601,6 +623,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
               const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
               await copyToClipboard(pythonCode);
             }}
+            data-testid="file-explorer-copy-snippet-menu-item"
           >
             <BracesIcon className={MENU_ITEM_ICON_CLASS} />
             Copy snippet for reading file
@@ -608,7 +631,10 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
           {node.data.isMarimoFile && !isWasm() && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={handleOpenMarimoFile}>
+              <DropdownMenuItem
+                onSelect={handleOpenMarimoFile}
+                data-testid="file-explorer-open-notebook-menu-item"
+              >
                 <PlaySquareIcon className={MENU_ITEM_ICON_CLASS} />
                 Open notebook
               </DropdownMenuItem>
@@ -637,6 +663,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
                     );
                   }
                 }}
+                data-testid="file-explorer-download-menu-item"
               >
                 <DownloadIcon className={MENU_ITEM_ICON_CLASS} />
                 Download
@@ -644,7 +671,10 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
               <DropdownMenuSeparator />
             </>
           )}
-          <DeleteMenuItem onSelect={handleDeleteFile} />
+          <DeleteMenuItem
+            onSelect={handleDeleteFile}
+            testId="file-explorer-delete-menu-item"
+          />
         </FileActionsDropdown>
       </span>
     </div>

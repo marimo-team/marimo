@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from functools import cache
 from importlib.util import find_spec
 from inspect import cleandoc
@@ -231,6 +232,28 @@ def _get_extensions() -> list[str | markdown.Extension]:
     return extensions
 
 
+@cache
+def _get_markdown() -> tuple[markdown.Markdown, threading.Lock]:
+    # 1. Markdown construction is expensive
+    # 2. User reported stack trace indicates there may be some race condition
+    #    leading to failure (jedi previews also run through here).
+    # 3. Calling reset properly bumps footnote ids.
+    return (
+        markdown.Markdown(
+            extensions=_get_extensions(),
+            extension_configs=_get_extension_configs(),
+        ),
+        threading.Lock(),
+    )
+
+
+def _render_markdown(text: str) -> str:
+    md, lock = _get_markdown()
+    with lock:
+        md.reset()
+        return md.convert(text)
+
+
 class _md(Html):
     def __init__(
         self,
@@ -245,11 +268,7 @@ class _md(Html):
         self._markdown_text = text
 
         # markdown.markdown appends a newline, hence strip
-        html_text = markdown.markdown(
-            text,
-            extensions=_get_extensions(),
-            extension_configs=_get_extension_configs(),
-        ).strip()
+        html_text = _render_markdown(text).strip()
         # replace <p> tags with <span> as HTML doesn't allow nested <div>s in <p>s
         html_text = html_text.replace(
             "<p>", '<span class="paragraph">'

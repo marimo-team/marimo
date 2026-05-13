@@ -4,6 +4,7 @@ from __future__ import annotations
 import uuid
 from contextvars import ContextVar
 from dataclasses import dataclass
+from typing import cast
 
 from marimo._runtime.commands import HTTPRequest
 
@@ -50,5 +51,5 @@ def is_code_mode_request() -> bool:
     request = HTTP_REQUEST_CTX.get(None)
     if request is None:
         return False
-    path: str = request.url.get("path", "")
+    path = cast("str", request.url.get("path", ""))
     return path.endswith("/api/kernel/execute")

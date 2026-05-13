@@ -111,9 +111,9 @@ async def rename_file(
     """
     body = await parse_request(request, cls=RenameNotebookRequest)
     app_state = AppState(request)
-    directory = app_state.session_manager.file_router.directory
+    directory = app_state.session_manager.workspace.directory
 
-    # Resolve relative filenames against the file router's directory
+    # Resolve relative filenames against the workspace's directory
     if not Path(body.filename).is_absolute() and directory:
         body.filename = str(Path(directory) / body.filename)
 
@@ -165,9 +165,9 @@ async def save(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=SaveNotebookRequest)
-    directory = app_state.session_manager.file_router.directory
+    directory = app_state.session_manager.workspace.directory
 
-    # Resolve relative filenames against the file router's directory
+    # Resolve relative filenames against the workspace's directory
     if body.filename and not Path(body.filename).is_absolute():
         if directory:
             body.filename = str(Path(directory) / body.filename)
@@ -180,14 +180,6 @@ async def save(
 
     session = app_state.require_current_session()
     contents = session.app_file_manager.save(body)
-
-    # Rebuild the document from the updated cell manager so that
-    # reconnections (which read session.document) reflect the saved state.
-    from marimo._session.session import _document_from_cell_manager
-
-    session.document = _document_from_cell_manager(
-        session.app_file_manager.app.cell_manager
-    )
 
     return PlainTextResponse(content=contents)
 
@@ -221,8 +213,8 @@ async def copy(
     app_state = AppState(request)
     body = await parse_request(request, cls=CopyNotebookRequest)
 
-    # Resolve relative filenames against the file router's directory
-    directory = app_state.session_manager.file_router.directory
+    # Resolve relative filenames against the workspace's directory
+    directory = app_state.session_manager.workspace.directory
     if directory:
         if body.source and not Path(body.source).is_absolute():
             body.source = str(Path(directory) / body.source)

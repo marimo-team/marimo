@@ -417,6 +417,44 @@ describe("getCopyValue with encoded non-string keys", () => {
     `);
   });
 
+  it("parses tuple/frozenset payloads containing bare NaN/Infinity", () => {
+    // Python's json.dumps emits bare `NaN`/`Infinity` inside the embedded
+    // tuple/frozenset payload strings (JSON spec violation, but ECMA-262-
+    // friendly via the fallback in jsonParseWithSpecialChar). The outer
+    // JSON stays strict because those tokens live inside a JSON string
+    // key/value. Regression for tuple-key payloads that previously broke
+    // the frontend's `JSON.parse` and threw.
+    const value = {
+      "text/plain+tuple:[NaN]": "tn",
+      "text/plain+tuple:[Infinity, -Infinity]": "ti",
+      k: "text/plain+frozenset:[Infinity, 1]",
+    };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        (float('nan'),): "tn",
+        (float('inf'), -float('inf')): "ti",
+        "k": frozenset({float('inf'), 1})
+      }"
+    `);
+  });
+
+  it("falls back to the raw payload for malformed tuple/frozenset", () => {
+    // `jsonParseWithSpecialChar` returns `{}` on parse failure rather
+    // than throwing; without an `Array.isArray` guard, the formatters
+    // would crash on `.length`/`.map`. Pass the raw payload through so
+    // a malformed wire form doesn't break the whole render.
+    const value = {
+      "text/plain+tuple:not a json list": "t",
+      k: "text/plain+frozenset:also broken",
+    };
+    expect(getCopyValue(value)).toMatchInlineSnapshot(`
+      "{
+        not a json list: "t",
+        "k": also broken
+      }"
+    `);
+  });
+
   it("unescapes string keys that looked encoded", () => {
     const value = {
       "text/plain+str:text/plain+int:2": "hello",

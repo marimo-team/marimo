@@ -130,14 +130,46 @@ export const useCellRangeSelection = <TData>({
 const INTERACTIVE_SELECTOR =
   'input, button, select, textarea, a, label, [role="checkbox"], [role="button"], [contenteditable="true"], marimo-ui-element';
 
+// `<marimo-ui-element>` wraps every stateful UIElement, but content-wrapper
+// UIElements like `mo.lazy` and `mo.routes` are themselves inert. Clicks on
+// their inner content should still allow cell selection.
+// See https://github.com/marimo-team/marimo/issues/9189.
+const CONTENT_WRAPPER_MARIMO_TAGS: ReadonlySet<string> = new Set([
+  "marimo-lazy",
+  "marimo-routes",
+]);
+
 /**
  * Skip cell selection when the click target is inside an interactive element
  * (e.g. a checkbox or button rendered as rich cell content).
+ *
+ * Walks `composedPath()` so we can see through Shadow DOM boundaries used by
+ * marimo plugins. Without this, `event.target` is retargeted to the outermost
+ * shadow host (e.g. `<marimo-lazy>`), hiding any genuinely interactive
+ * descendants rendered inside the shadow tree.
  */
 export function isInteractiveTarget(e: React.MouseEvent): boolean {
-  const target = e.target;
-  if (target === e.currentTarget || !(target instanceof Element)) {
-    return false;
+  const path: readonly EventTarget[] =
+    typeof e.nativeEvent?.composedPath === "function"
+      ? e.nativeEvent.composedPath()
+      : [e.target];
+
+  for (const node of path) {
+    if (node === e.currentTarget) {
+      break;
+    }
+    if (!(node instanceof Element) || !node.matches(INTERACTIVE_SELECTOR)) {
+      continue;
+    }
+    // A `<marimo-ui-element>` directly wrapping a passive content-wrapper is
+    // inert; keep walking to find a real interactive ancestor (if any).
+    if (node.localName === "marimo-ui-element") {
+      const inner = node.firstElementChild;
+      if (inner && CONTENT_WRAPPER_MARIMO_TAGS.has(inner.localName)) {
+        continue;
+      }
+    }
+    return true;
   }
-  return target.closest(INTERACTIVE_SELECTOR) !== null;
+  return false;
 }

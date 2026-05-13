@@ -13,7 +13,6 @@ permissions:
   contents: read
 
 env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
   MARIMO_SKIP_UPDATE_CHECK: 1
   UV_EXCLUDE_NEWER: "7 days"
@@ -38,6 +37,9 @@ jobs:
     name: Build marimo wheel
     runs-on: ubuntu-latest
     timeout-minutes: 8 # 2024-01-18
+    permissions:
+      contents: read
+      id-token: write # required for Doppler OIDC
     defaults:
       run:
         shell: bash
@@ -48,11 +50,23 @@ jobs:
         with:
           fetch-depth: 0 # so we can run --since on the main branch and turbo can do faster cache hashing
 
+      - name: 🔐 Fetch Doppler secrets
+        # Skip on PRs from forks: id-token write is downgraded to read, so OIDC fails.
+        # Downstream tokens (TURBO_TOKEN, CODECOV_TOKEN) are optional and tolerate empty.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: dopplerhq/secrets-fetch-action@cd2efbf9a404504316435873eff298b82f7e0562 # v1.3.0
+        id: secrets
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: marimo-oss
+          doppler-config: ci_test
+
       - name: 📦 Build frontend
         uses: ./.github/actions/build-frontend
         with:
-          turbo-token: ${{ secrets.TURBO_TOKEN }}
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          turbo-token: ${{ steps.secrets.outputs.TURBO_TOKEN }}
+          codecov-token: ${{ steps.secrets.outputs.CODECOV_TOKEN }}
 
       - name: 🐍 Setup uv
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
@@ -115,7 +129,7 @@ jobs:
           # Get version from package.json
           pyodide_version=$(cat frontend/package.json | jq -r '.dependencies["pyodide"]')
           echo "Pyodide version: $pyodide_version"
-          npm install pyodide@$pyodide_version
+          npm install --ignore-scripts pyodide@$pyodide_version
           wheel_file=$(ls dist/*.whl)
           echo "Testing wheel: $wheel_file"
           node tests/_pyodide/test_pyodide_acceptance.mjs "$wheel_file"
@@ -152,8 +166,15 @@ jobs:
       # xdist is disabled for CLI tests because they test process-level
       # behavior (spawning marimo processes, port binding) that conflicts
       # with parallel execution.
+      #
+      # UV_FIND_LINKS points sandbox subprocesses at the locally-built wheel,
+      # so `marimo[lsp]==<current version>` resolves to it instead of PyPI.
+      # Without this, a marimo release published less than UV_EXCLUDE_NEWER ago
+      # falls outside the cutoff and sandbox resolution fails.
       - name: Test CLI
         shell: bash
+        env:
+          UV_FIND_LINKS: ${{ github.workspace }}
         run: |
           uv venv
           uv pip install --group=test-optional --group=dev marimo*.whl

@@ -42,6 +42,7 @@ from marimo._ast.parse import ast_parse
 from marimo._ast.variables import BUILTINS
 from marimo._convert.converters import MarimoConvert
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.notebook.changes import SetConfig, Transaction
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._runtime import dataflow
@@ -172,16 +173,30 @@ class _SetupContext:
         hide_code: bool = False,
         **kwargs: Any,  # noqa: ARG002
     ) -> _SetupContext:
-        """When called with parameters, create a new context with those parameters."""
-        cell = self._app._cell_manager.cell_context(
-            app=InternalApp(self._app),
-            frame=inspect.stack()[1].frame,
-            config=CellConfig(hide_code=hide_code),
+        """When called with parameters, update the setup cell config.
+
+        The setup cell was already registered when ``app.setup`` ran
+        (the property getter); this call updates that cell's config in
+        place rather than re-registering.
+        """
+        cm = self._app._cell_manager
+        existing_cfg = cm.document.get_cell(cm.setup_cell_id).config
+        cm.document.apply(
+            Transaction(
+                changes=(
+                    SetConfig(
+                        cell_id=cm.setup_cell_id,
+                        column=existing_cfg.column,
+                        disabled=existing_cfg.disabled,
+                        hide_code=hide_code,
+                    ),
+                ),
+                source="cell-manager",
+            )
         )
-        self._app._setup = _SetupContext(
-            app=self._app, cell=cell, hide_code=hide_code
-        )
-        return self._app._setup
+        self._cell._cell.configure({"hide_code": hide_code})
+        self._hide_code = hide_code
+        return self
 
 
 @dataclass
@@ -294,7 +309,7 @@ class App:
             strict=False,
         ):
             cell = None
-            cell_data = self._cell_manager._cell_data.get(cell_id)
+            cell_data = self._cell_manager.get_cell_data(cell_id)
             new_cell_id = app._cell_manager.create_cell_id()
             # If the cell exists, the cell data should be set (ie not None).
             if cell_data is not None:
@@ -1014,23 +1029,31 @@ class InternalApp:
         names: Iterable[str],
         configs: Iterable[CellConfig],
     ) -> InternalApp:
-        new_cell_manager = CellManager()
+        """Rewrite the cell list from textual fields, in place.
+
+        Mutates ``self._app._cell_manager`` rather than replacing it,
+        so any caller holding ``app.cell_manager`` or
+        ``app.cell_manager.document`` (notably ``Session.document``)
+        continues to see live state without rebinding.
+
+        Cells that survive the rewrite keep their compiled ``Cell``;
+        callers from save flows pass the frontend's snapshot, which
+        renames/reorders/reconfigures cells but doesn't recompile.
+        """
+        cm = self._app._cell_manager
+        prev_compiled = dict(cm._compiled_cells)
+        rebuilt = CellManager(prefix=cm.prefix)
         for cell_id, code, name, config in zip(
             cell_ids, codes, names, configs, strict=False
         ):
-            cell = None
-            # If the cell exists, the cell data should be set.
-            cell_data = self._app._cell_manager._cell_data.get(cell_id)
-            if cell_data is not None:
-                cell = cell_data.cell
-            new_cell_manager.register_cell(
+            rebuilt.register_cell(
                 cell_id=cell_id,
                 code=code,
                 name=name,
                 config=config,
-                cell=cell,
+                cell=prev_compiled.get(cell_id),
             )
-        self._app._cell_manager = new_cell_manager
+        cm._replace_state_from(rebuilt)
         return self
 
     async def run_cell_async(
@@ -1073,7 +1096,7 @@ class InternalApp:
                     name=cell_data.name,
                     options=cell_data.config.asdict(),
                 )
-                for cell_data in self._app._cell_manager._cell_data.values()
+                for cell_data in self._app._cell_manager.cell_data()
             ],
             app=AppInstantiation(
                 options=self._app._config.asdict(),

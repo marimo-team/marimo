@@ -32,6 +32,7 @@ from marimo._server.export import (
     run_app_then_export_as_html,
     run_app_then_export_as_ipynb,
     run_app_then_export_as_pdf,
+    run_app_then_export_as_wasm,
 )
 from marimo._server.export._status import PDFExportStatusEvent
 from marimo._server.export.exporter import Exporter
@@ -870,11 +871,20 @@ and cannot be opened directly from the file system (e.g. file://).
     default=False,
     help="Force overwrite of the output file if it already exists.",
 )
+@click.option(
+    "--execute/--no-execute",
+    default=False,
+    help=(
+        "Execute the notebook before exporting and embed outputs as a "
+        "preview. Runs in the current Python environment."
+    ),
+)
 @click.argument(
     "name",
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def html_wasm(
     name: str,
     output: Path,
@@ -884,9 +894,16 @@ def html_wasm(
     include_cloudflare: bool,
     sandbox: bool | None,
     force: bool,
+    execute: bool,
+    args: tuple[str, ...],
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
     import sys
+
+    if execute and watch:
+        raise click.UsageError(
+            "--execute and --watch cannot be used together."
+        )
 
     # Set default, if not provided
     if sandbox is None:
@@ -909,8 +926,25 @@ def html_wasm(
 
     marimo_file = MarimoPath(name)
 
-    def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_wasm(file_path, mode, show_code=show_code)
+    if execute:
+        cli_args = parse_args(args)
+
+        def export_callback(file_path: MarimoPath) -> ExportResult:
+            return asyncio_run(
+                run_app_then_export_as_wasm(
+                    file_path,
+                    mode=mode,
+                    show_code=show_code,
+                    cli_args=cli_args,
+                    argv=list(args),
+                )
+            )
+
+        echo("Executing notebook...")
+    else:
+
+        def export_callback(file_path: MarimoPath) -> ExportResult:
+            return export_as_wasm(file_path, mode, show_code=show_code)
 
     # Export assets first
     Exporter().export_assets(out_dir)

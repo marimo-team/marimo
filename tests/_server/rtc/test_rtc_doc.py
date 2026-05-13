@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, cast
 
 import pytest
 
-from marimo._server.file_router import MarimoFileKey
 from marimo._server.rtc.doc import LoroDocManager
+from marimo._server.workspace import MarimoFileKey
 from marimo._types.ids import CellId_t
 
 if sys.version_info >= (3, 11) and sys.version_info < (3, 14):

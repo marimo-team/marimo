@@ -3,6 +3,7 @@
 import { execFile, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
@@ -12,10 +13,12 @@ import packageJson from "../package.json";
 
 const execFileAsync = promisify(execFile);
 
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+
 const htmlDevPlugin = (): Plugin => {
   const generateHtml = async (): Promise<string> => {
     // Auto-regenerate HTML in dev mode by running the Python script
-    const scriptPath = path.resolve(__dirname, "generate.py");
+    const scriptPath = path.resolve(dirname, "generate.py");
     try {
       const { stdout } = await execFileAsync("uv", ["run", scriptPath], {
         env: { ...process.env, MODE: "dev" },
@@ -25,7 +28,7 @@ const htmlDevPlugin = (): Plugin => {
       console.error("Failed to generate demo HTML:", error);
       // Fallback to existing file if generation fails
       const indexHtml = await fs.promises.readFile(
-        path.resolve(__dirname, "__demo__", "index.html"),
+        path.resolve(dirname, "__demo__", "index.html"),
         "utf-8",
       );
       const preamble = `<!DOCTYPE html>\n
@@ -48,7 +51,7 @@ window.$RefreshSig$ = () => (type) => type;</script>
     },
     // Watch the generate.py file and trigger HMR on changes
     configureServer(server) {
-      const scriptPath = path.resolve(__dirname, "generate.py");
+      const scriptPath = path.resolve(dirname, "generate.py");
       server.watcher.add(scriptPath);
       server.watcher.on("change", (file) => {
         if (file === scriptPath) {
@@ -80,6 +83,20 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
     dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
+    alias: [
+      // Islands run read-only and never render the slide code editor, so
+      // swap `SlideCellView` for a no-op stub. This keeps CodeMirror, the
+      // Codeium adapter, and `@bufbuild/protobuf` out of the islands bundle
+      // (the latter contains a `process.env.BUF_BIGINT_DISABLE` literal
+      // that `islands/validate.sh` otherwise flags).
+      {
+        find: "@/components/slides/slide-cell-view",
+        replacement: path.resolve(
+          dirname,
+          "../src/core/islands/stubs/slide-cell-view.tsx",
+        ),
+      },
+    ],
   },
   experimental: {
     enableNativePlugin: true,
@@ -121,7 +138,7 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     lib: {
-      entry: path.resolve(__dirname, "../src/core/islands/main.ts"),
+      entry: path.resolve(dirname, "../src/core/islands/main.ts"),
       formats: ["es"],
     },
     rolldownOptions: {

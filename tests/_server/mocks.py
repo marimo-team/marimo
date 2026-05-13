@@ -12,10 +12,13 @@ from marimo._config.manager import (
     get_default_config_manager,
 )
 from marimo._server.config import StarletteServerStateInit
-from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import NoopLspServer
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
+from marimo._server.workspace import (
+    NotebookWorkspace,
+    SingleFileWorkspace,
+)
 from marimo._session.model import SessionMode
 from marimo._utils.marimo_path import MarimoPath
 
@@ -79,7 +82,7 @@ if __name__ == "__main__":
     lsp_server = NoopLspServer()
 
     sm = SessionManager(
-        file_router=AppFileRouter.from_filename(MarimoPath(temp_file.name)),
+        workspace=SingleFileWorkspace.from_path(MarimoPath(temp_file.name)),
         mode=mode,
         quiet=False,
         include_code=True,
@@ -96,28 +99,28 @@ if __name__ == "__main__":
 
 
 @contextlib.contextmanager
-def file_router_scope(
-    client: TestClient, file_router: AppFileRouter
+def workspace_scope(
+    client: TestClient, workspace: NotebookWorkspace
 ) -> Iterator[None]:
     session_manager: SessionManager = cast(
         Any, client.app
     ).state.session_manager
-    original_file_router = session_manager.file_router
-    session_manager.file_router = file_router
+    original_workspace = session_manager.workspace
+    session_manager.workspace = workspace
     try:
         yield
     finally:
-        session_manager.file_router = original_file_router
+        session_manager.workspace = original_workspace
 
 
-def with_file_router(
-    file_router: AppFileRouter,
+def with_workspace(
+    workspace: NotebookWorkspace,
 ) -> Callable[[Callable[..., None]], Callable[..., None]]:
-    """Decorator to create a session and close it after the test"""
+    """Decorator to swap a workspace for the duration of the test."""
 
     def decorator(func: Callable[..., None]) -> Callable[..., None]:
         def wrapper(client: TestClient, *args: Any, **kwargs: Any) -> None:
-            with file_router_scope(client, file_router):
+            with workspace_scope(client, workspace):
                 func(client, *args, **kwargs)
 
         return wrapper

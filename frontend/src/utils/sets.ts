@@ -27,4 +27,17 @@ export const Sets = {
     }
     return true;
   },
+
+  /**
+   * Return a new set with `item` toggled — removed if present, added if not.
+   */
+  toggle<T>(set: Set<T>, item: T): Set<T> {
+    const result = new Set(set);
+    if (result.has(item)) {
+      result.delete(item);
+    } else {
+      result.add(item);
+    }
+    return result;
+  },
 };

@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 import html
 import json
 import os
@@ -503,6 +504,8 @@ def wasm_notebook_template(
     code: str,
     show_code: bool,
     asset_url: str | None = None,
+    session_snapshot: NotebookSessionV1 | None = None,
+    notebook_snapshot: NotebookV1 | None = None,
 ) -> str:
     """Template for WASM notebooks."""
     import re
@@ -536,6 +539,8 @@ def wasm_notebook_template(
             version=version,
             show_app_code=show_code,
             runtime_config=None,
+            session_snapshot=session_snapshot,
+            notebook_snapshot=notebook_snapshot,
         ),
     )
 
@@ -615,7 +620,11 @@ def _del_none_or_empty(d: Any) -> Any:
     }
 
 
+@functools.lru_cache(maxsize=1)
 def get_version() -> str:
+    # Invariant for the lifetime of the process; cache so the three
+    # render-path call sites (mount_config + two .replace passes) don't
+    # each pay the importlib.metadata lookup.
     return (
         f"{__version__} (editable)" if is_editable("marimo") else __version__
     )

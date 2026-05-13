@@ -1370,6 +1370,72 @@ def test_download_as(df: Any) -> None:
         assert selected_nw["cities"][0] == "New York"
 
 
+def test_json_size_bytes_matches_payload() -> None:
+    data = [{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]
+    table = ui.table(data)
+    expected = len(table._manager.to_json(strict_json=True))
+    assert table._get_json_size_bytes(table._manager) == expected
+    assert expected > 0
+
+
+def test_json_size_bytes_cached_per_manager_identity() -> None:
+    table = ui.table([{"a": 1}, {"a": 2}])
+    # The constructor already primed the cache with table._manager; verify
+    # that asking again does not re-serialize, while a fresh manager does.
+    call_count = 0
+    original_to_json = type(table._manager).to_json
+
+    def counting_to_json(self: Any, **kwargs: Any) -> Any:
+        nonlocal call_count
+        call_count += 1
+        return original_to_json(self, **kwargs)
+
+    other_manager = ui.table([{"a": 3, "b": 4}])._manager
+    # other_manager's construction primed the cache with a different key,
+    # so the next call on table._manager will be a fresh miss.
+    with patch.object(type(table._manager), "to_json", counting_to_json):
+        table._get_json_size_bytes(table._manager)
+        table._get_json_size_bytes(table._manager)
+        assert call_count == 1, (
+            "second call with same manager identity should hit cache"
+        )
+        table._get_json_size_bytes(other_manager)
+        assert call_count == 2, "different manager identity should recompute"
+
+
+def test_json_size_bytes_fails_open() -> None:
+    table = ui.table([{"a": 1}])
+
+    class _Boom:
+        def to_json(self, **_: Any) -> str:
+            raise RuntimeError("boom")
+
+    assert table._get_json_size_bytes(_Boom()) is None  # type: ignore[arg-type]
+
+
+def test_render_args_carry_size_bytes() -> None:
+    table = ui.table([{"a": 1}, {"a": 2}])
+    args = table._component_args  # type: ignore[attr-defined]
+    assert args["size-bytes"] == len(table._manager.to_json(strict_json=True))
+
+
+def test_search_response_carries_size_bytes() -> None:
+    data = [{"a": i} for i in range(10)]
+    table = ui.table(data)
+    # Unfiltered branch — should report _manager's size.
+    unfiltered = table._search(SearchTableArgs(page_size=5, page_number=0))
+    assert unfiltered.size_bytes == len(
+        table._manager.to_json(strict_json=True)
+    )
+    # Filtered branch — should report the searched manager's size, which
+    # differs from the full manager.
+    filtered = table._search(
+        SearchTableArgs(query="1", page_size=5, page_number=0)
+    )
+    assert filtered.size_bytes is not None
+    assert filtered.size_bytes < unfiltered.size_bytes
+
+
 def test_download_as_ignores_cell_selection() -> None:
     # Download should ignore selection when in cell selection modes
     data = {"a": [1, 2, 3]}
@@ -2310,6 +2376,119 @@ def test_calculate_top_k_rows():
     )
     assert result == CalculateTopKRowsResponse(
         data=[(3, 2), (None, 2), (1, 1)],
+    )
+
+
+_TOP_K_DATA = {
+    "role": ["admin", "admin", "user", "user", "guest"],
+    "country": ["US", "UK", "US", "US", "UK"],
+}
+
+
+def _filter_role_in(values: list[str]) -> FilterGroup:
+    return FilterGroup(
+        type="group",
+        operator="and",
+        children=[
+            FilterCondition(
+                type="condition",
+                column_id="role",
+                operator="in",
+                value=values,
+            )
+        ],
+    )
+
+
+def _filter_country_eq(value: str) -> FilterGroup:
+    return FilterGroup(
+        type="group",
+        operator="and",
+        children=[
+            FilterCondition(
+                type="condition",
+                column_id="country",
+                operator="equals",
+                value=value,
+            )
+        ],
+    )
+
+
+@pytest.mark.parametrize("df", create_dataframes(_TOP_K_DATA))
+def test_top_k_ignores_same_column_filter(df: Any) -> None:
+    """Editing a filter on a column must not hide values the filter excludes."""
+    table = ui.table(df)
+    table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+            filters=_filter_role_in(["admin", "user"]),
+        )
+    )
+    result = table._calculate_top_k_rows(
+        CalculateTopKRowsArgs(column="role", k=10)
+    )
+    # `guest` is excluded by the active filter but must still appear,
+    # otherwise users can't broaden the filter back out.
+    assert result == CalculateTopKRowsResponse(
+        data=[("admin", 2), ("user", 2), ("guest", 1)],
+    )
+
+
+@pytest.mark.parametrize("df", create_dataframes(_TOP_K_DATA))
+def test_top_k_respects_other_column_filter(df: Any) -> None:
+    table = ui.table(df)
+    table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+            filters=_filter_country_eq("UK"),
+        )
+    )
+    result = table._calculate_top_k_rows(
+        CalculateTopKRowsArgs(column="role", k=10)
+    )
+    # Only UK rows survive: admin (UK) and guest (UK).
+    assert result == CalculateTopKRowsResponse(
+        data=[("admin", 1), ("guest", 1)],
+    )
+
+
+@pytest.mark.parametrize("df", create_dataframes(_TOP_K_DATA))
+def test_top_k_strips_self_filter_keeps_others(df: Any) -> None:
+    table = ui.table(df)
+    table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+            filters=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="role",
+                        operator="in",
+                        value=["admin", "user"],
+                    ),
+                    FilterCondition(
+                        type="condition",
+                        column_id="country",
+                        operator="equals",
+                        value="UK",
+                    ),
+                ],
+            ),
+        )
+    )
+    result = table._calculate_top_k_rows(
+        CalculateTopKRowsArgs(column="role", k=10)
+    )
+    # `role` filter is stripped, `country == UK` still applies:
+    # UK rows are admin + guest. `guest` reappears because role filter is ignored.
+    assert result == CalculateTopKRowsResponse(
+        data=[("admin", 1), ("guest", 1)],
     )
 
 

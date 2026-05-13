@@ -35,9 +35,9 @@ from marimo._runtime.commands import (
     SyncGraphCommand,
     UpdateUIElementCommand,
 )
-from marimo._server.file_router import AppFileRouter
 from marimo._server.session_manager import SessionManager
 from marimo._server.utils import initialize_asyncio
+from marimo._server.workspace import SingleFileWorkspace
 from marimo._session import Session
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
@@ -457,9 +457,9 @@ def __():
 
     try:
         # Create a session manager with file watching enabled
-        file_router = AppFileRouter.from_filename(MarimoPath(tmp_file))
+        workspace = SingleFileWorkspace.from_path(MarimoPath(tmp_file))
         session_manager = SessionManager(
-            file_router=file_router,
+            workspace=workspace,
             mode=SessionMode.EDIT,
             quiet=True,
             include_code=True,
@@ -605,9 +605,9 @@ def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
     config_reader = get_default_config_manager(current_path=None)
 
     # Create a session manager with watch mode enabled
-    file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_file)))
+    workspace = SingleFileWorkspace.from_path(MarimoPath(str(tmp_file)))
     session_manager = SessionManager(
-        file_router=file_router,
+        workspace=workspace,
         mode=SessionMode.EDIT,
         quiet=True,
         include_code=True,
@@ -622,7 +622,7 @@ def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
     )
 
     session_manager_no_watch = SessionManager(
-        file_router=file_router,
+        workspace=workspace,
         mode=SessionMode.EDIT,
         quiet=True,
         include_code=True,
@@ -678,9 +678,9 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
         )
 
         # Create a session manager with file watching enabled
-        file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_file)))
+        workspace = SingleFileWorkspace.from_path(MarimoPath(str(tmp_file)))
         session_manager = SessionManager(
-            file_router=file_router,
+            workspace=workspace,
             mode=SessionMode.EDIT,
             quiet=True,
             include_code=True,
@@ -787,9 +787,9 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
         )
 
         # Create a session manager with file watching enabled
-        file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_file)))
+        workspace = SingleFileWorkspace.from_path(MarimoPath(str(tmp_file)))
         session_manager = SessionManager(
-            file_router=file_router,
+            workspace=workspace,
             mode=SessionMode.EDIT,
             quiet=True,
             include_code=True,
@@ -878,9 +878,9 @@ def __():
 
     try:
         # Create a session manager with file watching enabled
-        file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_path1)))
+        workspace = SingleFileWorkspace.from_path(MarimoPath(str(tmp_path1)))
         session_manager = SessionManager(
-            file_router=file_router,
+            workspace=workspace,
             mode=SessionMode.EDIT,
             quiet=True,
             include_code=True,

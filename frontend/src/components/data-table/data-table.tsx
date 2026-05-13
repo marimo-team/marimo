@@ -22,7 +22,10 @@ import React, { memo } from "react";
 import { useLocale } from "react-aria";
 
 import { Table } from "@/components/ui/table";
-import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
+import type {
+  CalculateTopKRows,
+  GetRowIds,
+} from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
 import {
   PANEL_TYPES,
@@ -67,6 +70,9 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   setSorting?: OnChangeFn<SortingState>; // controlled sorting
   // Pagination
   totalRows: number | TooManyRows;
+  // JSON-serialized size of the currently-rendered data. Forwarded to
+  // ExportMenu so hosts can size-gate the Export button via downloadSizeLimitAtom.
+  sizeBytes?: number | null;
   totalColumns: number;
   pagination?: boolean;
   manualPagination?: boolean; // server-side pagination
@@ -89,6 +95,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   showFilters?: boolean;
   filters?: ColumnFiltersState;
   onFiltersChange?: OnChangeFn<ColumnFiltersState>;
+  calculateTopKRows?: CalculateTopKRows;
   reloading?: boolean;
   // Columns
   freezeColumnsLeft?: string[];
@@ -117,6 +124,7 @@ const DataTableInternal = <TData,>({
   selection,
   totalColumns,
   totalRows,
+  sizeBytes,
   manualSorting = false,
   sorting,
   setSorting,
@@ -139,6 +147,7 @@ const DataTableInternal = <TData,>({
   showFilters = false,
   filters,
   onFiltersChange,
+  calculateTopKRows,
   reloading,
   freezeColumnsLeft,
   freezeColumnsRight,
@@ -282,7 +291,11 @@ const DataTableInternal = <TData,>({
 
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
-      <FilterPills filters={filters} table={table} />
+      <FilterPills
+        filters={filters}
+        table={table}
+        calculateTopKRows={calculateTopKRows}
+      />
       <CellSelectionProvider>
         <div
           part="table-wrapper"
@@ -300,6 +313,7 @@ const DataTableInternal = <TData,>({
             togglePanel={togglePanel}
             isAnyPanelOpen={isAnyPanelOpen}
             downloadAs={downloadAs}
+            sizeBytes={sizeBytes}
           />
           <Table
             className={cn(

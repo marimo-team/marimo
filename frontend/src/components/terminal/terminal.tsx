@@ -270,6 +270,22 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
 
         const handleOpen = () => {
           updateReadyState();
+          // Send initial dimensions: the mount-time fit() may have fired
+          // before the WS was OPEN, dropping the resize message and leaving
+          // the PTY at its default 0x0 winsize.
+          fitAddon.fit();
+          if (terminal.cols > 0 && terminal.rows > 0) {
+            socket.send(
+              JSON.stringify({
+                type: "resize",
+                cols: terminal.cols,
+                rows: terminal.rows,
+              }),
+            );
+            // The fit() above may have triggered onResize → scheduled a
+            // debounced send. Cancel it; we just sent the same dims.
+            handleBackendResizeDebounced.cancel();
+          }
         };
 
         const handleDisconnect = () => {

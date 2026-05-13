@@ -37,7 +37,7 @@ HEADERS = {
 def test_rename(client: TestClient) -> None:
     current_filename = get_session_manager(
         client
-    ).file_router.get_unique_file_key()
+    ).workspace.get_unique_file_key()
 
     assert current_filename
     current_path = Path(current_filename)
@@ -103,7 +103,7 @@ def test_read_code_in_run_mode_without_include_code(
 @pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_save_file(client: TestClient) -> None:
-    filename = get_session_manager(client).file_router.get_unique_file_key()
+    filename = get_session_manager(client).workspace.get_unique_file_key()
     assert filename
     path = Path(filename)
 
@@ -157,7 +157,7 @@ def test_save_file(client: TestClient) -> None:
 )
 @with_session(SESSION_ID)
 def test_save_with_header(client: TestClient) -> None:
-    filename = get_session_manager(client).file_router.get_unique_file_key()
+    filename = get_session_manager(client).workspace.get_unique_file_key()
     assert filename
     path = Path(filename)
     assert path.exists()
@@ -208,7 +208,7 @@ def test_save_with_header(client: TestClient) -> None:
 @pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_save_with_invalid_file(client: TestClient) -> None:
-    filename = get_session_manager(client).file_router.get_unique_file_key()
+    filename = get_session_manager(client).workspace.get_unique_file_key()
     assert filename
     path = Path(filename)
     assert path.exists()
@@ -286,7 +286,7 @@ def test_save_file_cannot_rename(client: TestClient) -> None:
 @pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_save_app_config(client: TestClient) -> None:
-    filename = get_session_manager(client).file_router.get_unique_file_key()
+    filename = get_session_manager(client).workspace.get_unique_file_key()
     assert filename
     path = Path(filename)
 
@@ -315,7 +315,7 @@ def test_save_app_config(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_copy_file(client: TestClient) -> None:
-    filename = get_session_manager(client).file_router.get_unique_file_key()
+    filename = get_session_manager(client).workspace.get_unique_file_key()
     assert filename
     path = Path(filename)
     assert path.exists()
@@ -346,18 +346,18 @@ def test_copy_file(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_copy_file_with_relative_paths(client: TestClient) -> None:
-    """Test that copy works with relative paths when file_router has a directory."""
-    filename = get_session_manager(client).file_router.get_unique_file_key()
+    """Test that copy works with relative paths when workspace has a directory."""
+    filename = get_session_manager(client).workspace.get_unique_file_key()
     assert filename
     path = Path(filename)
     assert path.exists()
     file_contents = path.read_text()
     assert "import marimo as mo" in file_contents
 
-    # Get the directory and mock the file_router.directory property to simulate
+    # Get the directory and mock the workspace.directory property to simulate
     # running from a subdirectory (marimo edit foo/dir/)
     directory = str(path.parent)
-    file_router = get_session_manager(client).file_router
+    workspace = get_session_manager(client).workspace
 
     # Use relative paths (as the frontend would send when running from a
     # subdirectory)
@@ -365,9 +365,9 @@ def test_copy_file_with_relative_paths(client: TestClient) -> None:
     dest_relative = f"_copy_{path.name}"
     copied_file = path.parent / dest_relative
 
-    # Mock the directory property on the file router
+    # Mock the directory property on the workspace
     with patch.object(
-        type(file_router),
+        type(workspace),
         "directory",
         new_callable=lambda: property(lambda _: directory),
     ):
@@ -392,15 +392,15 @@ def test_copy_file_with_relative_paths(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_path_traversal_save_blocked(client: TestClient) -> None:
-    """Save endpoint must not write outside the router's directory."""
-    filename = get_session_manager(client).file_router.get_unique_file_key()
+    """Save endpoint must not write outside the workspace's directory."""
+    filename = get_session_manager(client).workspace.get_unique_file_key()
     assert filename
     path = Path(filename)
     directory = str(path.parent)
-    file_router = get_session_manager(client).file_router
+    workspace = get_session_manager(client).workspace
 
     with patch.object(
-        type(file_router),
+        type(workspace),
         "directory",
         new_callable=lambda: property(lambda _: directory),
     ):
@@ -422,15 +422,15 @@ def test_path_traversal_save_blocked(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_path_traversal_rename_blocked(client: TestClient) -> None:
-    """Rename endpoint must not move files outside the router's directory."""
-    filename = get_session_manager(client).file_router.get_unique_file_key()
+    """Rename endpoint must not move files outside the workspace's directory."""
+    filename = get_session_manager(client).workspace.get_unique_file_key()
     assert filename
     path = Path(filename)
     directory = str(path.parent)
-    file_router = get_session_manager(client).file_router
+    workspace = get_session_manager(client).workspace
 
     with patch.object(
-        type(file_router),
+        type(workspace),
         "directory",
         new_callable=lambda: property(lambda _: directory),
     ):
@@ -445,15 +445,15 @@ def test_path_traversal_rename_blocked(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_path_traversal_copy_blocked(client: TestClient) -> None:
-    """Copy endpoint must not write outside the router's directory."""
-    filename = get_session_manager(client).file_router.get_unique_file_key()
+    """Copy endpoint must not write outside the workspace's directory."""
+    filename = get_session_manager(client).workspace.get_unique_file_key()
     assert filename
     path = Path(filename)
     directory = str(path.parent)
-    file_router = get_session_manager(client).file_router
+    workspace = get_session_manager(client).workspace
 
     with patch.object(
-        type(file_router),
+        type(workspace),
         "directory",
         new_callable=lambda: property(lambda _: directory),
     ):
@@ -475,7 +475,7 @@ def test_rename_propagates(
 ) -> None:
     current_filename = get_session_manager(
         client
-    ).file_router.get_unique_file_key()
+    ).workspace.get_unique_file_key()
 
     assert current_filename
     assert os.path.exists(current_filename)
@@ -558,7 +558,7 @@ def test_read_code_without_saved_file(client: TestClient) -> None:
 @with_session(SESSION_ID)
 def test_save_with_unicode_content(client: TestClient) -> None:
     """Test save endpoint with unicode and special characters."""
-    filename = get_session_manager(client).file_router.get_unique_file_key()
+    filename = get_session_manager(client).workspace.get_unique_file_key()
     assert filename
     path = Path(filename)
 
@@ -633,7 +633,7 @@ def test_rename_with_edge_case_filenames(client: TestClient) -> None:
         for filename in EDGE_CASE_FILENAMES:
             current_filename = get_session_manager(
                 client
-            ).file_router.get_unique_file_key()
+            ).workspace.get_unique_file_key()
             assert current_filename
 
             new_path = Path(tmpdir) / filename

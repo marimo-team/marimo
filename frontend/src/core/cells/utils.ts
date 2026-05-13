@@ -140,3 +140,48 @@ export function isUninstantiated({
     !(errored || interrupted || stopped)
   );
 }
+
+/**
+ * Whether a cell needs to be run given its edited / interrupted / stale
+ * inputs, while accounting for ancestor-disabled cells (which should not be
+ * flagged as needing a run until re-enabled).
+ */
+export function cellNeedsRun({
+  edited,
+  interrupted,
+  staleInputs,
+  disabled,
+  status,
+}: {
+  edited: boolean;
+  interrupted: boolean;
+  staleInputs: boolean;
+  disabled: boolean | undefined;
+  status: RuntimeState;
+}): boolean {
+  const disabledOrAncestorDisabled =
+    disabled || status === "disabled-transitively";
+  return edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
+}
+
+export function cellStatusClasses({
+  needsRun,
+  errored,
+  stopped,
+  disabled,
+  status,
+}: {
+  needsRun: boolean;
+  errored: boolean;
+  stopped: boolean;
+  disabled: boolean | undefined;
+  status: RuntimeState;
+}) {
+  return {
+    "needs-run": needsRun,
+    "has-error": errored,
+    stopped,
+    disabled: disabled ?? false,
+    stale: status === "disabled-transitively",
+  };
+}

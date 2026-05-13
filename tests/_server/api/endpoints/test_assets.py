@@ -14,13 +14,18 @@ from marimo._server.api.endpoints.assets import (
     _inject_service_worker,
 )
 from marimo._server.api.utils import parse_title
-from marimo._server.file_router import AppFileRouter
+from marimo._server.workspace import (
+    DirectoryWorkspace,
+    EmptyWorkspace,
+    FixedFilesWorkspace,
+    SingleFileWorkspace,
+)
 from marimo._session.model import SessionMode
 from marimo._utils.marimo_path import MarimoPath
 from tests._server.mocks import (
-    file_router_scope,
     token_header,
-    with_file_router,
+    with_workspace,
+    workspace_scope,
 )
 
 if TYPE_CHECKING:
@@ -39,7 +44,7 @@ def test_index(client: TestClient) -> None:
     response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
     content = response.text
-    filename = session_manager.file_router.get_unique_file_key()
+    filename = session_manager.workspace.get_unique_file_key()
     title = parse_title(filename)
     assert f"<marimo-filename hidden>{filename}</marimo-filename>" in content
     assert filename is not None
@@ -51,7 +56,7 @@ def test_index(client: TestClient) -> None:
     assert "public-files-sw.js" in content
 
 
-@with_file_router(AppFileRouter.from_files([]))
+@with_workspace(FixedFilesWorkspace([]))
 def test_index_when_empty(client: TestClient) -> None:
     # Login page
     response = client.get("/")  # no header
@@ -67,7 +72,7 @@ def test_index_when_empty(client: TestClient) -> None:
     assert "<title>marimo</title>" in content
 
 
-@with_file_router(AppFileRouter.new_file())
+@with_workspace(EmptyWorkspace())
 def test_index_when_new_file(client: TestClient) -> None:
     # Login page
     response = client.get("/")  # no header
@@ -81,6 +86,32 @@ def test_index_when_new_file(client: TestClient) -> None:
     assert "<marimo-filename hidden></marimo-filename>" in content
     assert '"mode": "edit"' in content
     assert "<title>marimo</title>" in content
+
+
+def test_index_missing_assets_in_source_checkout_shows_build_hint(
+    client: TestClient, tmp_path: Path
+) -> None:
+    source_root = tmp_path / "repo"
+    source_root.mkdir()
+    (source_root / "frontend").mkdir()
+    (source_root / "pyproject.toml").write_text("")
+
+    missing_static_root = tmp_path / "missing_static"
+    missing_static_root.mkdir()
+
+    with (
+        patch("marimo._server.api.endpoints.assets.root", missing_static_root),
+        patch(
+            "marimo._server.api.endpoints.assets.marimo_package_path",
+            return_value=source_root / "marimo",
+        ),
+    ):
+        response = client.get("/", headers=token_header())
+
+    assert response.status_code == 500
+    detail = response.json()["detail"]
+    assert "Did you run `make fe`?" in detail
+    assert "Restart marimo after building." in detail
 
 
 def test_index_strips_access_token_query_param(client: TestClient) -> None:
@@ -180,8 +211,8 @@ def test_index_response_has_security_headers(client: TestClient) -> None:
 
 
 def test_index_with_directory(client: TestClient, tmp_path: Path) -> None:
-    with file_router_scope(
-        client, AppFileRouter.from_directory(str(tmp_path))
+    with workspace_scope(
+        client, DirectoryWorkspace(str(tmp_path), include_markdown=False)
     ):
         response = client.get("/", headers=token_header())
         assert response.status_code == 200, response.text
@@ -197,8 +228,8 @@ def test_index_with_directory_run_mode(
     app_state = AppState.from_app(cast(Any, client.app))
     app_state.session_manager.mode = SessionMode.RUN
 
-    with file_router_scope(
-        client, AppFileRouter.from_directory(str(tmp_path))
+    with workspace_scope(
+        client, DirectoryWorkspace(str(tmp_path), include_markdown=False)
     ):
         response = client.get("/", headers=token_header())
         assert response.status_code == 200, response.text
@@ -314,10 +345,157 @@ def test_vfile_large_streaming(client: TestClient) -> None:
         manager.storage = original_storage
 
 
+def test_vfile_range_requests(client: TestClient) -> None:
+    """Virtual files must support HTTP Range requests so that Safari can
+    play media (audio/video) — Safari's <audio> element refuses to load
+    sources whose server doesn't return 206 Partial Content for range
+    probes.
+
+    See https://github.com/marimo-team/marimo/issues/9460
+    """
+    from marimo._runtime.virtual_file.storage import (
+        InMemoryStorage,
+        VirtualFileStorageManager,
+    )
+
+    manager = VirtualFileStorageManager()
+    original_storage = manager.storage
+    storage = InMemoryStorage()
+    manager.storage = storage
+
+    try:
+        data = bytes(range(256)) * 8  # 2048 bytes of deterministic content
+        filename = "test-audio.wav"
+        storage.store(filename, data)
+        byte_length = len(data)
+        url = f"/@file/{byte_length}-{filename}"
+
+        # Plain GET advertises Accept-Ranges so clients know they can probe.
+        response = client.get(url, headers=token_header())
+        assert response.status_code == 200, response.text
+        assert response.headers.get("accept-ranges") == "bytes"
+        assert response.content == data
+
+        # Bounded range returns 206 with Content-Range and exact bytes.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "bytes=0-99"},
+        )
+        assert response.status_code == 206, response.text
+        assert (
+            response.headers.get("content-range")
+            == f"bytes 0-99/{byte_length}"
+        )
+        assert response.headers.get("content-length") == "100"
+        assert response.headers.get("accept-ranges") == "bytes"
+        assert response.content == data[0:100]
+
+        # Open-ended range (start-) serves to the end of the file.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "bytes=50-"},
+        )
+        assert response.status_code == 206, response.text
+        end = byte_length - 1
+        assert (
+            response.headers.get("content-range")
+            == f"bytes 50-{end}/{byte_length}"
+        )
+        assert response.content == data[50:]
+
+        # Suffix range (-N) returns the last N bytes.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "bytes=-50"},
+        )
+        assert response.status_code == 206, response.text
+        start = byte_length - 50
+        assert (
+            response.headers.get("content-range")
+            == f"bytes {start}-{end}/{byte_length}"
+        )
+        assert response.content == data[-50:]
+
+        # Out-of-range start → 416 with Content-Range advertising the size.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": f"bytes={byte_length}-"},
+        )
+        assert response.status_code == 416, response.text
+        assert (
+            response.headers.get("content-range") == f"bytes */{byte_length}"
+        )
+
+        # Range unit token is case-insensitive per RFC 9110.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "Bytes=0-99"},
+        )
+        assert response.status_code == 206, response.text
+        assert response.content == data[:100]
+    finally:
+        manager.storage = original_storage
+
+
+def test_vfile_download_query_param_sets_content_disposition(
+    client: TestClient,
+) -> None:
+    """`?download=1` forces Content-Disposition: attachment so the browser
+    saves the response instead of rendering it inline. This covers iframed
+    deployments where <a download> is silently ignored."""
+    from marimo._runtime.virtual_file.storage import (
+        InMemoryStorage,
+        VirtualFileStorageManager,
+    )
+
+    manager = VirtualFileStorageManager()
+    original_storage = manager.storage
+    storage = InMemoryStorage()
+    manager.storage = storage
+
+    try:
+        data = b'[{"a": 1}]'
+        filename = "data.json"
+        storage.store(filename, data)
+        byte_length = len(data)
+
+        # Without ?download=1 — no Content-Disposition.
+        response = client.get(
+            f"/@file/{byte_length}-{filename}",
+            headers=token_header(),
+        )
+        assert response.status_code == 200
+        assert "content-disposition" not in response.headers
+
+        # With ?download=1 — attachment header is set.
+        response = client.get(
+            f"/@file/{byte_length}-{filename}?download=1",
+            headers=token_header(),
+        )
+        assert response.status_code == 200
+        assert response.content == data
+        cd = response.headers.get("content-disposition", "")
+        assert cd.startswith("attachment")
+        assert "data.json" in cd
+
+        # Custom download filename via ?filename=...
+        response = client.get(
+            f"/@file/{byte_length}-{filename}"
+            "?download=1&filename=my-export.json",
+            headers=token_header(),
+        )
+        assert response.status_code == 200
+        cd = response.headers.get("content-disposition", "")
+        assert cd.startswith("attachment")
+        assert "my-export.json" in cd
+    finally:
+        manager.storage = original_storage
+
+
 def test_public_file_serving(client: TestClient) -> None:
     # Setup app state with a mock notebook
     app_state = AppState.from_app(cast(Any, client.app))
-    file_key = app_state.session_manager.file_router.get_unique_file_key()
+    file_key = app_state.session_manager.workspace.get_unique_file_key()
     assert file_key is not None
     assert file_key.endswith(".py")
 
@@ -357,7 +535,7 @@ def test_service_worker(client: TestClient) -> None:
 def test_public_file_security(client: TestClient) -> None:
     # Setup app state
     app_state = AppState.from_app(cast(Any, client.app))
-    file_key = app_state.session_manager.file_router.get_unique_file_key()
+    file_key = app_state.session_manager.workspace.get_unique_file_key()
     assert file_key is not None
     assert file_key.endswith(".py")
 
@@ -534,8 +712,8 @@ def test_index_lsp_workspace_with_filename(
     notebook_file = subdir.joinpath("notebook.py")
     notebook_file.touch()
 
-    with file_router_scope(
-        client, AppFileRouter.from_filename(MarimoPath(notebook_file))
+    with workspace_scope(
+        client, SingleFileWorkspace.from_path(MarimoPath(notebook_file))
     ):
         response = client.get("/", headers=token_header())
         root_uri = json.dumps(temp_project_dir.as_uri())
@@ -550,8 +728,9 @@ def test_index_lsp_workspace_with_root_directory(
     temp_project_dir = tmp_path
     temp_project_dir.joinpath("pyproject.toml").touch()
 
-    with file_router_scope(
-        client, AppFileRouter.from_directory(str(temp_project_dir))
+    with workspace_scope(
+        client,
+        DirectoryWorkspace(str(temp_project_dir), include_markdown=False),
     ):
         response = client.get("/?file=__new__file.py", headers=token_header())
         root_path = temp_project_dir
@@ -570,7 +749,9 @@ def test_index_lsp_workspace_with_sub_directory(
     subdir = temp_project_dir.joinpath("subdir")
     subdir.mkdir()
 
-    with file_router_scope(client, AppFileRouter.from_directory(str(subdir))):
+    with workspace_scope(
+        client, DirectoryWorkspace(str(subdir), include_markdown=False)
+    ):
         response = client.get("/?file=__new__file.py", headers=token_header())
         root_path = temp_project_dir
         root_uri = json.dumps(root_path.as_uri())
@@ -580,7 +761,7 @@ def test_index_lsp_workspace_with_sub_directory(
         assert f'"documentUri": {document_uri}' in response.text
 
 
-@with_file_router(AppFileRouter.new_file())
+@with_workspace(EmptyWorkspace())
 def test_index_lsp_workspace_fallback_to_cwd(client: TestClient) -> None:
     response = client.get("/", headers=token_header())
     root_path = Path.cwd()

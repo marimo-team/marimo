@@ -68,12 +68,25 @@ def _references_virtual_file(data: Any) -> bool:
     embeds one would 404 on replay (e.g. anywidget HTML losing its binary
     state — see #9273).
     """
+    return _references_virtual_file_inner(data, set())
+
+
+def _references_virtual_file_inner(data: Any, seen: set[int]) -> bool:
     if isinstance(data, str):
         return _VIRTUAL_FILE_URL_RE.search(data) is not None
-    if isinstance(data, dict):
-        return any(_references_virtual_file(v) for v in data.values())
-    if isinstance(data, list):
-        return any(_references_virtual_file(v) for v in data)
+    if isinstance(data, (dict, list)):
+        # Guard against cycles: session outputs shouldn't contain them in
+        # practice, but a self-referencing structure should return False
+        # cleanly rather than blow the stack.
+        container_id = id(data)
+        if container_id in seen:
+            return False
+        seen.add(container_id)
+        if isinstance(data, dict):
+            return any(
+                _references_virtual_file_inner(v, seen) for v in data.values()
+            )
+        return any(_references_virtual_file_inner(v, seen) for v in data)
     return False
 
 

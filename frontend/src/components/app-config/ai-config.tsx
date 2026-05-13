@@ -1059,6 +1059,36 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         </AccordionFormItem>
 
         <AccordionFormItem
+          title="OpenCode Go"
+          provider="opencode-go"
+          isConfigured={hasValue("ai.opencode_go.api_key")}
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.opencode_go.api_key"
+            placeholder="your-opencode-api-key"
+            testId="ai-opencode-go-api-key-input"
+            description={
+              <>
+                Your OpenCode API key from{" "}
+                <ExternalLink href="https://opencode.ai/auth">
+                  opencode.ai
+                </ExternalLink>
+                . OpenCode Go is a low-cost subscription for open coding models.
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.opencode_go.base_url"
+            placeholder="https://opencode.ai/zen/go/v1/"
+            testId="ai-opencode-go-base-url-input"
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem
           title="Azure"
           provider="azure"
           isConfigured={

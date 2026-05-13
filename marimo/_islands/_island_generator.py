@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING, cast
@@ -14,9 +15,8 @@ from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
-from marimo._session.notebook import AppFileManager
+from marimo._session.notebook import AppFileManager, load_notebook
 from marimo._types.ids import CellId_t
-from marimo._utils.marimo_path import MarimoPath
 from marimo._version import __version__
 
 if sys.platform == "win32":  # handling for windows
@@ -250,6 +250,10 @@ class MarimoIslandGenerator:
         self._app = InternalApp(App())
         self._stubs: list[MarimoIslandStub] = []
         self._config = _AppConfig()
+        # When constructed via ``from_file``, this records the notebook
+        # source path so cells see ``__file__`` / ``mo.notebook_dir()``
+        # resolve to the notebook rather than to the host process.
+        self._source_filename: str | None = None
 
     @staticmethod
     def from_file(
@@ -265,15 +269,13 @@ class MarimoIslandGenerator:
         - filename (str): Marimo .py filename to convert to reactive HTML.
         - display_code (bool): Whether to display the code in HTML snippets.
         """
-        from marimo._server.file_router import AppFileRouter
-
-        path = MarimoPath(filename)
-        file_router = AppFileRouter.from_filename(path)
-        file_key = file_router.get_unique_file_key()
-        assert file_key is not None
-        file_manager = file_router.get_file_manager(file_key)
+        file_manager = load_notebook(filename)
 
         generator = MarimoIslandGenerator()
+        # Resolve at capture time so a chdir between ``from_file`` and
+        # ``build`` doesn't change which absolute path cells see for
+        # ``__file__`` / ``mo.notebook_dir()``.
+        generator._source_filename = os.path.abspath(filename)
         stubs = []
         for cell_data in file_manager.app.cell_manager.cell_data():
             stubs.append(
@@ -345,7 +347,9 @@ class MarimoIslandGenerator:
             raise ValueError("You can only call build() once")
 
         (session, did_error) = await run_app_until_completion(
-            file_manager=AppFileManager.from_app(self._app),
+            file_manager=AppFileManager.from_app(
+                self._app, filename=self._source_filename
+            ),
             cli_args={},
             argv=None,
         )
