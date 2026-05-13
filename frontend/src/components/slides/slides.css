@@ -31,6 +31,20 @@
   }
 }
 
+/* Resize handle for the notes panel below the deck. Self-contained so the
+   slides layout doesn't have to inherit styles from app-chrome.css. */
+.mo-slides-notes-resize {
+  height: 4px;
+  background-color: transparent;
+  transition: background-color 200ms linear;
+  outline: none;
+}
+
+.mo-slides-notes-resize:hover,
+.mo-slides-notes-resize[data-resize-handle-active] {
+  background-color: var(--slate-11);
+}
+
 /* helpful for debugging */
 /* .mo-slide-content {
   background-color: red;

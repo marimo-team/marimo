@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { useAtomValue } from "jotai";
 import { numColumnsAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { kioskModeAtom } from "@/core/mode";
 import type { ICellRendererProps } from "../types";
 import type { SlidesLayout } from "./types";
 import { computeSlideCellsInfo } from "./compute-slide-cells";
@@ -21,7 +22,10 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   cells,
   mode,
 }) => {
-  const isReading = mode === "read";
+  // Kiosk clients (e.g. reveal.js's speaker-view iframes) are read-only and
+  // shouldn't show authoring chrome, so we collapse to the read-mode layout.
+  const kioskMode = useAtomValue(kioskModeAtom);
+  const isReading = mode === "read" || kioskMode;
   const numColumns = useAtomValue(numColumnsAtom);
   const isMultiColumn = numColumns > 1;
   const [activeCellId, setActiveCellId] = useState<CellId | null>(null);
@@ -52,8 +56,8 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
       activeIndex={resolvedIndex}
       onSlideChange={handleSlideChange}
       configWidth={300}
-      mode={mode}
-      isEditable={mode !== "read"}
+      mode={isReading ? "read" : mode}
+      isEditable={!isReading}
     />
   );
 

@@ -11,9 +11,11 @@ import {
 import useEvent from "react-use-event-hook";
 import { CodeIcon, ExpandIcon, EyeOffIcon } from "lucide-react";
 import { Deck, Fragment, Slide, Stack } from "@revealjs/react";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import type { CellId } from "@/core/cells/ids";
 import type { RuntimeCell } from "@/core/cells/types";
 import type { RevealApi, RevealConfig } from "reveal.js";
 import { useEventListener } from "@/hooks/useEventListener";
@@ -21,7 +23,10 @@ import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import "./slides.css";
 import "./reveal-slides.css";
-import type { SlidesLayout } from "../editor/renderers/slides-layout/types";
+import type {
+  SlideConfig,
+  SlidesLayout,
+} from "../editor/renderers/slides-layout/types";
 import {
   buildSlideIndices,
   composeSlides,
@@ -39,10 +44,14 @@ import {
   SlideCellReadOnlyView,
   SlideCellView,
 } from "@/components/slides/slide-cell-view";
+import { SlideNotesEditor } from "./slide-notes-editor";
+import { buildSubslideNotes, NOTES_DIVIDER } from "./slide-notes";
 import { cn } from "@/utils/cn";
 import { isIslands } from "@/core/islands/utils";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
-import type { AppMode } from "@/core/mode";
+import { type AppMode, kioskModeAtom } from "@/core/mode";
+import { useAtomValue } from "jotai";
+import RevealNotes from "reveal.js/plugin/notes";
 
 const ASPECT_RATIO = 16 / 9;
 
@@ -124,56 +133,93 @@ function triggerResize(deck: RevealApi | null) {
   }
 }
 
+// The speaker view renders this via innerHTML with `white-space: normal`, so
+// we materialize `\n` as `<br>` and a lone `---` line as `<hr>`.
+const NotesAside = ({ text }: { text: string }) => {
+  const lines = text.split("\n");
+  return (
+    <aside className="notes">
+      {lines.map((line, idx) => {
+        const isLast = idx === lines.length - 1;
+        if (line === NOTES_DIVIDER) {
+          return <hr key={idx} />;
+        }
+        return (
+          <ReactFragment key={idx}>
+            {line}
+            {!isLast && <br />}
+          </ReactFragment>
+        );
+      })}
+    </aside>
+  );
+};
+
 const SubslideView = ({
   subslide,
   showCode,
   isEditable,
+  slideConfigs,
 }: {
   subslide: ComposedSubslide<RuntimeCell>;
   showCode: boolean;
   isEditable: boolean;
-}) => (
-  <Slide>
-    <div className="h-full w-full overflow-auto flex">
-      <div
-        className={
-          showCode ? "mo-slide-content flex flex-col gap-3" : "mo-slide-content"
-        }
-        style={{
-          margin: "auto 20px",
-        }}
-      >
-        {subslide.blocks.map((block, i) => {
-          const rendered = block.cells.map((cell) => {
-            if (!showCode) {
+  slideConfigs: ReadonlyMap<CellId, SlideConfig>;
+}) => {
+  const { slideLevel, cumulativeByBlock } = buildSubslideNotes(
+    subslide,
+    slideConfigs,
+  );
+
+  return (
+    <Slide>
+      <div className="h-full w-full overflow-auto flex">
+        <div
+          className={
+            showCode
+              ? "mo-slide-content flex flex-col gap-3"
+              : "mo-slide-content"
+          }
+          style={{
+            margin: "auto 20px",
+          }}
+        >
+          {subslide.blocks.map((block, i) => {
+            const rendered = block.cells.map((cell) => {
+              if (!showCode) {
+                return (
+                  <CellOutputSlide
+                    key={cell.id}
+                    cellId={cell.id}
+                    status={cell.status}
+                    output={cell.output}
+                  />
+                );
+              }
+              return isEditable ? (
+                <SlideCellView key={cell.id} cell={cell} />
+              ) : (
+                <SlideCellReadOnlyView key={cell.id} cell={cell} />
+              );
+            });
+            if (block.isFragment) {
+              const cumulative = cumulativeByBlock.get(i);
               return (
-                <CellOutputSlide
-                  key={cell.id}
-                  cellId={cell.id}
-                  status={cell.status}
-                  output={cell.output}
-                />
+                <Fragment key={i} as="div">
+                  {rendered}
+                  {cumulative && <NotesAside text={cumulative} />}
+                </Fragment>
               );
             }
-            return isEditable ? (
-              <SlideCellView key={cell.id} cell={cell} />
-            ) : (
-              <SlideCellReadOnlyView key={cell.id} cell={cell} />
-            );
-          });
-          if (block.isFragment) {
-            return (
-              <Fragment key={i} as="div">
-                {rendered}
-              </Fragment>
-            );
-          }
-          return <ReactFragment key={i}>{rendered}</ReactFragment>;
-        })}
+            return <ReactFragment key={i}>{rendered}</ReactFragment>;
+          })}
+        </div>
       </div>
-    </div>
-  </Slide>
-);
+      {/* Outside any `.fragment`: shown only before any fragment is revealed. */}
+      {slideLevel && <NotesAside text={slideLevel} />}
+    </Slide>
+  );
+};
 
 // There is an upstream react bug in dev mode (https://github.com/facebook/react/issues/34840)
 // Uncaught SecurityError: Failed to read a named property '$$typeof' from 'Window'
@@ -200,6 +246,13 @@ const RevealSlidesComponent = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef<RevealApi | null>(null);
   const { width, height } = useSlideDimensions(containerRef);
+  // Skip the Notes plugin inside reveal's own speaker-view iframes so pressing
+  // `S` there doesn't try to spawn another popup.
+  const kioskMode = useAtomValue(kioskModeAtom);
+  const deckPlugins = useMemo(
+    () => (kioskMode ? [] : [RevealNotes]),
+    [kioskMode],
+  );
 
   const [showCode, setShowCode] = useState(false);
   const codeAvailable = useNotebookCodeAvailable(cellsWithOutput);
@@ -241,6 +294,16 @@ const RevealSlidesComponent = ({
   );
 
   const deckTransition = layout.deck?.transition ?? DEFAULT_DECK_TRANSITION;
+  // Reveal's Notes plugin iframes the deck for the current/upcoming-slide
+  // previews. We load the same URL but as a read-only kiosk client with the
+  // app chrome hidden, which `<SlidesLayoutRenderer>` interprets the same as
+  // read mode (no minimap, sidebar, or notes editor).
+  const kioskUrl = useMemo(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("kiosk", "true");
+    url.searchParams.set("show-chrome", "false");
+    return url.toString();
+  }, []);
   const revealConfig: RevealConfig = useMemo(
     () => ({
       embedded: true,
@@ -251,8 +314,9 @@ const RevealSlidesComponent = ({
       maxScale: 2,
       transition: deckTransition,
       keyboardCondition: (event: KeyboardEvent) => !Events.fromInput(event),
+      url: kioskUrl,
     }),
-    [width, height, deckTransition],
+    [width, height, deckTransition, kioskUrl],
   );
 
   const navigateDeckToActiveCell = useEvent((deck: RevealApi) => {
@@ -357,126 +421,152 @@ const RevealSlidesComponent = ({
 
   useEventListener(document, "keydown", handleParkedNavKey, { capture: true });
 
-  return (
-    <div className="flex-1 min-w-0 flex flex-row gap-3">
-      <div
-        ref={containerRef}
-        className="flex-1 min-w-0 flex items-center justify-center overflow-hidden"
-      >
-        <div className="group relative" style={{ width, height }}>
-          <Deck
-            deckRef={deckRef}
-            className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides"
-            config={revealConfig}
-            onReady={handleDeckReady}
-            onSlideChange={handleSlideChange}
-            onFragmentShown={reportCurrentCell}
-            onFragmentHidden={reportCurrentCell}
-          >
-            {composition.stacks.map((stack, h) => {
-              if (stack.subslides.length === 1) {
-                const isActive =
-                  activeSubslide?.h === h && activeSubslide?.v === 0;
-                return (
-                  <SubslideView
-                    key={h}
-                    subslide={stack.subslides[0]}
-                    showCode={codeShown && isActive}
-                    isEditable={isEditable}
-                  />
-                );
-              }
+  const slideArea = (
+    <div
+      ref={containerRef}
+      className="h-full w-full min-w-0 flex items-center justify-center overflow-hidden"
+    >
+      <div className="group relative" style={{ width, height }}>
+        <Deck
+          deckRef={deckRef}
+          className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides"
+          config={revealConfig}
+          onReady={handleDeckReady}
+          onSlideChange={handleSlideChange}
+          onFragmentShown={reportCurrentCell}
+          onFragmentHidden={reportCurrentCell}
+          plugins={deckPlugins}
+        >
+          {composition.stacks.map((stack, h) => {
+            if (stack.subslides.length === 1) {
+              const isActive =
+                activeSubslide?.h === h && activeSubslide?.v === 0;
               return (
-                <Stack key={h}>
-                  {stack.subslides.map((sub, v) => {
-                    const isActive =
-                      activeSubslide?.h === h && activeSubslide?.v === v;
-                    return (
-                      <SubslideView
-                        key={v}
-                        subslide={sub}
-                        showCode={codeShown && isActive}
-                        isEditable={isEditable}
-                      />
-                    );
-                  })}
-                </Stack>
+                <SubslideView
+                  key={h}
+                  subslide={stack.subslides[0]}
+                  showCode={codeShown && isActive}
+                  isEditable={isEditable}
+                  slideConfigs={layout.cells}
+                />
               );
-            })}
-          </Deck>
-          {skippedPreviewCell && (
-            <div
-              className="absolute inset-0 z-10 border rounded bg-background flex flex-col overflow-hidden"
-              aria-label="Skipped in presentation"
-            >
-              <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/40">
-                <EyeOffIcon className="h-3.5 w-3.5" />
-                <span>Skipped in presentation</span>
-              </div>
-              <div className="flex-1 overflow-auto flex">
-                <div
-                  className="mo-slide-content"
-                  style={{ margin: "auto 20px" }}
-                >
-                  <CellOutputSlide
-                    cellId={skippedPreviewCell.id}
-                    status={skippedPreviewCell.status}
-                    output={skippedPreviewCell.output}
-                  />
-                </div>
+            }
+            return (
+              <Stack key={h}>
+                {stack.subslides.map((sub, v) => {
+                  const isActive =
+                    activeSubslide?.h === h && activeSubslide?.v === v;
+                  return (
+                    <SubslideView
+                      key={v}
+                      subslide={sub}
+                      showCode={codeShown && isActive}
+                      isEditable={isEditable}
+                      slideConfigs={layout.cells}
+                    />
+                  );
+                })}
+              </Stack>
+            );
+          })}
+        </Deck>
+        {skippedPreviewCell && (
+          <div
+            className="absolute inset-0 z-10 border rounded bg-background flex flex-col overflow-hidden"
+            aria-label="Skipped in presentation"
+          >
+            <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/40">
+              <EyeOffIcon className="h-3.5 w-3.5" />
+              <span>Skipped in presentation</span>
+            </div>
+            <div className="flex-1 overflow-auto flex">
+              <div className="mo-slide-content" style={{ margin: "auto 20px" }}>
+                <CellOutputSlide
+                  cellId={skippedPreviewCell.id}
+                  status={skippedPreviewCell.status}
+                  output={skippedPreviewCell.output}
+                />
               </div>
             </div>
-          )}
-          <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-70 text-muted-foreground transition-opacity">
-            {codeToggleEnabled && (
-              <Tooltip content={codeShown ? "Hide code (C)" : "Show code (C)"}>
-                <Button
-                  data-testid="marimo-plugin-slides-toggle-code"
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "text-muted-foreground h-7 w-7",
-                    codeShown && "text-foreground bg-muted",
-                  )}
-                  aria-pressed={codeShown}
-                  aria-label={codeShown ? "Hide code" : "Show code"}
-                  onClick={toggleShowCode}
-                >
-                  <CodeIcon className="h-4 w-4" />
-                </Button>
-              </Tooltip>
-            )}
-            <Tooltip content="Fullscreen (F)">
+          </div>
+        )}
+        <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-70 text-muted-foreground transition-opacity">
+          {codeToggleEnabled && (
+            <Tooltip content={codeShown ? "Hide code (C)" : "Show code (C)"}>
               <Button
-                data-testid="marimo-plugin-slides-fullscreen"
+                data-testid="marimo-plugin-slides-toggle-code"
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground h-7 w-7"
-                aria-label="Enter fullscreen"
-                onClick={() => {
-                  deckRef.current
-                    ?.getViewportElement()
-                    ?.requestFullscreen()
-                    .catch((error) => {
-                      Logger.error("Failed to request fullscreen", error);
-                    });
-                }}
+                className={cn(
+                  "text-muted-foreground h-7 w-7",
+                  codeShown && "text-foreground bg-muted",
+                )}
+                aria-pressed={codeShown}
+                aria-label={codeShown ? "Hide code" : "Show code"}
+                onClick={toggleShowCode}
               >
-                <ExpandIcon className="h-4 w-4" />
+                <CodeIcon className="h-4 w-4" />
               </Button>
             </Tooltip>
-          </div>
+          )}
+          <Tooltip content="Fullscreen (F)">
+            <Button
+              data-testid="marimo-plugin-slides-fullscreen"
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground h-7 w-7"
+              aria-label="Enter fullscreen"
+              onClick={() => {
+                deckRef.current
+                  ?.getViewportElement()
+                  ?.requestFullscreen()
+                  .catch((error) => {
+                    Logger.error("Failed to request fullscreen", error);
+                  });
+              }}
+            >
+              <ExpandIcon className="h-4 w-4" />
+            </Button>
+          </Tooltip>
         </div>
       </div>
+    </div>
+  );
 
-      {mode !== "read" && (
-        <SlideSidebar
-          configWidth={configWidth}
-          layout={layout}
-          setLayout={setLayout}
-          activeConfigCell={activeConfigCell}
+  if (mode === "read") {
+    return (
+      <div className="flex-1 min-w-0 flex flex-row gap-3">{slideArea}</div>
+    );
+  }
+
+  return (
+    <div className="flex-1 min-w-0 flex flex-row gap-3">
+      <PanelGroup
+        direction="vertical"
+        autoSaveId="marimo:slides:notes-panel"
+        className="flex-1 min-w-0"
+      >
+        <Panel defaultSize={75} minSize={30}>
+          {slideArea}
+        </Panel>
+        <PanelResizeHandle
+          className="mo-slides-notes-resize"
+          hitAreaMargins={{ coarse: 12, fine: 4 }}
         />
-      )}
+        <Panel defaultSize={4} minSize={8} collapsible={true} collapsedSize={4}>
+          <SlideNotesEditor
+            layout={layout}
+            setLayout={setLayout}
+            cellId={activeConfigCell?.id}
+          />
+        </Panel>
+      </PanelGroup>
+      <SlideSidebar
+        configWidth={configWidth}
+        layout={layout}
+        setLayout={setLayout}
+        activeConfigCell={activeConfigCell}
+      />
     </div>
   );
 };
