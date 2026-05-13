@@ -11,7 +11,10 @@ import type {
   NotificationMessageData,
   NotificationPayload,
 } from "@/core/kernel/messages";
-import { useConnectionTransport } from "@/core/websocket/useWebSocket";
+import {
+  MAX_RETRIES,
+  useConnectionTransport,
+} from "@/core/websocket/useWebSocket";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   handleWidgetMessage,
@@ -69,9 +72,95 @@ import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
 import { isWasm } from "../wasm/utils";
-import { WebSocketClosedReason, WebSocketState } from "./types";
+import {
+  type ConnectionStatus,
+  WebSocketClosedReason,
+  WebSocketState,
+} from "./types";
 
 const SUPPORTS_LAZY_KERNELS = true;
+
+export type CloseDecision =
+  | { kind: "terminal"; status: ConnectionStatus; closeTransport: boolean }
+  | { kind: "gave-up"; status: ConnectionStatus }
+  | { kind: "retry"; status: ConnectionStatus };
+
+export function classifyCloseEvent(
+  event: { reason?: string },
+  context: { retryCount: number; maxRetries: number },
+): CloseDecision {
+  switch (event.reason) {
+    case "MARIMO_ALREADY_CONNECTED":
+      return {
+        kind: "terminal",
+        status: {
+          state: WebSocketState.CLOSED,
+          code: WebSocketClosedReason.ALREADY_RUNNING,
+          reason: "another browser tab is already connected to the kernel",
+          canTakeover: true,
+        },
+        closeTransport: true,
+      };
+    case "MARIMO_WRONG_KERNEL_ID":
+    case "MARIMO_NO_FILE_KEY":
+    case "MARIMO_NO_SESSION_ID":
+    case "MARIMO_NO_SESSION":
+    case "MARIMO_SHUTDOWN":
+      return {
+        kind: "terminal",
+        status: {
+          state: WebSocketState.CLOSED,
+          code: WebSocketClosedReason.KERNEL_DISCONNECTED,
+          reason: "kernel not found",
+        },
+        closeTransport: true,
+      };
+    case "MARIMO_MALFORMED_QUERY":
+      return {
+        kind: "terminal",
+        status: {
+          state: WebSocketState.CLOSED,
+          code: WebSocketClosedReason.MALFORMED_QUERY,
+          reason:
+            "the kernel did not recognize a request; please file a bug with marimo",
+        },
+        closeTransport: false,
+      };
+    case "MARIMO_KERNEL_STARTUP_ERROR":
+      return {
+        kind: "terminal",
+        status: {
+          state: WebSocketState.CLOSED,
+          code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+          reason: "Failed to start kernel sandbox",
+        },
+        closeTransport: true,
+      };
+    default:
+      // Empty/undefined reasons are normal transient closes. Anything else is
+      // an unknown server reason; warn so a new MARIMO_* reason doesn't fall
+      // silently into the retry path.
+      if (event.reason) {
+        logNever(event.reason as never);
+      }
+  }
+  // partysocket stops retrying silently once `maxRetries` is hit; surface
+  // CLOSED so callers can detect the give-up.
+  if (context.retryCount >= context.maxRetries) {
+    return {
+      kind: "gave-up",
+      status: {
+        state: WebSocketState.CLOSED,
+        code: WebSocketClosedReason.KERNEL_DISCONNECTED,
+        reason: "kernel not found",
+      },
+    };
+  }
+  return {
+    kind: "retry",
+    status: { state: WebSocketState.CONNECTING },
+  };
+}
 
 function getExistingCells(): CellData[] | undefined {
   if (!SUPPORTS_LAZY_KERNELS) {
@@ -340,6 +429,30 @@ export function useMarimoKernelConnection(opts: {
     }
   };
 
+  // Manual reconnect. Probes /health first to fail fast when the runtime
+  // is unreachable, instead of waiting on partysocket's retry budget.
+  const reconnect = async () => {
+    if (
+      ws.readyState === WebSocket.OPEN ||
+      ws.readyState === WebSocket.CONNECTING
+    ) {
+      return;
+    }
+    shouldTryReconnecting.current = true;
+    setConnection({ state: WebSocketState.CONNECTING });
+    const healthy = await runtimeManager.isHealthy();
+    if (!healthy) {
+      shouldTryReconnecting.current = false;
+      setConnection({
+        state: WebSocketState.CLOSED,
+        code: WebSocketClosedReason.KERNEL_DISCONNECTED,
+        reason: "kernel not found",
+      });
+      return;
+    }
+    ws.reconnect();
+  };
+
   const ws = useConnectionTransport({
     static: isStaticNotebook(),
     /**
@@ -399,58 +512,20 @@ export function useMarimoKernelConnection(opts: {
      */
     onClose: (e) => {
       Logger.warn("WebSocket closed", e.code, e.reason);
-      switch (e.reason) {
-        case "MARIMO_ALREADY_CONNECTED":
-          setConnection({
-            state: WebSocketState.CLOSED,
-            code: WebSocketClosedReason.ALREADY_RUNNING,
-            reason: "another browser tab is already connected to the kernel",
-            canTakeover: true,
-          });
-          ws.close(); // close to prevent reconnecting
-          return;
-
-        case "MARIMO_WRONG_KERNEL_ID":
-        case "MARIMO_NO_FILE_KEY":
-        case "MARIMO_NO_SESSION_ID":
-        case "MARIMO_NO_SESSION":
-        case "MARIMO_SHUTDOWN":
-          setConnection({
-            state: WebSocketState.CLOSED,
-            code: WebSocketClosedReason.KERNEL_DISCONNECTED,
-            reason: "kernel not found",
-          });
-          ws.close(); // close to prevent reconnecting
-          return;
-
-        case "MARIMO_MALFORMED_QUERY":
-          setConnection({
-            state: WebSocketState.CLOSED,
-            code: WebSocketClosedReason.MALFORMED_QUERY,
-            reason:
-              "the kernel did not recognize a request; please file a bug with marimo",
-          });
-          return;
-
-        default:
-          // Check for kernel startup error (full error already received via message)
-          if (e.reason === "MARIMO_KERNEL_STARTUP_ERROR") {
-            setConnection({
-              state: WebSocketState.CLOSED,
-              code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
-              reason: "Failed to start kernel sandbox",
-            });
-            ws.close(); // prevent reconnecting
-            return;
-          }
-
-          // Session should be valid
-          // - browser tab might have been closed or re-opened
-          // - computer might have just woken from sleep
-          //
-          // so try reconnecting.
-          setConnection({ state: WebSocketState.CONNECTING });
-          tryReconnecting(e.code, e.reason);
+      const decision = classifyCloseEvent(e, {
+        retryCount: ws.retryCount,
+        maxRetries: MAX_RETRIES,
+      });
+      setConnection(decision.status);
+      if (decision.kind === "terminal" && decision.closeTransport) {
+        ws.close(); // close to prevent reconnecting
+        return;
+      }
+      if (decision.kind === "retry") {
+        // Session should be valid
+        // - browser tab might have been closed or re-opened
+        // - computer might have just woken from sleep
+        tryReconnecting(e.code, e.reason);
       }
     },
 
@@ -468,5 +543,5 @@ export function useMarimoKernelConnection(opts: {
     },
   });
 
-  return { connection };
+  return { connection, reconnect };
 }

@@ -29,6 +29,31 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+
+def _disconnect_owner_callbacks(canvas: Any, owner: Any) -> None:
+    """Disconnect every callback on ``canvas.callbacks`` whose receiver is ``owner``.
+
+    ``FigureCanvasBase.callbacks`` is a property returning
+    ``figure._canvas_callbacks``, so every canvas bound to the same
+    figure shares one registry. ``NavigationToolbar2.__init__``
+    registers ``_zoom_pan_handler`` (and a few siblings) on this
+    shared registry; matplotlib has no public counterpart that
+    disconnects them when a canvas/toolbar is discarded. Without this
+    cleanup, every cell rerun would stack another toolbar's handler on
+    the registry, leading to duplicate ``press_pan``/``release_pan``
+    dispatch.
+    """
+    registry = canvas.callbacks
+    cids: list[int] = []
+    for handlers in registry.callbacks.values():
+        for cid, ref in handlers.items():
+            fn = ref() if callable(ref) else ref
+            if getattr(fn, "__self__", None) is owner:
+                cids.append(cid)
+    for cid in cids:
+        registry.disconnect(cid)
+
+
 # Must match the className on the container div in MplInteractivePlugin.tsx
 _MPL_SCOPE = ".mpl-interactive-figure"
 
@@ -274,23 +299,35 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
             self._handle_download(fmt)
             return
         else:
-            # Forward to figure manager (mouse events, toolbar actions, etc.)
-            self._figure_manager.handle_json(event)  # type: ignore[no-untyped-call]
+            # Forward to figure manager (mouse events, toolbar actions, etc.).
+            # Swallow callback exceptions so a buggy handler can't kill the
+            # kernel subprocess; the exception propagates up through the comm
+            # manager and terminates asyncio.run otherwise.
+            try:
+                self._figure_manager.handle_json(event)  # type: ignore[no-untyped-call]
+            except Exception:
+                LOGGER.exception(
+                    "mpl_interactive handle_json failed for event type %s",
+                    msg_type,
+                )
 
     def _handle_download(self, fmt: str) -> None:
         """Render figure to the requested format and send back via comm."""
-        buf = io.BytesIO()
-        self._figure_manager.canvas.figure.savefig(
-            buf, format=fmt, bbox_inches="tight"
-        )
-        blob = buf.getvalue()
-        self._comm.send(
-            data={
-                "method": "custom",
-                "content": {"type": "download", "format": fmt},
-            },
-            buffers=[blob],
-        )
+        try:
+            buf = io.BytesIO()
+            self._figure_manager.canvas.figure.savefig(
+                buf, format=fmt, bbox_inches="tight"
+            )
+            blob = buf.getvalue()
+            self._comm.send(
+                data={
+                    "method": "custom",
+                    "content": {"type": "download", "format": fmt},
+                },
+                buffers=[blob],
+            )
+        except Exception:
+            LOGGER.exception("mpl_interactive download failed (fmt=%s)", fmt)
 
     def _convert_value(
         self, value: ModelIdRef | dict[str, Any]
@@ -328,27 +365,33 @@ class _MplCleanupHandle(CellLifecycleItem):
 
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
         del context, deletion
-        # Disconnect the web socket from the figure manager first,
-        # then destroy the canvas to prevent stale timer callbacks
-        # on thread teardown (avoids "QObject::killTimer" errors).
-        if self._figure_manager is not None and self._sync_ws is not None:
-            try:
-                self._figure_manager.remove_web_socket(self._sync_ws)
-            except Exception:
-                pass
-        if self._figure_manager is not None:
+        fm = self._figure_manager
+        if fm is not None:
+            if self._sync_ws is not None:
+                try:
+                    fm.remove_web_socket(self._sync_ws)
+                except Exception:
+                    LOGGER.exception("Failed to remove mpl web socket")
+
+            canvas = fm.canvas
+            toolbar = getattr(canvas, "toolbar", None)
+            if toolbar is not None:
+                try:
+                    _disconnect_owner_callbacks(canvas, toolbar)
+                except Exception:
+                    LOGGER.exception(
+                        "Failed to disconnect mpl toolbar callbacks"
+                    )
+
             try:
                 # get the root figure (in case of Subfigure) which handles dpi
-                root = self._figure_manager.canvas.figure.figure
+                root = canvas.figure.figure
                 root.set_dpi(self._original_dpi)
                 root.set_size_inches(*self._original_size_inches)
             except Exception:
-                pass
-
-            try:
-                self._figure_manager.canvas.close()
-            except Exception:
-                pass
+                LOGGER.exception(
+                    "Failed to restore mpl figure dpi/size on dispose"
+                )
 
         self._comm.close()
         return True

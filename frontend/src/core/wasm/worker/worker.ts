@@ -34,6 +34,7 @@ import type {
   SerializedBridge,
   WasmController,
 } from "./types";
+import { shouldLoadDuckDBPackages } from "../utils";
 
 /**
  * Web worker responsible for running the notebook.
@@ -141,8 +142,8 @@ const requestHandler = createRPCRequestHandler({
     const span = t.startSpan("loadPackages");
     await pyodideReadyPromise; // Make sure loading is done
 
-    if (code.includes("mo.sql")) {
-      // Add pandas and duckdb to the code
+    if (shouldLoadDuckDBPackages(code)) {
+      // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;
       code = `import sqlglot\n${code}`;
