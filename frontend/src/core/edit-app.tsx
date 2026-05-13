@@ -148,22 +148,20 @@ export const EditApp: React.FC<AppProps> = ({
         isRunning={isRunning}
         width={appConfig.width}
       >
-        {!hideControls && (
-          <AppHeader
-            connection={connection}
-            className={cn(
-              "pt-4 sm:pt-12 pb-2 mb-4 print:hidden z-50",
-              // Keep the header sticky when scrolling horizontally, for column mode
-              "sticky left-0",
-            )}
-          >
-            {isEditing && (
-              <div className="flex items-center justify-center container">
-                <FilenameForm filename={filename} />
-              </div>
-            )}
-          </AppHeader>
-        )}
+        <AppHeader
+          connection={connection}
+          className={cn(
+            "pt-4 sm:pt-12 pb-2 mb-4 print:hidden z-50",
+            // Keep the header sticky when scrolling horizontally, for column mode
+            "sticky left-0",
+          )}
+        >
+          {!hideControls && isEditing && (
+            <div className="flex items-center justify-center container">
+              <FilenameForm filename={filename} />
+            </div>
+          )}
+        </AppHeader>
 
         {/* Don't render until we have a single cell */}
         {hasCells && (
