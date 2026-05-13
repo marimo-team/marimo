@@ -8,6 +8,7 @@ subprocess bootstrap, the outer task driver) stay at the call site.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from marimo import _loggers
@@ -33,7 +34,7 @@ from marimo._runtime.utils.set_ui_element_request_manager import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from collections.abc import Awaitable, Callable, Iterator
 
     from marimo._ast.cell import CellConfig
     from marimo._config.config import MarimoConfig
@@ -138,6 +139,18 @@ def create_kernel(
         mode=mode,
     )
     return kernel, ctx
+
+
+@contextlib.contextmanager
+def kernel_session(
+    **create_kwargs: Any,
+) -> Iterator[tuple[Kernel, KernelRuntimeContext]]:
+    """Create a kernel + context, yield it, tear it down on exit."""
+    kernel, ctx = create_kernel(**create_kwargs)
+    try:
+        yield kernel, ctx
+    finally:
+        teardown_kernel(kernel, ctx)
 
 
 async def threaded_queue_reader(

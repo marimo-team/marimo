@@ -3753,9 +3753,8 @@ def launch_kernel(
     parent_pid: int | None = None,
 ) -> None:
     from marimo._runtime.kernel_lifecycle import (
-        create_kernel,
+        kernel_session,
         listen_messages,
-        teardown_kernel,
         threaded_queue_reader,
     )
 
@@ -3780,7 +3779,7 @@ def launch_kernel(
         if streams is None:
             return
 
-        kernel, ctx = create_kernel(
+        with kernel_session(
             stream=streams.stream,
             stdout=streams.stdout,
             stderr=streams.stderr,
@@ -3795,35 +3794,34 @@ def launch_kernel(
             virtual_file_storage=virtual_file_storage,
             mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
             print_override_fn=print_override,
-        )
+        ) as (kernel, ctx):
+            if is_edit_mode:
+                # completions only provided in edit mode
+                kernel.start_completion_worker(completion_queue)
 
-        if is_edit_mode:
-            # completions only provided in edit mode
-            kernel.start_completion_worker(completion_queue)
+            if is_subprocess:
+                # Read theme from kernel.user_config — create_kernel may have
+                # mutated it for run mode (autorun + auto_reload off).
+                _install_subprocess_handlers(
+                    kernel, ctx, kernel.user_config, interrupt_queue
+                )
 
-        if is_subprocess:
-            # Read theme from kernel.user_config — create_kernel may have
-            # mutated it for run mode (autorun + auto_reload off).
-            _install_subprocess_handlers(
-                kernel, ctx, kernel.user_config, interrupt_queue
+            # The control loop is asynchronous so that (a) user code can use
+            # top-level await, and (b) background asyncio tasks created by
+            # user code (via create_task / ensure_future) are not starved by
+            # a blocking queue.get().  The queue read is offloaded to a
+            # thread via run_in_executor; avoid adding further async
+            # primitives elsewhere in the runtime unless there is a very
+            # good reason.
+            coro = listen_messages(
+                kernel,
+                control_queue,
+                set_ui_element_queue,
+                threaded_queue_reader,
             )
+            if loop_factory is not None:
+                asyncio.run(coro, loop_factory=loop_factory)
+            else:
+                asyncio.run(coro)
 
-        # The control loop is asynchronous so that (a) user code can use
-        # top-level await, and (b) background asyncio tasks created by user
-        # code (via create_task / ensure_future) are not starved by a
-        # blocking queue.get().  The queue read is offloaded to a thread via
-        # run_in_executor; avoid adding further async primitives elsewhere
-        # in the runtime unless there is a very good reason.
-        coro = listen_messages(
-            kernel,
-            control_queue,
-            set_ui_element_queue,
-            threaded_queue_reader,
-        )
-        if loop_factory is not None:
-            asyncio.run(coro, loop_factory=loop_factory)
-        else:
-            asyncio.run(coro)
-
-        teardown_kernel(kernel, ctx)
         streams.close(use_fd_redirect)
