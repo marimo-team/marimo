@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { atom, useSetAtom } from "jotai";
-import type { AiSettingsSubTab } from "./ai-config";
+import type { AiSettingsSubTab } from "./types";
 import {
   activeUserConfigCategoryAtom,
   type SettingCategoryId,

@@ -30,7 +30,7 @@ else:
 
 T = TypeVar("T")
 
-WATCHER_SLEEP_INTERVAL = 1.0
+WATCHER_SLEEP_INTERVAL = 2.0
 
 
 def write_side_effect(data: str | bytes) -> None:

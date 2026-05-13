@@ -138,7 +138,7 @@ def _check_modules(
     return stale_modules
 
 
-MODULE_WATCHER_SLEEP_INTERVAL = 1.0
+MODULE_WATCHER_SLEEP_INTERVAL = 2.0
 
 # For testing only - do not use in production
 _TEST_SLEEP_INTERVAL: float | None = None
@@ -162,7 +162,9 @@ def watch_modules(
     # work with a copy to avoid race conditions
     # in CPython, dict.copy() is atomic
     sys_modules = sys.modules.copy()
-    sleep_interval = _TEST_SLEEP_INTERVAL or MODULE_WATCHER_SLEEP_INTERVAL
+    base_sleep_interval = _TEST_SLEEP_INTERVAL or MODULE_WATCHER_SLEEP_INTERVAL
+    current_sleep_interval = base_sleep_interval
+    
     while not should_exit.is_set():
         # Collect the modules used by each cell
         modules: dict[str, types.ModuleType] = {}
@@ -181,6 +183,8 @@ def watch_modules(
         )
 
         if stale_modules:
+            # Change detected, use faster polling for a bit
+            current_sleep_interval = base_sleep_interval
             LOGGER.debug(
                 "Found stale modules; acquiring lock to update graph."
             )
@@ -212,11 +216,14 @@ def watch_modules(
             if mode == "autorun":
                 run_is_processed.clear()
                 enqueue_run_stale_cells()
+        else:
+            # No change, gradually increase sleep interval up to 5x base
+            current_sleep_interval = min(current_sleep_interval * 1.1, base_sleep_interval * 5.0)
 
         # Don't proceed until enqueue_run_stale_cells() has been processed,
         # ie until stale cells have been rerun
         run_is_processed.wait()
-        time.sleep(sleep_interval)
+        time.sleep(current_sleep_interval)
         # Update our snapshot of sys.modules
         sys_modules = sys.modules.copy()
 

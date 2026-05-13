@@ -36,7 +36,7 @@ import { uniqueByTakeLast } from "@/utils/arrays";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { capitalize, Strings } from "@/utils/strings";
-import { SimpleAccordion } from "./common";
+import { SimpleAccordion } from "./SimpleAccordion";
 import type {
   AgentNotificationEvent,
   AgentThoughtNotificationEvent,

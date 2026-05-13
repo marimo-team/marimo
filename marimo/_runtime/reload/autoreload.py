@@ -155,8 +155,8 @@ class ModuleReloader:
         self.old_objects: OldObjectsMapping = {}
         # module-name -> mtime (module modification timestamps)
         self.modules_mtimes: dict[str, float] = {}
-        # set of modules names known to be stale but haven't been reloaded
-        self.stale_modules: set[str] = set()
+        # set of modules names that are known to be non-reloadable
+        self.non_reloadable: set[str] = set()
         # for thread-safety
         self.lock = threading.Lock()
         self._module_dependency_finder = ModuleDependencyFinder()
@@ -170,7 +170,8 @@ class ModuleReloader:
         if not safe_hasattr(module, "__file__") or module.__file__ is None:
             return None
 
-        if getattr(module, "__name__", None) in [
+        modname = getattr(module, "__name__", None)
+        if modname in [
             None,
             "__mp_main__",
             "__main__",
@@ -182,6 +183,11 @@ class ModuleReloader:
             return None
 
         filename = module.__file__
+        # Optimization: skip site-packages and standard library
+        # to avoid thousands of stat calls.
+        if "site-packages" in filename or "lib/python" in filename:
+            return None
+
         _, ext = os.path.splitext(filename)
 
         if ext.lower() == ".py":

@@ -28,9 +28,11 @@ def watch_file(
     """Watch a file for changes and update the state."""
     last_mtime: float = 0
     current_mtime = last_mtime
-    sleep_interval = _TEST_SLEEP_INTERVAL or WATCHER_SLEEP_INTERVAL
+    base_sleep_interval = _TEST_SLEEP_INTERVAL or WATCHER_SLEEP_INTERVAL
+    current_sleep_interval = base_sleep_interval
+    
     while not should_exit.is_set():
-        time.sleep(sleep_interval)
+        time.sleep(current_sleep_interval)
         try:
             current_mtime = path.stat().st_mtime
         except FileNotFoundError:
@@ -43,10 +45,14 @@ def watch_file(
 
         if current_mtime != last_mtime:
             last_mtime = current_mtime
+            current_sleep_interval = base_sleep_interval
             with state._debounce_lock:
                 if not state._debounced:
                     state._set_value(path)
                 state._debounced = False
+        else:
+            # Increase sleep interval if no changes, up to 10s
+            current_sleep_interval = min(current_sleep_interval * 1.1, 10.0)
 
 
 class FileState(PathState):

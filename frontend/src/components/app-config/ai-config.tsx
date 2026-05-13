@@ -82,6 +82,7 @@ import { IncorrectModelId } from "./incorrect-model-id";
 import { IsOverridden } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
 import { aiSettingsSubTabAtom } from "./state";
+import type { AiSettingsSubTab } from "./types";
 
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;
@@ -1770,12 +1771,6 @@ const AddButton = ({
     </Button>
   );
 };
-
-export type AiSettingsSubTab =
-  | "ai-features"
-  | "ai-providers"
-  | "ai-models"
-  | "mcp";
 
 export const AiConfig: React.FC<AiConfigProps> = ({
   form,

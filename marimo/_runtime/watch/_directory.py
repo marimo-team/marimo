@@ -49,9 +49,11 @@ def watch_directory(
     """Watch a directory for changes and update the state."""
     last_structure = hashable_walk(path)
     current_structure = last_structure
-    sleep_interval = _TEST_SLEEP_INTERVAL or WATCHER_SLEEP_INTERVAL
+    base_sleep_interval = _TEST_SLEEP_INTERVAL or WATCHER_SLEEP_INTERVAL
+    current_sleep_interval = base_sleep_interval
+    
     while not should_exit.is_set():
-        time.sleep(sleep_interval)
+        time.sleep(current_sleep_interval)
         try:
             current_structure = hashable_walk(path)
         except FileNotFoundError:
@@ -64,7 +66,11 @@ def watch_directory(
 
         if current_structure != last_structure:
             last_structure = current_structure
+            current_sleep_interval = base_sleep_interval
             state._set_value(path)
+        else:
+            # Increase sleep interval if no changes, up to 10s
+            current_sleep_interval = min(current_sleep_interval * 1.1, 10.0)
 
 
 class DirectoryState(PathState):

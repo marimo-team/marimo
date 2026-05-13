@@ -1,22 +1,8 @@
-# Data files, images
-*.csv
-*.pdf
-*.txt
-!tests/**/*.txt
-
-node_modules/
-.turbo/
-
-# Byte-compiled / optimized / DLL files
-__pycache__
+# --- Python ---
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -36,18 +22,10 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
-
-# Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
-
-# Unit test / coverage reports
 htmlcov/
 .tox/
 .nox/
@@ -59,76 +37,70 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
-
-# Translations
-*.mo
-*.pot
-
-# Sphinx documentation
-docs/_build/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# Environments
-.env
-.venv
-env/
+.mypy_cache/
+.venv/
 venv/
 ENV/
+env/
 env.bak/
 venv.bak/
 uv.lock
+pixi.lock
+.pixi/
 
-# WIP files
-.wip/
-wip/
-
-# editors
-*.swp
-
-# misc
-.DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
+# --- JavaScript / Node ---
+node_modules/
+.turbo/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+.vercel/
 
+# --- Project Specific (marimo) ---
 marimo/_static/
 marimo/_lsp/
-
-.vscode
-.vercel
-.idea
-.claude
-
 .marimo.toml
-.mypy_cache/
 __marimo__
+site/
+.codepulse-report/
+
+# --- Editors & IDEs ---
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+.DS_Store
+
+# --- Tools ---
 .aider*
+.wip/
+wip/
 
-# pixi environments
-.pixi
-*.egg-info
-# lockfiles normally get commited but pixi's lockfile algorithm is so bad
-# that is almost always creates merge conflicts
-pixi.lock
+# --- Documentation & Translations ---
+docs/_build/
+*.mo
+*.pot
 
-# mkdocs
-site
+# --- Jupyter & IPython ---
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# --- Environments & Secrets ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+! .env.testing
+
+# --- Data & Artifacts ---
+*.csv
+*.pdf
+*.txt
+!tests/**/*.txt
+!README*.txt
+!CONTRIBUTING*.txt
+!LICENSE*.txt

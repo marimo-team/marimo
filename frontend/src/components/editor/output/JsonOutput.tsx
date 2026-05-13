@@ -22,7 +22,7 @@ import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { isUrl } from "@/utils/urls";
 import { useTheme } from "../../../theme/useTheme";
 import { logNever } from "../../../utils/assertNever";
-import { OutputRenderer } from "../Output";
+import { useOutputRenderer } from "./OutputRendererContext";
 import { HtmlOutput } from "./HtmlOutput";
 import { ImageOutput } from "./ImageOutput";
 import { VideoOutput } from "./VideoOutput";
@@ -108,13 +108,165 @@ export const JsonOutput: React.FC<Props> = memo(
     className,
   }) => {
     const { theme } = useTheme();
+    const OutputRenderer = useOutputRenderer();
+
+    const pythonBooleanType = defineDataType<boolean>({
+      ...booleanType,
+      PostComponent: PyCopyButton,
+      Component: ({ value }) => <span>{value ? "True" : "False"}</span>,
+    });
+
+    const pythonNoneType = defineDataType<null>({
+      ...nullType,
+      PostComponent: PyCopyButton,
+      Component: () => <span>None</span>,
+    });
+
+    const jsonBooleanType = defineDataType<boolean>({
+      ...booleanType,
+      PostComponent: JSONCopyButton,
+    });
+
+    const jsonNoneType = defineDataType<null>({
+      ...nullType,
+      PostComponent: JSONCopyButton,
+      Component: () => <span>null</span>,
+    });
+
+    const urlType = defineDataType<string>({
+      ...stringType,
+      is: (value) => isUrl(value),
+      PostComponent: PyCopyButton,
+      Component: ({ value }) => (
+        <a
+          href={value}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-link hover:underline"
+        >
+          {value}
+        </a>
+      ),
+    });
+
+    const integerType = defineDataType<number>({
+      ...intType,
+      PostComponent: JSONCopyButton,
+    });
+
+    const floatType_ = defineDataType<number>({
+      ...floatType,
+      PostComponent: JSONCopyButton,
+    });
+
+    const fallbackRenderer = defineDataType<string>({
+      ...stringType,
+      PostComponent: PyCopyButton,
+    });
+
+    const objectType_ = defineDataType<object>({
+      ...objectType,
+      PreComponent: (props) => (
+        <>
+          {objectType.PreComponent && <objectType.PreComponent {...props} />}
+          <PyCopyButton {...props} />
+        </>
+      ),
+    });
+
+    const jsonObjectType = defineDataType<object>({
+      ...objectType,
+      PreComponent: (props) => (
+        <>
+          {objectType.PreComponent && <objectType.PreComponent {...props} />}
+          <JSONCopyButton {...props} />
+        </>
+      ),
+    });
+
+    const jsonFallbackRenderer = defineDataType<string>({
+      ...stringType,
+      PostComponent: JSONCopyButton,
+    });
+
+    const getLeafRenderers = (): Record<string, LeafRenderer> => ({
+      "image/": (value) => <ImageOutput src={value} />,
+      "video/": (value) => <VideoOutput src={value} />,
+      "text/html:": (value) => (
+        <HtmlOutput html={value} inline={true} alwaysSanitizeHtml={false} />
+      ),
+      "text/markdown:": (value) => (
+        <HtmlOutput html={value} inline={true} alwaysSanitizeHtml={true} />
+      ),
+      "text/plain+float:": (value) => <span>{value}</span>,
+      "text/plain+bigint:": (value) => <span>{value}</span>,
+      "text/plain+set:": (value) => <span>{formatSetPayload(value)}</span>,
+      "text/plain+frozenset:": (value) => (
+        <span>{formatFrozensetPayload(value)}</span>
+      ),
+      "text/plain+tuple:": (value) => <span>{value}</span>,
+      "text/plain:": (value) => <CollapsibleTextOutput text={value} />,
+      "application/json:": (value) => (
+        <JsonOutput data={JSON.parse(value)} format="auto" />
+      ),
+      "application/": (value, mimeType) => {
+        if (!OutputRenderer) {
+          return <span>{value}</span>;
+        }
+        return (
+          <OutputRenderer
+            message={{
+              channel: "output",
+              data: value,
+              mimetype: mimeType,
+            }}
+            // The fallback is just re-constructing the leaf and rendering it as a span
+            // This could be the case where mime-type parsing is a false positive
+            renderFallback={() => (
+              <span>
+                {mimeType}:{value}
+              </span>
+            )}
+          />
+        );
+      },
+    });
+
+    const mimeTypes: DataType<any>[] = Object.entries(getLeafRenderers()).map(
+      ([leafType, render]) => ({
+        is: (value) => typeof value === "string" && value.startsWith(leafType),
+        PostComponent: PyCopyButton,
+        Component: (props) => renderLeaf(props.value, render),
+      }),
+    );
+
+    const pythonValueTypes = [
+      integerType,
+      pythonBooleanType,
+      pythonNoneType,
+      ...mimeTypes,
+      urlType,
+      objectType_,
+      fallbackRenderer,
+    ].toReversed();
+
+    const jsonValueTypes = [
+      integerType,
+      floatType_,
+      jsonBooleanType,
+      jsonNoneType,
+      jsonObjectType,
+      jsonFallbackRenderer,
+      ...mimeTypes,
+    ].toReversed();
+
     if (format === "auto") {
       format = inferBestFormat(data);
     }
 
-    const valueTypesMap: Record<string, typeof PYTHON_VALUE_TYPES> = {
-      python: PYTHON_VALUE_TYPES,
-      json: JSON_VALUE_TYPES,
+    const valueTypesMap: Record<string, DataType<any>[]> = {
+      python: pythonValueTypes,
+      json: jsonValueTypes,
     };
 
     switch (format) {
@@ -190,164 +342,6 @@ const CollapsibleTextOutput = (props: { text: string }) => {
     </span>
   );
 };
-
-type LeafRenderer = (
-  data: string,
-  mimeType: OutputMessage["mimetype"],
-) => React.ReactNode;
-
-/**
- * Map from mimetype-prefix to render function.
- *
- * Render function takes leaf data as input.
- */
-const LEAF_RENDERERS: Record<string, LeafRenderer> = {
-  "image/": (value) => <ImageOutput src={value} />,
-  "video/": (value) => <VideoOutput src={value} />,
-  "text/html:": (value) => (
-    <HtmlOutput html={value} inline={true} alwaysSanitizeHtml={false} />
-  ),
-  "text/markdown:": (value) => (
-    <HtmlOutput html={value} inline={true} alwaysSanitizeHtml={true} />
-  ),
-  "text/plain+float:": (value) => <span>{value}</span>,
-  "text/plain+bigint:": (value) => <span>{value}</span>,
-  "text/plain+set:": (value) => <span>{formatSetPayload(value)}</span>,
-  "text/plain+frozenset:": (value) => (
-    <span>{formatFrozensetPayload(value)}</span>
-  ),
-  "text/plain+tuple:": (value) => <span>{value}</span>,
-  "text/plain:": (value) => <CollapsibleTextOutput text={value} />,
-  "application/json:": (value) => (
-    <JsonOutput data={JSON.parse(value)} format="auto" />
-  ),
-  "application/": (value, mimeType) => {
-    return (
-      <OutputRenderer
-        message={{
-          channel: "output",
-          data: value,
-          mimetype: mimeType,
-        }}
-        // The fallback is just re-constructing the leaf and rendering it as a span
-        // This could be the case where mime-type parsing is a false positive
-        renderFallback={() => (
-          <span>
-            {mimeType}:{value}
-          </span>
-        )}
-      />
-    );
-  },
-};
-
-// oxlint-disable-next-line typescript/no-explicit-any
-const MIME_TYPES: DataType<any>[] = Object.entries(LEAF_RENDERERS).map(
-  ([leafType, render]) => ({
-    is: (value) => typeof value === "string" && value.startsWith(leafType),
-    PostComponent: PyCopyButton,
-    Component: (props) => renderLeaf(props.value, render),
-  }),
-);
-
-const PYTHON_BOOLEAN_TYPE = defineDataType<boolean>({
-  ...booleanType,
-  PostComponent: PyCopyButton,
-  Component: ({ value }) => <span>{value ? "True" : "False"}</span>,
-});
-
-const PYTHON_NONE_TYPE = defineDataType<null>({
-  ...nullType,
-  PostComponent: PyCopyButton,
-  Component: () => <span>None</span>,
-});
-
-const JSON_BOOLEAN_TYPE = defineDataType<boolean>({
-  ...booleanType,
-  PostComponent: JSONCopyButton,
-});
-
-const JSON_NONE_TYPE = defineDataType<null>({
-  ...nullType,
-  PostComponent: JSONCopyButton,
-  Component: () => <span>null</span>,
-});
-
-const URL_TYPE = defineDataType<string>({
-  ...stringType,
-  is: (value) => isUrl(value),
-  PostComponent: PyCopyButton,
-  Component: ({ value }) => (
-    <a
-      href={value}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-link hover:underline"
-    >
-      {value}
-    </a>
-  ),
-});
-
-const INTEGER_TYPE = defineDataType<number>({
-  ...intType,
-  PostComponent: JSONCopyButton,
-});
-
-const FLOAT_TYPE = defineDataType<number>({
-  ...floatType,
-  PostComponent: JSONCopyButton,
-});
-
-const FALLBACK_RENDERER = defineDataType<string>({
-  ...stringType,
-  PostComponent: PyCopyButton,
-});
-
-const OBJECT_TYPE = defineDataType<object>({
-  ...objectType,
-  PreComponent: (props) => (
-    <>
-      {objectType.PreComponent && <objectType.PreComponent {...props} />}
-      <PyCopyButton {...props} />
-    </>
-  ),
-});
-
-const JSON_OBJECT_TYPE = defineDataType<object>({
-  ...objectType,
-  PreComponent: (props) => (
-    <>
-      {objectType.PreComponent && <objectType.PreComponent {...props} />}
-      <JSONCopyButton {...props} />
-    </>
-  ),
-});
-
-const JSON_FALLBACK_RENDERER = defineDataType<string>({
-  ...stringType,
-  PostComponent: JSONCopyButton,
-});
-
-const PYTHON_VALUE_TYPES = [
-  INTEGER_TYPE,
-  PYTHON_BOOLEAN_TYPE,
-  PYTHON_NONE_TYPE,
-  ...MIME_TYPES,
-  URL_TYPE,
-  OBJECT_TYPE,
-  FALLBACK_RENDERER,
-].toReversed();
-// Last one wins, so we reverse the array.
-
-const JSON_VALUE_TYPES = [
-  INTEGER_TYPE,
-  FLOAT_TYPE,
-  JSON_BOOLEAN_TYPE,
-  JSON_NONE_TYPE,
-  JSON_OBJECT_TYPE,
-  JSON_FALLBACK_RENDERER,
-].toReversed();
 
 function leafData(leaf: string): string {
   return leafDataAndMimeType(leaf)[0];

@@ -41,6 +41,10 @@ import { Tooltip } from "../ui/tooltip";
 import { CsvViewer } from "./file-tree/renderers";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 import { renderMimeIcon } from "./renderMimeIcon";
+import {
+  OutputRendererContext,
+  type OutputRendererProps,
+} from "./output/OutputRendererContext";
 
 const METADATA_KEY = "__metadata__";
 
@@ -61,14 +65,16 @@ export type OnRefactorWithAI = (opts: {
 /**
  * Renders an output based on an OutputMessage.
  */
-export const OutputRenderer: React.FC<{
-  message: Pick<OutputMessage, "channel" | "data" | "mimetype">;
-  cellId?: CellId;
-  onRefactorWithAI?: OnRefactorWithAI;
-  wrapText?: boolean;
-  metadata?: { width?: number; height?: number };
-  renderFallback?: (mimetype: MimeType) => React.ReactNode;
-}> = memo((props) => {
+export const OutputRenderer: React.FC<OutputRendererProps> = memo((props) => {
+  return (
+    <OutputRendererContext.Provider value={OutputRenderer}>
+      <OutputRendererInternal {...props} />
+    </OutputRendererContext.Provider>
+  );
+});
+OutputRenderer.displayName = "OutputRenderer";
+
+const OutputRendererInternal: React.FC<OutputRendererProps> = memo((props) => {
   const {
     message,
     onRefactorWithAI,

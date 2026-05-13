@@ -90,7 +90,7 @@ class ParentPollerUnix(Thread):
                 ):
                     self._handle_parent_death()
                     return
-                time.sleep(1.0)
+                time.sleep(5.0)
             except OSError as e:
                 if e.errno == EINTR:
                     continue
