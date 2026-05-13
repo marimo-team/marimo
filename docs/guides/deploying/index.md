@@ -55,7 +55,12 @@ marimo run app.py --base-url /subpath
 
 ### Including code in your application
 
-You can include code in your application by using the `--include-code` flag when running your application.
+By default, `marimo run` hides the notebook source code from the app and does
+not send it to the client, so the code is not retrievable via browser dev
+tools. This is useful when the notebook source is confidential.
+
+If you would like to expose the source code in the app, you can include it by
+using the `--include-code` flag when running your application.
 
 ```bash
 marimo run app.py --include-code
