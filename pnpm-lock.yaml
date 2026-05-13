@@ -335,8 +335,8 @@ importers:
         specifier: ^11.12.3
         version: 11.12.3
       partysocket:
-        specifier: 1.1.10
-        version: 1.1.10
+        specifier: 1.1.13
+        version: 1.1.13
       path-to-regexp:
         specifier: ^8.4.0
         version: 8.4.2
@@ -7572,8 +7572,8 @@ packages:
     resolution: {integrity: sha512-CiyeOxFT/JZyN5m0z9PfXw4SCBJ6Sygz1Dpl0wqjlhDEGGBP1GnsUVEL0p63hoG1fcj3fHynXi9NYO4nWOL+qQ==}
     engines: {node: '>= 0.8'}
 
-  partysocket@1.1.10:
-    resolution: {integrity: sha512-ACfn0P6lQuj8/AqB4L5ZDFcIEbpnIteNNObrlxqV1Ge80GTGhjuJ2sNKwNQlFzhGi4kI7fP/C1Eqh8TR78HjDQ==}
+  partysocket@1.1.13:
+    resolution: {integrity: sha512-RNXGzc6j0NISGE84+VTHHtbPwmnzZuOYJm9XZ+en+aZlIA2vC4AfwPlYxAHmGGGko3pQF7xRNhoe7bu1Brej4Q==}
 
   path-data-parser@0.1.0:
     resolution: {integrity: sha512-NOnmBpt5Y2RWbuv0LMzsayp3lVylAHLPUTut412ZA3l+C4uw4ZVkQbjShYCQ8TCpUMdPapr4YjUqLYD6v68j+w==}
@@ -18054,7 +18054,7 @@ snapshots:
 
   parseurl@1.3.3: {}
 
-  partysocket@1.1.10:
+  partysocket@1.1.13:
     dependencies:
       event-target-polyfill: 0.0.4
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -80,14 +81,25 @@ def test_md_links() -> None:
 
 
 def test_md_footnotes() -> None:
-    # Test footnote conversion
+    # Test footnote conversion. The footnote extension assigns a unique
+    # prefix on each render (so multi-document pages don't collide), so
+    # match the structure rather than the exact prefix.
     footnote_input = (
         "Here is a footnote reference[^1].\n\n[^1]: Here is the footnote."
     )
-    expected_output = '<span class="paragraph">Here is a footnote reference<sup id="fnref:2-1"><a class="footnote-ref" href="#fn:2-1">1</a></sup>.</span>\n<div class="footnote">\n<hr />\n<ol>\n<li id="fn:2-1">Here is the footnote.&#160;<a class="footnote-backref" href="#fnref:2-1" title="Jump back to footnote 1 in the text">&#8617;</a></li>\n</ol>\n</div>'
-    assert _md(footnote_input, apply_markdown_class=False).text == (
-        expected_output
+    rendered = _md(footnote_input, apply_markdown_class=False).text
+    match = re.search(
+        r'<span class="paragraph">Here is a footnote reference'
+        r'<sup id="fnref:(\d+-1)"><a class="footnote-ref" '
+        r'href="#fn:\1">1</a></sup>\.</span>\n'
+        r'<div class="footnote">\n<hr />\n<ol>\n'
+        r'<li id="fn:\1">Here is the footnote\.&#160;'
+        r'<a class="footnote-backref" href="#fnref:\1" '
+        r'title="Jump back to footnote 1 in the text">&#8617;</a></li>\n'
+        r"</ol>\n</div>",
+        rendered,
     )
+    assert match is not None, rendered
 
 
 def test_md_iconify() -> None:
@@ -617,13 +629,18 @@ def test_latex_via_url(mock_urlopen: MagicMock, output: MagicMock) -> None:
 @patch("marimo._output.md.is_pyodide")
 def test_b64_extension_not_in_non_wasm(mock_is_pyodide: MagicMock) -> None:
     # Test that b64 extension is NOT included in non-WASM mode
-    from marimo._output.md import _get_extension_configs, _get_extensions
+    from marimo._output.md import (
+        _get_extension_configs,
+        _get_extensions,
+        _get_markdown,
+    )
 
     mock_is_pyodide.return_value = False
 
     # Clear the cache to ensure fresh evaluation
     _get_extensions.cache_clear()
     _get_extension_configs.cache_clear()
+    _get_markdown.cache_clear()
 
     extensions = _get_extensions()
     configs = _get_extension_configs()
@@ -640,7 +657,11 @@ def test_b64_extension_in_wasm(
     mock_is_pyodide: MagicMock, mock_notebook_dir: MagicMock
 ) -> None:
     # Test that b64 extension IS included in WASM mode
-    from marimo._output.md import _get_extension_configs, _get_extensions
+    from marimo._output.md import (
+        _get_extension_configs,
+        _get_extensions,
+        _get_markdown,
+    )
 
     mock_is_pyodide.return_value = True
     mock_notebook_dir.return_value = "/fake/notebook/dir"
@@ -648,6 +669,7 @@ def test_b64_extension_in_wasm(
     # Clear the cache to ensure fresh evaluation
     _get_extensions.cache_clear()
     _get_extension_configs.cache_clear()
+    _get_markdown.cache_clear()
 
     extensions = _get_extensions()
     configs = _get_extension_configs()
@@ -667,7 +689,11 @@ def test_md_with_b64_in_wasm(
     tmp_path: Path,
 ) -> None:
     # Test that markdown with image paths gets base64 encoded in WASM mode
-    from marimo._output.md import _get_extension_configs, _get_extensions
+    from marimo._output.md import (
+        _get_extension_configs,
+        _get_extensions,
+        _get_markdown,
+    )
 
     mock_is_pyodide.return_value = True
     mock_notebook_dir.return_value = str(tmp_path)
@@ -685,6 +711,7 @@ def test_md_with_b64_in_wasm(
     # Clear the cache to ensure fresh evaluation
     _get_extensions.cache_clear()
     _get_extension_configs.cache_clear()
+    _get_markdown.cache_clear()
 
     # Test markdown with image reference using b64 syntax
     # The pymdownx.b64 extension uses ![](test.png) syntax and converts to base64

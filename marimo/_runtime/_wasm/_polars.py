@@ -25,6 +25,7 @@ import pathlib
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
+from marimo._runtime._wasm import _fetch
 from marimo._runtime._wasm._patches import Unpatch, WasmPatchSet
 from marimo._utils.platform import is_pyodide
 
@@ -47,17 +48,6 @@ def _is_url(source: Any) -> bool:
     )
 
 
-def _fetch_url_bytes(url: str) -> bytes:
-    """Sync fetch via urllib — works in pyodide thanks to pyodide_http's
-    patch_all (installed at marimo startup), which routes urllib through JS
-    fetch. Single sync path for text and binary.
-    """
-    import urllib.request
-
-    with urllib.request.urlopen(url) as response:
-        return response.read()  # type: ignore[no-any-return]
-
-
 def _resolve_to_bytes(source: Any) -> bytes:
     """Coerce a polars I/O source into raw bytes."""
     if isinstance(source, bytes):
@@ -73,7 +63,7 @@ def _resolve_to_bytes(source: Any) -> bytes:
         return source.read_bytes()
     if isinstance(source, str):
         if _is_url(source):
-            return _fetch_url_bytes(source)
+            return _fetch.fetch_url_bytes(source)
         return pathlib.Path(source).read_bytes()
     raise TypeError(
         f"Unsupported source type for WASM polars fallback: {type(source)!r}"

@@ -7,6 +7,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "../../components/ui/tabs";
+import { cn } from "../../utils/cn";
 import { renderHTML } from "../core/RenderHTML";
 import type { IPlugin, IPluginProps } from "../types";
 import { Labeled } from "./common/labeled";
@@ -17,6 +18,7 @@ interface Data {
    */
   tabs: string[];
   label: string | null;
+  orientation: "horizontal" | "vertical";
 }
 
 // Selected tab index
@@ -28,6 +30,7 @@ export class TabsPlugin implements IPlugin<T, Data> {
   validator = z.object({
     tabs: z.array(z.string()),
     label: z.string().nullable(),
+    orientation: z.enum(["horizontal", "vertical"]).default("horizontal"),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -51,6 +54,7 @@ interface TabComponentProps extends Data {
 const TabComponent = ({
   tabs,
   label,
+  orientation,
   value,
   setValue,
   children,
@@ -70,19 +74,43 @@ const TabComponent = ({
     setInternalValue(value);
   }
 
+  const isVertical = orientation === "vertical";
+  const childArray =
+    children == null ? [] : Array.isArray(children) ? children : [children];
+
   return (
-    <Labeled label={label} align="top">
-      <Tabs value={internalValue} onValueChange={handleChange}>
-        <TabsList>
+    <Labeled label={label} align="top" fullWidth={true}>
+      <Tabs
+        value={internalValue}
+        onValueChange={handleChange}
+        orientation={orientation}
+        className={cn(isVertical && "flex flex-row gap-3")}
+      >
+        <TabsList
+          className={cn(
+            "scrollbar-thin",
+            isVertical
+              ? "flex flex-col items-stretch justify-start h-auto max-h-none shrink-0 min-w-[10rem] overflow-y-auto"
+              : "max-w-full overflow-x-auto justify-start",
+          )}
+        >
           {tabs.map((tab, index) => (
-            <TabsTrigger key={index} value={index.toString()}>
+            <TabsTrigger
+              key={index}
+              value={index.toString()}
+              className={cn(isVertical && "w-full justify-start")}
+            >
               {renderHTML({ html: tab })}
             </TabsTrigger>
           ))}
         </TabsList>
-        {React.Children.map(children, (child, index) => {
-          return <TabsContent value={index.toString()}>{child}</TabsContent>;
-        })}
+        <div className={cn(isVertical && "flex-1 min-w-0")}>
+          {childArray.map((child, index) => (
+            <TabsContent key={index} value={index.toString()}>
+              {child}
+            </TabsContent>
+          ))}
+        </div>
       </Tabs>
     </Labeled>
   );

@@ -9,6 +9,7 @@ import {
 } from "rpc-anywhere";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import type { ParentSchema } from "@/core/wasm/rpc";
+import { shouldLoadDuckDBPackages } from "@/core/wasm/utils";
 import { TRANSPORT_ID } from "@/core/wasm/worker/constants";
 import { getPyodideVersion } from "@/core/wasm/worker/getPyodideVersion";
 import { MessageBuffer } from "@/core/wasm/worker/message-buffer";
@@ -85,8 +86,8 @@ const requestHandler = createRPCRequestHandler({
   loadPackages: async (code: string) => {
     await pyodideReadyPromise; // Make sure loading is done
 
-    if (code.includes("mo.sql")) {
-      // Add pandas and duckdb to the code
+    if (shouldLoadDuckDBPackages(code)) {
+      // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;
       code = `import sqlglot\n${code}`;
