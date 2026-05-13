@@ -2,10 +2,9 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Logger } from "@/utils/Logger";
-import { classifyCloseEvent } from "../useMarimoKernelConnection";
 import { WebSocketClosedReason, WebSocketState } from "../types";
-
-const MAX_RETRIES = 10;
+import { classifyCloseEvent } from "../useMarimoKernelConnection";
+import { MAX_RETRIES } from "../useWebSocket";
 
 function classify(
   reason: string | undefined,

@@ -66,6 +66,25 @@ describe("StatusOverlay disconnect indicator", () => {
     expect((button as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it.each([
+    [WebSocketClosedReason.MALFORMED_QUERY, "the kernel did not recognize a request; please file a bug with marimo"],
+    [WebSocketClosedReason.KERNEL_STARTUP_ERROR, "Failed to start kernel sandbox"],
+  ])(
+    "renders a disabled button for non-recoverable close reason %s",
+    (code, reason) => {
+      const onReconnect = vi.fn();
+      const { getByTestId } = renderOverlay(
+        { state: WebSocketState.CLOSED, code, reason },
+        onReconnect,
+      );
+
+      const button = getByTestId("disconnected-indicator") as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      fireEvent.click(button);
+      expect(onReconnect).not.toHaveBeenCalled();
+    },
+  );
+
   it("does not render the disconnect icon when another tab has taken over", () => {
     const onReconnect = vi.fn();
     const { queryByTestId } = renderOverlay(
