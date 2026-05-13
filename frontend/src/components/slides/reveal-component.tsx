@@ -546,14 +546,14 @@ const RevealSlidesComponent = ({
         autoSaveId="marimo:slides:notes-panel"
         className="flex-1 min-w-0"
       >
-        <Panel defaultSize={75} minSize={30}>
+        <Panel defaultSize={96} minSize={30}>
           {slideArea}
         </Panel>
         <PanelResizeHandle
           className="mo-slides-notes-resize"
           hitAreaMargins={{ coarse: 12, fine: 4 }}
         />
-        <Panel defaultSize={4} minSize={8} collapsible={true} collapsedSize={4}>
+        <Panel defaultSize={4} minSize={4} collapsible={true} collapsedSize={4}>
           <SlideNotesEditor
             layout={layout}
             setLayout={setLayout}

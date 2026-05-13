@@ -21,12 +21,16 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
   type: "slides",
   name: "Slides",
 
-  // All fields are optional so layouts saved by older marimo versions will work
+  // All fields are optional so layouts saved by older marimo versions will work.
+  // NOTE: every property of `SlideConfig` must be listed here — `z.object`
+  // strips unknown keys by default, so omitting a field silently drops it on
+  // any code path that runs the input through `validator.parse`.
   validator: z.object({
     cells: z
       .array(
         z.object({
           type: z.enum(["slide", "sub-slide", "fragment", "skip"]).optional(),
+          speakerNotes: z.string().optional(),
         }),
       )
       .optional(),

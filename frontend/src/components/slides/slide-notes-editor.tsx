@@ -1,9 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { StickyNoteIcon } from "lucide-react";
-import { useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
+import useEvent from "react-use-event-hook";
 import type { CellId } from "@/core/cells/ids";
-import { useDebounceControlledState } from "@/hooks/useDebounce";
+import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import type { SlidesLayout } from "../editor/renderers/slides-layout/types";
@@ -15,6 +16,8 @@ interface SlideNotesEditorProps {
   className?: string;
 }
 
+const PERSIST_DELAY_MS = 300;
+
 export const SlideNotesEditor = ({
   layout,
   setLayout,
@@ -25,29 +28,50 @@ export const SlideNotesEditor = ({
     ? (layout.cells.get(cellId)?.speakerNotes ?? "")
     : "";
 
-  const handlePersist = useCallback(
-    (next: string) => {
-      if (!cellId) {
-        return;
-      }
-      const existing = layout.cells.get(cellId);
-      const previous = existing?.speakerNotes ?? "";
-      if (previous === next) {
-        return;
-      }
-      const newCells = new Map(layout.cells);
-      newCells.set(cellId, { ...existing, speakerNotes: next });
-      setLayout({ ...layout, cells: newCells });
-    },
-    [cellId, layout, setLayout],
+  const [draft, setDraft] = useState(initialValue);
+
+  // The debounced callback takes `(cellId, text)` so a `flush()` replays with
+  // the latest args — which means the in-flight text lands on the slide it
+  // was typed for, even if `cellId` has since changed.
+  const persistImmediate = useEvent((targetCellId: CellId, next: string) => {
+    const existing = layout.cells.get(targetCellId);
+    if ((existing?.speakerNotes ?? "") === next) {
+      return;
+    }
+    const newCells = new Map(layout.cells);
+    newCells.set(targetCellId, { ...existing, speakerNotes: next });
+    setLayout({ ...layout, cells: newCells });
+  });
+
+  const persistDebounced = useDebouncedCallback(
+    persistImmediate,
+    PERSIST_DELAY_MS,
   );
 
-  const { value, onChange } = useDebounceControlledState<string>({
-    initialValue,
-    delay: 300,
-    onChange: handlePersist,
-    disabled: cellId == null,
-  });
+  // On slide switch: flush any in-flight edit to the *previous* slide before
+  // adopting the new slide's notes.
+  const prevCellIdRef = useRef(cellId);
+  useEffect(() => {
+    if (prevCellIdRef.current !== cellId) {
+      persistDebounced.flush();
+      setDraft(initialValue);
+      prevCellIdRef.current = cellId;
+    }
+  }, [cellId, initialValue, persistDebounced]);
+
+  // Flush on unmount so closing the panel / navigating away doesn't lose text.
+  useEffect(() => {
+    return () => {
+      persistDebounced.flush();
+    };
+  }, [persistDebounced]);
+
+  const handleChange = (next: string) => {
+    setDraft(next);
+    if (cellId) {
+      persistDebounced(cellId, next);
+    }
+  };
 
   return (
     <section
@@ -66,8 +90,8 @@ export const SlideNotesEditor = ({
       <div className="flex-1 min-h-0 p-2">
         {cellId ? (
           <textarea
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
+            value={draft}
+            onChange={(event) => handleChange(event.target.value)}
             onClick={Events.stopPropagation()}
             placeholder="Add notes for this slide. Visible to you in speaker view (press S during presentation)."
             className={cn(

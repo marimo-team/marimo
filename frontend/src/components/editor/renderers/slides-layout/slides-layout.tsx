@@ -62,8 +62,17 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   );
 
   if (isReading) {
-    // Cap the deck height and derive width from height via aspect-video so it stays 16:9 without
-    // ballooning to the full viewport on wide screens.
+    // In kiosk mode (e.g. reveal.js's speaker-view iframes), anchor to the
+    // iframe viewport with `dvh`/`dvw` so the deck resizes with the popup
+    // window. The non-kiosk read mode keeps its 16:9 cap so the deck doesn't
+    // balloon to the full viewport on wide screens.
+    if (kioskMode) {
+      return (
+        <div className="flex h-dvh w-dvw overflow-hidden bg-background">
+          {slides}
+        </div>
+      );
+    }
     return (
       <div className="p-4 flex flex-1 items-center justify-center min-h-0">
         <div className="h-full max-h-[95vh] aspect-video max-w-full flex">

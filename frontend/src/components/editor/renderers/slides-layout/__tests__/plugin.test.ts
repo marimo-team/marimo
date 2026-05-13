@@ -209,6 +209,28 @@ const BACKWARDS_COMPAT_SNAPSHOTS: BackwardsCompatCase[] = [
       cellEntries: [["a", { type: "slide" }]],
     },
   },
+  {
+    // `speakerNotes` was added to SlideConfig. The validator must
+    // know about it (so it isn't silently stripped), the deserializer must
+    // carry it through, and serialize → deserialize must round-trip it.
+    label: "speakerNotes round-trips through validate + (de)serialize",
+    input: {
+      cells: [
+        { type: "slide", speakerNotes: "intro" },
+        { type: "fragment", speakerNotes: "" },
+        { type: "fragment", speakerNotes: "multi\n\nline\n\nnotes" },
+      ],
+    },
+    expected: {
+      deck: {},
+      cellIds: ["a", "b", "c"],
+      cellEntries: [
+        ["a", { type: "slide", speakerNotes: "intro" }],
+        ["b", { type: "fragment", speakerNotes: "" }],
+        ["c", { type: "fragment", speakerNotes: "multi\n\nline\n\nnotes" }],
+      ],
+    },
+  },
 ];
 
 describe("SlidesLayoutPlugin backwards compatibility", () => {
