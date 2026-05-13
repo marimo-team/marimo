@@ -67,8 +67,14 @@ describe("StatusOverlay disconnect indicator", () => {
   });
 
   it.each([
-    [WebSocketClosedReason.MALFORMED_QUERY, "the kernel did not recognize a request; please file a bug with marimo"],
-    [WebSocketClosedReason.KERNEL_STARTUP_ERROR, "Failed to start kernel sandbox"],
+    [
+      WebSocketClosedReason.MALFORMED_QUERY,
+      "the kernel did not recognize a request; please file a bug with marimo",
+    ],
+    [
+      WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+      "Failed to start kernel sandbox",
+    ],
   ])(
     "renders a disabled button for non-recoverable close reason %s",
     (code, reason) => {

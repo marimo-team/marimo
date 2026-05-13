@@ -17,10 +17,9 @@ vi.mock("@/core/websocket/useWebSocket", async () => {
 });
 
 vi.mock("@/core/runtime/config", async () => {
-  const actual =
-    await vi.importActual<typeof import("@/core/runtime/config")>(
-      "@/core/runtime/config",
-    );
+  const actual = await vi.importActual<typeof import("@/core/runtime/config")>(
+    "@/core/runtime/config",
+  );
   return {
     ...actual,
     useRuntimeManager: vi.fn(),
