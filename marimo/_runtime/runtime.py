@@ -1398,45 +1398,39 @@ class Kernel:
         """Run cells and any state updates they trigger"""
 
         with run_id_context():
-            # This patch is an attempt to mitigate problems caused by the fact
-            # that in run mode, kernels run in threads and share the same
-            # sys.modules. Races can still happen, but this should help in most
-            # common cases. We could also be more aggressive and run this before
-            # every cell, or even before pickle.dump/pickle.dumps()
-            with patches.patch_main_module_context(self._module):
-                # Snapshot disabled cells that are in an error/cancelled state
-                # BEFORE running, so we can clear them after the run if their
-                # ancestor recovered.
-                pre_run_errored_disabled = {
-                    cid
-                    for cid, cell in self.graph.cells.items()
-                    if self.graph.is_disabled(cid)
-                    and cell.run_result_status
-                    in ("exception", "marimo-error", "cancelled")
-                }
-                while cell_ids := await self._run_cells_internal(cell_ids):
-                    LOGGER.debug("Running state updates ...")
-                    if self.lazy() and cell_ids:
-                        self.graph.set_stale(cell_ids, prune_imports=True)
-                        break
-                LOGGER.debug("Finished run.")
-                # Clear stale error state from disabled cells whose ancestor
-                # recovered. Uses pre-run snapshot since run_result_status is
-                # updated during the run.
-                for cid in pre_run_errored_disabled:
-                    cell_impl = self.graph.cells[cid]
-                    if not self.graph.is_any_ancestor_errored(cid):
-                        cell_impl.set_run_result_status("disabled")
-                        status = cast(
-                            RuntimeStateType,
-                            "idle"
-                            if cell_impl.config.disabled
-                            else "disabled-transitively",
-                        )
-                        cell_impl.set_runtime_state(status)
-                        CellNotificationUtils.broadcast_empty_output(
-                            cell_id=cid, status=status
-                        )
+            # Snapshot disabled cells that are in an error/cancelled state
+            # BEFORE running, so we can clear them after the run if their
+            # ancestor recovered.
+            pre_run_errored_disabled = {
+                cid
+                for cid, cell in self.graph.cells.items()
+                if self.graph.is_disabled(cid)
+                and cell.run_result_status
+                in ("exception", "marimo-error", "cancelled")
+            }
+            while cell_ids := await self._run_cells_internal(cell_ids):
+                LOGGER.debug("Running state updates ...")
+                if self.lazy() and cell_ids:
+                    self.graph.set_stale(cell_ids, prune_imports=True)
+                    break
+            LOGGER.debug("Finished run.")
+            # Clear stale error state from disabled cells whose ancestor
+            # recovered. Uses pre-run snapshot since run_result_status is
+            # updated during the run.
+            for cid in pre_run_errored_disabled:
+                cell_impl = self.graph.cells[cid]
+                if not self.graph.is_any_ancestor_errored(cid):
+                    cell_impl.set_run_result_status("disabled")
+                    status = cast(
+                        RuntimeStateType,
+                        "idle"
+                        if cell_impl.config.disabled
+                        else "disabled-transitively",
+                    )
+                    cell_impl.set_runtime_state(status)
+                    CellNotificationUtils.broadcast_empty_output(
+                        cell_id=cid, status=status
+                    )
 
     async def _if_autorun_then_run_cells(
         self, cell_ids: set[CellId_t]
@@ -3692,6 +3686,25 @@ def launch_kernel(
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
         hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
 
+    # Subprocess kernels own their process's sys.modules, so they use
+    # "__main__" directly. Thread-based kernels share sys.modules with the
+    # server and with sibling kernels, so each gets a unique module name —
+    # this keeps pickle correct (fn.__module__ resolves to *this* kernel's
+    # module in sys.modules, no matter which thread is pickling) and avoids
+    # kernels racing on a shared "__main__" slot.
+    if is_subprocess:
+        kernel_main_name = "__main__"
+    else:
+        kernel_main_name = f"__marimo_kernel_{uuid4().hex}__"
+    main_module = patches.create_main_module(
+        file=app_metadata.filename,
+        input_override=input_override,
+        print_override=print_override,
+        doc=app_metadata.docstring,
+        name=kernel_main_name,
+    )
+    patches.patch_sys_module(main_module)
+
     kernel = Kernel(
         cell_configs=configs,
         app_metadata=app_metadata,
@@ -3699,12 +3712,7 @@ def launch_kernel(
         stdout=stdout,
         stderr=stderr,
         stdin=stdin,
-        module=patches.patch_main_module(
-            file=app_metadata.filename,
-            input_override=input_override,
-            print_override=print_override,
-            doc=app_metadata.docstring,
-        ),
+        module=main_module,
         debugger_override=debugger,
         user_config=user_config,
         enqueue_control_request=_enqueue_control_request,
@@ -3820,5 +3828,11 @@ def launch_kernel(
     get_context().app_kernel_runner_registry.shutdown()
     teardown_context()
     kernel.teardown()
+    if not is_subprocess:
+        # Unregister this kernel's main module so its entry doesn't leak
+        # across kernel lifetimes in the shared process. In subprocess
+        # modes we registered under "__main__" and process teardown handles
+        # the rest.
+        sys.modules.pop(main_module.__name__, None)
     if isinstance(pipe, connection.Connection):
         pipe.close()
