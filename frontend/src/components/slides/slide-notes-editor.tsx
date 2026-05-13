@@ -30,10 +30,15 @@ export const SlideNotesEditor = ({
 
   const [draft, setDraft] = useState(initialValue);
 
+  // Tracks whether the user has typed something that hasn't been persisted
+  // yet. Used to decide if the textarea is safe to overwrite from props.
+  const hasPendingEditRef = useRef(false);
+
   // The debounced callback takes `(cellId, text)` so a `flush()` replays with
   // the latest args — which means the in-flight text lands on the slide it
   // was typed for, even if `cellId` has since changed.
   const persistImmediate = useEvent((targetCellId: CellId, next: string) => {
+    hasPendingEditRef.current = false;
     const existing = layout.cells.get(targetCellId);
     if ((existing?.speakerNotes ?? "") === next) {
       return;
@@ -48,16 +53,25 @@ export const SlideNotesEditor = ({
     PERSIST_DELAY_MS,
   );
 
-  // On slide switch: flush any in-flight edit to the *previous* slide before
-  // adopting the new slide's notes.
+  // Keep the textarea in sync with `layout`:
+  // - On slide switch, flush any in-flight edit to the *previous* slide before
+  //   adopting the new slide's notes.
+  // - On same-slide updates (e.g. future undo/redo or external setLayout
+  //   writers), adopt the new value only when the user isn't mid-edit so
+  //   pending keystrokes aren't clobbered.
   const prevCellIdRef = useRef(cellId);
   useEffect(() => {
     if (prevCellIdRef.current !== cellId) {
       persistDebounced.flush();
+      hasPendingEditRef.current = false;
       setDraft(initialValue);
       prevCellIdRef.current = cellId;
+      return;
     }
-  }, [cellId, initialValue, persistDebounced]);
+    if (!hasPendingEditRef.current && initialValue !== draft) {
+      setDraft(initialValue);
+    }
+  }, [cellId, initialValue, draft, persistDebounced]);
 
   // Flush on unmount so closing the panel / navigating away doesn't lose text.
   useEffect(() => {
@@ -69,6 +83,7 @@ export const SlideNotesEditor = ({
   const handleChange = (next: string) => {
     setDraft(next);
     if (cellId) {
+      hasPendingEditRef.current = true;
       persistDebounced(cellId, next);
     }
   };

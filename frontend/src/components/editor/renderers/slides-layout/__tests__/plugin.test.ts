@@ -245,15 +245,16 @@ describe("SlidesLayoutPlugin backwards compatibility", () => {
         parsed.success,
         `validator rejected: ${JSON.stringify(input)}`,
       ).toBe(true);
+      if (!parsed.success) {
+        return;
+      }
 
-      // 2. Deserialize must succeed and reflect the user-set fields.
-      const layout = SlidesLayoutPlugin.deserializeLayout(
-        // Use the raw input (not the validator output) because that is what
-        // `deserializeLayout` actually receives in production today.
-        // oxlint-disable-next-line typescript/no-explicit-any
-        input as any,
-        cells,
-      );
+      // 2. Deserializing the *validator output* (not the raw input) must
+      // preserve every field listed in `expected.cellEntries`. This is what
+      // catches a schema regression: if the validator silently strips a
+      // known field, the deserialized config won't carry it and the
+      // assertion below fails.
+      const layout = SlidesLayoutPlugin.deserializeLayout(parsed.data, cells);
       if (expected.deck !== undefined) {
         expect(layout.deck).toEqual(expected.deck);
       }
