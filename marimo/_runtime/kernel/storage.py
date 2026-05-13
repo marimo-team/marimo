@@ -16,14 +16,15 @@ from marimo._tracer import kernel_tracer
 from marimo._types.ids import VariableName
 
 if TYPE_CHECKING:
-    from marimo._runtime.runtime import Kernel
+    from marimo._data._external_storage.models import StorageBackend
     from marimo._runtime.commands import (
         StorageDownloadCommand,
         StorageListEntriesCommand,
     )
-    from marimo._data._external_storage.models import StorageBackend
+    from marimo._runtime.runtime import Kernel
 
 LOGGER = _loggers.marimo_logger()
+
 
 class ExternalStorageCallbacks:
     def __init__(self, kernel: Kernel):

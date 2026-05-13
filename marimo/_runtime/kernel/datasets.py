@@ -4,6 +4,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
+from marimo._data.preview_column import (
+    get_column_preview_for_dataframe,
+    get_column_preview_for_duckdb,
+)
 from marimo._messaging.notification import (
     DataColumnPreviewNotification,
     DataSourceConnectionsNotification,
@@ -19,13 +23,8 @@ from marimo._sql.get_engines import engine_to_data_source_connection
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import VariableName
 from marimo._utils.assert_never import assert_never
-from marimo._data.preview_column import (
-    get_column_preview_for_dataframe,
-    get_column_preview_for_duckdb,
-)
 
 if TYPE_CHECKING:
-    from marimo._runtime.runtime import Kernel
     from marimo._runtime.commands import (
         ListDataSourceConnectionCommand,
         ListSQLSchemasCommand,
@@ -33,8 +32,10 @@ if TYPE_CHECKING:
         PreviewDatasetColumnCommand,
         PreviewSQLTableCommand,
     )
+    from marimo._runtime.runtime import Kernel
 
 LOGGER = _loggers.marimo_logger()
+
 
 class DatasetCallbacks:
     def __init__(self, kernel: Kernel):

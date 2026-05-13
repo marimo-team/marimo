@@ -164,7 +164,7 @@ def watch_modules(
     sys_modules = sys.modules.copy()
     base_sleep_interval = _TEST_SLEEP_INTERVAL or MODULE_WATCHER_SLEEP_INTERVAL
     current_sleep_interval = base_sleep_interval
-    
+
     while not should_exit.is_set():
         # Collect the modules used by each cell
         modules: dict[str, types.ModuleType] = {}
@@ -218,7 +218,9 @@ def watch_modules(
                 enqueue_run_stale_cells()
         else:
             # No change, gradually increase sleep interval up to 5x base
-            current_sleep_interval = min(current_sleep_interval * 1.1, base_sleep_interval * 5.0)
+            current_sleep_interval = min(
+                current_sleep_interval * 1.1, base_sleep_interval * 5.0
+            )
 
         # Don't proceed until enqueue_run_stale_cells() has been processed,
         # ie until stale cells have been rerun

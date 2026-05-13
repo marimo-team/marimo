@@ -8,8 +8,12 @@ from marimo._messaging.notification_utils import broadcast_notification
 from marimo._secrets.secrets import get_secret_keys
 
 if TYPE_CHECKING:
+    from marimo._runtime.commands import (
+        ListSecretKeysCommand,
+        RefreshSecretsCommand,
+    )
     from marimo._runtime.runtime import Kernel
-    from marimo._runtime.commands import ListSecretKeysCommand, RefreshSecretsCommand
+
 
 class SecretsCallbacks:
     def __init__(self, kernel: Kernel):

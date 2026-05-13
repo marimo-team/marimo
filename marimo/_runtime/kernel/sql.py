@@ -13,11 +13,12 @@ from marimo._tracer import kernel_tracer
 from marimo._types.ids import VariableName
 
 if TYPE_CHECKING:
-    from marimo._runtime.runtime import Kernel
     from marimo._runtime.commands import ValidateSQLCommand
+    from marimo._runtime.runtime import Kernel
     from marimo._sql.engines.types import SQLConnectionType
 
 LOGGER = _loggers.marimo_logger()
+
 
 class SqlCallbacks:
     def __init__(self, kernel: Kernel):

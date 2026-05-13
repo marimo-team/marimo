@@ -17,9 +17,8 @@ export interface OutputRendererProps {
 
 export type OutputRendererComponent = React.FC<OutputRendererProps>;
 
-export const OutputRendererContext = createContext<OutputRendererComponent | null>(
-  null,
-);
+export const OutputRendererContext =
+  createContext<OutputRendererComponent | null>(null);
 
 export const useOutputRenderer = () => {
   return useContext(OutputRendererContext);

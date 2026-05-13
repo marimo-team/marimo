@@ -1,18 +1,18 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.context import is_code_mode_request
 from marimo._messaging.notification import (
     InstallingPackageAlertNotification,
     MissingPackageAlertNotification,
 )
 from marimo._messaging.notification_utils import broadcast_notification
-from marimo._runtime import dataflow
+from marimo._runtime.commands import InstallPackagesCommand
 from marimo._runtime.packages.import_error_extractors import (
     extract_missing_module_from_cause_chain,
     try_extract_packages_from_import_error_message,
@@ -22,19 +22,18 @@ from marimo._runtime.packages.utils import (
     PackageRequirement,
     is_python_isolated,
 )
-from marimo._dependencies.errors import ManyModulesNotFoundError
-from marimo._runtime.commands import InstallPackagesCommand
 
 if TYPE_CHECKING:
-    from marimo._runtime.runtime import Kernel
+    from marimo._messaging.notification import PackageStatusType
     from marimo._runtime.packages.package_manager import (
         LogCallback,
         PackageManager,
     )
     from marimo._runtime.runner import hook_context
-    from marimo._messaging.notification import PackageStatusType
+    from marimo._runtime.runtime import Kernel
 
 LOGGER = _loggers.marimo_logger()
+
 
 class PackagesCallbacks:
     def __init__(self, kernel: Kernel):

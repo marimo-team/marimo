@@ -11,8 +11,9 @@ from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.context import get_context
 
 if TYPE_CHECKING:
-    from marimo._runtime.runtime import Kernel
     from marimo._runtime.commands import ClearCacheCommand, GetCacheInfoCommand
+    from marimo._runtime.runtime import Kernel
+
 
 class CacheCallbacks:
     def __init__(self, kernel: Kernel):

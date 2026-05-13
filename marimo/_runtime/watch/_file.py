@@ -30,7 +30,7 @@ def watch_file(
     current_mtime = last_mtime
     base_sleep_interval = _TEST_SLEEP_INTERVAL or WATCHER_SLEEP_INTERVAL
     current_sleep_interval = base_sleep_interval
-    
+
     while not should_exit.is_set():
         time.sleep(current_sleep_interval)
         try:
