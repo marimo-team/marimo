@@ -32,15 +32,42 @@ export type FilterType =
   | "select"
   | "boolean";
 
+interface NullishOpts {
+  operator: "is_null" | "is_not_null";
+}
+
+type NumberFilterOpts =
+  | { operator: "between"; min: number; max: number }
+  | {
+      operator: "==" | "!=" | ">" | ">=" | "<" | "<=";
+      value: number;
+    }
+  | NullishOpts;
+
+type TextFilterOpts =
+  | {
+      operator:
+        | "contains"
+        | "equals"
+        | "does_not_equal"
+        | "regex"
+        | "starts_with"
+        | "ends_with";
+      text: string;
+    }
+  | { operator: "in" | "not_in"; values: string[] }
+  | { operator: "is_empty" }
+  | NullishOpts;
+
 // Filter is a factory function that creates a filter object
 export const Filter = {
-  number(opts: { min?: number; max?: number; operator?: OperatorType }) {
+  number(opts: NumberFilterOpts) {
     return {
       type: "number",
       ...opts,
     } as const;
   },
-  text(opts: { text?: string; operator: OperatorType }) {
+  text(opts: TextFilterOpts) {
     return {
       type: "text",
       ...opts,
@@ -84,6 +111,15 @@ export type ColumnFilterForType<T extends FilterType> = T extends FilterType
   ? Extract<ColumnFilterValue, { type: T }>
   : never;
 
+function isNullishFilter(
+  filter: ColumnFilterValue,
+): filter is Extract<
+  ColumnFilterValue,
+  { operator: "is_null" | "is_not_null" }
+> {
+  return filter.operator === "is_null" || filter.operator === "is_not_null";
+}
+
 export function filterToFilterCondition(
   columnIdString: string,
   filter: ColumnFilterValue | undefined,
@@ -93,12 +129,11 @@ export function filterToFilterCondition(
   }
   const columnId = columnIdString as ColumnId;
 
-  if (filter.operator === "is_null" || filter.operator === "is_not_null") {
+  if (isNullishFilter(filter)) {
     return [
       {
         column_id: columnId,
         operator: filter.operator,
-        value: undefined,
         type: "condition",
         negate: false,
       },
@@ -106,38 +141,76 @@ export function filterToFilterCondition(
   }
 
   switch (filter.type) {
-    case "number": {
-      const conditions: FilterConditionType[] = [];
-      if (filter.min !== undefined) {
-        conditions.push({
-          column_id: columnId,
-          operator: ">=",
-          value: filter.min,
-          type: "condition",
-          negate: false,
-        });
+    case "number":
+      switch (filter.operator) {
+        case "between":
+          return [
+            {
+              column_id: columnId,
+              operator: "between",
+              value: { min: filter.min, max: filter.max },
+              type: "condition",
+              negate: false,
+            },
+          ];
+        case "==":
+        case "!=":
+        case ">":
+        case ">=":
+        case "<":
+        case "<=":
+          return [
+            {
+              column_id: columnId,
+              operator: filter.operator,
+              value: filter.value,
+              type: "condition",
+              negate: false,
+            },
+          ];
+        default:
+          assertNever(filter);
       }
-      if (filter.max !== undefined) {
-        conditions.push({
-          column_id: columnId,
-          operator: "<=",
-          value: filter.max,
-          type: "condition",
-          negate: false,
-        });
-      }
-      return conditions;
-    }
     case "text":
-      return [
-        {
-          column_id: columnId,
-          operator: filter.operator,
-          value: filter.text,
-          type: "condition",
-          negate: false,
-        },
-      ];
+      switch (filter.operator) {
+        case "contains":
+        case "equals":
+        case "does_not_equal":
+        case "regex":
+        case "starts_with":
+        case "ends_with":
+          return [
+            {
+              column_id: columnId,
+              operator: filter.operator,
+              value: filter.text,
+              type: "condition",
+              negate: false,
+            },
+          ];
+        case "in":
+        case "not_in":
+          return [
+            {
+              column_id: columnId,
+              operator: filter.operator,
+              value: filter.values,
+              type: "condition",
+              negate: false,
+            },
+          ];
+        case "is_empty":
+          return [
+            {
+              column_id: columnId,
+              operator: "is_empty",
+              type: "condition",
+              negate: false,
+            },
+          ];
+        default:
+          assertNever(filter);
+      }
     case "datetime": {
       const conditions: FilterConditionType[] = [];
       if (filter.min !== undefined) {
@@ -210,7 +283,6 @@ export function filterToFilterCondition(
           {
             column_id: columnId,
             operator: "is_true",
-            value: undefined,
             type: "condition",
             negate: false,
           },
@@ -221,7 +293,6 @@ export function filterToFilterCondition(
           {
             column_id: columnId,
             operator: "is_false",
-            value: undefined,
             type: "condition",
             negate: false,
           },

@@ -18,6 +18,7 @@ import {
 import { Button } from "../ui/button";
 import { FilterByValuesPicker } from "./filter-by-values-picker";
 import { type ColumnFilterValue, Filter } from "./filters";
+import { OPERATOR_LABELS } from "./operator-labels";
 import { Tooltip } from "../ui/tooltip";
 
 // Editable filter types in this editor — date/datetime/time are read-only
@@ -52,17 +53,6 @@ const DEFAULT_OPERATOR: Record<EditableFilterType, UiOperator> = {
   text: "contains",
   boolean: "is_true",
   select: "in",
-};
-
-const OPERATOR_LABELS: Record<UiOperator, string> = {
-  between: "Between",
-  contains: "Contains",
-  is_true: "Is true",
-  is_false: "Is false",
-  is_null: "Is null",
-  is_not_null: "Is not null",
-  in: "Is in",
-  not_in: "Not in",
 };
 
 const OPERATORS_WITHOUT_VALUE = new Set<UiOperator>([
