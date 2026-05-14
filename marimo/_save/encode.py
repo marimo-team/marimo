@@ -24,6 +24,15 @@ if TYPE_CHECKING:
     Tensor = Any
 
 
+_LABEL_CACHE: dict[str, bytes] = {}
+
+
+def _get_label_bytes(label: str) -> bytes:
+    if label not in _LABEL_CACHE:
+        _LABEL_CACHE[label] = bytes(":" + label, "utf-8")
+    return _LABEL_CACHE[label]
+
+
 def type_sign(value: bytes, label: str) -> bytes:
     # Appending all strings with a key disambiguates it from other types. e.g.
     # when the string value is the same as a float pack, or is the literal
@@ -42,13 +51,13 @@ def type_sign(value: bytes, label: str) -> bytes:
     # method is chosen because it was assumed to be fast, but might be slow
     # with a copy of large data.
     length = struct.pack("!Q", len(value))
-    return b"".join([value, length, bytes(":" + label, "utf-8")])
+    return b"".join([value, length, _get_label_bytes(label)])
 
 
 def iterable_sign(value: Iterable[Any], label: str) -> bytes:
     values = list(value)
     length = struct.pack("!Q", len(values))
-    return b"".join([b"".join(values), length, bytes(":" + label, "utf-8")])
+    return b"".join([b"".join(values), length, _get_label_bytes(label)])
 
 
 def standardize_tensor(tensor: Tensor) -> Tensor:
