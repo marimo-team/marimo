@@ -133,12 +133,18 @@
       "execution_count": null,
       "id": "SFPL",
       "metadata": {
+        "jupyter": {
+          "source_hidden": true
+        },
         "marimo": {
           "config": {
             "hide_code": true
           },
           "name": "*remove"
-        }
+        },
+        "tags": [
+          "remove-input"
+        ]
       },
       "outputs": [],
       "source": [
@@ -172,12 +178,18 @@
       "execution_count": null,
       "id": "RGSE",
       "metadata": {
+        "jupyter": {
+          "source_hidden": true
+        },
         "marimo": {
           "config": {
             "hide_code": true
           },
           "name": "*MyHiddenClass"
-        }
+        },
+        "tags": [
+          "remove-input"
+        ]
       },
       "outputs": [],
       "source": [

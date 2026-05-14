@@ -30,18 +30,9 @@ from marimo._runtime.commands import (
     BatchableCommand,
     CodeCompletionCommand,
     CommandMessage,
-    ModelCommand,
-    UpdateUIElementCommand,
     UpdateUserConfigCommand,
 )
-from marimo._runtime.context.kernel_context import initialize_kernel_context
-from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._runtime.runner.hooks import Priority, create_default_hooks
-from marimo._runtime.runtime import Kernel
-from marimo._runtime.utils.set_ui_element_request_manager import (
-    SetUIElementRequestManager,
-)
 from marimo._server.export.exporter import Exporter
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.export import ExportAsHTMLRequest
@@ -446,93 +437,49 @@ def _launch_pyodide_kernel(
     user_config: MarimoConfig,
 ) -> RestartableTask:
     from marimo._output.formatters.formatters import register_formatters
+    from marimo._runtime.kernel_lifecycle import (
+        asyncio_queue_reader,
+        create_kernel,
+        listen_messages,
+        teardown_kernel,
+    )
 
     register_formatters()
-
-    LOGGER.debug("Launching kernel")
+    LOGGER.debug("Launching pyodide kernel")
 
     # Patches for pyodide compatibility
     patches.patch_pyodide_networking()
-
     # Some libraries mess with Python's default recursion limit, which becomes
     # a problem when running with Pyodide.
     patches.patch_recursion_limit(limit=1000)
 
     is_edit_mode = session_mode == SessionMode.EDIT
 
-    # Create communication channels
     stream = PyodideStream(on_message, input_queue)
     stdout = PyodideStdout(stream)
     stderr = PyodideStderr(stream)
     stdin = PyodideStdin(stream) if is_edit_mode else None
     debugger = MarimoPdb(stdout=stdout, stdin=stdin) if is_edit_mode else None
 
-    def _enqueue_control_request(req: CommandMessage) -> None:
-        control_queue.put_nowait(req)
-        if isinstance(req, (UpdateUIElementCommand, ModelCommand)):
-            set_ui_element_queue.put_nowait(req)
-
-    # Create hooks with mode-specific configuration
-    from marimo._runtime.runner.hooks_post_execution import (
-        attempt_pytest,
-        broadcast_storage_backends,
-        render_toplevel_defs,
-    )
-
-    hooks = create_default_hooks()
-    if is_edit_mode and user_config["runtime"].get("reactive_tests", False):
-        hooks.add_post_execution(attempt_pytest, Priority.LATE)
-    if is_edit_mode:
-        hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
-        hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
-
-    kernel = Kernel(
-        cell_configs=configs,
-        app_metadata=app_metadata,
+    kernel, ctx = create_kernel(
         stream=stream,
         stdout=stdout,
         stderr=stderr,
         stdin=stdin,
-        module=patches.patch_main_module(
-            file=app_metadata.filename,
-            input_override=input_override,
-            print_override=None,
-            doc=app_metadata.docstring,
-        ),
-        enqueue_control_request=_enqueue_control_request,
-        debugger_override=debugger,
+        debugger=debugger,
+        configs=configs,
+        app_metadata=app_metadata,
         user_config=user_config,
-        hooks=hooks,
-    )
-    ctx = initialize_kernel_context(
-        kernel=kernel,
-        stream=stream,
-        stdout=stdout,
-        stderr=stderr,
+        is_edit_mode=is_edit_mode,
+        control_queue=control_queue,
+        set_ui_element_queue=set_ui_element_queue,
         virtual_file_storage=None,
         mode=session_mode,
+        print_override_fn=None,
     )
 
     if is_edit_mode:
         signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
-
-    ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
-
-    async def listen_messages() -> None:
-        while True:
-            request: CommandMessage | None = await control_queue.get()
-            LOGGER.debug("received request %s", request)
-            if isinstance(
-                request,
-                (commands.UpdateUIElementCommand, commands.ModelCommand),
-            ):
-                merged = ui_element_request_mgr.process_request(request)
-                for r in merged:
-                    await kernel.handle_message(r)
-                continue
-
-            if request is not None:
-                await kernel.handle_message(request)
 
     async def listen_completion() -> None:
         while True:
@@ -547,6 +494,17 @@ def _launch_pyodide_kernel(
             kernel.code_completion(request, docstrings_limit=5)
 
     async def listen() -> None:
-        await asyncio.gather(listen_messages(), listen_completion())
+        try:
+            await asyncio.gather(
+                listen_messages(
+                    kernel,
+                    control_queue,
+                    set_ui_element_queue,
+                    asyncio_queue_reader,
+                ),
+                listen_completion(),
+            )
+        finally:
+            teardown_kernel(kernel, ctx)
 
     return RestartableTask(listen)

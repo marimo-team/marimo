@@ -1424,3 +1424,69 @@ def test_convert_from_ipynb_with_star_import():
     assert len(result.cells) >= 1
     # The star import cell should be present in the output
     assert any("from os.path import *" in c.code for c in result.cells)
+
+
+def test_remove_input_tag_marks_hidden_and_does_not_leak_into_source():
+    """The `remove-input` nbconvert tag implies hide_code and is consumed."""
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": ["print('hidden')"],
+                "metadata": {"tags": ["remove-input"]},
+            },
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 2,
+    }
+
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+    assert len(result.cells) == 1
+    cell = result.cells[0]
+    assert cell.options.get("hide_code") is True
+    # The tag must not be re-emitted as a `# Cell tags:` comment.
+    assert "remove-input" not in cell.code
+    assert "# Cell tags" not in cell.code
+
+
+def test_jupyter_source_hidden_marks_hidden():
+    """`metadata.jupyter.source_hidden` is recognized as a hide_code signal."""
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": ["print('hidden via jupyter meta')"],
+                "metadata": {"jupyter": {"source_hidden": True}},
+            },
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 2,
+    }
+
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+    assert len(result.cells) == 1
+    assert result.cells[0].options.get("hide_code") is True
+
+
+def test_remove_input_alongside_other_tags_only_consumes_remove_input():
+    """Other tags must still be surfaced as a `# Cell tags:` comment."""
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": ["print('hi')"],
+                "metadata": {"tags": ["remove-input", "extra-tag"]},
+            },
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 2,
+    }
+
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+    cell = result.cells[0]
+    assert cell.options.get("hide_code") is True
+    assert "# Cell tags: extra-tag" in cell.code
+    assert "remove-input" not in cell.code
