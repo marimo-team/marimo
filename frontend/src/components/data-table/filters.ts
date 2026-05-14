@@ -32,30 +32,54 @@ export type FilterType =
   | "select"
   | "boolean";
 
+export const NULLISH_OPS = ["is_null", "is_not_null"] as const;
+export const MEMBERSHIP_OPS = ["in", "not_in"] as const;
+export const NUMBER_COMPARISON_OPS = [
+  "==",
+  "!=",
+  ">",
+  ">=",
+  "<",
+  "<=",
+] as const;
+export const TEXT_SCALAR_OPS = [
+  "contains",
+  "equals",
+  "does_not_equal",
+  "regex",
+  "starts_with",
+  "ends_with",
+] as const;
+
+export const NUMBER_OPS = [
+  "between",
+  ...NUMBER_COMPARISON_OPS,
+  ...NULLISH_OPS,
+] as const;
+export const TEXT_OPS = [
+  ...TEXT_SCALAR_OPS,
+  ...MEMBERSHIP_OPS,
+  "is_empty",
+  ...NULLISH_OPS,
+] as const;
+
+export type NullishOp = (typeof NULLISH_OPS)[number];
+export type MembershipOp = (typeof MEMBERSHIP_OPS)[number];
+export type NumberComparisonOp = (typeof NUMBER_COMPARISON_OPS)[number];
+export type TextScalarOp = (typeof TEXT_SCALAR_OPS)[number];
+
 interface NullishOpts {
-  operator: "is_null" | "is_not_null";
+  operator: NullishOp;
 }
 
 type NumberFilterOpts =
   | { operator: "between"; min: number; max: number }
-  | {
-      operator: "==" | "!=" | ">" | ">=" | "<" | "<=";
-      value: number;
-    }
+  | { operator: NumberComparisonOp; value: number }
   | NullishOpts;
 
 type TextFilterOpts =
-  | {
-      operator:
-        | "contains"
-        | "equals"
-        | "does_not_equal"
-        | "regex"
-        | "starts_with"
-        | "ends_with";
-      text: string;
-    }
-  | { operator: "in" | "not_in"; values: string[] }
+  | { operator: TextScalarOp; text: string }
+  | { operator: MembershipOp; values: string[] }
   | { operator: "is_empty" }
   | NullishOpts;
 

@@ -9,7 +9,7 @@ import {
   TextIcon,
   XIcon,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useLocale } from "react-aria";
 import {
   DropdownMenu,
@@ -26,7 +26,6 @@ import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
-import { capitalize } from "@/utils/strings";
 import { Button } from "../ui/button";
 import { DraggablePopover } from "../ui/draggable-popover";
 import { Input } from "../ui/input";
@@ -36,15 +35,18 @@ import {
   Select,
   SelectContent,
   SelectItem,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
 import { FilterByValuesList } from "./filter-by-values-picker";
+import { OPERATOR_LABELS } from "./operator-labels";
 import {
   type ColumnFilterForType,
   type ColumnFilterValue,
   Filter,
+  NUMBER_COMPARISON_OPS,
+  type NumberComparisonOp,
+  NUMBER_OPS,
 } from "./filters";
 import {
   ClearFilterMenuItem,
@@ -261,7 +263,7 @@ export function renderMenuItemFilter<TData, TValue>(
         {filterMenuItem}
         <DropdownMenuPortal>
           <DropdownMenuSubContent>
-            <NumberRangeFilter column={column} />
+            <NumberFilterMenu column={column} />
           </DropdownMenuSubContent>
         </DropdownMenuPortal>
       </DropdownMenuSub>
@@ -292,58 +294,31 @@ export function renderMenuItemFilter<TData, TValue>(
   return null;
 }
 
-// Type-safe constants for null filter operators
-const NULL_FILTER_OPERATORS = {
-  is_null: "is_null",
-  is_not_null: "is_not_null",
-} satisfies Record<string, OperatorType>;
-
-const NullFilter = <TData, TValue>({
-  column,
-  defaultItem,
+const OperatorSelect = ({
   operator,
-  setOperator,
+  options,
+  onChange,
 }: {
-  column: Column<TData, TValue>;
-  defaultItem?: OperatorType | "between";
-  operator: OperatorType | "between";
-  setOperator: (operator: OperatorType) => void;
-}) => {
-  const handleValueChange = (value: OperatorType) => {
-    setOperator(value);
-    if (value === "is_null" || value === "is_not_null") {
-      column.setFilterValue(Filter.text({ operator: value }));
-    }
-  };
-
-  const isNullOrNotNull = operator === "is_null" || operator === "is_not_null";
-
-  return (
-    <Select
-      value={operator}
-      onValueChange={(value) => handleValueChange(value as OperatorType)}
-    >
-      <SelectTrigger
-        className={cn(
-          "border-border shadow-none! ring-0! w-full mb-0.5",
-          isNullOrNotNull && "mb-2",
-        )}
-      >
-        <SelectValue defaultValue={operator} />
-      </SelectTrigger>
-      <SelectContent>
-        {defaultItem && (
-          <SelectItem value={defaultItem}>{capitalize(defaultItem)}</SelectItem>
-        )}
-        <SelectSeparator />
-        <SelectItem value={NULL_FILTER_OPERATORS.is_null}>Is null</SelectItem>
-        <SelectItem value={NULL_FILTER_OPERATORS.is_not_null}>
-          Is not null
+  operator: OperatorType;
+  options: readonly OperatorType[];
+  onChange: (next: OperatorType) => void;
+}) => (
+  <Select
+    value={operator}
+    onValueChange={(v) => onChange(v as OperatorType)}
+  >
+    <SelectTrigger className="border-border shadow-none! ring-0! w-full mb-0.5">
+      <SelectValue />
+    </SelectTrigger>
+    <SelectContent>
+      {options.map((op) => (
+        <SelectItem key={op} value={op}>
+          {OPERATOR_LABELS[op]}
         </SelectItem>
-      </SelectContent>
-    </Select>
-  );
-};
+      ))}
+    </SelectContent>
+  </Select>
+);
 
 const BooleanFilter = <TData, TValue>({
   column,
@@ -389,7 +364,21 @@ const BooleanFilter = <TData, TValue>({
   );
 };
 
-const NumberRangeFilter = <TData, TValue>({
+const NUMBER_COMPARISON_SET: ReadonlySet<OperatorType> = new Set(
+  NUMBER_COMPARISON_OPS,
+);
+const isNumberComparisonOp = (op: OperatorType): op is NumberComparisonOp =>
+  NUMBER_COMPARISON_SET.has(op);
+
+type NumberComparisonFilter = Extract<
+  ColumnFilterForType<"number">,
+  { value: number }
+>;
+const isNumberComparisonFilter = (
+  filter: ColumnFilterForType<"number">,
+): filter is NumberComparisonFilter => isNumberComparisonOp(filter.operator);
+
+export const NumberFilterMenu = <TData, TValue>({
   column,
 }: {
   column: Column<TData, TValue>;
@@ -399,83 +388,98 @@ const NumberRangeFilter = <TData, TValue>({
     | undefined;
   const hasFilter = currentFilter !== undefined;
 
-  const [operator, setOperator] = useState<OperatorType | "between">(
+  const [operator, setOperator] = useState<OperatorType>(
     currentFilter?.operator ?? "between",
   );
-  const [min, setMin] = useState<number | undefined>(currentFilter?.min);
-  const [max, setMax] = useState<number | undefined>(currentFilter?.max);
-  const minRef = useRef<HTMLInputElement>(null);
-  const maxRef = useRef<HTMLInputElement>(null);
+  const [min, setMin] = useState<number | undefined>(
+    currentFilter?.operator === "between" ? currentFilter.min : undefined,
+  );
+  const [max, setMax] = useState<number | undefined>(
+    currentFilter?.operator === "between" ? currentFilter.max : undefined,
+  );
+  const [value, setValue] = useState<number | undefined>(
+    currentFilter !== undefined && isNumberComparisonFilter(currentFilter)
+      ? currentFilter.value
+      : undefined,
+  );
 
-  const handleApply = (opts: { min?: number; max?: number } = {}) => {
-    column.setFilterValue(
-      Filter.number({
-        min: opts.min ?? min,
-        max: opts.max ?? max,
-        operator: operator === "between" ? undefined : operator,
-      }),
-    );
+  const isComparison = isNumberComparisonOp(operator);
+  const isNullish = operator === "is_null" || operator === "is_not_null";
+
+  const applyDisabled =
+    (operator === "between" && (min === undefined || max === undefined)) ||
+    (isComparison && value === undefined);
+
+  const handleApply = () => {
+    if (isNullish) {
+      column.setFilterValue(Filter.number({ operator }));
+      return;
+    }
+    if (operator === "between" && min !== undefined && max !== undefined) {
+      column.setFilterValue(Filter.number({ operator: "between", min, max }));
+      return;
+    }
+    if (isComparison && value !== undefined) {
+      column.setFilterValue(Filter.number({ operator, value }));
+    }
+  };
+
+  const handleClear = () => {
+    setMin(undefined);
+    setMax(undefined);
+    setValue(undefined);
+    column.setFilterValue(undefined);
+  };
+
+  const handleOperatorChange = (next: OperatorType) => {
+    setOperator(next);
+    if (next === "is_null" || next === "is_not_null") {
+      column.setFilterValue(Filter.number({ operator: next }));
+    }
   };
 
   return (
     <div className="flex flex-col gap-1 pt-3 px-2">
-      <NullFilter
-        column={column}
-        defaultItem="between"
+      <OperatorSelect
         operator={operator}
-        setOperator={setOperator}
+        options={NUMBER_OPS}
+        onChange={handleOperatorChange}
       />
       {operator === "between" && (
-        <>
-          <div className="flex gap-1 items-center">
-            <NumberField
-              ref={minRef}
-              value={min}
-              onChange={(value) => setMin(value)}
-              aria-label="min"
-              placeholder="min"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleApply({
-                    min: Number.parseFloat(e.currentTarget.value),
-                  });
-                }
-                if (e.key === "Tab") {
-                  maxRef.current?.focus();
-                }
-              }}
-              className="shadow-none! border-border hover:shadow-none!"
-            />
-            <MinusIcon className="h-5 w-5 text-muted-foreground" />
-            <NumberField
-              ref={maxRef}
-              value={max}
-              onChange={(value) => setMax(value)}
-              aria-label="max"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleApply({
-                    max: Number.parseFloat(e.currentTarget.value),
-                  });
-                }
-                if (e.key === "Tab") {
-                  minRef.current?.focus();
-                }
-              }}
-              placeholder="max"
-              className="shadow-none! border-border hover:shadow-none!"
-            />
-          </div>
-          <FilterButtons
-            onApply={handleApply}
-            onClear={() => {
-              setMin(undefined);
-              setMax(undefined);
-              column.setFilterValue(undefined);
-            }}
-            clearButtonDisabled={!hasFilter}
+        <div className="flex gap-1 items-center">
+          <NumberField
+            value={min}
+            onChange={setMin}
+            aria-label="min"
+            placeholder="min"
+            className="shadow-none! border-border hover:shadow-none!"
           />
-        </>
+          <MinusIcon className="h-5 w-5 text-muted-foreground" />
+          <NumberField
+            value={max}
+            onChange={setMax}
+            aria-label="max"
+            placeholder="max"
+            className="shadow-none! border-border hover:shadow-none!"
+          />
+        </div>
+      )}
+      {isComparison && (
+        <NumberField
+          value={value}
+          onChange={setValue}
+          aria-label="value"
+          placeholder="value"
+          className="shadow-none! border-border hover:shadow-none!"
+        />
+      )}
+      {!isNullish && (
+        <FilterButtons
+          onApply={handleApply}
+          onClear={handleClear}
+          clearButtonDisabled={!hasFilter}
+          applyButtonDisabled={applyDisabled}
+        />
       )}
     </div>
   );
