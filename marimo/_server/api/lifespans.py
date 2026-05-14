@@ -129,6 +129,12 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
         await cancel_and_wait(task)
         return
 
+    # ``task.result()`` re-raises CancelledError (which is a BaseException
+    # on 3.11+ and not caught by ``except Exception``). Short-circuit if
+    # the loop cancelled the task before we got here.
+    if task.cancelled():
+        return
+
     try:
         mcp_client = task.result()
         if mcp_client:

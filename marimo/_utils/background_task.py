@@ -96,15 +96,21 @@ class AsyncBackgroundTask(ABC):
         """
         Synchronous version of stop that can be called from non-async code.
         """
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            # No loop on this thread: spin one up for the shutdown.
-            asyncio.run(self.stop(timeout))
+        # Nothing to drive shutdown for.
+        if self.task is None or self.task.done():
+            self.running = False
             return
-        # A loop is already running on this thread; can't block it.
-        # Signal cooperative shutdown and let the task drain naturally.
-        self.running = False
+
+        # Reuse the task's own loop — spinning up a fresh one with
+        # ``asyncio.run`` would error on "future attached to a different
+        # event loop" the moment we awaited the existing task.
+        task_loop = self.task.get_loop()
+        if task_loop.is_running():
+            # Loop is alive (possibly on another thread); we can't block
+            # it. Signal cooperative shutdown and let the task drain.
+            self.running = False
+            return
+        task_loop.run_until_complete(self.stop(timeout))
 
     async def wait_for_startup(self, timeout: float | None = None) -> None:
         """
