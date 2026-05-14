@@ -1238,7 +1238,8 @@ class TestPDFExport:
         ]
 
     @pytest.mark.skipif(
-        not HAS_NBFORMAT, reason="nbformat is required to convert ipynb"
+        not HAS_NBFORMAT or not DependencyManager.nbconvert.has(),
+        reason="nbformat and nbconvert are required to render ipynb",
     )
     def test_hide_code_cells_are_stripped_by_nbconvert(self) -> None:
         """End-to-end check that `hide_code=True` cells are excluded from
