@@ -3,6 +3,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { describe, expect, it } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
 import {
   pendingCutStateAtom,
@@ -20,15 +21,10 @@ function createTestWrapper() {
   return { wrapper, store };
 }
 
-const mockClipboardData = {
-  cells: [{ code: "x = 1", name: "cell1" }],
-  version: "1.0" as const,
-};
-
 describe("pending-cut-service", () => {
-  it("markForCut sets cellIds and clipboardData", () => {
+  it("markForCut sets cellIds", () => {
     const { wrapper, store } = createTestWrapper();
-    const cellIds: CellId[] = ["cell-1" as CellId, "cell-2" as CellId];
+    const cellIds: CellId[] = [cellId("cell-1"), cellId("cell-2")];
 
     const { result } = renderHook(
       () => ({
@@ -39,20 +35,16 @@ describe("pending-cut-service", () => {
     );
 
     act(() => {
-      result.current.actions.markForCut({
-        cellIds,
-        clipboardData: mockClipboardData,
-      });
+      result.current.actions.markForCut({ cellIds });
     });
 
     const state = store.get(pendingCutStateAtom);
     expect(state.cellIds).toEqual(new Set(cellIds));
-    expect(state.clipboardData).toEqual(mockClipboardData);
   });
 
   it("clear resets to initial state", () => {
     const { wrapper, store } = createTestWrapper();
-    const cellIds: CellId[] = ["cell-1" as CellId];
+    const cellIds: CellId[] = [cellId("cell-1")];
 
     const { result } = renderHook(
       () => ({
@@ -63,10 +55,7 @@ describe("pending-cut-service", () => {
     );
 
     act(() => {
-      result.current.actions.markForCut({
-        cellIds,
-        clipboardData: mockClipboardData,
-      });
+      result.current.actions.markForCut({ cellIds });
     });
     expect(store.get(pendingCutStateAtom).cellIds.size).toBe(1);
 
@@ -75,28 +64,24 @@ describe("pending-cut-service", () => {
     });
     const state = store.get(pendingCutStateAtom);
     expect(state.cellIds.size).toBe(0);
-    expect(state.clipboardData).toBeNull();
   });
 
   it("useIsPendingCut returns true when cellId is marked for cut", () => {
     const { wrapper } = createTestWrapper();
-    const cellId = "cell-1" as CellId;
+    const targetCellId = cellId("cell-1");
 
     const { result: actionsResult } = renderHook(() => usePendingCutActions(), {
       wrapper,
     });
     const { result: isPendingResult } = renderHook(
-      () => useIsPendingCut(cellId),
+      () => useIsPendingCut(targetCellId),
       { wrapper },
     );
 
     expect(isPendingResult.current).toBe(false);
 
     act(() => {
-      actionsResult.current.markForCut({
-        cellIds: [cellId],
-        clipboardData: mockClipboardData,
-      });
+      actionsResult.current.markForCut({ cellIds: [targetCellId] });
     });
 
     expect(isPendingResult.current).toBe(true);
@@ -104,19 +89,15 @@ describe("pending-cut-service", () => {
 
   it("useIsPendingCut returns false when cellId is not marked for cut", () => {
     const { wrapper } = createTestWrapper();
-    const { result } = renderHook(
-      () => useIsPendingCut("other-cell" as CellId),
-      { wrapper },
-    );
+    const { result } = renderHook(() => useIsPendingCut(cellId("other-cell")), {
+      wrapper,
+    });
 
     const { result: actionsResult } = renderHook(() => usePendingCutActions(), {
       wrapper,
     });
     act(() => {
-      actionsResult.current.markForCut({
-        cellIds: ["cell-1" as CellId],
-        clipboardData: mockClipboardData,
-      });
+      actionsResult.current.markForCut({ cellIds: [cellId("cell-1")] });
     });
 
     expect(result.current).toBe(false);
@@ -134,10 +115,7 @@ describe("pending-cut-service", () => {
     expect(hasPendingResult.current).toBe(false);
 
     act(() => {
-      actionsResult.current.markForCut({
-        cellIds: ["cell-1" as CellId],
-        clipboardData: mockClipboardData,
-      });
+      actionsResult.current.markForCut({ cellIds: [cellId("cell-1")] });
     });
 
     expect(hasPendingResult.current).toBe(true);

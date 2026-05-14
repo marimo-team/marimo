@@ -622,7 +622,7 @@ describe("cell reducer", () => {
       before: false,
     });
     actions.createNewCell({
-      cellId: "1" as CellId,
+      cellId: cellId("1"),
       before: false,
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
@@ -637,8 +637,8 @@ describe("cell reducer", () => {
 
     // Move first two cells after the third
     actions.moveCellsRelativeTo({
-      cellIds: [firstCellId, "1" as CellId],
-      targetCellId: "2" as CellId,
+      cellIds: [firstCellId, cellId("1")],
+      targetCellId: cellId("2"),
       position: "after",
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
@@ -658,7 +658,7 @@ describe("cell reducer", () => {
       before: false,
     });
     actions.createNewCell({
-      cellId: "1" as CellId,
+      cellId: cellId("1"),
       before: false,
     });
     expect(formatCells(state)).toMatchInlineSnapshot(`
@@ -682,14 +682,14 @@ describe("cell reducer", () => {
       {
         columnId: col.id,
         index: col.indexOfOrThrow(
-          "1" as CellId,
+          cellId("1"),
         ) as import("@/utils/id-tree").CellIndex,
       },
     ];
 
     actions.moveCellsRelativeTo({
-      cellIds: [firstCellId, "1" as CellId],
-      targetCellId: "2" as CellId,
+      cellIds: [firstCellId, cellId("1")],
+      targetCellId: cellId("2"),
       position: "after",
       previousPlacements,
     });
@@ -721,7 +721,7 @@ describe("cell reducer", () => {
       before: false,
     });
     actions.createNewCell({
-      cellId: "1" as CellId,
+      cellId: cellId("1"),
       before: false,
     });
 
@@ -736,14 +736,14 @@ describe("cell reducer", () => {
       {
         columnId: col.id,
         index: col.indexOfOrThrow(
-          "1" as CellId,
+          cellId("1"),
         ) as import("@/utils/id-tree").CellIndex,
       },
     ];
 
     actions.moveCellsRelativeTo({
-      cellIds: [firstCellId, "1" as CellId],
-      targetCellId: "2" as CellId,
+      cellIds: [firstCellId, cellId("1")],
+      targetCellId: cellId("2"),
       position: "after",
       previousPlacements,
     });
@@ -757,7 +757,7 @@ describe("cell reducer", () => {
       "
     `);
 
-    actions.deleteCell({ cellId: "2" as CellId });
+    actions.deleteCell({ cellId: cellId("2") });
     expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       [0] ''

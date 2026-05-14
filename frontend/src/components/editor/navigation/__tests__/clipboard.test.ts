@@ -28,7 +28,6 @@ vi.mock("@/core/cells/pending-cut-service", () => ({
   }),
   usePendingCutState: () => ({
     cellIds: new Set(),
-    clipboardData: null,
   }),
 }));
 

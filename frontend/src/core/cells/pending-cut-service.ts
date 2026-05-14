@@ -1,31 +1,24 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom, useAtomValue } from "jotai";
-import type { ClipboardCellData } from "@/components/editor/navigation/clipboard";
 import type { CellId } from "@/core/cells/ids";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 
 interface PendingCutState {
   cellIds: Set<CellId>;
-  clipboardData: ClipboardCellData | null;
 }
 
 const initialState = (): PendingCutState => ({
   cellIds: new Set(),
-  clipboardData: null,
 });
 
 const {
   valueAtom: pendingCutStateAtom,
   useActions: usePendingCutActionsInternal,
 } = createReducerAndAtoms(initialState, {
-  markForCut: (
-    _state,
-    action: { cellIds: CellId[]; clipboardData: ClipboardCellData },
-  ) => {
+  markForCut: (_state, action: { cellIds: CellId[] }) => {
     return {
       cellIds: new Set(action.cellIds),
-      clipboardData: action.clipboardData,
     };
   },
   clear: () => {
@@ -33,10 +26,8 @@ const {
   },
 });
 
-// Re-export the state atom
 export { pendingCutStateAtom };
 
-// Derived atom just for cell IDs (for easier consumption)
 export const pendingCutCellIdsAtom = atom(
   (get) => get(pendingCutStateAtom).cellIds,
 );

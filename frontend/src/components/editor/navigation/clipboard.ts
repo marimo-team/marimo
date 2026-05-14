@@ -42,9 +42,19 @@ const ClipboardCellDataSchema = z.object({
   version: z.literal("1.0"),
 });
 
-function buildClipboardPayload(
-  cells: Array<{ code: string; name?: string; config?: CellConfig }>,
-): { clipboardData: ClipboardCellData; plainText: string } {
+interface ClipboardCellInput {
+  code: string;
+  name?: string;
+  config?: CellConfig;
+}
+
+function toPlainText(cells: ClipboardCellInput[]): string {
+  return cells.map((cell) => cell.code).join("\n\n");
+}
+
+async function writeCellsToClipboard(
+  cells: ClipboardCellInput[],
+): Promise<void> {
   const clipboardData: ClipboardCellData = {
     cells: cells.map((cell) => ({
       code: cell.code,
@@ -53,17 +63,9 @@ function buildClipboardPayload(
     })),
     version: "1.0",
   };
-  const plainText = cells.map((cell) => cell.code).join("\n\n");
-  return { clipboardData, plainText };
-}
-
-async function writeCellsToClipboard(
-  clipboardData: ClipboardCellData,
-  plainText: string,
-): Promise<void> {
   const clipboardItem = new ClipboardItemBuilder()
     .add(MARIMO_CELL_MIMETYPE, clipboardData)
-    .add("text/plain", plainText)
+    .add("text/plain", toPlainText(cells))
     .build();
   await navigator.clipboard.write([clipboardItem]);
 }
@@ -80,14 +82,11 @@ export function useCellClipboard() {
       .filter(Boolean);
 
     if (cells.length === 0) {
-      // No cells to copy
       return;
     }
 
-    const { clipboardData, plainText } = buildClipboardPayload(cells);
-
     try {
-      await writeCellsToClipboard(clipboardData, plainText);
+      await writeCellsToClipboard(cells);
       pendingCutActions.clear();
       toastSuccess(cells.length);
     } catch (error) {
@@ -95,7 +94,7 @@ export function useCellClipboard() {
 
       // Fallback to simple text copy
       try {
-        await copyToClipboard(plainText);
+        await copyToClipboard(toPlainText(cells));
         pendingCutActions.clear();
         toastSuccess(cells.length);
       } catch {
@@ -110,21 +109,18 @@ export function useCellClipboard() {
     const cells = validCellIds.map((cellId) => notebook.cellData[cellId]);
 
     if (cells.length === 0) {
-      // No cells to cut
       return;
     }
 
-    const { clipboardData, plainText } = buildClipboardPayload(cells);
-
     try {
-      await writeCellsToClipboard(clipboardData, plainText);
-      pendingCutActions.markForCut({ cellIds: validCellIds, clipboardData });
+      await writeCellsToClipboard(cells);
+      pendingCutActions.markForCut({ cellIds: validCellIds });
     } catch (error) {
       Logger.error("Failed to cut cells to clipboard", error);
       try {
-        await copyToClipboard(plainText);
+        await copyToClipboard(toPlainText(cells));
         // Mark cells as pending cut instead of deleting immediately
-        pendingCutActions.markForCut({ cellIds: validCellIds, clipboardData });
+        pendingCutActions.markForCut({ cellIds: validCellIds });
       } catch {
         toastError();
       }
