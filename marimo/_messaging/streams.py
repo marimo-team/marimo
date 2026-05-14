@@ -68,7 +68,7 @@ def output_max_bytes() -> int:
     try:
         return get_context().marimo_config["runtime"]["output_max_bytes"]
     except ContextNotInitializedError:
-        return 5_000_000
+        return 5_000_000  # 5MB
 
 
 def std_stream_max_bytes() -> int:
@@ -77,7 +77,7 @@ def std_stream_max_bytes() -> int:
     try:
         return get_context().marimo_config["runtime"]["std_stream_max_bytes"]
     except ContextNotInitializedError:
-        return 1_000_000
+        return 1_000_000  # 1MB
 
 
 class PipeProtocol(Protocol):
@@ -85,7 +85,7 @@ class PipeProtocol(Protocol):
         pass
 
 
-class QueuePipe:
+class QueuePipe(PipeProtocol):
     def __init__(self, queue: QueueType[KernelMessage]):
         self._queue = queue
 

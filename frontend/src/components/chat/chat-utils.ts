@@ -1,11 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { components } from "@marimo-team/marimo-api";
-import type {
-  ChatAddToolOutputFunction,
-  FileUIPart,
-  ToolUIPart,
-  UIMessage,
+import {
+  type ChatAddToolOutputFunction,
+  type FileUIPart,
+  isToolUIPart,
+  type ToolUIPart,
+  type UIMessage,
 } from "ai";
 import { useState } from "react";
 import useEvent from "react-use-event-hook";
@@ -16,6 +17,7 @@ import type {
   InvokeAiToolRequest,
   InvokeAiToolResponse,
 } from "@/core/network/types";
+import { logNever } from "@/utils/assertNever";
 import { blobToString } from "@/utils/fileToBase64";
 import { Logger } from "@/utils/Logger";
 import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
@@ -134,11 +136,11 @@ export async function handleToolCall({
   try {
     if (FRONTEND_TOOL_REGISTRY.has(toolCall.toolName)) {
       // Invoke the frontend tool
-      const response = await FRONTEND_TOOL_REGISTRY.invoke(
-        toolCall.toolName,
-        toolCall.input,
-        toolContext,
-      );
+      const response = await FRONTEND_TOOL_REGISTRY.invoke({
+        toolName: toolCall.toolName,
+        rawArgs: toolCall.input,
+        toolContext: toolContext,
+      });
       addToolOutput({
         tool: toolCall.toolName,
         toolCallId: toolCall.toolCallId,
@@ -167,8 +169,32 @@ export async function handleToolCall({
 }
 
 /**
+ * Returns true if a tool call is "ready to be sent back to the server" — i.e.
+ * either it has reached a terminal output state, or the user has just supplied
+ * an approval response that the server hasn't seen yet.
+ */
+function isToolCallReadyToSend(state: ToolUIPart["state"]): boolean {
+  switch (state) {
+    case "output-available":
+    case "output-error":
+    case "output-denied":
+    case "approval-responded":
+      return true;
+    case "input-streaming":
+    case "input-available":
+    case "approval-requested":
+      return false;
+    default:
+      logNever(state);
+      return false;
+  }
+}
+
+/**
  * Checks if we should send a message automatically based on the messages.
- * We only want to send a message if all tool calls are completed and there is no reply yet.
+ * We auto-send when every tool call on the last assistant message has either
+ * finished (output-available/error/denied) or has just received a user
+ * approval response, and the assistant hasn't replied yet.
  */
 export function hasPendingToolCalls(messages: UIMessage[]): boolean {
   if (messages.length === 0) {
@@ -188,17 +214,14 @@ export function hasPendingToolCalls(messages: UIMessage[]): boolean {
     return false;
   }
 
-  const toolParts = parts.filter((part) =>
-    part.type.startsWith("tool-"),
-  ) as ToolUIPart[];
+  const toolParts = parts.filter(isToolUIPart);
 
-  // Guard against no tool parts
   if (toolParts.length === 0) {
     return false;
   }
 
-  const allToolCallsCompleted = toolParts.every(
-    (part) => part.state === "output-available",
+  const allToolCallsReady = toolParts.every((part) =>
+    isToolCallReadyToSend(part.state),
   );
 
   // Check if the last part has any text content
@@ -206,10 +229,9 @@ export function hasPendingToolCalls(messages: UIMessage[]): boolean {
   const hasTextContent =
     lastPart.type === "text" && lastPart.text?.trim().length > 0;
 
-  Logger.warn("All tool calls completed: %s", allToolCallsCompleted);
+  Logger.debug("All tool calls ready to send: %s", allToolCallsReady);
 
-  // Only auto-send if we have completed tool calls and there is no reply yet
-  return allToolCallsCompleted && !hasTextContent;
+  return allToolCallsReady && !hasTextContent;
 }
 
 export function useFileState() {

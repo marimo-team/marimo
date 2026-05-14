@@ -9,6 +9,7 @@ import pytest
 pytest.importorskip("pydantic_ai", reason="pydantic_ai not installed")
 
 from marimo._ai._pydantic_ai_utils import (
+    _sanitize_part,
     convert_to_pydantic_messages,
     create_simple_prompt,
     form_toolsets,
@@ -489,3 +490,148 @@ class TestCreateSimplePrompt:
         assert result.id.startswith("message_")
         assert result.role == "user"
         assert result.parts == []
+
+
+class TestSanitizePart:
+    """Tests for the per-state field stripper for tool parts.
+
+    The AI SDK's `addToolApprovalResponse` spreads the previous part during
+    state transitions, which can leak stale fields like `output` or
+    `errorText`. pydantic-ai's `extra='forbid'` schema rejects those. The
+    sanitizer keeps only fields declared on the matching pydantic-ai model.
+    """
+
+    def test_strips_stale_fields_on_approval_responded(self):
+        """Reproduces the original 92-validation-errors bug.
+
+        Confirms both that stale fields are dropped and that the cleaned
+        part round-trips through pydantic-ai's strict schema.
+        """
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            ToolApprovalRespondedPart,
+            UIMessage,
+        )
+
+        stale = {
+            "type": "tool-request_user_blessing",
+            "toolCallId": "call_abc",
+            "state": "approval-responded",
+            "input": {},
+            "approval": {"id": "call_abc", "approved": True},
+            "output": "Invalid arguments for tool request_user_blessing",
+            "errorText": "boom",
+        }
+        clean = _sanitize_part(stale)
+        assert "output" not in clean
+        assert "errorText" not in clean
+        assert clean["approval"] == {"id": "call_abc", "approved": True}
+
+        msg = UIMessage(id="m1", role="assistant", parts=[clean])
+        assert isinstance(msg.parts[0], ToolApprovalRespondedPart)
+
+    def test_preserves_real_fields_on_output_available(self):
+        part = {
+            "type": "tool-foo",
+            "toolCallId": "c1",
+            "state": "output-available",
+            "input": {"x": 1},
+            "output": {"ok": True},
+            "preliminary": False,
+        }
+        clean = _sanitize_part(part)
+        assert clean["output"] == {"ok": True}
+        assert clean["preliminary"] is False
+
+    def test_preserves_real_fields_on_output_error(self):
+        part = {
+            "type": "tool-foo",
+            "toolCallId": "c1",
+            "state": "output-error",
+            "input": {"x": 1},
+            "rawInput": {"x": 1},
+            "errorText": "boom",
+        }
+        clean = _sanitize_part(part)
+        assert clean["errorText"] == "boom"
+        assert clean["rawInput"] == {"x": 1}
+
+    def test_dynamic_tool_preserves_tool_name(self):
+        stale = {
+            "type": "dynamic-tool",
+            "toolName": "my_tool",
+            "toolCallId": "c1",
+            "state": "approval-responded",
+            "input": {"x": 1},
+            "approval": {"id": "c1", "approved": True},
+            "output": "stale",
+        }
+        clean = _sanitize_part(stale)
+        assert "output" not in clean
+        assert clean["toolName"] == "my_tool"
+
+    @pytest.mark.parametrize(
+        "part",
+        [
+            {"type": "text", "text": "hello"},
+            {"type": "reasoning", "text": "thinking..."},
+            {
+                "type": "source-url",
+                "sourceId": "s1",
+                "url": "https://example.com",
+            },
+            {"type": "step-start"},
+            {"type": "data-custom", "data": {"k": "v"}},
+        ],
+    )
+    def test_non_tool_parts_pass_through_unchanged(self, part):
+        assert _sanitize_part(part) is part
+
+    @pytest.mark.parametrize(
+        "part",
+        [
+            None,
+            "not a part",
+            42,
+            # missing type
+            {"state": "approval-responded", "output": "stale"},
+            # missing state
+            {"type": "tool-foo", "toolCallId": "c1"},
+            # unknown future state
+            {
+                "type": "tool-foo",
+                "toolCallId": "c1",
+                "state": "future-state",
+                "output": "stale",
+            },
+        ],
+    )
+    def test_malformed_parts_pass_through_unchanged(self, part):
+        assert _sanitize_part(part) == part
+
+
+class TestConvertToPydanticMessagesSanitizes:
+    def test_stale_output_on_approval_responded_part_validates(self):
+        """Regression: server raised 92 errors when AI SDK leaked `output` onto an `approval-responded` part."""
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            ToolApprovalRespondedPart,
+        )
+
+        messages = [
+            {
+                "id": "msg_1",
+                "role": "assistant",
+                "parts": [
+                    {
+                        "type": "tool-request_user_blessing",
+                        "toolCallId": "call_abc",
+                        "state": "approval-responded",
+                        "input": {},
+                        "approval": {"id": "call_abc", "approved": True},
+                        "output": "Invalid arguments for tool ...",
+                    }
+                ],
+            }
+        ]
+        result = convert_to_pydantic_messages(messages)
+        assert len(result) == 1
+        assert isinstance(result[0].parts[0], ToolApprovalRespondedPart)
