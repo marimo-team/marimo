@@ -8,9 +8,8 @@ file watching, and LSP server management.
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
@@ -48,10 +47,11 @@ from marimo._session.session import Session, SessionImpl
 from marimo._session.session_repository import SessionRepository
 from marimo._session.types import KernelState
 from marimo._types.ids import ConsumerId, SessionId
+from marimo._utils.asyncio_utils import fire_and_forget
 from marimo._utils.file_watcher import FileWatcherManager
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Coroutine, Mapping
+    from collections.abc import Mapping
 
     from marimo._session.notebook import AppFileManager
 
@@ -241,7 +241,10 @@ class SessionManager:
         self._repository.add_sync(session_id, session)
 
         # Emit session created event (triggers file watcher attachment, recents, etc.)
-        run_async(self._event_bus.emit_session_created(session))
+        fire_and_forget(
+            self._event_bus.emit_session_created(session),
+            name="session.created",
+        )
 
         return session
 
@@ -333,10 +336,11 @@ class SessionManager:
         if resumed_session:
             # Emit resume event (use new_session_id as both old and new since
             # the strategy already updated it)
-            run_async(
+            fire_and_forget(
                 self._event_bus.emit_session_resumed(
                     resumed_session, new_session_id
-                )
+                ),
+                name="session.resumed",
             )
 
         return resumed_session
@@ -389,7 +393,10 @@ class SessionManager:
         if session is None:
             return False
 
-        run_async(self._event_bus.emit_session_closed(session))
+        fire_and_forget(
+            self._event_bus.emit_session_closed(session),
+            name="session.closed",
+        )
 
         session.close()
         return True
@@ -418,28 +425,3 @@ class SessionManager:
     def get_active_connection_count(self) -> int:
         """Get the number of sessions with active connections."""
         return len(self._repository.get_active_sessions())
-
-
-T = TypeVar("T")
-
-
-def run_async(coro: Coroutine[None, None, T] | Awaitable[T]) -> T:
-    """Run an async coroutine, handling various event loop states.
-
-    1. Event loop is running: create a task
-    2. Event loop exists but not running: run_until_complete
-    3. No event loop: create one with asyncio.run
-    """
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # Create a task and return it (fire and forget)
-            # Note: This doesn't wait for completion
-            task = asyncio.create_task(coro)  # type: ignore
-            return task  # type: ignore
-        else:
-            # Run to completion
-            return loop.run_until_complete(coro)  # type: ignore
-    except RuntimeError:
-        # No event loop exists, create one
-        return asyncio.run(coro)  # type: ignore

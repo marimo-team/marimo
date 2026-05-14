@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import queue
 import time
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 from marimo._utils.distributor import (
@@ -11,9 +10,9 @@ from marimo._utils.distributor import (
 )
 
 
-@patch("asyncio.get_event_loop")
-def test_start(mock_get_event_loop: Any) -> None:
-    mock_get_event_loop.return_value = MagicMock()
+@patch("asyncio.get_running_loop")
+def test_start(mock_get_running_loop: MagicMock) -> None:
+    mock_get_running_loop.return_value = MagicMock()
 
     mock_connection = MagicMock()
     distributor = ConnectionDistributor[str](mock_connection)

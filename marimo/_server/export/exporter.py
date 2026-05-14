@@ -721,7 +721,7 @@ class AutoExporter:
         filepath = export_dir / download_name
 
         # Run blocking file I/O in thread pool
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             self._executor, self._write_file_sync, filepath, content
         )

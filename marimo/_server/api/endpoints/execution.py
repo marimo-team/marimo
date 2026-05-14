@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -33,6 +32,7 @@ from marimo._server.router import APIRouter
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._server.workspace import MarimoFileKey
 from marimo._types.ids import ConsumerId
+from marimo._utils.asyncio_utils import cancel_and_wait
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -328,9 +328,7 @@ async def execute_code(
 
                 yield build_done_event(session, listener)
         finally:
-            disconnect_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await disconnect_task
+            await cancel_and_wait(disconnect_task)
 
     return StreamingResponse(sse_generator(), media_type="text/event-stream")
 

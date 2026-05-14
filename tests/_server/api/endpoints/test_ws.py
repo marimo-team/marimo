@@ -551,7 +551,7 @@ def test_ttl_close_skips_when_session_has_active_consumer() -> None:
     cleanup_fn = MagicMock()
 
     with patch(
-        "marimo._server.api.endpoints.ws_endpoint.asyncio.get_event_loop"
+        "marimo._server.api.endpoints.ws_endpoint.asyncio.get_running_loop"
     ) as mock_loop:
         mock_loop.return_value.call_later = capture_call_later
         handler._on_disconnect(Exception("disconnect"), cleanup_fn)
@@ -658,7 +658,7 @@ def test_run_mode_ttl_close_with_manager_ttl_none() -> None:
     cleanup_fn = MagicMock()
 
     with patch(
-        "marimo._server.api.endpoints.ws_endpoint.asyncio.get_event_loop"
+        "marimo._server.api.endpoints.ws_endpoint.asyncio.get_running_loop"
     ) as mock_loop:
         mock_loop.return_value.call_later = capture_call_later
         handler._on_disconnect(Exception("disconnect"), cleanup_fn)

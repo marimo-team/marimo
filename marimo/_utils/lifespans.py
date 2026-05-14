@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 import contextlib
 from collections.abc import AsyncIterator, Sequence
 from contextlib import AbstractAsyncContextManager
@@ -37,15 +36,15 @@ class Lifespans(Generic[T]):
         app: T,
         lifespans: LifespanList[T],
     ) -> AsyncIterator[None]:
+        # Don't swallow CancelledError here — the ASGI server relies on
+        # cancellation to drive graceful shutdown of the lifespan chain.
+        # Each lifespan's own ``finally`` blocks run via the exit stack.
         exit_stack = contextlib.AsyncExitStack()
-        try:
-            async with exit_stack:
-                for lifespan in lifespans:
-                    LOGGER.debug(f"Setup: {lifespan.__name__}")
-                    await exit_stack.enter_async_context(lifespan(app))
-                yield
-        except asyncio.CancelledError:
-            pass
+        async with exit_stack:
+            for lifespan in lifespans:
+                LOGGER.debug(f"Setup: {lifespan.__name__}")
+                await exit_stack.enter_async_context(lifespan(app))
+            yield
 
     def __call__(self, app: T) -> AbstractAsyncContextManager[None]:
         return self._manager(app, lifespans=self._lifespans)
