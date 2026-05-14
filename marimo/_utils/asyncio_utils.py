@@ -110,9 +110,16 @@ def fire_and_forget(
 async def cancel_and_wait(task: asyncio.Task[Any]) -> None:
     """Cancel ``task`` and await its completion, suppressing ``CancelledError``.
 
-    No-op if already done. Non-cancellation exceptions propagate.
+    If the task is already done, any attached exception is marked
+    retrieved so the loop doesn't log a "Task exception was never
+    retrieved" warning. The exception itself remains queryable via
+    ``task.exception()``. Non-cancellation exceptions raised during
+    cancellation propagate to the caller.
     """
     if task.done():
+        if not task.cancelled():
+            # task.exception() flags the exception as retrieved.
+            task.exception()
         return
     task.cancel()
     with contextlib.suppress(asyncio.CancelledError):

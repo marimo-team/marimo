@@ -109,14 +109,15 @@ async def test_cancel_and_wait_swallows_cancelled_error() -> None:
     assert task.cancelled() or task.done()
 
 
-async def test_cancel_and_wait_propagates_real_error() -> None:
+async def test_cancel_and_wait_preserves_exception_on_done_task() -> None:
+    # If the task already failed before we tried to cancel, the
+    # exception is marked retrieved (no "Task exception was never
+    # retrieved" warning) but stays queryable.
     async def boom() -> None:
         raise ValueError("boom")
 
     task = asyncio.create_task(boom())
     await asyncio.sleep(0)
-    # Already done with ValueError before our cancel; cancel_and_wait
-    # short-circuits and the exception remains on the task.
     await cancel_and_wait(task)
     assert isinstance(task.exception(), ValueError)
 
