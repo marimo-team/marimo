@@ -359,9 +359,9 @@ const StdInput = (props: {
           if (e.key === "Enter" && !e.shiftKey) {
             if (value) {
               addToHistory(value);
-              onSubmit(value);
-              setValue("");
             }
+            onSubmit(value);
+            setValue("");
             e.preventDefault();
             e.stopPropagation();
           }
@@ -383,11 +383,23 @@ const StdInputWithResponse = (props: {
   response?: string;
   isPassword?: boolean;
 }) => {
+  const { output, response, isPassword } = props;
+  const hasResponse = response != null && response !== "";
   return (
     <div className="flex gap-2 items-center">
-      {renderText(props.output)}
-      {!props.isPassword && (
-        <span className="text-(--sky-11)">{props.response}</span>
+      {renderText(output)}
+      {!isPassword && (
+        <span
+          className="inline-flex items-center gap-1 text-(--sky-11)"
+          aria-label="stdin response"
+        >
+          <ChevronRightIcon className="w-4 h-4 shrink-0 opacity-70" />
+          {hasResponse ? (
+            response
+          ) : (
+            <span className="italic opacity-70">(empty)</span>
+          )}
+        </span>
       )}
     </div>
   );

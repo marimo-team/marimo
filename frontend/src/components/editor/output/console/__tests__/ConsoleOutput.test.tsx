@@ -118,6 +118,82 @@ describe("ConsoleOutput pdb history", () => {
     expect(newInput).toHaveValue("next");
   });
 
+  it("should submit an empty string when Enter is pressed with no input", () => {
+    // Many CLIs prompt "Press Enter to continue" and expect "" back.
+    const onSubmitDebugger = vi.fn();
+    const outputs: WithResponse<OutputMessage>[] = [
+      stdinPrompt("Press Enter to continue: "),
+    ];
+
+    renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={outputs}
+        onSubmitDebugger={onSubmitDebugger}
+      />,
+    );
+
+    const input = screen.getByTestId("console-input");
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onSubmitDebugger).toHaveBeenCalledWith("", 0);
+  });
+
+  it("should not record empty submissions in input history", () => {
+    const onSubmitDebugger = vi.fn();
+    const outputs1: WithResponse<OutputMessage>[] = [stdinPrompt("(Pdb) ")];
+
+    const { rerender } = renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={outputs1}
+        onSubmitDebugger={onSubmitDebugger}
+      />,
+    );
+
+    let input = screen.getByTestId("console-input");
+    fireEvent.change(input, { target: { value: "step" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    const outputs2: WithResponse<OutputMessage>[] = [
+      stdinPrompt("(Pdb) ", "step"),
+      stdinPrompt("(Pdb) "),
+    ];
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={outputs2}
+          onSubmitDebugger={onSubmitDebugger}
+        />
+      </TooltipProvider>,
+    );
+
+    // Submit an empty value; this should NOT enter the history stack.
+    input = screen.getByTestId("console-input");
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    const outputs3: WithResponse<OutputMessage>[] = [
+      stdinPrompt("(Pdb) ", "step"),
+      stdinPrompt("(Pdb) ", ""),
+      stdinPrompt("(Pdb) "),
+    ];
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={outputs3}
+          onSubmitDebugger={onSubmitDebugger}
+        />
+      </TooltipProvider>,
+    );
+
+    // ArrowUp should jump back to "step", skipping the empty submission.
+    input = screen.getByTestId("console-input");
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(input).toHaveValue("step");
+  });
+
   it("should navigate through multiple history entries across remounts", () => {
     const onSubmitDebugger = vi.fn();
 

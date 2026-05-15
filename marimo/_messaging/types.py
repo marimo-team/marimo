@@ -114,3 +114,27 @@ class KernelStreams:
     stdout: Stdout | None
     stderr: Stderr | None
     stdin: Stdin | None
+
+    def _readline_with_prompt(
+        self, prompt: str = "", password: bool = False
+    ) -> str:
+        """Send a prompt to the frontend and return the user's bare response.
+
+        Subclasses implement the transport. Returns the user-typed text
+        without a trailing newline (matches Python's input() contract).
+        """
+        del prompt, password
+        raise NotImplementedError
+
+    # `size` and `hint` are accepted for sys.stdin API compatibility but
+    # ignored: marimo's stdin is a single-prompt pseudofile.
+
+    def readline(self, size: int | None = -1) -> str:  # type: ignore[override]
+        del size
+        # Trailing "\n" is required so a blank submission doesn't look like
+        # EOF to builtin input() (used by rich, click, getpass, pdb, etc.).
+        return self._readline_with_prompt(prompt="") + "\n"
+
+    def readlines(self, hint: int | None = -1) -> list[str]:  # type: ignore[override]
+        del hint
+        return [self.readline()]
