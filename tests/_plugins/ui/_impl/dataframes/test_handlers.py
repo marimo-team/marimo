@@ -47,8 +47,8 @@ from tests._data.mocks import create_dataframes
 
 pytest.importorskip("ibis")
 pd = pytest.importorskip("pandas")
-pytest.importorskip("polars")
 pytest.importorskip("pyarrow")
+pl = pytest.importorskip("polars")
 
 
 def apply(df: DataFrameType, transform: Transform) -> DataFrameType:
@@ -1733,22 +1733,36 @@ class TestTransformHandler:
         assert nw_result.columns == ["A", "B", "C"]
 
     @staticmethod
-    @pytest.mark.skip(
-        reason="Dict/struct expansion not supported uniformly across backends"
-    )
     @pytest.mark.parametrize(
         ("df", "expected"),
         list(
             zip(
                 create_test_dataframes(
-                    {"A": [{"foo": 1, "bar": "hello"}], "B": [1]}
+                    {"A": [{"foo": 1, "bar": "hello"}], "B": [1]},
+                    exclude=[
+                        "ibis"
+                    ],  # convert via Polars changes backend type
                 ),
                 create_test_dataframes(
-                    {"B": [1], "foo": [1], "bar": ["hello"]}
+                    {"B": [1], "foo": [1], "bar": ["hello"]},
+                    exclude=["ibis"],
                 ),
                 strict=False,
             )
-        ),
+        )
+        + [
+            (
+                pl.DataFrame(
+                    {
+                        "A": [{"foo": 1, "bar": "hello"}, None],
+                        "B": [1, 2],
+                    }
+                ),
+                pl.DataFrame(
+                    {"B": [1, 2], "foo": [1, None], "bar": ["hello", None]}
+                ),
+            )
+        ],
     )
     def test_expand_dict(df: DataFrameType, expected: DataFrameType) -> None:
         transform = ExpandDictTransform(
