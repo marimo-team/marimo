@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from marimo._ai._tools.types import (
     CodeExecutionResult,
@@ -125,11 +126,13 @@ def setup_code_mcp_server(
                 "Use list_sessions to find valid session IDs.",
             )
 
-        listener = ScratchCellListener()
+        # Correlation ID: see /api/kernel/execute for rationale.
+        run_id = str(uuid4())
+        listener = ScratchCellListener(run_id=run_id)
         with session.scoped(listener):
             async with session.scratchpad_lock:
                 session.put_control_request(
-                    ExecuteScratchpadCommand(code=code),
+                    ExecuteScratchpadCommand(code=code, run_id=run_id),
                     from_consumer_id=None,
                 )
                 await listener.wait(timeout=EXECUTION_TIMEOUT)

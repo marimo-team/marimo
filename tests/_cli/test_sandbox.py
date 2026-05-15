@@ -874,3 +874,50 @@ def test_resolve_local_path_line() -> None:
     assert _resolve_local_path_line("numpy==1.26.0", d) == "numpy==1.26.0"
     assert _resolve_local_path_line("/absolute/path", d) == "/absolute/path"
     assert _resolve_local_path_line("", d) == ""
+
+
+def test_python_version_override_takes_precedence(tmp_path: Path) -> None:
+    """Override beats both PEP 723 metadata and the host interpreter."""
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["numpy"]
+# ///
+import marimo
+"""
+    )
+    uv_cmd = construct_uv_command(
+        ["edit", str(script_path)],
+        str(script_path),
+        additional_features=[],
+        additional_deps=[],
+        python_version_override="3.12",
+    )
+    python_idx = uv_cmd.index("--python")
+    assert uv_cmd[python_idx + 1] == "3.12"
+    # Original metadata version should not appear.
+    assert ">=3.11" not in uv_cmd
+
+
+def test_python_version_override_without_metadata(tmp_path: Path) -> None:
+    """Override applies even when the script has no requires-python."""
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """
+# /// script
+# dependencies = ["numpy"]
+# ///
+import marimo
+"""
+    )
+    uv_cmd = construct_uv_command(
+        ["edit", str(script_path)],
+        str(script_path),
+        additional_features=[],
+        additional_deps=[],
+        python_version_override="3.12",
+    )
+    python_idx = uv_cmd.index("--python")
+    assert uv_cmd[python_idx + 1] == "3.12"
