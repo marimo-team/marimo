@@ -1,10 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Canonical mock streams for runtime tests.
+"""Mock streams for runtime tests.
 
-A single `MockStream`/`MockStdout`/`MockStderr`/`MockStdin` set replaces the
-twin implementations previously in `tests/conftest.py` and
-`tests/_messaging/mocks.py`. `MockStream` inherits the production
-`ThreadSafe*` types so it slots into anywhere a real stream is expected.
+`MockStream` inherits the production `ThreadSafe*` types so it slots into
+anywhere a real stream is expected.
 """
 
 from __future__ import annotations
@@ -24,11 +22,10 @@ from marimo._messaging.streams import (
     ThreadSafeStdout,
     ThreadSafeStream,
 )
-from marimo._messaging.types import KernelMessage, Stream
+from marimo._messaging.types import KernelMessage
 
 if TYPE_CHECKING:
     from marimo._messaging.mimetypes import ConsoleMimeType
-    from marimo._types.ids import CellId_t
 
 
 class MockStream(ThreadSafeStream):
@@ -41,10 +38,9 @@ class MockStream(ThreadSafeStream):
         redirect_console: bool = False,
         cell_id: Any = None,
     ) -> None:
-        # Bypass `ThreadSafeStream.__init__`: we don't have a real pipe or
-        # input queue, and don't want to spin up the buffered-console thread.
-        # Accepts the same kwargs as the parent so callers that clone via
-        # `type(stream)(pipe=..., input_queue=..., ...)` keep working
+        # Bypass `ThreadSafeStream.__init__`: no real pipe/input queue and
+        # we don't want a buffered-console thread. Accept the same kwargs so
+        # callers that clone via `type(stream)(pipe=..., ...)` keep working
         # (e.g. `marimo.Thread`).
         self.pipe = cast(Any, pipe)
         self.input_queue = cast(Any, input_queue)
@@ -55,21 +51,8 @@ class MockStream(ThreadSafeStream):
 
         self.stream_lock = threading.Lock()
 
-    @classmethod
-    def wrapping(cls, source: Stream) -> MockStream:
-        """Share the `.messages` list with another stream.
-
-        Used by tests that want to inspect notifications written to a real
-        kernel's stream without replacing the stream object.
-        """
-        mock = cls()
-        if hasattr(source, "messages"):
-            mock.messages = source.messages  # type: ignore[attr-defined]
-        return mock
-
     def write(self, data: KernelMessage) -> None:
         self.messages.append(data)
-        # Sanity-check that we never store an undecodable message.
         deserialize_kernel_message(data)
 
     @property
@@ -88,9 +71,6 @@ class MockStream(ThreadSafeStream):
         return [
             op for op in self.operations if isinstance(op, CellNotification)
         ]
-
-    def notifications_for(self, cell_id: CellId_t) -> list[CellNotification]:
-        return [op for op in self.cell_notifications if op.cell_id == cell_id]
 
 
 class MockStdout(ThreadSafeStdout):

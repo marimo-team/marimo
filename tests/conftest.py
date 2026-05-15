@@ -255,12 +255,7 @@ def patch_random_seed(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @dataclasses.dataclass
 class MockedKernel:
-    """Bundle of a kernel + its mock streams. Backed by `TestKernel`.
-
-    Constructed only by fixtures: the underlying `mocked_kernel_session()`
-    has already initialized the runtime context by the time you see one.
-    Call `teardown()` to release resources.
-    """
+    """Should only be created in fixtures b/c inits a runtime context."""
 
     _tk: TestKernel
     _cm: contextlib.AbstractContextManager[TestKernel]

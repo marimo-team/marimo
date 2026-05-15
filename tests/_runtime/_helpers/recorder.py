@@ -1,9 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Hook spy/recorder for `NotebookCellHooks`.
-
-Lets tests assert on hook invocation order, args, and counts without
-threading manual `order.append(...)` lambdas through their setup.
-"""
+"""Hook spy/recorder for `NotebookCellHooks`."""
 
 from __future__ import annotations
 
@@ -22,8 +18,6 @@ HookPhase = Literal[
 
 @dataclasses.dataclass
 class HookEvent:
-    """A single hook invocation captured by `HookRecorder`."""
-
     phase: HookPhase
     args: tuple[Any, ...]
 
@@ -45,8 +39,7 @@ class HookRecorder:
         *,
         priority: Priority = Priority.FINAL,
     ) -> None:
-        # Record at FINAL priority by default so we see what other hooks
-        # observed/produced before us.
+        # FINAL priority so the recorder sees state produced by earlier hooks.
         self._events: list[HookEvent] = []
 
         def _make_recorder(
@@ -69,9 +62,3 @@ class HookRecorder:
     @property
     def phases(self) -> list[HookPhase]:
         return [e.phase for e in self._events]
-
-    def events_in_phase(self, phase: HookPhase) -> list[HookEvent]:
-        return [e for e in self._events if e.phase == phase]
-
-    def reset(self) -> None:
-        self._events.clear()

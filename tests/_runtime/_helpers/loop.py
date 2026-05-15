@@ -1,10 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""`LoopDriver` — step-controlled driver for `kernel_lifecycle.listen_messages`.
+"""Step-controlled driver for `kernel_lifecycle.listen_messages`.
 
-Most kernel tests dispatch commands directly via `await k.run([...])`. That's
-fine when you want all requests processed at once. `LoopDriver` is for the
-cases when you need to observe request-by-request behavior: ordering,
-mid-batch interrupts, queue-starvation, etc.
+Use `LoopDriver` instead of `await kernel.run(...)` when a test needs to
+observe request-by-request behavior (ordering, mid-batch interrupts).
 """
 
 from __future__ import annotations
@@ -53,11 +51,9 @@ class LoopDriver:
 
     async def settle(self) -> None:
         """Yield to the event loop until the control queue is drained."""
-        # asyncio.Event would be cleaner, but the queue's own emptiness is
-        # the signal we want and is checked synchronously.
         while not self._control_queue.empty():  # noqa: ASYNC110
             await asyncio.sleep(0)
-        # One more yield so any in-flight handle_message completes.
+        # Extra yield so the in-flight handle_message can complete.
         await asyncio.sleep(0)
 
     async def stop(self) -> None:

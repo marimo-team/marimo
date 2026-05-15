@@ -40,7 +40,7 @@ async def test_loop_driver_stops_on_stop_command() -> None:
         ui: asyncio.Queue[Any] = asyncio.Queue()
         driver = LoopDriver(tk.kernel, control, ui)
         await driver.start()
-        await driver.stop()  # also calls listener task; awaits exit
+        await driver.stop()
 
 
 async def test_loop_driver_preserves_request_order() -> None:

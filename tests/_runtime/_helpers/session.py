@@ -74,9 +74,9 @@ def mocked_kernel_session(
     debugger = MarimoPdb(stdout=stdout, stdin=stdin) if with_debugger else None
 
     saved_main = sys.modules.get("__main__")
-    # Kernel.teardown() clears the kernel module's __dict__, which would
-    # leave any sys.meta_path entries installed by patches.patch_micropip
-    # (closures reference module globals) broken for subsequent tests.
+    # Kernel.teardown() clears the kernel module's __dict__, which breaks
+    # any sys.meta_path entries installed by patches.patch_micropip (their
+    # closures reference module globals) for subsequent tests.
     saved_meta_path = sys.meta_path[:]
     is_edit_mode = mode == SessionMode.EDIT
     virtual_file_storage = "shared_memory" if is_edit_mode else "in_memory"
@@ -111,8 +111,6 @@ def mocked_kernel_session(
                 stdin=stdin,
             )
     finally:
-        # `kernel.teardown()` (run inside `kernel_session`) already stops the
-        # stdout/stderr/stdin watchers, so no extra cleanup is needed here.
         sys.meta_path[:] = saved_meta_path
         if saved_main is not None:
             sys.modules["__main__"] = saved_main
