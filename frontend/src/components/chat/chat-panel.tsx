@@ -4,7 +4,13 @@ import type { UIMessage } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { DefaultChatTransport, type FileUIPart, type TextUIPart } from "ai";
+import {
+  type ChatAddToolApproveResponseFunction,
+  DefaultChatTransport,
+  type FileUIPart,
+  safeValidateUIMessages,
+  type TextUIPart,
+} from "ai";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import {
   BotMessageSquareIcon,
@@ -131,10 +137,18 @@ interface ChatMessageProps {
   onEdit: (index: number, newValue: string) => void;
   isStreamingReasoning: boolean;
   isLast: boolean;
+  addToolApprovalResponse?: ChatAddToolApproveResponseFunction;
 }
 
 const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
-  ({ message, index, onEdit, isStreamingReasoning, isLast }) => {
+  ({
+    message,
+    index,
+    onEdit,
+    isStreamingReasoning,
+    isLast,
+    addToolApprovalResponse,
+  }) => {
     const renderUserMessage = (message: UIMessage) => {
       const textParts = message.parts?.filter(
         (p): p is TextUIPart => p.type === "text",
@@ -181,7 +195,12 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
           </div>
-          {renderUIMessage({ message, isStreamingReasoning, isLast })}
+          {renderUIMessage({
+            message,
+            isStreamingReasoning,
+            isLast,
+            addToolApprovalResponse,
+          })}
         </div>
       );
     };
@@ -458,6 +477,7 @@ const ChatPanelBody = () => {
     regenerate,
     stop,
     addToolOutput,
+    addToolApprovalResponse,
     id: chatId,
   } = useChat({
     id: activeChatId,
@@ -467,6 +487,19 @@ const ChatPanelBody = () => {
       api: runtimeManager.getAiURL("chat").toString(),
       headers: () => runtimeManager.headers(),
       prepareSendMessagesRequest: async (options) => {
+        // Canary: flag outgoing messages that don't match the AI SDK's own
+        // schema. The server-side sanitizer in `_pydantic_ai_utils.py` corrects these before validation;
+        // this log surfaces drift early without affecting the request.
+        const validation = await safeValidateUIMessages({
+          messages: options.messages,
+        });
+        if (!validation.success) {
+          Logger.debug(
+            "Outgoing chat messages failed AI SDK schema validation",
+            validation.error,
+          );
+        }
+
         const completionBody = await buildCompletionRequestBody(
           options.messages,
         );
@@ -495,13 +528,6 @@ const ChatPanelBody = () => {
       });
     },
     onToolCall: async ({ toolCall }) => {
-      // Dynamic tool calls will throw an error for toolName
-      // https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-tool-usage#client-side-page
-      if (toolCall.dynamic) {
-        Logger.debug("Skipping dynamic tool call", toolCall);
-        return;
-      }
-
       await handleToolCall({
         invokeAiTool,
         addToolOutput,
@@ -712,6 +738,7 @@ const ChatPanelBody = () => {
             onEdit={handleMessageEdit}
             isStreamingReasoning={isStreamingReasoning}
             isLast={idx === messages.length - 1}
+            addToolApprovalResponse={addToolApprovalResponse}
           />
         ))}
 

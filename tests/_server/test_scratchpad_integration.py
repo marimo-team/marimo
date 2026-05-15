@@ -22,10 +22,10 @@ fresh session via a per-test ``session`` fixture that calls
 snapshotted as SSE lines with volatile paths and version-specific
 traceback noise scrubbed.
 
-Each test's snapshot encodes the **correct** expected output.
-Scenarios currently broken (see issue #9255) are marked
-``xfail(strict=True)`` so a fix turns them into ``XPASS`` failures
-and the fix PR must remove the markers.
+Each test's snapshot encodes the expected SSE output for that
+scenario — failure cases land in ``done`` with
+``{success: false, output: {mimetype: "text/plain", data: ""}}``;
+error detail arrives earlier in the stream as ``stderr`` SSE events.
 """
 
 from __future__ import annotations
@@ -275,9 +275,41 @@ _PATH_RE = re.compile(
     # Windows: C:\\\\... up to the closing \\"
     r"|[A-Z]:(?:\\\\[^\"\\]+)+"
 )
-# Error-pointer line (Python 3.11+): indented `~~^~~` + trailing \n.
-# Absent on 3.10, so we strip it to make snapshots cross-version stable.
-_POINTER_RE = re.compile(r" +~+\^+~*\\n")
+# Absolute paths into the running marimo source tree — present in
+# tracebacks that traverse library frames (e.g. code_mode RuntimeError).
+# Match both Unix (``/…/marimo/…py``) and Windows (``C:\\…\\marimo\\…py``)
+# forms, reduce the repo-prefix portion to a stable ``<marimo>`` marker, and
+# slash-normalize the captured tail so the snapshot compares equal across
+# platforms.  Run before ``_PATH_RE`` so Windows source paths are claimed
+# here rather than scrubbed to ``<tmp>``.
+_MARIMO_SRC_RE = re.compile(
+    r'\\"'
+    r"(?:"
+    r"/(?:[^\"\\]|\\\\)*/"  # Unix prefix: /…/
+    r"|[A-Z]:\\\\(?:(?:[^\"\\]|\\\\)*\\\\)?"  # Windows prefix: C:\\(…\\)?
+    r")"
+    r"(marimo(?:/|\\\\)(?:[^\"\\]|\\\\)*?\.py)"  # marimo<sep>…<file>.py
+    r'\\"'
+)
+
+
+def _marimo_src_repl(m: re.Match[str]) -> str:
+    return '\\"<marimo>/' + m.group(1).replace("\\\\", "/") + '\\"'
+
+
+# Error-pointer line (Python 3.11+): indented PEP 657 location underline.
+# Python emits this in two flavors: ``~~~^~~~`` (call-site, with tildes
+# flanking the carets) and ``^^^^`` (pure multi-caret spans, e.g. an
+# expression range). Absent on 3.10, so we strip both for cross-version
+# parity. Single-caret pointers (`        ^`) come from the classic
+# SyntaxError source-position marker, which is present on all versions,
+# so we don't strip them.
+_POINTER_RE = re.compile(r" +(?:~+\^+~*|\^{2,})\\n")
+# Python 3.13's collapsed-frames view keeps the closing ``)`` on its own
+# line for multi-line ``raise Foo(...)`` after ``_COLLAPSED_FRAMES_RE``
+# elides the middle; 3.10–3.12 don't show it at all. Strip the lone
+# closer for cross-version parity.
+_RAISE_CLOSING_PAREN_RE = re.compile(r"(raise \w+\(\\n) +\)\\n")
 # Internal marimo frames (e.g. ``File "<tmp>", line 138, in execute_cell``)
 # that Py 3.10 shows but 3.11+ hides. Strip them so tests only match the
 # user-facing ``<module>`` frame.
@@ -285,12 +317,32 @@ _INTERNAL_FRAME_RE = re.compile(
     r'  File \\"<tmp>\\", line \d+, in (?!<module>)[^\\]+\\n'
     r" +[^\\]*\\n"
 )
+# Python 3.13 collapsed traceback marker (``...<N lines>...``) that older
+# Python versions don't emit. Strip together with the indent and newline.
+_COLLAPSED_FRAMES_RE = re.compile(r" +\.\.\.<\d+ lines>\.\.\.\\n")
+# Line numbers inside internal marimo frames (``File \"<marimo>/..., line N``)
+# drift when library source edits shift offsets. Zero them out so the test
+# stays stable under unrelated edits to code_mode, runtime, etc.  User-facing
+# ``<tmp>`` frames keep their linenos so scratch-cell line positions remain
+# assertable.
+_MARIMO_FRAME_LINENO_RE = re.compile(r'(File \\"<marimo>/[^\\]*\\"), line \d+')
+# Auto-generated cell IDs from ``CellIdGenerator``: 4 random ascii
+# letters, appearing in code_mode summaries as ``cell 'AbCd'``. Replace
+# with ``cell '<cid>'``.  Scoped to the ``cell '...'`` phrase so
+# unrelated 4-letter tokens (e.g. ``'boom'`` inside a test payload) are
+# untouched.
+_AUTO_CELL_ID_RE = re.compile(r"(cell )'[A-Za-z]{4}'")
 
 
 def _normalize(body: str) -> list[str]:
+    body = _MARIMO_SRC_RE.sub(_marimo_src_repl, body)
     body = _PATH_RE.sub("<tmp>", body)
     body = _POINTER_RE.sub("", body)
     body = _INTERNAL_FRAME_RE.sub("", body)
+    body = _COLLAPSED_FRAMES_RE.sub("", body)
+    body = _RAISE_CLOSING_PAREN_RE.sub(r"\1", body)
+    body = _MARIMO_FRAME_LINENO_RE.sub(r"\1, line N", body)
+    body = _AUTO_CELL_ID_RE.sub(r"\1'<cid>'", body)
     return body.splitlines()
 
 
@@ -323,6 +375,33 @@ def test_scratchpad_success(session: _Session) -> None:
     )
 
 
+def test_scratchpad_compile_error(session: _Session) -> None:
+    """Scratchpad code that fails to compile (SyntaxError).
+
+    Guards that compile-time errors reach the client with actionable
+    detail. Compile failures never go through ``redirect_streams`` /
+    ``write_traceback`` (the cell never runs), so the diagnostic has
+    to be emitted explicitly as a ``stderr`` SSE event before ``done``.
+    """
+    lines = session.execute("def :")
+
+    assert lines == snapshot(
+        [
+            "event: stderr",
+            (
+                'data: {"data": "line 1\\n    def :\\n        ^\\nSyntaxError: invalid syntax\\n"}'
+            ),
+            "",
+            "event: done",
+            (
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
+            ),
+            "",
+        ]
+    )
+
+
 def test_scratchpad_itself_errors(session: _Session) -> None:
     """Scratchpad code raises — scratch cell's own error surfaces.
 
@@ -342,19 +421,14 @@ def test_scratchpad_itself_errors(session: _Session) -> None:
             "",
             "event: done",
             (
-                'data: {"success": false, "error": '
-                '{"type": "MarimoExceptionRaisedError", '
-                '"msg": "boom", "exception_type": "ValueError"}}'
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
             ),
             "",
         ]
     )
 
 
-@pytest.mark.xfail(
-    reason="issue #9255: state_updates cascade error is silent",
-    strict=True,
-)
 def test_state_setter_cascade_error(session: _Session) -> None:
     """Scratchpad calls ``set_x(0)`` → downstream cell_b divides by zero.
 
@@ -388,19 +462,14 @@ def test_state_setter_cascade_error(session: _Session) -> None:
             "",
             "event: done",
             (
-                'data: {"success": false, "error": '
-                '{"type": "CellExecutionError", '
-                '"msg": "cell \'cell_b\' raised ZeroDivisionError"}}'
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
             ),
             "",
         ]
     )
 
 
-@pytest.mark.xfail(
-    reason="issue #9255: multi-hop state cascade error is silent",
-    strict=True,
-)
 def test_state_chain_cascade_error(session: _Session) -> None:
     """Nested state chain: ``set_x(0)`` → cell_b calls ``set_y`` →
     slow cell_d divides by zero. Listener must capture cell_d's error
@@ -423,21 +492,24 @@ def test_state_chain_cascade_error(session: _Session) -> None:
 
     assert lines == snapshot(
         [
+            "event: stderr",
+            (
+                'data: {"data": "Traceback (most recent call last):\\n'
+                '  File \\"<tmp>\\", line 3, in <module>\\n'
+                "    z = 1 / get_y()\\n"
+                'ZeroDivisionError: division by zero\\n"}'
+            ),
+            "",
             "event: done",
             (
-                'data: {"success": false, "error": '
-                '{"type": "CellExecutionError", '
-                '"msg": "cell \'cell_d\' raised ZeroDivisionError"}}'
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
             ),
             "",
         ]
     )
 
 
-@pytest.mark.xfail(
-    reason="issue #9255: slow downstream errors missed in partial reports",
-    strict=True,
-)
 def test_multiple_downstream_cells_all_error(session: _Session) -> None:
     """Two downstream cells both error (fast + slow). Both must be
     reported — partial reporting misleads the agent into thinking
@@ -477,20 +549,14 @@ def test_multiple_downstream_cells_all_error(session: _Session) -> None:
             "",
             "event: done",
             (
-                'data: {"success": false, "error": '
-                '{"type": "CellExecutionError", '
-                '"msg": "cell \'cell_b\' raised ZeroDivisionError;'
-                " cell 'cell_c' raised ZeroDivisionError\"}}"
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
             ),
             "",
         ]
     )
 
 
-@pytest.mark.xfail(
-    reason="issue #9255: cascade error hidden when scratchpad also raises",
-    strict=True,
-)
 def test_scratchpad_raises_after_triggering_cascade(
     session: _Session,
 ) -> None:
@@ -522,12 +588,18 @@ def test_scratchpad_raises_after_triggering_cascade(
                 'RuntimeError: scratch explosion\\n"}'
             ),
             "",
+            "event: stderr",
+            (
+                'data: {"data": "Traceback (most recent call last):\\n'
+                '  File \\"<tmp>\\", line 3, in <module>\\n'
+                "    result = 1 / get_x()\\n"
+                'ZeroDivisionError: division by zero\\n"}'
+            ),
+            "",
             "event: done",
             (
-                'data: {"success": false, "error": '
-                '{"type": "CellExecutionError", '
-                '"msg": "RuntimeError: scratch explosion;'
-                " cell 'cell_b' raised ZeroDivisionError\"}}"
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
             ),
             "",
         ]
@@ -572,10 +644,68 @@ def test_ctx_run_cell_cascade_error(session: _Session) -> None:
             "",
             "event: done",
             (
-                'data: {"success": false, "error": '
-                '{"type": "CellExecutionError", '
-                '"msg": "cell \'cell_b\' raised ZeroDivisionError"}}'
+                'data: {"success": false, "output": '
+                '{"mimetype": "text/plain", "data": ""}}'
             ),
+            "",
+        ]
+    )
+
+
+def test_ctx_create_cell_multiply_defined(session: _Session) -> None:
+    """``ctx.create_cell`` introducing a duplicate definition errors early.
+
+    The notebook already has ``x = 10`` in ``cell_a``. code_mode's
+    dry-run compile detects the new cell would multiply-define ``x``
+    and raises ``RuntimeError`` before any real mutation — the new
+    cell is never registered and ``x`` stays ``10``.
+    """
+    session.setup_cells(["cell_a"], ["x = 10"])
+
+    lines = session.execute(
+        "import marimo._code_mode as cm\n"
+        "async with cm.get_context() as ctx:\n"
+        '    ctx.create_cell("x = 20")',
+    )
+
+    assert lines == snapshot(
+        [
+            "event: stderr",
+            'data: {"data": "Traceback (most recent call last):\\n  File \\"<marimo>/marimo/_runtime/executor.py\\", line N, in execute_cell_async\\n    await eval(cell.body, glbls)\\n  File \\"<tmp>\\", line 2, in <module>\\n    async with cm.get_context() as ctx:\\n  File \\"<marimo>/marimo/_code_mode/_context.py\\", line N, in __aexit__\\n    self._dry_run_compile(ops)\\n  File \\"<marimo>/marimo/_code_mode/_context.py\\", line N, in _dry_run_compile\\n    raise RuntimeError(\\nRuntimeError: Multiply-defined names:\\n  - \'x\' is already defined in cell \'cell_a\' (cell_a)\\n\\nTo skip validation, use: async with cm.get_context(skip_validation=True) as ctx\\n"}',
+            "",
+            "event: done",
+            'data: {"success": false, "output": {"mimetype": "text/plain", "data": ""}}',
+            "",
+        ]
+    )
+
+
+def test_ctx_create_cell_skip_validation(session: _Session) -> None:
+    """``skip_validation=True`` bypasses the dry-run compile check.
+
+    Same setup as above, but the caller opts out of validation — no
+    ``RuntimeError`` is raised and the new cell is registered, as
+    evidenced by the ``created cell`` stdout summary. The kernel's own
+    graph-validity pass still flags the resulting multiply-defined
+    state (visible to the listener as a child error, hence
+    ``success: false``), but no traceback reaches stderr because the
+    new cell never runs — the error is a pure graph-state marker.
+    """
+    session.setup_cells(["cell_a"], ["x = 10"])
+
+    lines = session.execute(
+        "import marimo._code_mode as cm\n"
+        "async with cm.get_context(skip_validation=True) as ctx:\n"
+        '    ctx.create_cell("x = 20")',
+    )
+
+    assert lines == snapshot(
+        [
+            "event: stdout",
+            'data: {"data": "created cell \'<cid>\'\\n"}',
+            "",
+            "event: done",
+            'data: {"success": false, "output": {"mimetype": "text/plain", "data": ""}}',
             "",
         ]
     )

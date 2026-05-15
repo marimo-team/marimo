@@ -1237,6 +1237,55 @@ class TestPDFExport:
             ("complete", "done."),
         ]
 
+    @pytest.mark.skipif(
+        not HAS_NBFORMAT or not DependencyManager.nbconvert.has(),
+        reason="nbformat and nbconvert are required to render ipynb",
+    )
+    def test_hide_code_cells_are_stripped_by_nbconvert(self) -> None:
+        """End-to-end check that `hide_code=True` cells are excluded from
+        rendered nbconvert output (LaTeX/HTML/Slides) via the `remove-input`
+        tag wired up in `Exporter`.
+
+        Regression test for marimo-team/marimo#9523.
+        """
+        import nbformat
+
+        from marimo._convert.ipynb.from_ir import convert_from_ir_to_ipynb
+        from marimo._server.export.exporter import (
+            _nbconvert_tag_remove_config,
+        )
+
+        app = App()
+
+        @app.cell(hide_code=True)
+        def _():
+            shouldnotappear = "hidden"
+            return (shouldnotappear,)
+
+        @app.cell()
+        def _():
+            shouldappear = "visible"
+            return (shouldappear,)
+
+        ipynb = convert_from_ir_to_ipynb(
+            InternalApp(app), sort_mode="top-down"
+        )
+        notebook = nbformat.reads(ipynb, as_version=4)
+        config = _nbconvert_tag_remove_config()
+
+        from nbconvert import HTMLExporter, LatexExporter, SlidesExporter
+
+        for exporter_cls in (LatexExporter, HTMLExporter, SlidesExporter):
+            rendered, _ = exporter_cls(config=config).from_notebook_node(
+                notebook
+            )
+            assert "shouldnotappear" not in rendered, (
+                f"{exporter_cls.__name__} did not strip the hidden cell source"
+            )
+            assert "shouldappear" in rendered, (
+                f"{exporter_cls.__name__} dropped the visible cell source"
+            )
+
     @pytest.mark.asyncio
     async def test_run_app_then_export_as_pdf_ignores_status_callback_failures(
         self,
