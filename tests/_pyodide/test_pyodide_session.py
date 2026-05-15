@@ -6,7 +6,7 @@ import json
 import unittest.mock
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import msgspec
 import pytest
@@ -19,6 +19,7 @@ from marimo._pyodide.pyodide_session import (
     AsyncQueueManager,
     PyodideBridge,
     PyodideSession,
+    _launch_pyodide_kernel,
     parse_command,
 )
 from marimo._runtime.commands import (
@@ -170,6 +171,68 @@ async def test_pyodide_session_start(
         await start_task
     except asyncio.CancelledError:
         pass
+
+
+async def test_pyodide_kernel_teardown_runs_on_stop(
+    pyodide_app_file: Path,
+) -> None:
+    """Stopping the kernel task must trigger teardown_kernel via the listen()
+    finally block (previously absent for the pyodide path)."""
+    fake_kernel = MagicMock()
+    fake_ctx = MagicMock()
+    teardown_calls: list[tuple[Any, Any]] = []
+
+    async def block_until_cancelled(*_args: Any, **_kwargs: Any) -> None:
+        await asyncio.Event().wait()
+
+    with (
+        patch(
+            "marimo._runtime.kernel_lifecycle.create_kernel",
+            return_value=(fake_kernel, fake_ctx),
+        ),
+        patch(
+            "marimo._runtime.kernel_lifecycle.listen_messages",
+            side_effect=block_until_cancelled,
+        ),
+        patch(
+            "marimo._runtime.kernel_lifecycle.teardown_kernel",
+            side_effect=lambda k, c: teardown_calls.append((k, c)),
+        ),
+        patch("marimo._pyodide.pyodide_session.signal"),
+        patch("marimo._output.formatters.formatters.register_formatters"),
+        patch(
+            "marimo._pyodide.pyodide_session.patches.patch_pyodide_networking"
+        ),
+        patch("marimo._pyodide.pyodide_session.patches.patch_recursion_limit"),
+    ):
+        kernel_task = _launch_pyodide_kernel(
+            control_queue=asyncio.Queue(),
+            set_ui_element_queue=asyncio.Queue(),
+            completion_queue=asyncio.Queue(),
+            input_queue=asyncio.Queue(),
+            on_message=lambda _msg: None,
+            session_mode=SessionMode.EDIT,
+            configs={},
+            app_metadata=AppMetadata(
+                query_params={},
+                cli_args={},
+                app_config=_AppConfig(),
+                filename=str(pyodide_app_file),
+            ),
+            user_config=DEFAULT_CONFIG,
+        )
+        start_task = asyncio.create_task(kernel_task.start())
+        # Yield enough times for: outer task → RestartableTask.start → inner
+        # task creation → listen() → asyncio.gather → child tasks suspended.
+        for _ in range(5):
+            await asyncio.sleep(0)
+        kernel_task.stop()
+        try:
+            await start_task
+        except asyncio.CancelledError:
+            pass
+
+    assert teardown_calls == [(fake_kernel, fake_ctx)]
 
 
 async def test_pyodide_session_put_control_request(

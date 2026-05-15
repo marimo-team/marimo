@@ -23,6 +23,7 @@ from marimo._convert.common.format import (
     DEFAULT_MARKDOWN_PREFIX,
     markdown_to_marimo,
 )
+from marimo._convert.ipynb.from_ir import NBCONVERT_REMOVE_INPUT_TAG
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._schemas.serialization import (
     AppInstantiation,
@@ -1263,7 +1264,10 @@ def bind_cell_metadata(
 
     This marks the boundary between source-only transformations and cell-level transformations.
 
-    - If "hide-cell" is present in the tags, the cell is marked hidden (and removed)
+    - If "hide-cell" or the standard nbconvert "remove-input" tag is present,
+      the cell is marked hidden (and the tag is consumed).
+    - The Jupyter UI hint ``metadata.jupyter.source_hidden`` is also treated as
+      a hidden-code signal.
     - Remaining tags (if any) are inserted as a comment at the top of the source.
     - If marimo-specific metadata is present, it is used to restore cell config.
     """
@@ -1272,6 +1276,14 @@ def bind_cell_metadata(
         sources, metadata, hide_flags, strict=False
     ):
         tags: set[str] = set(meta.get("tags", []))
+
+        # The `remove-input` tag and `jupyter.source_hidden` flag are emitted by
+        # marimo's ipynb exporter (and recognized by nbconvert / JupyterLab /
+        # VS Code) to indicate hidden code. Consume them here so they don't
+        # leak back into the .py source as a stray comment.
+        had_remove_input = NBCONVERT_REMOVE_INPUT_TAG in tags
+        tags.discard(NBCONVERT_REMOVE_INPUT_TAG)
+        source_hidden = bool(meta.get("jupyter", {}).get("source_hidden"))
 
         # Extract marimo-specific cell config if present
         marimo_meta = meta.get("marimo", {})
@@ -1283,6 +1295,8 @@ def bind_cell_metadata(
             hide_code = marimo_config["hide_code"]
         elif "hide-cell" in tags:
             tags.discard("hide-cell")
+            hide_code = True
+        elif had_remove_input or source_hidden:
             hide_code = True
         elif "marimo" in meta:
             # Cell was created by marimo; marimo would have stored hide_code=True

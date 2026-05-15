@@ -34,6 +34,10 @@ if TYPE_CHECKING:
 # and break reproducibility. The marimo_version in metadata is sufficient.
 _MD_PREFIX_RE = re.compile(r'mo\.md\(([fFrR]*)(?:"""|\'\'\'|"|\')')
 
+# Standard nbconvert cell tag that, in combination with `TagRemovePreprocessor`,
+# strips a cell's source from the rendered output.
+NBCONVERT_REMOVE_INPUT_TAG = "remove-input"
+
 
 def _extract_markdown_prefix(code: str) -> str:
     """Extract the string prefix from a mo.md() call (e.g. '', 'r', 'f', 'fr')."""
@@ -184,6 +188,14 @@ def _create_ipynb_cell(
     )
     if outputs:
         node.outputs = outputs
+    if config.hide_code:
+        node["metadata"].setdefault("jupyter", {})["source_hidden"] = True
+        existing_tags = node["metadata"].get("tags") or []
+        if NBCONVERT_REMOVE_INPUT_TAG not in existing_tags:
+            node["metadata"]["tags"] = [
+                *existing_tags,
+                NBCONVERT_REMOVE_INPUT_TAG,
+            ]
     _add_marimo_metadata(node, name, config)
     return node
 

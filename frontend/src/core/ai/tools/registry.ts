@@ -52,11 +52,15 @@ export class FrontendToolRegistry {
     return tool;
   }
 
-  async invoke<TName extends string>(
-    toolName: TName,
-    rawArgs: unknown,
-    toolContext: ToolNotebookContext,
-  ): Promise<InvokeResult<TName>> {
+  async invoke<TName extends string>({
+    toolName,
+    rawArgs,
+    toolContext,
+  }: {
+    toolName: TName;
+    rawArgs: unknown;
+    toolContext: ToolNotebookContext;
+  }): Promise<InvokeResult<TName>> {
     const tool = this.getToolOrThrow(toolName);
     const handler = tool.handler;
     const inputSchema = tool.schema;

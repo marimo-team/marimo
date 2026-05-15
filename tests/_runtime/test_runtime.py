@@ -4207,7 +4207,7 @@ class TestLaunchKernelEventLoop:
         "marimo._runtime.runtime.ThreadSafeStdin",
         "marimo._runtime.runtime.marimo_pdb.MarimoPdb",
         "marimo._runtime.runtime.Kernel",
-        "marimo._runtime.runtime.initialize_kernel_context",
+        "marimo._runtime.kernel_lifecycle.initialize_kernel_context",
         "marimo._runtime.runtime.patches.patch_main_module",
         "marimo._output.formatters.formatters.register_formatters",
     ]

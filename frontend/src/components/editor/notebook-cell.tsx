@@ -27,6 +27,7 @@ import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import { isOutputEmpty } from "@/core/cells/outputs";
+import { useIsPendingCut } from "@/core/cells/pending-cut-service";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { CSSClasses } from "@/core/constants";
@@ -391,6 +392,7 @@ const EditableCellComponent = ({
   const deleteCell = useDeleteCellCallback();
   const runCell = useRunCell(cellId);
   const { sendStdin } = useRequestClient();
+  const isPendingCut = useIsPendingCut(cellId);
 
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
 
@@ -545,6 +547,7 @@ const EditableCellComponent = ({
     }),
     borderless:
       isMarkdownCodeHidden && hasOutput && !navigationProps["data-selected"],
+    "pending-cut": isPendingCut,
   });
 
   const handleRefactorWithAI: OnRefactorWithAI = useEvent(
