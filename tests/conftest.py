@@ -25,13 +25,12 @@ from marimo._server.utils import initialize_mimetypes
 from marimo._session.model import SessionMode
 from marimo._session.state.session_view import SessionView
 from marimo._types.ids import CellId_t
-from tests._runtime._helpers import (
+from tests._runtime._helpers.session import TestKernel, mocked_kernel_session
+from tests._runtime._helpers.streams import (
     MockStderr,
     MockStdin,
     MockStdout,
     MockStream,
-    TestKernel,
-    mocked_kernel_session,
 )
 
 # Back-compat alias: tests/_runtime/test_redirect_streams.py still imports this.

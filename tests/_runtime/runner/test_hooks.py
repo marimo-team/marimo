@@ -8,7 +8,7 @@ from marimo._runtime.runner.hooks import (
     Priority,
     create_default_hooks,
 )
-from tests._runtime._helpers import HookRecorder
+from tests._runtime._helpers.recorder import HookRecorder
 
 
 @pytest.fixture

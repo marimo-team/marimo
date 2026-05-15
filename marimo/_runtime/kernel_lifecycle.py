@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from marimo import _loggers
@@ -32,6 +33,7 @@ from marimo._runtime.runner.hooks import (
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
 )
+from marimo._session.model import SessionMode
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Iterator
@@ -47,7 +49,6 @@ if TYPE_CHECKING:
     )
     from marimo._runtime.runtime import Kernel
     from marimo._runtime.virtual_file import VirtualFileStorageType
-    from marimo._session.model import SessionMode
     from marimo._session.queue import QueueType
     from marimo._types.ids import CellId_t
 
@@ -55,6 +56,30 @@ if TYPE_CHECKING:
     UIElementQueue = (
         QueueType[BatchableCommand] | asyncio.Queue[BatchableCommand]
     )
+
+
+@dataclasses.dataclass(kw_only=True)
+class KernelArgs:
+    """All inputs needed to construct a `Kernel` and its runtime context."""
+
+    stream: Stream
+    stdout: Stdout | None
+    stderr: Stderr | None
+    stdin: Stdin | None
+    debugger: marimo_pdb.MarimoPdb | None
+    configs: dict[CellId_t, CellConfig]
+    app_metadata: AppMetadata
+    user_config: MarimoConfig
+    mode: SessionMode
+    control_queue: ControlQueue
+    set_ui_element_queue: UIElementQueue
+    virtual_file_storage: VirtualFileStorageType | None
+    print_override_fn: Callable[[Any], None] | None
+
+    @property
+    def is_edit_mode(self) -> bool:
+        return self.mode == SessionMode.EDIT
+
 
 LOGGER = _loggers.marimo_logger()
 
@@ -82,71 +107,58 @@ def _build_hooks(
 
 
 def create_kernel(
-    *,
-    stream: Stream,
-    stdout: Stdout | None,
-    stderr: Stderr | None,
-    stdin: Stdin | None,
-    debugger: marimo_pdb.MarimoPdb | None,
-    configs: dict[CellId_t, CellConfig],
-    app_metadata: AppMetadata,
-    user_config: MarimoConfig,
-    is_edit_mode: bool,
-    control_queue: ControlQueue,
-    set_ui_element_queue: UIElementQueue,
-    virtual_file_storage: VirtualFileStorageType | None,
-    mode: SessionMode,
-    print_override_fn: Callable[[Any], None] | None,
+    args: KernelArgs,
 ) -> tuple[Kernel, KernelRuntimeContext]:
+    user_config = args.user_config
     # Run mode forces autorun and disables the module autoreloader.
-    if not is_edit_mode:
+    if not args.is_edit_mode:
         user_config = user_config.copy()
         user_config["runtime"]["on_cell_change"] = "autorun"
         user_config["runtime"]["auto_reload"] = "off"
 
     def _enqueue_control_request(req: CommandMessage) -> None:
-        control_queue.put_nowait(req)
+        args.control_queue.put_nowait(req)
         if isinstance(req, (UpdateUIElementCommand, ModelCommand)):
-            set_ui_element_queue.put_nowait(req)
+            args.set_ui_element_queue.put_nowait(req)
 
     # Deferred to break the runtime.py <-> kernel_lifecycle.py import cycle.
     from marimo._runtime.runtime import Kernel
 
     kernel = Kernel(
-        cell_configs=configs,
-        app_metadata=app_metadata,
-        stream=stream,
-        stdout=stdout,
-        stderr=stderr,
-        stdin=stdin,
+        cell_configs=args.configs,
+        app_metadata=args.app_metadata,
+        stream=args.stream,
+        stdout=args.stdout,
+        stderr=args.stderr,
+        stdin=args.stdin,
         module=patches.patch_main_module(
-            file=app_metadata.filename,
+            file=args.app_metadata.filename,
             input_override=input_override,
-            print_override=print_override_fn,
-            doc=app_metadata.docstring,
+            print_override=args.print_override_fn,
+            doc=args.app_metadata.docstring,
         ),
-        debugger_override=debugger,
+        debugger_override=args.debugger,
         user_config=user_config,
         enqueue_control_request=_enqueue_control_request,
-        hooks=_build_hooks(is_edit_mode, user_config),
+        hooks=_build_hooks(args.is_edit_mode, user_config),
     )
     ctx = initialize_kernel_context(
         kernel=kernel,
-        stream=stream,
-        stdout=stdout,
-        stderr=stderr,
-        virtual_file_storage=virtual_file_storage,
-        mode=mode,
+        stream=args.stream,
+        stdout=args.stdout,
+        stderr=args.stderr,
+        virtual_file_storage=args.virtual_file_storage,
+        mode=args.mode,
     )
     return kernel, ctx
 
 
 @contextlib.contextmanager
 def kernel_session(
-    **create_kwargs: Any,
+    args: KernelArgs,
 ) -> Iterator[tuple[Kernel, KernelRuntimeContext]]:
     """Create a kernel + context, yield it, tear it down on exit."""
-    kernel, ctx = create_kernel(**create_kwargs)
+    kernel, ctx = create_kernel(args)
     try:
         yield kernel, ctx
     finally:

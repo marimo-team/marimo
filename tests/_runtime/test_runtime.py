@@ -48,10 +48,8 @@ from marimo._runtime.runtime import (
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._utils.parse_dataclass import parse_raw
 from tests._messaging.mocks import MockStderr, MockStream
-from tests._runtime._helpers import (
-    default_app_metadata,
-    mocked_kernel_session,
-)
+from tests._runtime._helpers.factories import default_app_metadata
+from tests._runtime._helpers.session import mocked_kernel_session
 from tests.conftest import ExecReqProvider, MockedKernel, mock_pyodide
 
 if TYPE_CHECKING:

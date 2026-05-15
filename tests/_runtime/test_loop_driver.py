@@ -8,7 +8,8 @@ from typing import Any
 
 from marimo._runtime.commands import ExecuteCellsCommand, StopKernelCommand
 from marimo._types.ids import CellId_t
-from tests._runtime._helpers import LoopDriver, mocked_kernel_session
+from tests._runtime._helpers.loop import LoopDriver
+from tests._runtime._helpers.session import mocked_kernel_session
 
 
 def _exec(*pairs: tuple[str, str]) -> ExecuteCellsCommand:

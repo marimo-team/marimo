@@ -3753,6 +3753,7 @@ def launch_kernel(
     parent_pid: int | None = None,
 ) -> None:
     from marimo._runtime.kernel_lifecycle import (
+        KernelArgs,
         kernel_session,
         listen_messages,
         threaded_queue_reader,
@@ -3780,20 +3781,21 @@ def launch_kernel(
             return
 
         with kernel_session(
-            stream=streams.stream,
-            stdout=streams.stdout,
-            stderr=streams.stderr,
-            stdin=streams.stdin,
-            debugger=streams.debugger,
-            configs=configs,
-            app_metadata=app_metadata,
-            user_config=user_config,
-            is_edit_mode=is_edit_mode,
-            control_queue=control_queue,
-            set_ui_element_queue=set_ui_element_queue,
-            virtual_file_storage=virtual_file_storage,
-            mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
-            print_override_fn=print_override,
+            KernelArgs(
+                stream=streams.stream,
+                stdout=streams.stdout,
+                stderr=streams.stderr,
+                stdin=streams.stdin,
+                debugger=streams.debugger,
+                configs=configs,
+                app_metadata=app_metadata,
+                user_config=user_config,
+                mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
+                control_queue=control_queue,
+                set_ui_element_queue=set_ui_element_queue,
+                virtual_file_storage=virtual_file_storage,
+                print_override_fn=print_override,
+            )
         ) as (kernel, ctx):
             if is_edit_mode:
                 # completions only provided in edit mode

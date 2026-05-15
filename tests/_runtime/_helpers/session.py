@@ -15,8 +15,9 @@ from typing import TYPE_CHECKING
 
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.print_override import print_override
-from marimo._runtime.kernel_lifecycle import kernel_session
+from marimo._runtime.kernel_lifecycle import KernelArgs, kernel_session
 from marimo._runtime.marimo_pdb import MarimoPdb
+from marimo._runtime.virtual_file import VirtualFileStorageType
 from marimo._session.model import SessionMode
 from tests._runtime._helpers.factories import default_app_metadata
 from tests._runtime._helpers.streams import (
@@ -78,26 +79,28 @@ def mocked_kernel_session(
     # any sys.meta_path entries installed by patches.patch_micropip (their
     # closures reference module globals) for subsequent tests.
     saved_meta_path = sys.meta_path[:]
-    is_edit_mode = mode == SessionMode.EDIT
-    virtual_file_storage = "shared_memory" if is_edit_mode else "in_memory"
+    virtual_file_storage: VirtualFileStorageType = (
+        "shared_memory" if mode == SessionMode.EDIT else "in_memory"
+    )
+
+    args = KernelArgs(
+        stream=stream,
+        stdout=stdout,
+        stderr=stderr,
+        stdin=stdin,
+        debugger=debugger,
+        configs=configs or {},
+        app_metadata=app_metadata or default_app_metadata(),
+        user_config=user_config or DEFAULT_CONFIG,
+        mode=mode,
+        control_queue=asyncio.Queue(),
+        set_ui_element_queue=asyncio.Queue(),
+        virtual_file_storage=virtual_file_storage,
+        print_override_fn=print_override,
+    )
 
     try:
-        with kernel_session(
-            stream=stream,
-            stdout=stdout,
-            stderr=stderr,
-            stdin=stdin,
-            debugger=debugger,
-            configs=configs or {},
-            app_metadata=app_metadata or default_app_metadata(),
-            user_config=user_config or DEFAULT_CONFIG,
-            is_edit_mode=is_edit_mode,
-            control_queue=asyncio.Queue(),
-            set_ui_element_queue=asyncio.Queue(),
-            virtual_file_storage=virtual_file_storage,
-            mode=mode,
-            print_override_fn=print_override,
-        ) as (kernel, ctx):
+        with kernel_session(args) as (kernel, ctx):
             if execution_type is not None:
                 kernel.execution_type = execution_type
             if reactive_mode is not None:
