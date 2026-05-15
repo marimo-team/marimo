@@ -465,7 +465,7 @@ def python_print_polars(
 
     elif transform.type == TransformType.EXPAND_DICT:
         column_id = _as_literal(transform.column_id)
-        return f"{df_name}.hstack(pl.DataFrame({df_name}.select({column_id}).to_series().to_list())).drop({column_id})"
+        return f"{df_name}.unnest({column_id})"
 
     elif transform.type == TransformType.UNIQUE:
         column_ids = transform.column_ids
