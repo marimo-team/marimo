@@ -492,7 +492,12 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_expand_dict(
         df: DataFrame, transform: ExpandDictTransform
     ) -> DataFrame:
-        return df.explode(transform.column_id)
+        # Convert to Polars for native unnest, which handles null values
+        # correctly (fixes: 'NoneType' cannot be converted to 'PyDict' issue #4583)
+        collected_df, undo = collect_and_preserve_type(df)
+        polars_df = collected_df.to_polars()
+        unnested = polars_df.unnest(transform.column_id)
+        return undo(nw.from_native(unnested))
 
     @staticmethod
     def handle_unique(df: DataFrame, transform: UniqueTransform) -> DataFrame:
