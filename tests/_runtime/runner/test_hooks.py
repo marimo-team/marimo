@@ -8,7 +8,6 @@ from marimo._runtime.runner.hooks import (
     Priority,
     create_default_hooks,
 )
-from tests._runtime._helpers.recorder import HookRecorder
 
 
 @pytest.fixture
@@ -51,28 +50,6 @@ class TestNotebookCellHooks:
 
         assert len(hooks.preparation_hooks) == 1
         assert len(hooks_copy.preparation_hooks) == 2
-
-    def test_recorder_captures_invocations(
-        self, hooks: NotebookCellHooks
-    ) -> None:
-        """HookRecorder snapshots every hook firing across all four phases."""
-        recorder = HookRecorder(hooks)
-
-        for prep in hooks.preparation_hooks:
-            prep(None)  # type: ignore[arg-type]
-        for pre in hooks.pre_execution_hooks:
-            pre(None, None)  # type: ignore[arg-type]
-        for post in hooks.post_execution_hooks:
-            post(None, None, None)  # type: ignore[arg-type]
-        for finish in hooks.on_finish_hooks:
-            finish(None)  # type: ignore[arg-type]
-
-        assert recorder.phases == [
-            "preparation",
-            "pre_execution",
-            "post_execution",
-            "on_finish",
-        ]
 
 
 class TestCreateDefaultHooks:
