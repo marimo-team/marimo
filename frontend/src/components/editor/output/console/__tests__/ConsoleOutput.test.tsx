@@ -28,6 +28,7 @@ describe("ConsoleOutput integration", () => {
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
+    interrupted: false,
     debuggerActive: false,
     onSubmitDebugger: () => {
       // noop
@@ -59,6 +60,7 @@ describe("ConsoleOutput pdb history", () => {
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
+    interrupted: false,
     debuggerActive: false,
     onSubmitDebugger: vi.fn(),
   };
@@ -268,6 +270,41 @@ describe("ConsoleOutput pdb history", () => {
     fireEvent.keyDown(input, { key: "ArrowDown" });
     expect(input).toHaveValue("");
   });
+
+  it("should distinguish an interrupted prompt from a bare-Enter submission", () => {
+    // After interrupt, cell.ts coerces pending stdin prompts to response: "".
+    // We must render that case differently from a real bare-Enter response,
+    // so the user isn't told they "submitted" a blank value.
+    const interruptedOutputs: WithResponse<OutputMessage>[] = [
+      stdinPrompt("Press Enter to continue: ", ""),
+    ];
+
+    const { rerender } = renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={interruptedOutputs}
+        interrupted={true}
+      />,
+    );
+
+    // No response chunk should be rendered for an interrupted pending prompt.
+    expect(screen.queryByLabelText("stdin response")).not.toBeInTheDocument();
+
+    // Same outputs, but the cell isn't interrupted -- this is a real
+    // bare-Enter submission, so we should render the (empty) placeholder.
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={interruptedOutputs}
+          interrupted={false}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(screen.getByLabelText("stdin response")).toBeInTheDocument();
+    expect(screen.getByText("(empty)")).toBeInTheDocument();
+  });
 });
 
 describe("ConsoleOutput debounced clearing", () => {
@@ -295,6 +332,7 @@ describe("ConsoleOutput debounced clearing", () => {
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
+    interrupted: false,
     debuggerActive: false,
     onSubmitDebugger: vi.fn(),
   };

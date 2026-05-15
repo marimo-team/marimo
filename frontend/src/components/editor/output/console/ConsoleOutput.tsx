@@ -85,6 +85,7 @@ interface Props {
   className?: string;
   consoleOutputs: WithResponse<OutputMessage>[];
   stale: boolean;
+  interrupted: boolean;
   debuggerActive: boolean;
   onRefactorWithAI?: OnRefactorWithAI;
   onClear?: () => void;
@@ -111,6 +112,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const {
     consoleOutputs: rawConsoleOutputs,
     stale,
+    interrupted,
     cellName,
     cellId,
     onSubmitDebugger,
@@ -280,6 +282,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
                 output={output.data}
                 response={output.response}
                 isPassword={isPassword}
+                interrupted={interrupted}
               />
             );
           }
@@ -382,13 +385,16 @@ const StdInputWithResponse = (props: {
   output: string;
   response?: string;
   isPassword?: boolean;
+  interrupted?: boolean;
 }) => {
-  const { output, response, isPassword } = props;
+  const { output, response, isPassword, interrupted } = props;
   const hasResponse = response != null && response !== "";
+  const wasInterruptedWithoutResponse = interrupted && !hasResponse;
+
   return (
     <div className="flex gap-2 items-center">
       {renderText(output)}
-      {!isPassword && (
+      {!isPassword && !wasInterruptedWithoutResponse && (
         <span
           className="inline-flex items-center gap-1 text-(--sky-11)"
           aria-label="stdin response"
