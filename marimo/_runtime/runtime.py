@@ -1768,9 +1768,21 @@ class Kernel:
         # If cannot compile, don't run
         cell, error = self._try_compiling_cell(SCRATCH_CELL_ID, code, [])
         if error:
+            # Surface the diagnostic on stderr so SSE clients (e.g. the
+            # /api/kernel/execute CLI path) see it — compile errors
+            # never hit ``write_traceback``, so without this the error
+            # only reaches the ``CellNotification`` side channel and
+            # the SSE ``done`` event drops it.
+            CellNotificationUtils.broadcast_console_output(
+                channel=CellChannel.STDERR,
+                mimetype="text/plain",
+                data=error.describe(),
+                cell_id=SCRATCH_CELL_ID,
+                status=None,
+            )
             CellNotificationUtils.broadcast_error(
                 data=[error],
-                clear_console=True,
+                clear_console=False,
                 cell_id=SCRATCH_CELL_ID,
             )
             CellNotificationUtils.broadcast_status(
@@ -2361,12 +2373,18 @@ class Kernel:
                 if request.notebook_cells is not None
                 else None
             )
-            with (
-                notebook_document_context(doc),
-                http_request_context(request.request),
-            ):
-                await self.run_scratchpad(request.code)
-            broadcast_notification(CompletedRunNotification())
+            try:
+                with (
+                    notebook_document_context(doc),
+                    http_request_context(request.request),
+                ):
+                    await self.run_scratchpad(request.code)
+            finally:
+                # Always emit completion so a waiting ``ScratchCellListener``
+                # doesn't block forever if ``run_scratchpad`` raises.
+                broadcast_notification(
+                    CompletedRunNotification(run_id=request.run_id)
+                )
 
         async def handle_execute_stale(
             request: ExecuteStaleCellsCommand,

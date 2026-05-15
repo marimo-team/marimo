@@ -5,17 +5,14 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
 from typing import TYPE_CHECKING, Any, TypedDict
-
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired
-else:
-    from typing import NotRequired
 
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.notification import CellNotification
+from marimo._messaging.notification import (
+    CellNotification,
+    CompletedRunNotification,
+)
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._session.extensions.types import EventAwareExtension
@@ -45,24 +42,21 @@ class OutputData(TypedDict):
     data: str
 
 
-class ErrorData(TypedDict):
-    type: str
-    msg: str
-    exception_type: NotRequired[str]
-
-
 class ConsoleEvent(TypedDict):
     data: str
 
 
-class DoneSuccess(TypedDict):
-    success: bool
-    output: NotRequired[OutputData]
+class Done(TypedDict):
+    """Terminal SSE event for ``/api/kernel/execute``.
 
+    ``success`` drives the CLI exit code. ``output`` is the scratch
+    cell's rendered value on success, or ``{mimetype: "text/plain",
+    data: ""}`` on failure — the actual error detail (traceback, etc.)
+    was already streamed via preceding ``stderr`` events.
+    """
 
-class DoneError(TypedDict):
     success: bool
-    error: ErrorData
+    output: OutputData
 
 
 def _format_sse(event: str, data: Any) -> str:
@@ -83,14 +77,18 @@ class ScratchCellListener(EventAwareExtension):
     In addition to the scratch cell's own output, the listener captures
     console output (stdout/stderr) from *other* cells that execute while
     the scratchpad is active — e.g. cells created and run by
-    ``_code_mode``.  Only the scratch cell's ``idle`` status triggers
-    the done sentinel; non-scratch notifications are streamed but never
-    signal completion.
+    ``_code_mode``.  The done sentinel fires on the
+    ``CompletedRunNotification`` whose ``run_id`` matches this
+    listener's ``run_id`` — other completion events (e.g. from the
+    ``session.instantiate`` that happens before the scratchpad runs, or
+    from concurrent browser activity) are ignored, so we can't
+    misidentify someone else's completion as ours.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, run_id: str) -> None:
         super().__init__()
         self._queue: asyncio.Queue[CellNotification | None] = asyncio.Queue()
+        self._run_id = run_id
         self.timed_out = False
         self.child_error_summaries: list[str] = []
 
@@ -99,13 +97,22 @@ class ScratchCellListener(EventAwareExtension):
     ) -> None:
         del session
         msg = deserialize_kernel_message(notification)
+
+        # Completion sentinel: the ``CompletedRunNotification`` tagged
+        # with OUR run_id means the scratchpad's full cascade (including
+        # any ``state_updates`` flushed after the scratch cell goes
+        # idle) has settled. ``CompletedRun``s with other ids belong to
+        # unrelated commands — skip them.
+        if isinstance(msg, CompletedRunNotification):
+            if msg.run_id == self._run_id:
+                self._queue.put_nowait(None)
+            return
+
         if not isinstance(msg, CellNotification):
             return
 
         if msg.cell_id == SCRATCH_CELL_ID:
             self._queue.put_nowait(msg)
-            if msg.status == "idle":
-                self._queue.put_nowait(None)  # sentinel
         else:
             if msg.console is not None:
                 # Stream console output from cells run by _code_mode
@@ -195,85 +202,39 @@ def _format_console(msg: CellNotification) -> list[str]:
     ]
 
 
+_EMPTY_OUTPUT = OutputData(mimetype="text/plain", data="")
+
+
 def build_done_event(
     session: Session,
     listener: ScratchCellListener | None = None,
 ) -> str:
-    """Build the ``done`` SSE event from the session's scratch cell state."""
+    """Build the terminal ``done`` SSE event.
+
+    ``success`` is false when the scratch cell itself errored OR any
+    downstream cell captured by the listener errored. The actual error
+    detail was already streamed via ``stderr`` events earlier in the
+    response — ``done`` carries only the success bit plus the scratch
+    cell's rendered output on success (empty on failure).
+    """
     cell_notif = session.session_view.cell_notifications.get(SCRATCH_CELL_ID)
-    if cell_notif is None:
-        return _format_sse("done", DoneSuccess(success=True))
+    output = cell_notif.output if cell_notif is not None else None
 
-    output = cell_notif.output
+    scratch_errored = (
+        output is not None and output.channel == CellChannel.MARIMO_ERROR
+    )
+    has_child_errors = bool(listener and listener.child_error_summaries)
+    success = not (scratch_errored or has_child_errors)
 
-    # Error case — scratch cell itself errored
-    if (
-        output is not None
-        and output.channel == CellChannel.MARIMO_ERROR
-        and isinstance(output.data, list)
-        and output.data
-    ):
-        err = output.data[0]
-        error_data = ErrorData(
-            type=type(err).__name__,
-            msg=str(getattr(err, "msg", None) or err),
-        )
-        if hasattr(err, "exception_type"):
-            error_data["exception_type"] = err.exception_type
-            if err.exception_type in (
-                "ModuleNotFoundError",
-                "ImportError",
-            ):
-                error_data["msg"] += (
-                    "\n\nHint: Use ctx.install_packages(...)"
-                    " to install missing packages."
-                )
-        return _format_sse("done", DoneError(success=False, error=error_data))
-
-    # Error case — child cells (created/run by code_mode) errored.
-    # Full traceback was already streamed; msg is just a summary.
-    if listener and listener.child_error_summaries:
-        return _format_sse(
-            "done",
-            DoneError(
-                success=False,
-                error=ErrorData(
-                    type="CellExecutionError",
-                    msg="; ".join(listener.child_error_summaries),
-                ),
-            ),
-        )
-
-    # Success case
-    if output is not None:
+    if success and output is not None and output.channel == CellChannel.OUTPUT:
         data = output.data
         if isinstance(data, dict):
             data = data.get("text/plain", data.get("text/html", str(data)))
-        return _format_sse(
-            "done",
-            DoneSuccess(
-                success=True,
-                output=OutputData(
-                    mimetype=str(output.mimetype), data=str(data)
-                ),
-            ),
-        )
+        output_data = OutputData(mimetype=str(output.mimetype), data=str(data))
+    else:
+        output_data = _EMPTY_OUTPUT
 
-    return _format_sse("done", DoneSuccess(success=True))
-
-
-def build_timeout_event(timeout: float) -> str:
-    """Build a ``done`` SSE event for a timeout."""
-    return _format_sse(
-        "done",
-        DoneError(
-            success=False,
-            error=ErrorData(
-                type="TimeoutError",
-                msg=f"Execution timed out after {timeout}s",
-            ),
-        ),
-    )
+    return _format_sse("done", Done(success=success, output=output_data))
 
 
 def extract_result(
