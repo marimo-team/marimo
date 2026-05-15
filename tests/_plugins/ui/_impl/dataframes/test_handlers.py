@@ -1739,13 +1739,9 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes(
                     {"A": [{"foo": 1, "bar": "hello"}], "B": [1]},
-                    exclude=[
-                        "ibis"
-                    ],  # convert via Polars changes backend type
                 ),
                 create_test_dataframes(
                     {"B": [1], "foo": [1], "bar": ["hello"]},
-                    exclude=["ibis"],
                 ),
                 strict=False,
             )
