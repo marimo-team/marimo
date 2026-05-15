@@ -405,7 +405,7 @@ const VerticalCell = memo(
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
             stale={outputStale}
-            interrupted={false}
+            interrupted={interrupted}
             cellName={name}
             onSubmitDebugger={() => null}
             cellId={cellId}
