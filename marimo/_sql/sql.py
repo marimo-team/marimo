@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from typing import Any, Literal, cast
 
-from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
 from marimo._sql.engines.dbapi import DBAPIConnection, DBAPIEngine
@@ -15,6 +15,7 @@ from marimo._sql.error_utils import MarimoSQLException, is_sql_parse_error
 from marimo._sql.get_engines import SUPPORTED_ENGINES
 from marimo._sql.utils import (
     extract_explain_content,
+    get_configured_sql_output_format,
     is_explain_query,
     raise_df_import_error,
 )
@@ -25,6 +26,46 @@ from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
 def get_default_result_limit() -> int | None:
     limit = os.environ.get("MARIMO_SQL_DEFAULT_LIMIT")
     return int(limit) if limit is not None else None
+
+
+def _default_duckdb_deps() -> list[Dependency]:
+    """Return all deps required to run `mo.sql(query)` with the default DuckDB
+    engine, including the dataframe library used for the configured output
+    format.
+
+    Resolving the dataframe library upfront lets the kernel prompt the user to
+    install everything in a single step, instead of prompting first for
+    duckdb/sqlglot and then again for polars/pandas after the query is parsed.
+    """
+    deps: list[Dependency] = [
+        DependencyManager.duckdb,
+        DependencyManager.sqlglot,
+    ]
+
+    # Mirrors `raise_df_import_error("polars[pyarrow]")` in `marimo/_sql/utils.py`:
+    # polars conversion is much faster when pyarrow is available, so we eagerly
+    # request the extras.
+    polars_with_pyarrow = Dependency(
+        "polars", pkg_name_to_install="polars[pyarrow]"
+    )
+
+    sql_output = get_configured_sql_output_format()
+    if sql_output in ("polars", "lazy-polars"):
+        deps.append(polars_with_pyarrow)
+    elif sql_output == "pandas":
+        deps.append(DependencyManager.pandas)
+    elif sql_output == "auto":
+        # In auto mode either polars or pandas is acceptable; only bundle an
+        # install when neither is already present. Prefer polars[pyarrow] to
+        # mirror the fallback error raised by `convert_to_output`.
+        if (
+            not DependencyManager.polars.has()
+            and not DependencyManager.pandas.has()
+        ):
+            deps.append(polars_with_pyarrow)
+
+    # "native" returns the underlying DuckDB relation and needs no df lib.
+    return deps
 
 
 @mddoc
@@ -63,8 +104,7 @@ def sql(
     if engine is None:
         DependencyManager.require_many(
             "to execute sql",
-            DependencyManager.duckdb,
-            DependencyManager.sqlglot,
+            *_default_duckdb_deps(),
             source="kernel",
         )
         sql_engine = DuckDBEngine(connection=None)

@@ -14,6 +14,7 @@ from marimo._runtime._wasm._duckdb import (
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
+    runtime_context_installed,
 )
 
 if TYPE_CHECKING:
@@ -29,6 +30,24 @@ LOGGER = _loggers.marimo_logger()
 CHEAP_DISCOVERY_DATABASES = ["duckdb", "sqlite", "mysql", "postgresql"]
 # DuckDB SQL can return None for DDL, so keep "patch did not apply" distinct.
 _NO_WASM_DUCKDB_RESULT = object()
+
+
+def get_configured_sql_output_format() -> SqlOutputType:
+    """Read the configured SQL output format from the runtime context.
+
+    Returns "auto" when no runtime context is available (e.g. when `mo.sql(...)`
+    is called outside of a marimo app).
+
+    This is a pure config read with no side effects. Callers that also need to
+    require the corresponding dataframe library should layer validation on top
+    (see `_validate_sql_output_format` in `marimo._sql.engines.types`).
+    """
+    if not runtime_context_installed():
+        return "auto"
+    try:
+        return get_context().app_config.sql_output
+    except ContextNotInitializedError:
+        return "auto"
 
 
 def _try_wasm_duckdb(

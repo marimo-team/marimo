@@ -8,16 +8,12 @@ from typing import Any, Generic, Literal, TypeVar
 from marimo._config.config import SqlOutputType
 from marimo._data.models import Database, DataTable, Schema
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._runtime.context.types import (
-    ContextNotInitializedError,
-    get_context,
-    runtime_context_installed,
-)
 from marimo._sql.parse import (
     format_query_with_globals,
     replace_brackets_with_quotes,
 )
 from marimo._sql.utils import (
+    get_configured_sql_output_format,
     is_query_empty,
     strip_explain_from_error_message,
     wrap_query_with_explain,
@@ -134,13 +130,7 @@ class QueryEngine(BaseEngine[CONN], ABC):
         """Execute a SQL query and return a dataframe."""
 
     def sql_output_format(self) -> SqlOutputType:
-        if runtime_context_installed():
-            try:
-                ctx = get_context()
-                return _validate_sql_output_format(ctx.app_config.sql_output)
-            except ContextNotInitializedError:
-                return "auto"
-        return "auto"
+        return _validate_sql_output_format(get_configured_sql_output_format())
 
     def execute_in_explain_mode(
         self, query: str, globals_dict: dict[str, Any] | None = None

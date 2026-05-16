@@ -10,11 +10,12 @@ import pytest
 from inline_snapshot import snapshot
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._output.formatting import Plain
 from marimo._plugins import ui
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
-from marimo._sql.sql import _query_includes_limit, sql
+from marimo._sql.sql import _default_duckdb_deps, _query_includes_limit, sql
 from marimo._sql.utils import (
     extract_explain_content,
     is_explain_query,
@@ -124,6 +125,146 @@ def test_sql_with_invalid_engine() -> None:
     """Test sql function with invalid engine."""
     with pytest.raises(ValueError, match="Unsupported engine"):
         sql("SELECT 1", engine="invalid")
+
+
+@pytest.fixture
+def fake_dependency_has(monkeypatch: pytest.MonkeyPatch) -> set[str]:
+    """Stub `Dependency.has` so the bundled-deps logic doesn't depend on the
+    test environment having (or not having) duckdb/polars/etc. installed.
+
+    The returned set acts as the "installed packages" registry — add a pkg name
+    to it to make `Dependency(pkg).has()` return True.
+    """
+    from marimo._dependencies.dependencies import Dependency
+
+    installed: set[str] = set()
+
+    def fake(self: Dependency, quiet: bool = False) -> bool:
+        del quiet
+        return self.pkg in installed
+
+    monkeypatch.setattr(Dependency, "has", fake)
+    return installed
+
+
+@pytest.fixture
+def fake_sql_output(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+    """Stub the runtime-context lookup so we can drive `sql_output` without
+    spinning up a kernel.
+
+    We patch the shared util at its definition site so the same fixture
+    transparently controls every call site (the bundled-deps logic in
+    `sql.py`, the engine-level validation in `engines/types.py`, etc.).
+    """
+    current = {"value": "auto"}
+
+    def fake_format() -> str:
+        return current["value"]
+
+    monkeypatch.setattr(
+        "marimo._sql.utils.get_configured_sql_output_format", fake_format
+    )
+    # `sql.py` and `engines/types.py` import the symbol directly, so we also
+    # need to patch the re-bound references they hold.
+    monkeypatch.setattr(
+        "marimo._sql.sql.get_configured_sql_output_format", fake_format
+    )
+    monkeypatch.setattr(
+        "marimo._sql.engines.types.get_configured_sql_output_format",
+        fake_format,
+    )
+    return current
+
+
+@pytest.mark.usefixtures("fake_dependency_has")
+class TestDefaultDuckDBDeps:
+    """Tests that the default-DuckDB path bundles all required installs into a
+    single ManyModulesNotFoundError, so the user only gets prompted once."""
+
+    @staticmethod
+    def _pkg_names(deps: list) -> list[str]:
+        return [dep.pkg_name_to_install for dep in deps]
+
+    def test_auto_bundles_polars_when_no_df_lib_present(
+        self, fake_sql_output: dict[str, str]
+    ) -> None:
+        fake_sql_output["value"] = "auto"
+        assert self._pkg_names(_default_duckdb_deps()) == [
+            "duckdb",
+            "sqlglot",
+            "polars[pyarrow]",
+        ]
+
+    def test_auto_skips_df_lib_when_pandas_already_installed(
+        self,
+        fake_dependency_has: set[str],
+        fake_sql_output: dict[str, str],
+    ) -> None:
+        fake_sql_output["value"] = "auto"
+        fake_dependency_has.add("pandas")
+        assert self._pkg_names(_default_duckdb_deps()) == [
+            "duckdb",
+            "sqlglot",
+        ]
+
+    def test_auto_skips_df_lib_when_polars_already_installed(
+        self,
+        fake_dependency_has: set[str],
+        fake_sql_output: dict[str, str],
+    ) -> None:
+        fake_sql_output["value"] = "auto"
+        fake_dependency_has.add("polars")
+        assert self._pkg_names(_default_duckdb_deps()) == [
+            "duckdb",
+            "sqlglot",
+        ]
+
+    def test_pandas_output_requires_pandas(
+        self, fake_sql_output: dict[str, str]
+    ) -> None:
+        fake_sql_output["value"] = "pandas"
+        assert self._pkg_names(_default_duckdb_deps()) == [
+            "duckdb",
+            "sqlglot",
+            "pandas",
+        ]
+
+    @pytest.mark.parametrize("output", ["polars", "lazy-polars"])
+    def test_polars_outputs_require_polars_pyarrow(
+        self, fake_sql_output: dict[str, str], output: str
+    ) -> None:
+        fake_sql_output["value"] = output
+        assert self._pkg_names(_default_duckdb_deps()) == [
+            "duckdb",
+            "sqlglot",
+            "polars[pyarrow]",
+        ]
+
+    def test_native_output_skips_df_lib(
+        self, fake_sql_output: dict[str, str]
+    ) -> None:
+        fake_sql_output["value"] = "native"
+        assert self._pkg_names(_default_duckdb_deps()) == [
+            "duckdb",
+            "sqlglot",
+        ]
+
+    def test_sql_raises_single_bundled_error_when_all_missing(
+        self, fake_sql_output: dict[str, str]
+    ) -> None:
+        """End-to-end check: with no deps installed and auto output, calling
+        `mo.sql(...)` raises one ManyModulesNotFoundError listing all of
+        duckdb, sqlglot, and polars[pyarrow] at once."""
+        fake_sql_output["value"] = "auto"
+        with pytest.raises(ManyModulesNotFoundError) as excinfo:
+            sql("SELECT 1")
+
+        assert excinfo.value.package_names == [
+            "duckdb",
+            "sqlglot",
+            "polars[pyarrow]",
+        ]
+        assert excinfo.value.source == "kernel"
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
