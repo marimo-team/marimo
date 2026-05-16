@@ -18,14 +18,16 @@ import { assertNever } from "@/utils/assertNever";
 import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
 import { API } from "@/core/network/api";
 
-type AgentTab = "claude" | "codex" | "opencode";
+type AgentTab = "claude" | "codex" | "opencode" | "prompt";
+
+const TERMINAL_TABS = ["claude", "codex", "opencode"] as const;
 
 function getMarimoCommand(): string {
   return import.meta.env.DEV ? "uv run marimo" : "uvx marimo@latest";
 }
 
-function getPromptCommand(
-  agent: AgentTab,
+function getTerminalCommand(
+  agent: Exclude<AgentTab, "prompt">,
   url: string,
   withToken: boolean,
 ): string {
@@ -43,6 +45,21 @@ function getPromptCommand(
   }
 }
 
+function getRawPrompt(url: string, token: string | null): string {
+  const tokenHint = token
+    ? `\n\nUse this auth token when calling \`execute-code.sh\`: \`execute-code.sh --url '${url}' --token '${token}'\`.`
+    : "";
+  return [
+    "Use the /marimo-pair skill to pair-program on a running marimo notebook.",
+    "",
+    `Connect to the notebook at: ${url}`,
+    "",
+    `Use \`execute-code.sh --url ${url}\` from the marimo-pair skill to execute code in the notebook.${tokenHint}`,
+    "",
+    "Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.",
+  ].join("\n");
+}
+
 function maskToken(token: string): string {
   if (token.length <= 4) {
     return "****";
@@ -51,6 +68,13 @@ function maskToken(token: string): string {
 }
 
 const SKILL_INSTALL = "npx skills add marimo-team/marimo-pair";
+
+const AGENT_LABELS: Record<AgentTab, string> = {
+  claude: "Claude",
+  codex: "Codex",
+  opencode: "OpenCode",
+  prompt: "Prompt",
+};
 
 function useAuthToken(): string | null {
   const [token, setToken] = useState<string | null>(null);
@@ -75,10 +99,9 @@ export const PairWithAgentModal: React.FC<{
   const authToken = useAuthToken();
   const hasToken = Boolean(authToken);
   const remoteUrl = runtimeManager.httpURL.toString();
-  const promptCommand = getPromptCommand(activeTab, remoteUrl, hasToken);
 
   return (
-    <DialogContent className="sm:max-w-lg">
+    <DialogContent className="sm:max-w-2xl">
       <DialogHeader>
         <DialogTitle>Pair with an agent</DialogTitle>
         <DialogDescription>
@@ -96,49 +119,71 @@ export const PairWithAgentModal: React.FC<{
       </DialogHeader>
 
       <div className="flex flex-col gap-4 py-2">
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium">1. Install the skill</span>
-          <CommandBlock command={SKILL_INSTALL} />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium">2. Run in your terminal</span>
-          <Tabs
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as AgentTab)}
-          >
-            <TabsList className="w-full">
-              <TabsTrigger value="claude" className="flex-1">
-                Claude
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as AgentTab)}
+        >
+          <TabsList className="w-full">
+            {(["claude", "codex", "opencode", "prompt"] as const).map((tab) => (
+              <TabsTrigger key={tab} value={tab} className="flex-1">
+                {AGENT_LABELS[tab]}
               </TabsTrigger>
-              <TabsTrigger value="codex" className="flex-1">
-                Codex
-              </TabsTrigger>
-              <TabsTrigger value="opencode" className="flex-1">
-                OpenCode
-              </TabsTrigger>
-            </TabsList>
+            ))}
+          </TabsList>
 
-            <TabsContent value="claude" className="mt-3">
-              <CommandBlock command={promptCommand} />
+          {TERMINAL_TABS.map((tab) => (
+            <TabsContent
+              key={tab}
+              value={tab}
+              className="mt-4 flex flex-col gap-4"
+            >
+              <Step
+                index={1}
+                title="Install the skill"
+                hint="Run once per machine."
+              >
+                <CommandBlock command={SKILL_INSTALL} />
+              </Step>
+              <Step index={2} title="Run in your terminal">
+                <CommandBlock
+                  command={getTerminalCommand(tab, remoteUrl, hasToken)}
+                />
+              </Step>
+              {hasToken && authToken && (
+                <Step index={3} title="Paste when prompted for a token">
+                  <CommandBlock
+                    command={authToken}
+                    display={maskToken(authToken)}
+                  />
+                </Step>
+              )}
             </TabsContent>
-            <TabsContent value="codex" className="mt-3">
-              <CommandBlock command={promptCommand} />
-            </TabsContent>
-            <TabsContent value="opencode" className="mt-3">
-              <CommandBlock command={promptCommand} />
-            </TabsContent>
-          </Tabs>
-        </div>
+          ))}
 
-        {hasToken && authToken && (
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">
-              3. Paste when prompted for token
-            </span>
-            <CommandBlock command={authToken} display={maskToken(authToken)} />
-          </div>
-        )}
+          <TabsContent value="prompt" className="mt-4 flex flex-col gap-4">
+            <Step
+              index={1}
+              title="Make sure the marimo-pair skill is available to your agent"
+              hint="Skip if your agent already has it."
+            >
+              <CommandBlock command={SKILL_INSTALL} />
+            </Step>
+            <Step
+              index={2}
+              title="Copy this prompt into your agent"
+              hint={
+                hasToken
+                  ? "Includes your auth token — keep it private."
+                  : undefined
+              }
+            >
+              <CommandBlock
+                command={getRawPrompt(remoteUrl, authToken)}
+                multiline={true}
+              />
+            </Step>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <DialogFooter>
@@ -150,10 +195,28 @@ export const PairWithAgentModal: React.FC<{
   );
 };
 
-const CommandBlock: React.FC<{ command: string; display?: string }> = ({
-  command,
-  display,
-}) => {
+const Step: React.FC<{
+  index: number;
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}> = ({ index, title, hint, children }) => (
+  <div className="flex flex-col gap-2">
+    <div className="flex items-baseline gap-2">
+      <span className="text-sm font-medium">
+        {index}. {title}
+      </span>
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+    </div>
+    {children}
+  </div>
+);
+
+const CommandBlock: React.FC<{
+  command: string;
+  display?: string;
+  multiline?: boolean;
+}> = ({ command, display, multiline = false }) => {
   const [copied, setCopied] = useState(false);
 
   const copy = Events.stopPropagation(async (e) => {
@@ -162,6 +225,30 @@ const CommandBlock: React.FC<{ command: string; display?: string }> = ({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   });
+
+  if (multiline) {
+    return (
+      <div className="relative rounded-md bg-muted">
+        <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words px-3 py-2 pr-10 font-mono text-xs select-all">
+          {display ?? command}
+        </pre>
+        <Tooltip content="Copied!" open={copied}>
+          <Button
+            onClick={copy}
+            size="xs"
+            variant="ghost"
+            className="absolute right-1 top-1"
+          >
+            {copied ? (
+              <CheckIcon size={14} strokeWidth={1.5} />
+            ) : (
+              <CopyIcon size={14} strokeWidth={1.5} />
+            )}
+          </Button>
+        </Tooltip>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 font-mono text-xs">
