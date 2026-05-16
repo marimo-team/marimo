@@ -48,12 +48,8 @@ S = TypeVar("S", bound=msgspec.Struct)
 
 @dataclass
 class MultipartRequest(Generic[S]):
-    """Result of parsing a multipart/form-data request body.
-
-    `files` carries the raw `UploadFile` objects (not yet read) so callers
-    can stream chunks via `.read(size)`. For small payloads, callers can
-    simply `await upload.read()` to materialize the whole body.
-    """
+    """Parsed multipart body. `files` holds un-read `UploadFile` handles
+    so callers can stream large parts instead of buffering."""
 
     body: S
     files: dict[str, UploadFile]
@@ -65,20 +61,14 @@ async def parse_multipart_request(
 ) -> AsyncIterator[MultipartRequest[S]]:
     """Parse a multipart/form-data body into a msgspec.Struct + uploads.
 
-    String form fields are validated against `cls`. File upload parts are
-    yielded as `UploadFile` objects (un-read) in `files`, keyed by
-    form-field name, so callers can stream them to disk instead of buffering.
-
-    Used as an async context manager so the underlying form (and its
-    spooled temp files / fds) are closed automatically when the caller
-    is done — `UploadFile` parts remain readable for the entire body of
-    the `async with` block.
+    Must be used as an async context manager: `UploadFile` parts stay
+    readable for the body of the `async with`, and their spooled temp
+    files are closed on exit.
 
     Raises msgspec.ValidationError if required string fields are missing
     or invalid.
     """
-    # Imported lazily so this module stays import-safe in environments
-    # without starlette (e.g. pyodide).
+    # Lazy import so this module stays import-safe under pyodide.
     from starlette.datastructures import UploadFile
 
     async with request.form() as form:

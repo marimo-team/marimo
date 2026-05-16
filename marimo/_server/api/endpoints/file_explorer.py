@@ -128,8 +128,8 @@ async def create_file_or_directory(
             request, FileCreateMultipartRequest
         ) as parsed:
             upload = parsed.files.get("file")
-            # Stream when there's actual file content; the in-memory create
-            # path still handles directories and the default-template notebook.
+            # Directories and the default-template notebook take the
+            # in-memory path; only real file content streams.
             if upload is not None and parsed.body.type in ("file", "notebook"):
                 info = await file_system.stream_create_file(
                     parsed.body.path, parsed.body.name, upload
@@ -141,8 +141,6 @@ async def create_file_or_directory(
         return FileCreateResponse(success=True, info=info)
     except UploadTooLargeError as e:
         LOGGER.warning(f"Rejected oversize upload: {e}")
-        # 413 is the standard "payload too large" response; surface it
-        # explicitly rather than burying it in a 200 + success=False.
         raise HTTPException(status_code=413, detail=str(e)) from e
     except Exception as e:
         LOGGER.error(f"Error creating file or directory: {e}")

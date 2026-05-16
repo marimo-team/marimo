@@ -72,11 +72,8 @@ class FileCreateMultipartRequest(msgspec.Struct, rename="camel"):
     type: FileCreateType
     # The name of the file or directory
     name: str
-    # The raw file bytes (optional). When omitted, an empty file is created
-    # (or, for 'notebook' type, a default notebook template).
-    # NOTE: this field is OpenAPI-only — see class docstring. The
-    # ``format: binary`` annotation makes the generated spec emit a proper
-    # file-upload schema rather than a base64 string.
+    # OpenAPI-only (see class docstring). `format: binary` makes the
+    # generated spec emit a file-upload schema rather than a base64 string.
     file: Annotated[
         str | None, msgspec.Meta(extra_json_schema={"format": "binary"})
     ] = None

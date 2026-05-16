@@ -136,11 +136,8 @@ def test_create_rejects_path_traversal(
 
 
 class _ChunkedSource:
-    """Minimal async byte source emitting predetermined chunks.
-
-    If ``fail_after`` is set, raises ``RuntimeError`` after that many reads
-    have returned data — useful for simulating mid-stream upload failures.
-    """
+    """Async byte source emitting predetermined chunks; optionally raises
+    after `fail_after` reads to simulate mid-stream failures."""
 
     def __init__(
         self, chunks: list[bytes], *, fail_after: int | None = None
@@ -154,7 +151,6 @@ class _ChunkedSource:
             raise RuntimeError("stream failed")
         if not self._chunks:
             return b""
-        # Honor size by returning the next chunk if it fits, else slicing.
         chunk = self._chunks[0]
         if size < 0 or len(chunk) <= size:
             out = self._chunks.pop(0)
@@ -225,7 +221,6 @@ async def test_stream_create_file_rejects_traversal(
         await fs.stream_create_file(
             str(test_dir), name, _ChunkedSource([b"x"])
         )
-    # Nothing should have been written into the parent or test_dir.
     assert not (test_dir.parent / "escape.bin").exists()
     assert _part_files(test_dir) == []
 
@@ -243,8 +238,7 @@ async def test_stream_create_file_cleans_up_on_immediate_failure(
 async def test_stream_create_file_cleans_up_on_mid_stream_failure(
     test_dir: Path, fs: OSFileSystem
 ) -> None:
-    # The realistic case: a few chunks already written when the source
-    # raises (network drop, client disconnect, etc).
+    # Source fails after writes have already landed in the .part file.
     source = _ChunkedSource([b"first ", b"second ", b"third"], fail_after=2)
     with pytest.raises(RuntimeError):
         await fs.stream_create_file(str(test_dir), "partial.bin", source)
@@ -260,7 +254,6 @@ async def test_stream_create_file_enforces_size_cap(
         "marimo._server.files.os_file_system.MAX_UPLOAD_BYTES", 8
     )
     source = _ChunkedSource([b"aaaa", b"bbbb", b"too much"])
-    # Raises the specific subclass so the endpoint can map it to a 413.
     with pytest.raises(UploadTooLargeError, match="exceeds maximum size"):
         await fs.stream_create_file(str(test_dir), "big.bin", source)
     assert not (test_dir / "big.bin").exists()
@@ -270,9 +263,8 @@ async def test_stream_create_file_enforces_size_cap(
 async def test_stream_create_file_claims_path_atomically(
     test_dir: Path, fs: OSFileSystem
 ) -> None:
-    # Simulate the TOCTOU race: a concurrent caller creates the same name
-    # while we're streaming. With atomic O_CREAT|O_EXCL reservation we
-    # must NOT overwrite the concurrent file.
+    # Concurrent file at the target name must not be clobbered by the
+    # streaming write — the atomic claim should bump to a new suffix.
     (test_dir / "race.bin").write_bytes(b"existing")
     info = await fs.stream_create_file(
         str(test_dir), "race.bin", _ChunkedSource([b"new"])
@@ -283,11 +275,11 @@ async def test_stream_create_file_claims_path_atomically(
 
 
 def test_claim_unique_path_atomic_reservation(test_dir: Path) -> None:
-    # First claim takes the bare name and reserves an empty file.
     claimed_a = _claim_unique_path(test_dir / "claim.bin")
     assert claimed_a == test_dir / "claim.bin"
     assert claimed_a.exists()
-    # Second claim must NOT reuse the reserved path, even though it's empty.
+    # An existing (even empty) reservation forces the next caller off the
+    # base name — this is what closes the TOCTOU window.
     claimed_b = _claim_unique_path(test_dir / "claim.bin")
     assert claimed_b == test_dir / "claim_1.bin"
     assert claimed_b.exists()

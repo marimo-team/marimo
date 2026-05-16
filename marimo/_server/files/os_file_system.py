@@ -56,11 +56,7 @@ class UploadTooLargeError(ValueError):
 
 
 class AsyncByteSource(Protocol):
-    """Anything that can be drained chunk-by-chunk into a file.
-
-    Starlette's `UploadFile` satisfies this; so does any object exposing
-    an async `read(size)` returning bytes.
-    """
+    """Structural type for things like Starlette's `UploadFile`."""
 
     async def read(self, size: int = -1, /) -> bytes: ...
 
@@ -237,13 +233,10 @@ class OSFileSystem(FileSystem):
         parent = Path(path)
         os.makedirs(parent, exist_ok=True)
 
-        # Atomically claim the destination with O_CREAT|O_EXCL so concurrent
-        # uploads can't both pick the same numbered suffix and clobber each
-        # other between `_generate_unique_path` and the final rename.
+        # Atomic O_CREAT|O_EXCL reservation closes the TOCTOU window between
+        # picking a unique name and writing to it.
         full_path = _claim_unique_path(parent / name)
 
-        # `NamedTemporaryFile` gives us a guaranteed-unique sibling path for
-        # the in-progress `.part` file (same reasoning as above).
         tmp = tempfile.NamedTemporaryFile(
             dir=full_path.parent,
             prefix=full_path.name + ".",
@@ -252,9 +245,8 @@ class OSFileSystem(FileSystem):
         )
         tmp_path = tmp.name
         try:
-            # Sync writes are bounded to ~1 MiB per chunk, with an `await`
-            # in between; event loop blockage is brief and an async file
-            # library would only add a dependency for marginal gain.
+            # Sync writes are bounded to one chunk between awaits, so event
+            # loop blockage stays small without pulling in aiofiles.
             written = 0
             with tmp:
                 while chunk := await source.read(_STREAM_CHUNK_SIZE):
@@ -265,13 +257,10 @@ class OSFileSystem(FileSystem):
                             f"{MAX_UPLOAD_BYTES} bytes"
                         )
                     tmp.write(chunk)
-            # Replaces our empty marker at `full_path`. Atomic on POSIX
-            # and Windows (Python 3.3+).
             os.replace(tmp_path, full_path)
         except BaseException:
-            # Clean up both the `.part` and the reserved empty marker.
-            # If `os.replace` already succeeded, the marker is gone and
-            # `FileNotFoundError` is the expected outcome there.
+            # Both paths may or may not exist depending on where we failed;
+            # FileNotFoundError on either is expected.
             for p in (tmp_path, str(full_path)):
                 try:
                     os.unlink(p)
@@ -279,9 +268,8 @@ class OSFileSystem(FileSystem):
                     pass
             raise
 
-        # Use the metadata-only helper: `get_details` would re-read the
-        # file contents (and base64-encode binary), defeating the point of
-        # streaming for large uploads.
+        # `get_details` would re-read the file (and base64-encode binary),
+        # defeating the streaming win.
         return self._get_file_info(str(full_path))
 
     def delete_file_or_directory(self, path: str) -> bool:
@@ -578,13 +566,9 @@ def _generate_unique_path(new_path: str | Path) -> Path:
 
 
 def _claim_unique_path(target: Path) -> Path:
-    """Like `_generate_unique_path`, but atomically reserves the chosen name.
-
-    Opens with O_CREAT|O_EXCL so two concurrent callers can never end up
-    with the same path — whichever loses the race sees `FileExistsError`
-    and tries the next numbered suffix. Returns the claimed path (an empty
-    file at that location); the caller is responsible for writing into it
-    (or replacing it).
+    """Race-safe variant of `_generate_unique_path`: opens with O_EXCL and
+    walks numbered suffixes on collision. Returns an empty file at the
+    claimed path; the caller writes into or replaces it.
     """
     name_without_extension = target.stem
     extension = target.suffix

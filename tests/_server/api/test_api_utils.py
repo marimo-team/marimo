@@ -51,7 +51,6 @@ def test_parse_multipart_request_strings_and_file_upload() -> None:
     files = captured["files"]
     assert isinstance(files, dict)
     assert set(files.keys()) == {"upload"}
-    # File handle is returned un-read; bytes loaded inside the endpoint above.
     assert captured["upload_bytes"] == b"\x00\x01\x02\xff"
 
 
