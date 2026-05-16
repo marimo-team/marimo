@@ -169,4 +169,12 @@ describe("replaceVirtualFileSrc - virtual file URL rewriting", () => {
     const img = container.querySelector("img");
     expect(img?.getAttribute("src")).toBe("data:image/png;base64,abc==");
   });
+  test("does not rewrite external URL containing /@file/ in path", () => {
+    const html = '<img src="https://cdn.example.com/assets/@file/photo.jpg" alt="test">';
+    const { container } = render(
+      renderHTML({ html, alwaysSanitizeHtml: false }),
+    );
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("src")).toBe("https://cdn.example.com/assets/@file/photo.jpg");
+  });
 });

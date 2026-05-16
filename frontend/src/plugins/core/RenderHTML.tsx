@@ -60,7 +60,7 @@ const replaceVirtualFileSrc = (domNode: DOMNode): JSX.Element | undefined => {
     domNode.attribs?.src
   ) {
     const src = domNode.attribs.src;
-    if (src.includes("/@file/") || src.startsWith("@file/")) {
+    if (src.startsWith("./@file/") || src.startsWith("@file/")) {
       const absoluteSrc = resolveVirtualFileUrl(src);
       domNode.attribs.src = absoluteSrc;
       return undefined;
@@ -125,7 +125,7 @@ const replaceValidIframes = (domNode: DOMNode) => {
       // Rewrite relative @file URLs to absolute (same fix as replaceVirtualFileSrc)
       if (
         key === "src" &&
-        (value.includes("/@file/") || value.startsWith("@file/"))
+        (value.startsWith("./@file/") || value.startsWith("@file/"))
       ) {
         value = resolveVirtualFileUrl(value);
       }
