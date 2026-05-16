@@ -58,7 +58,13 @@ class FileCreateRequest(msgspec.Struct, rename="camel"):
 
 
 class FileCreateMultipartRequest(msgspec.Struct, rename="camel"):
-    """multipart/form-data body for POST /api/files/create."""
+    """multipart/form-data body for POST /api/files/create.
+
+    Schema-only: this struct exists to describe the multipart shape in
+    OpenAPI. At runtime, the endpoint reads the string fields from
+    ``MultipartRequest.body`` and the uploaded bytes from
+    ``MultipartRequest.files["file"]`` — ``body.file`` is never populated.
+    """
 
     # The path where to create the file or directory
     path: str
@@ -66,8 +72,8 @@ class FileCreateMultipartRequest(msgspec.Struct, rename="camel"):
     type: FileCreateType
     # The name of the file or directory
     name: str
-    # The raw file bytes (optional). When omitted, an empty file is created
-    # (or, for 'notebook' type, a default notebook template).
+    # OpenAPI-only (see class docstring). `format: binary` makes the
+    # generated spec emit a file-upload schema rather than a base64 string.
     file: Annotated[
         str | None, msgspec.Meta(extra_json_schema={"format": "binary"})
     ] = None
