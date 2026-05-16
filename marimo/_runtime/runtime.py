@@ -3753,9 +3753,9 @@ def launch_kernel(
     parent_pid: int | None = None,
 ) -> None:
     from marimo._runtime.kernel_lifecycle import (
-        create_kernel,
+        KernelArgs,
+        kernel_session,
         listen_messages,
-        teardown_kernel,
         threaded_queue_reader,
     )
 
@@ -3780,50 +3780,50 @@ def launch_kernel(
         if streams is None:
             return
 
-        kernel, ctx = create_kernel(
-            stream=streams.stream,
-            stdout=streams.stdout,
-            stderr=streams.stderr,
-            stdin=streams.stdin,
-            debugger=streams.debugger,
-            configs=configs,
-            app_metadata=app_metadata,
-            user_config=user_config,
-            is_edit_mode=is_edit_mode,
-            control_queue=control_queue,
-            set_ui_element_queue=set_ui_element_queue,
-            virtual_file_storage=virtual_file_storage,
-            mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
-            print_override_fn=print_override,
-        )
-
-        if is_edit_mode:
-            # completions only provided in edit mode
-            kernel.start_completion_worker(completion_queue)
-
-        if is_subprocess:
-            # Read theme from kernel.user_config — create_kernel may have
-            # mutated it for run mode (autorun + auto_reload off).
-            _install_subprocess_handlers(
-                kernel, ctx, kernel.user_config, interrupt_queue
+        with kernel_session(
+            KernelArgs(
+                stream=streams.stream,
+                stdout=streams.stdout,
+                stderr=streams.stderr,
+                stdin=streams.stdin,
+                debugger=streams.debugger,
+                configs=configs,
+                app_metadata=app_metadata,
+                user_config=user_config,
+                mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
+                control_queue=control_queue,
+                set_ui_element_queue=set_ui_element_queue,
+                virtual_file_storage=virtual_file_storage,
+                print_override_fn=print_override,
             )
+        ) as (kernel, ctx):
+            if is_edit_mode:
+                # completions only provided in edit mode
+                kernel.start_completion_worker(completion_queue)
 
-        # The control loop is asynchronous so that (a) user code can use
-        # top-level await, and (b) background asyncio tasks created by user
-        # code (via create_task / ensure_future) are not starved by a
-        # blocking queue.get().  The queue read is offloaded to a thread via
-        # run_in_executor; avoid adding further async primitives elsewhere
-        # in the runtime unless there is a very good reason.
-        coro = listen_messages(
-            kernel,
-            control_queue,
-            set_ui_element_queue,
-            threaded_queue_reader,
-        )
-        if loop_factory is not None:
-            asyncio.run(coro, loop_factory=loop_factory)
-        else:
-            asyncio.run(coro)
+            if is_subprocess:
+                # Read theme from kernel.user_config — create_kernel may have
+                # mutated it for run mode (autorun + auto_reload off).
+                _install_subprocess_handlers(
+                    kernel, ctx, kernel.user_config, interrupt_queue
+                )
 
-        teardown_kernel(kernel, ctx)
+            # The control loop is asynchronous so that (a) user code can use
+            # top-level await, and (b) background asyncio tasks created by
+            # user code (via create_task / ensure_future) are not starved by
+            # a blocking queue.get().  The queue read is offloaded to a
+            # thread via run_in_executor; avoid adding further async
+            # primitives elsewhere in the runtime unless there is a very
+            # good reason.
+            coro = listen_messages(
+                kernel,
+                control_queue,
+                set_ui_element_queue,
+                threaded_queue_reader,
+            )
+            if loop_factory is not None:
+                asyncio.run(coro, loop_factory=loop_factory)
+            else:
+                asyncio.run(coro)
+
         streams.close(use_fd_redirect)

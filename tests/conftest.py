@@ -5,7 +5,6 @@ import contextlib
 import dataclasses
 import functools
 import inspect
-import re
 import shutil
 import sys
 import textwrap
@@ -17,44 +16,33 @@ import pytest
 from _pytest import runner
 
 from marimo._ast.app import App
-from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell_manager import CellManager
-from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.mimetypes import ConsoleMimeType
-from marimo._messaging.notification import (
-    CellNotification,
-    NotificationMessage,
-)
-from marimo._messaging.print_override import print_override
-from marimo._messaging.serde import deserialize_kernel_message
-from marimo._messaging.streams import (
-    ThreadSafeStderr,
-    ThreadSafeStdin,
-    ThreadSafeStdout,
-    ThreadSafeStream,
-)
-from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
-from marimo._runtime import patches
-from marimo._runtime.commands import AppMetadata, ExecuteCellCommand
-from marimo._runtime.context import teardown_context
-from marimo._runtime.context.kernel_context import initialize_kernel_context
-from marimo._runtime.input_override import input_override
-from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._runtime.runner.hooks import create_default_hooks
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.commands import ExecuteCellCommand
 from marimo._save.stubs.module_stub import ModuleStub
 from marimo._server.utils import initialize_mimetypes
 from marimo._session.model import SessionMode
 from marimo._session.state.session_view import SessionView
 from marimo._types.ids import CellId_t
+from tests._runtime._helpers.session import TestKernel, mocked_kernel_session
+from tests._runtime._helpers.streams import (
+    MockStderr,
+    MockStdin,
+    MockStdout,
+    MockStream,
+)
+
+# Back-compat alias: tests/_runtime/test_redirect_streams.py still imports this.
+_MockStream = MockStream
 
 if TYPE_CHECKING:
     from collections.abc import Generator
     from types import ModuleType
 
     from typing_extensions import Self
+
+    from marimo._runtime.runtime import Kernel
 
 # register import hooks for third-party module formatters
 register_formatters()
@@ -265,178 +253,71 @@ def patch_random_seed(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @dataclasses.dataclass
-class _MockStream(ThreadSafeStream):
-    """Captures the ops sent through the stream"""
-
-    cell_id: int | None = None
-    input_queue: None = None
-    pipe: None = None
-    redirect_console: bool = False
-
-    messages: list[KernelMessage] = dataclasses.field(default_factory=list)
-
-    def write(self, data: KernelMessage) -> None:
-        self.messages.append(data)
-        # Attempt to deserialize the message to ensure it is valid
-        deserialize_kernel_message(data)
-
-    @property
-    def operations(self) -> list[NotificationMessage]:
-        return [
-            deserialize_kernel_message(op_data) for op_data in self.messages
-        ]
-
-    @property
-    def cell_notifications(self) -> list[CellNotification]:
-        return [
-            op for op in self.operations if isinstance(op, CellNotification)
-        ]
-
-
-class MockStdout(ThreadSafeStdout):
-    """Captures the output sent through the stream"""
-
-    def __init__(self, stream: _MockStream) -> None:
-        super().__init__(stream)
-        self.messages: list[str] = []
-
-    def _write_with_mimetype(
-        self, data: str, mimetype: ConsoleMimeType
-    ) -> int:
-        del mimetype
-        self.messages.append(data)
-        return len(data)
-
-    def __repr__(self) -> str:
-        return "".join(self.messages)
-
-
-class MockStderr(ThreadSafeStderr):
-    """Captures the output sent through the stream"""
-
-    messages: list[str] = dataclasses.field(default_factory=list)
-
-    def __init__(self, stream: _MockStream) -> None:
-        super().__init__(stream)
-        self.messages: list[str] = []
-
-    def _write_with_mimetype(
-        self, data: str, mimetype: ConsoleMimeType
-    ) -> int:
-        del mimetype
-        self.messages.append(data)
-        return len(data)
-
-    def __repr__(self) -> str:
-        # Error messages are commonly formatted for output in HTML
-        return re.sub(r"<.*?>", "", "".join(self.messages))
-
-
-class MockStdin(ThreadSafeStdin):
-    """Echoes the prompt."""
-
-    def __init__(self, stream: _MockStream) -> None:
-        super().__init__(stream)
-        self.messages: list[str] = []
-
-    def _readline_with_prompt(
-        self, prompt: str = "", password: bool = False
-    ) -> str:
-        del password
-        return prompt
-
-
-@dataclasses.dataclass
 class MockedKernel:
-    """Should only be created in fixtures b/c inits a runtime context"""
+    """Should only be created in fixtures b/c inits a runtime context."""
 
-    stream: _MockStream = dataclasses.field(default_factory=_MockStream)
-    session_mode: SessionMode = SessionMode.EDIT
+    _tk: TestKernel
+    _cm: contextlib.AbstractContextManager[TestKernel]
 
-    def __post_init__(self) -> None:
-        self.stdout = MockStdout(self.stream)
-        self.stderr = MockStderr(self.stream)
-        self.stdin = MockStdin(self.stream)
-        self._main = sys.modules["__main__"]
-        module = patches.patch_main_module(
-            file=None,
-            input_override=input_override,
-            print_override=print_override,
-        )
+    @classmethod
+    def open(cls, **kwargs: Any) -> MockedKernel:
+        cm = mocked_kernel_session(**kwargs)
+        tk = cm.__enter__()
+        return cls(_tk=tk, _cm=cm)
 
-        self.k = Kernel(
-            stream=self.stream,
-            stdout=self.stdout,
-            stderr=self.stderr,
-            stdin=self.stdin,
-            cell_configs={},
-            user_config=DEFAULT_CONFIG,
-            app_metadata=AppMetadata(
-                query_params={},
-                filename=None,
-                cli_args={},
-                argv=None,
-                app_config=_AppConfig(),
-            ),
-            debugger_override=MarimoPdb(stdout=self.stdout, stdin=self.stdin),
-            enqueue_control_request=lambda _: None,
-            module=module,
-            hooks=create_default_hooks(),
-        )
+    @property
+    def k(self) -> Kernel:
+        return self._tk.kernel
 
-        initialize_kernel_context(
-            kernel=self.k,
-            stream=self.stream,  # type: ignore
-            stdout=self.stdout,  # type: ignore
-            stderr=self.stderr,  # type: ignore
-            virtual_file_storage=(
-                "shared_memory"
-                if self.session_mode == SessionMode.EDIT
-                else "in_memory"
-            ),
-            mode=self.session_mode,
-        )
+    @property
+    def stream(self) -> MockStream:
+        return self._tk.stream
+
+    @property
+    def stdout(self) -> MockStdout:
+        return self._tk.stdout
+
+    @property
+    def stderr(self) -> MockStderr:
+        return self._tk.stderr
+
+    @property
+    def stdin(self) -> MockStdin:
+        return self._tk.stdin
 
     def teardown(self) -> None:
-        # must be called by fixtures that instantiate this
-        teardown_context()
-        self.stdout._watcher.stop()
-        self.stderr._watcher.stop()
-        if self.k.module_watcher is not None:
-            self.k.module_watcher.stop()
-        sys.modules["__main__"] = self._main
+        self._cm.__exit__(None, None, None)
 
 
 # fixture that provides a kernel (and tears it down)
 @pytest.fixture
 def k() -> Generator[Kernel, None, None]:
-    mocked = MockedKernel()
-    yield mocked.k
-    mocked.teardown()
+    with mocked_kernel_session() as tk:
+        yield tk.kernel
 
 
 # kernel configured with runtime=lazy
 @pytest.fixture
-def lazy_kernel(k: Kernel) -> Kernel:
-    k.execution_type = "relaxed"
-    k.reactive_execution_mode = "lazy"
-    return k
+def lazy_kernel() -> Generator[Kernel, None, None]:
+    with mocked_kernel_session(
+        execution_type="relaxed", reactive_mode="lazy"
+    ) as tk:
+        yield tk.kernel
 
 
 # kernel configured with strict execution
 @pytest.fixture
 def strict_kernel() -> Generator[Kernel, None, None]:
-    mocked = MockedKernel()
-    mocked.k.execution_type = "strict"
-    mocked.k.reactive_execution_mode = "autorun"
-    yield mocked.k
-    mocked.teardown()
+    with mocked_kernel_session(
+        execution_type="strict", reactive_mode="autorun"
+    ) as tk:
+        yield tk.kernel
 
 
 # kernel configured in SessionMode.RUN mode
 @pytest.fixture
 def run_mode_kernel() -> Generator[MockedKernel, None, None]:
-    mocked = MockedKernel(session_mode=SessionMode.RUN)
+    mocked = MockedKernel.open(mode=SessionMode.RUN)
     yield mocked
     mocked.teardown()
 
@@ -454,7 +335,7 @@ def any_kernel(request: Any) -> Kernel:
 # fixture that wraps a kernel and other mocked objects
 @pytest.fixture
 def mocked_kernel() -> Generator[MockedKernel, None, None]:
-    mocked = MockedKernel()
+    mocked = MockedKernel.open()
     yield mocked
     mocked.teardown()
 
@@ -462,7 +343,7 @@ def mocked_kernel() -> Generator[MockedKernel, None, None]:
 # Installs an execution context without stream redirection
 @pytest.fixture
 def executing_kernel() -> Generator[Kernel, None, None]:
-    mocked = MockedKernel()
+    mocked = MockedKernel.open()
     mocked.k.stdout = None
     mocked.k.stderr = None
     mocked.k.stdin = None
