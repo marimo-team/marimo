@@ -445,7 +445,7 @@ def _launch_pyodide_kernel(
         teardown_kernel,
     )
 
-    register_formatters()
+    register_formatters(theme=user_config["display"]["theme"])
     LOGGER.debug("Launching pyodide kernel")
 
     # Patches for pyodide compatibility
