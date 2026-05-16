@@ -106,7 +106,7 @@ async def test_cancel_and_wait_swallows_cancelled_error() -> None:
     task = asyncio.create_task(sleeper())
     await asyncio.sleep(0)
     await cancel_and_wait(task)
-    assert task.cancelled() or task.done()
+    assert task.cancelled()
 
 
 async def test_cancel_and_wait_preserves_exception_on_done_task() -> None:

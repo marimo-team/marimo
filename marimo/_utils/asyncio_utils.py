@@ -58,9 +58,13 @@ def supervised_task(
     """Schedule ``coro`` with a strong reference and exception logging.
 
     Intended for fire-and-forget or shutdown-cancelled background tasks.
-    A done-callback logs every non-cancellation exception at error
-    level; if you plan to ``await`` the task and handle its errors
-    yourself, prefer plain ``asyncio.create_task`` to avoid noisy logs.
+    A done-callback logs every non-cancellation exception at error level.
+
+    **Do not use this for tasks you plan to ``await``.** The done-callback
+    logs the exception even if the awaiter also handles it, producing
+    duplicate logs. For awaited tasks, prefer plain ``asyncio.create_task``
+    — or pass ``on_exception=lambda _: None`` to opt out of logging while
+    still benefiting from the strong-ref ``registry`` tracking.
 
     Args:
         coro: The coroutine to schedule.

@@ -117,32 +117,34 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
             LOGGER.warning(f"Failed to connect MCP servers: {e}")
             return None
 
+    # ``background_connect_mcp_servers`` swallows its own errors, so the
+    # supervisor's logging callback would never fire — but suppress it
+    # explicitly to make the contract obvious (this task is awaited).
     task = supervised_task(
         background_connect_mcp_servers(),
         name="mcp.connect",
         registry=background_tasks,
+        on_exception=lambda _exc: None,
     )
 
     yield
 
-    if not task.done():
-        await cancel_and_wait(task)
-        return
-
-    # ``task.result()`` re-raises CancelledError (which is a BaseException
-    # on 3.11+ and not caught by ``except Exception``). Short-circuit if
-    # the loop cancelled the task before we got here.
+    # No-op if the task already completed normally; otherwise cancel and
+    # await. After this returns, ``task.done()`` is True.
+    await cancel_and_wait(task)
     if task.cancelled():
         return
 
+    mcp_client = task.result()
+    if not mcp_client:
+        return
+
     try:
-        mcp_client = task.result()
-        if mcp_client:
-            LOGGER.info("Disconnecting from all MCP servers")
-            await mcp_client.disconnect_from_all_servers()
-            LOGGER.info("Successfully disconnected from all MCP servers")
+        LOGGER.info("Disconnecting from all MCP servers")
+        await mcp_client.disconnect_from_all_servers()
+        LOGGER.info("Successfully disconnected from all MCP servers")
     except Exception as e:
-        LOGGER.error(f"Error during MCP cleanup: {e}")
+        LOGGER.error(f"Error during MCP disconnect: {e}")
 
 
 @contextlib.asynccontextmanager
