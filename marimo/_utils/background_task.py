@@ -97,45 +97,35 @@ class AsyncBackgroundTask(ABC):
         """
         Synchronous version of stop that can be called from non-async code.
         """
-        # Nothing to drive shutdown for.
         if self.task is None or self.task.done():
             self.running = False
             return
 
-        # Reuse the task's own loop — spinning up a fresh one with
-        # ``asyncio.run`` would error on "future attached to a different
-        # event loop" the moment we awaited the existing task.
+        # Reuse the task's loop — a fresh loop via ``asyncio.run`` would
+        # error with "future attached to a different event loop".
         task_loop = self.task.get_loop()
 
-        # If we're being called from inside the task's own loop thread
-        # (e.g. via ``run_in_executor`` or directly from async code), we
-        # can't block — calling ``future.result()`` here would deadlock
-        # the loop. Fall back to cooperative shutdown.
         try:
             on_task_thread = asyncio.get_running_loop() is task_loop
         except RuntimeError:
             on_task_thread = False
 
         if on_task_thread:
+            # Blocking here would deadlock our own loop; signal cooperative
+            # shutdown and return.
             self.running = False
             return
 
         if task_loop.is_running():
-            # Task is on another thread's loop. Dispatch the stop
-            # coroutine there and block until it completes (honoring
-            # ``timeout``).
             future = asyncio.run_coroutine_threadsafe(
                 self.stop(timeout), task_loop
             )
             try:
                 future.result(timeout=timeout)
             except concurrent.futures.TimeoutError:
-                # Best-effort: ``stop()`` already cancels the task on
-                # its own timeout; flag cooperative shutdown too.
                 self.running = False
             return
 
-        # Loop exists but isn't running anywhere: drive it directly.
         task_loop.run_until_complete(self.stop(timeout))
 
     async def wait_for_startup(self, timeout: float | None = None) -> None:

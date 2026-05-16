@@ -117,9 +117,7 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
             LOGGER.warning(f"Failed to connect MCP servers: {e}")
             return None
 
-    # ``background_connect_mcp_servers`` swallows its own errors, so the
-    # supervisor's logging callback would never fire — but suppress it
-    # explicitly to make the contract obvious (this task is awaited).
+    # Awaited below — opt out of supervisor logging to avoid duplicate logs.
     task = supervised_task(
         background_connect_mcp_servers(),
         name="mcp.connect",
@@ -129,8 +127,6 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
 
     yield
 
-    # No-op if the task already completed normally; otherwise cancel and
-    # await. After this returns, ``task.done()`` is True.
     await cancel_and_wait(task)
     if task.cancelled():
         return

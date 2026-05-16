@@ -146,8 +146,7 @@ class HeartbeatExtension(SessionExtension):
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            # This can happen if there is no event loop running (tests,
-            # scripts), in which case there is no heartbeat to schedule.
+            # No loop (tests, scripts) — nothing to schedule against.
             self.heartbeat_task = None
             return
         self.heartbeat_task = loop.create_task(_heartbeat())

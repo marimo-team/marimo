@@ -36,9 +36,8 @@ class Lifespans(Generic[T]):
         app: T,
         lifespans: LifespanList[T],
     ) -> AsyncIterator[None]:
-        # Don't swallow CancelledError here — the ASGI server relies on
-        # cancellation to drive graceful shutdown of the lifespan chain.
-        # Each lifespan's own ``finally`` blocks run via the exit stack.
+        # Don't swallow CancelledError — the ASGI server uses cancellation
+        # to drive graceful shutdown of the lifespan chain.
         exit_stack = contextlib.AsyncExitStack()
         async with exit_stack:
             for lifespan in lifespans:

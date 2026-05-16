@@ -25,18 +25,12 @@ LOGGER = _loggers.marimo_logger()
 
 T = TypeVar("T")
 
-# Module-level registry for fire_and_forget. The event loop holds only
-# weak references to tasks; without a strong reference here the task can
-# be garbage-collected mid-flight. The done-callback discards on
-# completion, so this never grows unbounded under normal use.
+# Strong refs for fire_and_forget tasks; the loop only holds weak refs,
+# so without this the task can be GC'd mid-flight.
 _BACKGROUND_TASKS: set[asyncio.Task[Any]] = set()
 
 
 def _log_task_exception(task: asyncio.Task[Any]) -> None:
-    # Done-callback: logs every non-cancellation exception. Awaiters
-    # of the task will still see the exception via ``await`` (this
-    # callback only runs after the task is already done); awaited tasks
-    # that handle their own errors should not use ``supervised_task``.
     if task.cancelled():
         return
     exc = task.exception()
@@ -120,11 +114,10 @@ def fire_and_forget(
 ) -> asyncio.Task[Any] | None:
     """Schedule ``coro`` on the running loop; caller will not await it.
 
-    If called from a thread with no running loop (tests, scripts), runs
-    the coroutine to completion synchronously via ``asyncio.run`` and
-    returns ``None``. The platform asyncio policy is initialized first
-    so the loop created here matches the one used elsewhere in marimo
-    (matters on Windows, where ``add_reader`` requires the selector loop).
+    Falls back to a synchronous ``asyncio.run`` (returning ``None``) when
+    no loop is running. The platform policy is initialized first so the
+    fallback loop matches the selector-loop policy marimo relies on
+    elsewhere (required on Windows for ``add_reader``).
     """
     try:
         asyncio.get_running_loop()
@@ -146,7 +139,7 @@ async def cancel_and_wait(task: asyncio.Task[Any]) -> None:
     """
     if task.done():
         if not task.cancelled():
-            # task.exception() flags the exception as retrieved.
+            # Flag the exception as retrieved to silence the loop warning.
             task.exception()
         return
     task.cancel()
