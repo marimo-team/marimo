@@ -47,6 +47,9 @@ import {
   NUMBER_COMPARISON_OPS,
   type NumberComparisonOp,
   NUMBER_OPS,
+  TEXT_OPS,
+  TEXT_SCALAR_OPS,
+  type TextScalarOp,
 } from "./filters";
 import {
   ClearFilterMenuItem,
@@ -150,7 +153,7 @@ export const DataTableColumnHeader = <TData, TValue>({
               {renderColumnWrapping(column)}
               {renderFormatOptions(column, locale)}
               <DropdownMenuSeparator />
-              {renderMenuItemFilter(column)}
+              {renderMenuItemFilter(column, calculateTopKRows)}
               {renderFilterByValues(column, setIsFilterValueOpen)}
               {hasFilter && <ClearFilterMenuItem column={column} />}
             </DropdownMenuContent>
@@ -213,6 +216,7 @@ const SortButton = <TData, TValue>({
 
 export function renderMenuItemFilter<TData, TValue>(
   column: Column<TData, TValue>,
+  calculateTopKRows?: CalculateTopKRows,
 ) {
   const canFilter = column.getCanFilter();
   if (!canFilter) {
@@ -250,7 +254,10 @@ export function renderMenuItemFilter<TData, TValue>(
         {filterMenuItem}
         <DropdownMenuPortal>
           <DropdownMenuSubContent>
-            <TextFilter column={column} />
+            <TextFilterMenu
+              column={column}
+              calculateTopKRows={calculateTopKRows}
+            />
           </DropdownMenuSubContent>
         </DropdownMenuPortal>
       </DropdownMenuSub>
@@ -485,66 +492,111 @@ export const NumberFilterMenu = <TData, TValue>({
   );
 };
 
-const TextFilter = <TData, TValue>({
+const TEXT_SCALAR_SET: ReadonlySet<OperatorType> = new Set(TEXT_SCALAR_OPS);
+const isTextScalarOp = (op: OperatorType): op is TextScalarOp =>
+  TEXT_SCALAR_SET.has(op);
+
+export const TextFilterMenu = <TData, TValue>({
   column,
+  calculateTopKRows,
 }: {
   column: Column<TData, TValue>;
+  calculateTopKRows?: CalculateTopKRows;
 }) => {
   const currentFilter = column.getFilterValue() as
     | ColumnFilterForType<"text">
     | undefined;
   const hasFilter = currentFilter !== undefined;
-  const [value, setValue] = useState<string>(currentFilter?.text ?? "");
+
   const [operator, setOperator] = useState<OperatorType>(
     currentFilter?.operator ?? "contains",
   );
+  const [text, setText] = useState<string>(
+    currentFilter && "text" in currentFilter ? currentFilter.text : "",
+  );
+  const [values, setValues] = useState<string[]>(
+    currentFilter && "values" in currentFilter ? [...currentFilter.values] : [],
+  );
+
+  const isScalar = isTextScalarOp(operator);
+  const isMulti = operator === "in" || operator === "not_in";
+  const isNullish =
+    operator === "is_null" ||
+    operator === "is_not_null" ||
+    operator === "is_empty";
+
+  const applyDisabled =
+    (isScalar && text === "") || (isMulti && values.length === 0);
 
   const handleApply = () => {
-    if (operator !== "contains") {
+    if (isNullish) {
       column.setFilterValue(Filter.text({ operator }));
       return;
     }
-
-    if (value === "") {
-      column.setFilterValue(undefined);
+    if (isScalar && text !== "") {
+      column.setFilterValue(Filter.text({ operator, text }));
       return;
     }
+    if (isMulti && values.length > 0) {
+      column.setFilterValue(Filter.text({ operator, values }));
+    }
+  };
 
-    column.setFilterValue(Filter.text({ text: value, operator }));
+  const handleClear = () => {
+    setText("");
+    setValues([]);
+    column.setFilterValue(undefined);
+  };
+
+  const handleOperatorChange = (next: OperatorType) => {
+    setOperator(next);
+    if (
+      next === "is_null" ||
+      next === "is_not_null" ||
+      next === "is_empty"
+    ) {
+      column.setFilterValue(Filter.text({ operator: next }));
+    }
   };
 
   return (
     <div className="flex flex-col gap-1 pt-3 px-2">
-      <NullFilter
-        column={column}
-        defaultItem="contains"
+      <OperatorSelect
         operator={operator}
-        setOperator={setOperator}
+        options={TEXT_OPS}
+        onChange={handleOperatorChange}
       />
-      {operator === "contains" && (
-        <>
-          <Input
-            type="text"
-            icon={<TextIcon className="h-3 w-3 text-muted-foreground mb-1" />}
-            value={value ?? ""}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="Text..."
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleApply();
-              }
-            }}
-            className="shadow-none! border-border hover:shadow-none!"
-          />
-          <FilterButtons
-            onApply={handleApply}
-            onClear={() => {
-              setValue("");
-              column.setFilterValue(undefined);
-            }}
-            clearButtonDisabled={!hasFilter}
-          />
-        </>
+      {isScalar && (
+        <Input
+          type="text"
+          icon={<TextIcon className="h-3 w-3 text-muted-foreground mb-1" />}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Text..."
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleApply();
+            }
+          }}
+          className="shadow-none! border-border hover:shadow-none!"
+        />
+      )}
+      {isMulti && (
+        <FilterByValuesList
+          column={column}
+          calculateTopKRows={calculateTopKRows}
+          chosenValues={new Set(values)}
+          onChange={(next) => setValues(next.map(String))}
+          creatable={true}
+        />
+      )}
+      {!isNullish && (
+        <FilterButtons
+          onApply={handleApply}
+          onClear={handleClear}
+          clearButtonDisabled={!hasFilter}
+          applyButtonDisabled={applyDisabled}
+        />
       )}
     </div>
   );

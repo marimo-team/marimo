@@ -2,9 +2,7 @@
 import type { Column } from "@tanstack/react-table";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-// NumberFilterMenu does not exist yet — Task 5 introduces it.
-// These tests are expected to fail until that change lands.
-import { NumberFilterMenu } from "../column-header";
+import { NumberFilterMenu, TextFilterMenu } from "../column-header";
 import { Filter } from "../filters";
 
 beforeAll(() => {
@@ -106,5 +104,103 @@ describe("NumberFilterMenu", () => {
     expect(
       screen.queryByRole("button", { name: /apply/i }),
     ).not.toBeInTheDocument();
+  });
+});
+
+function mockTextColumn(
+  initial?: ReturnType<typeof Filter.text>,
+): Column<unknown, unknown> & {
+  setFilterValue: ReturnType<typeof vi.fn>;
+} {
+  let filterValue = initial;
+  const setFilterValue = vi.fn((next) => {
+    filterValue = next;
+  });
+  return {
+    id: "name",
+    columnDef: { meta: { dataType: "string", filterType: "text" } },
+    getFilterValue: () => filterValue,
+    setFilterValue,
+  } as unknown as Column<unknown, unknown> & {
+    setFilterValue: ReturnType<typeof vi.fn>;
+  };
+}
+
+describe("TextFilterMenu", () => {
+  it("shows all 11 text operators in the dropdown", () => {
+    const column = mockTextColumn();
+    render(<TextFilterMenu column={column} />);
+    fireEvent.click(screen.getByRole("combobox"));
+    const listbox = screen.getByRole("listbox");
+    const labels = within(listbox)
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+    expect(labels).toEqual([
+      "Contains",
+      "Equals",
+      "Doesn't equal",
+      "Matches regex",
+      "Starts with",
+      "Ends with",
+      "Is in",
+      "Not in",
+      "Is empty",
+      "Is null",
+      "Is not null",
+    ]);
+  });
+
+  it("single-string operator renders a text input seeded from current filter", () => {
+    const column = mockTextColumn(
+      Filter.text({ operator: "equals", text: "alice" }),
+    );
+    render(<TextFilterMenu column={column} />);
+    const input = screen.getByPlaceholderText("Text...") as HTMLInputElement;
+    expect(input).toBeInTheDocument();
+    expect(input.value).toBe("alice");
+  });
+
+  it("'in' operator renders the creatable values picker", async () => {
+    const column = mockTextColumn(
+      Filter.text({ operator: "in", values: ["a", "b"] }),
+    );
+    const calculateTopKRows = vi.fn(async () => ({
+      data: [["a", 1] as [unknown, number]],
+    }));
+    render(
+      <TextFilterMenu
+        column={column}
+        calculateTopKRows={calculateTopKRows}
+      />,
+    );
+    expect(
+      await screen.findByPlaceholderText(/Search or add a value/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Text...")).not.toBeInTheDocument();
+  });
+
+  it("selecting is_empty commits immediately and hides the value UI", () => {
+    const column = mockTextColumn();
+    render(<TextFilterMenu column={column} />);
+    fireEvent.click(screen.getByRole("combobox"));
+    const listbox = screen.getByRole("listbox");
+    fireEvent.click(within(listbox).getByText("Is empty"));
+    expect(column.setFilterValue).toHaveBeenCalledWith(
+      Filter.text({ operator: "is_empty" }),
+    );
+    expect(screen.queryByPlaceholderText("Text...")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /apply/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("apply is disabled when scalar text is empty", () => {
+    const column = mockTextColumn();
+    render(<TextFilterMenu column={column} />);
+    expect(screen.getByRole("button", { name: /apply/i })).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText("Text..."), {
+      target: { value: "x" },
+    });
+    expect(screen.getByRole("button", { name: /apply/i })).not.toBeDisabled();
   });
 });
