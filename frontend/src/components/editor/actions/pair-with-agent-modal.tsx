@@ -179,6 +179,10 @@ export const PairWithAgentModal: React.FC<{
             >
               <CommandBlock
                 command={getRawPrompt(remoteUrl, authToken)}
+                display={getRawPrompt(
+                  remoteUrl,
+                  authToken ? maskToken(authToken) : null,
+                )}
                 multiline={true}
               />
             </Step>
