@@ -3,7 +3,25 @@
 import functools
 from typing import Any
 
-from marimo._runtime.primitives import is_pure_function
+import pytest
+
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._runtime.primitives import is_data_primitive, is_pure_function
+
+HAS_NUMPY = DependencyManager.numpy.has()
+
+
+class TestDataPrimitiveClassification:
+    @pytest.mark.skipif(not HAS_NUMPY, reason="numpy is required")
+    def test_rejects_class_like_array_protocol(self) -> None:
+        import numpy as np
+
+        class _ClassLikeArray:
+            @classmethod
+            def __array__(cls, dtype: Any = None) -> Any:
+                return np.array([object()], dtype=object)
+
+        assert is_data_primitive(_ClassLikeArray) is False
 
 
 class TestWrappedFunctionHandling:
