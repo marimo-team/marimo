@@ -14,6 +14,7 @@ HAS_NUMPY = DependencyManager.numpy.has()
 class TestDataPrimitiveClassification:
     @pytest.mark.skipif(not HAS_NUMPY, reason="numpy is required")
     def test_rejects_class_like_array_protocol(self) -> None:
+        """Issue #9563: class-like __array__ refs are not data primitives."""
         import numpy as np
 
         class _ClassLikeArray:
