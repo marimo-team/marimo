@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import typing
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -16,38 +17,37 @@ from marimo._runtime.callbacks import (
 )
 from marimo._runtime.commands import (
     ClearCacheCommand,
-    CreateNotebookCommand,
-    DebugCellCommand,
-    DeleteCellCommand,
-    ExecuteCellsCommand,
-    ExecuteScratchpadCommand,
-    ExecuteStaleCellsCommand,
-    GetCacheInfoCommand,
-    InstallPackagesCommand,
-    InvokeFunctionCommand,
-    ListDataSourceConnectionCommand,
-    ListSecretKeysCommand,
-    ListSQLSchemasCommand,
-    ListSQLTablesCommand,
-    ModelCommand,
-    PreviewDatasetColumnCommand,
-    PreviewSQLTableCommand,
-    RefreshSecretsCommand,
-    RenameNotebookCommand,
+    CodeCompletionCommand,
+    CommandMessage,
     StopKernelCommand,
-    StorageDownloadCommand,
-    StorageListEntriesCommand,
-    SyncGraphCommand,
-    UpdateCellConfigCommand,
-    UpdateUIElementCommand,
-    UpdateUserConfigCommand,
-    ValidateSQLCommand,
 )
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._runtime.request_router import RequestRouter
 
 if TYPE_CHECKING:
     from tests.conftest import MockedKernel
+
+
+# All callback bundles that self-register against a router. Order doesn't
+# matter — tests only iterate this list, never index into it.
+ALL_CALLBACKS: list[type] = [
+    SecretsCallbacks,
+    DatasetCallbacks,
+    SqlCallbacks,
+    CacheCallbacks,
+    ExternalStorageCallbacks,
+    PackagesCallbacks,
+]
+
+# Commands that are part of the CommandMessage dispatch surface but are
+# intentionally not handled by the kernel's RequestRouter. CodeCompletionCommand
+# is delivered on its own queue and processed by start_completion_worker.
+NOT_ROUTED: set[type] = {CodeCompletionCommand}
+
+
+def _all_command_classes() -> set[type]:
+    """Every concrete command type in the CommandMessage discriminated union."""
+    return set(typing.get_args(CommandMessage))
 
 
 class TestRequestRouter:
@@ -100,127 +100,67 @@ class TestRequestRouter:
         assert seen == ["clear", "stop"]
 
 
-# ---------------------------------------------------------------------------
-# Callback registration contracts
-# ---------------------------------------------------------------------------
-
-# Each callback class is expected to bind exactly these command types onto a
-# fresh router.
-_CALLBACK_BINDINGS: list[tuple[type, set[type]]] = [
-    (SecretsCallbacks, {ListSecretKeysCommand, RefreshSecretsCommand}),
-    (
-        DatasetCallbacks,
-        {
-            PreviewDatasetColumnCommand,
-            PreviewSQLTableCommand,
-            ListSQLTablesCommand,
-            ListSQLSchemasCommand,
-            ListDataSourceConnectionCommand,
-        },
-    ),
-    (SqlCallbacks, {ValidateSQLCommand}),
-    (CacheCallbacks, {ClearCacheCommand, GetCacheInfoCommand}),
-    (
-        ExternalStorageCallbacks,
-        {StorageListEntriesCommand, StorageDownloadCommand},
-    ),
-    (PackagesCallbacks, {InstallPackagesCommand}),
-]
-
-
 @pytest.mark.parametrize(
-    ("callback_cls", "expected_commands"),
-    _CALLBACK_BINDINGS,
-    ids=lambda v: v.__name__ if isinstance(v, type) else "",
+    "callback_cls", ALL_CALLBACKS, ids=lambda c: c.__name__
 )
 def test_callback_implements_kernel_callback_protocol(
     callback_cls: type,
-    expected_commands: set[type],
     mocked_kernel: MockedKernel,
 ) -> None:
-    del expected_commands
-    callback = callback_cls(mocked_kernel.k)
-    # Runtime-checkable Protocol membership.
-    assert isinstance(callback, KernelCallback)
+    assert isinstance(callback_cls(mocked_kernel.k), KernelCallback)
 
 
-@pytest.mark.parametrize(
-    ("callback_cls", "expected_commands"),
-    _CALLBACK_BINDINGS,
-    ids=lambda v: v.__name__ if isinstance(v, type) else "",
-)
-def test_callback_register_binds_expected_commands(
-    callback_cls: type,
-    expected_commands: set[type],
+def test_no_two_callbacks_claim_the_same_command(
     mocked_kernel: MockedKernel,
 ) -> None:
-    router = RequestRouter()
-    callback_cls(mocked_kernel.k).register(router)
-    assert set(router._handlers.keys()) == expected_commands
+    """Each callback bundle must own a disjoint slice of the command surface."""
+    owner: dict[type, str] = {}
+    for cb_cls in ALL_CALLBACKS:
+        router = RequestRouter()
+        cb_cls(mocked_kernel.k).register(router)
+        for cmd in router._handlers:
+            assert cmd not in owner, (
+                f"{cmd.__name__} is registered by both "
+                f"{owner[cmd]} and {cb_cls.__name__}"
+            )
+            owner[cmd] = cb_cls.__name__
 
 
-def test_kernel_request_handlers_binds_kernel_owned_commands(
+def test_kernel_handlers_and_callbacks_partition_the_command_surface(
     mocked_kernel: MockedKernel,
 ) -> None:
-    router = RequestRouter()
-    KernelRequestHandlers(mocked_kernel.k).register(router)
-    # The kernel-owned set: anything that requires a request-context wrap, a
-    # completion notification, or directly delegates to a Kernel method.
-    expected = {
-        CreateNotebookCommand,
-        DeleteCellCommand,
-        ExecuteCellsCommand,
-        SyncGraphCommand,
-        ExecuteScratchpadCommand,
-        ExecuteStaleCellsCommand,
-        InvokeFunctionCommand,
-        DebugCellCommand,
-        RenameNotebookCommand,
-        UpdateCellConfigCommand,
-        UpdateUIElementCommand,
-        ModelCommand,
-        UpdateUserConfigCommand,
-        StopKernelCommand,
-    }
-    assert set(router._handlers.keys()) == expected
+    """Kernel-owned handlers and callback-owned handlers must not overlap."""
+    kernel_router = RequestRouter()
+    KernelRequestHandlers(mocked_kernel.k).register(kernel_router)
+    kernel_bound = set(kernel_router._handlers)
 
+    callback_bound: set[type] = set()
+    for cb_cls in ALL_CALLBACKS:
+        router = RequestRouter()
+        cb_cls(mocked_kernel.k).register(router)
+        callback_bound |= set(router._handlers)
 
-def test_kernel_router_has_full_dispatch_table(
-    mocked_kernel: MockedKernel,
-) -> None:
-    """All 27 commands the kernel knows about are bound exactly once."""
-    handlers = mocked_kernel.k.router._handlers
-    expected = (
-        # Kernel-owned
-        {
-            CreateNotebookCommand,
-            DeleteCellCommand,
-            ExecuteCellsCommand,
-            SyncGraphCommand,
-            ExecuteScratchpadCommand,
-            ExecuteStaleCellsCommand,
-            InvokeFunctionCommand,
-            DebugCellCommand,
-            RenameNotebookCommand,
-            UpdateCellConfigCommand,
-            UpdateUIElementCommand,
-            ModelCommand,
-            UpdateUserConfigCommand,
-            StopKernelCommand,
-        }
-        # Callback-owned
-        | {ListSecretKeysCommand, RefreshSecretsCommand}
-        | {
-            PreviewDatasetColumnCommand,
-            PreviewSQLTableCommand,
-            ListSQLTablesCommand,
-            ListSQLSchemasCommand,
-            ListDataSourceConnectionCommand,
-        }
-        | {ValidateSQLCommand}
-        | {ClearCacheCommand, GetCacheInfoCommand}
-        | {StorageListEntriesCommand, StorageDownloadCommand}
-        | {InstallPackagesCommand}
+    overlap = kernel_bound & callback_bound
+    assert not overlap, (
+        f"commands handled by both KernelRequestHandlers and a callback: "
+        f"{sorted(c.__name__ for c in overlap)}"
     )
-    assert set(handlers.keys()) == expected
-    assert len(handlers) == 27
+
+
+def test_kernel_router_covers_every_dispatchable_command(
+    mocked_kernel: MockedKernel,
+) -> None:
+    """Every CommandMessage member (minus NOT_ROUTED) has a handler."""
+    bound = set(mocked_kernel.k.router._handlers)
+    expected = _all_command_classes() - NOT_ROUTED
+
+    missing = expected - bound
+    extra = bound - expected
+    assert not missing, (
+        f"commands with no handler on the kernel router: "
+        f"{sorted(c.__name__ for c in missing)}"
+    )
+    assert not extra, (
+        f"handlers bound for commands not in CommandMessage: "
+        f"{sorted(c.__name__ for c in extra)}"
+    )
