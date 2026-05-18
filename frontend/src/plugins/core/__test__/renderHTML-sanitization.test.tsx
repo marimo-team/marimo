@@ -150,9 +150,7 @@ describe("replaceVirtualFileSrc - virtual file URL rewriting", () => {
     );
     const img = container.querySelector("img");
     expect(img).not.toBeNull();
-    expect(img?.getAttribute("src")).toBe(
-      `${BASE}/@file/12345-abc.png`,
-    );
+    expect(img?.getAttribute("src")).toBe(`${BASE}/@file/12345-abc.png`);
   });
 
   test("rewrites @file/ img src (no leading ./) to absolute URL", () => {
@@ -161,9 +159,7 @@ describe("replaceVirtualFileSrc - virtual file URL rewriting", () => {
       renderHTML({ html, alwaysSanitizeHtml: false }),
     );
     const img = container.querySelector("img");
-    expect(img?.getAttribute("src")).toBe(
-      `${BASE}/@file/12345-abc.png`,
-    );
+    expect(img?.getAttribute("src")).toBe(`${BASE}/@file/12345-abc.png`);
   });
 
   test("does not rewrite non-@file img src", () => {
@@ -185,7 +181,8 @@ describe("replaceVirtualFileSrc - virtual file URL rewriting", () => {
   });
 
   test("does not rewrite external URL containing /@file/ in path", () => {
-    const html = '<img src="https://cdn.example.com/assets/@file/photo.jpg" alt="test">';
+    const html =
+      '<img src="https://cdn.example.com/assets/@file/photo.jpg" alt="test">';
     const { container } = render(
       renderHTML({ html, alwaysSanitizeHtml: false }),
     );
