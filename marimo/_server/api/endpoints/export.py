@@ -19,6 +19,7 @@ from marimo._convert.common.filename import (
     make_download_headers,
 )
 from marimo._convert.markdown import convert_from_ir_to_markdown
+from marimo._convert.markdown.flavor import normalize_markdown_flavor
 from marimo._convert.script import convert_from_ir_to_script
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
@@ -394,8 +395,13 @@ async def auto_export_as_markdown(
             detail="File must have a name before exporting",
         )
 
-    # If we have already exported to Markdown, don't do it again
-    if not session_view.needs_export("md"):
+    markdown_flavor = normalize_markdown_flavor(
+        body.flavor, filename="notebook.md"
+    ).name
+
+    # If we have already exported to Markdown with this flavor, don't do it
+    # again.
+    if not session_view.needs_md_export(markdown_flavor):
         LOGGER.debug("Already auto-exported to Markdown")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
@@ -412,7 +418,7 @@ async def auto_export_as_markdown(
             filename=session.app_file_manager.filename,
             markdown=markdown,
         )
-        session_view.mark_auto_export_md()
+        session_view.mark_auto_export_md(markdown_flavor)
 
     return JSONResponse(
         content=asdict(SuccessResponse()),

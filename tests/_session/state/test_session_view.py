@@ -1318,16 +1318,20 @@ def test_get_cell_console_outputs(
 def test_mark_auto_export(session_view: SessionView):
     assert session_view.needs_export("html")
     assert session_view.needs_export("md")
+    assert session_view.needs_md_export("pymdown")
 
     session_view.mark_auto_export_html()
     assert not session_view.needs_export("html")
 
     session_view.mark_auto_export_md()
     assert not session_view.needs_export("md")
+    assert not session_view.needs_md_export("pymdown")
+    assert session_view.needs_md_export("qmd")
 
     session_view._touch()
     assert session_view.needs_export("html")
     assert session_view.needs_export("md")
+    assert session_view.needs_md_export("pymdown")
 
     session_view.mark_auto_export_html()
     session_view.mark_auto_export_md()

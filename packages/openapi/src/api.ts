@@ -4339,7 +4339,7 @@ export interface components {
       /** @default false */
       download?: boolean;
       /** @default null */
-      flavor?: "pymdown" | "qmd" | "mystmd" | null;
+      flavor?: ("mystmd" | "pymdown" | "qmd") | null;
     };
     /** ExportAsPDFRequest */
     ExportAsPDFRequest: {
