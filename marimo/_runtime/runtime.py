@@ -108,6 +108,7 @@ from marimo._messaging.streams import (
 from marimo._messaging.tracebacks import write_traceback
 from marimo._messaging.types import (
     KernelMessage,
+    KernelStreams,
     Stderr,
     Stdin,
     Stdout,
@@ -497,10 +498,7 @@ class Kernel:
         cell_configs (dict[CellId_t, CellConfig]): Initial configuration for each cell.
         app_metadata (AppMetadata): Metadata about the notebook.
         user_config (MarimoConfig): The initial user configuration.
-        stream (Stream): Object used to communicate with the server/outside world.
-        stdout (Stdout | None): Replacement for sys.stdout.
-        stderr (Stderr | None): Replacement for sys.stderr.
-        stdin (Stdin | None): Replacement for sys.stdin.
+        streams (KernelStreams): The four I/O channels (stream, stdout, stderr, stdin).
         module (ModuleType): Module in which to execute code.
         enqueue_control_request (Callable[[ControlRequest], None]): Callback to enqueue control requests.
         debugger_override (marimo_pdb.MarimoPdb | None): A replacement for the built-in Pdb.
@@ -512,10 +510,7 @@ class Kernel:
         cell_configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
         user_config: MarimoConfig,
-        stream: Stream,
-        stdout: Stdout | None,
-        stderr: Stderr | None,
-        stdin: Stdin | None,
+        streams: KernelStreams,
         module: ModuleType,
         enqueue_control_request: Callable[[CommandMessage], None],
         hooks: NotebookCellHooks,
@@ -538,10 +533,7 @@ class Kernel:
         # kernel globals.
         sys.argv = self.argv
 
-        self.stream = stream
-        self.stdout = stdout
-        self.stderr = stderr
-        self.stdin = stdin
+        self._streams = streams
         self.enqueue_control_request = enqueue_control_request
         # timestamp at which most recently processed interrupt was seen;
         # the kernel rejects run requests that were issued before that
@@ -657,6 +649,22 @@ class Kernel:
         )
         if lifespan.has_lifespans():
             self._lifespan = lifespan(None)
+
+    @property
+    def stream(self) -> Stream:
+        return self._streams.stream
+
+    @property
+    def stdout(self) -> Stdout | None:
+        return self._streams.stdout
+
+    @property
+    def stderr(self) -> Stderr | None:
+        return self._streams.stderr
+
+    @property
+    def stdin(self) -> Stdin | None:
+        return self._streams.stdin
 
     def teardown(self) -> None:
         """Teardown resources owned by the kernel."""
@@ -3553,13 +3561,24 @@ class RequestHandler:
 
 
 @dataclasses.dataclass
-class _KernelStreams:
+class _LaunchStreams:
+    """Superset of `KernelStreams` carrying the subprocess bootstrap pieces."""
+
     stream: ThreadSafeStream
     stdout: ThreadSafeStdout | None
     stderr: ThreadSafeStderr | None
     stdin: ThreadSafeStdin | None
     debugger: marimo_pdb.MarimoPdb | None
     pipe: TypedConnection[KernelMessage] | None
+
+    @property
+    def kernel_streams(self) -> KernelStreams:
+        return KernelStreams(
+            stream=self.stream,
+            stdout=self.stdout,
+            stderr=self.stderr,
+            stdin=self.stdin,
+        )
 
     def close(self, use_fd_redirect: bool) -> None:
         if not use_fd_redirect:
@@ -3631,7 +3650,7 @@ def _create_streams(
     is_edit_mode: bool,
     should_redirect_stdio: bool,
     use_fd_redirect: bool,
-) -> _KernelStreams | None:
+) -> _LaunchStreams | None:
     # Returns None when the socket fails to connect; callers should bail out.
     pipe: TypedConnection[KernelMessage] | None = None
     if socket_addr is not None:
@@ -3696,7 +3715,7 @@ def _create_streams(
         if is_edit_mode and not bool(os.getenv("DEBUGPY_RUNNING"))
         else None
     )
-    return _KernelStreams(
+    return _LaunchStreams(
         stream=stream,
         stdout=stdout,
         stderr=stderr,
@@ -3782,10 +3801,7 @@ def launch_kernel(
 
         with kernel_session(
             KernelArgs(
-                stream=streams.stream,
-                stdout=streams.stdout,
-                stderr=streams.stderr,
-                stdin=streams.stdin,
+                streams=streams.kernel_streams,
                 debugger=streams.debugger,
                 configs=configs,
                 app_metadata=app_metadata,

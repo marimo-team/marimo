@@ -343,10 +343,12 @@ def mocked_kernel() -> Generator[MockedKernel, None, None]:
 # Installs an execution context without stream redirection
 @pytest.fixture
 def executing_kernel() -> Generator[Kernel, None, None]:
+    from marimo._messaging.types import KernelStreams
+
     mocked = MockedKernel.open()
-    mocked.k.stdout = None
-    mocked.k.stderr = None
-    mocked.k.stdin = None
+    mocked.k._streams = KernelStreams(
+        stream=mocked.k.stream, stdout=None, stderr=None, stdin=None
+    )
     with mocked.k._install_execution_context(cell_id="0"):
         yield mocked.k
     mocked.teardown()

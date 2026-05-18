@@ -11,10 +11,11 @@ import asyncio
 import contextlib
 import dataclasses
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.print_override import print_override
+from marimo._messaging.types import KernelStreams
 from marimo._runtime.kernel_lifecycle import KernelArgs, kernel_session
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.virtual_file import VirtualFileStorageType
@@ -44,10 +45,23 @@ class TestKernel:
 
     kernel: Kernel
     ctx: KernelRuntimeContext
-    stream: MockStream
-    stdout: MockStdout
-    stderr: MockStderr
-    stdin: MockStdin
+    streams: KernelStreams
+
+    @property
+    def stream(self) -> MockStream:
+        return cast(MockStream, self.streams.stream)
+
+    @property
+    def stdout(self) -> MockStdout:
+        return cast(MockStdout, self.streams.stdout)
+
+    @property
+    def stderr(self) -> MockStderr:
+        return cast(MockStderr, self.streams.stderr)
+
+    @property
+    def stdin(self) -> MockStdin:
+        return cast(MockStdin, self.streams.stdin)
 
 
 @contextlib.contextmanager
@@ -73,6 +87,9 @@ def mocked_kernel_session(
     stderr = MockStderr(stream)
     stdin = MockStdin(stream)
     debugger = MarimoPdb(stdout=stdout, stdin=stdin) if with_debugger else None
+    streams = KernelStreams(
+        stream=stream, stdout=stdout, stderr=stderr, stdin=stdin
+    )
 
     saved_main = sys.modules.get("__main__")
     # Kernel.teardown() clears the kernel module's __dict__, which breaks
@@ -84,10 +101,7 @@ def mocked_kernel_session(
     )
 
     args = KernelArgs(
-        stream=stream,
-        stdout=stdout,
-        stderr=stderr,
-        stdin=stdin,
+        streams=streams,
         debugger=debugger,
         configs=configs or {},
         app_metadata=app_metadata or default_app_metadata(),
@@ -105,14 +119,7 @@ def mocked_kernel_session(
                 kernel.execution_type = execution_type
             if reactive_mode is not None:
                 kernel.reactive_execution_mode = reactive_mode  # type: ignore[assignment]
-            yield TestKernel(
-                kernel=kernel,
-                ctx=ctx,
-                stream=stream,
-                stdout=stdout,
-                stderr=stderr,
-                stdin=stdin,
-            )
+            yield TestKernel(kernel=kernel, ctx=ctx, streams=streams)
     finally:
         sys.meta_path[:] = saved_meta_path
         if saved_main is not None:
