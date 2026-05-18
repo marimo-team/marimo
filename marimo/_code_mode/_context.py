@@ -1691,9 +1691,7 @@ class AsyncCodeModeContext:
                 type(command).__name__,
             )
 
-    def broadcast_raw_notification(
-        self, notification: Notification
-    ) -> None:
+    def broadcast_raw_notification(self, notification: Notification) -> None:
         """Low-level: broadcast a fully-constructed ``Notification`` to the frontend.
 
         This is an escape hatch for emitting notification payloads that
