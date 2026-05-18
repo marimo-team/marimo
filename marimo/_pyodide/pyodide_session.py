@@ -487,9 +487,9 @@ def _launch_pyodide_kernel(
 
     async def listen_completion() -> None:
         while True:
-            request = await completion_queue.get()
-            if (newer := drain_stale(completion_queue)) is not None:
-                request = newer
+            request = drain_stale(
+                completion_queue, latest=await completion_queue.get()
+            )
             kernel.code_completion(request, docstrings_limit=5)
 
     async def listen() -> None:

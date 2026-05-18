@@ -755,9 +755,9 @@ class Kernel:
 
         def _worker() -> None:
             while True:
-                request = completion_queue.get()
-                if (newer := drain_stale(completion_queue)) is not None:
-                    request = newer
+                request = drain_stale(
+                    completion_queue, latest=completion_queue.get()
+                )
                 self.code_completion(request, docstrings_limit=80)
 
         threading.Thread(target=_worker, daemon=True).start()

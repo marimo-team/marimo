@@ -84,11 +84,11 @@ LOGGER = _loggers.marimo_logger()
 # Lets each caller pin listen_messages and its reader to the same queue type
 # (threading vs asyncio).
 _Q = TypeVar("_Q")
+_T = TypeVar("_T")
 
 
-def drain_stale(queue: Any) -> Any | None:
-    """Return the newest pending item, or None if the queue is empty."""
-    latest = None
+def drain_stale(queue: Any, *, latest: _T) -> _T:
+    """Discard stale items queued behind ``latest`` and return the newest."""
     while not queue.empty():
         try:
             latest = queue.get_nowait()
