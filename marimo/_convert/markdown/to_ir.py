@@ -33,6 +33,11 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._convert.common.format import markdown_to_marimo, sql_to_marimo
+from marimo._convert.markdown.flavor import default_markdown_flavor
+from marimo._convert.markdown.flavor.base import (
+    CodeCellBlock,
+    MarkdownFlavor,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._schemas.serialization import (
     AppInstantiation,
@@ -48,6 +53,10 @@ LOGGER = _loggers.marimo_logger()
 
 MARIMO_MD = "marimo-md"
 MARIMO_CODE = "marimo-code"
+_MYST_MARIMO_HEADER_RE = re.compile(
+    r"^(?P<fence>`{3,})\{marimo\}(?:\s+(?P<language>\w+))?\s*$"
+)
+_MYST_DIRECTIVE_OPTION_RE = re.compile(r"^:([A-Za-z0-9_-]+):(?:\s+(.*))?$")
 
 ConvertKeys = Literal["marimo-ir"]
 
@@ -74,6 +83,29 @@ def extract_attribs(
     return {}
 
 
+def _is_myst_marimo_directive_header(line: str) -> bool:
+    return bool(re.match(r"^`{3,}\{marimo\}(?:\s+\w+)?\s*$", line))
+
+
+def _extract_myst_directive_options(
+    lines: list[str],
+) -> tuple[dict[str, str], list[str]]:
+    options: dict[str, str] = {}
+    body_start = 0
+
+    for index, line in enumerate(lines):
+        match = _MYST_DIRECTIVE_OPTION_RE.match(line)
+        if match is None:
+            break
+        options[match.group(1).replace("-", "_")] = match.group(2) or "true"
+        body_start = index + 1
+
+    if body_start and body_start < len(lines) and lines[body_start] == "":
+        body_start += 1
+
+    return options, lines[body_start:]
+
+
 def _is_code_tag(text: str) -> bool:
     head = text.split("\n")[0].strip()
     legacy_format = bool(re.search(r"\{.*python.*\}", head))
@@ -86,6 +118,9 @@ def _is_code_tag(text: str) -> bool:
 
 def _get_language(text: str) -> str:
     header = text.split("\n").pop(0)
+    myst_match = re.match(r"^`{3,}\{marimo\}\s+(?P<language>\w+)", header)
+    if myst_match:
+        return str(myst_match.group("language"))
     match = RE_NESTED_FENCE_START.match(header)
     if match and match.group("lang"):
         return str(match.group("lang"))
@@ -95,31 +130,14 @@ def _get_language(text: str) -> str:
 def formatted_code_block(
     code: str,
     attributes: dict[str, str] | None = None,
-    is_qmd: bool = False,
+    flavor: MarkdownFlavor | None = None,
 ) -> str:
     """Wraps code in a fenced code block with marimo attributes."""
-    if attributes is None:
-        attributes = {}
+    if flavor is None:
+        flavor = default_markdown_flavor()
+    attributes = dict(attributes or {})
     language = attributes.pop("language", "python")
-    attribute_str = " ".join(
-        [""] + [f'{key}="{value}"' for key, value in attributes.items()]
-    )
-    guard = "```"
-    while guard in code:
-        guard += "`"
-
-    # Quarto executable syntax with claimsLanguage() support
-    # ```{marimo .python attr=...}
-    if is_qmd:
-        head = f"""{guard}{{marimo .{language}{attribute_str}}}"""
-    # Compatible with GitHub syntax highlighting
-    # ```python {.marimo attr=...}
-    elif DependencyManager.new_superfences.has_required_version(quiet=True):
-        head = f"""{guard}{language} {{.marimo{attribute_str}}}"""
-    # ```{.python.marimo attr=...}
-    else:
-        head = f"""{guard}{{.{language}.marimo{attribute_str}}}"""
-    return f"{head}\n{code}\n{guard}\n"
+    return flavor.render_code_cell(CodeCellBlock(code, language, attributes))
 
 
 def app_config_from_root(root: Element) -> dict[str, Any]:
@@ -318,6 +336,9 @@ class MarimoMdParser(IdentityParser):
         self.preprocessors.register(
             FrontMatterPreprocessor(self), "frontmatter", 100
         )
+        self.preprocessors.register(
+            MystMarimoPreprocessor(self), "myst-marimo", 99
+        )
         fences_ext = SuperFencesCodeExtension()
         fences_ext.extendMarkdown(self)
         # TODO: Consider adding the admonition extension, and integrating it
@@ -381,6 +402,48 @@ class FrontMatterPreprocessor(Preprocessor):
             self.md.meta.update(meta)
 
         return doc.split("\n")
+
+
+class MystMarimoPreprocessor(Preprocessor):
+    """Normalize MyST marimo directive fences before SuperFences parses them."""
+
+    def run(self, lines: list[str]) -> list[str]:
+        normalized: list[str] = []
+        index = 0
+
+        while index < len(lines):
+            match = _MYST_MARIMO_HEADER_RE.match(lines[index])
+            if match is None:
+                normalized.append(lines[index])
+                index += 1
+                continue
+
+            index += 1
+            options: dict[str, str] = {}
+            while index < len(lines):
+                option = _MYST_DIRECTIVE_OPTION_RE.match(lines[index])
+                if option is None:
+                    break
+                options[option.group(1).replace("-", "_")] = (
+                    option.group(2) or "true"
+                )
+                index += 1
+
+            if options and index < len(lines) and lines[index] == "":
+                index += 1
+
+            attributes = "".join(
+                f' {key}="{value}"' for key, value in options.items()
+            )
+            normalized.append(
+                "{fence}{language} {{.marimo{attributes}}}".format(
+                    fence=match.group("fence"),
+                    language=match.group("language") or "python",
+                    attributes=attributes,
+                )
+            )
+
+        return normalized
 
 
 class SanitizeProcessor(Preprocessor):
@@ -487,9 +550,15 @@ class ExpandAndClassifyProcessor(BlockProcessor):
 
             code_block = SubElement(parent, MARIMO_CODE)
             block_lines = code.split("\n")
-            code_block.text = "\n".join(block_lines[1:-1])
+            body_lines = block_lines[1:-1]
 
             attribs = extract_attribs(block_lines[0])
+            if _is_myst_marimo_directive_header(block_lines[0]):
+                myst_options, body_lines = _extract_myst_directive_options(
+                    body_lines
+                )
+                attribs.update(myst_options)
+            code_block.text = "\n".join(body_lines)
             if attribs:
                 code_block.attrib = attribs
 

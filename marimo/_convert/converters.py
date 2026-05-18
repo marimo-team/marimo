@@ -1,11 +1,19 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.serialization import (
     EMPTY_NOTEBOOK_SERIALIZATION,
     NotebookSerialization,
 )
+
+if TYPE_CHECKING:
+    from marimo._convert.markdown.flavor.base import (
+        MarkdownFlavor,
+        MarkdownFlavorName,
+    )
 
 
 class MarimoConverterIntermediate:
@@ -20,11 +28,15 @@ class MarimoConverterIntermediate:
 
         return convert_from_ir_to_notebook_v1(self.ir)
 
-    def to_markdown(self, filename: str | None = None) -> str:
+    def to_markdown(
+        self,
+        filename: str | None = None,
+        flavor: MarkdownFlavor | MarkdownFlavorName | None = None,
+    ) -> str:
         """Convert to markdown format."""
         from marimo._convert.markdown import convert_from_ir_to_markdown
 
-        return convert_from_ir_to_markdown(self.ir, filename)
+        return convert_from_ir_to_markdown(self.ir, filename, flavor=flavor)
 
     def to_py(self) -> str:
         """Convert to python format."""

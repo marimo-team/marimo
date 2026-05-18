@@ -7,11 +7,18 @@ import re
 import textwrap
 from typing import TYPE_CHECKING
 
-from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.compiler import const_or_id
 from marimo._ast.names import is_internal_cell_name
 from marimo._convert.common.format import get_markdown_from_cell
+from marimo._convert.markdown.flavor import normalize_markdown_flavor
+from marimo._convert.markdown.flavor.base import (
+    CodeCellBlock,
+    MarkdownCellBlock,
+    MarkdownExportDocument,
+    MarkdownFlavor,
+    MarkdownFlavorName,
+)
 from marimo._schemas.serialization import NotebookSerializationV1
 from marimo._types.ids import CellId_t
 from marimo._version import __version__
@@ -20,22 +27,29 @@ if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
     from marimo._ast.visitor import Language
 
-LOGGER = _loggers.marimo_logger()
-
 
 def convert_from_ir_to_markdown(
     notebook: NotebookSerializationV1,
     filename: str | None = None,
+    flavor: MarkdownFlavor | MarkdownFlavorName | None = None,
 ) -> str:
+    filename = filename or notebook.filename or "notebook.md"
+    markdown_flavor = normalize_markdown_flavor(flavor, filename=filename)
+    document = _notebook_to_markdown_export_document(notebook, filename)
+    return markdown_flavor.render_document(document)
+
+
+def _notebook_to_markdown_export_document(
+    notebook: NotebookSerializationV1,
+    filename: str,
+) -> MarkdownExportDocument:
     from marimo._ast.app_config import _AppConfig
     from marimo._ast.compiler import compile_cell
     from marimo._convert.markdown.to_ir import (
-        formatted_code_block,
         is_sanitized_markdown,
     )
     from marimo._utils import yaml
 
-    filename = filename or notebook.filename or "notebook.md"
     app_title = notebook.app.options.get("app_title", None)
     if not app_title:
         app_title = _format_filename_title(filename)
@@ -62,6 +76,8 @@ def convert_from_ir_to_markdown(
         }
     )
 
+    header: str | None = None
+
     # Recover frontmatter metadata from header
     if notebook.header and notebook.header.value:
         try:
@@ -73,34 +89,14 @@ def convert_from_ir_to_markdown(
                 metadata = _recovered
         except (yaml.YAMLError, AssertionError):
             # Not valid YAML dict — treat as script preamble
-            metadata["header"] = notebook.header.value.strip()
+            header = notebook.header.value.strip()
+            metadata["header"] = header
 
-    # Add the expected qmd filter to the metadata.
-    is_qmd = filename.endswith(".qmd")
-    if is_qmd:
-        if "filters" not in metadata:
-            metadata["filters"] = []
-        if "marimo" not in str(metadata["filters"]):
-            if isinstance(metadata["filters"], str):
-                metadata["filters"] = metadata["filters"].split(",")
-            if isinstance(metadata["filters"], list):
-                metadata["filters"].append("marimo-team/marimo")
-            else:
-                LOGGER.warning(
-                    "Unexpected type for filters: %s",
-                    type(metadata["filters"]),
-                )
-
-    header = yaml.marimo_compat_dump(
-        {
-            k: v
-            for k, v in metadata.items()
-            if v is not None and v != "" and v != []
-        },
-        sort_keys=False,
+    document = MarkdownExportDocument(
+        metadata=metadata,
+        header=header,
+        blocks=[],
     )
-    document = ["---", header.strip(), "---", ""]
-    previous_was_markdown = False
 
     for cell in notebook.cells:
         code = cell.code
@@ -137,11 +133,7 @@ def convert_from_ir_to_markdown(
                 markdown = get_markdown_from_cell(cell_impl, code)
                 # Unsanitized markdown is forced to code.
                 if markdown and is_sanitized_markdown(markdown):
-                    # Use blank HTML comment to separate markdown codeblocks
-                    if previous_was_markdown:
-                        document.append("<!---->")
-                    previous_was_markdown = True
-                    document.append(markdown)
+                    document.blocks.append(MarkdownCellBlock(markdown))
                     continue
                 # In which case we need to format it like our python blocks.
                 elif cell_impl.markdown:
@@ -172,13 +164,16 @@ def convert_from_ir_to_markdown(
         # Dedent and strip code to prevent whitespace accumulation on roundtrips
         code = textwrap.dedent(code).strip()
 
-        # Add a blank line between markdown and code
-        if previous_was_markdown:
-            document.append("")
-        previous_was_markdown = False
-        document.append(formatted_code_block(code, attributes, is_qmd=is_qmd))
+        language = attributes.pop("language", "python")
+        document.blocks.append(
+            CodeCellBlock(
+                source=code,
+                language=language,
+                options=attributes,
+            )
+        )
 
-    return "\n".join(document).strip()
+    return document
 
 
 def _format_filename_title(filename: str) -> str:

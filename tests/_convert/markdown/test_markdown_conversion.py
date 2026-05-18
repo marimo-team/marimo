@@ -115,6 +115,56 @@ def test_markdown_frontmatter() -> None:
     assert app.cell_manager.cell_data_at(ids[1]).config.hide_code is False
 
 
+def test_mystmd_marimo_directives() -> None:
+    script = dedent(
+        remove_empty_lines(
+            """
+    ---
+    title: "My Title"
+    width: full
+    header: |
+        import os
+    pyproject: |
+        dependencies = ["polars"]
+    ---
+
+    # Notebook
+
+    ````{marimo} python
+    :hide-code: true
+
+    print("Hello, World!")
+    ````
+
+    ```{marimo} sql
+    :query: result
+
+    SELECT 1
+    ```
+    """
+        )
+    )
+
+    notebook_ir = convert_from_md_to_marimo_ir(script)
+    app = InternalApp(load_notebook_ir(notebook_ir))
+
+    assert app.config.app_title == "My Title"
+    assert app.config.width == "full"
+    assert notebook_ir.header is not None
+    assert "import os" in notebook_ir.header.value
+    assert 'dependencies = ["polars"]' in notebook_ir.header.value
+
+    ids = list(app.cell_manager.cell_ids())
+    assert len(ids) == 3
+    assert app.cell_manager.cell_data_at(ids[0]).code.startswith("mo.md")
+    assert app.cell_manager.cell_data_at(ids[1]).config.hide_code is True
+    assert (
+        app.cell_manager.cell_data_at(ids[1]).code == 'print("Hello, World!")'
+    )
+    assert "SELECT 1" in app.cell_manager.cell_data_at(ids[2]).code
+    assert "result" in app.cell_manager.cell_data_at(ids[2]).code
+
+
 def test_no_frontmatter() -> None:
     script = dedent(
         remove_empty_lines(

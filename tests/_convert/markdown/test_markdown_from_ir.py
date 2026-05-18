@@ -2,6 +2,15 @@
 from __future__ import annotations
 
 from marimo._ast.app import App, InternalApp
+from marimo._convert.markdown.flavor import (
+    markdown_flavor_from_filename,
+    normalize_markdown_flavor,
+)
+from marimo._convert.markdown.flavor.base import (
+    CodeCellBlock,
+    MarkdownCellBlock,
+    MarkdownExportDocument,
+)
 from marimo._convert.markdown.from_ir import (
     _format_filename_title,
     _get_sql_options_from_cell,
@@ -305,13 +314,397 @@ def test_convert_from_ir_to_markdown_qmd_format():
         notebook, filename="notebook.qmd"
     )
     assert "```{marimo .python" in markdown_qmd
-    assert "filters:" in markdown_qmd  # qmd should have marimo filter
 
     # Test .md filename produces standard format
     markdown_md = convert_from_ir_to_markdown(notebook, filename="notebook.md")
-    assert "```{marimo .python" not in markdown_md
     # Should use either superfences or fallback format
     assert (
         "```python {.marimo" in markdown_md
         or "```{.python.marimo" in markdown_md
+    )
+
+
+def test_convert_from_ir_to_markdown_explicit_flavor():
+    """Test that explicit flavors override filename inference."""
+    app = App()
+
+    @app.cell()
+    def test_cell():
+        x = 1
+        return (x,)
+
+    internal_app = InternalApp(app)
+    notebook = internal_app.to_ir()
+
+    markdown_qmd = convert_from_ir_to_markdown(
+        notebook, filename="notebook.md", flavor="qmd"
+    )
+    assert "```{marimo .python" in markdown_qmd
+
+    markdown_md = convert_from_ir_to_markdown(
+        notebook, filename="notebook.qmd", flavor="pymdown"
+    )
+    assert (
+        "```python {.marimo" in markdown_md
+        or "```{.python.marimo" in markdown_md
+    )
+
+
+def test_markdown_flavor_renders_export_document():
+    """Test that the PyMdown flavor renders preamble and block syntax."""
+    flavor = markdown_flavor_from_filename("notebook.md")
+    assert flavor.name == "pymdown"
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[
+            MarkdownCellBlock("# First"),
+            MarkdownCellBlock("# Second"),
+            CodeCellBlock("x = 1", "python", {}),
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert markdown.startswith("---\ntitle: Notebook\n---")
+    assert "# First\n<!---->\n# Second\n\n" in markdown
+    assert "x = 1" in markdown
+
+
+def test_qmd_flavor_renders_export_document():
+    """Test that qmd flavor renders executable fence syntax."""
+    flavor = markdown_flavor_from_filename("notebook.qmd")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[CodeCellBlock("x = 1", "python", {})],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert "```{marimo .python}" in markdown
+
+
+def test_qmd_flavor_preserves_explicit_filters():
+    """Test that qmd flavor serializes user-provided filters."""
+    flavor = markdown_flavor_from_filename("notebook.qmd")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook", "filters": ["custom-filter"]},
+        header=None,
+        blocks=[CodeCellBlock("x = 1", "python", {})],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert markdown.startswith(
+        "---\ntitle: Notebook\nfilters:\n- custom-filter\n---\n"
+    )
+
+
+def test_qmd_flavor_maps_pymdown_admonitions_to_callouts():
+    """Test that qmd flavor renders PyMdown admonitions as Quarto callouts."""
+    flavor = markdown_flavor_from_filename("notebook.qmd")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[
+            MarkdownCellBlock(
+                """Before
+
+/// attention | Careful
+
+This needs attention.
+///
+
+After"""
+            )
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert '::: {.callout-important title="Careful"}' in markdown
+    assert "This needs attention.\n:::" in markdown
+    assert "Before\n\n::: {.callout-important" in markdown
+    assert ":::\n\nAfter" in markdown
+
+
+def test_qmd_flavor_maps_generic_admonition_type_to_callout():
+    """Test that generic PyMdown admonition type selects Quarto callout type."""
+    flavor = markdown_flavor_from_filename("notebook.qmd")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[
+            MarkdownCellBlock(
+                """/// admonition | Heads up
+    type: warning
+
+Watch this.
+///"""
+            )
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert '::: {.callout-warning title="Heads up"}' in markdown
+    assert "Watch this.\n:::" in markdown
+
+
+def test_pymdown_flavor_preserves_pymdown_admonitions():
+    """Test that pymdown flavor keeps PyMdown syntax unchanged."""
+    flavor = markdown_flavor_from_filename("notebook.md")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[
+            MarkdownCellBlock(
+                """/// tip | Keep this
+
+PyMdown syntax is preserved.
+///"""
+            )
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert "/// tip | Keep this" in markdown
+
+
+def test_convert_from_ir_to_markdown_maps_admonitions_for_qmd():
+    """Test full export maps PyMdown markdown admonitions for qmd output."""
+    app = App()
+
+    @app.cell()
+    def __():
+        import marimo as mo
+
+        return (mo,)
+
+    @app.cell()
+    def __(mo):
+        mo.md(
+            """
+            /// tip | Tip with Title
+
+            This is an example.
+            ///
+            """
+        )
+        return
+
+    internal_app = InternalApp(app)
+    notebook = internal_app.to_ir()
+
+    markdown = convert_from_ir_to_markdown(notebook, filename="notebook.qmd")
+
+    assert '::: {.callout-tip title="Tip with Title"}' in markdown
+    assert "This is an example.\n:::" in markdown
+
+
+def test_qmd_flavor_maps_pymdown_tabs_to_panel_tabsets():
+    """Test that consecutive PyMdown tabs become a Quarto panel tabset."""
+    flavor = markdown_flavor_from_filename("notebook.qmd")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[
+            MarkdownCellBlock(
+                """/// tab | Python
+print("py")
+///
+
+/// tab | SQL
+    select: true
+
+select 1
+///"""
+            )
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert "::: {.panel-tabset}" in markdown
+    assert '## Python\n\nprint("py")' in markdown
+    assert "## SQL {.active}\n\nselect 1" in markdown
+
+
+def test_qmd_flavor_starts_new_tabset_for_pymdown_new_tab_option():
+    """Test that PyMdown tab new option starts another Quarto tabset."""
+    flavor = markdown_flavor_from_filename("notebook.qmd")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[
+            MarkdownCellBlock(
+                """/// tab | A
+A
+///
+
+/// tab | B
+    new: true
+
+B
+///"""
+            )
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert markdown.count("::: {.panel-tabset}") == 2
+    assert "## A\n\nA" in markdown
+    assert "## B\n\nB" in markdown
+
+
+def test_qmd_flavor_falls_back_to_pandoc_divs():
+    """Test that unmapped PyMdown directives become Quarto-compatible divs."""
+    flavor = markdown_flavor_from_filename("notebook.qmd")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[
+            MarkdownCellBlock(
+                """/// details | More
+    attrs: {id: more, class: folded quiet}
+    open: true
+
+Body
+///"""
+            )
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert (
+        '::: {.details title="More" #more .folded .quiet open="true"}'
+        in markdown
+    )
+    assert "Body\n:::" in markdown
+
+
+def test_mystmd_flavor_maps_pymdown_blocks_to_myst_directives():
+    """Test that mystmd flavor maps PyMdown blocks to MyST directives."""
+    flavor = normalize_markdown_flavor("mystmd", filename="notebook.md")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[
+            MarkdownCellBlock(
+                """/// tip | Nice
+Body
+///
+
+/// tab | Python
+print("py")
+///
+
+/// tab | SQL
+select 1
+///"""
+            )
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert ":::{tip} Nice\nBody\n:::" in markdown
+    assert "::::{tab-set}" in markdown
+    assert ':::{tab-item} Python\nprint("py")\n:::' in markdown
+    assert ":::{tab-item} SQL\nselect 1\n:::" in markdown
+
+
+def test_mystmd_flavor_renders_marimo_notebook_export_syntax():
+    """Test that mystmd flavor renders marimo notebook authoring syntax."""
+    flavor = normalize_markdown_flavor("mystmd", filename="notebook.md")
+    pep723_header = (
+        "import os",
+        "# /// script",
+        '# requires-python = ">=3.10"',
+        "# dependencies = [",
+        '#   "pandas",',
+        "# ]",
+        "# ///",
+    )
+    document = MarkdownExportDocument(
+        metadata={
+            "title": "Notebook",
+            "marimo-version": "0.0.0",
+            "width": "medium",
+            "header": "\n".join(pep723_header),
+        },
+        header=None,
+        blocks=[
+            CodeCellBlock(
+                source="x = 1",
+                language="python",
+                options={"hide_code": "true", "unparsable": "true"},
+            )
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert markdown.startswith("---\ntitle: Notebook\n---\n")
+    assert "```{marimo-config}\n---\n" in markdown
+    assert "header: |-\n  import os" in markdown
+    assert 'requires-python = ">=3.10"' in markdown
+    expected_cell = (
+        "```{marimo} python",
+        ":hide-code: true",
+        ":unparsable: true",
+        "",
+        "x = 1",
+        "```",
+    )
+    assert "\n".join(expected_cell) in markdown
+
+
+def test_mystmd_flavor_grows_code_fence_guard():
+    """Test that mystmd code fences are valid when source contains backticks."""
+    flavor = normalize_markdown_flavor("mystmd", filename="notebook.md")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[
+            CodeCellBlock(
+                source='mo.md("""\n```python\nx = 1\n```\n""")',
+                language="python",
+                options={},
+            )
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert "````{marimo} python" in markdown
+    assert markdown.rstrip().endswith("````")
+
+
+def test_mystmd_flavor_merges_classes_into_one_option():
+    """Test that MyST directives do not repeat the class option."""
+    flavor = normalize_markdown_flavor("mystmd", filename="notebook.md")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[
+            MarkdownCellBlock(
+                """/// admonition | Heads up
+    type: tip
+    attrs: {class: extra}
+
+Body
+///"""
+            )
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert (
+        ":::{admonition} Heads up\n:class: tip extra\n\nBody\n:::" in markdown
     )
