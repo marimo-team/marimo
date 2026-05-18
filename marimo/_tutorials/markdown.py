@@ -77,18 +77,18 @@ def _(mo):
     ```python3
     mo.md(
         r'''
-        \[
+        $$
         f: \mathbf{R} \to \mathbf{R}
-        \]
+        $$
         '''
     )
     ```
 
     renders the display math
 
-    \[
+    $$
     f: \mathbf{R} \to \mathbf{R}.
-    \]
+    $$
     """)
     return
 
@@ -306,9 +306,9 @@ def _(amplitude, mo, period, plotsin):
     mo.md(rf"""
     You're viewing the graph of
 
-    \[
+    $$
     f(x) = {amplitude.value}\sin((2\pi/{period.value:0.2f})x),
-    \]
+    $$
 
     with $x$ ranging from $0$ to $2\pi$.
     {mo.as_html(plotsin(amplitude.value, period.value))}
