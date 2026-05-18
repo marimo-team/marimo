@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import dataclasses
-import functools
 import queue as _queue
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -120,16 +119,19 @@ def _build_hooks(
     return hooks
 
 
-def enqueue_control_request(
+def make_control_enqueuer(
     control_queue: ControlQueue,
     set_ui_element_queue: UIElementQueue,
-    req: CommandMessage,
-) -> None:
-    """Route a control request to the control queue and mirror UI-element
-    commands onto the batching queue."""
-    control_queue.put_nowait(req)
-    if isinstance(req, (UpdateUIElementCommand, ModelCommand)):
-        set_ui_element_queue.put_nowait(req)
+) -> Callable[[CommandMessage], None]:
+    """Build a callable that routes a control request to the control queue and
+    mirrors UI-element commands onto the batching queue."""
+
+    def enqueue(req: CommandMessage) -> None:
+        control_queue.put_nowait(req)
+        if isinstance(req, (UpdateUIElementCommand, ModelCommand)):
+            set_ui_element_queue.put_nowait(req)
+
+    return enqueue
 
 
 def create_kernel(
@@ -157,8 +159,7 @@ def create_kernel(
         ),
         debugger_override=args.debugger,
         user_config=user_config,
-        enqueue_control_request=functools.partial(
-            enqueue_control_request,
+        enqueue_control_request=make_control_enqueuer(
             args.control_queue,
             args.set_ui_element_queue,
         ),

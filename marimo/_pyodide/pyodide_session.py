@@ -116,6 +116,8 @@ class PyodideSession:
         user_config: MarimoConfig,
     ) -> None:
         """Initialize kernel and client connection to it."""
+        from marimo._runtime.kernel_lifecycle import make_control_enqueuer
+
         self.app_manager = app
         self.mode = mode
         self.app_metadata = app_metadata
@@ -123,6 +125,10 @@ class PyodideSession:
         self.session_consumer = on_write
         self.session_view = SessionView()
         self._initial_user_config = user_config
+        self._enqueue_control_request = make_control_enqueuer(
+            self._queue_manager.control_queue,
+            self._queue_manager.set_ui_element_queue,
+        )
 
         self.consumers: list[Callable[[KernelMessage], None]] = [
             lambda msg: self.session_consumer(msg),
@@ -148,13 +154,7 @@ class PyodideSession:
         await self.kernel_task.start()
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
-        from marimo._runtime.kernel_lifecycle import enqueue_control_request
-
-        enqueue_control_request(
-            self._queue_manager.control_queue,
-            self._queue_manager.set_ui_element_queue,
-            request,
-        )
+        self._enqueue_control_request(request)
 
     def put_completion_request(
         self, request: commands.CodeCompletionCommand
