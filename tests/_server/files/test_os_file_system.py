@@ -41,7 +41,7 @@ def test_create_file(test_dir: Path, fs: OSFileSystem) -> None:
     [
         ("py", "__generated_with"),
         ("md", "marimo-version:"),
-        ("qmd", "marimo-team/marimo"),
+        ("qmd", "marimo-version:"),
     ],
 )
 def test_create_notebook(

@@ -384,7 +384,7 @@ def test_qmd_flavor_renders_export_document():
 
     markdown = flavor.render_document(document)
 
-    assert "filters:\n- marimo-team/marimo" in markdown
+    assert "filters:" not in markdown
     assert "```{marimo .python}" in markdown
 
 
