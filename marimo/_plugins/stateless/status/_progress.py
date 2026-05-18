@@ -392,6 +392,7 @@ class progress_bar(Generic[S]):
         self.step: int = 1
         self.collection = collection
         self._is_async = isinstance(collection, AsyncIterable)
+        total_was_provided = total is not None
 
         if collection is not None:
             if total is None:
@@ -404,7 +405,7 @@ class progress_bar(Generic[S]):
                         "A `total` must be provided."
                     )
 
-            if isinstance(collection, range):
+            if total_was_provided and isinstance(collection, range):
                 self.step = cast(range, collection).step
 
         elif total is None:
