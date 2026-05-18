@@ -4067,22 +4067,12 @@ def _filter_to_error_ops(
     ]
 
 
-class TestRequestHandler:
-    async def test_request_handler_only_created_once(
+class TestRequestRouter:
+    async def test_router_has_full_dispatch_table(
         self, any_kernel: Kernel
     ) -> None:
-        """Test that request_handler property is only created once."""
-        k = any_kernel
-
-        # Access request_handler multiple times
-        handler1 = k.request_handler
-        handler2 = k.request_handler
-        handler3 = k.request_handler
-
-        # They should all be the same instance
-        assert handler1 is handler2
-        assert handler2 is handler3
-        assert handler1 is handler3
+        """The router built in __init__ binds every kernel command."""
+        assert len(any_kernel.router._handlers) == 27
 
 
 class TestLaunchKernelEventLoop:
