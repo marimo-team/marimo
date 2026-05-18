@@ -306,6 +306,7 @@ def _(mo):
     - `sql`: how to use SQL
     - `layout`: layout elements in marimo
     - `fileformat`: how marimo's file format works
+    - `external-dependencies`: how to declare notebook dependencies
     - `markdown-format`: for using `.md` files in marimo
     - `for-jupyter-users`: if you are coming from Jupyter
 
