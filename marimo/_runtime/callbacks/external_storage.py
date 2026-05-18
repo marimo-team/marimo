@@ -21,8 +21,8 @@ from marimo._tracer import kernel_tracer
 from marimo._types.ids import VariableName
 
 if TYPE_CHECKING:
+    from marimo._runtime.callbacks.protocol import GlobalsView
     from marimo._runtime.request_router import RequestRouter
-    from marimo._runtime.runtime import Kernel
 
 LOGGER = _loggers.marimo_logger()
 
@@ -31,8 +31,8 @@ class ExternalStorageCallbacks:
     _VFILE_TTL_SECONDS = 60
     _PREVIEW_MAX_BYTES = 1_000_000  # 1 MB
 
-    def __init__(self, kernel: Kernel):
-        self._kernel = kernel
+    def __init__(self, scope: GlobalsView):
+        self._scope = scope
 
     def register(self, router: RequestRouter) -> None:
         router.register(StorageListEntriesCommand, self.list_entries)
@@ -48,10 +48,10 @@ class ExternalStorageCallbacks:
         from marimo._data._external_storage.get_storage import STORAGE_BACKENDS
 
         variable_name = VariableName(namespace)
-        if variable_name not in self._kernel.globals:
+        if variable_name not in self._scope.globals:
             return None, f"Variable '{namespace}' not found"
 
-        var = self._kernel.globals[variable_name]
+        var = self._scope.globals[variable_name]
 
         for backend in STORAGE_BACKENDS:
             if backend.is_compatible(var):

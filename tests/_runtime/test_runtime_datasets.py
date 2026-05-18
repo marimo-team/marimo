@@ -406,12 +406,12 @@ class TestPreviewDatasourceConnection:
         mocked_kernel: MockedKernel,
         connection_requests: list[ExecuteCellCommand],
     ) -> None:
+        """Regression: query-only engines (QueryEngine, not EngineCatalog) must broadcast."""
         k = mocked_kernel.k
         stream = mocked_kernel.stream
 
         await k.run(connection_requests)
 
-        # k.run emits auto-discovery notifications; take a baseline.
         baseline = sum(
             1
             for op in stream.operations

@@ -36,6 +36,7 @@ class TestClearCache:
     async def test_clears_memory_loaders(
         self, mocked_kernel: MockedKernel
     ) -> None:
+        """Regression: clear_cache must purge non-persistence loaders too."""
         k = mocked_kernel.k
         stream = mocked_kernel.stream
 

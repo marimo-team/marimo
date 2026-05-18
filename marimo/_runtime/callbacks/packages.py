@@ -308,7 +308,7 @@ class PackagesCallbacks:
                 cells_to_run.add(cid)
 
         if cells_to_run:
-            await self._kernel._if_autorun_then_run_cells(cells_to_run)
+            await self._kernel.maybe_autorun_cells(cells_to_run)
 
     def _maybe_add_marimo_to_script_metadata(self) -> None:
         if self.should_update_script_metadata():

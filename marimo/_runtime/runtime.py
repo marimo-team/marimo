@@ -510,8 +510,6 @@ class Kernel:
 
         self._hooks = hooks
 
-        self._original_environ = os.environ.copy()
-
         self._globals_lock = threading.RLock()
         self._state_lock = threading.RLock()
         self._completion_worker_started = False
@@ -1393,9 +1391,7 @@ class Kernel:
                             cell_id=cid, status=status
                         )
 
-    async def _if_autorun_then_run_cells(
-        self, cell_ids: set[CellId_t]
-    ) -> None:
+    async def maybe_autorun_cells(self, cell_ids: set[CellId_t]) -> None:
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(cell_ids)
         else:
@@ -1720,7 +1716,7 @@ class Kernel:
         for cell in self.graph.cells.values():
             if "__file__" in cell.refs:
                 roots.add(cell.cell_id)
-        await self._if_autorun_then_run_cells(roots)
+        await self.maybe_autorun_cells(roots)
 
     @kernel_tracer.start_as_current_span("run_scratchpad")
     async def run_scratchpad(self, code: str) -> None:
