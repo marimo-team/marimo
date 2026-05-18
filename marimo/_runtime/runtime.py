@@ -751,19 +751,14 @@ class Kernel:
         self, completion_queue: QueueType[CodeCompletionCommand]
     ) -> None:
         """Must be called after context is initialized"""
-        from marimo._runtime.complete import completion_worker
+        from marimo._runtime.kernel_lifecycle import drain_stale
 
-        threading.Thread(
-            target=completion_worker,
-            args=(
-                completion_queue,
-                self.graph,
-                self.globals,
-                self._globals_lock,
-                get_context().stream,
-            ),
-            daemon=True,
-        ).start()
+        def _worker() -> None:
+            while True:
+                request = drain_stale(completion_queue, completion_queue.get())
+                self.code_completion(request, docstrings_limit=80)
+
+        threading.Thread(target=_worker, daemon=True).start()
         self._completion_worker_started = True
 
     @kernel_tracer.start_as_current_span("code_completion")
@@ -777,7 +772,7 @@ class Kernel:
             self.graph,
             self.globals,
             self._globals_lock,
-            get_context().stream,
+            self.stream,
             docstrings_limit,
         )
 

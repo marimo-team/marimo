@@ -10,6 +10,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import dataclasses
+import functools
+import queue as _queue
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from marimo import _loggers
@@ -83,6 +85,21 @@ LOGGER = _loggers.marimo_logger()
 # Lets each caller pin listen_messages and its reader to the same queue type
 # (threading vs asyncio).
 _Q = TypeVar("_Q")
+_T = TypeVar("_T")
+
+
+def drain_stale(queue: Any, latest: _T) -> _T:
+    """Discard any further items queued behind ``latest`` and return the newest.
+
+    Works on both threading and asyncio queues — they share the ``empty()`` and
+    ``get_nowait()`` interface and the non-blocking get is synchronous on both.
+    """
+    while not queue.empty():
+        try:
+            latest = queue.get_nowait()
+        except (asyncio.QueueEmpty, _queue.Empty):
+            break
+    return latest
 
 
 def _build_hooks(
@@ -103,6 +120,18 @@ def _build_hooks(
     return hooks
 
 
+def enqueue_control_request(
+    control_queue: ControlQueue,
+    set_ui_element_queue: UIElementQueue,
+    req: CommandMessage,
+) -> None:
+    """Route a control request to the control queue and mirror UI-element
+    commands onto the batching queue."""
+    control_queue.put_nowait(req)
+    if isinstance(req, (UpdateUIElementCommand, ModelCommand)):
+        set_ui_element_queue.put_nowait(req)
+
+
 def create_kernel(
     args: KernelArgs,
 ) -> tuple[Kernel, KernelRuntimeContext]:
@@ -112,11 +141,6 @@ def create_kernel(
         user_config = user_config.copy()
         user_config["runtime"]["on_cell_change"] = "autorun"
         user_config["runtime"]["auto_reload"] = "off"
-
-    def _enqueue_control_request(req: CommandMessage) -> None:
-        args.control_queue.put_nowait(req)
-        if isinstance(req, (UpdateUIElementCommand, ModelCommand)):
-            args.set_ui_element_queue.put_nowait(req)
 
     # Deferred to break the runtime.py <-> kernel_lifecycle.py import cycle.
     from marimo._runtime.runtime import Kernel
@@ -133,7 +157,11 @@ def create_kernel(
         ),
         debugger_override=args.debugger,
         user_config=user_config,
-        enqueue_control_request=_enqueue_control_request,
+        enqueue_control_request=functools.partial(
+            enqueue_control_request,
+            args.control_queue,
+            args.set_ui_element_queue,
+        ),
         hooks=_build_hooks(args.is_edit_mode, user_config),
     )
     ctx = initialize_kernel_context(

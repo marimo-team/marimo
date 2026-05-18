@@ -148,12 +148,13 @@ class PyodideSession:
         await self.kernel_task.start()
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
-        self._queue_manager.control_queue.put_nowait(request)
-        if isinstance(
+        from marimo._runtime.kernel_lifecycle import enqueue_control_request
+
+        enqueue_control_request(
+            self._queue_manager.control_queue,
+            self._queue_manager.set_ui_element_queue,
             request,
-            (commands.UpdateUIElementCommand, commands.ModelCommand),
-        ):
-            self._queue_manager.set_ui_element_queue.put_nowait(request)
+        )
 
     def put_completion_request(
         self, request: commands.CodeCompletionCommand
@@ -442,6 +443,7 @@ def _launch_pyodide_kernel(
         KernelArgs,
         asyncio_queue_reader,
         create_kernel,
+        drain_stale,
         listen_messages,
         teardown_kernel,
     )
@@ -485,14 +487,10 @@ def _launch_pyodide_kernel(
 
     async def listen_completion() -> None:
         while True:
-            request = await completion_queue.get()
-            while not completion_queue.empty():
-                # discard stale requests to avoid choking the runtime
-                request = await completion_queue.get()
-            LOGGER.debug("received completion request %s", request)
-            # 5 is arbitrary, but is a good limit:
-            # too high will cause long load times
-            # too low can be not as useful
+            request = drain_stale(
+                completion_queue, await completion_queue.get()
+            )
+            # 5 is arbitrary — too high causes long load times, too low isn't useful.
             kernel.code_completion(request, docstrings_limit=5)
 
     async def listen() -> None:
