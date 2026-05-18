@@ -124,7 +124,6 @@ def _():
     except ModuleNotFoundError:
         Slider2D = None
         missing_packages = True
-
     return Slider2D, missing_packages, mo
 
 
