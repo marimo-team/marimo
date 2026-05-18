@@ -6,6 +6,7 @@ from __future__ import annotations
 import collections
 import datetime
 import decimal
+import enum
 import fractions
 import uuid
 from math import isnan
@@ -181,6 +182,12 @@ def enc_hook(obj: Any) -> Any:
                 "Error converting matplotlib figures to HTML",
                 exc_info=True,
             )
+
+    # Encode Enum members as their str form (e.g. "TestEnum.ONE"). Without
+    # this, plain Enum members reach the __dict__ fallback and leak internals
+    # (_value_, _name_, ...).
+    if isinstance(obj, enum.Enum):
+        return str(obj)
 
     # Handle objects with __slots__
     # Check on type(obj) to avoid triggering __getattr__ on objects that
