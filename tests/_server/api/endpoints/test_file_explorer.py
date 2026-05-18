@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._server.workspace import serialize_file_key
 from marimo._utils.platform import is_windows
 from tests._server.mocks import get_session_manager, token_header
 
@@ -225,9 +226,9 @@ def test_update_file_with_session(client: TestClient) -> None:
     # Enable watch mode (file watcher is set up automatically)
     sm.watch = True
 
-    file_path = sm.workspace.get_unique_file_key()
-    assert file_path
-    file_path = Path(file_path)
+    file_key = sm.workspace.get_unique_file_key()
+    assert file_key
+    file_path = Path(serialize_file_key(file_key))
     assert file_path.exists()
 
     # Create a session by connecting via websocket

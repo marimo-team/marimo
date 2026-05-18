@@ -12,7 +12,12 @@ from marimo._server.lsp import LspServer
 from marimo._server.session.listeners import RecentsTrackerListener
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
-from marimo._server.workspace import NEW_FILE, EmptyWorkspace, infer_workspace
+from marimo._server.workspace import (
+    EmptyWorkspace,
+    NewFileKey,
+    PathFileKey,
+    infer_workspace,
+)
 from marimo._session import (
     KernelManager,
     Session,
@@ -100,7 +105,7 @@ async def test_create_session_new(
         session_id,
         mock_session_consumer,
         query_params={},
-        file_key=NEW_FILE,
+        file_key=NewFileKey(),
         auto_instantiate=False,
     )
     assert session_id in session_manager.sessions
@@ -118,7 +123,7 @@ async def test_create_session_absolute_url(
         session_id,
         mock_session_consumer,
         query_params={},
-        file_key=temp_marimo_file,
+        file_key=PathFileKey(temp_marimo_file),
         auto_instantiate=False,
     )
     assert session_id in session_manager.sessions
@@ -137,20 +142,20 @@ def test_maybe_resume_session_for_new_file(
 
     # Resume the same session_id with a new file -> doesn't match
     resumed_session = session_manager.maybe_resume_session(
-        session_id, NEW_FILE
+        session_id, NewFileKey()
     )
     assert resumed_session is None
 
     # Resume the same session_id with a different file -> doesn't match
     # This is technically a bad state and should be unreachable
     resumed_session = session_manager.maybe_resume_session(
-        session_id, "different_file.py"
+        session_id, PathFileKey("different_file.py")
     )
     assert resumed_session is None
 
     # Resume with a different session_id -> doesn't match
     resumed_session = session_manager.maybe_resume_session(
-        "different_session_id", NEW_FILE
+        "different_session_id", NewFileKey()
     )
     assert resumed_session is None
 
@@ -166,20 +171,20 @@ def test_maybe_resume_session_for_existing_file(
 
     # Resume the same session_id with the same file -> matches
     resumed_session = session_manager.maybe_resume_session(
-        session_id, temp_marimo_file
+        session_id, PathFileKey(temp_marimo_file)
     )
     assert resumed_session is mock_session
 
     # Resume the same session_id with a different file -> doesn't match
     # This is technically a bad state and should be unreachable
     resumed_session = session_manager.maybe_resume_session(
-        session_id, "different_file.py"
+        session_id, PathFileKey("different_file.py")
     )
     assert resumed_session is None
 
     # Resume with a different session_id -> matches
     resumed_session = session_manager.maybe_resume_session(
-        "different_session_id", temp_marimo_file
+        "different_session_id", PathFileKey(temp_marimo_file)
     )
     assert resumed_session is mock_session
 
@@ -199,8 +204,11 @@ def test_any_clients_connected_new_file(
 ) -> None:
     add_session(session_manager, session_id, mock_session)
     mock_session.app_file_manager = AppFileManager(filename=None)
-    assert session_manager.any_clients_connected(NEW_FILE) is False
-    assert session_manager.any_clients_connected("different_file.py") is False
+    assert session_manager.any_clients_connected(NewFileKey()) is False
+    assert (
+        session_manager.any_clients_connected(PathFileKey("different_file.py"))
+        is False
+    )
 
 
 def test_any_clients_connected_existing_file(
@@ -210,9 +218,15 @@ def test_any_clients_connected_existing_file(
 ) -> None:
     add_session(session_manager, session_id, mock_session)
     mock_session.app_file_manager = AppFileManager(filename=temp_marimo_file)
-    assert session_manager.any_clients_connected(NEW_FILE) is False
-    assert session_manager.any_clients_connected(temp_marimo_file) is True
-    assert session_manager.any_clients_connected("different_file.py") is False
+    assert session_manager.any_clients_connected(NewFileKey()) is False
+    assert (
+        session_manager.any_clients_connected(PathFileKey(temp_marimo_file))
+        is True
+    )
+    assert (
+        session_manager.any_clients_connected(PathFileKey("different_file.py"))
+        is False
+    )
 
 
 def test_close_all_sessions(
@@ -258,7 +272,7 @@ async def test_create_session_with_script_config_overrides(
         session_id,
         mock_session_consumer,
         query_params={},
-        file_key=str(tmp_path / "test.py"),
+        file_key=PathFileKey(str(tmp_path / "test.py")),
         auto_instantiate=False,
     )
     assert session_id in session_manager.sessions
@@ -465,7 +479,7 @@ async def test_recents_touch_called_on_session_create(
         SessionId("recents_test_session"),
         mock_session_consumer,
         query_params={},
-        file_key=str(tmp_file),
+        file_key=PathFileKey(str(tmp_file)),
         auto_instantiate=False,
     )
 
