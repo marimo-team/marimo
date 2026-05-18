@@ -1694,36 +1694,13 @@ class AsyncCodeModeContext:
     def broadcast_raw_notification(self, notification: Notification) -> None:
         """Low-level: broadcast a fully-constructed ``Notification`` to the frontend.
 
-        This is an escape hatch for emitting notification payloads that
-        don't yet have a higher-level helper on ``ctx``. You construct the
-        typed ``Notification`` yourself and this method puts it on the
-        kernel's outbound stream. There is no validation, batching, or
-        debouncing — the payload is delivered as-is.
+        Escape hatch for emitting notification payloads directly; the
+        payload is delivered as-is, with no validation, batching, or
+        debouncing. Prefer a higher-level helper on ``ctx`` when one exists.
 
-        The ``Notification`` type is a discriminated union. Browse the
-        full list at ``marimo._messaging.notification`` (or look at the
-        re-exports in ``marimo._internal.notifications``).
-        Representative subtypes include:
-
-        - ``AlertNotification`` — modal alert dialog.
-        - ``BannerNotification`` — persistent banner across the top of the notebook.
-        - ``InstallingPackageAlertNotification`` — package install progress.
-        - ``MissingPackageAlertNotification`` — prompt to install a missing package.
-        - ``ReloadNotification`` — ask the frontend to reload.
-        - ``NotebookDocumentTransactionNotification`` — apply a document transaction.
-
-        Examples:
-            ```python
-            from marimo._messaging.notification import BannerNotification
-
-            ctx.broadcast_raw_notification(
-                BannerNotification(title="Heads up", description="…")
-            )
-            ```
-
-        Args:
-            notification: A typed ``Notification`` instance. See module
-                docstring above for the available subtypes.
+        See ``marimo._messaging.notification`` for the full discriminated
+        union. Agent-facing subtypes include ``BannerNotification`` (persistent
+        banner) and ``AlertNotification`` (modal dialog).
         """
         broadcast_notification(notification, stream=self._kernel.stream)  # type: ignore[arg-type]
 
