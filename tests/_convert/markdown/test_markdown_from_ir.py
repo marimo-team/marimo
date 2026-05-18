@@ -8,9 +8,11 @@ from marimo._convert.markdown.flavor import (
 )
 from marimo._convert.markdown.flavor.base import (
     CodeCellBlock,
+    DirectiveBlock,
     MarkdownCellBlock,
     MarkdownExportDocument,
 )
+from marimo._convert.markdown.flavor.pymdown import split_pymdown_blocks
 from marimo._convert.markdown.from_ir import (
     _format_filename_title,
     _get_sql_options_from_cell,
@@ -382,7 +384,29 @@ def test_qmd_flavor_renders_export_document():
 
     markdown = flavor.render_document(document)
 
+    assert "filters:\n- marimo-team/marimo" in markdown
     assert "```{marimo .python}" in markdown
+
+
+def test_qmd_flavor_escapes_code_cell_attributes():
+    """Test that qmd code fence attributes escape quotes and ampersands."""
+    flavor = markdown_flavor_from_filename("notebook.qmd")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[
+            CodeCellBlock(
+                "x = 1",
+                "python",
+                {"name": 'a"b & c', "engine": 'duck&"db'},
+            )
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert 'name="a&quot;b &amp; c"' in markdown
+    assert 'engine="duck&amp;&quot;db"' in markdown
 
 
 def test_qmd_flavor_preserves_explicit_filters():
@@ -627,6 +651,44 @@ Body
         in markdown
     )
     assert "Body\n:::" in markdown
+
+
+def test_split_pymdown_blocks_keeps_directives_inside_markdown_fences():
+    """Test that literal directives inside code fences are not parsed."""
+    blocks = split_pymdown_blocks(
+        """```text
+literal
+``` not a closing fence
+/// tip | Should stay code
+body
+///
+```
+
+/// tip | Real
+body
+///"""
+    )
+
+    assert len(blocks) == 2
+    assert isinstance(blocks[0], MarkdownCellBlock)
+    assert "/// tip | Should stay code" in blocks[0].text
+    assert isinstance(blocks[1], DirectiveBlock)
+    assert blocks[1].argument == "Real"
+
+
+def test_split_pymdown_blocks_preserves_body_colon_lines():
+    """Test that body-leading colon lines are not consumed as options."""
+    blocks = split_pymdown_blocks(
+        """/// details | Example
+    key: value
+    still body
+///"""
+    )
+
+    assert len(blocks) == 1
+    assert isinstance(blocks[0], DirectiveBlock)
+    assert blocks[0].options == {}
+    assert blocks[0].body == "    key: value\n    still body"
 
 
 def test_mystmd_flavor_maps_pymdown_blocks_to_myst_directives():

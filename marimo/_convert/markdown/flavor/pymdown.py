@@ -157,6 +157,7 @@ _PYMDOWN_BLOCK_START_RE = re.compile(
 )
 _PYMDOWN_BLOCK_END_RE = re.compile(r"^ {0,3}(?P<fence>/{3,})[ \t]*$")
 _MARKDOWN_FENCE_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})")
+_MARKDOWN_FENCE_CLOSE_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})[ \t]*$")
 
 
 def split_pymdown_blocks(text: str) -> list[MarkdownExportBlock]:
@@ -174,7 +175,7 @@ def split_pymdown_blocks(text: str) -> list[MarkdownExportBlock]:
             fence = fence_match.group("fence")
             if markdown_fence is None:
                 markdown_fence = fence
-            elif line.strip().startswith(markdown_fence):
+            elif _is_markdown_fence_close(line, markdown_fence):
                 markdown_fence = None
             pending.append(line)
             index += 1
@@ -261,6 +262,16 @@ def _find_pymdown_block_end(
     return None
 
 
+def _is_markdown_fence_close(line: str, opening_fence: str) -> bool:
+    match = _MARKDOWN_FENCE_CLOSE_RE.match(line)
+    if match is None:
+        return False
+    closing_fence = match.group("fence")
+    return closing_fence[0] == opening_fence[0] and len(closing_fence) >= len(
+        opening_fence
+    )
+
+
 def _append_markdown_block(
     blocks: list[MarkdownExportBlock], lines: list[str]
 ) -> None:
@@ -281,8 +292,11 @@ def _extract_pymdown_options(lines: list[str]) -> tuple[dict[str, Any], str]:
             option_lines.append(line[4:])
             body_start += 1
             continue
-        if not line.strip() and option_lines:
+        if option_lines and not line.strip():
             body_start += 1
+            break
+        if option_lines:
+            return {}, "\n".join(lines).strip("\n")
         break
 
     if option_lines:
