@@ -6,11 +6,11 @@ from unittest.mock import MagicMock
 import pytest
 
 from marimo._messaging.notification import SecretKeysResultNotification
+from marimo._runtime.callbacks import SecretsCallbacks
 from marimo._runtime.commands import (
     ListSecretKeysCommand,
     RefreshSecretsCommand,
 )
-from marimo._runtime.runtime import SecretsCallbacks
 from marimo._types.ids import RequestId
 from tests._messaging.mocks import MockStream
 from tests.conftest import MockedKernel
