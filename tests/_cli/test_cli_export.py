@@ -703,6 +703,21 @@ class TestExportMarkdown:
         snapshot(_get_snapshot_path("md", "broken"), p.output)
 
     @staticmethod
+    def test_export_markdown_with_flavor(temp_marimo_file: str) -> None:
+        p = _run_export("md", temp_marimo_file, "--flavor", "qmd")
+        _assert_success(p)
+        assert "```{marimo .python" in p.output
+
+    @staticmethod
+    def test_export_markdown_with_invalid_flavor(
+        temp_marimo_file: str,
+    ) -> None:
+        p = _run_export("md", temp_marimo_file, "--flavor", "unknown")
+        _assert_failure(p)
+        assert "invalid value for '--flavor'" in p.output
+        assert "'mystmd'" in p.output
+
+    @staticmethod
     def test_export_markdown_with_errors(
         temp_marimo_file_with_errors: str,
     ) -> None:

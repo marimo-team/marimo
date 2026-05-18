@@ -48,6 +48,8 @@ from marimo._utils.paths import maybe_make_dirs
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from marimo._convert.markdown.flavor.base import MarkdownFlavorName
+
 _watch_message = (
     "Watch notebook for changes and regenerate the output on modification. "
     "If watchdog is installed, it will be used to watch the file. "
@@ -364,6 +366,12 @@ Watch for changes and regenerate the script on modification:
     help=_sandbox_message,
 )
 @click.option(
+    "--flavor",
+    type=click.Choice(["pymdown", "qmd", "mystmd"]),
+    default=None,
+    help="Markdown flavor to export.",
+)
+@click.option(
     "-f",
     "--force",
     is_flag=True,
@@ -376,7 +384,12 @@ Watch for changes and regenerate the script on modification:
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 def md(
-    name: str, output: Path, watch: bool, sandbox: bool | None, force: bool
+    name: str,
+    output: Path,
+    watch: bool,
+    sandbox: bool | None,
+    flavor: MarkdownFlavorName | None,
+    force: bool,
 ) -> None:
     """
     Export a marimo notebook as a code fenced markdown document.
@@ -386,7 +399,7 @@ def md(
         return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_md(file_path)
+        return export_as_md(file_path, flavor=flavor)
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force
