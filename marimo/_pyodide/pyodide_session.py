@@ -487,10 +487,9 @@ def _launch_pyodide_kernel(
 
     async def listen_completion() -> None:
         while True:
-            request = drain_stale(
-                completion_queue, await completion_queue.get()
-            )
-            # 5 is arbitrary — too high causes long load times, too low isn't useful.
+            request = await completion_queue.get()
+            if (newer := drain_stale(completion_queue)) is not None:
+                request = newer
             kernel.code_completion(request, docstrings_limit=5)
 
     async def listen() -> None:

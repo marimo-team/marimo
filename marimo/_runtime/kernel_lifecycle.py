@@ -84,15 +84,11 @@ LOGGER = _loggers.marimo_logger()
 # Lets each caller pin listen_messages and its reader to the same queue type
 # (threading vs asyncio).
 _Q = TypeVar("_Q")
-_T = TypeVar("_T")
 
 
-def drain_stale(queue: Any, latest: _T) -> _T:
-    """Discard any further items queued behind ``latest`` and return the newest.
-
-    Works on both threading and asyncio queues — they share the ``empty()`` and
-    ``get_nowait()`` interface and the non-blocking get is synchronous on both.
-    """
+def drain_stale(queue: Any) -> Any | None:
+    """Return the newest pending item, or None if the queue is empty."""
+    latest = None
     while not queue.empty():
         try:
             latest = queue.get_nowait()
@@ -123,8 +119,8 @@ def make_control_enqueuer(
     control_queue: ControlQueue,
     set_ui_element_queue: UIElementQueue,
 ) -> Callable[[CommandMessage], None]:
-    """Build a callable that routes a control request to the control queue and
-    mirrors UI-element commands onto the batching queue."""
+    """Build a callable that routes control requests, mirroring UI-element
+    commands onto the batching queue."""
 
     def enqueue(req: CommandMessage) -> None:
         control_queue.put_nowait(req)
