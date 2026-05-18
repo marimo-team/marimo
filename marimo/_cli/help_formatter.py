@@ -93,6 +93,18 @@ class ColoredCommand(click.Command):
                 formatter.write_dl(rows)
 
 
+class RunCommand(ColoredCommand):
+    """Command that records the raw tail after Click's `--` separator."""
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        if "--" in args:
+            separator_index = args.index("--")
+            ctx.meta["marimo_run_args_after_separator"] = tuple(
+                args[separator_index + 1 :]
+            )
+        return super().parse_args(ctx, args)
+
+
 class ColoredGroup(click.Group):
     """Click Group with colored help output (cargo-style)."""
 

@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
+import click
 import pytest
 from click.testing import CliRunner
 
@@ -30,6 +31,7 @@ from marimo._ast.cell import CellConfig
 from marimo._cli.cli import (
     _collect_marimo_files,
     _create_run_workspace,
+    _split_run_paths_and_args,
     main as cli_main,
 )
 from marimo._config.manager import get_default_config_manager
@@ -1718,6 +1720,102 @@ def test_cli_run_sandbox_prompt_yes() -> None:
     assert p.poll() is None
     _check_started(port)
     p.kill()
+
+
+@pytest.mark.parametrize(
+    "tail_args",
+    [
+        ["experiment_name=my-exp", "epochs=25"],
+        ["--key", "value"],
+        ["--key"],
+        ["-key", "value"],
+    ],
+)
+def test_cli_run_double_dash_reaches_splitter(tail_args: list[str]) -> None:
+    runner = CliRunner()
+    captured: dict[str, Any] = {}
+
+    def _capture(
+        name: str,
+        args: tuple[str, ...],
+        args_after_separator: tuple[str, ...] | None = None,
+    ) -> tuple[list[str], tuple[str, ...]]:
+        captured["name"] = name
+        captured["args"] = args
+        captured["args_after_separator"] = args_after_separator
+        raise click.ClickException("stop after capture")
+
+    with patch(
+        "marimo._cli.cli._split_run_paths_and_args", side_effect=_capture
+    ):
+        result = runner.invoke(
+            cli_main,
+            ["run", "notebook.py", "--", *tail_args],
+        )
+
+    assert result.exit_code != 0
+    assert "stop after capture" in result.output
+    assert captured["name"] == "notebook.py"
+    assert captured["args"] == tuple(tail_args)
+    assert captured["args_after_separator"] == tuple(tail_args)
+
+
+@pytest.mark.parametrize(
+    ("args", "args_after_separator", "expected"),
+    [
+        (
+            ("experiment_name=my-exp",),
+            ("experiment_name=my-exp",),
+            (["notebook.py"], ("experiment_name=my-exp",)),
+        ),
+        (
+            ("other.py", "arg=value"),
+            ("arg=value",),
+            (["notebook.py", "other.py"], ("arg=value",)),
+        ),
+        (("other.py",), None, (["notebook.py", "other.py"], ())),
+    ],
+)
+def test_split_run_paths_and_args_with_click_separator_state(
+    args: tuple[str, ...],
+    args_after_separator: tuple[str, ...] | None,
+    expected: tuple[list[str], tuple[str, ...]],
+) -> None:
+    assert (
+        _split_run_paths_and_args("notebook.py", args, args_after_separator)
+        == expected
+    )
+
+
+def test_cli_run_double_dash_passes_notebook_argv(tmp_path: Path) -> None:
+    runner = CliRunner()
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("")
+
+    with (
+        patch(
+            "marimo._cli.cli.prompt_run_in_docker_container",
+            return_value=False,
+        ),
+        patch("marimo._cli.cli.check_app_correctness"),
+        patch("marimo._cli.cli.start") as mock_start,
+    ):
+        result = runner.invoke(
+            cli_main,
+            [
+                "run",
+                str(notebook),
+                "--headless",
+                "--no-token",
+                "--",
+                "experiment_name=my-exp",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    mock_start.assert_called_once()
+    assert mock_start.call_args.kwargs["argv"] == ["experiment_name=my-exp"]
+    assert mock_start.call_args.kwargs["cli_args"] == {}
 
 
 def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
