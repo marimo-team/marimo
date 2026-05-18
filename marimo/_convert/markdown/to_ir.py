@@ -320,6 +320,7 @@ class MarimoMdParser(IdentityParser):
         self,
         *args: Any,
         output_format: ConvertKeys = "marimo-ir",
+        enable_myst: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -336,9 +337,10 @@ class MarimoMdParser(IdentityParser):
         self.preprocessors.register(
             FrontMatterPreprocessor(self), "frontmatter", 100
         )
-        self.preprocessors.register(
-            MystMarimoPreprocessor(self), "myst-marimo", 99
-        )
+        if enable_myst:
+            self.preprocessors.register(
+                MystMarimoPreprocessor(self), "myst-marimo", 99
+            )
         fences_ext = SuperFencesCodeExtension()
         fences_ext.extendMarkdown(self)
         # TODO: Consider adding the admonition extension, and integrating it
@@ -577,7 +579,13 @@ def convert_from_md_to_marimo_ir(
         return NotebookSerializationV1(
             app=AppInstantiation(options={}), filename=filepath
         )
-    notebook = MarimoMdParser(output_format="marimo-ir").convert(text)
+    notebook = MarimoMdParser(
+        output_format="marimo-ir",
+        enable_myst=any(
+            _is_myst_marimo_directive_header(line)
+            for line in text.splitlines()
+        ),
+    ).convert(text)
     assert isinstance(notebook, NotebookSerializationV1)
     return NotebookSerializationV1(
         app=notebook.app,

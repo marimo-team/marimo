@@ -41,8 +41,6 @@ from marimo._convert.markdown.flavor.pymdown import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-_MARIMO_QMD_FILTER = "marimo-team/marimo"
-
 
 class QmdMarkdownFlavor(MarkdownFlavor):
     """Render marimo exports as Quarto-native markdown.
@@ -83,9 +81,7 @@ class QmdMarkdownFlavor(MarkdownFlavor):
     def prepare_metadata(
         self, metadata: dict[str, str | list[str]]
     ) -> dict[str, str | list[str]]:
-        qmd_metadata = metadata.copy()
-        qmd_metadata.setdefault("filters", [_MARIMO_QMD_FILTER])
-        return qmd_metadata
+        return metadata.copy()
 
     def render_preamble(self, document: MarkdownExportDocument) -> list[str]:
         from marimo._utils import yaml

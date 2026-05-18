@@ -12,7 +12,10 @@ from marimo import __version__
 from marimo._ast.app import InternalApp
 from marimo._ast.load import load_notebook_ir
 from marimo._convert.converters import MarimoConvert
-from marimo._convert.markdown.to_ir import convert_from_md_to_marimo_ir
+from marimo._convert.markdown.to_ir import (
+    MarimoMdParser,
+    convert_from_md_to_marimo_ir,
+)
 
 # Just a handful of scripts to test
 from marimo._tutorials import dataflow, for_jupyter_users, sql
@@ -163,6 +166,17 @@ def test_mystmd_marimo_directives() -> None:
     )
     assert "SELECT 1" in app.cell_manager.cell_data_at(ids[2]).code
     assert "result" in app.cell_manager.cell_data_at(ids[2]).code
+
+
+def test_mystmd_preprocessor_registers_conditionally() -> None:
+    plain_parser = MarimoMdParser(output_format="marimo-ir")
+    myst_parser = MarimoMdParser(
+        output_format="marimo-ir",
+        enable_myst=True,
+    )
+
+    assert "myst-marimo" not in plain_parser.preprocessors
+    assert "myst-marimo" in myst_parser.preprocessors
 
 
 def test_no_frontmatter() -> None:
