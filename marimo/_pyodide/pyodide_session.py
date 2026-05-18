@@ -17,6 +17,7 @@ from marimo._config.config import (
 )
 from marimo._convert.markdown import convert_from_ir_to_markdown
 from marimo._messaging.msgspec_encoder import encode_json_str
+from marimo._messaging.types import KernelStreams
 from marimo._pyodide.restartable_task import RestartableTask
 from marimo._pyodide.streams import (
     PyodideStderr,
@@ -464,10 +465,9 @@ def _launch_pyodide_kernel(
 
     kernel, ctx = create_kernel(
         KernelArgs(
-            stream=stream,
-            stdout=stdout,
-            stderr=stderr,
-            stdin=stdin,
+            streams=KernelStreams(
+                stream=stream, stdout=stdout, stderr=stderr, stdin=stdin
+            ),
             debugger=debugger,
             configs=configs,
             app_metadata=app_metadata,

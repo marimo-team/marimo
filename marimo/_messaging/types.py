@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import abc
+import dataclasses
 import io
 from typing import NewType
 
@@ -103,3 +104,13 @@ class Stdin(io.TextIOBase):
 
     def _stop(self) -> None:
         """Tear down resources, if any."""
+
+
+@dataclasses.dataclass(kw_only=True)
+class KernelStreams:
+    """The four I/O channels the kernel uses to communicate with the host."""
+
+    stream: Stream
+    stdout: Stdout | None
+    stderr: Stderr | None
+    stdin: Stdin | None

@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.cell import CellConfig
     from marimo._config.config import MarimoConfig
-    from marimo._messaging.types import Stderr, Stdin, Stdout, Stream
+    from marimo._messaging.types import KernelStreams
     from marimo._runtime import marimo_pdb
     from marimo._runtime.commands import (
         AppMetadata,
@@ -62,10 +62,7 @@ if TYPE_CHECKING:
 class KernelArgs:
     """All inputs needed to construct a `Kernel` and its runtime context."""
 
-    stream: Stream
-    stdout: Stdout | None
-    stderr: Stderr | None
-    stdin: Stdin | None
+    streams: KernelStreams
     debugger: marimo_pdb.MarimoPdb | None
     configs: dict[CellId_t, CellConfig]
     app_metadata: AppMetadata
@@ -127,10 +124,7 @@ def create_kernel(
     kernel = Kernel(
         cell_configs=args.configs,
         app_metadata=args.app_metadata,
-        stream=args.stream,
-        stdout=args.stdout,
-        stderr=args.stderr,
-        stdin=args.stdin,
+        streams=args.streams,
         module=patches.patch_main_module(
             file=args.app_metadata.filename,
             input_override=input_override,
@@ -144,9 +138,7 @@ def create_kernel(
     )
     ctx = initialize_kernel_context(
         kernel=kernel,
-        stream=args.stream,
-        stdout=args.stdout,
-        stderr=args.stderr,
+        streams=args.streams,
         virtual_file_storage=args.virtual_file_storage,
         mode=args.mode,
     )
