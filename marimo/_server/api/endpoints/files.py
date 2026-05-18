@@ -59,7 +59,7 @@ async def read_code(
         400:
             description: File must be saved before downloading
         403:
-            description: Code is not available in run mode
+            description: Code is not available in run mode, or sharing is disabled by configuration
     """
     app_state = AppState(request)
 
@@ -71,6 +71,15 @@ async def read_code(
         )
 
     session = app_state.require_current_session()
+
+    if (
+        session.config_manager.get_config().get("sharing", {}).get("wasm")
+        is False
+    ):
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Code sharing is disabled by configuration.",
+        )
 
     if not session.app_file_manager.path:
         raise HTTPException(

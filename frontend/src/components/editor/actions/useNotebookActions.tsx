@@ -387,6 +387,7 @@ export function useNotebookActions() {
         {
           icon: <MarimoPlusIcon size={14} strokeWidth={1.5} />,
           label: "Create molab notebook",
+          hidden: !sharingWasmEnabled,
           handle: async () => {
             const code = await readCode();
             const url = createShareableLink({
