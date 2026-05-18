@@ -1703,12 +1703,12 @@ components:
         flavor:
           anyOf:
           - enum:
+            - mystmd
             - pymdown
             - qmd
-            - mystmd
-            type: string
           - type: 'null'
           default: null
+      required: []
       title: ExportAsMarkdownRequest
       type: object
     ExportAsPDFRequest:

@@ -410,15 +410,31 @@ def test_auto_export_markdown(
         headers=HEADERS,
         json={
             "download": False,
+            "flavor": "qmd",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+    response = client.post(
+        "/api/export/auto_export/markdown",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "flavor": "qmd",
         },
     )
     # Not modified response
     assert response.status_code == 304
 
     # Assert __marimo__ file is created
-    assert os.path.exists(
-        os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
+    exported_file = os.path.join(
+        os.path.dirname(temp_marimo_file),
+        "__marimo__",
+        f"{Path(temp_marimo_file).stem}.md",
     )
+    assert os.path.exists(exported_file)
+    assert "```{marimo .python" in Path(exported_file).read_text()
 
 
 @pytest.mark.skipif(
