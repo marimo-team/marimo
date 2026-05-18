@@ -1093,25 +1093,6 @@ class AsyncCodeModeContext:
         self._require_entered()
         cell_id = self._resolve_target(target)
 
-        if (
-            code is not None
-            and not self._skip_staleness_check
-            and cell_id not in self._pending_adds
-        ):
-            cell = self._document.get(cell_id)
-            tracker = self._kernel.agent.read_tracker
-            # Empty cells have no prior content to clobber. The agent's own
-            # writes record reads at __aexit__, so a follow-up edit in a
-            # later context passes the check normally.
-            if (
-                cell is not None
-                and cell.code.strip()
-                and not tracker.has_read(cell_id, cell.version)
-            ):
-                raise StaleCellError(
-                    cell_id, tracker.get_stale_cells(self._document)
-                )
-
         # Handle cell-id migration when converting to a setup cell.
         # Setup is identified by cell_id, not name — clear the name
         # and migrate to the well-known setup cell_id.
@@ -1139,6 +1120,27 @@ class AsyncCodeModeContext:
                     code = self.graph.cells[cell_id].code
             # Setup is identified by cell_id alone — don't store a name.
             name = None
+
+        # Check after the setup-migration block so an implicit code-fill
+        # from the graph still trips the read-before-write guard.
+        if (
+            code is not None
+            and not self._skip_staleness_check
+            and cell_id not in self._pending_adds
+        ):
+            cell = self._document.get(cell_id)
+            tracker = self._kernel.agent.read_tracker
+            # Empty cells have no prior content to clobber. The agent's own
+            # writes record reads at __aexit__, so a follow-up edit in a
+            # later context passes the check normally.
+            if (
+                cell is not None
+                and cell.code.strip()
+                and not tracker.has_read(cell_id, cell.version)
+            ):
+                raise StaleCellError(
+                    cell_id, tracker.get_stale_cells(self._document)
+                )
 
         # Build config only if any config kwarg was explicitly set.
         config: CellConfig | None = None

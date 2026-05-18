@@ -283,6 +283,30 @@ class TestEmptyCellExemption:
                 assert exc.value.stale_cells == frozenset({CellId_t("real")})
 
 
+class TestSetupCellMigration:
+    async def test_rename_to_setup_without_read_raises(
+        self, k: Kernel
+    ) -> None:
+        # The migration path silently fills `code` from `self.graph.cells`
+        # when the agent passes `name="setup"` with `code=None`. Without
+        # the post-migration staleness check, that fill could overwrite
+        # the doc with stale graph code without ever requiring a read.
+        await _seed(k, "0", "x = 1")
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                with pytest.raises(StaleCellError):
+                    nb.edit_cell("0", name="setup")
+
+    async def test_rename_to_setup_after_read_succeeds(
+        self, k: Kernel
+    ) -> None:
+        await _seed(k, "0", "x = 1")
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                _ = nb.cells["0"].code
+                nb.edit_cell("0", name="setup")
+
+
 class TestCellsViewReadRecording:
     async def test_iteration_records_reads(self, k: Kernel) -> None:
         await _seed(k, "0", "a = 1")
