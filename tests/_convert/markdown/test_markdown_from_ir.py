@@ -429,8 +429,29 @@ After"""
     assert ":::\n\nAfter" in markdown
 
 
-def test_qmd_flavor_unquotes_pymdown_callout_title():
-    """Test that quoted PyMdown callout titles become plain QMD titles."""
+def test_qmd_flavor_preserves_plain_pymdown_callout_title():
+    """Test that plain PyMdown callout titles stay unquoted in QMD."""
+    flavor = markdown_flavor_from_filename("notebook.qmd")
+    document = MarkdownExportDocument(
+        metadata={"title": "Notebook"},
+        header=None,
+        blocks=[
+            MarkdownCellBlock(
+                """/// tip | Variables panel
+
+Open the variables panel.
+///"""
+            )
+        ],
+    )
+
+    markdown = flavor.render_document(document)
+
+    assert '::: {.callout-tip title="Variables panel"}' in markdown
+
+
+def test_qmd_flavor_preserves_quoted_pymdown_callout_title():
+    """Test that quoted PyMdown callout titles stay quoted in QMD."""
     flavor = markdown_flavor_from_filename("notebook.qmd")
     document = MarkdownExportDocument(
         metadata={"title": "Notebook"},
@@ -447,7 +468,7 @@ Open the variables panel.
 
     markdown = flavor.render_document(document)
 
-    assert '::: {.callout-tip title="Variables panel"}' in markdown
+    assert '::: {.callout-tip title="&quot;Variables panel&quot;"}' in markdown
 
 
 def test_qmd_flavor_maps_generic_admonition_type_to_callout():
