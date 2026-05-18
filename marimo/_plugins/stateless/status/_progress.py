@@ -405,7 +405,7 @@ class progress_bar(Generic[S]):
                         "A `total` must be provided."
                     )
 
-            if total_was_provided and isinstance(collection, range):
+            elif total_was_provided and isinstance(collection, range):
                 self.step = cast(range, collection).step
 
         elif total is None:
