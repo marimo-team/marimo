@@ -5568,6 +5568,7 @@ export interface components {
       tutorialId:
         | (
             | "dataflow"
+            | "external-dependencies"
             | "fileformat"
             | "for-jupyter-users"
             | "intro"

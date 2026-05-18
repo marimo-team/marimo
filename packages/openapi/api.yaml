@@ -3701,6 +3701,7 @@ components:
           anyOf:
           - enum:
             - dataflow
+            - external-dependencies
             - fileformat
             - for-jupyter-users
             - intro
