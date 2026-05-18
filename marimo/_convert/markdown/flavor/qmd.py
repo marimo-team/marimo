@@ -20,6 +20,7 @@ Syntax references:
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from html import unescape
 from types import MappingProxyType
 from typing import TYPE_CHECKING, ClassVar
 
@@ -144,7 +145,7 @@ class QmdMarkdownFlavor(MarkdownFlavor):
         attributes = [
             f".callout-{callout_type}",
             *(
-                [f'title="{_escape_attribute(block.argument)}"']
+                [f'title="{_escape_attribute(_clean_title(block.argument))}"']
                 if block.argument
                 else []
             ),
@@ -196,6 +197,13 @@ def _escape_attribute(value: str) -> str:
     return value.replace("&", "&amp;").replace('"', "&quot;")
 
 
+def _clean_title(value: str) -> str:
+    value = unescape(value).strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
 def _render_pandoc_div(block: DirectiveBlock) -> str:
     attributes = _pandoc_attributes(block)
     return "\n".join(
@@ -211,7 +219,9 @@ def _render_pandoc_div(block: DirectiveBlock) -> str:
 def _pandoc_attributes(block: DirectiveBlock) -> list[str]:
     attributes = [f".{block.name}"]
     if block.argument:
-        attributes.append(f'title="{_escape_attribute(block.argument)}"')
+        attributes.append(
+            f'title="{_escape_attribute(_clean_title(block.argument))}"'
+        )
 
     for key, value in block.options.items():
         if key == "attrs" and isinstance(value, dict):
