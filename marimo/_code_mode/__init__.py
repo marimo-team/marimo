@@ -36,6 +36,7 @@ from marimo._code_mode._context import (
     AsyncCodeModeContext,
     CellStatusType,
     NotebookCell,
+    StaleCellError,
     get_context,
 )
 
@@ -43,5 +44,6 @@ __all__ = [
     "AsyncCodeModeContext",
     "CellStatusType",
     "NotebookCell",
+    "StaleCellError",
     "get_context",
 ]

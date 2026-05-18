@@ -120,6 +120,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._plugins.ui._impl.anywidget.init import WIDGET_COMM_MANAGER
 from marimo._runtime import dataflow, handlers, marimo_pdb, patches
+from marimo._runtime.agent import Agent
 from marimo._runtime.app_meta import AppMeta
 from marimo._runtime.commands import (
     AppMetadata,
@@ -592,6 +593,7 @@ class Kernel:
             sys.path.insert(0, "")
 
         self.graph = dataflow.DirectedGraph()
+        self.agent = Agent()
         # When autorun on startup is disabled, this holds cells that have
         # not yet been run; these cells are removed when they or their
         # descendants are run

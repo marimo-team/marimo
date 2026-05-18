@@ -48,12 +48,17 @@ from marimo._types.ids import CellId_t
 
 
 class NotebookCell(msgspec.Struct):
-    """A single cell in the document. Mutable — owned by the document."""
+    """A single cell in the document. Mutable — owned by the document.
+
+    ``version`` increments on each ``SetCode`` that actually changes
+    ``code``. Other property changes don't bump it.
+    """
 
     id: CellId_t
     code: str
     name: str
     config: CellConfig
+    version: int = 0
 
     def __repr__(self) -> str:
         first_line = self.code.split("\n", 1)[0]
@@ -122,6 +127,11 @@ class NotebookDocument:
             if cell.id == cell_id:
                 return cell
         return None
+
+    def get_cell_version(self, cell_id: CellId_t) -> int | None:
+        """Return the cell's version counter, or ``None`` if not found."""
+        cell = self.get(cell_id)
+        return cell.version if cell is not None else None
 
     def __contains__(self, cell_id: object) -> bool:
         return any(c.id == cell_id for c in self._cells)
@@ -203,7 +213,12 @@ class NotebookDocument:
             self._cells = reordered
 
         elif isinstance(change, SetCode):
-            self._find_cell(change.cell_id).code = change.code
+            cell = self._find_cell(change.cell_id)
+            # No-op SetCode keeps version stable so format-on-save round
+            # trips don't invalidate the agent's prior read.
+            if cell.code != change.code:
+                cell.code = change.code
+                cell.version += 1
 
         elif isinstance(change, SetName):
             self._find_cell(change.cell_id).name = change.name
@@ -232,7 +247,22 @@ class NotebookDocument:
         pre-rebuild state — useful for diff comparison. Bumps
         ``version`` so observers see the state change like they would
         after ``apply()``.
+
+        Per-cell ``version`` is reconciled against the prior state: an id
+        whose code matches inherits the prior version (agent reads stay
+        valid); an id whose code changed gets ``prior + 1`` (invalidates
+        stale agent reads); brand-new ids keep the version they were
+        constructed with.
         """
+        prior_by_id = {c.id: c for c in self._cells}
+        for i, c in enumerate(cells):
+            prior = prior_by_id.get(c.id)
+            if prior is None:
+                continue
+            if prior.code == c.code:
+                cells[i] = structs_replace(c, version=prior.version)
+            else:
+                cells[i] = structs_replace(c, version=prior.version + 1)
         self._cells = cells
         self._version += 1
 
