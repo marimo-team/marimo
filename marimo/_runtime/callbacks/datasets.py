@@ -327,11 +327,11 @@ class DatasetCallbacks:
     async def preview_datasource_connection(
         self, request: ListDataSourceConnectionCommand
     ) -> None:
-        """Broadcasts a datasource connection for a given engine"""
+        """Broadcasts a datasource connection for a given engine."""
         variable_name = cast(VariableName, request.engine)
-        engine, error = self.get_engine_catalog(variable_name)
+        engine, error = self._kernel.get_sql_connection(variable_name)
         if error is not None or engine is None:
-            LOGGER.error("Failed to get engine %s", variable_name)
+            LOGGER.error("Failed to get engine %s: %s", variable_name, error)
             return
 
         data_source_connection = engine_to_data_source_connection(
