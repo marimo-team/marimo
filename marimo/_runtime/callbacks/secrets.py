@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 from marimo._messaging.notification import SecretKeysResultNotification
@@ -19,6 +20,8 @@ if TYPE_CHECKING:
 class SecretsCallbacks:
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
+        # Snapshot at startup so dotenv-loaded keys can later be distinguished from inherited ones.
+        self._original_environ = os.environ.copy()
 
     def register(self, router: RequestRouter) -> None:
         router.register(ListSecretKeysCommand, self.list_secrets)
@@ -26,7 +29,7 @@ class SecretsCallbacks:
 
     async def list_secrets(self, request: ListSecretKeysCommand) -> None:
         secrets = get_secret_keys(
-            self._kernel.user_config, self._kernel._original_environ
+            self._kernel.user_config, self._original_environ
         )
         broadcast_notification(
             SecretKeysResultNotification(

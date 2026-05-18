@@ -9,16 +9,15 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import ClearCacheCommand, GetCacheInfoCommand
-from marimo._runtime.context import get_context
 
 if TYPE_CHECKING:
+    from marimo._runtime.callbacks.protocol import GlobalsView
     from marimo._runtime.request_router import RequestRouter
-    from marimo._runtime.runtime import Kernel
 
 
 class CacheCallbacks:
-    def __init__(self, kernel: Kernel):
-        self._kernel = kernel
+    def __init__(self, scope: GlobalsView):
+        self._scope = scope
 
     def register(self, router: RequestRouter) -> None:
         router.register(ClearCacheCommand, self.clear_cache)
@@ -28,11 +27,9 @@ class CacheCallbacks:
         del request
         from marimo._save.cache import CacheContext
 
-        ctx = get_context()
         saved = 0
-        for obj in ctx.globals.values():
+        for obj in self._scope.globals.values():
             if isinstance(obj, CacheContext):
-                # Loader.clear is a no-op by default; safe on any subclass.
                 obj.loader.clear()
 
         broadcast_notification(CacheClearedNotification(bytes_freed=saved))
@@ -41,14 +38,13 @@ class CacheCallbacks:
         del request
         from marimo._save.cache import CacheContext
 
-        ctx = get_context()
         total_hits = 0
         total_misses = 0
         total_time = 0
         disk_to_free = -1  # TODO: sum up disk usage
         disk_total = -1
 
-        for obj in ctx.globals.values():
+        for obj in self._scope.globals.values():
             if isinstance(obj, CacheContext):
                 hits, misses, _, _, time = obj.cache_info()
                 total_hits += hits
