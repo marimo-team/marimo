@@ -31,6 +31,7 @@ from marimo._ast.cell import CellConfig
 from marimo._cli.cli import (
     _collect_marimo_files,
     _create_run_workspace,
+    _split_run_paths_and_args,
     main as cli_main,
 )
 from marimo._config.manager import get_default_config_manager
@@ -1784,6 +1785,37 @@ def test_split_run_paths_and_args_with_click_separator_state(
         _split_run_paths_and_args("notebook.py", args, args_after_separator)
         == expected
     )
+
+
+def test_cli_run_double_dash_passes_notebook_argv(tmp_path: Path) -> None:
+    runner = CliRunner()
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("")
+
+    with (
+        patch(
+            "marimo._cli.cli.prompt_run_in_docker_container",
+            return_value=False,
+        ),
+        patch("marimo._cli.cli.check_app_correctness"),
+        patch("marimo._cli.cli.start") as mock_start,
+    ):
+        result = runner.invoke(
+            cli_main,
+            [
+                "run",
+                str(notebook),
+                "--headless",
+                "--no-token",
+                "--",
+                "experiment_name=my-exp",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    mock_start.assert_called_once()
+    assert mock_start.call_args.kwargs["argv"] == ["experiment_name=my-exp"]
+    assert mock_start.call_args.kwargs["cli_args"] == {}
 
 
 def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
