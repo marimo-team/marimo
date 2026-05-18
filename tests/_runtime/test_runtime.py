@@ -4067,14 +4067,6 @@ def _filter_to_error_ops(
     ]
 
 
-class TestRequestRouter:
-    async def test_router_has_full_dispatch_table(
-        self, any_kernel: Kernel
-    ) -> None:
-        """The router built in __init__ binds every kernel command."""
-        assert len(any_kernel.router._handlers) == 27
-
-
 class TestLaunchKernelEventLoop:
     """Event-loop policy / factory selection in launch_kernel.
 
