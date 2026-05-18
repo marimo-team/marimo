@@ -1,4 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
 
 import marimo
 
@@ -29,7 +35,7 @@ def _(mo):
     - 🤖 legible for both humans and machines
     - ✏️ formattable using your tool of choice
     - ➕ easily versioned with git, producing small diffs
-    - 🐍 usable as Python  scripts, with UI  elements taking their default values
+    - 🐍 usable as Python scripts, with UI elements taking their default values
     - 🧩 modular, exposing functions and classes that can be imported from the notebook
     """)
     return
@@ -134,12 +140,12 @@ def _(mo):
         {
             "Cells are functions": """
         In the `dataflow` tutorial, we saw that cells are like functions mapping
-        their refs (the global  variables they uses but don't define) to their
+        their refs (the global variables they use but don't define) to their
         defs (the global variables they define). The generated code makes this
         analogy explicit.
 
         In the generated code, there is a function for each cell. The arguments
-        of  the function are the cell's refs , and its returned variables are
+        of the function are the cell's refs, and its returned variables are
         its defs that are referenced by other cells.
 
         For example, the code
