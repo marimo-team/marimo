@@ -944,13 +944,14 @@ class TestModuleWatcherStop:
         await asyncio.sleep(INTERVAL)
 
         # Stop the watcher
-        assert k.module_watcher is not None
-        assert not k.module_watcher.should_exit.is_set()
+        watcher = k.autoreload_manager.watcher
+        assert watcher is not None
+        assert not watcher.should_exit.is_set()
 
-        k.module_watcher.stop()
+        watcher.stop()
 
         # should_exit should be set
-        assert k.module_watcher.should_exit.is_set()
+        assert watcher.should_exit.is_set()
 
     async def test_module_watcher_processes_flag(
         self, execution_kernel: Kernel, exec_req: ExecReqProvider
@@ -965,9 +966,10 @@ class TestModuleWatcherStop:
         # Give watcher time to start
         await asyncio.sleep(INTERVAL)
 
-        assert k.module_watcher is not None
+        watcher = k.autoreload_manager.watcher
+        assert watcher is not None
         # Initially should be set (no run in flight)
-        assert k.module_watcher.run_is_processed.is_set()
+        assert watcher.run_is_processed.is_set()
 
 
 class TestModuleWatcherEdgeCases:
@@ -1075,3 +1077,83 @@ class TestModuleWatcherEdgeCases:
 
         # The cache should handle the modified imports correctly
         assert not k.graph.cells[er_1.cell_id].stale
+
+
+class TestAutoreloadManagerLifecycle:
+    """Tests for AutoreloadManager responding to runtime.auto_reload changes."""
+
+    async def test_mode_swap_replaces_watcher(
+        self, execution_kernel: Kernel, exec_req: ExecReqProvider
+    ):
+        del exec_req
+        k = execution_kernel
+        config = copy.deepcopy(DEFAULT_CONFIG)
+
+        config["runtime"]["auto_reload"] = "lazy"
+        k.set_user_config(UpdateUserConfigCommand(config=config))
+        lazy_watcher = k.autoreload_manager.watcher
+        assert lazy_watcher is not None
+        assert lazy_watcher.mode == "lazy"
+
+        config["runtime"]["auto_reload"] = "autorun"
+        k.set_user_config(UpdateUserConfigCommand(config=config))
+        autorun_watcher = k.autoreload_manager.watcher
+        assert autorun_watcher is not None
+        assert autorun_watcher.mode == "autorun"
+        assert autorun_watcher is not lazy_watcher
+        assert lazy_watcher.should_exit.is_set()
+
+    async def test_reloader_persists_across_mode_swap(
+        self, execution_kernel: Kernel, exec_req: ExecReqProvider
+    ):
+        """Switching between lazy and autorun must not throw away the
+        reloader's mtime state — otherwise every swap would force a reload
+        of all already-tracked modules."""
+        del exec_req
+        k = execution_kernel
+        config = copy.deepcopy(DEFAULT_CONFIG)
+
+        config["runtime"]["auto_reload"] = "lazy"
+        k.set_user_config(UpdateUserConfigCommand(config=config))
+        reloader = k.autoreload_manager.reloader
+        assert reloader is not None
+
+        config["runtime"]["auto_reload"] = "autorun"
+        k.set_user_config(UpdateUserConfigCommand(config=config))
+        assert k.autoreload_manager.reloader is reloader
+
+    async def test_disable_clears_manager_state(
+        self, execution_kernel: Kernel, exec_req: ExecReqProvider
+    ):
+        del exec_req
+        k = execution_kernel
+        config = copy.deepcopy(DEFAULT_CONFIG)
+
+        config["runtime"]["auto_reload"] = "lazy"
+        k.set_user_config(UpdateUserConfigCommand(config=config))
+        assert k.autoreload_manager.watcher is not None
+        assert k.autoreload_manager.reloader is not None
+
+        config["runtime"]["auto_reload"] = "off"
+        k.set_user_config(UpdateUserConfigCommand(config=config))
+        assert k.autoreload_manager.watcher is None
+        assert k.autoreload_manager.reloader is None
+
+    async def test_run_rearms_watcher_run_is_processed(
+        self, execution_kernel: Kernel, exec_req: ExecReqProvider
+    ):
+        """The on_finish hook fires for every kernel run, not just
+        `_run_stale_cells`. This is a deliberate semantic change from the
+        pre-extraction code, which only set the flag at the end of stale-cell
+        runs."""
+        k = execution_kernel
+        config = copy.deepcopy(DEFAULT_CONFIG)
+        config["runtime"]["auto_reload"] = "lazy"
+        k.set_user_config(UpdateUserConfigCommand(config=config))
+
+        watcher = k.autoreload_manager.watcher
+        assert watcher is not None
+
+        watcher.run_is_processed.clear()
+        await k.run([exec_req.get("x = 1")])
+        assert watcher.run_is_processed.is_set()
