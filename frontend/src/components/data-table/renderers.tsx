@@ -164,17 +164,13 @@ export const DataTableBody = <TData,>({
       );
 
       const title = cell.getHoverTitle?.() ?? undefined;
-      const isCellSelected = cell.getIsSelected?.() || false;
       return (
         <TableCell
           tabIndex={0}
           {...getCellDomProps(cell.id)}
           key={cell.id}
           className={cn(
-            "whitespace-pre truncate max-w-[300px] border-r border-r-border/75",
-            isCellSelected
-              ? "outline outline-2 outline-(--blue-7) -outline-offset-2"
-              : "outline-hidden",
+            "whitespace-pre truncate max-w-[300px] outline-hidden border-r border-r-border/75",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping?.() === "wrap" &&
               COLUMN_WRAPPING_STYLES,

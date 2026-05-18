@@ -12,6 +12,14 @@ vi.mock("../sanitize", async (importOriginal) => {
   };
 });
 
+// Mock getRuntimeManager to return a base URL without trailing slash,
+// simulating molab edit mode (e.g. /notebooks/nb_xxx).
+vi.mock("@/core/runtime/config", () => ({
+  getRuntimeManager: () => ({
+    httpURL: new URL("http://localhost:2718/notebooks/nb_xxx"),
+  }),
+}));
+
 describe("renderHTML with alwaysSanitizeHtml", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -131,6 +139,10 @@ describe("renderHTML sanitization integration", () => {
 });
 
 describe("replaceVirtualFileSrc - virtual file URL rewriting", () => {
+  // getRuntimeManager is mocked to return http://localhost:2718/notebooks/nb_xxx
+  // (no trailing slash), reproducing the molab edit-mode URL shape that caused #9432.
+  const BASE = "http://localhost:2718/notebooks/nb_xxx";
+
   test("rewrites ./@file/ img src to absolute URL", () => {
     const html = '<img src="./@file/12345-abc.png" alt="test">';
     const { container } = render(
@@ -138,9 +150,9 @@ describe("replaceVirtualFileSrc - virtual file URL rewriting", () => {
     );
     const img = container.querySelector("img");
     expect(img).not.toBeNull();
-    // Should be absolute, not relative
-    expect(img?.getAttribute("src")).not.toMatch(/^\.\//);
-    expect(img?.getAttribute("src")).toContain("/@file/12345-abc.png");
+    expect(img?.getAttribute("src")).toBe(
+      `${BASE}/@file/12345-abc.png`,
+    );
   });
 
   test("rewrites @file/ img src (no leading ./) to absolute URL", () => {
@@ -149,7 +161,9 @@ describe("replaceVirtualFileSrc - virtual file URL rewriting", () => {
       renderHTML({ html, alwaysSanitizeHtml: false }),
     );
     const img = container.querySelector("img");
-    expect(img?.getAttribute("src")).toContain("/@file/12345-abc.png");
+    expect(img?.getAttribute("src")).toBe(
+      `${BASE}/@file/12345-abc.png`,
+    );
   });
 
   test("does not rewrite non-@file img src", () => {
@@ -169,12 +183,15 @@ describe("replaceVirtualFileSrc - virtual file URL rewriting", () => {
     const img = container.querySelector("img");
     expect(img?.getAttribute("src")).toBe("data:image/png;base64,abc==");
   });
+
   test("does not rewrite external URL containing /@file/ in path", () => {
     const html = '<img src="https://cdn.example.com/assets/@file/photo.jpg" alt="test">';
     const { container } = render(
       renderHTML({ html, alwaysSanitizeHtml: false }),
     );
     const img = container.querySelector("img");
-    expect(img?.getAttribute("src")).toBe("https://cdn.example.com/assets/@file/photo.jpg");
+    expect(img?.getAttribute("src")).toBe(
+      "https://cdn.example.com/assets/@file/photo.jpg",
+    );
   });
 });

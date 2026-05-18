@@ -38,11 +38,18 @@ interface Options {
 // using the runtime base, ensuring a trailing slash so the notebook-ID path
 // segment is never dropped during relative resolution.
 function resolveVirtualFileUrl(src: string): string {
-  const base = getRuntimeManager().httpURL;
-  if (!base.pathname.endsWith("/")) {
-    base.pathname += "/";
+  // We intentionally do not reuse asRemoteURL() here: that function does not
+  // guarantee a trailing slash, so relative resolution of "./@file/..." would
+  // drop the last path segment on deployments like molab where the page URL
+  // has no trailing slash (e.g. /notebooks/nb_xxx → /notebooks/@file/... ✗).
+  let base = getRuntimeManager().httpURL.toString();
+  if (base.startsWith("blob:")) {
+    base = base.replace("blob:", "");
   }
-  return new URL(src.replace(/^\.\//, ""), base).toString();
+  if (!base.endsWith("/")) {
+    base += "/";
+  }
+  return new URL(src, base).toString();
 }
 
 // Rewrite relative @file virtual-file URLs to absolute URLs so they resolve
