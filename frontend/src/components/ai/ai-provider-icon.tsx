@@ -33,6 +33,7 @@ const icons: Record<ProviderId | ExternalAgentId, string> = {
   github: GitHubIcon,
   openrouter: OpenRouterIcon,
   wandb: WandbIcon,
+  "opencode-go": OpencodeIcon,
   marimo: marimoIcon,
   opencode: OpencodeIcon,
   cursor: CursorIcon,

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+from contextlib import nullcontext
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -330,6 +331,34 @@ class TestWasmPatchSet:
         patches.patch(mod, "missing", _const_fallback(None))
         assert not hasattr(mod, "missing")
         patches.unpatch_all()()
+
+
+def test_fetch_url_bytes_forwards_request_and_urlopen_kwargs() -> None:
+    import urllib.request
+
+    from marimo._runtime._wasm._fetch import fetch_url_bytes
+
+    with patch(
+        "urllib.request.urlopen",
+        return_value=nullcontext(io.BytesIO(b"ok")),
+    ) as urlopen:
+        assert (
+            fetch_url_bytes(
+                "https://example.com/cars.csv",
+                request_kwargs={
+                    "headers": {"User-Agent": "marimo"},
+                    "method": "GET",
+                },
+                urlopen_kwargs={"timeout": 5},
+            )
+            == b"ok"
+        )
+
+    request = urlopen.call_args.args[0]
+    assert isinstance(request, urllib.request.Request)
+    assert request.get_header("User-agent") == "marimo"
+    assert request.get_method() == "GET"
+    assert urlopen.call_args.kwargs == {"timeout": 5}
 
 
 @pytest.mark.requires("polars", "pyarrow")

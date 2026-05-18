@@ -68,14 +68,12 @@ mo.accordion(
 ```
 
 ```python {.marimo}
-mo.md(
-    f"""
-    {mo.as_html(plot_wave(amplitude, period))}
+mo.md(f"""
+{mo.as_html(plot_wave(amplitude, period))}
 
-    - `refs: {mo.refs()}`
-    - `defs: {mo.defs()}`
-    """
-)
+- `refs: {mo.refs()}`
+- `defs: {mo.defs()}`
+""")
 ```
 
 ```python {.marimo}

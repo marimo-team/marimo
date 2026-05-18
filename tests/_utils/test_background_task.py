@@ -95,3 +95,45 @@ async def test_stop_sync():
     assert task.task is not None
     await asyncio.sleep(0)  # Wait a tick
     assert task.task.done(), "Task should be done"
+
+
+def test_stop_sync_from_other_thread_drives_shutdown():
+    """stop_sync called from a non-loop thread should block on the
+    task's own loop and honor the timeout, instead of silently
+    returning without ever stopping the task."""
+    import threading
+
+    bg_task = SimpleTask()
+    loop_ready = threading.Event()
+    loop_done = threading.Event()
+    loop_holder: dict[str, asyncio.AbstractEventLoop] = {}
+
+    def run_loop() -> None:
+        loop = asyncio.new_event_loop()
+        loop_holder["loop"] = loop
+        asyncio.set_event_loop(loop)
+        # ``start()`` calls ``asyncio.create_task`` which requires a
+        # running loop, so schedule it on the loop itself.
+        loop.call_soon(bg_task.start)
+        loop.call_soon(loop_ready.set)
+        try:
+            loop.run_forever()
+        finally:
+            loop.close()
+            loop_done.set()
+
+    thread = threading.Thread(target=run_loop, daemon=True)
+    thread.start()
+    loop_ready.wait(timeout=2.0)
+
+    # From the main thread, stop the task that's running on the
+    # background-thread loop. This exercises the run_coroutine_threadsafe
+    # path; without that, the timeout would be ignored and the task
+    # would still be alive.
+    bg_task.stop_sync(timeout=1.0)
+    assert bg_task.task is not None
+    assert bg_task.task.done()
+
+    # Tear down the background loop.
+    loop_holder["loop"].call_soon_threadsafe(loop_holder["loop"].stop)
+    loop_done.wait(timeout=2.0)

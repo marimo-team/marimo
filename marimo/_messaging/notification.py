@@ -238,9 +238,18 @@ class InterruptedNotification(Notification, tag="interrupted"):
 
 
 class CompletedRunNotification(Notification, tag="completed-run"):
-    """Run of submitted cells and descendants completed."""
+    """Run of submitted cells and descendants completed.
+
+    Attributes:
+        run_id: Correlation ID echoed from the command that triggered
+            this completion. ``None`` for handlers that don't take a
+            ``run_id`` (everything except ``handle_execute_scratchpad``
+            today). Consumers that want to wait for a specific command's
+            completion filter on this field.
+    """
 
     name: ClassVar[str] = "completed-run"
+    run_id: str | None = None
 
 
 class KernelCapabilitiesNotification(msgspec.Struct):

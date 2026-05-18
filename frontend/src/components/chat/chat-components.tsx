@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/utils/cn";
+import { isUrl } from "@/utils/urls";
 import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -182,3 +183,49 @@ function renderFileIcon(file: File): React.ReactNode {
 
   return <FileIcon className={classNames} />;
 }
+
+export const SourceChip = ({
+  icon,
+  title,
+  subtitle,
+  href,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  href?: string;
+}) => {
+  const content = (
+    <>
+      {icon}
+      <span className="truncate font-medium">{title}</span>
+      {subtitle && <span className="truncate opacity-70">({subtitle})</span>}
+    </>
+  );
+
+  const className =
+    "inline-flex max-w-full items-center gap-1.5 rounded-md border bg-muted/50 px-2 py-1 my-1 text-xs text-muted-foreground";
+
+  // Only treat absolute http(s) URLs as safe to render as a clickable link.
+  // Source URLs come from model output (e.g. citations) and could otherwise
+  // smuggle in `javascript:`/`data:` schemes.
+  if (href && isUrl(href)) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={subtitle ?? title}
+        className={`${className} hover:bg-muted hover:text-foreground transition-colors`}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <div className={className} title={subtitle ?? title}>
+      {content}
+    </div>
+  );
+};

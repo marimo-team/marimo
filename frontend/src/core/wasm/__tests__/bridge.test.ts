@@ -58,7 +58,7 @@ vi.mock("@/core/wasm/store", () => ({
 // Import after all mocks are set up
 import { store } from "@/core/state/jotai";
 import { initialModeAtom } from "@/core/mode";
-import { PyodideBridge } from "../bridge";
+import { getWasmWorkerName, PyodideBridge } from "../bridge";
 
 // Access INSTANCE once at module level so the constructor runs (and
 // addMessageListener populates rpcListeners) before any test executes.
@@ -109,5 +109,30 @@ describe("PyodideBridge.readCode", () => {
     await PyodideBridge.INSTANCE.readCode();
 
     expect(mockNotebookReadFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("getWasmWorkerName", () => {
+  afterEach(() => {
+    delete (window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: boolean })
+      .__MARIMO_HAS_WASM_CONTROLLER__;
+  });
+
+  it("returns the version without suffix by default", () => {
+    expect(getWasmWorkerName()).toBe("0.0.0-test");
+  });
+
+  it("appends ::controller when the host opts in", () => {
+    (
+      window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: boolean }
+    ).__MARIMO_HAS_WASM_CONTROLLER__ = true;
+    expect(getWasmWorkerName()).toBe("0.0.0-test::controller");
+  });
+
+  it("does not append the suffix for non-true values", () => {
+    (
+      window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: unknown }
+    ).__MARIMO_HAS_WASM_CONTROLLER__ = "true";
+    expect(getWasmWorkerName()).toBe("0.0.0-test");
   });
 });

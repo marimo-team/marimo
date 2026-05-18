@@ -129,7 +129,7 @@ jobs:
           # Get version from package.json
           pyodide_version=$(cat frontend/package.json | jq -r '.dependencies["pyodide"]')
           echo "Pyodide version: $pyodide_version"
-          npm install pyodide@$pyodide_version
+          npm install --ignore-scripts pyodide@$pyodide_version
           wheel_file=$(ls dist/*.whl)
           echo "Testing wheel: $wheel_file"
           node tests/_pyodide/test_pyodide_acceptance.mjs "$wheel_file"
@@ -166,8 +166,15 @@ jobs:
       # xdist is disabled for CLI tests because they test process-level
       # behavior (spawning marimo processes, port binding) that conflicts
       # with parallel execution.
+      #
+      # UV_FIND_LINKS points sandbox subprocesses at the locally-built wheel,
+      # so `marimo[lsp]==<current version>` resolves to it instead of PyPI.
+      # Without this, a marimo release published less than UV_EXCLUDE_NEWER ago
+      # falls outside the cutoff and sandbox resolution fails.
       - name: Test CLI
         shell: bash
+        env:
+          UV_FIND_LINKS: ${{ github.workspace }}
         run: |
           uv venv
           uv pip install --group=test-optional --group=dev marimo*.whl

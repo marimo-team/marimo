@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, cast
 import pytest
 
 from marimo._server.rtc.doc import LoroDocManager
-from marimo._server.workspace import MarimoFileKey
+from marimo._server.workspace import FileKey, PathFileKey
 from marimo._types.ids import CellId_t
 
 if sys.version_info >= (3, 11) and sys.version_info < (3, 14):
@@ -41,7 +41,7 @@ async def test_quick_reconnection(setup_doc_manager: None) -> None:
     """Test that quick reconnection properly handles cleanup task cancellation"""
     del setup_doc_manager
     # Setup
-    file_key = MarimoFileKey("test_file")
+    file_key = PathFileKey("test_file")
 
     # Create initial loro_doc
     doc = LoroDoc()
@@ -78,7 +78,7 @@ async def test_quick_reconnection(setup_doc_manager: None) -> None:
 async def test_two_users_sync(setup_doc_manager: None) -> None:
     """Test that two users can connect and sync text properly without duplicates"""
     del setup_doc_manager
-    file_key = MarimoFileKey("test_file")
+    file_key = PathFileKey("test_file")
     cell_id = str(CellId_t("test_cell"))  # Convert CellId to string for loro
 
     # First user connects
@@ -126,7 +126,7 @@ async def test_two_users_sync(setup_doc_manager: None) -> None:
 async def test_concurrent_doc_creation(setup_doc_manager: None) -> None:
     """Test concurrent doc creation doesn't cause issues"""
     del setup_doc_manager
-    file_key = MarimoFileKey("test_file")
+    file_key = PathFileKey("test_file")
     cell_ids = (CellId_t("cell1"), CellId_t("cell2"))
     codes = ("print('hello')", "print('world')")
 
@@ -149,7 +149,7 @@ async def test_concurrent_client_operations(
 ) -> None:
     """Test concurrent client operations don't cause deadlocks"""
     del setup_doc_manager
-    file_key = MarimoFileKey("test_file")
+    file_key = PathFileKey("test_file")
     doc = LoroDoc()
     doc_manager.loro_docs[file_key] = doc
 
@@ -176,7 +176,7 @@ async def test_concurrent_client_operations(
 async def test_cleanup_task_management(setup_doc_manager: None) -> None:
     """Test cleanup task management and cancellation"""
     del setup_doc_manager
-    file_key = MarimoFileKey("test_file")
+    file_key = PathFileKey("test_file")
     doc = LoroDoc()
     doc_manager.loro_docs[file_key] = doc
 
@@ -210,7 +210,7 @@ async def test_cleanup_task_management(setup_doc_manager: None) -> None:
 async def test_broadcast_update(setup_doc_manager: None) -> None:
     """Test broadcast update functionality"""
     del setup_doc_manager
-    file_key = MarimoFileKey("test_file")
+    file_key = PathFileKey("test_file")
     doc = LoroDoc()
     doc_manager.loro_docs[file_key] = doc
 
@@ -238,7 +238,7 @@ async def test_broadcast_update(setup_doc_manager: None) -> None:
 async def test_remove_nonexistent_doc(setup_doc_manager: None) -> None:
     """Test removing a doc that doesn't exist"""
     del setup_doc_manager
-    file_key = MarimoFileKey("nonexistent")
+    file_key = PathFileKey("nonexistent")
     await doc_manager.remove_doc(file_key)
     assert file_key not in doc_manager.loro_docs
     assert file_key not in doc_manager.loro_docs_clients
@@ -251,7 +251,7 @@ async def test_remove_nonexistent_doc(setup_doc_manager: None) -> None:
 async def test_remove_nonexistent_client(setup_doc_manager: None) -> None:
     """Test removing a client that doesn't exist"""
     del setup_doc_manager
-    file_key = MarimoFileKey("test_file")
+    file_key = PathFileKey("test_file")
     queue = asyncio.Queue[bytes]()
     await doc_manager.remove_client(file_key, queue)
     assert file_key not in doc_manager.loro_docs_clients
@@ -263,7 +263,7 @@ async def test_remove_nonexistent_client(setup_doc_manager: None) -> None:
 async def test_concurrent_doc_removal(setup_doc_manager: None) -> None:
     """Test concurrent doc removal doesn't cause issues"""
     del setup_doc_manager
-    file_key = MarimoFileKey("test_file")
+    file_key = PathFileKey("test_file")
     doc = LoroDoc()
     doc_manager.loro_docs[file_key] = doc
 
@@ -291,7 +291,7 @@ async def test_prevent_lock_deadlock(setup_doc_manager: None) -> None:
     The fixed implementation should handle this without deadlocking.
     """
     del setup_doc_manager
-    file_key = MarimoFileKey("test_file")
+    file_key = PathFileKey("test_file")
 
     # Create a doc and add a client
     doc = LoroDoc()
@@ -332,7 +332,7 @@ async def test_prevent_lock_deadlock(setup_doc_manager: None) -> None:
     original_clean_loro_doc = doc_manager._clean_loro_doc
 
     async def test_clean_loro_doc(
-        file_key: MarimoFileKey, timeout: float = original_timeout
+        file_key: FileKey, timeout: float = original_timeout
     ) -> None:
         del timeout
         # Override timeout with our test value

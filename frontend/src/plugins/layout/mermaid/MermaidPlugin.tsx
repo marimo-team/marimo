@@ -9,6 +9,8 @@ import type {
 
 interface Data {
   diagram: string;
+  theme?: string;
+  theme_variables?: Record<string, string>;
 }
 
 export class MermaidPlugin implements IStatelessPlugin<Data> {
@@ -16,10 +18,18 @@ export class MermaidPlugin implements IStatelessPlugin<Data> {
 
   validator = z.object({
     diagram: z.string(),
+    theme: z.string().optional(),
+    theme_variables: z.record(z.string(), z.string()).optional(),
   });
 
   render(props: IStatelessPluginProps<Data>): JSX.Element {
-    return <LazyMermaid diagram={props.data.diagram} />;
+    return (
+      <LazyMermaid
+        diagram={props.data.diagram}
+        theme={props.data.theme}
+        themeVariables={props.data.theme_variables}
+      />
+    );
   }
 }
 

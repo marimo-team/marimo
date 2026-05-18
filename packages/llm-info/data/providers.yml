@@ -77,3 +77,8 @@
   id: wandb
   description: Weights & Biases' hosted models for ML development and AI inference.
   url: https://wandb.ai/
+
+- name: OpenCode Go
+  id: opencode-go
+  description: Low-cost subscription for reliable access to popular open coding models.
+  url: https://opencode.ai/docs/go/

@@ -19,6 +19,7 @@ from marimo._server.workspace import (
     EmptyWorkspace,
     FixedFilesWorkspace,
     SingleFileWorkspace,
+    serialize_file_key,
 )
 from marimo._session.model import SessionMode
 from marimo._utils.marimo_path import MarimoPath
@@ -44,10 +45,11 @@ def test_index(client: TestClient) -> None:
     response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
     content = response.text
-    filename = session_manager.workspace.get_unique_file_key()
+    file_key = session_manager.workspace.get_unique_file_key()
+    assert file_key is not None
+    filename = serialize_file_key(file_key)
     title = parse_title(filename)
     assert f"<marimo-filename hidden>{filename}</marimo-filename>" in content
-    assert filename is not None
     assert filename in content
     assert '"mode": "edit"' in content
     assert f"<title>{title}</title>" in content
@@ -122,7 +124,7 @@ def test_index_strips_access_token_query_param(client: TestClient) -> None:
     response = client.get("/?access_token=fake-token", follow_redirects=False)
     assert response.status_code == 303, response.text
     assert response.headers["location"] == "/"
-    assert response.headers.get("referrer-policy") == "no-referrer"
+    assert response.headers.get("referrer-policy") == "same-origin"
     assert response.headers.get("x-content-type-options") == "nosniff"
     # The session cookie must be set so the redirect target is authenticated
     # without the query param.
@@ -206,7 +208,7 @@ def test_index_unauthenticated_redirect_preserves_next(
 def test_index_response_has_security_headers(client: TestClient) -> None:
     response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
-    assert response.headers.get("referrer-policy") == "no-referrer"
+    assert response.headers.get("referrer-policy") == "same-origin"
     assert response.headers.get("x-content-type-options") == "nosniff"
 
 
@@ -345,6 +347,98 @@ def test_vfile_large_streaming(client: TestClient) -> None:
         manager.storage = original_storage
 
 
+def test_vfile_range_requests(client: TestClient) -> None:
+    """Virtual files must support HTTP Range requests so that Safari can
+    play media (audio/video) — Safari's <audio> element refuses to load
+    sources whose server doesn't return 206 Partial Content for range
+    probes.
+
+    See https://github.com/marimo-team/marimo/issues/9460
+    """
+    from marimo._runtime.virtual_file.storage import (
+        InMemoryStorage,
+        VirtualFileStorageManager,
+    )
+
+    manager = VirtualFileStorageManager()
+    original_storage = manager.storage
+    storage = InMemoryStorage()
+    manager.storage = storage
+
+    try:
+        data = bytes(range(256)) * 8  # 2048 bytes of deterministic content
+        filename = "test-audio.wav"
+        storage.store(filename, data)
+        byte_length = len(data)
+        url = f"/@file/{byte_length}-{filename}"
+
+        # Plain GET advertises Accept-Ranges so clients know they can probe.
+        response = client.get(url, headers=token_header())
+        assert response.status_code == 200, response.text
+        assert response.headers.get("accept-ranges") == "bytes"
+        assert response.content == data
+
+        # Bounded range returns 206 with Content-Range and exact bytes.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "bytes=0-99"},
+        )
+        assert response.status_code == 206, response.text
+        assert (
+            response.headers.get("content-range")
+            == f"bytes 0-99/{byte_length}"
+        )
+        assert response.headers.get("content-length") == "100"
+        assert response.headers.get("accept-ranges") == "bytes"
+        assert response.content == data[0:100]
+
+        # Open-ended range (start-) serves to the end of the file.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "bytes=50-"},
+        )
+        assert response.status_code == 206, response.text
+        end = byte_length - 1
+        assert (
+            response.headers.get("content-range")
+            == f"bytes 50-{end}/{byte_length}"
+        )
+        assert response.content == data[50:]
+
+        # Suffix range (-N) returns the last N bytes.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "bytes=-50"},
+        )
+        assert response.status_code == 206, response.text
+        start = byte_length - 50
+        assert (
+            response.headers.get("content-range")
+            == f"bytes {start}-{end}/{byte_length}"
+        )
+        assert response.content == data[-50:]
+
+        # Out-of-range start → 416 with Content-Range advertising the size.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": f"bytes={byte_length}-"},
+        )
+        assert response.status_code == 416, response.text
+        assert (
+            response.headers.get("content-range") == f"bytes */{byte_length}"
+        )
+
+        # Range unit token is case-insensitive per RFC 9110.
+        response = client.get(
+            url,
+            headers={**token_header(), "Range": "Bytes=0-99"},
+        )
+        assert response.status_code == 206, response.text
+        assert response.content == data[:100]
+    finally:
+        manager.storage = original_storage
+
+
 def test_vfile_download_query_param_sets_content_disposition(
     client: TestClient,
 ) -> None:
@@ -405,10 +499,11 @@ def test_public_file_serving(client: TestClient) -> None:
     app_state = AppState.from_app(cast(Any, client.app))
     file_key = app_state.session_manager.workspace.get_unique_file_key()
     assert file_key is not None
-    assert file_key.endswith(".py")
+    filepath = serialize_file_key(file_key)
+    assert filepath.endswith(".py")
 
     # Create a test file in a public directory
-    notebook_dir = Path(file_key).parent
+    notebook_dir = Path(filepath).parent
     public_dir = notebook_dir / "public"
     public_dir.mkdir(parents=True, exist_ok=True)
     test_file = public_dir / "test.txt"
@@ -419,7 +514,7 @@ def test_public_file_serving(client: TestClient) -> None:
     assert response.status_code == 404
 
     # Test with notebook ID header
-    headers = {**token_header(), "X-Notebook-Id": file_key}
+    headers = {**token_header(), "X-Notebook-Id": filepath}
     response = client.get("/public/test.txt", headers=headers)
     assert response.status_code == 200
     assert response.text == "test content"
@@ -445,10 +540,11 @@ def test_public_file_security(client: TestClient) -> None:
     app_state = AppState.from_app(cast(Any, client.app))
     file_key = app_state.session_manager.workspace.get_unique_file_key()
     assert file_key is not None
-    assert file_key.endswith(".py")
+    filepath = serialize_file_key(file_key)
+    assert filepath.endswith(".py")
 
     # Setup notebook and directories
-    notebook_dir = Path(file_key).parent
+    notebook_dir = Path(filepath).parent
     public_dir = notebook_dir / "public"
     secret_dir = notebook_dir / "secret"
     public_dir.mkdir(parents=True, exist_ok=True)
@@ -467,7 +563,7 @@ def test_public_file_security(client: TestClient) -> None:
         app_manager = app_state.session_manager.app_manager(file_key)
         app_manager.filename = str(notebook_dir / "notebook.py")
 
-        headers = {**token_header(), "X-Notebook-Id": file_key}
+        headers = {**token_header(), "X-Notebook-Id": filepath}
 
         # Test normal file access
         response = client.get("/public/safe.txt", headers=headers)
@@ -640,7 +736,7 @@ def test_index_lsp_workspace_with_root_directory(
         client,
         DirectoryWorkspace(str(temp_project_dir), include_markdown=False),
     ):
-        response = client.get("/?file=__new__file.py", headers=token_header())
+        response = client.get("/?file=__new__", headers=token_header())
         root_path = temp_project_dir
         root_uri = json.dumps(root_path.as_uri())
         document_path = root_path.joinpath(DEFAULT_NOTEBOOK_NAME)
@@ -660,7 +756,7 @@ def test_index_lsp_workspace_with_sub_directory(
     with workspace_scope(
         client, DirectoryWorkspace(str(subdir), include_markdown=False)
     ):
-        response = client.get("/?file=__new__file.py", headers=token_header())
+        response = client.get("/?file=__new__", headers=token_header())
         root_path = temp_project_dir
         root_uri = json.dumps(root_path.as_uri())
         document_path = subdir.joinpath(DEFAULT_NOTEBOOK_NAME)

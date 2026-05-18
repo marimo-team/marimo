@@ -1145,7 +1145,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["FileCreateRequest"];
+          "multipart/form-data": components["schemas"]["FileCreateMultipartRequest"];
         };
       };
       responses: {
@@ -3449,6 +3449,7 @@ export interface components {
      *         - `github`: the GitHub config
      *         - `openrouter`: the OpenRouter config
      *         - `wandb`: the Weights & Biases config
+     *         - `opencode_go`: the OpenCode Go config
      *         - `custom_providers`: a dict of custom OpenAI-compatible providers
      *         - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
      */
@@ -3469,6 +3470,7 @@ export interface components {
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];
       open_ai_compatible?: components["schemas"]["OpenAiConfig"];
+      opencode_go?: components["schemas"]["OpenAiConfig"];
       openrouter?: components["schemas"]["OpenAiConfig"];
       rules?: string;
       wandb?: components["schemas"]["OpenAiConfig"];
@@ -3846,10 +3848,19 @@ export interface components {
     /**
      * CompletedRunNotification
      * @description Run of submitted cells and descendants completed.
+     *
+     *         Attributes:
+     *             run_id: Correlation ID echoed from the command that triggered
+     *                 this completion. ``None`` for handlers that don't take a
+     *                 ``run_id`` (everything except ``handle_execute_scratchpad``
+     *                 today). Consumers that want to wait for a specific command's
+     *                 completion filter on this field.
      */
     CompletedRunNotification: {
       /** @enum {unknown} */
       op: "completed-run";
+      /** @default null */
+      run_id?: string | null;
     };
     /**
      * CompletionConfig
@@ -4308,6 +4319,12 @@ export interface components {
      *             notebook_cells: Snapshot of notebook cells from the session document.
      *                 Used to populate the document ContextVar so code_mode can read
      *                 cell ordering, code, names, and configs.
+     *             run_id: Optional correlation ID. When set, the
+     *                 ``CompletedRunNotification`` emitted at the end of this command
+     *                 carries the same ``run_id`` so a caller holding a
+     *                 ``ScratchCellListener`` can filter for *its* completion and
+     *                 ignore ``CompletedRun`` events from unrelated commands on the
+     *                 same session.
      */
     ExecuteScratchpadCommand: {
       code: string;
@@ -4315,6 +4332,8 @@ export interface components {
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
+      /** @default null */
+      runId?: string | null;
       /** @enum {unknown} */
       type: "execute-scratchpad";
     };
@@ -4325,6 +4344,8 @@ export interface components {
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
+      /** @default null */
+      runId?: string | null;
     };
     /**
      * ExecuteStaleCellsCommand
@@ -4394,6 +4415,26 @@ export interface components {
       /** @default null */
       message?: string | null;
       success: boolean;
+    };
+    /**
+     * FileCreateMultipartRequest
+     * @description multipart/form-data body for POST /api/files/create.
+     *
+     *         Schema-only: this struct exists to describe the multipart shape in
+     *         OpenAPI. At runtime, the endpoint reads the string fields from
+     *         ``MultipartRequest.body`` and the uploaded bytes from
+     *         ``MultipartRequest.files["file"]`` — ``body.file`` is never populated.
+     */
+    FileCreateMultipartRequest: {
+      /**
+       * Format: binary
+       * @default null
+       */
+      file?: string | null;
+      name: string;
+      path: string;
+      /** @enum {unknown} */
+      type: "directory" | "file" | "notebook";
     };
     /** FileCreateRequest */
     FileCreateRequest: {
@@ -5569,6 +5610,7 @@ export interface components {
       tutorialId:
         | (
             | "dataflow"
+            | "external-dependencies"
             | "fileformat"
             | "for-jupyter-users"
             | "intro"

@@ -108,6 +108,7 @@ from marimo._messaging.streams import (
 from marimo._messaging.tracebacks import write_traceback
 from marimo._messaging.types import (
     KernelMessage,
+    KernelStreams,
     Stderr,
     Stdin,
     Stdout,
@@ -162,12 +163,10 @@ from marimo._runtime.context import (
 )
 from marimo._runtime.context.kernel_context import (
     KernelRuntimeContext,
-    initialize_kernel_context,
 )
-from marimo._runtime.context.types import teardown_context
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
-from marimo._runtime.input_override import getpass_override, input_override
+from marimo._runtime.input_override import getpass_override
 from marimo._runtime.packages.import_error_extractors import (
     extract_missing_module_from_cause_chain,
     try_extract_packages_from_import_error_message,
@@ -193,13 +192,9 @@ from marimo._runtime.runner import cell_runner, hook_context
 from marimo._runtime.runner.hooks import (
     NotebookCellHooks,
     Priority,
-    create_default_hooks,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._runtime.state import State
-from marimo._runtime.utils.set_ui_element_request_manager import (
-    SetUIElementRequestManager,
-)
 from marimo._runtime.virtual_file.virtual_file import VirtualFile
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._secrets.load_dotenv import (
@@ -504,10 +499,7 @@ class Kernel:
         cell_configs (dict[CellId_t, CellConfig]): Initial configuration for each cell.
         app_metadata (AppMetadata): Metadata about the notebook.
         user_config (MarimoConfig): The initial user configuration.
-        stream (Stream): Object used to communicate with the server/outside world.
-        stdout (Stdout | None): Replacement for sys.stdout.
-        stderr (Stderr | None): Replacement for sys.stderr.
-        stdin (Stdin | None): Replacement for sys.stdin.
+        streams (KernelStreams): The four I/O channels (stream, stdout, stderr, stdin).
         module (ModuleType): Module in which to execute code.
         enqueue_control_request (Callable[[ControlRequest], None]): Callback to enqueue control requests.
         debugger_override (marimo_pdb.MarimoPdb | None): A replacement for the built-in Pdb.
@@ -519,10 +511,7 @@ class Kernel:
         cell_configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
         user_config: MarimoConfig,
-        stream: Stream,
-        stdout: Stdout | None,
-        stderr: Stderr | None,
-        stdin: Stdin | None,
+        streams: KernelStreams,
         module: ModuleType,
         enqueue_control_request: Callable[[CommandMessage], None],
         hooks: NotebookCellHooks,
@@ -545,10 +534,7 @@ class Kernel:
         # kernel globals.
         sys.argv = self.argv
 
-        self.stream = stream
-        self.stdout = stdout
-        self.stderr = stderr
-        self.stdin = stdin
+        self._streams = streams
         self.enqueue_control_request = enqueue_control_request
         # timestamp at which most recently processed interrupt was seen;
         # the kernel rejects run requests that were issued before that
@@ -664,6 +650,22 @@ class Kernel:
         )
         if lifespan.has_lifespans():
             self._lifespan = lifespan(None)
+
+    @property
+    def stream(self) -> Stream:
+        return self._streams.stream
+
+    @property
+    def stdout(self) -> Stdout | None:
+        return self._streams.stdout
+
+    @property
+    def stderr(self) -> Stderr | None:
+        return self._streams.stderr
+
+    @property
+    def stdin(self) -> Stdin | None:
+        return self._streams.stdin
 
     def teardown(self) -> None:
         """Teardown resources owned by the kernel."""
@@ -1775,9 +1777,21 @@ class Kernel:
         # If cannot compile, don't run
         cell, error = self._try_compiling_cell(SCRATCH_CELL_ID, code, [])
         if error:
+            # Surface the diagnostic on stderr so SSE clients (e.g. the
+            # /api/kernel/execute CLI path) see it — compile errors
+            # never hit ``write_traceback``, so without this the error
+            # only reaches the ``CellNotification`` side channel and
+            # the SSE ``done`` event drops it.
+            CellNotificationUtils.broadcast_console_output(
+                channel=CellChannel.STDERR,
+                mimetype="text/plain",
+                data=error.describe(),
+                cell_id=SCRATCH_CELL_ID,
+                status=None,
+            )
             CellNotificationUtils.broadcast_error(
                 data=[error],
-                clear_console=True,
+                clear_console=False,
                 cell_id=SCRATCH_CELL_ID,
             )
             CellNotificationUtils.broadcast_status(
@@ -2368,12 +2382,18 @@ class Kernel:
                 if request.notebook_cells is not None
                 else None
             )
-            with (
-                notebook_document_context(doc),
-                http_request_context(request.request),
-            ):
-                await self.run_scratchpad(request.code)
-            broadcast_notification(CompletedRunNotification())
+            try:
+                with (
+                    notebook_document_context(doc),
+                    http_request_context(request.request),
+                ):
+                    await self.run_scratchpad(request.code)
+            finally:
+                # Always emit completion so a waiting ``ScratchCellListener``
+                # doesn't block forever if ``run_scratchpad`` raises.
+                broadcast_notification(
+                    CompletedRunNotification(run_id=request.run_id)
+                )
 
         async def handle_execute_stale(
             request: ExecuteStaleCellsCommand,
@@ -3555,68 +3575,98 @@ class RequestHandler:
         raise ValueError(f"Unknown request {request}")
 
 
-def launch_kernel(
-    control_queue: QueueType[CommandMessage],
-    set_ui_element_queue: QueueType[BatchableCommand],
-    completion_queue: QueueType[CodeCompletionCommand],
-    input_queue: QueueType[str],
-    stream_queue: QueueType[KernelMessage] | None,
-    socket_addr: tuple[str, int] | None,
-    is_edit_mode: bool,
-    configs: dict[CellId_t, CellConfig],
-    app_metadata: AppMetadata,
-    user_config: MarimoConfig,
-    virtual_file_storage: VirtualFileStorageType | None,
-    redirect_console_to_browser: bool,
-    interrupt_queue: QueueType[bool] | None = None,
-    profile_path: str | None = None,
-    log_level: int | None = None,
-    is_ipc: bool = False,
-    parent_pid: int | None = None,
-) -> None:
+@dataclasses.dataclass
+class _LaunchStreams:
+    """Superset of `KernelStreams` carrying the subprocess bootstrap pieces."""
+
+    stream: ThreadSafeStream
+    stdout: ThreadSafeStdout | None
+    stderr: ThreadSafeStderr | None
+    stdin: ThreadSafeStdin | None
+    debugger: marimo_pdb.MarimoPdb | None
+    pipe: TypedConnection[KernelMessage] | None
+
+    @property
+    def kernel_streams(self) -> KernelStreams:
+        return KernelStreams(
+            stream=self.stream,
+            stdout=self.stdout,
+            stderr=self.stderr,
+            stdin=self.stdin,
+        )
+
+    def close(self, use_fd_redirect: bool) -> None:
+        if not use_fd_redirect:
+            from marimo._messaging.thread_local_streams import (
+                clear_thread_local_streams,
+            )
+
+            clear_thread_local_streams()
+
+        if isinstance(self.pipe, connection.Connection):
+            self.pipe.close()
+
+
+def _bootstrap_subprocess(
+    parent_pid: int | None,
+    log_level: int | None,
+    is_subprocess: bool,
+) -> Callable[[], asyncio.AbstractEventLoop] | None:
+    # Returns a loop factory only on Windows 3.14+; elsewhere either mutates
+    # the loop policy or does nothing.
     if log_level is not None:
         _loggers.set_level(log_level)
-    LOGGER.debug("Launching kernel")
 
-    is_subprocess = is_edit_mode or is_ipc
-    loop_factory: Callable[[], asyncio.AbstractEventLoop] | None = None
-    if is_subprocess:
-        restore_signals()
+    if not is_subprocess:
+        return None
 
-        # Become the leader of a new session/process group before connecting
-        # back to the parent, to avoid race conditions with the parent
-        # process (which assumes its child is in another process group).
-        if sys.platform != "win32":
-            os.setsid()
-            start_parent_poller(parent_pid)
+    restore_signals()
 
-        # The runtime process inherits the server's loop policy. On Windows, we
-        # restore the event loop policy to the default ProactorEventLoop, so
-        # user code can use asyncio.create_subprocess_exec and other APIs that
-        # the SelectorEventLoop does not implement.
-        if sys.platform == "win32":
-            if sys.version_info >= (3, 14):
-                # Event loop policies are deprecated in Python 3.14
-                loop_factory = asyncio.ProactorEventLoop
-            else:
-                asyncio.set_event_loop_policy(
-                    asyncio.WindowsProactorEventLoopPolicy()
-                )
+    # Become the leader of a new session/process group before connecting
+    # back to the parent, to avoid race conditions with the parent
+    # process (which assumes its child is in another process group).
+    if sys.platform != "win32":
+        os.setsid()
+        start_parent_poller(parent_pid)
 
-    profiler = None
-    if profile_path is not None:
-        import cProfile
+    # The runtime process inherits the server's loop policy. On Windows, we
+    # restore the event loop policy to the default ProactorEventLoop, so
+    # user code can use asyncio.create_subprocess_exec and other APIs that
+    # the SelectorEventLoop does not implement.
+    if sys.platform == "win32":
+        if sys.version_info >= (3, 14):
+            # Event loop policies are deprecated in Python 3.14
+            return asyncio.ProactorEventLoop
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    return None
 
-        profiler = cProfile.Profile()
-        profiler.enable()
 
-    should_redirect_stdio = is_edit_mode or redirect_console_to_browser
-    # Only use os.dup2-based fd redirection in process-based modes
-    # (edit mode / IPC).  Thread-based run mode uses the lighter-weight
-    # thread-local proxy instead to avoid process-global fd mutations.
-    use_fd_redirect = is_subprocess
+@contextlib.contextmanager
+def _maybe_profile(profile_path: str | None) -> Iterator[None]:
+    if profile_path is None:
+        yield
+        return
 
-    # Create communication channels
+    import cProfile
+
+    profiler = cProfile.Profile()
+    profiler.enable()
+    try:
+        yield
+    finally:
+        profiler.disable()
+        profiler.dump_stats(profile_path)
+
+
+def _create_streams(
+    socket_addr: tuple[str, int] | None,
+    stream_queue: QueueType[KernelMessage] | None,
+    input_queue: QueueType[str],
+    is_edit_mode: bool,
+    should_redirect_stdio: bool,
+    use_fd_redirect: bool,
+) -> _LaunchStreams | None:
+    # Returns None when the socket fails to connect; callers should bail out.
     pipe: TypedConnection[KernelMessage] | None = None
     if socket_addr is not None:
         n_tries = 0
@@ -3644,7 +3694,7 @@ def launch_kernel(
                 n_tries,
                 exc_info=last_error,
             )
-            return
+            return None
 
         stream = ThreadSafeStream(
             pipe=pipe,
@@ -3680,160 +3730,131 @@ def launch_kernel(
         if is_edit_mode and not bool(os.getenv("DEBUGPY_RUNNING"))
         else None
     )
-
-    # In run mode, the kernel should always be in autorun, and the module
-    # autoreloader is disabled
-    if not is_edit_mode:
-        user_config = user_config.copy()
-        user_config["runtime"]["on_cell_change"] = "autorun"
-        user_config["runtime"]["auto_reload"] = "off"
-
-    def _enqueue_control_request(req: CommandMessage) -> None:
-        control_queue.put_nowait(req)
-        if isinstance(req, (UpdateUIElementCommand, ModelCommand)):
-            set_ui_element_queue.put_nowait(req)
-
-    # Create hooks with mode-specific configuration
-    from marimo._runtime.runner.hooks_post_execution import (
-        attempt_pytest,
-        broadcast_storage_backends,
-        render_toplevel_defs,
-    )
-
-    hooks = create_default_hooks()
-    if is_edit_mode and user_config["runtime"].get("reactive_tests", False):
-        hooks.add_post_execution(attempt_pytest, Priority.LATE)
-    if is_edit_mode:
-        hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
-        hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
-
-    kernel = Kernel(
-        cell_configs=configs,
-        app_metadata=app_metadata,
+    return _LaunchStreams(
         stream=stream,
         stdout=stdout,
         stderr=stderr,
         stdin=stdin,
-        module=patches.patch_main_module(
-            file=app_metadata.filename,
-            input_override=input_override,
-            print_override=print_override,
-            doc=app_metadata.docstring,
-        ),
-        debugger_override=debugger,
-        user_config=user_config,
-        enqueue_control_request=_enqueue_control_request,
-        hooks=hooks,
-    )
-    ctx = initialize_kernel_context(
-        kernel=kernel,
-        stream=stream,
-        stdout=stdout,
-        stderr=stderr,
-        virtual_file_storage=virtual_file_storage,
-        mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
+        debugger=debugger,
+        pipe=pipe,
     )
 
-    if is_edit_mode:
-        # completions only provided in edit mode
-        kernel.start_completion_worker(completion_queue)
 
-    if is_subprocess:
-        # Subprocess kernels (EDIT and IPC_RUN) can receive signals and need
-        # their own formatter registration since they don't share state with
-        # the host process.
-        #
-        # Each subprocess kernel needs to install the formatter import hooks
-        from marimo._output.formatters.formatters import register_formatters
+def _install_subprocess_handlers(
+    kernel: Kernel,
+    ctx: KernelRuntimeContext,
+    user_config: MarimoConfig,
+    interrupt_queue: QueueType[bool] | None,
+) -> None:
+    # Subprocess kernels don't share state with the host, so they need
+    # their own formatter import hooks and signal handlers.
+    from marimo._output.formatters.formatters import register_formatters
 
-        register_formatters(theme=user_config["display"]["theme"])
+    register_formatters(theme=user_config["display"]["theme"])
 
-        signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
+    signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
 
-        if sys.platform == "win32":
-            if interrupt_queue is not None:
-                Win32InterruptHandler(interrupt_queue).start()
-            # windows doesn't handle SIGTERM
-            signal.signal(
-                signal.SIGBREAK, handlers.construct_sigterm_handler(kernel)
-            )
-        else:
-            signal.signal(
-                signal.SIGTERM, handlers.construct_sigterm_handler(kernel)
-            )
-
-    ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
-
-    async def control_loop(kernel: Kernel) -> None:
-        loop = asyncio.get_running_loop()
-
-        while True:
-            try:
-                # Offload the blocking queue.get() to a thread so the event
-                # loop stays free to service background asyncio tasks (e.g.
-                # user-created tasks via create_task / ensure_future).
-                request: CommandMessage | None = await loop.run_in_executor(
-                    None,
-                    control_queue.get,
-                )
-            except Exception as e:
-                # triggered on Windows when quit with Ctrl+C
-                LOGGER.debug("kernel queue.get() failed %s", e)
-                break
-            LOGGER.debug(
-                "Received control request: %s", type(request).__name__
-            )
-            if isinstance(request, StopKernelCommand):
-                break
-            elif isinstance(request, (UpdateUIElementCommand, ModelCommand)):
-                # Drain the shared queue and merge pending requests:
-                # - UI element updates: last-write-wins per element ID
-                # - Model commands: last-write-wins per model ID
-                merged = ui_element_request_mgr.process_request(request)
-                for r in merged:
-                    await kernel.handle_message(r)
-                continue
-
-            if request is not None:
-                try:
-                    await kernel.handle_message(request)
-                except Exception:
-                    LOGGER.exception(
-                        "Failed to handle control request: %s",
-                        type(request).__name__,
-                    )
-
-    # The control loop is asynchronous so that (a) user code can use
-    # top-level await, and (b) background asyncio tasks created by user code
-    # (via create_task / ensure_future) are not starved by a blocking
-    # queue.get().  The queue read is offloaded to a thread via
-    # run_in_executor; avoid adding further async primitives elsewhere in the
-    # runtime unless there is a very good reason.
-    if loop_factory is not None:
-        asyncio.run(control_loop(kernel), loop_factory=loop_factory)
+    if sys.platform == "win32":
+        if interrupt_queue is not None:
+            Win32InterruptHandler(interrupt_queue).start()
+        # windows doesn't handle SIGTERM
+        signal.signal(
+            signal.SIGBREAK, handlers.construct_sigterm_handler(kernel)
+        )
     else:
-        asyncio.run(control_loop(kernel))
-
-    if not use_fd_redirect:
-        from marimo._messaging.thread_local_streams import (
-            clear_thread_local_streams,
+        signal.signal(
+            signal.SIGTERM, handlers.construct_sigterm_handler(kernel)
         )
 
-        clear_thread_local_streams()
 
-    if profiler is not None and profile_path is not None:
-        profiler.disable()
-        profiler.dump_stats(profile_path)
+def launch_kernel(
+    control_queue: QueueType[CommandMessage],
+    set_ui_element_queue: QueueType[BatchableCommand],
+    completion_queue: QueueType[CodeCompletionCommand],
+    input_queue: QueueType[str],
+    stream_queue: QueueType[KernelMessage] | None,
+    socket_addr: tuple[str, int] | None,
+    is_edit_mode: bool,
+    configs: dict[CellId_t, CellConfig],
+    app_metadata: AppMetadata,
+    user_config: MarimoConfig,
+    virtual_file_storage: VirtualFileStorageType | None,
+    redirect_console_to_browser: bool,
+    interrupt_queue: QueueType[bool] | None = None,
+    profile_path: str | None = None,
+    log_level: int | None = None,
+    is_ipc: bool = False,
+    parent_pid: int | None = None,
+) -> None:
+    from marimo._runtime.kernel_lifecycle import (
+        KernelArgs,
+        kernel_session,
+        listen_messages,
+        threaded_queue_reader,
+    )
 
-    # Defensively clear context data structures, in case a leak prevents
-    # the context from being destroyed.
-    #
-    # TODO(akshayka): define ownership semantics for contexts, so the
-    # context knows how to shut itself down. The virtual file registry
-    # is shared between the main thread and mo.Thread's right now ...
-    get_context().virtual_file_registry.shutdown()
-    get_context().app_kernel_runner_registry.shutdown()
-    teardown_context()
-    kernel.teardown()
-    if isinstance(pipe, connection.Connection):
-        pipe.close()
+    LOGGER.debug("Launching kernel")
+    is_subprocess = is_edit_mode or is_ipc
+    loop_factory = _bootstrap_subprocess(parent_pid, log_level, is_subprocess)
+
+    with _maybe_profile(profile_path):
+        should_redirect_stdio = is_edit_mode or redirect_console_to_browser
+        # Only use os.dup2-based fd redirection in process-based modes
+        # (edit mode / IPC).  Thread-based run mode uses the lighter-weight
+        # thread-local proxy instead to avoid process-global fd mutations.
+        use_fd_redirect = is_subprocess
+        streams = _create_streams(
+            socket_addr,
+            stream_queue,
+            input_queue,
+            is_edit_mode,
+            should_redirect_stdio,
+            use_fd_redirect,
+        )
+        if streams is None:
+            return
+
+        with kernel_session(
+            KernelArgs(
+                streams=streams.kernel_streams,
+                debugger=streams.debugger,
+                configs=configs,
+                app_metadata=app_metadata,
+                user_config=user_config,
+                mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
+                control_queue=control_queue,
+                set_ui_element_queue=set_ui_element_queue,
+                virtual_file_storage=virtual_file_storage,
+                print_override_fn=print_override,
+            )
+        ) as (kernel, ctx):
+            if is_edit_mode:
+                # completions only provided in edit mode
+                kernel.start_completion_worker(completion_queue)
+
+            if is_subprocess:
+                # Read theme from kernel.user_config — create_kernel may have
+                # mutated it for run mode (autorun + auto_reload off).
+                _install_subprocess_handlers(
+                    kernel, ctx, kernel.user_config, interrupt_queue
+                )
+
+            # The control loop is asynchronous so that (a) user code can use
+            # top-level await, and (b) background asyncio tasks created by
+            # user code (via create_task / ensure_future) are not starved by
+            # a blocking queue.get().  The queue read is offloaded to a
+            # thread via run_in_executor; avoid adding further async
+            # primitives elsewhere in the runtime unless there is a very
+            # good reason.
+            coro = listen_messages(
+                kernel,
+                control_queue,
+                set_ui_element_queue,
+                threaded_queue_reader,
+            )
+            if loop_factory is not None:
+                asyncio.run(coro, loop_factory=loop_factory)
+            else:
+                asyncio.run(coro)
+
+        streams.close(use_fd_redirect)

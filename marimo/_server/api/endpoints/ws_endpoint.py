@@ -369,7 +369,7 @@ class WebSocketHandler(SessionConsumer):
                     self.manager.close_session(self.params.session_id)
 
             if session is not None:
-                cancellation_handle = asyncio.get_event_loop().call_later(
+                cancellation_handle = asyncio.get_running_loop().call_later(
                     session.ttl_seconds, _close
                 )
                 self.cancel_close_handle = cancellation_handle

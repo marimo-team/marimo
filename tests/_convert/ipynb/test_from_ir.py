@@ -80,6 +80,33 @@ def test_export_ipynb_sort_modes() -> None:
     snapshot_test("notebook_topological.ipynb.txt", content)
 
 
+def test_export_ipynb_marks_hidden_code_cells_for_nbconvert() -> None:
+    """Regression test for marimo-team/marimo#9523."""
+    app = App()
+
+    @app.cell(hide_code=True)
+    def _():
+        x = 1
+        return (x,)
+
+    @app.cell()
+    def _(x):
+        print(x)
+        return
+
+    ipynb_json = json.loads(
+        convert_from_ir_to_ipynb(InternalApp(app), sort_mode="top-down")
+    )
+
+    cells = ipynb_json["cells"]
+    # `jupyter.source_hidden` is for editor UIs (JupyterLab, VS Code).
+    assert cells[0]["metadata"]["jupyter"] == {"source_hidden": True}
+    # `remove-input` tag is what nbconvert's TagRemovePreprocessor acts on.
+    assert cells[0]["metadata"]["tags"] == ["remove-input"]
+    assert "jupyter" not in cells[1]["metadata"]
+    assert "tags" not in cells[1]["metadata"]
+
+
 @pytest.mark.parametrize(
     ("input_data", "expected"),
     [

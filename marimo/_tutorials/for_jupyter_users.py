@@ -1,8 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.6"
 app = marimo.App(app_title="marimo for Jupyter users")
 
 
@@ -47,7 +53,7 @@ def _(mo):
     marimo 'reacts' to the change in `x` and automatically recalculates `y`!
 
     **Explanation.** marimo reads the code in your cells and understands the
-    dependences between them, based on the variables that each cell declares and
+    dependencies between them, based on the variables that each cell declares and
     references. When you execute one cell, marimo automatically executes all other
     cells that depend on it, not unlike a spreadsheet.
 
@@ -232,11 +238,9 @@ def _(mo):
 
 @app.cell
 def _(mo, slider):
-    mo.md(
-        f"""
-        The value of {slider} is {slider.value}.
-        """
-    )
+    mo.md(f"""
+    The value of {slider} is {slider.value}.
+    """)
     return
 
 

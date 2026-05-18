@@ -18,13 +18,11 @@ describe("FrontendToolRegistry", () => {
 
   it("invokes a tool with valid args and validates input/output", async () => {
     const registry = new FrontendToolRegistry([new TestFrontendTool()]);
-    const response = await registry.invoke(
-      "test_frontend_tool",
-      {
-        name: "Alice",
-      },
-      {} as never,
-    );
+    const response = await registry.invoke({
+      toolName: "test_frontend_tool",
+      rawArgs: { name: "Alice" },
+      toolContext: {} as never,
+    });
 
     // Check InvokeResult wrapper
     expect(response.tool_name).toBe("test_frontend_tool");
@@ -47,11 +45,11 @@ describe("FrontendToolRegistry", () => {
 
   it("returns a structured error on invalid args", async () => {
     const registry = new FrontendToolRegistry([new TestFrontendTool()]);
-    const response = await registry.invoke(
-      "test_frontend_tool",
-      {},
-      {} as never,
-    );
+    const response = await registry.invoke({
+      toolName: "test_frontend_tool",
+      rawArgs: {},
+      toolContext: {} as never,
+    });
 
     // Check InvokeResult wrapper
     expect(response.tool_name).toBe("test_frontend_tool");

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, final
 
@@ -96,20 +97,36 @@ class AsyncBackgroundTask(ABC):
         """
         Synchronous version of stop that can be called from non-async code.
         """
+        if self.task is None or self.task.done():
+            self.running = False
+            return
+
+        # Reuse the task's loop — a fresh loop via ``asyncio.run`` would
+        # error with "future attached to a different event loop".
+        task_loop = self.task.get_loop()
+
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Can't run a new event loop while one is running
-                # Just set running to false and let the task complete naturally
-                self.running = False
-                return
-            loop.run_until_complete(self.stop(timeout))
+            on_task_thread = asyncio.get_running_loop() is task_loop
         except RuntimeError:
-            # If there's no event loop, create a new one
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(self.stop(timeout))
-            loop.close()
+            on_task_thread = False
+
+        if on_task_thread:
+            # Blocking here would deadlock our own loop; signal cooperative
+            # shutdown and return.
+            self.running = False
+            return
+
+        if task_loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(
+                self.stop(timeout), task_loop
+            )
+            try:
+                future.result(timeout=timeout)
+            except concurrent.futures.TimeoutError:
+                self.running = False
+            return
+
+        task_loop.run_until_complete(self.stop(timeout))
 
     async def wait_for_startup(self, timeout: float | None = None) -> None:
         """

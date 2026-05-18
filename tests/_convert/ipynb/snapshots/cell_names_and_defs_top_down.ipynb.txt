@@ -63,12 +63,18 @@
       "execution_count": null,
       "id": "lEQa",
       "metadata": {
+        "jupyter": {
+          "source_hidden": true
+        },
         "marimo": {
           "config": {
             "hide_code": true
           },
           "name": "*subtract"
-        }
+        },
+        "tags": [
+          "remove-input"
+        ]
       },
       "outputs": [],
       "source": [
@@ -99,12 +105,18 @@
       "execution_count": null,
       "id": "Xref",
       "metadata": {
+        "jupyter": {
+          "source_hidden": true
+        },
         "marimo": {
           "config": {
             "hide_code": true
           },
           "name": "*HiddenClass"
-        }
+        },
+        "tags": [
+          "remove-input"
+        ]
       },
       "outputs": [],
       "source": [

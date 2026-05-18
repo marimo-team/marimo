@@ -5,6 +5,9 @@ import { isOutputEmpty } from "../cells/outputs";
 
 export const wasmInitializationAtom = atom<string>("Initializing...");
 
+export type WasmInitStatus = "loading" | "ready" | "error";
+export const wasmInitStatusAtom = atom<WasmInitStatus>("loading");
+
 export const hasAnyOutputAtom = atom<boolean>((get) => {
   const notebook = get(notebookAtom);
   const runtimeStates = Object.values(notebook.cellRuntime);

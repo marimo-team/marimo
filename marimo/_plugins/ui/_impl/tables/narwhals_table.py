@@ -4,7 +4,9 @@ from __future__ import annotations
 import datetime
 import functools
 import io
+import json
 import math
+from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -698,17 +700,22 @@ class NarwhalsTableManager(
         # Sample 3 values from the column
         SAMPLE_SIZE = 3
         try:
-            from enum import Enum
+
+            def _json_default(o: Any) -> str:
+                if isinstance(o, Enum):
+                    return o.name
+                return str(o)
 
             def to_primitive(value: Any) -> str | int | float:
-                if isinstance(value, list):
-                    return str([to_primitive(v) for v in value])
-                elif isinstance(value, dict):
-                    return str({k: to_primitive(v) for k, v in value.items()})
-                elif isinstance(value, Enum):
+                if isinstance(value, Enum):
                     return value.name
-                elif isinstance(value, (float, int)):
+                if isinstance(value, (int, float)):
                     return value
+                if isinstance(value, (list, dict)):
+                    try:
+                        return json.dumps(value, default=_json_default)
+                    except (TypeError, ValueError):
+                        return str(value)
                 return str(value)
 
             if self.data[column].dtype == nw.Datetime:

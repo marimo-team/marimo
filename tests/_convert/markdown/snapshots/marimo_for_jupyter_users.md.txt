@@ -3,6 +3,12 @@ title: marimo for Jupyter users
 marimo-version: 0.0.0
 header: |-
   # Copyright 2026 Marimo. All rights reserved.
+  # /// script
+  # requires-python = ">=3.12"
+  # dependencies = [
+  #     "marimo",
+  # ]
+  # ///
 ---
 
 # marimo for Jupyter users
@@ -27,7 +33,7 @@ y = x + 1; y
 marimo 'reacts' to the change in `x` and automatically recalculates `y`!
 
 **Explanation.** marimo reads the code in your cells and understands the
-dependences between them, based on the variables that each cell declares and
+dependencies between them, based on the variables that each cell declares and
 references. When you execute one cell, marimo automatically executes all other
 cells that depend on it, not unlike a spreadsheet.
 
@@ -141,11 +147,9 @@ ergonomics for authoring.
 ///
 
 ```python {.marimo}
-mo.md(
-    f"""
-    The value of {slider} is {slider.value}.
-    """
-)
+mo.md(f"""
+The value of {slider} is {slider.value}.
+""")
 ```
 
 **Explanation.** By lifting Markdown into Python, marimo lets you construct

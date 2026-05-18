@@ -41,6 +41,9 @@ from marimo._server.models.models import InstantiateNotebookRequest
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager, load_notebook
 from marimo._types.ids import ConsumerId
+from marimo._utils.inline_script_metadata import (
+    pin_pep723_dependencies_for_wasm,
+)
 from marimo._utils.marimo_path import MarimoPath
 
 LOGGER = _loggers.marimo_logger()
@@ -391,11 +394,13 @@ async def run_app_then_export_as_wasm(
         session_view, file_manager.app.cell_manager
     )
 
+    code = pin_pep723_dependencies_for_wasm(file_manager.app.to_py(), path)
+
     html, filename = Exporter().export_as_wasm(
         filename=file_manager.filename,
         app=file_manager.app,
         display_config=display_config,
-        code=file_manager.app.to_py(),
+        code=code,
         mode=mode,
         show_code=show_code,
         asset_url=asset_url,

@@ -73,6 +73,16 @@
     }
   }
 
+  /* Styling for cells marked for cut */
+  &.pending-cut {
+    .output-area,
+    .cm-gutters,
+    .cm {
+      background-color: var(--gray-2);
+      opacity: 0.55;
+    }
+  }
+
   &:focus-within {
     z-index: 20;
   }

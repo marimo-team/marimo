@@ -11,6 +11,7 @@ from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
+from marimo._server.workspace import NEW_FILE_WIRE
 from marimo._utils.health import (
     get_cgroup_cpu_percent,
     get_cgroup_mem_stats,
@@ -74,7 +75,7 @@ async def status(request: Request) -> JSONResponse:
     """
     app_state = AppState(request)
     files = [
-        session.app_file_manager.filename or "__new__"
+        session.app_file_manager.filename or NEW_FILE_WIRE
         for session in app_state.session_manager.sessions.values()
     ]
     return JSONResponse(

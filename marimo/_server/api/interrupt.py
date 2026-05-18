@@ -21,7 +21,7 @@ class InterruptHandler:
     def __init__(self, quiet: bool, shutdown: Callable[[], None]) -> None:
         self.quiet = quiet
         self.shutdown = shutdown
-        self.loop = asyncio.get_event_loop()
+        self.loop = asyncio.get_running_loop()
         self.original_handler = signal.getsignal(signal.SIGINT)
         self._time_of_last_confirmation: float | None = None
 
@@ -70,7 +70,7 @@ class InterruptHandler:
                     return
 
                 response = input(
-                    f"\r{TAB}Are you sure you want to quit? (y/n): "
+                    f"\r{TAB}Are you sure you want to quit? (y/N): "
                 )
                 self._time_of_last_confirmation = time.time()
                 if response.lower().strip() == "y":

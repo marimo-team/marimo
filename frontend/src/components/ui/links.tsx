@@ -15,7 +15,8 @@ export const ExternalLink = ({
     | `https://marimo.io/${string}`
     | `https://links.marimo.app/${string}`
     | `https://wandb.ai/${string}`
-    | `https://portal.azure.com/${string}`;
+    | `https://portal.azure.com/${string}`
+    | `https://opencode.ai/${string}`;
   children: React.ReactNode;
 }) => {
   return (

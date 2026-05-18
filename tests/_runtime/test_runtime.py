@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
@@ -30,22 +29,16 @@ from marimo._messaging.notification import (
     VariablesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
-from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.commands import (
-    AppMetadata,
     CreateNotebookCommand,
     DeleteCellCommand,
     ExecuteCellCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
 )
-from marimo._runtime.context.kernel_context import initialize_kernel_context
-from marimo._runtime.context.types import teardown_context
 from marimo._runtime.dataflow import EdgeWithVar
-from marimo._runtime.patches import create_main_module
-from marimo._runtime.runner.hooks import create_default_hooks
 from marimo._runtime.runtime import (
     Kernel,
     launch_kernel,
@@ -53,9 +46,10 @@ from marimo._runtime.runtime import (
     notebook_location,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
-from marimo._session.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests._messaging.mocks import MockStderr, MockStream
+from tests._runtime._helpers.factories import default_app_metadata
+from tests._runtime._helpers.session import mocked_kernel_session
 from tests.conftest import ExecReqProvider, MockedKernel, mock_pyodide
 
 if TYPE_CHECKING:
@@ -1367,44 +1361,19 @@ except NameError:
     async def test_notebook_dir_for_unnamed_notebook(
         self, tmp_path: pathlib.Path, exec_req: ExecReqProvider
     ) -> None:
+        filename = str(tmp_path / "notebook.py")
         try:
-            filename = str(tmp_path / "notebook.py")
-            k = Kernel(
-                stream=NoopStream(),
-                stdout=None,
-                stderr=None,
-                stdin=None,
-                cell_configs={},
-                user_config=DEFAULT_CONFIG,
-                app_metadata=AppMetadata(
-                    query_params={},
-                    filename=filename,
-                    cli_args={},
-                    argv=None,
-                    app_config=_AppConfig(),
-                ),
-                enqueue_control_request=lambda _: None,
-                module=create_main_module(None, None, None),
-                hooks=create_default_hooks(),
-            )
-            initialize_kernel_context(
-                kernel=k,
-                stream=k.stream,
-                stdout=k.stdout,
-                stderr=k.stderr,
-                virtual_file_storage="shared_memory",
-                mode=SessionMode.EDIT,
-            )
-
-            await k.run(
-                [
-                    exec_req.get("import marimo as mo"),
-                    exec_req.get("x = mo.notebook_dir() / 'foo.csv'"),
-                ]
-            )
-            assert str(k.globals["x"]).endswith("foo.csv")
+            with mocked_kernel_session(
+                app_metadata=default_app_metadata(filename=filename),
+            ) as tk:
+                await tk.kernel.run(
+                    [
+                        exec_req.get("import marimo as mo"),
+                        exec_req.get("x = mo.notebook_dir() / 'foo.csv'"),
+                    ]
+                )
+                assert str(tk.kernel.globals["x"]).endswith("foo.csv")
         finally:
-            teardown_context()
             if str(tmp_path) in sys.path:
                 sys.path.remove(str(tmp_path))
 
@@ -1433,59 +1402,30 @@ except NameError:
         assert k.globals["pickle_output"] is not None
 
     def test_sys_path_updated(self, tmp_path: pathlib.Path) -> None:
+        filename = str(tmp_path / "notebook.py")
         try:
-            filename = str(tmp_path / "notebook.py")
-            Kernel(
-                stream=NoopStream(),
-                stdout=None,
-                stderr=None,
-                stdin=None,
-                cell_configs={},
-                user_config=DEFAULT_CONFIG,
-                app_metadata=AppMetadata(
-                    query_params={},
-                    filename=filename,
-                    cli_args={},
-                    argv=None,
-                    app_config=_AppConfig(),
-                ),
-                enqueue_control_request=lambda _: None,
-                module=create_main_module(None, None, None),
-                hooks=create_default_hooks(),
-            )
-            assert str(tmp_path) in sys.path
-            assert str(tmp_path) == sys.path[0]
+            with mocked_kernel_session(
+                app_metadata=default_app_metadata(filename=filename),
+            ):
+                assert str(tmp_path) in sys.path
+                assert str(tmp_path) == sys.path[0]
         finally:
             if str(tmp_path) in sys.path:
                 sys.path.remove(str(tmp_path))
 
     def test_sys_argv_updated(self, tmp_path: pathlib.Path) -> None:
         old_argv = sys.argv
+        filename = str(tmp_path / "notebook.py")
         try:
-            filename = str(tmp_path / "notebook.py")
-            Kernel(
-                stream=NoopStream(),
-                stdout=None,
-                stderr=None,
-                stdin=None,
-                cell_configs={},
-                user_config=DEFAULT_CONFIG,
-                app_metadata=AppMetadata(
-                    query_params={},
-                    filename=filename,
-                    cli_args={},
-                    argv=["foo", "bar"],
-                    app_config=_AppConfig(),
+            with mocked_kernel_session(
+                app_metadata=default_app_metadata(
+                    filename=filename, argv=["foo", "bar"]
                 ),
-                enqueue_control_request=lambda _: None,
-                module=create_main_module(None, None, None),
-                hooks=create_default_hooks(),
-            )
-
-            assert len(sys.argv) == 3
-            assert filename == sys.argv[0]
-            assert sys.argv[1] == "foo"
-            assert sys.argv[2] == "bar"
+            ):
+                assert len(sys.argv) == 3
+                assert filename == sys.argv[0]
+                assert sys.argv[1] == "foo"
+                assert sys.argv[2] == "bar"
         finally:
             sys.argv = old_argv
             if str(tmp_path) in sys.path:
@@ -1495,27 +1435,12 @@ except NameError:
         self, tmp_path: pathlib.Path
     ) -> None:
         argv = sys.argv
+        filename = str(tmp_path / "notebook.py")
         try:
-            filename = str(tmp_path / "notebook.py")
-            Kernel(
-                stream=NoopStream(),
-                stdout=None,
-                stderr=None,
-                stdin=None,
-                cell_configs={},
-                user_config=DEFAULT_CONFIG,
-                app_metadata=AppMetadata(
-                    query_params={},
-                    filename=filename,
-                    cli_args={},
-                    argv=None,
-                    app_config=_AppConfig(),
-                ),
-                enqueue_control_request=lambda _: None,
-                module=create_main_module(None, None, None),
-                hooks=create_default_hooks(),
-            )
-            assert argv == sys.argv
+            with mocked_kernel_session(
+                app_metadata=default_app_metadata(filename=filename),
+            ):
+                assert argv == sys.argv
         finally:
             # restore argv in case test failed or accidentally mutated it
             sys.argv = argv
@@ -1529,51 +1454,26 @@ except NameError:
         filename = tmp_path / "notebook.py"
 
         try:
-            k = Kernel(
-                stream=NoopStream(),
-                stdout=None,
-                stderr=None,
-                stdin=None,
-                cell_configs={},
-                user_config={
-                    **DEFAULT_CONFIG,
-                    "runtime": {
-                        **DEFAULT_CONFIG["runtime"],
-                        "pythonpath": [str(custom_path)],
-                    },
+            user_config = {
+                **DEFAULT_CONFIG,
+                "runtime": {
+                    **DEFAULT_CONFIG["runtime"],
+                    "pythonpath": [str(custom_path)],
                 },
-                app_metadata=AppMetadata(
-                    query_params={},
-                    filename=str(filename),
-                    cli_args={},
-                    argv=None,
-                    app_config=_AppConfig(),
-                ),
-                enqueue_control_request=lambda _: None,
-                module=create_main_module(None, None, None),
-                hooks=create_default_hooks(),
-            )
-            initialize_kernel_context(
-                kernel=k,
-                stream=k.stream,
-                stdout=k.stdout,
-                stderr=k.stderr,
-                virtual_file_storage="shared_memory",
-                mode=SessionMode.EDIT,
-            )
-
-            # Verify the path was added using exec_req
-            await k.run(
-                [
-                    exec_req.get("import sys"),
-                    exec_req.get("paths = list(sys.path)"),
-                ]
-            )
-
-            assert str(custom_path) in k.globals["paths"]
-            assert str(filename.parent) in k.globals["paths"]
+            }
+            with mocked_kernel_session(
+                app_metadata=default_app_metadata(filename=str(filename)),
+                user_config=user_config,  # type: ignore[arg-type]
+            ) as tk:
+                await tk.kernel.run(
+                    [
+                        exec_req.get("import sys"),
+                        exec_req.get("paths = list(sys.path)"),
+                    ]
+                )
+                assert str(custom_path) in tk.kernel.globals["paths"]
+                assert str(filename.parent) in tk.kernel.globals["paths"]
         finally:
-            teardown_context()
             if str(tmp_path) in sys.path:
                 sys.path.remove(str(tmp_path))
             if str(custom_path) in sys.path:
@@ -4207,7 +4107,7 @@ class TestLaunchKernelEventLoop:
         "marimo._runtime.runtime.ThreadSafeStdin",
         "marimo._runtime.runtime.marimo_pdb.MarimoPdb",
         "marimo._runtime.runtime.Kernel",
-        "marimo._runtime.runtime.initialize_kernel_context",
+        "marimo._runtime.kernel_lifecycle.initialize_kernel_context",
         "marimo._runtime.runtime.patches.patch_main_module",
         "marimo._output.formatters.formatters.register_formatters",
     ]
@@ -4239,9 +4139,7 @@ class TestLaunchKernelEventLoop:
                 socket_addr=None,
                 is_edit_mode=is_edit_mode,
                 configs={},
-                app_metadata=AppMetadata(
-                    query_params={}, cli_args={}, app_config=_AppConfig()
-                ),
+                app_metadata=default_app_metadata(),
                 user_config=DEFAULT_CONFIG,
                 virtual_file_storage=None,
                 redirect_console_to_browser=False,

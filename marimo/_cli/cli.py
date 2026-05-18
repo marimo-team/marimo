@@ -27,7 +27,7 @@ from marimo._cli.errors import (
 )
 from marimo._cli.export.commands import export
 from marimo._cli.files.file_path import validate_name
-from marimo._cli.help_formatter import ColoredGroup
+from marimo._cli.help_formatter import ColoredGroup, RunCommand
 from marimo._cli.pair.commands import pair
 from marimo._cli.parse_args import parse_args
 from marimo._cli.parser_ux import show_compact_usage_error
@@ -250,6 +250,8 @@ edit_help_msg = "\n".join(
     [
         "\b",
         "Create or edit notebooks.",
+        "\b",
+        "If NAME is a url, the notebook will be downloaded to a temporary file."
         "",
         _key_value_bullets(
             [
@@ -583,6 +585,8 @@ def edit(
         # Check for version updates after preflight checks pass.
         check_for_updates(print_latest_version)
 
+    base_url = validators.check_proxy_base_url(proxy, base_url)
+
     start(
         workspace=infer_workspace(name),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
@@ -790,6 +794,8 @@ def new(
     if workspace is None:
         workspace = EmptyWorkspace()
 
+    base_url = validators.check_proxy_base_url(proxy, base_url)
+
     start(
         workspace=workspace,
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
@@ -824,8 +830,19 @@ class _CollectedRunFiles:
 
 
 def _split_run_paths_and_args(
-    name: str, args: tuple[str, ...]
+    name: str,
+    args: tuple[str, ...],
+    args_after_separator: tuple[str, ...] | None = None,
 ) -> tuple[list[str], tuple[str, ...]]:
+    if (
+        args_after_separator
+        and args[-len(args_after_separator) :] == args_after_separator
+    ):
+        return [
+            name,
+            *args[: -len(args_after_separator)],
+        ], args_after_separator
+
     paths = [name]
     for index, arg in enumerate(args):
         if arg == "--":
@@ -933,6 +950,7 @@ def _create_run_workspace(
 
 
 @main.command(
+    cls=RunCommand,
     help="""Run a notebook as an app in read-only mode.
 
 If NAME is a url, the notebook will be downloaded to a temporary file.
@@ -942,7 +960,7 @@ Example:
     marimo run notebook.py
     marimo run folder another_folder
     marimo run app.py -- --arg value
-"""
+""",
 )
 @click.option(
     "-p",
@@ -993,7 +1011,10 @@ Example:
     is_flag=True,
     default=False,
     type=bool,
-    help="Include notebook code in the app.",
+    help=(
+        "Send notebook source code to the client. "
+        "By default, code is not sent to the client and cannot be viewed in the browser."
+    ),
 )
 @click.option(
     "--session-ttl",
@@ -1119,7 +1140,18 @@ def run(
         run_in_sandbox,
     )
 
-    paths, notebook_args = _split_run_paths_and_args(name, args)
+    # click consumes `--` as an option terminator and does not pass it
+    # through to `args`. `RunCommand` records the raw tail so splitting
+    # logic can preserve "args after --" semantics without reading process-
+    # global argv state.
+    args_after_separator = ctx.meta.get("marimo_run_args_after_separator")
+    paths, notebook_args = _split_run_paths_and_args(
+        name,
+        args,
+        args_after_separator
+        if isinstance(args_after_separator, tuple)
+        else None,
+    )
 
     if len(paths) == 1 and prompt_run_in_docker_container(
         paths[0], trusted=trusted
@@ -1212,6 +1244,8 @@ def run(
 
     workspace = _create_run_workspace(validated_paths, watch=watch)
 
+    base_url = validators.check_proxy_base_url(proxy, base_url)
+
     start(
         workspace=workspace,
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
@@ -1243,7 +1277,20 @@ def run(
     )
 
 
-@main.command(help="Recover a marimo notebook from JSON.")
+@main.command(
+    help="""Recover a marimo notebook from a JSON file.
+
+When the frontend loses its connection to the kernel, marimo auto-saves
+unsaved cell changes to a JSON recovery file. Use this command to convert
+that JSON file back into a marimo notebook (.py), printing the recovered
+source to stdout.
+
+Example:
+
+    \b
+    marimo recover notebook_recovery.json > recovered_notebook.py
+"""
+)
 @click.argument(
     "name",
     required=True,
@@ -1341,6 +1388,8 @@ def tutorial(
     temp_dir = tempfile.TemporaryDirectory()
     path = create_temp_tutorial_file(name, temp_dir)
 
+    base_url = validators.check_proxy_base_url(proxy, "")
+
     start(
         workspace=SingleFileWorkspace.from_path(path),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
@@ -1360,6 +1409,7 @@ def tutorial(
             token_password=token_password,
             token_password_file=token_password_file,
         ),
+        base_url=base_url,
         redirect_console_to_browser=False,
         ttl_seconds=None,
         startup_tip=choose_startup_tip(click.get_current_context()),

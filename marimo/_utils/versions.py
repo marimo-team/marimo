@@ -3,11 +3,19 @@ from __future__ import annotations
 
 import json
 import re
+from functools import cache
 from importlib.metadata import Distribution
 
 
+@cache
 def is_editable(pkg_name: str) -> bool:
-    """Check if a package is an editable install"""
+    """Check if a package is an editable install.
+
+    Result is invariant within a process — a package can't become editable
+    while we're running — so we cache to avoid the importlib.metadata +
+    direct_url.json file read on every call. Render-path hot spot before
+    caching: ~10 posix.stat calls per render via templates.get_version.
+    """
 
     try:
         direct_url = Distribution.from_name(pkg_name).read_text(

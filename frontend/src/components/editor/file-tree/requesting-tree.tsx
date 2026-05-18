@@ -11,6 +11,9 @@ import { prettyError } from "@/utils/errors";
 import { Functions } from "@/utils/functions";
 import { type FilePath, PathBuilder } from "@/utils/paths";
 import { resolvePaths } from "@/utils/pathUtils";
+import { mapWithConcurrency } from "@/utils/semaphore";
+
+const FILE_OP_CONCURRENCY = 5;
 
 /**
  * Normalized result of a file mutation: the server response when successful,
@@ -159,28 +162,26 @@ export class RequestingTree {
       ? (this.delegate.find(parentId)?.data.path ?? parentId)
       : this.rootPath;
 
-    await Promise.all(
-      fromIds.map(async (id) => {
-        const node = this.delegate.find(id);
-        if (!node) {
-          return;
-        }
-        const originalPath = node.data.path;
-        const newPath = this.path.join(
-          parentPath,
-          this.path.basename(originalPath as FilePath),
-        );
-        const result = await this.callbacks
-          .renameFileOrFolder({ path: originalPath, newPath })
-          .then(handleFileResponse);
-        if (!result) {
-          return;
-        }
+    await mapWithConcurrency(fromIds, FILE_OP_CONCURRENCY, async (id) => {
+      const node = this.delegate.find(id);
+      if (!node) {
+        return;
+      }
+      const originalPath = node.data.path;
+      const newPath = this.path.join(
+        parentPath,
+        this.path.basename(originalPath as FilePath),
+      );
+      const result = await this.callbacks
+        .renameFileOrFolder({ path: originalPath, newPath })
+        .then(handleFileResponse);
+      if (!result) {
+        return;
+      }
 
-        this.delegate.move({ id, parentId, index: 0 });
-        this.delegate.update({ id, changes: { path: newPath } });
-      }),
-    );
+      this.delegate.move({ id, parentId, index: 0 });
+      this.delegate.update({ id, changes: { path: newPath } });
+    });
 
     this.onChange(this.delegate.data);
 
@@ -262,11 +263,12 @@ export class RequestingTree {
       this.rootPath,
       ...ids.map((id) => this.delegate.find(id)?.data.path),
     ].filter(Boolean);
-    // Request all folders in parallel, and catch any errors
-    const data = await Promise.all(
-      openFolders.map((path) =>
+    // Request open folders with bounded concurrency; swallow per-folder errors.
+    const data = await mapWithConcurrency(
+      openFolders,
+      FILE_OP_CONCURRENCY,
+      (path) =>
         this.callbacks.listFiles({ path: path }).catch(() => ({ files: [] })),
-      ),
     );
 
     for (const [idx, openFolder] of openFolders.entries()) {

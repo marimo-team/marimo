@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 import msgspec
 import pytest
 
+from marimo._server.workspace import serialize_file_key
 from marimo._utils.platform import is_windows
 from tests._server.mocks import (
     get_session_manager,
@@ -35,12 +36,12 @@ HEADERS = {
 
 @with_session(SESSION_ID)
 def test_rename(client: TestClient) -> None:
-    current_filename = get_session_manager(
+    current_file_key = get_session_manager(
         client
     ).workspace.get_unique_file_key()
 
-    assert current_filename
-    current_path = Path(current_filename)
+    assert current_file_key
+    current_path = Path(serialize_file_key(current_file_key))
     assert current_path.exists()
 
     directory = current_path.parent
@@ -103,8 +104,9 @@ def test_read_code_in_run_mode_without_include_code(
 @pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_save_file(client: TestClient) -> None:
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
+    assert file_key
+    filename = serialize_file_key(file_key)
     path = Path(filename)
 
     response = client.post(
@@ -157,8 +159,9 @@ def test_save_file(client: TestClient) -> None:
 )
 @with_session(SESSION_ID)
 def test_save_with_header(client: TestClient) -> None:
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
+    assert file_key
+    filename = serialize_file_key(file_key)
     path = Path(filename)
     assert path.exists()
 
@@ -208,8 +211,9 @@ def test_save_with_header(client: TestClient) -> None:
 @pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_save_with_invalid_file(client: TestClient) -> None:
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
+    assert file_key
+    filename = serialize_file_key(file_key)
     path = Path(filename)
     assert path.exists()
 
@@ -286,8 +290,9 @@ def test_save_file_cannot_rename(client: TestClient) -> None:
 @pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_save_app_config(client: TestClient) -> None:
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
+    assert file_key
+    filename = serialize_file_key(file_key)
     path = Path(filename)
 
     def _wait_for_file_reset():
@@ -315,8 +320,9 @@ def test_save_app_config(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_copy_file(client: TestClient) -> None:
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
+    assert file_key
+    filename = serialize_file_key(file_key)
     path = Path(filename)
     assert path.exists()
     file_contents = path.read_text()
@@ -347,8 +353,9 @@ def test_copy_file(client: TestClient) -> None:
 @with_session(SESSION_ID)
 def test_copy_file_with_relative_paths(client: TestClient) -> None:
     """Test that copy works with relative paths when workspace has a directory."""
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
+    assert file_key
+    filename = serialize_file_key(file_key)
     path = Path(filename)
     assert path.exists()
     file_contents = path.read_text()
@@ -393,8 +400,9 @@ def test_copy_file_with_relative_paths(client: TestClient) -> None:
 @with_session(SESSION_ID)
 def test_path_traversal_save_blocked(client: TestClient) -> None:
     """Save endpoint must not write outside the workspace's directory."""
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
+    assert file_key
+    filename = serialize_file_key(file_key)
     path = Path(filename)
     directory = str(path.parent)
     workspace = get_session_manager(client).workspace
@@ -423,8 +431,9 @@ def test_path_traversal_save_blocked(client: TestClient) -> None:
 @with_session(SESSION_ID)
 def test_path_traversal_rename_blocked(client: TestClient) -> None:
     """Rename endpoint must not move files outside the workspace's directory."""
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
+    assert file_key
+    filename = serialize_file_key(file_key)
     path = Path(filename)
     directory = str(path.parent)
     workspace = get_session_manager(client).workspace
@@ -446,8 +455,9 @@ def test_path_traversal_rename_blocked(client: TestClient) -> None:
 @with_session(SESSION_ID)
 def test_path_traversal_copy_blocked(client: TestClient) -> None:
     """Copy endpoint must not write outside the workspace's directory."""
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
+    assert file_key
+    filename = serialize_file_key(file_key)
     path = Path(filename)
     directory = str(path.parent)
     workspace = get_session_manager(client).workspace
@@ -473,11 +483,12 @@ def test_path_traversal_copy_blocked(client: TestClient) -> None:
 def test_rename_propagates(
     client: TestClient, websocket: WebSocketTestSession
 ) -> None:
-    current_filename = get_session_manager(
+    current_file_key = get_session_manager(
         client
     ).workspace.get_unique_file_key()
 
-    assert current_filename
+    assert current_file_key
+    current_filename = serialize_file_key(current_file_key)
     assert os.path.exists(current_filename)
 
     initial_response = client.post(
@@ -558,8 +569,9 @@ def test_read_code_without_saved_file(client: TestClient) -> None:
 @with_session(SESSION_ID)
 def test_save_with_unicode_content(client: TestClient) -> None:
     """Test save endpoint with unicode and special characters."""
-    filename = get_session_manager(client).workspace.get_unique_file_key()
-    assert filename
+    file_key = get_session_manager(client).workspace.get_unique_file_key()
+    assert file_key
+    filename = serialize_file_key(file_key)
     path = Path(filename)
 
     unicode_code = """# Unicode test: 你好世界 🌍 ñáéíóú

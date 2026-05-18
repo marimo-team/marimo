@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.23.5"
 app = marimo.App()
 
 
@@ -12,6 +12,7 @@ def _():
     import requests
     from io import BytesIO
     import base64
+
     return BytesIO, base64, mo, requests
 
 
@@ -88,6 +89,22 @@ def _(mo):
         )
 
     mo.hstack([_image, _download])
+    return
+
+
+@app.cell
+def _(mo):
+    # Regression test for #9460: mo.audio with a numpy array goes through the
+    # virtual file endpoint, which must serve HTTP Range requests so Safari's
+    # <audio> element will play it. Open this notebook in Safari and confirm
+    # the player is enabled and audible.
+    import math
+
+    import numpy as np
+
+    _sr = 44100
+    _samples = 0.01 * np.sin(math.tau * np.cumsum(np.linspace(660, 110, 100000)) / _sr)
+    mo.audio(_samples, _sr, normalize=False)
     return
 
 

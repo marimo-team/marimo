@@ -199,8 +199,9 @@ providing your users with an interactive code playground.
 
 ??? note "Showing editor controls"
 
-    To show editor controls (such as panels icons and the run button), use
-    the query parameter `show-chrome=true`
+    To show editor controls (such as panels icons, the run button, and the
+    add-cell toolbar at the bottom of each column), use the query parameter
+    `show-chrome=true`.
 
 ### Embedding an existing notebook
 

@@ -92,7 +92,10 @@ def _trim_traceback(traceback: str) -> str:
     if (
         len(lines) > 2
         and lines[0] == "Traceback (most recent call last):"
-        and '/marimo/_runtime/executor.py", line ' in lines[1]
+        and (
+            '/marimo/_runtime/executor.py", line ' in lines[1]
+            or '\\marimo\\_runtime\\executor.py", line ' in lines[1]
+        )
         and lines[1].endswith(", in execute_cell")
     ):
         for i in range(2, len(lines)):

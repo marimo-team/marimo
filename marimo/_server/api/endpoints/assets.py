@@ -37,6 +37,11 @@ from marimo._server.templates.templates import (
     inject_script,
     notebook_page_template,
 )
+from marimo._server.workspace import (
+    FileKey,
+    parse_file_key,
+    serialize_file_key,
+)
 from marimo._session.model import SessionMode
 from marimo._utils.async_path import AsyncPath
 from marimo._utils.paths import (
@@ -127,8 +132,15 @@ FILE_QUERY_PARAM_KEY = "file"
 # supplement the token-stripping redirect below by preventing any outbound
 # fetch from the HTML page from leaking a transiently-present access_token
 # via `Referer`, and by disabling MIME sniffing on the HTML response.
+#
+# Use "same-origin" instead of "no-referrer" to avoid Chrome 147+ on macOS
+# treating localhost pages as private-network requests without a valid
+# referrer, which triggers Local Network Access checks and "Error code 5".
+# "same-origin" still prevents cross-origin referrer leakage while
+# preserving the referrer for same-origin navigations.
+# See: https://github.com/marimo-team/marimo/issues/9455
 _HTML_SECURITY_HEADERS: dict[str, str] = {
-    "Referrer-Policy": "no-referrer",
+    "Referrer-Policy": "same-origin",
     "X-Content-Type-Options": "nosniff",
 }
 
@@ -192,11 +204,14 @@ def og_thumbnail(*, request: Request) -> Response:
     from marimo._utils.paths import normalize_path
 
     app_state = AppState(request)
-    file_key = (
-        app_state.query_params(FILE_QUERY_PARAM_KEY)
-        or app_state.session_manager.workspace.get_unique_file_key()
+    raw_file_key = app_state.query_params(FILE_QUERY_PARAM_KEY)
+    # Empty ``?file=`` falls back to the workspace key — same as missing.
+    file_key: FileKey | None = (
+        parse_file_key(raw_file_key)
+        if raw_file_key
+        else app_state.session_manager.workspace.get_unique_file_key()
     )
-    if not file_key:
+    if file_key is None:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail="File not found"
         )
@@ -216,7 +231,7 @@ def og_thumbnail(*, request: Request) -> Response:
         notebook_path,
         context=OpenGraphContext(
             filepath=notebook_path,
-            file_key=file_key,
+            file_key=serialize_file_key(file_key),
             base_url=app_state.base_url,
             mode=app_state.mode.value,
         ),
@@ -309,9 +324,12 @@ async def index(request: Request) -> Response:
     index_html = root / "index.html"
 
     file_key_from_query = app_state.query_params(FILE_QUERY_PARAM_KEY)
-    file_key = (
-        file_key_from_query
-        or app_state.session_manager.workspace.get_unique_file_key()
+    # Empty ``?file=`` falls back to the workspace key — same as missing —
+    # which preserves the homepage rendering when no file is selected.
+    file_key: FileKey | None = (
+        parse_file_key(file_key_from_query)
+        if file_key_from_query
+        else app_state.session_manager.workspace.get_unique_file_key()
     )
 
     # Try local index.html first, fallback to asset_url if local file doesn't exist
@@ -329,7 +347,7 @@ async def index(request: Request) -> Response:
             detail=_missing_index_html_detail(),
         )
 
-    if not file_key:
+    if file_key is None:
         # We don't know which file to use, so we need to render a homepage
         LOGGER.debug("No file key provided, serving homepage")
         html = home_page_template(
@@ -342,10 +360,11 @@ async def index(request: Request) -> Response:
             asset_url=app_state.asset_url,
         )
     else:
-        config_manager = app_state.config_manager_at_file(file_key)
+        serialized_file_key = serialize_file_key(file_key)
+        config_manager = app_state.config_manager_at_file(serialized_file_key)
 
         # We have a file key, so we can render the app with the file
-        LOGGER.debug(f"File key provided: {file_key}")
+        LOGGER.debug(f"File key provided: {serialized_file_key}")
         app_manager = app_state.session_manager.app_manager(file_key)
         app_config = app_manager.app.config
         absolute_filepath = app_manager.filename
@@ -402,7 +421,7 @@ async def index(request: Request) -> Response:
         )
 
         # Inject service worker registration with the notebook ID
-        html = _inject_service_worker(html, file_key)
+        html = _inject_service_worker(html, serialized_file_key)
 
     return HTMLResponse(html, headers=_HTML_SECURITY_HEADERS)
 
@@ -538,17 +557,20 @@ def virtual_file(
             detail="Invalid virtual file request",
         )
 
-    byte_length, filename = filename_and_length.split("-", 1)
-    if not byte_length.isdigit():
+    byte_length_str, filename = filename_and_length.split("-", 1)
+    if not byte_length_str.isdigit():
         raise HTTPException(
             status_code=404,
             detail="Invalid byte length in virtual file request",
         )
+    total_size = int(byte_length_str)
 
-    chunks = read_virtual_file_chunked(filename, int(byte_length))
     mimetype, _ = mimetypes.guess_type(filename)
     headers = {
         "Cache-Control": "max-age=86400",
+        # Advertise range support so Safari (which requires it for media
+        # playback) will load <audio>/<video> sources. See #9460.
+        "Accept-Ranges": "bytes",
     }
     # When ?download=1 is set, force a save dialog. This bypasses cases
     # where <a download> is ignored (e.g., sandboxed iframes without
@@ -558,15 +580,74 @@ def virtual_file(
 
         download_filename = request.query_params.get("filename") or filename
         headers.update(make_download_headers(download_filename))
-    # Do NOT set Content-Length here. StreamingResponse with an explicit
-    # Content-Length causes h11 LocalProtocolError ("Too little data for
-    # declared Content-Length") for large files. Omitting it lets h11 use
+
+    range_header = request.headers.get("range")
+    if range_header is not None:
+        parsed = _parse_range_header(range_header, total_size)
+        if parsed is None:
+            return Response(
+                status_code=416,
+                headers={**headers, "Content-Range": f"bytes */{total_size}"},
+            )
+        start, end = parsed
+        length = end - start + 1
+        chunks = read_virtual_file_chunked(filename, length, start=start)
+        partial_headers = {
+            **headers,
+            "Content-Range": f"bytes {start}-{end}/{total_size}",
+            "Content-Length": str(length),
+        }
+        return StreamingResponse(
+            content=chunks,
+            status_code=206,
+            media_type=mimetype,
+            headers=partial_headers,
+        )
+
+    # Do NOT set Content-Length on full responses. StreamingResponse with an
+    # explicit Content-Length causes h11 LocalProtocolError ("Too little data
+    # for declared Content-Length") for large files. Omitting it lets h11 use
     # chunked transfer encoding instead. See #8917.
+    chunks = read_virtual_file_chunked(filename, total_size)
     return StreamingResponse(
         content=chunks,
         media_type=mimetype,
         headers=headers,
     )
+
+
+_RANGE_RE = re.compile(r"^bytes=(\d*)-(\d*)$", re.IGNORECASE)
+
+
+def _parse_range_header(
+    range_header: str, total_size: int
+) -> tuple[int, int] | None:
+    """Parse a single-range HTTP ``Range`` header.
+
+    Returns ``(start, end)`` byte offsets (inclusive) on success, or
+    ``None`` if the range is unsatisfiable. Multi-range requests are
+    treated as unsatisfiable since marimo only supports single ranges.
+    """
+    match = _RANGE_RE.match(range_header.strip())
+    if match is None or total_size == 0:
+        return None
+    start_str, end_str = match.group(1), match.group(2)
+    if start_str == "" and end_str == "":
+        return None
+    if start_str == "":
+        # Suffix range: last N bytes.
+        suffix = int(end_str)
+        if suffix == 0:
+            return None
+        start = max(total_size - suffix, 0)
+        end = total_size - 1
+    else:
+        start = int(start_str)
+        end = int(end_str) if end_str else total_size - 1
+    if start >= total_size or end < start:
+        return None
+    end = min(end, total_size - 1)
+    return start, end
 
 
 @router.get("/public-files-sw.js")
@@ -614,7 +695,9 @@ async def serve_public_file(request: Request) -> Response:
     if notebook_id:
         # Decode notebook ID
         notebook_id = uri_decode_component(notebook_id)
-        app_manager = app_state.session_manager.app_manager(notebook_id)
+        app_manager = app_state.session_manager.app_manager(
+            parse_file_key(notebook_id)
+        )
         if app_manager.filename:
             notebook_dir = Path(app_manager.filename).parent
         else:

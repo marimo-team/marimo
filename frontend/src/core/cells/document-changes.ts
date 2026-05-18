@@ -218,13 +218,14 @@ export function toDocumentChanges(
       ];
     }
 
-    // dropCellOverCell/dropCellOverColumn/moveCellToIndex → set-config + reorder-cells
+    // dropCellOverCell/dropCellOverColumn/moveCellToIndex/moveCellsRelativeTo → set-config + reorder-cells
     // Drag-and-drop reorders can move cells within or across columns.
     // We emit config changes for cells whose column changed, then
     // the full ordering.
     case "dropCellOverCell":
     case "dropCellOverColumn":
     case "moveCellToIndex":
+    case "moveCellsRelativeTo":
       return columnChanges(prevState, newState);
 
     // updateCellCode → set-code
@@ -302,6 +303,10 @@ export function toDocumentChanges(
     case "undoDeleteCell": {
       const changes = newCellChanges(prevState, newState);
       const colChanges = columnChanges(prevState, newState);
+      // Undo-cut has no new cells — always emit reorder to sync the move.
+      if (changes.length === 0) {
+        return colChanges;
+      }
       // Only include column changes if layout actually changed
       // (colChanges always has at least a reorder-cells change)
       return colChanges.length > 1 ? [...changes, ...colChanges] : changes;

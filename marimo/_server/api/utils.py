@@ -5,14 +5,20 @@ import os
 import subprocess
 import sys
 import webbrowser
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from shutil import which
 from typing import (
     TYPE_CHECKING,
+    Any,
+    Generic,
     Protocol,
     TypeVar,
     runtime_checkable,
 )
+
+import msgspec
 
 from marimo._runtime.commands import CommandMessage
 from marimo._server.models.models import SuccessResponse
@@ -20,6 +26,9 @@ from marimo._types.ids import ConsumerId
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from starlette.datastructures import UploadFile
     from starlette.requests import Request
 
     from marimo._session.session import Session
@@ -32,6 +41,46 @@ async def parse_request(
     return parse_raw(
         await request.body(), cls=cls, allow_unknown_keys=allow_unknown_keys
     )
+
+
+S = TypeVar("S", bound=msgspec.Struct)
+
+
+@dataclass
+class MultipartRequest(Generic[S]):
+    """Parsed multipart body. `files` holds un-read `UploadFile` handles
+    so callers can stream large parts instead of buffering."""
+
+    body: S
+    files: dict[str, UploadFile]
+
+
+@asynccontextmanager
+async def parse_multipart_request(
+    request: Request, cls: type[S]
+) -> AsyncIterator[MultipartRequest[S]]:
+    """Parse a multipart/form-data body into a msgspec.Struct + uploads.
+
+    Must be used as an async context manager: `UploadFile` parts stay
+    readable for the body of the `async with`, and their spooled temp
+    files are closed on exit.
+
+    Raises msgspec.ValidationError if required string fields are missing
+    or invalid.
+    """
+    # Lazy import so this module stays import-safe under pyodide.
+    from starlette.datastructures import UploadFile
+
+    async with request.form() as form:
+        string_payload: dict[str, Any] = {}
+        files: dict[str, UploadFile] = {}
+        for key, value in form.multi_items():
+            if isinstance(value, UploadFile):
+                files[key] = value
+            elif isinstance(value, str):
+                string_payload[key] = value
+        body = msgspec.convert(string_payload, cls, strict=False)
+        yield MultipartRequest(body=body, files=files)
 
 
 @runtime_checkable

@@ -2,15 +2,20 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
 from marimo._cli.files.file_path import FileContentReader
+from marimo._cli.print import echo
 from marimo._utils.code import hash_code
 from marimo._utils.paths import normalize_path
 from marimo._utils.scripts import read_pyproject_from_script
+
+if TYPE_CHECKING:
+    from marimo._utils.marimo_path import MarimoPath
 
 LOGGER = _loggers.marimo_logger()
 
@@ -209,6 +214,185 @@ def is_marimo_dependency(dependency: str) -> bool:
     without_version = re.split(r"[=<>~]+", dependency)[0]
     # Match marimo and marimo[extras], but not marimo-<something-else>
     return without_version == "marimo" or without_version.startswith("marimo[")
+
+
+def _normalize_pep503(name: str) -> str:
+    """Normalize a project name per PEP 503."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+# Captures the leading bare project name (with optional extras) of a PEP 508
+# dependency string. Stops at the first version specifier, marker, or URL
+# delimiter.
+_DEP_NAME_RE = re.compile(
+    r"^(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[^\]]+\])?)"
+)
+
+
+def _pin_dep(dep: str, pins: dict[str, str]) -> str:
+    """Replace any version specifier in `dep` with the pinned version.
+
+    Returns `dep` unchanged if the name doesn't appear in `pins`, or if the
+    dependency uses a URL/VCS source (we don't override explicit URLs).
+    """
+    stripped = dep.strip()
+    if (
+        not stripped
+        or "@" in stripped
+        or stripped.startswith(("git+", "http"))
+    ):
+        return dep
+
+    match = _DEP_NAME_RE.match(stripped)
+    if match is None:
+        return dep
+
+    name_with_extras = match.group("name")
+    bare_name = name_with_extras.split("[", 1)[0]
+    canonical = _normalize_pep503(bare_name)
+    if canonical not in pins:
+        return dep
+
+    rest = stripped[match.end() :]
+    # Preserve any environment marker (`; python_version >= ...`).
+    marker = ""
+    if ";" in rest:
+        _, _, marker_text = rest.partition(";")
+        marker = f";{marker_text}"
+
+    return f"{name_with_extras}=={pins[canonical]}{marker}"
+
+
+def with_pinned_dependencies(
+    code: str,
+    pins: dict[str, str],
+    *,
+    lock_kind: str,
+) -> str:
+    """Rewrite the PEP 723 [run] dependencies block to pin top-level names.
+
+    Args:
+        code: Notebook source containing (optionally) a PEP 723 block.
+        pins: Mapping of canonical (PEP 503) package name → version string.
+        lock_kind: Annotation written to `[tool.marimo.export] lock_kind`,
+            e.g. "resolved" or "observed".
+
+    Names not in `pins` are left as-is. URL/VCS dependencies are not
+    rewritten. If the script has no PEP 723 block, `code` is returned
+    unchanged.
+    """
+    from marimo._utils.scripts import (
+        REGEX,
+        read_pyproject_from_script,
+        write_pyproject_to_script,
+    )
+
+    project = read_pyproject_from_script(code)
+    if project is None:
+        return code
+
+    deps = project.get("dependencies")
+    if isinstance(deps, list):
+        project["dependencies"] = [_pin_dep(str(dep), pins) for dep in deps]
+
+    tool = project.setdefault("tool", {})
+    if not isinstance(tool, dict):
+        tool = {}
+        project["tool"] = tool
+    marimo_tool = tool.setdefault("marimo", {})
+    if not isinstance(marimo_tool, dict):
+        marimo_tool = {}
+        tool["marimo"] = marimo_tool
+    export_section = marimo_tool.setdefault("export", {})
+    if not isinstance(export_section, dict):
+        export_section = {}
+        marimo_tool["export"] = export_section
+    export_section["lock_kind"] = lock_kind
+
+    new_block = write_pyproject_to_script(project)
+    return re.sub(REGEX, new_block, code, count=1)
+
+
+def pin_pep723_dependencies_for_wasm(code: str, path: MarimoPath) -> str:
+    """Pin a notebook's PEP 723 deps for embedding in a WASM HTML export.
+
+    For each top-level dep also shipped in the Pyodide lockfile, pin to the
+    *lockfile* version — that's what micropip will install in the browser,
+    so embedding any other pin would be a lie that breaks the export. If
+    the lockfile fetch fails, degrade to pinning the locally installed
+    version (best-effort; the WASM runtime falls back to its bundled
+    lockfile). Also warns about top-level dependencies that aren't shipped
+    in pyodide-lock — those may fail to install via micropip. The lock
+    kind is "resolved" when we ran inside the html-wasm sandbox, otherwise
+    "observed".
+    """
+    from importlib.metadata import distributions
+
+    from marimo._pyodide.pyodide_constraints import (
+        fetch_pyodide_package_versions,
+        normalize_package_name,
+    )
+
+    installed: dict[str, str] = {}
+    for dist in distributions():
+        name = dist.metadata["Name"]
+        version = dist.version
+        if name and version:
+            installed[normalize_package_name(name)] = version
+
+    pyodide_versions: dict[str, str] = {}
+    try:
+        pyodide_versions = {
+            normalize_package_name(n): v
+            for n, v in fetch_pyodide_package_versions().items()
+        }
+        # Pin to lockfile versions for names the browser can actually
+        # install. Restricting to installed names keeps the pin set small
+        # and noise-free (an irrelevant pin for an unused dep is harmless
+        # but unnecessary churn).
+        pins = {
+            name: pyodide_versions[name]
+            for name in installed
+            if name in pyodide_versions
+        }
+    except Exception:
+        # Fetch failures degrade to pinning whatever is installed; the
+        # WASM micropip will still try its bundled lockfile first.
+        pins = installed
+    pyodide_names = set(pyodide_versions)
+
+    # Warn about top-level deps not bundled in pyodide. micropip *may*
+    # still install pure-python ones from PyPI in the browser; native
+    # ones (jax, torch, numpy alternatives) will fail. We don't know
+    # which from here, so emit a single advisory.
+    if pyodide_names:
+        try:
+            pyproject = PyProjectReader.from_filename(path.absolute_name)
+            top_level: list[str] = []
+            for dep in pyproject.dependencies:
+                match = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)", dep.strip())
+                if match is None:
+                    continue
+                canonical = normalize_package_name(match.group(1))
+                if canonical == "marimo" or canonical in pyodide_names:
+                    continue
+                top_level.append(match.group(1))
+            if top_level:
+                echo(
+                    "warn: these dependencies are not bundled in the "
+                    "Pyodide lockfile and may fail to install in the "
+                    "browser: " + ", ".join(sorted(set(top_level))),
+                    err=True,
+                )
+        except Exception as e:
+            LOGGER.debug("Skipped wasm compat warn: %s", e)
+
+    lock_kind = (
+        "resolved"
+        if os.environ.get("MARIMO_HTML_WASM_SANDBOX_BOOTSTRAPPED") == "1"
+        else "observed"
+    )
+    return with_pinned_dependencies(code, pins, lock_kind=lock_kind)
 
 
 def get_headers_from_markdown(contents: str) -> dict[str, str]:

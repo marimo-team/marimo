@@ -27,6 +27,7 @@ import { Functions } from "@/utils/functions";
 import {
   canUndoDeletesAtom,
   needsRunAtom,
+  undoLabelAtom,
   useCellActions,
 } from "../../../core/cells/cells";
 import { ConfigButton } from "../../app-config/app-config-button";
@@ -56,6 +57,7 @@ export const Controls = ({
   running,
 }: ControlsProps): JSX.Element => {
   const undoAvailable = useAtomValue(canUndoDeletesAtom);
+  const undoLabel = useAtomValue(undoLabelAtom);
   const needsRun = useAtomValue(needsRunAtom);
   const { undoDeleteCell } = useCellActions();
   const closed = connectionState === WebSocketState.CLOSED;
@@ -63,7 +65,7 @@ export const Controls = ({
   let undoControl: JSX.Element | null = null;
   if (!closed && undoAvailable) {
     undoControl = (
-      <Tooltip content="Undo cell deletion">
+      <Tooltip content={undoLabel}>
         <Button
           data-testid="undo-delete-cell"
           size="medium"
@@ -86,7 +88,10 @@ export const Controls = ({
       {!presenting && <FindReplace />}
 
       {!closed && (
-        <div className={topRightControls}>
+        <div
+          data-testid="chrome-controls-top-right"
+          className={topRightControls}
+        >
           {presenting && <LayoutSelect />}
           <NotebookMenuDropdown
             disabled={disabled}
@@ -101,7 +106,10 @@ export const Controls = ({
         </div>
       )}
 
-      <div className={cn(bottomRightControls)}>
+      <div
+        data-testid="chrome-controls-bottom-right"
+        className={cn(bottomRightControls)}
+      >
         <HideInKioskMode>
           <SaveComponent kioskMode={false} />
         </HideInKioskMode>

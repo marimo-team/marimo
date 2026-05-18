@@ -194,6 +194,7 @@ interface Data<T> {
   wrappedColumns?: string[];
   headerTooltip?: Record<string, string>;
   totalColumns: number;
+  sizeBytes?: number | null;
   maxColumns: number | "all";
   hasStableRowId: boolean;
   lazy: boolean;
@@ -220,6 +221,7 @@ type DataTableFunctions = {
     cell_styles?: CellStyleState | null;
     cell_hover_texts?: Record<string, Record<string, string | null>> | null;
     raw_data?: TableData<T> | null;
+    size_bytes?: number | null;
   }>;
   get_data_url?: GetDataUrl;
   get_row_ids?: GetRowIds;
@@ -270,6 +272,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       headerTooltip: z.record(z.string(), z.string()).optional(),
       fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
+      sizeBytes: z.number().nullish(),
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
       hasStableRowId: z.boolean().default(false),
       maxHeight: z.number().optional(),
@@ -327,6 +330,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             .nullable(),
           cell_hover_texts: cellHoverTextSchema.nullable(),
           raw_data: z.union([z.string(), z.array(z.looseObject({}))]).nullish(),
+          size_bytes: z.number().nullish(),
         }),
       ),
     get_row_ids: rpc.input(z.object({}).passthrough()).output(
@@ -532,6 +536,7 @@ export const LoadingDataTableComponent = memo(
       rows: T[];
       rawRows?: T[];
       totalRows: number | TooManyRows;
+      sizeBytes?: number | null;
       cellStyles: CellStyleState | undefined | null;
       cellHoverTexts?: Record<string, Record<string, string | null>> | null;
     }>(async () => {
@@ -548,6 +553,7 @@ export const LoadingDataTableComponent = memo(
       let tableData = props.data;
       let rawTableData: TableData<T> | undefined | null = props.rawData;
       let totalRows = props.totalRows;
+      let sizeBytes = props.sizeBytes ?? null;
       let cellStyles = props.cellStyles;
       let cellHoverTexts = props.cellHoverTexts;
 
@@ -591,6 +597,7 @@ export const LoadingDataTableComponent = memo(
         tableData = searchResults.data;
         rawTableData = searchResults.raw_data;
         totalRows = searchResults.total_rows;
+        sizeBytes = searchResults.size_bytes ?? null;
         cellStyles = searchResults.cell_styles || {};
         cellHoverTexts = searchResults.cell_hover_texts || {};
       }
@@ -603,6 +610,7 @@ export const LoadingDataTableComponent = memo(
         rows: tableData,
         rawRows: rawData,
         totalRows: totalRows,
+        sizeBytes,
         cellStyles,
         cellHoverTexts,
       };
@@ -614,6 +622,7 @@ export const LoadingDataTableComponent = memo(
       useDeepCompareMemoize(props.fieldTypes),
       props.data,
       props.totalRows,
+      props.sizeBytes,
       props.lazy,
       props.cellHoverTexts,
       props.cellStyles,
@@ -728,6 +737,7 @@ export const LoadingDataTableComponent = memo(
         setFilters={setFilters}
         reloading={isFetching && !isPending}
         totalRows={data?.totalRows ?? props.totalRows}
+        sizeBytes={data?.sizeBytes ?? props.sizeBytes ?? null}
         paginationState={paginationState}
         setPaginationState={setPaginationState}
         cellStyles={data?.cellStyles ?? props.cellStyles}
@@ -774,6 +784,7 @@ const DataTableComponent = ({
   data,
   rawData,
   totalRows,
+  sizeBytes,
   maxColumns,
   pagination,
   selection,
@@ -1053,6 +1064,7 @@ const DataTableComponent = ({
             maxHeight={maxHeight}
             sorting={sorting}
             totalRows={totalRows}
+            sizeBytes={sizeBytes}
             totalColumns={totalColumns}
             manualSorting={true}
             setSorting={setSorting}

@@ -1,19 +1,22 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
+from starlette.exceptions import HTTPException
 
 from marimo import _loggers
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_request
-from marimo._server.files.os_file_system import OSFileSystem
+from marimo._server.api.utils import parse_multipart_request, parse_request
+from marimo._server.files.os_file_system import (
+    OSFileSystem,
+    UploadTooLargeError,
+)
 from marimo._server.models.files import (
     FileCopyRequest,
     FileCopyResponse,
-    FileCreateRequest,
+    FileCreateMultipartRequest,
     FileCreateResponse,
     FileDeleteRequest,
     FileDeleteResponse,
@@ -109,9 +112,9 @@ async def create_file_or_directory(
     """
     requestBody:
         content:
-            application/json:
+            multipart/form-data:
                 schema:
-                    $ref: "#/components/schemas/FileCreateRequest"
+                    $ref: "#/components/schemas/FileCreateMultipartRequest"
     responses:
         200:
             description: Create a new file or directory
@@ -120,18 +123,25 @@ async def create_file_or_directory(
                     schema:
                         $ref: "#/components/schemas/FileCreateResponse"
     """
-    body = await parse_request(request, cls=FileCreateRequest)
     try:
-        decoded_contents = (
-            base64.b64decode(body.contents)
-            if body.contents is not None
-            else None
-        )
-
-        info = file_system.create_file_or_directory(
-            body.path, body.type, body.name, decoded_contents
-        )
+        async with parse_multipart_request(
+            request, FileCreateMultipartRequest
+        ) as parsed:
+            upload = parsed.files.get("file")
+            # Directories and the default-template notebook take the
+            # in-memory path; only real file content streams.
+            if upload is not None and parsed.body.type in ("file", "notebook"):
+                info = await file_system.stream_create_file(
+                    parsed.body.path, parsed.body.name, upload
+                )
+            else:
+                info = file_system.create_file_or_directory(
+                    parsed.body.path, parsed.body.type, parsed.body.name, None
+                )
         return FileCreateResponse(success=True, info=info)
+    except UploadTooLargeError as e:
+        LOGGER.warning(f"Rejected oversize upload: {e}")
+        raise HTTPException(status_code=413, detail=str(e)) from e
     except Exception as e:
         LOGGER.error(f"Error creating file or directory: {e}")
         return FileCreateResponse(success=False, message=str(e))

@@ -18,6 +18,7 @@ from marimo._output.formatters.bokeh_formatters import BokehFormatter
 from marimo._output.formatters.cell import CellFormatter
 from marimo._output.formatters.df_formatters import (
     DataFusionFormatter,
+    DuckDBFormatter,
     IbisFormatter,
     PolarsFormatter,
     PyArrowFormatter,
@@ -54,6 +55,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     AltairFormatter.package_name(): AltairFormatter(),
     MatplotlibFormatter.package_name(): MatplotlibFormatter(),
     DataFusionFormatter.package_name(): DataFusionFormatter(),
+    DuckDBFormatter.package_name(): DuckDBFormatter(),
     IbisFormatter.package_name(): IbisFormatter(),
     PandasFormatter.package_name(): PandasFormatter(),
     PolarsFormatter.package_name(): PolarsFormatter(),

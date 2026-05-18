@@ -7,9 +7,12 @@ header: |-
   # /// script
   # requires-python = ">=3.12"
   # dependencies = [
+  #     "altair==6.1.0",
   #     "duckdb==1.2.2",
   #     "marimo",
+  #     "matplotlib==3.10.9",
   #     "pandas==2.2.3",
+  #     "plotly==6.7.0",
   #     "polars==1.27.1",
   #     "pyarrow==19.0.1",
   #     "sqlglot==26.13.0",
