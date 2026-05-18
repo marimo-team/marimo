@@ -4,6 +4,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from marimo._runtime.request_router import RequestRouter
 
 
@@ -18,4 +20,4 @@ class GlobalsView(Protocol):
     """A view onto user-defined variables (kernel globals)."""
 
     @property
-    def globals(self) -> dict[Any, Any]: ...
+    def globals(self) -> Mapping[str, Any]: ...
