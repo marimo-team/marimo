@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 import asyncio
-from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
 
 import pytest
 
-from marimo._types.lifespan import Lifespan
 from marimo._utils.lifespans import Lifespans
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Callable
+
+    from marimo._types.lifespan import Lifespan
 
 
 class MockApp:
@@ -117,10 +123,15 @@ async def test_lifespan_cancellation() -> None:
         [mock_lifespan("test1"), mock_lifespan("test2")]
     )
 
-    async with lifespans(app):
-        assert app.setup_calls == ["test1", "test2"]
-        # Simulate cancellation
-        raise asyncio.CancelledError()
+    # CancelledError must propagate out of the lifespan chain — the ASGI
+    # server depends on it for graceful shutdown. Teardown still runs
+    # via the inner AsyncExitStack.
+    async def run() -> None:
+        async with lifespans(app):
+            assert app.setup_calls == ["test1", "test2"]
+            raise asyncio.CancelledError()
 
-    # Teardown should still be called even on cancellation
+    with pytest.raises(asyncio.CancelledError):
+        await run()
+
     assert app.teardown_calls == ["test2", "test1"]
