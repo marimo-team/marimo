@@ -211,8 +211,8 @@ Create or edit notebooks with
 marimo edit
 ```
 
-**Run apps.** Run your notebook as a web app, with Python
-code hidden and uneditable:
+**Run apps.** Run your notebook as a web app. By default, the Python
+source code is not sent to the browser, so it stays hidden and uneditable:
 
 ```bash
 marimo run your_notebook.py

@@ -1009,7 +1009,10 @@ Example:
     is_flag=True,
     default=False,
     type=bool,
-    help="Include notebook code in the app.",
+    help=(
+        "Send notebook source code to the client. "
+        "By default, code is not sent to the client and cannot be viewed in the browser."
+    ),
 )
 @click.option(
     "--session-ttl",
