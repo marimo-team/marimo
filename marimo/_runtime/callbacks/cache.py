@@ -27,14 +27,13 @@ class CacheCallbacks:
     async def clear_cache(self, request: ClearCacheCommand) -> None:
         del request
         from marimo._save.cache import CacheContext
-        from marimo._save.loaders import BasePersistenceLoader
 
         ctx = get_context()
         saved = 0
         for obj in ctx.globals.values():
             if isinstance(obj, CacheContext):
-                if isinstance(obj.loader, BasePersistenceLoader):
-                    obj.loader.clear()
+                # Loader.clear is a no-op by default; safe on any subclass.
+                obj.loader.clear()
 
         broadcast_notification(CacheClearedNotification(bytes_freed=saved))
 
