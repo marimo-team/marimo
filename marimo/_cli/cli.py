@@ -1277,7 +1277,20 @@ def run(
     )
 
 
-@main.command(help="Recover a marimo notebook from JSON.")
+@main.command(
+    help="""Recover a marimo notebook from a JSON file.
+
+When the frontend loses its connection to the kernel, marimo auto-saves
+unsaved cell changes to a JSON recovery file. Use this command to convert
+that JSON file back into a marimo notebook (.py), printing the recovered
+source to stdout.
+
+Example:
+
+    \b
+    marimo recover notebook_recovery.json > recovered_notebook.py
+"""
+)
 @click.argument(
     "name",
     required=True,
