@@ -51,6 +51,7 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from marimo._convert.markdown.flavor.base import MarkdownFlavorName
     from marimo._server.export._pdf_raster import PDFRasterizationOptions
     from marimo._server.export._status import PDFExportStatusCallback
     from marimo._session.state.session_view import SessionView
@@ -102,10 +103,12 @@ def export_as_script(path: MarimoPath) -> ExportResult:
     )
 
 
-def export_as_md(path: MarimoPath) -> ExportResult:
+def export_as_md(
+    path: MarimoPath, flavor: MarkdownFlavorName | None = None
+) -> ExportResult:
     ir = _as_ir(path)
     return ExportResult(
-        contents=MarimoConvert.from_ir(ir).to_markdown(),
+        contents=MarimoConvert.from_ir(ir).to_markdown(flavor=flavor),
         download_filename=get_download_filename(path.short_name, "md"),
         did_error=False,
     )

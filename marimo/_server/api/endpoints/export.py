@@ -279,7 +279,9 @@ async def export_as_markdown(
             detail="File must be saved before downloading",
         )
 
-    markdown = convert_from_ir_to_markdown(app_file_manager.app.to_ir())
+    markdown = convert_from_ir_to_markdown(
+        app_file_manager.app.to_ir(), flavor=body.flavor
+    )
 
     if body.download:
         download_filename = get_download_filename(
@@ -384,6 +386,7 @@ async def auto_export_as_markdown(
             description: File must be saved before downloading
     """
     app_state = AppState(request)
+    body = await parse_request(request, cls=ExportAsMarkdownRequest)
     session = app_state.require_current_session()
     session_view = session.session_view
 
@@ -403,7 +406,7 @@ async def auto_export_as_markdown(
         session.app_file_manager.reload()
 
         markdown = convert_from_ir_to_markdown(
-            session.app_file_manager.app.to_ir()
+            session.app_file_manager.app.to_ir(), flavor=body.flavor
         )
 
         # Save the Markdown file to disk, at `.marimo/<filename>.md`

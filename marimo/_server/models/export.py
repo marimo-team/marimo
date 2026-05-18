@@ -5,6 +5,7 @@ from typing import Literal
 
 import msgspec
 
+from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._messaging.mimetypes import MimeBundleTuple
 from marimo._types.ids import CellId_t
 
@@ -25,7 +26,8 @@ class ExportAsIPYNBRequest(msgspec.Struct, rename="camel"):
 
 
 class ExportAsMarkdownRequest(msgspec.Struct, rename="camel"):
-    download: bool
+    download: bool = False
+    flavor: MarkdownFlavorName | None = None
 
 
 ExportPDFPreset = Literal["document", "slides"]

@@ -213,6 +213,20 @@ def test_export_markdown(client: TestClient) -> None:
     )
 
 
+@with_session(SESSION_ID)
+def test_export_markdown_with_flavor(client: TestClient) -> None:
+    response = client.post(
+        "/api/export/markdown",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "flavor": "qmd",
+        },
+    )
+    assert response.status_code == 200
+    assert "```{marimo .python" in response.text
+
+
 @pytest.mark.skipif(
     not DependencyManager.nbformat.has(), reason="nbformat not installed"
 )

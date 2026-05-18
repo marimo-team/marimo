@@ -4435,7 +4435,10 @@ export interface components {
     };
     /** ExportAsMarkdownRequest */
     ExportAsMarkdownRequest: {
-      download: boolean;
+      /** @default false */
+      download?: boolean;
+      /** @default null */
+      flavor?: "pymdown" | "qmd" | "mystmd" | null;
     };
     /** ExportAsPDFRequest */
     ExportAsPDFRequest: {
