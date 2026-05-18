@@ -4,13 +4,15 @@
 from __future__ import annotations
 
 from marimo._lint.rule_selector import resolve_rules
-from marimo._lint.rules import RULE_CODES
+from marimo._lint.rules import DEFAULT_RULE_CODES, RULE_CODES
 
 
 class TestResolveRules:
-    def test_empty_config_returns_all_rules(self):
+    def test_empty_config_returns_default_rules(self):
         rules = resolve_rules({})
-        assert len(rules) == len(RULE_CODES)
+        assert len(rules) == len(DEFAULT_RULE_CODES)
+        # WASM rules are off by default
+        assert not any(r.code.startswith("MW") for r in rules)
 
     def test_select_by_category_prefix(self):
         rules = resolve_rules({"select": ["MB"]})
@@ -36,7 +38,7 @@ class TestResolveRules:
         rules = resolve_rules({"ignore": ["MF004"]})
         codes = {r.code for r in rules}
         assert "MF004" not in codes
-        assert len(rules) == len(RULE_CODES) - 1
+        assert len(rules) == len(DEFAULT_RULE_CODES) - 1
 
     def test_ignore_category(self):
         rules = resolve_rules({"ignore": ["MF"]})
@@ -80,3 +82,13 @@ class TestResolveRules:
         rules = resolve_rules({"select": ["ALL"], "ignore": ["MF"]})
         assert not any(r.code.startswith("MF") for r in rules)
         assert any(r.code.startswith("MB") for r in rules)
+
+    def test_select_wasm_rules(self):
+        rules = resolve_rules({"select": ["MW"]})
+        assert all(r.code.startswith("MW") for r in rules)
+        assert len(rules) == 3
+
+    def test_select_all_includes_wasm(self):
+        rules = resolve_rules({"select": ["ALL"]})
+        assert len(rules) == len(RULE_CODES)
+        assert any(r.code.startswith("MW") for r in rules)

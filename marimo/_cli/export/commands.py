@@ -931,6 +931,16 @@ def html_wasm(
     if execute:
         cli_args = parse_args(args)
 
+        # Run WASM compatibility lint pass. When bootstrapped, this runs
+        # inside the uv sandbox so MW003 introspects the resolved env.
+        from marimo._lint import run_check
+
+        run_check(
+            (name,),
+            lint_config={"select": ["MW"]},
+            pipe=lambda msg: echo(msg, err=True),
+        )
+
         def export_callback(file_path: MarimoPath) -> ExportResult:
             return asyncio_run(
                 run_app_then_export_as_wasm(

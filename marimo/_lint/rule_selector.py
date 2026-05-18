@@ -45,13 +45,16 @@ def resolve_rules(
 
         all_rules = RULE_CODES
 
-    codes = set(all_rules.keys())
     select = config.get("select")
     ignore = config.get("ignore")
 
-    # Step 1: base set
+    # Step 1: base set — use only default rules unless explicitly selected
     if select:
-        codes = {c for c in codes if _matches_any_prefix(c, select)}
+        codes = {c for c in all_rules if _matches_any_prefix(c, select)}
+    else:
+        from marimo._lint.rules import DEFAULT_RULE_CODES
+
+        codes = set(DEFAULT_RULE_CODES.keys()) & set(all_rules.keys())
 
     # Step 2: remove ignored
     if ignore:
