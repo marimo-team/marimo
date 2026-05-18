@@ -88,13 +88,16 @@ _T = TypeVar("_T")
 
 
 def drain_stale(queue: Any, *, latest: _T) -> _T:
-    """Discard stale items queued behind ``latest`` and return the newest."""
-    while not queue.empty():
+    """Discard stale items queued behind ``latest`` and return the newest.
+
+    Drains via ``get_nowait()`` until exhausted; ``empty()`` is intentionally
+    avoided because ``multiprocessing.Queue.empty()`` can lie.
+    """
+    while True:
         try:
             latest = queue.get_nowait()
         except (asyncio.QueueEmpty, _queue.Empty):
-            break
-    return latest
+            return latest
 
 
 def _build_hooks(
