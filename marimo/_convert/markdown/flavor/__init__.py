@@ -9,7 +9,7 @@ from marimo._convert.markdown.flavor.base import (
     MarkdownFlavor,
     MarkdownFlavorName,
 )
-from marimo._convert.markdown.flavor.myst import MystMarkdownFlavor
+from marimo._convert.markdown.flavor.mystmd import MystmdMarkdownFlavor
 from marimo._convert.markdown.flavor.pymdown import PymdownMarkdownFlavor
 from marimo._convert.markdown.flavor.qmd import QmdMarkdownFlavor
 
@@ -18,13 +18,13 @@ if TYPE_CHECKING:
 
 _PYMDOWN_MARKDOWN = PymdownMarkdownFlavor()
 _QMD_MARKDOWN = QmdMarkdownFlavor()
-_MYST_MARKDOWN = MystMarkdownFlavor()
+_MYSTMD_MARKDOWN = MystmdMarkdownFlavor()
 _MARKDOWN_FLAVORS: Mapping[MarkdownFlavorName, MarkdownFlavor] = (
     MappingProxyType(
         {
             _PYMDOWN_MARKDOWN.name: _PYMDOWN_MARKDOWN,
             _QMD_MARKDOWN.name: _QMD_MARKDOWN,
-            _MYST_MARKDOWN.name: _MYST_MARKDOWN,
+            _MYSTMD_MARKDOWN.name: _MYSTMD_MARKDOWN,
         }
     )
 )
