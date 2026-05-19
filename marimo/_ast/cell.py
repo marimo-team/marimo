@@ -481,8 +481,11 @@ class Cell:
         if hasattr(self, "_is_coro_cached"):
             return self._is_coro_cached
         assert self._app is not None
-        self._is_coro_cached: bool = self._app.runner.is_coroutine(
-            self._cell.cell_id
+        from marimo._runtime.runner import by_kwargs
+
+        # ``graph`` triggers _maybe_initialize on the underlying App.
+        self._is_coro_cached: bool = by_kwargs.is_coroutine(
+            self._app.graph, self._cell.cell_id
         )
         return self._is_coro_cached
 
