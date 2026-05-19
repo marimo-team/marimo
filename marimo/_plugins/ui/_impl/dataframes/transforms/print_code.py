@@ -222,8 +222,11 @@ def python_print_pandas(
 
     elif transform.type == TransformType.EXPAND_DICT:
         column_id = _as_literal(transform.column_id)
-        args = f"{df_name}.pop({column_id}).values.tolist()"
-        return f"{df_name}.join(pd.DataFrame({args}))"
+        return (
+            f"{df_name}.join("
+            f"pd.json_normalize({df_name}.pop({column_id})).set_axis({df_name}.index, axis=0)"
+            f")"
+        )
 
     elif transform.type == TransformType.UNIQUE:
         column_ids = transform.column_ids
