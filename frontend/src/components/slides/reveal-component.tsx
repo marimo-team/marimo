@@ -553,7 +553,12 @@ const RevealSlidesComponent = ({
           className="mo-slides-notes-resize"
           hitAreaMargins={{ coarse: 12, fine: 4 }}
         />
-        <Panel defaultSize={4} minSize={4} collapsible={true} collapsedSize={4}>
+        <Panel
+          defaultSize={10}
+          minSize={4}
+          collapsible={true}
+          collapsedSize={4}
+        >
           <SlideNotesEditor
             layout={layout}
             setLayout={setLayout}

@@ -108,7 +108,7 @@ export const SlideNotesEditor = ({
             onClick={Events.stopPropagation()}
             placeholder="Add notes for this slide. Visible to you in speaker view (press S during presentation)."
             className={cn(
-              "h-full w-full resize-none rounded-sm border border-input bg-background",
+              "h-full w-full resize-none rounded-sm border border-input/25 bg-background",
               "px-3 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground",
               "ring-offset-background focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-accent",
             )}
