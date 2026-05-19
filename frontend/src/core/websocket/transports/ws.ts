@@ -55,7 +55,9 @@ export class WsTransport implements IConnectionTransport {
       // Match native EventTarget dedupe: a second addEventListener with the
       // same listener is a no-op. Without this, repeated adds leak wrappers
       // on the inner socket and double-fire on close.
-      if (this.closeWrappers.has(userCb)) {return;}
+      if (this.closeWrappers.has(userCb)) {
+        return;
+      }
       const wrapper: ConnectionTransportCallback<"close"> = (e) => {
         if (this.inner.retryCount >= MAX_RETRIES) {
           userCb(
