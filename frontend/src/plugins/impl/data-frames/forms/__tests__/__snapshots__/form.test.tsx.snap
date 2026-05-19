@@ -29,9 +29,10 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
         >
           <button
             aria-controls="radix-_r_27_"
+            aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
-            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid min-w-[180px]"
             data-state="closed"
             id="_r_26_-form-item"
             type="button"
@@ -84,9 +85,10 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
         >
           <button
             aria-controls="radix-_r_29_"
+            aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
-            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid min-w-[180px]"
             data-state="closed"
             id="_r_28_-form-item"
             type="button"
@@ -401,9 +403,10 @@ exports[`renderZodSchema > should render a form explode_columns 1`] = `
         >
           <button
             aria-controls="radix-_r_2p_"
+            aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
-            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid min-w-[180px]"
             data-state="closed"
             id="_r_2o_-form-item"
             type="button"
@@ -598,9 +601,10 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
         >
           <button
             aria-controls="radix-_r_1p_"
+            aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
-            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid min-w-[180px]"
             data-state="closed"
             id="_r_1o_-form-item"
             type="button"
@@ -653,9 +657,10 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
         >
           <button
             aria-controls="radix-_r_1r_"
+            aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
-            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid min-w-[180px]"
             data-state="closed"
             id="_r_1q_-form-item"
             type="button"
@@ -800,9 +805,10 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
         >
           <button
             aria-controls="radix-_r_3b_"
+            aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
-            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid min-w-[180px]"
             data-state="closed"
             id="_r_3a_-form-item"
             type="button"
@@ -855,9 +861,10 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
         >
           <button
             aria-controls="radix-_r_3d_"
+            aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
-            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid min-w-[180px]"
             data-state="closed"
             id="_r_3c_-form-item"
             type="button"
@@ -910,9 +917,10 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
         >
           <button
             aria-controls="radix-_r_3f_"
+            aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
-            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid min-w-[180px]"
             data-state="closed"
             id="_r_3e_-form-item"
             type="button"
@@ -1300,9 +1308,10 @@ exports[`renderZodSchema > should render a form select_columns 1`] = `
         >
           <button
             aria-controls="radix-_r_4_"
+            aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
-            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid min-w-[180px]"
             data-state="closed"
             id="_r_3_-form-item"
             type="button"
@@ -1583,9 +1592,10 @@ exports[`renderZodSchema > should render a form unique 1`] = `
         >
           <button
             aria-controls="radix-_r_32_"
+            aria-disabled="false"
             aria-expanded="false"
             aria-haspopup="dialog"
-            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid min-w-[180px]"
             data-state="closed"
             id="_r_31_-form-item"
             type="button"
@@ -1742,9 +1752,10 @@ exports[`renders custom forms column_id_array 1`] = `
     >
       <button
         aria-controls="radix-_r_41_"
+        aria-disabled="false"
         aria-expanded="false"
         aria-haspopup="dialog"
-        class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+        class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid min-w-[180px]"
         data-state="closed"
         id="_r_40_-form-item"
         type="button"
@@ -1792,9 +1803,10 @@ exports[`renders custom forms column_id_dot_array 1`] = `
     >
       <button
         aria-controls="radix-_r_43_"
+        aria-disabled="false"
         aria-expanded="false"
         aria-haspopup="dialog"
-        class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+        class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid min-w-[180px]"
         data-state="closed"
         id="_r_42_-form-item"
         type="button"

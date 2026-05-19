@@ -13,6 +13,7 @@ interface Data {
   allowSelectNone: boolean;
   fullWidth: boolean;
   searchable: boolean;
+  disabled: boolean;
 }
 
 export class DropdownPlugin implements IPlugin<string[], Data> {
@@ -25,6 +26,7 @@ export class DropdownPlugin implements IPlugin<string[], Data> {
     allowSelectNone: z.boolean(),
     fullWidth: z.boolean().default(false),
     searchable: z.boolean().default(false),
+    disabled: z.boolean().default(false),
   });
 
   render(props: IPluginProps<string[], Data>): JSX.Element {
@@ -61,7 +63,15 @@ interface DropdownProps extends Data {
 const EMPTY_VALUE = "--";
 
 const Dropdown = (props: DropdownProps): JSX.Element => {
-  const { label, options, value, setValue, allowSelectNone, fullWidth } = props;
+  const {
+    label,
+    options,
+    value,
+    setValue,
+    allowSelectNone,
+    fullWidth,
+    disabled,
+  } = props;
 
   const id = useId();
 
@@ -85,6 +95,7 @@ const Dropdown = (props: DropdownProps): JSX.Element => {
         })}
         value={singleValue}
         id={id}
+        disabled={disabled}
       >
         {allowSelectNone ? (
           <option value={EMPTY_VALUE} selected={value.length === 0}>
