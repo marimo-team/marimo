@@ -23,8 +23,9 @@ export function hasQueryParam(key: string, value?: string): boolean {
 
 export function newNotebookURL() {
   const sessionId = generateSessionId();
-  const initializationId = `__new__${sessionId}`;
-  return asURL(`?file=${encodeURIComponent(initializationId)}`).toString();
+  return asURL(
+    `?file=__new__&session_id=${encodeURIComponent(sessionId)}`,
+  ).toString();
 }
 
 const urlRegex = /^(https?:\/\/\S+)$/;
