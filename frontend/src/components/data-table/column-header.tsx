@@ -555,10 +555,12 @@ export const DateFilterMenu = <TData, TValue>({
     }
   };
 
+  const [resetKey, setResetKey] = useState(0);
   const handleClear = () => {
     setMin(undefined);
     setMax(undefined);
     setValue(undefined);
+    setResetKey((k) => k + 1);
     column.setFilterValue(undefined);
   };
 
@@ -582,7 +584,7 @@ export const DateFilterMenu = <TData, TValue>({
       />
       {operator === "between" && (
         <DateLikeRangeInput
-          key={`${filterType}-${min?.getTime() ?? "_"}-${max?.getTime() ?? "_"}`}
+          key={`${filterType}-${resetKey}`}
           filterType={filterType}
           min={min}
           max={max}
@@ -595,7 +597,7 @@ export const DateFilterMenu = <TData, TValue>({
       )}
       {isComparison && (
         <DateLikeInput
-          key={`${filterType}-${value?.getTime() ?? "_"}`}
+          key={`${filterType}-${resetKey}`}
           filterType={filterType}
           value={value}
           onChange={setValue}

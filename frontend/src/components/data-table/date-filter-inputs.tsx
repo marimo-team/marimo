@@ -245,6 +245,7 @@ export const DateLikeRangeInput = ({
       return;
     }
     e.preventDefault();
+    e.stopPropagation();
     onRangeChange(parsed.min, parsed.max);
     setSeedMin(parsed.min);
     setSeedMax(parsed.max);

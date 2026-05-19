@@ -463,7 +463,7 @@ const ValueSlot = <TData, TValue>({
       value.kind === "date-between" ? value : { kind: "date-between" as const };
     return (
       <DateLikeRangeInput
-        key={`${type}-${v.min?.getTime() ?? "_"}-${v.max?.getTime() ?? "_"}`}
+        key={`${column?.id ?? "_"}-${operator}`}
         filterType={type}
         min={v.min}
         max={v.max}
@@ -479,7 +479,7 @@ const ValueSlot = <TData, TValue>({
       value.kind === "date-single" ? value : { kind: "date-single" as const };
     return (
       <DateLikeInput
-        key={`${type}-${v.value?.getTime() ?? "_"}`}
+        key={`${column?.id ?? "_"}-${operator}`}
         filterType={type}
         value={v.value}
         onChange={(next) => onChange({ kind: "date-single", value: next })}
