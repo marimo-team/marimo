@@ -29,22 +29,16 @@ def get_default_result_limit() -> int | None:
 
 
 def _default_duckdb_deps() -> list[Dependency]:
-    """Return all deps required to run `mo.sql(query)` with the default DuckDB
+    """
+    Return all deps required to run `mo.sql(query)` with the default DuckDB
     engine, including the dataframe library used for the configured output
     format.
-
-    Resolving the dataframe library upfront lets the kernel prompt the user to
-    install everything in a single step, instead of prompting first for
-    duckdb/sqlglot and then again for polars/pandas after the query is parsed.
     """
     deps: list[Dependency] = [
         DependencyManager.duckdb,
         DependencyManager.sqlglot,
     ]
 
-    # Mirrors `raise_df_import_error("polars[pyarrow]")` in `marimo/_sql/utils.py`:
-    # polars conversion is much faster when pyarrow is available, so we eagerly
-    # request the extras.
     polars_with_pyarrow = Dependency(
         "polars", pkg_name_to_install="polars[pyarrow]"
     )
@@ -55,9 +49,6 @@ def _default_duckdb_deps() -> list[Dependency]:
     elif sql_output == "pandas":
         deps.append(DependencyManager.pandas)
     elif sql_output == "auto":
-        # In auto mode either polars or pandas is acceptable; only bundle an
-        # install when neither is already present. Prefer polars[pyarrow] to
-        # mirror the fallback error raised by `convert_to_output`.
         if (
             not DependencyManager.polars.has()
             and not DependencyManager.pandas.has()
