@@ -24,7 +24,9 @@ export const SlideNotesEditor = ({
   cellId,
   className,
 }: SlideNotesEditorProps) => {
-  const initialValue = layout.cells.get(cellId)?.speakerNotes ?? "";
+  const initialValue = cellId
+    ? (layout.cells.get(cellId)?.speakerNotes ?? "")
+    : "";
 
   const [draft, setDraft] = useState(initialValue);
 
