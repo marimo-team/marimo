@@ -45,7 +45,7 @@ def _default_duckdb_deps() -> list[Dependency]:
     )
 
     sql_output = get_configured_sql_output_format()
-    if sql_output in ("polars", "lazy-polars"):
+    if sql_output == "polars" or sql_output == "lazy-polars":
         deps.append(polars_with_pyarrow)
     elif sql_output == "pandas":
         deps.append(DependencyManager.pandas)
