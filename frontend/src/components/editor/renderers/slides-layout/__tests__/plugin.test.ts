@@ -4,10 +4,11 @@ import { describe, it, expect } from "vitest";
 import { SlidesLayoutPlugin } from "../plugin";
 import type { CellData } from "@/core/cells/types";
 import type { CellId } from "@/core/cells/ids";
+import { cellId } from "@/__tests__/branded";
 
 function makeCell(id: string, code = "print('hi')"): CellData {
   return {
-    id: id as CellId,
+    id: cellId(id),
     name: id,
     code,
     edited: false,
@@ -258,8 +259,8 @@ describe("SlidesLayoutPlugin backwards compatibility", () => {
       if (expected.deck !== undefined) {
         expect(layout.deck).toEqual(expected.deck);
       }
-      for (const [cellId, expectedConfig] of expected.cellEntries ?? []) {
-        expect(layout.cells.get(cellId as CellId)).toMatchObject(
+      for (const [cellEntryId, expectedConfig] of expected.cellEntries ?? []) {
+        expect(layout.cells.get(cellId(cellEntryId))).toMatchObject(
           expectedConfig as object,
         );
       }
@@ -274,8 +275,8 @@ describe("SlidesLayoutPlugin backwards compatibility", () => {
         reserialized,
         cells,
       );
-      for (const [cellId, expectedConfig] of expected.cellEntries ?? []) {
-        expect(redeserialized.cells.get(cellId as CellId)).toMatchObject(
+      for (const [cellEntryId, expectedConfig] of expected.cellEntries ?? []) {
+        expect(redeserialized.cells.get(cellId(cellEntryId))).toMatchObject(
           expectedConfig as object,
         );
       }

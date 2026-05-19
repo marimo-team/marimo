@@ -6,6 +6,7 @@ import type {
   SlideType,
 } from "@/components/editor/renderers/slides-layout/types";
 import type { CellId } from "@/core/cells/ids";
+import { cellId } from "@/__tests__/branded";
 import { composeSlides } from "../compose-slides";
 import { buildSubslideNotes, collectBlockNotes } from "../slide-notes";
 
@@ -15,7 +16,7 @@ interface Cell {
 }
 
 const cell = (id: string, type?: SlideType): Cell => ({
-  id: id as CellId,
+  id: cellId(id),
   type,
 });
 
@@ -24,7 +25,7 @@ const configs = (
 ): ReadonlyMap<CellId, SlideConfig> =>
   new Map(
     Object.entries(notes).map(([id, speakerNotes]) => [
-      id as CellId,
+      cellId(id),
       { speakerNotes } satisfies SlideConfig,
     ]),
   );
