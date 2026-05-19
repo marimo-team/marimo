@@ -32,17 +32,21 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 # Metadata emitted through the `{marimo-config}` directive.
-_CONFIG_KEYS = {"header", "pyproject"}
+_CONFIG_KEYS = {"header", "pyproject", "width"}
 # marimo-specific metadata filtered before writing MyST frontmatter.
 _MARIMO_METADATA_KEYS = {"width"}
 # MyST marimo executable directive headers.
 _MARIMO_DIRECTIVE_HEADER_RE = re.compile(
-    r"^(?P<fence>`{3,})\{marimo\}(?:\s+(?P<language>\w+))?\s*$"
+    r"^[ ]{0,3}(?P<fence>`{3,})\{marimo\}"
+    r"(?:\s+(?P<language>\w+))?\s*$"
 )
 # MyST marimo page-level configuration directive headers.
 _MARIMO_CONFIG_HEADER_RE = re.compile(
-    r"^(?P<fence>`{3,})\{marimo-config\}\s*$"
+    r"^[ ]{0,3}(?P<fence>`{3,})\{marimo-config\}\s*$"
 )
+# Markdown backtick fences. Used to skip ordinary fenced examples before
+# normalizing MyST marimo directives.
+_FENCE_HEADER_RE = re.compile(r"^[ ]{0,3}(?P<fence>`{3,}).*$")
 # MyST directive options, e.g. `:hide-code: true`.
 _DIRECTIVE_OPTION_RE = re.compile(r"^:([A-Za-z0-9_-]+):(?:\s+(.*))?$")
 # PEP 723 script metadata blocks embedded in exported notebook headers.
@@ -59,7 +63,9 @@ class _MystmdMarkdownImportDialect:
 
     def matches(self, text: str, filepath: str | None) -> bool:
         del filepath
-        return any(_is_marimo_header(line) for line in text.splitlines())
+        return (
+            _find_next_top_level_marimo_header(text.splitlines()) is not None
+        )
 
     def preprocess(
         self, lines: list[str], context: MarkdownImportContext
@@ -85,8 +91,20 @@ class _MystmdMarkdownImportDialect:
 
             match = _MARIMO_DIRECTIVE_HEADER_RE.match(lines[index])
             if match is None:
-                normalized.append(lines[index])
-                index += 1
+                fence_match = _FENCE_HEADER_RE.match(lines[index])
+                if fence_match is None:
+                    normalized.append(lines[index])
+                    index += 1
+                    continue
+
+                closing_index = _find_closing_fence(
+                    lines, index + 1, fence_match.group("fence")
+                )
+                if closing_index is None:
+                    normalized.extend(lines[index:])
+                    break
+                normalized.extend(lines[index : closing_index + 1])
+                index = closing_index + 1
                 continue
 
             closing_index = _find_closing_fence(
@@ -101,7 +119,7 @@ class _MystmdMarkdownImportDialect:
             )
             normalized.append(_canonical_code_fence_head(match, options))
             normalized.extend(body_lines)
-            normalized.append(lines[closing_index])
+            normalized.append(match.group("fence"))
             index = closing_index + 1
 
         return normalized
@@ -133,14 +151,8 @@ class MystmdMarkdownFlavor(MarkdownFlavor):
 
     def render_code_cell(self, cell: CodeCellBlock) -> str:
         code_lines = cell.source.splitlines()
-        if not any(line.strip() for line in code_lines):
-            code_lines = [
-                "pass" if cell.language == "python" else "-- empty cell"
-            ]
         code = "\n".join(code_lines)
-        guard = "```"
-        while guard in code:
-            guard += "`"
+        guard = _fence_guard_for(code)
 
         return "\n".join(
             [
@@ -191,21 +203,25 @@ def _mystmd_config(
     header = str(metadata.get("header") or document_header or "").strip()
     header, header_pyproject = _split_script_metadata(header)
     pyproject = str(metadata.get("pyproject") or header_pyproject).strip()
+    width = metadata.get("width")
     config = {
         key: value
         for key, value in {"header": header, "pyproject": pyproject}.items()
         if value
     }
+    if isinstance(width, str) and width:
+        config["width"] = width
     if not config:
         return []
 
     body = yaml.marimo_compat_dump(config, sort_keys=False).strip()
+    guard = _fence_guard_for(f"---\n{body}\n---")
     return [
-        "```{marimo-config}",
+        f"{guard}{{marimo-config}}",
         "---",
         body,
         "---",
-        "```",
+        guard,
         "",
     ]
 
@@ -242,6 +258,34 @@ def _is_marimo_header(line: str) -> bool:
         _MARIMO_DIRECTIVE_HEADER_RE.match(line)
         or _MARIMO_CONFIG_HEADER_RE.match(line)
     )
+
+
+def _fence_guard_for(body: str) -> str:
+    guard = "```"
+    while guard in body:
+        guard += "`"
+    return guard
+
+
+def _find_next_top_level_marimo_header(lines: list[str]) -> int | None:
+    index = 0
+    while index < len(lines):
+        if _is_marimo_header(lines[index]):
+            return index
+
+        fence_match = _FENCE_HEADER_RE.match(lines[index])
+        if fence_match is None:
+            index += 1
+            continue
+
+        closing_index = _find_closing_fence(
+            lines, index + 1, fence_match.group("fence")
+        )
+        if closing_index is None:
+            return None
+        index = closing_index + 1
+
+    return None
 
 
 def _is_closing_fence(line: str, opening_fence: str) -> bool:
@@ -289,6 +333,46 @@ def _canonical_code_fence_head(
         language=match.group("language") or "python",
         attributes=attribute_str,
     )
+
+
+def extract_mystmd_config_metadata(markdown: str) -> dict[str, str]:
+    lines = markdown.splitlines()
+    metadata: dict[str, str] = {}
+    index = 0
+
+    while index < len(lines):
+        next_index = _find_next_top_level_marimo_header(lines[index:])
+        if next_index is None:
+            break
+        index += next_index
+
+        config_match = _MARIMO_CONFIG_HEADER_RE.match(lines[index])
+        if config_match is None:
+            directive_match = _MARIMO_DIRECTIVE_HEADER_RE.match(lines[index])
+            if directive_match is None:
+                index += 1
+                continue
+
+            closing_index = _find_closing_fence(
+                lines, index + 1, directive_match.group("fence")
+            )
+            if closing_index is None:
+                break
+            index = closing_index + 1
+            continue
+
+        closing_index = _find_closing_fence(
+            lines, index + 1, config_match.group("fence")
+        )
+        if closing_index is None:
+            break
+
+        metadata.update(
+            _extract_config_metadata(lines[index + 1 : closing_index])
+        )
+        index = closing_index + 1
+
+    return metadata
 
 
 def _extract_config_metadata(lines: list[str]) -> dict[str, str]:

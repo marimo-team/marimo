@@ -235,6 +235,56 @@ def test_mystmd_marimo_config_directive_only() -> None:
     assert 'dependencies = ["polars"]' in notebook_ir.header.value
 
 
+def test_mystmd_indented_marimo_directives() -> None:
+    script_lines = (
+        "  ```{marimo-config}",
+        "---",
+        "header: import os",
+        "width: full",
+        "---",
+        "  ```",
+        "",
+        "   ```{marimo} python",
+        "x = 1",
+        "   ```",
+    )
+    notebook_ir = convert_from_md_to_marimo_ir("\n".join(script_lines))
+    app = InternalApp(load_notebook_ir(notebook_ir))
+
+    assert app.config.width == "full"
+    assert notebook_ir.header is not None
+    assert "import os" in notebook_ir.header.value
+
+    ids = list(app.cell_manager.cell_ids())
+    assert len(ids) == 1
+    assert app.cell_manager.cell_data_at(ids[0]).code == "x = 1"
+
+
+def test_mystmd_literal_directives_in_fenced_example() -> None:
+    script_lines = (
+        "````markdown",
+        "```{marimo-config}",
+        "---",
+        "width: full",
+        "---",
+        "```",
+        "",
+        "```{marimo} python",
+        "x = 1",
+        "```",
+        "````",
+    )
+
+    notebook_ir = convert_from_md_to_marimo_ir("\n".join(script_lines))
+
+    assert notebook_ir.header is None
+    assert "width" not in notebook_ir.app.options
+    assert len(notebook_ir.cells) == 1
+    assert "{marimo-config}" in notebook_ir.cells[0].code
+    assert "{marimo} python" in notebook_ir.cells[0].code
+    assert "x = 1" in notebook_ir.cells[0].code
+
+
 def test_mystmd_marimo_config_keeps_indented_yaml_delimiters() -> None:
     from marimo._utils import yaml
 
@@ -255,6 +305,23 @@ def test_mystmd_marimo_config_keeps_indented_yaml_delimiters() -> None:
     assert (
         yaml.load(notebook_ir.header.value)["header"] == "before\n---\nafter"
     )
+
+
+def test_mystmd_exported_width_round_trips() -> None:
+    notebook = NotebookSerializationV1(
+        app=AppInstantiation(options={"width": "full"}),
+        cells=[CellDef(name="__", code="x = 1", options={})],
+        filename="notebook.myst.md",
+    )
+
+    markdown = convert_from_ir_to_markdown(
+        notebook, filename="notebook.myst.md", flavor="mystmd"
+    )
+    round_tripped = convert_from_md_to_marimo_ir(markdown)
+
+    assert "```{marimo-config}" in markdown
+    assert "width: full" in markdown
+    assert round_tripped.app.options["width"] == "full"
 
 
 def test_mystmd_marimo_config_directive_reexports() -> None:
@@ -309,6 +376,45 @@ def test_mystmd_exported_config_directive_round_trips() -> None:
     assert round_tripped.header is not None
     assert "import os" in round_tripped.header.value
     assert 'dependencies = ["polars"]' in round_tripped.header.value
+
+
+def test_mystmd_exported_config_uses_longer_fence_for_backticks() -> None:
+    header = '"""\n# Header\n\n```\ninside\n```\n"""'
+    notebook = NotebookSerializationV1(
+        app=AppInstantiation(options={}),
+        cells=[CellDef(name="__", code="x = 1", options={})],
+        header=Header(value=header),
+        filename="notebook.py",
+    )
+
+    markdown = convert_from_ir_to_markdown(
+        notebook, filename="notebook.myst.md", flavor="mystmd"
+    )
+    round_tripped = convert_from_md_to_marimo_ir(markdown)
+
+    assert "````{marimo-config}" in markdown
+    assert len(round_tripped.cells) == 1
+    assert round_tripped.cells[0].code == "x = 1"
+    assert round_tripped.header is not None
+    assert "# Header" in round_tripped.header.value
+    assert "inside" in round_tripped.header.value
+
+
+def test_mystmd_empty_python_cells_round_trip() -> None:
+    notebook = NotebookSerializationV1(
+        app=AppInstantiation(options={}),
+        cells=[CellDef(name="__", code="", options={})],
+        filename="notebook.py",
+    )
+
+    markdown = convert_from_ir_to_markdown(
+        notebook, filename="notebook.myst.md", flavor="mystmd"
+    )
+    round_tripped = convert_from_md_to_marimo_ir(markdown)
+
+    assert "pass" not in markdown
+    assert len(round_tripped.cells) == 1
+    assert round_tripped.cells[0].code == ""
 
 
 def test_markdown_code_cell_attributes_are_unescaped() -> None:

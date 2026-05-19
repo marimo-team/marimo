@@ -165,6 +165,67 @@ def test_rename_to_qmd(app_file_manager: AppFileManager) -> None:
         assert "app = marimo.App()" not in contents
 
 
+def test_save_mystmd_preserves_frontmatter_and_marimo_config(
+    tmp_path: Path,
+) -> None:
+    temp_file = tmp_path / "notebook.myst.md"
+    temp_file.write_text(
+        "---\n"
+        "title: My Title\n"
+        "author: Marimo Team\n"
+        "---\n"
+        "\n"
+        "```{marimo-config}\n"
+        "---\n"
+        "header: |-\n"
+        "  import os\n"
+        "pyproject: |-\n"
+        '  dependencies = ["polars"]\n'
+        "width: full\n"
+        "---\n"
+        "```\n"
+        "\n"
+        "```{marimo} python\n"
+        "x = 1\n"
+        "```",
+        encoding="utf-8",
+    )
+    manager = AppFileManager(filename=str(temp_file))
+
+    assert manager.app.config.app_title == "My Title"
+    assert manager.app.config.width == "full"
+    assert manager.app.to_ir().header is not None
+    assert "import os" in manager.app.to_ir().header.value
+    assert 'dependencies = ["polars"]' in manager.app.to_ir().header.value
+
+    cells = list(manager.app.cell_manager.cell_data())
+    manager.save(
+        SaveNotebookRequest(
+            cell_ids=[cell.cell_id for cell in cells],
+            filename=str(temp_file),
+            codes=[cell.code for cell in cells],
+            names=[cell.name for cell in cells],
+            configs=[cell.config for cell in cells],
+            persist=True,
+        )
+    )
+
+    contents = temp_file.read_text(encoding="utf-8")
+    assert "title: My Title" in contents
+    assert "author: Marimo Team" in contents
+    assert "```{marimo-config}" in contents
+    assert "import os" in contents
+    assert 'dependencies = ["polars"]' in contents
+    assert "width: full" in contents
+
+    reloaded = AppFileManager(filename=str(temp_file))
+    assert reloaded.app.config.app_title == "My Title"
+    assert reloaded.app.config.width == "full"
+    assert reloaded.app.to_ir().header is not None
+    assert "import os" in reloaded.app.to_ir().header.value
+    assert 'dependencies = ["polars"]' in reloaded.app.to_ir().header.value
+
+
 def test_save_app_config_valid(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = "app_config.py"
     try:
