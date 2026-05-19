@@ -109,7 +109,10 @@ from mymodule import something
 print(mymodule)`;
 
     const moduleView = createEditor(moduleCode, moduleCode.length);
-    const usageView = createEditor(usageCode, usageCode.lastIndexOf("mymodule"));
+    const usageView = createEditor(
+      usageCode,
+      usageCode.lastIndexOf("mymodule"),
+    );
     views.push(moduleView, usageView);
 
     const notebook = initialNotebookState();
