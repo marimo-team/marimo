@@ -48,7 +48,7 @@ from tests._data.mocks import create_dataframes
 pytest.importorskip("ibis")
 pd = pytest.importorskip("pandas")
 pytest.importorskip("pyarrow")
-pl = pytest.importorskip("polars")
+pytest.importorskip("polars")
 
 
 def apply(df: DataFrameType, transform: Transform) -> DataFrameType:
@@ -86,7 +86,10 @@ def assert_frame_equal(a: DataFrameType, b: DataFrameType) -> None:
 
 
 def assert_frame_equal_with_nans(
-    a: DataFrameType, b: DataFrameType, allow_nan_equals_zero: bool = False
+    a: DataFrameType,
+    b: DataFrameType,
+    allow_nan_equals_zero: bool = False,
+    allow_none_equals_nan: bool = False,
 ) -> None:
     """
     Assert two dataframes are equal, treating NaNs in the same locations as equal.
@@ -97,6 +100,9 @@ def assert_frame_equal_with_nans(
         allow_nan_equals_zero: If True, treat NaN and 0.0 as equivalent values.
             This is useful for pivot operations where missing aggregations may
             be filled with 0.0 or NaN depending on the backend.
+        allow_none_equals_nan: If True, treat None and NaN as equivalent
+            missing values. This is useful when different backends materialise
+            missing numeric values differently.
     """
     import math
 
@@ -137,7 +143,25 @@ def assert_frame_equal_with_nans(
                     or val_b == 0.0
                 )
             )
-            if not (val_a == val_b or both_nan or nan_or_zero_match):
+            # Useful for expand dict operations where None and nan are equal
+            none_nan_match = allow_none_equals_nan and (
+                (
+                    val_a is None
+                    and isinstance(val_b, float)
+                    and math.isnan(val_b)
+                )
+                or (
+                    val_b is None
+                    and isinstance(val_a, float)
+                    and math.isnan(val_a)
+                )
+            )
+            if not (
+                val_a == val_b
+                or both_nan
+                or nan_or_zero_match
+                or none_nan_match
+            ):
                 raise AssertionError(
                     f"DataFrame values differ at column '{col}', row {idx}: {val_a} != {val_b}"
                 )
@@ -1757,9 +1781,10 @@ class TestTransformHandler:
         nw_expected = collect_df(expected)
         result_cols = sorted(nw_result.columns)
         expected_cols = sorted(nw_expected.columns)
-        assert_frame_equal(
+        assert_frame_equal_with_nans(
             nw_expected.select(expected_cols),
             nw_result.select(result_cols),
+            allow_none_equals_nan=True,
         )
 
     @staticmethod
