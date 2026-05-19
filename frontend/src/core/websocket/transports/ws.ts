@@ -13,7 +13,7 @@ export const MAX_RETRIES = 10;
 
 export const TRANSPORT_EXHAUSTED_REASON = "MARIMO_TRANSPORT_EXHAUSTED";
 
-export class PartysocketTransport implements IConnectionTransport {
+export class WsTransport implements IConnectionTransport {
   private inner: ReconnectingWebSocket;
   private closeWrappers = new WeakMap<
     ConnectionTransportCallback<"close">,
@@ -52,6 +52,10 @@ export class PartysocketTransport implements IConnectionTransport {
   ): void {
     if (event === "close") {
       const userCb = callback as ConnectionTransportCallback<"close">;
+      // Match native EventTarget dedupe: a second addEventListener with the
+      // same listener is a no-op. Without this, repeated adds leak wrappers
+      // on the inner socket and double-fire on close.
+      if (this.closeWrappers.has(userCb)) return;
       const wrapper: ConnectionTransportCallback<"close"> = (e) => {
         if (this.inner.retryCount >= MAX_RETRIES) {
           userCb(

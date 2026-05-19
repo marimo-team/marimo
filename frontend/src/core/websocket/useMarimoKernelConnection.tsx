@@ -11,6 +11,7 @@ import type {
   NotificationMessageData,
   NotificationPayload,
 } from "@/core/kernel/messages";
+import { TRANSPORT_EXHAUSTED_REASON } from "@/core/websocket/transports/ws";
 import { useConnectionTransport } from "@/core/websocket/useWebSocket";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
@@ -77,6 +78,9 @@ import {
 
 const SUPPORTS_LAZY_KERNELS = true;
 
+// All MARIMO_* reasons except TRANSPORT_EXHAUSTED are emitted by the backend
+// (marimo/_server/api/endpoints/ws_endpoint.py and ws/*.py). Keep in sync with
+// the backend literals.
 export type CloseReason =
   | "MARIMO_ALREADY_CONNECTED"
   | "MARIMO_WRONG_KERNEL_ID"
@@ -86,7 +90,7 @@ export type CloseReason =
   | "MARIMO_SHUTDOWN"
   | "MARIMO_MALFORMED_QUERY"
   | "MARIMO_KERNEL_STARTUP_ERROR"
-  | "MARIMO_TRANSPORT_EXHAUSTED";
+  | typeof TRANSPORT_EXHAUSTED_REASON;
 
 export type CloseDecision =
   | { kind: "terminal"; status: ConnectionStatus; closeTransport: boolean }
@@ -106,7 +110,7 @@ export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
         },
         closeTransport: true,
       };
-    case "MARIMO_TRANSPORT_EXHAUSTED":
+    case TRANSPORT_EXHAUSTED_REASON:
       return {
         kind: "gave-up",
         status: {
@@ -443,7 +447,7 @@ export function useMarimoKernelConnection(opts: {
     }
     shouldTryReconnecting.current = true;
     setConnection({ state: WebSocketState.CONNECTING });
-    const healthy = await runtimeManager.probeHealth();
+    const healthy = await runtimeManager.reconcileFromHealth();
     if (!healthy) {
       shouldTryReconnecting.current = false;
       setConnection({

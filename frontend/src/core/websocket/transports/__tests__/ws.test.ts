@@ -3,9 +3,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_RETRIES,
-  PartysocketTransport,
+  WsTransport,
   TRANSPORT_EXHAUSTED_REASON,
-} from "../partysocket";
+} from "../ws";
 
 let innerListeners: Record<string, ((e: unknown) => void)[]>;
 
@@ -29,10 +29,10 @@ vi.mock("partysocket/ws", () => {
   return { default: FakeReconnectingWebSocket };
 });
 
-type FakeReconnectingWebSocket = {
+interface FakeReconnectingWebSocket {
   retryCount: number;
   readyState: number;
-};
+}
 
 function dispatchClose(reason = "") {
   const evt = new CloseEvent("close", { reason, code: 1006 });
@@ -41,12 +41,12 @@ function dispatchClose(reason = "") {
   }
 }
 
-describe("PartysocketTransport", () => {
-  let transport: PartysocketTransport;
+describe("WsTransport", () => {
+  let transport: WsTransport;
   let inner: FakeReconnectingWebSocket;
 
   beforeEach(() => {
-    transport = new PartysocketTransport(() => "ws://example.invalid/ws");
+    transport = new WsTransport(() => "ws://example.invalid/ws");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     inner = (transport as any).inner;
   });
@@ -86,6 +86,31 @@ describe("PartysocketTransport", () => {
       dispatchClose("MARIMO_SHUTDOWN");
 
       expect(seen[0].reason).toBe(TRANSPORT_EXHAUSTED_REASON);
+    });
+  });
+
+  describe("addEventListener dedupe", () => {
+    it("does not double-fire when the same close listener is added twice", () => {
+      const cb = vi.fn();
+      transport.addEventListener("close", cb);
+      transport.addEventListener("close", cb);
+
+      dispatchClose("");
+
+      expect(cb).toHaveBeenCalledTimes(1);
+    });
+
+    it("a single removeEventListener fully unregisters a duplicated add", () => {
+      const cb = vi.fn();
+      transport.addEventListener("close", cb);
+      transport.addEventListener("close", cb);
+      transport.removeEventListener("close", cb);
+
+      dispatchClose("");
+
+      expect(cb).not.toHaveBeenCalled();
+      // Inner socket has no orphaned wrappers left.
+      expect(innerListeners.close).toHaveLength(0);
     });
   });
 

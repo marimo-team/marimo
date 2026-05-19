@@ -5,7 +5,7 @@ import { Logger } from "@/utils/Logger";
 import { createPyodideConnection } from "../wasm/bridge";
 import { isWasm } from "../wasm/utils";
 import { BasicTransport } from "./transports/basic";
-import { PartysocketTransport } from "./transports/partysocket";
+import { WsTransport } from "./transports/ws";
 import type { IConnectionTransport } from "./transports/transport";
 
 interface UseConnectionTransportOptions {
@@ -28,7 +28,7 @@ function createConnectionTransport(
     return createPyodideConnection();
   }
   // urlProvider is passed lazily; it may change after a runtime redirect.
-  return new PartysocketTransport(options.url);
+  return new WsTransport(options.url);
 }
 
 /**
