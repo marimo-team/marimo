@@ -389,7 +389,6 @@ class progress_bar(Generic[S]):
         self.completion_subtitle = completion_subtitle
         self.remove_on_exit = remove_on_exit
         self.disabled = disabled
-        self.step: int = 1
         self.collection = collection
         self._is_async = isinstance(collection, AsyncIterable)
 
@@ -403,9 +402,6 @@ class progress_bar(Generic[S]):
                         "Cannot determine the length of a collection. "
                         "A `total` must be provided."
                     )
-
-            if isinstance(collection, range):
-                self.step = cast(range, collection).step
 
         elif total is None:
             raise ValueError(
@@ -438,7 +434,7 @@ class progress_bar(Generic[S]):
             for item in cast(Iterable[S], self.collection):
                 yield item
                 if not self.disabled:
-                    self.progress.update(increment=self.step)
+                    self.progress.update(increment=1)
         finally:
             self._finish()
 
@@ -458,7 +454,7 @@ class progress_bar(Generic[S]):
             async for item in cast(AsyncIterable[S], self.collection):
                 yield item
                 if not self.disabled:
-                    self.progress.update(increment=self.step)
+                    self.progress.update(increment=1)
         finally:
             self._finish()
 
