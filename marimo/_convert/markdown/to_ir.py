@@ -34,10 +34,15 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._convert.common.format import markdown_to_marimo, sql_to_marimo
-from marimo._convert.markdown.flavor import default_markdown_flavor
+from marimo._convert.markdown.flavor import (
+    _markdown_import_dialects,
+    default_markdown_flavor,
+)
 from marimo._convert.markdown.flavor.base import (
     CodeCellBlock,
     MarkdownFlavor,
+    MarkdownImportContext,
+    MarkdownImportDialect,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._schemas.serialization import (
@@ -48,32 +53,12 @@ from marimo._schemas.serialization import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
 LOGGER = _loggers.marimo_logger()
 
 MARIMO_MD = "marimo-md"
 MARIMO_CODE = "marimo-code"
-# mystmd directives are fenced code blocks with the directive name in braces,
-# followed by directive arguments and optional `:key: value` option lines.
-# Reference: https://mystmd.org/guide/directives
-#
-# marimo code blocks use the mystmd directive form:
-#
-# ```{marimo} python
-# :hide-code: true
-#
-# print("hello")
-# ```
-_MYSTMD_MARIMO_HEADER_RE = re.compile(
-    r"^(?P<fence>`{3,})\{marimo\}(?:\s+(?P<language>\w+))?\s*$"
-)
-_MYSTMD_MARIMO_CONFIG_HEADER_RE = re.compile(
-    r"^(?P<fence>`{3,})\{marimo-config\}\s*$"
-)
-_MYSTMD_DIRECTIVE_OPTION_RE = re.compile(r"^:([A-Za-z0-9_-]+):(?:\s+(.*))?$")
-_MYSTMD_DIRECTIVE_CLASS = "mystmd-marimo"
-_MYSTMD_CONFIG_KEYS = {"header", "pyproject"}
 
 ConvertKeys = Literal["marimo-ir"]
 
@@ -103,77 +88,8 @@ def extract_attribs(
     return {}
 
 
-def _is_mystmd_marimo_directive_header(line: str) -> bool:
-    return bool(_MYSTMD_MARIMO_HEADER_RE.match(line))
-
-
-def _is_mystmd_marimo_config_header(line: str) -> bool:
-    return bool(_MYSTMD_MARIMO_CONFIG_HEADER_RE.match(line))
-
-
-def _is_mystmd_marimo_header(line: str) -> bool:
-    return _is_mystmd_marimo_directive_header(
-        line
-    ) or _is_mystmd_marimo_config_header(line)
-
-
-def _is_closing_fence(line: str, opening_fence: str) -> bool:
-    stripped = line.strip()
-    return len(stripped) >= len(opening_fence) and set(stripped) == {"`"}
-
-
-def _is_preprocessed_mystmd_marimo_fence(line: str) -> bool:
-    return f".{_MYSTMD_DIRECTIVE_CLASS}" in line
-
-
-def _extract_mystmd_directive_options(
-    lines: list[str],
-) -> tuple[dict[str, str], list[str]]:
-    options: dict[str, str] = {}
-    body_start = 0
-
-    for index, line in enumerate(lines):
-        match = _MYSTMD_DIRECTIVE_OPTION_RE.match(line)
-        if match is None:
-            break
-        options[match.group(1).replace("-", "_")] = match.group(2) or "true"
-        body_start = index + 1
-
-    if body_start and body_start < len(lines) and lines[body_start] == "":
-        body_start += 1
-
-    return options, lines[body_start:]
-
-
-def _extract_mystmd_config_metadata(lines: list[str]) -> dict[str, str]:
-    from marimo._utils import yaml
-
-    if lines and lines[0] == "---":
-        for index, line in enumerate(lines[1:], start=1):
-            if line == "---":
-                lines = lines[1:index]
-                break
-
-    try:
-        metadata = yaml.load("\n".join(lines))
-    except yaml.YAMLError:
-        LOGGER.warning("Error parsing marimo-config YAML. Ignoring config.")
-        return {}
-
-    if not isinstance(metadata, dict):
-        return {}
-
-    return {
-        key: value
-        for key, value in metadata.items()
-        if key in _MYSTMD_CONFIG_KEYS and isinstance(value, str)
-    }
-
-
 def _is_code_tag(text: str) -> bool:
     head = text.split("\n")[0].strip()
-    if _is_mystmd_marimo_config_header(head):
-        return False
     legacy_format = bool(re.search(r"\{.*python.*\}", head))
     legacy_format |= bool(re.search(r"\{.*sql.*\}", head))
     if DependencyManager.new_superfences.has_required_version(quiet=True):
@@ -184,12 +100,14 @@ def _is_code_tag(text: str) -> bool:
 
 def _get_language(text: str) -> str:
     header = text.split("\n").pop(0)
-    mystmd_match = re.match(r"^`{3,}\{marimo\}\s+(?P<language>\w+)", header)
-    if mystmd_match:
-        return str(mystmd_match.group("language"))
     match = RE_NESTED_FENCE_START.match(header)
     if match and match.group("lang"):
         return str(match.group("lang"))
+    if match and match.group("attrs"):
+        attributes = str(match.group("attrs"))
+        for language in ("python", "sql", "markdown"):
+            if re.search(rf"(?:^|[.\s]){language}(?:[.\s]|$)", attributes):
+                return language
     return "python"
 
 
@@ -386,13 +304,14 @@ class MarimoMdParser(IdentityParser):
         self,
         *args: Any,
         output_format: ConvertKeys = "marimo-ir",
-        enable_mystmd: bool = False,
+        import_dialects: Sequence[MarkdownImportDialect] = (),
         **kwargs: Any,
     ) -> None:
         super().__init__(
             *args, output_format=cast(Any, output_format), **kwargs
         )
         self.meta = {}
+        import_context = MarkdownImportContext()
         # Build here opposed to the parent class since there is intermediate
         # logic after the parser is built, and it is more clear here what is
         # registered.
@@ -403,9 +322,13 @@ class MarimoMdParser(IdentityParser):
         self.preprocessors.register(
             FrontMatterPreprocessor(self), "frontmatter", 100
         )
-        if enable_mystmd:
+        if import_dialects:
             self.preprocessors.register(
-                MystmdMarimoPreprocessor(self), "mystmd-marimo", 99
+                MarkdownImportDialectPreprocessor(
+                    self, import_dialects, import_context
+                ),
+                "markdown-import-dialects",
+                99,
             )
         fences_ext = SuperFencesCodeExtension()
         fences_ext.extendMarkdown(self)
@@ -472,52 +395,25 @@ class FrontMatterPreprocessor(Preprocessor):
         return doc.split("\n")
 
 
-class MystmdMarimoPreprocessor(Preprocessor):
-    """Normalize mystmd marimo directive fences before SuperFences parses them."""
+class MarkdownImportDialectPreprocessor(Preprocessor):
+    """Normalize dialect-specific markdown before SuperFences parses it."""
 
-    def __init__(self, md: MarimoMdParser):
+    def __init__(
+        self,
+        md: MarimoMdParser,
+        import_dialects: Sequence[MarkdownImportDialect],
+        context: MarkdownImportContext,
+    ) -> None:
         super().__init__(md)
         self.md: MarimoMdParser = md
+        self.import_dialects = import_dialects
+        self.context = context
 
     def run(self, lines: list[str]) -> list[str]:
-        normalized: list[str] = []
-        index = 0
-
-        while index < len(lines):
-            config_match = _MYSTMD_MARIMO_CONFIG_HEADER_RE.match(lines[index])
-            if config_match is not None:
-                fence = config_match.group("fence")
-                closing_index = index + 1
-                while closing_index < len(lines):
-                    if _is_closing_fence(lines[closing_index], fence):
-                        metadata = _extract_mystmd_config_metadata(
-                            lines[index + 1 : closing_index]
-                        )
-                        self.md.meta.update(metadata)
-                        index = closing_index + 1
-                        break
-                    closing_index += 1
-                else:
-                    normalized.extend(lines[index:])
-                    break
-                continue
-
-            match = _MYSTMD_MARIMO_HEADER_RE.match(lines[index])
-            if match is None:
-                normalized.append(lines[index])
-                index += 1
-                continue
-
-            normalized.append(
-                "{fence}{language} {{.marimo .{directive_class}}}".format(
-                    fence=match.group("fence"),
-                    language=match.group("language") or "python",
-                    directive_class=_MYSTMD_DIRECTIVE_CLASS,
-                )
-            )
-            index += 1
-
-        return normalized
+        for dialect in self.import_dialects:
+            lines = dialect.preprocess(lines, self.context)
+        self.md.meta.update(self.context.metadata)
+        return lines
 
 
 class SanitizeProcessor(Preprocessor):
@@ -624,17 +520,9 @@ class ExpandAndClassifyProcessor(BlockProcessor):
 
             code_block = SubElement(parent, MARIMO_CODE)
             block_lines = code.split("\n")
-            body_lines = block_lines[1:-1]
+            code_block.text = "\n".join(block_lines[1:-1])
 
             attribs = extract_attribs(block_lines[0])
-            if _is_mystmd_marimo_directive_header(
-                block_lines[0]
-            ) or _is_preprocessed_mystmd_marimo_fence(block_lines[0]):
-                mystmd_options, body_lines = _extract_mystmd_directive_options(
-                    body_lines
-                )
-                attribs.update(mystmd_options)
-            code_block.text = "\n".join(body_lines)
             if attribs:
                 code_block.attrib = attribs
 
@@ -655,9 +543,7 @@ def convert_from_md_to_marimo_ir(
         )
     notebook = MarimoMdParser(
         output_format="marimo-ir",
-        enable_mystmd=any(
-            _is_mystmd_marimo_header(line) for line in text.splitlines()
-        ),
+        import_dialects=_markdown_import_dialects(text, filepath),
     ).convert(text)
     assert isinstance(notebook, NotebookSerializationV1)
     return NotebookSerializationV1(

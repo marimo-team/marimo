@@ -9,8 +9,12 @@ from typing import TYPE_CHECKING
 from marimo._convert.markdown.flavor.base import (
     MarkdownFlavor,
     MarkdownFlavorName,
+    MarkdownImportDialect,
 )
-from marimo._convert.markdown.flavor.mystmd import MystmdMarkdownFlavor
+from marimo._convert.markdown.flavor.mystmd import (
+    MystmdMarkdownFlavor,
+    _MystmdMarkdownImportDialect,
+)
 from marimo._convert.markdown.flavor.pymdown import PymdownMarkdownFlavor
 from marimo._convert.markdown.flavor.qmd import QmdMarkdownFlavor
 
@@ -20,6 +24,7 @@ if TYPE_CHECKING:
 _PYMDOWN_MARKDOWN = PymdownMarkdownFlavor()
 _QMD_MARKDOWN = QmdMarkdownFlavor()
 _MYSTMD_MARKDOWN = MystmdMarkdownFlavor()
+_MYSTMD_MARKDOWN_IMPORT = _MystmdMarkdownImportDialect()
 _MARKDOWN_FLAVORS: Mapping[MarkdownFlavorName, MarkdownFlavor] = (
     MappingProxyType(
         {
@@ -29,6 +34,9 @@ _MARKDOWN_FLAVORS: Mapping[MarkdownFlavorName, MarkdownFlavor] = (
         }
     )
 )
+_MARKDOWN_IMPORT_DIALECTS: Mapping[
+    MarkdownFlavorName, MarkdownImportDialect
+] = MappingProxyType({_MYSTMD_MARKDOWN_IMPORT.name: _MYSTMD_MARKDOWN_IMPORT})
 # Filename inference handles target-specific markdown extensions.
 _MARKDOWN_FLAVORS_BY_EXTENSION: Mapping[str, MarkdownFlavor] = (
     MappingProxyType({".myst.md": _MYSTMD_MARKDOWN, ".qmd": _QMD_MARKDOWN})
@@ -79,6 +87,16 @@ def normalize_markdown_flavor(
         return _MARKDOWN_FLAVORS[flavor]
     except KeyError as error:
         raise ValueError(f"Unsupported markdown flavor: {flavor!r}") from error
+
+
+def _markdown_import_dialects(
+    text: str, filepath: str | None
+) -> tuple[MarkdownImportDialect, ...]:
+    return tuple(
+        dialect
+        for dialect in _MARKDOWN_IMPORT_DIALECTS.values()
+        if dialect.matches(text, filepath)
+    )
 
 
 def _markdown_output_extension(

@@ -153,7 +153,6 @@ def test_rename_to_qmd(app_file_manager: AppFileManager) -> None:
     with open(initial_filename) as f:
         contents = f.read()
         assert "app = marimo.App()" in contents
-        assert "marimo-team/marimo" not in contents
         assert "marimo-version" not in contents
     app_file_manager.rename(str(initial_filename)[:-3] + ".qmd")
     next_filename = app_file_manager.filename
@@ -162,8 +161,7 @@ def test_rename_to_qmd(app_file_manager: AppFileManager) -> None:
     with open(next_filename) as f:
         contents = f.read()
         assert "marimo-version" in contents
-        assert "filters:" in contents
-        assert "marimo-team/marimo" in contents
+        assert "```{marimo .python}" in contents
         assert "app = marimo.App()" not in contents
 
 
