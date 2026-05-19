@@ -170,8 +170,9 @@ export const Combobox = <TValue,>({
     <div className={cn("relative")} {...rest}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild={true}>
-          <div
+          <button
             id={id}
+            type="button"
             className={cn(
               "flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50",
               className,
@@ -180,7 +181,7 @@ export const Combobox = <TValue,>({
           >
             <span className="truncate flex-1 min-w-0">{renderValue()}</span>
             <ChevronDownIcon className="ml-3 w-4 h-4 opacity-50 shrink-0" />
-          </div>
+          </button>
         </PopoverTrigger>
         <PopoverContent
           className="w-full min-w-(--radix-popover-trigger-width) p-0"

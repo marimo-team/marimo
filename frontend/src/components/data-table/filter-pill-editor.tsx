@@ -3,8 +3,9 @@
 
 import type { Column, Table } from "@tanstack/react-table";
 import { CheckIcon, MinusIcon, Trash2Icon, XIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
+import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
 import { Combobox, ComboboxItem } from "../ui/combobox";
 import { Input } from "../ui/input";
 import { NumberField } from "../ui/number-field";
@@ -17,67 +18,68 @@ import {
 } from "../ui/select";
 import { Button } from "../ui/button";
 import { FilterByValuesPicker } from "./filter-by-values-picker";
-import { type ColumnFilterValue, Filter } from "./filters";
+import { RegexInput } from "./regex-input";
+import {
+  type ColumnFilterValue,
+  Filter,
+  MEMBERSHIP_OPS,
+  NUMBER_COMPARISON_OPS,
+  type NumberComparisonOp,
+  NUMBER_OPS,
+  TEXT_OPS,
+  TEXT_SCALAR_OPS,
+  type TextScalarOp,
+} from "./filters";
+import { OPERATOR_LABELS } from "./operator-labels";
 import { Tooltip } from "../ui/tooltip";
 
-// Editable filter types in this editor — date/datetime/time are read-only
-// Will add support for rest in next PR
 type EditableFilterType = "number" | "text" | "boolean" | "select";
 
-// UI-level operator for the operator dropdown. Today the committed filter
-// value does not carry this operator for number ranges — ranges are
-// converted to `>=` / `<=` condition pairs at the RPC boundary
-// (`filterToFilterCondition`). The follow-up PR splits UI operators into
-// distinct `<`, `>`, `between` variants and routes them through as-is.
-type UiOperator =
-  | "between"
-  | "contains"
-  | "is_true"
-  | "is_false"
-  | "is_null"
-  | "is_not_null"
-  | "in"
-  | "not_in";
+const BOOLEAN_OPS = ["is_true", "is_false", "is_null", "is_not_null"] as const;
+const SELECT_OPS = MEMBERSHIP_OPS;
 
-// will be expanded by a follow up PR
-const OPERATORS_BY_TYPE: Record<EditableFilterType, UiOperator[]> = {
-  number: ["between", "is_null", "is_not_null"],
-  text: ["contains", "is_null", "is_not_null"],
-  boolean: ["is_true", "is_false", "is_null", "is_not_null"],
-  select: ["in", "not_in"],
+const OPERATORS_BY_TYPE: Record<
+  EditableFilterType,
+  ReadonlyArray<OperatorType>
+> = {
+  number: NUMBER_OPS,
+  text: TEXT_OPS,
+  boolean: BOOLEAN_OPS,
+  select: SELECT_OPS,
 };
 
-const DEFAULT_OPERATOR: Record<EditableFilterType, UiOperator> = {
+const DEFAULT_OPERATOR: Record<EditableFilterType, OperatorType> = {
   number: "between",
   text: "contains",
   boolean: "is_true",
   select: "in",
 };
 
-const OPERATOR_LABELS: Record<UiOperator, string> = {
-  between: "Between",
-  contains: "Contains",
-  is_true: "Is true",
-  is_false: "Is false",
-  is_null: "Is null",
-  is_not_null: "Is not null",
-  in: "Is in",
-  not_in: "Not in",
-};
-
-const OPERATORS_WITHOUT_VALUE = new Set<UiOperator>([
+const OPERATORS_WITHOUT_VALUE = new Set<OperatorType>([
   "is_true",
   "is_false",
   "is_null",
   "is_not_null",
+  "is_empty",
 ]);
 
-interface DraftValue {
-  min?: number;
-  max?: number;
-  text?: string;
-  options?: unknown[];
-}
+const NUMBER_COMPARISON_SET: ReadonlySet<OperatorType> = new Set(
+  NUMBER_COMPARISON_OPS,
+);
+const TEXT_SCALAR_SET: ReadonlySet<OperatorType> = new Set(TEXT_SCALAR_OPS);
+
+const isNumberComparisonOp = (op: OperatorType): op is NumberComparisonOp =>
+  NUMBER_COMPARISON_SET.has(op);
+const isTextScalarOp = (op: OperatorType): op is TextScalarOp =>
+  TEXT_SCALAR_SET.has(op);
+
+type DraftValue =
+  | { kind: "between"; min?: number; max?: number }
+  | { kind: "single-number"; value?: number }
+  | { kind: "single-text"; text?: string }
+  | { kind: "multi-text"; values?: string[] }
+  | { kind: "options"; options?: unknown[] }
+  | { kind: "none" };
 
 interface Snapshot {
   columnId: string;
@@ -92,7 +94,7 @@ interface FilterPillEditorProps<TData> {
 }
 
 export const FilterPillEditor = <TData,>({
-  snapshot, // current state of filter pre-edit
+  snapshot,
   table,
   calculateTopKRows,
   onClose,
@@ -102,13 +104,13 @@ export const FilterPillEditor = <TData,>({
   const valueId = useId();
 
   const snapshotType = getEditableType(snapshot.value);
-  const snapshotOperator = getUiOperator(snapshot.value);
+  const snapshotOperator = snapshot.value.operator as OperatorType;
   const snapshotDraft = toDraftValue(snapshot.value);
 
   const [draftColumnId, setDraftColumnId] = useState<string>(snapshot.columnId);
   const [draftType, setDraftType] = useState<EditableFilterType>(snapshotType);
   const [draftOperator, setDraftOperator] =
-    useState<UiOperator>(snapshotOperator);
+    useState<OperatorType>(snapshotOperator);
   const [draftValue, setDraftValue] = useState<DraftValue>(snapshotDraft);
 
   const editableColumns = table.getAllColumns().filter((c) => {
@@ -118,18 +120,11 @@ export const FilterPillEditor = <TData,>({
     );
   });
 
-  // if we switch back to pre-edit column+operator
-  // restore the original value as well
   const rehydrateIfMatchesSnapshot = (args: {
     id: string;
-    type: EditableFilterType;
-    operator: UiOperator;
+    operator: OperatorType;
   }) => {
-    if (
-      args.id === snapshot.columnId &&
-      args.type === snapshotType &&
-      args.operator === snapshotOperator
-    ) {
+    if (args.id === snapshot.columnId && args.operator === snapshotOperator) {
       setDraftValue(snapshotDraft);
     }
   };
@@ -147,34 +142,42 @@ export const FilterPillEditor = <TData,>({
       nextOperator = DEFAULT_OPERATOR[nextColumnType];
       setDraftType(nextColumnType);
       setDraftOperator(nextOperator);
-      setDraftValue({});
+      setDraftValue(emptyDraftFor(nextColumnType, nextOperator));
     }
     setDraftColumnId(nextColumnId);
     rehydrateIfMatchesSnapshot({
       id: nextColumnId,
-      type: nextColumnType,
       operator: nextOperator,
     });
   };
 
-  const handleOperatorChange = (nextOp: UiOperator) => {
+  const handleOperatorChange = (nextOp: OperatorType) => {
     setDraftOperator(nextOp);
+    const nextEmpty = emptyDraftFor(draftType, nextOp);
+    if (nextEmpty.kind !== draftValue.kind) {
+      setDraftValue(nextEmpty);
+    }
     rehydrateIfMatchesSnapshot({
       id: draftColumnId,
-      type: draftType,
       operator: nextOp,
     });
   };
 
+  const pendingValue = buildFilterValue({
+    type: draftType,
+    operator: draftOperator,
+    draft: draftValue,
+  });
+  const applyDisabled = pendingValue === undefined;
+  const applyTooltip = applyDisabled
+    ? getMissingValueMessage(draftType, draftOperator)
+    : "Apply filter";
+
   const handleApply = () => {
-    const value = buildFilterValue({
-      type: draftType,
-      operator: draftOperator,
-      draft: draftValue,
-    });
-    if (!value) {
+    if (!pendingValue) {
       return;
     }
+    const value = pendingValue;
     table.setColumnFilters((filters) => {
       const dropIds = new Set([snapshot.columnId, draftColumnId]);
       const filtered = filters.filter((f) => !dropIds.has(f.id));
@@ -191,9 +194,29 @@ export const FilterPillEditor = <TData,>({
   };
 
   const showValueSlot = !OPERATORS_WITHOUT_VALUE.has(draftOperator);
+  const operatorOptions = OPERATORS_BY_TYPE[draftType];
+
+  const valueSlotRef = useRef<HTMLDivElement>(null);
+  const operatorTriggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const firstInput = valueSlotRef.current?.querySelector<HTMLElement>(
+      'input, [role="combobox"], button',
+    );
+    if (firstInput) {
+      firstInput.focus();
+    } else {
+      operatorTriggerRef.current?.focus();
+    }
+  }, [draftType, draftOperator]);
 
   return (
-    <div className="flex flex-row gap-4 items-end p-3">
+    <form
+      className="flex flex-row gap-4 items-end p-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleApply();
+      }}
+    >
       <div className="flex flex-col gap-1">
         <label className="text-xs text-muted-foreground" htmlFor={columnId}>
           Column
@@ -218,14 +241,19 @@ export const FilterPillEditor = <TData,>({
           Operator
         </label>
         <Select
+          key={draftType}
           value={draftOperator}
-          onValueChange={(v) => handleOperatorChange(v as UiOperator)}
+          onValueChange={(v) => handleOperatorChange(v as OperatorType)}
         >
-          <SelectTrigger id={operatorId} className="h-6 mb-1 bg-transparent">
+          <SelectTrigger
+            ref={operatorTriggerRef}
+            id={operatorId}
+            className="h-6 mb-1 bg-transparent"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {OPERATORS_BY_TYPE[draftType].map((op) => (
+            {operatorOptions.map((op) => (
               <SelectItem key={op} value={op}>
                 {OPERATOR_LABELS[op]}
               </SelectItem>
@@ -234,13 +262,14 @@ export const FilterPillEditor = <TData,>({
         </Select>
       </div>
       {showValueSlot && (
-        <div className="flex flex-col gap-1">
+        <div ref={valueSlotRef} className="flex flex-col gap-1">
           <label htmlFor={valueId} className="text-xs text-muted-foreground">
             Value
           </label>
           <ValueSlot
             id={valueId}
             type={draftType}
+            operator={draftOperator}
             value={draftValue}
             onChange={setDraftValue}
             column={table.getColumn(draftColumnId) ?? null}
@@ -249,17 +278,19 @@ export const FilterPillEditor = <TData,>({
         </div>
       )}
       <div className="flex gap-1 mb-1">
-        <Tooltip content="Apply filter">
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="rounded-full text-primary hover:text-primary hover:bg-primary/10"
-            onClick={handleApply}
-            aria-label="Apply filter"
-          >
-            <CheckIcon className="h-3.5 w-3.5" aria-hidden={true} />
-          </Button>
+        <Tooltip content={applyTooltip}>
+          <span className="inline-flex">
+            <Button
+              type="submit"
+              size="icon"
+              variant="ghost"
+              disabled={applyDisabled}
+              className="rounded-full text-primary hover:text-primary hover:bg-primary/10"
+              aria-label="Apply filter"
+            >
+              <CheckIcon className="h-3.5 w-3.5" aria-hidden={true} />
+            </Button>
+          </span>
         </Tooltip>
         <Tooltip content="Close without saving">
           <Button
@@ -286,13 +317,14 @@ export const FilterPillEditor = <TData,>({
           </Button>
         </Tooltip>
       </div>
-    </div>
+    </form>
   );
 };
 
 interface ValueSlotProps<TData, TValue> {
   id?: string;
   type: EditableFilterType;
+  operator: OperatorType;
   value: DraftValue;
   onChange: (next: DraftValue) => void;
   column: Column<TData, TValue> | null;
@@ -302,26 +334,28 @@ interface ValueSlotProps<TData, TValue> {
 const ValueSlot = <TData, TValue>({
   id,
   type,
+  operator,
   value,
   onChange,
   column,
   calculateTopKRows,
 }: ValueSlotProps<TData, TValue>) => {
-  if (type === "number") {
+  if (type === "number" && operator === "between") {
+    const v = value.kind === "between" ? value : { kind: "between" as const };
     return (
-      <div className="flex gap-1 items-center w-48">
+      <div className="flex gap-1 items-center w-44">
         <NumberField
           id={id}
-          value={value.min}
-          onChange={(v) => onChange({ ...value, min: v })}
+          value={v.min}
+          onChange={(n) => onChange({ kind: "between", min: n, max: v.max })}
           aria-label="min"
           placeholder="min"
           className="border-input flex-1 min-w-0"
         />
         <MinusIcon className="h-5 w-5 text-muted-foreground shrink-0" />
         <NumberField
-          value={value.max}
-          onChange={(v) => onChange({ ...value, max: v })}
+          value={v.max}
+          onChange={(n) => onChange({ kind: "between", min: v.min, max: n })}
           aria-label="max"
           placeholder="max"
           className="border-input flex-1 min-w-0"
@@ -329,26 +363,78 @@ const ValueSlot = <TData, TValue>({
       </div>
     );
   }
-  if (type === "text") {
+  if (type === "number" && isNumberComparisonOp(operator)) {
+    const v =
+      value.kind === "single-number"
+        ? value
+        : { kind: "single-number" as const };
+    return (
+      <NumberField
+        id={id}
+        value={v.value}
+        onChange={(n) => onChange({ kind: "single-number", value: n })}
+        aria-label="value"
+        placeholder="value"
+        className="border-input w-24 min-w-0"
+      />
+    );
+  }
+  if (
+    type === "text" &&
+    (operator === "in" || operator === "not_in") &&
+    column
+  ) {
+    const v =
+      value.kind === "multi-text" ? value : { kind: "multi-text" as const };
+    return (
+      <div className="w-48">
+        <FilterByValuesPicker
+          column={column}
+          calculateTopKRows={calculateTopKRows}
+          chosenValues={v.values ?? []}
+          onChange={(next) =>
+            onChange({ kind: "multi-text", values: next.map(String) })
+          }
+          creatable={true}
+        />
+      </div>
+    );
+  }
+  if (type === "text" && isTextScalarOp(operator)) {
+    const v =
+      value.kind === "single-text" ? value : { kind: "single-text" as const };
+    if (operator === "regex") {
+      return (
+        <RegexInput
+          id={id}
+          value={v.text ?? ""}
+          onChange={(text) => onChange({ kind: "single-text", text })}
+          className="w-40"
+        />
+      );
+    }
     return (
       <Input
         id={id}
         type="text"
-        value={value.text ?? ""}
-        onChange={(e) => onChange({ ...value, text: e.target.value })}
+        value={v.text ?? ""}
+        onChange={(e) =>
+          onChange({ kind: "single-text", text: e.target.value })
+        }
         placeholder="Text…"
-        className="border-input min-w-0"
+        className="border-input w-40 min-w-0"
       />
     );
   }
   if (type === "select" && column) {
+    const v = value.kind === "options" ? value : { kind: "options" as const };
     return (
       <div className="flex w-48">
         <FilterByValuesPicker
           column={column}
           calculateTopKRows={calculateTopKRows}
-          chosenValues={value.options ?? []}
-          onChange={(values) => onChange({ ...value, options: values })}
+          chosenValues={v.options ?? []}
+          onChange={(values) => onChange({ kind: "options", options: values })}
         />
       </div>
     );
@@ -369,43 +455,74 @@ function getEditableType(value: ColumnFilterValue): EditableFilterType {
   if (value.type === "select") {
     return "select";
   }
-  // date/datetime/time fall back to text; callers should guard. supported in future
   return "text";
-}
-
-function getUiOperator(value: ColumnFilterValue): UiOperator {
-  if (value.operator === "is_null") {
-    return "is_null";
-  }
-  if (value.operator === "is_not_null") {
-    return "is_not_null";
-  }
-  if (value.type === "number") {
-    return "between";
-  }
-  if (value.type === "text") {
-    return "contains";
-  }
-  if (value.type === "boolean") {
-    return value.value ? "is_true" : "is_false";
-  }
-  if (value.type === "select") {
-    return value.operator === "not_in" ? "not_in" : "in";
-  }
-  return "contains";
 }
 
 function toDraftValue(value: ColumnFilterValue): DraftValue {
   if (value.type === "number") {
-    return { min: value.min, max: value.max };
+    switch (value.operator) {
+      case "between":
+        return { kind: "between", min: value.min, max: value.max };
+      case "is_null":
+      case "is_not_null":
+        return { kind: "none" };
+      default:
+        return { kind: "single-number", value: value.value };
+    }
   }
   if (value.type === "text") {
-    return { text: value.text };
+    switch (value.operator) {
+      case "in":
+      case "not_in":
+        return { kind: "multi-text", values: [...value.values] };
+      case "is_null":
+      case "is_not_null":
+      case "is_empty":
+        return { kind: "none" };
+      default:
+        return { kind: "single-text", text: value.text };
+    }
   }
   if (value.type === "select") {
-    return { options: [...value.options] };
+    return { kind: "options", options: [...value.options] };
   }
-  return {};
+  return { kind: "none" };
+}
+
+function emptyDraftFor(
+  type: EditableFilterType,
+  operator: OperatorType,
+): DraftValue {
+  if (OPERATORS_WITHOUT_VALUE.has(operator)) {
+    return { kind: "none" };
+  }
+  if (type === "number") {
+    return operator === "between"
+      ? { kind: "between" }
+      : { kind: "single-number" };
+  }
+  if (type === "text") {
+    return operator === "in" || operator === "not_in"
+      ? { kind: "multi-text", values: [] }
+      : { kind: "single-text" };
+  }
+  if (type === "select") {
+    return { kind: "options", options: [] };
+  }
+  return { kind: "none" };
+}
+
+function getMissingValueMessage(
+  type: EditableFilterType,
+  operator: OperatorType,
+): string {
+  if (type === "number" && operator === "between") {
+    return "Min and max are required";
+  }
+  if (type === "text" && (operator === "in" || operator === "not_in")) {
+    return "Pick at least one value";
+  }
+  return "Value is required";
 }
 
 function buildFilterValue({
@@ -414,51 +531,79 @@ function buildFilterValue({
   draft,
 }: {
   type: EditableFilterType;
-  operator: UiOperator;
+  operator: OperatorType;
   draft: DraftValue;
 }): ColumnFilterValue | undefined {
-  if (operator === "is_null" || operator === "is_not_null") {
-    const op = operator;
-    if (type === "number") {
-      return Filter.number({ operator: op });
-    }
-    if (type === "boolean") {
-      return Filter.boolean({ operator: op });
-    }
-    return Filter.text({ operator: op });
-  }
   if (type === "number") {
-    if (draft.min === undefined && draft.max === undefined) {
+    if (operator === "is_null" || operator === "is_not_null") {
+      return Filter.number({ operator });
+    }
+    if (operator === "between") {
+      if (
+        draft.kind !== "between" ||
+        draft.min === undefined ||
+        draft.max === undefined
+      ) {
+        return undefined;
+      }
+      return Filter.number({
+        operator: "between",
+        min: draft.min,
+        max: draft.max,
+      });
+    }
+    if (!isNumberComparisonOp(operator)) {
       return undefined;
     }
-    return Filter.number({ min: draft.min, max: draft.max });
+    if (draft.kind !== "single-number" || draft.value === undefined) {
+      return undefined;
+    }
+    return Filter.number({ operator, value: draft.value });
   }
   if (type === "text") {
-    if (!draft.text) {
+    if (
+      operator === "is_null" ||
+      operator === "is_not_null" ||
+      operator === "is_empty"
+    ) {
+      return Filter.text({ operator });
+    }
+    if (operator === "in" || operator === "not_in") {
+      if (
+        draft.kind !== "multi-text" ||
+        !draft.values ||
+        draft.values.length === 0
+      ) {
+        return undefined;
+      }
+      return Filter.text({ operator, values: draft.values });
+    }
+    if (!isTextScalarOp(operator)) {
       return undefined;
     }
-    return Filter.text({
-      text: draft.text,
-      operator: "contains",
-    });
+    if (draft.kind !== "single-text" || !draft.text) {
+      return undefined;
+    }
+    return Filter.text({ operator, text: draft.text });
   }
   if (type === "boolean") {
     if (operator === "is_true") {
-      return Filter.boolean({
-        value: true,
-        operator: "is_true",
-      });
+      return Filter.boolean({ value: true, operator: "is_true" });
     }
     if (operator === "is_false") {
-      return Filter.boolean({
-        value: false,
-        operator: "is_false",
-      });
+      return Filter.boolean({ value: false, operator: "is_false" });
+    }
+    if (operator === "is_null" || operator === "is_not_null") {
+      return Filter.boolean({ operator });
     }
     return undefined;
   }
   if (type === "select") {
-    if (!draft.options || draft.options.length === 0) {
+    if (
+      draft.kind !== "options" ||
+      !draft.options ||
+      draft.options.length === 0
+    ) {
       return undefined;
     }
     return Filter.select({

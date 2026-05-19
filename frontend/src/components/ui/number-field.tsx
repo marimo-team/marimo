@@ -62,6 +62,7 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
               slot="increment"
               isDisabled={props.isDisabled}
               variant={variant}
+              excludeFromTabOrder={true}
             >
               <ChevronUp
                 aria-hidden={true}
@@ -73,6 +74,7 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
               slot="decrement"
               isDisabled={props.isDisabled}
               variant={variant}
+              excludeFromTabOrder={true}
             >
               <ChevronDown
                 aria-hidden={true}
