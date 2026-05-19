@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, Literal
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, ClassVar, Literal, Protocol
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -40,6 +40,29 @@ class MarkdownExportDocument:
     metadata: dict[str, str | list[str]]
     header: str | None
     blocks: list[MarkdownExportBlock]
+
+
+@dataclass
+class MarkdownImportContext:
+    """Mutable state shared by markdown import dialects."""
+
+    metadata: dict[str, str] = field(default_factory=dict)
+
+
+class MarkdownImportDialect(Protocol):
+    """Source markdown syntax adapter for the canonical importer."""
+
+    name: MarkdownFlavorName
+
+    def matches(self, text: str, filepath: str | None) -> bool:
+        """Return whether this dialect should preprocess the markdown."""
+        ...
+
+    def preprocess(
+        self, lines: list[str], context: MarkdownImportContext
+    ) -> list[str]:
+        """Normalize source markdown before the canonical importer runs."""
+        ...
 
 
 class MarkdownFlavor(ABC):
