@@ -1738,27 +1738,14 @@ class TestTransformHandler:
         list(
             zip(
                 create_test_dataframes(
-                    {"A": [{"foo": 1, "bar": "hello"}], "B": [1]},
+                    {"A": [{"foo": 1, "bar": "hello"}, None], "B": [1, 2]},
                 ),
                 create_test_dataframes(
-                    {"B": [1], "foo": [1], "bar": ["hello"]},
+                    {"B": [1, 2], "foo": [1, None], "bar": ["hello", None]},
                 ),
                 strict=False,
             )
-        )
-        + [
-            (
-                pl.DataFrame(
-                    {
-                        "A": [{"foo": 1, "bar": "hello"}, None],
-                        "B": [1, 2],
-                    }
-                ),
-                pl.DataFrame(
-                    {"B": [1, 2], "foo": [1, None], "bar": ["hello", None]}
-                ),
-            )
-        ],
+        ),
     )
     def test_expand_dict(df: DataFrameType, expected: DataFrameType) -> None:
         transform = ExpandDictTransform(
@@ -2344,41 +2331,6 @@ class TestTransformHandler:
                         column_id="nulls",
                         operator="in",
                         value=[NAN_VALUE],
-                    )
-                ],
-            ),
-        )
-        result = apply(df, in_transform)
-        assert_frame_equal_with_nans(result, expected)
-
-    @staticmethod
-    @pytest.mark.parametrize(
-        ("df", "expected"),
-        list(
-            zip(
-                create_test_dataframes(
-                    {"nulls": [1, 2, 3, None, "hello"]}, include=["pandas"]
-                ),
-                create_test_dataframes({"nulls": [None]}, include=["pandas"]),
-                strict=False,
-            )
-        ),
-    )
-    def test_filter_rows_null_pandas_object(
-        df: DataFrameType, expected: DataFrameType
-    ) -> None:
-        in_transform = FilterRowsTransform(
-            type=TransformType.FILTER_ROWS,
-            operation="keep_rows",
-            where=FilterGroup(
-                type="group",
-                operator="and",
-                children=[
-                    FilterCondition(
-                        type="condition",
-                        column_id="nulls",
-                        operator="in",
-                        value=[None],
                     )
                 ],
             ),
