@@ -63,7 +63,7 @@ def _ensure_plain_str(s: str) -> str:
 
 
 # These streams are not stoppable by users (we don't implement stop).
-class Stdout(io.TextIOBase):
+class Stdout(io.TextIOBase, abc.ABC):
     name = "stdout"
 
     @abc.abstractmethod
@@ -81,7 +81,7 @@ class Stdout(io.TextIOBase):
         """Tear down resources, if any."""
 
 
-class Stderr(io.TextIOBase):
+class Stderr(io.TextIOBase, abc.ABC):
     name = "stderr"
 
     @abc.abstractmethod
@@ -99,7 +99,7 @@ class Stderr(io.TextIOBase):
         """Tear down resources, if any."""
 
 
-class Stdin(io.TextIOBase):
+class Stdin(io.TextIOBase, abc.ABC):
     name = "stdin"
 
     @abc.abstractmethod
