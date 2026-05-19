@@ -21,6 +21,7 @@ def test_format_filename_title():
     assert _format_filename_title("/path/to/my_notebook.py") == "My Notebook"
     assert _format_filename_title("simple.py") == "Simple"
     assert _format_filename_title("my-cool_notebook.md") == "My Cool Notebook"
+    assert _format_filename_title("notebook.myst.md") == "Notebook"
 
 
 def test_get_sql_options_from_cell_basic():

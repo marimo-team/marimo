@@ -213,6 +213,29 @@ def test_export_markdown(client: TestClient) -> None:
     )
 
 
+@with_session(SESSION_ID)
+def test_export_markdown_download_uses_qmd_filename(
+    client: TestClient, *, temp_marimo_file: str
+) -> None:
+    qmd_path = Path(temp_marimo_file).with_suffix(".qmd")
+    qmd_path.write_text("```{marimo .python}\nx = 1\n```", encoding="utf-8")
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = str(qmd_path)
+
+    response = client.post(
+        "/api/export/markdown",
+        headers=HEADERS,
+        json={
+            "download": True,
+        },
+    )
+
+    assert response.status_code == 200
+    assert "```{marimo .python" in response.text
+    assert qmd_path.name in response.headers["Content-Disposition"]
+
+
 @pytest.mark.skipif(
     not DependencyManager.nbformat.has(), reason="nbformat not installed"
 )

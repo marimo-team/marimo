@@ -19,6 +19,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.notification import CellNotification
 from marimo._server.export import (
+    export_as_md,
     export_as_wasm,
     run_app_then_export_as_pdf,
     run_app_until_completion,
@@ -46,6 +47,29 @@ HAS_DEPS = (
     and DependencyManager.altair.has()
     and DependencyManager.matplotlib.has()
 )
+
+
+@pytest.mark.parametrize(
+    ("filename", "source", "expected_fence"),
+    [
+        ("demo.qmd", "```{marimo .python}\nx = 1\n```", "```{marimo .python"),
+        (
+            "demo.myst.md",
+            "```{marimo} python\nx = 1\n```",
+            "```{marimo} python",
+        ),
+    ],
+)
+def test_export_as_md_uses_resolved_markdown_filename(
+    tmp_path: Path, filename: str, source: str, expected_fence: str
+) -> None:
+    notebook = tmp_path / filename
+    notebook.write_text(source, encoding="utf-8")
+
+    result = export_as_md(MarimoPath(notebook))
+
+    assert result.download_filename == filename
+    assert expected_fence in result.text
 
 
 def _print_messages(messages: list[CellNotification]) -> str:
