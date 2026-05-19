@@ -173,7 +173,7 @@ export const Combobox = <TValue,>({
       <Popover
         open={open}
         onOpenChange={(v) => {
-          if (disabled) {
+          if (disabled && v) {
             return;
           }
           setOpen(v);
