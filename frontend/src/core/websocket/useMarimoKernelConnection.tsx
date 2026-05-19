@@ -93,9 +93,7 @@ export type CloseDecision =
   | { kind: "gave-up"; status: ConnectionStatus }
   | { kind: "retry"; status: ConnectionStatus };
 
-export function classifyCloseEvent(event: {
-  reason?: string;
-}): CloseDecision {
+export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
   switch (event.reason as CloseReason | undefined) {
     case "MARIMO_ALREADY_CONNECTED":
       return {
