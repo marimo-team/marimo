@@ -44,16 +44,13 @@ import { OPERATOR_LABELS } from "./operator-labels";
 import {
   type ColumnFilterForType,
   type ColumnFilterValue,
-  DATETIME_COMPARISON_OPS,
   DATETIME_OPS,
-  type DatetimeComparisonOp,
   Filter,
-  NUMBER_COMPARISON_OPS,
-  type NumberComparisonOp,
+  isDatetimeComparisonOp,
+  isNumberComparisonOp,
+  isTextScalarOp,
   NUMBER_OPS,
   TEXT_OPS,
-  TEXT_SCALAR_OPS,
-  type TextScalarOp,
 } from "./filters";
 import {
   type DateLikeFilterType,
@@ -379,12 +376,6 @@ const BooleanFilter = <TData, TValue>({
   );
 };
 
-const NUMBER_COMPARISON_SET: ReadonlySet<OperatorType> = new Set(
-  NUMBER_COMPARISON_OPS,
-);
-const isNumberComparisonOp = (op: OperatorType): op is NumberComparisonOp =>
-  NUMBER_COMPARISON_SET.has(op);
-
 type NumberComparisonFilter = Extract<
   ColumnFilterForType<"number">,
   { value: number }
@@ -494,12 +485,6 @@ export const NumberFilterMenu = <TData, TValue>({
     </div>
   );
 };
-
-const DATETIME_COMPARISON_SET: ReadonlySet<OperatorType> = new Set(
-  DATETIME_COMPARISON_OPS,
-);
-const isDatetimeComparisonOp = (op: OperatorType): op is DatetimeComparisonOp =>
-  DATETIME_COMPARISON_SET.has(op);
 
 type DateComparisonFilter = Extract<
   ColumnFilterForType<DateLikeFilterType>,
@@ -623,10 +608,6 @@ export const DateFilterMenu = <TData, TValue>({
     </div>
   );
 };
-
-const TEXT_SCALAR_SET: ReadonlySet<OperatorType> = new Set(TEXT_SCALAR_OPS);
-const isTextScalarOp = (op: OperatorType): op is TextScalarOp =>
-  TEXT_SCALAR_SET.has(op);
 
 export const TextFilterMenu = <TData, TValue>({
   column,

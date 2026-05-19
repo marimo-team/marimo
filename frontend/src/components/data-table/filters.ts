@@ -83,6 +83,15 @@ export type NumberComparisonOp = (typeof NUMBER_COMPARISON_OPS)[number];
 export type TextScalarOp = (typeof TEXT_SCALAR_OPS)[number];
 export type DatetimeComparisonOp = (typeof DATETIME_COMPARISON_OPS)[number];
 
+const makeOpGuard = <T extends OperatorType>(ops: readonly T[]) => {
+  const set = new Set<OperatorType>(ops);
+  return (op: OperatorType): op is T => set.has(op);
+};
+
+export const isNumberComparisonOp = makeOpGuard(NUMBER_COMPARISON_OPS);
+export const isTextScalarOp = makeOpGuard(TEXT_SCALAR_OPS);
+export const isDatetimeComparisonOp = makeOpGuard(DATETIME_COMPARISON_OPS);
+
 interface NullishOpts {
   operator: NullishOp;
 }

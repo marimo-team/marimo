@@ -17,23 +17,46 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Button } from "../ui/button";
+import { DateLikeInput, DateLikeRangeInput } from "./date-filter-inputs";
 import { FilterByValuesPicker } from "./filter-by-values-picker";
 import { RegexInput } from "./regex-input";
 import {
   type ColumnFilterValue,
+  DATETIME_OPS,
   Filter,
+  isDatetimeComparisonOp,
+  isNumberComparisonOp,
+  isTextScalarOp,
   MEMBERSHIP_OPS,
-  NUMBER_COMPARISON_OPS,
-  type NumberComparisonOp,
   NUMBER_OPS,
   TEXT_OPS,
-  TEXT_SCALAR_OPS,
-  type TextScalarOp,
 } from "./filters";
 import { OPERATOR_LABELS } from "./operator-labels";
 import { Tooltip } from "../ui/tooltip";
 
-type EditableFilterType = "number" | "text" | "boolean" | "select";
+type EditableFilterType =
+  | "number"
+  | "text"
+  | "boolean"
+  | "select"
+  | "date"
+  | "datetime"
+  | "time";
+
+type DateLikeEditableFilterType = Extract<
+  EditableFilterType,
+  "date" | "datetime" | "time"
+>;
+
+const DATE_LIKE_TYPES: ReadonlySet<EditableFilterType> = new Set([
+  "date",
+  "datetime",
+  "time",
+]);
+
+const isDateLikeType = (
+  type: EditableFilterType,
+): type is DateLikeEditableFilterType => DATE_LIKE_TYPES.has(type);
 
 const BOOLEAN_OPS = ["is_true", "is_false", "is_null", "is_not_null"] as const;
 const SELECT_OPS = MEMBERSHIP_OPS;
@@ -46,6 +69,9 @@ const OPERATORS_BY_TYPE: Record<
   text: TEXT_OPS,
   boolean: BOOLEAN_OPS,
   select: SELECT_OPS,
+  date: DATETIME_OPS,
+  datetime: DATETIME_OPS,
+  time: DATETIME_OPS,
 };
 
 const DEFAULT_OPERATOR: Record<EditableFilterType, OperatorType> = {
@@ -53,6 +79,9 @@ const DEFAULT_OPERATOR: Record<EditableFilterType, OperatorType> = {
   text: "contains",
   boolean: "is_true",
   select: "in",
+  date: "between",
+  datetime: "between",
+  time: "between",
 };
 
 const OPERATORS_WITHOUT_VALUE = new Set<OperatorType>([
@@ -63,22 +92,14 @@ const OPERATORS_WITHOUT_VALUE = new Set<OperatorType>([
   "is_empty",
 ]);
 
-const NUMBER_COMPARISON_SET: ReadonlySet<OperatorType> = new Set(
-  NUMBER_COMPARISON_OPS,
-);
-const TEXT_SCALAR_SET: ReadonlySet<OperatorType> = new Set(TEXT_SCALAR_OPS);
-
-const isNumberComparisonOp = (op: OperatorType): op is NumberComparisonOp =>
-  NUMBER_COMPARISON_SET.has(op);
-const isTextScalarOp = (op: OperatorType): op is TextScalarOp =>
-  TEXT_SCALAR_SET.has(op);
-
 type DraftValue =
   | { kind: "between"; min?: number; max?: number }
   | { kind: "single-number"; value?: number }
   | { kind: "single-text"; text?: string }
   | { kind: "multi-text"; values?: string[] }
   | { kind: "options"; options?: unknown[] }
+  | { kind: "date-between"; min?: Date; max?: Date }
+  | { kind: "date-single"; value?: Date }
   | { kind: "none" };
 
 interface Snapshot {
@@ -116,7 +137,13 @@ export const FilterPillEditor = <TData,>({
   const editableColumns = table.getAllColumns().filter((c) => {
     const ft = c.columnDef.meta?.filterType;
     return (
-      ft === "number" || ft === "text" || ft === "boolean" || ft === "select"
+      ft === "number" ||
+      ft === "text" ||
+      ft === "boolean" ||
+      ft === "select" ||
+      ft === "date" ||
+      ft === "datetime" ||
+      ft === "time"
     );
   });
 
@@ -426,6 +453,37 @@ const ValueSlot = <TData, TValue>({
       />
     );
   }
+  if (isDateLikeType(type) && operator === "between") {
+    const v =
+      value.kind === "date-between" ? value : { kind: "date-between" as const };
+    return (
+      <DateLikeRangeInput
+        filterType={type}
+        min={v.min}
+        max={v.max}
+        onMinChange={(min) =>
+          onChange({ kind: "date-between", min, max: v.max })
+        }
+        onMaxChange={(max) =>
+          onChange({ kind: "date-between", min: v.min, max })
+        }
+        className="border-input"
+      />
+    );
+  }
+  if (isDateLikeType(type) && isDatetimeComparisonOp(operator)) {
+    const v =
+      value.kind === "date-single" ? value : { kind: "date-single" as const };
+    return (
+      <DateLikeInput
+        filterType={type}
+        value={v.value}
+        onChange={(next) => onChange({ kind: "date-single", value: next })}
+        aria-label="value"
+        className="border-input"
+      />
+    );
+  }
   if (type === "select" && column) {
     const v = value.kind === "options" ? value : { kind: "options" as const };
     return (
@@ -443,19 +501,18 @@ const ValueSlot = <TData, TValue>({
 };
 
 function getEditableType(value: ColumnFilterValue): EditableFilterType {
-  if (value.type === "number") {
-    return "number";
+  switch (value.type) {
+    case "number":
+    case "text":
+    case "boolean":
+    case "select":
+    case "date":
+    case "datetime":
+    case "time":
+      return value.type;
+    default:
+      return "text";
   }
-  if (value.type === "text") {
-    return "text";
-  }
-  if (value.type === "boolean") {
-    return "boolean";
-  }
-  if (value.type === "select") {
-    return "select";
-  }
-  return "text";
 }
 
 function toDraftValue(value: ColumnFilterValue): DraftValue {
@@ -486,6 +543,21 @@ function toDraftValue(value: ColumnFilterValue): DraftValue {
   if (value.type === "select") {
     return { kind: "options", options: [...value.options] };
   }
+  if (
+    value.type === "date" ||
+    value.type === "datetime" ||
+    value.type === "time"
+  ) {
+    switch (value.operator) {
+      case "between":
+        return { kind: "date-between", min: value.min, max: value.max };
+      case "is_null":
+      case "is_not_null":
+        return { kind: "none" };
+      default:
+        return { kind: "date-single", value: value.value };
+    }
+  }
   return { kind: "none" };
 }
 
@@ -509,6 +581,11 @@ function emptyDraftFor(
   if (type === "select") {
     return { kind: "options", options: [] };
   }
+  if (isDateLikeType(type)) {
+    return operator === "between"
+      ? { kind: "date-between" }
+      : { kind: "date-single" };
+  }
   return { kind: "none" };
 }
 
@@ -516,7 +593,7 @@ function getMissingValueMessage(
   type: EditableFilterType,
   operator: OperatorType,
 ): string {
-  if (type === "number" && operator === "between") {
+  if (operator === "between") {
     return "Min and max are required";
   }
   if (type === "text" && (operator === "in" || operator === "not_in")) {
@@ -610,6 +687,34 @@ function buildFilterValue({
       options: draft.options,
       operator: operator === "not_in" ? "not_in" : "in",
     });
+  }
+  if (isDateLikeType(type)) {
+    const factory =
+      type === "date"
+        ? Filter.date
+        : type === "datetime"
+          ? Filter.datetime
+          : Filter.time;
+    if (operator === "is_null" || operator === "is_not_null") {
+      return factory({ operator });
+    }
+    if (operator === "between") {
+      if (
+        draft.kind !== "date-between" ||
+        draft.min === undefined ||
+        draft.max === undefined
+      ) {
+        return undefined;
+      }
+      return factory({ operator: "between", min: draft.min, max: draft.max });
+    }
+    if (!isDatetimeComparisonOp(operator)) {
+      return undefined;
+    }
+    if (draft.kind !== "date-single" || draft.value === undefined) {
+      return undefined;
+    }
+    return factory({ operator, value: draft.value });
   }
   return undefined;
 }
