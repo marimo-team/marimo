@@ -502,7 +502,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
 
             result_df = native_df.copy()
             expanded = pd.json_normalize(
-                result_df.pop(transform.column_id),
+                result_df.pop(transform.column_id),  # type: ignore[arg-type]
             )
             expanded.index = result_df.index
             return undo(nw.from_native(result_df.join(expanded)))
