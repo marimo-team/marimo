@@ -16,7 +16,6 @@ from marimo._runtime.context.types import (
 )
 from marimo._runtime.control_flow import MarimoStopError
 from marimo._runtime.exceptions import (
-    MarimoMissingRefError,
     MarimoRuntimeException,
     unwrap_user_exception,
 )
@@ -256,25 +255,9 @@ class AppScriptRunner:
                 )
             return outputs, defs
 
-        # Cell runner manages the exception handling for kernel
-        # runner, but script runner should raise the wrapped
-        # exception if invoked directly.
+        # Raise the wrapped user exception from "None" so the stack
+        # trace points at the failing cell, not the runner.
         except MarimoRuntimeException as e:
-            # MarimoMissingRefError, wraps the under lying NameError
-            # for context, so we raise the NameError directly.
-            if isinstance(e.__cause__, MarimoMissingRefError):
-                # For type checking + sanity check
-                if not isinstance(e.__cause__.name_error, NameError):
-                    raise MarimoRuntimeException(
-                        "Unexpected error occurred while running the app. "
-                        "Improperly wrapped MarimoMissingRefError exception. "
-                        "Please report this issue to "
-                        "https://github.com/marimo-team/marimo/issues"
-                    ) from e.__cause__
-                raise e.__cause__.name_error from e.__cause__
-            # For all other exceptions, we raise the wrapped exception
-            # from "None" to indicate this is an Error propagation, and to not
-            # muddy the stacktrace from the failing cells themselves.
             raise e.__cause__ from None  # type: ignore
         finally:
             if installed_script_context:
