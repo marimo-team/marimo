@@ -141,6 +141,7 @@ def test_mystmd_marimo_directives() -> None:
 
     ```{marimo} sql
     :query: result
+    :engine: engines["primary"]
 
     SELECT 1
     ```
@@ -166,6 +167,10 @@ def test_mystmd_marimo_directives() -> None:
     )
     assert "SELECT 1" in app.cell_manager.cell_data_at(ids[2]).code
     assert "result" in app.cell_manager.cell_data_at(ids[2]).code
+    assert (
+        'engine=engines["primary"]'
+        in app.cell_manager.cell_data_at(ids[2]).code
+    )
 
 
 def test_mystmd_preprocessor_registers_conditionally() -> None:
