@@ -159,12 +159,16 @@ function pad2(n: number): string {
   return n.toString().padStart(2, "0");
 }
 
-function dateToISODate(d: Date): string {
+export function dateToISODate(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
-function dateToISOTime(d: Date): string {
+export function dateToISOTime(d: Date): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+export function dateToISODateTime(d: Date): string {
+  return `${dateToISODate(d)}T${dateToISOTime(d)}`;
 }
 
 function isNullishFilter(
@@ -275,7 +279,7 @@ export function filterToFilterCondition(
           ? dateToISODate
           : filter.type === "time"
             ? dateToISOTime
-            : (d: Date) => d.toISOString();
+            : dateToISODateTime;
       switch (filter.operator) {
         case "between":
           return [

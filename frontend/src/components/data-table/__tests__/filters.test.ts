@@ -250,9 +250,9 @@ describe("filterToFilterCondition", () => {
     ]);
   });
 
-  it("handles datetime between filter as ISO string", () => {
-    const min = new Date("2024-01-01T00:00:00.000Z");
-    const max = new Date("2024-12-31T23:59:59.000Z");
+  it("handles datetime between filter as local ISO string without TZ", () => {
+    const min = new Date(2024, 0, 1, 0, 0, 0);
+    const max = new Date(2024, 11, 31, 23, 59, 59);
     const result = filterToFilterCondition(
       "created",
       Filter.datetime({ operator: "between", min, max }),
@@ -261,7 +261,10 @@ describe("filterToFilterCondition", () => {
       {
         column_id: "created",
         operator: "between",
-        value: { min: min.toISOString(), max: max.toISOString() },
+        value: {
+          min: "2024-01-01T00:00:00",
+          max: "2024-12-31T23:59:59",
+        },
         type: "condition",
         negate: false,
       },
