@@ -492,9 +492,21 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_expand_dict(
         df: DataFrame, transform: ExpandDictTransform
     ) -> DataFrame:
-        # Convert to Polars for native unnest, which handles null values
-        # correctly (fixes: 'NoneType' cannot be converted to 'PyDict' issue #4583)
         collected_df, undo = collect_and_preserve_type(df)
+        native_df = collected_df.to_native()
+
+        # Keep pandas handling fully pandas-native so mixed/object columns in
+        # unrelated fields do not trigger Arrow coercion errors.
+        if nw.dependencies.is_pandas_dataframe(native_df):
+            import pandas as pd
+
+            result_df = native_df.copy()
+            expanded = pd.json_normalize(
+                result_df.pop(transform.column_id),
+            )
+            expanded.index = result_df.index
+            return undo(nw.from_native(result_df.join(expanded)))
+
         polars_df = collected_df.to_polars()
         unnested = polars_df.unnest(transform.column_id)
         return undo(nw.from_native(unnested))
