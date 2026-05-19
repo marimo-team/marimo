@@ -736,16 +736,10 @@ class AutoExporter:
         )
 
     async def _save_file(
-        self,
-        filename: str | None,
-        content: str,
-        extension: str,
-        download_filename: str | None = None,
+        self, filename: str | None, content: str, extension: str
     ) -> None:
         notebook_path = get_filename(filename)
-        download_name = download_filename or get_download_filename(
-            filename, extension
-        )
+        download_name = get_download_filename(filename, extension)
         export_dir = notebook_output_dir(notebook_path)
 
         await self._ensure_export_dir_async(export_dir)
@@ -760,15 +754,8 @@ class AutoExporter:
     async def save_html(self, filename: str | None, html: str) -> None:
         await self._save_file(filename, html, "html")
 
-    async def save_md(
-        self,
-        filename: str | None,
-        markdown: str,
-        download_filename: str | None = None,
-    ) -> None:
-        await self._save_file(
-            filename, markdown, "md", download_filename=download_filename
-        )
+    async def save_md(self, filename: str | None, markdown: str) -> None:
+        await self._save_file(filename, markdown, "md")
 
     async def save_ipynb(self, filename: str | None, ipynb: str) -> None:
         await self._save_file(filename, ipynb, "ipynb")

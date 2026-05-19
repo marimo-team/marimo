@@ -36,10 +36,7 @@ from marimo._runtime.commands import (
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._server.export.exporter import Exporter
 from marimo._server.files.os_file_system import OSFileSystem
-from marimo._server.models.export import (
-    ExportAsHTMLRequest,
-    ExportAsMarkdownRequest,
-)
+from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.files import (
     FileCopyRequest,
     FileCopyResponse,
@@ -418,10 +415,8 @@ class PyodideBridge:
         return json.dumps(html)
 
     def export_markdown(self, request: str) -> str:
-        parsed = self._parse(request, ExportAsMarkdownRequest)
-        md = convert_from_ir_to_markdown(
-            self.session.app_manager.app.to_ir(), flavor=parsed.flavor
-        )
+        del request
+        md = convert_from_ir_to_markdown(self.session.app_manager.app.to_ir())
         return json.dumps(md)
 
     def _parse(self, request: str, cls: type[T]) -> T:

@@ -19,10 +19,6 @@ from marimo._config.manager import (
 )
 from marimo._convert.common.filename import get_download_filename
 from marimo._convert.converters import MarimoConvert
-from marimo._convert.markdown.flavor import (
-    markdown_output_filename,
-    normalize_markdown_flavor,
-)
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import Error, is_unexpected_error
 from marimo._messaging.notification import (
@@ -55,7 +51,6 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from marimo._convert.markdown.flavor.base import MarkdownFlavorName
     from marimo._server.export._pdf_raster import PDFRasterizationOptions
     from marimo._server.export._status import PDFExportStatusCallback
     from marimo._session.state.session_view import SessionView
@@ -107,23 +102,11 @@ def export_as_script(path: MarimoPath) -> ExportResult:
     )
 
 
-def export_as_md(
-    path: MarimoPath,
-    flavor: MarkdownFlavorName | None = None,
-    filename: str | None = None,
-) -> ExportResult:
+def export_as_md(path: MarimoPath) -> ExportResult:
     ir = _as_ir(path)
-    export_filename = filename or ir.filename or path.short_name
-    markdown_flavor = normalize_markdown_flavor(
-        flavor, filename=export_filename
-    )
     return ExportResult(
-        contents=MarimoConvert.from_ir(ir).to_markdown(
-            filename=export_filename, flavor=markdown_flavor
-        ),
-        download_filename=markdown_output_filename(
-            export_filename, markdown_flavor
-        ),
+        contents=MarimoConvert.from_ir(ir).to_markdown(),
+        download_filename=get_download_filename(path.short_name, "md"),
         did_error=False,
     )
 

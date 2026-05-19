@@ -902,13 +902,6 @@ def test_pyodide_bridge_export_markdown(
     assert isinstance(markdown, str)
     assert len(markdown) > 0
 
-    result = pyodide_bridge.export_markdown(
-        json.dumps({"download": False, "flavor": "qmd"})
-    )
-    markdown = json.loads(result)
-
-    assert "```{marimo .python" in markdown
-
 
 async def test_pyodide_bridge_read_snippets(
     pyodide_bridge: PyodideBridge,

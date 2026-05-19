@@ -1620,17 +1620,9 @@ components:
     ExportAsMarkdownRequest:
       properties:
         download:
-          default: false
           type: boolean
-        flavor:
-          anyOf:
-          - enum:
-            - mystmd
-            - pymdown
-            - qmd
-          - type: 'null'
-          default: null
-      required: []
+      required:
+      - download
       title: ExportAsMarkdownRequest
       type: object
     ExportAsPDFRequest:
@@ -7123,3 +7115,4 @@ paths:
       summary: Get the auth token for the current session
       tags:
       - auth
+
