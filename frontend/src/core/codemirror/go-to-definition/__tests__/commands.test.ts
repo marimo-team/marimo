@@ -253,6 +253,73 @@ a = 10`;
     `);
   });
 
+  test("from-import alias is the binding, not the imported name", async () => {
+    const code = `\
+from math import sin as my_sin
+print(my_sin)`;
+    view = createEditor(code);
+    const usagePosition = code.lastIndexOf("my_sin");
+    const result = goToVariableDefinition(view, "my_sin", usagePosition);
+
+    expect(result).toBe(true);
+    await tick();
+    // The alias `my_sin` (after `as`) is the real binding.
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      from math import sin as my_sin
+                              ^
+      print(my_sin)
+      "
+    `);
+  });
+
+  test("module path in from-import is not a local definition", async () => {
+    const code = `\
+from math import sin
+print(math)`;
+    view = createEditor(code);
+    const usagePosition = code.lastIndexOf("math");
+    // `math` is a module reference in the from-clause, not a binding in this
+    // cell, so the scoped resolver should return false and let the caller fall
+    // through to cross-cell resolution.
+    const result = goToVariableDefinition(view, "math", usagePosition);
+
+    expect(result).toBe(false);
+    expect(view.state.selection.main.head).toBe(0);
+  });
+
+  test("imported name without `as` is a local definition", async () => {
+    const code = `\
+from math import sin
+print(sin)`;
+    view = createEditor(code);
+    const usagePosition = code.lastIndexOf("sin");
+    const result = goToVariableDefinition(view, "sin", usagePosition);
+
+    expect(result).toBe(true);
+    await tick();
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      from math import sin
+                       ^
+      print(sin)
+      "
+    `);
+  });
+
+  test("imported name shadowed by `as` is not a binding", async () => {
+    const code = `\
+from math import sin as my_sin
+print(sin)`;
+    view = createEditor(code);
+    const usagePosition = code.lastIndexOf("sin");
+    // `sin` here refers to nothing in this cell (it was renamed to `my_sin`),
+    // so the scoped resolver should return false.
+    const result = goToVariableDefinition(view, "sin", usagePosition);
+
+    expect(result).toBe(false);
+  });
+
   test("selects outer-scope function declaration", async () => {
     view = createEditor(`\
 def x():

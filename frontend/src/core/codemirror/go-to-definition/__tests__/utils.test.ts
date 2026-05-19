@@ -133,4 +133,48 @@ output = _x + 10`;
     await tick();
     expect(view.state.selection.main.head).toBe(code.indexOf("_x = 10"));
   });
+
+  test("falls through to cross-cell when in-cell occurrence is only a module path in a from-import", async () => {
+    // Regression: ImportStatement used to register every VariableName child
+    // (the module path and pre-`as` names) as in-cell declarations, so the
+    // local-first short-circuit would steal F12 from cross-cell resolution.
+    const moduleCell = cellId("module-cell");
+    const usageCell = cellId("usage-cell");
+    const moduleCode = `mymodule = 100`;
+    const usageCode = `\
+from mymodule import something
+print(mymodule)`;
+
+    const moduleView = createEditor(moduleCode, moduleCode.length);
+    const usageView = createEditor(usageCode, usageCode.lastIndexOf("mymodule"));
+    views.push(moduleView, usageView);
+
+    const notebook = initialNotebookState();
+    notebook.cellHandles[moduleCell] = {
+      current: { editorView: moduleView, editorViewOrNull: moduleView },
+    } as never;
+    notebook.cellHandles[usageCell] = {
+      current: { editorView: usageView, editorViewOrNull: usageView },
+    } as never;
+
+    store.set(notebookAtom, notebook);
+    store.set(variablesAtom, {
+      [variableName("mymodule")]: {
+        dataType: "int",
+        declaredBy: [moduleCell],
+        name: variableName("mymodule"),
+        usedBy: [usageCell],
+        value: "100",
+      },
+    });
+
+    const result = goToDefinitionAtCursorPosition(usageView);
+
+    expect(result).toBe(true);
+    await tick();
+    // Cross-cell jump: moduleView's cursor should land on `mymodule = 100`.
+    expect(moduleView.state.selection.main.head).toBe(
+      moduleCode.indexOf("mymodule"),
+    );
+  });
 });
