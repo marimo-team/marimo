@@ -399,8 +399,7 @@ async def auto_export_as_markdown(
         body.flavor, filename="notebook.md"
     ).name
 
-    # If we have already exported to Markdown with this flavor, don't do it
-    # again.
+    # If we have already exported to Markdown with this flavor, don't do it again.
     if not session_view.needs_md_export(markdown_flavor):
         LOGGER.debug("Already auto-exported to Markdown")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
