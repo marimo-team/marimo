@@ -12,9 +12,15 @@ from marimo import __version__
 from marimo._ast.app import InternalApp
 from marimo._ast.load import load_notebook_ir
 from marimo._convert.converters import MarimoConvert
+from marimo._convert.markdown.from_ir import convert_from_ir_to_markdown
 from marimo._convert.markdown.to_ir import (
-    MarimoMdParser,
     convert_from_md_to_marimo_ir,
+)
+from marimo._schemas.serialization import (
+    AppInstantiation,
+    CellDef,
+    Header,
+    NotebookSerializationV1,
 )
 
 # Just a handful of scripts to test
@@ -173,15 +179,155 @@ def test_mystmd_marimo_directives() -> None:
     )
 
 
-def test_mystmd_preprocessor_registers_conditionally() -> None:
-    plain_parser = MarimoMdParser(output_format="marimo-ir")
-    mystmd_parser = MarimoMdParser(
-        output_format="marimo-ir",
-        enable_mystmd=True,
+def test_mystmd_marimo_config_directive() -> None:
+    config_lines = (
+        "```{marimo-config}",
+        "---",
+        "header: |-",
+        "  import os",
+        "pyproject: |-",
+        '  dependencies = ["polars"]',
+        "---",
+        "````",
+    )
+    script_lines = (
+        *config_lines,
+        "",
+        "# Notebook",
+        "",
+        "```{marimo} python",
+        "x = 1",
+        "```",
+    )
+    script = "\n".join(script_lines)
+
+    notebook_ir = convert_from_md_to_marimo_ir(script)
+    app = InternalApp(load_notebook_ir(notebook_ir))
+
+    assert notebook_ir.header is not None
+    assert "import os" in notebook_ir.header.value
+    assert 'dependencies = ["polars"]' in notebook_ir.header.value
+
+    ids = list(app.cell_manager.cell_ids())
+    assert len(ids) == 2
+    assert app.cell_manager.cell_data_at(ids[0]).code.startswith("mo.md")
+    assert app.cell_manager.cell_data_at(ids[1]).code == "x = 1"
+
+
+def test_mystmd_marimo_config_directive_only() -> None:
+    script_lines = (
+        "```{marimo-config}",
+        "---",
+        "header: |-",
+        "  import os",
+        "pyproject: |-",
+        '  dependencies = ["polars"]',
+        "---",
+        "```",
+    )
+    script = "\n".join(script_lines)
+
+    notebook_ir = convert_from_md_to_marimo_ir(script)
+
+    assert notebook_ir.cells == []
+    assert notebook_ir.header is not None
+    assert "import os" in notebook_ir.header.value
+    assert 'dependencies = ["polars"]' in notebook_ir.header.value
+
+
+def test_mystmd_marimo_config_keeps_indented_yaml_delimiters() -> None:
+    from marimo._utils import yaml
+
+    script_lines = (
+        "```{marimo-config}",
+        "---",
+        "header: |-",
+        "  before",
+        "  ---",
+        "  after",
+        "---",
+        "```",
     )
 
-    assert "mystmd-marimo" not in plain_parser.preprocessors
-    assert "mystmd-marimo" in mystmd_parser.preprocessors
+    notebook_ir = convert_from_md_to_marimo_ir("\n".join(script_lines))
+
+    assert notebook_ir.header is not None
+    assert (
+        yaml.load(notebook_ir.header.value)["header"] == "before\n---\nafter"
+    )
+
+
+def test_mystmd_marimo_config_directive_reexports() -> None:
+    script_lines = (
+        "```{marimo-config}",
+        "---",
+        "header: |-",
+        "  import os",
+        "pyproject: |-",
+        '  dependencies = ["polars"]',
+        "---",
+        "```",
+        "",
+        "```{marimo} python",
+        "x = 1",
+        "```",
+    )
+    notebook_ir = convert_from_md_to_marimo_ir("\n".join(script_lines))
+
+    markdown = convert_from_ir_to_markdown(
+        notebook_ir, filename="notebook.myst.md", flavor="mystmd"
+    )
+
+    assert "```{marimo-config}" in markdown
+    assert "import os" in markdown
+    assert 'dependencies = ["polars"]' in markdown
+    assert "```{marimo} python\nx = 1\n```" in markdown
+
+
+def test_mystmd_exported_config_directive_round_trips() -> None:
+    header_lines = (
+        "header: |-",
+        "  import os",
+        "pyproject: |-",
+        '  dependencies = ["polars"]',
+    )
+    notebook = NotebookSerializationV1(
+        app=AppInstantiation(options={}),
+        cells=[CellDef(name="__", code="x = 1", options={})],
+        header=Header(value="\n".join(header_lines)),
+        filename="notebook.py",
+    )
+
+    markdown = convert_from_ir_to_markdown(
+        notebook, filename="notebook.myst.md", flavor="mystmd"
+    )
+    round_tripped = convert_from_md_to_marimo_ir(markdown)
+
+    assert "```{marimo-config}" in markdown
+    assert len(round_tripped.cells) == 1
+    assert round_tripped.cells[0].code == "x = 1"
+    assert round_tripped.header is not None
+    assert "import os" in round_tripped.header.value
+    assert 'dependencies = ["polars"]' in round_tripped.header.value
+
+
+def test_markdown_code_cell_attributes_are_unescaped() -> None:
+    script_lines = (
+        '```python {.marimo name="a&quot;b &amp; &lt;c&gt;"}',
+        "x = 1",
+        "```",
+    )
+
+    notebook_ir = convert_from_md_to_marimo_ir("\n".join(script_lines))
+
+    assert len(notebook_ir.cells) == 1
+    assert notebook_ir.cells[0].name == 'a"b & <c>'
+
+    markdown = convert_from_ir_to_markdown(
+        notebook_ir, filename="notebook.md", flavor="pymdown"
+    )
+
+    assert 'name="a&quot;b &amp; &lt;c&gt;"' in markdown
 
 
 def test_no_frontmatter() -> None:

@@ -8,6 +8,7 @@ from marimo._convert.markdown.flavor.base import (
     MarkdownCellBlock,
     MarkdownExportDocument,
     MarkdownFlavor,
+    _escape_attribute,
 )
 
 
@@ -76,7 +77,3 @@ class QmdMarkdownFlavor(MarkdownFlavor):
         head = self._code_fence_head(guard, language, attribute_str)
         parts = [head, code, guard, ""]
         return "\n".join(parts)
-
-
-def _escape_attribute(value: str) -> str:
-    return value.replace("&", "&amp;").replace('"', "&quot;")

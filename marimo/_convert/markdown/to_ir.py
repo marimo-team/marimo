@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import html
 import re
 from dataclasses import dataclass
 from typing import (
@@ -67,8 +68,12 @@ MARIMO_CODE = "marimo-code"
 _MYSTMD_MARIMO_HEADER_RE = re.compile(
     r"^(?P<fence>`{3,})\{marimo\}(?:\s+(?P<language>\w+))?\s*$"
 )
+_MYSTMD_MARIMO_CONFIG_HEADER_RE = re.compile(
+    r"^(?P<fence>`{3,})\{marimo-config\}\s*$"
+)
 _MYSTMD_DIRECTIVE_OPTION_RE = re.compile(r"^:([A-Za-z0-9_-]+):(?:\s+(.*))?$")
 _MYSTMD_DIRECTIVE_CLASS = "mystmd-marimo"
+_MYSTMD_CONFIG_KEYS = {"header", "pyproject"}
 
 ConvertKeys = Literal["marimo-ir"]
 
@@ -91,12 +96,30 @@ def extract_attribs(
         # .python.marimo disabled="true"
         inner = fence_start.group("attrs")
         if inner:
-            return dict(re.findall(r'(\w+)="([^"]*)"', inner))
+            return {
+                key: html.unescape(value)
+                for key, value in re.findall(r'(\w+)="([^"]*)"', inner)
+            }
     return {}
 
 
 def _is_mystmd_marimo_directive_header(line: str) -> bool:
     return bool(_MYSTMD_MARIMO_HEADER_RE.match(line))
+
+
+def _is_mystmd_marimo_config_header(line: str) -> bool:
+    return bool(_MYSTMD_MARIMO_CONFIG_HEADER_RE.match(line))
+
+
+def _is_mystmd_marimo_header(line: str) -> bool:
+    return _is_mystmd_marimo_directive_header(
+        line
+    ) or _is_mystmd_marimo_config_header(line)
+
+
+def _is_closing_fence(line: str, opening_fence: str) -> bool:
+    stripped = line.strip()
+    return len(stripped) >= len(opening_fence) and set(stripped) == {"`"}
 
 
 def _is_preprocessed_mystmd_marimo_fence(line: str) -> bool:
@@ -122,8 +145,35 @@ def _extract_mystmd_directive_options(
     return options, lines[body_start:]
 
 
+def _extract_mystmd_config_metadata(lines: list[str]) -> dict[str, str]:
+    from marimo._utils import yaml
+
+    if lines and lines[0] == "---":
+        for index, line in enumerate(lines[1:], start=1):
+            if line == "---":
+                lines = lines[1:index]
+                break
+
+    try:
+        metadata = yaml.load("\n".join(lines))
+    except yaml.YAMLError:
+        LOGGER.warning("Error parsing marimo-config YAML. Ignoring config.")
+        return {}
+
+    if not isinstance(metadata, dict):
+        return {}
+
+    return {
+        key: value
+        for key, value in metadata.items()
+        if key in _MYSTMD_CONFIG_KEYS and isinstance(value, str)
+    }
+
+
 def _is_code_tag(text: str) -> bool:
     head = text.split("\n")[0].strip()
+    if _is_mystmd_marimo_config_header(head):
+        return False
     legacy_format = bool(re.search(r"\{.*python.*\}", head))
     legacy_format |= bool(re.search(r"\{.*sql.*\}", head))
     if DependencyManager.new_superfences.has_required_version(quiet=True):
@@ -425,11 +475,33 @@ class FrontMatterPreprocessor(Preprocessor):
 class MystmdMarimoPreprocessor(Preprocessor):
     """Normalize mystmd marimo directive fences before SuperFences parses them."""
 
+    def __init__(self, md: MarimoMdParser):
+        super().__init__(md)
+        self.md: MarimoMdParser = md
+
     def run(self, lines: list[str]) -> list[str]:
         normalized: list[str] = []
         index = 0
 
         while index < len(lines):
+            config_match = _MYSTMD_MARIMO_CONFIG_HEADER_RE.match(lines[index])
+            if config_match is not None:
+                fence = config_match.group("fence")
+                closing_index = index + 1
+                while closing_index < len(lines):
+                    if _is_closing_fence(lines[closing_index], fence):
+                        metadata = _extract_mystmd_config_metadata(
+                            lines[index + 1 : closing_index]
+                        )
+                        self.md.meta.update(metadata)
+                        index = closing_index + 1
+                        break
+                    closing_index += 1
+                else:
+                    normalized.extend(lines[index:])
+                    break
+                continue
+
             match = _MYSTMD_MARIMO_HEADER_RE.match(lines[index])
             if match is None:
                 normalized.append(lines[index])
@@ -584,8 +656,7 @@ def convert_from_md_to_marimo_ir(
     notebook = MarimoMdParser(
         output_format="marimo-ir",
         enable_mystmd=any(
-            _is_mystmd_marimo_directive_header(line)
-            for line in text.splitlines()
+            _is_mystmd_marimo_header(line) for line in text.splitlines()
         ),
     ).convert(text)
     assert isinstance(notebook, NotebookSerializationV1)

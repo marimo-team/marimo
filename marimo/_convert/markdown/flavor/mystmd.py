@@ -25,8 +25,11 @@ from marimo._convert.markdown.flavor.base import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+# Metadata emitted through the `{marimo-config}` directive.
 _CONFIG_KEYS = {"header", "pyproject"}
+# marimo-specific metadata filtered before writing MyST frontmatter.
 _MARIMO_METADATA_KEYS = {"width"}
+# PEP 723 script metadata blocks embedded in exported notebook headers.
 _SCRIPT_METADATA_RE = re.compile(
     r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s"
     r"(?P<content>(^#(| .*)$\s)+)^# ///$"
@@ -36,8 +39,7 @@ _SCRIPT_METADATA_RE = re.compile(
 class MystmdMarkdownFlavor(MarkdownFlavor):
     """Render marimo notebooks as mystmd markdown.
 
-    mystmd is directive-oriented, so this flavor emits marimo cells with body
-    option lines instead of inline fence attributes. Page-level execution
+    mystmd uses directive option lines for cell metadata. Page-level execution
     metadata is emitted through a `{marimo-config}` directive.
     """
 

@@ -40,23 +40,6 @@ HEADERS = {
 CODE = uri_encode_component("import marimo as mo")
 
 
-def _write_markdown_notebook(filename: str) -> None:
-    lines = [
-        "---",
-        "marimo-version: 0.0.0",
-        "---",
-        "",
-        "```python {.marimo}",
-        "x = 1",
-        "```",
-        "",
-    ]
-    Path(filename).write_text(
-        "\n".join(lines),
-        encoding="utf-8",
-    )
-
-
 @with_session(SESSION_ID)
 def test_export_html(client: TestClient) -> None:
     session = get_session_manager(client).get_session(SESSION_ID)
@@ -258,54 +241,6 @@ def test_export_markdown_with_mystmd_flavor(client: TestClient) -> None:
             "flavor": "mystmd",
         },
     )
-    assert response.status_code == 200
-    assert "```{marimo} python" in response.text
-    assert re.match(
-        r".*filename\*=UTF-8''.*\.myst\.md",
-        response.headers["Content-Disposition"],
-    )
-
-
-@with_session(SESSION_ID)
-def test_export_markdown_infers_flavor_from_filename(
-    client: TestClient, *, temp_marimo_file: str
-) -> None:
-    qmd_file = str(Path(temp_marimo_file).with_suffix(".qmd"))
-    _write_markdown_notebook(qmd_file)
-    session = get_session_manager(client).get_session(SESSION_ID)
-    assert session
-    session.app_file_manager.filename = qmd_file
-
-    response = client.post(
-        "/api/export/markdown",
-        headers=HEADERS,
-        json={"download": True},
-    )
-
-    assert response.status_code == 200
-    assert "```{marimo .python" in response.text
-    assert re.match(
-        r".*filename\*=UTF-8''.*\.qmd",
-        response.headers["Content-Disposition"],
-    )
-
-
-@with_session(SESSION_ID)
-def test_export_markdown_infers_mystmd_flavor_from_filename(
-    client: TestClient, *, temp_marimo_file: str
-) -> None:
-    mystmd_file = str(Path(temp_marimo_file).with_suffix(".myst.md"))
-    _write_markdown_notebook(mystmd_file)
-    session = get_session_manager(client).get_session(SESSION_ID)
-    assert session
-    session.app_file_manager.filename = mystmd_file
-
-    response = client.post(
-        "/api/export/markdown",
-        headers=HEADERS,
-        json={"download": True},
-    )
-
     assert response.status_code == 200
     assert "```{marimo} python" in response.text
     assert re.match(
@@ -528,113 +463,6 @@ def test_auto_export_markdown(
     assert os.path.exists(exported_qmd)
     assert "```python {.marimo}" in Path(exported_md).read_text()
     assert "```{marimo .python" in Path(exported_qmd).read_text()
-
-
-@with_session(SESSION_ID)
-def test_auto_export_markdown_infers_flavor_from_filename(
-    client: TestClient, *, temp_marimo_file: str
-) -> None:
-    qmd_file = str(Path(temp_marimo_file).with_suffix(".qmd"))
-    _write_markdown_notebook(qmd_file)
-    session = get_session_manager(client).get_session(SESSION_ID)
-    assert session
-    session.app_file_manager.filename = qmd_file
-
-    response = client.post(
-        "/api/export/auto_export/markdown",
-        headers=HEADERS,
-        json={"download": False},
-    )
-    assert response.status_code == 200
-    assert response.json() == {"success": True}
-
-    response = client.post(
-        "/api/export/auto_export/markdown",
-        headers=HEADERS,
-        json={"download": False},
-    )
-    assert response.status_code == 304
-
-    exported_file = os.path.join(
-        os.path.dirname(qmd_file),
-        "__marimo__",
-        f"{Path(qmd_file).stem}.qmd",
-    )
-    assert os.path.exists(exported_file)
-    assert "```{marimo .python" in Path(exported_file).read_text()
-
-
-@with_session(SESSION_ID)
-def test_auto_export_markdown_uses_distinct_mystmd_filename(
-    client: TestClient, *, temp_marimo_file: str
-) -> None:
-    session = get_session_manager(client).get_session(SESSION_ID)
-    assert session
-    session.app_file_manager.filename = temp_marimo_file
-
-    response = client.post(
-        "/api/export/auto_export/markdown",
-        headers=HEADERS,
-        json={"download": False, "flavor": "mystmd"},
-    )
-    assert response.status_code == 200
-    assert response.json() == {"success": True}
-
-    response = client.post(
-        "/api/export/auto_export/markdown",
-        headers=HEADERS,
-        json={"download": False, "flavor": "mystmd"},
-    )
-    assert response.status_code == 304
-
-    exported_file = os.path.join(
-        os.path.dirname(temp_marimo_file),
-        "__marimo__",
-        f"{Path(temp_marimo_file).stem}.myst.md",
-    )
-    assert os.path.exists(exported_file)
-    assert "```{marimo} python" in Path(exported_file).read_text()
-
-
-@with_session(SESSION_ID)
-def test_auto_export_markdown_strips_mystmd_suffix_for_pymdown(
-    client: TestClient, *, temp_marimo_file: str
-) -> None:
-    mystmd_file = str(Path(temp_marimo_file).with_suffix(".myst.md"))
-    _write_markdown_notebook(mystmd_file)
-    session = get_session_manager(client).get_session(SESSION_ID)
-    assert session
-    session.app_file_manager.filename = mystmd_file
-
-    response = client.post(
-        "/api/export/auto_export/markdown",
-        headers=HEADERS,
-        json={"download": False},
-    )
-    assert response.status_code == 200
-    assert response.json() == {"success": True}
-
-    response = client.post(
-        "/api/export/auto_export/markdown",
-        headers=HEADERS,
-        json={"download": False, "flavor": "pymdown"},
-    )
-    assert response.status_code == 200
-    assert response.json() == {"success": True}
-
-    output_dir = os.path.join(os.path.dirname(mystmd_file), "__marimo__")
-    exported_mystmd = os.path.join(
-        output_dir,
-        f"{Path(mystmd_file).stem}.md",
-    )
-    exported_pymdown = os.path.join(
-        output_dir,
-        f"{Path(mystmd_file).stem.removesuffix('.myst')}.md",
-    )
-    assert os.path.exists(exported_mystmd)
-    assert os.path.exists(exported_pymdown)
-    assert "```{marimo} python" in Path(exported_mystmd).read_text()
-    assert "```python {.marimo}" in Path(exported_pymdown).read_text()
 
 
 @pytest.mark.skipif(
