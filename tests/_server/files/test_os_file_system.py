@@ -741,6 +741,8 @@ def test_search_respects_ignore_list(test_dir: Path, fs: OSFileSystem) -> None:
     (test_dir / ".DS_Store").write_text("content")
     (test_dir / "__pycache__").mkdir()
     (test_dir / "node_modules").mkdir()
+    (test_dir / ".git").mkdir()
+    (test_dir / ".venv").mkdir()
     (test_dir / "regular_file.txt").write_text("content")
 
     # Search for anything - should not find ignored items
@@ -756,6 +758,29 @@ def test_search_respects_ignore_list(test_dir: Path, fs: OSFileSystem) -> None:
     assert ".DS_Store" not in file_names
     assert "__pycache__" not in file_names
     assert "node_modules" not in file_names
+
+    # .git and .venv must also be skipped by search to avoid traversing
+    # large object stores / site-packages trees.
+    results = fs.search(query=".", path=str(test_dir))
+    file_names = {f.name for f in results}
+    assert ".git" not in file_names
+    assert ".venv" not in file_names
+
+
+def test_list_files_includes_git_and_venv(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    """list_files surfaces .git/.venv so the frontend toggle can reveal them."""
+    (test_dir / ".git").mkdir()
+    (test_dir / ".venv").mkdir()
+    (test_dir / ".DS_Store").write_text("content")
+
+    files = fs.list_files(str(test_dir))
+    file_names = {f.name for f in files}
+    assert ".git" in file_names
+    assert ".venv" in file_names
+    # .DS_Store remains filtered at the API layer.
+    assert ".DS_Store" not in file_names
 
 
 def test_search_directory_and_file_filters(
