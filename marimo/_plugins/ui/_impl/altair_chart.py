@@ -476,7 +476,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     Use `mo.ui.altair_chart` to make Altair charts reactive: select chart data
     with your cursor on the frontend, get them as a dataframe in Python!
 
-    Supports polars, pandas, and arrow DataFrames.
+    Supports any dataframe (e.g., Polars, Pandas, PyArrow, Ibis, DuckDB).
 
     Examples:
         ```python
