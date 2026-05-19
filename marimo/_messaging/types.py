@@ -102,19 +102,7 @@ class Stderr(io.TextIOBase):
 class Stdin(io.TextIOBase):
     name = "stdin"
 
-    def _stop(self) -> None:
-        """Tear down resources, if any."""
-
-
-@dataclasses.dataclass(kw_only=True)
-class KernelStreams:
-    """The four I/O channels the kernel uses to communicate with the host."""
-
-    stream: Stream
-    stdout: Stdout | None
-    stderr: Stderr | None
-    stdin: Stdin | None
-
+    @abc.abstractmethod
     def _readline_with_prompt(
         self, prompt: str = "", password: bool = False
     ) -> str:
@@ -123,8 +111,6 @@ class KernelStreams:
         Subclasses implement the transport. Returns the user-typed text
         without a trailing newline (matches Python's input() contract).
         """
-        del prompt, password
-        raise NotImplementedError
 
     # `size` and `hint` are accepted for sys.stdin API compatibility but
     # ignored: marimo's stdin is a single-prompt pseudofile.
@@ -138,3 +124,16 @@ class KernelStreams:
     def readlines(self, hint: int | None = -1) -> list[str]:  # type: ignore[override]
         del hint
         return [self.readline()]
+
+    def _stop(self) -> None:
+        """Tear down resources, if any."""
+
+
+@dataclasses.dataclass(kw_only=True)
+class KernelStreams:
+    """The four I/O channels the kernel uses to communicate with the host."""
+
+    stream: Stream
+    stdout: Stdout | None
+    stderr: Stderr | None
+    stdin: Stdin | None
