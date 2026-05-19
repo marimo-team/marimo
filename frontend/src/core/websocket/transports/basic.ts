@@ -43,9 +43,7 @@ export class BasicTransport implements IConnectionTransport {
     return WebSocket.OPEN;
   }
 
-  readonly retryCount = 0;
-
-  reconnect(code?: number | undefined, reason?: string | undefined): void {
+  reconnect(_code?: number | undefined, _reason?: string | undefined): void {
     this.close();
     this.connect();
     return;

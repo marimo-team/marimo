@@ -1,11 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import ReconnectingWebSocket from "partysocket/ws";
 import { useEffect, useState } from "react";
 import { Logger } from "@/utils/Logger";
 import { createPyodideConnection } from "../wasm/bridge";
 import { isWasm } from "../wasm/utils";
 import { BasicTransport } from "./transports/basic";
+import { PartysocketTransport } from "./transports/partysocket";
 import type { IConnectionTransport } from "./transports/transport";
 
 interface UseConnectionTransportOptions {
@@ -18,10 +18,6 @@ interface UseConnectionTransportOptions {
   onError: (event: WebSocketEventMap["error"]) => void;
 }
 
-// Per-`reconnect()` retry budget for partysocket. After exhaustion, partysocket
-// stops silently; treat `retryCount >= MAX_RETRIES` as the give-up signal.
-export const MAX_RETRIES = 10;
-
 function createConnectionTransport(
   options: Pick<UseConnectionTransportOptions, "url" | "static">,
 ): IConnectionTransport {
@@ -31,19 +27,8 @@ function createConnectionTransport(
   if (isWasm()) {
     return createPyodideConnection();
   }
-  // Create a connection transport using the ReconnectingWebSocket from partysocket
-  // This handles reconnecting when the connection is lost.
-  const urlProvider = options.url; // We don't call the URL provider now since it may change (i.e. if the runtime redirects)
-  // Cast needed: ReconnectingWebSocket types readyState as `number`
-  // but IConnectionTransport expects `0 | 1 | 2 | 3`
-  return new ReconnectingWebSocket(urlProvider, undefined, {
-    maxRetries: MAX_RETRIES,
-    debug: false,
-    startClosed: true,
-    // long timeout -- the server can become slow when many notebooks
-    // are open.
-    connectionTimeout: 10_000,
-  }) as unknown as IConnectionTransport;
+  // urlProvider is passed lazily; it may change after a runtime redirect.
+  return new PartysocketTransport(options.url);
 }
 
 /**

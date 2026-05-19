@@ -35,7 +35,6 @@ import { useConnectionTransport } from "../useWebSocket";
 
 interface MockTransport {
   readyState: 0 | 1 | 2 | 3;
-  retryCount: number;
   reconnect: ReturnType<typeof vi.fn>;
   close: ReturnType<typeof vi.fn>;
   send: ReturnType<typeof vi.fn>;
@@ -48,7 +47,6 @@ function makeTransport(
 ): MockTransport {
   return {
     readyState,
-    retryCount: 0,
     reconnect: vi.fn(),
     close: vi.fn(),
     send: vi.fn(),
