@@ -1,11 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  MAX_RETRIES,
-  WsTransport,
-  TRANSPORT_EXHAUSTED_REASON,
-} from "../ws";
+import { MAX_RETRIES, WsTransport, TRANSPORT_EXHAUSTED_REASON } from "../ws";
 
 let innerListeners: Record<string, ((e: unknown) => void)[]>;
 
