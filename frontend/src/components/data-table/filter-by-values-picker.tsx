@@ -32,6 +32,7 @@ interface Props<TData, TValue> {
   calculateTopKRows?: CalculateTopKRows;
   chosenValues: unknown[];
   onChange: (values: unknown[]) => void;
+  creatable?: boolean;
 }
 
 export const FilterByValuesPicker = <TData, TValue>({
@@ -39,6 +40,7 @@ export const FilterByValuesPicker = <TData, TValue>({
   calculateTopKRows,
   chosenValues,
   onChange,
+  creatable = false,
 }: Props<TData, TValue>) => {
   const [open, setOpen] = useState(false);
 
@@ -79,6 +81,7 @@ export const FilterByValuesPicker = <TData, TValue>({
           calculateTopKRows={calculateTopKRows}
           chosenValues={chosenValuesSet}
           onChange={onChange}
+          creatable={creatable}
         />
       </PopoverContent>
     </Popover>

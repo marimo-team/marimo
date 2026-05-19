@@ -172,6 +172,8 @@ export const Combobox = <TValue,>({
         <PopoverTrigger asChild={true}>
           <div
             id={id}
+            role="button"
+            tabIndex={0}
             className={cn(
               "flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50",
               className,
