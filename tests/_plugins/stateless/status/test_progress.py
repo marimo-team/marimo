@@ -8,8 +8,8 @@ from unittest.mock import patch
 import pytest
 
 from marimo._plugins.stateless.status._progress import (
-    _Progress,
     ProgressBar,
+    _Progress,
     progress_bar,
     spinner,
 )
@@ -333,4 +333,3 @@ def test_progress_bar_range_negative_step(mock_append, mock_flush):
     assert result == [10, 8, 6, 4, 2]
     assert captured[0] is not None
     assert captured[0].current == 5
-
