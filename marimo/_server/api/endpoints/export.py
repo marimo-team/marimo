@@ -105,11 +105,13 @@ async def export_as_html(
     if not app_state.session_manager.should_send_code_to_frontend():
         body.include_code = False
 
+    resolved_config = session.config_manager.get_config()
     html, filename = Exporter().export_as_html(
         app=session.app_file_manager.app,
         filename=session.app_file_manager.filename,
         session_view=session.session_view,
-        display_config=session.config_manager.get_config()["display"],
+        display_config=resolved_config["display"],
+        sharing_config=resolved_config.get("sharing"),
         request=body,
     )
 

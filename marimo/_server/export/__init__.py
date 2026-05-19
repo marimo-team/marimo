@@ -167,15 +167,17 @@ def export_as_wasm(
     # Inline the layout file, if it exists
     app.inline_layout_file()
     config = get_default_config_manager(current_path=path.absolute_name)
+    resolved = config.get_config()
 
     result = Exporter().export_as_wasm(
         filename=path.short_name,
         app=app,
-        display_config=config.get_config()["display"],
+        display_config=resolved["display"],
         mode=mode,
         code=app.to_py(),
         asset_url=asset_url,
         show_code=show_code,
+        sharing_config=resolved.get("sharing"),
     )
     return ExportResult(
         contents=result[0],
@@ -332,7 +334,8 @@ async def run_app_then_export_as_html(
     file_manager.app.inline_layout_file()
 
     config = get_default_config_manager(current_path=file_manager.path)
-    display_config = cast(DisplayConfig, config.get_config()["display"])
+    resolved = config.get_config()
+    display_config = cast(DisplayConfig, resolved["display"])
     session_view, did_error = await run_app_until_completion(
         file_manager,
         cli_args,
@@ -344,6 +347,7 @@ async def run_app_then_export_as_html(
         app=file_manager.app,
         session_view=session_view,
         display_config=display_config,
+        sharing_config=resolved.get("sharing"),
         request=ExportAsHTMLRequest(
             include_code=include_code,
             download=False,
@@ -377,7 +381,8 @@ async def run_app_then_export_as_wasm(
     file_manager.app.inline_layout_file()
 
     config = get_default_config_manager(current_path=file_manager.path)
-    display_config = cast(DisplayConfig, config.get_config()["display"])
+    resolved = config.get_config()
+    display_config = cast(DisplayConfig, resolved["display"])
 
     session_view, did_error = await run_app_until_completion(
         file_manager,
@@ -406,6 +411,7 @@ async def run_app_then_export_as_wasm(
         asset_url=asset_url,
         session_snapshot=session_snapshot,
         notebook_snapshot=notebook_snapshot,
+        sharing_config=resolved.get("sharing"),
     )
     return ExportResult(
         contents=html,

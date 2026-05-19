@@ -22,7 +22,6 @@ from marimo._cli.print import (
 )
 from marimo._cli.sandbox import maybe_prompt_run_in_sandbox, run_in_sandbox
 from marimo._cli.utils import prompt_to_overwrite
-from marimo._config.manager import get_default_config_manager
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._pyodide.pyodide_constraints import PYODIDE_PYTHON_VERSION
@@ -242,14 +241,6 @@ def html(
     if sandbox:
         run_in_sandbox(sys.argv[1:], name=name)
         return
-
-    sharing = (
-        get_default_config_manager(current_path=name)
-        .get_config()
-        .get("sharing", {})
-    )
-    if sharing.get("wasm") is False or sharing.get("html") is False:
-        include_code = False
 
     cli_args = parse_args(args)
 
@@ -886,17 +877,6 @@ def html_wasm(
     args: tuple[str, ...],
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
-    sharing = (
-        get_default_config_manager(current_path=name)
-        .get_config()
-        .get("sharing", {})
-    )
-    if sharing.get("wasm") is False:
-        raise click.UsageError(
-            "WebAssembly export is disabled by your marimo configuration "
-            "(sharing.wasm = false)."
-        )
-
     if execute and watch:
         raise click.UsageError(
             "--execute and --watch cannot be used together."
