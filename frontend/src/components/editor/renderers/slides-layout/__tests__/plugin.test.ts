@@ -199,7 +199,10 @@ const BACKWARDS_COMPAT_SNAPSHOTS: BackwardsCompatCase[] = [
   },
   {
     // Defensive: if a future version adds a new SlideConfig field and a user
-    // downgrades, we must not crash on unknown keys.
+    // downgrades, we must not crash on unknown keys — AND we must not silently
+    // drop them either. `notes` / `background` aren't in the current schema;
+    // they must still be present after validate + (de)serialize so a downgrade
+    // followed by a save doesn't erase the newer marimo's data.
     label: "forward-compat: unknown SlideConfig fields present",
     input: {
       cells: [{ type: "slide", notes: "x", background: "#000" }],
@@ -207,7 +210,20 @@ const BACKWARDS_COMPAT_SNAPSHOTS: BackwardsCompatCase[] = [
     expected: {
       deck: {},
       cellIds: ["a"],
-      cellEntries: [["a", { type: "slide" }]],
+      cellEntries: [["a", { type: "slide", notes: "x", background: "#000" }]],
+    },
+  },
+  {
+    // Same forward-compat guarantee for unknown deck-level fields (e.g. future
+    // Reveal options we haven't modeled yet).
+    label: "forward-compat: unknown deck fields present",
+    input: {
+      cells: [{}],
+      deck: { transition: "fade", controls: false, autoSlide: 5000 },
+    },
+    expected: {
+      deck: { transition: "fade", controls: false, autoSlide: 5000 },
+      cellIds: ["a"],
     },
   },
   {

@@ -6,7 +6,7 @@ import type { CellId } from "@/core/cells/ids";
 const SlideTypeSchema = z.enum(["slide", "sub-slide", "fragment", "skip"]);
 export type SlideType = z.infer<typeof SlideTypeSchema>;
 
-const SlideConfigSchema = z.object({
+const SlideConfigSchema = z.looseObject({
   type: SlideTypeSchema.optional(),
   speakerNotes: z.string().optional(),
 });
@@ -22,7 +22,7 @@ const DeckTransitionSchema = z.enum([
 ]);
 export type DeckTransition = z.infer<typeof DeckTransitionSchema>;
 
-const DeckConfigSchema = z.object({
+const DeckConfigSchema = z.looseObject({
   transition: DeckTransitionSchema.optional(),
 });
 export type DeckConfig = z.infer<typeof DeckConfigSchema>;
@@ -32,9 +32,10 @@ export type DeckConfig = z.infer<typeof DeckConfigSchema>;
  *
  * This must be backwards-compatible as it is stored on the user's disk —
  * fields are optional so files saved before they existed (e.g. the bare `{}`
- * emitted by earlier marimo versions) still deserialize cleanly.
+ * emitted by earlier marimo versions) still deserialize cleanly. Unknown
+ * keys are preserved (via `looseObject`) for the same reason.
  */
-export const SlidesLayoutSchema = z.object({
+export const SlidesLayoutSchema = z.looseObject({
   cells: z.array(SlideConfigSchema).optional(),
   deck: DeckConfigSchema.optional(),
 });
