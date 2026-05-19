@@ -249,23 +249,31 @@ function formatValue(
         };
     }
   }
-  if (value.type === "date") {
-    return formatMinMaxLegacy(
-      value.min?.toISOString(),
-      value.max?.toISOString(),
-    );
-  }
-  if (value.type === "time") {
-    return formatMinMaxLegacy(
-      value.min ? timeFormatter.format(value.min) : undefined,
-      value.max ? timeFormatter.format(value.max) : undefined,
-    );
-  }
-  if (value.type === "datetime") {
-    return formatMinMaxLegacy(
-      value.min?.toISOString(),
-      value.max?.toISOString(),
-    );
+  if (
+    value.type === "date" ||
+    value.type === "datetime" ||
+    value.type === "time"
+  ) {
+    const format =
+      value.type === "time"
+        ? (d: Date) => timeFormatter.format(d)
+        : value.type === "date"
+          ? (d: Date) => d.toISOString().slice(0, 10)
+          : (d: Date) => d.toISOString();
+    switch (value.operator) {
+      case "between":
+        return {
+          operator: OPERATOR_LABELS.between.toLowerCase(),
+          value: `${format(value.min)} - ${format(value.max)}`,
+        };
+      case "==":
+      case "!=":
+      case ">":
+      case ">=":
+      case "<":
+      case "<=":
+        return { operator: value.operator, value: format(value.value) };
+    }
   }
   if (value.type === "boolean") {
     return { operator: `is ${value.value ? "True" : "False"}` };
@@ -281,23 +289,4 @@ function formatValue(
   }
   logNever(value);
   return undefined;
-}
-
-function formatMinMaxLegacy(
-  min: string | number | undefined,
-  max: string | number | undefined,
-): FormattedFilter | undefined {
-  if (min === undefined && max === undefined) {
-    return;
-  }
-  if (min === max) {
-    return { operator: "==", value: String(min) };
-  }
-  if (min === undefined) {
-    return { operator: "<=", value: String(max) };
-  }
-  if (max === undefined) {
-    return { operator: ">=", value: String(min) };
-  }
-  return { operator: "between", value: `${min} - ${max}` };
 }
