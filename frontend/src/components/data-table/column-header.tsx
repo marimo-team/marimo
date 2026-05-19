@@ -582,6 +582,7 @@ export const DateFilterMenu = <TData, TValue>({
       />
       {operator === "between" && (
         <DateLikeRangeInput
+          key={`${filterType}-${min?.getTime() ?? "_"}-${max?.getTime() ?? "_"}`}
           filterType={filterType}
           min={min}
           max={max}
@@ -594,6 +595,7 @@ export const DateFilterMenu = <TData, TValue>({
       )}
       {isComparison && (
         <DateLikeInput
+          key={`${filterType}-${value?.getTime() ?? "_"}`}
           filterType={filterType}
           value={value}
           onChange={setValue}

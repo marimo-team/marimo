@@ -64,7 +64,7 @@ function ariaToDate(
 // Accepts ISO, US, RFC formats via the Date constructor; time-only strings
 // (HH:MM[:SS]) are handled explicitly since `new Date("12:30")` is invalid.
 export function parsePastedDate(
-  _filterType: DateLikeFilterType,
+  filterType: DateLikeFilterType,
   text: string,
 ): Date | undefined {
   const trimmed = text.trim();
@@ -72,9 +72,10 @@ export function parsePastedDate(
     return undefined;
   }
 
-  const timeMatch = trimmed.match(
-    /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?$/i,
-  );
+  const timeMatch =
+    filterType === "time"
+      ? trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?$/i)
+      : null;
   if (timeMatch) {
     const [, hStr, mStr, sStr, ampm] = timeMatch;
     let hour = Number.parseInt(hStr, 10);
@@ -89,6 +90,35 @@ export function parsePastedDate(
       }
     }
     return new Date(1970, 0, 1, hour, minute, second);
+  }
+
+  const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, y, m, d] = dateOnlyMatch;
+    return new Date(
+      Number.parseInt(y, 10),
+      Number.parseInt(m, 10) - 1,
+      Number.parseInt(d, 10),
+    );
+  }
+
+  // Parse ISO datetimes as wall-clock to stay consistent with the picker's
+  // local-time basis. Trailing `Z` or offsets are stripped so that pasting
+  // `2024-01-15T08:30:00Z` displays `08:30` instead of being shifted by the
+  // viewer's timezone.
+  const isoMatch = trimmed.match(
+    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/,
+  );
+  if (isoMatch) {
+    const [, y, mo, d, h, mi, s] = isoMatch;
+    return new Date(
+      Number.parseInt(y, 10),
+      Number.parseInt(mo, 10) - 1,
+      Number.parseInt(d, 10),
+      Number.parseInt(h, 10),
+      Number.parseInt(mi, 10),
+      s ? Number.parseInt(s, 10) : 0,
+    );
   }
 
   const parsed = new Date(trimmed);
@@ -208,20 +238,35 @@ export const DateLikeRangeInput = ({
   const [seedMin, setSeedMin] = useState(min);
   const [seedMax, setSeedMax] = useState(max);
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const text = e.clipboardData.getData("text");
+    const parsed = parsePastedRange(filterType, text);
+    if (!parsed) {
+      return;
+    }
+    e.preventDefault();
+    onRangeChange(parsed.min, parsed.max);
+    setSeedMin(parsed.min);
+    setSeedMax(parsed.max);
+    setSeedKey((k) => k + 1);
+  };
+
   if (filterType === "time") {
     return (
-      <div className="flex gap-1 items-center">
+      <div onPasteCapture={handlePaste} className="flex gap-1 items-center">
         <DateLikeInput
+          key={`min-${seedKey}`}
           filterType="time"
-          value={min}
+          value={seedMin}
           onChange={(nextMin) => onRangeChange(nextMin, max)}
           aria-label="min"
           className={className}
         />
         <MinusIcon className="h-5 w-5 text-muted-foreground" />
         <DateLikeInput
+          key={`max-${seedKey}`}
           filterType="time"
-          value={max}
+          value={seedMax}
           onChange={(nextMax) => onRangeChange(min, nextMax)}
           aria-label="max"
           className={className}
@@ -238,19 +283,6 @@ export const DateLikeRangeInput = ({
       ariaToDate(filterType, next.start),
       ariaToDate(filterType, next.end),
     );
-  };
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-    const text = e.clipboardData.getData("text");
-    const parsed = parsePastedRange(filterType, text);
-    if (!parsed) {
-      return;
-    }
-    e.preventDefault();
-    onRangeChange(parsed.min, parsed.max);
-    setSeedMin(parsed.min);
-    setSeedMax(parsed.max);
-    setSeedKey((k) => k + 1);
   };
 
   const seedRange =

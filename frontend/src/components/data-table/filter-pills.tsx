@@ -12,7 +12,11 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { FilterPillEditor } from "./filter-pill-editor";
-import type { ColumnFilterValue } from "./filters";
+import {
+  type ColumnFilterValue,
+  dateToISODate,
+  dateToISODateTime,
+} from "./filters";
 import { OPERATOR_LABELS } from "./operator-labels";
 import { stringifyUnknownValue } from "./utils";
 
@@ -239,8 +243,8 @@ function formatValue(
       value.type === "time"
         ? (d: Date) => timeFormatter.format(d)
         : value.type === "date"
-          ? (d: Date) => d.toISOString().slice(0, 10)
-          : (d: Date) => d.toISOString();
+          ? dateToISODate
+          : dateToISODateTime;
     switch (value.operator) {
       case "between":
         return {

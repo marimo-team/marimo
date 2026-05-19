@@ -227,7 +227,7 @@ export const FilterPillEditor = <TData,>({
   const operatorTriggerRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const firstInput = valueSlotRef.current?.querySelector<HTMLElement>(
-      'input, [role="combobox"], button',
+      'input, [role="spinbutton"], [role="combobox"], button',
     );
     if (firstInput) {
       firstInput.focus();
@@ -463,6 +463,7 @@ const ValueSlot = <TData, TValue>({
       value.kind === "date-between" ? value : { kind: "date-between" as const };
     return (
       <DateLikeRangeInput
+        key={`${type}-${v.min?.getTime() ?? "_"}-${v.max?.getTime() ?? "_"}`}
         filterType={type}
         min={v.min}
         max={v.max}
@@ -478,6 +479,7 @@ const ValueSlot = <TData, TValue>({
       value.kind === "date-single" ? value : { kind: "date-single" as const };
     return (
       <DateLikeInput
+        key={`${type}-${v.value?.getTime() ?? "_"}`}
         filterType={type}
         value={v.value}
         onChange={(next) => onChange({ kind: "date-single", value: next })}
