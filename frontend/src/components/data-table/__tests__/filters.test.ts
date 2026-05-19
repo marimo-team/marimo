@@ -24,7 +24,6 @@ describe("filterToFilterCondition", () => {
       {
         column_id: "col",
         operator: "is_null",
-        value: undefined,
         type: "condition",
         negate: false,
       },
@@ -40,45 +39,53 @@ describe("filterToFilterCondition", () => {
       {
         column_id: "col",
         operator: "is_not_null",
-        value: undefined,
         type: "condition",
         negate: false,
       },
     ]);
   });
 
-  it("handles number filter with min only", () => {
-    const result = filterToFilterCondition("age", Filter.number({ min: 18 }));
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
-      column_id: "age",
-      operator: ">=",
-      value: 18,
-      type: "condition",
-      negate: false,
-    });
-  });
-
-  it("handles number filter with max only", () => {
-    const result = filterToFilterCondition("age", Filter.number({ max: 65 }));
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
-      column_id: "age",
-      operator: "<=",
-      value: 65,
-      type: "condition",
-      negate: false,
-    });
-  });
-
-  it("handles number filter with min and max", () => {
+  it("handles number filter with == operator", () => {
     const result = filterToFilterCondition(
       "age",
-      Filter.number({ min: 18, max: 65 }),
+      Filter.number({ operator: "==", value: 42 }),
     );
-    expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({ operator: ">=", value: 18 });
-    expect(result[1]).toMatchObject({ operator: "<=", value: 65 });
+    expect(result).toEqual([
+      {
+        column_id: "age",
+        operator: "==",
+        value: 42,
+        type: "condition",
+        negate: false,
+      },
+    ]);
+  });
+
+  it("handles number filter with all comparison operators", () => {
+    for (const op of ["==", "!=", ">", ">=", "<", "<="] as const) {
+      const result = filterToFilterCondition(
+        "x",
+        Filter.number({ operator: op, value: 5 }),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ operator: op, value: 5 });
+    }
+  });
+
+  it("number / between emits a single between condition", () => {
+    const result = filterToFilterCondition(
+      "age",
+      Filter.number({ operator: "between", min: 18, max: 65 }),
+    );
+    expect(result).toEqual([
+      {
+        column_id: "age",
+        operator: "between",
+        value: { min: 18, max: 65 },
+        type: "condition",
+        negate: false,
+      },
+    ]);
   });
 
   it("handles text filter", () => {
@@ -97,6 +104,71 @@ describe("filterToFilterCondition", () => {
     ]);
   });
 
+  it("handles text filter with all single-string operators", () => {
+    for (const op of [
+      "contains",
+      "equals",
+      "does_not_equal",
+      "regex",
+      "starts_with",
+      "ends_with",
+    ] as const) {
+      const result = filterToFilterCondition(
+        "col",
+        Filter.text({ operator: op, text: "x" }),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ operator: op, value: "x" });
+    }
+  });
+
+  it("handles text filter with in operator", () => {
+    const result = filterToFilterCondition(
+      "name",
+      Filter.text({ operator: "in", values: ["alice", "bob"] }),
+    );
+    expect(result).toEqual([
+      {
+        column_id: "name",
+        operator: "in",
+        value: ["alice", "bob"],
+        type: "condition",
+        negate: false,
+      },
+    ]);
+  });
+
+  it("handles text filter with not_in operator", () => {
+    const result = filterToFilterCondition(
+      "name",
+      Filter.text({ operator: "not_in", values: ["alice"] }),
+    );
+    expect(result).toEqual([
+      {
+        column_id: "name",
+        operator: "not_in",
+        value: ["alice"],
+        type: "condition",
+        negate: false,
+      },
+    ]);
+  });
+
+  it("handles text filter with is_empty operator", () => {
+    const result = filterToFilterCondition(
+      "name",
+      Filter.text({ operator: "is_empty" }),
+    );
+    expect(result).toEqual([
+      {
+        column_id: "name",
+        operator: "is_empty",
+        type: "condition",
+        negate: false,
+      },
+    ]);
+  });
+
   it("handles boolean true filter", () => {
     const result = filterToFilterCondition(
       "active",
@@ -106,7 +178,6 @@ describe("filterToFilterCondition", () => {
       {
         column_id: "active",
         operator: "is_true",
-        value: undefined,
         type: "condition",
         negate: false,
       },
@@ -122,7 +193,6 @@ describe("filterToFilterCondition", () => {
       {
         column_id: "active",
         operator: "is_false",
-        value: undefined,
         type: "condition",
         negate: false,
       },
@@ -166,7 +236,7 @@ describe("filterToFilterCondition", () => {
   it("every condition has type and negate fields", () => {
     const result = filterToFilterCondition(
       "col",
-      Filter.number({ min: 1, max: 10 }),
+      Filter.number({ operator: "between", min: 1, max: 10 }),
     );
     for (const condition of result) {
       expect(condition).toHaveProperty("type", "condition");
@@ -188,7 +258,7 @@ describe("filtersToFilterGroup", () => {
 
   it("wraps single filter in AND group", () => {
     const result = filtersToFilterGroup([
-      { id: "age", value: Filter.number({ min: 18 }) },
+      { id: "age", value: Filter.number({ operator: ">=", value: 18 }) },
     ]);
     expect(result.type).toBe("group");
     expect(result.operator).toBe("and");
@@ -198,19 +268,25 @@ describe("filtersToFilterGroup", () => {
 
   it("wraps multiple filters in AND group", () => {
     const result = filtersToFilterGroup([
-      { id: "age", value: Filter.number({ min: 18 }) },
+      { id: "age", value: Filter.number({ operator: ">=", value: 18 }) },
       { id: "name", value: Filter.text({ text: "foo", operator: "contains" }) },
     ]);
     expect(result.children).toHaveLength(2);
     expect(result.operator).toBe("and");
   });
 
-  it("flattens multi-condition filters", () => {
+  it("between filter emits a single between condition", () => {
     const result = filtersToFilterGroup([
-      { id: "age", value: Filter.number({ min: 18, max: 65 }) },
+      {
+        id: "age",
+        value: Filter.number({ operator: "between", min: 18, max: 65 }),
+      },
     ]);
-    // min + max = 2 conditions
-    expect(result.children).toHaveLength(2);
+    expect(result.children).toHaveLength(1);
+    expect(result.children[0]).toMatchObject({
+      operator: "between",
+      value: { min: 18, max: 65 },
+    });
   });
 });
 

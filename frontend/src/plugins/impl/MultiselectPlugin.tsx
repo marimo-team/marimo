@@ -14,6 +14,7 @@ interface Data {
   options: string[];
   fullWidth: boolean;
   maxSelections?: number | undefined;
+  disabled: boolean;
 }
 
 type T = string[];
@@ -27,6 +28,7 @@ export class MultiselectPlugin implements IPlugin<T, Data> {
     options: z.array(z.string()),
     fullWidth: z.boolean().default(false),
     maxSelections: z.number().optional(),
+    disabled: z.boolean().default(false),
   });
 
   render(props: IPluginProps<string[], Data>): JSX.Element {
@@ -63,6 +65,7 @@ export const Multiselect = ({
   setValue,
   fullWidth,
   maxSelections,
+  disabled,
 }: MultiselectProps): JSX.Element => {
   const id = useId();
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -199,6 +202,7 @@ export const Multiselect = ({
         shouldFilter={false}
         search={searchQuery}
         onSearchChange={setSearchQuery}
+        disabled={disabled}
       >
         {renderList()}
       </Combobox>

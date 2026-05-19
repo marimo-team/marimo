@@ -13,12 +13,21 @@ interface SearchableSelectProps {
   label: string | null;
   allowSelectNone: boolean;
   fullWidth: boolean;
+  disabled: boolean;
 }
 
 const NONE_KEY = "__none__";
 
 export const SearchableSelect = (props: SearchableSelectProps): JSX.Element => {
-  const { options, value, setValue, label, allowSelectNone, fullWidth } = props;
+  const {
+    options,
+    value,
+    setValue,
+    label,
+    allowSelectNone,
+    fullWidth,
+    disabled,
+  } = props;
   const id = useId();
   const [searchQuery, setSearchQuery] = useState<string>("");
 
@@ -113,6 +122,7 @@ export const SearchableSelect = (props: SearchableSelectProps): JSX.Element => {
         shouldFilter={false}
         search={searchQuery}
         onSearchChange={setSearchQuery}
+        disabled={disabled}
         data-testid="marimo-plugin-searchable-dropdown"
       >
         {renderList()}

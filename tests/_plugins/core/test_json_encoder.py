@@ -441,6 +441,26 @@ def test_enum_encoding() -> None:
     assert encoded == "2"
 
 
+def test_enum_via_sanitize_json_bigint() -> None:
+    """The stdlib-json path used by table serializers must render Enum
+    members as their str form, not leak __dict__ internals."""
+    from enum import Enum, auto
+
+    from marimo._output.data.data import sanitize_json_bigint
+
+    class TestEnum(Enum):
+        ONE = auto()
+        TWO = auto()
+
+    encoded = sanitize_json_bigint(
+        [{"col": TestEnum.ONE}, {"col": TestEnum.TWO}]
+    )
+    assert encoded == ('[{"col":"TestEnum.ONE"},{"col":"TestEnum.TWO"}]')
+    assert "_value_" not in encoded
+    assert "_name_" not in encoded
+    assert "__objclass__" not in encoded
+
+
 @pytest.mark.skipif(
     sys.version_info < (3, 11), reason="StrEnum not supported in Python 3.10"
 )
