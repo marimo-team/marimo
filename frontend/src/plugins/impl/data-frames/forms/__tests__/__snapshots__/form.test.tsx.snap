@@ -27,7 +27,7 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
           aria-invalid="false"
           class="relative"
         >
-          <div
+          <button
             aria-controls="radix-_r_27_"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -58,7 +58,7 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
                 d="m6 9 6 6 6-6"
               />
             </svg>
-          </div>
+          </button>
           <div
             class="flex flex-col gap-1 items-start"
           />
@@ -82,7 +82,7 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
           aria-invalid="false"
           class="relative"
         >
-          <div
+          <button
             aria-controls="radix-_r_29_"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -113,7 +113,7 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
                 d="m6 9 6 6 6-6"
               />
             </svg>
-          </div>
+          </button>
           <div
             class="flex flex-col gap-1 items-start"
           />
@@ -399,7 +399,7 @@ exports[`renderZodSchema > should render a form explode_columns 1`] = `
           aria-invalid="false"
           class="relative"
         >
-          <div
+          <button
             aria-controls="radix-_r_2p_"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -430,7 +430,7 @@ exports[`renderZodSchema > should render a form explode_columns 1`] = `
                 d="m6 9 6 6 6-6"
               />
             </svg>
-          </div>
+          </button>
           <div
             class="flex flex-col gap-1 items-start"
           />
@@ -596,7 +596,7 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
           aria-invalid="false"
           class="relative"
         >
-          <div
+          <button
             aria-controls="radix-_r_1p_"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -627,7 +627,7 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
                 d="m6 9 6 6 6-6"
               />
             </svg>
-          </div>
+          </button>
           <div
             class="flex flex-col gap-1 items-start"
           />
@@ -651,7 +651,7 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
           aria-invalid="false"
           class="relative"
         >
-          <div
+          <button
             aria-controls="radix-_r_1r_"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -682,7 +682,7 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
                 d="m6 9 6 6 6-6"
               />
             </svg>
-          </div>
+          </button>
           <div
             class="flex flex-col gap-1 items-start"
           />
@@ -798,7 +798,7 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
           aria-invalid="false"
           class="relative"
         >
-          <div
+          <button
             aria-controls="radix-_r_3b_"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -829,7 +829,7 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
                 d="m6 9 6 6 6-6"
               />
             </svg>
-          </div>
+          </button>
           <div
             class="flex flex-col gap-1 items-start"
           />
@@ -853,7 +853,7 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
           aria-invalid="false"
           class="relative"
         >
-          <div
+          <button
             aria-controls="radix-_r_3d_"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -884,7 +884,7 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
                 d="m6 9 6 6 6-6"
               />
             </svg>
-          </div>
+          </button>
           <div
             class="flex flex-col gap-1 items-start"
           />
@@ -908,7 +908,7 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
           aria-invalid="false"
           class="relative"
         >
-          <div
+          <button
             aria-controls="radix-_r_3f_"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -939,7 +939,7 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
                 d="m6 9 6 6 6-6"
               />
             </svg>
-          </div>
+          </button>
           <div
             class="flex flex-col gap-1 items-start"
           />
@@ -1298,7 +1298,7 @@ exports[`renderZodSchema > should render a form select_columns 1`] = `
           aria-invalid="false"
           class="relative"
         >
-          <div
+          <button
             aria-controls="radix-_r_4_"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -1329,7 +1329,7 @@ exports[`renderZodSchema > should render a form select_columns 1`] = `
                 d="m6 9 6 6 6-6"
               />
             </svg>
-          </div>
+          </button>
           <div
             class="flex flex-col gap-1 items-start"
           />
@@ -1581,7 +1581,7 @@ exports[`renderZodSchema > should render a form unique 1`] = `
           aria-invalid="false"
           class="relative"
         >
-          <div
+          <button
             aria-controls="radix-_r_32_"
             aria-expanded="false"
             aria-haspopup="dialog"
@@ -1612,7 +1612,7 @@ exports[`renderZodSchema > should render a form unique 1`] = `
                 d="m6 9 6 6 6-6"
               />
             </svg>
-          </div>
+          </button>
           <div
             class="flex flex-col gap-1 items-start"
           />
@@ -1740,7 +1740,7 @@ exports[`renders custom forms column_id_array 1`] = `
       aria-invalid="false"
       class="relative"
     >
-      <div
+      <button
         aria-controls="radix-_r_41_"
         aria-expanded="false"
         aria-haspopup="dialog"
@@ -1771,7 +1771,7 @@ exports[`renders custom forms column_id_array 1`] = `
             d="m6 9 6 6 6-6"
           />
         </svg>
-      </div>
+      </button>
       <div
         class="flex flex-col gap-1 items-start"
       />
@@ -1790,7 +1790,7 @@ exports[`renders custom forms column_id_dot_array 1`] = `
       aria-invalid="false"
       class="relative"
     >
-      <div
+      <button
         aria-controls="radix-_r_43_"
         aria-expanded="false"
         aria-haspopup="dialog"
@@ -1821,7 +1821,7 @@ exports[`renders custom forms column_id_dot_array 1`] = `
             d="m6 9 6 6 6-6"
           />
         </svg>
-      </div>
+      </button>
       <div
         class="flex flex-col gap-1 items-start"
       />

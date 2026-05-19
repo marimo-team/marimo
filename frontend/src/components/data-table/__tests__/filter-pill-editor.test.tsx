@@ -98,8 +98,7 @@ describe("FilterPillEditor — snapshot rehydration", () => {
         onClose={vi.fn()}
       />,
     );
-    expect(await screen.findByText("a")).toBeInTheDocument();
-    expect(await screen.findByText("b")).toBeInTheDocument();
+    expect(await screen.findByText("[a, b]")).toBeInTheDocument();
   });
 
   it("rehydrates a text contains snapshot with seeded text", () => {

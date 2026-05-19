@@ -200,7 +200,7 @@ export const FilterPillEditor = <TData,>({
   const operatorTriggerRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const firstInput = valueSlotRef.current?.querySelector<HTMLElement>(
-      'input, [role="combobox"]',
+      'input, [role="combobox"], button',
     );
     if (firstInput) {
       firstInput.focus();

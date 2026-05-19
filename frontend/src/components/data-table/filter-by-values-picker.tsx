@@ -60,6 +60,7 @@ export const FilterByValuesPicker = <TData, TValue>({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild={true}>
         <Button
+          type="button"
           variant="outline"
           size="xs"
           className="h-6 mb-1 w-full justify-between font-normal"
