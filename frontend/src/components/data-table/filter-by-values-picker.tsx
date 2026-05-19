@@ -229,7 +229,8 @@ export const FilterByValuesList = <TData, TValue>({
             : `Search among the top ${data.length} values`
         }
         autoFocus={true}
-        onValueChange={(value) => setQuery(value.trim())}
+        value={query}
+        onValueChange={setQuery}
         onKeyDown={(e) => {
           if (e.key === "Enter" && canCreate) {
             e.preventDefault();
