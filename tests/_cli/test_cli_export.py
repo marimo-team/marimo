@@ -720,6 +720,17 @@ class TestExportMarkdown:
         assert "```{marimo .python" in output.read_text()
 
     @staticmethod
+    def test_export_markdown_infers_mystmd_from_output(
+        temp_marimo_file: str, tmp_path: Path
+    ) -> None:
+        output = tmp_path / "notebook.myst.md"
+
+        p = _run_export("md", temp_marimo_file, "--output", str(output))
+
+        _assert_success(p)
+        assert "```{marimo} python" in output.read_text()
+
+    @staticmethod
     def test_export_markdown_explicit_flavor_overrides_output(
         temp_marimo_file: str, tmp_path: Path
     ) -> None:
