@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._runtime.dataflow.graph import DirectedGraph
-from marimo._runtime.dataflow.runner import Runner
 from marimo._runtime.dataflow.topology import GraphTopology
 from marimo._runtime.dataflow.types import Edge, EdgeWithVar
 from marimo._types.ids import CellId_t
@@ -253,7 +252,6 @@ __all__ = [
     "DirectedGraph",
     "Edge",
     "EdgeWithVar",
-    "Runner",
     "get_cycles",
     "get_import_block_relatives",
     "induced_subgraph",

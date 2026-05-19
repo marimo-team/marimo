@@ -1,15 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 
 from __future__ import annotations
-import os
+
 import pathlib
 import subprocess
 import sys
 import textwrap
 from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
 
-import click
 import pytest
 
 from marimo._ast.app import (
@@ -28,21 +26,13 @@ from marimo._ast.errors import (
     SetupRootError,
     UnparsableError,
 )
-from marimo._ast.load import load_app
 from marimo._ast.names import SETUP_CELL_NAME
-from marimo._convert.converters import MarimoConvert
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.stateless.flex import vstack
+from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.context.types import get_context
-from marimo._runtime.commands import UpdateUIElementCommand, ExecuteCellCommand
-from marimo._schemas.serialization import (
-    AppInstantiation,
-    CellDef,
-    NotebookSerializationV1,
-)
 from marimo._types.ids import CellId_t
-from tests.conftest import ExecReqProvider, MockedKernel
-from tests._messaging.mocks import MockStream
+from tests.conftest import ExecReqProvider
 
 if TYPE_CHECKING:
     from marimo._runtime.runtime import Kernel
@@ -102,7 +92,7 @@ class TestApp:
 
         @app.cell
         def _() -> tuple[object]:
-            doc = __doc__  # noqa: F821
+            doc = __doc__
             return (doc,)
 
         _, defs = app.run()
@@ -115,7 +105,7 @@ class TestApp:
 
         @app.cell
         def _() -> tuple[object]:
-            doc = __doc__  # noqa: F821
+            doc = __doc__
             return (doc,)
 
         _, defs = app.run()
@@ -133,7 +123,9 @@ class TestApp:
             return batch_size, learning_rate
 
         @app.cell
-        def process_data(batch_size: int, learning_rate: float) -> tuple[float]:
+        def process_data(
+            batch_size: int, learning_rate: float
+        ) -> tuple[float]:
             result = batch_size * learning_rate
             return (result,)
 
@@ -150,7 +142,9 @@ class TestApp:
         assert defs["message"] == "independent"
 
         # Test 2: Run with overridden values
-        outputs, defs = app.run(defs={"batch_size": 64, "learning_rate": 0.001})
+        outputs, defs = app.run(
+            defs={"batch_size": 64, "learning_rate": 0.001}
+        )
         assert defs["batch_size"] == 64
         assert defs["learning_rate"] == 0.001
         assert defs["result"] == 64 * 0.001
@@ -203,7 +197,6 @@ class TestApp:
         app = App()
 
         with app.setup:
-            import os
             setup_var = "from_setup"
 
         @app.cell
@@ -232,7 +225,6 @@ class TestApp:
         app = App()
 
         with app.setup:
-            import os
             a = 1
             if a > 2:
                 setup_var = "from_setup"
@@ -247,7 +239,6 @@ class TestApp:
         with pytest.raises(NameError) as exc_info:
             app.run()
         assert "setup_var" in str(exc_info.value)
-
 
     @staticmethod
     def test_setup() -> None:
@@ -291,7 +282,6 @@ class TestApp:
         assert (defs["y"], defs["z"]) == (1, 2)
         assert defs["a"] == 2
 
-
     @staticmethod
     def test_cycle() -> None:
         app = App()
@@ -315,11 +305,11 @@ class TestApp:
 
         @app.cell
         def one() -> None:
-            x = y  # noqa: F841, F821
+            x = y  # noqa: F821
 
         @app.cell
         def two() -> None:
-            y = x  # noqa: F841, F821
+            y = x  # noqa: F821
 
         with pytest.raises(CycleError):
             app.run()
@@ -347,11 +337,11 @@ class TestApp:
 
         @app.cell
         def one() -> None:
-            x = 0  # noqa: F841
+            x = 0
 
         @app.cell
         def two() -> None:
-            x = 0  # noqa: F841
+            x = 0
 
         with pytest.raises(MultipleDefinitionError):
             app.run()
@@ -362,11 +352,11 @@ class TestApp:
 
         @app.cell
         def one() -> None:
-            x = 0  # noqa: F841
+            x = 0
 
         @app.cell
         def two() -> None:
-            del x  # noqa: F841, F821
+            del x  # noqa: F821
 
         # smoke test, no error raised
         app.run()
@@ -426,7 +416,7 @@ class TestApp:
 
         @app.cell
         def _() -> tuple[str]:
-            _x = 10  # noqa: F841
+            _x = 10
 
             def _f() -> str:
                 _x = "nested"
@@ -454,7 +444,7 @@ class TestApp:
 
         @app.cell
         def _() -> None:
-            _x  # type: ignore  # noqa: F821
+            _x  # type: ignore
             return
 
         with pytest.raises(NameError) as e:
@@ -468,7 +458,7 @@ class TestApp:
 
         @app.cell
         def _() -> None:
-            _x = 0  # noqa: F841
+            _x = 0
             return
 
         @app.cell
@@ -503,7 +493,7 @@ class TestApp:
 
         @app.cell
         def _() -> None:
-            __ = 1  # noqa: F841
+            __ = 1
             return
 
         @app.cell
@@ -648,6 +638,7 @@ class TestApp:
         @app.cell
         def _() -> Any:
             import marimo as mo
+
             return (mo,)
 
         @app.cell
@@ -672,6 +663,7 @@ class TestApp:
         @app.cell
         def _() -> Any:
             import marimo as mo
+
             return (mo,)
 
         @app.cell
@@ -697,6 +689,7 @@ class TestApp:
         @app.cell
         def _() -> Any:
             import marimo as mo
+
             return (mo,)
 
         @app.cell
@@ -711,7 +704,6 @@ class TestApp:
             y = 0
             return (y,)
 
-
         @app.cell
         def _(x) -> tuple[int]:
             x
@@ -724,13 +716,42 @@ class TestApp:
             b = 0
             return
 
-
         _, defs = app.run()
         assert "x" not in defs
         assert "y" not in defs
         assert "a" not in defs
         assert "b" not in defs
 
+    @staticmethod
+    def test_run_mo_stop_records_output() -> None:
+        # mo.stop's `output=` arg is shown to the user in edit/kernel mode.
+        # Script mode used to silently drop it; cell_runner has always
+        # recorded it. The runner-consolidation refactor aligns these.
+        app = App()
+
+        @app.cell
+        def first() -> Any:
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def stop_cell(mo) -> tuple[int]:
+            mo.stop(True, output="stopped-output-value")
+            x = 0
+            return (x,)
+
+        @app.cell
+        def descendant(x) -> tuple[int]:
+            y = x + 1
+            return (y,)
+
+        outputs, defs = app.run()
+        # stop_cell at index 1 records the stop's output; its descendant
+        # is cancelled and absent from the flattened output tuple.
+        assert outputs == (None, "stopped-output-value")
+        assert "x" not in defs
+        assert "y" not in defs
 
     @staticmethod
     def test_run_mo_stop_async() -> None:
@@ -739,6 +760,7 @@ class TestApp:
         @app.cell
         def _() -> Any:
             import marimo as mo
+
             return (mo,)
 
         @app.cell
@@ -763,6 +785,7 @@ class TestApp:
         @app.cell
         def _() -> Any:
             import marimo as mo
+
             return (mo,)
 
         @app.cell
@@ -780,7 +803,6 @@ class TestApp:
         _, defs = app.run()
         assert "x" not in defs
         assert "y" not in defs
-
 
     @pytest.mark.skipif(
         condition=not DependencyManager.matplotlib.has(),
@@ -955,11 +977,16 @@ class TestApp:
 
         # Public mutable fields should be deep-copied, not shared
         assert original_impl.config is not cloned_impl.config
-        assert original_impl.import_workspace is not cloned_impl.import_workspace
+        assert (
+            original_impl.import_workspace is not cloned_impl.import_workspace
+        )
 
         # Private mutable runtime state fields should also be independent
         assert original_impl._status is not cloned_impl._status
-        assert original_impl._run_result_status is not cloned_impl._run_result_status
+        assert (
+            original_impl._run_result_status
+            is not cloned_impl._run_result_status
+        )
         assert original_impl._stale is not cloned_impl._stale
         assert original_impl._output is not cloned_impl._output
 
@@ -1030,8 +1057,7 @@ class TestInvalidSetup:
     @staticmethod
     def test_initial_setup() -> None:
         app = App()
-        app._unparsable_cell(";",
-                             name="setup")
+        app._unparsable_cell(";", name="setup")
 
         assert app._cell_manager.has_cell("setup")
         assert app._cell_manager.cell_name("setup") == "setup"
@@ -1039,22 +1065,21 @@ class TestInvalidSetup:
     @staticmethod
     def test_not_initial_setup() -> None:
         app = App()
-        app._unparsable_cell(";",
-                             name="other")
-        app._unparsable_cell(";",
-                             name="setup")
+        app._unparsable_cell(";", name="other")
+        app._unparsable_cell(";", name="setup")
 
         assert not app._cell_manager.has_cell("setup")
 
     @staticmethod
     def test_not_initial_setup_cell() -> None:
         app = App()
+
         @app.cell
         def _():
             def B() -> float:
                 return 1.0
-        app._unparsable_cell(";",
-                             name="setup")
+
+        app._unparsable_cell(";", name="setup")
         assert not app._cell_manager.has_cell("setup")
 
 
@@ -1205,7 +1230,9 @@ class TestAppComposition:
         with pytest.raises(ValueError) as excinfo:
             await app.embed(defs={"x": mo.ui.slider(1, 10)})
 
-        assert "Substituting UI Elements for variables is not allowed" in str(excinfo.value)
+        assert "Substituting UI Elements for variables is not allowed" in str(
+            excinfo.value
+        )
 
     async def test_app_embed_with_defs_multiple_vars(self) -> None:
         """Test embed() with defs overriding a cell that defines multiple variables."""
@@ -1532,8 +1559,6 @@ class TestAppComposition:
             with app.setup:
                 app = 1
 
-
-
     @staticmethod
     def test_setup_not_exposed() -> None:
         app = App()
@@ -1544,7 +1569,6 @@ class TestAppComposition:
                     x = app is not None
                 except NameError:
                     x = False
-
 
     @staticmethod
     def test_setup_in_memory() -> None:
@@ -1598,11 +1622,8 @@ class TestAppComposition:
         assert setup_cell is not None
         assert setup_cell.config.hide_code is False
 
-
     @staticmethod
-    async def test_app_embed_preserves_file_path(
-        app: App
-    ) -> None:
+    async def test_app_embed_preserves_file_path(app: App) -> None:
         with app.setup:
             from tests._ast.app_data import notebook_filename
 
@@ -1623,7 +1644,6 @@ class TestAppComposition:
         def _(cloned: AppEmbedResult, filename: str, directory: str) -> None:
             assert cloned.defs.get("this_is_foo_file").endswith(filename)
             assert cloned.defs.get("this_is_foo_path").stem == directory
-
 
     @staticmethod
     async def test_app_embed_in_kernel(
@@ -1648,10 +1668,13 @@ class TestAppComposition:
         filename = "notebook_filename.py"
         directory = "app_data"
         assert k.globals["app"].defs.get("this_is_foo_file").endswith(filename)
-        assert k.globals["cloned"].defs.get("this_is_foo_file").endswith(filename)
+        assert (
+            k.globals["cloned"].defs.get("this_is_foo_file").endswith(filename)
+        )
         assert k.globals["app"].defs.get("this_is_foo_path").stem == directory
-        assert k.globals["cloned"].defs.get("this_is_foo_path").stem == directory
-
+        assert (
+            k.globals["cloned"].defs.get("this_is_foo_path").stem == directory
+        )
 
     @staticmethod
     async def test_app_embed_same_cell_in_kernel(
@@ -1693,8 +1716,9 @@ class TestAppComposition:
 
         This tests the fix where setup cells get the prefix like other cells.
         """
-        await k.run([
-            exec_req.get("""
+        await k.run(
+            [
+                exec_req.get("""
             # Import in kernel context; the prefix the app gets
             # depends on whether it was first imported in a kernel context,
             # so we reload it in case notebook_filename was loaded elsewhere
@@ -1705,11 +1729,14 @@ class TestAppComposition:
             importlib.reload(mod)
             app = mod.app
             """)
-        ])
+            ]
+        )
         assert not k.errors
         nb_app = k.globals["app"]
         cell_ids = list(InternalApp(nb_app).cell_manager.cell_ids())
-        setup_cell_ids = [cid for cid in cell_ids if cid.endswith(SETUP_CELL_NAME)]
+        setup_cell_ids = [
+            cid for cid in cell_ids if cid.endswith(SETUP_CELL_NAME)
+        ]
         assert len(setup_cell_ids) == 1
         assert is_external_cell_id(setup_cell_ids[0])
 
@@ -1780,9 +1807,7 @@ class TestInternalAppWithData:
 
         internal_app = InternalApp(app)
         cell_id = next(iter(internal_app.cell_manager.cell_ids()))
-        original_compiled = internal_app.cell_manager._compiled_cells[
-            cell_id
-        ]
+        original_compiled = internal_app.cell_manager._compiled_cells[cell_id]
         assert original_compiled is not None
 
         internal_app.with_data(
@@ -1900,7 +1925,6 @@ class TestInternalAppOverrides:
         )
         assert not k.errors
         assert k.globals["overrides"] == {"x": 100}
-
 
     @pytest.mark.xfail(
         True, reason="Flaky in CI, can't repro locally", strict=False

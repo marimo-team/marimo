@@ -2,11 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
-import functools
 import io
-import signal
-import threading
 import traceback
 from pathlib import Path
 from types import TracebackType
@@ -55,7 +51,6 @@ LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
     from collections import deque
-    from collections.abc import Iterator
 
     from marimo._runtime.runner.hooks import NotebookCellHooks
     from marimo._runtime.state import State
@@ -207,53 +202,6 @@ class Runner:
             )
 
         return sorted_cells
-
-    # Adapted from
-    # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312
-    @staticmethod
-    @contextlib.contextmanager
-    def _cancel_on_sigint(future: asyncio.Future[Any]) -> Iterator[None]:
-        """ContextManager for capturing SIGINT and cancelling a future
-
-        SIGINT raises in the event loop when running async code,
-        but we want it to halt a coroutine.
-
-        Ideally, it would raise KeyboardInterrupt, but this turns it into a
-        CancelledError.
-        """
-        sigint_future: asyncio.Future[int] = asyncio.Future()
-
-        # whichever future finishes first,
-        # cancel the other one
-        def cancel_unless_done(f: asyncio.Future[Any], _: Any) -> None:
-            if f.cancelled() or f.done():
-                return
-            f.cancel()
-
-        # when sigint finishes,
-        # abort the coroutine with CancelledError
-        sigint_future.add_done_callback(
-            functools.partial(cancel_unless_done, future)
-        )
-        # when the main future finishes,
-        # stop watching for SIGINT events
-        future.add_done_callback(
-            functools.partial(cancel_unless_done, sigint_future)
-        )
-
-        def handle_sigint(*_: Any) -> None:
-            if sigint_future.cancelled() or sigint_future.done():
-                return
-            # mark as done, to trigger cancellation
-            sigint_future.set_result(1)
-
-        # set the custom sigint handler during this context
-        save_sigint = signal.signal(signal.SIGINT, handle_sigint)
-        try:
-            yield
-        finally:
-            # restore the previous sigint handler
-            signal.signal(signal.SIGINT, save_sigint)
 
     @property
     def cells_to_run(self) -> deque[CellId_t]:
@@ -463,20 +411,9 @@ class Runner:
         # returned RunResult; cell_id-specific classification + side
         # effects are applied below in `_finalize_run_result`.
         try:
-            if cell.is_coroutine():
-                return_value_future = asyncio.ensure_future(
-                    self._evaluator.evaluate(cell, self.glbls)
-                )
-                if threading.current_thread() == threading.main_thread():
-                    # edit mode: need to handle user interrupts
-                    with Runner._cancel_on_sigint(return_value_future):
-                        raw_result = await return_value_future
-                else:
-                    # run mode: can't use signal.signal, not interruptible
-                    # by user anyway.
-                    raw_result = await return_value_future
-            else:
-                raw_result = await self._evaluator.evaluate(cell, self.glbls)
+            raw_result = await self._evaluator.evaluate_interruptible(
+                cell, self.glbls
+            )
             run_result = self._finalize_run_result(raw_result, cell_id)
         except BaseException:
             # Defensive: an unexpected escape from the Evaluator or a bug

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections import deque
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.names import SETUP_CELL_NAME
@@ -21,12 +20,18 @@ from marimo._runtime.exceptions import (
     MarimoRuntimeException,
     unwrap_user_exception,
 )
-from marimo._runtime.executor import resolve_executor
+from marimo._runtime.executor import (
+    EvaluatorConfig,
+    build_evaluator,
+    resolve_executor,
+)
 from marimo._runtime.patches import (
     create_main_module,
     extract_docstring_from_header,
     patch_main_module_context,
 )
+from marimo._runtime.runner.result import RunResult
+from marimo._runtime.runner.scheduler import SequentialScheduler
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -47,7 +52,6 @@ class AppScriptRunner:
         self.app = app
         self.filename = filename
         self._docstring = extract_docstring_from_header(app._app._header)
-        self.cells_cancelled: set[CellId_t] = set()
         self._glbls = glbls if glbls else {}
 
         # Setup cell cannot be overridden, and it's possible that some
@@ -59,24 +63,23 @@ class AppScriptRunner:
             excluded=CellId_t(SETUP_CELL_NAME),
         )
 
-        self.cells_to_run: deque[CellId_t] = deque(
+        cells_to_run = [
             cid
             for cid in pruned_execution_order
             if app.cell_manager.cell_data_at(cid).cell is not None
             and not self.app.graph.is_disabled(cid)
+        ]
+
+        self._scheduler = SequentialScheduler(cells_to_run, self.app.graph)
+        self._evaluator = build_evaluator(
+            EvaluatorConfig(executor=resolve_executor(), lifecycles=[])
         )
-        self._executor = resolve_executor()
 
-    def _cancel(self, cell_id: CellId_t) -> None:
-        cancelled = {
-            cid
-            for cid in dataflow.transitive_closure(self.app.graph, {cell_id})
-            if cid in self.cells_to_run
-        }
-        for cid in cancelled:
-            self.app.graph.cells[cid].set_run_result_status("cancelled")
-        self.cells_cancelled |= cancelled
-
+    # _run_synchronous and _run_asynchronous are deliberate near-twins:
+    # the only difference is the await on the cell step. Keeping them
+    # as separate methods (rather than wrapping with asyncio.run
+    # unconditionally) preserves the no-event-loop guarantee for purely
+    # synchronous apps.
     def _run_synchronous(
         self,
         post_execute_hooks: list[Callable[[], Any]],
@@ -93,39 +96,15 @@ class AppScriptRunner:
             glbls.update(self._glbls)
 
             outputs: dict[CellId_t, Any] = {}
-            while self.cells_to_run:
-                cid = self.cells_to_run.popleft()
-                if cid in self.cells_cancelled:
+            while self._scheduler.pending():
+                cid = self._scheduler.pop_cell()
+                if not self._should_run_cell(cid, post_execute_hooks):
                     continue
-                # Set up has already run in this case.
-                if cid == CellId_t(SETUP_CELL_NAME):
-                    for hook in post_execute_hooks:
-                        hook()
-                    continue
-
                 cell = self.app.graph.cells[cid]
                 with get_context().with_cell_id(cid):
                     try:
-                        output = self._executor.execute_cell(cell, glbls)
-                        outputs[cid] = output
-                    except MarimoRuntimeException as e:
-                        unwrapped_exception = unwrap_user_exception(
-                            e, self.app.graph
-                        )
-
-                        if isinstance(unwrapped_exception, MarimoStopError):
-                            self._cancel(cid)
-                        elif isinstance(
-                            unwrapped_exception, MarimoMissingRefError
-                        ):
-                            name_err = unwrapped_exception.name_error
-                            raise (
-                                name_err
-                                if name_err is not None
-                                else unwrapped_exception
-                            ) from None
-                        else:
-                            raise
+                        result = self._evaluator.evaluate_sync(cell, glbls)
+                        self._handle_run_result(cid, result, outputs)
                     finally:
                         for hook in post_execute_hooks:
                             hook()
@@ -147,46 +126,74 @@ class AppScriptRunner:
             glbls.update(self._glbls)
 
             outputs: dict[CellId_t, Any] = {}
-
-            while self.cells_to_run:
-                cid = self.cells_to_run.popleft()
-                if cid in self.cells_cancelled:
+            while self._scheduler.pending():
+                cid = self._scheduler.pop_cell()
+                if not self._should_run_cell(cid, post_execute_hooks):
                     continue
-
-                if cid == CellId_t(SETUP_CELL_NAME):
-                    for hook in post_execute_hooks:
-                        hook()
-                    continue
-
                 cell = self.app.graph.cells[cid]
                 with get_context().with_cell_id(cid):
                     try:
-                        output = await self._executor.execute_cell_async(
-                            cell, glbls
-                        )
-                        outputs[cid] = output
-                    except MarimoRuntimeException as e:
-                        unwrapped_exception = unwrap_user_exception(
-                            e, self.app.graph
-                        )
-
-                        if isinstance(unwrapped_exception, MarimoStopError):
-                            self._cancel(cid)
-                        elif isinstance(
-                            unwrapped_exception, MarimoMissingRefError
-                        ):
-                            name_err = unwrapped_exception.name_error
-                            raise (
-                                name_err
-                                if name_err is not None
-                                else unwrapped_exception
-                            ) from None
-                        else:
-                            raise
+                        result = await self._evaluator.evaluate(cell, glbls)
+                        self._handle_run_result(cid, result, outputs)
                     finally:
                         for hook in post_execute_hooks:
                             hook()
         return outputs, glbls
+
+    def _should_run_cell(
+        self,
+        cid: CellId_t,
+        post_execute_hooks: list[Callable[[], Any]],
+    ) -> bool:
+        """Filter cells: skip cancelled, and treat the setup cell as a
+        pass-through that still fires post-execute hooks."""
+        if self._scheduler.cancelled(cid):
+            return False
+        # Setup has already run by this point; still fire the per-cell
+        # hooks so matplotlib figure cleanup matches edit-mode timing.
+        if cid == CellId_t(SETUP_CELL_NAME):
+            for hook in post_execute_hooks:
+                hook()
+            return False
+        return True
+
+    def _handle_run_result(
+        self,
+        cid: CellId_t,
+        result: RunResult,
+        outputs: dict[CellId_t, Any],
+    ) -> None:
+        """Classify the Evaluator's RunResult; record output, cancel, or raise.
+
+        Aligns MarimoStopError handling with the kernel classifier: the
+        stop's output is recorded for the cell and descendants are
+        cancelled, instead of silently swallowing both.
+        """
+        exc = result.exception
+        if exc is None:
+            outputs[cid] = result.output
+            return
+        if not isinstance(exc, BaseException):
+            # An Error-shape payload (e.g. ``MarimoStrictExecutionError``)
+            # from a lifecycle ``Skip(result=...)``. Script mode runs with
+            # no lifecycles today, so this is unreachable in practice;
+            # treat defensively by recording the output and cancelling
+            # descendants.
+            outputs[cid] = result.output
+            self._scheduler.cancel(cid)
+            return
+        if isinstance(exc, MarimoRuntimeException):
+            unwrapped = unwrap_user_exception(exc, self.app.graph)
+            if isinstance(unwrapped, MarimoStopError):
+                outputs[cid] = unwrapped.output
+                self._scheduler.cancel(cid)
+                return
+            if isinstance(unwrapped, MarimoMissingRefError):
+                name_err = unwrapped.name_error
+                raise (
+                    name_err if name_err is not None else unwrapped
+                ) from None
+        raise exc
 
     def run(self) -> RunOutput:
         from marimo._runtime.context.script_context import (
@@ -231,7 +238,7 @@ class AppScriptRunner:
                     theme=get_context().marimo_config["display"]["theme"]
                 )
 
-            post_execute_hooks = []
+            post_execute_hooks: list[Callable[[], Any]] = []
             if DependencyManager.matplotlib.has():
                 from marimo._output.mpl import close_figures
 
