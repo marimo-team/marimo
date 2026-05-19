@@ -1328,10 +1328,16 @@ def test_mark_auto_export(session_view: SessionView):
     assert not session_view.needs_md_export("pymdown")
     assert session_view.needs_md_export("qmd")
 
+    session_view.mark_auto_export_md("qmd")
+    assert not session_view.needs_md_export("pymdown")
+    assert not session_view.needs_md_export("qmd")
+    assert session_view.needs_md_export("mystmd")
+
     session_view._touch()
     assert session_view.needs_export("html")
     assert session_view.needs_export("md")
     assert session_view.needs_md_export("pymdown")
+    assert session_view.needs_md_export("qmd")
 
     session_view.mark_auto_export_html()
     session_view.mark_auto_export_md()

@@ -25,9 +25,8 @@ from marimo._convert.markdown.flavor.base import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-_MARIMO_VERSION_KEY = "marimo-version"
 _CONFIG_KEYS = {"header", "pyproject"}
-_MARIMO_METADATA_KEYS = {_MARIMO_VERSION_KEY, "width"}
+_MARIMO_METADATA_KEYS = {"width"}
 _SCRIPT_METADATA_RE = re.compile(
     r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s"
     r"(?P<content>(^#(| .*)$\s)+)^# ///$"

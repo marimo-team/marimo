@@ -315,6 +315,11 @@ def test_convert_from_ir_to_markdown_qmd_format():
     )
     assert "```{marimo .python" in markdown_qmd
 
+    markdown_mystmd = convert_from_ir_to_markdown(
+        notebook, filename="notebook.myst.md"
+    )
+    assert "```{marimo} python" in markdown_mystmd
+
     # Test .md filename produces standard format
     markdown_md = convert_from_ir_to_markdown(notebook, filename="notebook.md")
     # Should use either superfences or fallback format
@@ -454,7 +459,9 @@ def test_mystmd_flavor_renders_marimo_notebook_export_syntax():
 
     markdown = flavor.render_document(document)
 
-    assert markdown.startswith("---\ntitle: Notebook\n---\n")
+    assert markdown.startswith(
+        "---\ntitle: Notebook\nmarimo-version: 0.0.0\n---\n"
+    )
     assert "```{marimo-config}\n---\n" in markdown
     assert "header: |-\n  import os" in markdown
     assert 'requires-python = ">=3.10"' in markdown
