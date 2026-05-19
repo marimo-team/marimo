@@ -170,13 +170,13 @@ def test_mystmd_marimo_directives() -> None:
 
 def test_mystmd_preprocessor_registers_conditionally() -> None:
     plain_parser = MarimoMdParser(output_format="marimo-ir")
-    myst_parser = MarimoMdParser(
+    mystmd_parser = MarimoMdParser(
         output_format="marimo-ir",
-        enable_myst=True,
+        enable_mystmd=True,
     )
 
-    assert "myst-marimo" not in plain_parser.preprocessors
-    assert "myst-marimo" in myst_parser.preprocessors
+    assert "mystmd-marimo" not in plain_parser.preprocessors
+    assert "mystmd-marimo" in mystmd_parser.preprocessors
 
 
 def test_no_frontmatter() -> None:

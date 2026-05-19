@@ -53,10 +53,21 @@ LOGGER = _loggers.marimo_logger()
 
 MARIMO_MD = "marimo-md"
 MARIMO_CODE = "marimo-code"
-_MYST_MARIMO_HEADER_RE = re.compile(
+# mystmd directives are fenced code blocks with the directive name in braces,
+# followed by directive arguments and optional `:key: value` option lines.
+# Reference: https://mystmd.org/guide/directives
+#
+# marimo code blocks use the mystmd directive form:
+#
+# ```{marimo} python
+# :hide-code: true
+#
+# print("hello")
+# ```
+_MYSTMD_MARIMO_HEADER_RE = re.compile(
     r"^(?P<fence>`{3,})\{marimo\}(?:\s+(?P<language>\w+))?\s*$"
 )
-_MYST_DIRECTIVE_OPTION_RE = re.compile(r"^:([A-Za-z0-9_-]+):(?:\s+(.*))?$")
+_MYSTMD_DIRECTIVE_OPTION_RE = re.compile(r"^:([A-Za-z0-9_-]+):(?:\s+(.*))?$")
 
 ConvertKeys = Literal["marimo-ir"]
 
@@ -83,18 +94,18 @@ def extract_attribs(
     return {}
 
 
-def _is_myst_marimo_directive_header(line: str) -> bool:
-    return bool(re.match(r"^`{3,}\{marimo\}(?:\s+\w+)?\s*$", line))
+def _is_mystmd_marimo_directive_header(line: str) -> bool:
+    return bool(_MYSTMD_MARIMO_HEADER_RE.match(line))
 
 
-def _extract_myst_directive_options(
+def _extract_mystmd_directive_options(
     lines: list[str],
 ) -> tuple[dict[str, str], list[str]]:
     options: dict[str, str] = {}
     body_start = 0
 
     for index, line in enumerate(lines):
-        match = _MYST_DIRECTIVE_OPTION_RE.match(line)
+        match = _MYSTMD_DIRECTIVE_OPTION_RE.match(line)
         if match is None:
             break
         options[match.group(1).replace("-", "_")] = match.group(2) or "true"
@@ -118,9 +129,9 @@ def _is_code_tag(text: str) -> bool:
 
 def _get_language(text: str) -> str:
     header = text.split("\n").pop(0)
-    myst_match = re.match(r"^`{3,}\{marimo\}\s+(?P<language>\w+)", header)
-    if myst_match:
-        return str(myst_match.group("language"))
+    mystmd_match = re.match(r"^`{3,}\{marimo\}\s+(?P<language>\w+)", header)
+    if mystmd_match:
+        return str(mystmd_match.group("language"))
     match = RE_NESTED_FENCE_START.match(header)
     if match and match.group("lang"):
         return str(match.group("lang"))
@@ -320,7 +331,7 @@ class MarimoMdParser(IdentityParser):
         self,
         *args: Any,
         output_format: ConvertKeys = "marimo-ir",
-        enable_myst: bool = False,
+        enable_mystmd: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -337,9 +348,9 @@ class MarimoMdParser(IdentityParser):
         self.preprocessors.register(
             FrontMatterPreprocessor(self), "frontmatter", 100
         )
-        if enable_myst:
+        if enable_mystmd:
             self.preprocessors.register(
-                MystMarimoPreprocessor(self), "myst-marimo", 99
+                MystmdMarimoPreprocessor(self), "mystmd-marimo", 99
             )
         fences_ext = SuperFencesCodeExtension()
         fences_ext.extendMarkdown(self)
@@ -406,15 +417,15 @@ class FrontMatterPreprocessor(Preprocessor):
         return doc.split("\n")
 
 
-class MystMarimoPreprocessor(Preprocessor):
-    """Normalize MyST marimo directive fences before SuperFences parses them."""
+class MystmdMarimoPreprocessor(Preprocessor):
+    """Normalize mystmd marimo directive fences before SuperFences parses them."""
 
     def run(self, lines: list[str]) -> list[str]:
         normalized: list[str] = []
         index = 0
 
         while index < len(lines):
-            match = _MYST_MARIMO_HEADER_RE.match(lines[index])
+            match = _MYSTMD_MARIMO_HEADER_RE.match(lines[index])
             if match is None:
                 normalized.append(lines[index])
                 index += 1
@@ -423,7 +434,7 @@ class MystMarimoPreprocessor(Preprocessor):
             index += 1
             options: dict[str, str] = {}
             while index < len(lines):
-                option = _MYST_DIRECTIVE_OPTION_RE.match(lines[index])
+                option = _MYSTMD_DIRECTIVE_OPTION_RE.match(lines[index])
                 if option is None:
                     break
                 options[option.group(1).replace("-", "_")] = (
@@ -555,11 +566,11 @@ class ExpandAndClassifyProcessor(BlockProcessor):
             body_lines = block_lines[1:-1]
 
             attribs = extract_attribs(block_lines[0])
-            if _is_myst_marimo_directive_header(block_lines[0]):
-                myst_options, body_lines = _extract_myst_directive_options(
+            if _is_mystmd_marimo_directive_header(block_lines[0]):
+                mystmd_options, body_lines = _extract_mystmd_directive_options(
                     body_lines
                 )
-                attribs.update(myst_options)
+                attribs.update(mystmd_options)
             code_block.text = "\n".join(body_lines)
             if attribs:
                 code_block.attrib = attribs
@@ -581,8 +592,8 @@ def convert_from_md_to_marimo_ir(
         )
     notebook = MarimoMdParser(
         output_format="marimo-ir",
-        enable_myst=any(
-            _is_myst_marimo_directive_header(line)
+        enable_mystmd=any(
+            _is_mystmd_marimo_directive_header(line)
             for line in text.splitlines()
         ),
     ).convert(text)

@@ -27,7 +27,7 @@ order as they appear in the notebook.
 marimo export md notebook.py -o notebook.md
 ```
 
-This can be useful to plug into other tools that read markdown, such as [Quarto](https://quarto.org/) or [MyST](https://myst-parser.readthedocs.io/).
+This can be useful to plug into other tools that read markdown, such as [Quarto](https://quarto.org/) or [mystmd](https://mystmd.org/).
 
 !!! tip "marimo can open markdown files as notebooks"
     Learn more with `marimo tutorial markdown-format` at the command line.
