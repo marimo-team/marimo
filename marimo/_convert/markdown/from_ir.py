@@ -178,7 +178,12 @@ def _notebook_to_markdown_export_document(
 
 def _format_filename_title(filename: str) -> str:
     basename = os.path.basename(filename)
-    name, _ext = os.path.splitext(basename)
+    for suffix in (".myst.md", ".markdown", ".qmd", ".md", ".py"):
+        if basename.endswith(suffix):
+            name = basename[: -len(suffix)]
+            break
+    else:
+        name, _ext = os.path.splitext(basename)
     title = re.sub("[-_]", " ", name)
     return title.title()
 

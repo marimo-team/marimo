@@ -192,13 +192,14 @@ def _export_as_markdown(
         )
 
     ir = replace(converter.ir, filename=path.short_name)
-    export_filename = filename or ir.filename or path.short_name
+    source_filename = ir.filename or path.short_name
+    export_filename = filename or source_filename
     markdown_flavor = normalize_markdown_flavor(
         flavor, filename=export_filename
     )
     return ExportResult(
         contents=MarimoConvert.from_ir(ir).to_markdown(
-            filename=export_filename,
+            filename=source_filename,
             flavor=markdown_flavor,
         ),
         download_filename=markdown_output_filename(
@@ -392,7 +393,9 @@ Watch for changes and regenerate the script on modification:
     default=None,
     help=(
         "Output file to save the markdown to. "
-        "If not provided, markdown will be printed to stdout."
+        "If --flavor is omitted, this file's extension selects the "
+        "markdown flavor. If not provided, markdown will be printed to "
+        "stdout; shell redirection is not inspected for flavor inference."
     ),
 )
 @click.option(
