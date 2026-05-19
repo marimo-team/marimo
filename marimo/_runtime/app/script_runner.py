@@ -19,11 +19,9 @@ from marimo._runtime.control_flow import MarimoStopError
 from marimo._runtime.exceptions import (
     MarimoMissingRefError,
     MarimoRuntimeException,
+    unwrap_user_exception,
 )
-from marimo._runtime.executor import (
-    ExecutionConfig,
-    get_executor,
-)
+from marimo._runtime.executor import DefaultExecutor
 from marimo._runtime.patches import (
     create_main_module,
     extract_docstring_from_header,
@@ -67,7 +65,7 @@ class AppScriptRunner:
             if app.cell_manager.cell_data_at(cid).cell is not None
             and not self.app.graph.is_disabled(cid)
         )
-        self._executor = get_executor(ExecutionConfig())
+        self._executor = DefaultExecutor()
 
     def _cancel(self, cell_id: CellId_t) -> None:
         cancelled = {
@@ -108,12 +106,10 @@ class AppScriptRunner:
                 cell = self.app.graph.cells[cid]
                 with get_context().with_cell_id(cid):
                     try:
-                        output = self._executor.execute_cell(
-                            cell, glbls, self.app.graph
-                        )
+                        output = self._executor.execute_cell(cell, glbls)
                         outputs[cid] = output
                     except MarimoRuntimeException as e:
-                        unwrapped_exception: BaseException | None = e.__cause__
+                        unwrapped_exception = unwrap_user_exception(e)
 
                         if isinstance(unwrapped_exception, MarimoStopError):
                             self._cancel(cid)
@@ -155,11 +151,11 @@ class AppScriptRunner:
                 with get_context().with_cell_id(cid):
                     try:
                         output = await self._executor.execute_cell_async(
-                            cell, glbls, self.app.graph
+                            cell, glbls
                         )
                         outputs[cid] = output
                     except MarimoRuntimeException as e:
-                        unwrapped_exception: BaseException | None = e.__cause__
+                        unwrapped_exception = unwrap_user_exception(e)
 
                         if isinstance(unwrapped_exception, MarimoStopError):
                             self._cancel(cid)

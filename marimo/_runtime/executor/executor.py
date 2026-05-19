@@ -1,0 +1,62 @@
+# Copyright 2026 Marimo. All rights reserved.
+"""An Executor executes a single cell's body."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Protocol
+
+from marimo._ast.cell import _is_coroutine
+from marimo._runtime.exceptions import MarimoRuntimeException
+
+if TYPE_CHECKING:
+    from marimo._ast.cell import CellImpl
+
+
+class Executor(Protocol):
+    """Body strategy: how to run a cell's body."""
+
+    name: str
+
+    def execute_cell(self, cell: CellImpl, glbls: dict[str, Any]) -> Any: ...
+
+    async def execute_cell_async(
+        self, cell: CellImpl, glbls: dict[str, Any]
+    ) -> Any: ...
+
+
+class DefaultExecutor:
+    name = "default"
+
+    def execute_cell(self, cell: CellImpl, glbls: dict[str, Any]) -> Any:
+        if cell.body is None:
+            return None
+        assert cell.last_expr is not None
+        if _is_coroutine(cell.body) or _is_coroutine(cell.last_expr):
+            raise RuntimeError(
+                "A coroutine cell cannot be run synchronously. Use "
+                "execute_cell_async() instead."
+            )
+        try:
+            exec(cell.body, glbls)
+            return eval(cell.last_expr, glbls)
+        except BaseException as e:
+            # Raising from BaseException folds in the stack trace prior
+            # to execution; the Runner classifies via ``__cause__``.
+            raise MarimoRuntimeException from e
+
+    async def execute_cell_async(
+        self, cell: CellImpl, glbls: dict[str, Any]
+    ) -> Any:
+        if cell.body is None:
+            return None
+        assert cell.last_expr is not None
+        try:
+            if _is_coroutine(cell.body):
+                await eval(cell.body, glbls)
+            else:
+                exec(cell.body, glbls)
+            if _is_coroutine(cell.last_expr):
+                return await eval(cell.last_expr, glbls)
+            return eval(cell.last_expr, glbls)
+        except BaseException as e:
+            raise MarimoRuntimeException from e

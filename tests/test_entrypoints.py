@@ -6,7 +6,7 @@ import pytest
 
 from marimo._entrypoints.ids import KnownEntryPoint
 from marimo._entrypoints.registry import EntryPointRegistry, get_entry_points
-from marimo._runtime.executor import ExecutionConfig, Executor, get_executor
+from marimo._runtime.executor import Executor
 
 
 class TestEntryPointRegistry:
@@ -166,35 +166,42 @@ class TestEntryPointRegistry:
         assert set(result) == {"value1", "ep_value1", "ep_value2"}
 
 
-class CustomExecutor(Executor):
+class CustomExecutor:
+    """Protocol-conforming Executor (no ABC inheritance)."""
+
+    name = "custom"
+
     def execute_cell(
         self,
         cell: str,
         glbls: dict[str, str],
-        graph: str,
     ) -> str:
-        return f"Executed {cell} with {glbls} in {graph}"
+        return f"Executed {cell} with {glbls}"
 
     async def execute_cell_async(
         self,
         cell: str,
         glbls: dict[str, str],
-        graph: str,
     ) -> str:
-        return f"Executed {cell} with {glbls} in {graph}"
+        return f"Executed {cell} with {glbls}"
+
+
+def _custom_executor_factory() -> Executor:
+    return CustomExecutor()
 
 
 class TestExecutorEntryPoint:
-    @pytest.fixture
-    def registry(self) -> EntryPointRegistry[Executor]:
-        reg = EntryPointRegistry[Executor]("marimo.cell.executor")
-        reg.register("custom", CustomExecutor)
-        return reg
-
-    def test_get_entry_points_modern(
-        self, registry: EntryPointRegistry[Executor]
-    ) -> None:
-        executor = get_executor(
-            ExecutionConfig(is_strict=False), registry=registry
+    def test_factory_registers_and_resolves(self) -> None:
+        # Registry holds factories (Callable[[], Executor]); the kernel
+        # calls the factory once to get an instance.
+        reg: EntryPointRegistry[type] = EntryPointRegistry(
+            "marimo.cell.executor"
         )
+        reg.register("custom", _custom_executor_factory)
+
+        factory = reg.get("custom")
+        executor = factory()
         assert isinstance(executor, CustomExecutor)
+        assert executor.execute_cell("c", {"x": "1"}) == (
+            "Executed c with {'x': '1'}"
+        )

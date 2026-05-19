@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from marimo._runtime.executor import ExecutionConfig, get_executor
+from marimo._runtime.executor import DefaultExecutor
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
@@ -28,7 +28,7 @@ class Runner:
 
     def __init__(self, graph: DirectedGraph) -> None:
         self._graph = graph
-        self._executor = get_executor(ExecutionConfig())
+        self._executor = DefaultExecutor()
 
     @staticmethod
     def _returns(cell_impl: CellImpl, glbls: dict[str, Any]) -> dict[str, Any]:
@@ -99,13 +99,11 @@ class Runner:
 
         glbls: dict[str, Any] = {}
         for cid in topological_sort(graph, ancestor_ids):
-            await self._executor.execute_cell_async(
-                graph.cells[cid], glbls, graph
-            )
+            await self._executor.execute_cell_async(graph.cells[cid], glbls)
 
         Runner._substitute_refs(cell_impl, glbls, kwargs)
         output = await self._executor.execute_cell_async(
-            graph.cells[cell_impl.cell_id], glbls, graph
+            graph.cells[cell_impl.cell_id], glbls
         )
         defs = Runner._returns(cell_impl, glbls)
         return output, defs
@@ -142,11 +140,11 @@ class Runner:
 
         glbls: dict[str, Any] = {}
         for cid in topological_sort(graph, ancestor_ids):
-            self._executor.execute_cell(graph.cells[cid], glbls, graph)
+            self._executor.execute_cell(graph.cells[cid], glbls)
 
         self._substitute_refs(cell_impl, glbls, kwargs)
         output = self._executor.execute_cell(
-            graph.cells[cell_impl.cell_id], glbls, graph
+            graph.cells[cell_impl.cell_id], glbls
         )
         defs = Runner._returns(cell_impl, glbls)
         return output, defs
