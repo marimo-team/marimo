@@ -207,7 +207,11 @@ class AppScriptRunner:
             from marimo._output.formatting import FORMATTERS
 
             if not FORMATTERS.is_empty():
-                register_formatters()
+                from marimo._runtime.context import get_context
+
+                register_formatters(
+                    theme=get_context().marimo_config["display"]["theme"]
+                )
 
             post_execute_hooks = []
             if DependencyManager.matplotlib.has():

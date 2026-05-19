@@ -37,6 +37,11 @@ from marimo._server.templates.templates import (
     inject_script,
     notebook_page_template,
 )
+from marimo._server.workspace import (
+    FileKey,
+    parse_file_key,
+    serialize_file_key,
+)
 from marimo._session.model import SessionMode
 from marimo._utils.async_path import AsyncPath
 from marimo._utils.paths import (
@@ -199,11 +204,14 @@ def og_thumbnail(*, request: Request) -> Response:
     from marimo._utils.paths import normalize_path
 
     app_state = AppState(request)
-    file_key = (
-        app_state.query_params(FILE_QUERY_PARAM_KEY)
-        or app_state.session_manager.workspace.get_unique_file_key()
+    raw_file_key = app_state.query_params(FILE_QUERY_PARAM_KEY)
+    # Empty ``?file=`` falls back to the workspace key — same as missing.
+    file_key: FileKey | None = (
+        parse_file_key(raw_file_key)
+        if raw_file_key
+        else app_state.session_manager.workspace.get_unique_file_key()
     )
-    if not file_key:
+    if file_key is None:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail="File not found"
         )
@@ -223,7 +231,7 @@ def og_thumbnail(*, request: Request) -> Response:
         notebook_path,
         context=OpenGraphContext(
             filepath=notebook_path,
-            file_key=file_key,
+            file_key=serialize_file_key(file_key),
             base_url=app_state.base_url,
             mode=app_state.mode.value,
         ),
@@ -316,9 +324,12 @@ async def index(request: Request) -> Response:
     index_html = root / "index.html"
 
     file_key_from_query = app_state.query_params(FILE_QUERY_PARAM_KEY)
-    file_key = (
-        file_key_from_query
-        or app_state.session_manager.workspace.get_unique_file_key()
+    # Empty ``?file=`` falls back to the workspace key — same as missing —
+    # which preserves the homepage rendering when no file is selected.
+    file_key: FileKey | None = (
+        parse_file_key(file_key_from_query)
+        if file_key_from_query
+        else app_state.session_manager.workspace.get_unique_file_key()
     )
 
     # Try local index.html first, fallback to asset_url if local file doesn't exist
@@ -336,7 +347,7 @@ async def index(request: Request) -> Response:
             detail=_missing_index_html_detail(),
         )
 
-    if not file_key:
+    if file_key is None:
         # We don't know which file to use, so we need to render a homepage
         LOGGER.debug("No file key provided, serving homepage")
         html = home_page_template(
@@ -349,10 +360,11 @@ async def index(request: Request) -> Response:
             asset_url=app_state.asset_url,
         )
     else:
-        config_manager = app_state.config_manager_at_file(file_key)
+        serialized_file_key = serialize_file_key(file_key)
+        config_manager = app_state.config_manager_at_file(serialized_file_key)
 
         # We have a file key, so we can render the app with the file
-        LOGGER.debug(f"File key provided: {file_key}")
+        LOGGER.debug(f"File key provided: {serialized_file_key}")
         app_manager = app_state.session_manager.app_manager(file_key)
         app_config = app_manager.app.config
         absolute_filepath = app_manager.filename
@@ -409,7 +421,7 @@ async def index(request: Request) -> Response:
         )
 
         # Inject service worker registration with the notebook ID
-        html = _inject_service_worker(html, file_key)
+        html = _inject_service_worker(html, serialized_file_key)
 
     return HTMLResponse(html, headers=_HTML_SECURITY_HEADERS)
 
@@ -683,7 +695,9 @@ async def serve_public_file(request: Request) -> Response:
     if notebook_id:
         # Decode notebook ID
         notebook_id = uri_decode_component(notebook_id)
-        app_manager = app_state.session_manager.app_manager(notebook_id)
+        app_manager = app_state.session_manager.app_manager(
+            parse_file_key(notebook_id)
+        )
         if app_manager.filename:
             notebook_dir = Path(app_manager.filename).parent
         else:

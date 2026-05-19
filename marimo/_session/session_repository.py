@@ -13,7 +13,7 @@ from marimo._types.ids import ConsumerId, SessionId
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from marimo._server.workspace import MarimoFileKey
+    from marimo._server.workspace import FileKey
 
 
 class SessionRepository:
@@ -52,14 +52,27 @@ class SessionRepository:
                 return session
         return None
 
-    def get_by_file_key(self, file_key: MarimoFileKey) -> Session | None:
+    def get_by_file_key(self, file_key: FileKey) -> Session | None:
         """Get a session by file key."""
         import os
 
+        from marimo._server.workspace import (
+            NewFileKey,
+            serialize_file_key,
+        )
+
+        serialized = serialize_file_key(file_key)
+        abs_path = (
+            None
+            if isinstance(file_key, NewFileKey)
+            else os.path.abspath(file_key.path)
+        )
         for session in self._sessions.values():
+            if session.initialization_id == serialized:
+                return session
             if (
-                session.initialization_id == file_key
-                or session.app_file_manager.path == os.path.abspath(file_key)
+                abs_path is not None
+                and session.app_file_manager.path == abs_path
             ):
                 return session
         return None

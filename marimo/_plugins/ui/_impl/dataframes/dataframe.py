@@ -104,7 +104,7 @@ class GetDataFrameError(Exception):
 class dataframe(UIElement[dict[str, Any], DataFrameType]):
     """Run transformations on a DataFrame or series.
 
-    Currently supports Pandas, Polars, Ibis, Pyarrow, and DuckDB.
+    Supports any dataframe (e.g., Polars, Pandas, PyArrow, Ibis, DuckDB).
 
     Examples:
         ```python

@@ -21,7 +21,7 @@ class InterruptHandler:
     def __init__(self, quiet: bool, shutdown: Callable[[], None]) -> None:
         self.quiet = quiet
         self.shutdown = shutdown
-        self.loop = asyncio.get_event_loop()
+        self.loop = asyncio.get_running_loop()
         self.original_handler = signal.getsignal(signal.SIGINT)
         self._time_of_last_confirmation: float | None = None
 

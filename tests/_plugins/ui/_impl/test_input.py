@@ -466,6 +466,14 @@ def test_dropdown_lots_of_options() -> None:
     assert dropdown._component_args["searchable"] is True
 
 
+def test_dropdown_disabled() -> None:
+    dd = ui.dropdown(options=["1", "2", "3"])
+    assert dd._component_args["disabled"] is False
+
+    dd = ui.dropdown(options=["1", "2", "3"], disabled=True)
+    assert dd._component_args["disabled"] is True
+
+
 @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
 def test_dropdown_from_dataframe() -> None:
     import pandas as pd
@@ -585,6 +593,14 @@ def test_multiselect_too_many_options() -> None:
         ui.multiselect(options={str(i): i for i in range(200000)})
 
     assert "maximum number" in str(e.value)
+
+
+def test_multiselect_disabled() -> None:
+    ms = ui.multiselect(options=["1", "2", "3"])
+    assert ms._component_args["disabled"] is False
+
+    ms = ui.multiselect(options=["1", "2", "3"], disabled=True)
+    assert ms._component_args["disabled"] is True
 
 
 @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")

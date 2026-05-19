@@ -144,11 +144,12 @@ class HeartbeatExtension(SessionExtension):
                 await _check_alive()
 
         try:
-            loop = asyncio.get_event_loop()
-            self.heartbeat_task = loop.create_task(_heartbeat())
+            loop = asyncio.get_running_loop()
         except RuntimeError:
-            # This can happen if there is no event loop running
+            # No loop (tests, scripts) — nothing to schedule against.
             self.heartbeat_task = None
+            return
+        self.heartbeat_task = loop.create_task(_heartbeat())
 
     def _stop(self) -> None:
         """Stop the heartbeat monitoring."""

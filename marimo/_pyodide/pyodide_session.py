@@ -17,6 +17,7 @@ from marimo._config.config import (
 )
 from marimo._convert.markdown import convert_from_ir_to_markdown
 from marimo._messaging.msgspec_encoder import encode_json_str
+from marimo._messaging.types import KernelStreams
 from marimo._pyodide.restartable_task import RestartableTask
 from marimo._pyodide.streams import (
     PyodideStderr,
@@ -438,13 +439,14 @@ def _launch_pyodide_kernel(
 ) -> RestartableTask:
     from marimo._output.formatters.formatters import register_formatters
     from marimo._runtime.kernel_lifecycle import (
+        KernelArgs,
         asyncio_queue_reader,
         create_kernel,
         listen_messages,
         teardown_kernel,
     )
 
-    register_formatters()
+    register_formatters(theme=user_config["display"]["theme"])
     LOGGER.debug("Launching pyodide kernel")
 
     # Patches for pyodide compatibility
@@ -462,20 +464,20 @@ def _launch_pyodide_kernel(
     debugger = MarimoPdb(stdout=stdout, stdin=stdin) if is_edit_mode else None
 
     kernel, ctx = create_kernel(
-        stream=stream,
-        stdout=stdout,
-        stderr=stderr,
-        stdin=stdin,
-        debugger=debugger,
-        configs=configs,
-        app_metadata=app_metadata,
-        user_config=user_config,
-        is_edit_mode=is_edit_mode,
-        control_queue=control_queue,
-        set_ui_element_queue=set_ui_element_queue,
-        virtual_file_storage=None,
-        mode=session_mode,
-        print_override_fn=None,
+        KernelArgs(
+            streams=KernelStreams(
+                stream=stream, stdout=stdout, stderr=stderr, stdin=stdin
+            ),
+            debugger=debugger,
+            configs=configs,
+            app_metadata=app_metadata,
+            user_config=user_config,
+            mode=session_mode,
+            control_queue=control_queue,
+            set_ui_element_queue=set_ui_element_queue,
+            virtual_file_storage=None,
+            print_override_fn=None,
+        )
     )
 
     if is_edit_mode:

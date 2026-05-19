@@ -337,6 +337,13 @@ a greater movement toward reactive dataflow programming. From
 declarative, and reactive programming are transforming a broad range of tools
 for the better.
 
+Finally, we would like to acknowledge [Bennet
+Meyers](https://bmeyers.github.io/about/) and [David
+Chassin](https://www.chassin.org/about/) for believing in marimo from the very
+beginning: this work was supported in part by U.S. DOE Office of Critical
+Minerals and Energy Innovation (CMEI) Integrated Energy Systems Office (IESO),
+Agreement 34368.
+
 <p align="right">
   <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-horizontal.png" height="200px">
 </p>

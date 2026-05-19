@@ -80,7 +80,10 @@ export const FilterConditionSchema = z
       .enum(Object.keys(ALL_OPERATORS) as [OperatorType, ...OperatorType[]])
       .describe(FieldOptions.of({ label: " " })),
     type: z.literal("condition").default("condition"),
-    value: z.any().describe(FieldOptions.of({ label: "Value" })),
+    value: z
+      .any()
+      .optional()
+      .describe(FieldOptions.of({ label: "Value" })),
     negate: z.boolean().default(false),
   })
   .describe(FieldOptions.of({ direction: "row", special: "column_filter" }));

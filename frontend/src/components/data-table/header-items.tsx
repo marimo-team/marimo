@@ -328,14 +328,21 @@ export const FilterButtons = ({
   onApply,
   onClear,
   clearButtonDisabled,
+  applyButtonDisabled,
 }: {
   onApply: () => void;
   onClear: () => void;
   clearButtonDisabled?: boolean;
+  applyButtonDisabled?: boolean;
 }) => {
   return (
     <div className="flex gap-2 px-2 justify-between">
-      <Button variant="link" size="sm" onClick={onApply}>
+      <Button
+        variant="link"
+        size="sm"
+        onClick={onApply}
+        disabled={applyButtonDisabled}
+      >
         Apply
       </Button>
       <Button

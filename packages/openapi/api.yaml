@@ -1690,7 +1690,11 @@ components:
       title: FileCopyResponse
       type: object
     FileCreateMultipartRequest:
-      description: multipart/form-data body for POST /api/files/create.
+      description: "multipart/form-data body for POST /api/files/create.\n\n    Schema-only:\
+        \ this struct exists to describe the multipart shape in\n    OpenAPI. At runtime,\
+        \ the endpoint reads the string fields from\n    ``MultipartRequest.body``\
+        \ and the uploaded bytes from\n    ``MultipartRequest.files[\"file\"]`` \u2014\
+        \ ``body.file`` is never populated."
       properties:
         file:
           anyOf:
@@ -3697,6 +3701,7 @@ components:
           anyOf:
           - enum:
             - dataflow
+            - external-dependencies
             - fileformat
             - for-jupyter-users
             - intro

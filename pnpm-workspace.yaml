@@ -27,3 +27,4 @@ trustPolicyExclude:
   - "tailwind-merge@2.6.0"
   - "undici@5.29.0"
   - "undici-types@6.21.0"
+onlyBuiltDependencies: []

@@ -133,7 +133,12 @@ export const ContextAwarePanel: React.FC = () => {
         onDragging={handleDragging}
         className="resize-handle border-border z-20 print:hidden border-l"
       />
-      <Panel defaultSize={25} minSize={25} maxSize={80}>
+      <Panel
+        data-testid="chrome-context-aware-panel"
+        defaultSize={25}
+        minSize={25}
+        maxSize={80}
+      >
         {renderBody()}
       </Panel>
     </>
@@ -167,7 +172,10 @@ const ResizableComponent = ({ children }: ResizableComponentProps) => {
   });
 
   return (
-    <div className="absolute z-40 right-0 h-full bg-background flex flex-row">
+    <div
+      data-testid="chrome-context-aware-panel"
+      className="absolute z-40 right-0 h-full bg-background flex flex-row"
+    >
       <div
         ref={handleRefs.left}
         className="w-1 h-full cursor-col-resize border-l"
