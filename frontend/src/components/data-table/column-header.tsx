@@ -438,9 +438,6 @@ export const NumberFilterMenu = <TData, TValue>({
 
   const handleOperatorChange = (next: OperatorType) => {
     setOperator(next);
-    if (next === "is_null" || next === "is_not_null") {
-      column.setFilterValue(Filter.number({ operator: next }));
-    }
   };
 
   return (
@@ -478,14 +475,12 @@ export const NumberFilterMenu = <TData, TValue>({
           className="shadow-none! border-border hover:shadow-none!"
         />
       )}
-      {!isNullish && (
-        <FilterButtons
-          onApply={handleApply}
-          onClear={handleClear}
-          clearButtonDisabled={!hasFilter}
-          applyButtonDisabled={applyDisabled}
-        />
-      )}
+      <FilterButtons
+        onApply={handleApply}
+        onClear={handleClear}
+        clearButtonDisabled={!hasFilter}
+        applyButtonDisabled={applyDisabled}
+      />
     </div>
   );
 };
@@ -548,9 +543,6 @@ export const TextFilterMenu = <TData, TValue>({
 
   const handleOperatorChange = (next: OperatorType) => {
     setOperator(next);
-    if (next === "is_null" || next === "is_not_null" || next === "is_empty") {
-      column.setFilterValue(Filter.text({ operator: next }));
-    }
   };
 
   return (
@@ -597,14 +589,12 @@ export const TextFilterMenu = <TData, TValue>({
           creatable={true}
         />
       )}
-      {!isNullish && (
-        <FilterButtons
-          onApply={handleApply}
-          onClear={handleClear}
-          clearButtonDisabled={!hasFilter}
-          applyButtonDisabled={applyDisabled}
-        />
-      )}
+      <FilterButtons
+        onApply={handleApply}
+        onClear={handleClear}
+        clearButtonDisabled={!hasFilter}
+        applyButtonDisabled={applyDisabled}
+      />
     </div>
   );
 };
