@@ -97,7 +97,12 @@ class AppScriptRunner:
             outputs: dict[CellId_t, Any] = {}
             while self._scheduler.pending():
                 cid = self._scheduler.pop_cell()
-                if not self._should_run_cell(cid, post_execute_hooks):
+                if self._scheduler.cancelled(cid):
+                    continue
+                # Setup has already run by this point.
+                if cid == CellId_t(SETUP_CELL_NAME):
+                    for hook in post_execute_hooks:
+                        hook()
                     continue
                 cell = self.app.graph.cells[cid]
                 with get_context().with_cell_id(cid):
@@ -127,7 +132,12 @@ class AppScriptRunner:
             outputs: dict[CellId_t, Any] = {}
             while self._scheduler.pending():
                 cid = self._scheduler.pop_cell()
-                if not self._should_run_cell(cid, post_execute_hooks):
+                if self._scheduler.cancelled(cid):
+                    continue
+                # Setup has already run by this point.
+                if cid == CellId_t(SETUP_CELL_NAME):
+                    for hook in post_execute_hooks:
+                        hook()
                     continue
                 cell = self.app.graph.cells[cid]
                 with get_context().with_cell_id(cid):
@@ -138,23 +148,6 @@ class AppScriptRunner:
                         for hook in post_execute_hooks:
                             hook()
         return outputs, glbls
-
-    def _should_run_cell(
-        self,
-        cid: CellId_t,
-        post_execute_hooks: list[Callable[[], Any]],
-    ) -> bool:
-        """Filter cells: skip cancelled, and treat the setup cell as a
-        pass-through that still fires post-execute hooks."""
-        if self._scheduler.cancelled(cid):
-            return False
-        # Setup has already run by this point; still fire the per-cell
-        # hooks so matplotlib figure cleanup matches edit-mode timing.
-        if cid == CellId_t(SETUP_CELL_NAME):
-            for hook in post_execute_hooks:
-                hook()
-            return False
-        return True
 
     def _handle_run_result(
         self,
