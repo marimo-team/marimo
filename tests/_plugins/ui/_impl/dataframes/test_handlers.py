@@ -2792,9 +2792,7 @@ class TestTransformHandler:
                     FilterCondition(
                         column_id="d",
                         operator="between",
-                        value=RangeValue(
-                            min="2024-03-01", max="2024-09-01"
-                        ),
+                        value=RangeValue(min="2024-03-01", max="2024-09-01"),
                     )
                 ]
             ),
