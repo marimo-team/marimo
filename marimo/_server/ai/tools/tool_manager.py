@@ -306,11 +306,7 @@ class ToolManager:
 
         if inspect.iscoroutinefunction(handler):
             return await handler(arguments)
-        else:
-            # Run sync function in thread pool to avoid blocking
-            return await asyncio.get_event_loop().run_in_executor(
-                None, handler, arguments
-            )
+        return await asyncio.to_thread(handler, arguments)
 
     async def _invoke_mcp_tool(
         self, tool_name: str, arguments: FunctionArgs

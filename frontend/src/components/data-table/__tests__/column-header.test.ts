@@ -49,7 +49,9 @@ describe("seedFromFilter", () => {
       values: [],
       operator: "in",
     });
-    expect(seedFromFilter(Filter.number({ min: 0, max: 10 }))).toEqual({
+    expect(
+      seedFromFilter(Filter.number({ operator: "between", min: 0, max: 10 })),
+    ).toEqual({
       values: [],
       operator: "in",
     });

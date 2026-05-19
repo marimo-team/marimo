@@ -5,7 +5,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
-from marimo._server.workspace import MarimoFileKey
+from marimo._server.workspace import FileKey
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -16,17 +16,13 @@ LOGGER = _loggers.marimo_logger()
 
 class LoroDocManager:
     def __init__(self) -> None:
-        self.loro_docs: dict[MarimoFileKey, LoroDoc] = {}
+        self.loro_docs: dict[FileKey, LoroDoc] = {}
         self.loro_docs_lock = asyncio.Lock()
-        self.loro_docs_clients: dict[
-            MarimoFileKey, set[asyncio.Queue[bytes]]
-        ] = {}
-        self.loro_docs_cleaners: dict[
-            MarimoFileKey, asyncio.Task[None] | None
-        ] = {}
+        self.loro_docs_clients: dict[FileKey, set[asyncio.Queue[bytes]]] = {}
+        self.loro_docs_cleaners: dict[FileKey, asyncio.Task[None] | None] = {}
 
     async def _clean_loro_doc(
-        self, file_key: MarimoFileKey, timeout: float = 60
+        self, file_key: FileKey, timeout: float = 60
     ) -> None:
         """Clean up a loro doc if no clients are connected."""
         try:
@@ -49,7 +45,7 @@ class LoroDocManager:
 
     async def create_doc(
         self,
-        file_key: MarimoFileKey,
+        file_key: FileKey,
         cell_ids: tuple[CellId_t, ...],
         codes: tuple[str, ...],
     ) -> LoroDoc:
@@ -80,7 +76,7 @@ class LoroDocManager:
                 # when the client connects for the first time.
         return doc
 
-    async def get_or_create_doc(self, file_key: MarimoFileKey) -> LoroDoc:
+    async def get_or_create_doc(self, file_key: FileKey) -> LoroDoc:
         """Get or create a loro doc for a file key."""
         from loro import LoroDoc
 
@@ -102,7 +98,7 @@ class LoroDocManager:
         return doc
 
     def add_client_to_doc(
-        self, file_key: MarimoFileKey, update_queue: asyncio.Queue[bytes]
+        self, file_key: FileKey, update_queue: asyncio.Queue[bytes]
     ) -> None:
         """Add a client queue to the loro doc clients."""
         if file_key not in self.loro_docs_clients:
@@ -112,7 +108,7 @@ class LoroDocManager:
 
     async def broadcast_update(
         self,
-        file_key: MarimoFileKey,
+        file_key: FileKey,
         message: bytes,
         exclude_queue: asyncio.Queue[bytes] | None = None,
     ) -> None:
@@ -125,7 +121,7 @@ class LoroDocManager:
 
     async def remove_client(
         self,
-        file_key: MarimoFileKey,
+        file_key: FileKey,
         update_queue: asyncio.Queue[bytes],
     ) -> None:
         """Clean up a loro client and potentially the doc if no clients remain."""
@@ -151,7 +147,7 @@ class LoroDocManager:
                 self._clean_loro_doc(file_key, 60.0)
             )
 
-    async def _do_remove_doc(self, file_key: MarimoFileKey) -> None:
+    async def _do_remove_doc(self, file_key: FileKey) -> None:
         """Actual implementation of removing a doc, separate from remove_doc to avoid deadlocks."""
         if file_key in self.loro_docs:
             del self.loro_docs[file_key]
@@ -160,7 +156,7 @@ class LoroDocManager:
         if file_key in self.loro_docs_cleaners:
             del self.loro_docs_cleaners[file_key]
 
-    async def remove_doc(self, file_key: MarimoFileKey) -> None:
+    async def remove_doc(self, file_key: FileKey) -> None:
         """Remove a loro doc and all associated clients"""
         async with self.loro_docs_lock:
             await self._do_remove_doc(file_key)

@@ -2,11 +2,19 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 from typing import TYPE_CHECKING, Any, TypeVar
+
+from marimo._utils.asyncio_utils import initialize_asyncio
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
+
+__all__ = [
+    "asyncio_run",
+    "initialize_asyncio",
+    "initialize_fd_limit",
+    "initialize_mimetypes",
+]
 
 
 def initialize_mimetypes() -> None:
@@ -32,16 +40,6 @@ def initialize_mimetypes() -> None:
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         ".pptx",
     )
-
-
-def initialize_asyncio() -> None:
-    """Platform-specific initialization of asyncio.
-
-    Sessions use the `add_reader()` API, which is only available in the
-    SelectorEventLoop policy; Windows uses the Proactor by default.
-    """
-    if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 def initialize_fd_limit(limit: int) -> None:

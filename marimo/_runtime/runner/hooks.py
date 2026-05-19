@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import IntEnum
-from typing import TYPE_CHECKING
+from enum import Enum, IntEnum
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
+    "HookPhase",
     "NotebookCellHooks",
     "OnFinishHook",
     "PostExecutionHook",
@@ -35,6 +36,15 @@ PostExecutionHook = Callable[
     ["CellImpl", "PostExecutionHookContext", "cell_runner.RunResult"], None
 ]
 OnFinishHook = Callable[["OnFinishHookContext"], None]
+
+
+class HookPhase(str, Enum):
+    """Lifecycle phases a hook may register against."""
+
+    PREPARATION = "preparation"
+    PRE_EXECUTION = "pre_execution"
+    POST_EXECUTION = "post_execution"
+    ON_FINISH = "on_finish"
 
 
 class Priority(IntEnum):
@@ -90,59 +100,68 @@ class NotebookCellHooks:
     """
 
     def __init__(
-        self,
-        _preparation: _HookList | None = None,
-        _pre_execution: _HookList | None = None,
-        _post_execution: _HookList | None = None,
-        _on_finish: _HookList | None = None,
+        self, _lists: dict[HookPhase, _HookList] | None = None
     ) -> None:
-        self._preparation = _preparation or _HookList()
-        self._pre_execution = _pre_execution or _HookList()
-        self._post_execution = _post_execution or _HookList()
-        self._on_finish = _on_finish or _HookList()
+        self._lists: dict[HookPhase, _HookList] = _lists or {
+            phase: _HookList() for phase in HookPhase
+        }
+
+    def _add(
+        self,
+        phase: HookPhase,
+        hook: Callable[..., None],
+        priority: Priority,
+    ) -> None:
+        self._lists[phase].add(hook, priority)
+
+    def _get(self, phase: HookPhase) -> Sequence[Callable[..., None]]:
+        return self._lists[phase].sorted_hooks
 
     def add_preparation(
         self, hook: PreparationHook, priority: Priority = Priority.NORMAL
     ) -> None:
-        self._preparation.add(hook, priority)
+        self._add(HookPhase.PREPARATION, hook, priority)
 
     def add_pre_execution(
         self, hook: PreExecutionHook, priority: Priority = Priority.NORMAL
     ) -> None:
-        self._pre_execution.add(hook, priority)
+        self._add(HookPhase.PRE_EXECUTION, hook, priority)
 
     def add_post_execution(
         self, hook: PostExecutionHook, priority: Priority = Priority.NORMAL
     ) -> None:
-        self._post_execution.add(hook, priority)
+        self._add(HookPhase.POST_EXECUTION, hook, priority)
 
     def add_on_finish(
         self, hook: OnFinishHook, priority: Priority = Priority.NORMAL
     ) -> None:
-        self._on_finish.add(hook, priority)
+        self._add(HookPhase.ON_FINISH, hook, priority)
 
     @property
     def preparation_hooks(self) -> Sequence[PreparationHook]:
-        return self._preparation.sorted_hooks
+        return cast(
+            "Sequence[PreparationHook]", self._get(HookPhase.PREPARATION)
+        )
 
     @property
     def pre_execution_hooks(self) -> Sequence[PreExecutionHook]:
-        return self._pre_execution.sorted_hooks
+        return cast(
+            "Sequence[PreExecutionHook]", self._get(HookPhase.PRE_EXECUTION)
+        )
 
     @property
     def post_execution_hooks(self) -> Sequence[PostExecutionHook]:
-        return self._post_execution.sorted_hooks
+        return cast(
+            "Sequence[PostExecutionHook]", self._get(HookPhase.POST_EXECUTION)
+        )
 
     @property
     def on_finish_hooks(self) -> Sequence[OnFinishHook]:
-        return self._on_finish.sorted_hooks
+        return cast("Sequence[OnFinishHook]", self._get(HookPhase.ON_FINISH))
 
     def copy(self) -> NotebookCellHooks:
         return NotebookCellHooks(
-            _preparation=self._preparation.copy(),
-            _pre_execution=self._pre_execution.copy(),
-            _post_execution=self._post_execution.copy(),
-            _on_finish=self._on_finish.copy(),
+            {phase: lst.copy() for phase, lst in self._lists.items()}
         )
 
 
@@ -165,17 +184,13 @@ def create_default_hooks() -> NotebookCellHooks:
     )
 
     hooks = NotebookCellHooks()
-
-    for prep_hook in PREPARATION_HOOKS:
-        hooks.add_preparation(prep_hook)
-
-    for pre_hook in PRE_EXECUTION_HOOKS:
-        hooks.add_pre_execution(pre_hook)
-
-    for post_hook in POST_EXECUTION_HOOKS:
-        hooks.add_post_execution(post_hook)
-
-    for finish_hook in ON_FINISH_HOOKS:
-        hooks.add_on_finish(finish_hook)
-
+    defaults: list[tuple[HookPhase, Sequence[Callable[..., None]]]] = [
+        (HookPhase.PREPARATION, PREPARATION_HOOKS),
+        (HookPhase.PRE_EXECUTION, PRE_EXECUTION_HOOKS),
+        (HookPhase.POST_EXECUTION, POST_EXECUTION_HOOKS),
+        (HookPhase.ON_FINISH, ON_FINISH_HOOKS),
+    ]
+    for phase, hook_list in defaults:
+        for hook in hook_list:
+            hooks._add(phase, hook, Priority.NORMAL)
     return hooks

@@ -1,6 +1,6 @@
 ---
 title: Markdown
-marimo-version: 0.13.2
+marimo-version: 0.23.6
 author: Marimo Team
 description: >-
   Markdown is a lightweight markup language with plain text formatting syntax. `marimo`
@@ -13,9 +13,10 @@ pyproject: |-
       "duckdb==1.2.2",
       "matplotlib==3.10.1",
       "sqlglot==26.16.2",
+      "pandas==2.3.3",
+      "pyarrow==23.0.0",
   ]
 ---
-
 # Markdown file format
 
 By default, marimo notebooks are stored as pure Python files. However,
@@ -96,7 +97,7 @@ form
 ```python {.marimo hide_code="true"}
 form = (
     mo.md('''
-    **Just how great is markdown?.**
+    **Just how great is markdown?**
 
     {markdown_is_awesome}
 
@@ -152,7 +153,9 @@ supposed to be computed, and what values are static. To interpolate Python
 values, just use a Python cell:
 
 ```python {.marimo}
-mo.md(f"""Like so: {"🍃" * 7}""")
+mo.md(f"""
+Like so: {"🍃" * 7}
+""")
 ```
 
 `````python {.marimo hide_code="true"}
@@ -182,12 +185,12 @@ This is a markdown cell with an execution block in it
 ````
 
 It's not likely that you'll run into this issue, but rest assured that marimo
-is working behind the scenes to keep your notebooks unambiguous and clean as
+is working behind the scenes to keep your notebooks unambiguous and as clean as
 possible.
 <!---->
 ### Saving multicolumn mode
 
-Multicolumn mode works, but the first cell in a column must be a python cell in
+Multicolumn mode works, but the first cell in a column must be a Python cell in
 order to specify column start and to save correctly:
 
 ````md
@@ -199,7 +202,7 @@ print("First cell in column 1")
 ### Naming cells
 
 Since the markdown notebook really is just markdown, you can't import from a
-markdown notebook cells like you can in a python notebook; but you can still
+markdown notebook cells like you can in a Python notebook; but you can still
 give your cells a name:
 
 ````md
@@ -262,8 +265,8 @@ FROM range(1, {sample_count.value + 1}) i;
 
 ## Converting back to the Python file format
 
-The markdown format is supposed to lower the barrier for writing text heavy
-documents, it's not meant to be a full replacement for the Python notebook
+The markdown format is supposed to lower the barrier for writing text-heavy
+documents; it's not meant to be a full replacement for the Python notebook
 format. You can always convert back to a Python notebook if you need to:
 
 ```bash
@@ -272,8 +275,8 @@ $ marimo convert my_marimo.md > my_marimo.py
 <!---->
 ## More on markdown
 
-Be sure to checkout the markdown.py tutorial (`marimo tutorial markdown`) for
-more information on to type-set and render markdown in marimo.
+Be sure to check out the markdown.py tutorial (`marimo tutorial markdown`) for
+more information on how to typeset and render markdown in marimo.
 
 ```python {.marimo hide_code="true"}
 import marimo as mo

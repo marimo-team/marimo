@@ -13,6 +13,7 @@ from marimo._server.resume_strategies import (
     EditModeResumeStrategy,
     RunModeResumeStrategy,
 )
+from marimo._server.workspace import PathFileKey
 from marimo._session.model import ConnectionState
 from marimo._session.session_repository import SessionRepository
 from marimo._types.ids import SessionId
@@ -32,7 +33,9 @@ def test_edit_mode_resume_no_existing_sessions() -> None:
     repository = SessionRepository()
     strategy = EditModeResumeStrategy(repository)
 
-    result = strategy.try_resume(SessionId("new-session"), "test.py")
+    result = strategy.try_resume(
+        SessionId("new-session"), PathFileKey("test.py")
+    )
     assert result is None
 
 
@@ -48,7 +51,7 @@ def test_edit_mode_resume_orphaned_session() -> None:
 
     # Try to resume
     new_session_id = SessionId("new-session")
-    result = strategy.try_resume(new_session_id, "test.py")
+    result = strategy.try_resume(new_session_id, PathFileKey("test.py"))
 
     # Should return the orphaned session
     assert result is orphaned_session
@@ -70,7 +73,7 @@ def test_edit_mode_resume_open_session_not_resumed() -> None:
 
     # Try to resume
     new_session_id = SessionId("new-session")
-    result = strategy.try_resume(new_session_id, "test.py")
+    result = strategy.try_resume(new_session_id, PathFileKey("test.py"))
 
     # Should return None because session is not orphaned
     assert result is None
@@ -93,7 +96,7 @@ def test_edit_mode_resume_different_file() -> None:
 
     # Try to resume for different file
     new_session_id = SessionId("new-session")
-    result = strategy.try_resume(new_session_id, "test.py")
+    result = strategy.try_resume(new_session_id, PathFileKey("test.py"))
 
     # Should return None because file doesn't match
     assert result is None
@@ -115,7 +118,7 @@ def test_edit_mode_resume_multiple_sessions_raises_error() -> None:
         InvalidSessionException,
         match="Only one session should exist while editing",
     ):
-        strategy.try_resume(SessionId("new-session"), "test.py")
+        strategy.try_resume(SessionId("new-session"), PathFileKey("test.py"))
 
 
 def test_run_mode_resume_no_existing_session() -> None:
@@ -123,7 +126,9 @@ def test_run_mode_resume_no_existing_session() -> None:
     repository = SessionRepository()
     strategy = RunModeResumeStrategy(repository)
 
-    result = strategy.try_resume(SessionId("non-existent"), "test.py")
+    result = strategy.try_resume(
+        SessionId("non-existent"), PathFileKey("test.py")
+    )
     assert result is None
 
 
@@ -138,7 +143,7 @@ def test_run_mode_resume_orphaned_session() -> None:
     repository.add_sync(session_id, orphaned_session)
 
     # Try to resume with same ID
-    result = strategy.try_resume(session_id, "test.py")
+    result = strategy.try_resume(session_id, PathFileKey("test.py"))
 
     # Should return the orphaned session
     assert result is orphaned_session
@@ -155,7 +160,7 @@ def test_run_mode_resume_open_session_not_resumed() -> None:
     repository.add_sync(session_id, open_session)
 
     # Try to resume
-    result = strategy.try_resume(session_id, "test.py")
+    result = strategy.try_resume(session_id, PathFileKey("test.py"))
 
     # Should return None because session is not orphaned
     assert result is None
@@ -175,8 +180,8 @@ def test_run_mode_allows_multiple_sessions_same_file() -> None:
     repository.add_sync(session2_id, session2)
 
     # Should be able to resume each by their ID
-    result1 = strategy.try_resume(session1_id, "test.py")
-    result2 = strategy.try_resume(session2_id, "test.py")
+    result1 = strategy.try_resume(session1_id, PathFileKey("test.py"))
+    result2 = strategy.try_resume(session2_id, PathFileKey("test.py"))
 
     assert result1 is session1
     assert result2 is session2

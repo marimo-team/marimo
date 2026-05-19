@@ -996,6 +996,7 @@ class dropdown(UIElement[list[str], Any]):
             this element's value changes. Defaults to None.
         full_width (bool, optional): Whether the input should take up the full width
             of its container. Defaults to False.
+        disabled (bool, optional): Whether the dropdown is disabled. Defaults to False.
     """
 
     _FORCE_SEARCHABLE: Final[int] = 1000
@@ -1013,6 +1014,7 @@ class dropdown(UIElement[list[str], Any]):
         label: str = "",
         on_change: Callable[[Any], None] | None = None,
         full_width: bool = False,
+        disabled: bool = False,
     ) -> None:
         # Force searchable if there are too many options
         # This makes the list 'virtualized' on the frontend
@@ -1050,6 +1052,7 @@ class dropdown(UIElement[list[str], Any]):
                 "allow-select-none": allow_select_none,
                 "searchable": searchable,
                 "full-width": full_width,
+                "disabled": disabled,
             },
             on_change=on_change,
         )
@@ -1118,6 +1121,7 @@ class multiselect(UIElement[list[str], list[object]]):
             of its container. Defaults to False.
         max_selections (int, optional): Maximum number of items that can be selected.
             Defaults to None.
+        disabled (bool, optional): Whether the multiselect is disabled. Defaults to False.
     """
 
     _MAX_OPTIONS: Final[int] = 100000
@@ -1132,6 +1136,7 @@ class multiselect(UIElement[list[str], list[object]]):
         on_change: Callable[[list[object]], None] | None = None,
         full_width: bool = False,
         max_selections: int | None = None,
+        disabled: bool = False,
     ) -> None:
         if len(options) > multiselect._MAX_OPTIONS:
             raise ValueError(
@@ -1169,6 +1174,7 @@ class multiselect(UIElement[list[str], list[object]]):
                 "options": list(self.options.keys()),
                 "full-width": full_width,
                 "max-selections": max_selections,
+                "disabled": disabled,
             },
             on_change=on_change,
         )

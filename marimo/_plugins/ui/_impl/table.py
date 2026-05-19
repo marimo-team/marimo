@@ -319,10 +319,7 @@ class table(
 
     1. a list of dicts, with one dict for each row, keyed by column names;
     2. a list of values, representing a table with a single column;
-    3. a Pandas dataframe; or
-    4. a Polars dataframe; or
-    5. an Ibis dataframe; or
-    6. a PyArrow table.
+    3. a dataframe (e.g., Polars, Pandas, PyArrow, Ibis, DuckDB).
 
     Examples:
         Create a table from a list of dicts, one for each row:
@@ -492,7 +489,7 @@ class table(
         preload: bool = False,
     ) -> table:
         """
-        Create a table from a Polars LazyFrame.
+        Create a table from a lazy dataframe (e.g., Polars LazyFrame, Ibis Table, DuckDB Relation).
 
         This won't load the data into memory until requested by the user.
         Once requested, only the first 10 rows will be loaded.

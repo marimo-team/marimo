@@ -45,7 +45,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ "$ENV" = "test-optional" ]; then
-    exec uv run --python "$PY_VERSION" --group test-optional pytest "$@"
+    exec uv run --isolated --python "$PY_VERSION" --group test-optional pytest "$@"
 else
-    exec uv run --python "$PY_VERSION" --group test pytest "$@"
+    exec uv run --isolated --python "$PY_VERSION" --group test pytest "$@"
 fi

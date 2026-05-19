@@ -9,6 +9,7 @@ import {
   CopyMinusIcon,
   DownloadIcon,
   ExternalLinkIcon,
+  EyeIcon,
   EyeOffIcon,
   FilePlus2Icon,
   FolderPlusIcon,
@@ -198,6 +199,7 @@ export const FileExplorer: React.FC<{
       <Toolbar
         onRefresh={handleRefresh}
         onHidden={handleHiddenFilesToggle}
+        showHiddenFiles={showHiddenFiles}
         onCreateFile={handleCreateFile}
         onCreateNotebook={handleCreateNotebook}
         onCreateFolder={handleCreateFolder}
@@ -265,6 +267,7 @@ const INDENT_STEP = 15;
 interface ToolbarProps {
   onRefresh: () => void;
   onHidden: () => void;
+  showHiddenFiles: boolean;
   onCreateFile: () => void;
   onCreateNotebook: () => void;
   onCreateFolder: () => void;
@@ -275,6 +278,7 @@ interface ToolbarProps {
 const Toolbar = ({
   onRefresh,
   onHidden,
+  showHiddenFiles,
   onCreateFile,
   onCreateNotebook,
   onCreateFolder,
@@ -334,14 +338,20 @@ const Toolbar = ({
         data-testid="file-explorer-refresh-button"
         onClick={onRefresh}
       />
-      <Tooltip content="Toggle hidden files">
+      <Tooltip
+        content={showHiddenFiles ? "Hide hidden files" : "Show hidden files"}
+      >
         <Button
           data-testid="file-explorer-hidden-files-button"
           onClick={onHidden}
           variant="text"
           size="xs"
         >
-          <EyeOffIcon size={16} />
+          {showHiddenFiles ? (
+            <EyeIcon size={16} className="text-primary" />
+          ) : (
+            <EyeOffIcon size={16} />
+          )}
         </Button>
       </Tooltip>
       <Tooltip content="Collapse all folders">

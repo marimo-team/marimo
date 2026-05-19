@@ -211,8 +211,8 @@ Create or edit notebooks with
 marimo edit
 ```
 
-**Run apps.** Run your notebook as a web app, with Python
-code hidden and uneditable:
+**Run apps.** Run your notebook as a web app. By default, the Python
+source code is not sent to the browser, so it stays hidden and uneditable:
 
 ```bash
 marimo run your_notebook.py
@@ -394,6 +394,13 @@ a greater movement toward reactive dataflow programming. From
 [React](https://github.com/facebook/react), the ideas of functional,
 declarative, and reactive programming are transforming a broad range of tools
 for the better.
+
+Finally, we would like to acknowledge [Bennet
+Meyers](https://bmeyers.github.io/about/) and [David
+Chassin](https://www.chassin.org/about/) for believing in marimo from the very
+beginning: this work was supported in part by U.S. DOE Office of Critical
+Minerals and Energy Innovation (CMEI) Integrated Energy Systems Office (IESO),
+Agreement 34368.
 
 <p align="right">
   <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-horizontal.png" style="height:200px" alt="marimo logo">

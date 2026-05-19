@@ -8,9 +8,8 @@ file watching, and LSP server management.
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
@@ -27,10 +26,12 @@ from marimo._server.session.listeners import RecentsTrackerListener
 from marimo._server.token_manager import TokenManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.workspace import (
-    NEW_FILE,
-    MarimoFileKey,
+    FileKey,
+    NewFileKey,
     NotebookWorkspace,
+    PathFileKey,
     flatten_files,
+    serialize_file_key,
 )
 from marimo._session.app_host import AppHostContext, AppHostPool
 from marimo._session.consumer import SessionConsumer
@@ -48,10 +49,11 @@ from marimo._session.session import Session, SessionImpl
 from marimo._session.session_repository import SessionRepository
 from marimo._session.types import KernelState
 from marimo._types.ids import ConsumerId, SessionId
+from marimo._utils.asyncio_utils import fire_and_forget
 from marimo._utils.file_watcher import FileWatcherManager
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Coroutine, Mapping
+    from collections.abc import Mapping
 
     from marimo._session.notebook import AppFileManager
 
@@ -159,11 +161,11 @@ class SessionManager:
         """Get all sessions as a dict."""
         return self._repository.sessions
 
-    def app_manager(self, key: MarimoFileKey) -> AppFileManager:
+    def app_manager(self, key: FileKey) -> AppFileManager:
         """Get the app manager for the given key."""
         defaults = AppDefaults.from_config_manager(self._config_manager)
-        if self.mode is SessionMode.EDIT and not key.startswith(NEW_FILE):
-            self.workspace.register_allowed_path(key)
+        if self.mode is SessionMode.EDIT and isinstance(key, PathFileKey):
+            self.workspace.register_allowed_path(key.path)
         return self.workspace.load(key, defaults)
 
     def create_session(
@@ -171,7 +173,7 @@ class SessionManager:
         session_id: SessionId,
         session_consumer: SessionConsumer,
         query_params: SerializedQueryParams,
-        file_key: MarimoFileKey,
+        file_key: FileKey,
         auto_instantiate: bool,
     ) -> Session:
         """Create a new session."""
@@ -184,8 +186,8 @@ class SessionManager:
 
         # Get app file manager
         defaults = AppDefaults.from_config_manager(self._config_manager)
-        if self.mode is SessionMode.EDIT and not file_key.startswith(NEW_FILE):
-            self.workspace.register_allowed_path(file_key)
+        if self.mode is SessionMode.EDIT and isinstance(file_key, PathFileKey):
+            self.workspace.register_allowed_path(file_key.path)
         app_file_manager = self.workspace.load(file_key, defaults)
 
         # Create the session
@@ -202,7 +204,7 @@ class SessionManager:
             )
 
         session = SessionImpl.create(
-            initialization_id=file_key,
+            initialization_id=serialize_file_key(file_key),
             session_consumer=session_consumer,
             mode=self.mode,
             app_metadata=AppMetadata(
@@ -241,7 +243,10 @@ class SessionManager:
         self._repository.add_sync(session_id, session)
 
         # Emit session created event (triggers file watcher attachment, recents, etc.)
-        run_async(self._event_bus.emit_session_created(session))
+        fire_and_forget(
+            self._event_bus.emit_session_created(session),
+            name="session.created",
+        )
 
         return session
 
@@ -309,14 +314,12 @@ class SessionManager:
         # Search for kiosk sessions by consumer ID
         return self._repository.get_by_consumer_id(ConsumerId(session_id))
 
-    def get_session_by_file_key(
-        self, file_key: MarimoFileKey
-    ) -> Session | None:
+    def get_session_by_file_key(self, file_key: FileKey) -> Session | None:
         """Get a session by file key."""
         return self._repository.get_by_file_key(file_key)
 
     def maybe_resume_session(
-        self, new_session_id: SessionId, file_key: MarimoFileKey
+        self, new_session_id: SessionId, file_key: FileKey
     ) -> Session | None:
         """Try to resume a session if one is resumable.
 
@@ -333,10 +336,11 @@ class SessionManager:
         if resumed_session:
             # Emit resume event (use new_session_id as both old and new since
             # the strategy already updated it)
-            run_async(
+            fire_and_forget(
                 self._event_bus.emit_session_resumed(
                     resumed_session, new_session_id
-                )
+                ),
+                name="session.resumed",
             )
 
         return resumed_session
@@ -349,12 +353,12 @@ class SessionManager:
                 if session.kernel_state() is KernelState.STOPPED:
                     self.close_session(session_id)
 
-    def any_clients_connected(self, key: MarimoFileKey) -> bool:
+    def any_clients_connected(self, key: FileKey) -> bool:
         """Returns True if at least one client has an open socket."""
-        if key.startswith(NEW_FILE):
+        if isinstance(key, NewFileKey):
             return False
 
-        sessions_for_file = self._repository.get_by_file_path(key)
+        sessions_for_file = self._repository.get_by_file_path(key.path)
         return any(
             session.connection_state() == ConnectionState.OPEN
             for session in sessions_for_file
@@ -389,7 +393,10 @@ class SessionManager:
         if session is None:
             return False
 
-        run_async(self._event_bus.emit_session_closed(session))
+        fire_and_forget(
+            self._event_bus.emit_session_closed(session),
+            name="session.closed",
+        )
 
         session.close()
         return True
@@ -418,28 +425,3 @@ class SessionManager:
     def get_active_connection_count(self) -> int:
         """Get the number of sessions with active connections."""
         return len(self._repository.get_active_sessions())
-
-
-T = TypeVar("T")
-
-
-def run_async(coro: Coroutine[None, None, T] | Awaitable[T]) -> T:
-    """Run an async coroutine, handling various event loop states.
-
-    1. Event loop is running: create a task
-    2. Event loop exists but not running: run_until_complete
-    3. No event loop: create one with asyncio.run
-    """
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # Create a task and return it (fire and forget)
-            # Note: This doesn't wait for completion
-            task = asyncio.create_task(coro)  # type: ignore
-            return task  # type: ignore
-        else:
-            # Run to completion
-            return loop.run_until_complete(coro)  # type: ignore
-    except RuntimeError:
-        # No event loop exists, create one
-        return asyncio.run(coro)  # type: ignore

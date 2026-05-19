@@ -23,16 +23,19 @@ class _SampleForm(msgspec.Struct):
 
 def _build_app(captured: dict[str, object]) -> TestClient:
     async def endpoint(request: Request) -> JSONResponse:
-        parsed = await parse_multipart_request(request, _SampleForm)
-        captured["body"] = parsed.body
-        captured["files"] = parsed.files
+        async with parse_multipart_request(request, _SampleForm) as parsed:
+            captured["body"] = parsed.body
+            captured["files"] = dict(parsed.files)
+            upload = parsed.files.get("upload")
+            if upload is not None:
+                captured["upload_bytes"] = await upload.read()
         return JSONResponse({"ok": True})
 
     app = Starlette(routes=[Route("/test", endpoint, methods=["POST"])])
     return TestClient(app)
 
 
-def test_parse_multipart_request_strings_and_file_bytes() -> None:
+def test_parse_multipart_request_strings_and_file_upload() -> None:
     captured: dict[str, object] = {}
     client = _build_app(captured)
     response = client.post(
@@ -45,7 +48,10 @@ def test_parse_multipart_request_strings_and_file_bytes() -> None:
     assert isinstance(body, _SampleForm)
     assert body.name == "marimo"
     assert body.count == 42
-    assert captured["files"] == {"upload": b"\x00\x01\x02\xff"}
+    files = captured["files"]
+    assert isinstance(files, dict)
+    assert set(files.keys()) == {"upload"}
+    assert captured["upload_bytes"] == b"\x00\x01\x02\xff"
 
 
 def test_parse_multipart_request_omitted_file_yields_empty_dict() -> None:

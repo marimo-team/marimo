@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock, patch
 
 import narwhals.stable.v2 as nw
@@ -64,9 +64,19 @@ class TestDataframes:
     @staticmethod
     @pytest.mark.parametrize(
         "df",
+        create_dataframes({"A": [1, 2, 3], "B": ["a", "a", "a"]}),
+    )
+    def test_dataframe_supports_dataframe_backends(df: Any) -> None:
+        subject = ui.dataframe(df)
+        # Construction should succeed and the value should round-trip to the
+        # original native type for each supported dataframe backend.
+        assert type(subject.value) is type(df)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
         create_dataframes(
             {"A": [1, 2, 3], "B": ["a", "a", "a"]},
-            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe(df: IntoDataFrame) -> None:
@@ -82,6 +92,8 @@ class TestDataframes:
             [["A", "integer", "int64"], ["B", "string", "string"]],
             # pandas 3.x
             [["A", "integer", "int64"], ["B", "string", "str"]],
+            # pyarrow / duckdb (via narwhals)
+            [["A", "integer", "Int64"], ["B", "string", "String"]],
         ]
         assert subject._get_column_values(
             GetColumnValuesArgs(column="A")
@@ -136,7 +148,6 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"1": [1, 2, 3], "2": ["a", "a", "a"]},
-            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_page_size(df: IntoDataFrame) -> None:
@@ -171,7 +182,6 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"A": [1, 2], "B": ["a", "b"]},
-            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_format_mapping(df: IntoDataFrame) -> None:
@@ -193,18 +203,15 @@ class TestDataframes:
         [
             *create_dataframes(
                 {"A": [], "B": []},
-                exclude=["pyarrow", "duckdb", "lazy-polars"],
             ),  # Empty DataFrame
             *create_dataframes(
                 {"A": [1], "B": ["a"]},
-                exclude=["pyarrow", "duckdb", "lazy-polars"],
             ),  # Single row DataFrame
             *create_dataframes(
                 {
                     "A": range(1, 1001),
                     "B": [f"value_{i}" for i in range(1, 1001)],
                 },
-                exclude=["pyarrow", "duckdb", "lazy-polars"],
             ),  # Large DataFrame
         ],
     )
@@ -236,7 +243,6 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"A": range(100), "B": ["a"] * 100},
-            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_with_custom_page_size(df: IntoDataFrame) -> None:
@@ -285,7 +291,6 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"A": range(1000), "B": ["a"] * 1000},
-            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_with_limit(df: IntoDataFrame) -> None:
@@ -474,7 +479,6 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"A": [1, 2, 3], "B": ["x", "y", "z"]},
-            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_download_different_backends(df) -> None:
@@ -541,7 +545,6 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"A": [1, 2, 3], "B": ["a", "b", "c"]},
-            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_error_handling(df: IntoDataFrame) -> None:

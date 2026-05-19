@@ -537,6 +537,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         {helperPanel}
         <Panel
           id="app-chrome-body"
+          data-testid="chrome-body"
           className={cn(isDeveloperPanelOpen && !isSidebarOpen && "border-l")}
         >
           <PanelGroup autoSaveId="marimo:chrome:v1:l1" direction="vertical">

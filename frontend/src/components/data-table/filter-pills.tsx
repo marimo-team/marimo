@@ -13,6 +13,7 @@ import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { FilterPillEditor } from "./filter-pill-editor";
 import type { ColumnFilterValue } from "./filters";
+import { OPERATOR_LABELS } from "./operator-labels";
 import { stringifyUnknownValue } from "./utils";
 
 interface Props<TData> {
@@ -209,19 +210,62 @@ function formatValue(
   }
 
   if (value.type === "number") {
-    return formatMinMax(value.min, value.max);
+    switch (value.operator) {
+      case "between":
+        return {
+          operator: OPERATOR_LABELS.between.toLowerCase(),
+          value: `${value.min} - ${value.max}`,
+        };
+      case "==":
+      case "!=":
+      case ">":
+      case ">=":
+      case "<":
+      case "<=":
+        return { operator: value.operator, value: String(value.value) };
+    }
+  }
+  if (value.type === "text") {
+    switch (value.operator) {
+      case "in":
+      case "not_in": {
+        const items = value.values.map((v) => `"${v}"`);
+        return {
+          operator: value.operator === "in" ? "is in" : "not in",
+          value: `[${items.join(", ")}]`,
+        };
+      }
+      case "is_empty":
+        return { operator: "is empty" };
+      case "contains":
+      case "equals":
+      case "does_not_equal":
+      case "regex":
+      case "starts_with":
+      case "ends_with":
+        return {
+          operator: OPERATOR_LABELS[value.operator].toLowerCase(),
+          value: `"${value.text}"`,
+        };
+    }
   }
   if (value.type === "date") {
-    return formatMinMax(value.min?.toISOString(), value.max?.toISOString());
+    return formatMinMaxLegacy(
+      value.min?.toISOString(),
+      value.max?.toISOString(),
+    );
   }
   if (value.type === "time") {
-    return formatMinMax(
+    return formatMinMaxLegacy(
       value.min ? timeFormatter.format(value.min) : undefined,
       value.max ? timeFormatter.format(value.max) : undefined,
     );
   }
   if (value.type === "datetime") {
-    return formatMinMax(value.min?.toISOString(), value.max?.toISOString());
+    return formatMinMaxLegacy(
+      value.min?.toISOString(),
+      value.max?.toISOString(),
+    );
   }
   if (value.type === "boolean") {
     return { operator: `is ${value.value ? "True" : "False"}` };
@@ -235,14 +279,11 @@ function formatValue(
       value: `[${stringifiedOptions.join(", ")}]`,
     };
   }
-  if (value.type === "text") {
-    return { operator: "contains", value: `"${value.text}"` };
-  }
   logNever(value);
   return undefined;
 }
 
-function formatMinMax(
+function formatMinMaxLegacy(
   min: string | number | undefined,
   max: string | number | undefined,
 ): FormattedFilter | undefined {

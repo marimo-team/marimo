@@ -343,7 +343,7 @@ class _AsyncHTTPClient:
         self, request: _URLRequest, stream: bool = False, max_retries: int = 2
     ) -> _AsyncHTTPResponse:
         del stream
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         body = await self._collect_body(request)
 

@@ -60,6 +60,9 @@ def is_data_primitive(value: Any) -> bool:
     if is_primitive(value):
         return True
 
+    if inspect.isclass(value):
+        return False
+
     if not (
         hasattr(value, "__array__")
         or hasattr(value, "toarray")

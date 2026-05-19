@@ -25,8 +25,9 @@ from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import initialize_mimetypes
 from marimo._server.uvicorn_utils import close_uvicorn
-from marimo._server.workspace import NEW_FILE
+from marimo._server.workspace import NewFileKey
 from marimo._session.model import SessionMode
+from marimo._utils.asyncio_utils import cancel_and_wait, supervised_task
 from marimo._utils.subprocess import cancel_pending_reaps
 
 if TYPE_CHECKING:
@@ -57,18 +58,15 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 
     LOGGER.debug("Language Servers are enabled")
     # Start LSP server in background to avoid blocking server startup
-    task = asyncio.create_task(session_mgr.start_lsp_server())
-    background_tasks.add(task)  # Keep a reference to prevent GC
-    task.add_done_callback(background_tasks.discard)  # Clean up when done
+    task = supervised_task(
+        session_mgr.start_lsp_server(),
+        name="lsp.start",
+        registry=background_tasks,
+    )
 
     yield
 
-    # Shutdown
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    await cancel_and_wait(task)
 
 
 @contextlib.asynccontextmanager
@@ -119,24 +117,30 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
             LOGGER.warning(f"Failed to connect MCP servers: {e}")
             return None
 
-    task = asyncio.create_task(background_connect_mcp_servers())
-    background_tasks.add(task)  # Keep a reference to prevent GC
-    task.add_done_callback(background_tasks.discard)  # Clean up when done
+    # Awaited below — opt out of supervisor logging to avoid duplicate logs.
+    task = supervised_task(
+        background_connect_mcp_servers(),
+        name="mcp.connect",
+        registry=background_tasks,
+        on_exception=lambda _exc: None,
+    )
 
     yield
 
-    # Shutdown
-    task.cancel()
+    await cancel_and_wait(task)
+    if task.cancelled():
+        return
+
+    mcp_client = task.result()
+    if not mcp_client:
+        return
+
     try:
-        mcp_client = await task
-        if mcp_client:
-            LOGGER.info("Disconnecting from all MCP servers")
-            await mcp_client.disconnect_from_all_servers()
-            LOGGER.info("Successfully disconnected from all MCP servers")
-    except asyncio.CancelledError:
-        pass
+        LOGGER.info("Disconnecting from all MCP servers")
+        await mcp_client.disconnect_from_all_servers()
+        LOGGER.info("Successfully disconnected from all MCP servers")
     except Exception as e:
-        LOGGER.error(f"Error during MCP cleanup: {e}")
+        LOGGER.error(f"Error during MCP disconnect: {e}")
 
 
 @contextlib.asynccontextmanager
@@ -170,7 +174,7 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
             file_name=file.name if file else None,
             url=_startup_url(state),
             run=manager.mode == SessionMode.RUN,
-            new=workspace.get_unique_file_key() == NEW_FILE,
+            new=isinstance(workspace.get_unique_file_key(), NewFileKey),
             network=state.host == "0.0.0.0",
             startup_tip=state.startup_tip,
         )

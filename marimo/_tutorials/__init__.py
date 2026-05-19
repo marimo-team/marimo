@@ -18,6 +18,7 @@ PythonTutorial = Literal[
     "sql",
     "layout",
     "fileformat",
+    "external-dependencies",
     "for-jupyter-users",
 ]
 
@@ -32,6 +33,7 @@ tutorial_order: list[Tutorial] = [
     "sql",
     "layout",
     "fileformat",
+    "external-dependencies",
     "markdown-format",
     "for-jupyter-users",
 ]

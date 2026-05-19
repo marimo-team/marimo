@@ -1,4 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
 
 import marimo
 
@@ -74,7 +80,7 @@ def _(mo):
     cells.
 
     marimo reads your cells and models the dependencies among them: whenever
-    a cell that defines a global variable  is run, marimo
+    a cell that defines a global variable is run, marimo
     **automatically runs** all cells that reference that variable.
 
     Reactivity keeps your program state and outputs in sync with your code,
@@ -97,14 +103,14 @@ def _(changed, mo):
 
             Reactivity ensures that your notebook state is always
             consistent, which is crucial for doing good science; it's also what
-            enables marimo notebooks to double as tools and  apps.
+            enables marimo notebooks to double as tools and apps.
             """
         )
         if changed
         else mo.md(
             """
             **🌊 See it in action.** In the next cell, change the value of the
-            variable  `changed` to `True`, then click the run button.
+            variable `changed` to `True`, then click the run button.
             """
         )
     )
@@ -125,7 +131,7 @@ def _(mo):
                 """
                 The order of cells on the page has no bearing on
                 the order in which cells are executed: marimo knows that a cell
-                reading a variable must run after the cell that  defines it. This
+                reading a variable must run after the cell that defines it. This
                 frees you to organize your code in the way that makes the most
                 sense for you.
                 """
@@ -237,7 +243,7 @@ def _(mo):
     - easily versioned with git, yielding minimal diffs
     - legible for both humans and machines
     - formattable using your tool of choice,
-    - usable as Python  scripts, with UI  elements taking their default
+    - usable as Python scripts, with UI elements taking their default
     values, and
     - importable by other modules (more on that in the future).
     """)
@@ -300,6 +306,7 @@ def _(mo):
     - `sql`: how to use SQL
     - `layout`: layout elements in marimo
     - `fileformat`: how marimo's file format works
+    - `external-dependencies`: how to declare notebook dependencies
     - `markdown-format`: for using `.md` files in marimo
     - `for-jupyter-users`: if you are coming from Jupyter
 
@@ -309,7 +316,7 @@ def _(mo):
     marimo tutorial dataflow
     ```
 
-    In addition to tutorials, we have examples in our
+    In addition to tutorials, we have examples in
     [our GitHub repo](https://www.github.com/marimo-team/marimo/tree/main/examples).
     """)
     return

@@ -15,6 +15,8 @@ from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import (
     DirectoryWorkspace,
     FixedFilesWorkspace,
+    PathFileKey,
+    serialize_file_key,
 )
 from marimo._session.model import SessionMode
 from tests._server.mocks import get_session_manager, token_header, with_session
@@ -31,10 +33,10 @@ HEADERS = {
 
 @with_session(SESSION_ID)
 def test_workspace_files(client: TestClient) -> None:
-    current_filename = get_session_manager(
+    current_file_key = get_session_manager(
         client
     ).workspace.get_unique_file_key()
-    assert current_filename
+    assert current_file_key
 
     response = client.post(
         "/api/home/workspace_files",
@@ -44,7 +46,7 @@ def test_workspace_files(client: TestClient) -> None:
     body = response.json()
     files = body["files"]
     assert len(files) == 1
-    assert files[0]["path"] == current_filename
+    assert files[0]["path"] == serialize_file_key(current_file_key)
     # Check that new fields are present
     assert "hasMore" in body
     assert "fileCount" in body
@@ -65,10 +67,10 @@ def test_workspace_files_no_files(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_running_notebooks(client: TestClient) -> None:
-    current_filename = get_session_manager(
+    current_file_key = get_session_manager(
         client
     ).workspace.get_unique_file_key()
-    assert current_filename
+    assert current_file_key
 
     response = client.post(
         "/api/home/running_notebooks",
@@ -77,7 +79,7 @@ def test_running_notebooks(client: TestClient) -> None:
     body = response.json()
     files = body["files"]
     assert len(files) == 1
-    assert files[0]["path"] == current_filename
+    assert files[0]["path"] == serialize_file_key(current_file_key)
 
 
 # TODO: Debug on Windows
@@ -379,7 +381,7 @@ def test_tutorial_file_accessible_after_open(client: TestClient) -> None:
 
     # Try to get a file manager for the tutorial file
     # This should not raise an HTTPException about being outside the directory
-    file_manager = session_manager.app_manager(tutorial_path)
+    file_manager = session_manager.app_manager(PathFileKey(tutorial_path))
     assert file_manager is not None
     assert file_manager.path == tutorial_path
 

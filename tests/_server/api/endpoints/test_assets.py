@@ -19,6 +19,7 @@ from marimo._server.workspace import (
     EmptyWorkspace,
     FixedFilesWorkspace,
     SingleFileWorkspace,
+    serialize_file_key,
 )
 from marimo._session.model import SessionMode
 from marimo._utils.marimo_path import MarimoPath
@@ -44,10 +45,11 @@ def test_index(client: TestClient) -> None:
     response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
     content = response.text
-    filename = session_manager.workspace.get_unique_file_key()
+    file_key = session_manager.workspace.get_unique_file_key()
+    assert file_key is not None
+    filename = serialize_file_key(file_key)
     title = parse_title(filename)
     assert f"<marimo-filename hidden>{filename}</marimo-filename>" in content
-    assert filename is not None
     assert filename in content
     assert '"mode": "edit"' in content
     assert f"<title>{title}</title>" in content
@@ -497,10 +499,11 @@ def test_public_file_serving(client: TestClient) -> None:
     app_state = AppState.from_app(cast(Any, client.app))
     file_key = app_state.session_manager.workspace.get_unique_file_key()
     assert file_key is not None
-    assert file_key.endswith(".py")
+    filepath = serialize_file_key(file_key)
+    assert filepath.endswith(".py")
 
     # Create a test file in a public directory
-    notebook_dir = Path(file_key).parent
+    notebook_dir = Path(filepath).parent
     public_dir = notebook_dir / "public"
     public_dir.mkdir(parents=True, exist_ok=True)
     test_file = public_dir / "test.txt"
@@ -511,7 +514,7 @@ def test_public_file_serving(client: TestClient) -> None:
     assert response.status_code == 404
 
     # Test with notebook ID header
-    headers = {**token_header(), "X-Notebook-Id": file_key}
+    headers = {**token_header(), "X-Notebook-Id": filepath}
     response = client.get("/public/test.txt", headers=headers)
     assert response.status_code == 200
     assert response.text == "test content"
@@ -537,10 +540,11 @@ def test_public_file_security(client: TestClient) -> None:
     app_state = AppState.from_app(cast(Any, client.app))
     file_key = app_state.session_manager.workspace.get_unique_file_key()
     assert file_key is not None
-    assert file_key.endswith(".py")
+    filepath = serialize_file_key(file_key)
+    assert filepath.endswith(".py")
 
     # Setup notebook and directories
-    notebook_dir = Path(file_key).parent
+    notebook_dir = Path(filepath).parent
     public_dir = notebook_dir / "public"
     secret_dir = notebook_dir / "secret"
     public_dir.mkdir(parents=True, exist_ok=True)
@@ -559,7 +563,7 @@ def test_public_file_security(client: TestClient) -> None:
         app_manager = app_state.session_manager.app_manager(file_key)
         app_manager.filename = str(notebook_dir / "notebook.py")
 
-        headers = {**token_header(), "X-Notebook-Id": file_key}
+        headers = {**token_header(), "X-Notebook-Id": filepath}
 
         # Test normal file access
         response = client.get("/public/safe.txt", headers=headers)
@@ -732,7 +736,7 @@ def test_index_lsp_workspace_with_root_directory(
         client,
         DirectoryWorkspace(str(temp_project_dir), include_markdown=False),
     ):
-        response = client.get("/?file=__new__file.py", headers=token_header())
+        response = client.get("/?file=__new__", headers=token_header())
         root_path = temp_project_dir
         root_uri = json.dumps(root_path.as_uri())
         document_path = root_path.joinpath(DEFAULT_NOTEBOOK_NAME)
@@ -752,7 +756,7 @@ def test_index_lsp_workspace_with_sub_directory(
     with workspace_scope(
         client, DirectoryWorkspace(str(subdir), include_markdown=False)
     ):
-        response = client.get("/?file=__new__file.py", headers=token_header())
+        response = client.get("/?file=__new__", headers=token_header())
         root_path = temp_project_dir
         root_uri = json.dumps(root_path.as_uri())
         document_path = subdir.joinpath(DEFAULT_NOTEBOOK_NAME)

@@ -11,7 +11,11 @@ from marimo import _loggers
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
 from marimo._server.codes import WebSocketCodes
-from marimo._server.workspace import MarimoFileKey
+from marimo._server.workspace import (
+    FileKey,
+    parse_file_key,
+    serialize_file_key,
+)
 from marimo._types.ids import SessionId
 
 LOGGER = _loggers.marimo_logger()
@@ -26,7 +30,7 @@ class ConnectionParams:
     """Parameters extracted from WebSocket connection request."""
 
     session_id: SessionId
-    file_key: MarimoFileKey
+    file_key: FileKey
     kiosk: bool
     auto_instantiate: bool
     rtc_enabled: bool
@@ -71,10 +75,7 @@ class WebSocketConnectionValidator:
         session_id = SessionId(raw_session_id)
 
         # Extract file_key
-        file_key: MarimoFileKey | None = (
-            self.app_state.query_params(FILE_QUERY_PARAM_KEY)
-            or self.app_state.session_manager.workspace.get_unique_file_key()
-        )
+        file_key = self._extract_file_key()
 
         if file_key is None:
             await self.websocket.close(
@@ -86,7 +87,9 @@ class WebSocketConnectionValidator:
         kiosk = self.app_state.query_params(KIOSK_QUERY_PARAM_KEY) == "true"
 
         # Extract config-based parameters
-        config = self.app_state.config_manager_at_file(file_key).get_config()
+        config = self.app_state.config_manager_at_file(
+            serialize_file_key(file_key)
+        ).get_config()
         rtc_enabled = config.get("experimental", {}).get("rtc_v2", False)
         auto_instantiate = config["runtime"]["auto_instantiate"]
 
@@ -98,16 +101,13 @@ class WebSocketConnectionValidator:
             rtc_enabled=rtc_enabled,
         )
 
-    async def extract_file_key_only(self) -> MarimoFileKey | None:
+    async def extract_file_key_only(self) -> FileKey | None:
         """Extract only the file_key parameter (for RTC endpoint).
 
         Returns:
-            MarimoFileKey if valid, None otherwise.
+            FileKey if valid, None otherwise.
         """
-        file_key: MarimoFileKey | None = (
-            self.app_state.query_params(FILE_QUERY_PARAM_KEY)
-            or self.app_state.session_manager.workspace.get_unique_file_key()
-        )
+        file_key = self._extract_file_key()
 
         if file_key is None:
             LOGGER.warning("RTC: Closing websocket - no file key")
@@ -117,3 +117,14 @@ class WebSocketConnectionValidator:
             return None
 
         return file_key
+
+    def _extract_file_key(self) -> FileKey | None:
+        """Extract a FileKey from query params or fall back to the workspace.
+
+        An empty ``?file=`` value falls back to the workspace key — same as a
+        missing query param — to preserve the prior ``or``-chain semantics.
+        """
+        raw = self.app_state.query_params(FILE_QUERY_PARAM_KEY)
+        if raw:
+            return parse_file_key(raw)
+        return self.app_state.session_manager.workspace.get_unique_file_key()

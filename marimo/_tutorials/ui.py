@@ -1,8 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.6"
 app = marimo.App()
 
 
@@ -43,7 +49,9 @@ def _(mo):
 
 @app.cell
 def _(mo, slider):
-    mo.md(f"and here's its value: **{slider.value}**.")
+    mo.md(f"""
+    and here's its value: **{slider.value}**.
+    """)
     return
 
 
@@ -103,7 +111,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    marimo has a [large library of simple UI elements](https://docs.marimo.io/api/inputs/index.html). Here are a just few examples:
+    marimo has a [large library of simple UI elements](https://docs.marimo.io/api/inputs/index.html). Here are just a few examples:
     """)
     return
 
@@ -212,7 +220,9 @@ def _(file_upload):
 
 @app.cell
 def _(basic_ui_elements, mo):
-    mo.md(f"To see more examples, use this dropdown: {basic_ui_elements}")
+    mo.md(f"""
+    To see more examples, use this dropdown: {basic_ui_elements}
+    """)
     return
 
 
@@ -332,9 +342,9 @@ def _(dictionary):
 
 @app.cell(hide_code=True)
 def _(composite_elements, mo):
-    mo.md(
-        f"To see additional composite elements, use this dropdown: {composite_elements}"
-    )
+    mo.md(f"""
+    To see additional composite elements, use this dropdown: {composite_elements}
+    """)
     return
 
 

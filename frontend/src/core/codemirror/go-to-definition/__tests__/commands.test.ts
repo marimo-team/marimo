@@ -101,6 +101,158 @@ print(x)`);
     `);
   });
 
+  test("selects the nearest in-scope local definition", async () => {
+    const code = `\
+a = 10
+
+def my_func():
+    a = 20
+    print(a)`;
+    view = createEditor(code);
+    const result = goToVariableDefinition(view, "a", code.lastIndexOf("a"));
+
+    expect(result).toBe(true);
+    await tick();
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      a = 10
+
+      def my_func():
+          a = 20
+          ^
+          print(a)
+      "
+    `);
+  });
+
+  test("selects the nearest in-scope parameter definition", async () => {
+    const code = `\
+a = 10
+
+def my_func(a):
+    print(a)`;
+    view = createEditor(code);
+    const result = goToVariableDefinition(view, "a", code.lastIndexOf("a"));
+
+    expect(result).toBe(true);
+    await tick();
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      a = 10
+
+      def my_func(a):
+                  ^
+          print(a)
+      "
+    `);
+  });
+
+  test("selects the comprehension target inside a set comprehension", async () => {
+    const code = `\
+x = 100
+s = {x for x in range(10)}`;
+    view = createEditor(code);
+    // Go-to-definition on the `x` before `for` (the expression part of the
+    // comprehension).
+    const usagePosition = code.indexOf("{x") + 1;
+    const result = goToVariableDefinition(view, "x", usagePosition);
+
+    expect(result).toBe(true);
+    await tick();
+    // Should jump to the comprehension target `x` (after `for`), not the
+    // outer `x = 100`. The Lezer Python grammar emits
+    // `SetComprehensionExpression`, and we now correctly match it in
+    // SCOPE_CREATING_NODES, so the comprehension creates a scope and the
+    // for-target is collected correctly.
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      x = 100
+      s = {x for x in range(10)}
+                 ^
+      "
+    `);
+  });
+
+  test("selects the comprehension target inside a dict comprehension", async () => {
+    const code = `\
+x = 100
+d = {x: x for x in range(10)}`;
+    view = createEditor(code);
+    const usagePosition = code.indexOf("{x") + 1;
+    const result = goToVariableDefinition(view, "x", usagePosition);
+
+    expect(result).toBe(true);
+    await tick();
+    // Positive control: `DictionaryComprehensionExpression` matches the grammar
+    // and is in SCOPE_CREATING_NODES, so this should jump to the comprehension
+    // target `x` (after `for`).
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      x = 100
+      d = {x: x for x in range(10)}
+                    ^
+      "
+    `);
+  });
+
+  test("skips enclosing class scope when resolving from inside a method", async () => {
+    const code = `\
+x = 100
+class Foo:
+    x = 10
+    def method(self):
+        return x`;
+    view = createEditor(code);
+    // Go-to-definition on the `x` inside `return x`.
+    const usagePosition = code.lastIndexOf("x");
+    const result = goToVariableDefinition(view, "x", usagePosition);
+
+    expect(result).toBe(true);
+    await tick();
+    // Should jump to `x = 100` at module scope. In Python, methods do NOT see
+    // their enclosing class body's names — class scopes are skipped in LEGB
+    // lookup once a function boundary has been crossed. We now correctly skip
+    // ClassDefinition in getScopeChain once a function boundary is crossed.
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      x = 100
+      ^
+      class Foo:
+          x = 10
+          def method(self):
+              return x
+      "
+    `);
+  });
+
+  test("resolves a global forward-reference from inside a function", async () => {
+    const code = `\
+def foo():
+    return a
+
+a = 10`;
+    view = createEditor(code);
+    // Go-to-definition on the `a` inside `return a`.
+    const usagePosition = code.indexOf("return a") + "return ".length;
+    const result = goToVariableDefinition(view, "a", usagePosition);
+
+    expect(result).toBe(true);
+    await tick();
+    // Should jump to `a = 10` at the bottom. Python allows forward references
+    // from within nested functions to module-level names. We now correctly omit
+    // "global" from POSITION_SENSITIVE_SCOPES, allowing forward references to
+    // global-level definitions declared after the usage position.
+    expect(renderEditorView(view)).toMatchInlineSnapshot(`
+      "
+      def foo():
+          return a
+
+      a = 10
+      ^
+      "
+    `);
+  });
+
   test("selects outer-scope function declaration", async () => {
     view = createEditor(`\
 def x():

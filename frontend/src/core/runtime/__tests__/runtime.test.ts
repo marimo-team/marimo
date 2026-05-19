@@ -275,14 +275,14 @@ describe("RuntimeManager", () => {
     });
   });
 
-  describe("isHealthy", () => {
+  describe("probeHealth", () => {
     it("should return true for successful health check", async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
       });
 
       const runtime = new RuntimeManager(mockConfig);
-      const result = await runtime.isHealthy();
+      const result = await runtime.probeHealth();
 
       expect(result).toBe(true);
       expect(fetch).toHaveBeenCalledWith("https://example.com/health");
@@ -294,7 +294,7 @@ describe("RuntimeManager", () => {
       });
 
       const runtime = new RuntimeManager(mockConfig);
-      const result = await runtime.isHealthy();
+      const result = await runtime.probeHealth();
 
       expect(result).toBe(false);
     });
@@ -304,11 +304,32 @@ describe("RuntimeManager", () => {
       global.fetch = vi.fn().mockRejectedValue(error);
 
       const runtime = new RuntimeManager(mockConfig);
-      const result = await runtime.isHealthy();
+      const result = await runtime.probeHealth();
 
       expect(result).toBe(false);
     });
 
+    it("should not mutate config.url on redirect", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        redirected: true,
+        url: "https://sandbox.example.com/health?some_value=abc123",
+      });
+
+      const runtime = new RuntimeManager(
+        {
+          ...mockConfig,
+          url: "https://backend.example.com/lazy?some_value=abc123",
+        },
+        true,
+      );
+      const result = await runtime.probeHealth();
+      expect(result).toBe(true);
+      expect(runtime.httpURL.hostname).toBe("backend.example.com");
+    });
+  });
+
+  describe("reconcileFromHealth", () => {
     it("should update config.url on redirect, stripping /health from pathname", async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -323,7 +344,7 @@ describe("RuntimeManager", () => {
         },
         true, // lazy — don't call init() in constructor
       );
-      const result = await runtime.isHealthy();
+      const result = await runtime.reconcileFromHealth();
 
       expect(result).toBe(true);
       // Should strip /health from pathname but preserve query params
@@ -342,7 +363,7 @@ describe("RuntimeManager", () => {
     it("should resolve immediately if healthy", async () => {
       const runtime = new RuntimeManager(mockConfig, true);
 
-      vi.spyOn(runtime, "isHealthy").mockResolvedValue(true);
+      vi.spyOn(runtime, "reconcileFromHealth").mockResolvedValue(true);
       runtime.init();
 
       await expect(runtime.waitForHealthy()).resolves.toBeUndefined();
@@ -351,7 +372,7 @@ describe("RuntimeManager", () => {
     it("should retry and eventually succeed", async () => {
       const runtime = new RuntimeManager(mockConfig, true);
       const healthySpy = vi
-        .spyOn(runtime, "isHealthy")
+        .spyOn(runtime, "reconcileFromHealth")
         .mockResolvedValueOnce(false)
         .mockResolvedValueOnce(false)
         .mockResolvedValueOnce(true);
@@ -364,7 +385,7 @@ describe("RuntimeManager", () => {
 
     it("should throw after max retries", async () => {
       const runtime = new RuntimeManager(mockConfig, true);
-      vi.spyOn(runtime, "isHealthy").mockResolvedValue(false);
+      vi.spyOn(runtime, "reconcileFromHealth").mockResolvedValue(false);
       runtime.init({ disableRetryDelay: true });
 
       await expect(runtime.waitForHealthy()).rejects.toThrow(
@@ -431,7 +452,7 @@ describe("RuntimeManager", () => {
       // Mock failed health check
       global.fetch = vi.fn().mockResolvedValue({ ok: false });
 
-      await runtime.isHealthy();
+      await runtime.reconcileFromHealth();
 
       baseElement = document.querySelector("base");
       expect(baseElement).toBeNull();
@@ -443,7 +464,7 @@ describe("RuntimeManager", () => {
       // Mock successful health check
       global.fetch = vi.fn().mockResolvedValue({ ok: true });
 
-      await runtime.isHealthy();
+      await runtime.reconcileFromHealth();
 
       const baseElement = document.querySelector("base");
       expect(baseElement).toBeTruthy();
@@ -461,7 +482,7 @@ describe("RuntimeManager", () => {
       // Mock successful health check
       global.fetch = vi.fn().mockResolvedValue({ ok: true });
 
-      await runtime.isHealthy();
+      await runtime.reconcileFromHealth();
 
       const baseElement = document.querySelector("base");
       expect(baseElement).toBe(existingBase); // Should be the same element
@@ -483,7 +504,7 @@ describe("RuntimeManager", () => {
       // Mock successful health check
       global.fetch = vi.fn().mockResolvedValue({ ok: true });
 
-      await runtime.isHealthy();
+      await runtime.reconcileFromHealth();
 
       const baseElement = document.querySelector("base");
       expect(baseElement).toBeTruthy();
@@ -524,11 +545,11 @@ describe("RuntimeManager", () => {
       });
 
       const wsUrl = runtime.getWsURL("test" as SessionId);
-      const httpUrl = runtime.formatHttpURL(
-        "api/test",
-        new URLSearchParams(),
-        false,
-      );
+      const httpUrl = runtime.formatHttpURL({
+        path: "api/test",
+        searchParams: new URLSearchParams(),
+        restrictToKnownQueryParams: false,
+      });
 
       // Should preserve base URL query params
       expect(wsUrl.searchParams.get("base_param")).toBe("existing");
