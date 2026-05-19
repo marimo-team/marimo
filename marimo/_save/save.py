@@ -1157,7 +1157,7 @@ def lru_cache(  # type: ignore[misc]
             *args,
             pin_modules=pin_modules,
             loader=MemoryLoader.partial(max_size=maxsize),
-            _frame_offset=2,
+            _frame_offset=2 if callable(arg) else 1,
             **kwargs,
         ),
     )
