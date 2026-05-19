@@ -20,9 +20,10 @@ beforeAll(() => {
   }
 });
 
-function mockColumn(
-  initial?: ReturnType<typeof Filter.number>,
-): Column<unknown, unknown> & {
+function mockColumn(initial?: ReturnType<typeof Filter.number>): Column<
+  unknown,
+  unknown
+> & {
   setFilterValue: ReturnType<typeof vi.fn>;
 } {
   let filterValue = initial;
@@ -107,9 +108,10 @@ describe("NumberFilterMenu", () => {
   });
 });
 
-function mockTextColumn(
-  initial?: ReturnType<typeof Filter.text>,
-): Column<unknown, unknown> & {
+function mockTextColumn(initial?: ReturnType<typeof Filter.text>): Column<
+  unknown,
+  unknown
+> & {
   setFilterValue: ReturnType<typeof vi.fn>;
 } {
   let filterValue = initial;
@@ -168,10 +170,7 @@ describe("TextFilterMenu", () => {
       data: [["a", 1] as [unknown, number]],
     }));
     render(
-      <TextFilterMenu
-        column={column}
-        calculateTopKRows={calculateTopKRows}
-      />,
+      <TextFilterMenu column={column} calculateTopKRows={calculateTopKRows} />,
     );
     expect(
       await screen.findByPlaceholderText(/Search or add a value/i),

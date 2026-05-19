@@ -311,10 +311,7 @@ const OperatorSelect = ({
   options: readonly OperatorType[];
   onChange: (next: OperatorType) => void;
 }) => (
-  <Select
-    value={operator}
-    onValueChange={(v) => onChange(v as OperatorType)}
-  >
+  <Select value={operator} onValueChange={(v) => onChange(v as OperatorType)}>
     <SelectTrigger className="border-border shadow-none! ring-0! w-full mb-0.5">
       <SelectValue />
     </SelectTrigger>
@@ -551,11 +548,7 @@ export const TextFilterMenu = <TData, TValue>({
 
   const handleOperatorChange = (next: OperatorType) => {
     setOperator(next);
-    if (
-      next === "is_null" ||
-      next === "is_not_null" ||
-      next === "is_empty"
-    ) {
+    if (next === "is_null" || next === "is_not_null" || next === "is_empty") {
       column.setFilterValue(Filter.text({ operator: next }));
     }
   };

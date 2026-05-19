@@ -35,10 +35,7 @@ function makeColumn(
 }
 
 function mockTable(): Table<unknown> {
-  const columns = [
-    makeColumn("name", "text"),
-    makeColumn("age", "number"),
-  ];
+  const columns = [makeColumn("name", "text"), makeColumn("age", "number")];
   return {
     getAllColumns: () => columns,
     getColumn: (id: string) => columns.find((c) => c.id === id),
