@@ -39,6 +39,7 @@ interface ComboboxCommonProps<TValue> {
   className?: string;
   id?: string;
   keepPopoverOpenOnSelect?: boolean;
+  disabled?: boolean;
 }
 
 type ComboboxFilterProps =
@@ -95,6 +96,7 @@ export const Combobox = <TValue,>({
   chipsClassName,
   keepPopoverOpenOnSelect,
   id,
+  disabled = false,
   ...rest
 }: ComboboxProps<TValue>) => {
   const [open = false, setOpen] = useControllableState({
@@ -168,15 +170,25 @@ export const Combobox = <TValue,>({
 
   return (
     <div className={cn("relative")} {...rest}>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(v) => {
+          if (disabled) {
+            return;
+          }
+          setOpen(v);
+        }}
+      >
         <PopoverTrigger asChild={true}>
           <div
             id={id}
             className={cn(
-              "flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50",
+              "flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid",
+              disabled && "cursor-not-allowed opacity-50",
               className,
             )}
             aria-expanded={open}
+            aria-disabled={disabled}
           >
             <span className="truncate flex-1 min-w-0">{renderValue()}</span>
             <ChevronDownIcon className="ml-3 w-4 h-4 opacity-50 shrink-0" />
@@ -215,9 +227,15 @@ export const Combobox = <TValue,>({
                   {displayValue?.(val) ?? String(val)}
                   <XCircle
                     onClick={() => {
+                      if (disabled) {
+                        return;
+                      }
                       handleSelect(val);
                     }}
-                    className="w-3 h-3 opacity-50 hover:opacity-100 ml-1 cursor-pointer"
+                    className={cn(
+                      "w-3 h-3 opacity-50 hover:opacity-100 ml-1 cursor-pointer",
+                      disabled && "pointer-events-none",
+                    )}
                   />
                 </Badge>
               );

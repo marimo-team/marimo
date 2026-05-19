@@ -789,6 +789,7 @@ export const TooltipSelect = ({
             <FormControl>
               <Multiselect
                 options={fields?.map((field) => field.name) ?? []}
+                disabled={false}
                 value={values}
                 setValue={(values) => {
                   const selectedValues =
