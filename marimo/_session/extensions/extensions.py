@@ -408,11 +408,6 @@ class NotificationListenerExtension(SessionExtension):
         # Don't block session close on disk I/O; kernel still holds state.
         self._autosave_runner.shutdown(wait=False)
 
-    def flush(self) -> None:
-        """Flush any pending messages from the distributor."""
-        if self.distributor is not None:
-            self.distributor.flush()
-
 
 class LoggingExtension(EventAwareExtension):
     """Extension for logging session events."""

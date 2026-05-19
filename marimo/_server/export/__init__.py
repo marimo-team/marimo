@@ -594,13 +594,6 @@ async def run_app_until_completion(
         http_request=None,
     )
     await instantiated_event.wait()
-    # Process console messages
-    #
-    # TODO(akshayka): A timing issue with the console output worker
-    # might still exist; the better thing to do would be to flush
-    # the worker, then ask it to quit and join on it. If we have an
-    # issue with some outputs being missed, that's what we should do.
-    session.flush_messages()
     # Hack: yield to give the session view a chance to process the incoming
     # console operations.
     await asyncio.sleep(0.1)

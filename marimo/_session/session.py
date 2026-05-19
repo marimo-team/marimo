@@ -312,12 +312,6 @@ class SessionImpl(Session):
         """Get the consumers in the session."""
         return self.room.consumers
 
-    def flush_messages(self) -> None:
-        """Flush any pending messages."""
-        ext = self.extensions.get(NotificationListenerExtension)
-        if ext is not None:
-            ext.flush()
-
     async def rename_path(self, new_path: str) -> None:
         """Rename the path of the session."""
         old_path = self.app_file_manager.path
