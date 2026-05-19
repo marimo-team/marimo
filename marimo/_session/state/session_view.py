@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Literal, cast
 
 import msgspec
 
 from marimo import _loggers
-from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleTuple
@@ -117,14 +116,12 @@ class ModelReplayState:
 class AutoExportState:
     html: bool = False
     md: bool = False
-    md_flavors: set[MarkdownFlavorName] = field(default_factory=set)
     ipynb: bool = False
     session: bool = False
 
     def mark_all_stale(self) -> None:
         self.html = False
         self.md = False
-        self.md_flavors.clear()
         self.ipynb = False
         self.session = False
 
@@ -133,13 +130,6 @@ class AutoExportState:
 
     def mark_exported(self, export_type: ExportType) -> None:
         setattr(self, export_type, True)
-
-    def is_md_stale(self, flavor: MarkdownFlavorName) -> bool:
-        return flavor not in self.md_flavors
-
-    def mark_md_exported(self, flavor: MarkdownFlavorName) -> None:
-        self.md = True
-        self.md_flavors.add(flavor)
 
 
 class SessionView:
@@ -593,10 +583,8 @@ class SessionView:
     def mark_auto_export_html(self) -> None:
         self.auto_export_state.mark_exported("html")
 
-    def mark_auto_export_md(
-        self, flavor: MarkdownFlavorName = "pymdown"
-    ) -> None:
-        self.auto_export_state.mark_md_exported(flavor)
+    def mark_auto_export_md(self) -> None:
+        self.auto_export_state.mark_exported("md")
 
     def mark_auto_export_ipynb(self) -> None:
         self.auto_export_state.mark_exported("ipynb")
@@ -606,9 +594,6 @@ class SessionView:
 
     def needs_export(self, export_type: ExportType) -> bool:
         return self.auto_export_state.is_stale(export_type)
-
-    def needs_md_export(self, flavor: MarkdownFlavorName = "pymdown") -> bool:
-        return self.auto_export_state.is_md_stale(flavor)
 
     def _touch(self) -> None:
         self.auto_export_state.mark_all_stale()

@@ -213,42 +213,6 @@ def test_export_markdown(client: TestClient) -> None:
     )
 
 
-@with_session(SESSION_ID)
-def test_export_markdown_with_flavor(client: TestClient) -> None:
-    response = client.post(
-        "/api/export/markdown",
-        headers=HEADERS,
-        json={
-            "download": True,
-            "flavor": "qmd",
-        },
-    )
-    assert response.status_code == 200
-    assert "```{marimo .python" in response.text
-    assert re.match(
-        r".*filename\*=UTF-8''.*\.qmd",
-        response.headers["Content-Disposition"],
-    )
-
-
-@with_session(SESSION_ID)
-def test_export_markdown_with_mystmd_flavor(client: TestClient) -> None:
-    response = client.post(
-        "/api/export/markdown",
-        headers=HEADERS,
-        json={
-            "download": True,
-            "flavor": "mystmd",
-        },
-    )
-    assert response.status_code == 200
-    assert "```{marimo} python" in response.text
-    assert re.match(
-        r".*filename\*=UTF-8''.*\.myst\.md",
-        response.headers["Content-Disposition"],
-    )
-
-
 @pytest.mark.skipif(
     not DependencyManager.nbformat.has(), reason="nbformat not installed"
 )
@@ -432,37 +396,15 @@ def test_auto_export_markdown(
         headers=HEADERS,
         json={
             "download": False,
-            "flavor": "qmd",
-        },
-    )
-    assert response.status_code == 200
-    assert response.json() == {"success": True}
-
-    response = client.post(
-        "/api/export/auto_export/markdown",
-        headers=HEADERS,
-        json={
-            "download": False,
-            "flavor": "qmd",
         },
     )
     # Not modified response
     assert response.status_code == 304
 
-    exported_md = os.path.join(
-        os.path.dirname(temp_marimo_file),
-        "__marimo__",
-        f"{Path(temp_marimo_file).stem}.md",
+    # Assert __marimo__ file is created
+    assert os.path.exists(
+        os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
     )
-    exported_qmd = os.path.join(
-        os.path.dirname(temp_marimo_file),
-        "__marimo__",
-        f"{Path(temp_marimo_file).stem}.qmd",
-    )
-    assert os.path.exists(exported_md)
-    assert os.path.exists(exported_qmd)
-    assert "```python {.marimo}" in Path(exported_md).read_text()
-    assert "```{marimo .python" in Path(exported_qmd).read_text()
 
 
 @pytest.mark.skipif(

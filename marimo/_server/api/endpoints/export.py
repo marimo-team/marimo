@@ -19,10 +19,6 @@ from marimo._convert.common.filename import (
     make_download_headers,
 )
 from marimo._convert.markdown import convert_from_ir_to_markdown
-from marimo._convert.markdown.flavor import (
-    markdown_output_filename,
-    normalize_markdown_flavor,
-)
 from marimo._convert.script import convert_from_ir_to_script
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
@@ -283,17 +279,11 @@ async def export_as_markdown(
             detail="File must be saved before downloading",
         )
 
-    filename = app_file_manager.filename or "notebook.md"
-    markdown_flavor = normalize_markdown_flavor(body.flavor, filename=filename)
-    markdown = convert_from_ir_to_markdown(
-        app_file_manager.app.to_ir(),
-        filename=filename,
-        flavor=markdown_flavor,
-    )
+    markdown = convert_from_ir_to_markdown(app_file_manager.app.to_ir())
 
     if body.download:
-        download_filename = markdown_output_filename(
-            app_file_manager.filename, markdown_flavor
+        download_filename = get_download_filename(
+            app_file_manager.filename, "md"
         )
         headers = make_download_headers(download_filename)
     else:
@@ -394,7 +384,6 @@ async def auto_export_as_markdown(
             description: File must be saved before downloading
     """
     app_state = AppState(request)
-    body = await parse_request(request, cls=ExportAsMarkdownRequest)
     session = app_state.require_current_session()
     session_view = session.session_view
 
@@ -404,11 +393,8 @@ async def auto_export_as_markdown(
             detail="File must have a name before exporting",
         )
 
-    filename = session.app_file_manager.filename or "notebook.md"
-    markdown_flavor = normalize_markdown_flavor(body.flavor, filename=filename)
-
-    # If we have already exported to Markdown with this flavor, don't do it again.
-    if not session_view.needs_md_export(markdown_flavor.name):
+    # If we have already exported to Markdown, don't do it again
+    if not session_view.needs_export("md"):
         LOGGER.debug("Already auto-exported to Markdown")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
@@ -417,21 +403,15 @@ async def auto_export_as_markdown(
         session.app_file_manager.reload()
 
         markdown = convert_from_ir_to_markdown(
-            session.app_file_manager.app.to_ir(),
-            filename=filename,
-            flavor=markdown_flavor,
+            session.app_file_manager.app.to_ir()
         )
 
-        # Save the Markdown file to disk, at `.marimo/<filename>.<extension>`
+        # Save the Markdown file to disk, at `.marimo/<filename>.md`
         await auto_exporter.save_md(
             filename=session.app_file_manager.filename,
             markdown=markdown,
-            download_filename=markdown_output_filename(
-                session.app_file_manager.filename,
-                markdown_flavor,
-            ),
         )
-        session_view.mark_auto_export_md(markdown_flavor.name)
+        session_view.mark_auto_export_md()
 
     return JSONResponse(
         content=asdict(SuccessResponse()),

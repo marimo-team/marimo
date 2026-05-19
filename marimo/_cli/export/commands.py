@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -22,6 +23,11 @@ from marimo._cli.print import (
 )
 from marimo._cli.sandbox import maybe_prompt_run_in_sandbox, run_in_sandbox
 from marimo._cli.utils import prompt_to_overwrite
+from marimo._convert.converters import MarimoConvert
+from marimo._convert.markdown.flavor import (
+    markdown_output_filename,
+    normalize_markdown_flavor,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._pyodide.pyodide_constraints import PYODIDE_PYTHON_VERSION
@@ -29,7 +35,6 @@ from marimo._server.api.utils import parse_title
 from marimo._server.export import (
     ExportResult,
     export_as_ipynb,
-    export_as_md,
     export_as_script,
     export_as_wasm,
     notebook_uses_slides_layout,
@@ -169,6 +174,38 @@ def watch_and_export(
             watcher.stop()
 
     asyncio_run(start())
+
+
+def _export_as_markdown(
+    path: MarimoPath,
+    *,
+    flavor: MarkdownFlavorName | None,
+    filename: str | None,
+) -> ExportResult:
+    if path.is_python():
+        converter = MarimoConvert.from_py(path.read_text(encoding="utf-8"))
+    elif path.is_markdown():
+        converter = MarimoConvert.from_md(path.read_text(encoding="utf-8"))
+    else:
+        raise click.ClickException(
+            f"Unsupported file type: {path.path.suffix}"
+        )
+
+    ir = replace(converter.ir, filename=path.short_name)
+    export_filename = filename or ir.filename or path.short_name
+    markdown_flavor = normalize_markdown_flavor(
+        flavor, filename=export_filename
+    )
+    return ExportResult(
+        contents=MarimoConvert.from_ir(ir).to_markdown(
+            filename=export_filename,
+            flavor=markdown_flavor,
+        ),
+        download_filename=markdown_output_filename(
+            export_filename, markdown_flavor
+        ),
+        did_error=False,
+    )
 
 
 @click.command(
@@ -401,7 +438,7 @@ def md(
     filename = str(output) if output is not None else None
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_md(file_path, flavor=flavor, filename=filename)
+        return _export_as_markdown(file_path, flavor=flavor, filename=filename)
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force
