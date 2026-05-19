@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import override
-
 import pytest
 
 from marimo._messaging.mimetypes import KnownMimeType
@@ -149,7 +147,6 @@ class TestStdoutStderr:
 
 class TestStdin:
     class MockStdin(Stdin):
-        @override
         def _readline_with_prompt(
             self, prompt: str = "", password: bool = False
         ) -> str:
