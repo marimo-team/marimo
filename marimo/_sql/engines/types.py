@@ -130,7 +130,8 @@ class QueryEngine(BaseEngine[CONN], ABC):
         """Execute a SQL query and return a dataframe."""
 
     def sql_output_format(self) -> SqlOutputType:
-        return _validate_sql_output_format(get_configured_sql_output_format())
+        configured_output_format = get_configured_sql_output_format()
+        return _validate_sql_output_format(configured_output_format)
 
     def execute_in_explain_mode(
         self, query: str, globals_dict: dict[str, Any] | None = None

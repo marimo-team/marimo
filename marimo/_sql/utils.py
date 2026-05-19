@@ -37,10 +37,6 @@ def get_configured_sql_output_format() -> SqlOutputType:
 
     Returns "auto" when no runtime context is available (e.g. when `mo.sql(...)`
     is called outside of a marimo app).
-
-    This is a pure config read with no side effects. Callers that also need to
-    require the corresponding dataframe library should layer validation on top
-    (see `_validate_sql_output_format` in `marimo._sql.engines.types`).
     """
     if not runtime_context_installed():
         return "auto"
