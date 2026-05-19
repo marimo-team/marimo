@@ -68,6 +68,7 @@ _MYSTMD_MARIMO_HEADER_RE = re.compile(
     r"^(?P<fence>`{3,})\{marimo\}(?:\s+(?P<language>\w+))?\s*$"
 )
 _MYSTMD_DIRECTIVE_OPTION_RE = re.compile(r"^:([A-Za-z0-9_-]+):(?:\s+(.*))?$")
+_MYSTMD_DIRECTIVE_CLASS = "mystmd-marimo"
 
 ConvertKeys = Literal["marimo-ir"]
 
@@ -96,6 +97,10 @@ def extract_attribs(
 
 def _is_mystmd_marimo_directive_header(line: str) -> bool:
     return bool(_MYSTMD_MARIMO_HEADER_RE.match(line))
+
+
+def _is_preprocessed_mystmd_marimo_fence(line: str) -> bool:
+    return f".{_MYSTMD_DIRECTIVE_CLASS}" in line
 
 
 def _extract_mystmd_directive_options(
@@ -431,30 +436,14 @@ class MystmdMarimoPreprocessor(Preprocessor):
                 index += 1
                 continue
 
-            index += 1
-            options: dict[str, str] = {}
-            while index < len(lines):
-                option = _MYSTMD_DIRECTIVE_OPTION_RE.match(lines[index])
-                if option is None:
-                    break
-                options[option.group(1).replace("-", "_")] = (
-                    option.group(2) or "true"
-                )
-                index += 1
-
-            if options and index < len(lines) and lines[index] == "":
-                index += 1
-
-            attributes = "".join(
-                f' {key}="{value}"' for key, value in options.items()
-            )
             normalized.append(
-                "{fence}{language} {{.marimo{attributes}}}".format(
+                "{fence}{language} {{.marimo .{directive_class}}}".format(
                     fence=match.group("fence"),
                     language=match.group("language") or "python",
-                    attributes=attributes,
+                    directive_class=_MYSTMD_DIRECTIVE_CLASS,
                 )
             )
+            index += 1
 
         return normalized
 
@@ -566,7 +555,9 @@ class ExpandAndClassifyProcessor(BlockProcessor):
             body_lines = block_lines[1:-1]
 
             attribs = extract_attribs(block_lines[0])
-            if _is_mystmd_marimo_directive_header(block_lines[0]):
+            if _is_mystmd_marimo_directive_header(
+                block_lines[0]
+            ) or _is_preprocessed_mystmd_marimo_fence(block_lines[0]):
                 mystmd_options, body_lines = _extract_mystmd_directive_options(
                     body_lines
                 )
