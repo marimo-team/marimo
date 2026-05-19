@@ -104,11 +104,15 @@ def export_as_script(path: MarimoPath) -> ExportResult:
 
 
 def export_as_md(
-    path: MarimoPath, flavor: MarkdownFlavorName | None = None
+    path: MarimoPath,
+    flavor: MarkdownFlavorName | None = None,
+    filename: str | None = None,
 ) -> ExportResult:
     ir = _as_ir(path)
     return ExportResult(
-        contents=MarimoConvert.from_ir(ir).to_markdown(flavor=flavor),
+        contents=MarimoConvert.from_ir(ir).to_markdown(
+            filename=filename, flavor=flavor
+        ),
         download_filename=get_download_filename(path.short_name, "md"),
         did_error=False,
     )

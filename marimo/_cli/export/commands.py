@@ -171,6 +171,40 @@ def watch_and_export(
     asyncio_run(start())
 
 
+def _markdown_output_filename(output: Path | None) -> str | None:
+    if output is not None:
+        return str(output)
+
+    stdout_path = _redirected_stdout_path()
+    return str(stdout_path) if stdout_path is not None else None
+
+
+def _redirected_stdout_path() -> Path | None:
+    if sys.stdout.isatty():
+        return None
+
+    for fd_path in (Path("/proc/self/fd/1"), Path("/dev/fd/1")):
+        try:
+            target = os.readlink(fd_path)
+        except OSError:
+            continue
+        path = Path(target)
+        if path.is_absolute() and path.suffix:
+            return path
+
+    try:
+        import fcntl
+
+        path_bytes = fcntl.fcntl(
+            sys.stdout.fileno(), fcntl.F_GETPATH, b"\0" * 1024
+        )
+    except (AttributeError, OSError):
+        return None
+
+    path = Path(path_bytes.split(b"\0", 1)[0].decode())
+    return path if path.is_absolute() and path.suffix else None
+
+
 @click.command(
     cls=ColoredCommand,
     help="""Run a notebook and export it as an HTML file.
@@ -398,8 +432,10 @@ def md(
         run_in_sandbox(sys.argv[1:], name=name)
         return
 
+    filename = _markdown_output_filename(output)
+
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_md(file_path, flavor=flavor)
+        return export_as_md(file_path, flavor=flavor, filename=filename)
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force
