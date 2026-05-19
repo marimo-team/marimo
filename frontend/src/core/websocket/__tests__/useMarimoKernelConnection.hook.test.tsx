@@ -57,9 +57,9 @@ function makeTransport(
   };
 }
 
-function makeRuntimeManager(isHealthy = vi.fn().mockResolvedValue(true)) {
+function makeRuntimeManager(probeHealth = vi.fn().mockResolvedValue(true)) {
   return {
-    isHealthy,
+    probeHealth,
     getWsURL: () => new URL("ws://localhost/ws"),
     waitForHealthy: vi.fn().mockResolvedValue(undefined),
     isSameOrigin: true,

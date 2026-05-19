@@ -440,7 +440,7 @@ export function useMarimoKernelConnection(opts: {
     }
     shouldTryReconnecting.current = true;
     setConnection({ state: WebSocketState.CONNECTING });
-    const healthy = await runtimeManager.isHealthy();
+    const healthy = await runtimeManager.probeHealth();
     if (!healthy) {
       shouldTryReconnecting.current = false;
       setConnection({
