@@ -15,6 +15,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import pytest
+
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._runtime.executor import (
     DefaultExecutor,
@@ -201,6 +203,53 @@ async def test_default_executor_wraps_user_exception_in_marimo_runtime() -> (
     assert a.last_run_result is not None
     # Teardown saw the wrapped exception, not the raw ValueError.
     assert isinstance(a.last_run_result.exception, MarimoRuntimeException)
+
+
+def _cause_traceback_filenames(exc: BaseException) -> list[str]:
+    cause = exc.__cause__
+    assert cause is not None
+    tb = cause.__traceback__
+    files: list[str] = []
+    while tb is not None:
+        files.append(tb.tb_frame.f_code.co_filename)
+        tb = tb.tb_next
+    return files
+
+
+def test_default_executor_strips_own_frame_from_cause_sync() -> None:
+    """``DefaultExecutor.execute_cell`` must not leave its own frame on
+    the cause's ``__traceback__`` — user-facing tracebacks should begin
+    at user code (the compiled ``<test>`` source)."""
+
+    class _FakeCell:
+        cell_id = "0"
+        body = compile("raise ValueError('user bomb')", "<test>", "exec")
+        last_expr = compile("None", "<test>", "eval")
+
+    with pytest.raises(MarimoRuntimeException) as exc_info:
+        DefaultExecutor().execute_cell(_FakeCell(), {})  # type: ignore[arg-type]
+
+    files = _cause_traceback_filenames(exc_info.value)
+    assert files, "cause traceback unexpectedly empty"
+    assert not any("executor/executor.py" in f for f in files), files
+    assert files[0] == "<test>"
+
+
+async def test_default_executor_strips_own_frame_from_cause_async() -> None:
+    """Same as the sync variant, for ``execute_cell_async``."""
+
+    class _FakeCell:
+        cell_id = "0"
+        body = compile("raise ValueError('user bomb')", "<test>", "exec")
+        last_expr = compile("None", "<test>", "eval")
+
+    with pytest.raises(MarimoRuntimeException) as exc_info:
+        await DefaultExecutor().execute_cell_async(_FakeCell(), {})  # type: ignore[arg-type]
+
+    files = _cause_traceback_filenames(exc_info.value)
+    assert files, "cause traceback unexpectedly empty"
+    assert not any("executor/executor.py" in f for f in files), files
+    assert files[0] == "<test>"
 
 
 async def test_teardown_runs_for_completed_setups_when_later_setup_raises() -> (

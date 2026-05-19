@@ -40,8 +40,10 @@ class DefaultExecutor:
             exec(cell.body, glbls)
             return eval(cell.last_expr, glbls)
         except BaseException as e:
-            # Raising from BaseException folds in the stack trace prior
-            # to execution; the Runner classifies via ``__cause__``.
+            # Strip our own frame so user-facing tracebacks start at user
+            # code. Runners classify via ``__cause__``.
+            if e.__traceback__ is not None:
+                e.__traceback__ = e.__traceback__.tb_next
             raise MarimoRuntimeException from e
 
     async def execute_cell_async(
@@ -59,4 +61,6 @@ class DefaultExecutor:
                 return await eval(cell.last_expr, glbls)
             return eval(cell.last_expr, glbls)
         except BaseException as e:
+            if e.__traceback__ is not None:
+                e.__traceback__ = e.__traceback__.tb_next
             raise MarimoRuntimeException from e
