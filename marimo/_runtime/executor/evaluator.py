@@ -40,7 +40,9 @@ class Evaluator:
         self.executor = executor
         self.lifecycles: list[ExecutionLifecycle] = lifecycles or []
 
-    async def evaluate(self, cell: CellImpl, glbls: dict[str, Any]) -> Any:
+    async def evaluate(
+        self, cell: CellImpl, glbls: dict[str, Any]
+    ) -> RunResult:
         """Setup lifecycles, execute, and teardown lifecycles."""
         completed: list[ExecutionLifecycle] = []
         skip: Skip | None = None
@@ -57,7 +59,6 @@ class Evaluator:
         except BaseException as e:
             body_exc = e
 
-        # async and non-async pass through this path.
         if body_exc is None:
             if skip is not None:
                 value = skip.value
@@ -68,28 +69,26 @@ class Evaluator:
                     body_exc = e
 
         result = RunResult(output=value, exception=body_exc)
-        exc: BaseException | None = None
+        teardown_exc: BaseException | None = None
         for life in reversed(completed):
             try:
                 life.teardown(cell, glbls, result)
             except BaseException as e:
-                if exc is not None:
+                if teardown_exc is not None:
                     LOGGER.error(
                         "teardown exception overridden by later teardown: %s",
-                        exc,
+                        teardown_exc,
                     )
-                exc = e
+                teardown_exc = e
 
-        if exc is not None:
+        if teardown_exc is not None:
             if body_exc is not None:
                 LOGGER.warning(
                     "body exception suppressed by teardown raise: %s",
                     body_exc,
                 )
-            raise exc
-        if body_exc is not None:
-            raise body_exc
-        return value
+            return RunResult(output=value, exception=teardown_exc)
+        return result
 
 
 def build_evaluator(config: EvaluatorConfig) -> Evaluator:

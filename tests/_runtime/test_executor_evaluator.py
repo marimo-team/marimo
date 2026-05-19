@@ -99,7 +99,8 @@ async def test_skip_terminates_setup_chain_but_runs_completed_teardowns() -> (
     ev = Evaluator(executor=_StubExecutor(body), lifecycles=[a, b])
     result = await ev.evaluate(cell=None, glbls={})
 
-    assert result == 42
+    assert result.output == 42
+    assert result.exception is None
     assert body_ran[0] is False
     # A setup ran, A teardown ran. B setup did NOT run, B teardown did
     # NOT run.
@@ -119,7 +120,8 @@ async def test_teardowns_fire_in_reverse_order_on_success() -> None:
     )
     result = await ev.evaluate(cell=None, glbls={})
 
-    assert result == "ok"
+    assert result.output == "ok"
+    assert result.exception is None
     assert log == [
         "setup:A",
         "setup:B",
@@ -131,7 +133,7 @@ async def test_teardowns_fire_in_reverse_order_on_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_teardown_sees_wrapped_body_exception() -> None:
+async def test_teardown_sees_body_exception_via_run_result() -> None:
     log: list[str] = []
     a = _Recorder(log, "A")
 
@@ -139,15 +141,13 @@ async def test_teardown_sees_wrapped_body_exception() -> None:
         raise ValueError("body bomb")
 
     ev = Evaluator(executor=_StubExecutor(boom), lifecycles=[a])
-    # DefaultExecutor wraps; _StubExecutor does NOT — to verify
-    # MarimoRuntimeException wrapping happens at the *Executor* layer,
-    # use DefaultExecutor for the body and a real cell. But for the
-    # purposes of "teardown sees what the body raised" we just check
-    # that the teardown's run_result.exception is exactly what the
-    # executor raised.
-    with pytest.raises(ValueError, match="body bomb"):
-        await ev.evaluate(cell=None, glbls={})
+    # The _StubExecutor doesn't wrap user exceptions; the body's
+    # ValueError lands directly in result.exception, and the teardown
+    # sees that same exception via run_result.
+    result = await ev.evaluate(cell=None, glbls={})
 
+    assert isinstance(result.exception, ValueError)
+    assert str(result.exception) == "body bomb"
     assert a.last_run_result is not None
     assert isinstance(a.last_run_result.exception, ValueError)
 
@@ -158,7 +158,7 @@ async def test_default_executor_wraps_user_exception_in_marimo_runtime() -> (
 ):
     """DefaultExecutor turns user exceptions into MarimoRuntimeException
     with the user exception as __cause__. The teardown sees the wrapped
-    form."""
+    form, and the returned RunResult carries it as its exception."""
     from marimo._ast.cell import CellImpl
 
     log: list[str] = []
@@ -176,10 +176,10 @@ async def test_default_executor_wraps_user_exception_in_marimo_runtime() -> (
 
     del CellImpl  # silence unused-import
     ev = Evaluator(executor=DefaultExecutor(), lifecycles=[a])
-    with pytest.raises(MarimoRuntimeException) as excinfo:
-        await ev.evaluate(_FakeCell(), {})  # type: ignore[arg-type]
+    result = await ev.evaluate(_FakeCell(), {})  # type: ignore[arg-type]
 
-    assert isinstance(excinfo.value.__cause__, ValueError)
+    assert isinstance(result.exception, MarimoRuntimeException)
+    assert isinstance(result.exception.__cause__, ValueError)
     assert a.last_run_result is not None
     # Teardown saw the wrapped exception, not the raw ValueError.
     assert isinstance(a.last_run_result.exception, MarimoRuntimeException)
@@ -198,9 +198,10 @@ async def test_teardown_runs_for_completed_setups_when_later_setup_raises() -> (
         executor=_StubExecutor(lambda *_: "ok"),
         lifecycles=[a, b, c],
     )
-    with pytest.raises(RuntimeError, match="setup-B raised"):
-        await ev.evaluate(cell=None, glbls={})
+    result = await ev.evaluate(cell=None, glbls={})
 
+    assert isinstance(result.exception, RuntimeError)
+    assert str(result.exception) == "setup-B raised"
     # A.setup ran (completed), B.setup ran and raised, C.setup did not
     # run. Teardowns run only for lifecycles whose setup *completed*
     # without raising — so only A. B is not teardowned because its
@@ -221,12 +222,15 @@ async def test_teardown_wins_on_double_raise() -> None:
         raise ValueError("body loses")
 
     ev = Evaluator(executor=_StubExecutor(body), lifecycles=[a])
-    with pytest.raises(RuntimeError, match="teardown wins"):
-        await ev.evaluate(cell=None, glbls={})
+    result = await ev.evaluate(cell=None, glbls={})
+
+    # Teardown exception replaces body exception in the final RunResult.
+    assert isinstance(result.exception, RuntimeError)
+    assert str(result.exception) == "teardown wins"
 
 
 @pytest.mark.asyncio
-async def test_keyboard_interrupt_propagates_through_teardown() -> None:
+async def test_keyboard_interrupt_captured_into_run_result() -> None:
     log: list[str] = []
     a = _Recorder(log, "A")
 
@@ -234,12 +238,13 @@ async def test_keyboard_interrupt_propagates_through_teardown() -> None:
         raise KeyboardInterrupt
 
     ev = Evaluator(executor=_StubExecutor(body), lifecycles=[a])
-    with pytest.raises(KeyboardInterrupt):
-        await ev.evaluate(cell=None, glbls={})
+    result = await ev.evaluate(cell=None, glbls={})
 
     # Teardown ran (state still cleaned up) even though body raised
-    # BaseException.
+    # BaseException, and the interrupt is captured in the RunResult
+    # rather than propagating out of evaluate().
     assert log == ["setup:A", "teardown:A"]
+    assert isinstance(result.exception, KeyboardInterrupt)
     assert isinstance(a.last_run_result.exception, KeyboardInterrupt)
 
 
