@@ -333,8 +333,10 @@ class MCPClient:
             self._update_server_status(server_name, MCPServerStatus.CONNECTING)
             self._remove_server_tools(server_name)
 
-            # Create task to run existing connection logic
-            connection_task = supervised_task(
+            # Create task to run existing connection logic. Not supervised:
+            # this task is awaited in disconnect_from_server(), so supervisor
+            # logging would duplicate the awaiter's error handling.
+            connection_task = asyncio.create_task(
                 self._connection_lifecycle(server_name),
                 name=f"mcp.lifecycle.{server_name}",
             )
