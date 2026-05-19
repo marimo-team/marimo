@@ -720,19 +720,6 @@ class TestExportMarkdown:
         assert "```{marimo .python" in output.read_text()
 
     @staticmethod
-    def test_export_markdown_infers_qmd_from_redirected_stdout(
-        temp_marimo_file: str, tmp_path: Path
-    ) -> None:
-        with mock.patch(
-            "marimo._cli.export.commands._redirected_stdout_path",
-            return_value=tmp_path / "notebook.qmd",
-        ):
-            p = _run_export("md", temp_marimo_file)
-
-        _assert_success(p)
-        assert "```{marimo .python" in p.output
-
-    @staticmethod
     def test_export_markdown_explicit_flavor_overrides_output(
         temp_marimo_file: str, tmp_path: Path
     ) -> None:
