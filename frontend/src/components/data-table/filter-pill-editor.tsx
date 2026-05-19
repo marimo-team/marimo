@@ -18,6 +18,7 @@ import {
 } from "../ui/select";
 import { Button } from "../ui/button";
 import { FilterByValuesPicker } from "./filter-by-values-picker";
+import { RegexInput } from "./regex-input";
 import {
   type ColumnFilterValue,
   Filter,
@@ -402,6 +403,16 @@ const ValueSlot = <TData, TValue>({
   if (type === "text" && isTextScalarOp(operator)) {
     const v =
       value.kind === "single-text" ? value : { kind: "single-text" as const };
+    if (operator === "regex") {
+      return (
+        <RegexInput
+          id={id}
+          value={v.text ?? ""}
+          onChange={(text) => onChange({ kind: "single-text", text })}
+          className="w-40"
+        />
+      );
+    }
     return (
       <Input
         id={id}

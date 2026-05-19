@@ -29,6 +29,7 @@ import { cn } from "@/utils/cn";
 import { Button } from "../ui/button";
 import { DraggablePopover } from "../ui/draggable-popover";
 import { Input } from "../ui/input";
+import { RegexInput } from "./regex-input";
 import { NumberField } from "../ui/number-field";
 import { PopoverClose } from "../ui/popover";
 import {
@@ -566,7 +567,19 @@ export const TextFilterMenu = <TData, TValue>({
         options={TEXT_OPS}
         onChange={handleOperatorChange}
       />
-      {isScalar && (
+      {isScalar && operator === "regex" && (
+        <RegexInput
+          value={text}
+          onChange={setText}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Enter") {
+              handleApply();
+            }
+          }}
+        />
+      )}
+      {isScalar && operator !== "regex" && (
         <Input
           type="text"
           icon={<TextIcon className="h-3 w-3 text-muted-foreground mb-1" />}
