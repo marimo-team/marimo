@@ -20,6 +20,7 @@ from marimo._sql.utils import (
     raise_df_import_error,
 )
 from marimo._types.ids import VariableName
+from marimo._utils.assert_never import log_never
 from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
 
 
@@ -54,8 +55,12 @@ def _default_duckdb_deps() -> list[Dependency]:
             and not DependencyManager.pandas.has()
         ):
             deps.append(polars_with_pyarrow)
+    elif sql_output == "native":
+        # "native" returns the underlying DuckDB relation and needs no df lib.
+        return deps
+    else:
+        log_never(sql_output)
 
-    # "native" returns the underlying DuckDB relation and needs no df lib.
     return deps
 
 

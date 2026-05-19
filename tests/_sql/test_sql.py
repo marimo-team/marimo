@@ -152,27 +152,20 @@ def fake_sql_output(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
     """Stub the runtime-context lookup so we can drive `sql_output` without
     spinning up a kernel.
 
-    We patch the shared util at its definition site so the same fixture
-    transparently controls every call site (the bundled-deps logic in
-    `sql.py`, the engine-level validation in `engines/types.py`, etc.).
+    `sql.py` and `engines/types.py` import `get_configured_sql_output_format`
+    directly, so each consumer module holds its own binding and must be
+    patched independently.
     """
     current = {"value": "auto"}
 
     def fake_format() -> str:
         return current["value"]
 
-    monkeypatch.setattr(
-        "marimo._sql.utils.get_configured_sql_output_format", fake_format
-    )
-    # `sql.py` and `engines/types.py` import the symbol directly, so we also
-    # need to patch the re-bound references they hold.
-    monkeypatch.setattr(
-        "marimo._sql.sql.get_configured_sql_output_format", fake_format
-    )
-    monkeypatch.setattr(
+    for target in (
+        "marimo._sql.sql.get_configured_sql_output_format",
         "marimo._sql.engines.types.get_configured_sql_output_format",
-        fake_format,
-    )
+    ):
+        monkeypatch.setattr(target, fake_format)
     return current
 
 
