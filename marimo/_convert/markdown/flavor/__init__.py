@@ -29,9 +29,11 @@ _MARKDOWN_FLAVORS: Mapping[MarkdownFlavorName, MarkdownFlavor] = (
         }
     )
 )
+# Filename inference handles target-specific markdown extensions.
 _MARKDOWN_FLAVORS_BY_EXTENSION: Mapping[str, MarkdownFlavor] = (
     MappingProxyType({".myst.md": _MYSTMD_MARKDOWN, ".qmd": _QMD_MARKDOWN})
 )
+# Download and auto-export filenames use the selected flavor's suffix.
 _MARKDOWN_OUTPUT_EXTENSIONS: Mapping[MarkdownFlavorName, str] = (
     MappingProxyType(
         {
@@ -41,6 +43,7 @@ _MARKDOWN_OUTPUT_EXTENSIONS: Mapping[MarkdownFlavorName, str] = (
         }
     )
 )
+# Strip known markdown suffixes before applying an output suffix.
 _MARKDOWN_FILENAME_SUFFIXES = (
     ".myst.md",
     ".markdown",
@@ -89,12 +92,10 @@ def markdown_output_filename(
     filename: str | None,
     flavor: MarkdownFlavor | MarkdownFlavorName,
 ) -> str:
-    """Return the output filename for a rendered markdown flavor.
+    """Return the filename for a rendered markdown artifact.
 
-    Output naming is registry policy, not part of the rendering protocol.
-    Known markdown suffixes are stripped longest-first before appending the
-    selected flavor's suffix, so `notebook.myst.md` exported as pymdown becomes
-    `notebook.md` instead of reusing the MyST-specific filename.
+    Known markdown suffixes are replaced with the selected flavor's suffix.
+    For example, exporting `notebook.myst.md` as pymdown returns `notebook.md`.
     """
     extension = _markdown_output_extension(flavor)
     basename = os.path.basename(filename or f"notebook.{extension}")

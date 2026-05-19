@@ -11,6 +11,15 @@ if TYPE_CHECKING:
 MarkdownFlavorName = Literal["pymdown", "qmd", "mystmd"]
 
 
+def _escape_attribute(value: str) -> str:
+    return (
+        value.replace("&", "&amp;")
+        .replace('"', "&quot;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
 @dataclass(frozen=True)
 class MarkdownCellBlock:
     text: str
@@ -36,9 +45,9 @@ class MarkdownExportDocument:
 class MarkdownFlavor(ABC):
     """Markdown-family output flavor.
 
-    This class defines document assembly while keeping target-specific
-    metadata, markdown text, and code cell syntax delegated to concrete
-    flavors.
+    The base renderer assembles a document from preamble, markdown blocks, and
+    code cells. Concrete flavors provide target-specific metadata and cell
+    syntax.
     """
 
     name: ClassVar[MarkdownFlavorName]
@@ -90,14 +99,14 @@ class MarkdownFlavor(ABC):
     def render_preamble(self, document: MarkdownExportDocument) -> list[str]:
         """Render document-level metadata before the body.
 
-        Preamble syntax and metadata filtering are target-specific. A flavor
-        might use YAML frontmatter, a directive-based config block, no preamble
-        at all, or another target-native metadata surface.
+        Preamble syntax and metadata filtering are target-specific. A flavor can
+        use YAML frontmatter, a directive-based config block, or another
+        target-native metadata surface.
         """
 
     @abstractmethod
     def render_markdown(self, block: MarkdownCellBlock) -> str:
-        """Render markdown text without altering user-authored markdown."""
+        """Render user-authored markdown text unchanged."""
 
     @abstractmethod
     def render_code_cell(self, cell: CodeCellBlock) -> str:

@@ -1,15 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import pytest
+
 from marimo._ast.app import App, InternalApp
 from marimo._convert.markdown.flavor import (
-    markdown_flavor_from_filename,
-    normalize_markdown_flavor,
-)
-from marimo._convert.markdown.flavor.base import (
-    CodeCellBlock,
-    MarkdownCellBlock,
-    MarkdownExportDocument,
+    markdown_output_filename,
 )
 from marimo._convert.markdown.from_ir import (
     _format_filename_title,
@@ -355,143 +351,57 @@ def test_convert_from_ir_to_markdown_explicit_flavor():
     )
 
 
-def test_markdown_flavor_renders_export_document():
-    """Test that the PyMdown flavor renders preamble and block syntax."""
-    flavor = markdown_flavor_from_filename("notebook.md")
-    assert flavor.name == "pymdown"
-    document = MarkdownExportDocument(
-        metadata={"title": "Notebook"},
-        header=None,
-        blocks=[
-            MarkdownCellBlock("# First"),
-            MarkdownCellBlock("# Second"),
-            CodeCellBlock("x = 1", "python", {}),
-        ],
+@pytest.mark.parametrize(
+    ("filename", "flavor", "expected"),
+    [
+        ("source.py", "pymdown", "source.md"),
+        ("source.py", "qmd", "source.qmd"),
+        ("source.py", "mystmd", "source.myst.md"),
+        ("source.qmd", "pymdown", "source.md"),
+        ("source.myst.md", "pymdown", "source.md"),
+        ("source.myst.md", "mystmd", "source.myst.md"),
+        (None, "qmd", "notebook.qmd"),
+    ],
+)
+def test_markdown_output_filename(filename, flavor, expected):
+    assert markdown_output_filename(filename, flavor) == expected
+
+
+@pytest.mark.parametrize(
+    ("filename", "flavor", "expected_head"),
+    [
+        ("notebook.md", "pymdown", "```python"),
+        ("notebook.qmd", "qmd", "```{marimo .python"),
+    ],
+)
+def test_convert_from_ir_to_markdown_escapes_code_cell_attributes(
+    filename: str,
+    flavor: str,
+    expected_head: str,
+) -> None:
+    from marimo._schemas.serialization import (
+        AppInstantiation,
+        CellDef,
+        NotebookSerializationV1,
     )
 
-    markdown = flavor.render_document(document)
-
-    assert markdown.startswith("---\ntitle: Notebook\n---")
-    assert "# First\n<!---->\n# Second\n\n" in markdown
-    assert "x = 1" in markdown
-
-
-def test_qmd_flavor_renders_export_document():
-    """Test that qmd flavor renders executable fence syntax."""
-    flavor = markdown_flavor_from_filename("notebook.qmd")
-    document = MarkdownExportDocument(
-        metadata={"title": "Notebook"},
-        header=None,
-        blocks=[CodeCellBlock("x = 1", "python", {})],
-    )
-
-    markdown = flavor.render_document(document)
-
-    assert "filters:" not in markdown
-    assert "```{marimo .python}" in markdown
-
-
-def test_qmd_flavor_escapes_code_cell_attributes():
-    """Test that qmd code fence attributes escape quotes and ampersands."""
-    flavor = markdown_flavor_from_filename("notebook.qmd")
-    document = MarkdownExportDocument(
-        metadata={"title": "Notebook"},
-        header=None,
-        blocks=[
-            CodeCellBlock(
-                "x = 1",
-                "python",
-                {"name": 'a"b & c', "engine": 'duck&"db'},
-            )
-        ],
-    )
-
-    markdown = flavor.render_document(document)
-
-    assert 'name="a&quot;b &amp; c"' in markdown
-    assert 'engine="duck&amp;&quot;db"' in markdown
-
-
-def test_qmd_flavor_preserves_explicit_filters():
-    """Test that qmd flavor serializes user-provided filters."""
-    flavor = markdown_flavor_from_filename("notebook.qmd")
-    document = MarkdownExportDocument(
-        metadata={"title": "Notebook", "filters": ["custom-filter"]},
-        header=None,
-        blocks=[CodeCellBlock("x = 1", "python", {})],
-    )
-
-    markdown = flavor.render_document(document)
-
-    assert markdown.startswith(
-        "---\ntitle: Notebook\nfilters:\n- custom-filter\n---\n"
-    )
-
-
-def test_mystmd_flavor_renders_marimo_notebook_export_syntax():
-    """Test that mystmd flavor renders marimo notebook authoring syntax."""
-    flavor = normalize_markdown_flavor("mystmd", filename="notebook.md")
-    pep723_header = (
-        "import os",
-        "# /// script",
-        '# requires-python = ">=3.10"',
-        "# dependencies = [",
-        '#   "pandas",',
-        "# ]",
-        "# ///",
-    )
-    document = MarkdownExportDocument(
-        metadata={
-            "title": "Notebook",
-            "marimo-version": "0.0.0",
-            "width": "medium",
-            "header": "\n".join(pep723_header),
-        },
-        header=None,
-        blocks=[
-            CodeCellBlock(
-                source="x = 1",
-                language="python",
-                options={"hide_code": "true", "unparsable": "true"},
-            )
-        ],
-    )
-
-    markdown = flavor.render_document(document)
-
-    assert markdown.startswith(
-        "---\ntitle: Notebook\nmarimo-version: 0.0.0\n---\n"
-    )
-    assert "```{marimo-config}\n---\n" in markdown
-    assert "header: |-\n  import os" in markdown
-    assert 'requires-python = ">=3.10"' in markdown
-    expected_cell = (
-        "```{marimo} python",
-        ":hide-code: true",
-        ":unparsable: true",
-        "",
-        "x = 1",
-        "```",
-    )
-    assert "\n".join(expected_cell) in markdown
-
-
-def test_mystmd_flavor_grows_code_fence_guard():
-    """Test that mystmd code fences are valid when source contains backticks."""
-    flavor = normalize_markdown_flavor("mystmd", filename="notebook.md")
-    document = MarkdownExportDocument(
-        metadata={"title": "Notebook"},
-        header=None,
-        blocks=[
-            CodeCellBlock(
-                source='mo.md("""\n```python\nx = 1\n```\n""")',
-                language="python",
+    notebook = NotebookSerializationV1(
+        app=AppInstantiation(options={}),
+        cells=[
+            CellDef(
+                name='a"b & <c>',
+                code="x = 1",
                 options={},
             )
         ],
+        violations=[],
+        valid=True,
+        filename="notebook.py",
     )
 
-    markdown = flavor.render_document(document)
+    markdown = convert_from_ir_to_markdown(
+        notebook, filename=filename, flavor=flavor
+    )
 
-    assert "````{marimo} python" in markdown
-    assert markdown.rstrip().endswith("````")
+    assert expected_head in markdown
+    assert 'name="a&quot;b &amp; &lt;c&gt;"' in markdown

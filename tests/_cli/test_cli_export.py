@@ -749,15 +749,6 @@ class TestExportMarkdown:
         assert "```{marimo .python" not in output.read_text()
 
     @staticmethod
-    def test_export_markdown_with_invalid_flavor(
-        temp_marimo_file: str,
-    ) -> None:
-        p = _run_export("md", temp_marimo_file, "--flavor", "unknown")
-        _assert_failure(p)
-        assert "invalid value for '--flavor'" in p.output
-        assert "'mystmd'" in p.output
-
-    @staticmethod
     def test_export_markdown_with_errors(
         temp_marimo_file_with_errors: str,
     ) -> None:

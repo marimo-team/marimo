@@ -8,6 +8,7 @@ from marimo._convert.markdown.flavor.base import (
     MarkdownCellBlock,
     MarkdownExportDocument,
     MarkdownFlavor,
+    _escape_attribute,
 )
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -68,7 +69,11 @@ class PymdownMarkdownFlavor(MarkdownFlavor):
         attributes = dict(attributes or {})
         language = attributes.pop("language", "python")
         attribute_str = " ".join(
-            [""] + [f'{key}="{value}"' for key, value in attributes.items()]
+            [""]
+            + [
+                f'{key}="{_escape_attribute(str(value))}"'
+                for key, value in attributes.items()
+            ]
         )
         guard = "```"
         while guard in code:
