@@ -574,6 +574,7 @@ export const TextFilterMenu = <TData, TValue>({
           onChange={(e) => setText(e.target.value)}
           placeholder="Text..."
           onKeyDown={(e) => {
+            e.stopPropagation();
             if (e.key === "Enter") {
               handleApply();
             }
