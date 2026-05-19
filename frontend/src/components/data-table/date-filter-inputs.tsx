@@ -5,8 +5,9 @@ import type {
   Time,
 } from "@internationalized/date";
 import { parseDate, parseDateTime, parseTime } from "@internationalized/date";
-import type { DateValue, TimeValue } from "react-aria-components";
 import { MinusIcon } from "lucide-react";
+import { useState } from "react";
+import type { DateValue, TimeValue } from "react-aria-components";
 import { TimeField } from "@/components/ui/date-input";
 import { DatePicker, DateRangePicker } from "@/components/ui/date-picker";
 import {
@@ -21,9 +22,6 @@ export type DateLikeFilterType = Extract<
   "date" | "datetime" | "time"
 >;
 
-function dateToAria(filterType: "date", d: Date): CalendarDate;
-function dateToAria(filterType: "datetime", d: Date): CalendarDateTime;
-function dateToAria(filterType: "time", d: Date): Time;
 function dateToAria(
   filterType: DateLikeFilterType,
   d: Date,
@@ -62,6 +60,63 @@ function ariaToDate(
   );
 }
 
+// Parses a pasted string into a Date appropriate for the filter type.
+// Accepts ISO, US, RFC formats via the Date constructor; time-only strings
+// (HH:MM[:SS]) are handled explicitly since `new Date("12:30")` is invalid.
+export function parsePastedDate(
+  _filterType: DateLikeFilterType,
+  text: string,
+): Date | undefined {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const timeMatch = trimmed.match(
+    /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?$/i,
+  );
+  if (timeMatch) {
+    const [, hStr, mStr, sStr, ampm] = timeMatch;
+    let hour = Number.parseInt(hStr, 10);
+    const minute = Number.parseInt(mStr, 10);
+    const second = sStr ? Number.parseInt(sStr, 10) : 0;
+    if (ampm) {
+      const isPm = ampm.toLowerCase() === "pm";
+      if (hour === 12) {
+        hour = isPm ? 12 : 0;
+      } else if (isPm) {
+        hour += 12;
+      }
+    }
+    return new Date(1970, 0, 1, hour, minute, second);
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+  return parsed;
+}
+
+function parsePastedRange(
+  filterType: DateLikeFilterType,
+  text: string,
+): { min: Date; max: Date } | undefined {
+  const parts = text.split(/\s+(?:-|–|—|to)\s+/i);
+  if (parts.length === 2) {
+    const min = parsePastedDate(filterType, parts[0]);
+    const max = parsePastedDate(filterType, parts[1]);
+    if (min && max) {
+      return { min, max };
+    }
+  }
+  const single = parsePastedDate(filterType, text);
+  if (single) {
+    return { min: single, max: single };
+  }
+  return undefined;
+}
+
 interface DateLikeInputProps {
   filterType: DateLikeFilterType;
   value: Date | undefined;
@@ -77,39 +132,60 @@ export const DateLikeInput = ({
   "aria-label": ariaLabel,
   className,
 }: DateLikeInputProps) => {
+  const [seedKey, setSeedKey] = useState(0);
+  const [seed, setSeed] = useState(value);
+
   const handleChange = (next: DateValue | TimeValue | null) => {
-    onChange(next === null ? undefined : ariaToDate(filterType, next));
+    if (next === null) {
+      return;
+    }
+    onChange(ariaToDate(filterType, next));
   };
 
-  if (filterType === "time") {
-    return (
-      <TimeField<Time>
-        aria-label={ariaLabel}
-        value={value === undefined ? null : dateToAria("time", value)}
-        onChange={handleChange}
-        className={className}
-      />
-    );
-  }
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const text = e.clipboardData.getData("text");
+    const parsed = parsePastedDate(filterType, text);
+    if (!parsed) {
+      return;
+    }
+    e.preventDefault();
+    onChange(parsed);
+    setSeed(parsed);
+    setSeedKey((k) => k + 1);
+  };
 
-  if (filterType === "date") {
-    return (
-      <DatePicker<CalendarDate>
-        aria-label={ariaLabel}
-        value={value === undefined ? null : dateToAria("date", value)}
-        onChange={handleChange}
-        className={className}
-      />
-    );
-  }
+  const seedValue =
+    seed === undefined ? undefined : dateToAria(filterType, seed);
 
   return (
-    <DatePicker<CalendarDateTime>
-      aria-label={ariaLabel}
-      value={value === undefined ? null : dateToAria("datetime", value)}
-      onChange={handleChange}
-      className={className}
-    />
+    <div onPasteCapture={handlePaste} className="contents">
+      {filterType === "time" ? (
+        <TimeField<Time>
+          key={seedKey}
+          aria-label={ariaLabel}
+          defaultValue={seedValue as Time | undefined}
+          onChange={handleChange}
+          className={className}
+        />
+      ) : filterType === "date" ? (
+        <DatePicker<CalendarDate>
+          key={seedKey}
+          aria-label={ariaLabel}
+          defaultValue={seedValue as CalendarDate | undefined}
+          onChange={handleChange}
+          className={className}
+        />
+      ) : (
+        <DatePicker<CalendarDateTime>
+          key={seedKey}
+          aria-label={ariaLabel}
+          defaultValue={seedValue as CalendarDateTime | undefined}
+          granularity="second"
+          onChange={handleChange}
+          className={className}
+        />
+      )}
+    </div>
   );
 };
 
@@ -117,8 +193,7 @@ interface DateLikeRangeInputProps {
   filterType: DateLikeFilterType;
   min: Date | undefined;
   max: Date | undefined;
-  onMinChange: (value: Date | undefined) => void;
-  onMaxChange: (value: Date | undefined) => void;
+  onRangeChange: (min: Date | undefined, max: Date | undefined) => void;
   className?: string;
 }
 
@@ -126,17 +201,20 @@ export const DateLikeRangeInput = ({
   filterType,
   min,
   max,
-  onMinChange,
-  onMaxChange,
+  onRangeChange,
   className,
 }: DateLikeRangeInputProps) => {
+  const [seedKey, setSeedKey] = useState(0);
+  const [seedMin, setSeedMin] = useState(min);
+  const [seedMax, setSeedMax] = useState(max);
+
   if (filterType === "time") {
     return (
       <div className="flex gap-1 items-center">
         <DateLikeInput
           filterType="time"
           value={min}
-          onChange={onMinChange}
+          onChange={(nextMin) => onRangeChange(nextMin, max)}
           aria-label="min"
           className={className}
         />
@@ -144,7 +222,7 @@ export const DateLikeRangeInput = ({
         <DateLikeInput
           filterType="time"
           value={max}
-          onChange={onMaxChange}
+          onChange={(nextMax) => onRangeChange(min, nextMax)}
           aria-label="max"
           className={className}
         />
@@ -154,45 +232,61 @@ export const DateLikeRangeInput = ({
 
   const handleChange = (next: { start: DateValue; end: DateValue } | null) => {
     if (next === null) {
-      onMinChange(undefined);
-      onMaxChange(undefined);
       return;
     }
-    onMinChange(ariaToDate(filterType, next.start));
-    onMaxChange(ariaToDate(filterType, next.end));
+    onRangeChange(
+      ariaToDate(filterType, next.start),
+      ariaToDate(filterType, next.end),
+    );
   };
 
-  if (filterType === "date") {
-    return (
-      <DateRangePicker<CalendarDate>
-        aria-label="range"
-        value={
-          min === undefined || max === undefined
-            ? null
-            : {
-                start: dateToAria("date", min),
-                end: dateToAria("date", max),
-              }
-        }
-        onChange={handleChange}
-        className={className}
-      />
-    );
-  }
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const text = e.clipboardData.getData("text");
+    const parsed = parsePastedRange(filterType, text);
+    if (!parsed) {
+      return;
+    }
+    e.preventDefault();
+    onRangeChange(parsed.min, parsed.max);
+    setSeedMin(parsed.min);
+    setSeedMax(parsed.max);
+    setSeedKey((k) => k + 1);
+  };
+
+  const seedRange =
+    seedMin === undefined || seedMax === undefined
+      ? undefined
+      : {
+          start: dateToAria(filterType, seedMin),
+          end: dateToAria(filterType, seedMax),
+        };
 
   return (
-    <DateRangePicker<CalendarDateTime>
-      aria-label="range"
-      value={
-        min === undefined || max === undefined
-          ? null
-          : {
-              start: dateToAria("datetime", min),
-              end: dateToAria("datetime", max),
-            }
-      }
-      onChange={handleChange}
-      className={className}
-    />
+    <div onPasteCapture={handlePaste} className="contents">
+      {filterType === "date" ? (
+        <DateRangePicker<CalendarDate>
+          key={seedKey}
+          aria-label="range"
+          defaultValue={
+            seedRange as { start: CalendarDate; end: CalendarDate } | undefined
+          }
+          onChange={handleChange}
+          className={className}
+        />
+      ) : (
+        <DateRangePicker<CalendarDateTime>
+          key={seedKey}
+          aria-label="range"
+          defaultValue={
+            seedRange as
+              | { start: CalendarDateTime; end: CalendarDateTime }
+              | undefined
+          }
+          granularity="second"
+          onChange={handleChange}
+          className={className}
+        />
+      )}
+    </div>
   );
 };

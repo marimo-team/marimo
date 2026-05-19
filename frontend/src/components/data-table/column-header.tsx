@@ -585,8 +585,10 @@ export const DateFilterMenu = <TData, TValue>({
           filterType={filterType}
           min={min}
           max={max}
-          onMinChange={setMin}
-          onMaxChange={setMax}
+          onRangeChange={(nextMin, nextMax) => {
+            setMin(nextMin);
+            setMax(nextMax);
+          }}
           className="shadow-none! border-border hover:shadow-none!"
         />
       )}

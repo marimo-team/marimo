@@ -82,13 +82,6 @@ const FilterPill = <TData,>({
     return null;
   }
 
-  // this is temporary, with more operator & datatype support this goes away
-  const isReadOnly =
-    "type" in value &&
-    (value.type === "date" ||
-      value.type === "datetime" ||
-      value.type === "time");
-
   const twoSegment = formatted.value === undefined;
 
   const handleRemove = (e: React.MouseEvent) => {
@@ -130,20 +123,8 @@ const FilterPill = <TData,>({
     </Button>
   );
 
-  if (isReadOnly) {
-    return (
-      <Badge
-        variant="outline"
-        className="bg-background border-border text-foreground"
-      >
-        {segments}
-        {removeButton}
-      </Badge>
-    );
-  }
-
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={true}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <Badge
         variant="outline"
         className={cn(

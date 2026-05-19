@@ -26,7 +26,14 @@ beforeAll(() => {
 
 function makeColumn(
   id: string,
-  filterType: "text" | "number" | "boolean" | "select",
+  filterType:
+    | "text"
+    | "number"
+    | "boolean"
+    | "select"
+    | "date"
+    | "datetime"
+    | "time",
 ): Column<unknown, unknown> {
   return {
     id,
@@ -35,7 +42,13 @@ function makeColumn(
 }
 
 function mockTable(): Table<unknown> {
-  const columns = [makeColumn("name", "text"), makeColumn("age", "number")];
+  const columns = [
+    makeColumn("name", "text"),
+    makeColumn("age", "number"),
+    makeColumn("when", "date"),
+    makeColumn("at", "datetime"),
+    makeColumn("clock", "time"),
+  ];
   return {
     getAllColumns: () => columns,
     getColumn: (id: string) => columns.find((c) => c.id === id),
@@ -141,6 +154,79 @@ describe("FilterPillEditor — snapshot rehydration", () => {
       </TooltipProvider>,
     );
     expect(screen.queryByText("Value")).not.toBeInTheDocument();
+  });
+});
+
+describe("FilterPillEditor — date/datetime/time", () => {
+  it("rehydrates a date between snapshot with the range picker", () => {
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "when",
+          value: Filter.date({
+            operator: "between",
+            min: new Date("2024-01-01T00:00:00Z"),
+            max: new Date("2024-06-01T00:00:00Z"),
+          }),
+        }}
+        table={mockTable()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("range")).toBeInTheDocument();
+    expect(screen.queryByLabelText("value")).not.toBeInTheDocument();
+  });
+
+  it("rehydrates a datetime <= snapshot with a single value picker", () => {
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "at",
+          value: Filter.datetime({
+            operator: "<=",
+            value: new Date("2024-06-01T12:00:00Z"),
+          }),
+        }}
+        table={mockTable()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("value")).toBeInTheDocument();
+    expect(screen.queryByLabelText("range")).not.toBeInTheDocument();
+  });
+
+  it("renders min/max TimeFields for time between", () => {
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "clock",
+          value: Filter.time({
+            operator: "between",
+            min: new Date("2024-01-01T08:00:00Z"),
+            max: new Date("2024-01-01T17:00:00Z"),
+          }),
+        }}
+        table={mockTable()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("min")).toBeInTheDocument();
+    expect(screen.getByLabelText("max")).toBeInTheDocument();
+  });
+
+  it("hides the value slot for date is_null", () => {
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "when",
+          value: Filter.date({ operator: "is_null" }),
+        }}
+        table={mockTable()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Value")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("range")).not.toBeInTheDocument();
   });
 });
 

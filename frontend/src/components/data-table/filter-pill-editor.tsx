@@ -243,6 +243,11 @@ export const FilterPillEditor = <TData,>({
         e.preventDefault();
         handleApply();
       }}
+      onKeyDownCapture={(e) => {
+        if (e.key === "Tab") {
+          e.stopPropagation();
+        }
+      }}
     >
       <div className="flex flex-col gap-1">
         <label className="text-xs text-muted-foreground" htmlFor={columnId}>
@@ -461,11 +466,8 @@ const ValueSlot = <TData, TValue>({
         filterType={type}
         min={v.min}
         max={v.max}
-        onMinChange={(min) =>
-          onChange({ kind: "date-between", min, max: v.max })
-        }
-        onMaxChange={(max) =>
-          onChange({ kind: "date-between", min: v.min, max })
+        onRangeChange={(min, max) =>
+          onChange({ kind: "date-between", min, max })
         }
         className="border-input"
       />
