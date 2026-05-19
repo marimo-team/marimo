@@ -9,13 +9,18 @@ from unittest.mock import MagicMock, patch
 import pytest
 from inline_snapshot import snapshot
 
-from marimo._dependencies.dependencies import DependencyManager
+from marimo._config.config import SqlOutputType
+from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._output.formatting import Plain
 from marimo._plugins import ui
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
-from marimo._sql.sql import _default_duckdb_deps, _query_includes_limit, sql
+from marimo._sql.sql import (
+    _query_includes_limit,
+    _resolve_default_duckdb_deps,
+    sql,
+)
 from marimo._sql.utils import (
     extract_explain_content,
     is_explain_query,
@@ -25,7 +30,7 @@ from marimo._sql.utils import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
 
     import duckdb
     import sqlalchemy as sa
@@ -135,8 +140,6 @@ def fake_dependency_has(monkeypatch: pytest.MonkeyPatch) -> set[str]:
     The returned set acts as the "installed packages" registry — add a pkg name
     to it to make `Dependency(pkg).has()` return True.
     """
-    from marimo._dependencies.dependencies import Dependency
-
     installed: set[str] = set()
 
     def fake(self: Dependency, quiet: bool = False) -> bool:
@@ -144,6 +147,9 @@ def fake_dependency_has(monkeypatch: pytest.MonkeyPatch) -> set[str]:
         return self.pkg in installed
 
     monkeypatch.setattr(Dependency, "has", fake)
+    for dep in vars(DependencyManager).values():
+        if isinstance(dep, Dependency) and "has" in dep.__dict__:
+            monkeypatch.delattr(dep, "has")
     return installed
 
 
@@ -169,85 +175,123 @@ def fake_sql_output(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
     return current
 
 
-@pytest.mark.usefixtures("fake_dependency_has")
 class TestDefaultDuckDBDeps:
-    """Tests that the default-DuckDB path bundles all required installs into a
-    single ManyModulesNotFoundError, so the user only gets prompted once."""
+    """Tests for the pure `_resolve_default_duckdb_deps` helper. These are
+    side-effect free: they don't touch global runtime state or the real
+    `DependencyManager`, so they're immune to test-ordering issues.
+    """
 
     @staticmethod
-    def _pkg_names(deps: list) -> list[str]:
-        return [dep.pkg_name_to_install for dep in deps]
+    def _pkg_names(deps: list[Dependency]) -> list[str]:
+        return [dep.pkg_name_to_install or dep.pkg for dep in deps]
 
-    def test_auto_bundles_polars_when_no_df_lib_present(
-        self, fake_sql_output: dict[str, str]
-    ) -> None:
-        fake_sql_output["value"] = "auto"
-        assert self._pkg_names(_default_duckdb_deps()) == [
+    @staticmethod
+    def _const(value: bool) -> Callable[[], bool]:
+        return lambda: value
+
+    def test_auto_bundles_polars_when_no_df_lib_present(self) -> None:
+        deps = _resolve_default_duckdb_deps(
+            "auto",
+            polars_installed=self._const(False),
+            pandas_installed=self._const(False),
+        )
+        assert self._pkg_names(deps) == [
             "duckdb",
             "sqlglot",
             "polars[pyarrow]",
         ]
 
-    def test_auto_skips_df_lib_when_pandas_already_installed(
-        self,
-        fake_dependency_has: set[str],
-        fake_sql_output: dict[str, str],
-    ) -> None:
-        fake_sql_output["value"] = "auto"
-        fake_dependency_has.add("pandas")
-        assert self._pkg_names(_default_duckdb_deps()) == [
-            "duckdb",
-            "sqlglot",
-        ]
+    def test_auto_skips_df_lib_when_pandas_already_installed(self) -> None:
+        deps = _resolve_default_duckdb_deps(
+            "auto",
+            polars_installed=self._const(False),
+            pandas_installed=self._const(True),
+        )
+        assert self._pkg_names(deps) == ["duckdb", "sqlglot"]
 
-    def test_auto_skips_df_lib_when_polars_already_installed(
-        self,
-        fake_dependency_has: set[str],
-        fake_sql_output: dict[str, str],
-    ) -> None:
-        fake_sql_output["value"] = "auto"
-        fake_dependency_has.add("polars")
-        assert self._pkg_names(_default_duckdb_deps()) == [
-            "duckdb",
-            "sqlglot",
-        ]
+    def test_auto_skips_df_lib_when_polars_already_installed(self) -> None:
+        deps = _resolve_default_duckdb_deps(
+            "auto",
+            polars_installed=self._const(True),
+            pandas_installed=self._const(False),
+        )
+        assert self._pkg_names(deps) == ["duckdb", "sqlglot"]
 
-    def test_pandas_output_requires_pandas(
-        self, fake_sql_output: dict[str, str]
+    def test_auto_short_circuits_pandas_check_when_polars_present(
+        self,
     ) -> None:
-        fake_sql_output["value"] = "pandas"
-        assert self._pkg_names(_default_duckdb_deps()) == [
-            "duckdb",
-            "sqlglot",
+        """If polars is already installed, pandas.has() must not be invoked."""
+        pandas_calls = 0
+
+        def pandas_installed() -> bool:
+            nonlocal pandas_calls
+            pandas_calls += 1
+            return False
+
+        _resolve_default_duckdb_deps(
+            "auto",
+            polars_installed=self._const(True),
+            pandas_installed=pandas_installed,
+        )
+        assert pandas_calls == 0
+
+    def test_pandas_output_requires_pandas(self) -> None:
+        deps = _resolve_default_duckdb_deps(
             "pandas",
-        ]
+            polars_installed=self._const(False),
+            pandas_installed=self._const(False),
+        )
+        assert self._pkg_names(deps) == ["duckdb", "sqlglot", "pandas"]
 
     @pytest.mark.parametrize("output", ["polars", "lazy-polars"])
     def test_polars_outputs_require_polars_pyarrow(
-        self, fake_sql_output: dict[str, str], output: str
+        self, output: SqlOutputType
     ) -> None:
-        fake_sql_output["value"] = output
-        assert self._pkg_names(_default_duckdb_deps()) == [
+        deps = _resolve_default_duckdb_deps(
+            output,
+            polars_installed=self._const(False),
+            pandas_installed=self._const(False),
+        )
+        assert self._pkg_names(deps) == [
             "duckdb",
             "sqlglot",
             "polars[pyarrow]",
         ]
 
-    def test_native_output_skips_df_lib(
-        self, fake_sql_output: dict[str, str]
+    def test_native_output_skips_df_lib(self) -> None:
+        deps = _resolve_default_duckdb_deps(
+            "native",
+            polars_installed=self._const(False),
+            pandas_installed=self._const(False),
+        )
+        assert self._pkg_names(deps) == ["duckdb", "sqlglot"]
+
+    @pytest.mark.parametrize(
+        "output", ["polars", "lazy-polars", "pandas", "native"]
+    )
+    def test_non_auto_outputs_skip_has_checks(
+        self, output: SqlOutputType
     ) -> None:
-        fake_sql_output["value"] = "native"
-        assert self._pkg_names(_default_duckdb_deps()) == [
-            "duckdb",
-            "sqlglot",
-        ]
+        """Non-auto branches must not invoke `.has()` callables at all."""
+
+        def boom() -> bool:
+            raise AssertionError(
+                "has() should not be called for non-auto sql_output"
+            )
+
+        _resolve_default_duckdb_deps(
+            output, polars_installed=boom, pandas_installed=boom
+        )
+
+
+@pytest.mark.usefixtures("fake_dependency_has")
+class TestDefaultDuckDBDepsEndToEnd:
+    """End-to-end: verify `mo.sql(...)` bundles all missing installs into a
+    single ManyModulesNotFoundError, so the user only gets prompted once."""
 
     def test_sql_raises_single_bundled_error_when_all_missing(
         self, fake_sql_output: dict[str, str]
     ) -> None:
-        """End-to-end check: with no deps installed and auto output, calling
-        `mo.sql(...)` raises one ManyModulesNotFoundError listing all of
-        duckdb, sqlglot, and polars[pyarrow] at once."""
         fake_sql_output["value"] = "auto"
         with pytest.raises(ManyModulesNotFoundError) as excinfo:
             sql("SELECT 1")

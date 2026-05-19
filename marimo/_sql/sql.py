@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+from marimo._config.config import SqlOutputType
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
@@ -29,39 +33,47 @@ def get_default_result_limit() -> int | None:
     return int(limit) if limit is not None else None
 
 
+def _resolve_default_duckdb_deps(
+    sql_output: SqlOutputType,
+    *,
+    polars_installed: Callable[[], bool],
+    pandas_installed: Callable[[], bool],
+) -> list[Dependency]:
+    deps: list[Dependency] = [
+        DependencyManager.duckdb,
+        DependencyManager.sqlglot,
+    ]
+    polars_with_pyarrow = Dependency(
+        "polars", pkg_name_to_install="polars[pyarrow]"
+    )
+
+    if sql_output == "polars" or sql_output == "lazy-polars":
+        deps.append(polars_with_pyarrow)
+    elif sql_output == "pandas":
+        deps.append(DependencyManager.pandas)
+    elif sql_output == "auto":
+        if not polars_installed() and not pandas_installed():
+            deps.append(polars_with_pyarrow)
+    elif sql_output == "native":
+        # "native" returns the underlying DuckDB relation and needs no df lib.
+        pass
+    else:
+        log_never(sql_output)
+
+    return deps
+
+
 def _default_duckdb_deps() -> list[Dependency]:
     """
     Return all deps required to run `mo.sql(query)` with the default DuckDB
     engine, including the dataframe library used for the configured output
     format.
     """
-    deps: list[Dependency] = [
-        DependencyManager.duckdb,
-        DependencyManager.sqlglot,
-    ]
-
-    polars_with_pyarrow = Dependency(
-        "polars", pkg_name_to_install="polars[pyarrow]"
+    return _resolve_default_duckdb_deps(
+        get_configured_sql_output_format(),
+        polars_installed=DependencyManager.polars.has,
+        pandas_installed=DependencyManager.pandas.has,
     )
-
-    sql_output = get_configured_sql_output_format()
-    if sql_output == "polars" or sql_output == "lazy-polars":
-        deps.append(polars_with_pyarrow)
-    elif sql_output == "pandas":
-        deps.append(DependencyManager.pandas)
-    elif sql_output == "auto":
-        if (
-            not DependencyManager.polars.has()
-            and not DependencyManager.pandas.has()
-        ):
-            deps.append(polars_with_pyarrow)
-    elif sql_output == "native":
-        # "native" returns the underlying DuckDB relation and needs no df lib.
-        return deps
-    else:
-        log_never(sql_output)
-
-    return deps
 
 
 @mddoc
