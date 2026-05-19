@@ -90,21 +90,20 @@ describe("NumberFilterMenu", () => {
     expect(screen.queryByLabelText("max")).not.toBeInTheDocument();
   });
 
-  it("selecting a nullish operator commits immediately and hides value inputs", () => {
+  it("selecting a nullish operator hides value inputs and commits on Apply", () => {
     const column = mockColumn();
     render(<NumberFilterMenu column={column} />);
     fireEvent.click(screen.getByRole("combobox"));
     const listbox = screen.getByRole("listbox");
     fireEvent.click(within(listbox).getByText("Is null"));
-    expect(column.setFilterValue).toHaveBeenCalledWith(
-      Filter.number({ operator: "is_null" }),
-    );
+    expect(column.setFilterValue).not.toHaveBeenCalled();
     expect(screen.queryByLabelText("min")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("max")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("value")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /apply/i }),
-    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /apply/i }));
+    expect(column.setFilterValue).toHaveBeenCalledWith(
+      Filter.number({ operator: "is_null" }),
+    );
   });
 });
 
@@ -178,19 +177,18 @@ describe("TextFilterMenu", () => {
     expect(screen.queryByPlaceholderText("Text...")).not.toBeInTheDocument();
   });
 
-  it("selecting is_empty commits immediately and hides the value UI", () => {
+  it("selecting is_empty hides the value UI and commits on Apply", () => {
     const column = mockTextColumn();
     render(<TextFilterMenu column={column} />);
     fireEvent.click(screen.getByRole("combobox"));
     const listbox = screen.getByRole("listbox");
     fireEvent.click(within(listbox).getByText("Is empty"));
+    expect(column.setFilterValue).not.toHaveBeenCalled();
+    expect(screen.queryByPlaceholderText("Text...")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /apply/i }));
     expect(column.setFilterValue).toHaveBeenCalledWith(
       Filter.text({ operator: "is_empty" }),
     );
-    expect(screen.queryByPlaceholderText("Text...")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /apply/i }),
-    ).not.toBeInTheDocument();
   });
 
   it("apply is disabled when scalar text is empty", () => {
