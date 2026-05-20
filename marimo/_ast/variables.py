@@ -68,3 +68,14 @@ def get_cell_from_local(
 ) -> CellId_t | None:
     local = unmangle_local(if_local_then_mangle(name, cell_id)).cell
     return local if local else None
+
+
+# Demangle every occurrence of `_cell_<cell_id><_name>` inside a free-form
+# string (test output, traceback lines, etc.) back to `<_name>`. The
+# negative-lookbehind excludes the compiled cell-file path
+# `__marimo__cell_<id>_.py`, which carries a leading `_` we must not strip.
+_MANGLED_LOCAL_IN_TEXT_RE = re.compile(r"(?<!_)_cell_\w+?(_\w+)")
+
+
+def demangle_locals_in_text(text: str) -> str:
+    return _MANGLED_LOCAL_IN_TEXT_RE.sub(r"\1", text)
