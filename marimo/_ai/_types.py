@@ -5,15 +5,7 @@ import abc
 import mimetypes
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass, is_dataclass
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Literal,
-    TypedDict,
-    cast,
-    override,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict, cast
 
 import msgspec
 
@@ -247,7 +239,6 @@ class ChatMessage(msgspec.Struct, eq=False):
     # struct grows.
     _EQ_EXCLUDE: ClassVar[frozenset[str]] = frozenset({"_raw_parts"})
 
-    @override
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ChatMessage):
             return NotImplemented
