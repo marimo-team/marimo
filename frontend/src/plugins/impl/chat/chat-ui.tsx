@@ -20,6 +20,7 @@ import {
   RotateCwIcon,
   SendHorizontalIcon,
   SettingsIcon,
+  SquareIcon,
   Trash2Icon,
   X,
 } from "lucide-react";
@@ -60,6 +61,7 @@ import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { Strings } from "@/utils/strings";
+import { generateUUID } from "@/utils/uuid";
 import { ErrorBanner } from "../common/error-banner";
 import type { PluginFunctions } from "./ChatPlugin";
 import type { ChatConfig } from "./types";
@@ -85,6 +87,48 @@ const ChatMessageIncomingSchema = z.object({
     .transform((val) => val as UIMessageChunk | null),
   is_final: z.boolean().optional(),
 });
+
+type ChatMessageIncoming = z.infer<typeof ChatMessageIncomingSchema>;
+
+export interface IncomingChatChunkRefs {
+  controllerRef: {
+    current: ReadableStreamDefaultController<UIMessageChunk> | null;
+  };
+  activeRequestIdRef: { current: string | null };
+}
+
+/**
+ * Route a single incoming chunk to the active stream controller, dropping it
+ * if it belongs to a stale (aborted-but-not-yet-cancelled) backend run.
+ */
+export function routeIncomingChatChunk(
+  message: ChatMessageIncoming,
+  refs: IncomingChatChunkRefs,
+): "enqueued" | "closed" | "dropped-no-controller" | "dropped-stale" {
+  const { controllerRef, activeRequestIdRef } = refs;
+  const controller = controllerRef.current;
+  if (controller === null) {
+    return "dropped-no-controller";
+  }
+  const activeRequestId = activeRequestIdRef.current;
+  if (activeRequestId !== null && message.message_id !== activeRequestId) {
+    Logger.debug("Dropping stale chat chunk", {
+      chunkRequestId: message.message_id,
+      activeRequestId,
+    });
+    return "dropped-stale";
+  }
+  if (message.content) {
+    controller.enqueue(message.content);
+  }
+  if (message.is_final) {
+    controller.close();
+    controllerRef.current = null;
+    activeRequestIdRef.current = null;
+    return "closed";
+  }
+  return "enqueued";
+}
 
 export const Chatbot: React.FC<Props> = (props) => {
   const [input, setInput] = useState("");
@@ -113,15 +157,14 @@ export const Chatbot: React.FC<Props> = (props) => {
   const configRef = useRef<ChatConfig>(config);
   configRef.current = config;
 
-  // Track streaming state - maps backend message_id to frontend message index
-  const streamingStateRef = useRef<{
-    backendMessageId: string | null;
-    frontendMessageIndex: number | null;
-  }>({ backendMessageId: null, frontendMessageIndex: null });
-
   // For frontend-managed streaming, create a controller to enqueue chunks to.
   const frontendStreamControllerRef =
     useRef<ReadableStreamDefaultController<UIMessageChunk> | null>(null);
+
+  // The request_id of the currently-active prompt run. Chunks arriving with a
+  // different message_id are stale (from an aborted-but-not-yet-cancelled run
+  // on the kernel) and must be dropped
+  const activeRequestIdRef = useRef<string | null>(null);
 
   const { data: backendMessages } = useAsyncData(async () => {
     const response = await props.get_chat_history({});
@@ -180,17 +223,33 @@ export const Chatbot: React.FC<Props> = (props) => {
             };
           });
 
+          // Client-generated id used to (a) route chunks back to this stream
+          // and (b) ask the kernel to cancel just this run on Stop.
+          const requestId = generateUUID();
+
           const stream = new ReadableStream<UIMessageChunk>({
             start(controller) {
               frontendStreamControllerRef.current = controller;
+              activeRequestIdRef.current = requestId;
 
               const abortHandler = () => {
+                // Close the local controller first so the chat status flips to
+                // "ready" immediately and any racing chunks are dropped; then
+                // fire-and-forget the backend cancel so the kernel stops the
+                // model and we don't waste tokens / leak chunks to the next
+                // run.
                 try {
                   controller.close();
                 } catch (error) {
                   Logger.debug("Controller may already be closed", { error });
                 }
                 frontendStreamControllerRef.current = null;
+                activeRequestIdRef.current = null;
+                void props
+                  .cancel_prompt({ request_id: requestId })
+                  .catch((error: Error) => {
+                    Logger.debug("cancel_prompt failed", { error });
+                  });
               };
               signal?.addEventListener("abort", abortHandler);
 
@@ -200,28 +259,25 @@ export const Chatbot: React.FC<Props> = (props) => {
             },
             cancel() {
               frontendStreamControllerRef.current = null;
+              activeRequestIdRef.current = null;
             },
           });
 
           // Start the prompt, chunks will be sent via events
           void props
             .send_prompt({
+              request_id: requestId,
               messages: messages,
               config: chatConfig,
             })
             .catch((error: Error) => {
               frontendStreamControllerRef.current?.error(error);
               frontendStreamControllerRef.current = null;
+              activeRequestIdRef.current = null;
             });
 
           return createUIMessageStreamResponse({ stream });
         } catch (error: unknown) {
-          // Clear streaming state on error
-          streamingStateRef.current = {
-            backendMessageId: null,
-            frontendMessageIndex: null,
-          };
-
           // Handle abort gracefully without showing an error
           if (error instanceof Error && error.name === "AbortError") {
             return new Response("Aborted", { status: 499 });
@@ -244,21 +300,10 @@ export const Chatbot: React.FC<Props> = (props) => {
       }
       Logger.debug("Finished streaming message:", message);
 
-      // Clear streaming state
-      streamingStateRef.current = {
-        backendMessageId: null,
-        frontendMessageIndex: null,
-      };
-
       props.setValue(message.messages);
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
-      // Clear streaming state on error
-      streamingStateRef.current = {
-        backendMessageId: null,
-        frontendMessageIndex: null,
-      };
     },
   });
 
@@ -273,23 +318,10 @@ export const Chatbot: React.FC<Props> = (props) => {
       if (!parsedMessage.success) {
         return;
       }
-      const message = parsedMessage.data;
-
-      // Push to the stream for useChat to process
-      const controller = frontendStreamControllerRef.current;
-      if (!controller) {
-        return;
-      }
-
-      if (message.content) {
-        controller.enqueue(message.content);
-      }
-      if (message.is_final) {
-        controller.close();
-        frontendStreamControllerRef.current = null;
-      }
-
-      return;
+      routeIncomingChatChunk(parsedMessage.data, {
+        controllerRef: frontendStreamControllerRef,
+        activeRequestIdRef,
+      });
     },
   );
 
@@ -429,16 +461,8 @@ export const Chatbot: React.FC<Props> = (props) => {
         })}
 
         {isLoading && (
-          <div className="flex items-center justify-center space-x-2 mb-4">
+          <div className="flex items-center justify-center mb-4">
             <Spinner size="small" />
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() => stop()}
-              className="text-(--red-9) hover:text-(--red-11)"
-            >
-              Stop
-            </Button>
           </div>
         )}
 
@@ -569,15 +593,29 @@ export const Chatbot: React.FC<Props> = (props) => {
             />
           </>
         )}
-        <Button
-          type="submit"
-          disabled={isLoading || !input}
-          variant="outline"
-          size="xs"
-          className="text-(--slate-11)"
-        >
-          <SendHorizontalIcon className="h-4 w-4" />
-        </Button>
+        {isLoading ? (
+          <Tooltip content="Stop generating">
+            <Button
+              variant="link"
+              size="xs"
+              onClick={() => stop()}
+              className="text-(--red-9) hover:text-(--red-11)"
+            >
+              <SquareIcon className="h-4 w-4 fill-current" />
+            </Button>
+          </Tooltip>
+        ) : (
+          <Button
+            type="submit"
+            disabled={!input}
+            variant="outline"
+            size="xs"
+            className="text-(--slate-11)"
+            aria-label="Send message"
+          >
+            <SendHorizontalIcon className="h-4 w-4" />
+          </Button>
+        )}
       </form>
     </div>
   );

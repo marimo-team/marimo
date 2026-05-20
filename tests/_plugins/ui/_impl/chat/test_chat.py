@@ -15,6 +15,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.chat.chat import (
     DEFAULT_CONFIG,
+    CancelPromptRequest,
     ChunkSerializer,
     DeleteChatMessageRequest,
     SendMessageRequest,
@@ -1577,3 +1578,269 @@ async def test_chat_value_multiple_exchanges():
     assert len(chat.value) == 4
     assert chat.value[2].content == "Second"
     assert chat.value[3].content == "Echo: Second"
+
+
+async def test_send_prompt_uses_request_id_as_message_id():
+    """Chunks for a given run should be tagged with the client's request_id
+    so the frontend can filter stale chunks from orphaned runs."""
+
+    async def mock_model(messages: list[ChatMessage], config: ChatModelConfig):
+        del messages, config
+        yield "hello"
+        yield " "
+        yield "world"
+
+    chat = ui.chat(mock_model)
+    sent_messages: list[dict] = []
+
+    def capture(message: dict, buffers):  # noqa: ARG001
+        sent_messages.append(message)
+
+    chat._send_message = capture
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="hi")],
+        config=ChatModelConfig(),
+        request_id="req-abc",
+    )
+    await chat._send_prompt(request)
+
+    assert sent_messages, "should have sent at least one chunk"
+    # Every chunk for this run must carry the request_id as its message_id.
+    assert all(m["message_id"] == "req-abc" for m in sent_messages)
+    # And the run must always end with a final chunk so the frontend tears down.
+    assert sent_messages[-1]["is_final"] is True
+
+
+async def test_send_prompt_generates_request_id_when_missing():
+    """Backwards compat: older frontends may omit request_id entirely."""
+
+    def mock_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del messages, config
+        return "ok"
+
+    chat = ui.chat(mock_model)
+    sent_messages: list[dict] = []
+
+    def capture(message: dict, buffers):  # noqa: ARG001
+        sent_messages.append(message)
+
+    chat._send_message = capture
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="hi")],
+        config=ChatModelConfig(),
+    )
+    await chat._send_prompt(request)
+
+    assert sent_messages, "should have sent chunks"
+    # A single shared id is used across all chunks for the run.
+    message_id = sent_messages[0]["message_id"]
+    assert message_id  # non-empty
+    assert all(m["message_id"] == message_id for m in sent_messages)
+
+
+async def test_cancel_prompt_interrupts_async_generator():
+    """_cancel_prompt should stop an in-flight async generator promptly and
+    emit a final chunk so the frontend stream tears down cleanly."""
+
+    started = asyncio.Event()
+
+    async def slow_model(messages: list[ChatMessage], config: ChatModelConfig):
+        del messages, config
+        yield "first"
+        started.set()
+        # Keep yielding indefinitely (slowly) until the test cancels us.
+        for i in range(1_000):
+            await asyncio.sleep(0.05)
+            yield f"chunk-{i}"
+
+    chat = ui.chat(slow_model)
+    sent_messages: list[dict] = []
+
+    def capture(message: dict, buffers):  # noqa: ARG001
+        sent_messages.append(message)
+
+    chat._send_message = capture
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="hi")],
+        config=ChatModelConfig(),
+        request_id="req-cancel-async",
+    )
+    send_task = asyncio.create_task(chat._send_prompt(request))
+
+    # Wait until the model has yielded its first chunk so the cancel races
+    # against an in-flight generator, not the setup path.
+    await asyncio.wait_for(started.wait(), timeout=1.0)
+    await chat._cancel_prompt(
+        CancelPromptRequest(request_id="req-cancel-async")
+    )
+
+    # _send_prompt should complete cleanly (CancelledError is swallowed).
+    await asyncio.wait_for(send_task, timeout=1.0)
+
+    # The run is no longer tracked.
+    assert "req-cancel-async" not in chat._in_flight
+
+    # A final chunk was emitted so the frontend stream closes.
+    finals = [m for m in sent_messages if m["is_final"]]
+    assert len(finals) == 1
+    assert finals[0]["content"] is None or isinstance(
+        finals[0]["content"], dict
+    )
+
+    # And every chunk carries the cancelled run's id (no leakage to other ids).
+    assert all(m["message_id"] == "req-cancel-async" for m in sent_messages)
+
+
+async def test_cancel_prompt_interrupts_sync_generator():
+    """Sync generators that yield regularly should still be cancellable
+    thanks to the await asyncio.sleep(0) checkpoint in the chunk loop."""
+
+    yielded = 0
+    closed = False
+
+    def slow_sync_model(messages: list[ChatMessage], config: ChatModelConfig):
+        del messages, config
+        nonlocal yielded, closed
+        try:
+            for i in range(1_000):
+                yielded = i + 1
+                yield f"chunk-{i}"
+        finally:
+            closed = True
+
+    chat = ui.chat(slow_sync_model)
+    sent_messages: list[dict] = []
+
+    def capture(message: dict, buffers):  # noqa: ARG001
+        sent_messages.append(message)
+
+    chat._send_message = capture
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="hi")],
+        config=ChatModelConfig(),
+        request_id="req-cancel-sync",
+    )
+    send_task = asyncio.create_task(chat._send_prompt(request))
+
+    # Give the task a few event-loop turns so it can yield some chunks; each
+    # chunk yields control via the sleep(0) checkpoint.
+    for _ in range(5):
+        await asyncio.sleep(0)
+    await chat._cancel_prompt(
+        CancelPromptRequest(request_id="req-cancel-sync")
+    )
+    await asyncio.wait_for(send_task, timeout=1.0)
+
+    # We should have stopped well before exhausting the 1000-chunk generator.
+    assert yielded < 1_000
+    # The user generator's finally: must have run, i.e. the generator was
+    # explicitly closed and any cleanup it owns has executed.
+    assert closed
+    # The frontend gets a clean termination signal.
+    finals = [m for m in sent_messages if m["is_final"]]
+    assert len(finals) == 1
+
+
+async def test_cancel_prompt_unknown_request_id_is_noop():
+    """Cancelling a request_id that isn't in flight should not error."""
+
+    def mock_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del messages, config
+        return "ok"
+
+    chat = ui.chat(mock_model)
+
+    # Should silently no-op rather than raise.
+    await chat._cancel_prompt(CancelPromptRequest(request_id="never-existed"))
+
+
+async def test_cancel_prompt_emits_reasoning_end_for_open_block():
+    """If the model is mid-reasoning when cancelled, the serializer should
+    close any open reasoning block so the SDK parser stays well-formed."""
+
+    started = asyncio.Event()
+
+    async def reasoning_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ):
+        del messages, config
+        yield {"type": "reasoning-start", "id": "r-1"}
+        yield {"type": "reasoning-delta", "id": "r-1", "delta": "thinking"}
+        started.set()
+        # Sleep long enough that we can cancel mid-reasoning, before any
+        # `reasoning-end` is emitted by the model.
+        await asyncio.sleep(5)
+        yield {"type": "reasoning-end", "id": "r-1"}
+
+    chat = ui.chat(reasoning_model)
+    sent_messages: list[dict] = []
+
+    def capture(message: dict, buffers):  # noqa: ARG001
+        sent_messages.append(message)
+
+    chat._send_message = capture
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="think")],
+        config=ChatModelConfig(),
+        request_id="req-reason",
+    )
+    send_task = asyncio.create_task(chat._send_prompt(request))
+
+    await asyncio.wait_for(started.wait(), timeout=1.0)
+    await chat._cancel_prompt(CancelPromptRequest(request_id="req-reason"))
+    await asyncio.wait_for(send_task, timeout=1.0)
+
+    # We must have emitted a reasoning-end for the open block (either as a
+    # plain end chunk or as part of the AbortChunk fallback path), and a final
+    # chunk to close the stream.
+    types_sent = [
+        m["content"].get("type") if isinstance(m["content"], dict) else None
+        for m in sent_messages
+    ]
+    assert "reasoning-end" in types_sent
+    assert sent_messages[-1]["is_final"] is True
+
+
+def test_chunk_serializer_close_open_blocks_for_dict_chunks():
+    """close_open_blocks should emit `*-end` for any still-open dict block."""
+    sent: list[dict] = []
+
+    def on_send(chunk: dict):
+        sent.append(chunk)
+
+    s = ChunkSerializer(on_send_chunk=on_send)
+    s.handle_chunk({"type": "reasoning-start", "id": "r-1"})
+    s.handle_chunk({"type": "reasoning-delta", "id": "r-1", "delta": "a"})
+    # No reasoning-end — simulate cancellation mid-stream.
+    s.close_open_blocks_when_cancelled()
+
+    assert sent[-1] == {"type": "reasoning-end", "id": "r-1"}
+    # Calling again should be a no-op (bookkeeping cleared).
+    before = list(sent)
+    s.close_open_blocks_when_cancelled()
+    assert sent == before
+
+
+def test_chunk_serializer_close_open_blocks_for_text():
+    """An open text block from plain-string streaming should also close."""
+    sent: list[dict] = []
+
+    def on_send(chunk: dict):
+        sent.append(chunk)
+
+    s = ChunkSerializer(on_send_chunk=on_send)
+    s.handle_chunk("partial")
+    # Cancelled before on_end() — close_open_blocks should still flush text-end.
+    s.close_open_blocks_when_cancelled()
+
+    end_chunks = [c for c in sent if c.get("type") == "text-end"]
+    assert len(end_chunks) == 1

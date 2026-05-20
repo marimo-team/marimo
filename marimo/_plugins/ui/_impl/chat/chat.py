@@ -1,11 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import inspect
 import json
 import uuid
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Final, Literal, cast
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Literal, cast
 
 from marimo import _loggers
 from marimo._ai._types import (
@@ -54,6 +56,7 @@ def require_vercel_ai_sdk_support() -> None:
 class SendMessageRequest:
     messages: list[ChatMessage]
     config: ChatModelConfig
+    request_id: str | None = None
 
 
 @dataclass
@@ -64,6 +67,11 @@ class GetChatHistoryResponse:
 @dataclass
 class DeleteChatMessageRequest:
     index: int
+
+
+@dataclass
+class CancelPromptRequest:
+    request_id: str
 
 
 @mddoc
@@ -170,6 +178,16 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         ```
         Refer to examples/ai/chat/pydantic-ai-chat.py for a complete example.
 
+    Cancellation:
+        When the user clicks Stop in the UI, marimo cancels the in-flight
+        model invocation by raising `asyncio.CancelledError` inside the
+        generator (at the next yield point for sync generators, or the next
+        `await` for async ones). If your model holds resources such as HTTP
+        clients, file handles, or database cursors, release them in a
+        `try/finally` block so they are cleaned up promptly on cancellation.
+        Generators that catch and swallow `CancelledError` will not actually
+        stop and may continue to consume tokens from upstream providers.
+
     Attributes:
         value (List[ChatMessage]): The current chat history, a list of ChatMessage objects.
 
@@ -214,6 +232,9 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
     ) -> None:
         self._model = model
         self._chat_history: list[ChatMessage] = []
+        # Tracks in-flight _send_prompt tasks keyed by request_id, so that
+        # _cancel_prompt can interrupt the model generation cleanly.
+        self._in_flight: dict[str, asyncio.Task[None]] = {}
 
         if config is None:
             config = DEFAULT_CONFIG
@@ -255,6 +276,11 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                     arg_cls=SendMessageRequest,
                     function=self._send_prompt,
                 ),
+                Function(
+                    name="cancel_prompt",
+                    arg_cls=CancelPromptRequest,
+                    function=self._cancel_prompt,
+                ),
             ),
         )
 
@@ -290,7 +316,12 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             buffers=None,
         )
 
-    async def _handle_streaming_response(self, response: Any) -> None:
+    async def _handle_streaming_response(
+        self,
+        response: Any,
+        *,
+        message_id: str | None = None,
+    ) -> None:
         """Handle streaming from both sync and async generators, and lists.
 
         Generators should yield delta chunks (new content only), which this
@@ -298,8 +329,13 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         This follows the standard streaming pattern used by OpenAI, Anthropic,
         and other AI providers. For frontend-managed streaming, the response is set on the frontend,
         so we don't need to return anything. If generators just yield strings, we update the chat history with the accumulated text.
+
+        On cancellation, any open text/reasoning blocks are closed and a final
+        chunk is emitted so the frontend stream tears down cleanly, then the
+        CancelledError propagates.
         """
-        message_id = str(uuid.uuid4())
+        if message_id is None:
+            message_id = str(uuid.uuid4())
 
         def send_chunk(chunk: dict[str, Any]) -> None:
             self._send_chat_message(
@@ -313,16 +349,42 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             response
         )
 
-        if inspect.isasyncgen(response):
-            async for delta in response:
-                if isinstance(delta, str):
-                    accumulated_text += delta
-                serializer.handle_chunk(delta)
-        else:
-            for delta in response:
-                if isinstance(delta, str):
-                    accumulated_text += delta
-                serializer.handle_chunk(delta)
+        try:
+            if inspect.isasyncgen(response):
+                async for delta in response:
+                    if isinstance(delta, str):
+                        accumulated_text += delta
+                    serializer.handle_chunk(delta)
+            else:
+                for delta in response:
+                    if isinstance(delta, str):
+                        accumulated_text += delta
+                    serializer.handle_chunk(delta)
+                    # Yield to the event loop so cancellation can propagate
+                    # promptly into sync generators that don't await.
+                    await asyncio.sleep(0)
+        except asyncio.CancelledError:
+            # Close any open blocks on the wire so the frontend parser doesn't
+            # see dangling text-delta / reasoning-delta chunks. Best-effort;
+            # the frontend may have already torn down its controller.
+            try:
+                self._emit_cancellation_chunks(
+                    serializer=serializer, message_id=message_id
+                )
+            except Exception:
+                LOGGER.debug(
+                    "Failed to emit cancellation chunks", exc_info=True
+                )
+            # Explicitly close the user-supplied generator so cleanup blocks
+            # (HTTP sockets, file handles, try/finally in user code) run
+            # promptly rather than waiting on GC finalizers.
+            if inspect.isasyncgen(response):
+                with contextlib.suppress(Exception):
+                    await response.aclose()
+            elif inspect.isgenerator(response):
+                with contextlib.suppress(Exception):
+                    response.close()
+            raise
 
         # Generators that yield strings should update the 'content' field of the assistant message
         if accumulated_text and is_generator:
@@ -337,6 +399,51 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             message_id=message_id,
             content=None,
             is_final=True,
+        )
+
+    def _emit_cancellation_chunks(
+        self,
+        *,
+        serializer: ChunkSerializer,
+        message_id: str,
+    ) -> None:
+        """Close open serializer blocks and emit a final chunk on cancellation."""
+        # If pydantic-ai is available, prefer the protocol's AbortChunk to
+        # signal "stream cut off, anything open is incomplete".
+        abort_payload: dict[str, Any] | None = None
+        if DependencyManager.pydantic_ai.imported():
+            try:
+                require_vercel_ai_sdk_support()
+                from pydantic_ai.ui.vercel_ai.response_types import (
+                    AbortChunk,
+                )
+
+                abort_payload = json.loads(  # pyright: ignore[reportAny]
+                    AbortChunk(reason="user_cancelled").encode(
+                        sdk_version=AI_SDK_VERSION
+                    )
+                )
+            except Exception:
+                LOGGER.debug(
+                    (
+                        "Could not build AbortChunk; will fall back to explicit "
+                        "end chunks for open blocks."
+                    ),
+                    exc_info=True,
+                )
+
+        if abort_payload is not None:
+            serializer.close_open_blocks_when_cancelled()
+            self._send_chat_message(
+                message_id=message_id,
+                content=abort_payload,
+                is_final=False,
+            )
+        else:
+            serializer.close_open_blocks_when_cancelled()
+
+        self._send_chat_message(
+            message_id=message_id, content=None, is_final=True
         )
 
     def _update_chat_history(self, chat_history: list[ChatMessage]) -> None:
@@ -365,6 +472,49 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                 )
 
     async def _send_prompt(self, args: SendMessageRequest) -> None:
+        request_id = args.request_id or str(uuid.uuid4())
+        if args.request_id is None:
+            LOGGER.debug(
+                (
+                    "send_prompt received without a request_id; "
+                    "generated %s server-side."
+                ),
+                request_id,
+            )
+
+        task = asyncio.create_task(self._run_prompt(request_id, args))
+        self._in_flight[request_id] = task
+        try:
+            await task
+        except asyncio.CancelledError:
+            # Note: if both `_cancel_prompt` and an outer kernel cancellation
+            # fire near-simultaneously, we'll take the `pass` branch and the
+            # outer cancel is effectively lost. That's acceptable in practice
+            # because kernel shutdown tears the whole event loop down anyway.
+            if task.done() and task.cancelled():
+                # Inner task was cancelled (typically via _cancel_prompt).
+                # The user-visible Stop happened; complete the RPC normally.
+                pass
+            else:
+                # Outer task was cancelled (e.g., kernel shutdown). Make sure
+                # the inner task is cleaned up, then propagate the cancel.
+                if not task.done():
+                    task.cancel()
+                    with contextlib.suppress(BaseException):
+                        await task
+                raise
+        finally:
+            self._in_flight.pop(request_id, None)
+
+    async def _cancel_prompt(self, args: CancelPromptRequest) -> None:
+        """Cancel an in-flight prompt by request_id. No-op if already done."""
+        task = self._in_flight.get(args.request_id)
+        if task is not None and not task.done():
+            task.cancel()
+
+    async def _run_prompt(
+        self, request_id: str, args: SendMessageRequest
+    ) -> None:
         messages = args.messages
 
         self._chat_history = messages
@@ -384,7 +534,9 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         if inspect.isasyncgen(response) or inspect.isgenerator(response):
             # We support functions that stream the response with generators
             # (both sync and async)
-            await self._handle_streaming_response(response)
+            await self._handle_streaming_response(
+                response, message_id=request_id
+            )
             # For streaming, we don't have a final response string to add to history
             # The frontend will add the accumulated message
             return
@@ -398,7 +550,9 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             response if isinstance(response, str) else as_html(response).text
         )
 
-        await self._handle_streaming_response([response_str])
+        await self._handle_streaming_response(
+            [response_str], message_id=request_id
+        )
         # Update the chat history to trigger UI updates and on_message callback
         self._add_assistant_message_to_chat_history(response, response_str)
 
@@ -468,7 +622,20 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 @dataclass
 class ChunkSerializer:
     on_send_chunk: Callable[[dict[str, Any]], None]
+    # Id of the implicit text block synthesized for plain-string yields.
     _text_id: str | None = None
+    # Open block id -> kind, for blocks we've seen a `*-start` for but not
+    # yet a `*-end`. Drained on end-of-stream and on cancellation.
+    _open_blocks: dict[str, str] = field(default_factory=dict)
+
+    # The AI SDK UI parser holds parts in `state: "streaming"` until a
+    # matching `*-end` arrives — without one the part renders as still
+    # in-progress. These are the only block kinds with that property in
+    # ai@6.x; others either use a different lifecycle (e.g. tool-input
+    # pairs with tool-output-available/-error and keys on `toolCallId`)
+    # or are single-chunk events (file, source-url, data-*). Don't extend
+    # without checking the SDK parser.
+    _BLOCK_KINDS: ClassVar[tuple[str, ...]] = ("text", "reasoning")
 
     def handle_chunk(self, chunk: Any) -> None:
         """Handle a Vercel AI SDK chunk"""
@@ -484,6 +651,7 @@ class ChunkSerializer:
                 serialized = json.loads(
                     chunk.encode(sdk_version=AI_SDK_VERSION)
                 )
+                self._track_block_state(serialized)
                 self.on_send_chunk(serialized)
                 return
 
@@ -493,15 +661,56 @@ class ChunkSerializer:
             chunk = str(chunk)
             if self._text_id is None:
                 self._text_id = f"text_{uuid.uuid4().hex}"
+                self._open_blocks[self._text_id] = "text"
                 self.on_send_chunk({"type": "text-start", "id": self._text_id})
             self.on_send_chunk(
                 {"type": "text-delta", "id": self._text_id, "delta": chunk}
             )
             return
 
+        # Track block lifecycle for plain dict chunks before forwarding.
+        if isinstance(chunk, dict):
+            self._track_block_state(chunk)
+
         # Otherwise, we return the chunk as is
         self.on_send_chunk(chunk)
 
     def on_end(self) -> None:
-        if self._text_id is not None:
-            self.on_send_chunk({"type": "text-end", "id": self._text_id})
+        """Drain blocks still open at successful end-of-stream. Propagate exceptions."""
+        self._drain_open_blocks(suppress_errors=False)
+
+    def close_open_blocks_when_cancelled(self) -> None:
+        self._drain_open_blocks(suppress_errors=True)
+
+    def _drain_open_blocks(self, *, suppress_errors: bool) -> None:
+        # Iterate over a copy since we mutate _open_blocks as we go.
+        for block_id, kind in list(self._open_blocks.items()):
+            end_chunk = {"type": f"{kind}-end", "id": block_id}
+            if suppress_errors:
+                try:
+                    self.on_send_chunk(end_chunk)
+                except Exception:
+                    LOGGER.debug(
+                        "Failed to emit %s for open block id=%s during drain",
+                        end_chunk["type"],
+                        block_id,
+                        exc_info=True,
+                    )
+            else:
+                self.on_send_chunk(end_chunk)
+            self._open_blocks.pop(block_id, None)
+        self._text_id = None
+
+    def _track_block_state(self, chunk: dict[str, Any]) -> None:
+        """Update _open_blocks based on a passing dict chunk's type."""
+        chunk_type = chunk.get("type")
+        chunk_id = chunk.get("id")
+        if not isinstance(chunk_type, str) or not isinstance(chunk_id, str):
+            return
+        for kind in self._BLOCK_KINDS:
+            if chunk_type == f"{kind}-start":
+                self._open_blocks[chunk_id] = kind
+                return
+            if chunk_type == f"{kind}-end":
+                self._open_blocks.pop(chunk_id, None)
+                return
