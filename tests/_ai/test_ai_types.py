@@ -630,3 +630,19 @@ class TestChatMessageRawPartsRoundTrip:
         )
         assert dict[str, Any](message)["parts"] == [raw]
         assert message._raw_parts == [raw]
+
+    def test_dict_part_appended_after_init_is_preserved(self):
+        message = ChatMessage(
+            role="assistant",
+            content=None,
+            id="msg",
+            parts=[TextPart(type="text", text="hi")],
+        )
+        assert message._raw_parts is None
+
+        extra = {"type": "data-custom", "data": {"k": "v"}}
+        message.parts.append(cast(ChatPart, extra))
+
+        dumped = message.raw_or_dumped_parts()
+        assert dumped == [{"type": "text", "text": "hi"}, extra]
+        assert dict[str, Any](message)["parts"] == dumped

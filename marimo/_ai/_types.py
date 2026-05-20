@@ -275,23 +275,23 @@ class ChatMessage(msgspec.Struct, eq=False):
         if self._raw_parts is not None:
             return self._raw_parts
 
+        ui_message_part_cls: type | None = None
+        if DependencyManager.pydantic_ai.imported():
+            from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
+
+            ui_message_part_cls = UIMessagePart
+
         result: list[dict[str, Any]] = []
         for part in self.parts:
             if is_dataclass(part):
                 result.append(asdict(part))
-            elif DependencyManager.pydantic_ai.imported():
-                from pydantic_ai.ui.vercel_ai.request_types import (
-                    UIMessagePart,
+            elif ui_message_part_cls is not None and isinstance(
+                part, ui_message_part_cls
+            ):
+                result.append(
+                    part.model_dump(by_alias=True, exclude_none=True)
                 )
-
-                if isinstance(part, UIMessagePart):
-                    result.append(
-                        part.model_dump(by_alias=True, exclude_none=True)
-                    )
             elif isinstance(part, dict):
-                # Defensive: at runtime `parts` may carry raw dicts because
-                # `ChatPart` is `dict[str, Any]` at runtime even though the
-                # type-checking alias is a union of dataclasses.
                 result.append(part)
         return result
 
