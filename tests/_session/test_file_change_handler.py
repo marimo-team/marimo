@@ -778,9 +778,14 @@ async def test_file_change_coordinator_skips_conflict_markers(
         )
     )
 
-    with caplog.at_level("WARNING"):
-        _loggers.marimo_logger().propagate = True
-        result = await coordinator.handle_change(test_file, mock_session)
+    logger = _loggers.marimo_logger()
+    previous_propagate = logger.propagate
+    try:
+        logger.propagate = True
+        with caplog.at_level("WARNING"):
+            result = await coordinator.handle_change(test_file, mock_session)
+    finally:
+        logger.propagate = previous_propagate
 
     assert not result.handled
     assert result.error is None
