@@ -756,6 +756,7 @@ class table(
         search_result_raw_data: str | None = None
         field_types: FieldTypes | None = None
         num_columns = 0
+        row_headers = self._manager.get_row_headers()
 
         if not _internal_lazy:
             # Search first page
@@ -776,9 +777,7 @@ class table(
             # Validate column configurations
             column_names_set = set(self._manager.get_column_names())
             num_columns = len(column_names_set)
-            row_header_names_set = {
-                name for name, _ in self._manager.get_row_headers()
-            }
+            row_header_names_set = {name for name, _ in row_headers}
             _validate_frozen_columns(
                 freeze_columns_left,
                 freeze_columns_right,
@@ -822,7 +821,7 @@ class table(
                 "show-page-size-selector": show_page_size_selector,
                 "show-column-explorer": show_column_explorer,
                 "show-chart-builder": show_chart_builder,
-                "row-headers": self._manager.get_row_headers(),
+                "row-headers": row_headers,
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,
                 "text-justify-columns": text_justify_columns,
