@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import os
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,6 +9,11 @@ import pytest
 from marimo._entrypoints.ids import KnownEntryPoint
 from marimo._entrypoints.registry import EntryPointRegistry, get_entry_points
 from marimo._runtime.executor import Executor
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from marimo._ast.cell import CellImpl
 
 
 class TestEntryPointRegistry:
@@ -173,16 +180,16 @@ class CustomExecutor:
 
     def execute_cell(
         self,
-        cell: str,
-        glbls: dict[str, str],
-    ) -> str:
+        cell: CellImpl,
+        glbls: dict[str, Any],
+    ) -> Any:
         return f"Executed {cell} with {glbls}"
 
     async def execute_cell_async(
         self,
-        cell: str,
-        glbls: dict[str, str],
-    ) -> str:
+        cell: CellImpl,
+        glbls: dict[str, Any],
+    ) -> Any:
         return f"Executed {cell} with {glbls}"
 
 
@@ -194,7 +201,7 @@ class TestExecutorEntryPoint:
     def test_factory_registers_and_resolves(self) -> None:
         # Registry holds factories (Callable[[], Executor]); the kernel
         # calls the factory once to get an instance.
-        reg: EntryPointRegistry[type] = EntryPointRegistry(
+        reg: EntryPointRegistry[Callable[[], Executor]] = EntryPointRegistry(
             "marimo.cell.executor"
         )
         reg.register("custom", _custom_executor_factory)
@@ -202,6 +209,41 @@ class TestExecutorEntryPoint:
         factory = reg.get("custom")
         executor = factory()
         assert isinstance(executor, CustomExecutor)
-        assert executor.execute_cell("c", {"x": "1"}) == (
+        assert executor.execute_cell("c", {"x": "1"}) == (  # type: ignore[arg-type]
             "Executed c with {'x': '1'}"
         )
+
+    def test_resolve_executor_only_loads_first_factory(self) -> None:
+        """``resolve_executor`` must not import factories beyond the first.
+
+        A broken or slow third-party plugin can't take down the kernel
+        if it never gets loaded.
+        """
+        from marimo._runtime.executor.evaluator import (
+            _EXECUTOR_REGISTRY,
+            resolve_executor,
+        )
+
+        loaded: list[str] = []
+
+        def working_factory() -> Executor:
+            loaded.append("working")
+            return CustomExecutor()
+
+        def broken_factory() -> Executor:
+            loaded.append("broken")
+            raise RuntimeError("third-party plugin is broken")
+
+        # Restore the registry's plugins on exit so we don't leak
+        # registrations into other tests.
+        before = dict(_EXECUTOR_REGISTRY._plugins)
+        _EXECUTOR_REGISTRY._plugins.clear()
+        try:
+            _EXECUTOR_REGISTRY.register("aaa-working", working_factory)
+            _EXECUTOR_REGISTRY.register("zzz-broken", broken_factory)
+            executor = resolve_executor()
+            assert isinstance(executor, CustomExecutor)
+            assert loaded == ["working"]
+        finally:
+            _EXECUTOR_REGISTRY._plugins.clear()
+            _EXECUTOR_REGISTRY._plugins.update(before)

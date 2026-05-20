@@ -15,8 +15,6 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import pytest
-
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._runtime.executor import (
     DefaultExecutor,
@@ -83,7 +81,6 @@ class _StubExecutor:
         return result
 
 
-@pytest.mark.asyncio
 async def test_skip_terminates_setup_chain_but_runs_completed_teardowns() -> (
     None
 ):
@@ -110,7 +107,27 @@ async def test_skip_terminates_setup_chain_but_runs_completed_teardowns() -> (
     assert log == ["setup:A", "teardown:A"]
 
 
-@pytest.mark.asyncio
+async def test_skip_result_preserves_accumulated_output() -> None:
+    """``Skip(result=RunResult(...))`` threads the entire RunResult
+    through teardown — ``output``, ``exception``, and
+    ``accumulated_output`` all survive, including any future fields
+    added to ``RunResult``."""
+    log: list[str] = []
+    skip_result = RunResult(
+        output="cached", exception=None, accumulated_output="streamed"
+    )
+    a = _Recorder(log, "A", skip=Skip(result=skip_result))
+
+    ev = Evaluator(executor=_StubExecutor(lambda *_: "unused"), lifecycles=[a])
+    result = await ev.evaluate(cell=None, glbls={})
+
+    assert result.output == "cached"
+    assert result.accumulated_output == "streamed"
+    assert result.exception is None
+    # Teardown saw the same RunResult that came back out.
+    assert a.last_run_result is result
+
+
 async def test_teardowns_fire_in_reverse_order_on_success() -> None:
     log: list[str] = []
     a = _Recorder(log, "A")
@@ -135,7 +152,6 @@ async def test_teardowns_fire_in_reverse_order_on_success() -> None:
     ]
 
 
-@pytest.mark.asyncio
 async def test_teardown_sees_body_exception_via_run_result() -> None:
     log: list[str] = []
     a = _Recorder(log, "A")
@@ -155,7 +171,6 @@ async def test_teardown_sees_body_exception_via_run_result() -> None:
     assert isinstance(a.last_run_result.exception, ValueError)
 
 
-@pytest.mark.asyncio
 async def test_default_executor_wraps_user_exception_in_marimo_runtime() -> (
     None
 ):
@@ -188,7 +203,6 @@ async def test_default_executor_wraps_user_exception_in_marimo_runtime() -> (
     assert isinstance(a.last_run_result.exception, MarimoRuntimeException)
 
 
-@pytest.mark.asyncio
 async def test_teardown_runs_for_completed_setups_when_later_setup_raises() -> (
     None
 ):
@@ -216,7 +230,6 @@ async def test_teardown_runs_for_completed_setups_when_later_setup_raises() -> (
     ]
 
 
-@pytest.mark.asyncio
 async def test_teardown_wins_on_double_raise() -> None:
     log: list[str] = []
     a = _Recorder(log, "A", teardown_raises=RuntimeError("teardown wins"))
@@ -232,7 +245,6 @@ async def test_teardown_wins_on_double_raise() -> None:
     assert str(result.exception) == "teardown wins"
 
 
-@pytest.mark.asyncio
 async def test_keyboard_interrupt_captured_into_run_result() -> None:
     log: list[str] = []
     a = _Recorder(log, "A")

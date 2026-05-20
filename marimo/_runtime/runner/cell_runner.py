@@ -20,7 +20,6 @@ from marimo._loggers import marimo_logger
 from marimo._messaging.errors import (
     MarimoExceptionRaisedError,
     MarimoSQLError,
-    MarimoStrictExecutionError,
     UnknownError,
 )
 from marimo._messaging.tracebacks import write_traceback
@@ -29,7 +28,6 @@ from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.exceptions import (
     MarimoMissingRefError,
-    MarimoNameError,
     MarimoRuntimeException,
     unwrap_user_exception,
 )
@@ -162,7 +160,6 @@ class Runner:
         }
 
         lifecycles: list[ExecutionLifecycle] = []
-        # Set from config, and only used in testing. Consider removing.
         if execution_type == "strict":
             lifecycles.append(StrictLifecycle(self.graph))
         self._evaluator = build_evaluator(
@@ -519,11 +516,14 @@ class Runner:
     ) -> RunResult:
         """Classify the Evaluator's RunResult and apply Runner side effects."""
         exc = raw_result.exception
-        if exc is None or not isinstance(exc, BaseException):
-            # `exception` is typed as `ExceptionOrError | None` (the Error
-            # variants are messaging shapes, not real exceptions). The
-            # Evaluator only ever populates this slot from `except
-            # BaseException`, so the non-BaseException branch is dead.
+        if exc is None:
+            return raw_result
+        if not isinstance(exc, BaseException):
+            # A non-``BaseException`` Error shape (e.g. the
+            # ``MarimoStrictExecutionError`` produced by
+            # ``StrictLifecycle.setup`` via ``Skip(result=...)``).
+            # Cancel descendants and surface the payload as-is.
+            self.cancel(cell_id)
             return raw_result
 
         if isinstance(exc, asyncio.exceptions.CancelledError):
@@ -536,31 +536,6 @@ class Runner:
             tmpio.seek(0)
             write_traceback(tmpio.read())
             return RunResult(output=None, exception=MarimoInterrupt())
-
-        # Strict-mode preflight error from lifecycle setup; the cell body
-        # never ran.
-        if isinstance(exc, MarimoNameError):
-            self.cancel(cell_id)
-            strict_exception = MarimoStrictExecutionError(
-                str(exc), exc.ref, None
-            )
-            return RunResult(
-                output=strict_exception, exception=strict_exception
-            )
-
-        if isinstance(exc, MarimoMissingRefError):
-            # In strict mode, marimo refuses to evaluate a cell if there are
-            # missing definitions. Since the cell hasn't run, this is a pre
-            # check error, but still mark descendants as cancelled.
-            self.cancel(cell_id)
-            ref, blamed_cell = self._get_blamed_cell(exc)
-            name_output = MarimoStrictExecutionError(
-                "marimo was unable to resolve "
-                f"a reference to `{ref}` in cell : ",
-                ref,
-                blamed_cell,
-            )
-            return RunResult(output=name_output, exception=name_output)
 
         # Should cover all cell runtime exceptions.
         if isinstance(exc, MarimoRuntimeException):

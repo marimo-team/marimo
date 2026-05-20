@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -25,7 +25,7 @@ LOGGER = _loggers.marimo_logger()
 class EvaluatorConfig:
     """Configuration for building an Evaluator."""
 
-    executor: Executor = field(default_factory=DefaultExecutor)
+    executor: Executor
     lifecycles: list[ExecutionLifecycle] = field(default_factory=list)
 
 
@@ -46,8 +46,7 @@ class Evaluator:
         """Setup lifecycles, execute, and teardown lifecycles."""
         completed: list[ExecutionLifecycle] = []
         skip: Skip | None = None
-        body_exc: BaseException | None = None
-        value: Any = None
+        result: RunResult | None = None
 
         try:
             for life in self.lifecycles:
@@ -57,20 +56,22 @@ class Evaluator:
                     skip = decision
                     break
         except BaseException as e:
-            body_exc = e
+            result = RunResult(output=None, exception=e)
 
-        if body_exc is None:
-            if skip is not None:
-                if skip.result is not None:
-                    value = skip.result.output
-                    body_exc = skip.result.exception
+        if result is None:
+            if skip is not None and skip.result is not None:
+                # Lifecycle supplied a complete RunResult — preserve all
+                # fields (output, accumulated_output, exception).
+                result = skip.result
+            elif skip is not None:
+                result = RunResult(output=None, exception=None)
             else:
                 try:
                     value = await self.executor.execute_cell_async(cell, glbls)
+                    result = RunResult(output=value, exception=None)
                 except BaseException as e:
-                    body_exc = e
+                    result = RunResult(output=None, exception=e)
 
-        result = RunResult(output=value, exception=body_exc)
         teardown_exc: BaseException | None = None
         for life in reversed(completed):
             try:
@@ -84,12 +85,12 @@ class Evaluator:
                 teardown_exc = e
 
         if teardown_exc is not None:
-            if body_exc is not None:
+            if result.exception is not None:
                 LOGGER.warning(
                     "body exception suppressed by teardown raise: %s",
-                    body_exc,
+                    result.exception,
                 )
-            return RunResult(output=value, exception=teardown_exc)
+            return replace(result, exception=teardown_exc)
         return result
 
 
@@ -112,16 +113,19 @@ def resolve_executor() -> Executor:
 
     Used by both the kernel runner and script runner so a plugin
     registered against ``marimo.cell.executor`` takes effect for both.
-    If more than one factory is registered, the first one wins and the
-    others are logged.
+    Only the first registered factory is loaded; others are noted via
+    ``LOGGER.warning`` but never imported, so a broken third-party
+    plugin doesn't take down notebook execution.
     """
-    factories = _EXECUTOR_REGISTRY.get_all()
-    if not factories:
+    names = _EXECUTOR_REGISTRY.names()
+    if not names:
         return DefaultExecutor()
-    if len(factories) > 1:
+    name, *additional = names
+    if additional:
         LOGGER.warning(
             "multiple ``marimo.cell.executor`` factories registered; "
-            "using the first one and ignoring %d other(s)",
-            len(factories) - 1,
+            "using %r and ignoring %d other(s)",
+            name,
+            len(additional),
         )
-    return factories[0]()
+    return _EXECUTOR_REGISTRY.get(name)()

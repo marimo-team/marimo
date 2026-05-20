@@ -7,16 +7,12 @@ import inspect
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
-from marimo._ast.variables import is_mangled_local
+from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._runtime.copy import (
     CloneError,
     ShallowCopy,
     ZeroCopy,
     shallow_copy,
-)
-from marimo._runtime.exceptions import (
-    MarimoMissingRefError,
-    MarimoNameError,
 )
 from marimo._runtime.executor.lifecycles import Skip
 from marimo._runtime.primitives import (
@@ -25,12 +21,33 @@ from marimo._runtime.primitives import (
     from_unclonable_module,
     is_unclonable_type,
 )
+from marimo._runtime.runner.result import RunResult
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
+    from marimo._messaging.errors import MarimoStrictExecutionError
     from marimo._runtime.dataflow import DirectedGraph
-    from marimo._runtime.runner.result import RunResult
     from marimo._types.ids import CellId_t
+
+
+# Attributes that should remain visible inside a strict-mode cell body
+# even when the rest of the globals dict is replaced by the sanitized
+# transitive references.
+_PRESERVED_GLOBALS: frozenset[str] = frozenset(
+    {
+        "_MicropipFinder",
+        "_MicropipLoader",
+        "__builtin__",
+        "__doc__",
+        "__file__",
+        "__marimo__",
+        "__name__",
+        "__package__",
+        "__loader__",
+        "__spec__",
+        "input",
+    }
+)
 
 
 class StrictLifecycle:
@@ -51,34 +68,14 @@ class StrictLifecycle:
             ),
         )
 
-        # Some attributes should remain global.
-        lcls = {
-            key: glbls[key]
-            for key in [
-                "_MicropipFinder",
-                "_MicropipLoader",
-                "__builtin__",
-                "__doc__",
-                "__file__",
-                "__marimo__",
-                "__name__",
-                "__package__",
-                "__loader__",
-                "__spec__",
-                "input",
-            ]
-            if key in glbls
-        }
+        lcls = {key: glbls[key] for key in _PRESERVED_GLOBALS if key in glbls}
 
         for ref in refs:
             if ref in glbls:
                 lcls[ref] = self._sanitize_ref(ref, glbls[ref])
             elif ref not in glbls["__builtins__"]:
-                if ref in cell.defs:
-                    raise MarimoNameError(
-                        f"name `{ref}` is referenced before definition.", ref
-                    )
-                raise MarimoMissingRefError(ref)
+                err = self._build_strict_error(cell, ref)
+                return Skip(result=RunResult(output=err, exception=err))
 
         # Execution expects the globals dictionary by memory reference,
         # so clear it and update with the sanitized locals, stashing a
@@ -88,6 +85,29 @@ class StrictLifecycle:
         glbls.update(lcls)
         self._backups[cell.cell_id] = backup
         return None
+
+    def _build_strict_error(
+        self, cell: CellImpl, ref: str
+    ) -> MarimoStrictExecutionError:
+        """Produce the user-facing error for an unresolved ref in setup."""
+        from marimo._messaging.errors import MarimoStrictExecutionError
+
+        if ref in cell.defs:
+            return MarimoStrictExecutionError(
+                f"name `{ref}` is referenced before definition.", ref, None
+            )
+        blamed_cell: CellId_t | None = None
+        try:
+            (blamed_cell, *_) = self._graph.get_defining_cells(ref)
+        except (KeyError, ValueError):
+            ref, var_cell_id = unmangle_local(ref)
+            if var_cell_id:
+                blamed_cell = var_cell_id
+        return MarimoStrictExecutionError(
+            f"marimo was unable to resolve a reference to `{ref}` in cell : ",
+            ref,
+            blamed_cell,
+        )
 
     def _sanitize_ref(self, name: str, value: Any) -> Any:
         if (

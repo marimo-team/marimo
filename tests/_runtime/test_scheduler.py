@@ -3,10 +3,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 from marimo._runtime.runner.scheduler import SequentialScheduler
 from marimo._types.ids import CellId_t
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def _empty_graph() -> MagicMock:
@@ -35,7 +39,9 @@ def test_interrupted_blocks_pending() -> None:
     assert sched.pending() is False
 
 
-def test_cancel_marks_cancelled() -> None:
+def test_cancel_marks_cancelled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # Mock graph: transitive_closure returns just the cell itself, no
     # descendants. Cell registered in graph.cells so set_run_result_status
     # has a target.
@@ -48,18 +54,14 @@ def test_cancel_marks_cancelled() -> None:
         del graph
         return set(roots)
 
-    from marimo._runtime import dataflow
-
-    real_closure = dataflow.transitive_closure
-    dataflow.transitive_closure = fake_closure  # type: ignore[assignment]
-    try:
-        sched = SequentialScheduler([cid], graph=g)
-        assert sched.cancelled(cid) is False
-        sched.cancel(cid)
-        assert sched.cancelled(cid) is True
-        cell_mock.set_run_result_status.assert_called_with("cancelled")
-    finally:
-        dataflow.transitive_closure = real_closure  # type: ignore[assignment]
+    monkeypatch.setattr(
+        "marimo._runtime.dataflow.transitive_closure", fake_closure
+    )
+    sched = SequentialScheduler([cid], graph=g)
+    assert sched.cancelled(cid) is False
+    sched.cancel(cid)
+    assert sched.cancelled(cid) is True
+    cell_mock.set_run_result_status.assert_called_with("cancelled")
 
 
 def test_batch_yields_singletons() -> None:

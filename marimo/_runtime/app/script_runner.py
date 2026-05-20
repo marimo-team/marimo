@@ -109,10 +109,21 @@ class AppScriptRunner:
                         output = self._executor.execute_cell(cell, glbls)
                         outputs[cid] = output
                     except MarimoRuntimeException as e:
-                        unwrapped_exception = unwrap_user_exception(e)
+                        unwrapped_exception = unwrap_user_exception(
+                            e, self.app.graph
+                        )
 
                         if isinstance(unwrapped_exception, MarimoStopError):
                             self._cancel(cid)
+                        elif isinstance(
+                            unwrapped_exception, MarimoMissingRefError
+                        ):
+                            name_err = unwrapped_exception.name_error
+                            raise (
+                                name_err
+                                if name_err is not None
+                                else unwrapped_exception
+                            ) from None
                         else:
                             raise
                     finally:
@@ -155,10 +166,21 @@ class AppScriptRunner:
                         )
                         outputs[cid] = output
                     except MarimoRuntimeException as e:
-                        unwrapped_exception = unwrap_user_exception(e)
+                        unwrapped_exception = unwrap_user_exception(
+                            e, self.app.graph
+                        )
 
                         if isinstance(unwrapped_exception, MarimoStopError):
                             self._cancel(cid)
+                        elif isinstance(
+                            unwrapped_exception, MarimoMissingRefError
+                        ):
+                            name_err = unwrapped_exception.name_error
+                            raise (
+                                name_err
+                                if name_err is not None
+                                else unwrapped_exception
+                            ) from None
                         else:
                             raise
                     finally:
