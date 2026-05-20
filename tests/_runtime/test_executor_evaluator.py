@@ -19,10 +19,8 @@ from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._runtime.executor import (
     DefaultExecutor,
     Evaluator,
-    EvaluatorConfig,
     ExecutionLifecycle,
     Skip,
-    build_evaluator,
 )
 from marimo._runtime.runner.result import RunResult
 
@@ -298,18 +296,6 @@ def test_strict_lifecycle_round_trip() -> None:
     # Globals restored — same values for unchanged keys.
     assert glbls["x"] == pre["x"]
     assert glbls["y"] == pre["y"]
-
-
-def test_build_evaluator_from_config_instances() -> None:
-    """EvaluatorConfig holds instances, not classes; build_evaluator is a
-    one-liner."""
-    executor = DefaultExecutor()
-    config = EvaluatorConfig(executor=executor, lifecycles=[])
-    evaluator = build_evaluator(config)
-
-    assert isinstance(evaluator, Evaluator)
-    assert evaluator.executor is executor
-    assert evaluator.lifecycles == []
 
 
 def test_execution_lifecycle_protocol_conformance() -> None:

@@ -38,15 +38,3 @@ class ExecutionLifecycle(Protocol):
         glbls: dict[str, Any],
         run_result: RunResult,
     ) -> None: ...
-
-
-def _builtin_lifecycles() -> dict[str, type[ExecutionLifecycle]]:
-    """Built-in lifecycles keyed by name."""
-    from marimo._runtime.executor.lifecycles.strict import StrictLifecycle
-
-    return {StrictLifecycle.name: StrictLifecycle}
-
-
-def get_lifecycle_class(name: str) -> type[ExecutionLifecycle]:
-    """Look up a built-in lifecycle class by name. Raises KeyError on miss."""
-    return _builtin_lifecycles()[name]

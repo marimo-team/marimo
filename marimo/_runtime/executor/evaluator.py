@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -19,14 +19,6 @@ if TYPE_CHECKING:
 
 
 LOGGER = _loggers.marimo_logger()
-
-
-@dataclass
-class EvaluatorConfig:
-    """Configuration for building an Evaluator."""
-
-    executor: Executor
-    lifecycles: list[ExecutionLifecycle] = field(default_factory=list)
 
 
 class Evaluator:
@@ -94,15 +86,10 @@ class Evaluator:
         return result
 
 
-def build_evaluator(config: EvaluatorConfig) -> Evaluator:
-    """One-liner: hand instances from config to the Evaluator."""
-    return Evaluator(executor=config.executor, lifecycles=config.lifecycles)
-
-
 # Public entry-point registry for plugin-loaded Executors. Registered
 # values are **factories** (``Callable[[], Executor]``); the kernel
-# calls the factory once to get an instance, then places it in an
-# ``EvaluatorConfig``.
+# calls the factory once to get an instance and hands it to an
+# ``Evaluator``.
 _EXECUTOR_REGISTRY: EntryPointRegistry[Callable[[], Executor]] = (
     EntryPointRegistry("marimo.cell.executor")
 )
@@ -113,9 +100,15 @@ def resolve_executor() -> Executor:
 
     Used by both the kernel runner and script runner so a plugin
     registered against ``marimo.cell.executor`` takes effect for both.
-    Only the first registered factory is loaded; others are noted via
-    ``LOGGER.warning`` but never imported, so a broken third-party
-    plugin doesn't take down notebook execution.
+    Only one factory is loaded — the alphabetically-first name across
+    registered plugins and installed entry points (per
+    ``EntryPointRegistry.names()``, which returns a sorted union).
+    Others are noted via ``LOGGER.warning`` but never imported, so a
+    broken third-party plugin doesn't take down notebook execution.
+
+    If the selected factory itself raises on construction, we log and
+    fall back to ``DefaultExecutor`` rather than propagate — a broken
+    plugin shouldn't take down the kernel.
     """
     names = _EXECUTOR_REGISTRY.names()
     if not names:
@@ -128,4 +121,13 @@ def resolve_executor() -> Executor:
             name,
             len(additional),
         )
-    return _EXECUTOR_REGISTRY.get(name)()
+    try:
+        return _EXECUTOR_REGISTRY.get(name)()
+    except Exception as e:
+        LOGGER.warning(
+            "marimo.cell.executor factory %r failed to construct: %s; "
+            "falling back to ``DefaultExecutor``.",
+            name,
+            e,
+        )
+        return DefaultExecutor()
