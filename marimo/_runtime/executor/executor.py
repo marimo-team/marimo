@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any, Protocol
 
 from marimo._ast.cell import _is_coroutine
@@ -39,6 +40,11 @@ class DefaultExecutor:
         try:
             exec(cell.body, glbls)
             return eval(cell.last_expr, glbls)
+        except asyncio.CancelledError:
+            # Cancellation is control flow, not user error — let the
+            # caller see the bare exception so the runner's interrupt
+            # path fires.
+            raise
         except BaseException as e:
             # Strip our own frame so user-facing tracebacks start at user code.
             if e.__traceback__ is not None:
@@ -59,6 +65,8 @@ class DefaultExecutor:
             if _is_coroutine(cell.last_expr):
                 return await eval(cell.last_expr, glbls)
             return eval(cell.last_expr, glbls)
+        except asyncio.CancelledError:
+            raise
         except BaseException as e:
             if e.__traceback__ is not None:
                 e.__traceback__ = e.__traceback__.tb_next
