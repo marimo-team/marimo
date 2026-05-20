@@ -596,6 +596,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         {isLoading ? (
           <Tooltip content="Stop generating">
             <Button
+              type="button"
               variant="link"
               size="xs"
               onClick={() => stop()}
