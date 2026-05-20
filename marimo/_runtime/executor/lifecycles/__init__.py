@@ -4,9 +4,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from marimo._runtime.runner.result import RunResult
+from marimo._types.globals import MutableGlobals
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
@@ -30,11 +31,11 @@ class ExecutionLifecycle(Protocol):
 
     name: str
 
-    def setup(self, cell: CellImpl, glbls: dict[str, Any]) -> Skip | None: ...
+    def setup(self, cell: CellImpl, glbls: MutableGlobals) -> Skip | None: ...
 
     def teardown(
         self,
         cell: CellImpl,
-        glbls: dict[str, Any],
+        glbls: MutableGlobals,
         run_result: RunResult,
     ) -> None: ...

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from marimo._ast.cell import _is_coroutine
 from marimo._runtime.exceptions import MarimoRuntimeException
+from marimo._types.globals import MutableGlobals
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
@@ -34,17 +35,17 @@ class Executor(Protocol):
 
     name: str
 
-    def execute_cell(self, cell: CellImpl, glbls: dict[str, Any]) -> Any: ...
+    def execute_cell(self, cell: CellImpl, glbls: MutableGlobals) -> Any: ...
 
     async def execute_cell_async(
-        self, cell: CellImpl, glbls: dict[str, Any]
+        self, cell: CellImpl, glbls: MutableGlobals
     ) -> Any: ...
 
 
 class DefaultExecutor:
     name = "default"
 
-    def execute_cell(self, cell: CellImpl, glbls: dict[str, Any]) -> Any:
+    def execute_cell(self, cell: CellImpl, glbls: MutableGlobals) -> Any:
         if cell.body is None:
             return None
         assert cell.last_expr is not None
@@ -68,7 +69,7 @@ class DefaultExecutor:
             raise MarimoRuntimeException from e
 
     async def execute_cell_async(
-        self, cell: CellImpl, glbls: dict[str, Any]
+        self, cell: CellImpl, glbls: MutableGlobals
     ) -> Any:
         if cell.body is None:
             return None

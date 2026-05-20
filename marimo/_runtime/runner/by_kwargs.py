@@ -16,6 +16,7 @@ from marimo._runtime.executor import (
     DefaultExecutor,
     Evaluator,
 )
+from marimo._types.globals import Globals, MutableGlobals
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
@@ -29,13 +30,13 @@ def _new_evaluator() -> Evaluator:
     return Evaluator(executor=DefaultExecutor(), lifecycles=[])
 
 
-def _returns(cell_impl: CellImpl, glbls: dict[str, Any]) -> dict[str, Any]:
+def _returns(cell_impl: CellImpl, glbls: Globals) -> dict[str, Any]:
     return {name: glbls[name] for name in cell_impl.defs if name in glbls}
 
 
 def _substitute_refs(
     cell_impl: CellImpl,
-    glbls: dict[str, Any],
+    glbls: MutableGlobals,
     kwargs: dict[str, Any],
 ) -> None:
     for argname, argvalue in kwargs.items():
@@ -120,7 +121,7 @@ async def run_cell_async(
     graph: GraphTopology,
     cell_id: CellId_t,
     kwargs: dict[str, Any],
-) -> tuple[Any, dict[str, Any]]:
+) -> tuple[Any, MutableGlobals]:
     """Run a possibly async cell and its ancestors.
 
     Substitutes kwargs as refs for the cell, omitting ancestors whose
@@ -133,7 +134,7 @@ async def run_cell_async(
     ancestor_ids = _get_ancestors(graph, cell_impl, kwargs)
 
     evaluator = _new_evaluator()
-    glbls: dict[str, Any] = {}
+    glbls: MutableGlobals = {}
     for cid in topological_sort(graph, ancestor_ids):
         stop = _classify(await evaluator.evaluate(graph.cells[cid], glbls))
         if stop is not None:
@@ -153,7 +154,7 @@ def run_cell_sync(
     graph: GraphTopology,
     cell_id: CellId_t,
     kwargs: dict[str, Any],
-) -> tuple[Any, dict[str, Any]]:
+) -> tuple[Any, MutableGlobals]:
     """Run a synchronous cell and its ancestors.
 
     Substitutes kwargs as refs for the cell, omitting ancestors whose
@@ -181,7 +182,7 @@ def run_cell_sync(
         )
 
     evaluator = _new_evaluator()
-    glbls: dict[str, Any] = {}
+    glbls: MutableGlobals = {}
     for cid in topological_sort(graph, ancestor_ids):
         stop = _classify(evaluator.evaluate_sync(graph.cells[cid], glbls))
         if stop is not None:
