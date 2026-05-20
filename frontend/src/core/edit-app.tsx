@@ -157,7 +157,7 @@ export const EditApp: React.FC<AppProps> = ({
             "sticky left-0",
           )}
         >
-          {isEditing && (
+          {!hideControls && isEditing && (
             <div className="flex items-center justify-center container">
               <FilenameForm filename={filename} />
             </div>
