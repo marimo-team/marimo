@@ -1116,12 +1116,12 @@ def test_table_with_frozen_columns() -> None:
     not DependencyManager.pandas.has(), reason="Pandas not installed"
 )
 class TestFrozenRowHeaders:
-    def test_freeze_unnamed_pandas_index(self) -> None:
+    def test_freeze_unnamed_pandas_index_rejected(self) -> None:
         import pandas as pd
 
         df = pd.DataFrame({"a": [1, 2, 3]}, index=["x", "y", "z"])
-        table = ui.table(df, freeze_columns_left=[""])
-        assert table._component_args["freeze-columns-left"] == [""]
+        with pytest.raises(ValueError, match="unnamed row index"):
+            ui.table(df, freeze_columns_left=[""])
 
     def test_freeze_named_pandas_index(self) -> None:
         import pandas as pd
