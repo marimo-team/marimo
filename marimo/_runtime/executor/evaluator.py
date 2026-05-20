@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._entrypoints.registry import EntryPointRegistry
+from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.executor.executor import DefaultExecutor, Executor
 from marimo._runtime.executor.lifecycles import ExecutionLifecycle, Skip
 from marimo._runtime.runner.result import RunResult
@@ -216,10 +217,24 @@ def _cancel_on_sigint(future: asyncio.Future[Any]) -> Iterator[None]:
         functools.partial(cancel_unless_done, sigint_future)
     )
 
-    def handle_sigint(*_: Any) -> None:
+    # Capture the previously-installed SIGINT handler *before* we install
+    # ours so ``handle_sigint`` can invoke it for its side effects
+    # (kernel broadcast, duckdb interrupt). For async cells the actual
+    # halt comes from cancelling the future, not from a raised
+    # ``MarimoInterrupt`` — so we swallow that here.
+    prior_sigint = signal.getsignal(signal.SIGINT)
+
+    def handle_sigint(signum: int, frame: Any) -> None:
         if sigint_future.cancelled() or sigint_future.done():
             return
         sigint_future.set_result(1)
+        if callable(prior_sigint):
+            try:
+                prior_sigint(signum, frame)
+            except MarimoInterrupt:
+                # The kernel's handler raises MarimoInterrupt for sync
+                # halt; we cancel the future instead.
+                pass
 
     save_sigint = signal.signal(signal.SIGINT, handle_sigint)
     try:

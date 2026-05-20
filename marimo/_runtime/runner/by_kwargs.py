@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from marimo._runtime.control_flow import MarimoStopError
+from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._runtime.executor import (
     DefaultExecutor,
     Evaluator,
@@ -19,7 +21,7 @@ from marimo._runtime.executor import (
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
-    from marimo._runtime.dataflow.graph import DirectedGraph
+    from marimo._runtime.dataflow.topology import GraphTopology
     from marimo._runtime.runner.result import RunResult
     from marimo._types.ids import CellId_t
 
@@ -60,7 +62,7 @@ def _validate_kwargs(cell_impl: CellImpl, kwargs: dict[str, Any]) -> None:
 
 
 def _get_ancestors(
-    graph: DirectedGraph,
+    graph: GraphTopology,
     cell_impl: CellImpl,
     kwargs: dict[str, Any],
 ) -> set[CellId_t]:
@@ -76,23 +78,45 @@ def _get_ancestors(
     return transitive_closure(graph, parent_ids, children=False)
 
 
-def _raise_on_exception(result: RunResult) -> None:
-    if result.exception is not None and isinstance(
-        result.exception, BaseException
+def _classify(result: RunResult) -> MarimoStopError | None:
+    """Inspect a RunResult; raise on real errors, return the stop on mo.stop.
+
+    ``MarimoStopError`` is control flow, not a user-facing error — by_kwargs
+    halts cleanly and surfaces the carried output in place of raising. Any
+    other exception is the user's and propagates.
+    """
+    exc = result.exception
+    if exc is None:
+        return None
+    if isinstance(exc, MarimoRuntimeException) and isinstance(
+        exc.__cause__, MarimoStopError
     ):
-        raise result.exception
+        return exc.__cause__
+    if isinstance(exc, BaseException):
+        raise exc
+    return None
 
 
-def is_coroutine(graph: DirectedGraph, cell_id: CellId_t) -> bool:
-    """True if the cell or any of its (unsubstituted) ancestors is async."""
+def is_coroutine(
+    graph: GraphTopology,
+    cell_id: CellId_t,
+    kwargs: dict[str, Any] | None = None,
+) -> bool:
+    """True if the cell or any of its unsubstituted ancestors is async.
+
+    Pass ``kwargs`` if you want substitutions taken into account — an
+    ancestor whose def is provided by the caller is omitted from the
+    ancestor closure, so a graph that *would* be async without the
+    substitution may be sync with it.
+    """
     return graph.cells[cell_id].is_coroutine() or any(
         graph.cells[cid].is_coroutine()
-        for cid in _get_ancestors(graph, graph.cells[cell_id], kwargs={})
+        for cid in _get_ancestors(graph, graph.cells[cell_id], kwargs or {})
     )
 
 
 async def run_cell_async(
-    graph: DirectedGraph,
+    graph: GraphTopology,
     cell_id: CellId_t,
     kwargs: dict[str, Any],
 ) -> tuple[Any, dict[str, Any]]:
@@ -110,18 +134,22 @@ async def run_cell_async(
     evaluator = _new_evaluator()
     glbls: dict[str, Any] = {}
     for cid in topological_sort(graph, ancestor_ids):
-        _raise_on_exception(await evaluator.evaluate(graph.cells[cid], glbls))
+        stop = _classify(await evaluator.evaluate(graph.cells[cid], glbls))
+        if stop is not None:
+            return stop.output, _returns(cell_impl, glbls)
 
     _substitute_refs(cell_impl, glbls, kwargs)
     target_result = await evaluator.evaluate(
         graph.cells[cell_impl.cell_id], glbls
     )
-    _raise_on_exception(target_result)
+    stop = _classify(target_result)
+    if stop is not None:
+        return stop.output, _returns(cell_impl, glbls)
     return target_result.output, _returns(cell_impl, glbls)
 
 
 def run_cell_sync(
-    graph: DirectedGraph,
+    graph: GraphTopology,
     cell_id: CellId_t,
     kwargs: dict[str, Any],
 ) -> tuple[Any, dict[str, Any]]:
@@ -154,11 +182,15 @@ def run_cell_sync(
     evaluator = _new_evaluator()
     glbls: dict[str, Any] = {}
     for cid in topological_sort(graph, ancestor_ids):
-        _raise_on_exception(evaluator.evaluate_sync(graph.cells[cid], glbls))
+        stop = _classify(evaluator.evaluate_sync(graph.cells[cid], glbls))
+        if stop is not None:
+            return stop.output, _returns(cell_impl, glbls)
 
     _substitute_refs(cell_impl, glbls, kwargs)
     target_result = evaluator.evaluate_sync(
         graph.cells[cell_impl.cell_id], glbls
     )
-    _raise_on_exception(target_result)
+    stop = _classify(target_result)
+    if stop is not None:
+        return stop.output, _returns(cell_impl, glbls)
     return target_result.output, _returns(cell_impl, glbls)
