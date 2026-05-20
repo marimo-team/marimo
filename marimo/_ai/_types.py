@@ -275,7 +275,7 @@ class ChatMessage(msgspec.Struct, eq=False):
         if self._raw_parts is not None:
             return self._raw_parts
 
-        ui_message_part_cls: type | None = None
+        ui_message_part_cls: Any = None
         if DependencyManager.pydantic_ai.imported():
             from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
 
