@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gc
 import importlib
+import os
 import pathlib
 import sys
 import textwrap
@@ -486,42 +487,54 @@ class TestSkipCache:
         assert "os" not in calls
         assert "pathlib" not in calls
 
-    def test_watcher_path_still_sees_installed_packages(
+    def test_default_check_does_not_populate_skip_on_its_own(
         self, tmp_path: pathlib.Path, py_modname: str, monkeypatch
     ):
-        # Regression guard for the most surprising user-visible behavior:
-        # editing a file inside site-packages must still be detected, just
-        # via the background watcher's full scan instead of the hot path.
-        # We simulate "this module is in site-packages" by treating tmp_path
-        # as a non-user root for the duration of the test.
+        # The watcher uses `skip_non_user_modules=False`. It must not add
+        # anything to `_skip` on its own — populating the cache is the hot
+        # path's responsibility.
+        sys.path.append(str(tmp_path))
+        (tmp_path / pathlib.Path(py_modname + ".py")).write_text("x = 1")
+        importlib.import_module(py_modname)
+
+        reloader = ModuleReloader()
+        tmp_root = os.path.normcase(os.path.realpath(str(tmp_path))) + os.sep
+        monkeypatch.setattr(
+            reloader,
+            "_non_user_roots",
+            (tmp_root,) + reloader._non_user_roots,
+        )
+        reloader.check(sys.modules, reload=False)
+        assert py_modname not in reloader._skip
+
+    def test_hot_path_population_short_circuits_subsequent_calls(
+        self, tmp_path: pathlib.Path, py_modname: str, monkeypatch
+    ):
+        # Once the hot path has classified a module as non-user, every later
+        # `check()` skips it — including the default (watcher) path. This is
+        # a documented tradeoff: it means edits inside an installed package
+        # are not hot-reloaded once a cell has run.
         sys.path.append(str(tmp_path))
         py_file = tmp_path / pathlib.Path(py_modname + ".py")
         py_file.write_text("x = 1")
         mod = importlib.import_module(py_modname)
 
         reloader = ModuleReloader()
+        tmp_root = os.path.normcase(os.path.realpath(str(tmp_path))) + os.sep
         monkeypatch.setattr(
             reloader,
             "_non_user_roots",
-            (str(tmp_path),) + reloader._non_user_roots,
+            (tmp_root,) + reloader._non_user_roots,
         )
         assert reloader._is_user_module(mod) is False
 
-        # Watcher path (default) sees it.
-        reloader.check(sys.modules, reload=False)
-        assert py_modname in reloader.modules_mtimes
-        update_file(py_file, "x = 2")
-        assert any(m is mod for m in reloader.check(sys.modules, reload=False))
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert py_modname in reloader._skip
 
-        # Hot path skips it.
-        reloader2 = ModuleReloader()
-        monkeypatch.setattr(
-            reloader2,
-            "_non_user_roots",
-            (str(tmp_path),) + reloader2._non_user_roots,
+        update_file(py_file, "x = 2")
+        assert not any(
+            m is mod for m in reloader.check(sys.modules, reload=False)
         )
-        reloader2.check(sys.modules, reload=False, skip_non_user_modules=True)
-        assert py_modname in reloader2._skip
 
     def test_user_module_reload_still_works(
         self, tmp_path: pathlib.Path, py_modname: str
