@@ -5,7 +5,7 @@ import abc
 import mimetypes
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass, is_dataclass
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict, cast
 
 import msgspec
 
@@ -227,12 +227,19 @@ class ChatMessage(msgspec.Struct, eq=False, dict=True):
                     parts.append(converted)
             self.parts = parts
 
+    # Fields excluded from equality. Add anything here that is a cache /
+    # representation detail rather than part of the message's identity, so
+    # `__eq__` keeps comparing every "real" field automatically as the
+    # struct grows.
+    _EQ_EXCLUDE: ClassVar[frozenset[str]] = frozenset()
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ChatMessage):
             return NotImplemented
         return all(
             getattr(self, name) == getattr(other, name)
             for name in self.__struct_fields__
+            if name not in self._EQ_EXCLUDE
         )
 
     def _convert_part(self, part: Any) -> ChatPart | None:
