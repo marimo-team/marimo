@@ -570,21 +570,6 @@ class TestEventAwareExtension:
         ext.on_detach()  # should not raise
 
 
-class TestNotificationListenerFlush:
-    """Tests for NotificationListenerExtension.flush()."""
-
-    def test_flush_delegates_to_distributor(self) -> None:
-        ext = NotificationListenerExtension(Mock(), Mock())
-        ext.distributor = Mock()
-        ext.flush()
-        ext.distributor.flush.assert_called_once()
-
-    def test_flush_noop_without_distributor(self) -> None:
-        ext = NotificationListenerExtension(Mock(), Mock())
-        ext.distributor = None
-        ext.flush()  # should not raise
-
-
 class TestExtensionRegistry:
     """Tests for ExtensionRegistry."""
 

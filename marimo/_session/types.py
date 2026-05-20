@@ -163,10 +163,6 @@ class Session(Protocol):
         """Try to interrupt the kernel."""
         ...
 
-    def flush_messages(self) -> None:
-        """Flush any pending messages."""
-        ...
-
     async def rename_path(self, new_path: str) -> None:
         """Rename the path of the session."""
         ...
