@@ -520,6 +520,33 @@ class TestSkipCache:
         update_file(py_file, "x = 2")
         assert any(m is mod for m in reloader.check(sys.modules, reload=False))
 
+    def test_skip_cache_invalidates_when_module_rebound(
+        self, tmp_path: pathlib.Path, py_modname: str
+    ):
+        # If `sys.modules[modname]` is rebound to a module with a different
+        # `__file__` (e.g. a user file shadows an installed package), the
+        # cached non-user verdict must not stick.
+        sys.path.append(str(tmp_path))
+        user_file = tmp_path / pathlib.Path(py_modname + ".py")
+        user_file.write_text("x = 1")
+        user_mod = importlib.import_module(py_modname)
+
+        # Plant a fake "installed" version under the same name first.
+        fake_installed = types.ModuleType(py_modname)
+        fake_installed.__file__ = os.path.join(
+            os.path.dirname(os.__file__), py_modname + ".py"
+        )
+        sys.modules[py_modname] = fake_installed
+
+        reloader = ModuleReloader()
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert py_modname in reloader._skip
+
+        # Rebind to the real user module.
+        sys.modules[py_modname] = user_mod
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert py_modname not in reloader._skip
+
     def test_user_module_reload_still_works(
         self, tmp_path: pathlib.Path, py_modname: str
     ):

@@ -188,12 +188,13 @@ class ModuleReloader:
         # for thread-safety
         self.lock = threading.Lock()
         self._module_dependency_finder = ModuleDependencyFinder()
-        # Names known to live in stdlib/site-packages. Populated by every
-        # `check()` call (memoizing the `_is_user_module` classification);
-        # consumed only when `skip_non_user_modules=True`. Entries are never
-        # evicted: a module whose `__file__` moves between roots at runtime
-        # would not be re-evaluated.
-        self._skip: set[str] = set()
+        # modname -> cached `__file__` for modules classified as non-user.
+        # Populated by every `check()` call (memoizing `_is_user_module`);
+        # consumed only when `skip_non_user_modules=True`. Stored value is
+        # used to invalidate the entry if `sys.modules[modname]` is later
+        # rebound to a module with a different `__file__` (e.g. a user
+        # module shadowing an installed package).
+        self._skip: dict[str, str | None] = {}
 
         # Timestamp existing modules
         self.check(modules=sys.modules, reload=False)
@@ -289,10 +290,19 @@ class ModuleReloader:
                 # Classify (memoized via `_skip`). The hot path uses the
                 # cache to short-circuit; the watcher always falls through
                 # to the stat check so that edits inside installed packages
-                # are still picked up.
-                is_non_user = modname in self._skip
+                # are still picked up. The cached entry stores `__file__`,
+                # so a module rebound to a new location gets reclassified.
+                current_file = safe_getattr(m, "__file__", None)
+                if modname in self._skip:
+                    if self._skip[modname] == current_file:
+                        is_non_user = True
+                    else:
+                        del self._skip[modname]
+                        is_non_user = False
+                else:
+                    is_non_user = False
                 if not is_non_user and not self._is_user_module(m):
-                    self._skip.add(modname)
+                    self._skip[modname] = current_file
                     is_non_user = True
                 if is_non_user and skip_non_user_modules:
                     continue
