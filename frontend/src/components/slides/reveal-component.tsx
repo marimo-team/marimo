@@ -546,7 +546,7 @@ const RevealSlidesComponent = ({
         autoSaveId="marimo:slides:notes-panel"
         className="flex-1 min-w-0"
       >
-        <Panel defaultSize={96} minSize={30}>
+        <Panel defaultSize={92} minSize={60}>
           {slideArea}
         </Panel>
         <PanelResizeHandle

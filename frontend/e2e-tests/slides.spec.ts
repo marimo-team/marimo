@@ -30,8 +30,9 @@ test("slides", async ({ page }) => {
 
   await takeScreenshot(page, __filename);
 
-  // Reveal.js marks the active slide <section> with .present
-  const slides = slidesContainer.locator(".slides > section");
+  // Reveal.js marks the active slide <section> with .present. We match by
+  // `data-index-h` (which reveal sets on each slide section)
+  const slides = slidesContainer.locator("section[data-index-h]");
   await expect(slides.first()).toHaveClass(/present/);
 
   // Focus the deck so keyboard navigation works (embedded mode)
