@@ -24,5 +24,5 @@ class RunResult:
     accumulated_output: Any = None
 
     def success(self) -> bool:
-        """Whether the cell expected successfully"""
+        """Whether the cell executed successfully"""
         return self.exception is None

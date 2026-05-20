@@ -26,6 +26,7 @@ from marimo._runtime.executor import (
     Skip,
     build_evaluator,
 )
+from marimo._runtime.runner.result import RunResult
 
 
 class _Recorder:
@@ -87,7 +88,9 @@ async def test_skip_terminates_setup_chain_but_runs_completed_teardowns() -> (
     None
 ):
     log: list[str] = []
-    a = _Recorder(log, "A", skip=Skip(value=42))
+    a = _Recorder(
+        log, "A", skip=Skip(result=RunResult(output=42, exception=None))
+    )
     b = _Recorder(log, "B")
 
     body_ran = [False]

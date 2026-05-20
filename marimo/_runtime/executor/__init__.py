@@ -3,7 +3,7 @@
 
 ExecutionLifecycle: Manages global information prior to execution
 Executor: Runs the execution
-Evaluator: Composes lifecycles and the evaluator.
+Evaluator: Composes lifecycles and the executor.
 
 """
 
@@ -14,6 +14,7 @@ from marimo._runtime.executor.evaluator import (
     Evaluator,
     EvaluatorConfig,
     build_evaluator,
+    resolve_executor,
 )
 from marimo._runtime.executor.executor import (
     DefaultExecutor,
@@ -37,4 +38,5 @@ __all__ = [
     "StrictLifecycle",
     "build_evaluator",
     "get_lifecycle_class",
+    "resolve_executor",
 ]

@@ -34,11 +34,11 @@ from marimo._runtime.exceptions import (
     unwrap_user_exception,
 )
 from marimo._runtime.executor import (
-    DefaultExecutor,
     EvaluatorConfig,
     ExecutionLifecycle,
     StrictLifecycle,
     build_evaluator,
+    resolve_executor,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.runner.hook_context import (
@@ -166,7 +166,7 @@ class Runner:
         if execution_type == "strict":
             lifecycles.append(StrictLifecycle(self.graph))
         self._evaluator = build_evaluator(
-            EvaluatorConfig(executor=DefaultExecutor(), lifecycles=lifecycles)
+            EvaluatorConfig(executor=resolve_executor(), lifecycles=lifecycles)
         )
 
     @staticmethod

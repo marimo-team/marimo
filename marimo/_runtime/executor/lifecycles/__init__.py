@@ -6,16 +6,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
+from marimo._runtime.runner.result import RunResult
+
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
-    from marimo._runtime.runner.result import RunResult
 
 
 @dataclass
 class Skip:
-    """Returned from ``ExecutionLifecycle.setup`` to short-circuit the body."""
+    """Returned from ``ExecutionLifecycle.setup`` to short-circuit the body.
 
-    value: Any = None
+    ``result`` is the cell's ``RunResult``; lifecycles can use this to
+    inject a cache hit or a pre-failed result without running the body.
+    ``None`` means the lifecycle wants to skip but has no associated run
+    (output stays ``None``, no exception).
+    """
+
+    result: RunResult | None = None
 
 
 class ExecutionLifecycle(Protocol):

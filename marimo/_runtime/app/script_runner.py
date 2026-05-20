@@ -21,7 +21,7 @@ from marimo._runtime.exceptions import (
     MarimoRuntimeException,
     unwrap_user_exception,
 )
-from marimo._runtime.executor import DefaultExecutor
+from marimo._runtime.executor import resolve_executor
 from marimo._runtime.patches import (
     create_main_module,
     extract_docstring_from_header,
@@ -65,7 +65,7 @@ class AppScriptRunner:
             if app.cell_manager.cell_data_at(cid).cell is not None
             and not self.app.graph.is_disabled(cid)
         )
-        self._executor = DefaultExecutor()
+        self._executor = resolve_executor()
 
     def _cancel(self, cell_id: CellId_t) -> None:
         cancelled = {

@@ -61,7 +61,9 @@ class Evaluator:
 
         if body_exc is None:
             if skip is not None:
-                value = skip.value
+                if skip.result is not None:
+                    value = skip.result.output
+                    body_exc = skip.result.exception
             else:
                 try:
                     value = await self.executor.execute_cell_async(cell, glbls)
@@ -103,3 +105,23 @@ def build_evaluator(config: EvaluatorConfig) -> Evaluator:
 _EXECUTOR_REGISTRY: EntryPointRegistry[Callable[[], Executor]] = (
     EntryPointRegistry("marimo.cell.executor")
 )
+
+
+def resolve_executor() -> Executor:
+    """Return the registered executor factory's product, or ``DefaultExecutor``.
+
+    Used by both the kernel runner and script runner so a plugin
+    registered against ``marimo.cell.executor`` takes effect for both.
+    If more than one factory is registered, the first one wins and the
+    others are logged.
+    """
+    factories = _EXECUTOR_REGISTRY.get_all()
+    if not factories:
+        return DefaultExecutor()
+    if len(factories) > 1:
+        LOGGER.warning(
+            "multiple ``marimo.cell.executor`` factories registered; "
+            "using the first one and ignoring %d other(s)",
+            len(factories) - 1,
+        )
+    return factories[0]()
