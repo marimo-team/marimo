@@ -21,8 +21,7 @@ from marimo._runtime.exceptions import (
     unwrap_user_exception,
 )
 from marimo._runtime.executor import (
-    EvaluatorConfig,
-    build_evaluator,
+    Evaluator,
     resolve_executor,
 )
 from marimo._runtime.patches import (
@@ -71,9 +70,7 @@ class AppScriptRunner:
         ]
 
         self._scheduler = SequentialScheduler(cells_to_run, self.app.graph)
-        self._evaluator = build_evaluator(
-            EvaluatorConfig(executor=resolve_executor(), lifecycles=[])
-        )
+        self._evaluator = Evaluator(executor=resolve_executor(), lifecycles=[])
 
     # _run_synchronous and _run_asynchronous are deliberate near-twins:
     # the only difference is the await on the cell step. Keeping them

@@ -15,8 +15,6 @@ from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._runtime.executor import (
     DefaultExecutor,
     Evaluator,
-    EvaluatorConfig,
-    build_evaluator,
 )
 
 if TYPE_CHECKING:
@@ -28,9 +26,7 @@ if TYPE_CHECKING:
 
 def _new_evaluator() -> Evaluator:
     """A fresh relaxed-mode Evaluator (no lifecycles)."""
-    return build_evaluator(
-        EvaluatorConfig(executor=DefaultExecutor(), lifecycles=[])
-    )
+    return Evaluator(executor=DefaultExecutor(), lifecycles=[])
 
 
 def _returns(cell_impl: CellImpl, glbls: dict[str, Any]) -> dict[str, Any]:
@@ -88,6 +84,11 @@ def _classify(result: RunResult) -> MarimoStopError | None:
     exc = result.exception
     if exc is None:
         return None
+    if isinstance(exc, MarimoStopError):
+        # Defensive: any caller bypassing ``MarimoRuntimeException``
+        # wrapping (e.g. a custom Executor that raises directly) still
+        # gets stop-control-flow handling.
+        return exc
     if isinstance(exc, MarimoRuntimeException) and isinstance(
         exc.__cause__, MarimoStopError
     ):
