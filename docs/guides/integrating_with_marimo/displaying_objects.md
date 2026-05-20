@@ -14,8 +14,6 @@ three options:
 2. Implement a `_mime_()` method
 3. Implement an IPython-style `_repr_*_()` method
 
-If you can't modify the object, you can also add a formatter to the marimo library (option 4).
-
 The return value of these methods determines what is shown. `_display_`
 has the highest precedence, then built-in formatters, then `_mime_`, then `IPython` style `_repr_*_`
 methods.
