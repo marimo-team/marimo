@@ -16,6 +16,7 @@ from marimo._runtime.context.types import (
 )
 from marimo._runtime.control_flow import MarimoStopError
 from marimo._runtime.exceptions import (
+    MarimoMissingRefError,
     MarimoRuntimeException,
     unwrap_user_exception,
 )
