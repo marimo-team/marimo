@@ -297,7 +297,12 @@ class ModuleReloader:
                     if self._skip[modname] == current_file:
                         is_non_user = True
                     else:
+                        # Rebound to a different file — drop all cached
+                        # state for this name so the new module starts
+                        # from a clean mtime baseline.
                         del self._skip[modname]
+                        self.modules_mtimes.pop(modname, None)
+                        self.stale_modules.discard(modname)
                         is_non_user = False
                 else:
                     is_non_user = False

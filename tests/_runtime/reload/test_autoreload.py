@@ -525,7 +525,9 @@ class TestSkipCache:
     ):
         # If `sys.modules[modname]` is rebound to a module with a different
         # `__file__` (e.g. a user file shadows an installed package), the
-        # cached non-user verdict must not stick.
+        # cached non-user verdict must not stick — and any cached mtime
+        # from the old module must be cleared too, otherwise an older user
+        # file would be silently treated as unchanged.
         sys.path.append(str(tmp_path))
         user_file = tmp_path / pathlib.Path(py_modname + ".py")
         user_file.write_text("x = 1")
@@ -539,13 +541,18 @@ class TestSkipCache:
         sys.modules[py_modname] = fake_installed
 
         reloader = ModuleReloader()
-        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        # Watcher-style call: classifies as non-user AND records a
+        # (synthetic) far-future mtime so we can detect stale-cache leakage.
+        reloader.check(sys.modules, reload=False)
         assert py_modname in reloader._skip
+        reloader.modules_mtimes[py_modname] = 1e12
 
         # Rebind to the real user module.
         sys.modules[py_modname] = user_mod
         reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
         assert py_modname not in reloader._skip
+        # Stale mtime is cleared so the next edit isn't masked by it.
+        assert reloader.modules_mtimes.get(py_modname, 0) < 1e12
 
     def test_user_module_reload_still_works(
         self, tmp_path: pathlib.Path, py_modname: str
