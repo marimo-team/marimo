@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import Literal
+from unittest.mock import patch
 
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import (
@@ -1113,6 +1114,56 @@ mo.md("<img src=x onerror=alert(1)>")
         # Must have escaped versions of < and >
         assert "\\u003C" in result or "\\u003E" in result
 
+        _assert_no_leftover_replacements(result)
+
+    def test_static_notebook_template_dev_version_in_asset_url(self) -> None:
+        # jsdelivr treats `.dev` as a separate path segment, so dev versions
+        # like "0.16.5.dev6+gabc" must be normalized to "0.16.5-dev6+gabc"
+        # for the CDN URL to resolve.
+        with patch.object(templates, "__version__", "0.16.5.dev6+gabc"):
+            result = templates.static_notebook_template(
+                self.html,
+                self.user_config,
+                self.config_overrides,
+                self.server_token,
+                self.app_config,
+                self.filepath,
+                self.code,
+                hash_code(self.code),
+                self.session_snapshot,
+                self.notebook_snapshot,
+                self.files,
+            )
+
+        assert (
+            "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.16.5-dev6+gabc/dist"
+            in result
+        )
+        assert "@0.16.5.dev6" not in result
+        _assert_no_leftover_replacements(result)
+
+    def test_static_notebook_template_release_version_in_asset_url(
+        self,
+    ) -> None:
+        with patch.object(templates, "__version__", "0.16.5"):
+            result = templates.static_notebook_template(
+                self.html,
+                self.user_config,
+                self.config_overrides,
+                self.server_token,
+                self.app_config,
+                self.filepath,
+                self.code,
+                hash_code(self.code),
+                self.session_snapshot,
+                self.notebook_snapshot,
+                self.files,
+            )
+
+        assert (
+            "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.16.5/dist"
+            in result
+        )
         _assert_no_leftover_replacements(result)
 
 

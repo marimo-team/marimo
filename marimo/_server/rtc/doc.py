@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from marimo import _loggers
 from marimo._server.workspace import FileKey
 from marimo._types.ids import CellId_t
+from marimo._utils.asyncio_utils import supervised_task
 
 if TYPE_CHECKING:
     from loro import LoroDoc
@@ -143,8 +144,9 @@ class LoroDocManager:
 
         # Create the cleaner task outside the lock to avoid deadlocks
         if should_create_cleaner:
-            self.loro_docs_cleaners[file_key] = asyncio.create_task(
-                self._clean_loro_doc(file_key, 60.0)
+            self.loro_docs_cleaners[file_key] = supervised_task(
+                self._clean_loro_doc(file_key, 60.0),
+                name=f"rtc.cleaner.{file_key}",
             )
 
     async def _do_remove_doc(self, file_key: FileKey) -> None:

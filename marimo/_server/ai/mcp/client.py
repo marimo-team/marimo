@@ -20,6 +20,7 @@ from marimo._server.ai.mcp.transport import (
     MCPTransportRegistry,
 )
 from marimo._server.ai.mcp.types import MCPToolArgs
+from marimo._utils.asyncio_utils import cancel_and_wait, supervised_task
 
 if TYPE_CHECKING:
     from anyio.streams.memory import (
@@ -262,8 +263,9 @@ class MCPClient:
                 await self._discover_tools(connection)
 
                 if server_name not in self.health_check_tasks:
-                    self.health_check_tasks[server_name] = asyncio.create_task(
-                        self._monitor_server_health(server_name)
+                    self.health_check_tasks[server_name] = supervised_task(
+                        self._monitor_server_health(server_name),
+                        name=f"mcp.health.{server_name}",
                     )
 
                 # Signal that connection is established
@@ -331,9 +333,12 @@ class MCPClient:
             self._update_server_status(server_name, MCPServerStatus.CONNECTING)
             self._remove_server_tools(server_name)
 
-            # Create task to run existing connection logic
+            # Create task to run existing connection logic. Not supervised:
+            # this task is awaited in disconnect_from_server(), so supervisor
+            # logging would duplicate the awaiter's error handling.
             connection_task = asyncio.create_task(
-                self._connection_lifecycle(server_name)
+                self._connection_lifecycle(server_name),
+                name=f"mcp.lifecycle.{server_name}",
             )
             connection.connection_task = connection_task
 
@@ -790,12 +795,7 @@ class MCPClient:
         if server_name is not None:
             # Cancel single server monitoring
             if server_name in self.health_check_tasks:
-                task = self.health_check_tasks[server_name]
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
+                await cancel_and_wait(self.health_check_tasks[server_name])
                 del self.health_check_tasks[server_name]
                 LOGGER.debug(f"Cancelled health monitoring for {server_name}")
         else:

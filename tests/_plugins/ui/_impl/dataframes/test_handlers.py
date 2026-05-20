@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, cast
 
@@ -2745,6 +2745,134 @@ class TestTransformHandler:
         )
         result = apply(df, transform)
         assert df_size(result) == 0
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {
+                        "d": [
+                            date(2024, 1, 1),
+                            date(2024, 6, 15),
+                            date(2024, 12, 31),
+                        ]
+                    },
+                    exclude=["pandas"],
+                ),
+                create_test_dataframes(
+                    {"d": [date(2024, 6, 15)]}, exclude=["pandas"]
+                ),
+                strict=False,
+            )
+        ),
+    )
+    def test_filter_between_date_iso_string(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="d",
+                        operator="between",
+                        value=RangeValue(min="2024-03-01", max="2024-09-01"),
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {
+                        "dt": [
+                            datetime(2024, 1, 1, 0, 0, 0),
+                            datetime(2024, 6, 15, 12, 30, 0),
+                            datetime(2024, 12, 31, 23, 59, 59),
+                        ]
+                    },
+                    exclude=["pandas"],
+                ),
+                create_test_dataframes(
+                    {"dt": [datetime(2024, 6, 15, 12, 30, 0)]},
+                    exclude=["pandas"],
+                ),
+                strict=False,
+            )
+        ),
+    )
+    def test_filter_between_datetime_iso_string(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="dt",
+                        operator="between",
+                        value=RangeValue(
+                            min="2024-03-01T00:00:00",
+                            max="2024-09-01T00:00:00",
+                        ),
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {
+                        "t": [
+                            time(8, 0, 0),
+                            time(12, 30, 0),
+                            time(18, 0, 0),
+                        ]
+                    },
+                    exclude=["pandas", "pyarrow", "ibis"],
+                ),
+                create_test_dataframes(
+                    {"t": [time(12, 30, 0)]},
+                    exclude=["pandas", "pyarrow", "ibis"],
+                ),
+                strict=False,
+            )
+        ),
+    )
+    def test_filter_between_time_iso_string(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="t",
+                        operator="between",
+                        value=RangeValue(min="10:00:00", max="15:00:00"),
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
 
     # --- is_empty operator ---
 

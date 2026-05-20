@@ -23,7 +23,6 @@ from marimo._messaging.types import Stream
 from marimo._output.md import _md
 from marimo._runtime import dataflow
 from marimo._runtime.commands import CodeCompletionCommand
-from marimo._session.queue import QueueType
 from marimo._types.ids import RequestId
 from marimo._utils.docs import MarimoConverter
 from marimo._utils.format_signature import format_signature
@@ -358,17 +357,6 @@ def _write_completion_result(
 
 def _write_no_completions(stream: Stream, completion_id: RequestId) -> None:
     _write_completion_result(stream, completion_id, 0, [])
-
-
-def _drain_queue(
-    completion_queue: QueueType[CodeCompletionCommand],
-) -> CodeCompletionCommand:
-    """Drain the queue of completion requests, returning the most recent one"""
-
-    request = completion_queue.get()
-    while not completion_queue.empty():
-        request = completion_queue.get()
-    return request
 
 
 def _get_completions_with_script(
@@ -739,32 +727,3 @@ def complete(
             pass
         else:
             LOGGER.debug("Completion worker released globals lock.")
-
-
-def completion_worker(
-    completion_queue: QueueType[CodeCompletionCommand],
-    graph: dataflow.DirectedGraph,
-    glbls: dict[str, Any],
-    glbls_lock: threading.RLock,
-    stream: Stream,
-) -> None:
-    """Code completion worker.
-
-
-    Args:
-        completion_queue: queue from which requests are pulled.
-        graph: dataflow graph backing the marimo program
-        glbls: dictionary of global variables in interpreter memory
-        glbls_lock: lock protecting globals
-        stream: stream used to communicate completion results
-    """
-
-    while True:
-        request = _drain_queue(completion_queue)
-        complete(
-            request=request,
-            graph=graph,
-            glbls=glbls,
-            glbls_lock=glbls_lock,
-            stream=stream,
-        )

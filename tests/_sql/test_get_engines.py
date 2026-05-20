@@ -346,7 +346,11 @@ def test_get_engines_duckdb_databases() -> None:
     assert connection.default_database == "memory"
     assert connection.default_schema == "main"
 
-    sql("CREATE TABLE test_table (id INTEGER);")
+    with patch(
+        "marimo._sql.sql.get_configured_sql_output_format",
+        return_value="native",
+    ):
+        sql("CREATE TABLE test_table (id INTEGER);")
 
     # Reload the connection to get the new table
     connection = engine_to_data_source_connection(
@@ -370,7 +374,11 @@ def test_get_engines_duckdb_databases() -> None:
             sample_values=[],
         )
     ]
-    sql("DROP TABLE test_table;")
+    with patch(
+        "marimo._sql.sql.get_configured_sql_output_format",
+        return_value="native",
+    ):
+        sql("DROP TABLE test_table;")
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")

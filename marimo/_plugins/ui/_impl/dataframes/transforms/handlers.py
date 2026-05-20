@@ -66,6 +66,12 @@ def convert_value(v: Any, converter: Callable[[str], Any]) -> Any:
     Convert a value whether it's a list or single value.
     Ignore None as they usually raise errors when converted
     """
+    if isinstance(v, RangeValue):
+        return RangeValue(
+            min=converter(str(v.min)),
+            max=converter(str(v.max)),
+        )
+
     if isinstance(v, (tuple, list)):
         return [
             converter(str(item)) if item is not None else None for item in v

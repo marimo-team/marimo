@@ -44,14 +44,19 @@ import { OPERATOR_LABELS } from "./operator-labels";
 import {
   type ColumnFilterForType,
   type ColumnFilterValue,
+  DATETIME_OPS,
   Filter,
-  NUMBER_COMPARISON_OPS,
-  type NumberComparisonOp,
+  isDatetimeComparisonOp,
+  isNumberComparisonOp,
+  isTextScalarOp,
   NUMBER_OPS,
   TEXT_OPS,
-  TEXT_SCALAR_OPS,
-  type TextScalarOp,
 } from "./filters";
+import {
+  type DateLikeFilterType,
+  DateLikeInput,
+  DateLikeRangeInput,
+} from "./date-filter-inputs";
 import {
   ClearFilterMenuItem,
   FilterButtons,
@@ -283,19 +288,21 @@ export function renderMenuItemFilter<TData, TValue>(
     return null;
   }
 
-  if (filterType === "time") {
-    // Not implemented
-    return null;
-  }
-
-  if (filterType === "datetime") {
-    // Not implemented
-    return null;
-  }
-
-  if (filterType === "date") {
-    // Not implemented
-    return null;
+  if (
+    filterType === "date" ||
+    filterType === "datetime" ||
+    filterType === "time"
+  ) {
+    return (
+      <DropdownMenuSub>
+        {filterMenuItem}
+        <DropdownMenuPortal>
+          <DropdownMenuSubContent>
+            <DateFilterMenu column={column} filterType={filterType} />
+          </DropdownMenuSubContent>
+        </DropdownMenuPortal>
+      </DropdownMenuSub>
+    );
   }
 
   logNever(filterType);
@@ -368,12 +375,6 @@ const BooleanFilter = <TData, TValue>({
     </>
   );
 };
-
-const NUMBER_COMPARISON_SET: ReadonlySet<OperatorType> = new Set(
-  NUMBER_COMPARISON_OPS,
-);
-const isNumberComparisonOp = (op: OperatorType): op is NumberComparisonOp =>
-  NUMBER_COMPARISON_SET.has(op);
 
 type NumberComparisonFilter = Extract<
   ColumnFilterForType<"number">,
@@ -485,9 +486,134 @@ export const NumberFilterMenu = <TData, TValue>({
   );
 };
 
-const TEXT_SCALAR_SET: ReadonlySet<OperatorType> = new Set(TEXT_SCALAR_OPS);
-const isTextScalarOp = (op: OperatorType): op is TextScalarOp =>
-  TEXT_SCALAR_SET.has(op);
+type DateComparisonFilter = Extract<
+  ColumnFilterForType<DateLikeFilterType>,
+  { value: Date }
+>;
+const isDateComparisonFilter = (
+  filter: ColumnFilterForType<DateLikeFilterType>,
+): filter is DateComparisonFilter => isDatetimeComparisonOp(filter.operator);
+
+export const DateFilterMenu = <TData, TValue>({
+  column,
+  filterType,
+}: {
+  column: Column<TData, TValue>;
+  filterType: DateLikeFilterType;
+}) => {
+  const currentFilter = column.getFilterValue() as
+    | ColumnFilterForType<DateLikeFilterType>
+    | undefined;
+  const hasFilter = currentFilter !== undefined;
+
+  const [operator, setOperator] = useState<OperatorType>(
+    currentFilter?.operator ?? "between",
+  );
+  const [min, setMin] = useState<Date | undefined>(
+    currentFilter?.operator === "between" ? currentFilter.min : undefined,
+  );
+  const [max, setMax] = useState<Date | undefined>(
+    currentFilter?.operator === "between" ? currentFilter.max : undefined,
+  );
+  const [value, setValue] = useState<Date | undefined>(
+    currentFilter !== undefined && isDateComparisonFilter(currentFilter)
+      ? currentFilter.value
+      : undefined,
+  );
+
+  const isComparison = isDatetimeComparisonOp(operator);
+  const isNullish = operator === "is_null" || operator === "is_not_null";
+
+  const applyDisabled =
+    (operator === "between" && (min === undefined || max === undefined)) ||
+    (isComparison && value === undefined);
+
+  const buildFilter = (
+    opts: Parameters<typeof Filter.date>[0],
+  ): ColumnFilterForType<DateLikeFilterType> => {
+    switch (filterType) {
+      case "date":
+        return Filter.date(opts);
+      case "datetime":
+        return Filter.datetime(opts);
+      case "time":
+        return Filter.time(opts);
+    }
+  };
+
+  const handleApply = () => {
+    if (isNullish) {
+      column.setFilterValue(buildFilter({ operator }));
+      return;
+    }
+    if (operator === "between" && min !== undefined && max !== undefined) {
+      column.setFilterValue(buildFilter({ operator: "between", min, max }));
+      return;
+    }
+    if (isComparison && value !== undefined) {
+      column.setFilterValue(buildFilter({ operator, value }));
+    }
+  };
+
+  const [resetKey, setResetKey] = useState(0);
+  const handleClear = () => {
+    setMin(undefined);
+    setMax(undefined);
+    setValue(undefined);
+    setResetKey((k) => k + 1);
+    column.setFilterValue(undefined);
+  };
+
+  const handleOperatorChange = (next: OperatorType) => {
+    setOperator(next);
+  };
+
+  return (
+    <div
+      className="flex flex-col gap-1 pt-3 px-2"
+      onKeyDownCapture={(e) => {
+        if (e.key === "Tab") {
+          e.stopPropagation();
+        }
+      }}
+    >
+      <OperatorSelect
+        operator={operator}
+        options={DATETIME_OPS}
+        onChange={handleOperatorChange}
+      />
+      {operator === "between" && (
+        <DateLikeRangeInput
+          key={`${filterType}-${resetKey}`}
+          filterType={filterType}
+          min={min}
+          max={max}
+          onRangeChange={(nextMin, nextMax) => {
+            setMin(nextMin);
+            setMax(nextMax);
+          }}
+          className="shadow-none! border-border hover:shadow-none!"
+        />
+      )}
+      {isComparison && (
+        <DateLikeInput
+          key={`${filterType}-${resetKey}`}
+          filterType={filterType}
+          value={value}
+          onChange={setValue}
+          aria-label="value"
+          className="shadow-none! border-border hover:shadow-none!"
+        />
+      )}
+      <FilterButtons
+        onApply={handleApply}
+        onClear={handleClear}
+        clearButtonDisabled={!hasFilter}
+        applyButtonDisabled={applyDisabled}
+      />
+    </div>
+  );
+};
 
 export const TextFilterMenu = <TData, TValue>({
   column,
