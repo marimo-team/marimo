@@ -9,6 +9,7 @@ Based on the autoreload extension from the IPython project (BSD-3 Clause).
 
 from __future__ import annotations
 
+import functools
 import gc
 import io
 import modulefinder
@@ -74,6 +75,7 @@ def safe_hasattr(obj: M, attr: str) -> bool:
         return False
 
 
+@functools.cache
 def _non_user_module_roots() -> tuple[str, ...]:
     """Filesystem prefixes that hold stdlib + site-packages modules.
 
@@ -186,13 +188,12 @@ class ModuleReloader:
         # for thread-safety
         self.lock = threading.Lock()
         self._module_dependency_finder = ModuleDependencyFinder()
-        # Names known to live in stdlib/site-packages. Populated lazily by
-        # callers that pass `skip_non_user_modules=True` (the hot per-cell
-        # path), and then consulted by every `check()` call. Entries are
-        # never evicted: a module whose `__file__` moves between roots at
-        # runtime would not be re-evaluated.
+        # Names known to live in stdlib/site-packages. Populated by every
+        # `check()` call (memoizing the `_is_user_module` classification);
+        # consumed only when `skip_non_user_modules=True`. Entries are never
+        # evicted: a module whose `__file__` moves between roots at runtime
+        # would not be re-evaluated.
         self._skip: set[str] = set()
-        self._non_user_roots = _non_user_module_roots()
 
         # Timestamp existing modules
         self.check(modules=sys.modules, reload=False)
@@ -207,7 +208,7 @@ class ModuleReloader:
         if not f:
             return False
         path = os.path.normcase(os.path.realpath(f))
-        return not path.startswith(self._non_user_roots)
+        return not path.startswith(_non_user_module_roots())
 
     def filename_and_mtime(
         self, module: types.ModuleType
@@ -262,11 +263,12 @@ class ModuleReloader:
         Also patches existing objects with hot-reloaded ones.
 
         When `skip_non_user_modules` is True, modules whose `__file__` is
-        under stdlib/site-packages are added to a persistent skip set and
-        won't be stat-ed on this or future calls. Intended for the per-cell
-        hot path. Once populated, the skip set short-circuits every caller
-        — including the background `ModuleWatcher` — so edits inside
-        installed packages are not hot-reloaded.
+        under stdlib/site-packages are skipped — intended for the per-cell
+        hot path. The background `ModuleWatcher` leaves it False so it still
+        stats every module on its 1s loop, which is what keeps edits inside
+        installed packages detectable. Both paths populate the same skip
+        cache, so the hot path benefits from classifications the watcher
+        has already done.
 
         Returns a set of modules that were found to have been modified.
         """
@@ -281,13 +283,18 @@ class ModuleReloader:
             # materialize the module keys, since we'll be reloading while
             # iterating
             for modname in list(modules.keys()):
-                if modname in self._skip:
-                    continue
                 m = modules.get(modname, None)
                 if m is None:
                     continue
-                if skip_non_user_modules and not self._is_user_module(m):
+                # Classify (memoized via `_skip`). The hot path uses the
+                # cache to short-circuit; the watcher always falls through
+                # to the stat check so that edits inside installed packages
+                # are still picked up.
+                is_non_user = modname in self._skip
+                if not is_non_user and not self._is_user_module(m):
                     self._skip.add(modname)
+                    is_non_user = True
+                if is_non_user and skip_non_user_modules:
                     continue
 
                 module_mtime = self.filename_and_mtime(m)
