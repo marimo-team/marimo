@@ -361,9 +361,10 @@ def _resolve_public_file(public_dir: Path, relpath: str) -> Path | None:
     """
     try:
         # `strict=True` ensures the file exists.
+        # `RuntimeError` covers symlink loops on Python 3.10–3.12.
         candidate = (public_dir / relpath).resolve(strict=True)
         public_resolved = public_dir.resolve(strict=True)
-    except (OSError, ValueError):
+    except (OSError, RuntimeError, ValueError):
         return None
 
     # Containment check: the resolved file must live under the resolved
@@ -427,20 +428,29 @@ def replace_public_files_with_data_uris(
         resolved = _resolve_public_file(public_dir, relpath)
         if resolved is None:
             return None
+        # Check size via stat() before reading so an oversized file never
+        # gets loaded into memory.
+        try:
+            file_size = resolved.stat().st_size
+        except OSError as e:
+            LOGGER.warning(
+                "Failed to stat public file %s during export: %s", value, e
+            )
+            return None
+        if max_inline_bytes is not None and file_size > max_inline_bytes:
+            LOGGER.info(
+                "Skipping public file %s (%d bytes exceeds %d byte inline"
+                " limit)",
+                value,
+                file_size,
+                max_inline_bytes,
+            )
+            return None
         try:
             file_bytes = resolved.read_bytes()
         except OSError as e:
             LOGGER.warning(
                 "Failed to read public file %s during export: %s", value, e
-            )
-            return None
-        if max_inline_bytes is not None and len(file_bytes) > max_inline_bytes:
-            LOGGER.info(
-                "Skipping public file %s (%d bytes exceeds %d byte inline"
-                " limit)",
-                value,
-                len(file_bytes),
-                max_inline_bytes,
             )
             return None
         mime_type = mimetypes.guess_type(resolved.name)[0] or "text/plain"

@@ -562,6 +562,60 @@ class TestPublicFileSecurity:
         assert "data:" not in result
         assert replaced == set()
 
+    def test_oversized_file_is_not_read_into_memory(
+        self, tmp_path: Path
+    ) -> None:
+        """Files exceeding `max_inline_bytes` must be size-checked via
+        `stat()` and skipped *without* being read into memory."""
+        from unittest.mock import patch
+
+        public_dir = tmp_path / "public"
+        public_dir.mkdir()
+        (public_dir / "big.bin").write_bytes(b"x" * 1000)
+
+        html = '<img src="public/big.bin">'
+
+        with patch(
+            "pathlib.Path.read_bytes",
+            side_effect=AssertionError("should not be called"),
+        ):
+            result, replaced = replace_public_files_with_data_uris(
+                html, public_dir=public_dir, max_inline_bytes=100
+            )
+
+        assert "data:" not in result
+        assert replaced == set()
+
+    def test_symlink_loop_does_not_crash(self, tmp_path: Path) -> None:
+        """A symlink loop under `public/` must not crash export.
+
+        On some Python versions `Path.resolve(strict=True)` raises
+        `RuntimeError` (not `OSError`) for loops, so the helper has to
+        catch it explicitly.
+        """
+        import os
+
+        public_dir = tmp_path / "public"
+        public_dir.mkdir()
+        loop_a = public_dir / "a"
+        loop_b = public_dir / "b"
+        try:
+            os.symlink(loop_b, loop_a)
+            os.symlink(loop_a, loop_b)
+        except (OSError, NotImplementedError):
+            import pytest
+
+            pytest.skip("Symlinks not supported on this platform")
+
+        html = '<img src="public/a">'
+        # Must not raise.
+        result, replaced = replace_public_files_with_data_uris(
+            html, public_dir=public_dir
+        )
+
+        assert "data:" not in result
+        assert replaced == set()
+
     def test_absolute_public_prefix_not_matched(self, tmp_path: Path) -> None:
         """A bare absolute `/public/...` path (server URL form) must not
         be interpreted as a filesystem-relative public reference."""

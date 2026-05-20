@@ -180,12 +180,20 @@ class Exporter:
     def _iter_html_data_strings(
         session_snapshot: NotebookSessionV1,
     ) -> Iterator[tuple[dict[str, Any], str, str]]:
-        """Yield (output_data_dict, mime_type, data) for each string output."""
+        """Yield (output_data_dict, mime_type, data) for each `text/html`
+        string output.
+
+        Only `text/html` outputs are returned: non-HTML mime entries (e.g.
+        `text/plain`, `application/json`) must not be HTML-parsed, since
+        their content is opaque to the attribute-replacement logic.
+        """
         for cell in session_snapshot["cells"]:
             for output in cell["outputs"]:
                 if output["type"] != "data":
                     continue
                 for mime_type, data in output["data"].items():
+                    if mime_type != "text/html":
+                        continue
                     if isinstance(data, str):
                         yield output["data"], mime_type, data
 

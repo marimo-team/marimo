@@ -1049,6 +1049,63 @@ def test_export_html_inlines_public_folder_images(
     assert base64.b64encode(png_bytes).decode() in html
 
 
+def test_export_html_does_not_touch_non_html_outputs(
+    session_view: SessionView, tmp_path: Path
+) -> None:
+    """text/plain (and other non-HTML) outputs must NOT be HTML-parsed.
+
+    Regression guard: previously `_iter_html_data_strings` yielded every
+    string mime entry, which meant `text/plain` data containing literal
+    `./@file/...` text was rewritten as if it were HTML.
+    """
+    notebook_path = tmp_path / "nb.py"
+    notebook_path.write_text("import marimo\napp = marimo.App()\n")
+
+    app = App()
+
+    @app.cell()
+    def _():
+        return None
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    cell_ids = list(file_manager.app.cell_manager.cell_ids())
+
+    # A plain-text output that happens to contain virtual-file and public/
+    # tokens — these must NOT be rewritten because the mime is text/plain.
+    plain = "see ./@file/100-test.png or public/image.png"
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
+        cell_id=cell_ids[0],
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data=plain,
+        ),
+        console=[],
+        timestamp=0,
+    )
+
+    exporter = Exporter()
+    request = ExportAsHTMLRequest(
+        download=True,
+        files=[],
+        include_code=True,
+    )
+
+    html, _ = exporter.export_as_html(
+        filename=str(notebook_path),
+        app=file_manager.app,
+        session_view=session_view,
+        display_config=DEFAULT_CONFIG["display"],
+        request=request,
+    )
+
+    # The plain-text content is preserved verbatim (JSON-escaped in the
+    # session snapshot, hence the substring check rather than equality).
+    assert "./@file/100-test.png" in html
+    assert "public/image.png" in html
+
+
 def test_export_html_public_folder_blocks_path_traversal(
     session_view: SessionView, tmp_path: Path
 ) -> None:
