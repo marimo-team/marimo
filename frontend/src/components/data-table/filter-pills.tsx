@@ -12,7 +12,11 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { FilterPillEditor } from "./filter-pill-editor";
-import type { ColumnFilterValue } from "./filters";
+import {
+  type ColumnFilterValue,
+  dateToISODate,
+  dateToISODateTime,
+} from "./filters";
 import { OPERATOR_LABELS } from "./operator-labels";
 import { stringifyUnknownValue } from "./utils";
 
@@ -82,13 +86,6 @@ const FilterPill = <TData,>({
     return null;
   }
 
-  // this is temporary, with more operator & datatype support this goes away
-  const isReadOnly =
-    "type" in value &&
-    (value.type === "date" ||
-      value.type === "datetime" ||
-      value.type === "time");
-
   const twoSegment = formatted.value === undefined;
 
   const handleRemove = (e: React.MouseEvent) => {
@@ -130,20 +127,8 @@ const FilterPill = <TData,>({
     </Button>
   );
 
-  if (isReadOnly) {
-    return (
-      <Badge
-        variant="outline"
-        className="bg-background border-border text-foreground"
-      >
-        {segments}
-        {removeButton}
-      </Badge>
-    );
-  }
-
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={true}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <Badge
         variant="outline"
         className={cn(
@@ -249,23 +234,31 @@ function formatValue(
         };
     }
   }
-  if (value.type === "date") {
-    return formatMinMaxLegacy(
-      value.min?.toISOString(),
-      value.max?.toISOString(),
-    );
-  }
-  if (value.type === "time") {
-    return formatMinMaxLegacy(
-      value.min ? timeFormatter.format(value.min) : undefined,
-      value.max ? timeFormatter.format(value.max) : undefined,
-    );
-  }
-  if (value.type === "datetime") {
-    return formatMinMaxLegacy(
-      value.min?.toISOString(),
-      value.max?.toISOString(),
-    );
+  if (
+    value.type === "date" ||
+    value.type === "datetime" ||
+    value.type === "time"
+  ) {
+    const format =
+      value.type === "time"
+        ? (d: Date) => timeFormatter.format(d)
+        : value.type === "date"
+          ? dateToISODate
+          : dateToISODateTime;
+    switch (value.operator) {
+      case "between":
+        return {
+          operator: OPERATOR_LABELS.between.toLowerCase(),
+          value: `${format(value.min)} - ${format(value.max)}`,
+        };
+      case "==":
+      case "!=":
+      case ">":
+      case ">=":
+      case "<":
+      case "<=":
+        return { operator: value.operator, value: format(value.value) };
+    }
   }
   if (value.type === "boolean") {
     return { operator: `is ${value.value ? "True" : "False"}` };
@@ -281,23 +274,4 @@ function formatValue(
   }
   logNever(value);
   return undefined;
-}
-
-function formatMinMaxLegacy(
-  min: string | number | undefined,
-  max: string | number | undefined,
-): FormattedFilter | undefined {
-  if (min === undefined && max === undefined) {
-    return;
-  }
-  if (min === max) {
-    return { operator: "==", value: String(min) };
-  }
-  if (min === undefined) {
-    return { operator: "<=", value: String(max) };
-  }
-  if (max === undefined) {
-    return { operator: ">=", value: String(min) };
-  }
-  return { operator: "between", value: `${min} - ${max}` };
 }

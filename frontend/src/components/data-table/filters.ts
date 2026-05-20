@@ -51,6 +51,15 @@ export const TEXT_SCALAR_OPS = [
   "ends_with",
 ] as const;
 
+export const DATETIME_COMPARISON_OPS = [
+  "==",
+  "!=",
+  ">",
+  ">=",
+  "<",
+  "<=",
+] as const;
+
 export const NUMBER_OPS = [
   "between",
   ...NUMBER_COMPARISON_OPS,
@@ -62,11 +71,26 @@ export const TEXT_OPS = [
   "is_empty",
   ...NULLISH_OPS,
 ] as const;
+export const DATETIME_OPS = [
+  "between",
+  ...DATETIME_COMPARISON_OPS,
+  ...NULLISH_OPS,
+] as const;
 
 export type NullishOp = (typeof NULLISH_OPS)[number];
 export type MembershipOp = (typeof MEMBERSHIP_OPS)[number];
 export type NumberComparisonOp = (typeof NUMBER_COMPARISON_OPS)[number];
 export type TextScalarOp = (typeof TEXT_SCALAR_OPS)[number];
+export type DatetimeComparisonOp = (typeof DATETIME_COMPARISON_OPS)[number];
+
+const makeOpGuard = <T extends OperatorType>(ops: readonly T[]) => {
+  const set = new Set<OperatorType>(ops);
+  return (op: OperatorType): op is T => set.has(op);
+};
+
+export const isNumberComparisonOp = makeOpGuard(NUMBER_COMPARISON_OPS);
+export const isTextScalarOp = makeOpGuard(TEXT_SCALAR_OPS);
+export const isDatetimeComparisonOp = makeOpGuard(DATETIME_COMPARISON_OPS);
 
 interface NullishOpts {
   operator: NullishOp;
@@ -83,6 +107,11 @@ type TextFilterOpts =
   | { operator: "is_empty" }
   | NullishOpts;
 
+type DateLikeFilterOpts =
+  | { operator: "between"; min: Date; max: Date }
+  | { operator: DatetimeComparisonOp; value: Date }
+  | NullishOpts;
+
 // Filter is a factory function that creates a filter object
 export const Filter = {
   number(opts: NumberFilterOpts) {
@@ -97,19 +126,19 @@ export const Filter = {
       ...opts,
     } as const;
   },
-  date(opts: { min?: Date; max?: Date; operator?: OperatorType }) {
+  date(opts: DateLikeFilterOpts) {
     return {
       type: "date",
       ...opts,
     } as const;
   },
-  datetime(opts: { min?: Date; max?: Date; operator?: OperatorType }) {
+  datetime(opts: DateLikeFilterOpts) {
     return {
       type: "datetime",
       ...opts,
     } as const;
   },
-  time(opts: { min?: Date; max?: Date; operator?: OperatorType }) {
+  time(opts: DateLikeFilterOpts) {
     return {
       type: "time",
       ...opts,
@@ -134,6 +163,26 @@ export type ColumnFilterValue = ReturnType<
 export type ColumnFilterForType<T extends FilterType> = T extends FilterType
   ? Extract<ColumnFilterValue, { type: T }>
   : never;
+
+function pad2(n: number): string {
+  return n.toString().padStart(2, "0");
+}
+
+function pad4(n: number): string {
+  return n.toString().padStart(4, "0");
+}
+
+export function dateToISODate(d: Date): string {
+  return `${pad4(d.getFullYear())}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+export function dateToISOTime(d: Date): string {
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+export function dateToISODateTime(d: Date): string {
+  return `${dateToISODate(d)}T${dateToISOTime(d)}`;
+}
 
 function isNullishFilter(
   filter: ColumnFilterValue,
@@ -235,71 +284,44 @@ export function filterToFilterCondition(
         default:
           assertNever(filter);
       }
-    case "datetime": {
-      const conditions: FilterConditionType[] = [];
-      if (filter.min !== undefined) {
-        conditions.push({
-          column_id: columnId,
-          operator: ">=",
-          value: filter.min.toISOString(),
-          type: "condition",
-          negate: false,
-        });
-      }
-      if (filter.max !== undefined) {
-        conditions.push({
-          column_id: columnId,
-          operator: "<=",
-          value: filter.max.toISOString(),
-          type: "condition",
-          negate: false,
-        });
-      }
-      return conditions;
-    }
-    case "date": {
-      const conditions: FilterConditionType[] = [];
-      if (filter.min !== undefined) {
-        conditions.push({
-          column_id: columnId,
-          operator: ">=",
-          value: filter.min.toISOString(),
-          type: "condition",
-          negate: false,
-        });
-      }
-      if (filter.max !== undefined) {
-        conditions.push({
-          column_id: columnId,
-          operator: "<=",
-          value: filter.max.toISOString(),
-          type: "condition",
-          negate: false,
-        });
-      }
-      return conditions;
-    }
+    case "date":
+    case "datetime":
     case "time": {
-      const conditions: FilterConditionType[] = [];
-      if (filter.min !== undefined) {
-        conditions.push({
-          column_id: columnId,
-          operator: ">=",
-          value: filter.min.toISOString(),
-          type: "condition",
-          negate: false,
-        });
+      const encode =
+        filter.type === "date"
+          ? dateToISODate
+          : filter.type === "time"
+            ? dateToISOTime
+            : dateToISODateTime;
+      switch (filter.operator) {
+        case "between":
+          return [
+            {
+              column_id: columnId,
+              operator: "between",
+              value: { min: encode(filter.min), max: encode(filter.max) },
+              type: "condition",
+              negate: false,
+            },
+          ];
+        case "==":
+        case "!=":
+        case ">":
+        case ">=":
+        case "<":
+        case "<=":
+          return [
+            {
+              column_id: columnId,
+              operator: filter.operator,
+              value: encode(filter.value),
+              type: "condition",
+              negate: false,
+            },
+          ];
+        default:
+          assertNever(filter);
       }
-      if (filter.max !== undefined) {
-        conditions.push({
-          column_id: columnId,
-          operator: "<=",
-          value: filter.max.toISOString(),
-          type: "condition",
-          negate: false,
-        });
-      }
-      return conditions;
     }
     case "boolean":
       if (filter.value) {
