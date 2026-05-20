@@ -580,30 +580,6 @@ def test_read_code_with_wasm_sharing_disabled(client: TestClient) -> None:
         assert "Authorization header required" in response.json()["detail"]
 
 
-@pytest.mark.flaky(reruns=5)
-@with_session(SESSION_ID)
-def test_read_code_blocked_by_restrict_sharing_env(
-    client: TestClient,
-) -> None:
-    """Test read_code is blocked when MARIMO_RESTRICT_SHARING=1.
-
-    The env var flows through EnvConfigManager into the config chain, so
-    we test via the real session rather than mocking AppState.
-    """
-    with patch("marimo._config.manager.GLOBAL_SETTINGS") as mock_gs:
-        mock_gs.RESTRICT_SHARING = True
-
-        response = client.post(
-            "/api/kernel/read_code",
-            headers=HEADERS,
-            json={},
-        )
-
-        # handle_error converts all 403s → 401 to prompt browser re-auth
-        assert response.status_code == 401
-        assert "Authorization header required" in response.json()["detail"]
-
-
 @with_session(SESSION_ID)
 def test_save_with_unicode_content(client: TestClient) -> None:
     """Test save endpoint with unicode and special characters."""

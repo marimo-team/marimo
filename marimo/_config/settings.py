@@ -27,13 +27,6 @@ class GlobalSettings:
     DISABLE_AUTH_ON_VIRTUAL_FILES: bool = os.getenv(
         "_MARIMO_DISABLE_AUTH_ON_VIRTUAL_FILES", "false"
     ) in ("true", "1")
-    # Prevent all external code-sharing features (shareable WASM links, molab,
-    # HTML export with code). Intended for machine-wide enforcement via devpod
-    # or container environment — takes precedence over per-project config.
-    RESTRICT_SHARING: bool = os.getenv("MARIMO_RESTRICT_SHARING", "false") in (
-        "true",
-        "1",
-    )
 
 
 GLOBAL_SETTINGS = GlobalSettings()
