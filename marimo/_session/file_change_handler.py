@@ -213,13 +213,35 @@ class FileChangeCoordinator:
                 error=f"Session path mismatch: {session.app_file_manager.path} != {file_path}",
             )
 
-        # Check if the file content matches the last save
-        # to avoid reloading our own writes
-        if session.app_file_manager.file_content_matches_last_save():
-            LOGGER.debug(
-                f"File {file_path} content matches last save, skipping reload"
-            )
-            return FileChangeResult(handled=False)
+        # Read the file once and run all pre-reload skip checks against
+        # the same snapshot. If the read itself fails, fall through to
+        # ``reload()`` which has its own error handling below.
+        try:
+            current_content = session.app_file_manager.read_file()
+        except Exception as e:
+            LOGGER.debug(f"Error reading {file_path}: {e}")
+            current_content = None
+
+        if current_content is not None:
+            # Skip our own writes.
+            if session.app_file_manager.content_matches_last_save(
+                current_content
+            ):
+                LOGGER.debug(
+                    f"File {file_path} content matches last save, "
+                    "skipping reload"
+                )
+                return FileChangeResult(handled=False)
+
+            # Skip when the file is mid-merge so the notebook isn't replaced
+            # with unparsable cells while the user resolves conflicts (e.g.
+            # via git-mediate). See issue #9613.
+            if _has_conflict_markers(current_content):
+                LOGGER.warning(
+                    f"File {file_path} contains git conflict markers, "
+                    "skipping reload until conflicts are resolved"
+                )
+                return FileChangeResult(handled=False)
 
         # Reload the file manager to get the latest code. ``reload``
         # mutates the existing document in place via ``apply()`` and
@@ -240,6 +262,16 @@ class FileChangeCoordinator:
         return FileChangeResult(
             handled=True, changed_cell_ids=changed_cell_ids
         )
+
+
+def _has_conflict_markers(content: str) -> bool:
+    """Return True if ``content`` contains a git conflict start marker.
+
+    Git writes ``<<<<<<<`` at the start of a line to mark the beginning of
+    a conflict hunk; that's a strong signal the file is mid-merge and
+    shouldn't be reparsed as Python.
+    """
+    return any(line.startswith("<<<<<<<") for line in content.splitlines())
 
 
 def create_reload_strategy(

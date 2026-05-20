@@ -616,20 +616,28 @@ class AppFileManager:
             )
         return self.storage.read(self._filename)
 
+    def content_matches_last_save(self, content: str) -> bool:
+        """Check if the given content matches the last save.
+
+        Used to avoid reloading the file when we detect our own writes.
+        Prefer this over :meth:`file_content_matches_last_save` when the
+        caller already has the file contents in hand.
+        """
+        if self._last_saved_content is None:
+            return False
+        return content.strip() == self._last_saved_content
+
     def file_content_matches_last_save(self) -> bool:
         """Check if current file content matches the last save.
 
         Used to avoid reloading the file when we detect our own writes.
-
-        Returns:
-            True if content matches last save, False otherwise
         """
         if self._filename is None or self._last_saved_content is None:
             return False
-
         try:
-            current_content = self.storage.read(self._filename)
-            return current_content.strip() == self._last_saved_content
+            return self.content_matches_last_save(
+                self.storage.read(self._filename)
+            )
         except Exception as e:
             LOGGER.debug(
                 f"Error reading file to check if content matches: {e}"
