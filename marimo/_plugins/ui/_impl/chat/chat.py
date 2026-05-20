@@ -180,13 +180,16 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
     Cancellation:
         When the user clicks Stop in the UI, marimo cancels the in-flight
-        model invocation by raising `asyncio.CancelledError` inside the
-        generator (at the next yield point for sync generators, or the next
-        `await` for async ones). If your model holds resources such as HTTP
-        clients, file handles, or database cursors, release them in a
-        `try/finally` block so they are cleaned up promptly on cancellation.
-        Generators that catch and swallow `CancelledError` will not actually
-        stop and may continue to consume tokens from upstream providers.
+        model invocation. Async model code receives
+        `asyncio.CancelledError` at the next `await`. Sync generators are
+        closed instead, which raises `GeneratorExit` inside the generator
+        rather than `CancelledError`. If your model holds resources such as
+        HTTP clients, file handles, or database cursors, release them in a
+        `try/finally` block so they are cleaned up promptly on cancellation;
+        do not rely on catching `CancelledError` in sync generators.
+        Async generators that catch and swallow `CancelledError` will not
+        actually stop and may continue to consume tokens from upstream
+        providers.
 
     Attributes:
         value (List[ChatMessage]): The current chat history, a list of ChatMessage objects.
