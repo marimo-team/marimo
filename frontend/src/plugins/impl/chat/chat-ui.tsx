@@ -445,7 +445,9 @@ export const Chatbot: React.FC<Props> = (props) => {
                   message,
                   isStreamingReasoning: status === "streaming",
                   isLast,
-                  addToolApprovalResponse,
+                  addToolApprovalResponse: isLast
+                    ? addToolApprovalResponse
+                    : undefined,
                 })}
               </div>
               <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">

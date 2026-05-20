@@ -838,11 +838,17 @@ class pydantic_ai(ChatModel):
             messages=ui_messages,
         )
 
-        adapter = VercelAIAdapter(
-            agent=self.agent,
-            run_input=run_input,
-            sdk_version=AI_SDK_VERSION,
-        )
+        try:
+            adapter = VercelAIAdapter(
+                agent=self.agent,
+                run_input=run_input,
+                sdk_version=AI_SDK_VERSION,
+            )
+        except TypeError:
+            adapter = VercelAIAdapter(
+                agent=self.agent,
+                run_input=run_input,
+            )
         event_stream = adapter.run_stream(model_settings=model_settings)
         async for event in event_stream:
             if serialized := self._serialize_vercel_ai_chunk(event):
