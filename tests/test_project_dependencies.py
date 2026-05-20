@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from tests.mocks import snapshotter
@@ -9,15 +7,10 @@ from tests.mocks import snapshotter
 snapshot = snapshotter(__file__)
 
 
-def _load_pyproject():
+def test_required_dependencies(pyproject_text: str) -> None:
     import tomlkit
 
-    pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
-    return tomlkit.loads(pyproject_path.read_text())
-
-
-def test_required_dependencies():
-    pyproject = _load_pyproject()
+    pyproject = tomlkit.loads(pyproject_text)
     deps = sorted(pyproject["project"]["dependencies"])
     snapshot("dependencies.txt", "\n".join(deps), keep_version=True)
 
@@ -26,8 +19,10 @@ def test_required_dependencies():
     "extra",
     ["sql", "sandbox", "recommended", "lsp", "mcp"],
 )
-def test_optional_dependencies(extra: str):
-    pyproject = _load_pyproject()
+def test_optional_dependencies(extra: str, pyproject_text: str) -> None:
+    import tomlkit
+
+    pyproject = tomlkit.loads(pyproject_text)
     deps = sorted(pyproject["project"]["optional-dependencies"][extra])
     snapshot(
         f"optional-dependencies-{extra}.txt",
