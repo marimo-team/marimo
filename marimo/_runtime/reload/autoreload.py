@@ -14,6 +14,7 @@ import io
 import modulefinder
 import os
 import sys
+import sysconfig
 import threading
 import traceback
 import types
@@ -71,6 +72,19 @@ def safe_hasattr(obj: M, attr: str) -> bool:
         return hasattr(obj, attr)
     except ModuleNotFoundError:
         return False
+
+
+def _non_user_module_roots() -> tuple[str, ...]:
+    """Filesystem prefixes that hold stdlib + site-packages modules."""
+    roots: set[str] = set()
+    for key in ("stdlib", "platstdlib", "purelib", "platlib"):
+        p = sysconfig.get_path(key)
+        if p:
+            roots.add(p)
+    # Covers stdlib for non-venv interpreters, where sysconfig's stdlib path
+    # may not match the runtime location.
+    roots.add(sys.base_prefix)
+    return tuple(roots)
 
 
 def modules_imported_by_cell(
@@ -160,9 +174,25 @@ class ModuleReloader:
         # for thread-safety
         self.lock = threading.Lock()
         self._module_dependency_finder = ModuleDependencyFinder()
+        # Names known to live in stdlib/site-packages; populated lazily on the
+        # hot per-cell path. Entries are never evicted: a module whose
+        # __file__ moves between roots at runtime would not be re-evaluated.
+        self._skip: set[str] = set()
+        self._non_user_roots = _non_user_module_roots()
 
         # Timestamp existing modules
         self.check(modules=sys.modules, reload=False)
+
+    def _is_user_module(self, module: types.ModuleType) -> bool:
+        """True for modules whose source lives outside stdlib/site-packages.
+
+        Editable installs (e.g. ``pip install -e .``) point ``__file__`` at the
+        source tree, so they are correctly classified as user code.
+        """
+        f = safe_getattr(module, "__file__", None)
+        if not f:
+            return False
+        return not f.startswith(self._non_user_roots)
 
     def filename_and_mtime(
         self, module: types.ModuleType
@@ -206,11 +236,20 @@ class ModuleReloader:
             )
 
     def check(
-        self, modules: dict[str, types.ModuleType], reload: bool
+        self,
+        modules: dict[str, types.ModuleType],
+        reload: bool,
+        *,
+        skip_non_user_modules: bool = False,
     ) -> set[types.ModuleType]:
         """Check timestamps of modules, optionally reload them.
 
         Also patches existing objects with hot-reloaded ones.
+
+        When ``skip_non_user_modules`` is True, stdlib and site-packages
+        modules are skipped via a persistent cache — intended for the per-cell
+        hot path. The background ``ModuleWatcher`` keeps the default so that
+        edits to installed packages remain detectable at watcher latency.
 
         Returns a set of modules that were found to have been modified.
         """
@@ -222,11 +261,17 @@ class ModuleReloader:
         # and also iterates over it
         with self.lock:
             modified_modules: set[types.ModuleType] = set()
+            skip = self._skip if skip_non_user_modules else None
             # materialize the module keys, since we'll be reloading while
             # iterating
             for modname in list(modules.keys()):
+                if skip is not None and modname in skip:
+                    continue
                 m = modules.get(modname, None)
                 if m is None:
+                    continue
+                if skip is not None and not self._is_user_module(m):
+                    skip.add(modname)
                     continue
 
                 module_mtime = self.filename_and_mtime(m)

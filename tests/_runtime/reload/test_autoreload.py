@@ -425,6 +425,133 @@ class TestModuleReloaderMethods:
         assert len(reloader.stale_modules) == 0
 
 
+class TestSkipCache:
+    def test_is_user_module_stdlib(self):
+        reloader = ModuleReloader()
+        assert reloader._is_user_module(sys.modules["os"]) is False
+        assert reloader._is_user_module(sys.modules["pathlib"]) is False
+
+    def test_is_user_module_builtin_has_no_file(self):
+        reloader = ModuleReloader()
+        assert reloader._is_user_module(sys.modules["sys"]) is False
+        assert reloader._is_user_module(sys.modules["builtins"]) is False
+
+    def test_is_user_module_user_code(
+        self, tmp_path: pathlib.Path, py_modname: str
+    ):
+        sys.path.append(str(tmp_path))
+        py_file = tmp_path / pathlib.Path(py_modname + ".py")
+        py_file.write_text("x = 1")
+        mod = importlib.import_module(py_modname)
+        reloader = ModuleReloader()
+        assert reloader._is_user_module(mod) is True
+
+    def test_default_check_does_not_populate_skip(self):
+        # The watcher path must keep scanning everything so that edits inside
+        # installed packages remain detectable.
+        reloader = ModuleReloader()
+        assert reloader._skip == set()
+
+    def test_hot_path_populates_skip_with_stdlib(self):
+        reloader = ModuleReloader()
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert "os" in reloader._skip
+        assert "pathlib" in reloader._skip
+
+    def test_user_module_not_skipped_on_hot_path(
+        self, tmp_path: pathlib.Path, py_modname: str
+    ):
+        sys.path.append(str(tmp_path))
+        py_file = tmp_path / pathlib.Path(py_modname + ".py")
+        py_file.write_text("x = 1")
+        importlib.import_module(py_modname)
+        reloader = ModuleReloader()
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert py_modname not in reloader._skip
+
+    def test_skipped_modules_are_not_restated(self, monkeypatch):
+        reloader = ModuleReloader()
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert "os" in reloader._skip
+
+        calls: list[str] = []
+        orig = reloader.filename_and_mtime
+
+        def spy(module):
+            calls.append(getattr(module, "__name__", "?"))
+            return orig(module)
+
+        monkeypatch.setattr(reloader, "filename_and_mtime", spy)
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert "os" not in calls
+        assert "pathlib" not in calls
+
+    def test_watcher_path_still_sees_installed_packages(
+        self, tmp_path: pathlib.Path, py_modname: str, monkeypatch
+    ):
+        # Regression guard for the most surprising user-visible behavior:
+        # editing a file inside site-packages must still be detected, just
+        # via the background watcher's full scan instead of the hot path.
+        # We simulate "this module is in site-packages" by treating tmp_path
+        # as a non-user root for the duration of the test.
+        sys.path.append(str(tmp_path))
+        py_file = tmp_path / pathlib.Path(py_modname + ".py")
+        py_file.write_text("x = 1")
+        mod = importlib.import_module(py_modname)
+
+        reloader = ModuleReloader()
+        monkeypatch.setattr(
+            reloader,
+            "_non_user_roots",
+            (str(tmp_path),) + reloader._non_user_roots,
+        )
+        assert reloader._is_user_module(mod) is False
+
+        # Watcher path (default) sees it.
+        reloader.check(sys.modules, reload=False)
+        assert py_modname in reloader.modules_mtimes
+        update_file(py_file, "x = 2")
+        assert any(m is mod for m in reloader.check(sys.modules, reload=False))
+
+        # Hot path skips it.
+        reloader2 = ModuleReloader()
+        monkeypatch.setattr(
+            reloader2,
+            "_non_user_roots",
+            (str(tmp_path),) + reloader2._non_user_roots,
+        )
+        reloader2.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert py_modname in reloader2._skip
+
+    def test_user_module_reload_still_works(
+        self, tmp_path: pathlib.Path, py_modname: str
+    ):
+        sys.path.append(str(tmp_path))
+        py_file = tmp_path / pathlib.Path(py_modname + ".py")
+        py_file.write_text(
+            textwrap.dedent(
+                """
+                def foo():
+                    return 1
+                """
+            )
+        )
+        mod = importlib.import_module(py_modname)
+        reloader = ModuleReloader()
+        reloader.check(sys.modules, reload=False)
+        assert mod.foo() == 1
+
+        update_file(
+            py_file,
+            """
+            def foo():
+                return 2
+            """,
+        )
+        reloader.check(sys.modules, reload=True)
+        assert mod.foo() == 2
+
+
 class TestUpdateFunctions:
     """Tests for update_* functions"""
 

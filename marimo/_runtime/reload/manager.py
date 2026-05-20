@@ -85,7 +85,12 @@ class AutoreloadManager:
             yield
             return
         snapshot = set(sys.modules)
-        self._reloader.check(modules=sys.modules, reload=True)
+        # Hot path: skip stdlib/site-packages. Edits inside an installed
+        # package are still picked up by the background ModuleWatcher's
+        # full scan, just at watcher latency rather than per-cell.
+        self._reloader.check(
+            modules=sys.modules, reload=True, skip_non_user_modules=True
+        )
         try:
             yield
         finally:
@@ -93,6 +98,7 @@ class AutoreloadManager:
             self._reloader.check(
                 modules={m: sys.modules[m] for m in new_modules},
                 reload=False,
+                skip_non_user_modules=True,
             )
 
     def _on_finish_hook(self, ctx: OnFinishHookContext) -> None:
