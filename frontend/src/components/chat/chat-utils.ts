@@ -5,7 +5,8 @@ import {
   type ChatAddToolOutputFunction,
   type FileUIPart,
   isToolUIPart,
-  type ToolUIPart,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+  lastAssistantMessageIsCompleteWithToolCalls,
   type UIMessage,
 } from "ai";
 import { useState } from "react";
@@ -17,7 +18,6 @@ import type {
   InvokeAiToolRequest,
   InvokeAiToolResponse,
 } from "@/core/network/types";
-import { logNever } from "@/utils/assertNever";
 import { blobToString } from "@/utils/fileToBase64";
 import { Logger } from "@/utils/Logger";
 import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
@@ -169,69 +169,25 @@ export async function handleToolCall({
 }
 
 /**
- * Returns true if a tool call is "ready to be sent back to the server" — i.e.
- * either it has reached a terminal output state, or the user has just supplied
- * an approval response that the server hasn't seen yet.
- */
-function isToolCallReadyToSend(state: ToolUIPart["state"]): boolean {
-  switch (state) {
-    case "output-available":
-    case "output-error":
-    case "output-denied":
-    case "approval-responded":
-      return true;
-    case "input-streaming":
-    case "input-available":
-    case "approval-requested":
-      return false;
-    default:
-      logNever(state);
-      return false;
-  }
-}
-
-/**
- * Checks if we should send a message automatically based on the messages.
- * We auto-send when every tool call on the last assistant message has either
- * finished (output-available/error/denied) or has just received a user
- * approval response, and the assistant hasn't replied yet.
+ * Auto-send the next turn when the last assistant message ends with a
+ * tool call ready to round-trip. Any non-tool trailing part (text, file,
+ * source-*, reasoning, data-*, new step-start) means the assistant has
+ * already answered, so we leave the next turn to the user. State checks
+ * are delegated to the SDK to stay in sync with upstream.
  */
 export function hasPendingToolCalls(messages: UIMessage[]): boolean {
-  if (messages.length === 0) {
+  const lastMessage = messages.at(-1);
+  if (!lastMessage || lastMessage.role !== "assistant") {
     return false;
   }
-
-  const lastMessage = messages[messages.length - 1];
-  const parts = lastMessage.parts;
-
-  if (parts.length === 0) {
+  const lastPart = lastMessage.parts.at(-1);
+  if (!lastPart || !isToolUIPart(lastPart)) {
     return false;
   }
-
-  // Only auto-send if the last message is an assistant message
-  // Because assistant messages are the ones that can have tool calls
-  if (lastMessage.role !== "assistant") {
-    return false;
-  }
-
-  const toolParts = parts.filter(isToolUIPart);
-
-  if (toolParts.length === 0) {
-    return false;
-  }
-
-  const allToolCallsReady = toolParts.every((part) =>
-    isToolCallReadyToSend(part.state),
+  return (
+    lastAssistantMessageIsCompleteWithToolCalls({ messages }) ||
+    lastAssistantMessageIsCompleteWithApprovalResponses({ messages })
   );
-
-  // Check if the last part has any text content
-  const lastPart = parts[parts.length - 1];
-  const hasTextContent =
-    lastPart.type === "text" && lastPart.text?.trim().length > 0;
-
-  Logger.debug("All tool calls ready to send: %s", allToolCallsReady);
-
-  return allToolCallsReady && !hasTextContent;
 }
 
 export function useFileState() {

@@ -546,3 +546,87 @@ class TestChatMessageDict:
             ],
             "metadata": None,
         }
+
+
+class TestChatMessageRawPartsRoundTrip:
+    """`ChatMessage` must snapshot raw wire payloads so we don't drop AI
+    SDK fields the typed dataclasses don't model (e.g. `approval`,
+    `callProviderMetadata`). Without this the pydantic-ai bridge would
+    lose context on every deferred tool run.
+    """
+
+    def test_typed_input_does_not_snapshot(self):
+        """Typed parts are themselves the source of truth — no snapshot."""
+        message = ChatMessage(
+            role="user",
+            content="hi",
+            id="msg",
+            parts=[TextPart(type="text", text="hi")],
+        )
+        assert message._raw_parts is None
+        assert dict[str, Any](message)["parts"] == [
+            {"type": "text", "text": "hi"}
+        ]
+
+    def test_equality_ignores_raw_parts(self):
+        """Equality compares value, not cache state."""
+        from_dict = ChatMessage(
+            role="user",
+            content="hi",
+            id="msg",
+            parts=[cast(ChatPart, {"type": "text", "text": "hi"})],
+        )
+        from_typed = ChatMessage(
+            role="user",
+            content="hi",
+            id="msg",
+            parts=[TextPart(type="text", text="hi")],
+        )
+        assert from_dict._raw_parts is not None
+        assert from_typed._raw_parts is None
+        assert from_dict == from_typed
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            # Tool part carrying fields marimo's dataclass doesn't model —
+            # this is the case that motivated `_raw_parts` in the first place.
+            {
+                "type": "tool-delete_file",
+                "toolCallId": "call-1",
+                "state": "approval-responded",
+                "input": {"path": "secrets.env"},
+                "approval": {"id": "call-1", "approved": True},
+                "callProviderMetadata": {"openai": {"foo": "bar"}},
+            },
+            # Alternate tool shape.
+            {
+                "type": "dynamic-tool",
+                "toolName": "delete_file",
+                "toolCallId": "call-1",
+                "state": "input-streaming",
+            },
+            # Non-tool part with its own bag of optional fields.
+            {
+                "type": "file",
+                "mediaType": "image/png",
+                "url": "data:image/png;base64,abc",
+            },
+            # `data-*` parts are user-defined; the type string itself
+            # carries information and must survive the round-trip.
+            {
+                "type": "data-reasoning-signature",
+                "data": {"signature": "x"},
+            },
+        ],
+    )
+    def test_raw_part_round_trips_verbatim(self, raw: dict[str, Any]):
+        """`dict(ChatMessage(parts=[raw]))["parts"]` must equal `[raw]`."""
+        message = ChatMessage(
+            role="assistant",
+            content=None,
+            id="msg",
+            parts=[cast(ChatPart, raw)],
+        )
+        assert dict[str, Any](message)["parts"] == [raw]
+        assert message._raw_parts == [raw]

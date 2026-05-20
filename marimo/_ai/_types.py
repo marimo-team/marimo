@@ -5,13 +5,20 @@ import abc
 import mimetypes
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass, is_dataclass
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Literal,
+    TypedDict,
+    cast,
+    override,
+)
 
 import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._utils.dicts import remove_none_values
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -190,7 +197,7 @@ PART_TYPES = [
 ]
 
 
-class ChatMessage(msgspec.Struct):
+class ChatMessage(msgspec.Struct, eq=False):
     """
     A message in a chat.
     """
@@ -214,15 +221,41 @@ class ChatMessage(msgspec.Struct):
 
     metadata: Any | None = None
 
+    # High-fidelity snapshot of `parts` as they arrive over the wire.
+    _raw_parts: list[dict[str, Any]] | None = None
+
     def __post_init__(self) -> None:
-        # Hack: msgspec only supports discriminated unions. This is a hack to just
-        # iterate through possible part variants and decode until one works.
         if self.parts:
+            # Snapshot the wire-format dicts before lossy conversion. We only
+            # snapshot when every part is a dict so we don't store a partial
+            # view that mixes typed and raw entries.
+            if self._raw_parts is None and all(
+                isinstance(p, dict) for p in self.parts
+            ):
+                self._raw_parts = [cast(dict[str, Any], p) for p in self.parts]
+            # Hack: msgspec only supports discriminated unions. This is a hack to just
+            # iterate through possible part variants and decode until one works.
             parts = []
             for part in self.parts:
                 if converted := self._convert_part(part):
                     parts.append(converted)
             self.parts = parts
+
+    # Fields excluded from equality. Add anything here that is a cache /
+    # representation detail rather than part of the message's identity, so
+    # `__eq__` keeps comparing every "real" field automatically as the
+    # struct grows.
+    _EQ_EXCLUDE: ClassVar[frozenset[str]] = frozenset({"_raw_parts"})
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ChatMessage):
+            return NotImplemented
+        return all(
+            getattr(self, name) == getattr(other, name)
+            for name in self.__struct_fields__
+            if name not in self._EQ_EXCLUDE
+        )
 
     def _convert_part(self, part: Any) -> ChatPart | None:
         # If we receive a Vercel AI SDK part (through pydantic-ai), return it as is.
@@ -246,13 +279,38 @@ class ChatMessage(msgspec.Struct):
         )
         return None
 
+    def raw_or_dumped_parts(self) -> list[dict[str, Any]]:
+        """Return parts in dict form, preferring the original wire payload."""
+        if self._raw_parts is not None:
+            return self._raw_parts
+
+        result: list[dict[str, Any]] = []
+        for part in self.parts:
+            if is_dataclass(part):
+                result.append(asdict(part))
+            elif DependencyManager.pydantic_ai.imported():
+                from pydantic_ai.ui.vercel_ai.request_types import (
+                    UIMessagePart,
+                )
+
+                if isinstance(part, UIMessagePart):
+                    result.append(
+                        part.model_dump(by_alias=True, exclude_none=True)
+                    )
+            elif isinstance(part, dict):
+                # Defensive: at runtime `parts` may carry raw dicts because
+                # `ChatPart` is `dict[str, Any]` at runtime even though the
+                # type-checking alias is a union of dataclasses.
+                result.append(part)
+        return result
+
     def __iter__(self) -> Iterator[tuple[str, Any]]:
         """Allow dict(message) to build the serialized dict."""
         out: ChatMessageDict = {
             "role": self.role,
             "id": self.id,
             "content": self.content,
-            "parts": [cast(ChatPartDict, asdict(part)) for part in self.parts],
+            "parts": cast(list[ChatPartDict], self.raw_or_dumped_parts()),
             "attachments": [
                 cast(ChatAttachmentDict, asdict(a)) for a in self.attachments
             ]
@@ -278,12 +336,16 @@ class ChatMessage(msgspec.Struct):
         """
 
         if part_validator_class:
+            # Lazy import: `_pydantic_ai_utils` pulls in `marimo._server.*`,
+            # which we don't want to load just to define the types module.
+            from marimo._ai._pydantic_ai_utils import sanitize_part
+
             validated_parts = []
             for part in parts:
                 if isinstance(part, part_validator_class):
                     validated_parts.append(part)
                 elif isinstance(part, dict):
-                    sanitized_part = remove_none_values(part)
+                    sanitized_part = sanitize_part(part)
                     # Try pydantic validation for dict -> class conversion
                     try:
                         from pydantic import TypeAdapter

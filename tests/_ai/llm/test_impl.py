@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -20,8 +20,11 @@ from marimo._ai.llm._impl import (
     simple,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.chat.chat import AI_SDK_VERSION
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from pydantic_ai.settings import ModelSettings
 
 
@@ -1410,6 +1413,9 @@ class TestPydanticAI:
                 {"id": "2", "type": "text-delta", "delta": " World"},
             ]
 
+            _, kwargs = mock_adapter.call_args
+            assert kwargs.get("sdk_version") == AI_SDK_VERSION
+
     async def test_stream_text(self):
         """Test _stream_text streams text from the model."""
         mock_agent = MagicMock()
@@ -1596,6 +1602,136 @@ class TestPydanticAI:
         error_chunk = MockBaseChunkWithError()
         result = model._serialize_vercel_ai_chunk(cast(Any, error_chunk))
         assert result is None
+
+    def test_build_ui_messages_preserves_tool_approval_field(self):
+        """When the frontend posts back an `approval-responded` tool part,
+        the `approval` payload must reach pydantic-ai intact. The lossy
+        `ToolInvocationPart` dataclass doesn't model `approval`, so without
+        the `_raw_parts` snapshot the field would be silently dropped and
+        the agent would loop on the same tool call forever.
+
+        Regression for the second half of the tool-approval fix: the first
+        half (`sdk_version=AI_SDK_VERSION`) made the request chunk visible
+        to the frontend; this half makes the user's response visible to the
+        agent.
+        """
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            ToolApprovalResponded,
+            ToolApprovalRespondedPart,
+        )
+
+        model = pydantic_ai(MagicMock())
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Delete secrets.env",
+                id="msg-user-1",
+                parts=cast(  # pyright: ignore[reportAny]
+                    Any,
+                    [{"type": "text", "text": "Delete secrets.env"}],
+                ),
+            ),
+            ChatMessage(
+                role="assistant",
+                content=None,
+                id="msg-assistant-1",
+                parts=cast(  # pyright: ignore[reportAny]
+                    Any,
+                    [
+                        {
+                            "type": "tool-delete_file",
+                            "toolCallId": "call-1",
+                            "state": "approval-responded",
+                            "input": {"path": "secrets.env"},
+                            "approval": {
+                                "id": "call-1",
+                                "approved": True,
+                            },
+                        }
+                    ],
+                ),
+            ),
+        ]
+
+        ui_messages = model._build_ui_messages(messages)
+        assert len(ui_messages) == 2
+
+        # The tool part must be reified as the *responded* variant — the
+        # one that carries the approval — and the approval must survive.
+        tool_part = ui_messages[1].parts[0]
+        assert isinstance(tool_part, ToolApprovalRespondedPart), (
+            f"Expected ToolApprovalRespondedPart, got {type(tool_part).__name__}: "
+            f"{tool_part!r}"
+        )
+        approval = tool_part.approval
+        assert isinstance(approval, ToolApprovalResponded), (
+            f"Expected ToolApprovalResponded, got {approval!r}"
+        )
+        assert approval.id == "call-1"
+        assert approval.approved is True
+
+    async def test_stream_response_emits_tool_approval_request(self):
+        """Tools with `requires_approval=True` should surface an
+        approval-request chunk so the frontend can render an Approve/Deny
+        card. This is the v6-only behavior unlocked by passing
+        `sdk_version=AI_SDK_VERSION` to the adapter.
+        """
+        from pydantic_ai import Agent, DeferredToolRequests
+        from pydantic_ai.models.function import (
+            AgentInfo,
+            DeltaToolCall,
+            DeltaToolCalls,
+            FunctionModel,
+        )
+
+        async def respond(
+            messages: list[Any], _info: AgentInfo
+        ) -> AsyncIterator[DeltaToolCalls]:
+            del messages, _info
+            yield {
+                0: DeltaToolCall(
+                    name="delete_file",
+                    json_args='{"path": "secrets.env"}',
+                    tool_call_id="call-1",
+                )
+            }
+
+        agent = Agent(
+            FunctionModel(stream_function=respond),
+            output_type=[str, DeferredToolRequests],
+        )
+
+        @agent.tool_plain(requires_approval=True)
+        def delete_file(path: str) -> str:
+            return f"File {path!r} deleted"
+
+        model = pydantic_ai(agent)
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Delete secrets.env",
+                id="msg-user-1",
+                parts=[TextPart(type="text", text="Delete secrets.env")],
+            ),
+        ]
+        config = ChatModelConfig(max_tokens=100)
+
+        chunks = [
+            chunk async for chunk in model._stream_response(messages, config)
+        ]
+
+        approval_chunks = [
+            chunk
+            for chunk in chunks
+            if chunk.get("type") == "tool-approval-request"
+        ]
+        assert approval_chunks == [
+            {
+                "type": "tool-approval-request",
+                "approvalId": "call-1",
+                "toolCallId": "call-1",
+            }
+        ]
 
 
 class MockBaseChunkWithError:
