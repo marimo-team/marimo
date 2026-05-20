@@ -2,7 +2,11 @@
 import type { Column } from "@tanstack/react-table";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { NumberFilterMenu, TextFilterMenu } from "../column-header";
+import {
+  DateFilterMenu,
+  NumberFilterMenu,
+  TextFilterMenu,
+} from "../column-header";
 import { Filter } from "../filters";
 
 beforeAll(() => {
@@ -199,5 +203,106 @@ describe("TextFilterMenu", () => {
       target: { value: "x" },
     });
     expect(screen.getByRole("button", { name: /apply/i })).not.toBeDisabled();
+  });
+});
+
+type DateFilterValue = ReturnType<typeof Filter.date>;
+
+function mockDateColumn(
+  filterType: "date" | "datetime" | "time" = "date",
+  initial?: DateFilterValue,
+): Column<unknown, unknown> & {
+  setFilterValue: ReturnType<typeof vi.fn>;
+} {
+  let filterValue = initial;
+  const setFilterValue = vi.fn((next) => {
+    filterValue = next;
+  });
+  return {
+    id: "when",
+    columnDef: { meta: { dataType: filterType, filterType } },
+    getFilterValue: () => filterValue,
+    setFilterValue,
+  } as unknown as Column<unknown, unknown> & {
+    setFilterValue: ReturnType<typeof vi.fn>;
+  };
+}
+
+describe("DateFilterMenu", () => {
+  it("shows all expected operators in the dropdown", () => {
+    const column = mockDateColumn("date");
+    render(<DateFilterMenu column={column} filterType="date" />);
+    fireEvent.click(screen.getByRole("combobox"));
+    const listbox = screen.getByRole("listbox");
+    const labels = within(listbox)
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+    expect(labels).toEqual([
+      "Between",
+      "Equals",
+      "Doesn't equal",
+      "Greater than",
+      "Greater than or equal",
+      "Less than",
+      "Less than or equal",
+      "Is null",
+      "Is not null",
+    ]);
+  });
+
+  it("defaults to between mode and disables Apply until both bounds set", () => {
+    const column = mockDateColumn("date");
+    render(<DateFilterMenu column={column} filterType="date" />);
+    expect(screen.getByLabelText("range")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /apply/i })).toBeDisabled();
+    expect(screen.queryByLabelText("value")).not.toBeInTheDocument();
+  });
+
+  it("seeds between min/max from current filter", () => {
+    const column = mockDateColumn(
+      "date",
+      Filter.date({
+        operator: "between",
+        min: new Date("2024-01-01T00:00:00Z"),
+        max: new Date("2024-06-01T00:00:00Z"),
+      }),
+    );
+    render(<DateFilterMenu column={column} filterType="date" />);
+    expect(screen.getByLabelText("range")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /apply/i })).not.toBeDisabled();
+  });
+
+  it("comparison operator swaps range for a single value picker", () => {
+    const column = mockDateColumn(
+      "date",
+      Filter.date({
+        operator: ">",
+        value: new Date("2024-01-01T00:00:00Z"),
+      }),
+    );
+    render(<DateFilterMenu column={column} filterType="date" />);
+    expect(screen.getByLabelText("value")).toBeInTheDocument();
+    expect(screen.queryByLabelText("range")).not.toBeInTheDocument();
+  });
+
+  it("time filter type renders two TimeFields for between", () => {
+    const column = mockDateColumn("time");
+    render(<DateFilterMenu column={column} filterType="time" />);
+    expect(screen.getByLabelText("min")).toBeInTheDocument();
+    expect(screen.getByLabelText("max")).toBeInTheDocument();
+  });
+
+  it("selecting a nullish operator hides value inputs and commits on Apply", () => {
+    const column = mockDateColumn("date");
+    render(<DateFilterMenu column={column} filterType="date" />);
+    fireEvent.click(screen.getByRole("combobox"));
+    const listbox = screen.getByRole("listbox");
+    fireEvent.click(within(listbox).getByText("Is null"));
+    expect(screen.queryByLabelText("range")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("value")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /apply/i }));
+    expect(column.setFilterValue).toHaveBeenCalledWith(
+      Filter.date({ operator: "is_null" }),
+    );
   });
 });

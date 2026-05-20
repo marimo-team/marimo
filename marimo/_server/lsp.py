@@ -25,6 +25,7 @@ from marimo._server.models.lsp import (
     LspServerStatus,
 )
 from marimo._tracer import server_tracer
+from marimo._utils.asyncio_utils import supervised_task
 from marimo._utils.net import find_free_port
 from marimo._utils.paths import marimo_package_path
 from marimo._utils.platform import is_windows
@@ -178,8 +179,9 @@ class BaseLspServer(LspServer):
                 self._health_check_task is None
                 or self._health_check_task.done()
             ):
-                self._health_check_task = asyncio.create_task(
-                    self._monitor_process_health()
+                self._health_check_task = supervised_task(
+                    self._monitor_process_health(),
+                    name=f"lsp.health.{self.id}",
                 )
 
         except Exception as e:

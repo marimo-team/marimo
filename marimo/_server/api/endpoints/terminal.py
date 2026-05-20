@@ -19,6 +19,7 @@ from marimo._server.api.deps import AppState
 from marimo._server.codes import WebSocketCodes
 from marimo._server.router import APIRouter
 from marimo._session.model import SessionMode
+from marimo._utils.asyncio_utils import cancel_and_wait
 from marimo._utils.platform import is_pyodide, is_windows
 
 if TYPE_CHECKING:
@@ -331,12 +332,7 @@ async def _write_to_pty(
 
 async def _cancel_tasks(tasks: Iterable[asyncio.Task[Any]]) -> None:
     for task in tasks:
-        if not task.done():
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+        await cancel_and_wait(task)
 
 
 def supports_terminal() -> bool:

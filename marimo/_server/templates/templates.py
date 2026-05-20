@@ -395,7 +395,8 @@ def static_notebook_template(
     asset_url: str | None = None,
 ) -> str:
     if asset_url is None:
-        asset_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist"
+        version = str(__version__).replace(".dev", "-dev")
+        asset_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{version}/dist"
 
     html = html.replace("{{ base_url }}", "")
     filename = os.path.basename(filepath or "")

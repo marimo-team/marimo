@@ -35,10 +35,6 @@ class Distributor(Protocol, Generic[T]):
         """Stop the distributor."""
         ...
 
-    def flush(self) -> None:
-        """Flush the distributor."""
-        ...
-
 
 class ConnectionDistributor(Distributor[T]):
     """
@@ -112,14 +108,6 @@ class ConnectionDistributor(Distributor[T]):
             self.input_connection.close()
         self.consumers.clear()
 
-    def flush(self) -> None:
-        """Flush the distributor."""
-        while self.input_connection.poll():
-            try:
-                self.input_connection.recv()
-            except EOFError:
-                break
-
 
 class QueueDistributor(Distributor[T]):
     def __init__(self, queue: QueueType[T | None]) -> None:
@@ -160,6 +148,3 @@ class QueueDistributor(Distributor[T]):
 
     def stop(self) -> None:
         self.queue.put_nowait(None)
-
-    def flush(self) -> None:
-        """Flush the distributor."""
