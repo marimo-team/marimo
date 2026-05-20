@@ -17,15 +17,17 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { ExternalLink } from "@/components/ui/links";
 import type { CellId } from "@/core/cells/ids";
+import { renderHTML } from "@/plugins/core/RenderHTML";
+import { splitMangledLocals } from "@/utils/local-variables";
 import type { MarimoError } from "../../../core/kernel/messages";
 import { cn } from "../../../utils/cn";
 import { Alert, AlertTitle } from "../../ui/alert";
 import { openPackageManager } from "../chrome/panels/packages-utils";
 import { useChromeActions } from "../chrome/state";
 import { AutoFixButton } from "../errors/auto-fix";
+import { renderMangledSegments } from "../errors/mangled-local-chip";
 import { CellLinkError } from "../links/cell-link";
 import { processTextForUrls } from "./console/text-rendering";
-import { renderHTML } from "@/plugins/core/RenderHTML";
 
 const Tip = (props: {
   title?: string;
@@ -454,10 +456,13 @@ export const MarimoErrorOutput = ({
               error.exception_type === "NameError" &&
               error.msg.startsWith("name '_")
             ) {
+              const segments = splitMangledLocals(error.msg);
               return (
                 <li className="my-2" key={`exception-${idx}`}>
                   <div>
-                    <p className="text-muted-foreground">{error.msg}</p>
+                    <p className="text-muted-foreground">
+                      {renderMangledSegments(segments, `exception-${idx}`)}
+                    </p>
                     <p className="text-muted-foreground mt-2">
                       Variables prefixed with an underscore are local to a cell{" "}
                       (
