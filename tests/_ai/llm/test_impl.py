@@ -1725,13 +1725,14 @@ class TestPydanticAI:
             for chunk in chunks
             if chunk.get("type") == "tool-approval-request"
         ]
-        assert approval_chunks == [
-            {
-                "type": "tool-approval-request",
-                "approvalId": "call-1",
-                "toolCallId": "call-1",
-            }
-        ]
+        # Older pydantic-ai generates a UUID approvalId; newer versions reuse
+        # toolCallId. Either is fine — assert the shape, not the exact value.
+        assert len(approval_chunks) == 1
+        chunk = approval_chunks[0]
+        assert chunk["type"] == "tool-approval-request"
+        assert chunk["toolCallId"] == "call-1"
+        assert isinstance(chunk["approvalId"], str)
+        assert chunk["approvalId"]
 
 
 class MockBaseChunkWithError:

@@ -631,6 +631,32 @@ class TestChatMessageRawPartsRoundTrip:
         assert dict[str, Any](message)["parts"] == [raw]
         assert message._raw_parts == [raw]
 
+    def test_mixed_dict_and_typed_parts_preserve_raw_dicts(self):
+        """When `parts` mixes raw dicts and typed inputs, the raw dicts'
+        unmodeled fields (e.g. `approval`) must survive — not just the
+        all-dicts case.
+        """
+        raw = {
+            "type": "tool-delete_file",
+            "toolCallId": "call-1",
+            "state": "approval-responded",
+            "input": {"path": "secrets.env"},
+            "approval": {"id": "call-1", "approved": True},
+        }
+        message = ChatMessage(
+            role="assistant",
+            content=None,
+            id="msg",
+            parts=[
+                cast(ChatPart, raw),
+                TextPart(type="text", text="ok"),
+            ],
+        )
+        assert message.raw_or_dumped_parts() == [
+            raw,
+            {"type": "text", "text": "ok"},
+        ]
+
     def test_dict_part_appended_after_init_is_preserved(self):
         message = ChatMessage(
             role="assistant",

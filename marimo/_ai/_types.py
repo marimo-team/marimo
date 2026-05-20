@@ -214,17 +214,30 @@ class ChatMessage(msgspec.Struct, eq=False, dict=True):
     metadata: Any | None = None
 
     def __post_init__(self) -> None:
-        # Non-struct attribute (via dict=True) so it never reaches the wire.
-        self._raw_parts: list[dict[str, Any]] | None = None
+        # Non-struct attributes (via dict=True) so they never reach the wire.
+        # Snapshots are aligned with the original input order; SDK fields the
+        # typed dataclasses don't model are preserved even when the input is
+        # a mix of dicts and typed parts. `_parts_idx[i]` is the index of the
+        # converted part in `self.parts` (or None when conversion dropped it).
+        self._raw_parts: list[dict[str, Any] | None] | None = None
+        self._parts_idx: list[int | None] | None = None
         if self.parts:
-            if all(isinstance(p, dict) for p in self.parts):
-                self._raw_parts = [cast(dict[str, Any], p) for p in self.parts]
-            # Hack: msgspec only supports discriminated unions. This is a hack to just
-            # iterate through possible part variants and decode until one works.
-            parts = []
+            snapshots: list[dict[str, Any] | None] = []
+            idx_map: list[int | None] = []
+            parts: list[ChatPart] = []
             for part in self.parts:
+                is_dict = isinstance(part, dict)
+                snapshots.append(
+                    cast(dict[str, Any], part) if is_dict else None
+                )
                 if converted := self._convert_part(part):
+                    idx_map.append(len(parts))
                     parts.append(converted)
+                else:
+                    idx_map.append(None)
+            if any(s is not None for s in snapshots):
+                self._raw_parts = snapshots
+                self._parts_idx = idx_map
             self.parts = parts
 
     # Fields excluded from equality. Add anything here that is a cache /
@@ -266,8 +279,8 @@ class ChatMessage(msgspec.Struct, eq=False, dict=True):
 
     def raw_or_dumped_parts(self) -> list[dict[str, Any]]:
         """Return parts in dict form, preferring the original wire payload."""
-        if self._raw_parts is not None:
-            return self._raw_parts
+        raw_parts = self._raw_parts
+        idx_map = self._parts_idx
 
         ui_message_part_cls: Any = None
         if DependencyManager.pydantic_ai.imported():
@@ -275,18 +288,35 @@ class ChatMessage(msgspec.Struct, eq=False, dict=True):
 
             ui_message_part_cls = UIMessagePart
 
-        result: list[dict[str, Any]] = []
-        for part in self.parts:
+        def dump(part: Any) -> dict[str, Any] | None:
             if is_dataclass(part):
-                result.append(asdict(part))
-            elif ui_message_part_cls is not None and isinstance(
+                return asdict(part)
+            if ui_message_part_cls is not None and isinstance(
                 part, ui_message_part_cls
             ):
-                result.append(
-                    part.model_dump(by_alias=True, exclude_none=True)
-                )
-            elif isinstance(part, dict):
-                result.append(part)
+                return part.model_dump(by_alias=True, exclude_none=True)
+            if isinstance(part, dict):
+                return cast(dict[str, Any], part)
+            return None
+
+        if raw_parts is None or idx_map is None:
+            return [d for p in self.parts if (d := dump(p)) is not None]
+
+        result: list[dict[str, Any]] = []
+        last_used = -1
+        for snap, parts_idx in zip(raw_parts, idx_map, strict=True):
+            if snap is not None:
+                result.append(snap)
+                if parts_idx is not None:
+                    last_used = max(last_used, parts_idx)
+            elif parts_idx is not None and parts_idx < len(self.parts):
+                if (d := dump(self.parts[parts_idx])) is not None:
+                    result.append(d)
+                    last_used = max(last_used, parts_idx)
+        # Parts appended after __post_init__ aren't in idx_map; dump them live.
+        for part in self.parts[last_used + 1 :]:
+            if (d := dump(part)) is not None:
+                result.append(d)
         return result
 
     def __iter__(self) -> Iterator[tuple[str, Any]]:
