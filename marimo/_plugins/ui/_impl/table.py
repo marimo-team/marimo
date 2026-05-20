@@ -776,8 +776,14 @@ class table(
             # Validate column configurations
             column_names_set = set(self._manager.get_column_names())
             num_columns = len(column_names_set)
+            row_header_names_set = {
+                name for name, _ in self._manager.get_row_headers()
+            }
             _validate_frozen_columns(
-                freeze_columns_left, freeze_columns_right, column_names_set
+                freeze_columns_left,
+                freeze_columns_right,
+                column_names_set,
+                row_header_names_set,
             )
             _validate_column_formatting(
                 text_justify_columns, wrapped_columns, column_names_set
@@ -1748,12 +1754,16 @@ def _validate_frozen_columns(
     freeze_columns_left: Sequence[str] | None,
     freeze_columns_right: Sequence[str] | None,
     column_names_set: set[str],
+    row_header_names_set: set[str],
 ) -> None:
     """Validate frozen column configurations.
 
     Validates that:
     1. The same column is not frozen on both sides
-    2. All frozen columns exist in the table
+    2. All left-frozen columns exist as table columns or row-header names
+    3. Right-frozen columns exist as table columns; row-header names are
+       rejected with a friendly error since row headers always render on
+       the left
     """
 
     freeze_columns_left_set = (
@@ -1763,20 +1773,28 @@ def _validate_frozen_columns(
         set(freeze_columns_right) if freeze_columns_right else None
     )
 
-    # Convert sequences to sets for O(1) lookups
     if freeze_columns_left_set and freeze_columns_right_set:
         if not freeze_columns_left_set.isdisjoint(freeze_columns_right_set):
             raise ValueError("The same column cannot be frozen on both sides.")
 
-    # Check all frozen columns exist
     if freeze_columns_left_set:
-        invalid = freeze_columns_left_set - column_names_set
+        invalid = (
+            freeze_columns_left_set - column_names_set - row_header_names_set
+        )
         if invalid:
             raise ValueError(
                 f"Column '{next(iter(invalid))}' not found in table."
             )
 
     if freeze_columns_right_set:
+        row_header_on_right = freeze_columns_right_set & row_header_names_set
+        if row_header_on_right:
+            name = next(iter(row_header_on_right))
+            raise ValueError(
+                f"Row index '{name}' cannot be frozen on the right; "
+                "row headers always render on the left. "
+                "Use freeze_columns_left instead."
+            )
         invalid = freeze_columns_right_set - column_names_set
         if invalid:
             raise ValueError(

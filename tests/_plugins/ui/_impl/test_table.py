@@ -1112,6 +1112,94 @@ def test_table_with_frozen_columns() -> None:
     assert table._component_args["freeze-columns-right"] == ["d", "e"]
 
 
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+class TestFrozenRowHeaders:
+    def test_freeze_unnamed_pandas_index(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame({"a": [1, 2, 3]}, index=["x", "y", "z"])
+        table = ui.table(df, freeze_columns_left=[""])
+        assert table._component_args["freeze-columns-left"] == [""]
+
+    def test_freeze_named_pandas_index(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            {"a": [1, 2]}, index=pd.Index(["x", "y"], name="foo")
+        )
+        table = ui.table(df, freeze_columns_left=["foo"])
+        assert table._component_args["freeze-columns-left"] == ["foo"]
+
+    def test_freeze_multiindex_levels(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            {"v": [1, 2, 3, 4]},
+            index=pd.MultiIndex.from_tuples(
+                [("a", 1), ("a", 2), ("b", 1), ("b", 2)], names=["g", "n"]
+            ),
+        )
+        table = ui.table(df, freeze_columns_left=["g", "n"])
+        assert table._component_args["freeze-columns-left"] == ["g", "n"]
+
+    def test_freeze_collision_suffixed_index(self) -> None:
+        import pandas as pd
+
+        # Index name 'a' collides with a column named 'a'; the row-header
+        # name is suffixed to '_index' (see _resolve_index_name).
+        df = pd.DataFrame({"a": [1, 2]}, index=pd.Index(["x", "y"], name="a"))
+        table = ui.table(df, freeze_columns_left=["a_index"])
+        assert table._component_args["freeze-columns-left"] == ["a_index"]
+
+    def test_freeze_index_and_column_mixed(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            {"a": [1, 2], "b": [3, 4]},
+            index=pd.Index(["x", "y"], name="foo"),
+        )
+        table = ui.table(
+            df,
+            freeze_columns_left=["foo", "a"],
+            freeze_columns_right=["b"],
+        )
+        assert table._component_args["freeze-columns-left"] == ["foo", "a"]
+        assert table._component_args["freeze-columns-right"] == ["b"]
+
+    def test_freeze_row_header_on_right_raises(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            {"a": [1, 2]}, index=pd.Index(["x", "y"], name="foo")
+        )
+        with pytest.raises(
+            ValueError, match="row headers always render on the left"
+        ):
+            ui.table(df, freeze_columns_right=["foo"])
+
+    def test_freeze_unknown_column_still_raises(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            {"a": [1, 2]}, index=pd.Index(["x", "y"], name="foo")
+        )
+        with pytest.raises(ValueError, match="not found in table"):
+            ui.table(df, freeze_columns_left=["nonexistent"])
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_freeze_columns_polars_regression() -> None:
+    import polars as pl
+
+    df = pl.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+    table = ui.table(df, freeze_columns_left=["a"])
+    assert table._component_args["freeze-columns-left"] == ["a"]
+
+
 @pytest.mark.parametrize(
     "df",
     create_dataframes({"a": [1, 2, 3], "b": ["abc", "def", None]}),
