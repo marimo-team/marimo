@@ -5490,12 +5490,17 @@ export interface components {
     /**
      * NotebookCell
      * @description A single cell in the document. Mutable — owned by the document.
+     *
+     *         `version` increments on each `SetCode` that actually changes
+     *         `code`. Other property changes don't bump it.
      */
     NotebookCell: {
       code: string;
       config: components["schemas"]["CellConfig"];
       id: components["schemas"]["CellId"];
       name: string;
+      /** @default 0 */
+      version?: number;
     };
     /**
      * NotebookDocumentTransactionNotification
