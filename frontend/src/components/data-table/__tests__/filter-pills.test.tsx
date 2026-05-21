@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import type { Column, ColumnFiltersState, Table } from "@tanstack/react-table";
+import type { ColumnFiltersState } from "@tanstack/react-table";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +7,10 @@ import { AddFilterButton } from "../add-filter-button";
 import { FilterPills } from "../filter-pills";
 import { buildEditorSnapshot, type Snapshot } from "../filter-pill-editor";
 import { Filter } from "../filters";
+import {
+  buildFilterTestTable,
+  type FilterColumnSpec,
+} from "./filter-test-utils";
 
 const renderWithProviders = (ui: React.ReactElement) =>
   render(<TooltipProvider>{ui}</TooltipProvider>);
@@ -25,37 +29,14 @@ beforeAll(() => {
   }
 });
 
-type FilterType =
-  | "text"
-  | "number"
-  | "boolean"
-  | "select"
-  | "date"
-  | "datetime"
-  | "time";
+const DEFAULT_COLUMNS: FilterColumnSpec[] = [
+  { id: "name", filterType: "text" },
+  { id: "age", filterType: "number" },
+  { id: "when", filterType: "date" },
+];
 
-function makeColumn(
-  id: string,
-  filterType: FilterType,
-): Column<unknown, unknown> {
-  return {
-    id,
-    columnDef: { meta: { filterType, dataType: "string" } },
-  } as unknown as Column<unknown, unknown>;
-}
-
-function mockTable(columns?: Array<Column<unknown, unknown>>): Table<unknown> {
-  const cols = columns ?? [
-    makeColumn("name", "text"),
-    makeColumn("age", "number"),
-    makeColumn("when", "date"),
-  ];
-  return {
-    getAllColumns: () => cols,
-    getColumn: (id: string) => cols.find((c) => c.id === id),
-    setColumnFilters: vi.fn(),
-  } as unknown as Table<unknown>;
-}
+const mockTable = (specs: FilterColumnSpec[] = DEFAULT_COLUMNS) =>
+  buildFilterTestTable(specs).table;
 
 describe("FilterPills — strip gating", () => {
   it("renders nothing when there are no filters and no pending add-snapshot", () => {
@@ -90,13 +71,12 @@ describe("FilterPills — strip gating", () => {
   });
 
   it("mounts the strip with no filters when a pending add-snapshot is set", () => {
-    const snapshot: Snapshot = buildEditorSnapshot(
-      mockTable().getAllColumns()[0] as Column<unknown, unknown>,
-    );
+    const table = mockTable();
+    const snapshot: Snapshot = buildEditorSnapshot(table.getAllColumns()[0]);
     renderWithProviders(
       <FilterPills
         filters={[]}
-        table={mockTable()}
+        table={table}
         addFilterSnapshot={snapshot}
         onAddFilterSnapshotChange={vi.fn()}
       />,
@@ -107,9 +87,7 @@ describe("FilterPills — strip gating", () => {
 
 describe("AddFilterButton", () => {
   it("does not render when there are no editable columns", () => {
-    const table = mockTable([
-      makeColumn("opaque", "unknown" as unknown as FilterType),
-    ]);
+    const table = mockTable([{ id: "opaque" }]);
     const { container } = renderWithProviders(
       <AddFilterButton
         table={table}
@@ -194,7 +172,7 @@ describe("FilterPills — pill edit", () => {
   });
 
   it("splices in place via editIndex when applying an edit", () => {
-    const table = mockTable();
+    const { table, setColumnFilters } = buildFilterTestTable(DEFAULT_COLUMNS);
     const filters: ColumnFiltersState = [
       {
         id: "name",
@@ -216,8 +194,7 @@ describe("FilterPills — pill edit", () => {
     fireEvent.click(screen.getByLabelText("Edit filter on age"));
     fireEvent.click(screen.getByLabelText("Apply filter"));
 
-    const updater = (table.setColumnFilters as ReturnType<typeof vi.fn>).mock
-      .calls[0][0];
+    const updater = setColumnFilters.mock.calls[0][0];
     const next = updater(filters);
     expect(next).toHaveLength(2);
     expect(next[0].id).toBe("name");

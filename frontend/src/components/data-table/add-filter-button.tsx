@@ -71,6 +71,7 @@ export const AddFilterButton = <TData,>({
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <FilterPillEditor
+            key={`${snapshot.columnId}:${snapshot.value.operator}`}
             snapshot={snapshot}
             table={table}
             calculateTopKRows={calculateTopKRows}
