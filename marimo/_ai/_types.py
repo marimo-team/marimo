@@ -168,6 +168,8 @@ class StepStartPart:
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
+
     ChatPart = (
         TextPart
         | ReasoningPart
@@ -261,11 +263,13 @@ class ChatMessage(msgspec.Struct, dict=True):
 
     def raw_or_dumped_parts(self) -> list[dict[str, Any]]:
         """Return parts in dict form, preferring the original wire payload."""
-        ui_message_part_cls: Any = None
+        ui_message_part_cls: type[UIMessagePart] | None = None
         if DependencyManager.pydantic_ai.imported():
             from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
 
-            ui_message_part_cls = UIMessagePart
+            # `UIMessagePart` is a union type alias; the runtime value works
+            # with `isinstance` but doesn't match `type[...]` statically.
+            ui_message_part_cls = UIMessagePart  # type: ignore[assignment]  # pyright: ignore[reportAssignmentType]
 
         def dump(part: Any) -> dict[str, Any] | None:
             if is_dataclass(part) and not isinstance(part, type):
@@ -273,10 +277,7 @@ class ChatMessage(msgspec.Struct, dict=True):
             if ui_message_part_cls is not None and isinstance(
                 part, ui_message_part_cls
             ):
-                return cast(
-                    dict[str, Any],
-                    part.model_dump(by_alias=True, exclude_none=True),
-                )
+                return part.model_dump(by_alias=True, exclude_none=True)  # type: ignore[no-any-return]
             if isinstance(part, dict):
                 return cast(dict[str, Any], part)
             return None
