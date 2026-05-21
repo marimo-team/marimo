@@ -21,6 +21,7 @@ from marimo._server.scratchpad import (
     _format_sse,
     build_done_event,
     extract_result,
+    snapshot_for_scratchpad,
 )
 
 _TEST_RUN_ID = "test-run-id"
@@ -50,6 +51,41 @@ def _parse_sse(sse: str) -> tuple[str, dict[str, object]]:
         elif line.startswith("data: "):
             data = line[len("data: ") :]
     return event, json.loads(data)
+
+
+class TestSnapshotForScratchpad:
+    """Snapshot helper shared by ``/api/execute`` and MCP ``execute_code``."""
+
+    def test_packages_document_and_outputs(self) -> None:
+        from marimo._ast.cell import CellConfig
+        from marimo._messaging.notebook.document import (
+            NotebookCell as DocCell,
+        )
+        from marimo._types.ids import CellId_t
+
+        cell = DocCell(
+            id=CellId_t("a"),
+            code="print('hi'); x = 1",
+            name="",
+            config=CellConfig(),
+        )
+        output = CellOutput(
+            channel=CellChannel.OUTPUT, mimetype="text/plain", data="1"
+        )
+        console = [CellOutput.stdout("hi\n")]
+
+        session = MagicMock()
+        session.document.cells = (cell,)
+        session.document.cell_ids = (cell.id,)
+        session.session_view.get_cell_outputs.return_value = {cell.id: output}
+        session.session_view.get_cell_console_outputs.return_value = {
+            cell.id: console
+        }
+
+        notebook_cells, cell_outputs = snapshot_for_scratchpad(session)
+        assert notebook_cells == (cell,)
+        assert cell_outputs.output == snapshot({"a": output})
+        assert cell_outputs.console_outputs == snapshot({"a": console})
 
 
 class TestExtractResult:

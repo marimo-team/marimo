@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.notebook.outputs import CellOutputs
 from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,
@@ -20,6 +21,7 @@ from marimo._session.extensions.types import EventAwareExtension
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
+    from marimo._messaging.notebook.document import NotebookCell
     from marimo._messaging.types import KernelMessage
     from marimo._session.session import Session
 
@@ -184,6 +186,26 @@ class ScratchCellListener(EventAwareExtension):
 
 
 # -- Helpers ------------------------------------------------------------------
+
+
+def snapshot_for_scratchpad(
+    session: Session,
+) -> tuple[tuple[NotebookCell, ...], CellOutputs]:
+    """Snapshot the notebook document and per-cell outputs for code_mode.
+
+    Returned by both ``/api/execute`` and the MCP ``execute_code`` tool
+    and passed on ``ExecuteScratchpadCommand`` so ``cm.get_context()``
+    can expose cells and their last outputs.
+    """
+    cell_ids = session.document.cell_ids
+    notebook_cells = tuple(session.document.cells)
+    cell_outputs = CellOutputs(
+        output=session.session_view.get_cell_outputs(cell_ids),
+        console_outputs=session.session_view.get_cell_console_outputs(
+            cell_ids
+        ),
+    )
+    return notebook_cells, cell_outputs
 
 
 def _format_console(msg: CellNotification) -> list[str]:
