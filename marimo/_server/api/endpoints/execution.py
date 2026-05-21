@@ -9,6 +9,7 @@ from starlette.authentication import requires
 from starlette.responses import JSONResponse, StreamingResponse
 
 from marimo import _loggers
+from marimo._messaging.notebook.outputs import CellOutputs
 from marimo._messaging.notification import AlertNotification
 from marimo._runtime.commands import HTTPRequest, UpdateUIElementCommand
 from marimo._server.api.deps import AppState
@@ -325,11 +326,21 @@ async def execute_code(
                     http_req.meta["screenshot_server_url"] = (
                         f"{scheme}://{app_state.host}:{app_state.port}{base_url}"
                     )
+                    cell_ids = session.document.cell_ids
+                    cell_outputs = CellOutputs(
+                        output=session.session_view.get_cell_outputs(cell_ids),
+                        console_outputs=(
+                            session.session_view.get_cell_console_outputs(
+                                cell_ids
+                            )
+                        ),
+                    )
                     session.put_control_request(
                         ExecuteScratchpadCommand(
                             code=body.code,
                             request=http_req,
                             notebook_cells=tuple(session.document.cells),
+                            cell_outputs=cell_outputs,
                             run_id=run_id,
                         ),
                         from_consumer_id=None,

@@ -213,6 +213,75 @@ class TestExecutionRoutes_EditMode:
 
     @staticmethod
     @with_session(SESSION_ID)
+    def test_execute_attaches_cell_outputs_snapshot(
+        client: TestClient,
+    ) -> None:
+        """`/api/kernel/execute` must populate ``cell_outputs`` from the
+        session view so code_mode can expose ``cell.output`` and
+        ``cell.console_outputs``.  Regression guard: removing the
+        construction line in the endpoint should fail this test.
+        """
+        from unittest.mock import patch
+
+        from marimo._messaging.cell_output import CellChannel, CellOutput
+        from marimo._messaging.notification import CellNotification
+        from marimo._runtime.commands import ExecuteScratchpadCommand
+        from marimo._server import scratchpad as scratchpad_mod
+
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        # Seed the session view with an output for an existing cell so
+        # we can assert it survives the round-trip to the command.
+        cell_id = first(session.document.cell_ids)
+        sample = CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="42",
+        )
+        sample_console = CellOutput.stdout("hello\n")
+        session.session_view.cell_notifications[cell_id] = CellNotification(
+            cell_id=cell_id,
+            output=sample,
+            console=[sample_console],
+        )
+
+        captured: list[object] = []
+
+        def capture(req: object, from_consumer_id: object) -> None:  # noqa: ARG001
+            captured.append(req)
+
+        async def empty_stream(self: object):  # noqa: ARG001
+            if False:
+                yield ""
+
+        with (
+            patch.object(session, "put_control_request", side_effect=capture),
+            patch.object(
+                scratchpad_mod.ScratchCellListener,
+                "stream",
+                empty_stream,
+            ),
+        ):
+            response = client.post(
+                "/api/kernel/execute",
+                headers=HEADERS,
+                json={"code": "x = 1"},
+            )
+
+        assert response.status_code == 200, response.text
+
+        scratchpad_cmds = [
+            c for c in captured if isinstance(c, ExecuteScratchpadCommand)
+        ]
+        assert len(scratchpad_cmds) == 1
+        cell_outputs = scratchpad_cmds[0].cell_outputs
+        assert cell_outputs is not None
+        assert cell_outputs.output[cell_id] is sample
+        assert cell_outputs.console_outputs[cell_id] == [sample_console]
+
+    @staticmethod
+    @with_session(SESSION_ID)
     def test_takeover_no_file_key(client: TestClient) -> None:
         response = client.post(
             "/api/kernel/takeover",

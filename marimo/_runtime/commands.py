@@ -23,6 +23,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
 from marimo._messaging.notebook.document import NotebookCell
+from marimo._messaging.notebook.outputs import CellOutputs
 from marimo._types.encodable import Encodable
 from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 
@@ -360,6 +361,11 @@ class ExecuteScratchpadCommand(Command):
         notebook_cells: Snapshot of notebook cells from the session document.
             Used to populate the document ContextVar so code_mode can read
             cell ordering, code, names, and configs.
+        cell_outputs: Snapshot of per-cell outputs (main + console) from the
+            session view. Populates a parallel ContextVar so code_mode can
+            expose ``cell.output`` and ``cell.console_outputs``. Frozen at
+            scratchpad start — not refreshed when ``ctx.run_cell`` produces
+            new outputs in the same batch.
         run_id: Optional correlation ID. When set, the
             `CompletedRunNotification` emitted at the end of this command
             carries the same `run_id` so a caller holding a
@@ -373,6 +379,8 @@ class ExecuteScratchpadCommand(Command):
     request: HTTPRequest | None = None
     # Document snapshot — set by the execution endpoint from session.document.
     notebook_cells: tuple[NotebookCell, ...] | None = None
+    # Output snapshot — set by the execution endpoint from session.session_view.
+    cell_outputs: CellOutputs | None = None
     run_id: str | None = None
 
 

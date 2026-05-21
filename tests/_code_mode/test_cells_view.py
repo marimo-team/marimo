@@ -20,11 +20,13 @@ from marimo._code_mode._context import (
     NotebookCell as EnrichedCell,
     _CellsView,
 )
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notebook.document import (
     NotebookCell,
     NotebookDocument,
     notebook_document_context,
 )
+from marimo._messaging.notebook.outputs import CellOutputs
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
 from marimo._types.ids import CellId_t
@@ -516,6 +518,47 @@ class TestEnrichedCellStatus:
         cell = _cell("a", "x = 1")
         enriched = EnrichedCell(cell, None)
         assert enriched.errors == []
+
+
+class TestEnrichedCellOutputs:
+    """The frozen output snapshot is sliced per-cell in the properties."""
+
+    def test_no_snapshot_returns_defaults(self) -> None:
+        cell = _cell("a", "x = 1")
+        enriched = EnrichedCell(cell, None)
+        assert enriched.output is None
+        assert enriched.console_outputs == []
+
+    def test_populated_snapshot_returns_per_cell_slice(self) -> None:
+        cell = _cell("a", "print('hi'); x = 1")
+        out = CellOutput(
+            channel=CellChannel.OUTPUT, mimetype="text/plain", data="1"
+        )
+        console = [CellOutput.stdout("hi\n"), CellOutput.stderr("warn\n")]
+        snap = CellOutputs(
+            output={CellId_t("a"): out},
+            console_outputs={CellId_t("a"): console},
+        )
+        enriched = EnrichedCell(cell, None, outputs=snap)
+        assert enriched.output is out
+        assert enriched.console_outputs == console
+
+    def test_cell_missing_from_snapshot_returns_defaults(self) -> None:
+        """Cell created mid-batch isn't in the frozen snapshot."""
+        cell = _cell("new", "y = 2")
+        snap = CellOutputs(
+            output={
+                CellId_t("a"): CellOutput(
+                    channel=CellChannel.OUTPUT,
+                    mimetype="text/plain",
+                    data="1",
+                )
+            },
+            console_outputs={CellId_t("a"): [CellOutput.stdout("hi\n")]},
+        )
+        enriched = EnrichedCell(cell, None, outputs=snap)
+        assert enriched.output is None
+        assert enriched.console_outputs == []
 
 
 class TestEnrichedCellRepr:

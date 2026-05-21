@@ -54,6 +54,7 @@ from marimo._code_mode._plan import (
     _UpdateOp,
     _validate_ops,
 )
+from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.errors import Error
 from marimo._messaging.notebook.changes import (
     CreateCell,
@@ -68,6 +69,10 @@ from marimo._messaging.notebook.changes import (
 from marimo._messaging.notebook.document import (
     NotebookCell as _NotebookCell,
     NotebookDocument,
+)
+from marimo._messaging.notebook.outputs import (
+    CellOutputs,
+    get_current_outputs,
 )
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
@@ -280,19 +285,30 @@ class NotebookCell:
         `exception` fields. Covers both runtime exceptions
         (e.g. `NameError`) and graph errors (multiply-defined
         variables, cycles, etc.).
+    output : CellOutput | None
+        The cell's last main (rich display) output, or ``None`` if no
+        output was captured. **Frozen snapshot** — taken at
+        scratchpad-start, not refreshed when ``ctx.run_cell`` produces
+        new outputs in the same batch. Re-enter ``cm.get_context()`` to
+        see fresh outputs.
+    console_outputs : list[CellOutput]
+        Buffered stdout/stderr outputs from the cell's last execution.
+        Same frozen-snapshot caveat as ``output``.
     """
 
-    __slots__ = ("_cell", "_graph_errors", "_impl")
+    __slots__ = ("_cell", "_graph_errors", "_impl", "_outputs")
 
     def __init__(
         self,
         cell: _NotebookCell,
         cell_impl: CellRuntimeState | None,
         graph_errors: tuple[Error, ...] = (),
+        outputs: CellOutputs | None = None,
     ) -> None:
         self._cell = cell
         self._impl = cell_impl
         self._graph_errors = graph_errors
+        self._outputs = outputs
 
     # -- document properties (delegated) --
 
@@ -397,6 +413,29 @@ class NotebookCell:
             )
         return result
 
+    @property
+    def output(self) -> CellOutput | None:
+        """The cell's last main (rich display) output, or ``None``.
+
+        Frozen at scratchpad-start — does not reflect outputs produced
+        by ``ctx.run_cell`` in the same batch.  Re-enter
+        ``cm.get_context()`` to see fresh outputs.
+        """
+        if self._outputs is None:
+            return None
+        return self._outputs.output.get(self._cell.id)
+
+    @property
+    def console_outputs(self) -> list[CellOutput]:
+        """Buffered stdout/stderr outputs from the last execution.
+
+        Returns an empty list when no console output was captured.
+        Same frozen-snapshot semantics as :attr:`output`.
+        """
+        if self._outputs is None:
+            return []
+        return list(self._outputs.console_outputs.get(self._cell.id, ()))
+
     # -- display --
 
     def __repr__(self) -> str:
@@ -455,10 +494,17 @@ class _CellsView:
             graph = self._ctx.graph
             impl = graph.cells.get(cell.id)
             graph_errors = self._ctx._kernel.errors.get(cell.id, ())
+            outputs = self._ctx._outputs
         except AttributeError:
             impl = None
             graph_errors = ()
-        return NotebookCell(cell, impl, graph_errors=graph_errors)
+            outputs = None
+        return NotebookCell(
+            cell,
+            impl,
+            graph_errors=graph_errors,
+            outputs=outputs,
+        )
 
     def _cell_ids(self) -> list[CellId_t]:
         return list(self._doc)
@@ -642,6 +688,11 @@ class AsyncCodeModeContext:
             )
         self._kernel = kernel
         self._document = document
+        # Output snapshot is optional — callers that don't pass one
+        # (e.g. the MCP code server) get ``cell.output is None`` and
+        # ``cell.console_outputs == []`` for every cell, same as cells
+        # that genuinely produced no output.
+        self._outputs: CellOutputs | None = get_current_outputs()
         self._cell_manager = cell_manager
         self._skip_validation = skip_validation
         self._skip_staleness_check = skip_staleness_check
