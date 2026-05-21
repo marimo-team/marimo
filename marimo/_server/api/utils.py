@@ -114,6 +114,65 @@ async def dispatch_control_request(
     return SuccessResponse()
 
 
+def pretty_host(host: str, port: int) -> str:
+    """Replace loopback addresses with 'localhost' for display.
+
+    Uses ipaddress for a reliable cross-platform loopback check (covers
+    127.0.0.1, ::1, and the full 127.0.0.0/8 range).  Falls back to
+    socket.getnameinfo only for non-IP hosts.  getnameinfo is skipped
+    for raw IP addresses because it can hang on Windows/CI for
+    link-local IPv6.
+    """
+    import ipaddress
+    import socket
+
+    try:
+        if ipaddress.ip_address(host).is_loopback:
+            return "localhost"
+    except ValueError:
+        # Not a valid IP literal — might be a hostname; try getnameinfo
+        try:
+            if (
+                socket.getnameinfo((host, port), socket.NI_NOFQDN)[0]
+                == "localhost"
+            ):
+                return "localhost"
+        except Exception:
+            pass
+    return host
+
+
+def format_url_host(
+    host: str,
+    port: int,
+    *,
+    route_bind_all_to_loopback: bool = False,
+) -> str:
+    """Normalize ``host`` for use in a URL authority.
+
+    Transforms (in order):
+
+    1. Strip user-supplied brackets (``[::1]`` -> ``::1``).
+    2. Drop IPv6 zone IDs (``fe80::1%eth0`` -> ``fe80::1``); zone IDs
+       are interface-specific and not valid in URLs. (Must happen
+       before :func:`pretty_host` — zone IDs can cause getnameinfo
+       to hang on Windows/CI.)
+    3. Replace loopback addresses with ``"localhost"``.
+    4. If ``route_bind_all_to_loopback``, replace the bind-all
+       sentinels ``0.0.0.0`` / ``::`` with ``"localhost"`` so internal
+       callback URLs reach a routable target (the bind-all addresses
+       are not valid destinations for an HTTP client / Playwright).
+       Display URLs leave them alone — the user knows what they
+       configured.
+    5. Wrap bare IPv6 literals in brackets per RFC 3986.
+    """
+    host = host.strip("[]").split("%")[0]
+    host = pretty_host(host, port)
+    if route_bind_all_to_loopback and host in {"0.0.0.0", "::"}:
+        host = "localhost"
+    return f"[{host}]" if ":" in host else host
+
+
 def get_code_mode_credentials(
     app_state: AppStateBase, request: Request
 ) -> tuple[str, str]:
@@ -124,11 +183,17 @@ def get_code_mode_credentials(
     The URL is built from the server's configured ``host``/``port``
     rather than the request's ``Host`` header so a spoofed header
     can't redirect the auth token to an attacker-controlled URL.
+    ``host`` is also normalized for URL safety (IPv6 bracketing, zone-ID
+    stripping) and for routability (bind-all addresses mapped to
+    ``localhost``) so the callback actually reaches the server.
     """
     auth_token = str(app_state.session_manager.auth_token)
     base_url = app_state.base_url.rstrip("/")
     scheme = request.url.scheme or "http"
-    server_url = f"{scheme}://{app_state.host}:{app_state.port}{base_url}"
+    url_host = format_url_host(
+        app_state.host, app_state.port, route_bind_all_to_loopback=True
+    )
+    server_url = f"{scheme}://{url_host}:{app_state.port}{base_url}"
     return server_url, auth_token
 
 
