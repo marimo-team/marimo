@@ -24,17 +24,17 @@ def is_marimo_app(full_path: str) -> bool:
     - Python (`.py`) files are marimo apps if they contain both
       `marimo.App` and `import marimo`.
     - In both cases the first 512 bytes are scanned first (fast path);
-      on a miss we read the rest of the file, capped at 10 MB. This
-      handles long module docstrings, large `# /// script` headers,
-      and unusually long markdown frontmatter — anything longer than
-      that and the file isn't structured like a marimo notebook.
+      on a miss we read up to 1 MB of the file looking for the markers.
+      Above `import marimo` there's only ever a shebang, comments, a
+      module docstring, and/or a `# /// script` block — none of which
+      realistically exceed a few hundred KB.
     - Any errors while reading result in `False`.
     """
     FAST_PATH_BYTES = 512
     # Cap on how far we'll read looking for markers. Marimo notebooks
-    # put `import marimo` near the top; this is just a guard against
-    # stray huge files stalling the scan.
-    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+    # put `import marimo` near the top of the file, so this is just a
+    # guard against scanning huge unrelated Python files in full.
+    MAX_SCAN_BYTES = 1 * 1024 * 1024  # 1 MB
 
     try:
         path = MarimoPath(full_path)
@@ -58,9 +58,9 @@ def is_marimo_app(full_path: str) -> bool:
             # we've already seen everything.
             if len(header) < FAST_PATH_BYTES:
                 return False
-            # Continue reading the rest of the file, bounded by the cap.
-            # Files exceeding the cap are treated as non-marimo apps.
-            rest = f.read(MAX_FILE_SIZE - FAST_PATH_BYTES)
+            # Read further, bounded by MAX_SCAN_BYTES. If markers are
+            # past that, the file isn't shaped like a marimo notebook.
+            rest = f.read(MAX_SCAN_BYTES - FAST_PATH_BYTES)
             return matches(header + rest)
     except Exception as e:
         LOGGER.debug("Error reading file %s: %s", full_path, e)
