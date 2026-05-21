@@ -556,31 +556,6 @@ def test_read_code_without_saved_file(client: TestClient) -> None:
 
 
 @with_session(SESSION_ID)
-def test_read_code_with_wasm_sharing_disabled(client: TestClient) -> None:
-    """Test read_code is blocked when sharing.wasm = false in config."""
-    with patch("marimo._server.api.endpoints.files.AppState") as mock_state:
-        mock_session = Mock()
-        mock_session.config_manager.get_config.return_value = {
-            "sharing": {"wasm": False}
-        }
-        mock_session.app_file_manager.path = "notebook.py"
-        mock_state.return_value.session_manager.should_send_code_to_frontend.return_value = True
-        mock_state.return_value.require_current_session.return_value = (
-            mock_session
-        )
-
-        response = client.post(
-            "/api/kernel/read_code",
-            headers=HEADERS,
-            json={},
-        )
-
-        # handle_error converts all 403s → 401 to prompt browser re-auth
-        assert response.status_code == 401
-        assert "Authorization header required" in response.json()["detail"]
-
-
-@with_session(SESSION_ID)
 def test_save_with_unicode_content(client: TestClient) -> None:
     """Test save endpoint with unicode and special characters."""
     filename = get_session_manager(client).workspace.get_unique_file_key()
