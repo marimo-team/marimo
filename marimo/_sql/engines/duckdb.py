@@ -91,11 +91,20 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
             # instead of relation.pl() so that pyarrow is not required.
             return pl.DataFrame(relation)
 
+        def to_lazy_polars() -> Any:
+            # `lazy=True` requires DuckDB >= 1.4 and pyarrow. Fall back to the
+            # Arrow PyCapsule path on older DuckDB or when pyarrow is missing.
+            try:
+                return relation.pl(lazy=True)
+            except (TypeError, ImportError, ModuleNotFoundError):
+                return to_polars().lazy()
+
         return convert_to_output(
             sql_output_format=sql_output_format,
             to_polars=to_polars,
             to_pandas=lambda: relation.df(),
             to_native=lambda: relation,
+            to_lazy_polars=to_lazy_polars,
         )
 
     @staticmethod
