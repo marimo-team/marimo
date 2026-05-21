@@ -1,5 +1,4 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { EyeOffIcon } from "lucide-react";
 import type { JSX } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { MangledSegment, UnmangledLocal } from "@/utils/local-variables";
@@ -11,8 +10,7 @@ interface Props {
 
 /**
  * Renders a compiler-mangled cell-local variable as the user's original name
- * (e.g. `_a`) with an eye-off icon and a tooltip linking to the defining
- * cell.
+ * (e.g. `_a`) with a tooltip linking to the defining cell.
  */
 export const MangledLocalChip = ({ local }: Props): JSX.Element => {
   const tooltipContent = (
@@ -24,10 +22,7 @@ export const MangledLocalChip = ({ local }: Props): JSX.Element => {
 
   return (
     <Tooltip content={tooltipContent}>
-      <span className="inline-flex items-center gap-0.5 cursor-help">
-        <span className="font-code">{local.name}</span>
-        <EyeOffIcon className="h-3 w-3" aria-label="cell-local variable" />
-      </span>
+      <span className="font-code cursor-help">{local.name}</span>
     </Tooltip>
   );
 };
