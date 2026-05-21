@@ -290,3 +290,41 @@ def test_duckdb_engine_sql_output_formats(
         result = engine.execute("SELECT * FROM test ORDER BY id")
         assert isinstance(result, (pd.DataFrame, pl.DataFrame))
         assert len(result) == 4
+
+
+@pytest.mark.skipif(
+    not HAS_DUCKDB or not HAS_POLARS,
+    reason="DuckDB and Polars not installed",
+)
+def test_duckdb_engine_polars_no_pyarrow(
+    duckdb_connection: duckdb.DuckDBPyConnection,
+) -> None:
+    """Polars conversion should not require pyarrow.
+
+    Uses the Arrow PyCapsule interface (`pl.DataFrame(relation)`) rather than
+    `relation.pl()` which historically required pyarrow.
+    """
+    import sys
+    from unittest import mock
+
+    import polars as pl
+
+    # Simulate pyarrow not being installed by hiding it from import machinery.
+    pyarrow_modules = {
+        name: None
+        for name in list(sys.modules)
+        if name == "pyarrow" or name.startswith("pyarrow.")
+    }
+    with mock.patch.dict(sys.modules, pyarrow_modules):
+        # Make a fresh import of pyarrow raise ModuleNotFoundError.
+        with mock.patch.dict(sys.modules, {"pyarrow": None}):
+            with mock.patch.object(
+                DuckDBEngine, "sql_output_format", return_value="polars"
+            ):
+                engine = DuckDBEngine(
+                    duckdb_connection,
+                    engine_name=VariableName("test_duckdb"),
+                )
+                result = engine.execute("SELECT * FROM test ORDER BY id")
+                assert isinstance(result, pl.DataFrame)
+                assert len(result) == 4
