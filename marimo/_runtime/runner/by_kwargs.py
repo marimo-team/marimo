@@ -1,9 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Run individual cells in a graph with caller-provided ref substitution.
+"""Lightweight runner functions for use in direct cell evaluation or testing.
 
-Backs the ``Cell.run(**kwargs)`` public API. Walks the cell's ancestor
-closure (minus any ancestor whose defs the caller substituted via
-kwargs), runs them with a fresh globals dict, then runs the target cell.
+Walks the cell's ancestor closure (minus any ancestor whose defs the
+caller substituted via kwargs), runs them with a fresh globals dict,
+then runs the target cell.
 """
 
 from __future__ import annotations
@@ -76,17 +76,12 @@ def _get_ancestors(
 
 
 def _classify(result: RunResult) -> MarimoStopError | None:
-    """Inspect a RunResult; raise on real errors, return the stop on mo.stop.
-
-    ``MarimoStopError`` is control flow, not a user-facing error — by_kwargs
-    halts cleanly and surfaces the carried output in place of raising. Any
-    other exception is the user's and propagates.
-    """
+    """Inspect a RunResult; raise on real errors, return the stop on mo.stop."""
     exc = result.exception
     if exc is None:
         return None
     if isinstance(exc, MarimoStopError):
-        # Defensive: any caller bypassing ``MarimoRuntimeException``
+        # Defensive: any caller bypassing `MarimoRuntimeException`
         # wrapping (e.g. a custom Executor that raises directly) still
         # gets stop-control-flow handling.
         return exc
@@ -106,10 +101,7 @@ def is_coroutine(
 ) -> bool:
     """True if the cell or any of its unsubstituted ancestors is async.
 
-    Pass ``kwargs`` if you want substitutions taken into account — an
-    ancestor whose def is provided by the caller is omitted from the
-    ancestor closure, so a graph that *would* be async without the
-    substitution may be sync with it.
+    NB. Currently expensive due to calls on graph.
     """
     return graph.cells[cell_id].is_coroutine() or any(
         graph.cells[cid].is_coroutine()
@@ -160,7 +152,7 @@ def run_cell_sync(
     Substitutes kwargs as refs for the cell, omitting ancestors whose
     refs are substituted.
 
-    Raises ``RuntimeError`` if the cell or any of its unsubstituted
+    Raises `RuntimeError` if the cell or any of its unsubstituted
     ancestors are coroutine functions.
     """
     from marimo._runtime.dataflow import topological_sort

@@ -215,9 +215,9 @@ def _cause_traceback_filenames(exc: BaseException) -> list[str]:
 
 
 def test_default_executor_strips_own_frame_from_cause_sync() -> None:
-    """``DefaultExecutor.execute_cell`` must not leave its own frame on
-    the cause's ``__traceback__`` — user-facing tracebacks should begin
-    at user code (the compiled ``<test>`` source)."""
+    """`DefaultExecutor.execute_cell` must not leave its own frame on
+    the cause's `__traceback__` — user-facing tracebacks should begin
+    at user code (the compiled `<test>` source)."""
 
     class _FakeCell:
         cell_id = "0"
@@ -234,7 +234,7 @@ def test_default_executor_strips_own_frame_from_cause_sync() -> None:
 
 
 async def test_default_executor_strips_own_frame_from_cause_async() -> None:
-    """Same as the sync variant, for ``execute_cell_async``."""
+    """Same as the sync variant, for `execute_cell_async`."""
 
     class _FakeCell:
         cell_id = "0"
@@ -348,13 +348,13 @@ def test_strict_lifecycle_round_trip() -> None:
 
 
 class _StrictGraph:
-    """``_FakeGraph`` for ``StrictLifecycle`` setup-path tests.
+    """`_FakeGraph` for `StrictLifecycle` setup-path tests.
 
-    ``transitive_refs`` controls what ``get_transitive_references`` returns
-    so the test can drive ``setup`` past sanitization into the
-    error-construction branch. ``defining_cells`` maps refs to defining
-    cell IDs; refs absent from the map raise ``KeyError`` to exercise
-    the ``unmangle_local`` fallback.
+    `transitive_refs` controls what `get_transitive_references` returns
+    so the test can drive `setup` past sanitization into the
+    error-construction branch. `defining_cells` maps refs to defining
+    cell IDs; refs absent from the map raise `KeyError` to exercise
+    the `unmangle_local` fallback.
     """
 
     def __init__(
@@ -382,8 +382,8 @@ class _StrictCell:
 
 
 def test_strict_setup_skip_on_undefined_ref() -> None:
-    """Unresolved ref → ``Skip(result=RunResult(output=err, exception=err))``
-    where ``err`` is a ``MarimoStrictExecutionError`` with no blamed cell
+    """Unresolved ref → `Skip(result=RunResult(output=err, exception=err))`
+    where `err` is a `MarimoStrictExecutionError` with no blamed cell
     (graph has no defining cell and the ref is not a private var)."""
     from marimo._messaging.errors import MarimoStrictExecutionError
     from marimo._runtime.executor.lifecycles.strict import StrictLifecycle
@@ -405,7 +405,7 @@ def test_strict_setup_skip_on_undefined_ref() -> None:
 
 
 def test_strict_setup_skip_on_ref_before_def() -> None:
-    """Ref appears in the cell's own ``defs`` → ref-before-def branch."""
+    """Ref appears in the cell's own `defs` → ref-before-def branch."""
     from marimo._messaging.errors import MarimoStrictExecutionError
     from marimo._runtime.executor.lifecycles.strict import StrictLifecycle
 
@@ -428,7 +428,7 @@ def test_strict_setup_skip_on_ref_before_def() -> None:
 
 
 def test_strict_setup_skip_resolves_blamed_cell_via_graph() -> None:
-    """``get_defining_cells`` returns the owning cell → blamed_cell."""
+    """`get_defining_cells` returns the owning cell → blamed_cell."""
     from marimo._messaging.errors import MarimoStrictExecutionError
     from marimo._runtime.executor.lifecycles.strict import StrictLifecycle
 
@@ -450,12 +450,12 @@ def test_strict_setup_skip_resolves_blamed_cell_via_graph() -> None:
 
 
 def test_strict_setup_skip_falls_back_to_private_var_owner() -> None:
-    """``KeyError`` from the graph → ``unmangle_local`` resolves the
+    """`KeyError` from the graph → `unmangle_local` resolves the
     owning cell for mangled private vars."""
     from marimo._messaging.errors import MarimoStrictExecutionError
     from marimo._runtime.executor.lifecycles.strict import StrictLifecycle
 
-    # ``_cell_ZZZ_priv`` unmangles to (name="_priv", cell="ZZZ").
+    # `_cell_ZZZ_priv` unmangles to (name="_priv", cell="ZZZ").
     private_ref = "_cell_ZZZ_priv"
     lifecycle = StrictLifecycle(
         graph=_StrictGraph(  # type: ignore[arg-type]
@@ -478,7 +478,7 @@ def test_strict_setup_skip_falls_back_to_private_var_owner() -> None:
 
 def test_strict_setup_skip_does_not_mutate_globals_or_stash_backup() -> None:
     """The Skip early-return must happen before globals are cleared and
-    before the backup is stashed. ``teardown`` must then be a no-op."""
+    before the backup is stashed. `teardown` must then be a no-op."""
     from marimo._runtime.executor.lifecycles.strict import StrictLifecycle
 
     lifecycle = StrictLifecycle(
@@ -527,8 +527,8 @@ def test_execution_lifecycle_protocol_conformance() -> None:
 
 
 def _async_body(src: str) -> Any:
-    """Compile ``src`` with top-level-await support; returns a code object
-    whose ``co_flags`` carry ``CO_COROUTINE`` so ``_is_coroutine`` is True."""
+    """Compile `src` with top-level-await support; returns a code object
+    whose `co_flags` carry `CO_COROUTINE` so `_is_coroutine` is True."""
     import ast
 
     return compile(src, "<test>", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
@@ -537,7 +537,7 @@ def _async_body(src: str) -> Any:
 async def test_cancel_on_sigint_installs_and_restores_handler(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``_cancel_on_sigint`` swaps in its own handler on enter and
+    """`_cancel_on_sigint` swaps in its own handler on enter and
     restores the previously-installed one on exit."""
     import signal
 
@@ -604,7 +604,7 @@ async def test_cancel_on_sigint_handler_cancels_future_and_chains_prior(
 async def test_cancel_on_sigint_swallows_marimo_interrupt_from_prior_handler(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Prior handler raising ``MarimoInterrupt`` must not escape — the
+    """Prior handler raising `MarimoInterrupt` must not escape — the
     kernel's sync-mode raise is irrelevant for async cells, where the
     halt comes from cancelling the future."""
     import signal
@@ -635,11 +635,9 @@ async def test_cancel_on_sigint_swallows_marimo_interrupt_from_prior_handler(
 
 
 async def test_executor_async_cancellation_propagates_unwrapped() -> None:
-    """``asyncio.CancelledError`` must propagate unwrapped through
-    ``DefaultExecutor.execute_cell_async`` — wrapping it as
-    ``MarimoRuntimeException`` would defeat the runner's bare-
-    ``CancelledError`` branch and prevent ``runner.interrupted`` from
-    flipping on async SIGINT."""
+    """`asyncio.CancelledError` must propagate unwrapped through
+    `DefaultExecutor.execute_cell_async` — wrapping it as
+    `MarimoRuntimeException` would mask the cancellation."""
 
     class _AsyncCell:
         cell_id = "0"
@@ -661,8 +659,8 @@ async def test_executor_async_cancellation_propagates_unwrapped() -> None:
 
 
 async def test_evaluate_interruptible_no_op_for_sync_cell() -> None:
-    """Sync cells: ``evaluate_interruptible`` returns the same shape as a
-    direct ``evaluate()`` call. The SIGINT-handler wrap is for async only."""
+    """Sync cells: `evaluate_interruptible` returns the same shape as a
+    direct `evaluate()` call. The SIGINT-handler wrap is for async only."""
 
     class _SyncCell:
         cell_id = "0"

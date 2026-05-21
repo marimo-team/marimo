@@ -483,7 +483,8 @@ class Cell:
         assert self._app is not None
         from marimo._runtime.runner import by_kwargs
 
-        # ``graph`` triggers _maybe_initialize on the underlying App.
+        # Currently expensive since `graph` triggers _maybe_initialize on the
+        # underlying App.
         self._is_coro_cached: bool = by_kwargs.is_coroutine(
             self._app.graph, self._cell.cell_id
         )

@@ -153,22 +153,14 @@ class AppScriptRunner:
         result: RunResult,
         outputs: dict[CellId_t, Any],
     ) -> None:
-        """Classify the Evaluator's RunResult; record output, cancel, or raise.
-
-        Aligns MarimoStopError handling with the kernel classifier: the
-        stop's output is recorded for the cell and descendants are
-        cancelled, instead of silently swallowing both.
-        """
+        """Classify the Evaluator's RunResult; record output/cancel/raise."""
         exc = result.exception
         if exc is None:
             outputs[cid] = result.output
             return
         if not isinstance(exc, BaseException):
-            # An Error-shape payload (e.g. ``MarimoStrictExecutionError``)
-            # from a lifecycle ``Skip(result=...)``. Script mode runs with
-            # no lifecycles today, so this is unreachable in practice;
-            # treat defensively by recording the output and cancelling
-            # descendants.
+            # Defensive check descendants, since all exceptions are expected to
+            # be wrapper..
             outputs[cid] = result.output
             self._scheduler.cancel(cid)
             return

@@ -286,9 +286,8 @@ async def test_runner_dispatches_to_registered_plugin_executor(
     exec_req: ExecReqProvider,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A factory registered against ``marimo.cell.executor`` is the one
-    the kernel ``Runner`` dispatches through — proves the plugin flow
-    works end-to-end, not just the registry in isolation."""
+    """A factory registered against `marimo.cell.executor` is the one
+    the kernel `Runner` dispatches through."""
     from typing import Any
 
     from marimo._runtime.executor.evaluator import _EXECUTOR_REGISTRY
@@ -319,8 +318,8 @@ async def test_runner_dispatches_to_registered_plugin_executor(
     k = execution_kernel
     await k.run([er := exec_req.get("'hello'; 123")])
 
-    # Fully isolate the registry: replace both ``_plugins`` and
-    # ``names`` so installed third-party entry points can't shadow the
+    # Fully isolate the registry: replace both `_plugins` and
+    # `names` so installed third-party entry points can't shadow the
     # sentinel. monkeypatch restores both on teardown.
     monkeypatch.setattr(_EXECUTOR_REGISTRY, "_plugins", {"sentinel": factory})
     monkeypatch.setattr(_EXECUTOR_REGISTRY, "names", lambda: ["sentinel"])
@@ -344,9 +343,9 @@ async def test_runner_dispatches_to_registered_plugin_executor(
 async def test_runner_interrupted_flag_flips_on_sync_marimo_interrupt(
     execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    """Sync cell body raising ``MarimoInterrupt`` (== ``KeyboardInterrupt``)
-    surfaces as a bare ``MarimoInterrupt`` in the run result and flips
-    ``runner.interrupted``. Covers ``cell_runner.py:441-442``."""
+    """Sync cell body raising `MarimoInterrupt` (== `KeyboardInterrupt`)
+    surfaces as a bare `MarimoInterrupt` in the run result and flips
+    `runner.interrupted`."""
     k = execution_kernel
     await k.run([er := exec_req.get("raise KeyboardInterrupt")])
 
@@ -368,19 +367,16 @@ async def test_runner_interrupted_flag_flips_on_async_cell_cancellation(
     exec_req: ExecReqProvider,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An async cell cancelled mid-await flips ``runner.interrupted``.
+    """An async cell cancelled mid-await flips `runner.interrupted`.
 
-    After the production fix, ``CancelledError`` propagates unwrapped
-    from ``DefaultExecutor`` and arrives in the ``RunResult.exception``
-    as a bare ``asyncio.CancelledError``. ``_finalize_run_result``'s
-    bare-``CancelledError`` branch converts it to ``MarimoInterrupt``,
-    which ``run()`` recognises to flip the flag.
+    A bare `asyncio.CancelledError` arriving in `RunResult.exception` is
+    converted to `MarimoInterrupt` by the bare-`CancelledError` branch
+    of `_finalize_run_result`, which `run()` recognises to flip the
+    flag.
 
-    We simulate the post-fix evaluator output directly (a bare
-    ``CancelledError`` in the ``RunResult``) so this test is independent
-    of the executor's coroutine compilation; the executor-level
-    propagation is covered by
-    ``test_executor_async_cancellation_propagates_unwrapped``.
+    Simulates the evaluator output directly (a bare `CancelledError` in
+    the `RunResult`) so this test is independent of the executor's
+    coroutine compilation.
     """
     import asyncio
 

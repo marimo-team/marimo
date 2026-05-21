@@ -15,12 +15,10 @@ if TYPE_CHECKING:
 
 
 def _strip_frame(e: BaseException, count: int = 1) -> None:
-    """Drop the top ``count`` frames from ``e.__traceback__``.
+    """Drop the top `count` frames from `e.__traceback__`.
 
-    Used by executors to elide their own frames so user-facing
-    tracebacks start at user code. Stops early if the traceback runs
-    out — never strips the last frame, so we don't lose the only
-    frame we have.
+    Stops early if the traceback runs out — never strips the last
+    frame, so we don't lose the only frame we have.
     """
     tb = e.__traceback__
     for _ in range(count):
@@ -58,9 +56,7 @@ class DefaultExecutor:
             exec(cell.body, glbls)
             return eval(cell.last_expr, glbls)
         except asyncio.CancelledError:
-            # Cancellation is control flow, not user error — let the
-            # caller see the bare exception so the runner's interrupt
-            # path fires.
+            # Cancellation is control flow, not user error — surface bare.
             raise
         except BaseException as e:
             # Strip our own frame so user-facing tracebacks start at user code.

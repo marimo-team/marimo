@@ -49,7 +49,7 @@ class Evaluator:
             result: RunResult = RunResult(output=None, exception=body_exc)
         elif skip is not None:
             # Lifecycle short-circuited — pass its full RunResult through
-            # so ``accumulated_output`` and any other field survive.
+            # so `accumulated_output` and any other field survive.
             result = (
                 skip.result
                 if skip.result is not None
@@ -67,7 +67,7 @@ class Evaluator:
     def evaluate_sync(
         self, cell: CellImpl, glbls: MutableGlobals
     ) -> RunResult:
-        """Sync mirror of ``evaluate`` — for callers without an event loop."""
+        """Sync mirror of `evaluate` — for callers without an event loop."""
         completed, skip, body_exc = self._setup_chain(cell, glbls)
 
         if body_exc is not None:
@@ -90,12 +90,7 @@ class Evaluator:
     async def evaluate_interruptible(
         self, cell: CellImpl, glbls: MutableGlobals
     ) -> RunResult:
-        """Await ``evaluate`` with SIGINT capture for coroutine cells.
-
-        SIGINT during an awaited coroutine raises in the event loop, not
-        in the user's coroutine. Wrap the future so SIGINT cancels it.
-        Sync cells and non-main-thread callers just await ``evaluate``.
-        """
+        """Await `evaluate` with SIGINT capture for coroutine cells."""
         if not cell.is_coroutine():
             return await self.evaluate(cell, glbls)
         future = asyncio.ensure_future(self.evaluate(cell, glbls))
@@ -190,12 +185,7 @@ def resolve_executor() -> Executor:
 # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312
 @contextlib.contextmanager
 def _cancel_on_sigint(future: asyncio.Future[Any]) -> Iterator[None]:
-    """Cancel ``future`` if a SIGINT arrives during the ``with`` block.
-
-    SIGINT raises in the event loop when running async code, but we want
-    it to halt the coroutine. Ideally it would raise ``KeyboardInterrupt``,
-    but this turns it into a ``CancelledError``.
-    """
+    """Cancel `future` if a SIGINT arrives during evaluation."""
     sigint_future: asyncio.Future[int] = asyncio.Future()
 
     def cancel_unless_done(f: asyncio.Future[Any], _: Any) -> None:
@@ -211,10 +201,10 @@ def _cancel_on_sigint(future: asyncio.Future[Any]) -> Iterator[None]:
     )
 
     # Capture the previously-installed SIGINT handler *before* we install
-    # ours so ``handle_sigint`` can invoke it for its side effects
+    # ours so `handle_sigint` can invoke it for its side effects
     # (kernel broadcast, duckdb interrupt). For async cells the actual
     # halt comes from cancelling the future, not from a raised
-    # ``MarimoInterrupt`` — so we swallow that here.
+    # `MarimoInterrupt` — so we swallow that here.
     prior_sigint = signal.getsignal(signal.SIGINT)
 
     def handle_sigint(signum: int, frame: Any) -> None:
