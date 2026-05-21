@@ -49,6 +49,15 @@ def test_markdown_app_detected(tmp_path: Path):
     assert is_marimo_app(str(f))
 
 
+def test_markdown_app_detected_with_long_frontmatter(tmp_path: Path):
+    """Long YAML frontmatter must not hide the marimo-version marker."""
+    padding = "\n".join(f"key{i}: value{i}" for i in range(50))
+    content = f"---\n{padding}\nmarimo-version: 0.1.0\n---\n"
+    assert len(content.encode()) > 512  # ensure we exercise the slow path
+    f = _write(tmp_path / "notebook.md", content)
+    assert is_marimo_app(str(f))
+
+
 def test_python_app_detected_with_long_docstring(tmp_path: Path):
     """Long module docstrings must not hide marimo markers (issue #9647)."""
     f = _write(tmp_path / "app.py", f'"""{"x" * 1024}"""\n' + MARIMO_APP)

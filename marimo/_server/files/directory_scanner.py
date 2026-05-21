@@ -19,54 +19,48 @@ def is_marimo_app(full_path: str) -> bool:
     Detect whether a file is a marimo app.
 
     Rules:
-    - Markdown (`.md`/`.qmd`) files are marimo apps if the first 512 bytes
-      contain `marimo-version:`. The marker lives in the YAML frontmatter
-      at the top, so a small header read is sufficient.
+    - Markdown (`.md`/`.qmd`) files are marimo apps if they contain
+      `marimo-version:` (frontmatter marker).
     - Python (`.py`) files are marimo apps if they contain both
-      `marimo.App` and `import marimo`. The first 512 bytes are scanned
-      first (fast path); on a miss we fall back to a full-file scan,
-      capped at 10 MB, so notebooks with long module docstrings or
-      `# /// script` headers are still detected.
+      `marimo.App` and `import marimo`.
+    - In both cases the first 512 bytes are scanned first (fast path);
+      on a miss we read the rest of the file, capped at 50 MB. This
+      handles long module docstrings, large `# /// script` headers,
+      and unusually long markdown frontmatter.
     - Any errors while reading result in `False`.
     """
-    READ_LIMIT = 512
-    # Bound the slow-path read so a stray huge file can't stall scanning.
-    # Well above any realistic marimo notebook.
-    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
-
-    def contains_marimo_app(content: bytes) -> bool:
-        return b"marimo.App" in content and b"import marimo" in content
+    FAST_PATH_BYTES = 512
+    # Cap the slow-path read so a stray huge file can't stall scanning.
+    # Well above any realistic marimo notebook (including ones with
+    # embedded base64 data).
+    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
     try:
         path = MarimoPath(full_path)
 
-        # Fast extension check to avoid I/O for unrelated files
-        if not path.is_python() and not path.is_markdown():
+        # Fast extension check to avoid I/O for unrelated files.
+        if path.is_markdown():
+            markers: tuple[bytes, ...] = (b"marimo-version:",)
+        elif path.is_python():
+            markers = (b"import marimo", b"marimo.App")
+        else:
             return False
+
+        def matches(content: bytes) -> bool:
+            return all(m in content for m in markers)
 
         with open(full_path, "rb") as f:
-            header = f.read(READ_LIMIT)
-
-        if path.is_markdown():
-            return b"marimo-version:" in header
-
-        # Python: try the fast path first.
-        if contains_marimo_app(header):
-            return True
-
-        # Header didn't match — could be a long module docstring, a
-        # `# /// script` block, or simply not a marimo file. Fall back to
-        # a full-file scan, bounded by file size.
-        if len(header) < READ_LIMIT:
-            # Whole file already in `header`; markers absent.
-            return False
-        try:
-            size = os.path.getsize(full_path)
-        except OSError:
-            return False
-        if size > MAX_FILE_SIZE:
-            return False
-        return contains_marimo_app(path.read_bytes())
+            header = f.read(FAST_PATH_BYTES)
+            if matches(header):
+                return True
+            # Fast path missed. If the file is smaller than the window,
+            # we've already seen everything.
+            if len(header) < FAST_PATH_BYTES:
+                return False
+            # Continue reading the rest of the file, bounded by the cap.
+            # Files exceeding the cap are treated as non-marimo apps.
+            rest = f.read(MAX_FILE_SIZE - FAST_PATH_BYTES)
+            return matches(header + rest)
     except Exception as e:
         LOGGER.debug("Error reading file %s: %s", full_path, e)
         return False
