@@ -17,6 +17,7 @@ from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.executor.executor import DefaultExecutor, Executor
 from marimo._runtime.executor.lifecycles import ExecutionLifecycle, Skip
 from marimo._runtime.runner.result import RunResult
+from marimo._types.globals import MutableGlobals
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -39,7 +40,7 @@ class Evaluator:
         self.lifecycles: list[ExecutionLifecycle] = lifecycles or []
 
     async def evaluate(
-        self, cell: CellImpl, glbls: dict[str, Any]
+        self, cell: CellImpl, glbls: MutableGlobals
     ) -> RunResult:
         """Setup lifecycles, execute, and teardown lifecycles."""
         completed, skip, body_exc = self._setup_chain(cell, glbls)
@@ -64,7 +65,7 @@ class Evaluator:
         return self._teardown_chain(cell, glbls, completed, result)
 
     def evaluate_sync(
-        self, cell: CellImpl, glbls: dict[str, Any]
+        self, cell: CellImpl, glbls: MutableGlobals
     ) -> RunResult:
         """Sync mirror of ``evaluate`` — for callers without an event loop."""
         completed, skip, body_exc = self._setup_chain(cell, glbls)
@@ -87,7 +88,7 @@ class Evaluator:
         return self._teardown_chain(cell, glbls, completed, result)
 
     async def evaluate_interruptible(
-        self, cell: CellImpl, glbls: dict[str, Any]
+        self, cell: CellImpl, glbls: MutableGlobals
     ) -> RunResult:
         """Await ``evaluate`` with SIGINT capture for coroutine cells.
 
@@ -104,7 +105,7 @@ class Evaluator:
         return await future
 
     def _setup_chain(
-        self, cell: CellImpl, glbls: dict[str, Any]
+        self, cell: CellImpl, glbls: MutableGlobals
     ) -> tuple[list[ExecutionLifecycle], Skip | None, BaseException | None]:
         completed: list[ExecutionLifecycle] = []
         skip: Skip | None = None
@@ -122,7 +123,7 @@ class Evaluator:
     def _teardown_chain(
         self,
         cell: CellImpl,
-        glbls: dict[str, Any],
+        glbls: MutableGlobals,
         completed: list[ExecutionLifecycle],
         result: RunResult,
     ) -> RunResult:
