@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from copy import deepcopy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import pytest
@@ -345,3 +345,97 @@ def test_duckdb_engine_polars_no_pyarrow(
             result.collect() if expected_type_name == "LazyFrame" else result
         )
         assert len(materialized) == 4
+
+
+class _RelationProxy:
+    # _duckdb.DuckDBPyRelation is a pybind class and rejects attribute
+    # assignment, so we wrap it to intercept .pl().
+    def __init__(self, relation: Any, pl_override: Any) -> None:
+        self._relation = relation
+        self._pl_override = pl_override
+
+    def pl(self, *args: Any, **kwargs: Any) -> Any:
+        return self._pl_override(self._relation, *args, **kwargs)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._relation, name)
+
+
+def _run_with_pl_spy(
+    duckdb_connection: duckdb.DuckDBPyConnection,
+    pl_impl: Any,
+) -> tuple[Any, list[dict]]:
+    """Execute a lazy-polars query with `pl_impl` wrapping the real `pl()`."""
+    from marimo._sql.engines import duckdb as duckdb_engine_mod
+
+    pl_calls: list[dict] = []
+    real_wrapped_sql = duckdb_engine_mod.wrapped_sql
+
+    def spy(relation: Any, *args: Any, **kwargs: Any) -> Any:
+        pl_calls.append(kwargs)
+        return pl_impl(relation, *args, **kwargs)
+
+    def spy_wrapped_sql(query: str, connection: Any) -> Any:
+        return _RelationProxy(real_wrapped_sql(query, connection), spy)
+
+    with (
+        mock.patch.object(
+            DuckDBEngine, "sql_output_format", return_value="lazy-polars"
+        ),
+        mock.patch.object(
+            duckdb_engine_mod, "wrapped_sql", side_effect=spy_wrapped_sql
+        ),
+    ):
+        engine = DuckDBEngine(
+            duckdb_connection, engine_name=VariableName("test_duckdb")
+        )
+        result = engine.execute("SELECT * FROM test ORDER BY id")
+
+    return result, pl_calls
+
+
+@pytest.mark.skipif(
+    not HAS_DUCKDB or not HAS_POLARS,
+    reason="DuckDB and Polars not installed",
+)
+def test_duckdb_engine_lazy_polars_uses_streaming(
+    duckdb_connection: duckdb.DuckDBPyConnection,
+) -> None:
+    # Regression test for #9639: lazy-polars output must stream via
+    # pl(lazy=True), not eagerly materialize then .lazy().
+    import polars as pl
+
+    def pl_impl(relation: Any, *args: Any, **kwargs: Any) -> Any:
+        return relation.pl(*args, **kwargs)
+
+    result, pl_calls = _run_with_pl_spy(duckdb_connection, pl_impl)
+
+    assert isinstance(result, pl.LazyFrame)
+    assert len(result.collect()) == 4
+    assert pl_calls == [{"batch_size": 100_000, "lazy": True}]
+
+
+@pytest.mark.skipif(
+    not HAS_DUCKDB or not HAS_POLARS,
+    reason="DuckDB and Polars not installed",
+)
+def test_duckdb_engine_lazy_polars_falls_back_on_older_duckdb(
+    duckdb_connection: duckdb.DuckDBPyConnection,
+) -> None:
+    # Regression test for #9639: DuckDB <1.4 rejects the `lazy` kwarg, and
+    # `pl(lazy=True)` also fails without pyarrow. Both must fall back to the
+    # Arrow PyCapsule path.
+    import polars as pl
+
+    def pl_impl(relation: Any, *args: Any, **kwargs: Any) -> Any:
+        if "lazy" in kwargs:
+            raise TypeError("pl() got an unexpected keyword argument 'lazy'")
+        return relation.pl(*args, **kwargs)
+
+    result, pl_calls = _run_with_pl_spy(duckdb_connection, pl_impl)
+
+    assert isinstance(result, pl.LazyFrame)
+    assert len(result.collect()) == 4
+    # Only the first call (lazy=True, raises) reaches `pl`; the fallback uses
+    # `to_polars()` (Arrow PyCapsule) and never touches `relation.pl()`.
+    assert pl_calls == [{"batch_size": 100_000, "lazy": True}]
