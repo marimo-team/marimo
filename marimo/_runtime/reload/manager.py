@@ -85,10 +85,18 @@ class AutoreloadManager:
             yield
             return
         snapshot = set(sys.modules)
-        self._reloader.check(modules=sys.modules, reload=True)
+        # Entry: skip stdlib/site-packages so cells don't pay for stat-ing
+        # them. This is the perf-critical call.
+        self._reloader.check(
+            modules=sys.modules, reload=True, skip_non_user_modules=True
+        )
         try:
             yield
         finally:
+            # Exit: record mtimes for modules the cell just imported. Don't
+            # skip here — `new_modules` is small (typically 0-3) and we need
+            # an mtime baseline for newly-imported installed packages so the
+            # next edit isn't silently treated as the initial state.
             new_modules = set(sys.modules) - snapshot
             self._reloader.check(
                 modules={m: sys.modules[m] for m in new_modules},

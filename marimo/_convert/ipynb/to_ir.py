@@ -53,18 +53,18 @@ _CLOSE_P_RE = re.compile(r"</p>", re.IGNORECASE)
 
 
 def _strip_paragraph_tags(source: str) -> str:
-    """Remove bare ``<p>`` / ``</p>`` HTML tags from markdown source.
+    """Remove bare `<p>` / `</p>` HTML tags from markdown source.
 
-    Jupyter markdown cells often wrap content in ``<p>…</p>`` tags which are
+    Jupyter markdown cells often wrap content in `<p>…</p>` tags which are
     redundant in plain markdown and can break LaTeX rendering inside
-    ``mo.md()``.
+    `mo.md()`.
 
-    Only bare ``<p>`` tags (without attributes) are removed.  Styled tags such
-    as ``<p style="color: red">`` are preserved because they carry semantic
-    meaning.  The matching ``</p>`` is only removed when it closes a bare
-    ``<p>``.
+    Only bare `<p>` tags (without attributes) are removed.  Styled tags such
+    as `<p style="color: red">` are preserved because they carry semantic
+    meaning.  The matching `</p>` is only removed when it closes a bare
+    `<p>`.
 
-    Closing ``</p>`` tags for bare opens are replaced with a newline to
+    Closing `</p>` tags for bare opens are replaced with a newline to
     preserve paragraph separation.  Content inside fenced code blocks is
     left untouched.
     """
@@ -1266,7 +1266,7 @@ def bind_cell_metadata(
 
     - If "hide-cell" or the standard nbconvert "remove-input" tag is present,
       the cell is marked hidden (and the tag is consumed).
-    - The Jupyter UI hint ``metadata.jupyter.source_hidden`` is also treated as
+    - The Jupyter UI hint `metadata.jupyter.source_hidden` is also treated as
       a hidden-code signal.
     - Remaining tags (if any) are inserted as a comment at the top of the source.
     - If marimo-specific metadata is present, it is used to restore cell config.

@@ -37,7 +37,7 @@ app = marimo.App()
 
 
 def _marimo_file(path: str, name: str = "test.py") -> MarimoFile:
-    """Build a ``MarimoFile`` for a real path on disk."""
+    """Build a `MarimoFile` for a real path on disk."""
     return MarimoFile(
         name=name,
         path=path,
@@ -268,7 +268,7 @@ class TestNotebookWorkspace(unittest.TestCase):
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
     def test_fixed_files_accepts_dotdot_that_normalizes_to_allowed(self):
-        """Regression test for #8414 — ``..`` paths must normalize correctly."""
+        """Regression test for #8414 — `..` paths must normalize correctly."""
         dotdot_path = os.path.join(
             self.nested_dir, "..", os.path.basename(self.test_file1.name)
         )
@@ -278,7 +278,7 @@ class TestNotebookWorkspace(unittest.TestCase):
         assert os.path.exists(resolved)
 
     def test_fixed_files_new_file_key_is_rejected(self):
-        """``__new__`` keys are not valid in run mode."""
+        """`__new__` keys are not valid in run mode."""
         workspace = FixedFilesWorkspace([])
         with pytest.raises(HTTPException) as exc:
             workspace.resolve(NewFileKey())
@@ -287,15 +287,15 @@ class TestNotebookWorkspace(unittest.TestCase):
     # ----- security: DirectoryWorkspace -----
 
     def test_directory_workspace_new_file_key_returns_none(self):
-        """``NewFileKey`` resolves to ``None`` (a blank notebook)."""
+        """`NewFileKey` resolves to `None` (a blank notebook)."""
         workspace = DirectoryWorkspace(self.test_dir, include_markdown=False)
         assert workspace.resolve(NewFileKey()) is None
 
     def test_directory_workspace_only_exact_sentinel_is_new(self):
-        """Only the exact ``__new__`` sentinel resolves to the blank notebook.
+        """Only the exact `__new__` sentinel resolves to the blank notebook.
 
         After the FileKey ADT migration, anything other than the literal
-        ``__new__`` parses to a :class:`PathFileKey` and goes through normal
+        `__new__` parses to a :class:`PathFileKey` and goes through normal
         containment validation.
         """
         workspace = DirectoryWorkspace(self.test_dir, include_markdown=False)
@@ -311,7 +311,7 @@ class TestNotebookWorkspace(unittest.TestCase):
             )
 
     def test_directory_workspace_temp_dir_does_not_enable_traversal(self):
-        """A temp-dir bypass must not let attackers escape via ``..``."""
+        """A temp-dir bypass must not let attackers escape via `..`."""
         with (
             tempfile.TemporaryDirectory() as base_dir,
             tempfile.TemporaryDirectory() as temp_dir,
@@ -333,7 +333,7 @@ class TestNotebookWorkspace(unittest.TestCase):
     # ----- security: EmptyWorkspace -----
 
     def test_empty_workspace_load_with_new_file_key_returns_blank(self):
-        """Bare ``__new__`` key always yields an unbacked manager."""
+        """Bare `__new__` key always yields an unbacked manager."""
         workspace = EmptyWorkspace()
         manager = workspace.load(NewFileKey())
         assert manager.filename is None
@@ -346,7 +346,7 @@ class TestNotebookWorkspace(unittest.TestCase):
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
     def test_empty_workspace_resolve_returns_absolute_normalized(self):
-        """``resolve`` must return an absolute, normalized path so downstream
+        """`resolve` must return an absolute, normalized path so downstream
         lookups (session keys, comparisons) don't mismatch between relative
         and absolute spellings of the same file.
         """
@@ -363,12 +363,12 @@ class TestNotebookWorkspace(unittest.TestCase):
             os.chdir(original_cwd)
 
     def test_empty_workspace_load_with_existing_path_falls_back(self):
-        """``marimo new`` boots an EmptyWorkspace; opening a recent file must
+        """`marimo new` boots an EmptyWorkspace; opening a recent file must
         still work via the unconditional existence fallback.
 
         This is intentionally permissive — there's no allowlist, since the
         boot mode has no concept of one. Threat model: anyone able to hit
-        ``marimo new``'s endpoint already has the same trust level as the
+        `marimo new`'s endpoint already has the same trust level as the
         process owner.
         """
         workspace = EmptyWorkspace()
@@ -392,7 +392,7 @@ def test_file_key_wire_format() -> None:
 
 
 def test_parse_file_key_only_exact_sentinel_is_new() -> None:
-    """Strings that look like ``__new__`` prefixes are paths, not new files."""
+    """Strings that look like `__new__` prefixes are paths, not new files."""
     assert parse_file_key(NEW_FILE_WIRE) == NewFileKey()
     assert parse_file_key("__new__suffix.py") == PathFileKey(
         "__new__suffix.py"

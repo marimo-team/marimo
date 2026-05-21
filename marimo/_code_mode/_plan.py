@@ -142,7 +142,7 @@ def _build_plan(
 
 
 def _validate_ops(ops: list[_Op]) -> None:
-    """Check for conflicting operations. Raises ``ValueError`` on conflict."""
+    """Check for conflicting operations. Raises `ValueError` on conflict."""
     deleted: set[CellId_t] = set()
     updated: set[CellId_t] = set()
     moved: set[CellId_t] = set()

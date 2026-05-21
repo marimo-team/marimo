@@ -319,7 +319,7 @@ def read_virtual_file_chunked(
 
     Args:
         filename: virtual file name
-        byte_length: number of bytes to read (after applying ``start``)
+        byte_length: number of bytes to read (after applying `start`)
         start: offset in bytes to begin reading from (for HTTP Range requests)
     """
     try:

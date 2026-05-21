@@ -80,22 +80,26 @@ const DownloadButton = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleClick = async (e: React.MouseEvent) => {
-    if (!data.lazy) {
-      return;
-    }
-
     if (data.disabled) {
+      e.preventDefault();
+      e.stopPropagation();
       return;
     }
 
     e.preventDefault();
+
+    if (!data.lazy) {
+      downloadByURL(data.data, data.filename ?? undefined);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const loadedData = await load({});
       downloadByURL(
         loadedData.data,
-        loadedData.filename || data.filename || "download",
+        loadedData.filename ?? data.filename ?? undefined,
       );
     } catch (error) {
       toast({
@@ -114,9 +118,7 @@ const DownloadButton = ({
   return (
     <a
       href={data.data}
-      download={data.filename || true}
-      target="_blank"
-      rel="noopener noreferrer"
+      download={data.filename ?? ""}
       onClick={handleClick}
       className={buttonVariants({
         variant: "secondary",

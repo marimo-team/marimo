@@ -4,10 +4,10 @@
 A :class:`NotebookWorkspace` represents the set of notebooks a server is
 hosting. Concrete subclasses cover:
 
-- :class:`EmptyWorkspace` — untitled (``__new__``) notebook
-- :class:`SingleFileWorkspace` — single notebook (``marimo edit nb.py``)
-- :class:`FixedFilesWorkspace` — fixed allowlist (``marimo run a.py b.py``)
-- :class:`DirectoryWorkspace` — lazy directory scan (``marimo edit ./``)
+- :class:`EmptyWorkspace` — untitled (`__new__`) notebook
+- :class:`SingleFileWorkspace` — single notebook (`marimo edit nb.py`)
+- :class:`FixedFilesWorkspace` — fixed allowlist (`marimo run a.py b.py`)
+- :class:`DirectoryWorkspace` — lazy directory scan (`marimo edit ./`)
 """
 
 import os

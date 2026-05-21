@@ -9,11 +9,13 @@ Based on the autoreload extension from the IPython project (BSD-3 Clause).
 
 from __future__ import annotations
 
+import functools
 import gc
 import io
 import modulefinder
 import os
 import sys
+import sysconfig
 import threading
 import traceback
 import types
@@ -71,6 +73,32 @@ def safe_hasattr(obj: M, attr: str) -> bool:
         return hasattr(obj, attr)
     except ModuleNotFoundError:
         return False
+
+
+@functools.cache
+def _non_user_module_roots() -> tuple[str, ...]:
+    """Filesystem prefixes that hold stdlib + site-packages modules.
+
+    Each entry is normalized and terminated with a separator so that a raw
+    prefix check on a normalized path matches whole directory boundaries
+    (e.g. `/usr/lib/python3.13/` does not match `/usr/lib/python3.13-mine/`).
+    """
+    roots: set[str] = set()
+    for key in ("stdlib", "platstdlib", "purelib", "platlib"):
+        p = sysconfig.get_path(key)
+        if p:
+            roots.add(p)
+    # Fallback for builds where sysconfig's stdlib path is missing or
+    # differs from the runtime location of the stdlib.
+    roots.add(os.path.dirname(os.__file__))
+
+    normalized: set[str] = set()
+    for r in roots:
+        n = os.path.normcase(os.path.realpath(r))
+        if not n.endswith(os.sep):
+            n += os.sep
+        normalized.add(n)
+    return tuple(normalized)
 
 
 def modules_imported_by_cell(
@@ -160,9 +188,28 @@ class ModuleReloader:
         # for thread-safety
         self.lock = threading.Lock()
         self._module_dependency_finder = ModuleDependencyFinder()
+        # modname -> cached `__file__` for modules classified as non-user.
+        # Populated by every `check()` call (memoizing `_is_user_module`);
+        # consumed only when `skip_non_user_modules=True`. Stored value is
+        # used to invalidate the entry if `sys.modules[modname]` is later
+        # rebound to a module with a different `__file__` (e.g. a user
+        # module shadowing an installed package).
+        self._skip: dict[str, str | None] = {}
 
         # Timestamp existing modules
         self.check(modules=sys.modules, reload=False)
+
+    def _is_user_module(self, module: types.ModuleType) -> bool:
+        """True for modules whose source lives outside stdlib/site-packages.
+
+        Editable installs (e.g. `pip install -e .`) point `__file__` at the
+        source tree, so they are correctly classified as user code.
+        """
+        f = safe_getattr(module, "__file__", None)
+        if not f:
+            return False
+        path = os.path.normcase(os.path.realpath(f))
+        return not path.startswith(_non_user_module_roots())
 
     def filename_and_mtime(
         self, module: types.ModuleType
@@ -206,11 +253,23 @@ class ModuleReloader:
             )
 
     def check(
-        self, modules: dict[str, types.ModuleType], reload: bool
+        self,
+        modules: dict[str, types.ModuleType],
+        reload: bool,
+        *,
+        skip_non_user_modules: bool = False,
     ) -> set[types.ModuleType]:
         """Check timestamps of modules, optionally reload them.
 
         Also patches existing objects with hot-reloaded ones.
+
+        When `skip_non_user_modules` is True, modules whose `__file__` is
+        under stdlib/site-packages are skipped — intended for the per-cell
+        hot path. The background `ModuleWatcher` leaves it False so it still
+        stats every module on its 1s loop, which is what keeps edits inside
+        installed packages detectable. Both paths populate the same skip
+        cache, so the hot path benefits from classifications the watcher
+        has already done.
 
         Returns a set of modules that were found to have been modified.
         """
@@ -227,6 +286,30 @@ class ModuleReloader:
             for modname in list(modules.keys()):
                 m = modules.get(modname, None)
                 if m is None:
+                    continue
+                # Classify (memoized via `_skip`). The hot path uses the
+                # cache to short-circuit; the watcher always falls through
+                # to the stat check so that edits inside installed packages
+                # are still picked up. The cached entry stores `__file__`,
+                # so a module rebound to a new location gets reclassified.
+                current_file = safe_getattr(m, "__file__", None)
+                if modname in self._skip:
+                    if self._skip[modname] == current_file:
+                        is_non_user = True
+                    else:
+                        # Rebound to a different file — drop all cached
+                        # state for this name so the new module starts
+                        # from a clean mtime baseline.
+                        del self._skip[modname]
+                        self.modules_mtimes.pop(modname, None)
+                        self.stale_modules.discard(modname)
+                        is_non_user = False
+                else:
+                    is_non_user = False
+                if not is_non_user and not self._is_user_module(m):
+                    self._skip[modname] = current_file
+                    is_non_user = True
+                if is_non_user and skip_non_user_modules:
                     continue
 
                 module_mtime = self.filename_and_mtime(m)

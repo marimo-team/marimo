@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import { computeSlideCellsInfo } from "../compute-slide-cells";
 import type { SlideConfig, SlidesLayout } from "../types";
 import type { CellId } from "@/core/cells/ids";
+import { cellId } from "@/__tests__/branded";
 
 interface TestCell {
   id: CellId;
@@ -15,10 +16,10 @@ const DEFAULT_OUTPUT: TestCell["output"] = { data: "ok" };
 const cell = (
   id: string,
   output: TestCell["output"] = DEFAULT_OUTPUT,
-): TestCell => ({ id: id as CellId, output });
+): TestCell => ({ id: cellId(id), output });
 
 const layoutOf = (entries: Array<[string, SlideConfig]>): SlidesLayout => ({
-  cells: new Map(entries.map(([id, cfg]) => [id as CellId, cfg])),
+  cells: new Map(entries.map(([id, cfg]) => [cellId(id), cfg])),
   deck: {},
 });
 
@@ -121,7 +122,7 @@ describe("computeSlideCellsInfo", () => {
     // Skipped cells are still "visible" deck cells — they just aren't rendered
     // in reveal. The minimap relies on the full list plus skippedIds.
     expect(result.cellsWithOutput.map((c) => c.id)).toEqual(["a", "b", "c"]);
-    expect(result.slideTypes.get("b" as CellId)).toBe("skip");
+    expect(result.slideTypes.get(cellId("b"))).toBe("skip");
   });
 
   it("ignores layout entries for cells that have no output", () => {
@@ -137,7 +138,7 @@ describe("computeSlideCellsInfo", () => {
     );
     expect(result.cellsWithOutput.map((c) => c.id)).toEqual(["a"]);
     expect(result.skippedIds.size).toBe(0);
-    expect(result.slideTypes.has("b" as CellId)).toBe(false);
+    expect(result.slideTypes.has(cellId("b"))).toBe(false);
   });
 
   it("preserves the input order of cells in cellsWithOutput", () => {

@@ -121,8 +121,8 @@ class WebSocketConnectionValidator:
     def _extract_file_key(self) -> FileKey | None:
         """Extract a FileKey from query params or fall back to the workspace.
 
-        An empty ``?file=`` value falls back to the workspace key — same as a
-        missing query param — to preserve the prior ``or``-chain semantics.
+        An empty `?file=` value falls back to the workspace key — same as a
+        missing query param — to preserve the prior `or`-chain semantics.
         """
         raw = self.app_state.query_params(FILE_QUERY_PARAM_KEY)
         if raw:

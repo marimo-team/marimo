@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, cast
 from marimo._ast.cell import Cell
 from marimo._ast.fast_stack import fast_stack
 from marimo._ast.parse import ast_parse
-from marimo._runtime.context import ContextNotInitializedError, get_context
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -358,6 +357,16 @@ def build_test_class(
         base_local["pytest"] = pytest
     except ImportError:
         pass
+
+    # Deferred to module-load time: importing marimo._runtime.context at
+    # the top of this file closes a cycle through
+    # commands → outputs → cell_output → errors → dataflow → compiler →
+    # pytest → context.  Pulling the import inside the function keeps
+    # commands.py free to top-import the new outputs module.
+    from marimo._runtime.context import (
+        ContextNotInitializedError,
+        get_context,
+    )
 
     # Try to get context globals, or fall back to frame locals
     try:

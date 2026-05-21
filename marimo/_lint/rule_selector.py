@@ -33,9 +33,9 @@ def resolve_rules(
         3. Return instantiated rules in sorted code order.
 
     Args:
-        config: LintConfig with optional ``select`` and ``ignore`` keys.
+        config: LintConfig with optional `select` and `ignore` keys.
         all_rules: Available rule classes keyed by code.
-            Defaults to ``RULE_CODES`` when None.
+            Defaults to `RULE_CODES` when None.
 
     Returns:
         Instantiated LintRule list, sorted by code.

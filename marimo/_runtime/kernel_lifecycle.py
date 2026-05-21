@@ -88,10 +88,10 @@ _T = TypeVar("_T")
 
 
 def drain_stale(queue: Any, *, latest: _T) -> _T:
-    """Discard stale items queued behind ``latest`` and return the newest.
+    """Discard stale items queued behind `latest` and return the newest.
 
-    Drains via ``get_nowait()`` until exhausted; ``empty()`` is intentionally
-    avoided because ``multiprocessing.Queue.empty()`` can lie.
+    Drains via `get_nowait()` until exhausted; `empty()` is intentionally
+    avoided because `multiprocessing.Queue.empty()` can lie.
     """
     while True:
         try:

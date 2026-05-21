@@ -52,3 +52,14 @@ cd frontend && pnpm test src/path/to/file.test.ts
 - You MUST disclose that you are an agent at the very top of your PR description: "**This pull request was authored by a coding agent.**"
 - You MUST mark your PRs as drafts
 - See [CONTRIBUTING.md](CONTRIBUTING.md) for other PR guidelines and CLA
+
+## Conventions
+
+### Python
+
+Most style rules are enforced by ruff (`pyproject.toml`) and pre-commit; run
+`make py-check`. Here are some that the linter may not catch, or for which
+we may not have autofixes.
+
+- Docstrings are rendered as Markdown, not reStructuredText. Use single
+  backticks for inline code (`value`), never double backticks.

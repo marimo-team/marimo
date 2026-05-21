@@ -740,6 +740,7 @@ const EditableCellComponent = ({
             <ConsoleOutput
               consoleOutputs={cellRuntime.consoleOutputs}
               stale={consoleOutputStale}
+              interrupted={cellRuntime.interrupted}
               // Empty name if serialization triggered
               cellName={cellRuntime.serialization ? "_" : cellData.name}
               onRefactorWithAI={handleRefactorWithAI}
@@ -1204,6 +1205,7 @@ const SetupCellComponent = ({
             <ConsoleOutput
               consoleOutputs={cellRuntime.consoleOutputs}
               stale={consoleOutputStale}
+              interrupted={cellRuntime.interrupted}
               // Don't show name
               cellName={"_"}
               onRefactorWithAI={handleRefactorWithAI}

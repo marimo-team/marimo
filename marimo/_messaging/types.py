@@ -41,14 +41,14 @@ class NoopStream(Stream):
 
 
 def _ensure_plain_str(s: str) -> str:
-    """Coerce str subclasses to plain ``str``.
+    """Coerce str subclasses to plain `str`.
 
-    Some libraries (e.g. loguru) emit str subclasses whose ``__slots__``
-    carry extra metadata (loguru's ``Message.record``).  When such an
+    Some libraries (e.g. loguru) emit str subclasses whose `__slots__`
+    carry extra metadata (loguru's `Message.record`).  When such an
     object reaches msgspec serialization the encoder may serialize the
     slots/attributes instead of the string value, corrupting console output.
-    Converting to a bare ``str`` strips those attributes cheaply and is
-    a no-op for regular strings (``type(s) is str`` fast-path).
+    Converting to a bare `str` strips those attributes cheaply and is
+    a no-op for regular strings (`type(s) is str` fast-path).
 
     Raises TypeError for non-str inputs to preserve io.TextIOBase.write()
     semantics.
@@ -63,7 +63,7 @@ def _ensure_plain_str(s: str) -> str:
 
 
 # These streams are not stoppable by users (we don't implement stop).
-class Stdout(io.TextIOBase):
+class Stdout(io.TextIOBase, abc.ABC):
     name = "stdout"
 
     @abc.abstractmethod
@@ -81,7 +81,7 @@ class Stdout(io.TextIOBase):
         """Tear down resources, if any."""
 
 
-class Stderr(io.TextIOBase):
+class Stderr(io.TextIOBase, abc.ABC):
     name = "stderr"
 
     @abc.abstractmethod
@@ -99,8 +99,31 @@ class Stderr(io.TextIOBase):
         """Tear down resources, if any."""
 
 
-class Stdin(io.TextIOBase):
+class Stdin(io.TextIOBase, abc.ABC):
     name = "stdin"
+
+    @abc.abstractmethod
+    def _readline_with_prompt(
+        self, prompt: str = "", password: bool = False
+    ) -> str:
+        """Send a prompt to the frontend and return the user's bare response.
+
+        Subclasses implement the transport. Returns the user-typed text
+        without a trailing newline (matches Python's input() contract).
+        """
+
+    # `size` and `hint` are accepted for sys.stdin API compatibility but
+    # ignored: marimo's stdin is a single-prompt pseudofile.
+
+    def readline(self, size: int | None = -1) -> str:  # type: ignore[override]
+        del size
+        # Trailing "\n" is required so a blank submission doesn't look like
+        # EOF to builtin input() (used by rich, click, getpass, pdb, etc.).
+        return self._readline_with_prompt(prompt="") + "\n"
+
+    def readlines(self, hint: int | None = -1) -> list[str]:  # type: ignore[override]
+        del hint
+        return [self.readline()]
 
     def _stop(self) -> None:
         """Tear down resources, if any."""

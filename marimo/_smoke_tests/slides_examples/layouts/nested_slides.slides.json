@@ -6,25 +6,32 @@
         "type": "skip"
       },
       {
-        "type": "slide"
+        "type": "slide",
+        "speakerNotes": "We first introduce slides in marimo, and how awesome they are!"
       },
       {
-        "type": "fragment"
+        "type": "fragment",
+        "speakerNotes": "Then, introduce fragments, which reveal line"
       },
       {
-        "type": "fragment"
+        "type": "fragment",
+        "speakerNotes": "by line"
       },
       {
-        "type": "slide"
+        "type": "slide",
+        "speakerNotes": "Here's another slide on the agenda."
       },
       {
-        "type": "slide"
+        "type": "slide",
+        "speakerNotes": "Section A onboard :>"
       },
       {
-        "type": "sub-slide"
+        "type": "sub-slide",
+        "speakerNotes": "These are sub-slides! They flow from a previous slide vertically."
       },
       {
-        "type": "fragment"
+        "type": "fragment",
+        "speakerNotes": "Some long long\n\ntext\n\nabout \n\nthis \n\nslide.\n\nIt's\n\nactually\n\njust plain\n\n\ntext!"
       },
       {
         "type": "fragment"

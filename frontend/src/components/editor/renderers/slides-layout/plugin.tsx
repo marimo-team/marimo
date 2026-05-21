@@ -1,15 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { z } from "zod";
+import type { CellId } from "@/core/cells/ids";
+import { Logger } from "@/utils/Logger";
 import type { ICellRendererPlugin } from "../types";
 import { SlidesLayoutRenderer } from "./slides-layout";
-import type {
-  SerializedSlidesLayout,
-  SlideConfig,
-  SlidesLayout,
+import {
+  type SerializedSlidesLayout,
+  type SlideConfig,
+  type SlidesLayout,
+  SlidesLayoutSchema,
 } from "./types";
-import { Logger } from "@/utils/Logger";
-import type { CellId } from "@/core/cells/ids";
 
 /**
  * Plugin definition for the slides layout.
@@ -20,24 +20,7 @@ export const SlidesLayoutPlugin: ICellRendererPlugin<
 > = {
   type: "slides",
   name: "Slides",
-
-  // All fields are optional so layouts saved by older marimo versions will work
-  validator: z.object({
-    cells: z
-      .array(
-        z.object({
-          type: z.enum(["slide", "sub-slide", "fragment", "skip"]).optional(),
-        }),
-      )
-      .optional(),
-    deck: z
-      .object({
-        transition: z
-          .enum(["none", "fade", "slide", "convex", "concave", "zoom"])
-          .optional(),
-      })
-      .optional(),
-  }),
+  validator: SlidesLayoutSchema,
 
   deserializeLayout: (serialized, cells): SlidesLayout => {
     const serializedCells = serialized.cells ?? [];

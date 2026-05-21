@@ -228,7 +228,7 @@ class OSFileSystem(FileSystem):
         """Stream-write an uploaded file to disk, chunk by chunk.
 
         Avoids loading the full payload into memory (the HTTP multipart
-        path can otherwise buffer 100 MB at once). Writes to a ``.part``
+        path can otherwise buffer 100 MB at once). Writes to a `.part`
         temp file and atomically renames on success so a failed upload
         doesn't leave a half-written file at the final path.
         """

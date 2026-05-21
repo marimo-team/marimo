@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Classify how a kernel subprocess exited.
 
-Used to turn a raw ``multiprocessing.Process.exitcode`` into a structured
-``KernelExitInfo`` with a human-readable message. Best-effort cgroup
+Used to turn a raw `multiprocessing.Process.exitcode` into a structured
+`KernelExitInfo` with a human-readable message. Best-effort cgroup
 inspection adds memory diagnostics on Linux when the kernel was SIGKILLed,
 which on a container is almost always the cgroup OOM killer.
 """

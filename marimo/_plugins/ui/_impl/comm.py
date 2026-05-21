@@ -75,14 +75,14 @@ BufferType = list[Buffer] | None
 
 
 def _ensure_bytes(buf: object) -> bytes:
-    """Coerce a buffer to plain ``bytes`` for msgspec serialization.
+    """Coerce a buffer to plain `bytes` for msgspec serialization.
 
-    msgspec natively handles ``bytes``, ``memoryview``, and ``bytearray``.
+    msgspec natively handles `bytes`, `memoryview`, and `bytearray`.
     Some libraries (e.g. obstore) use custom types that hold binary data
     but aren't subclasses of these, so msgspec can't serialize them directly.
 
-    ``bytes()`` handles memoryview/bytearray on all Python versions, and
-    on Python 3.12+ also handles any object implementing ``__buffer__``.
+    `bytes()` handles memoryview/bytearray on all Python versions, and
+    on Python 3.12+ also handles any object implementing `__buffer__`.
     """
     if isinstance(buf, bytes):
         return buf

@@ -14,8 +14,6 @@ three options:
 2. Implement a `_mime_()` method
 3. Implement an IPython-style `_repr_*_()` method
 
-If you can't modify the object, you can also add a formatter to the marimo library (option 4).
-
 The return value of these methods determines what is shown. `_display_`
 has the highest precedence, then built-in formatters, then `_mime_`, then `IPython` style `_repr_*_`
 methods.
@@ -143,17 +141,3 @@ def __():
 ```
 
 ///
-
-## Option 4: Add a formatter to the marimo repo
-
-The recommended way to render rich displays of objects in marimo is to
-implement `_display_` if possible, otherwise either the IPython `_repr_*_()_`
-protocol or marimo's `_mime_()` protocol. If you are a a user of a library that
-does not render properly in marimo, consider asking the library maintainers to
-implement one of these protocols.
-
-If it is not possible to implement a renderer protocol on the type
-you want displayed, we will consider contributions to add formatters to the
-marimo codebase. [Look at our codebase for
-examples](https://github.com/marimo-team/marimo/tree/main/marimo/_output/formatters),
-then open a pull request.
