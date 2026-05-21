@@ -24,16 +24,17 @@ def is_marimo_app(full_path: str) -> bool:
     - Python (`.py`) files are marimo apps if they contain both
       `marimo.App` and `import marimo`.
     - In both cases the first 512 bytes are scanned first (fast path);
-      on a miss we read the rest of the file, capped at 50 MB. This
+      on a miss we read the rest of the file, capped at 10 MB. This
       handles long module docstrings, large `# /// script` headers,
-      and unusually long markdown frontmatter.
+      and unusually long markdown frontmatter — anything longer than
+      that and the file isn't structured like a marimo notebook.
     - Any errors while reading result in `False`.
     """
     FAST_PATH_BYTES = 512
-    # Cap the slow-path read so a stray huge file can't stall scanning.
-    # Well above any realistic marimo notebook (including ones with
-    # embedded base64 data).
-    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+    # Cap on how far we'll read looking for markers. Marimo notebooks
+    # put `import marimo` near the top; this is just a guard against
+    # stray huge files stalling the scan.
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
     try:
         path = MarimoPath(full_path)
