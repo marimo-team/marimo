@@ -193,8 +193,8 @@ def snapshot_for_scratchpad(
 ) -> tuple[tuple[NotebookCell, ...], CellOutputs]:
     """Snapshot the notebook document and per-cell outputs for code_mode.
 
-    Returned by both ``/api/execute`` and the MCP ``execute_code`` tool
-    and passed on ``ExecuteScratchpadCommand`` so ``cm.get_context()``
+    Returned by both `/api/execute` and the MCP `execute_code` tool
+    and passed on `ExecuteScratchpadCommand` so `cm.get_context()`
     can expose cells and their last outputs.
     """
     cell_ids = session.document.cell_ids

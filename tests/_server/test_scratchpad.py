@@ -54,7 +54,7 @@ def _parse_sse(sse: str) -> tuple[str, dict[str, object]]:
 
 
 class TestSnapshotForScratchpad:
-    """Snapshot helper shared by ``/api/execute`` and MCP ``execute_code``."""
+    """Snapshot helper shared by `/api/execute` and MCP `execute_code`."""
 
     def test_packages_document_and_outputs(self) -> None:
         from marimo._ast.cell import CellConfig
