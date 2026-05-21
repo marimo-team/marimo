@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import sys
 from copy import deepcopy
 from typing import TYPE_CHECKING
+from unittest import mock
 
 import pytest
 
@@ -228,8 +230,6 @@ def test_duckdb_engine_sql_output_formats(
     duckdb_connection: duckdb.DuckDBPyConnection,
 ) -> None:
     """Test DuckDBEngine execute with different SQL output formats."""
-    from unittest import mock
-
     import pandas as pd
     import polars as pl
 
@@ -296,35 +296,52 @@ def test_duckdb_engine_sql_output_formats(
     not HAS_DUCKDB or not HAS_POLARS,
     reason="DuckDB and Polars not installed",
 )
+@pytest.mark.parametrize(
+    ("sql_output_format", "expected_type_name"),
+    [
+        ("polars", "DataFrame"),
+        ("lazy-polars", "LazyFrame"),
+        ("auto", "DataFrame"),
+    ],
+)
 def test_duckdb_engine_polars_no_pyarrow(
     duckdb_connection: duckdb.DuckDBPyConnection,
+    sql_output_format: str,
+    expected_type_name: str,
 ) -> None:
     """Polars conversion should not require pyarrow.
 
     Uses the Arrow PyCapsule interface (`pl.DataFrame(relation)`) rather than
-    `relation.pl()` which historically required pyarrow.
+    `relation.pl()` which historically required pyarrow. Covers every output
+    format that routes through `to_polars()` (polars, lazy-polars, and auto
+    when polars is installed).
     """
-    import sys
-    from unittest import mock
-
     import polars as pl
 
-    # Simulate pyarrow not being installed by hiding it from import machinery.
-    pyarrow_modules = {
+    # Block `pyarrow` and any already-imported `pyarrow.*` submodules so that
+    # fresh imports raise ModuleNotFoundError.
+    blocked_pyarrow = {
         name: None
         for name in list(sys.modules)
         if name == "pyarrow" or name.startswith("pyarrow.")
     }
-    with mock.patch.dict(sys.modules, pyarrow_modules):
-        # Make a fresh import of pyarrow raise ModuleNotFoundError.
-        with mock.patch.dict(sys.modules, {"pyarrow": None}):
-            with mock.patch.object(
-                DuckDBEngine, "sql_output_format", return_value="polars"
-            ):
-                engine = DuckDBEngine(
-                    duckdb_connection,
-                    engine_name=VariableName("test_duckdb"),
-                )
-                result = engine.execute("SELECT * FROM test ORDER BY id")
-                assert isinstance(result, pl.DataFrame)
-                assert len(result) == 4
+    blocked_pyarrow["pyarrow"] = None
+
+    with (
+        mock.patch.dict(sys.modules, blocked_pyarrow),
+        mock.patch.object(
+            DuckDBEngine, "sql_output_format", return_value=sql_output_format
+        ),
+    ):
+        engine = DuckDBEngine(
+            duckdb_connection,
+            engine_name=VariableName("test_duckdb"),
+        )
+        result = engine.execute("SELECT * FROM test ORDER BY id")
+        expected_type = getattr(pl, expected_type_name)
+        assert isinstance(result, expected_type)
+        # Collect lazy frames so we exercise the full polars conversion path.
+        materialized = (
+            result.collect() if expected_type_name == "LazyFrame" else result
+        )
+        assert len(materialized) == 4
