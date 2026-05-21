@@ -308,38 +308,98 @@ class TestSetupCellMigration:
 
 
 class TestCellsViewReadRecording:
-    async def test_iteration_records_reads(self, k: Kernel) -> None:
+    """Reads record on `.code` access, never on wrapper construction.
+
+    Indexing, iteration, find, and grep all just hand out wrappers — they
+    do not by themselves prove the agent has seen the code.  Without this
+    invariant, `first = ctx.cells[0]; ctx.edit_cell(first.id, ...)` would
+    blindly clobber code the agent never looked at.
+    """
+
+    async def test_indexing_alone_does_not_satisfy_staleness(
+        self, k: Kernel
+    ) -> None:
+        await _seed(k, "0", "a = 1")
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                first = nb.cells[0]  # wrapper only — no .code access
+                with pytest.raises(StaleCellError):
+                    nb.edit_cell(first.id, "a = 2")
+
+    async def test_indexing_then_code_access_satisfies_staleness(
+        self, k: Kernel
+    ) -> None:
+        await _seed(k, "0", "a = 1")
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                first = nb.cells[0]
+                _ = first.code  # this is the access that counts
+                nb.edit_cell(first.id, "a = 2")
+
+    async def test_iteration_alone_does_not_record_reads(
+        self, k: Kernel
+    ) -> None:
         await _seed(k, "0", "a = 1")
         await _seed(k, "1", "b = 2")
         with _ctx(k) as ctx:
             async with ctx as nb:
                 for _ in nb.cells:
                     pass
+                with pytest.raises(StaleCellError):
+                    nb.edit_cell("0", "a = 99")
+
+    async def test_iteration_with_code_access_records_reads(
+        self, k: Kernel
+    ) -> None:
+        await _seed(k, "0", "a = 1")
+        await _seed(k, "1", "b = 2")
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                for cell in nb.cells:
+                    _ = cell.code
                 nb.edit_cell("0", "a = 99")
                 nb.edit_cell("1", "b = 99")
 
-    async def test_find_records_reads_for_matches_only(
-        self, k: Kernel
-    ) -> None:
+    async def test_find_does_not_record_reads(self, k: Kernel) -> None:
+        # find returns matched wrappers but the agent has not seen the
+        # source — only that a substring matched.  Editing without a
+        # follow-up `.code` read must still raise.
         await _seed(k, "0", "alpha = 1")
         await _seed(k, "1", "beta = 2")
         with _ctx(k) as ctx:
             async with ctx as nb:
                 matches = nb.cells.find("alpha")
                 assert len(matches) == 1
-                nb.edit_cell("0", "alpha = 99")
                 with pytest.raises(StaleCellError):
-                    nb.edit_cell("1", "beta = 99")
+                    nb.edit_cell("0", "alpha = 99")
 
-    async def test_grep_records_reads_for_matches_only(
-        self, k: Kernel
-    ) -> None:
+    async def test_grep_does_not_record_reads(self, k: Kernel) -> None:
         await _seed(k, "0", "alpha = 1")
         await _seed(k, "1", "beta = 2")
         with _ctx(k) as ctx:
             async with ctx as nb:
                 matches = nb.cells.grep(r"alpha")
                 assert len(matches) == 1
-                nb.edit_cell("0", "alpha = 99")
                 with pytest.raises(StaleCellError):
-                    nb.edit_cell("1", "beta = 99")
+                    nb.edit_cell("0", "alpha = 99")
+
+    async def test_repr_records_reads(self, k: Kernel) -> None:
+        # `repr(ctx.cells)` shows first-line code previews of every cell,
+        # so the agent has seen source snippets — editing without a
+        # separate read must succeed.
+        await _seed(k, "0", "a = 1")
+        await _seed(k, "1", "b = 2")
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                _ = repr(nb.cells)
+                nb.edit_cell("0", "a = 99")
+                nb.edit_cell("1", "b = 99")
+
+    async def test_notebook_cell_repr_records_read(self, k: Kernel) -> None:
+        # NotebookCell.__repr__ embeds a code preview via `self.code`, so
+        # repr-ing a single cell counts as a read.
+        await _seed(k, "0", "a = 1")
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                _ = repr(nb.cells[0])
+                nb.edit_cell("0", "a = 2")
