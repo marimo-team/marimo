@@ -817,6 +817,35 @@ class TestRunScratchpadCode:
         assert session.interrupt_count == 1
 
     @pytest.mark.asyncio
+    async def test_cancelled_wait_interrupts_kernel(self) -> None:
+        """If the caller cancels mid-tool-call (e.g. the chat session
+        ends or pydantic_ai aborts the run), the kernel is still
+        processing our ``ExecuteScratchpadCommand``. We must interrupt
+        before releasing ``scratchpad_lock`` so the next code-mode
+        call isn't blocked behind the abandoned code, and we must
+        re-raise the cancellation so the caller still observes it."""
+        session = _FakeSession(auto_complete=False)
+
+        async def run() -> None:
+            await run_scratchpad_code(
+                session.as_session(),
+                _build_request(),
+                code="while True: pass",
+                server_url="u",
+                auth_token="t",
+            )
+
+        task = asyncio.create_task(run())
+        # Yield enough for the runner to reach `await listener.wait(...)`.
+        for _ in range(10):
+            await asyncio.sleep(0)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert session.interrupt_count == 1
+
+    @pytest.mark.asyncio
     async def test_timeout_interrupt_happens_while_holding_lock(
         self,
     ) -> None:
