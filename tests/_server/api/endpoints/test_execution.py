@@ -8,6 +8,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._code_mode.screenshot_meta import (
+    SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_SERVER_URL_KEY,
+)
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.lists import first
 from tests._server.api.endpoints.ws_helpers import (
@@ -247,10 +251,13 @@ class TestExecutionRoutes_EditMode:
         assert len(scratchpad_cmds) == 1, (
             f"expected one ExecuteScratchpadCommand, got {captured!r}"
         )
-        meta = scratchpad_cmds[0].request.meta
-        assert meta["screenshot_auth_token"] == "fake-token"
+        http_req = scratchpad_cmds[0].request
+        assert http_req is not None
         # Mock server uses host="localhost", port=1234, base_url=""
-        assert meta["screenshot_server_url"] == "http://localhost:1234"
+        assert http_req.meta[SCREENSHOT_SERVER_URL_KEY] == (
+            "http://localhost:1234"
+        )
+        assert http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] == "fake-token"
 
     @staticmethod
     @with_session(SESSION_ID)
