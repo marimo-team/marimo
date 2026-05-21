@@ -24,5 +24,18 @@ def _(file_browser):
     return
 
 
+@app.cell
+def _(mo):
+    file_browser_all = mo.ui.file_browser(selection_mode="all")
+    file_browser_all
+    return (file_browser_all,)
+
+
+@app.cell
+def _(file_browser_all):
+    file_browser_all.value
+    return
+
+
 if __name__ == "__main__":
     app.run()
