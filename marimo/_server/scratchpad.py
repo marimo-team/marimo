@@ -318,10 +318,9 @@ async def run_scratchpad_code(
 
     session.instantiate(
         InstantiateNotebookRequest(object_ids=[], values=[], auto_run=False),
-        http_request=HTTPRequest.from_request(request),
+        http_request=http_req,
     )
 
-    # See /api/kernel/execute for rationale.
     run_id = str(uuid4())
     listener = ScratchCellListener(run_id=run_id)
 
@@ -336,14 +335,17 @@ async def run_scratchpad_code(
                 ),
                 from_consumer_id=None,
             )
-            await listener.wait(timeout=timeout)
-        if listener.timed_out:
-            # The kernel is still running the (likely hung) scratchpad
-            # code; so we interrupt it to unblock the next code-mode call.
-            session.try_interrupt()
-            return CodeExecutionResult(
-                success=False,
-                errors=[f"Execution timed out after {timeout}s"],
-            )
+            settled = False
+            try:
+                await listener.wait(timeout=timeout)
+                settled = not listener.timed_out
+            finally:
+                if not settled:
+                    session.try_interrupt()
+            if listener.timed_out:
+                return CodeExecutionResult(
+                    success=False,
+                    errors=[f"Execution timed out after {timeout}s"],
+                )
 
         return extract_result(session, listener)
