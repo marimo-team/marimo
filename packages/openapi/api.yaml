@@ -511,6 +511,28 @@ components:
       - data
       title: CellOutput
       type: object
+    CellOutputs:
+      description: "Per-cell output snapshot delivered alongside the document snapshot.\n\
+        \n    `output` carries the cell's last main (rich display) output;\n    `console_outputs`\
+        \ carries the buffered stdout/stderr stream from\n    its last execution.\
+        \  Both are keyed by cell id; missing keys mean\n    \"no output captured\"\
+        \ (the cell never ran, or produced nothing on\n    that channel)."
+      properties:
+        console_outputs:
+          additionalProperties:
+            items:
+              $ref: '#/components/schemas/CellOutput'
+            type: array
+          type: object
+        output:
+          additionalProperties:
+            $ref: '#/components/schemas/CellOutput'
+          type: object
+      required:
+      - output
+      - console_outputs
+      title: CellOutputs
+      type: object
     ChatAttachment:
       properties:
         content_type:
@@ -1511,13 +1533,22 @@ components:
         \        request: HTTP request context if available.\n        notebook_cells:\
         \ Snapshot of notebook cells from the session document.\n            Used\
         \ to populate the document ContextVar so code_mode can read\n            cell\
-        \ ordering, code, names, and configs.\n        run_id: Optional correlation\
-        \ ID. When set, the\n            `CompletedRunNotification` emitted at the\
-        \ end of this command\n            carries the same `run_id` so a caller holding\
-        \ a\n            `ScratchCellListener` can filter for *its* completion and\n\
-        \            ignore `CompletedRun` events from unrelated commands on the\n\
-        \            same session."
+        \ ordering, code, names, and configs.\n        cell_outputs: Snapshot of per-cell\
+        \ outputs (main + console) from the\n            session view. Populates a\
+        \ parallel ContextVar so code_mode can\n            expose `cell.output` and\
+        \ `cell.console_outputs`. Frozen at\n            scratchpad start \u2014 not\
+        \ refreshed when `ctx.run_cell` produces\n            new outputs in the same\
+        \ batch.\n        run_id: Optional correlation ID. When set, the\n       \
+        \     `CompletedRunNotification` emitted at the end of this command\n    \
+        \        carries the same `run_id` so a caller holding a\n            `ScratchCellListener`\
+        \ can filter for *its* completion and\n            ignore `CompletedRun` events\
+        \ from unrelated commands on the\n            same session."
       properties:
+        cellOutputs:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CellOutputs'
+          default: null
         code:
           type: string
         notebookCells:
@@ -1547,6 +1578,11 @@ components:
       type: object
     ExecuteScratchpadRequest:
       properties:
+        cellOutputs:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CellOutputs'
+          default: null
         code:
           type: string
         notebookCells:
