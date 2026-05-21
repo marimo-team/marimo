@@ -215,7 +215,7 @@ class FileChangeCoordinator:
 
         # Read the file once and run all pre-reload skip checks against
         # the same snapshot. If the read itself fails, fall through to
-        # ``reload()`` which has its own error handling below.
+        # `reload()` which has its own error handling below.
         try:
             current_content = session.app_file_manager.read_file()
         except Exception as e:
