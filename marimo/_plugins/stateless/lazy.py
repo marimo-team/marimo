@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Any, Final
 
+from marimo import _loggers
 from marimo._output.formatting import as_html
+from marimo._output.hypertext import Html, is_non_interactive
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.functions import EmptyArgs, Function
@@ -13,10 +15,16 @@ from marimo._runtime.functions import EmptyArgs, Function
 if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
 
+LOGGER = _loggers.marimo_logger()
+
 
 @dataclass
 class LoadResponse:
     html: str
+
+
+def _is_lazy_callable(element: object) -> bool:
+    return callable(element) and not isinstance(element, UIElement)
 
 
 @mddoc
@@ -32,6 +40,14 @@ class lazy(UIElement[bool, bool]):
     evaluated). The function can be synchronous or asynchronous.
     Using a function is useful when the item to render is
     the result of a database query or some other expensive operation.
+
+    Note:
+        In non-interactive contexts (HTML, ipynb, and PDF exports), there
+        is no running kernel to invoke the lazy load function. `mo.lazy`
+        renders its element eagerly and returns the resolved HTML
+        directly. Async elements cannot be resolved from a synchronous
+        constructor; they fall back to the lazy widget and will not
+        appear in static exports.
 
     Examples:
         Create a lazy-loaded tab:
@@ -63,6 +79,19 @@ class lazy(UIElement[bool, bool]):
 
     _name: Final[str] = "marimo-lazy"
 
+    def __new__(
+        cls,
+        element: Callable[[], object]
+        | object
+        | Callable[[], Coroutine[None, None, object]],
+        show_loading_indicator: bool = False,  # noqa: ARG004
+    ) -> Any:
+        if is_non_interactive():
+            resolved = _resolve_eagerly(element)
+            if resolved is not None:
+                return resolved
+        return super().__new__(cls)
+
     def __init__(
         self,
         element: Callable[[], object]
@@ -93,12 +122,30 @@ class lazy(UIElement[bool, bool]):
         return value
 
     async def _load(self, _args: EmptyArgs) -> LoadResponse:
-        if callable(self._element) and not isinstance(
-            self._element, UIElement
-        ):
-            el = self._element()
-            if asyncio.iscoroutine(el):
-                el = await el
-            return LoadResponse(html=as_html(el).text)
+        if _is_lazy_callable(self._element):
+            el = self._element()  # type: ignore[operator]
         else:
-            return LoadResponse(html=as_html(self._element).text)
+            el = self._element
+        if asyncio.iscoroutine(el):
+            el = await el
+        return LoadResponse(html=as_html(el).text)
+
+
+def _resolve_eagerly(element: object) -> Html | None:
+    if not _is_lazy_callable(element):
+        return as_html(element)
+
+    if asyncio.iscoroutinefunction(element):
+        return None
+
+    try:
+        result = element()  # type: ignore[operator]
+    except Exception as e:
+        LOGGER.debug("mo.lazy: failed to resolve element for export: %s", e)
+        return None
+
+    if asyncio.iscoroutine(result):
+        result.close()
+        return None
+
+    return as_html(result)
