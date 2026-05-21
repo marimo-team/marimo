@@ -1,5 +1,4 @@
 # /// script
-# requires-python = ">=3.13"
 # dependencies = [
 #     "altair==6.0.0",
 #     "marimo>=0.19.4",
