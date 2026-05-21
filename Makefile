@@ -8,15 +8,6 @@ DENO ?= uv tool run deno
 DESIGN_MD_DENO_FLAGS := --no-lock --node-modules-dir=none
 DESIGN_MD_DENO_RUN_FLAGS := $(DESIGN_MD_DENO_FLAGS) --allow-read --allow-env
 DESIGN_MD_LINTER ?= pnpm --silent dlx @google/design.md@0.1.1
-DESIGN_MD_INPUTS := \
-	scripts/generate-design-md.ts \
-	frontend/src/components/editor/renderers/grid-layout/plugin.tsx \
-	frontend/src/core/config/config-schema.ts \
-	frontend/src/css/app/App.css \
-	frontend/src/css/app/Cell.css \
-	frontend/src/css/globals.css \
-	frontend/src/plugins/impl/data-editor/themes.ts \
-	frontend/tailwind.config.cjs
 
 .PHONY: help
 # 📖 Show available commands
@@ -124,10 +115,8 @@ fe-codegen:
 
 .PHONY: design-md
 # 🔄 Generate DESIGN.md
-design-md: DESIGN.md
-
-DESIGN.md: $(DESIGN_MD_INPUTS)
-	$(DENO) run $(DESIGN_MD_DENO_RUN_FLAGS) scripts/generate-design-md.ts > $@
+design-md:
+	$(DENO) run $(DESIGN_MD_DENO_RUN_FLAGS) scripts/generate-design-md.ts > DESIGN.md
 
 .PHONY: design-md-check
 # 🔍 Check DESIGN.md generation
