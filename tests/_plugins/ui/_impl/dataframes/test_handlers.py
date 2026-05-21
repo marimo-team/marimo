@@ -1789,6 +1789,50 @@ class TestTransformHandler:
 
     @staticmethod
     @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {
+                        "A": [
+                            {"foo": 1, "nested": {"x": 2}},
+                            None,
+                        ],
+                        "B": [1, 2],
+                    },
+                    include=["pandas", "polars"],
+                ),
+                create_test_dataframes(
+                    {
+                        "B": [1, 2],
+                        "foo": [1, None],
+                        "nested": [{"x": 2}, None],
+                    },
+                    include=["pandas", "polars"],
+                ),
+                strict=False,
+            )
+        ),
+    )
+    def test_expand_dict_nested_dicts(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = ExpandDictTransform(
+            type=TransformType.EXPAND_DICT, column_id="A"
+        )
+        result = apply(df, transform)
+        nw_result = collect_df(result)
+        nw_expected = collect_df(expected)
+        result_cols = sorted(nw_result.columns)
+        expected_cols = sorted(nw_expected.columns)
+        assert_frame_equal_with_nans(
+            nw_expected.select(expected_cols),
+            nw_result.select(result_cols),
+            allow_none_equals_nan=True,
+        )
+
+    @staticmethod
+    @pytest.mark.parametrize(
         (
             "df",
             "expected_first",
