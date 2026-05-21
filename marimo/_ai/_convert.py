@@ -166,6 +166,11 @@ def convert_to_openai_messages(
                 current_parts = []
             elif dataclasses.is_dataclass(part) and not isinstance(part, type):
                 current_parts.append(dataclasses.asdict(part))  # type: ignore
+            else:
+                LOGGER.debug(
+                    "Dropping unsupported part %s during OpenAI conversion",
+                    type(part).__name__,
+                )
 
         if current_parts:
             openai_messages.append(

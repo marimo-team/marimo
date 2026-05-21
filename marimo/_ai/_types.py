@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import abc
 import mimetypes
-from collections.abc import Iterator
 from dataclasses import asdict, dataclass, is_dataclass
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
