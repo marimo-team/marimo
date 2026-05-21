@@ -473,7 +473,11 @@ class TestChatMessagePostInit:
         assert message.parts[0] is text_part
 
     def test_handles_invalid_parts_gracefully(self):
-        """Test that invalid parts are dropped gracefully."""
+        """Unknown dict parts don't crash construction; they're preserved
+        verbatim so future SDK part types still round-trip on serialization.
+        See `test_raw_part_round_trips_verbatim` for the contract.
+        """
+        raw_unknown = {"type": "unknown_type", "data": "invalid"}
         message = ChatMessage(
             role="user",
             content="Hello",
@@ -481,17 +485,19 @@ class TestChatMessagePostInit:
                 Any,
                 [
                     {"type": "text", "text": "Valid"},
-                    {"type": "unknown_type", "data": "invalid"},
+                    raw_unknown,
                 ],
             ),
         )
 
-        # Valid part should be kept, invalid should be dropped
-        assert message == ChatMessage(
-            role="user",
-            content="Hello",
-            parts=[TextPart(type="text", text="Valid")],
-        )
+        assert len(message.parts) == 2
+        assert isinstance(message.parts[0], TextPart)
+        assert message.parts[0].text == "Valid"
+        assert message.parts[1] == raw_unknown
+        assert message.raw_or_dumped_parts() == [
+            {"type": "text", "text": "Valid"},
+            raw_unknown,
+        ]
 
     def test_with_none_parts(self):
         """Test that None parts is handled."""

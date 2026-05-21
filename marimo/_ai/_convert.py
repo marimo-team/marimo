@@ -164,7 +164,7 @@ def convert_to_openai_messages(
 
                 # Reset parts since we've added the messages
                 current_parts = []
-            else:
+            elif dataclasses.is_dataclass(part) and not isinstance(part, type):
                 current_parts.append(dataclasses.asdict(part))  # type: ignore
 
         if current_parts:

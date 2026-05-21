@@ -5,7 +5,7 @@ import abc
 import mimetypes
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass, is_dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 import msgspec
 
@@ -189,7 +189,7 @@ PART_TYPES = [
 ]
 
 
-class ChatMessage(msgspec.Struct, eq=False, dict=True):
+class ChatMessage(msgspec.Struct, dict=True):
     """
     A message in a chat.
     """
@@ -214,74 +214,53 @@ class ChatMessage(msgspec.Struct, eq=False, dict=True):
     metadata: Any | None = None
 
     def __post_init__(self) -> None:
-        # Non-struct attributes (via dict=True) so they never reach the wire.
-        # Snapshots are aligned with the original input order; SDK fields the
-        # typed dataclasses don't model are preserved even when the input is
-        # a mix of dicts and typed parts. `_parts_idx[i]` is the index of the
-        # converted part in `self.parts` (or None when conversion dropped it).
+        # Non-struct attribute (via `dict=True`) so it isn't serialized.
+        # Snapshots raw dict inputs 1:1 with `self.parts` so SDK fields the
+        # typed dataclasses don't model survive the round-trip.
         self._raw_parts: list[dict[str, Any] | None] | None = None
-        self._parts_idx: list[int | None] | None = None
-        if self.parts:
-            snapshots: list[dict[str, Any] | None] = []
-            idx_map: list[int | None] = []
-            parts: list[ChatPart] = []
-            for part in self.parts:
-                is_dict = isinstance(part, dict)
-                snapshots.append(
-                    cast(dict[str, Any], part) if is_dict else None
-                )
-                if converted := self._convert_part(part):
-                    idx_map.append(len(parts))
-                    parts.append(converted)
-                else:
-                    idx_map.append(None)
-            if any(s is not None for s in snapshots):
-                self._raw_parts = snapshots
-                self._parts_idx = idx_map
-            self.parts = parts
-
-    # Fields excluded from equality. Add anything here that is a cache /
-    # representation detail rather than part of the message's identity, so
-    # `__eq__` keeps comparing every "real" field automatically as the
-    # struct grows.
-    _EQ_EXCLUDE: ClassVar[frozenset[str]] = frozenset()
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, ChatMessage):
-            return NotImplemented
-        return all(
-            getattr(self, name) == getattr(other, name)
-            for name in self.__struct_fields__
-            if name not in self._EQ_EXCLUDE
-        )
+        if not self.parts:
+            return
+        snapshots: list[dict[str, Any] | None] = []
+        typed: list[ChatPart] = []
+        for part in self.parts:
+            converted = self._convert_part(part)
+            if converted is None:
+                continue
+            snapshots.append(
+                cast(dict[str, Any], part) if isinstance(part, dict) else None
+            )
+            typed.append(converted)
+        if any(s is not None for s in snapshots):
+            self._raw_parts = snapshots
+        self.parts = typed
 
     def _convert_part(self, part: Any) -> ChatPart | None:
-        # If we receive a Vercel AI SDK part (through pydantic-ai), return it as is.
         if DependencyManager.pydantic_ai.imported():
             from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
 
             if isinstance(part, UIMessagePart):
                 return cast(ChatPart, part)
 
-        PartType = None
-        for PartType in PART_TYPES:
-            try:
-                if is_dataclass(part):
-                    return cast(ChatPart, part)
-                return parse_raw(part, cls=PartType, allow_unknown_keys=True)
-            except Exception:
-                continue
+        if is_dataclass(part) and not isinstance(part, type):
+            return cast(ChatPart, part)
 
-        LOGGER.debug(
-            f"Could not decode part {part}. Ignore if it's a Vercel UI message part."
-        )
+        # Unknown dicts pass through verbatim so future SDK part types still
+        # round-trip.
+        if isinstance(part, dict):
+            for PartType in PART_TYPES:
+                try:
+                    return parse_raw(
+                        part, cls=PartType, allow_unknown_keys=True
+                    )
+                except Exception:
+                    continue
+            return cast(ChatPart, part)
+
+        LOGGER.debug("Dropping unrecognized part %r", part)
         return None
 
     def raw_or_dumped_parts(self) -> list[dict[str, Any]]:
         """Return parts in dict form, preferring the original wire payload."""
-        raw_parts = self._raw_parts
-        idx_map = self._parts_idx
-
         ui_message_part_cls: Any = None
         if DependencyManager.pydantic_ai.imported():
             from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
@@ -289,33 +268,26 @@ class ChatMessage(msgspec.Struct, eq=False, dict=True):
             ui_message_part_cls = UIMessagePart
 
         def dump(part: Any) -> dict[str, Any] | None:
-            if is_dataclass(part):
+            if is_dataclass(part) and not isinstance(part, type):
                 return asdict(part)
             if ui_message_part_cls is not None and isinstance(
                 part, ui_message_part_cls
             ):
-                return part.model_dump(by_alias=True, exclude_none=True)
+                return cast(
+                    dict[str, Any],
+                    part.model_dump(by_alias=True, exclude_none=True),
+                )
             if isinstance(part, dict):
                 return cast(dict[str, Any], part)
             return None
 
-        if raw_parts is None or idx_map is None:
-            return [d for p in self.parts if (d := dump(p)) is not None]
-
+        raws = self._raw_parts
         result: list[dict[str, Any]] = []
-        last_used = -1
-        for snap, parts_idx in zip(raw_parts, idx_map, strict=True):
+        for i, part in enumerate(self.parts):
+            snap = raws[i] if raws is not None and i < len(raws) else None
             if snap is not None:
                 result.append(snap)
-                if parts_idx is not None:
-                    last_used = max(last_used, parts_idx)
-            elif parts_idx is not None and parts_idx < len(self.parts):
-                if (d := dump(self.parts[parts_idx])) is not None:
-                    result.append(d)
-                    last_used = max(last_used, parts_idx)
-        # Parts appended after __post_init__ aren't in idx_map; dump them live.
-        for part in self.parts[last_used + 1 :]:
-            if (d := dump(part)) is not None:
+            elif (d := dump(part)) is not None:
                 result.append(d)
         return result
 
