@@ -265,9 +265,9 @@ class FileChangeCoordinator:
 
 
 def _has_conflict_markers(content: str) -> bool:
-    """Return True if ``content`` contains a git conflict start marker.
+    """Return True if `content` contains a git conflict start marker.
 
-    Git writes ``<<<<<<<`` at the start of a line to mark the beginning of
+    Git writes `<<<<<<<` at the start of a line to mark the beginning of
     a conflict hunk; that's a strong signal the file is mid-merge and
     shouldn't be reparsed as Python.
     """
