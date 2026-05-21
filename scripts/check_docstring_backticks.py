@@ -2,10 +2,10 @@
 """Fail if any docstring uses double backticks for inline code.
 
 marimo renders docstrings as Markdown, where inline code uses single
-backticks (`value`). Double backticks (``value``) are reStructuredText
+backticks (`value`). Double backticks are reStructuredText
 syntax and render incorrectly. This check flags them.
 
-Triple-backtick Markdown code fences (```) are allowed.
+Triple-backtick Markdown code fences are allowed.
 
 Usage:
     python scripts/check_docstring_backticks.py [files...]
