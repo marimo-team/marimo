@@ -180,6 +180,51 @@ describe("mergeModels", () => {
     expect(embed!.release_date).toBe("1970-01-01");
   });
 
+  // Regression: `Date.parse` accepts more than `YYYY-MM-DD`. We must
+  // canonicalize, otherwise the YAML and the lex-sort in `sortAndTrim` break.
+  it("canonicalizes non-YYYY-MM-DD parseable inputs (timestamp, year-only)", () => {
+    const fixture: ModelsDevApi = {
+      openai: {
+        id: "openai",
+        name: "OpenAI",
+        models: {
+          // Bare year — would have left `"2026"` in the YAML otherwise.
+          a: {
+            id: "a",
+            name: "A",
+            reasoning: false,
+            tool_call: false,
+            release_date: "2026",
+          },
+          // Full ISO timestamp — would have leaked the `T…Z` suffix.
+          b: {
+            id: "b",
+            name: "B",
+            reasoning: false,
+            tool_call: false,
+            release_date: "2026-05-07T12:34:56Z",
+          },
+          // Garbage — falls back to the epoch sentinel.
+          c: {
+            id: "c",
+            name: "C",
+            reasoning: false,
+            tool_call: false,
+            release_date: "not-a-date",
+          },
+        },
+      },
+    };
+    const entries = mergeModels({}, fixture).newEntries["openai"]!;
+    const byId = Object.fromEntries(entries.map((e) => [e.model, e]));
+    expect(byId.a!.release_date).toBe("2026-01-01");
+    expect(byId.b!.release_date).toBe("2026-05-07");
+    expect(byId.c!.release_date).toBe("1970-01-01");
+
+    // And the sort is now correct — `b` (May 7) ranks above `a` (Jan 1).
+    expect(entries.map((e) => e.model)).toEqual(["b", "a", "c"]);
+  });
+
   it("derives `roles: [embed]` for embedding models", () => {
     const summary = mergeModels({}, FIXTURE_API);
     const embedding = summary.newEntries["openai"]!.find(

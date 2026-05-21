@@ -84,15 +84,23 @@ function filterModalities(
 }
 
 /**
- * Normalize upstream `release_date` (which can be `YYYY-MM` or `YYYY-MM-DD`)
- * to a `YYYY-MM-DD` string. Invalid / missing values fall back to the sentinel.
+ * Normalize upstream `release_date` to `YYYY-MM-DD`. Accepts shorthand
+ * (`YYYY-MM`), full ISO timestamps, and anything else `Date.parse` understands
+ * — but always emits the canonical `YYYY-MM-DD` form so downstream lex-sort
+ * and the `AiModel.release_date` type contract hold. Unparsable / missing
+ * values fall back to the sentinel.
  */
 function parseReleaseDate(raw: string | undefined): string {
   if (!raw) {
     return UNKNOWN_DATE;
   }
-  const normalized = /^\d{4}-\d{2}$/.test(raw) ? `${raw}-01` : raw;
-  return Number.isNaN(Date.parse(normalized)) ? UNKNOWN_DATE : normalized;
+  // Pad `YYYY-MM` shorthand to first of month before parsing.
+  const padded = /^\d{4}-\d{2}$/.test(raw) ? `${raw}-01` : raw;
+  const ms = Date.parse(padded);
+  if (Number.isNaN(ms)) {
+    return UNKNOWN_DATE;
+  }
+  return new Date(ms).toISOString().slice(0, 10);
 }
 
 function deriveCost(source: ModelsDevModel): AiModel["cost"] {
