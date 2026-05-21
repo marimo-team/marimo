@@ -128,11 +128,11 @@ export function parsePastedDate(
   return parsed;
 }
 
-function parsePastedRange(
+export function parsePastedRange(
   filterType: DateLikeFilterType,
   text: string,
 ): { min: Date; max: Date } | undefined {
-  const parts = text.split(/\s+(?:-|–|—|to)\s+/i);
+  const parts = text.split(/\s+(?:-|–|—|to|and)\s+/i);
   if (parts.length === 2) {
     const min = parsePastedDate(filterType, parts[0]);
     const max = parsePastedDate(filterType, parts[1]);
@@ -194,6 +194,7 @@ export const DateLikeInput = ({
           key={seedKey}
           aria-label={ariaLabel}
           defaultValue={seedValue as Time | undefined}
+          hourCycle={24}
           onChange={handleChange}
           className={className}
         />
@@ -211,6 +212,7 @@ export const DateLikeInput = ({
           aria-label={ariaLabel}
           defaultValue={seedValue as CalendarDateTime | undefined}
           granularity="second"
+          hourCycle={24}
           onChange={handleChange}
           className={className}
         />
@@ -316,6 +318,7 @@ export const DateLikeRangeInput = ({
               | undefined
           }
           granularity="second"
+          hourCycle={24}
           onChange={handleChange}
           className={className}
         />

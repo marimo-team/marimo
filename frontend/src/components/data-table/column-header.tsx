@@ -77,7 +77,12 @@ export const DataTableColumnHeader = <TData, TValue>({
     column.getCanFilter() &&
     filterType !== undefined &&
     EDITABLE_FILTER_TYPES.has(filterType);
-  const canFilterByValues = canEditFilter && filterType !== "boolean";
+  const canFilterByValues =
+    canEditFilter &&
+    filterType !== "boolean" &&
+    filterType !== "date" &&
+    filterType !== "datetime" &&
+    filterType !== "time";
 
   return (
     <div

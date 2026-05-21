@@ -4,10 +4,11 @@
 import type { ColumnFiltersState, Table } from "@tanstack/react-table";
 import { MoreHorizontalIcon, XIcon } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
-import { type DateFormatter, useDateFormatter } from "react-aria";
+import { useLocale } from "react-aria";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
+import { exactDateTime } from "@/utils/dates";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { DraggablePopover } from "../ui/draggable-popover";
@@ -23,9 +24,10 @@ import { FilterPillEditor, type Snapshot } from "./filter-pill-editor";
 import {
   type ColumnFilterValue,
   dateToISODate,
-  dateToISODateTime,
+  dateToISOTime,
 } from "./filters";
 import { OPERATOR_LABELS } from "./operator-labels";
+import { extractTimezone } from "./types";
 import { stringifyUnknownValue } from "./utils";
 import { ChipWithComma, CompactChipRow } from "./value-chips";
 
@@ -64,11 +66,7 @@ export const FilterPills = <TData,>({
   addFilterSnapshot,
   onAddFilterSnapshotChange,
 }: Props<TData>) => {
-  const timeFormatter = useDateFormatter({
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  const { locale } = useLocale();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [overflowOpen, setOverflowOpen] = useState(false);
@@ -88,7 +86,7 @@ export const FilterPills = <TData,>({
       columnId={filter.id}
       value={filter.value as ColumnFilterValue}
       index={index}
-      timeFormatter={timeFormatter}
+      locale={locale}
       table={table}
       calculateTopKRows={calculateTopKRows}
       onRemove={() =>
@@ -168,7 +166,7 @@ interface FilterPillProps<TData> {
   columnId: string;
   value: ColumnFilterValue;
   index: number;
-  timeFormatter: DateFormatter;
+  locale: string;
   table: Table<TData>;
   calculateTopKRows?: CalculateTopKRows;
   onRemove: () => void;
@@ -178,14 +176,17 @@ const FilterPill = <TData,>({
   columnId,
   value,
   index,
-  timeFormatter,
+  locale,
   table,
   calculateTopKRows,
   onRemove,
 }: FilterPillProps<TData>) => {
   const [open, setOpen] = useState(false);
 
-  const formatted = formatValue(value, timeFormatter);
+  const timezone = extractTimezone(
+    table.getColumn(columnId)?.columnDef.meta?.dtype,
+  );
+  const formatted = formatValue(value, { locale, timezone });
   if (!formatted) {
     return null;
   }
@@ -323,9 +324,14 @@ type FormattedFilter =
   | { kind: "scalar"; operator: string; value?: string }
   | { kind: "list"; operator: string; items: string[] };
 
+interface FormatContext {
+  locale: string;
+  timezone: string | undefined;
+}
+
 function formatValue(
   value: ColumnFilterValue,
-  timeFormatter: DateFormatter,
+  ctx: FormatContext,
 ): FormattedFilter | undefined {
   if (!("type" in value)) {
     return;
@@ -389,11 +395,11 @@ function formatValue(
     value.type === "time"
   ) {
     const format =
-      value.type === "time"
-        ? (d: Date) => timeFormatter.format(d)
-        : value.type === "date"
-          ? dateToISODate
-          : dateToISODateTime;
+      value.type === "date"
+        ? dateToISODate
+        : value.type === "time"
+          ? dateToISOTime
+          : (d: Date) => exactDateTime(d, ctx.timezone, ctx.locale);
     switch (value.operator) {
       case "between":
         return {

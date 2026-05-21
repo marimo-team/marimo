@@ -125,10 +125,7 @@ export function buildEditorSnapshot(
 ): Snapshot {
   const columnType = columnEditableType(column);
   const isMembership = opts?.operator === "in" || opts?.operator === "not_in";
-  const type =
-    isMembership && columnType !== "text" && columnType !== "select"
-      ? "select"
-      : columnType;
+  const type = isMembership && columnType === "number" ? "select" : columnType;
   const operator = opts?.operator ?? DEFAULT_OPERATOR[type];
   return {
     columnId: column.id,
