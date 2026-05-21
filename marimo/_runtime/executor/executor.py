@@ -41,7 +41,7 @@ class DefaultExecutor:
             return eval(cell.last_expr, glbls)
         except BaseException as e:
             # Raising from BaseException folds in the stack trace prior
-            # to execution; the Runner classifies via ``__cause__``.
+            # to execution.
             raise MarimoRuntimeException from e
 
     async def execute_cell_async(

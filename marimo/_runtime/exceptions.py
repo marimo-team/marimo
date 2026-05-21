@@ -30,7 +30,7 @@ def unwrap_user_exception(
     exc: MarimoRuntimeException,
     graph: DirectedGraph | None = None,
 ) -> BaseException | None:
-    """Extract the user exception from a ``MarimoRuntimeException``."""
+    """Extract the user exception from a `MarimoRuntimeException`."""
     cause = exc.__cause__
     if graph is not None and isinstance(cause, NameError):
         name = getattr(cause, "name", None)

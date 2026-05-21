@@ -22,7 +22,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 class Evaluator:
-    """Compose ExecutionLifecycles around an Executor. Owns ``evaluate``."""
+    """Compose ExecutionLifecycles around an Executor. Owns `evaluate`."""
 
     def __init__(
         self,
@@ -87,28 +87,18 @@ class Evaluator:
 
 
 # Public entry-point registry for plugin-loaded Executors. Registered
-# values are **factories** (``Callable[[], Executor]``); the kernel
+# values are **factories** (`Callable[[], Executor]`); the kernel
 # calls the factory once to get an instance and hands it to an
-# ``Evaluator``.
+# `Evaluator`.
 _EXECUTOR_REGISTRY: EntryPointRegistry[Callable[[], Executor]] = (
     EntryPointRegistry("marimo.cell.executor")
 )
 
 
 def resolve_executor() -> Executor:
-    """Return the registered executor factory's product, or ``DefaultExecutor``.
+    """Return the registered executor factory's product, or `DefaultExecutor`.
 
-    Used by both the kernel runner and script runner so a plugin
-    registered against ``marimo.cell.executor`` takes effect for both.
-    Only one factory is loaded — the alphabetically-first name across
-    registered plugins and installed entry points (per
-    ``EntryPointRegistry.names()``, which returns a sorted union).
-    Others are noted via ``LOGGER.warning`` but never imported, so a
-    broken third-party plugin doesn't take down notebook execution.
-
-    If the selected factory itself raises on construction, we log and
-    fall back to ``DefaultExecutor`` rather than propagate — a broken
-    plugin shouldn't take down the kernel.
+    NB. Only one factory is loaded, with others logged for visibility.
     """
     names = _EXECUTOR_REGISTRY.names()
     if not names:
@@ -116,7 +106,7 @@ def resolve_executor() -> Executor:
     name, *additional = names
     if additional:
         LOGGER.warning(
-            "multiple ``marimo.cell.executor`` factories registered; "
+            "multiple `marimo.cell.executor` factories registered; "
             "using %r and ignoring %d other(s)",
             name,
             len(additional),
@@ -126,7 +116,7 @@ def resolve_executor() -> Executor:
     except Exception as e:
         LOGGER.warning(
             "marimo.cell.executor factory %r failed to construct: %s; "
-            "falling back to ``DefaultExecutor``.",
+            "falling back to `DefaultExecutor`.",
             name,
             e,
         )

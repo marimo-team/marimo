@@ -146,14 +146,12 @@ class Runner:
             self.execution_mode,
         )
 
-        # Scheduler owns the queue and cancellation state.
         self._scheduler = SequentialScheduler(cells_to_run_list, self.graph)
 
         # mapping from cell_id to exception it raised
         self.exceptions: dict[CellId_t, ExceptionOrError] = {}
 
-        # each cell's position in the original run queue (used by
-        # resolve_state_updates and _find_first_blocked_missing_ref)
+        # each cell's position in the original run queue
         self._run_position = {
             cell_id: index for index, cell_id in enumerate(cells_to_run_list)
         }
@@ -518,10 +516,8 @@ class Runner:
         if exc is None:
             return raw_result
         if not isinstance(exc, BaseException):
-            # A non-``BaseException`` Error shape (e.g. the
-            # ``MarimoStrictExecutionError`` produced by
-            # ``StrictLifecycle.setup`` via ``Skip(result=...)``).
-            # Cancel descendants and surface the payload as-is.
+            # No exception to handle. Cancel descendants and surface the payload
+            # as-is.
             self.cancel(cell_id)
             return raw_result
 

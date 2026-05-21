@@ -214,7 +214,7 @@ class TestExecutorEntryPoint:
         )
 
     def test_resolve_executor_only_loads_first_factory(self) -> None:
-        """``resolve_executor`` must not import factories beyond the first.
+        """`resolve_executor` must not import factories beyond the first.
 
         A broken or slow third-party plugin can't take down the kernel
         if it never gets loaded.

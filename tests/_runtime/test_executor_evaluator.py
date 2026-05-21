@@ -106,10 +106,10 @@ async def test_skip_terminates_setup_chain_but_runs_completed_teardowns() -> (
 
 
 async def test_skip_result_preserves_accumulated_output() -> None:
-    """``Skip(result=RunResult(...))`` threads the entire RunResult
-    through teardown — ``output``, ``exception``, and
-    ``accumulated_output`` all survive, including any future fields
-    added to ``RunResult``."""
+    """`Skip(result=RunResult(...))` threads the entire RunResult
+    through teardown — `output`, `exception`, and
+    `accumulated_output` all survive, including any future fields
+    added to `RunResult`."""
     log: list[str] = []
     skip_result = RunResult(
         output="cached", exception=None, accumulated_output="streamed"

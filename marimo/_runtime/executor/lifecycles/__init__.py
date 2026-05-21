@@ -14,12 +14,12 @@ if TYPE_CHECKING:
 
 @dataclass
 class Skip:
-    """Returned from ``ExecutionLifecycle.setup`` to short-circuit the body.
+    """Returned from `ExecutionLifecycle.setup` to short-circuit the body.
 
-    ``result`` is the cell's ``RunResult``; lifecycles can use this to
+    `result` is the cell's `RunResult`; lifecycles can use this to
     inject a cache hit or a pre-failed result without running the body.
-    ``None`` means the lifecycle wants to skip but has no associated run
-    (output stays ``None``, no exception).
+    `None` means the lifecycle wants to skip but has no associated run
+    (output stays `None`, no exception).
     """
 
     result: RunResult | None = None
