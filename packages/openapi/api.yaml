@@ -5999,8 +5999,6 @@ paths:
           description: Export the notebook as HTML
         400:
           description: File must be saved before downloading
-        403:
-          description: HTML sharing is disabled by configuration
   /api/export/ipynb:
     post:
       parameters:
@@ -6508,8 +6506,7 @@ paths:
         400:
           description: File must be saved before downloading
         403:
-          description: Code is not available in run mode, or sharing is disabled by
-            configuration
+          description: Code is not available in run mode
   /api/kernel/rename:
     post:
       parameters:

@@ -78,21 +78,10 @@ async def export_as_html(
                         type: string
         400:
             description: File must be saved before downloading
-        403:
-            description: HTML sharing is disabled by configuration
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=ExportAsHTMLRequest)
     session = app_state.require_current_session()
-
-    if (
-        session.config_manager.get_config().get("sharing", {}).get("html")
-        is False
-    ):
-        raise HTTPException(
-            status_code=HTTPStatus.FORBIDDEN,
-            detail="HTML sharing is disabled by configuration.",
-        )
 
     # Check if the file is named
     if not session.app_file_manager.is_notebook_named:

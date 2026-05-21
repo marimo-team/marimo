@@ -833,13 +833,6 @@ export interface paths {
           };
           content?: never;
         };
-        /** @description HTML sharing is disabled by configuration */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
       };
     };
     delete?: never;
@@ -2073,7 +2066,7 @@ export interface paths {
           };
           content?: never;
         };
-        /** @description Code is not available in run mode, or sharing is disabled by configuration */
+        /** @description Code is not available in run mode */
         403: {
           headers: {
             [name: string]: unknown;
