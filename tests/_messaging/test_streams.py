@@ -25,7 +25,7 @@ class TestStdin:
         await k.run(
             [exec_req.get("import sys; output = sys.stdin.readline()")]
         )
-        assert k.globals["output"] == ""
+        assert k.globals["output"] == "\n"
 
     @staticmethod
     async def test_readlines_installed(
@@ -34,7 +34,19 @@ class TestStdin:
         await k.run(
             [exec_req.get("import sys; output = sys.stdin.readlines()")]
         )
-        assert k.globals["output"] == [""]
+        assert k.globals["output"] == ["\n"]
+
+    @staticmethod
+    async def test_builtin_input_with_empty_response(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # Bypasses the cell-scoped input override, exercising the same
+        # readline()-based path that rich/click/getpass/pdb hit. Must not
+        # raise EOFError on an empty submission.
+        await k.run(
+            [exec_req.get("import builtins; output = builtins.input()")]
+        )
+        assert k.globals["output"] == ""
 
     @staticmethod
     async def test_getpass_installed(

@@ -45,8 +45,9 @@ def pyodide_stderr(pyodide_: PyodideStream) -> PyodideStderr:
 
 @pytest.fixture
 def pyodide_stdin(pyodide_: PyodideStream) -> PyodideStdin:
+    # bridge.ts -> put_input sends raw user text; readline() adds the "\n".
     stdin = PyodideStdin(pyodide_)
-    stdin._get_response = lambda: "test input\n"
+    stdin._get_response = lambda: "test input"
     return stdin
 
 
@@ -132,12 +133,9 @@ class TestPyodideStdin:
         pyodide_pipe: Mock,
         pyodide_input_queue: asyncio.Queue[str],
     ) -> None:
-        # Queue up a response
-        await pyodide_input_queue.put("test input\n")
-        # Read the line
+        await pyodide_input_queue.put("test input")
         result = pyodide_stdin.readline()
         assert result == "test input\n"
-        # Verify prompt was sent
         assert pyodide_pipe.call_count == 1
         msg_bytes = pyodide_pipe.call_args[0][0]
         msg = json.loads(msg_bytes)
@@ -152,12 +150,11 @@ class TestPyodideStdin:
         pyodide_pipe: Mock,
         pyodide_input_queue: asyncio.Queue[str],
     ) -> None:
-        # Queue up a response
-        await pyodide_input_queue.put("test input\n")
-        # Read the line with prompt
+        await pyodide_input_queue.put("test input")
+        # The _readline_with_prompt primitive returns bare text; the "\n"
+        # is only added by readline() for file-protocol consumers.
         result = pyodide_stdin._readline_with_prompt("Enter: ")
-        assert result == "test input\n"
-        # Verify prompt was sent
+        assert result == "test input"
         assert pyodide_pipe.call_count == 1
         msg_bytes = pyodide_pipe.call_args[0][0]
         msg = json.loads(msg_bytes)
@@ -172,16 +169,11 @@ class TestPyodideStdin:
         pyodide_pipe: Mock,
         pyodide_input_queue: asyncio.Queue[str],
     ) -> None:
-        pyodide_stdin._get_response = Mock(
-            return_value="line1\nline2\nline3\n"
-        )
+        pyodide_stdin._get_response = Mock(return_value="hello")
 
-        # Queue up a response
-        await pyodide_input_queue.put("line1\nline2\nline3\n")
-        # Read the lines
+        await pyodide_input_queue.put("hello")
         result = pyodide_stdin.readlines()
-        assert result == ["line1", "line2", "line3", ""]
-        # Verify prompt was sent
+        assert result == ["hello\n"]
         assert pyodide_pipe.call_count == 1
         msg_bytes = pyodide_pipe.call_args[0][0]
         msg = json.loads(msg_bytes)
@@ -189,3 +181,13 @@ class TestPyodideStdin:
         assert msg["cell_id"] == pyodide_stdin.stream.cell_id
         assert msg["console"]["mimetype"] == "text/plain"
         assert msg["console"]["data"] == ""
+
+    async def test_readline_empty_submission(
+        self,
+        pyodide_stdin: PyodideStdin,
+        pyodide_input_queue: asyncio.Queue[str],
+    ) -> None:
+        # Empty submission must be a blank line ("\n"), not "" (= EOF).
+        pyodide_stdin._get_response = lambda: ""
+        await pyodide_input_queue.put("")
+        assert pyodide_stdin.readline() == "\n"
