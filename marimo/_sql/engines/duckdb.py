@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     import duckdb
+    import polars as pl
 
 # Internal engine names
 INTERNAL_DUCKDB_ENGINE = cast(VariableName, "__marimo_duckdb")
@@ -83,9 +84,16 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
 
         sql_output_format = self.sql_output_format()
 
+        def to_polars() -> pl.DataFrame:
+            import polars as pl
+
+            # Use the Arrow PyCapsule interface (pl.DataFrame(relation))
+            # instead of relation.pl() so that pyarrow is not required.
+            return pl.DataFrame(relation)
+
         return convert_to_output(
             sql_output_format=sql_output_format,
-            to_polars=lambda: relation.pl(),
+            to_polars=to_polars,
             to_pandas=lambda: relation.df(),
             to_native=lambda: relation,
         )
