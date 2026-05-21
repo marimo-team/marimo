@@ -23,14 +23,20 @@ declare module "@tanstack/react-table" {
   }
 }
 
-export type FilterType =
-  | "text"
-  | "number"
-  | "date"
-  | "datetime"
-  | "time"
-  | "select"
-  | "boolean";
+const FILTER_TYPES = [
+  "text",
+  "number",
+  "date",
+  "datetime",
+  "time",
+  "select",
+  "boolean",
+] as const;
+export type FilterType = (typeof FILTER_TYPES)[number];
+
+export const EDITABLE_FILTER_TYPES: ReadonlySet<FilterType> = new Set(
+  FILTER_TYPES,
+);
 
 export const NULLISH_OPS = ["is_null", "is_not_null"] as const;
 export const MEMBERSHIP_OPS = ["in", "not_in"] as const;

@@ -5,6 +5,7 @@
 // https://github.com/TanStack/table/issues/5567
 
 import {
+  type Column,
   type ColumnDef,
   type ColumnFiltersState,
   ColumnPinning,
@@ -41,6 +42,11 @@ import { ColumnFormattingFeature } from "./column-formatting/feature";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import { CopyColumnFeature } from "./copy-column/feature";
 import type { ExportActionProps } from "./export-actions";
+import {
+  type AddFilterRequest,
+  FilterEditorProvider,
+} from "./filter-editor-context";
+import { buildEditorSnapshot, type Snapshot } from "./filter-pill-editor";
 import { FilterPills } from "./filter-pills";
 import { FocusRowFeature } from "./focus-row/feature";
 import { useColumnPinning } from "./hooks/use-column-pinning";
@@ -289,67 +295,88 @@ const DataTableInternal = <TData,>({
 
   const tableRef = useScrollContainerHeight({ maxHeight, virtualize });
 
+  const [addFilterSnapshot, setAddFilterSnapshot] =
+    React.useState<Snapshot | null>(null);
+  const requestAddFilter = React.useCallback(
+    (request: AddFilterRequest) => {
+      const column = table.getColumn(request.columnId);
+      if (!column) {
+        return;
+      }
+      setAddFilterSnapshot(
+        buildEditorSnapshot(column as Column<unknown, unknown>, {
+          operator: request.operator,
+        }),
+      );
+    },
+    [table],
+  );
+
   return (
-    <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
-      <FilterPills
-        filters={filters}
-        table={table}
-        calculateTopKRows={calculateTopKRows}
-      />
-      <CellSelectionProvider>
-        <div
-          part="table-wrapper"
-          className={cn(className || "rounded-md border overflow-hidden")}
-        >
-          <TableTopBar
-            enableSearch={enableSearch}
-            searchQuery={searchQuery}
-            onSearchQueryChange={onSearchQueryChange}
-            reloading={reloading}
-            showChartBuilder={showChartBuilder}
-            isChartBuilderOpen={isChartBuilderOpen}
-            toggleDisplayHeader={toggleDisplayHeader}
-            showTableExplorer={showTableExplorer}
-            togglePanel={togglePanel}
-            isAnyPanelOpen={isAnyPanelOpen}
-            downloadAs={downloadAs}
-            sizeBytes={sizeBytes}
-          />
-          <Table
-            className={cn(
-              "relative",
-              columns.length <= AUTO_WIDTH_MAX_COLUMNS ? "w-auto" : "w-full",
-            )}
-            ref={tableRef}
+    <FilterEditorProvider value={{ requestAddFilter }}>
+      <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
+        <FilterPills
+          filters={filters}
+          table={table}
+          calculateTopKRows={calculateTopKRows}
+          addFilterSnapshot={addFilterSnapshot}
+          onAddFilterSnapshotChange={setAddFilterSnapshot}
+        />
+        <CellSelectionProvider>
+          <div
+            part="table-wrapper"
+            className={cn(className || "rounded-md border overflow-hidden")}
           >
-            {showLoadingBar && (
-              <thead className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
-            )}
-            {renderTableHeader(table, virtualize || Boolean(maxHeight))}
-            <DataTableBody
-              table={table}
-              columns={columns}
-              rowViewerPanelOpen={rowViewerPanelOpen}
-              getRowIndex={getPaginatedRowIndex}
-              viewedRowIdx={viewedRowIdx}
-              virtualize={virtualize}
+            <TableTopBar
+              enableSearch={enableSearch}
+              searchQuery={searchQuery}
+              onSearchQueryChange={onSearchQueryChange}
+              reloading={reloading}
+              showChartBuilder={showChartBuilder}
+              isChartBuilderOpen={isChartBuilderOpen}
+              toggleDisplayHeader={toggleDisplayHeader}
+              showTableExplorer={showTableExplorer}
+              togglePanel={togglePanel}
+              isAnyPanelOpen={isAnyPanelOpen}
+              downloadAs={downloadAs}
+              sizeBytes={sizeBytes}
             />
-          </Table>
-          <TableBottomBar
-            part="table-footer"
-            className="pt-1.5 pb-0.5 border-t border-border"
-            totalColumns={totalColumns}
-            pagination={pagination}
-            selection={selection}
-            onRowSelectionChange={onRowSelectionChange}
-            table={table}
-            getRowIds={getRowIds}
-            showPageSizeSelector={showPageSizeSelector}
-            tableLoading={reloading}
-          />
-        </div>
-      </CellSelectionProvider>
-    </div>
+            <Table
+              className={cn(
+                "relative",
+                columns.length <= AUTO_WIDTH_MAX_COLUMNS ? "w-auto" : "w-full",
+              )}
+              ref={tableRef}
+            >
+              {showLoadingBar && (
+                <thead className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
+              )}
+              {renderTableHeader(table, virtualize || Boolean(maxHeight))}
+              <DataTableBody
+                table={table}
+                columns={columns}
+                rowViewerPanelOpen={rowViewerPanelOpen}
+                getRowIndex={getPaginatedRowIndex}
+                viewedRowIdx={viewedRowIdx}
+                virtualize={virtualize}
+              />
+            </Table>
+            <TableBottomBar
+              part="table-footer"
+              className="pt-1.5 pb-0.5 border-t border-border"
+              totalColumns={totalColumns}
+              pagination={pagination}
+              selection={selection}
+              onRowSelectionChange={onRowSelectionChange}
+              table={table}
+              getRowIds={getRowIds}
+              showPageSizeSelector={showPageSizeSelector}
+              tableLoading={reloading}
+            />
+          </div>
+        </CellSelectionProvider>
+      </div>
+    </FilterEditorProvider>
   );
 };
 

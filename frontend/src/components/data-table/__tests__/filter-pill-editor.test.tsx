@@ -3,7 +3,12 @@ import type { Column, Table } from "@tanstack/react-table";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { FilterPillEditor } from "../filter-pill-editor";
+import {
+  buildEditorSnapshot,
+  buildEmptyFilterValue,
+  defaultFilterValueFor,
+  FilterPillEditor,
+} from "../filter-pill-editor";
 import { Filter } from "../filters";
 
 const renderWithProviders = (ui: React.ReactElement) =>
@@ -257,5 +262,59 @@ describe("FilterPillEditor — apply", () => {
         value: { type: "number", operator: ">", value: 18 },
       },
     ]);
+  });
+});
+
+describe("defaultFilterValueFor", () => {
+  it.each([
+    ["number", "between", { type: "number", operator: "between" }],
+    ["number", ">", { type: "number", operator: ">" }],
+    ["text", "contains", { type: "text", operator: "contains" }],
+    ["text", "in", { type: "text", operator: "in", values: [] }],
+    ["text", "not_in", { type: "text", operator: "not_in", values: [] }],
+    ["boolean", "is_true", { type: "boolean", operator: "is_true" }],
+    ["select", "in", { type: "select", operator: "in", options: [] }],
+    ["date", "between", { type: "date", operator: "between" }],
+    ["datetime", "between", { type: "datetime", operator: "between" }],
+    ["time", "between", { type: "time", operator: "between" }],
+  ] as const)("seeds %s + %s", (type, operator, expected) => {
+    expect(defaultFilterValueFor(type, operator)).toEqual(expected);
+  });
+});
+
+describe("buildEmptyFilterValue", () => {
+  it.each([
+    ["name", { type: "text", operator: "contains" }],
+    ["age", { type: "number", operator: "between" }],
+    ["when", { type: "date", operator: "between" }],
+    ["at", { type: "datetime", operator: "between" }],
+    ["clock", { type: "time", operator: "between" }],
+  ] as const)(
+    "picks the dtype-default operator for %s",
+    (columnId, expected) => {
+      const table = mockTable();
+      const column = table.getColumn(columnId)!;
+      expect(buildEmptyFilterValue(column)).toEqual(expected);
+    },
+  );
+});
+
+describe("buildEditorSnapshot", () => {
+  it("uses dtype-default operator when none provided", () => {
+    const table = mockTable();
+    const column = table.getColumn("name")!;
+    expect(buildEditorSnapshot(column)).toEqual({
+      columnId: "name",
+      value: { type: "text", operator: "contains" },
+    });
+  });
+
+  it("honors an explicit operator override", () => {
+    const table = mockTable();
+    const column = table.getColumn("name")!;
+    expect(buildEditorSnapshot(column, { operator: "in" })).toEqual({
+      columnId: "name",
+      value: { type: "text", operator: "in", values: [] },
+    });
   });
 });
