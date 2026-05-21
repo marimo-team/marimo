@@ -198,16 +198,6 @@ google:
     release_date: 2026-02-19
     cost: {input: 2, output: 12}
 
-  - name: Gemini 3.1 Flash Lite
-    model: gemini-3.1-flash-lite
-    description: "Google's GA high-efficiency multimodal model optimized for low-latency, high-volume workloads"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-05-07
-    cost: {input: 0.25, output: 1.5}
-
 bedrock:
   - name: Claude Opus 4.7
     model: anthropic.claude-opus-4-7

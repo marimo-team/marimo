@@ -1,6 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { AiModel, ModelsByProvider, ProviderId, Role } from "../index.ts";
+import type {
+  AiModel,
+  ModelsByProvider,
+  Role,
+  SyncableProviderId,
+} from "../index.ts";
 import type { ModelsDevApi, ModelsDevModel } from "./models-dev.ts";
 
 /**
@@ -19,12 +24,12 @@ export const PROVIDER_MAP = {
   "ollama-cloud": "ollama",
   wandb: "wandb",
   "opencode-go": "opencode-go",
-} as const satisfies Readonly<Record<string, ProviderId>>;
+} as const satisfies Readonly<Record<string, SyncableProviderId>>;
 
 const MODALITIES = new Set(["text", "image", "pdf"]);
 
 /** Sentinel for models with no `release_date` upstream — sorts to the bottom. */
-const UNKNOWN_DATE = new Date("1970-01-01");
+const UNKNOWN_DATE = "1970-01-01";
 export const MAX_MODELS_PER_PROVIDER = 10;
 
 /**
@@ -78,14 +83,16 @@ function filterModalities(
   );
 }
 
-/** Upstream `release_date` is sometimes `YYYY-MM`; pad and parse defensively. */
-function parseReleaseDate(raw: string | undefined): Date {
+/**
+ * Normalize upstream `release_date` (which can be `YYYY-MM` or `YYYY-MM-DD`)
+ * to a `YYYY-MM-DD` string. Invalid / missing values fall back to the sentinel.
+ */
+function parseReleaseDate(raw: string | undefined): string {
   if (!raw) {
     return UNKNOWN_DATE;
   }
   const normalized = /^\d{4}-\d{2}$/.test(raw) ? `${raw}-01` : raw;
-  const date = new Date(normalized);
-  return Number.isNaN(date.getTime()) ? UNKNOWN_DATE : date;
+  return Number.isNaN(Date.parse(normalized)) ? UNKNOWN_DATE : normalized;
 }
 
 function deriveCost(source: ModelsDevModel): AiModel["cost"] {
@@ -120,9 +127,9 @@ function buildAiModel(source: ModelsDevModel): AiModel {
  */
 function sortAndTrim(entries: AiModel[], maxPerProvider: number): AiModel[] {
   const sorted = [...entries].sort((a, b) => {
-    const dateDelta = b.release_date.getTime() - a.release_date.getTime();
-    if (dateDelta !== 0) {
-      return dateDelta;
+    // ISO `YYYY-MM-DD` strings sort lexicographically the same as by date.
+    if (a.release_date !== b.release_date) {
+      return a.release_date < b.release_date ? 1 : -1;
     }
     return a.model.localeCompare(b.model);
   });
@@ -154,7 +161,6 @@ export function mergeModels(
 ): MergeSummary {
   const { maxPerProvider = MAX_MODELS_PER_PROVIDER, providers } = options;
   const providerFilter = providers ? new Set(providers) : null;
-  const newEntries: ModelsByProvider = {};
   const skippedExisting: string[] = [];
   let preservedCount = 0;
 
@@ -164,6 +170,11 @@ export function mergeModels(
     }
     preservedCount += entries.length;
   }
+
+  // Multiple models.dev provider ids can map to the same marimo provider
+  // (e.g. `google` + `google-vertex` → `google`). Accumulate candidates per
+  // marimo provider id, de-duplicating by model id, before sorting + trimming.
+  const candidatesByProvider = new Map<string, Map<string, AiModel>>();
 
   for (const [devProviderId, marimoProviderId] of Object.entries(
     PROVIDER_MAP,
@@ -178,24 +189,29 @@ export function mergeModels(
     const existingIds = new Set(
       (existing[marimoProviderId] ?? []).map((m) => m.model),
     );
+    const bucket =
+      candidatesByProvider.get(marimoProviderId) ?? new Map<string, AiModel>();
 
-    const candidates: AiModel[] = [];
     for (const model of Object.values(provider.models)) {
       if (existingIds.has(model.id)) {
         skippedExisting.push(`${marimoProviderId}/${model.id}`);
         continue;
       }
-      candidates.push(buildAiModel(model));
-    }
-
-    if (candidates.length > 0) {
-      const trimmed = sortAndTrim(candidates, maxPerProvider);
-      const existingBucket = newEntries[marimoProviderId];
-      if (existingBucket) {
-        existingBucket.push(...trimmed);
-      } else {
-        newEntries[marimoProviderId] = trimmed;
+      // First mapped source wins on conflict — later iterations skip dupes.
+      if (!bucket.has(model.id)) {
+        bucket.set(model.id, buildAiModel(model));
       }
+    }
+    candidatesByProvider.set(marimoProviderId, bucket);
+  }
+
+  const newEntries: ModelsByProvider = {};
+  for (const [marimoProviderId, bucket] of candidatesByProvider) {
+    if (bucket.size > 0) {
+      newEntries[marimoProviderId as SyncableProviderId] = sortAndTrim(
+        [...bucket.values()],
+        maxPerProvider,
+      );
     }
   }
 

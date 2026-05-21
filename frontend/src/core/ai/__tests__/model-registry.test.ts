@@ -10,7 +10,7 @@ vi.mock("@marimo-team/llm-info/models.json", () => {
     capabilities: [],
     input_types: [],
     output_types: [],
-    release_date: new Date(0),
+    release_date: "1970-01-01",
     ...overrides,
   });
 
@@ -385,7 +385,7 @@ describe("AiModelRegistry", () => {
           "name": "custom-gpt",
           "output_types": [],
           "provider": "openai",
-          "release_date": 1970-01-01T00:00:00.000Z,
+          "release_date": "1970-01-01",
           "roles": [],
         }
       `);
@@ -399,7 +399,7 @@ describe("AiModelRegistry", () => {
           "name": "GPT-4",
           "output_types": [],
           "provider": "openai",
-          "release_date": 1970-01-01T00:00:00.000Z,
+          "release_date": "1970-01-01",
           "roles": [
             "chat",
             "edit",

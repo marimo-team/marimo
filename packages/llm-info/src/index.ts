@@ -28,11 +28,12 @@ export interface AiModel {
   capabilities: Capability[];
   input_types: DataType[];
   output_types: DataType[];
-  release_date: Date;
+  /** ISO `YYYY-MM-DD` — stored as a string to round-trip through YAML/JSON. */
+  release_date: string;
   cost?: AiModelCost;
 }
 
-export type ProviderId =
+export type SyncableProviderId =
   | "anthropic"
   | "openai"
   | "google"
@@ -47,11 +48,11 @@ export type ProviderId =
  * `models.yml` and `models.json` are keyed by provider id at the top level —
  * the same model may appear under multiple providers as independent entries.
  */
-export type ModelsByProvider = Partial<Record<ProviderId, AiModel[]>>;
+export type ModelsByProvider = Partial<Record<SyncableProviderId, AiModel[]>>;
 
 export interface AiProvider {
   name: string;
-  id: ProviderId;
+  id: string;
   description: string;
   url: string;
 }

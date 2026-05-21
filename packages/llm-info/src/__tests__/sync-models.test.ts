@@ -167,17 +167,17 @@ describe("mergeModels", () => {
     expect(gpt55!.input_types).toEqual(["text", "image"]);
   });
 
-  it("parses `release_date` into a Date, falling back to epoch when missing", () => {
+  it("normalizes `release_date` to YYYY-MM-DD, falling back to epoch when missing", () => {
     const summary = mergeModels({}, FIXTURE_API);
     const opus = summary.newEntries["anthropic"]!.find(
       (e) => e.model === "claude-opus-4-7",
     );
-    expect(opus!.release_date.toISOString().slice(0, 10)).toBe("2026-04-15");
+    expect(opus!.release_date).toBe("2026-04-15");
 
     const embed = summary.newEntries["openai"]!.find(
       (e) => e.model === "text-embedding-3-large",
     );
-    expect(embed!.release_date.toISOString().slice(0, 10)).toBe("1970-01-01");
+    expect(embed!.release_date).toBe("1970-01-01");
   });
 
   it("derives `roles: [embed]` for embedding models", () => {
@@ -243,6 +243,80 @@ describe("mergeModels", () => {
 
   it("defaults to 10 per provider when no cap is passed", () => {
     expect(MAX_MODELS_PER_PROVIDER).toBe(10);
+  });
+
+  it("dedupes models that appear under multiple mapped providers (google + google-vertex → google)", () => {
+    const fixture: ModelsDevApi = {
+      google: {
+        id: "google",
+        name: "Google",
+        models: {
+          "gemini-3.1-flash-lite": {
+            id: "gemini-3.1-flash-lite",
+            name: "Gemini 3.1 Flash Lite",
+            reasoning: true,
+            tool_call: true,
+            release_date: "2026-05-07",
+          },
+        },
+      },
+      "google-vertex": {
+        id: "google-vertex",
+        name: "Google Vertex",
+        models: {
+          // Same model id; must NOT produce a duplicate entry under `google`.
+          "gemini-3.1-flash-lite": {
+            id: "gemini-3.1-flash-lite",
+            name: "Gemini 3.1 Flash Lite (Vertex)",
+            reasoning: true,
+            tool_call: true,
+            release_date: "2026-05-07",
+          },
+        },
+      },
+    };
+
+    const summary = mergeModels({}, fixture);
+    const ids = summary.newEntries["google"]!.map((e) => e.model);
+    expect(ids).toEqual(["gemini-3.1-flash-lite"]);
+    expect(summary.newEntries["google"]).toHaveLength(1);
+  });
+
+  it("enforces `maxPerProvider` after deduping across mapped providers", () => {
+    const make = (id: string, date: string) => ({
+      id,
+      name: id,
+      reasoning: false,
+      tool_call: false,
+      release_date: date,
+    });
+    const fixture: ModelsDevApi = {
+      google: {
+        id: "google",
+        name: "Google",
+        models: {
+          a: make("a", "2026-01-01"),
+          b: make("b", "2026-02-01"),
+          c: make("c", "2026-03-01"),
+        },
+      },
+      "google-vertex": {
+        id: "google-vertex",
+        name: "Google Vertex",
+        models: {
+          // Overlap with `google` (a, b) + one extra unique to vertex (d).
+          a: make("a", "2026-01-01"),
+          b: make("b", "2026-02-01"),
+          d: make("d", "2026-04-01"),
+        },
+      },
+    };
+
+    const summary = mergeModels({}, fixture, { maxPerProvider: 2 });
+    expect(summary.newEntries["google"]!.map((e) => e.model)).toEqual([
+      "d", // 2026-04-01
+      "c", // 2026-03-01
+    ]);
   });
 
   it("forwards `cost` from models.dev when present, and omits it otherwise", () => {

@@ -17,13 +17,9 @@ export interface AiModel extends AiModelType {
   custom: boolean;
 }
 
-// `release_date` is serialized as an ISO string in JSON; everything else
-// matches the `AiModel` schema validated by Zod at codegen time.
-type AiModelJson = Omit<AiModelType, "release_date"> & {
-  release_date?: string;
-};
+// JSON shape matches the `AiModel` schema (Zod-validated at codegen time).
 const models = modelsJson as unknown as Partial<
-  Record<ProviderId, AiModelJson[]>
+  Record<ProviderId, AiModelType[]>
 >;
 const providers = providersJson as unknown as readonly AiProvider[];
 
@@ -48,9 +44,6 @@ export const getKnownModelMaps = once((): KnownModelMaps => {
       const modelInfo: AiModel = {
         ...raw,
         model: modelId,
-        release_date: raw.release_date
-          ? new Date(raw.release_date)
-          : new Date(0),
         provider,
         custom: false,
       };
@@ -172,7 +165,7 @@ export class AiModelRegistry {
         capabilities: [],
         input_types: [],
         output_types: [],
-        release_date: new Date(0),
+        release_date: "1970-01-01",
         custom: true,
       };
       customModelsMap.set(model, modelInfo);

@@ -18,6 +18,16 @@ const CostSchema = z
   })
   .partial();
 
+/** YAML may parse `YYYY-MM-DD` scalars as Date; coerce back to ISO string. */
+const ReleaseDateSchema = z
+  .union([z.string(), z.date()])
+  .optional()
+  .transform((v) => {
+    if (v === undefined) return undefined;
+    if (v instanceof Date) return v.toISOString().slice(0, 10);
+    return v;
+  });
+
 export const LLMInfoSchema = z.object({
   name: z.string(),
   model: z.string(),
@@ -26,7 +36,7 @@ export const LLMInfoSchema = z.object({
   capabilities: z.array(z.enum(CAPABILITIES)).default([]),
   input_types: z.array(z.enum(DATA_TYPES)).default([]),
   output_types: z.array(z.enum(DATA_TYPES)).default([]),
-  release_date: z.union([z.string(), z.date()]).optional(),
+  release_date: ReleaseDateSchema,
   cost: CostSchema.optional(),
 });
 

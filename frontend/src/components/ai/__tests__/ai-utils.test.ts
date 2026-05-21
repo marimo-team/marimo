@@ -13,7 +13,7 @@ vi.mock("@marimo-team/llm-info/models.json", () => {
     capabilities: [],
     input_types: [],
     output_types: [],
-    release_date: new Date(0),
+    release_date: "1970-01-01",
     ...overrides,
   });
 
