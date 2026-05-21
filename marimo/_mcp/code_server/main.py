@@ -56,6 +56,7 @@ def setup_code_mcp_server(
     from starlette.responses import JSONResponse
     from starlette.routing import Mount
 
+    from marimo._messaging.notebook.outputs import CellOutputs
     from marimo._runtime.commands import ExecuteScratchpadCommand
     from marimo._server.api.deps import AppStateBase
     from marimo._session.model import ConnectionState
@@ -131,8 +132,22 @@ def setup_code_mcp_server(
         listener = ScratchCellListener(run_id=run_id)
         with session.scoped(listener):
             async with session.scratchpad_lock:
+                # Snapshot document + outputs so code_mode (cm.get_context)
+                # can read cells and their last outputs. Mirrors /api/execute.
+                cell_ids = session.document.cell_ids
+                cell_outputs = CellOutputs(
+                    output=session.session_view.get_cell_outputs(cell_ids),
+                    console_outputs=(
+                        session.session_view.get_cell_console_outputs(cell_ids)
+                    ),
+                )
                 session.put_control_request(
-                    ExecuteScratchpadCommand(code=code, run_id=run_id),
+                    ExecuteScratchpadCommand(
+                        code=code,
+                        notebook_cells=tuple(session.document.cells),
+                        cell_outputs=cell_outputs,
+                        run_id=run_id,
+                    ),
                     from_consumer_id=None,
                 )
                 await listener.wait(timeout=EXECUTION_TIMEOUT)
