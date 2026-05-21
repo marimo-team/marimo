@@ -43,11 +43,6 @@ interface SyncOptions {
   maxPerProvider?: number;
   /** Restrict sync to these marimo provider ids (defaults to all). */
   providers?: readonly string[];
-  /**
-   * When set and a live fetch happens, the raw `api.json` is written here for
-   * debugging / reproducibility. Ignored when `modelsDev` is pre-supplied.
-   */
-  snapshotPath?: string;
 }
 
 export interface SyncResult {
@@ -241,10 +236,8 @@ export async function syncModels(options: SyncOptions): Promise<SyncResult> {
     mode = "append",
     maxPerProvider,
     providers,
-    snapshotPath,
   } = options;
-  const modelsDev =
-    options.modelsDev ?? (await fetchModelsDev({ snapshotPath }));
+  const modelsDev = options.modelsDev ?? (await fetchModelsDev());
 
   // `replace` mode pretends the file is empty so everything is treated as new.
   const existingText =
@@ -287,7 +280,6 @@ async function main(): Promise<void> {
     const result = await syncModels({
       ...args,
       modelsYamlPath: join(dataDir, "models.yml"),
-      snapshotPath: join(dataDir, "models-dev-snapshot.json"),
     });
 
     Logger.info(

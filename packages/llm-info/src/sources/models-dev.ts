@@ -1,7 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
 import { z } from "zod";
 import { Logger } from "../simple_logger.ts";
 
@@ -110,19 +108,9 @@ export function parseModelsDev(raw: unknown): ModelsDevApi {
   return out;
 }
 
-export interface FetchModelsDevOptions {
-  url?: string;
-  /**
-   * When set, the raw `api.json` response is written verbatim to this path
-   * before being parsed. Useful as a debugging snapshot or fallback source.
-   */
-  snapshotPath?: string;
-}
-
 export async function fetchModelsDev(
-  options: FetchModelsDevOptions = {},
+  url: string = DEFAULT_URL,
 ): Promise<ModelsDevApi> {
-  const { url = DEFAULT_URL, snapshotPath } = options;
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(
@@ -130,16 +118,5 @@ export async function fetchModelsDev(
     );
   }
   const json = (await response.json()) as unknown;
-  if (snapshotPath) {
-    try {
-      mkdirSync(dirname(snapshotPath), { recursive: true });
-      writeFileSync(snapshotPath, `${JSON.stringify(json, null, 2)}\n`);
-    } catch (error) {
-      Logger.warn(
-        `Failed to write models.dev snapshot to ${snapshotPath}:`,
-        error,
-      );
-    }
-  }
   return parseModelsDev(json);
 }
