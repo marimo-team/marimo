@@ -62,4 +62,4 @@ Most style rules are enforced by ruff (`pyproject.toml`) and pre-commit; run
 we may not have autofixes.
 
 - Docstrings are rendered as Markdown, not reStructuredText. Use single
-  backticks for inline code (`value`, never double backticks.
+  backticks for inline code (`value`), never double backticks.
