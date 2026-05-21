@@ -83,7 +83,7 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   }
 
   return (
-    <div className="pr-18 pb-2 flex flex-row gap-2 min-h-0">
+    <div className="flex-1 pr-18 pb-2 flex flex-row gap-2 min-h-0">
       <SlidesMinimap
         cells={cellsWithOutput}
         thumbnailWidth={220}
