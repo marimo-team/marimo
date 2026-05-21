@@ -71,3 +71,18 @@ repos:
         language: system
         pass_filenames: false
         files: ^tests/.*\.py$
+      - id: generate-design-md
+        name: generate DESIGN.md
+        entry: make design-md
+        language: system
+        pass_filenames: false
+        files: >-
+          (?x)^(
+            scripts/generate-design-md\.ts|
+            frontend/src/components/editor/renderers/grid-layout/plugin\.tsx|
+            frontend/src/core/config/config-schema\.ts|
+            frontend/src/css/app/(App|Cell)\.css|
+            frontend/src/css/globals\.css|
+            frontend/src/plugins/impl/data-editor/themes\.ts|
+            frontend/tailwind\.config\.cjs
+          )$

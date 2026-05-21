@@ -1,0 +1,36 @@
+name: DESIGN.md
+
+on:
+  pull_request:
+    paths:
+      - "DESIGN.md"
+      - "Makefile"
+      - "frontend/src/components/editor/renderers/grid-layout/plugin.tsx"
+      - "frontend/src/core/config/config-schema.ts"
+      - "frontend/src/css/**"
+      - "frontend/src/plugins/impl/data-editor/themes.ts"
+      - "frontend/tailwind.config.cjs"
+      - "scripts/generate-design-md.ts"
+      - ".github/workflows/test_design_md.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  design-md:
+    name: Check DESIGN.md
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: prefix-dev/setup-pixi@82d477f15f3a381dbcc8adc1206ce643fe110fb7 # v0.9.3
+        with:
+          pixi-version: v0.62.2
+          locked: false
+          frozen: false
+          cache: false
+      - run: pixi run make design-md-check
