@@ -6,7 +6,7 @@
 
 DENO ?= uv tool run deno
 DESIGN_MD_DENO_FLAGS := --no-lock --node-modules-dir=none
-DESIGN_MD_DENO_RUN_FLAGS := $(DESIGN_MD_DENO_FLAGS) --allow-read=. --allow-env
+DESIGN_MD_DENO_RUN_FLAGS := $(DESIGN_MD_DENO_FLAGS) --allow-read --allow-env
 DESIGN_MD_LINTER ?= pnpm --silent dlx @google/design.md@0.1.1
 DESIGN_MD_INPUTS := \
 	scripts/generate-design-md.ts \
