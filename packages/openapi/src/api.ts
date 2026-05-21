@@ -3810,8 +3810,8 @@ export interface components {
      *
      *         Attributes:
      *             run_id: Correlation ID echoed from the command that triggered
-     *                 this completion. ``None`` for handlers that don't take a
-     *                 ``run_id`` (everything except ``handle_execute_scratchpad``
+     *                 this completion. `None` for handlers that don't take a
+     *                 `run_id` (everything except `handle_execute_scratchpad`
      *                 today). Consumers that want to wait for a specific command's
      *                 completion filter on this field.
      */
@@ -4279,10 +4279,10 @@ export interface components {
      *                 Used to populate the document ContextVar so code_mode can read
      *                 cell ordering, code, names, and configs.
      *             run_id: Optional correlation ID. When set, the
-     *                 ``CompletedRunNotification`` emitted at the end of this command
-     *                 carries the same ``run_id`` so a caller holding a
-     *                 ``ScratchCellListener`` can filter for *its* completion and
-     *                 ignore ``CompletedRun`` events from unrelated commands on the
+     *                 `CompletedRunNotification` emitted at the end of this command
+     *                 carries the same `run_id` so a caller holding a
+     *                 `ScratchCellListener` can filter for *its* completion and
+     *                 ignore `CompletedRun` events from unrelated commands on the
      *                 same session.
      */
     ExecuteScratchpadCommand: {
@@ -4381,8 +4381,8 @@ export interface components {
      *
      *         Schema-only: this struct exists to describe the multipart shape in
      *         OpenAPI. At runtime, the endpoint reads the string fields from
-     *         ``MultipartRequest.body`` and the uploaded bytes from
-     *         ``MultipartRequest.files["file"]`` — ``body.file`` is never populated.
+     *         `MultipartRequest.body` and the uploaded bytes from
+     *         `MultipartRequest.files["file"]` — `body.file` is never populated.
      */
     FileCreateMultipartRequest: {
       /**
@@ -5015,14 +5015,14 @@ export interface components {
      * @description Configuration for lint rule selection.
      *
      *         Follows ruff-inspired semantics for selecting which rules to run
-     *         during ``marimo check``.
+     *         during `marimo check`.
      *
      *         **Keys.**
      *
-     *         - ``select``: list of rule code prefixes that replaces the default
-     *           enabled set. Use ``"ALL"`` to select all rules.
-     *           Example: ``["MB", "MR001"]``
-     *         - ``ignore``: list of rule code prefixes to remove from the
+     *         - `select`: list of rule code prefixes that replaces the default
+     *           enabled set. Use `"ALL"` to select all rules.
+     *           Example: `["MB", "MR001"]`
+     *         - `ignore`: list of rule code prefixes to remove from the
      *           enabled set.
      */
     LintConfig: {
@@ -5819,7 +5819,7 @@ export interface components {
      * ReorderCells
      * @description Replace the full cell ordering.
      *
-     *         Cell IDs present in the document but missing from ``cell_ids``
+     *         Cell IDs present in the document but missing from `cell_ids`
      *         are appended at the end. IDs not in the document are ignored.
      */
     ReorderCells: {
@@ -6456,9 +6456,9 @@ export interface components {
      * Transaction
      * @description An atomic batch of changes applied to a NotebookDocument.
      *
-     *         ``source`` identifies the writer (e.g. ``"frontend"``, ``"kernel"``).
-     *         ``version`` is ``None`` when created and stamped by
-     *         ``NotebookDocument.apply()``.
+     *         `source` identifies the writer (e.g. `"frontend"`, `"kernel"`).
+     *         `version` is `None` when created and stamped by
+     *         `NotebookDocument.apply()`.
      */
     Transaction: {
       changes: (
