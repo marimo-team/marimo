@@ -92,7 +92,7 @@ from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.formatter import DefaultFormatter
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Callable, Iterator, Sequence
     from os import PathLike
     from types import TracebackType
 
@@ -219,7 +219,7 @@ def get_context(
         When False (the default), `edit_cell` raises
         :class:`StaleCellError` if the agent tries to overwrite a cell
         whose code has changed since the agent last read it (e.g. via
-        `ctx.cells[cell_id]`). Set to True to overwrite blindly —
+        `ctx.cells[cell_id].code`). Set to True to overwrite blindly —
         useful when the agent intentionally discards prior content.
     """
     runtime_ctx = _get_runtime_context()
@@ -296,7 +296,13 @@ class NotebookCell:
         Same frozen-snapshot caveat as `output`.
     """
 
-    __slots__ = ("_cell", "_graph_errors", "_impl", "_outputs")
+    __slots__ = (
+        "_cell",
+        "_graph_errors",
+        "_impl",
+        "_outputs",
+        "_record_read",
+    )
 
     def __init__(
         self,
@@ -304,11 +310,13 @@ class NotebookCell:
         cell_impl: CellRuntimeState | None,
         graph_errors: tuple[Error, ...] = (),
         outputs: CellOutputs | None = None,
+        record_read: Callable[[], None] | None = None,
     ) -> None:
         self._cell = cell
         self._impl = cell_impl
         self._graph_errors = graph_errors
         self._outputs = outputs
+        self._record_read = record_read
 
     # -- document properties (delegated) --
 
@@ -320,6 +328,8 @@ class NotebookCell:
     @property
     def code(self) -> str:
         """The current source code of the cell."""
+        if self._record_read is not None:
+            self._record_read()
         return self._cell.code
 
     @property
@@ -489,7 +499,6 @@ class _CellsView:
 
     def _cell_view(self, cell: _NotebookCell) -> NotebookCell:
         """Wrap a document cell with runtime state from the graph."""
-        self._ctx._note_read(cell.id, cell.version)
         try:
             graph = self._ctx.graph
             impl = graph.cells.get(cell.id)
@@ -499,11 +508,16 @@ class _CellsView:
             impl = None
             graph_errors = ()
             outputs = None
+
+        def record_read() -> None:
+            self._ctx._note_read(cell.id, cell.version)
+
         return NotebookCell(
             cell,
             impl,
             graph_errors=graph_errors,
             outputs=outputs,
+            record_read=record_read,
         )
 
     def _cell_ids(self) -> list[CellId_t]:
@@ -624,7 +638,9 @@ class _CellsView:
 
         def _fmt(i: int, c: _NotebookCell) -> str:
             cv = self._cell_view(c)
-            first_line = c.code.split("\n", 1)[0]
+            # Read through the wrapper so the staleness tracker sees
+            # the preview as a read of the cell's source.
+            first_line = cv.code.split("\n", 1)[0]
             code_preview = first_line[:50]
             if len(first_line) > 50:
                 code_preview += "..."
