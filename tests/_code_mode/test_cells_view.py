@@ -216,7 +216,11 @@ def _cell(cell_id: str, code: str, name: str = "") -> NotebookCell:
 
 def _view(cells: list[NotebookCell]) -> _CellsView:
     doc = NotebookDocument(cells)
-    ctx = type("_MockCtx", (), {"_document": doc})()
+    ctx = type(
+        "_MockCtx",
+        (),
+        {"_document": doc, "_note_read": lambda *_args, **_kwargs: None},
+    )()
     return _CellsView(ctx)
 
 

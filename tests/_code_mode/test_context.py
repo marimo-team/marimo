@@ -47,7 +47,8 @@ def _ctx(
         cells.extend(extra_doc_cells)
     doc = NotebookDocument(cells)
     with notebook_document_context(doc):
-        ctx = AsyncCodeModeContext(k)
+        # Staleness check coverage lives in test_staleness.py.
+        ctx = AsyncCodeModeContext(k, skip_staleness_check=True)
         # Use a deterministic seed in tests for snapshot stability.
         ctx._id_generator = CellIdGenerator(seed=7)
         ctx._id_generator.seen_ids = set(doc.cell_ids)

@@ -357,6 +357,16 @@ const RevealSlidesComponent = ({
         toggleShowCode,
       );
     }
+
+    // Reveal listens for `keydown` on `document` and bails when
+    // `document.activeElement` is an input/contenteditable (e.g. the speaker
+    // notes textarea below the deck). Park focus on the deck wrapper so arrow
+    // keys reliably advance slides without the user having to click first.
+    const revealEl = deck.getSlidesElement()?.closest(".reveal");
+    if (revealEl instanceof HTMLElement) {
+      revealEl.tabIndex = -1;
+      revealEl.focus({ preventScroll: true });
+    }
   });
 
   const activeSubslide = useMemo(() => {

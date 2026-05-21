@@ -71,7 +71,7 @@ def _ctx(k: Kernel) -> Generator[AsyncCodeModeContext, None, None]:
     ]
     doc = NotebookDocument(cells)
     with notebook_document_context(doc):
-        ctx = AsyncCodeModeContext(k)
+        ctx = AsyncCodeModeContext(k, skip_staleness_check=True)
         ctx._id_generator = CellIdGenerator(seed=7)
         ctx._id_generator.seen_ids = set(doc.cell_ids)
         yield ctx
