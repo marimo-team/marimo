@@ -3691,6 +3691,24 @@ export interface components {
         | "video/mpeg";
       timestamp?: number;
     };
+    /**
+     * CellOutputs
+     * @description Per-cell output snapshot delivered alongside the document snapshot.
+     *
+     *         `output` carries the cell's last main (rich display) output;
+     *         `console_outputs` carries the buffered stdout/stderr stream from
+     *         its last execution.  Both are keyed by cell id; missing keys mean
+     *         "no output captured" (the cell never ran, or produced nothing on
+     *         that channel).
+     */
+    CellOutputs: {
+      console_outputs: {
+        [key: string]: components["schemas"]["CellOutput"][];
+      };
+      output: {
+        [key: string]: components["schemas"]["CellOutput"];
+      };
+    };
     /** ChatAttachment */
     ChatAttachment: {
       /** @default null */
@@ -4278,6 +4296,11 @@ export interface components {
      *             notebook_cells: Snapshot of notebook cells from the session document.
      *                 Used to populate the document ContextVar so code_mode can read
      *                 cell ordering, code, names, and configs.
+     *             cell_outputs: Snapshot of per-cell outputs (main + console) from the
+     *                 session view. Populates a parallel ContextVar so code_mode can
+     *                 expose `cell.output` and `cell.console_outputs`. Frozen at
+     *                 scratchpad start — not refreshed when `ctx.run_cell` produces
+     *                 new outputs in the same batch.
      *             run_id: Optional correlation ID. When set, the
      *                 `CompletedRunNotification` emitted at the end of this command
      *                 carries the same `run_id` so a caller holding a
@@ -4286,6 +4309,8 @@ export interface components {
      *                 same session.
      */
     ExecuteScratchpadCommand: {
+      /** @default null */
+      cellOutputs?: null | components["schemas"]["CellOutputs"];
       code: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
@@ -4298,6 +4323,8 @@ export interface components {
     };
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
+      /** @default null */
+      cellOutputs?: null | components["schemas"]["CellOutputs"];
       code: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
