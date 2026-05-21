@@ -177,6 +177,12 @@ The YAML frontmatter is generated from marimo frontend tokens and layout default
 
 Use related token families for variants: hover, active, dark, destructive, error, success, stale, and visited states should derive from the same color families as their base component.
 
+## Brand Assets
+
+- Logo SVG: https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-thick.svg
+- Preserve the original aspect ratio.
+- Do not recolor unless explicitly requested.
+
 ## Components
 
 Buttons should use compact heights, label typography, md radius, and the primary, secondary, or action color families. Inputs should be compact, bordered, readable, and use code typography for code-like values.
