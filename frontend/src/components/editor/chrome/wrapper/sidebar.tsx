@@ -21,6 +21,7 @@ import {
   PANELS,
   type PanelDescriptor,
 } from "../types";
+import { PANEL_PRELOADERS } from "./lazy-panels";
 
 export const Sidebar: React.FC = () => {
   const { selectedPanel, selectedDeveloperPanelTab, isSidebarOpen } =
@@ -143,6 +144,7 @@ export const Sidebar: React.FC = () => {
           <SidebarItem
             tooltip={panel.tooltip}
             selected={selectedPanel === panel.type}
+            onPreloadHint={PANEL_PRELOADERS[panel.type]}
           >
             {panel.type === "errors" ? (
               <ErrorPanelIcon Icon={panel.Icon} />
@@ -206,8 +208,10 @@ const SidebarItem: React.FC<
     tooltip: React.ReactNode;
     className?: string;
     onClick?: () => void;
+    /** Fired on hover or focus — used to preload the panel's chunk. */
+    onPreloadHint?: () => void;
   }>
-> = ({ children, tooltip, selected, className, onClick }) => {
+> = ({ children, tooltip, selected, className, onClick, onPreloadHint }) => {
   const itemClassName = cn(
     "flex items-center p-2 text-sm mx-px shadow-inset font-mono rounded",
     !selected && "hover:bg-(--sage-3)",
@@ -218,11 +222,22 @@ const SidebarItem: React.FC<
   // Render as div when not clickable (e.g., inside ReorderableList)
   // This avoids nested interactive elements which break react-aria's drag behavior
   const content = onClick ? (
-    <button className={itemClassName} onClick={onClick}>
+    <button
+      className={itemClassName}
+      onClick={onClick}
+      onMouseEnter={onPreloadHint}
+      onFocus={onPreloadHint}
+    >
       {children}
     </button>
   ) : (
-    <div className={itemClassName}>{children}</div>
+    <div
+      className={itemClassName}
+      onMouseEnter={onPreloadHint}
+      onFocus={onPreloadHint}
+    >
+      {children}
+    </div>
   );
 
   return (
