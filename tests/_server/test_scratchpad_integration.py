@@ -625,7 +625,7 @@ def test_ctx_run_cell_cascade_error(session: _Session) -> None:
     lines = session.execute(
         "import marimo._code_mode as cm\n"
         "async with cm.get_context() as ctx:\n"
-        '    ctx.cells["cell_a"]\n'
+        '    ctx.cells["cell_a"].code\n'
         '    ctx.edit_cell("cell_a", code="x = 0")\n'
         '    ctx.run_cell("cell_a")',
     )

@@ -1370,6 +1370,19 @@ def test_sql_multiple_tables() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_without_sqlglot(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Defs come from duckdb and should still resolve; refs come from sqlglot
+    # and should be skipped instead of raising ModuleNotFoundError.
+    monkeypatch.setattr(DependencyManager.sqlglot, "has", lambda **_: False)
+    code = "mo.sql('CREATE TABLE cars AS SELECT * FROM other_table')"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == {"cars"}
+    assert v.refs == {"mo"}
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_from_another_module() -> None:
     code = "df = lib.sql('select * from cars')"
     v = visitor.ScopedVisitor()
