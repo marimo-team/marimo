@@ -3,24 +3,18 @@
 
 from __future__ import annotations
 
-import asyncio
-import contextlib
-import functools
-import signal
-import threading
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._entrypoints.registry import EntryPointRegistry
-from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.executor.executor import DefaultExecutor, Executor
 from marimo._runtime.executor.lifecycles import ExecutionLifecycle, Skip
 from marimo._runtime.runner.result import RunResult
 from marimo._types.globals import MutableGlobals
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable
 
     from marimo._ast.cell import CellImpl
 
@@ -91,18 +85,6 @@ class Evaluator:
                 result = RunResult(output=None, exception=e)
 
         return self._teardown_chain(cell, glbls, completed, result)
-
-    async def evaluate_interruptible(
-        self, cell: CellImpl, glbls: MutableGlobals
-    ) -> RunResult:
-        """Await `evaluate` with SIGINT capture for coroutine cells."""
-        if not cell.is_coroutine():
-            return await self.evaluate(cell, glbls)
-        future = asyncio.ensure_future(self.evaluate(cell, glbls))
-        if threading.current_thread() is threading.main_thread():
-            with _cancel_on_sigint(future):
-                return await future
-        return await future
 
     def _setup_chain(
         self, cell: CellImpl, glbls: MutableGlobals
@@ -196,48 +178,3 @@ def resolve_executor() -> Executor:
             e,
         )
         return DefaultExecutor()
-
-
-# Adapted from
-# https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312
-@contextlib.contextmanager
-def _cancel_on_sigint(future: asyncio.Future[Any]) -> Iterator[None]:
-    """Cancel `future` if a SIGINT arrives during evaluation."""
-    sigint_future: asyncio.Future[int] = asyncio.Future()
-
-    def cancel_unless_done(f: asyncio.Future[Any], _: Any) -> None:
-        if f.cancelled() or f.done():
-            return
-        f.cancel()
-
-    sigint_future.add_done_callback(
-        functools.partial(cancel_unless_done, future)
-    )
-    future.add_done_callback(
-        functools.partial(cancel_unless_done, sigint_future)
-    )
-
-    # Capture the previously-installed SIGINT handler *before* we install
-    # ours so `handle_sigint` can invoke it for its side effects
-    # (kernel broadcast, duckdb interrupt). For async cells the actual
-    # halt comes from cancelling the future, not from a raised
-    # `MarimoInterrupt` — so we swallow that here.
-    prior_sigint = signal.getsignal(signal.SIGINT)
-
-    def handle_sigint(signum: int, frame: Any) -> None:
-        if sigint_future.cancelled() or sigint_future.done():
-            return
-        sigint_future.set_result(1)
-        if callable(prior_sigint):
-            try:
-                prior_sigint(signum, frame)
-            except MarimoInterrupt:
-                # The kernel's handler raises MarimoInterrupt for sync
-                # halt; we cancel the future instead.
-                pass
-
-    save_sigint = signal.signal(signal.SIGINT, handle_sigint)
-    try:
-        yield
-    finally:
-        signal.signal(signal.SIGINT, save_sigint)

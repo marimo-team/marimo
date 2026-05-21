@@ -1,5 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 import traceback
+from typing import Any
 
 import pytest
 
@@ -397,11 +398,60 @@ async def test_runner_interrupted_flag_flips_on_async_cell_cancellation(
         del cell, glbls
         return RunResult(output=None, exception=asyncio.CancelledError())
 
-    monkeypatch.setattr(
-        runner._evaluator, "evaluate_interruptible", fake_evaluate
-    )
+    monkeypatch.setattr(runner._evaluator, "evaluate", fake_evaluate)
 
     with capture_stderr():
         await runner.run(er.cell_id)
 
     assert runner.interrupted is True
+
+
+async def test_run_all_swallows_sigint_raise_and_fires_on_finish(
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SIGINT delivered while `run_all` is in the prescan (or between
+    cells) raises `MarimoInterrupt` (== `KeyboardInterrupt`). `run_all`
+    must catch it so on_finish_hooks still fire and the
+    `KeyboardInterrupt` doesn't unwind past the kernel control loop.
+    """
+    k = execution_kernel
+    await k.run([er := exec_req.get("123")])
+    del er
+
+    on_finish_calls: list[Any] = []
+
+    class _Hooks(NotebookCellHooks):
+        on_finish_hooks = (lambda ctx: on_finish_calls.append(ctx),)
+
+    runner = Runner(
+        roots=set(k.graph.cells.keys()),
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=_Hooks(),
+    )
+
+    # Simulate the sync-path SIGINT handler: cancel the queue and raise.
+    def _raise_via_prescan(_cell_id: Any) -> Any:
+        runner._scheduler.cancel_all()
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(
+        runner, "_find_first_blocked_missing_ref", _raise_via_prescan
+    )
+
+    # Must not raise; on_finish_hooks must still fire.
+    await runner.run_all()
+
+    assert runner.interrupted is True
+    assert len(on_finish_calls) == 1
+    assert on_finish_calls[0].interrupted is True
+    # Codex P2 regression: cells_to_run must still be visible to
+    # on_finish_hooks. SIGINT mid-prescan must not leave the queue
+    # drained.
+    assert list(on_finish_calls[0].cells_to_run), (
+        "on_finish_hooks must see the cells that were still queued "
+        "when SIGINT fired"
+    )

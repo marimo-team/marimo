@@ -482,7 +482,7 @@ def _launch_pyodide_kernel(
     )
 
     if is_edit_mode:
-        signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
+        signal.signal(signal.SIGINT, handlers.construct_interrupt_handler())
 
     async def listen_completion() -> None:
         while True:
