@@ -12,7 +12,6 @@ If you want to add a new LLM model or provider, you can do so by editing the YAM
 
 > **Note:**
 > To make it easier for users to choose, keep the number of models to a minimum. Focus on including the latest or recommended models from each provider.
-> Review https://openrouter.ai/provider/{provider_name} for the latest models and capabilities.
 
 ## Syncing from `models.dev`
 
