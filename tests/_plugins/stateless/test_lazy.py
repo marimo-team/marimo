@@ -124,11 +124,19 @@ def _coroutine_returning_lambda() -> Any:
     return lambda: _inner()
 
 
+def _raw_coroutine() -> Any:
+    async def _inner() -> int:
+        return 42
+
+    return _inner()
+
+
 @pytest.mark.parametrize(
     "make_element",
     [
         pytest.param(_async_def, id="async_callable"),
         pytest.param(_coroutine_returning_lambda, id="coroutine_return"),
+        pytest.param(_raw_coroutine, id="raw_coroutine"),
     ],
 )
 def test_lazy_falls_back_to_widget_for_async_in_non_interactive_context(

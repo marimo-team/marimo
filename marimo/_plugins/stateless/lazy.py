@@ -42,12 +42,12 @@ class lazy(UIElement[bool, bool]):
     the result of a database query or some other expensive operation.
 
     Note:
-        In non-interactive contexts (HTML, ipynb, and PDF exports), there
-        is no running kernel to invoke the lazy load function. `mo.lazy`
+        In non-interactive contexts (ipynb and PDF exports), `mo.lazy`
         renders its element eagerly and returns the resolved HTML
-        directly. Async elements cannot be resolved from a synchronous
-        constructor; they fall back to the lazy widget and will not
-        appear in static exports.
+        directly, since no kernel is available to invoke the lazy load
+        function. Async elements cannot be resolved from a synchronous
+        constructor; they fall back to the lazy widget. HTML export
+        keeps the lazy widget as-is.
 
     Examples:
         Create a lazy-loaded tab:
@@ -132,6 +132,10 @@ class lazy(UIElement[bool, bool]):
 
 
 def _resolve_eagerly(element: object) -> Html | None:
+    if asyncio.iscoroutine(element):
+        element.close()
+        return None
+
     if not _is_lazy_callable(element):
         return as_html(element)
 
