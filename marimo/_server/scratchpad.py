@@ -6,19 +6,28 @@ from __future__ import annotations
 import asyncio
 import json
 from typing import TYPE_CHECKING, Any, TypedDict
+from uuid import uuid4
 
 from marimo._ai._tools.types import CodeExecutionResult
+from marimo._code_mode.screenshot_meta import (
+    SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_SERVER_URL_KEY,
+)
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
+from marimo._runtime.commands import ExecuteScratchpadCommand, HTTPRequest
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._server.models.models import InstantiateNotebookRequest
 from marimo._session.extensions.types import EventAwareExtension
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
+
+    from starlette.requests import Request
 
     from marimo._messaging.types import KernelMessage
     from marimo._session.session import Session
@@ -286,3 +295,55 @@ def extract_result(
         stderr=stderr,
         errors=errors,
     )
+
+
+async def run_scratchpad_code(
+    session: Session,
+    request: Request,
+    *,
+    code: str,
+    server_url: str,
+    auth_token: str,
+    timeout: float = EXECUTION_TIMEOUT,
+) -> CodeExecutionResult:
+    """Drive the kernel scratchpad on behalf of code-mode (AI tool).
+
+    ``server_url`` and ``auth_token`` are stamped onto ``http_req.meta``
+    so ``ctx.screenshot()`` from inside code-mode can authenticate
+    Playwright against this server (see ``marimo/_code_mode/_context.py``).
+    """
+    http_req = HTTPRequest.from_request(request)
+    http_req.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
+    http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
+
+    session.instantiate(
+        InstantiateNotebookRequest(object_ids=[], values=[], auto_run=False),
+        http_request=HTTPRequest.from_request(request),
+    )
+
+    # See /api/kernel/execute for rationale.
+    run_id = str(uuid4())
+    listener = ScratchCellListener(run_id=run_id)
+
+    with session.scoped(listener):
+        async with session.scratchpad_lock:
+            session.put_control_request(
+                ExecuteScratchpadCommand(
+                    code=code,
+                    request=http_req,
+                    notebook_cells=tuple(session.document.cells),
+                    run_id=run_id,
+                ),
+                from_consumer_id=None,
+            )
+            await listener.wait(timeout=timeout)
+        if listener.timed_out:
+            # The kernel is still running the (likely hung) scratchpad
+            # code; so we interrupt it to unblock the next code-mode call.
+            session.try_interrupt()
+            return CodeExecutionResult(
+                success=False,
+                errors=[f"Execution timed out after {timeout}s"],
+            )
+
+        return extract_result(session, listener)

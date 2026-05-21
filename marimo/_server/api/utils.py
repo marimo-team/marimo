@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from starlette.datastructures import UploadFile
     from starlette.requests import Request
 
+    from marimo._server.api.deps import AppStateBase
     from marimo._session.session import Session
 
 
@@ -111,6 +112,24 @@ async def dispatch_control_request(
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
     return SuccessResponse()
+
+
+def get_code_mode_credentials(
+    app_state: AppStateBase, request: Request
+) -> tuple[str, str]:
+    """Return ``(server_url, auth_token)`` for code-mode tools that
+    call back into this marimo server (e.g. ``ctx.screenshot()``
+    driving Playwright against the running notebook UI).
+
+    The URL is built from the server's configured ``host``/``port``
+    rather than the request's ``Host`` header so a spoofed header
+    can't redirect the auth token to an attacker-controlled URL.
+    """
+    auth_token = str(app_state.session_manager.auth_token)
+    base_url = app_state.base_url.rstrip("/")
+    scheme = request.url.scheme or "http"
+    server_url = f"{scheme}://{app_state.host}:{app_state.port}{base_url}"
+    return server_url, auth_token
 
 
 def parse_title(filepath: str | None) -> str:
