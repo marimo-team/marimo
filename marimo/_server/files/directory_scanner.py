@@ -20,14 +20,19 @@ def is_marimo_app(full_path: str) -> bool:
 
     Rules:
     - Markdown (`.md`/`.qmd`) files are marimo apps if the first 512 bytes
-      contain `marimo-version:`.
-    - Python (`.py`) files are marimo apps if the header (first 512 bytes)
-      contains both `marimo.App` and `import marimo`.
-    - If the header contains `# /// script`, read the full file and check for
-      the same Python markers, to handle large script headers.
+      contain `marimo-version:`. The marker lives in the YAML frontmatter
+      at the top, so a small header read is sufficient.
+    - Python (`.py`) files are marimo apps if they contain both
+      `marimo.App` and `import marimo`. The first 512 bytes are scanned
+      first (fast path); on a miss we fall back to a full-file scan,
+      capped at 10 MB, so notebooks with long module docstrings or
+      `# /// script` headers are still detected.
     - Any errors while reading result in `False`.
     """
     READ_LIMIT = 512
+    # Bound the slow-path read so a stray huge file can't stall scanning.
+    # Well above any realistic marimo notebook.
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
     def contains_marimo_app(content: bytes) -> bool:
         return b"marimo.App" in content and b"import marimo" in content
@@ -45,16 +50,23 @@ def is_marimo_app(full_path: str) -> bool:
         if path.is_markdown():
             return b"marimo-version:" in header
 
-        if path.is_python():
-            if contains_marimo_app(header):
-                return True
+        # Python: try the fast path first.
+        if contains_marimo_app(header):
+            return True
 
-            if b"# /// script" in header:
-                full_content = path.read_bytes()
-                if contains_marimo_app(full_content):
-                    return True
-
-        return False
+        # Header didn't match — could be a long module docstring, a
+        # `# /// script` block, or simply not a marimo file. Fall back to
+        # a full-file scan, bounded by file size.
+        if len(header) < READ_LIMIT:
+            # Whole file already in `header`; markers absent.
+            return False
+        try:
+            size = os.path.getsize(full_path)
+        except OSError:
+            return False
+        if size > MAX_FILE_SIZE:
+            return False
+        return contains_marimo_app(path.read_bytes())
     except Exception as e:
         LOGGER.debug("Error reading file %s: %s", full_path, e)
         return False
