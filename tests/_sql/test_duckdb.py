@@ -412,7 +412,7 @@ def test_duckdb_engine_lazy_polars_uses_streaming(
 
     assert isinstance(result, pl.LazyFrame)
     assert len(result.collect()) == 4
-    assert pl_calls == [{"lazy": True}]
+    assert pl_calls == [{"batch_size": 100_000, "lazy": True}]
 
 
 @pytest.mark.skipif(
@@ -438,4 +438,4 @@ def test_duckdb_engine_lazy_polars_falls_back_on_older_duckdb(
     assert len(result.collect()) == 4
     # Only the first call (lazy=True, raises) reaches `pl`; the fallback uses
     # `to_polars()` (Arrow PyCapsule) and never touches `relation.pl()`.
-    assert pl_calls == [{"lazy": True}]
+    assert pl_calls == [{"batch_size": 100_000, "lazy": True}]
