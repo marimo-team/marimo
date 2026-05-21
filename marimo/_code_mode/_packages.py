@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Packages: queued package operations for ``AsyncCodeModeContext``.
+"""Packages: queued package operations for `AsyncCodeModeContext`.
 
 Accessed via :attr:`AsyncCodeModeContext.packages`. Mutations are
-queued during the ``async with`` block and flushed on exit *before*
+queued during the `async with` block and flushed on exit *before*
 cell operations.
 """
 
@@ -58,7 +58,7 @@ class Packages:
     """Package management for the running notebook's environment.
 
     Accessed as :attr:`AsyncCodeModeContext.packages`. Mutations are
-    queued during the ``async with`` block and flushed on exit *before*
+    queued during the `async with` block and flushed on exit *before*
     cell operations, so newly added cells can import newly installed
     packages.
 

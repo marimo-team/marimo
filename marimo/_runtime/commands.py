@@ -75,9 +75,9 @@ SerializedCLIArgs = dict[str, ListOrValue[Primitive]]
 def _user_to_dict(user: Any) -> dict[str, Encodable]:
     """Normalize an auth user into a serializable dict.
 
-    Starlette's authentication middleware sets ``request.scope["user"]`` to a
-    ``BaseUser`` instance (commonly ``SimpleUser``). Storing the raw object on
-    ``HTTPRequest.user`` breaks msgspec serialization on the IPC path. Convert
+    Starlette's authentication middleware sets `request.scope["user"]` to a
+    `BaseUser` instance (commonly `SimpleUser`). Storing the raw object on
+    `HTTPRequest.user` breaks msgspec serialization on the IPC path. Convert
     to a dict matching the documented contract: "info from authentication
     middleware (e.g., is_authenticated, username)".
     """
@@ -93,10 +93,10 @@ def _user_to_dict(user: Any) -> dict[str, Encodable]:
 
 
 def _meta_to_dict(meta: Any) -> dict[str, Encodable]:
-    """Normalize user-defined ``request.scope["meta"]`` at the boundary.
+    """Normalize user-defined `request.scope["meta"]` at the boundary.
 
-    Trusted shape per the public contract (``mo.app_meta().request``); we
-    just enforce dict-ness at the seam. Non-``Encodable`` values inside will
+    Trusted shape per the public contract (`mo.app_meta().request`); we
+    just enforce dict-ness at the seam. Non-`Encodable` values inside will
     surface at IPC encode time rather than being silently coerced.
     """
     if meta is None or not isinstance(meta, dict):
@@ -361,10 +361,10 @@ class ExecuteScratchpadCommand(Command):
             Used to populate the document ContextVar so code_mode can read
             cell ordering, code, names, and configs.
         run_id: Optional correlation ID. When set, the
-            ``CompletedRunNotification`` emitted at the end of this command
-            carries the same ``run_id`` so a caller holding a
-            ``ScratchCellListener`` can filter for *its* completion and
-            ignore ``CompletedRun`` events from unrelated commands on the
+            `CompletedRunNotification` emitted at the end of this command
+            carries the same `run_id` so a caller holding a
+            `ScratchCellListener` can filter for *its* completion and
+            ignore `CompletedRun` events from unrelated commands on the
             same session.
     """
 

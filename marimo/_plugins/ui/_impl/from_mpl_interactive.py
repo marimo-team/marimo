@@ -31,16 +31,16 @@ LOGGER = _loggers.marimo_logger()
 
 
 def _disconnect_owner_callbacks(canvas: Any, owner: Any) -> None:
-    """Disconnect every callback on ``canvas.callbacks`` whose receiver is ``owner``.
+    """Disconnect every callback on `canvas.callbacks` whose receiver is `owner`.
 
-    ``FigureCanvasBase.callbacks`` is a property returning
-    ``figure._canvas_callbacks``, so every canvas bound to the same
-    figure shares one registry. ``NavigationToolbar2.__init__``
-    registers ``_zoom_pan_handler`` (and a few siblings) on this
+    `FigureCanvasBase.callbacks` is a property returning
+    `figure._canvas_callbacks`, so every canvas bound to the same
+    figure shares one registry. `NavigationToolbar2.__init__`
+    registers `_zoom_pan_handler` (and a few siblings) on this
     shared registry; matplotlib has no public counterpart that
     disconnects them when a canvas/toolbar is discarded. Without this
     cleanup, every cell rerun would stack another toolbar's handler on
-    the registry, leading to duplicate ``press_pan``/``release_pan``
+    the registry, leading to duplicate `press_pan`/`release_pan`
     dispatch.
     """
     registry = canvas.callbacks
@@ -97,9 +97,9 @@ def _get_mpl_css() -> str:
     page / iframe that would leak into the host page. Only mpl.css and
     fbm.css have properly scoped class-based selectors.
 
-    All rules are wrapped inside a ``.mpl-interactive-figure`` scope so
-    that any remaining broad selectors (e.g. ``body``, ``#figure``) do
-    not leak into the host page when loaded as a ``<link>`` stylesheet.
+    All rules are wrapped inside a `.mpl-interactive-figure` scope so
+    that any remaining broad selectors (e.g. `body`, `#figure`) do
+    not leak into the host page when loaded as a `<link>` stylesheet.
     """
     from matplotlib.backends.backend_webagg_core import (
         FigureManagerWebAgg,
@@ -123,10 +123,10 @@ def _get_mpl_css() -> str:
 def _scope_css(css: str, scope: str) -> str:
     """Scope CSS rules using native CSS nesting.
 
-    Wraps all rules inside a ``<scope> { … }`` block so that child
+    Wraps all rules inside a `<scope> { … }` block so that child
     selectors are implicitly prefixed.  This replaces the previous
-    regex-based rewriter and correctly handles ``@keyframes``,
-    ``@media``, and any other at-rules or complex selectors.
+    regex-based rewriter and correctly handles `@keyframes`,
+    `@media`, and any other at-rules or complex selectors.
 
     Requires browser support for CSS Nesting (Chrome 120+, Firefox 117+,
     Safari 17.2+).

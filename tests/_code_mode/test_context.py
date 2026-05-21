@@ -36,7 +36,7 @@ def _ctx(
 ) -> Generator[AsyncCodeModeContext, None, None]:
     """Build an AsyncCodeModeContext with a document snapshot from the kernel.
 
-    ``extra_doc_cells`` adds cells to the document that are *not* in the
+    `extra_doc_cells` adds cells to the document that are *not* in the
     kernel graph, simulating cells that exist on disk but were never run.
     """
     cells = [

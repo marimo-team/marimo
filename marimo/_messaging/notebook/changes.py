@@ -49,7 +49,7 @@ class ReorderCells(
 ):
     """Replace the full cell ordering.
 
-    Cell IDs present in the document but missing from ``cell_ids``
+    Cell IDs present in the document but missing from `cell_ids`
     are appended at the end. IDs not in the document are ignored.
     """
 
@@ -106,9 +106,9 @@ TransactionSource = Literal[
 class Transaction(msgspec.Struct, frozen=True, rename="camel"):
     """An atomic batch of changes applied to a NotebookDocument.
 
-    ``source`` identifies the writer (e.g. ``"frontend"``, ``"kernel"``).
-    ``version`` is ``None`` when created and stamped by
-    ``NotebookDocument.apply()``.
+    `source` identifies the writer (e.g. `"frontend"`, `"kernel"`).
+    `version` is `None` when created and stamped by
+    `NotebookDocument.apply()`.
     """
 
     changes: tuple[DocumentChange, ...]

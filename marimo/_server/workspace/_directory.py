@@ -29,7 +29,7 @@ LOGGER = _loggers.marimo_logger()
 class DirectoryWorkspace(NotebookWorkspace):
     """A workspace backed by a directory, scanned lazily on demand.
 
-    Used by ``marimo edit ./`` and ``marimo run ./``. File access is validated
+    Used by `marimo edit ./` and `marimo run ./`. File access is validated
     via :class:`PathValidator` to ensure paths stay within the directory (or an
     explicitly registered temp directory).
     """

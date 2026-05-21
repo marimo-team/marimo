@@ -77,10 +77,10 @@ class TestScreenshotSessionAuthUrl:
 
 
 class _FakeCells:
-    """Minimal stand-in for ``_CellsView`` used by the resolver tests.
+    """Minimal stand-in for `_CellsView` used by the resolver tests.
 
-    Supports the operations ``_resolve_screenshot_target`` actually
-    calls — ``__len__``, integer indexing, and ``_resolve(str)`` — so
+    Supports the operations `_resolve_screenshot_target` actually
+    calls — `__len__`, integer indexing, and `_resolve(str)` — so
     the resolver can run without a live kernel/document.
     """
 
@@ -108,7 +108,7 @@ class _FakeCells:
 
 
 def _fake_ctx(cell_ids: list[str], names: dict[str, str] | None = None) -> Any:
-    """Build an object usable as ``self`` for the resolver method."""
+    """Build an object usable as `self` for the resolver method."""
     return SimpleNamespace(cells=_FakeCells(cell_ids, names))
 
 

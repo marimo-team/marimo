@@ -395,7 +395,7 @@ class TestCellsViewGrep:
 
 @dataclasses.dataclass
 class _MockImpl:
-    """Minimal stand-in for CellImpl — satisfies ``CellRuntimeState`` protocol."""
+    """Minimal stand-in for CellImpl — satisfies `CellRuntimeState` protocol."""
 
     code: str = ""
     runtime_state: str | None = None

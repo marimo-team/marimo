@@ -10,11 +10,11 @@ from typing import Any, cast
 def is_callable_method(obj: Any, attr: str) -> bool:
     """Check if an attribute is a real callable method on an object.
 
-    Uses ``inspect.getattr_static`` so that attributes synthesized by
-    ``__getattr__`` (e.g. ``pandas.api.typing.Expression``, which returns a
-    new ``Expression`` for *any* attribute name) are not treated as protocol
+    Uses `inspect.getattr_static` so that attributes synthesized by
+    `__getattr__` (e.g. `pandas.api.typing.Expression`, which returns a
+    new `Expression` for *any* attribute name) are not treated as protocol
     methods. Without this, dynamic-attribute objects appear to implement
-    ``_display_`` / ``_mime_`` / ``_repr_*_`` and trigger infinite recursion
+    `_display_` / `_mime_` / `_repr_*_` and trigger infinite recursion
     in the formatter.
     """
     # Use getattr_static first so that we don't trigger __getattr__ traps

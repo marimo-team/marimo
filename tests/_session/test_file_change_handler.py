@@ -42,10 +42,10 @@ if TYPE_CHECKING:
 
 
 def _cm_from_doc(doc: NotebookDocument) -> CellManager:
-    """Build a ``CellManager`` mirroring ``doc``'s cells.
+    """Build a `CellManager` mirroring `doc`'s cells.
 
-    Used to drive ``_build_transaction`` from tests that already
-    express the prior state as a synthetic ``NotebookDocument``.
+    Used to drive `_build_transaction` from tests that already
+    express the prior state as a synthetic `NotebookDocument`.
     """
     cm = CellManager()
     for cell in doc.cells:

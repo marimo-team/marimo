@@ -62,8 +62,8 @@ class FileCreateMultipartRequest(msgspec.Struct, rename="camel"):
 
     Schema-only: this struct exists to describe the multipart shape in
     OpenAPI. At runtime, the endpoint reads the string fields from
-    ``MultipartRequest.body`` and the uploaded bytes from
-    ``MultipartRequest.files["file"]`` — ``body.file`` is never populated.
+    `MultipartRequest.body` and the uploaded bytes from
+    `MultipartRequest.files["file"]` — `body.file` is never populated.
     """
 
     # The path where to create the file or directory

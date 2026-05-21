@@ -109,13 +109,13 @@ class KernelState(Enum):
 class KernelExitInfo:
     """Information about how a kernel exited.
 
-    Populated after the kernel task has stopped. ``exitcode`` follows the
-    convention of ``multiprocessing.Process.exitcode``: ``>= 0`` for a normal
-    exit with that status, and ``< 0`` if the process was terminated by signal
-    ``-exitcode``. ``None`` means the exit status is unavailable -- either the
+    Populated after the kernel task has stopped. `exitcode` follows the
+    convention of `multiprocessing.Process.exitcode`: `>= 0` for a normal
+    exit with that status, and `< 0` if the process was terminated by signal
+    `-exitcode`. `None` means the exit status is unavailable -- either the
     task has not yet terminated, or the underlying task type does not expose
-    one (e.g. threads). ``cause`` is a short machine-readable tag and
-    ``message`` is a human-readable one-liner suitable for logs or end-user
+    one (e.g. threads). `cause` is a short machine-readable tag and
+    `message` is a human-readable one-liner suitable for logs or end-user
     display.
     """
 
@@ -153,9 +153,9 @@ class Session(Protocol):
         ...
 
     def kernel_exit_info(self) -> KernelExitInfo | None:
-        """Describe how the kernel exited, or ``None`` if it is still running.
+        """Describe how the kernel exited, or `None` if it is still running.
 
-        Only meaningful once ``kernel_state() == KernelState.STOPPED``.
+        Only meaningful once `kernel_state() == KernelState.STOPPED`.
         """
         ...
 

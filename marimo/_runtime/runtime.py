@@ -1801,15 +1801,15 @@ class Kernel:
         Args:
             request: The UI element update command.
             notify_frontend: Whether to broadcast the new value back to
-                the frontend via a ``marimo-ui-value-update`` message.
-                Set ``False`` for user-initiated updates from the frontend
+                the frontend via a `marimo-ui-value-update` message.
+                Set `False` for user-initiated updates from the frontend
                 (the frontend already has the value locally;
                 re-broadcasting causes redundant traffic and, on transports
                 with non-negligible round-trip latency (LSP, remote
                 kernels), can visibly snap the rendered widget backward to
-                a stale value). Set ``True`` for genuinely
+                a stale value). Set `True` for genuinely
                 kernel-initiated changes (e.g. code_mode's
-                ``set_ui_value``) where the frontend has no other way to
+                `set_ui_value`) where the frontend has no other way to
                 learn about the update.
 
         Returns True if any ui elements were set, False otherwise

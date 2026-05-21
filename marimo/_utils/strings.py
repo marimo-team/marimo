@@ -61,13 +61,13 @@ def _mslex_quote(s: str) -> str:
     Quote a string for use as a command line argument in DOS or Windows.
 
     :param s: a string to quote
-    :param for_cmd: quote it for ``cmd.exe``
+    :param for_cmd: quote it for `cmd.exe`
     :return: quoted string
 
-    If ``for_cmd`` is true, then this will quote the strings so the result will
-    be parsed correctly by ``cmd.exe`` and then by ``CommandLineToArgvW``.   If
+    If `for_cmd` is true, then this will quote the strings so the result will
+    be parsed correctly by `cmd.exe` and then by `CommandLineToArgvW`.   If
     false, then this will quote the strings so the result will
-    be parsed correctly when passed directly to ``CommandLineToArgvW``.
+    be parsed correctly when passed directly to `CommandLineToArgvW`.
     """
     if not s:
         return '""'

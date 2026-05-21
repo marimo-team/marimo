@@ -64,7 +64,7 @@ class ModelReplayState:
 
     Internally uses a dict for buffers (path → bytes) so merging
     updates is a simple dict operation. Converted back to the wire
-    format (parallel lists) on replay via ``to_notification()``.
+    format (parallel lists) on replay via `to_notification()`.
     """
 
     model_id: WidgetModelId

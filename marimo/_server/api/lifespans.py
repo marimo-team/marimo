@@ -217,7 +217,7 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
 async def server_registry(app: Starlette) -> AsyncIterator[None]:
     """Register this server in the local registry for discovery.
 
-    Only servers started **without** an auth token (``--no-token``)
+    Only servers started **without** an auth token (`--no-token`)
     are registered.  This ensures only servers that have explicitly
     opted into relaxed local access are discoverable.
     """

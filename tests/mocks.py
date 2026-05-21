@@ -168,7 +168,7 @@ def _replace_braced_value(text: str, key: str, placeholder: str) -> str:
 
     Uses brace-counting so it works with arbitrarily nested objects.
     The quote style is inferred from *key* so the placeholder matches the
-    surrounding context (e.g. escaped ``\\"`` vs plain ``"``).
+    surrounding context (e.g. escaped `\\"` vs plain `"`).
     """
     q = '\\"' if '\\"' in key else '"'
     idx = 0

@@ -23,11 +23,11 @@ if TYPE_CHECKING:
 
 
 class EmptyWorkspace(NotebookWorkspace):
-    """An empty (untitled) workspace, used by ``marimo new``.
+    """An empty (untitled) workspace, used by `marimo new`.
 
-    The workspace key is the ``__new__`` sentinel; concrete file paths are
+    The workspace key is the `__new__` sentinel; concrete file paths are
     accepted as a fallback so that callers which bootstrap with
-    ``EmptyWorkspace`` and later open a real file (e.g. via the homepage)
+    `EmptyWorkspace` and later open a real file (e.g. via the homepage)
     continue to work.
     """
 

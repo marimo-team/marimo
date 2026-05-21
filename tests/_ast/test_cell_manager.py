@@ -661,8 +661,8 @@ class TestSortCellIdsBySimilarity:
 
 
 class TestDocumentProperty:
-    """``cell_manager.document`` exposes the underlying NotebookDocument
-    that holds canonical cell state. Identity matters: ``Session.document``
+    """`cell_manager.document` exposes the underlying NotebookDocument
+    that holds canonical cell state. Identity matters: `Session.document`
     is a property that reads through this; consumers diff against the same
     instance over time.
     """
@@ -682,8 +682,8 @@ class TestDocumentProperty:
 
 
 class TestGetCellDataView:
-    """``get_cell_data`` returns a freshly synthesized ``CellData`` view
-    over the stored ``NotebookCell``. The view is read-only by convention:
+    """`get_cell_data` returns a freshly synthesized `CellData` view
+    over the stored `NotebookCell`. The view is read-only by convention:
     rebinding a field on the returned object must not leak back into the
     document, since callers commonly use it as a scratch struct.
     """
@@ -713,10 +713,10 @@ class TestGetCellDataView:
 
 
 class TestReplaceStateFrom:
-    """``_replace_state_from`` is the in-place substitute for
-    ``self = other``. It preserves identity of ``_document`` and
-    ``_compiled_cells`` so external holders of those references — most
-    notably the owning ``Session`` — see the new state without any
+    """`_replace_state_from` is the in-place substitute for
+    `self = other`. It preserves identity of `_document` and
+    `_compiled_cells` so external holders of those references — most
+    notably the owning `Session` — see the new state without any
     rebinding.
     """
 
@@ -782,9 +782,9 @@ class TestReplaceStateFrom:
 
 
 class TestSortCellIdsByCompiledCells:
-    """``sort_cell_ids_by_similarity`` rekeys ``_compiled_cells`` in
+    """`sort_cell_ids_by_similarity` rekeys `_compiled_cells` in
     lockstep with the document's cell ids. This matters because lookups
-    in ``cell_data()`` join the two by id; drift between them surfaces as
+    in `cell_data()` join the two by id; drift between them surfaces as
     "cell exists but has no compiled form" or vice versa.
     """
 

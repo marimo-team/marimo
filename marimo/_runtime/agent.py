@@ -41,6 +41,6 @@ class AgentReadTracker:
 
 @dataclass
 class Agent:
-    """One per ``Kernel`` — long-lived across scratchpad executions."""
+    """One per `Kernel` — long-lived across scratchpad executions."""
 
     read_tracker: AgentReadTracker = field(default_factory=AgentReadTracker)

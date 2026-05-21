@@ -400,7 +400,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
 
     @memoize_last_value
     def _get_json_size_bytes(self, manager: TableManager[Any]) -> int | None:
-        """JSON-serialized size of ``manager``; see table._get_json_size_bytes."""
+        """JSON-serialized size of `manager`; see table._get_json_size_bytes."""
         try:
             return len(manager.to_json(strict_json=True))
         except Exception:

@@ -175,7 +175,7 @@ class _SetupContext:
     ) -> _SetupContext:
         """When called with parameters, update the setup cell config.
 
-        The setup cell was already registered when ``app.setup`` ran
+        The setup cell was already registered when `app.setup` ran
         (the property getter); this call updates that cell's config in
         place rather than re-registering.
         """
@@ -1031,12 +1031,12 @@ class InternalApp:
     ) -> InternalApp:
         """Rewrite the cell list from textual fields, in place.
 
-        Mutates ``self._app._cell_manager`` rather than replacing it,
-        so any caller holding ``app.cell_manager`` or
-        ``app.cell_manager.document`` (notably ``Session.document``)
+        Mutates `self._app._cell_manager` rather than replacing it,
+        so any caller holding `app.cell_manager` or
+        `app.cell_manager.document` (notably `Session.document`)
         continues to see live state without rebinding.
 
-        Cells that survive the rewrite keep their compiled ``Cell``;
+        Cells that survive the rewrite keep their compiled `Cell`;
         callers from save flows pass the frontend's snapshot, which
         renames/reorders/reconfigures cells but doesn't recompile.
         """

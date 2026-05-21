@@ -461,9 +461,9 @@ def exec_req() -> ExecReqProvider:
 class MockPyodide:
     """Simulate running in a Pyodide environment.
 
-    Patches ``sys.platform`` to ``"emscripten"`` so ``is_pyodide()`` returns
-    True, and stubs ``pyodide`` (plus any ``extra_modules``) in
-    ``sys.modules`` so ``import pyodide`` (and friends) succeeds.
+    Patches `sys.platform` to `"emscripten"` so `is_pyodide()` returns
+    True, and stubs `pyodide` (plus any `extra_modules`) in
+    `sys.modules` so `import pyodide` (and friends) succeeds.
 
     Usable as a context manager or as a decorator on sync or async tests::
 

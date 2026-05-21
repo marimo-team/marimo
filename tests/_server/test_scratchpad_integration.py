@@ -1,31 +1,31 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Snapshot tests for what an agent sees when driving code-mode.
 
-``code_mode`` + ``/api/kernel/execute`` are the agent's window into
+`code_mode` + `/api/kernel/execute` are the agent's window into
 the notebook: whatever the agent does (run cells, mutate the graph,
 trigger reactive cascades, hit state setters) it learns about only
 through the SSE stream that endpoint returns. We want explicit
 coverage of that surface across the scenarios the agent can reach,
 so when the output changes we see it.
 
-The existing in-process ``TestClient`` fixture mocks the scratchpad
+The existing in-process `TestClient` fixture mocks the scratchpad
 stream out entirely, so real kernel timing and cross-process
 notification ordering aren't testable there. These tests share one
-``marimo edit`` subprocess across the module and drive it through
+`marimo edit` subprocess across the module and drive it through
 the full HTTP surface: a websocket for session setup and
-``completed-run`` synchronization, ``/api/document/transaction`` to
-populate ``session.document`` (required for ``code_mode`` cell
-lookup by name), ``/api/kernel/run`` to register and execute cells,
-and ``/api/kernel/execute`` to hit the scratchpad. Each test gets a
-fresh session via a per-test ``session`` fixture that calls
-``/api/kernel/restart_session`` on teardown. The response body is
+`completed-run` synchronization, `/api/document/transaction` to
+populate `session.document` (required for `code_mode` cell
+lookup by name), `/api/kernel/run` to register and execute cells,
+and `/api/kernel/execute` to hit the scratchpad. Each test gets a
+fresh session via a per-test `session` fixture that calls
+`/api/kernel/restart_session` on teardown. The response body is
 snapshotted as SSE lines with volatile paths and version-specific
 traceback noise scrubbed.
 
 Each test's snapshot encodes the expected SSE output for that
-scenario — failure cases land in ``done`` with
-``{success: false, output: {mimetype: "text/plain", data: ""}}``;
-error detail arrives earlier in the stream as ``stderr`` SSE events.
+scenario — failure cases land in `done` with
+`{success: false, output: {mimetype: "text/plain", data: ""}}`;
+error detail arrives earlier in the stream as `stderr` SSE events.
 """
 
 from __future__ import annotations
@@ -98,11 +98,11 @@ def _wait_for_server(
 def _server(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> Generator[str, None, None]:
-    """One ``marimo edit`` subprocess shared across the module.
+    """One `marimo edit` subprocess shared across the module.
 
-    Per-test isolation comes from the ``session`` fixture which uses
-    a unique ``session_id`` — each WS connect creates a fresh kernel
-    and empty ``session.document``.
+    Per-test isolation comes from the `session` fixture which uses
+    a unique `session_id` — each WS connect creates a fresh kernel
+    and empty `session.document`.
     """
     tmp = tmp_path_factory.mktemp("mnb")
     port = _free_port()
@@ -148,7 +148,7 @@ def _server(
 class _Session:
     """Per-test session: unique ID → fresh kernel + empty document.
 
-    Wraps the websocket + HTTP calls. Use ``wait_for_completed_run`` to
+    Wraps the websocket + HTTP calls. Use `wait_for_completed_run` to
     synchronize with kernel activity instead of sleeping.
     """
 
@@ -181,7 +181,7 @@ class _Session:
         predicate: Callable[[dict[str, Any]], bool],
         timeout_s: float = 10.0,
     ) -> dict[str, Any]:
-        """Drain WS until a message matches ``predicate(msg)``."""
+        """Drain WS until a message matches `predicate(msg)`."""
         deadline = time.monotonic() + timeout_s
         while True:
             remaining = deadline - time.monotonic()
@@ -193,7 +193,7 @@ class _Session:
                 return msg
 
     def wait_for_completed_run(self, timeout_s: float = 10.0) -> None:
-        """Block until the kernel broadcasts a ``completed-run`` event."""
+        """Block until the kernel broadcasts a `completed-run` event."""
         self._recv_until(
             lambda m: m.get("op") == "completed-run",
             timeout_s=timeout_s,
@@ -236,13 +236,13 @@ class _Session:
         codes: list[str],
         names: list[str] | None = None,
     ) -> None:
-        """Register cells in both ``session.document`` and the kernel graph.
+        """Register cells in both `session.document` and the kernel graph.
 
-        ``/api/kernel/run`` only touches the graph; ``ctx.edit_cell`` /
-        ``ctx.run_cell`` in code_mode look up cells from
-        ``session.document``, which is kept in sync via document
+        `/api/kernel/run` only touches the graph; `ctx.edit_cell` /
+        `ctx.run_cell` in code_mode look up cells from
+        `session.document`, which is kept in sync via document
         transactions from the frontend. We emulate the frontend with
-        typed ``CreateCell`` changes.
+        typed `CreateCell` changes.
         """
         if names is None:
             names = cell_ids
@@ -260,7 +260,7 @@ class _Session:
         self.run_cells(cell_ids, codes)
 
     def execute(self, code: str) -> list[str]:
-        """Run ``code`` via /api/kernel/execute; return normalized SSE lines."""
+        """Run `code` via /api/kernel/execute; return normalized SSE lines."""
         body = self._post("/api/kernel/execute", {"code": code})
         return _normalize(body)
 
@@ -379,9 +379,9 @@ def test_scratchpad_compile_error(session: _Session) -> None:
     """Scratchpad code that fails to compile (SyntaxError).
 
     Guards that compile-time errors reach the client with actionable
-    detail. Compile failures never go through ``redirect_streams`` /
-    ``write_traceback`` (the cell never runs), so the diagnostic has
-    to be emitted explicitly as a ``stderr`` SSE event before ``done``.
+    detail. Compile failures never go through `redirect_streams` /
+    `write_traceback` (the cell never runs), so the diagnostic has
+    to be emitted explicitly as a `stderr` SSE event before `done`.
     """
     lines = session.execute("def :")
 
@@ -430,12 +430,12 @@ def test_scratchpad_itself_errors(session: _Session) -> None:
 
 
 def test_state_setter_cascade_error(session: _Session) -> None:
-    """Scratchpad calls ``set_x(0)`` → downstream cell_b divides by zero.
+    """Scratchpad calls `set_x(0)` → downstream cell_b divides by zero.
 
-    Issue #9255 scenario 1. ``state_updates`` flush happens after scratch
+    Issue #9255 scenario 1. `state_updates` flush happens after scratch
     cell goes idle, so the listener sentinel fires before cell_b's
-    MARIMO_ERROR arrives. Currently fails on main — the ``done`` event
-    says ``success: true`` and the cascade error is silent.
+    MARIMO_ERROR arrives. Currently fails on main — the `done` event
+    says `success: true` and the cascade error is silent.
     """
     # cell_b sleeps past the listener's 50ms grace window so its
     # reactive re-run completes AFTER ``stream()`` returns — that's
@@ -471,7 +471,7 @@ def test_state_setter_cascade_error(session: _Session) -> None:
 
 
 def test_state_chain_cascade_error(session: _Session) -> None:
-    """Nested state chain: ``set_x(0)`` → cell_b calls ``set_y`` →
+    """Nested state chain: `set_x(0)` → cell_b calls `set_y` →
     slow cell_d divides by zero. Listener must capture cell_d's error
     two state-update hops away.
     """
@@ -560,7 +560,7 @@ def test_multiple_downstream_cells_all_error(session: _Session) -> None:
 def test_scratchpad_raises_after_triggering_cascade(
     session: _Session,
 ) -> None:
-    """Scratchpad calls ``set_x(0)`` (slow cascade) then ``raise``.
+    """Scratchpad calls `set_x(0)` (slow cascade) then `raise`.
 
     Both the scratch error AND the cascade error should be visible —
     currently only the scratch error surfaces, so the agent sees the
@@ -607,10 +607,10 @@ def test_scratchpad_raises_after_triggering_cascade(
 
 
 def test_ctx_run_cell_cascade_error(session: _Session) -> None:
-    """``ctx.edit_cell + ctx.run_cell`` on cell_a triggers cell_b to
+    """`ctx.edit_cell + ctx.run_cell` on cell_a triggers cell_b to
     reactively re-run and error (issue #9255 scenario 2).
 
-    Goes through ``_apply_ops`` which awaits ``_run_cells``
+    Goes through `_apply_ops` which awaits `_run_cells`
     synchronously — the listener sees the downstream error before the
     sentinel fires. Regression guard for the working path.
     """
@@ -654,12 +654,12 @@ def test_ctx_run_cell_cascade_error(session: _Session) -> None:
 
 
 def test_ctx_create_cell_multiply_defined(session: _Session) -> None:
-    """``ctx.create_cell`` introducing a duplicate definition errors early.
+    """`ctx.create_cell` introducing a duplicate definition errors early.
 
-    The notebook already has ``x = 10`` in ``cell_a``. code_mode's
-    dry-run compile detects the new cell would multiply-define ``x``
-    and raises ``RuntimeError`` before any real mutation — the new
-    cell is never registered and ``x`` stays ``10``.
+    The notebook already has `x = 10` in `cell_a`. code_mode's
+    dry-run compile detects the new cell would multiply-define `x`
+    and raises `RuntimeError` before any real mutation — the new
+    cell is never registered and `x` stays `10`.
     """
     session.setup_cells(["cell_a"], ["x = 10"])
 
@@ -682,14 +682,14 @@ def test_ctx_create_cell_multiply_defined(session: _Session) -> None:
 
 
 def test_ctx_create_cell_skip_validation(session: _Session) -> None:
-    """``skip_validation=True`` bypasses the dry-run compile check.
+    """`skip_validation=True` bypasses the dry-run compile check.
 
     Same setup as above, but the caller opts out of validation — no
-    ``RuntimeError`` is raised and the new cell is registered, as
-    evidenced by the ``created cell`` stdout summary. The kernel's own
+    `RuntimeError` is raised and the new cell is registered, as
+    evidenced by the `created cell` stdout summary. The kernel's own
     graph-validity pass still flags the resulting multiply-defined
     state (visible to the listener as a child error, hence
-    ``success: false``), but no traceback reaches stderr because the
+    `success: false`), but no traceback reaches stderr because the
     new cell never runs — the error is a pure graph-state marker.
     """
     session.setup_cells(["cell_a"], ["x = 10"])
