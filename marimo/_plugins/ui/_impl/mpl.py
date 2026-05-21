@@ -32,9 +32,9 @@ def _to_numeric(arr: NDArray[Any]) -> NDArray[Any]:
     """Convert a numpy array to matplotlib's numeric representation.
 
     Only called on the slow path when a direct comparison raises
-    ``TypeError`` (e.g. datetime vs float).  Uses
-    ``matplotlib.dates.date2num`` which handles ``datetime.datetime``,
-    ``datetime.date``, and ``numpy.datetime64``.
+    `TypeError` (e.g. datetime vs float).  Uses
+    `matplotlib.dates.date2num` which handles `datetime.datetime`,
+    `datetime.date`, and `numpy.datetime64`.
     """
     from matplotlib.dates import date2num  # type: ignore[import-untyped]
 
@@ -138,14 +138,14 @@ class EmptySelection:
     """
 
     def get_mask(self, x: ArrayLike, y: ArrayLike) -> NDArray[np.bool_]:  # noqa: ARG002
-        """Return an all-``False`` mask.
+        """Return an all-`False` mask.
 
         Args:
             x: Array-like of x-coordinates.
             y: Array-like of y-coordinates.
 
         Returns:
-            A boolean numpy array of all ``False``.
+            A boolean numpy array of all `False`.
         """
         import numpy as np
 

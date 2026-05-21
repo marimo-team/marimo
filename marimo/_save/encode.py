@@ -154,7 +154,7 @@ def attempt_signed_bytes(value: bytes, label: str) -> bytes:
 
 
 def deterministic_dumps(obj: Any, hash_type: str) -> bytes:
-    """``pickle.dumps`` replacement that produces more deterministic bytes."""
+    """`pickle.dumps` replacement that produces more deterministic bytes."""
     from marimo._save.stubs import maybe_get_custom_stub
 
     class _ContentHashPickler(pickle.Pickler):

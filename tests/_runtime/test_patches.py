@@ -255,7 +255,7 @@ def test_polars_write_json_patch(tmp_path: Path):
 
 
 def _const_fallback(value: object) -> Callable[..., object]:
-    """Build a fallback that ignores its arguments and returns ``value``."""
+    """Build a fallback that ignores its arguments and returns `value`."""
 
     def _fb(*_args: object, **_kwargs: object) -> object:
         return value

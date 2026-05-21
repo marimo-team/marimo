@@ -58,15 +58,15 @@ MARIMO_DIR_NAME = "__marimo__"
 def notebook_output_dir(notebook_path: Path | str | None) -> Path:
     """Compute the __marimo__ output directory for a given notebook.
 
-    When ``sys.pycache_prefix`` is set and the notebook path is absolute, the
+    When `sys.pycache_prefix` is set and the notebook path is absolute, the
     directory tree is mirrored under the prefix (similar to how Python mirrors
-    ``__pycache__`` directories).  Otherwise the ``__marimo__`` directory is
+    `__pycache__` directories).  Otherwise the `__marimo__` directory is
     placed next to the notebook file.
 
     Resolution order:
-        1. ``sys.pycache_prefix`` (if set and path is absolute): mirror tree
-        2. Default: ``<notebook_parent>/__marimo__``
-        3. Fallback (``None`` path): ``__marimo__`` relative to CWD
+        1. `sys.pycache_prefix` (if set and path is absolute): mirror tree
+        2. Default: `<notebook_parent>/__marimo__`
+        3. Fallback (`None` path): `__marimo__` relative to CWD
     """
     if notebook_path is None:
         return Path(MARIMO_DIR_NAME)

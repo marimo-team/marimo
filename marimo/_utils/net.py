@@ -56,13 +56,13 @@ def _bind_sockets(
     or `socket.AF_INET6` to restrict to IPv4 or IPv6 addresses, otherwise
     both will be used if available.
 
-    The ``backlog`` argument has the same meaning as for
+    The `backlog` argument has the same meaning as for
     `socket.listen() <socket.socket.listen>`.
 
-    ``flags`` is a bitmask of AI_* flags to `~socket.getaddrinfo`, like
-    ``socket.AI_PASSIVE | socket.AI_NUMERICHOST``.
+    `flags` is a bitmask of AI_* flags to `~socket.getaddrinfo`, like
+    `socket.AI_PASSIVE | socket.AI_NUMERICHOST`.
 
-    ``reuse_port`` option sets ``SO_REUSEPORT`` option for every socket
+    `reuse_port` option sets `SO_REUSEPORT` option for every socket
     in the list. If your platform doesn't support this option ValueError will
     be raised.
     """

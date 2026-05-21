@@ -17,11 +17,11 @@ def load_notebook(
     *,
     defaults: AppDefaults | None = None,
 ) -> AppFileManager:
-    """Load a notebook from a path into an ``AppFileManager``.
+    """Load a notebook from a path into an `AppFileManager`.
 
-    The path is validated as a marimo source file (``.py`` / ``.md`` / ``.qmd``)
+    The path is validated as a marimo source file (`.py` / `.md` / `.qmd`)
     and resolved to an absolute path before being handed to the file manager,
-    so a later ``chdir`` cannot change which file the manager points at.
+    so a later `chdir` cannot change which file the manager points at.
     """
     marimo_path = MarimoPath(path)
     return AppFileManager(marimo_path.absolute_name, defaults=defaults)
@@ -31,5 +31,5 @@ def new_notebook(
     *,
     defaults: AppDefaults | None = None,
 ) -> AppFileManager:
-    """Create an unbacked ``AppFileManager`` for an untitled notebook."""
+    """Create an unbacked `AppFileManager` for an untitled notebook."""
     return AppFileManager(None, defaults=defaults)

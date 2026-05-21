@@ -27,13 +27,13 @@ _VALID_KINDS: Final[frozenset[str]] = frozenset({"file", "directory"})
 def _normalize_selection_mode(
     value: object,
 ) -> frozenset[str]:
-    """Normalize ``selection_mode`` to a frozenset of selectable kinds.
+    """Normalize `selection_mode` to a frozenset of selectable kinds.
 
     Accepted inputs:
-        - ``"file"``      -> ``{"file"}``
-        - ``"directory"`` -> ``{"directory"}``
-        - ``"all"``       -> ``{"file", "directory"}``
-        - list/tuple containing ``"file"`` and/or ``"directory"`` (deduped)
+        - `"file"`      -> `{"file"}`
+        - `"directory"` -> `{"directory"}`
+        - `"all"`       -> `{"file", "directory"}`
+        - list/tuple containing `"file"` and/or `"directory"` (deduped)
     """
     if isinstance(value, str):
         if value == "all":

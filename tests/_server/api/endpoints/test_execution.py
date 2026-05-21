@@ -163,7 +163,7 @@ class TestExecutionRoutes_EditMode:
     @with_session(SESSION_ID)
     def test_execute_injects_screenshot_meta(client: TestClient) -> None:
         """`/api/kernel/execute` injects a trusted server URL + auth token
-        into ``HTTPRequest.meta`` so ``ctx.screenshot()`` can authenticate
+        into `HTTPRequest.meta` so `ctx.screenshot()` can authenticate
         Playwright against this server.  Regression guard: deleting either
         injection line in the endpoint should fail this test.
         """

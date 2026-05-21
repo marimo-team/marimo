@@ -331,7 +331,7 @@ class TestUnnamedNotebook:
 
 
 def _get_alerts(session: Mock) -> list[AlertNotification]:
-    """Extract every ``AlertNotification`` the interceptor broadcast."""
+    """Extract every `AlertNotification` the interceptor broadcast."""
     return [
         call.args[0]
         for call in session.notify.call_args_list
@@ -424,9 +424,9 @@ class TestFailureSurfaces:
 
 
 class TestCellSnapshotIsolation:
-    """``_maybe_autosave`` must deep-copy cells before scheduling the
-    save. ``NotebookCell`` and ``CellConfig`` are mutable and owned by
-    the document, so a shallow ``list(...)`` would let the event-loop
+    """`_maybe_autosave` must deep-copy cells before scheduling the
+    save. `NotebookCell` and `CellConfig` are mutable and owned by
+    the document, so a shallow `list(...)` would let the event-loop
     thread mutate fields under the worker thread's feet — a torn
     snapshot / data race."""
 
@@ -473,7 +473,7 @@ class TestCellSnapshotIsolation:
         existing_cell_id: CellId_t,
     ) -> None:
         """Regression: if the shallow-copy bug returned, clobbering
-        ``cell.code`` / ``cell.config`` on the document after submit
+        `cell.code` / `cell.config` on the document after submit
         would also clobber the snapshot the worker thread is about to
         read."""
         received: list[list[NotebookCell]] = []

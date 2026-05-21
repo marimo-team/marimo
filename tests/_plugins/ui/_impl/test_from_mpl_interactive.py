@@ -189,9 +189,9 @@ class TestHandleDownload:
 class TestDpiPreservationOnRerun:
     """Re-running a cell that wraps the same figure should not compound DPI.
 
-    matplotlib's ``FigureCanvasBase.__init__`` unconditionally captures
-    ``figure._original_dpi = figure.dpi``. After a HiDPI client connects
-    and scales ``figure.dpi`` up by the device pixel ratio, a subsequent
+    matplotlib's `FigureCanvasBase.__init__` unconditionally captures
+    `figure._original_dpi = figure.dpi`. After a HiDPI client connects
+    and scales `figure.dpi` up by the device pixel ratio, a subsequent
     canvas creation on the same figure would treat that scaled value as
     "original" and scale it again — making the resolution compound on
     every rerun (see issue #9466).

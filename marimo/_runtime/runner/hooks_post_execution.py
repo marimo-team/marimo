@@ -504,9 +504,9 @@ def _flush_console(
 
     Console messages (stdout/stderr) are batched by a background thread
     for performance.  Without an explicit flush, the messages may arrive
-    at the frontend *after* the cell is marked idle and ``completed-run``
+    at the frontend *after* the cell is marked idle and `completed-run`
     is sent.  A subsequent run would then clear the console (via
-    ``console=[]``) before the user sees the output.
+    `console=[]`) before the user sees the output.
     """
     del cell
     del run_result

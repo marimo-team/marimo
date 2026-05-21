@@ -423,7 +423,7 @@ def _key_options_from_ipython_method(obj: Any) -> list[str]:
 
 
 def _key_options_via_keys_method(obj: Mapping[Any, Any]) -> list[str]:
-    """Completion keys from a mapping. Only used after ``isinstance(obj, Mapping)``."""
+    """Completion keys from a mapping. Only used after `isinstance(obj, Mapping)`."""
     return [str(key) for key in obj]
 
 

@@ -2,10 +2,10 @@
 """Tests for _extract_cell_data reading from the NotebookDocument.
 
 The key change under test: `_extract_cell_data` now reads from
-``session.document`` (a ``NotebookDocument``) rather than directly from
-``session.app_file_manager.app.cell_manager``.  This means that
-document-level mutations (applied via ``notebook-document-transaction``)
-are reflected when a new client connects and receives ``kernel-ready``.
+`session.document` (a `NotebookDocument`) rather than directly from
+`session.app_file_manager.app.cell_manager`.  This means that
+document-level mutations (applied via `notebook-document-transaction`)
+are reflected when a new client connects and receives `kernel-ready`.
 """
 
 from __future__ import annotations

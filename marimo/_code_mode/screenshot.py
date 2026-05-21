@@ -57,13 +57,13 @@ class ScreenshotError(RuntimeError):
 
 
 def _to_data_url(image: bytes) -> str:
-    """Convert raw PNG bytes to a ``data:image/png;base64,...`` string."""
+    """Convert raw PNG bytes to a `data:image/png;base64,...` string."""
     encoded = base64.b64encode(image).decode("ascii")
     return f"data:image/png;base64,{encoded}"
 
 
 def _require_playwright() -> Any:
-    """Import ``async_playwright``, raising :class:`ScreenshotError` if missing."""
+    """Import `async_playwright`, raising :class:`ScreenshotError` if missing."""
     from marimo._dependencies.dependencies import DependencyManager
 
     if not DependencyManager.playwright.has():

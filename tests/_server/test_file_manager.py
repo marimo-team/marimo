@@ -231,7 +231,7 @@ def test_save_cannot_rename(app_file_manager: AppFileManager) -> None:
 def test_save_from_cells_persists_cells(
     app_file_manager: AppFileManager,
 ) -> None:
-    """``save_from_cells`` should round-trip cells through the serializer."""
+    """`save_from_cells` should round-trip cells through the serializer."""
     from marimo._messaging.notebook.document import NotebookCell
 
     app_file_manager.save_from_cells(
@@ -254,7 +254,7 @@ def test_save_from_cells_persists_cells(
 def test_save_from_cells_empty_name_normalizes(
     app_file_manager: AppFileManager,
 ) -> None:
-    """Empty cell names must serialize as the default ``_`` rather than
+    """Empty cell names must serialize as the default `_` rather than
     falling back to the unparsable-cell path."""
     from marimo._messaging.notebook.document import NotebookCell
 
@@ -288,7 +288,7 @@ def test_save_from_cells_unnamed_raises(
 def test_save_from_cells_preserves_layout_file(
     app_file_manager: AppFileManager,
 ) -> None:
-    """``save_from_cells`` must keep ``layout_file`` in app config."""
+    """`save_from_cells` must keep `layout_file` in app config."""
     from marimo._messaging.notebook.document import NotebookCell
 
     app_file_manager.app.update_config({"layout_file": "layouts/x.grid.json"})
@@ -308,7 +308,7 @@ def test_save_from_cells_preserves_layout_file(
 def test_save_and_save_from_cells_serialize_under_lock(
     app_file_manager: AppFileManager,
 ) -> None:
-    """Concurrent ``save`` + ``save_from_cells`` on the same manager must
+    """Concurrent `save` + `save_from_cells` on the same manager must
     produce a valid (non-torn) file. Also regression-tests that the
     reentrant lock covers both entry points."""
     import threading

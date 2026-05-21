@@ -37,13 +37,13 @@ class LogFormatter(logging.Formatter):
 
     Color support on Windows versions that do not support ANSI color codes is
     enabled by use of the colorama__ library. Applications that wish to use
-    this must first initialize colorama with a call to ``colorama.init``.
+    this must first initialize colorama with a call to `colorama.init`.
     See the colorama documentation for details.
 
     __ https://pypi.python.org/pypi/colorama
 
     .. versionchanged:: 4.5
-       Added support for ``colorama``. Changed the constructor
+       Added support for `colorama`. Changed the constructor
        signature to be compatible with `logging.config.dictConfig`.
     """
 
@@ -69,16 +69,16 @@ class LogFormatter(logging.Formatter):
         :arg bool color: Enables color support.
         :arg str fmt: Log message format.
           It will be applied to the attributes dict of log records. The
-          text between ``%(color)s`` and ``%(end_color)s`` will be colored
+          text between `%(color)s` and `%(end_color)s` will be colored
           depending on the level if color support is on.
         :arg dict colors: color mappings from logging level to terminal color
           code
         :arg str datefmt: Datetime format.
-          Used for formatting ``(asctime)`` placeholder in ``prefix_fmt``.
+          Used for formatting `(asctime)` placeholder in `prefix_fmt`.
 
         .. versionchanged:: 3.2
 
-           Added ``fmt`` and ``datefmt`` arguments.
+           Added `fmt` and `datefmt` arguments.
         """
         del style
         logging.Formatter.__init__(self, datefmt=datefmt)

@@ -1,19 +1,19 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Canonical notebook document model.
 
-``NotebookDocument`` maintains an ordered list of ``NotebookCell`` entries and
-applies ``Transaction``s atomically.  It is a pure state machine — no IO, no
+`NotebookDocument` maintains an ordered list of `NotebookCell` entries and
+applies `Transaction`s atomically.  It is a pure state machine — no IO, no
 notifications, no kernel interaction.
 
 Concurrency model
 -----------------
-The session holds the single ``NotebookDocument`` and applies
+The session holds the single `NotebookDocument` and applies
 transactions sequentially. There is no concurrent access.  Everything
 that goes through this model is last-write-wins with intra-transaction
-conflict detection (``_validate`` catches contradictions like delete +
+conflict detection (`_validate` catches contradictions like delete +
 update on the same cell within one batch).
 
-``SetCode`` is a wholesale replacement without character-level
+`SetCode` is a wholesale replacement without character-level
 merge. Loro CRDT may handle real-time collaborative text editing in
 the future, but cell code would then live outside this model entirely.
 """
@@ -110,14 +110,14 @@ class NotebookDocument:
         return self._version
 
     def get_cell(self, cell_id: CellId_t) -> NotebookCell:
-        """Lookup by ID. Raises ``KeyError`` if not found."""
+        """Lookup by ID. Raises `KeyError` if not found."""
         for cell in self._cells:
             if cell.id == cell_id:
                 return cell
         raise KeyError(f"Cell {cell_id!r} not found in document")
 
     def get(self, cell_id: CellId_t) -> NotebookCell | None:
-        """Lookup by ID, returning ``None`` if not found."""
+        """Lookup by ID, returning `None` if not found."""
         for cell in self._cells:
             if cell.id == cell_id:
                 return cell
@@ -137,9 +137,9 @@ class NotebookDocument:
     # ------------------------------------------------------------------
 
     def apply(self, tx: Transaction) -> Transaction:
-        """Validate and apply *tx*, return it with ``version`` assigned.
+        """Validate and apply *tx*, return it with `version` assigned.
 
-        Raises ``ValueError`` for validation failures and ``KeyError``
+        Raises `ValueError` for validation failures and `KeyError`
         when a change references a non-existent cell.
         """
         if not tx.changes:
@@ -223,15 +223,15 @@ class NotebookDocument:
     # ------------------------------------------------------------------
 
     def _replace_cells(self, cells: list[NotebookCell]) -> None:
-        """Bulk-replace the cell list in place, bypassing ``apply``.
+        """Bulk-replace the cell list in place, bypassing `apply`.
 
         Transitional. Used for full-document rebuilds (save round-trip)
         until those flows are expressed as diff Transactions. The
-        ``_cells`` attribute is reassigned (not mutated element-wise)
+        `_cells` attribute is reassigned (not mutated element-wise)
         so any external holder of the prior list keeps a snapshot of
         pre-rebuild state — useful for diff comparison. Bumps
-        ``version`` so observers see the state change like they would
-        after ``apply()``.
+        `version` so observers see the state change like they would
+        after `apply()`.
         """
         self._cells = cells
         self._version += 1
@@ -239,12 +239,12 @@ class NotebookDocument:
     def _rekey(self, mapping: dict[CellId_t, CellId_t]) -> None:
         """Rekey cells by an old-id to new-id mapping, preserving order.
 
-        Cells whose id is not in ``mapping`` keep their existing id.
-        Each rekeyed cell is replaced by a fresh ``NotebookCell`` so its
+        Cells whose id is not in `mapping` keep their existing id.
+        Each rekeyed cell is replaced by a fresh `NotebookCell` so its
         primary key is stable from construction to disposal. Bumps
-        ``version`` so observers see the rekey as a state change.
+        `version` so observers see the rekey as a state change.
 
-        Raises ``ValueError`` if the rekey would produce duplicate ids.
+        Raises `ValueError` if the rekey would produce duplicate ids.
         """
         final_ids: set[CellId_t] = set()
         for c in self._cells:
@@ -319,7 +319,7 @@ def notebook_document_context(
 def _validate(
     changes: tuple[DocumentChange, ...], cells: list[NotebookCell]
 ) -> None:
-    """Check for conflicting changes. Raises ``ValueError``."""
+    """Check for conflicting changes. Raises `ValueError`."""
     existing_ids = {c.id for c in cells}
     created: set[CellId_t] = set()
     deleted: set[CellId_t] = set()

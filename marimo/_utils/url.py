@@ -98,8 +98,8 @@ pattern = re.compile(regex)
 def is_url(value: str, public: bool = False) -> bool:
     """Return whether or not given value is a valid URL.
 
-    If the value is valid URL this function returns ``True``, otherwise
-    returns ``False``.
+    If the value is valid URL this function returns `True`, otherwise
+    returns `False`.
 
     This validator is based on the wonderful `URL validator of dperini`_.
     .. _URL validator of dperini:
@@ -122,7 +122,7 @@ def is_url(value: str, public: bool = False) -> bool:
         Added support for various exotic URLs and fixed various false
         positives.
     .. versionchanged:: 0.10.3
-        Added ``public`` parameter.
+        Added `public` parameter.
     .. versionchanged:: 0.11.0
         Made the regular expression this function uses case insensitive.
     .. versionchanged:: 0.11.3

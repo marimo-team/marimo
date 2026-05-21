@@ -103,8 +103,8 @@ if TYPE_CHECKING:
 class CellStatusType(str, Enum, metaclass=_HelpableEnumMeta):
     """Synthesized cell execution status.
 
-    Returned by ``NotebookCell.status``.  Compares equal to plain
-    strings, so ``cell.status == "idle"`` works as expected.
+    Returned by `NotebookCell.status`.  Compares equal to plain
+    strings, so `cell.status == "idle"` works as expected.
     """
 
     idle = "idle"
@@ -143,14 +143,14 @@ class CellError:
 
     Parameters
     ----------
-    kind : ``"graph"`` or ``"runtime"``
-        ``"graph"`` — a dataflow-graph error that *prevents* execution
+    kind : `"graph"` or `"runtime"`
+        `"graph"` — a dataflow-graph error that *prevents* execution
         (multiply-defined variable, cycle, etc.).
-        ``"runtime"`` — an exception raised during execution.
+        `"runtime"` — an exception raised during execution.
     msg : str
         Human-readable description.
     exception : Exception | None
-        The original ``Exception`` for runtime errors; ``None`` for
+        The original `Exception` for runtime errors; `None` for
         graph errors.
     """
 
@@ -163,7 +163,7 @@ class CellError:
 
 
 class CellRuntimeState(Protocol):
-    """The subset of ``CellImpl`` that ``NotebookCell`` reads."""
+    """The subset of `CellImpl` that `NotebookCell` reads."""
 
     @property
     def code(self) -> str: ...
@@ -190,7 +190,7 @@ _LEGACY_INSTALL_WARNED = False
 
 
 def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
-    """Return an ``AsyncCodeModeContext`` for the running kernel.
+    """Return an `AsyncCodeModeContext` for the running kernel.
 
     Use as an async context manager::
 
@@ -234,12 +234,12 @@ class NotebookCell:
     status : CellStatusType | None
         Synthesized execution status. Priority order:
         transient state (queued/running/disabled) > stale > last run result.
-        ``None`` if the cell has never been registered in the graph.
+        `None` if the cell has never been registered in the graph.
     errors : list[CellError]
         Structured errors affecting this cell.
-        Each entry is a ``CellError`` with ``kind``, ``msg``, and
-        ``exception`` fields. Covers both runtime exceptions
-        (e.g. ``NameError``) and graph errors (multiply-defined
+        Each entry is a `CellError` with `kind`, `msg`, and
+        `exception` fields. Covers both runtime exceptions
+        (e.g. `NameError`) and graph errors (multiply-defined
         variables, cycles, etc.).
     """
 
@@ -297,16 +297,16 @@ class NotebookCell:
 
         Possible values:
 
-        - ``"idle"`` — ran successfully, up to date.
-        - ``"exception"`` — cell raised an exception.
-        - ``"stale"`` — needs re-run (code edited, inputs changed, or never run).
-        - ``"cancelled"`` — ancestor raised an exception.
-        - ``"interrupted"`` — execution was interrupted.
-        - ``"marimo-error"`` — prevented from executing (e.g. multiply-defined name).
-        - ``"disabled"`` — cell is disabled.
-        - ``"queued"`` — waiting to run.
-        - ``"running"`` — currently executing.
-        - ``None`` — empty cell, never registered in the graph.
+        - `"idle"` — ran successfully, up to date.
+        - `"exception"` — cell raised an exception.
+        - `"stale"` — needs re-run (code edited, inputs changed, or never run).
+        - `"cancelled"` — ancestor raised an exception.
+        - `"interrupted"` — execution was interrupted.
+        - `"marimo-error"` — prevented from executing (e.g. multiply-defined name).
+        - `"disabled"` — cell is disabled.
+        - `"queued"` — waiting to run.
+        - `"running"` — currently executing.
+        - `None` — empty cell, never registered in the graph.
 
         Priority: transient state (queued/running/disabled) >
         stale > last run result.
@@ -338,8 +338,8 @@ class NotebookCell:
         """All errors affecting this cell.
 
         Returns a list of :class:`CellError` objects. Each has a
-        ``kind`` (``"graph"`` or ``"runtime"``), a human-readable
-        ``msg``, and for runtime errors the original ``exception``.
+        `kind` (`"graph"` or `"runtime"`), a human-readable
+        `msg`, and for runtime errors the original `exception`.
 
         Returns an empty list when the cell is healthy.
         """
@@ -389,7 +389,7 @@ class _CellsView:
         ctx.cells["Abcd1234"]  # by cell ID
         ctx.cells["my_cell"]  # by cell name
 
-    Iteration yields ``NotebookCell`` objects with runtime status::
+    Iteration yields `NotebookCell` objects with runtime status::
 
         for cell in ctx.cells:
             print(cell.id, cell.code, cell.status)
@@ -430,9 +430,9 @@ class _CellsView:
         return doc_cell.name or None
 
     def _resolve(self, target: str) -> CellId_t:
-        """Resolve a cell ID or cell name to a ``CellId_t``.
+        """Resolve a cell ID or cell name to a `CellId_t`.
 
-        Raises ``KeyError`` if not found.
+        Raises `KeyError` if not found.
         """
         if target in self._doc:
             return CellId_t(target)
@@ -579,7 +579,7 @@ class AsyncCodeModeContext:
             ctx.edit_cell("my_cell", code="x = 42")
             ctx.delete_cell("old_cell")
 
-    Read cells via ``ctx.cells[key]`` where *key* is an integer index,
+    Read cells via `ctx.cells[key]` where *key* is an integer index,
     cell ID string, or cell name.
     """
 
@@ -802,7 +802,7 @@ class AsyncCodeModeContext:
         return cell is not None and cell.exception is not None
 
     def _cell_label(self, cell_id: CellId_t) -> str:
-        """Return a display label: ``'id' (name)`` or ``'id'``."""
+        """Return a display label: `'id' (name)` or `'id'`."""
         short = repr(str(cell_id)[:8])
         doc_cell = self._document.get(cell_id)
         if doc_cell and doc_cell.name:
@@ -824,7 +824,7 @@ class AsyncCodeModeContext:
 
         Mutations via :meth:`run_cell` update the kernel globals but
         *not* the scratchpad's copy. Read values through this property
-        (``ctx.globals["x"]``) rather than bare variable names.
+        (`ctx.globals["x"]`) rather than bare variable names.
         """
         return self._kernel.globals
 
@@ -861,10 +861,10 @@ class AsyncCodeModeContext:
     # ------------------------------------------------------------------
 
     def _resolve_target(self, target: str) -> CellId_t:
-        """Resolve a cell ID or name to a ``CellId_t``.
+        """Resolve a cell ID or name to a `CellId_t`.
 
         Checks the live graph first, then pending adds (by ID and by
-        name), then queued renames from ``edit_cell``.
+        name), then queued renames from `edit_cell`.
         """
         # Try the live graph.
         try:
@@ -894,10 +894,10 @@ class AsyncCodeModeContext:
     def _resolve_new_cell(
         self, name: str | None
     ) -> tuple[CellId_t, str | None]:
-        """Return ``(cell_id, resolved_name)`` for a new cell.
+        """Return `(cell_id, resolved_name)` for a new cell.
 
-        The ``"setup"`` name is special-cased to use the well-known setup
-        cell ID. Raises ``ValueError`` if a setup cell already exists.
+        The `"setup"` name is special-cased to use the well-known setup
+        cell ID. Raises `ValueError` if a setup cell already exists.
         """
         if name == SETUP_CELL_NAME:
             # Check if a setup cell already exists (by name or by ID).
@@ -932,9 +932,9 @@ class AsyncCodeModeContext:
         """Queue a new cell. Returns the new cell's ID.
 
         The returned ID can be used in subsequent operations within the
-        same batch (e.g. as an ``after`` target for the next cell).
+        same batch (e.g. as an `after` target for the next cell).
 
-        Cells are not executed automatically. Use ``run_cell`` to queue
+        Cells are not executed automatically. Use `run_cell` to queue
         them for execution::
 
             cid = ctx.create_cell("x = 1")
@@ -957,16 +957,16 @@ class AsyncCodeModeContext:
         Args:
             code (str): Python source code for the cell.
             before (str, optional): Insert before this cell (ID or name).
-                Mutually exclusive with ``after``.
+                Mutually exclusive with `after`.
             after (str, optional): Insert after this cell (ID or name).
-                Mutually exclusive with ``before``.
+                Mutually exclusive with `before`.
             hide_code (bool): Collapse the code editor in the UI.
                 Defaults to True.
             disabled (bool): Prevent the cell from executing.
                 Defaults to False.
             column (int, optional): Column index for multi-column layouts.
             name (str, optional): Cell names are a human-facing label,
-                reserved for special cases (e.g. ``"setup"``). Prefer
+                reserved for special cases (e.g. `"setup"`). Prefer
                 referencing cells by the returned cell ID unless
                 naming is important for the user.
         """
@@ -1010,9 +1010,9 @@ class AsyncCodeModeContext:
         """Queue an update to an existing cell's code and/or config.
 
         Only the arguments you explicitly pass are changed — the cell's
-        existing config is preserved for any argument left as ``None``.
+        existing config is preserved for any argument left as `None`.
 
-        Editing a cell does not automatically execute it. Use ``run_cell``
+        Editing a cell does not automatically execute it. Use `run_cell`
         to queue it for execution::
 
             ctx.edit_cell("my_cell", "x = 42")
@@ -1139,9 +1139,9 @@ class AsyncCodeModeContext:
         Args:
             target (str): Cell ID or cell name to move.
             before (str, optional): Place before this cell (ID or name).
-                Mutually exclusive with ``after``.
+                Mutually exclusive with `after`.
             after (str, optional): Place after this cell (ID or name).
-                Mutually exclusive with ``before``.
+                Mutually exclusive with `before`.
         """
         self._require_entered()
         if before is not None and after is not None:
@@ -1167,10 +1167,10 @@ class AsyncCodeModeContext:
         """Queue a cell for execution.
 
         Cells created or edited in the same batch are not executed
-        automatically — use ``run_cell`` to mark them for execution.
+        automatically — use `run_cell` to mark them for execution.
         Can also be used to re-run an existing cell without editing it.
 
-        All queued ``run_cell`` targets are executed in a single batch
+        All queued `run_cell` targets are executed in a single batch
         on context exit, after structural operations (create/edit/delete)
         have been applied.
 
@@ -1221,20 +1221,20 @@ class AsyncCodeModeContext:
         Launches a headless Chromium browser (reused across calls)
         connected to this server in kiosk mode.
 
-        Requires ``playwright`` + its Chromium binary::
+        Requires `playwright` + its Chromium binary::
 
             ctx.install_packages("playwright")
             # then once: python -m playwright install chromium
 
-        Does **not** require ``async with``.
+        Does **not** require `async with`.
 
         Args:
             target: Cell to screenshot.
 
-                - ``None`` — last cell.
-                - ``int`` — cell index (negative OK).
-                - ``str`` — cell ID or name.
-                - ``NotebookCell`` — e.g. ``ctx.cells[0]``.
+                - `None` — last cell.
+                - `int` — cell index (negative OK).
+                - `str` — cell ID or name.
+                - `NotebookCell` — e.g. `ctx.cells[0]`.
 
                 For an object defined by a cell, resolve first::
 
@@ -1242,12 +1242,12 @@ class AsyncCodeModeContext:
                     img = await ctx.screenshot(cid)
 
             timeout_ms: Max wait (ms) for the output to be visible.
-            as_data_url: Return ``data:image/png;base64,...`` str
+            as_data_url: Return `data:image/png;base64,...` str
                 instead of raw bytes.
             save_to: Also write the PNG to this path.
 
         Returns:
-            ``bytes`` (PNG), or ``str`` (data URL) if *as_data_url*.
+            `bytes` (PNG), or `str` (data URL) if *as_data_url*.
 
         Raises:
             ScreenshotError: Missing playwright, missing browser,
@@ -1310,8 +1310,8 @@ class AsyncCodeModeContext:
     async def close_screenshot_session(self) -> None:
         """Close the Playwright browser opened by :meth:`screenshot`.
 
-        Called automatically in ``__aexit__``.  Call this explicitly
-        when using ``screenshot()`` outside ``async with`` to avoid
+        Called automatically in `__aexit__`.  Call this explicitly
+        when using `screenshot()` outside `async with` to avoid
         leaking a headless browser process.
         """
         if self._screenshot_session is not None:
@@ -1373,10 +1373,10 @@ class AsyncCodeModeContext:
         )
 
     def find_cell_defining_object(self, obj: Any) -> CellId_t | None:
-        """Return the cell ID whose ``defs`` include a variable bound to *obj*.
+        """Return the cell ID whose `defs` include a variable bound to *obj*.
 
-        Uses identity (``is``) matching against kernel globals.
-        Returns ``None`` if no cell defines *obj*.
+        Uses identity (`is`) matching against kernel globals.
+        Returns `None` if no cell defines *obj*.
 
         Example::
 
@@ -1405,12 +1405,12 @@ class AsyncCodeModeContext:
         """Compile and graph-check every op before mutating real state.
 
         For each op with code:
-        1. ``compile_cell`` — validates syntax, extracts defs/refs.
+        1. `compile_cell` — validates syntax, extracts defs/refs.
         2. Temporarily register in the graph to detect multiply-defined
            names and cycles.
         3. Always clean up so the graph is left unchanged.
 
-        Raises ``SyntaxError`` for invalid code or ``RuntimeError`` for
+        Raises `SyntaxError` for invalid code or `RuntimeError` for
         graph conflicts (multiply-defined names, cycles).
         """
         graph = self.graph
@@ -1661,7 +1661,7 @@ class AsyncCodeModeContext:
             ```
 
         Args:
-            element: A marimo UI element (e.g. ``mo.ui.slider``).
+            element: A marimo UI element (e.g. `mo.ui.slider`).
             value: The new value, matching the type the element expects.
         """
         self._require_entered()

@@ -32,11 +32,11 @@ def _enrich_branded_types(
     branded types.
 
     msgspec.json.schema_components() strips NewType wrappers, emitting plain
-    ``{type: string}`` for fields like ``CellId_t``. This function:
+    `{type: string}` for fields like `CellId_t`. This function:
 
-    1. Adds named schemas for each branded type (e.g. ``CellId: {type: string}``).
+    1. Adds named schemas for each branded type (e.g. `CellId: {type: string}`).
     2. Walks every model struct's type hints and replaces inline schemas with
-       ``$ref`` pointers wherever a field's annotation is (or contains) a
+       `$ref` pointers wherever a field's annotation is (or contains) a
        registered NewType.
     """
     import types as _types
@@ -77,7 +77,7 @@ def _enrich_branded_types(
         return origin is Union or origin is getattr(_types, "UnionType", None)
 
     def resolve(ty: Any) -> dict[str, Any] | None:
-        """Produce a branded schema for *ty*, or ``None``."""
+        """Produce a branded schema for *ty*, or `None`."""
         if ty in branded:
             return make_ref(branded[ty][0])
 

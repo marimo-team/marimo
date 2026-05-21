@@ -93,7 +93,7 @@ class ConnectionDistributor(Distributor[T]):
         """Start distributing the response.
 
         Must be called from a thread that has a running event loop —
-        ``add_reader`` is loop-bound.
+        `add_reader` is loop-bound.
         """
         self._loop = asyncio.get_running_loop()
         self._loop.add_reader(self.input_connection.fileno(), self._on_change)

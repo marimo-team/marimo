@@ -1,11 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 """End-to-end tests: code_mode mutations → interceptor → file on disk.
 
-These tests connect two well-tested pieces (``code_mode`` producing
-transactions and ``NotificationListenerExtension`` consuming them) by
-taking the transactions code_mode emits from a real ``Kernel`` and
+These tests connect two well-tested pieces (`code_mode` producing
+transactions and `NotificationListenerExtension` consuming them) by
+taking the transactions code_mode emits from a real `Kernel` and
 feeding them through the auto-save interceptor against a real
-``AppFileManager`` backed by a temp file.
+`AppFileManager` backed by a temp file.
 """
 
 from __future__ import annotations
@@ -79,7 +79,7 @@ def _ctx(k: Kernel) -> Generator[AsyncCodeModeContext, None, None]:
 
 def _read_disk(app_file_manager: AppFileManager) -> str:
     """Sync helper to read a notebook file from disk (avoids ASYNC240 in
-    async tests driven by ``pytest-asyncio`` + code_mode fixtures)."""
+    async tests driven by `pytest-asyncio` + code_mode fixtures)."""
     path = app_file_manager.path
     assert path is not None
     return Path(path).read_text()
@@ -87,7 +87,7 @@ def _read_disk(app_file_manager: AppFileManager) -> str:
 
 def _make_notebook_fixture(filename: str, contents: str):
     """Build a parametrizable fixture that creates an AppFileManager backed
-    by ``tmp_path / filename`` pre-populated with ``contents``."""
+    by `tmp_path / filename` pre-populated with `contents`."""
 
     @pytest.fixture
     def _fixture(tmp_path: Path) -> AppFileManager:
@@ -134,7 +134,7 @@ async def _drain(
     ext: NotificationListenerExtension,
     session: Mock,
 ) -> None:
-    """Forward every NotebookDocumentTransactionNotification on ``k.stream``
+    """Forward every NotebookDocumentTransactionNotification on `k.stream`
     through the interceptor so disk state catches up with the kernel graph.
 
     Auto-save is dispatched to the runner's executor when a running loop
@@ -148,7 +148,7 @@ async def _drain(
 
 
 class TestCodeModeAutoSavePy:
-    """code_mode ops land on a ``.py`` file on disk."""
+    """code_mode ops land on a `.py` file on disk."""
 
     async def test_create_cell_persists(
         self,
@@ -229,7 +229,7 @@ class TestCodeModeAutoSavePy:
 
 
 class TestCodeModeAutoSaveMd:
-    """code_mode ops land on a ``.md`` file on disk."""
+    """code_mode ops land on a `.md` file on disk."""
 
     async def test_create_cell_persists(
         self,

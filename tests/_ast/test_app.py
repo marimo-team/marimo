@@ -1715,11 +1715,11 @@ class TestAppComposition:
 
 
 class TestInternalAppWithData:
-    """``InternalApp.with_data`` rewrites the cell list from the
+    """`InternalApp.with_data` rewrites the cell list from the
     frontend's snapshot during the save round-trip. It must mutate the
     existing cell manager in place — Session holds
-    ``app.cell_manager.document`` as a property, so swapping in a fresh
-    manager would orphan ``session.document``.
+    `app.cell_manager.document` as a property, so swapping in a fresh
+    manager would orphan `session.document`.
     """
 
     def test_preserves_cell_manager_identity(self) -> None:

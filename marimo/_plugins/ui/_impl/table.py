@@ -933,7 +933,7 @@ class table(
         JSON is the largest format we export, so this is a conservative size estimate:
         if the JSON fits under a host's download limit, CSV and Parquet will
         too. Memoized on manager identity — recomputed when filters/search
-        produce a new ``_searched_manager``.
+        produce a new `_searched_manager`.
         """
         try:
             return len(manager.to_json(strict_json=True))
@@ -951,24 +951,24 @@ class table(
 
         When a requested format requires a package that isn't installed
         (e.g., Parquet without pyarrow/pandas/polars), returns a
-        ``DownloadAsResponse`` with ``error`` and ``missing_packages``
+        `DownloadAsResponse` with `error` and `missing_packages`
         populated instead of raising. The frontend uses this to prompt the
         user to install the dependency and retry.
 
         Args:
             args (DownloadAsArgs): The requested download format. Must be
-                one of ``'csv'``, ``'json'``, or ``'parquet'``.
+                one of `'csv'`, `'json'`, or `'parquet'`.
 
         Returns:
-            DownloadAsResponse: Either a success response with ``url`` and
-                ``filename`` populated, or a missing-packages response with
-                ``error`` and ``missing_packages`` populated when the
+            DownloadAsResponse: Either a success response with `url` and
+                `filename` populated, or a missing-packages response with
+                `error` and `missing_packages` populated when the
                 format's dependencies are not available.
 
         Raises:
             NotImplementedError: If the current selection resolves to
-                something other than a ``TableManager`` (e.g., a raw list
-                of ``TableCell`` from cell-selection modes).
+                something other than a `TableManager` (e.g., a raw list
+                of `TableCell` from cell-selection modes).
         """
         # Short-circuit Parquet when no parquet-capable lib is importable.
         if args.format == "parquet":
@@ -1405,7 +1405,7 @@ class table(
         """Get the row IDs for a page of data.
 
         When all rows are present (no filter applied, e.g. sort-only),
-        this reads actual ``_marimo_row_id`` values from the searched
+        this reads actual `_marimo_row_id` values from the searched
         manager so that style/hover dict keys match what the frontend
         uses for lookup -- regardless of sort column or direction.
 

@@ -270,7 +270,7 @@ class _OptionalValueOption(click.Option):
     """A click Option that supports an optional value.
 
     Works around a regression in click 8.3.x where the documented
-    ``is_flag=False, flag_value=...`` pattern is broken.
+    `is_flag=False, flag_value=...` pattern is broken.
     See: https://github.com/pallets/click/issues/3084
     """
 

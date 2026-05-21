@@ -114,9 +114,9 @@ class AppFileManager:
         Args:
             app: The internal app to wrap
             filename: Optional source path for the notebook. When set,
-                ``AppMetadata.filename`` (and therefore ``__file__`` /
-                ``mo.notebook_dir()`` inside cells) resolves to the source
-                file rather than the host process's ``__main__``.
+                `AppMetadata.filename` (and therefore `__file__` /
+                `mo.notebook_dir()` inside cells) resolves to the source
+                file rather than the host process's `__main__`.
 
         Returns:
             AppFileManager instance
@@ -133,17 +133,17 @@ class AppFileManager:
     def reload(self) -> tuple[Transaction, set[CellId_t]]:
         """Reload the app from storage.
 
-        Splices the existing ``CellManager`` into the freshly loaded
-        ``InternalApp`` so ``app.cell_manager`` and
-        ``app.cell_manager.document`` identity is preserved across reload.
+        Splices the existing `CellManager` into the freshly loaded
+        `InternalApp` so `app.cell_manager` and
+        `app.cell_manager.document` identity is preserved across reload.
         The diff between old and new state is applied to the existing
-        document via ``apply()``, which advances ``_version`` monotonically
+        document via `apply()`, which advances `_version` monotonically
         and stamps the returned transaction.
 
         Returns:
-            ``(transaction, changed_cell_ids)``. ``transaction`` is
+            `(transaction, changed_cell_ids)`. `transaction` is
             stamped with the post-apply document version and is suitable
-            for broadcasting to consumers. ``changed_cell_ids`` are the
+            for broadcasting to consumers. `changed_cell_ids` are the
             ids whose code, name, or config changed, plus all created
             and deleted ids (reorder-only is excluded).
         """
@@ -214,7 +214,7 @@ class AppFileManager:
     ) -> str:
         """Save notebook to storage using appropriate format handler.
 
-        All file writes go through this method under ``_save_lock``.
+        All file writes go through this method under `_save_lock`.
 
         Args:
             path: Target file path
@@ -495,9 +495,9 @@ class AppFileManager:
     ) -> str:
         """Persist the notebook from a snapshot of document cells.
 
-        Used by the server-side auto-save path for ``code_mode``
-        mutations. Unlike ``save()``, this takes cells directly — the
-        caller is responsible for snapshotting ``session.document.cells``
+        Used by the server-side auto-save path for `code_mode`
+        mutations. Unlike `save()`, this takes cells directly — the
+        caller is responsible for snapshotting `session.document.cells`
         on a thread where the document is quiescent.
 
         Raises:
@@ -715,10 +715,10 @@ def _maybe_path(path: str | Path | None) -> Path | None:
 def _build_transaction(
     *, prev: CellManager, new: CellManager
 ) -> tuple[Transaction, set[CellId_t]]:
-    """Diff two CellManagers, returning ``(transaction, changed_cell_ids)``.
+    """Diff two CellManagers, returning `(transaction, changed_cell_ids)`.
 
     The transaction is unstamped; the caller applies it to the document
-    (which assigns ``version``). ``changed_cell_ids`` covers code, name,
+    (which assigns `version`). `changed_cell_ids` covers code, name,
     or config changes plus all creates and deletes — reorder-only cells
     are excluded.
     """
