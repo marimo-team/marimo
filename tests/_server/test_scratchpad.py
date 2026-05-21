@@ -817,6 +817,35 @@ class TestRunScratchpadCode:
         assert session.interrupt_count == 1
 
     @pytest.mark.asyncio
+    async def test_timeout_interrupt_happens_while_holding_lock(
+        self,
+    ) -> None:
+        """Regression guard: ``try_interrupt()`` must run BEFORE releasing
+        ``scratchpad_lock``. Otherwise a concurrent code-mode call could
+        acquire the lock and start running between timeout detection and
+        the interrupt — and get its brand-new execution killed by us."""
+        session = _FakeSession(auto_complete=False)
+        lock_held_during_interrupt: list[bool] = []
+        original_interrupt = session.try_interrupt
+
+        def spy() -> None:
+            lock_held_during_interrupt.append(session.scratchpad_lock.locked())
+            original_interrupt()
+
+        session.try_interrupt = spy  # type: ignore[method-assign]
+
+        await run_scratchpad_code(
+            session.as_session(),
+            _build_request(),
+            code="while True: pass",
+            server_url="u",
+            auth_token="t",
+            timeout=0.05,
+        )
+
+        assert lock_held_during_interrupt == [True]
+
+    @pytest.mark.asyncio
     async def test_child_cell_errors_flow_into_result_errors(self) -> None:
         """End-to-end: child-cell errors captured by the listener during
         execution must surface in ``result.errors`` — otherwise the AI
