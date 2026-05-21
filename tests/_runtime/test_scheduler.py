@@ -67,7 +67,9 @@ def test_cancel_marks_cancelled(
 def test_batch_yields_singletons() -> None:
     sched = SequentialScheduler([], graph=_empty_graph())
     cells = [CellId_t("a"), CellId_t("b"), CellId_t("c")]
-    batches = list(sched.batch(cells))
+    # batch() yields iterables, not indexable lists — callers iterate with
+    # ``for cell_id in batch:`` rather than ``batch[0]``.
+    batches = [list(b) for b in sched.batch(cells)]
     assert batches == [["a"], ["b"], ["c"]]
 
 
@@ -75,7 +77,7 @@ def test_batch_respects_interrupt() -> None:
     sched = SequentialScheduler([], graph=_empty_graph())
     cells = [CellId_t("a"), CellId_t("b"), CellId_t("c")]
     iterator = sched.batch(cells)
-    assert next(iterator) == ["a"]
+    assert list(next(iterator)) == ["a"]
     sched.interrupted = True
     # Generator stops once interrupted is set.
     remaining = list(iterator)

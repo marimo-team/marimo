@@ -2450,7 +2450,6 @@ def _create_streams(
 
 def _install_subprocess_handlers(
     kernel: Kernel,
-    ctx: KernelRuntimeContext,
     user_config: MarimoConfig,
     interrupt_queue: QueueType[bool] | None,
 ) -> None:
@@ -2460,7 +2459,7 @@ def _install_subprocess_handlers(
 
     register_formatters(theme=user_config["display"]["theme"])
 
-    signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
+    signal.signal(signal.SIGINT, handlers.construct_interrupt_handler())
 
     if sys.platform == "win32":
         if interrupt_queue is not None:
@@ -2544,7 +2543,7 @@ def launch_kernel(
                 # Read theme from kernel.user_config — create_kernel may have
                 # mutated it for run mode (autorun + auto_reload off).
                 _install_subprocess_handlers(
-                    kernel, ctx, kernel.user_config, interrupt_queue
+                    kernel, kernel.user_config, interrupt_queue
                 )
 
             # The control loop is asynchronous so that (a) user code can use

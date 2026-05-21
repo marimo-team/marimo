@@ -72,3 +72,61 @@ class TestCreateDefaultHooks:
         )
 
         assert POST_EXECUTION_HOOKS[-1] is _set_status_idle
+
+
+class TestSetRunResultStatus:
+    """`MarimoInterrupt` in `run_result.exception` must map to the
+    `interrupted` status so the UI distinguishes user-stop from error.
+    """
+
+    def _hook(self, exception, cancelled_cells=None):  # type: ignore[no-untyped-def]
+        from unittest.mock import MagicMock
+
+        from marimo._runtime.runner.hooks_post_execution import (
+            _set_run_result_status,
+        )
+        from marimo._runtime.runner.result import RunResult
+
+        cell = MagicMock()
+        cell.cell_id = "c0"
+        ctx = MagicMock()
+        ctx.cancelled_cells = cancelled_cells or set()
+        run_result = RunResult(output=None, exception=exception)
+        _set_run_result_status(cell, ctx, run_result)
+        return cell.set_run_result_status.call_args
+
+    def test_marimo_interrupt_sets_interrupted(self) -> None:
+        from marimo._runtime.control_flow import MarimoInterrupt
+
+        call = self._hook(MarimoInterrupt())
+
+        assert call is not None
+        assert call.args[0] == "interrupted"
+
+    def test_marimo_interrupt_takes_precedence_over_cancelled(self) -> None:
+        """Interrupt wins over cancellation: a cell that interrupted
+        itself also lands in `cancelled_cells` via its descendants pass."""
+        from marimo._runtime.control_flow import MarimoInterrupt
+
+        call = self._hook(MarimoInterrupt(), cancelled_cells={"c0"})
+
+        assert call is not None
+        assert call.args[0] == "interrupted"
+
+    def test_cancelled_when_not_interrupt(self) -> None:
+        call = self._hook(ValueError("boom"), cancelled_cells={"c0"})
+
+        assert call is not None
+        assert call.args[0] == "cancelled"
+
+    def test_exception_when_not_interrupt_or_cancelled(self) -> None:
+        call = self._hook(ValueError("boom"))
+
+        assert call is not None
+        assert call.args[0] == "exception"
+
+    def test_no_exception_is_success(self) -> None:
+        call = self._hook(None)
+
+        assert call is not None
+        assert call.args[0] == "success"
