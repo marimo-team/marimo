@@ -1,481 +1,755 @@
-# Information provided by https://openrouter.ai/
-# Keep latest models at the top, deprecate old models
-
-# Anthropic
-
-- name: Claude Opus 4.7
-  model: claude-opus-4-7
-  description: Latest Opus model, strongest for coding and long-running professional tasks
-  providers: [anthropic]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude Sonnet 4.6
-  model: claude-sonnet-4-6
-  description: Most capable Sonnet-class model, with frontier performance across coding, agents, and professional work
-  providers: [anthropic]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude Opus 4.6
-  model: claude-opus-4-6
-  description: Strongest model for coding and long-running professional tasks
-  providers: [anthropic]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude Opus 4.5
-  model: claude-opus-4-5
-  description: Frontier reasoning model optimized for complex software engineering
-  providers: [anthropic]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude Sonnet 4.5
-  model: claude-sonnet-4-5
-  description: Advanced Sonnet model optimized for real-world agents and coding workflows
-  providers: [anthropic]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude Haiku 4.5
-  model: claude-haiku-4-5
-  description: Most efficient model, delivering near-frontier intelligence at a fraction of the cost
-  providers: [anthropic]
-  roles: [chat, edit]
-  thinking: true
-
-# Google
-
-- name: Gemini 3.1 Flash Lite Preview
-  model: gemini-3.1-flash-lite-preview
-  description: High-efficiency model optimized for high-volume use cases
-  providers: [google]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Gemini 3.1 Pro Preview
-  model: gemini-3.1-pro-preview
-  description: Frontier reasoning model with enhanced software engineering and agentic reliability
-  providers: [google]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Gemini 3 Flash Preview
-  model: gemini-3-flash-preview
-  description: High-speed thinking model for agentic workflows, multi-turn chat, and coding assistance
-  providers: [google]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Gemini 2.5 Flash
-  model: gemini-2.5-flash
-  description: State-of-the-art workhorse model with built-in thinking capabilities
-  providers: [google]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Gemini 2.5 Flash Lite
-  model: gemini-2.5-flash-lite
-  description: Most cost-efficient model supporting high throughput
-  providers: [google]
-  roles: [chat, edit]
-  thinking: false
-
-# OpenAI
-
-- name: GPT-5.5
-  model: gpt-5.5
-  description: Newest frontier model for the most complex professional work
-  providers: [openai]
-  roles: [chat, edit]
-  thinking: true
-
-- name: GPT-5.4
-  model: gpt-5.4
-  description: The latest frontier-grade model, unifying the Codex and GPT lines into a single system
-  providers: [openai]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GPT-5.3 Chat
-  model: gpt-5.3-chat
-  description: Most-used model that makes everyday conversations smoother and more useful
-  providers: [openai, azure]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GPT-5.3-Codex
-  model: gpt-5.3-codex
-  description: Most advanced agentic coding model combining frontier software engineering with broad reasoning
-  providers: [openai]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GPT-5 Mini
-  model: gpt-5-mini
-  description: A faster, cost-efficient version of GPT-5 for well-defined tasks
-  providers: [openai, azure, github]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GPT-5 Nano
-  model: gpt-5-nano
-  description: Fastest, most cost-efficient version of GPT-5
-  providers: [openai, azure]
-  roles: [chat, edit]
-  thinking: false
-
-- name: o3
-  model: o3
-  description: Most powerful reasoning model with chain-of-thought capabilities
-  providers: [openai, azure]
-  roles: [chat, edit]
-  thinking: true
-
-- name: o4 Mini
-  model: o4-mini
-  description: Faster, more affordable reasoning model optimized for math, coding, and visual tasks
-  providers: [openai, azure]
-  roles: [chat, edit]
-  thinking: true
-
-# GitHub
-
-- name: GPT-3.5-turbo
-  model: gpt-3.5-turbo
-  description: Fast and efficient model with excellent performance for everyday tasks
-  providers: [github]
-  roles: [chat, edit]
-  thinking: false
-
-# Bedrock
-# To verify/update Bedrock model IDs, see https://github.com/marimo-team/marimo/issues/9280
-
-- name: Claude 4.7 Opus (Bedrock)
-  model: global.anthropic.claude-opus-4-7
-  description: Latest Opus model, strongest for coding and long-running professional tasks
-  providers: [bedrock]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude 4.6 Sonnet (Bedrock)
-  model: global.anthropic.claude-sonnet-4-6
-  description: Most capable Sonnet-class model, with frontier performance across coding, agents, and professional work
-  providers: [bedrock]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude 4.6 Opus (Bedrock)
-  model: global.anthropic.claude-opus-4-6-v1
-  description: Strongest model for coding and long-running professional tasks
-  providers: [bedrock]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude 4.5 Opus (Bedrock)
-  model: global.anthropic.claude-opus-4-5-20251101-v1:0
-  description: Frontier reasoning model optimized for complex software engineering
-  providers: [bedrock]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude 4.5 Sonnet (Bedrock)
-  model: global.anthropic.claude-sonnet-4-5-20250929-v1:0
-  description: Most advanced Sonnet model to date, optimized for real-world agents
-  providers: [bedrock]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude 4.5 Haiku (Bedrock)
-  model: global.anthropic.claude-haiku-4-5-20251001-v1:0
-  description: Most efficient model, delivering near-frontier intelligence at a fraction of the cost
-  providers: [bedrock]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Llama 3.3 70B Instruct
-  model: us.meta.llama3-3-70b-instruct-v1:0
-  description: Large language model optimized for instruction following and chat
-  providers: [bedrock]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Cohere Embed Multilingual v3
-  model: cohere.embed-multilingual-v3
-  description: Multilingual text embedding model for semantic search and similarity
-  providers: [bedrock]
-  roles: [embed]
-  thinking: false
-
-- name: Cohere Rerank 3.5
-  model: cohere.rerank-v3-5:0
-  description: Advanced reranking model for improving search result relevance
-  providers: [bedrock]
-  roles: [rerank]
-  thinking: false
-
-# Ollama Models
-
-- name: gpt-oss 20b
-  model: gpt-oss:20b
-  description: OpenAI's open-weight models designed for powerful reasoning, agentic tasks, and versatile developer use cases.
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Qwen3 8b
-  model: qwen3:8b
-  description: Qwen3 is the latest generation of large language models in Qwen series.
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Gemma3 12b
-  model: gemma3:12b
-  description: Lightweight gemma models trained by Google, trained to run on a single GPU.
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: true
-
-# Weights & Biases Models
-
-- name: DeepSeek V3.1
-  model: deepseek-ai/DeepSeek-V3.1
-  description: Large hybrid Mixture-of-Experts model that supports both thinking and non-thinking modes
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Google Gemma 4 31B
-  model: google/gemma-4-31B-it
-  description: Vision and text model designed for advanced reasoning, agentic workflows, and longer context
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: true
-
-- name: IBM Granite 4.1 8B
-  model: ibm-granite/granite-4.1-8b
-  description: Long-context text model with enhanced tool calling and instruction following
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Meta Llama 3.3 70B (W&B)
-  model: meta-llama/Llama-3.3-70B-Instruct
-  description: Multilingual model excelling in conversational tasks, detailed instruction-following, and coding
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Meta Llama 3.1 70B (W&B)
-  model: meta-llama/Llama-3.1-70B-Instruct
-  description: Multilingual chatbot model optimized for responsiveness
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Meta Llama 3.1 8B (W&B)
-  model: meta-llama/Llama-3.1-8B-Instruct
-  description: Efficient conversational model optimized for responsive multilingual chatbot interactions
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Microsoft Phi 4 Mini 3.8B
-  model: microsoft/Phi-4-mini-instruct
-  description: Compact instruction-tuned model for resource-constrained environments
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: false
-
-- name: MiniMax M2.5
-  model: MiniMaxAI/MiniMax-M2.5
-  description: Mixture-of-Experts model with a highly sparse architecture designed for high-throughput and low latency
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Moonshot AI Kimi K2.6
-  model: moonshotai/Kimi-K2.6
-  description: Multimodal Mixture-of-Experts model with 32B activated parameters and 1T total parameters
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Moonshot AI Kimi K2.5
-  model: moonshotai/Kimi-K2.5
-  description: Multimodal Mixture-of-Experts model optimized for complex tool use, reasoning, and code synthesis
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: true
-
-- name: NVIDIA Nemotron 3 Super 120B
-  model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8
-  description: LatentMoE model for agentic, reasoning, and conversational capabilities
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: true
-
-- name: OpenAI GPT OSS 120B
-  model: openai/gpt-oss-120b
-  description: Efficient Mixture-of-Experts model designed for high-reasoning, agentic and general-purpose use cases
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: true
-
-- name: OpenAI GPT OSS 20B
-  model: openai/gpt-oss-20b
-  description: Lower latency Mixture-of-Experts model trained on OpenAI's Harmony response format with reasoning capabilities
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: true
-
-- name: OpenPipe Qwen3 14B Instruct
-  model: OpenPipe/Qwen3-14B-Instruct
-  description: Multilingual instruction-tuned model optimized for agents
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Qwen3.5 35B A3B
-  model: Qwen/Qwen3.5-35B-A3B
-  description: Multimodal Mixture-of-Experts model for chat, reasoning, and agentic tasks
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Qwen3 235B A22B Thinking-2507
-  model: Qwen/Qwen3-235B-A22B-Thinking-2507
-  description: Mixture-of-Experts model with reasoning capabilities for structured reasoning, math, and long-form generation
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Qwen3 235B A22B Instruct-2507
-  model: Qwen/Qwen3-235B-A22B-Instruct-2507
-  description: Multilingual Mixture-of-Experts instruction model optimized for logical reasoning
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Qwen3 30B A3B Instruct-2507
-  model: Qwen/Qwen3-30B-A3B-Instruct-2507
-  description: Mixture-of-Experts model with enhanced reasoning, coding, and long-context understanding
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Qwen3 Coder 480B A35B
-  model: Qwen/Qwen3-Coder-480B-A35B-Instruct
-  description: Mixture-of-Experts model optimized for agentic coding tasks such as function calling and tool use
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Z.AI GLM 5.1
-  model: zai-org/GLM-5.1
-  description: Mixture-of-Experts model for long-horizon agentic engineering and advanced reasoning
-  providers: [wandb]
-  roles: [chat, edit]
-  thinking: true
-
-# OpenCode Go Models
-
-- name: Kimi K2.6 (OpenCode Go)
-  model: kimi-k2.6
-  description: Latest Kimi Mixture-of-Experts model optimized for complex tool use and reasoning
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Kimi K2.5 (OpenCode Go)
-  model: kimi-k2.5
-  description: Mixture-of-Experts model optimized for complex tool use and reasoning
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: true
-
-- name: MiMo V2.5 Pro (OpenCode Go)
-  model: mimo-v2.5-pro
-  description: MiMo V2.5 Pro coding model with enhanced reasoning
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: true
-
-- name: MiMo V2.5 (OpenCode Go)
-  model: mimo-v2.5
-  description: MiMo V2.5 efficient coding model
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: false
-
-- name: MiMo V2 Pro (OpenCode Go)
-  model: mimo-v2-pro
-  description: MiMo V2 Pro model for coding tasks
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: false
-
-- name: MiMo V2 Omni (OpenCode Go)
-  model: mimo-v2-omni
-  description: MiMo V2 Omni multimodal model
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GLM 5.1 (OpenCode Go)
-  model: glm-5.1
-  description: Mixture-of-Experts model with user-controllable thinking/non-thinking modes
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: true
-
-- name: GLM 5 (OpenCode Go)
-  model: glm-5
-  description: Efficient Mixture-of-Experts model for coding tasks
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: false
-
-- name: MiniMax M2.7 (OpenCode Go)
-  model: minimax-m2.7
-  description: MiniMax M2.7 model with advanced reasoning
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: true
-
-- name: MiniMax M2.5 (OpenCode Go)
-  model: minimax-m2.5
-  description: MiniMax M2.5 model with efficient inference
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Qwen 3.6 Plus (OpenCode Go)
-  model: qwen3.6-plus
-  description: Qwen 3.6 Plus for complex reasoning and coding
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Qwen 3.5 Plus (OpenCode Go)
-  model: qwen3.5-plus
-  description: Qwen 3.5 Plus efficient coding model
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: false
-
-- name: DeepSeek V4 Pro (OpenCode Go)
-  model: deepseek-v4-pro
-  description: DeepSeek V4 Pro coding model with strong reasoning
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: true
-
-- name: DeepSeek V4 Flash (OpenCode Go)
-  model: deepseek-v4-flash
-  description: DeepSeek V4 Flash low-latency coding model
-  providers: [opencode-go]
-  roles: [chat, edit]
-  thinking: false
+anthropic:
+  - name: Claude Opus 4.7
+    model: claude-opus-4-7
+    description: "Next generation of Anthropic's Opus family, built for long-running, asynchronous agents"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-04-16
+    cost: {input: 5, output: 25}
+
+  - name: Claude Sonnet 4.6
+    model: claude-sonnet-4-6
+    description: "Anthropic's most capable Sonnet-class model yet, with frontier performance across coding, agents, and professional work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-02-17
+    cost: {input: 3, output: 15}
+
+  - name: Claude Opus 4.6
+    model: claude-opus-4-6
+    description: "Anthropic's strongest model for coding and long-running professional tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-02-05
+    cost: {input: 5, output: 25}
+
+  - name: Claude Opus 4.5
+    model: claude-opus-4-5
+    description: "Anthropic's frontier reasoning model optimized for complex software engineering, agentic workflows, and long-horizon computer use"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2025-11-24
+    cost: {input: 5, output: 25}
+
+  - name: Claude Haiku 4.5
+    model: claude-haiku-4-5
+    description: "Anthropic's fastest and most efficient model, delivering near-frontier intelligence at a fraction of the cost and latency of larger Claude models"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2025-10-15
+    cost: {input: 1, output: 5}
+
+  - name: Claude Sonnet 4.5
+    model: claude-sonnet-4-5
+    description: "Anthropic's most advanced Sonnet model to date, optimized for real-world agents and coding workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2025-09-29
+    cost: {input: 3, output: 15}
+
+openai:
+  - name: GPT-5.5
+    model: gpt-5.5
+    description: "OpenAI's frontier model designed for complex professional workloads, building on GPT-5.4 with stronger reasoning, higher reliability, and improved token efficiency on hard tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-04-23
+    cost: {input: 5, output: 30}
+
+  - name: GPT-5.4 mini
+    model: gpt-5.4-mini
+    description: "GPT-5.4 mini brings the core capabilities of GPT-5.4 to a faster, more efficient model optimized for high-throughput workloads"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-03-17
+    cost: {input: 0.75, output: 4.5}
+
+  - name: GPT-5.4 nano
+    model: gpt-5.4-nano
+    description: "Most lightweight and cost-efficient variant of the GPT-5.4 family, optimized for speed-critical and high-volume tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-03-17
+    cost: {input: 0.2, output: 1.25}
+
+  - name: GPT-5.4
+    model: gpt-5.4
+    description: "OpenAI's latest frontier model, unifying the Codex and GPT lines into a single system"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-03-05
+    cost: {input: 2.5, output: 15}
+
+  - name: GPT-5.3 Chat
+    model: gpt-5.3-chat-latest
+    description: "Update to ChatGPT's most-used model that makes everyday conversations smoother, more useful, and more directly helpful"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-03-03
+    cost: {input: 1.75, output: 14}
+
+  - name: GPT-5.3 Codex
+    model: gpt-5.3-codex
+    description: "OpenAI's most advanced agentic coding model, combining the frontier software engineering performance of GPT-5.2-Codex with the broader reasoning and professional knowledge capabilities of GPT-5.2"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-02-05
+    cost: {input: 1.75, output: 14}
+
+  - name: ChatGPT Image
+    model: chatgpt-image-latest
+    description: "Previous-generation image model used in ChatGPT for image generation and editing from text and image inputs"
+    roles: [chat, edit]
+    capabilities: []
+    input_types: [text, image]
+    output_types: [text, image]
+    release_date: 2025-12-16
+
+google:
+  - name: Gemini 3.5 Flash
+    model: gemini-3.5-flash
+    description: "Google's high-efficiency multimodal model, bringing near-Pro level coding and reasoning at Flash-tier cost and speed"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-05-19
+    cost: {input: 1.5, output: 9}
+
+  - name: Gemini 3.1 Flash Lite
+    model: gemini-3.1-flash-lite
+    description: "Google's GA high-efficiency multimodal model optimized for low-latency, high-volume workloads"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-05-07
+    cost: {input: 0.25, output: 1.5}
+
+  - name: Gemma 4 26B A4B IT
+    model: gemma-4-26b-a4b-it
+    description: "Instruction-tuned Mixture-of-Experts (MoE) model from Google DeepMind"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-04-02
+
+  - name: Gemma 4 31B IT
+    model: gemma-4-31b-it
+    description: "Google DeepMind's 30.7B dense multimodal model supporting text and image input with text output"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-04-02
+
+  - name: Nano Banana 2
+    model: gemini-3.1-flash-image-preview
+    description: "Google's image generation and editing model, delivering Pro-level visual quality at Flash speed"
+    roles: [chat, edit]
+    capabilities: [thinking]
+    input_types: [text, image, pdf]
+    output_types: [text, image]
+    release_date: 2026-02-26
+    cost: {input: 0.5, output: 60}
+
+  - name: Gemini 3.1 Pro Preview
+    model: gemini-3.1-pro-preview
+    description: "Google's frontier reasoning model, delivering enhanced software engineering performance, improved agentic reliability, and more efficient token usage across complex workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-02-19
+    cost: {input: 2, output: 12}
+
+  - name: Gemini 3.1 Pro Preview Custom Tools
+    model: gemini-3.1-pro-preview-customtools
+    description: "Variant of Gemini 3.1 Pro with refined tool selection that avoids overusing a generic bash tool"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-02-19
+    cost: {input: 2, output: 12}
+
+  - name: Gemini 3.1 Flash Lite
+    model: gemini-3.1-flash-lite
+    description: "Google's GA high-efficiency multimodal model optimized for low-latency, high-volume workloads"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-05-07
+    cost: {input: 0.25, output: 1.5}
+
+bedrock:
+  - name: Claude Opus 4.7
+    model: anthropic.claude-opus-4-7
+    description: "Next generation of Anthropic's Opus family, built for long-running, asynchronous agents"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-04-16
+    cost: {input: 5, output: 25}
+
+  - name: Claude Opus 4.7 (Global)
+    model: global.anthropic.claude-opus-4-7
+    description: "Next generation of Anthropic's Opus family, built for long-running, asynchronous agents"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-04-16
+    cost: {input: 5, output: 25}
+
+  - name: MiniMax M2.5
+    model: minimax.minimax-m2.5
+    description: "SOTA large language model designed for real-world productivity"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-03-18
+    cost: {input: 0.3, output: 1.2}
+
+  - name: GLM-5
+    model: zai.glm-5
+    description: "Z.ai's flagship open-source foundation model engineered for complex systems design and long-horizon agent workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-03-18
+    cost: {input: 1, output: 3.2}
+
+  - name: NVIDIA Nemotron 3 Super 120B A12B
+    model: nvidia.nemotron-super-3-120b
+    description: "120B-parameter open hybrid MoE model, activating just 12B parameters for maximum compute efficiency and accuracy in complex multi-agent applications"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-03-11
+    cost: {input: 0.15, output: 0.65}
+
+  - name: Claude Sonnet 4.6
+    model: anthropic.claude-sonnet-4-6
+    description: "Anthropic's most capable Sonnet-class model yet, with frontier performance across coding, agents, and professional work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-02-17
+    cost: {input: 3, output: 15}
+
+azure:
+  - name: GPT-5.5
+    model: gpt-5.5
+    description: "OpenAI's frontier model designed for complex professional workloads, building on GPT-5.4 with stronger reasoning, higher reliability, and improved token efficiency on hard tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-04-24
+    cost: {input: 5, output: 30}
+
+  - name: Kimi K2.6
+    model: kimi-k2.6
+    description: "Moonshot AI's next-generation multimodal model, designed for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-04-22
+    cost: {input: 0.95, output: 4}
+
+  - name: Grok 4.20 (Non-Reasoning)
+    model: grok-4-20-non-reasoning
+    description: "Reasoning model from xAI with industry-leading speed and agentic tool calling capabilities"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-04-08
+    cost: {input: 2, output: 6}
+
+  - name: Grok 4.20 (Reasoning)
+    model: grok-4-20-reasoning
+    description: "Reasoning model from xAI with industry-leading speed and agentic tool calling capabilities"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-04-08
+    cost: {input: 2, output: 6}
+
+  - name: GPT-5.4 Mini
+    model: gpt-5.4-mini
+    description: "GPT-5.4 mini brings the core capabilities of GPT-5.4 to a faster, more efficient model optimized for high-throughput workloads"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-03-17
+    cost: {input: 0.75, output: 4.5}
+
+  - name: GPT-5.4 Nano
+    model: gpt-5.4-nano
+    description: "Most lightweight and cost-efficient variant of the GPT-5.4 family, optimized for speed-critical and high-volume tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-03-17
+    cost: {input: 0.2, output: 1.25}
+
+  - name: GPT-5.4
+    model: gpt-5.4
+    description: "OpenAI's latest frontier model, unifying the Codex and GPT lines into a single system"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-03-05
+    cost: {input: 2.5, output: 15}
+
+  - name: GPT-5.3 Chat
+    model: gpt-5.3-chat
+    description: "Update to ChatGPT's most-used model that makes everyday conversations smoother, more useful, and more directly helpful"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-03-03
+    cost: {input: 1.75, output: 14}
+
+  - name: GPT-5.3 Codex
+    model: gpt-5.3-codex
+    description: "OpenAI's most advanced agentic coding model, combining the frontier software engineering performance of GPT-5.2-Codex with the broader reasoning and professional knowledge capabilities of GPT-5.2"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-02-24
+    cost: {input: 1.75, output: 14}
+
+github:
+  - name: DeepSeek-R1-0528
+    model: deepseek/deepseek-r1-0528
+    description: "May 28th update to DeepSeek R1, with performance on par with OpenAI o1 but open-sourced and with fully open reasoning tokens"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2025-05-28
+    cost: {input: 0, output: 0}
+
+  - name: Mistral Medium 3 (25.05)
+    model: mistral-ai/mistral-medium-2505
+    description: "High-performance enterprise-grade language model designed to deliver frontier-level capabilities at significantly reduced operational cost"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2025-05-01
+    cost: {input: 0, output: 0}
+
+  - name: GPT-4.1
+    model: openai/gpt-4.1
+    description: "Flagship large language model optimized for advanced instruction following, real-world software engineering, and long-context reasoning"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2025-04-14
+    cost: {input: 0, output: 0}
+
+  - name: GPT-4.1-mini
+    model: openai/gpt-4.1-mini
+    description: "Mid-sized model delivering performance competitive with GPT-4o at substantially lower latency and cost"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2025-04-14
+    cost: {input: 0, output: 0}
+
+  - name: GPT-4.1-nano
+    model: openai/gpt-4.1-nano
+    description: "For tasks that demand low latency, GPT‑4.1 nano is the fastest and cheapest model in the GPT-4.1 series"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2025-04-14
+    cost: {input: 0, output: 0}
+
+  - name: DeepSeek-V3-0324
+    model: deepseek/deepseek-v3-0324
+    description: "Latest model from the DeepSeek team, building upon the instruction following and coding abilities of the previous versions"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2025-03-24
+    cost: {input: 0, output: 0}
+
+  - name: Mistral Small 3.1
+    model: mistral-ai/mistral-small-2503
+    description: "Upgraded variant of Mistral Small 3 (2501), featuring 24 billion parameters with advanced multimodal capabilities"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2025-03-01
+    cost: {input: 0, output: 0}
+
+  - name: Llama 4 Maverick 17B 128E Instruct FP8
+    model: meta/llama-4-maverick-17b-128e-instruct-fp8
+    description: "High-capacity multimodal language model from Meta, built on a mixture-of-experts (MoE) architecture with 128 experts and 17 billion active parameters per forward"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2025-01-31
+    cost: {input: 0, output: 0}
+
+  - name: Llama 4 Scout 17B 16E Instruct
+    model: meta/llama-4-scout-17b-16e-instruct
+    description: "Mixture-of-experts (MoE) language model developed by Meta, activating 17 billion parameters out of a total of 109B"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2025-01-31
+    cost: {input: 0, output: 0}
+
+  - name: OpenAI o3
+    model: openai/o3
+    description: "Well-rounded reasoning model setting a new standard for math, science, coding, and visual reasoning tasks"
+    roles: [chat, edit]
+    capabilities: [thinking]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2025-01-31
+    cost: {input: 0, output: 0}
+
+ollama:
+  - name: DeepSeek V4 Flash
+    model: deepseek-v4-flash
+    description: "Efficiency-optimized Mixture-of-Experts model from DeepSeek with 284B total parameters and 13B activated parameters, supporting a 1M-token context window"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-04-24
+
+  - name: DeepSeek V4 Pro
+    model: deepseek-v4-pro
+    description: "Large-scale Mixture-of-Experts model from DeepSeek with 1.6T total parameters and 49B activated parameters, supporting a 1M-token context window"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-04-24
+
+  - name: Kimi K2.6
+    model: kimi-k2.6
+    description: "Moonshot AI's next-generation multimodal model, designed for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-04-20
+
+  - name: Gemma 4 31B
+    model: gemma4:31b
+    description: "Google DeepMind's 30.7B dense multimodal model supporting text and image input with text output"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-04-02
+
+  - name: GLM 5.1
+    model: glm-5.1
+    description: "GLM-5.1 delivers a major leap in coding capability, with particularly significant gains in handling long-horizon tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-03-27
+
+  - name: MiniMax M2.7
+    model: minimax-m2.7
+    description: "Next-generation large language model designed for autonomous, real-world productivity and continuous improvement"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-03-18
+
+  - name: NVIDIA Nemotron 3 Super 120B
+    model: nemotron-3-super
+    description: "120B-parameter open hybrid MoE model, activating just 12B parameters for maximum compute efficiency and accuracy in complex multi-agent applications"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-03-11
+
+  - name: Qwen 3.5 397B
+    model: qwen3.5:397b
+    description: "Built on a hybrid architecture that integrates a linear attention mechanism with a sparse mixture-of-experts model, achieving higher inference efficiency"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-02-15
+
+  - name: MiniMax M2.5
+    model: minimax-m2.5
+    description: "SOTA large language model designed for real-world productivity"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-02-12
+
+  - name: GLM 5
+    model: glm-5
+    description: "Z.ai's flagship open-source foundation model engineered for complex systems design and long-horizon agent workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-02-11
+
+wandb:
+  - name: GLM-5.1
+    model: zai-org/GLM-5.1
+    description: "GLM-5.1 delivers a major leap in coding capability, with particularly significant gains in handling long-horizon tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-03-27
+    cost: {input: 1.4, output: 4.4}
+
+  - name: NVIDIA Nemotron 3 Super 120B
+    model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8
+    description: "120B-parameter open hybrid MoE model, activating just 12B parameters for maximum compute efficiency and accuracy in complex multi-agent applications"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-03-11
+    cost: {input: 0.2, output: 0.8}
+
+  - name: MiniMax M2.5
+    model: MiniMaxAI/MiniMax-M2.5
+    description: "SOTA large language model designed for real-world productivity"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-02-12
+    cost: {input: 0.3, output: 1.2}
+
+  - name: GLM 5
+    model: zai-org/GLM-5-FP8
+    description: "Z.ai's flagship open-source foundation model engineered for complex systems design and long-horizon agent workflows"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-02-11
+    cost: {input: 1, output: 3.2}
+
+  - name: Kimi K2.5
+    model: moonshotai/Kimi-K2.5
+    description: "Moonshot AI's native multimodal model, delivering state-of-the-art visual coding capability and a self-directed agent swarm paradigm"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-01-27
+    cost: {input: 0.5, output: 2.85}
+
+  - name: DeepSeek V3.1
+    model: deepseek-ai/DeepSeek-V3.1
+    description: "Large hybrid reasoning model (671B parameters, 37B active) that supports both thinking and non-thinking modes via prompt templates"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2025-08-21
+    cost: {input: 0.55, output: 1.65}
+
+  - name: gpt-oss-120b
+    model: openai/gpt-oss-120b
+    description: "Open-weight, 117B-parameter Mixture-of-Experts (MoE) language model from OpenAI designed for high-reasoning, agentic, and general-purpose production use cases"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2025-08-05
+    cost: {input: 0.15, output: 0.6}
+
+  - name: gpt-oss-20b
+    model: openai/gpt-oss-20b
+    description: "Open-weight 21B parameter model released by OpenAI under the Apache 2.0 license"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2025-08-05
+    cost: {input: 0.05, output: 0.2}
+
+  - name: Qwen3 30B A3B Instruct 2507
+    model: Qwen/Qwen3-30B-A3B-Instruct-2507
+    description: "30.5B-parameter mixture-of-experts language model from Qwen, with 3.3B active parameters per inference"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2025-07-29
+    cost: {input: 0.1, output: 0.3}
+
+  - name: Qwen3-235B-A22B-Thinking-2507
+    model: Qwen/Qwen3-235B-A22B-Thinking-2507
+    description: "High-performance, open-weight Mixture-of-Experts (MoE) language model optimized for complex reasoning tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2025-07-25
+    cost: {input: 0.1, output: 0.1}
+
+opencode-go:
+  - name: DeepSeek V4 Flash
+    model: deepseek-v4-flash
+    description: "Efficiency-optimized Mixture-of-Experts model from DeepSeek with 284B total parameters and 13B activated parameters, supporting a 1M-token context window"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-04-24
+    cost: {input: 0.14, output: 0.28}
+
+  - name: DeepSeek V4 Pro
+    model: deepseek-v4-pro
+    description: "Large-scale Mixture-of-Experts model from DeepSeek with 1.6T total parameters and 49B activated parameters, supporting a 1M-token context window"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-04-24
+    cost: {input: 1.74, output: 3.48}
+
+  - name: MiMo V2.5
+    model: mimo-v2.5
+    description: "Native omnimodal model from Xiaomi delivering Pro-level agentic performance at roughly half the inference cost"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-04-22
+    cost: {input: 0.4, output: 2}
+
+  - name: MiMo V2.5 Pro
+    model: mimo-v2.5-pro
+    description: "Xiaomi's flagship model, delivering strong performance in general agentic capabilities, complex software engineering, and long-horizon tasks, with top rankings on benchmarks such as ClawEval, GDPVal,…"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-04-22
+    cost: {input: 1, output: 3}
+
+  - name: Kimi K2.6
+    model: kimi-k2.6
+    description: "Moonshot AI's next-generation multimodal model, designed for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-04-21
+    cost: {input: 0.95, output: 4}
+
+  - name: GLM-5.1
+    model: glm-5.1
+    description: "GLM-5.1 delivers a major leap in coding capability, with particularly significant gains in handling long-horizon tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-04-07
+    cost: {input: 1.4, output: 4.4}
+
+  - name: Qwen3.6 Plus
+    model: qwen3.6-plus
+    description: "Qwen 3.6 Plus builds on a hybrid architecture that combines efficient linear attention with sparse mixture-of-experts routing, enabling strong scalability and high-performance inference"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-04-02
+    cost: {input: 0.5, output: 3}
+
+  - name: MiMo V2 Omni
+    model: mimo-v2-omni
+    description: "Frontier omni-modal model that natively processes image, video, and audio inputs within a unified architecture"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-03-18
+    cost: {input: 0.4, output: 2}
+
+  - name: MiMo V2 Pro
+    model: mimo-v2-pro
+    description: "Xiaomi's flagship foundation model, featuring over 1T total parameters and a 1M context length, deeply optimized for agentic scenarios"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-03-18
+    cost: {input: 1, output: 3}
+
+  - name: MiniMax M2.7
+    model: minimax-m2.7
+    description: "Next-generation large language model designed for autonomous, real-world productivity and continuous improvement"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-03-18
+    cost: {input: 0.3, output: 1.2}

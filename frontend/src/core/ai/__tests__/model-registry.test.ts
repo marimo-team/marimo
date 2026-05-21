@@ -1,46 +1,52 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock the models.json import
 vi.mock("@marimo-team/llm-info/models.json", () => {
-  const models: AiModel[] = [
-    {
-      name: "GPT-4",
-      model: "gpt-4",
-      description: "OpenAI GPT-4 model",
-      providers: ["openai"],
-      roles: ["chat", "edit"],
-      thinking: false,
-    },
-    {
-      name: "Claude 3",
-      model: "claude-3-sonnet",
-      description: "Anthropic Claude 3 Sonnet",
-      providers: ["anthropic"],
-      roles: ["chat", "edit"],
-      thinking: false,
-    },
-    {
-      name: "Gemini Pro",
-      model: "gemini-pro",
-      description: "Google Gemini Pro model",
-      providers: ["google"],
-      roles: ["chat", "edit"],
-      thinking: false,
-    },
-    {
-      name: "Multi Provider Model",
-      model: "multi-model",
-      description: "Model available on multiple providers",
-      providers: ["openai", "anthropic"],
-      roles: ["chat", "edit"],
-      thinking: false,
-    },
-  ];
+  const make = (
+    overrides: Partial<AiModel> & Pick<AiModel, "name" | "model">,
+  ): AiModel => ({
+    description: "",
+    roles: ["chat", "edit"],
+    capabilities: [],
+    input_types: [],
+    output_types: [],
+    release_date: new Date(0),
+    ...overrides,
+  });
 
-  return {
-    models: models,
+  const multiModel = make({
+    name: "Multi Provider Model",
+    model: "multi-model",
+    description: "Model available on multiple providers",
+  });
+
+  const models: Record<string, AiModel[]> = {
+    openai: [
+      make({
+        name: "GPT-4",
+        model: "gpt-4",
+        description: "OpenAI GPT-4 model",
+      }),
+      multiModel,
+    ],
+    anthropic: [
+      make({
+        name: "Claude 3",
+        model: "claude-3-sonnet",
+        description: "Anthropic Claude 3 Sonnet",
+      }),
+      multiModel,
+    ],
+    google: [
+      make({
+        name: "Gemini Pro",
+        model: "gemini-pro",
+        description: "Google Gemini Pro model",
+      }),
+    ],
   };
+
+  return { models };
 });
 
 import type { AiModel } from "@marimo-team/llm-info";
@@ -107,14 +113,15 @@ describe("AiModelRegistry", () => {
       });
 
       const ids = [...registry.getModelsMap().keys()];
-      // Include custom and all default ones.
+      // Include custom and all default ones; iteration follows provider
+      // sections in the source data (openai → anthropic → google).
       expect(ids).toEqual([
         "openai/custom-gpt",
         "openai/gpt-4",
-        "anthropic/claude-3-sonnet",
-        "google/gemini-pro",
         "openai/multi-model",
+        "anthropic/claude-3-sonnet",
         "anthropic/multi-model",
+        "google/gemini-pro",
       ]);
     });
   });
@@ -125,9 +132,9 @@ describe("AiModelRegistry", () => {
       const openaiModels = registry.getModelsByProvider("openai");
 
       expect(openaiModels).toHaveLength(2); // gpt-4 and multi-model
-      expect(
-        openaiModels.every((model) => model.providers.includes("openai")),
-      ).toBe(true);
+      expect(openaiModels.every((model) => model.provider === "openai")).toBe(
+        true,
+      );
     });
 
     it("should return empty array for provider with no models", () => {
@@ -147,9 +154,9 @@ describe("AiModelRegistry", () => {
       expect(customModel?.name).toBe("custom-gpt");
       expect(customModel?.model).toBe("custom-gpt");
       expect(customModel?.description).toBe("Custom model");
-      expect(customModel?.providers).toEqual(["openai"]);
+      expect(customModel?.provider).toBe("openai");
       expect(customModel?.roles).toEqual([]);
-      expect(customModel?.thinking).toBe(false);
+      expect(customModel?.capabilities).toEqual([]);
     });
 
     it("should filter models based on displayed models", () => {
@@ -309,7 +316,10 @@ describe("AiModelRegistry", () => {
 
       expect(multiModelInOpenai).toBeDefined();
       expect(multiModelInAnthropic).toBeDefined();
-      expect(multiModelInOpenai).toEqual(multiModelInAnthropic);
+      // Same model id, but each entry belongs to its own provider.
+      expect(multiModelInOpenai?.provider).toBe("openai");
+      expect(multiModelInAnthropic?.provider).toBe("anthropic");
+      expect(multiModelInOpenai?.name).toBe(multiModelInAnthropic?.name);
     });
 
     it("should handle displayed models filter with non-existent models", () => {
@@ -339,20 +349,20 @@ describe("AiModelRegistry", () => {
           expect(model).toHaveProperty("name");
           expect(model).toHaveProperty("model");
           expect(model).toHaveProperty("description");
-          expect(model).toHaveProperty("providers");
+          expect(model).toHaveProperty("provider");
           expect(model).toHaveProperty("roles");
-          expect(model).toHaveProperty("thinking");
+          expect(model).toHaveProperty("capabilities");
           expect(model).toHaveProperty("custom");
 
           expect(typeof model.name).toBe("string");
           expect(typeof model.model).toBe("string");
           expect(typeof model.description).toBe("string");
-          expect(Array.isArray(model.providers)).toBe(true);
+          expect(typeof model.provider).toBe("string");
           expect(Array.isArray(model.roles)).toBe(true);
-          expect(typeof model.thinking).toBe("boolean");
+          expect(Array.isArray(model.capabilities)).toBe(true);
           expect(typeof model.custom).toBe("boolean");
 
-          expect(model.providers).toContain(provider);
+          expect(model.provider).toBe(provider);
         }
       }
     });
@@ -367,31 +377,33 @@ describe("AiModelRegistry", () => {
 
       expect(customModel).toMatchInlineSnapshot(`
         {
+          "capabilities": [],
           "custom": true,
           "description": "Custom model",
+          "input_types": [],
           "model": "custom-gpt",
           "name": "custom-gpt",
-          "providers": [
-            "openai",
-          ],
+          "output_types": [],
+          "provider": "openai",
+          "release_date": 1970-01-01T00:00:00.000Z,
           "roles": [],
-          "thinking": false,
         }
       `);
       expect(defaultModel).toMatchInlineSnapshot(`
         {
+          "capabilities": [],
           "custom": false,
           "description": "OpenAI GPT-4 model",
+          "input_types": [],
           "model": "gpt-4",
           "name": "GPT-4",
-          "providers": [
-            "openai",
-          ],
+          "output_types": [],
+          "provider": "openai",
+          "release_date": 1970-01-01T00:00:00.000Z,
           "roles": [
             "chat",
             "edit",
           ],
-          "thinking": false,
         }
       `);
     });

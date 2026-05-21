@@ -1,12 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type {
-  AiModel as AiModelType,
-  AiProvider,
-  Role,
-} from "@marimo-team/llm-info";
-import { models } from "@marimo-team/llm-info/models.json";
-import { providers } from "@marimo-team/llm-info/providers.json";
+import type { AiModel as AiModelType, AiProvider } from "@marimo-team/llm-info";
+import { models as modelsJson } from "@marimo-team/llm-info/models.json";
+import { providers as providersJson } from "@marimo-team/llm-info/providers.json";
 import { Logger } from "@/utils/Logger";
 import { MultiMap } from "@/utils/multi-map";
 import { once } from "@/utils/once";
@@ -14,12 +10,22 @@ import type { ProviderId } from "./ids/ids";
 import { AiModelId, type QualifiedModelId, type ShortModelId } from "./ids/ids";
 
 export interface AiModel extends AiModelType {
-  roles: Role[];
   model: ShortModelId;
-  providers: ProviderId[];
+  /** The provider this entry belongs to. */
+  provider: ProviderId;
   /** Whether this is a custom model. */
   custom: boolean;
 }
+
+// `release_date` is serialized as an ISO string in JSON; everything else
+// matches the `AiModel` schema validated by Zod at codegen time.
+type AiModelJson = Omit<AiModelType, "release_date"> & {
+  release_date?: string;
+};
+const models = modelsJson as unknown as Partial<
+  Record<ProviderId, AiModelJson[]>
+>;
+const providers = providersJson as unknown as readonly AiProvider[];
 
 interface KnownModelMaps {
   /** Map of qualified model ID to model info */
@@ -32,24 +38,28 @@ export const getKnownModelMaps = once((): KnownModelMaps => {
   const modelMap = new Map<QualifiedModelId, AiModel>();
   const defaultModelByProvider = new Map<ProviderId, QualifiedModelId>();
 
-  for (const model of models) {
-    const modelId = model.model as ShortModelId;
-    const modelInfo: AiModel = {
-      ...model,
-      model: model.model as ShortModelId,
-      roles: model.roles.map((role) => role as Role),
-      providers: model.providers as ProviderId[],
-      custom: false,
-    };
+  for (const [providerKey, providerModels] of Object.entries(models)) {
+    if (!providerModels) {
+      continue;
+    }
+    const provider = providerKey as ProviderId;
+    for (const raw of providerModels) {
+      const modelId = raw.model as ShortModelId;
+      const modelInfo: AiModel = {
+        ...raw,
+        model: modelId,
+        release_date: raw.release_date
+          ? new Date(raw.release_date)
+          : new Date(0),
+        provider,
+        custom: false,
+      };
 
-    const supportsChatOrEdit =
-      modelInfo.roles.includes("chat") || modelInfo.roles.includes("edit");
-
-    for (const provider of modelInfo.providers) {
       const qualifiedModelId: QualifiedModelId = `${provider}/${modelId}`;
       modelMap.set(qualifiedModelId, modelInfo);
 
-      // Track first model per provider that supports chat or edit
+      const supportsChatOrEdit =
+        modelInfo.roles.includes("chat") || modelInfo.roles.includes("edit");
       if (supportsChatOrEdit && !defaultModelByProvider.has(provider)) {
         defaultModelByProvider.set(provider, qualifiedModelId);
       }
@@ -67,9 +77,8 @@ const getProviderMap = once(
     const providerMap = new Map<ProviderId, AiProvider>();
     const providerToOrderIdx = new Map<ProviderId, number>();
     providers.forEach((provider, idx) => {
-      const providerId = provider.id as ProviderId;
-      providerMap.set(providerId, provider);
-      providerToOrderIdx.set(providerId, idx);
+      providerMap.set(provider.id, provider);
+      providerToOrderIdx.set(provider.id, idx);
     });
     return { providerMap, providerToOrderIdx };
   },
@@ -158,9 +167,12 @@ export class AiModelRegistry {
         name: modelId.shortModelId,
         model: modelId.shortModelId,
         description: "Custom model",
-        providers: [modelId.providerId],
+        provider: modelId.providerId,
         roles: [],
-        thinking: false,
+        capabilities: [],
+        input_types: [],
+        output_types: [],
+        release_date: new Date(0),
         custom: true,
       };
       customModelsMap.set(model, modelInfo);
