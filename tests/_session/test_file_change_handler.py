@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._ast.cell_manager import CellManager
 from marimo._config.manager import get_default_config_manager
@@ -742,6 +743,56 @@ async def test_file_change_coordinator_handles_syntax_errors(
     # Should handle using best-effort scanner fallback (never re-raises syntax errors)
     assert result.handled
     assert result.error is None
+
+
+async def test_file_change_coordinator_skips_conflict_markers(
+    tmp_path: Path,
+    mock_session: MagicMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When git writes conflict markers into the notebook, the watcher
+    must not reload — otherwise cells become unparsable and conflict
+    resolution tools like git-mediate break. See issue #9613."""
+    test_file = tmp_path / "test.py"
+    test_file.write_text(SINGLE_CELL_NOTEBOOK)
+    mock_session.app_file_manager = AppFileManager(filename=str(test_file))
+
+    strategy = MagicMock()
+    coordinator = FileChangeCoordinator(strategy)
+
+    test_file.write_text(
+        dedent(
+            """\
+            import marimo
+            app = marimo.App()
+
+            @app.cell
+            def cell1():
+            <<<<<<< HEAD
+                x = 1
+            =======
+                x = 2
+            >>>>>>> other-branch
+                return x
+            """
+        )
+    )
+
+    logger = _loggers.marimo_logger()
+    previous_propagate = logger.propagate
+    try:
+        logger.propagate = True
+        with caplog.at_level("WARNING"):
+            result = await coordinator.handle_change(test_file, mock_session)
+    finally:
+        logger.propagate = previous_propagate
+
+    assert not result.handled
+    assert result.error is None
+    strategy.handle_reload.assert_not_called()
+    assert any(
+        "conflict markers" in record.message for record in caplog.records
+    )
 
 
 async def test_file_change_coordinator_path_mismatch(
