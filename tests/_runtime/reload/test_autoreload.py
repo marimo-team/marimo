@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gc
 import importlib
+import os
 import pathlib
 import sys
 import textwrap
@@ -423,6 +424,163 @@ class TestModuleReloaderMethods:
         # Reload should clear stale modules
         reloader.check(sys.modules, reload=True)
         assert len(reloader.stale_modules) == 0
+
+
+class TestSkipCache:
+    def test_is_user_module_stdlib(self):
+        reloader = ModuleReloader()
+        assert reloader._is_user_module(sys.modules["os"]) is False
+        assert reloader._is_user_module(sys.modules["pathlib"]) is False
+
+    def test_is_user_module_builtin_has_no_file(self):
+        reloader = ModuleReloader()
+        assert reloader._is_user_module(sys.modules["sys"]) is False
+        assert reloader._is_user_module(sys.modules["builtins"]) is False
+
+    def test_is_user_module_user_code(
+        self, tmp_path: pathlib.Path, py_modname: str
+    ):
+        sys.path.append(str(tmp_path))
+        py_file = tmp_path / pathlib.Path(py_modname + ".py")
+        py_file.write_text("x = 1")
+        mod = importlib.import_module(py_modname)
+        reloader = ModuleReloader()
+        assert reloader._is_user_module(mod) is True
+
+    def test_both_paths_populate_skip(self):
+        # The cache is shared memoization for the classification step;
+        # whichever path sees a module first records the verdict.
+        reloader = ModuleReloader()
+        reloader.check(sys.modules, reload=False)
+        assert "os" in reloader._skip
+
+        reloader2 = ModuleReloader()
+        reloader2.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert "os" in reloader2._skip
+
+    def test_user_module_not_skipped_on_hot_path(
+        self, tmp_path: pathlib.Path, py_modname: str
+    ):
+        sys.path.append(str(tmp_path))
+        py_file = tmp_path / pathlib.Path(py_modname + ".py")
+        py_file.write_text("x = 1")
+        importlib.import_module(py_modname)
+        reloader = ModuleReloader()
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert py_modname not in reloader._skip
+
+    def test_skipped_modules_are_not_restated(self, monkeypatch):
+        reloader = ModuleReloader()
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert "os" in reloader._skip
+
+        calls: list[str] = []
+        orig = reloader.filename_and_mtime
+
+        def spy(module):
+            calls.append(getattr(module, "__name__", "?"))
+            return orig(module)
+
+        monkeypatch.setattr(reloader, "filename_and_mtime", spy)
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert "os" not in calls
+        assert "pathlib" not in calls
+
+    def test_watcher_path_still_sees_installed_packages(
+        self, tmp_path: pathlib.Path, py_modname: str, monkeypatch
+    ):
+        # Regression guard: even after the hot path has classified a module
+        # as non-user (and cached it in `_skip`), the watcher's
+        # `skip_non_user_modules=False` call must still stat it and detect
+        # edits. Without this, `auto_reload` users editing files inside an
+        # installed package would silently stop getting hot reloads.
+        import marimo._runtime.reload.autoreload as autoreload_mod
+
+        sys.path.append(str(tmp_path))
+        py_file = tmp_path / pathlib.Path(py_modname + ".py")
+        py_file.write_text("x = 1")
+        mod = importlib.import_module(py_modname)
+
+        real_roots = autoreload_mod._non_user_module_roots()
+        tmp_root = os.path.normcase(os.path.realpath(str(tmp_path))) + os.sep
+        monkeypatch.setattr(
+            autoreload_mod,
+            "_non_user_module_roots",
+            lambda: (tmp_root,) + real_roots,
+        )
+
+        reloader = ModuleReloader()
+        assert reloader._is_user_module(mod) is False
+
+        # Hot path classifies and caches.
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert py_modname in reloader._skip
+
+        # Watcher path falls through to the stat check despite the cache.
+        update_file(py_file, "x = 2")
+        assert any(m is mod for m in reloader.check(sys.modules, reload=False))
+
+    def test_skip_cache_invalidates_when_module_rebound(
+        self, tmp_path: pathlib.Path, py_modname: str
+    ):
+        # If `sys.modules[modname]` is rebound to a module with a different
+        # `__file__` (e.g. a user file shadows an installed package), the
+        # cached non-user verdict must not stick — and any cached mtime
+        # from the old module must be cleared too, otherwise an older user
+        # file would be silently treated as unchanged.
+        sys.path.append(str(tmp_path))
+        user_file = tmp_path / pathlib.Path(py_modname + ".py")
+        user_file.write_text("x = 1")
+        user_mod = importlib.import_module(py_modname)
+
+        # Plant a fake "installed" version under the same name first.
+        fake_installed = types.ModuleType(py_modname)
+        fake_installed.__file__ = os.path.join(
+            os.path.dirname(os.__file__), py_modname + ".py"
+        )
+        sys.modules[py_modname] = fake_installed
+
+        reloader = ModuleReloader()
+        # Watcher-style call: classifies as non-user AND records a
+        # (synthetic) far-future mtime so we can detect stale-cache leakage.
+        reloader.check(sys.modules, reload=False)
+        assert py_modname in reloader._skip
+        reloader.modules_mtimes[py_modname] = 1e12
+
+        # Rebind to the real user module.
+        sys.modules[py_modname] = user_mod
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        assert py_modname not in reloader._skip
+        # Stale mtime is cleared so the next edit isn't masked by it.
+        assert reloader.modules_mtimes.get(py_modname, 0) < 1e12
+
+    def test_user_module_reload_still_works(
+        self, tmp_path: pathlib.Path, py_modname: str
+    ):
+        sys.path.append(str(tmp_path))
+        py_file = tmp_path / pathlib.Path(py_modname + ".py")
+        py_file.write_text(
+            textwrap.dedent(
+                """
+                def foo():
+                    return 1
+                """
+            )
+        )
+        mod = importlib.import_module(py_modname)
+        reloader = ModuleReloader()
+        reloader.check(sys.modules, reload=False)
+        assert mod.foo() == 1
+
+        update_file(
+            py_file,
+            """
+            def foo():
+                return 2
+            """,
+        )
+        reloader.check(sys.modules, reload=True)
+        assert mod.foo() == 2
 
 
 class TestUpdateFunctions:
