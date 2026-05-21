@@ -80,15 +80,17 @@ const DownloadButton = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleClick = async (e: React.MouseEvent) => {
-    if (!data.lazy) {
-      return;
-    }
-
     if (data.disabled) {
       return;
     }
 
     e.preventDefault();
+
+    if (!data.lazy) {
+      downloadByURL(data.data, data.filename || "download");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -115,8 +117,6 @@ const DownloadButton = ({
     <a
       href={data.data}
       download={data.filename || true}
-      target="_blank"
-      rel="noopener noreferrer"
       onClick={handleClick}
       className={buttonVariants({
         variant: "secondary",
