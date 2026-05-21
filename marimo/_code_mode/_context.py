@@ -286,14 +286,14 @@ class NotebookCell:
         (e.g. `NameError`) and graph errors (multiply-defined
         variables, cycles, etc.).
     output : CellOutput | None
-        The cell's last main (rich display) output, or ``None`` if no
+        The cell's last main (rich display) output, or `None` if no
         output was captured. **Frozen snapshot** — taken at
-        scratchpad-start, not refreshed when ``ctx.run_cell`` produces
-        new outputs in the same batch. Re-enter ``cm.get_context()`` to
+        scratchpad-start, not refreshed when `ctx.run_cell` produces
+        new outputs in the same batch. Re-enter `cm.get_context()` to
         see fresh outputs.
     console_outputs : list[CellOutput]
         Buffered stdout/stderr outputs from the cell's last execution.
-        Same frozen-snapshot caveat as ``output``.
+        Same frozen-snapshot caveat as `output`.
     """
 
     __slots__ = ("_cell", "_graph_errors", "_impl", "_outputs")
@@ -415,11 +415,11 @@ class NotebookCell:
 
     @property
     def output(self) -> CellOutput | None:
-        """The cell's last main (rich display) output, or ``None``.
+        """The cell's last main (rich display) output, or `None`.
 
         Frozen at scratchpad-start — does not reflect outputs produced
-        by ``ctx.run_cell`` in the same batch.  Re-enter
-        ``cm.get_context()`` to see fresh outputs.
+        by `ctx.run_cell` in the same batch.  Re-enter
+        `cm.get_context()` to see fresh outputs.
         """
         if self._outputs is None:
             return None
@@ -430,7 +430,7 @@ class NotebookCell:
         """Buffered stdout/stderr outputs from the last execution.
 
         Returns an empty list when no console output was captured.
-        Same frozen-snapshot semantics as :attr:`output`.
+        Same frozen-snapshot semantics as `output`.
         """
         if self._outputs is None:
             return []

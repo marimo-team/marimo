@@ -363,8 +363,8 @@ class ExecuteScratchpadCommand(Command):
             cell ordering, code, names, and configs.
         cell_outputs: Snapshot of per-cell outputs (main + console) from the
             session view. Populates a parallel ContextVar so code_mode can
-            expose ``cell.output`` and ``cell.console_outputs``. Frozen at
-            scratchpad start — not refreshed when ``ctx.run_cell`` produces
+            expose `cell.output` and `cell.console_outputs`. Frozen at
+            scratchpad start — not refreshed when `ctx.run_cell` produces
             new outputs in the same batch.
         run_id: Optional correlation ID. When set, the
             `CompletedRunNotification` emitted at the end of this command

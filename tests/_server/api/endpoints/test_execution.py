@@ -216,9 +216,9 @@ class TestExecutionRoutes_EditMode:
     def test_execute_attaches_cell_outputs_snapshot(
         client: TestClient,
     ) -> None:
-        """`/api/kernel/execute` must populate ``cell_outputs`` from the
-        session view so code_mode can expose ``cell.output`` and
-        ``cell.console_outputs``.  Regression guard: removing the
+        """`/api/kernel/execute` must populate `cell_outputs` from the
+        session view so code_mode can expose `cell.output` and
+        `cell.console_outputs`.  Regression guard: removing the
         construction line in the endpoint should fail this test.
         """
         from unittest.mock import patch
