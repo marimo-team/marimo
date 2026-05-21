@@ -14,10 +14,10 @@ _T = TypeVar("_T")
 def mro_lookup(
     value_type: type, registry: dict[str, _T]
 ) -> tuple[str, _T] | None:
-    """Walk the MRO of value_type, return ``(fq_name, value)`` for first match.
+    """Walk the MRO of value_type, return `(fq_name, value)` for first match.
 
     Matches against fully-qualified class names of the form
-    ``"{cls.__module__}.{cls.__name__}"``.  Returns ``None`` if no class in
+    `"{cls.__module__}.{cls.__name__}"`.  Returns `None` if no class in
     the MRO is found in *registry*.
     """
     try:

@@ -12,9 +12,9 @@ Two flavors of fallback live here, both built on :class:`WasmPatchSet`:
 * **DataFrame.write_json** — file system / native JSON writers can fail in
   WASM. On failure we round-trip via CSV and emit JSON manually.
 
-Read/scan path is best-effort: polars-only kwargs (``n_rows``,
-``try_parse_dates``, ...) are ignored; common kwargs with a pyarrow
-equivalent (``columns``, csv ``separator``, ``has_header``) are honored.
+Read/scan path is best-effort: polars-only kwargs (`n_rows`,
+`try_parse_dates`, ...) are ignored; common kwargs with a pyarrow
+equivalent (`columns`, csv `separator`, `has_header`) are honored.
 All patches are no-ops outside pyodide.
 """
 
@@ -137,7 +137,7 @@ _ARROW_READERS: dict[str, Callable[..., Any]] = {
 
 
 def _make_fallback(fmt: str, lazy: bool) -> Callable[..., Any]:
-    """Decode ``source`` via pyarrow and return polars."""
+    """Decode `source` via pyarrow and return polars."""
     import polars as pl
 
     from marimo._dependencies.dependencies import DependencyManager
@@ -189,9 +189,9 @@ def _write_json_fallback(
 ) -> str | None:
     """Convert the frame to dicts and emit JSON.
 
-    ``to_dicts`` preserves types and handles quoting/embedded delimiters
+    `to_dicts` preserves types and handles quoting/embedded delimiters
     correctly (unlike a naive CSV split), and avoids I/O so it works in WASM.
-    ``default=str`` covers temporal/decimal types that aren't JSON-native.
+    `default=str` covers temporal/decimal types that aren't JSON-native.
     """
     import json
 

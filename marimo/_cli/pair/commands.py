@@ -52,14 +52,14 @@ def _opencode_skill_dirs() -> list[Path]:
     """Return directories where an opencode skill (or compatible layout) may live.
 
     https://opencode.ai/docs/skills/
-    Checked roots are the parent of ``<skill-name>/SKILL.md`` for:
+    Checked roots are the parent of `<skill-name>/SKILL.md` for:
 
-    - Project opencode: ``.opencode/skills/``
-    - Global opencode: ``~/.config/opencode/skills/``
-    - Project Claude-compatible: ``.claude/skills/``
-    - Global Claude-compatible: ``~/.claude/skills/``
-    - Project agent-compatible: ``.agents/skills/``
-    - Global agent-compatible: ``~/.agents/skills/``
+    - Project opencode: `.opencode/skills/`
+    - Global opencode: `~/.config/opencode/skills/`
+    - Project Claude-compatible: `.claude/skills/`
+    - Global Claude-compatible: `~/.claude/skills/`
+    - Project agent-compatible: `.agents/skills/`
+    - Global agent-compatible: `~/.agents/skills/`
     """
     cwd = Path.cwd()
     home = Path.home()
@@ -74,7 +74,7 @@ def _opencode_skill_dirs() -> list[Path]:
 
 
 def pair_agents() -> dict[str, AgentConfig]:
-    """Return agent configs; paths use ``Path.cwd()`` at call time."""
+    """Return agent configs; paths use `Path.cwd()` at call time."""
     cwd = Path.cwd()
     home = Path.home()
     return {

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.notebook.outputs import CellOutputs
 from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,
@@ -20,6 +21,7 @@ from marimo._session.extensions.types import EventAwareExtension
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
+    from marimo._messaging.notebook.document import NotebookCell
     from marimo._messaging.types import KernelMessage
     from marimo._session.session import Session
 
@@ -47,12 +49,12 @@ class ConsoleEvent(TypedDict):
 
 
 class Done(TypedDict):
-    """Terminal SSE event for ``/api/kernel/execute``.
+    """Terminal SSE event for `/api/kernel/execute`.
 
-    ``success`` drives the CLI exit code. ``output`` is the scratch
-    cell's rendered value on success, or ``{mimetype: "text/plain",
-    data: ""}`` on failure — the actual error detail (traceback, etc.)
-    was already streamed via preceding ``stderr`` events.
+    `success` drives the CLI exit code. `output` is the scratch
+    cell's rendered value on success, or `{mimetype: "text/plain",
+    data: ""}` on failure — the actual error detail (traceback, etc.)
+    was already streamed via preceding `stderr` events.
     """
 
     success: bool
@@ -70,17 +72,17 @@ def _format_sse(event: str, data: Any) -> str:
 class ScratchCellListener(EventAwareExtension):
     """Listens for scratch cell notifications via an asyncio.Queue.
 
-    Supports both SSE streaming (via ``stream()``) and simple blocking
-    wait (via ``wait()``) so the same listener works for the HTTP
-    ``/execute`` endpoint and the MCP ``execute_code`` tool.
+    Supports both SSE streaming (via `stream()`) and simple blocking
+    wait (via `wait()`) so the same listener works for the HTTP
+    `/execute` endpoint and the MCP `execute_code` tool.
 
     In addition to the scratch cell's own output, the listener captures
     console output (stdout/stderr) from *other* cells that execute while
     the scratchpad is active — e.g. cells created and run by
-    ``_code_mode``.  The done sentinel fires on the
-    ``CompletedRunNotification`` whose ``run_id`` matches this
-    listener's ``run_id`` — other completion events (e.g. from the
-    ``session.instantiate`` that happens before the scratchpad runs, or
+    `_code_mode`.  The done sentinel fires on the
+    `CompletedRunNotification` whose `run_id` matches this
+    listener's `run_id` — other completion events (e.g. from the
+    `session.instantiate` that happens before the scratchpad runs, or
     from concurrent browser activity) are ignored, so we can't
     misidentify someone else's completion as ours.
     """
@@ -160,7 +162,7 @@ class ScratchCellListener(EventAwareExtension):
     async def wait(self, timeout: float = EXECUTION_TIMEOUT) -> None:
         """Block until execution completes, discarding streamed events.
 
-        Sets ``self.timed_out`` if the deadline is exceeded.
+        Sets `self.timed_out` if the deadline is exceeded.
         """
         import time
 
@@ -186,6 +188,26 @@ class ScratchCellListener(EventAwareExtension):
 # -- Helpers ------------------------------------------------------------------
 
 
+def snapshot_for_scratchpad(
+    session: Session,
+) -> tuple[tuple[NotebookCell, ...], CellOutputs]:
+    """Snapshot the notebook document and per-cell outputs for code_mode.
+
+    Returned by both `/api/execute` and the MCP `execute_code` tool
+    and passed on `ExecuteScratchpadCommand` so `cm.get_context()`
+    can expose cells and their last outputs.
+    """
+    cell_ids = session.document.cell_ids
+    notebook_cells = tuple(session.document.cells)
+    cell_outputs = CellOutputs(
+        output=session.session_view.get_cell_outputs(cell_ids),
+        console_outputs=session.session_view.get_cell_console_outputs(
+            cell_ids
+        ),
+    )
+    return notebook_cells, cell_outputs
+
+
 def _format_console(msg: CellNotification) -> list[str]:
     """Extract SSE-formatted stdout/stderr events from a CellNotification."""
     if msg.console is None:
@@ -209,12 +231,12 @@ def build_done_event(
     session: Session,
     listener: ScratchCellListener | None = None,
 ) -> str:
-    """Build the terminal ``done`` SSE event.
+    """Build the terminal `done` SSE event.
 
-    ``success`` is false when the scratch cell itself errored OR any
+    `success` is false when the scratch cell itself errored OR any
     downstream cell captured by the listener errored. The actual error
-    detail was already streamed via ``stderr`` events earlier in the
-    response — ``done`` carries only the success bit plus the scratch
+    detail was already streamed via `stderr` events earlier in the
+    response — `done` carries only the success bit plus the scratch
     cell's rendered output on success (empty on failure).
     """
     cell_notif = session.session_view.cell_notifications.get(SCRATCH_CELL_ID)

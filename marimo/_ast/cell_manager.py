@@ -521,22 +521,22 @@ class CellManager:
         return None
 
     def _replace_state_from(self, other: CellManager) -> None:
-        """Overwrite this manager's content with ``other``'s, in place.
+        """Overwrite this manager's content with `other`'s, in place.
 
-        Identity-preserving substitute for ``self = other``: the
-        underlying ``NotebookDocument`` instance and the
-        ``_compiled_cells`` dict instance are kept; only their contents
+        Identity-preserving substitute for `self = other`: the
+        underlying `NotebookDocument` instance and the
+        `_compiled_cells` dict instance are kept; only their contents
         are replaced. Any object holding a reference to this manager —
-        most notably the owning ``Session`` (which holds
-        ``cell_manager.document`` as ``session.document``) — continues
+        most notably the owning `Session` (which holds
+        `cell_manager.document` as `session.document`) — continues
         to see live state without rebinding.
 
-        ``unparsable`` is copied. ``_cell_id_generator.seen_ids`` is
+        `unparsable` is copied. `_cell_id_generator.seen_ids` is
         unioned (never narrowed) so we don't recycle an id seen
-        previously even if it's gone from ``other``.
+        previously even if it's gone from `other`.
 
         Transitional helper: cell-list bulk-replace bypasses
-        ``NotebookDocument.apply``. Goes away once full-document
+        `NotebookDocument.apply`. Goes away once full-document
         rebuilds are expressed as diff Transactions.
         """
         self._document._replace_cells(list(other._document._cells))

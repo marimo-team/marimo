@@ -622,10 +622,10 @@ _RANGE_RE = re.compile(r"^bytes=(\d*)-(\d*)$", re.IGNORECASE)
 def _parse_range_header(
     range_header: str, total_size: int
 ) -> tuple[int, int] | None:
-    """Parse a single-range HTTP ``Range`` header.
+    """Parse a single-range HTTP `Range` header.
 
-    Returns ``(start, end)`` byte offsets (inclusive) on success, or
-    ``None`` if the range is unsatisfiable. Multi-range requests are
+    Returns `(start, end)` byte offsets (inclusive) on success, or
+    `None` if the range is unsatisfiable. Multi-range requests are
     treated as unsatisfiable since marimo only supports single ranges.
     """
     match = _RANGE_RE.match(range_header.strip())

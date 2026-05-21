@@ -1,16 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Install WASM-only DuckDB fallbacks for remote file scans.
 
-DuckDB-WASM cannot use ``httpfs``. marimo fetches supported URLs itself,
+DuckDB-WASM cannot use `httpfs`. marimo fetches supported URLs itself,
 materializes supported files as pandas DataFrames, then hands those frames
 back to DuckDB through replacement scans.
 
 We have two concrete use cases to patch:
 
-* **Direct read methods** — ``duckdb.read_csv/read_parquet/read_json`` are
+* **Direct read methods** — `duckdb.read_csv/read_parquet/read_json` are
   wrapped with :class:`WasmPatchSet`. Supported remote URLs are fetched by
   marimo and returned as DuckDB relations.
-* **SQL remote scans** — raw DuckDB APIs and marimo's ``mo.sql`` path call the
+* **SQL remote scans** — raw DuckDB APIs and marimo's `mo.sql` path call the
   same sqlglot rewrite helper. It replaces supported URL scans with generated
   table names and evaluates the original DuckDB call with fetched DataFrames
   in scope so DuckDB replacement scans can resolve them.
@@ -216,14 +216,14 @@ def patch_duckdb_query_for_wasm(
 ) -> WasmDuckDBQueryPatch | None:
     """Replace supported remote file reads with generated table names.
 
-    For example, ``SELECT * FROM read_csv('https://example.com/cars.csv')``
-    becomes ``SELECT * FROM __marimo_wasm_duckdb_remote_0`` when suffix ``0``
-    is free. The returned ``tables`` mapping binds that name to the fetched
-    DataFrame. If the query or ``reserved_names`` already use that identifier,
+    For example, `SELECT * FROM read_csv('https://example.com/cars.csv')`
+    becomes `SELECT * FROM __marimo_wasm_duckdb_remote_0` when suffix `0`
+    is free. The returned `tables` mapping binds that name to the fetched
+    DataFrame. If the query or `reserved_names` already use that identifier,
     the rewriter uses the next free suffix.
 
     In Pyodide this raises if sqlglot is unavailable and the query may contain
-    a remote source. Returns ``None`` when:
+    a remote source. Returns `None` when:
 
     - marimo is not running in Pyodide;
     - the query has no remote URL;
@@ -597,7 +597,7 @@ def _show_duckdb_tables(
     args: tuple[Any, ...],
     kwargs: Mapping[str, Any],
 ) -> Any:
-    """Run ``SHOW TABLES`` through the same DuckDB entry point being patched."""
+    """Run `SHOW TABLES` through the same DuckDB entry point being patched."""
     import duckdb
 
     original_call = inspect.unwrap(original)

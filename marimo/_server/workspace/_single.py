@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Workspace for a single notebook (``marimo edit nb.py``)."""
+"""Workspace for a single notebook (`marimo edit nb.py`)."""
 
 from __future__ import annotations
 
@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 class SingleFileWorkspace(NotebookWorkspace):
     """A workspace pointing at a single notebook.
 
-    Used by ``marimo edit nb.py`` and ``marimo run nb.py``. In edit mode the
-    allowlist can grow at runtime (via ``register_allowed_path``) to support
+    Used by `marimo edit nb.py` and `marimo run nb.py`. In edit mode the
+    allowlist can grow at runtime (via `register_allowed_path`) to support
     notebooks created during the session.
     """
 
@@ -86,7 +86,7 @@ class SingleFileWorkspace(NotebookWorkspace):
     def register_allowed_path(self, path: str) -> None:
         """Extend the allowlist for files created at runtime.
 
-        Always extends, unconditionally — ``SingleFileWorkspace`` represents
+        Always extends, unconditionally — `SingleFileWorkspace` represents
         single-file edit mode, where the user can branch off into new
         notebooks created by the kernel. The fixed-allowlist behavior of
         :class:`FixedFilesWorkspace` is the read-only counterpart.

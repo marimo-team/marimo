@@ -23,6 +23,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
 from marimo._messaging.notebook.document import NotebookCell
+from marimo._messaging.notebook.outputs import CellOutputs
 from marimo._types.encodable import Encodable
 from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 
@@ -75,9 +76,9 @@ SerializedCLIArgs = dict[str, ListOrValue[Primitive]]
 def _user_to_dict(user: Any) -> dict[str, Encodable]:
     """Normalize an auth user into a serializable dict.
 
-    Starlette's authentication middleware sets ``request.scope["user"]`` to a
-    ``BaseUser`` instance (commonly ``SimpleUser``). Storing the raw object on
-    ``HTTPRequest.user`` breaks msgspec serialization on the IPC path. Convert
+    Starlette's authentication middleware sets `request.scope["user"]` to a
+    `BaseUser` instance (commonly `SimpleUser`). Storing the raw object on
+    `HTTPRequest.user` breaks msgspec serialization on the IPC path. Convert
     to a dict matching the documented contract: "info from authentication
     middleware (e.g., is_authenticated, username)".
     """
@@ -93,10 +94,10 @@ def _user_to_dict(user: Any) -> dict[str, Encodable]:
 
 
 def _meta_to_dict(meta: Any) -> dict[str, Encodable]:
-    """Normalize user-defined ``request.scope["meta"]`` at the boundary.
+    """Normalize user-defined `request.scope["meta"]` at the boundary.
 
-    Trusted shape per the public contract (``mo.app_meta().request``); we
-    just enforce dict-ness at the seam. Non-``Encodable`` values inside will
+    Trusted shape per the public contract (`mo.app_meta().request`); we
+    just enforce dict-ness at the seam. Non-`Encodable` values inside will
     surface at IPC encode time rather than being silently coerced.
     """
     if meta is None or not isinstance(meta, dict):
@@ -360,11 +361,16 @@ class ExecuteScratchpadCommand(Command):
         notebook_cells: Snapshot of notebook cells from the session document.
             Used to populate the document ContextVar so code_mode can read
             cell ordering, code, names, and configs.
+        cell_outputs: Snapshot of per-cell outputs (main + console) from the
+            session view. Populates a parallel ContextVar so code_mode can
+            expose `cell.output` and `cell.console_outputs`. Frozen at
+            scratchpad start — not refreshed when `ctx.run_cell` produces
+            new outputs in the same batch.
         run_id: Optional correlation ID. When set, the
-            ``CompletedRunNotification`` emitted at the end of this command
-            carries the same ``run_id`` so a caller holding a
-            ``ScratchCellListener`` can filter for *its* completion and
-            ignore ``CompletedRun`` events from unrelated commands on the
+            `CompletedRunNotification` emitted at the end of this command
+            carries the same `run_id` so a caller holding a
+            `ScratchCellListener` can filter for *its* completion and
+            ignore `CompletedRun` events from unrelated commands on the
             same session.
     """
 
@@ -373,6 +379,8 @@ class ExecuteScratchpadCommand(Command):
     request: HTTPRequest | None = None
     # Document snapshot — set by the execution endpoint from session.document.
     notebook_cells: tuple[NotebookCell, ...] | None = None
+    # Output snapshot — set by the execution endpoint from session.session_view.
+    cell_outputs: CellOutputs | None = None
     run_id: str | None = None
 
 

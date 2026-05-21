@@ -184,10 +184,10 @@ def test_from_request_user_already_dict_passthrough():
 
 
 def test_command_msgspec_json_decode_command_with_http_request():
-    """Regression for the Pyodide path: ``parse_dataclass`` builds a
-    ``msgspec.json`` decoder for any Command containing an ``HTTPRequest``
+    """Regression for the Pyodide path: `parse_dataclass` builds a
+    `msgspec.json` decoder for any Command containing an `HTTPRequest`
     field. msgspec.json rejects unions with two array-like members, so
-    ``Encodable`` must avoid e.g. ``list | tuple`` simultaneously.
+    `Encodable` must avoid e.g. `list | tuple` simultaneously.
     """
     from marimo._runtime.commands import ExecuteCellCommand
 

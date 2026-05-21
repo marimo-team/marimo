@@ -120,8 +120,8 @@ class TestAsyncPath:
     async def test_on_error_runs_on_event_loop_thread(
         self, runner: SerialTaskRunner
     ) -> None:
-        """``on_error`` must be posted back to the loop via
-        ``call_soon_threadsafe`` — many callers need to touch asyncio
+        """`on_error` must be posted back to the loop via
+        `call_soon_threadsafe` — many callers need to touch asyncio
         primitives that are not thread-safe."""
         loop_thread = threading.current_thread()
         handler_thread: list[threading.Thread] = []
@@ -199,8 +199,8 @@ class TestShutdown:
 
     def test_submit_after_shutdown_sync_is_noop(self) -> None:
         """Regression: a stray submit() after shutdown must not
-        re-materialize the ``cached_property`` executor — otherwise
-        session teardown can race with ``QueueDistributor.stop()`` and
+        re-materialize the `cached_property` executor — otherwise
+        session teardown can race with `QueueDistributor.stop()` and
         spin up a brand-new worker thread on the way out."""
         runner = SerialTaskRunner(thread_name_prefix="closed-sync")
         runner.shutdown()

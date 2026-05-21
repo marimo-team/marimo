@@ -980,6 +980,182 @@ def test_export_html_replaces_audio_virtual_files(
     assert expected_b64 in html
 
 
+def test_export_html_inlines_public_folder_images(
+    session_view: SessionView, tmp_path: Path
+) -> None:
+    """Test that <img src="public/..."> references are inlined as data URIs.
+
+    Regression test for marimo-team/marimo#9625: a markdown cell like
+    `mo.md("![alt](public/image.png)")` produces HTML output that points at
+    `public/image.png`. The standalone exported HTML must inline those
+    images so the file is self-contained when opened without the sibling
+    `public/` folder.
+    """
+    # Arrange: notebook file with a sibling public/image.png
+    notebook_path = tmp_path / "nb.py"
+    notebook_path.write_text("import marimo\napp = marimo.App()\n")
+    public_dir = tmp_path / "public"
+    public_dir.mkdir()
+    png_bytes = b"\x89PNG\r\n\x1a\nfakeimage"
+    (public_dir / "image.png").write_bytes(png_bytes)
+
+    app = App()
+
+    @app.cell()
+    def cell_md():
+        import marimo as mo
+
+        return mo.md("![alt](public/image.png)")
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    cell_ids = list(file_manager.app.cell_manager.cell_ids())
+
+    # Simulate the HTML output that mo.md produces at runtime: the raw
+    # `public/image.png` path is preserved (no inlining at runtime).
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
+        cell_id=cell_ids[0],
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/html",
+            data=(
+                '<span class="markdown">'
+                '<img alt="alt" src="public/image.png">'
+                "</span>"
+            ),
+        ),
+        console=[],
+        timestamp=0,
+    )
+
+    exporter = Exporter()
+    request = ExportAsHTMLRequest(
+        download=True,
+        files=[],
+        include_code=True,
+    )
+
+    html, _filename = exporter.export_as_html(
+        filename=str(notebook_path),
+        app=file_manager.app,
+        session_view=session_view,
+        display_config=DEFAULT_CONFIG["display"],
+        request=request,
+    )
+
+    # The original path is gone; the image is embedded as a data URI.
+    assert 'src="public/image.png"' not in html
+    assert "data:image/png;base64," in html
+    assert base64.b64encode(png_bytes).decode() in html
+
+
+def test_export_html_does_not_touch_non_html_outputs(
+    session_view: SessionView, tmp_path: Path
+) -> None:
+    """text/plain (and other non-HTML) outputs must NOT be HTML-parsed.
+
+    Regression guard: previously `_iter_html_data_strings` yielded every
+    string mime entry, which meant `text/plain` data containing literal
+    `./@file/...` text was rewritten as if it were HTML.
+    """
+    notebook_path = tmp_path / "nb.py"
+    notebook_path.write_text("import marimo\napp = marimo.App()\n")
+
+    app = App()
+
+    @app.cell()
+    def _():
+        return None
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    cell_ids = list(file_manager.app.cell_manager.cell_ids())
+
+    # A plain-text output that happens to contain virtual-file and public/
+    # tokens — these must NOT be rewritten because the mime is text/plain.
+    plain = "see ./@file/100-test.png or public/image.png"
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
+        cell_id=cell_ids[0],
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data=plain,
+        ),
+        console=[],
+        timestamp=0,
+    )
+
+    exporter = Exporter()
+    request = ExportAsHTMLRequest(
+        download=True,
+        files=[],
+        include_code=True,
+    )
+
+    html, _ = exporter.export_as_html(
+        filename=str(notebook_path),
+        app=file_manager.app,
+        session_view=session_view,
+        display_config=DEFAULT_CONFIG["display"],
+        request=request,
+    )
+
+    # The plain-text content is preserved verbatim (JSON-escaped in the
+    # session snapshot, hence the substring check rather than equality).
+    assert "./@file/100-test.png" in html
+    assert "public/image.png" in html
+
+
+def test_export_html_public_folder_blocks_path_traversal(
+    session_view: SessionView, tmp_path: Path
+) -> None:
+    """Test that path traversal attempts via public/ paths are rejected."""
+    notebook_path = tmp_path / "nb.py"
+    notebook_path.write_text("import marimo\napp = marimo.App()\n")
+    (tmp_path / "public").mkdir()
+    # File OUTSIDE the public/ folder that an attacker would try to read.
+    (tmp_path / "secret.txt").write_bytes(b"shh")
+
+    app = App()
+
+    @app.cell()
+    def cell_md():
+        return None
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    cell_ids = list(file_manager.app.cell_manager.cell_ids())
+
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
+        cell_id=cell_ids[0],
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/html",
+            data='<img src="public/../secret.txt">',
+        ),
+        console=[],
+        timestamp=0,
+    )
+
+    exporter = Exporter()
+    request = ExportAsHTMLRequest(
+        download=True,
+        files=[],
+        include_code=True,
+    )
+
+    html, _ = exporter.export_as_html(
+        filename=str(notebook_path),
+        app=file_manager.app,
+        session_view=session_view,
+        display_config=DEFAULT_CONFIG["display"],
+        request=request,
+    )
+
+    # The secret file must NOT be inlined.
+    assert base64.b64encode(b"shh").decode() not in html
+
+
 def test_export_html_skips_oversized_virtual_files(
     session_view: SessionView,
 ) -> None:

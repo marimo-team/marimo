@@ -67,10 +67,10 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
         """Convert supported math delimiters in non-inline-code regions.
 
         Supported conversions:
-        - ``:math:`...``` and ``:math:<code>...</code>`` -> ``$...$``
-        - ``.. math::`` blocks -> ``$$...$$``
-        - ``\\(...\\)`` -> ``$...$``
-        - ``\\[...\\]`` -> ``$$...$$``
+        - `:math:` inline roles and `:math:<code>` HTML variants -> `$...$`
+        - `.. math::` blocks -> `$$...$$`
+        - `\\(...\\)` -> `$...$`
+        - `\\[...\\]` -> `$$...$$`
         """
         converted_segments: list[str] = []
         for segment, is_inline_code in self._split_by_inline_code(text):
@@ -193,7 +193,7 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
         return segments
 
     def _convert_rst_math_blocks(self, text: str) -> str:
-        """Convert ``.. math::`` directives to markdown display math blocks.
+        """Convert `.. math::` directives to markdown display math blocks.
 
         Handles inline and multiline directive bodies, optional directive
         options, and a permissive unindented LaTeX continuation case used in

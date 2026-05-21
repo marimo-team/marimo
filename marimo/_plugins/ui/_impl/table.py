@@ -756,6 +756,7 @@ class table(
         search_result_raw_data: str | None = None
         field_types: FieldTypes | None = None
         num_columns = 0
+        row_headers = self._manager.get_row_headers()
 
         if not _internal_lazy:
             # Search first page
@@ -776,8 +777,12 @@ class table(
             # Validate column configurations
             column_names_set = set(self._manager.get_column_names())
             num_columns = len(column_names_set)
+            row_header_names_set = {name for name, _ in row_headers}
             _validate_frozen_columns(
-                freeze_columns_left, freeze_columns_right, column_names_set
+                freeze_columns_left,
+                freeze_columns_right,
+                column_names_set,
+                row_header_names_set,
             )
             _validate_column_formatting(
                 text_justify_columns, wrapped_columns, column_names_set
@@ -816,7 +821,7 @@ class table(
                 "show-page-size-selector": show_page_size_selector,
                 "show-column-explorer": show_column_explorer,
                 "show-chart-builder": show_chart_builder,
-                "row-headers": self._manager.get_row_headers(),
+                "row-headers": row_headers,
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,
                 "text-justify-columns": text_justify_columns,
@@ -928,7 +933,7 @@ class table(
         JSON is the largest format we export, so this is a conservative size estimate:
         if the JSON fits under a host's download limit, CSV and Parquet will
         too. Memoized on manager identity — recomputed when filters/search
-        produce a new ``_searched_manager``.
+        produce a new `_searched_manager`.
         """
         try:
             return len(manager.to_json(strict_json=True))
@@ -946,24 +951,24 @@ class table(
 
         When a requested format requires a package that isn't installed
         (e.g., Parquet without pyarrow/pandas/polars), returns a
-        ``DownloadAsResponse`` with ``error`` and ``missing_packages``
+        `DownloadAsResponse` with `error` and `missing_packages`
         populated instead of raising. The frontend uses this to prompt the
         user to install the dependency and retry.
 
         Args:
             args (DownloadAsArgs): The requested download format. Must be
-                one of ``'csv'``, ``'json'``, or ``'parquet'``.
+                one of `'csv'`, `'json'`, or `'parquet'`.
 
         Returns:
-            DownloadAsResponse: Either a success response with ``url`` and
-                ``filename`` populated, or a missing-packages response with
-                ``error`` and ``missing_packages`` populated when the
+            DownloadAsResponse: Either a success response with `url` and
+                `filename` populated, or a missing-packages response with
+                `error` and `missing_packages` populated when the
                 format's dependencies are not available.
 
         Raises:
             NotImplementedError: If the current selection resolves to
-                something other than a ``TableManager`` (e.g., a raw list
-                of ``TableCell`` from cell-selection modes).
+                something other than a `TableManager` (e.g., a raw list
+                of `TableCell` from cell-selection modes).
         """
         # Short-circuit Parquet when no parquet-capable lib is importable.
         if args.format == "parquet":
@@ -1400,7 +1405,7 @@ class table(
         """Get the row IDs for a page of data.
 
         When all rows are present (no filter applied, e.g. sort-only),
-        this reads actual ``_marimo_row_id`` values from the searched
+        this reads actual `_marimo_row_id` values from the searched
         manager so that style/hover dict keys match what the frontend
         uses for lookup -- regardless of sort column or direction.
 
@@ -1748,12 +1753,16 @@ def _validate_frozen_columns(
     freeze_columns_left: Sequence[str] | None,
     freeze_columns_right: Sequence[str] | None,
     column_names_set: set[str],
+    row_header_names_set: set[str],
 ) -> None:
     """Validate frozen column configurations.
 
     Validates that:
     1. The same column is not frozen on both sides
-    2. All frozen columns exist in the table
+    2. All left-frozen columns exist as table columns or row-header names
+    3. Right-frozen columns exist as table columns; row-header names are
+       rejected with a friendly error since row headers always render on
+       the left
     """
 
     freeze_columns_left_set = (
@@ -1763,20 +1772,37 @@ def _validate_frozen_columns(
         set(freeze_columns_right) if freeze_columns_right else None
     )
 
-    # Convert sequences to sets for O(1) lookups
     if freeze_columns_left_set and freeze_columns_right_set:
         if not freeze_columns_left_set.isdisjoint(freeze_columns_right_set):
             raise ValueError("The same column cannot be frozen on both sides.")
 
-    # Check all frozen columns exist
     if freeze_columns_left_set:
-        invalid = freeze_columns_left_set - column_names_set
+        # Unnamed row headers (e.g. a default pandas index) have no stable
+        # client-side id, so we can't freeze them. Surface this directly
+        # rather than letting the frontend silently no-op.
+        if "" in freeze_columns_left_set and "" in row_header_names_set:
+            raise ValueError(
+                "Cannot freeze an unnamed row index. "
+                "Set `df.index.name = '...'` (or `df.index.names = [...]` "
+                "for a MultiIndex) and pass that name to freeze_columns_left."
+            )
+        invalid = (
+            freeze_columns_left_set - column_names_set - row_header_names_set
+        )
         if invalid:
             raise ValueError(
                 f"Column '{next(iter(invalid))}' not found in table."
             )
 
     if freeze_columns_right_set:
+        row_header_on_right = freeze_columns_right_set & row_header_names_set
+        if row_header_on_right:
+            name = next(iter(row_header_on_right))
+            raise ValueError(
+                f"Row index '{name}' cannot be frozen on the right; "
+                "row headers always render on the left. "
+                "Use freeze_columns_left instead."
+            )
         invalid = freeze_columns_right_set - column_names_set
         if invalid:
             raise ValueError(

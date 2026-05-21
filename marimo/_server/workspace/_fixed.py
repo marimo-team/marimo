@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Workspace for a fixed list of notebooks (``marimo run a.py b.py``)."""
+"""Workspace for a fixed list of notebooks (`marimo run a.py b.py`)."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class FixedFilesWorkspace(NotebookWorkspace):
     """A workspace pointing at a fixed allowlist of notebooks.
 
-    Used by ``marimo run a.py b.py`` and ``marimo run dir/`` snapshots. The
+    Used by `marimo run a.py b.py` and `marimo run dir/` snapshots. The
     allowlist is set at construction time and never grows.
     """
 

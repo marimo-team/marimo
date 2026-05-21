@@ -242,8 +242,8 @@ class CompletedRunNotification(Notification, tag="completed-run"):
 
     Attributes:
         run_id: Correlation ID echoed from the command that triggered
-            this completion. ``None`` for handlers that don't take a
-            ``run_id`` (everything except ``handle_execute_scratchpad``
+            this completion. `None` for handlers that don't take a
+            `run_id` (everything except `handle_execute_scratchpad`
             today). Consumers that want to wait for a specific command's
             completion filter on this field.
     """

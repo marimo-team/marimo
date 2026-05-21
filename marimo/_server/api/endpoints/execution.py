@@ -273,6 +273,7 @@ async def execute_code(
     from marimo._server.scratchpad import (
         ScratchCellListener,
         build_done_event,
+        snapshot_for_scratchpad,
     )
 
     app_state = AppState(request)
@@ -325,11 +326,15 @@ async def execute_code(
                     http_req.meta["screenshot_server_url"] = (
                         f"{scheme}://{app_state.host}:{app_state.port}{base_url}"
                     )
+                    notebook_cells, cell_outputs = snapshot_for_scratchpad(
+                        session
+                    )
                     session.put_control_request(
                         ExecuteScratchpadCommand(
                             code=body.code,
                             request=http_req,
-                            notebook_cells=tuple(session.document.cells),
+                            notebook_cells=notebook_cells,
+                            cell_outputs=cell_outputs,
                             run_id=run_id,
                         ),
                         from_consumer_id=None,

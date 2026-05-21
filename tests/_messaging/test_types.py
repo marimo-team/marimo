@@ -146,12 +146,19 @@ class TestStdoutStderr:
 
 
 class TestStdin:
+    class MockStdin(Stdin):
+        def _readline_with_prompt(
+            self, prompt: str = "", password: bool = False
+        ) -> str:
+            del prompt, password
+            return ""
+
     def test_stdin_name(self) -> None:
-        stdin = Stdin()
+        stdin = self.MockStdin()
         assert stdin.name == "stdin"
 
     def test_not_stoppable(self) -> None:
-        stdin = Stdin()
+        stdin = self.MockStdin()
         assert not hasattr(stdin, "stop")
 
 

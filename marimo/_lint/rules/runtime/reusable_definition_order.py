@@ -28,7 +28,7 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
     """MR003: Invalid ordering of potentially reusable definitions.
 
     This rule detects cells that could be reusable definitions (i.e., decorated
-    with ``@app.function`` or ``@app.class_definition``) but which _cannot_ be
+    with `@app.function` or `@app.class_definition`) but which _cannot_ be
     safely serialized as reusable due to the ordering of marimo cells.
 
 

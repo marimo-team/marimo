@@ -94,8 +94,8 @@ class Channel(typing.Generic[T]):
         Args:
             context: ZeroMQ context for creating sockets
             msg_type: The type to decode incoming messages as. Accepts
-                concrete types, union types (e.g. ``A | B``), and NewTypes;
-                msgspec's ``Decoder`` handles all three.
+                concrete types, union types (e.g. `A | B`), and NewTypes;
+                msgspec's `Decoder` handles all three.
             maxsize: Maximum queue size (0 = unlimited)
         """
         import zmq

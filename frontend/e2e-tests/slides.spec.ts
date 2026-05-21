@@ -30,26 +30,31 @@ test("slides", async ({ page }) => {
 
   await takeScreenshot(page, __filename);
 
-  // Reveal.js marks the active slide <section> with .present
+  // Reveal.js marks the active slide <section> with `.present`. It only sets
+  // `data-index-h` in overview / scroll modes, so we identify each slide
+  // positionally via `.slides > section` and assert which one is active.
   const slides = slidesContainer.locator(".slides > section");
-  await expect(slides.first()).toHaveClass(/present/);
+  await expect(slides).toHaveCount(2);
+  await expect(slides.nth(0)).toHaveClass(/present/);
 
-  // Focus the deck so keyboard navigation works (embedded mode)
+  // Click the deck so DOM focus lands on it (the wrapper is `tabindex="-1"`).
+  // Without this, focus stays on whatever the command palette dialog
+  // restored it to (often the speaker-notes textarea), which makes reveal
+  // ignore the arrow keys.
   await slidesContainer.click();
+  await expect
+    .poll(() =>
+      slidesContainer.evaluate((el) => document.activeElement === el),
+    )
+    .toBe(true);
 
-  // Navigate to next slide using right arrow key
   await page.keyboard.press("ArrowRight");
-
-  // Verify we moved to second slide
   await expect(slides.nth(1)).toHaveClass(/present/);
 
   await takeScreenshot(page, __filename);
 
-  // Navigate back to first slide using left arrow key
   await page.keyboard.press("ArrowLeft");
-
-  // Verify we're back on the first slide
-  await expect(slides.first()).toHaveClass(/present/);
+  await expect(slides.nth(0)).toHaveClass(/present/);
 });
 
 test("slides fullscreen", async ({ page }) => {

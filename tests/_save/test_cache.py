@@ -1081,6 +1081,36 @@ class TestCacheDecorator:
         )
         assert k.globals["b"] == 55
 
+    async def test_lru_cache_with_maxsize_persists_across_cell_reruns(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        cached_cell = exec_req.get(
+            """
+            @lru_cache(maxsize=128)
+            def foo():
+                print("ran")
+
+            foo()
+            foo()
+            """
+        )
+
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import lru_cache
+                    """
+                ),
+                cached_cell,
+            ]
+        )
+        await k.run([cached_cell])
+
+        assert not k.stderr.messages, k.stderr
+        assert k.stdout.messages.count("ran") == 1
+        assert k.globals["foo"].hits == 3
+
     async def test_persistent_cache(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:

@@ -2,14 +2,14 @@
 """Local discovery registry for running marimo instances.
 
 Each marimo server writes a small JSON file to
-``~/.local/state/marimo/servers/<host>_<port>.json`` at startup and
-removes it on shutdown.  External tools (e.g. ``list-sessions.sh``)
+`~/.local/state/marimo/servers/<host>_<port>.json` at startup and
+removes it on shutdown.  External tools (e.g. `list-sessions.sh`)
 read these files to discover running instances — no marimo import or
 HTTP endpoint is required.
 
 SECURITY: Only instances that have opted into relaxed local access —
-started **without** an auth token (``--no-token``) — should be
-registered.  See the guard in ``lifespans.server_registry``.
+started **without** an auth token (`--no-token`) — should be
+registered.  See the guard in `lifespans.server_registry`.
 """
 
 from __future__ import annotations

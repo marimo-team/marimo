@@ -287,12 +287,12 @@ class NotificationListenerExtension(SessionExtension):
         """Route a raw kernel message to the appropriate session method.
 
         Document transactions are intercepted and applied to the
-        ``session.document``, then ``session.notify()`` is invoked with the (versioned) result.
+        `session.document`, then `session.notify()` is invoked with the (versioned) result.
 
         Kernel-sourced transactions also trigger an auto-save so agent-driven
-        mutations via ``code_mode`` land on disk the same way frontend edits do.
+        mutations via `code_mode` land on disk the same way frontend edits do.
 
-        Everything else is forwarded verbatim via ``session.notify()``.
+        Everything else is forwarded verbatim via `session.notify()`.
 
         TODO: if more notification types need server-side interception,
         consider a middleware chain instead of inline dispatch.
@@ -327,11 +327,11 @@ class NotificationListenerExtension(SessionExtension):
     ) -> None:
         """Best-effort persistence of code-mode mutations to disk.
 
-        Only ``source="code-mode"`` transactions persist; ``"kernel"``
+        Only `source="code-mode"` transactions persist; `"kernel"`
         bookkeeping (e.g. instantiation cell-order broadcasts) is skipped
         so opening or running a notebook never rewrites it on disk.
         Skipped in run mode and for unnamed notebooks. Failures surface as
-        an ``AlertNotification`` toast; they never raise out of the
+        an `AlertNotification` toast; they never raise out of the
         interceptor.
         """
         if source != "code-mode":

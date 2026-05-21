@@ -48,8 +48,8 @@ class _BlobStatus(Enum):
 def maybe_update_lazy_stub(value: Any) -> str:
     """Return the loader strategy string for *value*, caching the result.
 
-    Walks the MRO of ``type(value)`` against ``LAZY_STUB_LOOKUP`` (a
-    fq-class-name → loader-string registry).  Falls back to ``"pickle"``
+    Walks the MRO of `type(value)` against `LAZY_STUB_LOOKUP` (a
+    fq-class-name → loader-string registry).  Falls back to `"pickle"`
     when no match is found.
     """
     value_type = type(value)
