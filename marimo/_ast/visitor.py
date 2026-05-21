@@ -710,6 +710,8 @@ class ScopedVisitor(ast.NodeVisitor):
                 # so that later statements don't create refs to tables defined in earlier statements
                 defined_names: set[str] = set()
 
+                has_sqlglot = DependencyManager.sqlglot.has()
+
                 for statement_sql in statement_queries:
                     # Parse the refs and defs of each statement
                     # Add all tables/dbs created in the query to the defs
@@ -754,14 +756,17 @@ class ScopedVisitor(ast.NodeVisitor):
                         self._define(None, _catalog, VariableData("catalog"))
                         defined_names.add(_catalog)
 
-                    sql_refs = find_sql_refs_cached(statement_sql)
+                    if has_sqlglot:
+                        sql_refs = find_sql_refs_cached(statement_sql)
 
-                    for ref in sql_refs:
-                        name = ref.qualified_name
-                        # Cells that define the same name aren't cycles, so we skip them
-                        if name in defined_names:
-                            continue
-                        self._add_ref(None, name, deleted=False, sql_ref=ref)
+                        for ref in sql_refs:
+                            name = ref.qualified_name
+                            # Cells that define the same name aren't cycles, so we skip them
+                            if name in defined_names:
+                                continue
+                            self._add_ref(
+                                None, name, deleted=False, sql_ref=ref
+                            )
 
         # Visit arguments, keyword args, etc.
         self.generic_visit(node)
