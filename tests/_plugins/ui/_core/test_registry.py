@@ -1,9 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import weakref
+from unittest.mock import MagicMock, patch
+
 from marimo import ui
+from marimo._plugins.ui._core.registry import UIElementRegistry
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
+from marimo._types.ids import UIElementId
 from tests.conftest import ExecReqProvider
 
 
@@ -168,6 +173,49 @@ async def test_parent_bound_to_view(
     array = k.globals["array"]
     registry = get_context().ui_element_registry
     assert registry.bound_names(array._id) == {"array", "child"}
+
+
+def test_register_passes_element_id_not_weakref_id() -> None:
+    """register() must call delete() with id(element), not id(weakref.ref).
+
+    Regression test for the bug where register() passed id(self._objects[oid])
+    — the weakref wrapper — rather than id(self._objects[oid]()) — the element.
+    Because delete() derives registered_python_id from id(element), passing the
+    weakref id always fails the guard check and causes delete() to silently
+    return without cleaning up function-registry entries for the old element.
+    """
+
+    class _FakeElement:
+        _lens = None
+
+    elem1 = _FakeElement()
+    elem2 = _FakeElement()
+    oid = UIElementId("ui-test-weakref-id")
+
+    registry = UIElementRegistry()
+    registry._objects[oid] = weakref.ref(elem1)
+
+    delete_calls: list[int] = []
+
+    def _tracking_delete(_object_id: UIElementId, python_id: int) -> None:
+        delete_calls.append(python_id)
+
+    registry.delete = _tracking_delete  # type: ignore[method-assign]
+
+    mock_ctx = MagicMock()
+    mock_ctx.execution_context = MagicMock()
+
+    with patch(
+        "marimo._plugins.ui._core.registry.get_context",
+        return_value=mock_ctx,
+    ):
+        registry.register(oid, elem2)  # type: ignore[arg-type]
+
+    assert len(delete_calls) == 1
+    assert delete_calls[0] == id(elem1), (
+        f"delete() must receive id(element)={id(elem1)}, "
+        f"not id(weakref)={id(registry._objects.get(oid, 'gone'))}"
+    )
 
 
 async def test_dont_delete_element_with_wrong_python_id(
