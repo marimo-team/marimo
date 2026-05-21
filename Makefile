@@ -6,6 +6,7 @@
 
 DENO ?= uv tool run deno
 DESIGN_MD_DENO_FLAGS := --no-lock --node-modules-dir=none
+DESIGN_MD_DENO_RUN_FLAGS := $(DESIGN_MD_DENO_FLAGS) --allow-read=. --allow-env
 DESIGN_MD_LINTER ?= pnpm --silent dlx @google/design.md@0.1.1
 DESIGN_MD_INPUTS := \
 	scripts/generate-design-md.ts \
@@ -126,7 +127,7 @@ fe-codegen:
 design-md: DESIGN.md
 
 DESIGN.md: $(DESIGN_MD_INPUTS)
-	$(DENO) run $(DESIGN_MD_DENO_FLAGS) --allow-read=. scripts/generate-design-md.ts > $@
+	$(DENO) run $(DESIGN_MD_DENO_RUN_FLAGS) scripts/generate-design-md.ts > $@
 
 .PHONY: design-md-check
 # 🔍 Check DESIGN.md generation
@@ -135,7 +136,7 @@ design-md-check:
 	$(DENO) lint scripts/generate-design-md.ts
 	@tmp=$$(mktemp); \
 	trap 'rm -f "$$tmp"' EXIT; \
-	$(DENO) run $(DESIGN_MD_DENO_FLAGS) --allow-read=. scripts/generate-design-md.ts > "$$tmp"; \
+	$(DENO) run $(DESIGN_MD_DENO_RUN_FLAGS) scripts/generate-design-md.ts > "$$tmp"; \
 	diff -u DESIGN.md "$$tmp" || { \
 		echo "DESIGN.md is not up to date. Run 'make design-md' to update it."; \
 		exit 1; \
