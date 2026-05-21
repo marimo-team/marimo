@@ -507,6 +507,8 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             import pandas as pd
 
             result_df = native_df.copy()
+            # max_level=0 was used so that pandas doesn't recursively unnest dicts
+            # causing mismatch between pandas vs. polars df
             expanded = pd.json_normalize(
                 result_df.pop(transform.column_id),  # type: ignore[arg-type]
                 max_level=0,
