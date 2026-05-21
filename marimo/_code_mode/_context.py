@@ -1839,15 +1839,15 @@ class AsyncCodeModeContext:
             )
 
     def broadcast_raw_notification(self, notification: Notification) -> None:
-        """Low-level: broadcast a fully-constructed ``Notification`` to the frontend.
+        """Low-level: broadcast a fully-constructed `Notification` to the frontend.
 
         Escape hatch for emitting notification payloads directly; the
         payload is delivered as-is, with no validation, batching, or
-        debouncing. Prefer a higher-level helper on ``ctx`` when one exists.
+        debouncing. Prefer a higher-level helper on `ctx` when one exists.
 
-        See ``marimo._messaging.notification`` for the full discriminated
-        union. Agent-facing subtypes include ``BannerNotification`` (persistent
-        banner) and ``AlertNotification`` (modal dialog).
+        See `marimo._messaging.notification` for the full discriminated
+        union. Agent-facing subtypes include `BannerNotification` (persistent
+        banner) and `AlertNotification` (modal dialog).
         """
         broadcast_notification(notification, stream=self._kernel.stream)  # type: ignore[arg-type]
 
