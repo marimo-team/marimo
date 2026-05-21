@@ -175,10 +175,12 @@ export async function downloadHTMLAsImage(opts: {
   }
 }
 
-export function downloadByURL(url: string, filename: string) {
+export function downloadByURL(url: string, filename?: string) {
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename;
+  if (filename) {
+    a.download = filename;
+  }
   a.click();
   a.remove();
 }
