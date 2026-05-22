@@ -4,9 +4,11 @@
 #   - pnpm: for frontend development
 #   - Node.js: for frontend development
 
-DENO ?= uv tool run deno
-DESIGN_MD_DENO_FLAGS := --no-lock --node-modules-dir=none
-DESIGN_MD_DENO_RUN_FLAGS := $(DESIGN_MD_DENO_FLAGS) --allow-read --allow-env
+DENO_VERSION := 2.7.14
+DENO ?= uv tool run --from deno==$(DENO_VERSION) deno
+DESIGN_MD_DENO_FLAGS := --no-config --no-lock --node-modules-dir=none
+DESIGN_MD_READ_PATHS := frontend/src/css/app/App.css,frontend/src/css/app/Cell.css,frontend/src/core/config/config-schema.ts,frontend/src/plugins/impl/data-editor/themes.ts,frontend/src/css/globals.css,frontend/src/components/editor/renderers/grid-layout/plugin.tsx,frontend/tailwind.config.cjs
+DESIGN_MD_DENO_RUN_FLAGS := $(DESIGN_MD_DENO_FLAGS) --allow-read=$(DESIGN_MD_READ_PATHS)
 DESIGN_MD_LINTER ?= pnpm --silent dlx @google/design.md@0.1.1
 
 .PHONY: help
@@ -122,7 +124,7 @@ design-md:
 # 🔍 Check DESIGN.md generation
 design-md-check:
 	$(DENO) check $(DESIGN_MD_DENO_FLAGS) scripts/generate-design-md.ts
-	$(DENO) lint scripts/generate-design-md.ts
+	$(DENO) lint --no-config scripts/generate-design-md.ts
 	@tmp=$$(mktemp); \
 	trap 'rm -f "$$tmp"' EXIT; \
 	$(DENO) run $(DESIGN_MD_DENO_RUN_FLAGS) scripts/generate-design-md.ts > "$$tmp"; \
