@@ -3657,9 +3657,11 @@ class TestErrorHandling:
         assert errors[0].exception_type == "NameError"
         # The base message is stable across all supported Python versions.
         assert errors[0].msg.startswith("name 'aa' is not defined")
-        # CPython 3.12+ reliably emits "Did you mean: 'aaa'?" for this case.
-        # str(exc) drops it; the runtime must preserve it end-to-end.
-        if sys.version_info >= (3, 12):
+        # Python 3.13 was the first release where `TracebackException`
+        # exposes the "Did you mean: ..." hint via `format_exception_only`,
+        # which is what the runtime uses to build the message. On 3.10-3.12
+        # the helper degrades to the base message; see test_tracebacks.py.
+        if sys.version_info >= (3, 13):
             assert "Did you mean: 'aaa'?" in errors[0].msg
 
     async def test_error_handling_in_run_mode_stop(

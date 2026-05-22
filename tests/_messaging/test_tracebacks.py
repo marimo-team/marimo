@@ -180,9 +180,11 @@ class TestFormatExceptionMessage:
         msg = format_exception_message(excinfo.value)
         # The base message is stable across all supported Python versions.
         assert msg.startswith("name 'aa' is not defined")
-        # CPython 3.12+ reliably emits "Did you mean: 'aaa'?" for this case.
-        # str(exc) drops it; the helper must preserve it.
-        if sys.version_info >= (3, 12):
+        # Python 3.13 was the first release where `TracebackException` exposes
+        # the "Did you mean: ..." hint via `format_exception_only`; on 3.10-
+        # 3.12 the interpreter prints the hint in C but doesn't surface it
+        # there, so the helper degrades to the base message on those versions.
+        if sys.version_info >= (3, 13):
             assert "Did you mean: 'aaa'?" in msg
 
     def test_plain_message_unchanged(self) -> None:
