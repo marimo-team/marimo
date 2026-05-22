@@ -3655,9 +3655,12 @@ class TestErrorHandling:
         assert len(errors) == 1
         assert isinstance(errors[0], MarimoExceptionRaisedError)
         assert errors[0].exception_type == "NameError"
-        assert (
-            errors[0].msg == "name 'aa' is not defined. Did you mean: 'aaa'?"
-        )
+        # The base message is stable across Python versions; the
+        # "Did you mean: ..." hint is appended by CPython only when it finds
+        # a close match, with wording that varies across the CI matrix.
+        assert errors[0].msg.startswith("name 'aa' is not defined")
+        if "Did you mean" in errors[0].msg:
+            assert "'aaa'" in errors[0].msg
 
     async def test_error_handling_in_run_mode_stop(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider

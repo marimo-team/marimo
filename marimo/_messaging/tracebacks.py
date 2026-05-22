@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-import traceback
+import traceback as tb
 
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.context import is_code_mode_request
@@ -116,25 +116,24 @@ def format_exception_message(exc: BaseException) -> str:
     `TracebackException` to keep them, while stripping the leading
     "ExceptionType: " prefix (marimo displays the exception type separately).
 
-    Falls back to `str(exc)` when the formatted output can't be reconciled
-    with the bare message (e.g. `SyntaxError`, whose formatting spans
-    multiple lines).
+    Falls back to `str(exc)` when the formatted output isn't a single
+    "ExceptionType: message" line (e.g. `SyntaxError`, whose formatting
+    spans multiple lines, or an exception with no message).
     """
     base = str(exc)
     try:
         formatted = "".join(
-            traceback.TracebackException.from_exception(
-                exc
-            ).format_exception_only()
+            tb.TracebackException.from_exception(exc).format_exception_only()
         ).strip()
     except Exception:
         return base
-    if base:
-        # `formatted` is "{ExceptionType}: {base}{suggestion}"; slicing from
-        # where `base` begins drops the type prefix but keeps the suggestion.
-        idx = formatted.find(base)
-        if idx != -1:
-            return formatted[idx:]
+    # `format_exception_only` emits a single "{ExceptionType}: {message}"
+    # line, with any "Did you mean: ..." hint appended to the message.
+    # Partition on the first ": " to drop the type prefix; an exception
+    # type name never contains ": ", so a colon in the message is kept.
+    type_str, sep, rest = formatted.partition(": ")
+    if sep and "\n" not in type_str:
+        return rest
     return base
 
 
