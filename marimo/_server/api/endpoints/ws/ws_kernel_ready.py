@@ -20,7 +20,7 @@ from marimo._types.ids import CellId_t
 if TYPE_CHECKING:
     from marimo._server.rtc.doc import LoroDocManager
     from marimo._server.session_manager import SessionManager
-    from marimo._server.workspace import FileKey
+    from marimo._server.workspace import MarimoFileKey
     from marimo._session import Session
 
 LOGGER = _loggers.marimo_logger()
@@ -40,7 +40,7 @@ def build_kernel_ready(
     last_execution_time: dict[CellId_t, float],
     kiosk: bool,
     rtc_enabled: bool,
-    file_key: FileKey,
+    file_key: MarimoFileKey,
     mode: SessionMode,
     doc_manager: LoroDocManager,
     auto_instantiated: bool = False,
@@ -167,7 +167,7 @@ def _should_init_rtc(rtc_enabled: bool, mode: SessionMode) -> bool:
 def _try_init_rtc_doc(
     cell_ids: tuple[CellId_t, ...],
     codes: tuple[str, ...],
-    file_key: FileKey,
+    file_key: MarimoFileKey,
     doc_manager: LoroDocManager,
 ) -> None:
     """Try to initialize RTC document with cell data.
