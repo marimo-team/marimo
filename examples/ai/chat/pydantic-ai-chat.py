@@ -6,9 +6,10 @@
 #     "pydantic==2.12.5",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.21.1"
+__generated_with = "0.23.6"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
@@ -16,7 +17,12 @@ with app.setup(hide_code=True):
     import os
     import httpx
 
-    from pydantic_ai import Agent, RunContext, BinaryImage
+    from pydantic_ai import (
+        Agent,
+        BinaryImage,
+        DeferredToolRequests,
+        RunContext,
+    )
     from pydantic_ai.models.google import GoogleModel, GoogleModelSettings
     from pydantic_ai.providers.google import GoogleProvider
     from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
@@ -52,6 +58,7 @@ def _():
     structured = mo.ui.checkbox(label="Structured outputs")
     thinking = mo.ui.checkbox(label="Reasoning")
     fetch_dog_tool = mo.ui.checkbox(label="Fetch dog pics tool")
+    delete_file_tool = mo.ui.checkbox(label="Delete file tool (requires approval)")
 
     models = mo.ui.dropdown(
         options={
@@ -64,8 +71,8 @@ def _():
         label="Choose a model",
     )
 
-    mo.vstack([models, structured, thinking, fetch_dog_tool])
-    return fetch_dog_tool, models, structured, thinking
+    mo.vstack([models, structured, thinking, fetch_dog_tool, delete_file_tool])
+    return delete_file_tool, fetch_dog_tool, models, structured, thinking
 
 
 @app.cell(hide_code=True)
@@ -129,6 +136,7 @@ def get_model(
 
 @app.cell(hide_code=True)
 def _(
+    delete_file_tool,
     fetch_dog_tool,
     input_key,
     model_name,
@@ -153,6 +161,15 @@ def _(
     elif structured.value:
         output_type = [CodeOutput, str]
 
+    # Tools that pause for human approval require `DeferredToolRequests`
+    # in the output type; pydantic-ai returns it whenever a tool flagged
+    # `requires_approval=True` is called.
+    if delete_file_tool.value:
+        if isinstance(output_type, list):
+            output_type = [*output_type, DeferredToolRequests]
+        else:
+            output_type = [output_type, DeferredToolRequests]
+
     agent = Agent(
         model,
         output_type=output_type,
@@ -172,6 +189,14 @@ def _(
                 return response_json["message"]
             else:
                 return "Error fetching dog URL"
+
+
+    if delete_file_tool.value:
+
+        @agent.tool_plain(requires_approval=True)
+        def delete_file(path: str) -> str:
+            """Pretend to delete the file at `path`."""
+            return f"File {path!r} deleted"
     return (agent,)
 
 
@@ -184,6 +209,7 @@ def _(agent):
             "Who is Ada Lovelace?",
             "What is marimo?",
             "I need dogs (render as markdown)",
+            "Delete the file at path 'secrets.env'",
         ],
         allow_attachments=True,
         show_configuration_controls=True,
@@ -198,52 +224,115 @@ def _(chatbot):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
-    mo.md("""
-    ## Custom Model Sample
+    mo.md(r"""
+    ## Custom model sample
+
+    `mo.ui.chat` accepts any async generator that yields Vercel AI SDK chunks.
+    The model below is a hand-rolled showcase of every part the SDK knows
+    about — reasoning, streamed tool input, file/source/data attachments,
+    a deliberately failed tool, and a final tool that pauses for human
+    approval.
     """)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
+    import asyncio
     import uuid
+
     import pydantic_ai.ui.vercel_ai.response_types as vercel
 
 
-    async def custom_model(messages, config):
-        # Generate unique IDs for message parts
-        reasoning_id = f"reasoning_{uuid.uuid4().hex}"
-        text_id = f"text_{uuid.uuid4().hex}"
-        tool_id = f"tool_{uuid.uuid4().hex}"
+    def _new_id(prefix: str) -> str:
+        return f"{prefix}_{uuid.uuid4().hex[:8]}"
 
-        # --- Stream reasoning/thinking ---
-        yield vercel.StartStepChunk()
-        yield vercel.ReasoningStartChunk(id=reasoning_id)
-        yield vercel.ReasoningDeltaChunk(
-            id=reasoning_id,
-            delta="The user is asking about Van Gogh. I should fetch information about his famous works.",
+
+    def _pending_approval(messages) -> dict | None:
+        """Find a tool part the user just approved or denied, if any.
+
+        After Approve/Deny, the SDK transitions the tool part on the last
+        assistant message to `approval-responded` and auto-resumes. We
+        look for that state on the most recent assistant turn so we know
+        whether to start a fresh showcase or finish the deletion.
+        """
+        for message in reversed(messages):
+            if message.role != "assistant":
+                continue
+            for part in message.raw_or_dumped_parts():
+                if not isinstance(part, dict):
+                    continue
+                if not str(part.get("type", "")).startswith("tool-"):
+                    continue
+                if part.get("state") == "approval-responded":
+                    return part
+            return None
+        return None
+
+
+    async def custom_model(messages, config):
+        del config
+
+        pending = _pending_approval(messages)
+        if pending is not None:
+            async for chunk in _resume_after_approval(pending):
+                yield chunk
+            return
+
+        async for chunk in _showcase_turn():
+            yield chunk
+
+
+    async def _showcase_turn():
+        reasoning_id = _new_id("reasoning")
+        search_id = _new_id("tc")
+        translate_id = _new_id("tc")
+        delete_id = _new_id("tc")
+        approval_id = _new_id("ap")
+        intro_id = _new_id("text")
+        followup_id = _new_id("text")
+        error_text_id = _new_id("text")
+        ask_id = _new_id("text")
+        data_id = _new_id("data")
+
+        # Message-level metadata round-trips on `message.metadata` in the UI.
+        yield vercel.MessageMetadataChunk(
+            message_metadata={"demo": "vercel-ai-sdk-showcase", "turn": 1}
         )
+
+        # ── Step 1: think + run a tool that succeeds ──────────────────
+        yield vercel.StartStepChunk()
+
+        yield vercel.ReasoningStartChunk(id=reasoning_id)
+        for chunk in [
+            "The user wants the full tour. ",
+            "I'll search for a famous painting, ",
+            "compose an answer with citations and an image, ",
+            "demonstrate an erroring tool, ",
+            "and finally offer to clean up a temp file ",
+            "behind a human-approval gate.",
+        ]:
+            yield vercel.ReasoningDeltaChunk(id=reasoning_id, delta=chunk)
+            await asyncio.sleep(0.04)
         yield vercel.ReasoningEndChunk(id=reasoning_id)
 
-        # --- Stream tool call to fetch artwork information ---
+        yield vercel.ToolInputStartChunk(
+            tool_call_id=search_id, tool_name="search_artwork"
+        )
+        for delta in ['{"artist":', ' "Vincent van Gogh",', ' "limit": 1}']:
+            yield vercel.ToolInputDeltaChunk(
+                tool_call_id=search_id, input_text_delta=delta
+            )
+            await asyncio.sleep(0.04)
         yield vercel.ToolInputAvailableChunk(
-            tool_call_id=tool_id,
+            tool_call_id=search_id,
             tool_name="search_artwork",
             input={"artist": "Vincent van Gogh", "limit": 1},
         )
-        yield vercel.ToolInputStartChunk(
-            tool_call_id=tool_id, tool_name="search_artwork"
-        )
-        yield vercel.ToolInputDeltaChunk(
-            tool_call_id=tool_id,
-            input_text_delta='{"artist": "Vincent van Gogh", "limit": 1}',
-        )
-
-        # --- Tool output (simulated artwork search result) ---
         yield vercel.ToolOutputAvailableChunk(
-            tool_call_id=tool_id,
+            tool_call_id=search_id,
             output={
                 "title": "The Starry Night",
                 "year": 1889,
@@ -251,28 +340,170 @@ def _():
             },
         )
 
-        # --- Stream text response ---
-        yield vercel.TextStartChunk(id=text_id)
-        yield vercel.TextDeltaChunk(
-            id=text_id,
-            delta="One of Vincent van Gogh's most iconic works is 'The Starry Night', painted in 1889. Here's the painting:\n\n",
-        )
+        yield vercel.FinishStepChunk()
 
-        # --- Embed the artwork image ---
+        # ── Step 2: compose the answer with rich media ────────────────
+        yield vercel.StartStepChunk()
+
+        yield vercel.TextStartChunk(id=intro_id)
+        for delta in [
+            "One of Vincent van Gogh's most iconic works is ",
+            "**The Starry Night**, painted in 1889. ",
+            "Here is the painting:",
+        ]:
+            yield vercel.TextDeltaChunk(id=intro_id, delta=delta)
+            await asyncio.sleep(0.04)
+        yield vercel.TextEndChunk(id=intro_id)
+
         yield vercel.FileChunk(
-            url="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg",
+            url=(
+                "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/"
+                "Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/"
+                "1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg"
+            ),
             media_type="image/jpeg",
         )
-        yield vercel.TextDeltaChunk(
-            id=text_id,
-            delta="\nThis masterpiece is now housed at the Museum of Modern Art in New York and remains one of the most recognizable paintings in the world.",
+
+        yield vercel.SourceUrlChunk(
+            source_id=_new_id("src"),
+            url="https://www.moma.org/collection/works/79802",
+            title="The Starry Night | MoMA",
         )
-        yield vercel.TextEndChunk(id=text_id)
+        yield vercel.SourceDocumentChunk(
+            source_id=_new_id("src"),
+            media_type="application/pdf",
+            title="Faille catalogue raisonné, vol. III",
+            filename="van-gogh-catalogue.pdf",
+        )
+
+        # Custom data-* parts let backends ship arbitrary structured
+        # payloads to bespoke UI widgets without bending the text channel.
+        yield vercel.DataChunk(
+            id=data_id,
+            type="data-artwork-card",
+            data={
+                "title": "The Starry Night",
+                "year": 1889,
+                "movement": "Post-Impressionism",
+            },
+        )
+
+        yield vercel.TextStartChunk(id=followup_id)
+        yield vercel.TextDeltaChunk(
+            id=followup_id,
+            delta=(
+                "\n\nNext I'll try a translation tool that's expected to"
+                " fail — handy for seeing how errors render."
+            ),
+        )
+        yield vercel.TextEndChunk(id=followup_id)
+
         yield vercel.FinishStepChunk()
-        yield vercel.FinishChunk()
+
+        # ── Step 3: a tool whose execution fails ──────────────────────
+        yield vercel.StartStepChunk()
+
+        yield vercel.ToolInputStartChunk(
+            tool_call_id=translate_id, tool_name="translate"
+        )
+        yield vercel.ToolInputAvailableChunk(
+            tool_call_id=translate_id,
+            tool_name="translate",
+            input={"text": "Sterrennacht", "from": "nl", "to": "klingon"},
+        )
+        yield vercel.ToolOutputErrorChunk(
+            tool_call_id=translate_id,
+            error_text="UnsupportedLanguage: 'klingon' is not a supported target.",
+        )
+
+        yield vercel.TextStartChunk(id=error_text_id)
+        yield vercel.TextDeltaChunk(
+            id=error_text_id,
+            delta="That call failed, as expected — moving on.",
+        )
+        yield vercel.TextEndChunk(id=error_text_id)
+
+        yield vercel.FinishStepChunk()
+
+        # ── Step 4: ask for approval, then stop ───────────────────────
+        yield vercel.StartStepChunk()
+
+        yield vercel.TextStartChunk(id=ask_id)
+        yield vercel.TextDeltaChunk(
+            id=ask_id,
+            delta=(
+                "I'd like to delete the search cache file. "
+                "Approve below to proceed, or deny to keep it."
+            ),
+        )
+        yield vercel.TextEndChunk(id=ask_id)
+
+        yield vercel.ToolInputStartChunk(
+            tool_call_id=delete_id, tool_name="delete_file"
+        )
+        yield vercel.ToolInputAvailableChunk(
+            tool_call_id=delete_id,
+            tool_name="delete_file",
+            input={"path": "/tmp/van-gogh-search.cache"},
+        )
+        yield vercel.ToolApprovalRequestChunk(
+            approval_id=approval_id, tool_call_id=delete_id
+        )
+
+        yield vercel.FinishStepChunk()
+        yield vercel.FinishChunk(finish_reason="tool-calls")
 
 
-    custom_chat = mo.ui.chat(custom_model)
+    async def _resume_after_approval(pending: dict):
+        tool_call_id = pending["toolCallId"]
+        approval = pending.get("approval") or {}
+        approved = bool(approval.get("approved"))
+        path = (pending.get("input") or {}).get("path", "<unknown>")
+
+        text_id = _new_id("text")
+
+        yield vercel.MessageMetadataChunk(
+            message_metadata={
+                "demo": "vercel-ai-sdk-showcase",
+                "turn": 2,
+                "approval": approval,
+            }
+        )
+        yield vercel.StartStepChunk()
+
+        if approved:
+            yield vercel.ToolOutputAvailableChunk(
+                tool_call_id=tool_call_id,
+                output={"deleted": True, "path": path},
+            )
+            yield vercel.TextStartChunk(id=text_id)
+            yield vercel.TextDeltaChunk(
+                id=text_id, delta=f"Done — `{path}` has been removed."
+            )
+            yield vercel.TextEndChunk(id=text_id)
+        else:
+            yield vercel.ToolOutputDeniedChunk(tool_call_id=tool_call_id)
+            yield vercel.TextStartChunk(id=text_id)
+            yield vercel.TextDeltaChunk(
+                id=text_id,
+                delta=(
+                    f"No problem — I'll leave `{path}` alone. "
+                    f"Reason: {approval.get('reason') or 'no reason given'}."
+                ),
+            )
+            yield vercel.TextEndChunk(id=text_id)
+
+        yield vercel.FinishStepChunk()
+        yield vercel.FinishChunk(finish_reason="stop")
+
+
+    custom_chat = mo.ui.chat(
+        custom_model,
+        prompts=[
+            "Run the full Vercel AI SDK part showcase",
+            "Show me reasoning, citations, and an approval-gated tool",
+        ],
+    )
     custom_chat
     return (custom_chat,)
 

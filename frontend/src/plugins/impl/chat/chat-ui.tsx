@@ -27,7 +27,10 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { renderUIMessage } from "@/components/chat/chat-display";
-import { convertToFileUIPart } from "@/components/chat/chat-utils";
+import {
+  convertToFileUIPart,
+  hasPendingToolCalls,
+} from "@/components/chat/chat-utils";
 import {
   type AdditionalCompletions,
   PromptInput,
@@ -186,7 +189,9 @@ export const Chatbot: React.FC<Props> = (props) => {
     error,
     regenerate,
     clearError,
+    addToolApprovalResponse,
   } = useChat({
+    sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
     transport: new DefaultChatTransport({
       fetch: async (
         request: RequestInfo | URL,
@@ -440,6 +445,9 @@ export const Chatbot: React.FC<Props> = (props) => {
                   message,
                   isStreamingReasoning: status === "streaming",
                   isLast,
+                  addToolApprovalResponse: isLast
+                    ? addToolApprovalResponse
+                    : undefined,
                 })}
               </div>
               <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
