@@ -2,16 +2,16 @@
 // deno-lint-ignore-file no-import-prefix
 
 // Resolve repository-relative source paths portably across operating systems.
-import { join, normalize } from "jsr:@std/path@1.1.2";
+import { dirname, fromFileUrl, join, normalize } from "jsr:@std/path@1.1.2";
 
 // Parse TS/CJS config files for token values that are not available as CSS.
 import { parse as parseJavaScript } from "npm:@babel/parser@7.28.5";
 import type {
+  CallExpression,
   Expression,
   File,
   Node,
   ObjectExpression,
-  ObjectProperty,
 } from "npm:@babel/types@7.29.0";
 
 // Normalize CSS colors, declarations, variables, functions, and calc() values.
@@ -40,7 +40,8 @@ type TypographyParts = {
   letterSpacing?: string;
 };
 
-const root = normalize(Deno.args[0] ?? Deno.cwd());
+const scriptDir = dirname(fromFileUrl(import.meta.url));
+const root = normalize(Deno.args[0] ?? join(scriptDir, ".."));
 const logoSvgUrl =
   "https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-thick.svg";
 
@@ -66,55 +67,6 @@ const tailwindTheme = defaultTheme as unknown as {
   lineHeight: Record<string, string>;
   spacing: Record<string, string>;
 };
-
-// Visual identity guidance emitted after the token block.
-const body = [
-  "## Brand Assets",
-  "",
-  `- Logo SVG: ${logoSvgUrl}`,
-  "- Preserve the original aspect ratio.",
-  "- Do not recolor unless explicitly requested.",
-  "",
-  "## Visual Character",
-  "",
-  "- Compact, software-native, and utilitarian.",
-  "- White or near-black work surfaces with slate borders and muted secondary text.",
-  "- Restrained blue for primary interaction; yellow for action, stale, or needs-run states.",
-  "- Avoid decorative gradients, marketing-style heroes, nested cards, and one-off palettes.",
-  "",
-  "## Color",
-  "",
-  "- Use background, surface, foreground, border, and muted tokens for structure.",
-  "- Use primary for primary actions, selection, progress, and clear focus only.",
-  "- Use action and stale colors for manual action or freshness state, not generic warning.",
-  "- Use destructive, error, and success colors only for their semantic states.",
-  "- Preserve light and dark token pairs whenever a color appears in both modes.",
-  "",
-  "## Typography",
-  "",
-  "- Use PT Sans for UI and prose, Lora for authored markdown headings, and Fira Mono for code-like values.",
-  "- Keep control text compact and legible.",
-  "- Do not add viewport-based type scaling beyond marimo's app defaults.",
-  "",
-  "## Surfaces",
-  "",
-  "- Use borders first and subtle shadows second.",
-  "- Cells, outputs, editors, markdown, tables, and data grids should be full-width and overflow-safe.",
-  "- Keep data UI dense and inspectable: stable columns, predictable overflow, readable headers, and no decorative framing around tables or charts.",
-  "- Cards are for repeated items, dialogs, or genuinely framed tools; do not style page sections as cards.",
-  "",
-  "## Components",
-  "",
-  "- Buttons should be compact, label-like, focusable, and drawn from primary, secondary, or action semantics.",
-  "- Icon buttons should use familiar existing icons and tooltips for unclear actions.",
-  "- Inputs, selects, and textareas should be compact, bordered, readable, and use code typography only for code-like values.",
-  "- Tabs, menus, popovers, dialogs, and tooltips should use semantic surfaces, borders, focus states, and restrained shadow.",
-  "- Runtime states should pair color with labels, icons, borders, position, or shape.",
-  "",
-  "## Motion",
-  "",
-  "Use short transitions for hover, focus, loading, resize, drag, and stale-output changes. Avoid decorative animation.",
-];
 
 // Tuples are [CSS variable name, light token name, optional dark token name].
 const colorSpecs = [
@@ -362,7 +314,7 @@ const walkAst = (value: unknown, visit: (node: Node) => void): void => {
   }
 };
 
-const propName = (name: ObjectProperty["key"]) => {
+const propName = (name: Node) => {
   if (name.type === "Identifier") {
     return name.name;
   }
@@ -373,6 +325,18 @@ const propName = (name: ObjectProperty["key"]) => {
     return String(name.value);
   }
 };
+
+const callArgument = (call: CallExpression): Expression | undefined => {
+  const first = call.arguments[0];
+  return isNode(first) && first.type !== "SpreadElement"
+    ? first as Expression
+    : undefined;
+};
+
+const callMethodName = (call: CallExpression) =>
+  call.callee.type === "MemberExpression" && !call.callee.computed
+    ? propName(call.callee.property)
+    : undefined;
 
 const objectProperty = (
   object: ObjectExpression,
@@ -396,6 +360,129 @@ const objectPath = (
         : undefined,
     object,
   );
+
+const objectExpression = (
+  expression: Expression | undefined,
+  label: string,
+): ObjectExpression =>
+  required(
+    expression?.type === "ObjectExpression" ? expression : undefined,
+    label,
+  );
+
+const variableInitializer = (
+  source: SourceKey,
+  name: string,
+): Expression | undefined => {
+  let value: Expression | undefined;
+  walkAst(ast(source), (node) => {
+    if (
+      value ||
+      node.type !== "VariableDeclarator" ||
+      node.id.type !== "Identifier" ||
+      node.id.name !== name ||
+      !node.init ||
+      node.init.type.startsWith("TS")
+    ) {
+      return;
+    }
+    value = node.init as Expression;
+  });
+  return value;
+};
+
+const moduleExportsObject = (source: SourceKey): ObjectExpression => {
+  let value: ObjectExpression | undefined;
+  walkAst(ast(source), (node) => {
+    if (value || node.type !== "AssignmentExpression") {
+      return;
+    }
+    const left = node.left;
+    if (
+      left.type === "MemberExpression" &&
+      !left.computed &&
+      left.object.type === "Identifier" &&
+      left.object.name === "module" &&
+      propName(left.property) === "exports" &&
+      node.right.type === "ObjectExpression"
+    ) {
+      value = node.right;
+    }
+  });
+  return required(value, `${source}:module.exports`);
+};
+
+const callObjectArgument = (
+  expression: Expression | undefined,
+  methodName: string,
+): ObjectExpression | undefined => {
+  let value: ObjectExpression | undefined;
+  walkAst(expression, (node) => {
+    if (
+      value ||
+      node.type !== "CallExpression" ||
+      callMethodName(node) !== methodName
+    ) {
+      return;
+    }
+    const first = callArgument(node);
+    value = first?.type === "ObjectExpression" ? first : undefined;
+  });
+  return value;
+};
+
+const zodShapeObject = (expression: Expression | undefined) =>
+  callObjectArgument(expression, "looseObject") ??
+    callObjectArgument(expression, "object");
+
+const methodArgument = (
+  expression: Expression | undefined,
+  methodName: string,
+) => {
+  let value: Expression | undefined;
+  walkAst(expression, (node) => {
+    if (
+      value ||
+      node.type !== "CallExpression" ||
+      callMethodName(node) !== methodName
+    ) {
+      return;
+    }
+    value = callArgument(node);
+  });
+  return value;
+};
+
+const returnObjectProperty = (
+  source: SourceKey,
+  functionName: string,
+  propertyName: string,
+) => {
+  let body: Node | undefined;
+  walkAst(ast(source), (node) => {
+    if (
+      body ||
+      node.type !== "FunctionDeclaration" ||
+      node.id?.name !== functionName
+    ) {
+      return;
+    }
+    body = node.body;
+  });
+
+  let value: Expression | undefined;
+  walkAst(required(body, `${source}:${functionName}`), (node) => {
+    if (
+      value ||
+      node.type !== "ReturnStatement" ||
+      node.argument?.type !== "ObjectExpression"
+    ) {
+      return;
+    }
+    value = objectProperty(node.argument, propertyName);
+  });
+  return value;
+};
 
 // Evaluate the small expression subset used by Tailwind/grid config constants.
 const numericExpression = (expression: Expression): number | undefined => {
@@ -437,30 +524,35 @@ const expressionText = (expression: Expression): string | undefined => {
 
 // Read nested values from frontend/tailwind.config.cjs.
 const configValue = (path: readonly string[]) => {
-  let value: string | undefined;
-  walkAst(ast("tailwindConfig"), (node) => {
-    if (value || node.type !== "ObjectExpression") {
-      return;
-    }
-    const expression = objectPath(node, path);
-    value = expression ? expressionText(expression) : undefined;
-  });
-  return required(value, path.join("."));
+  const expression = objectPath(moduleExportsObject("tailwindConfig"), path);
+  return required(
+    expression ? expressionText(expression) : undefined,
+    path.join("."),
+  );
 };
 
-// Pull numeric layout defaults from renderer object literals.
-const numericProperty = (source: SourceKey, key: string) => {
-  let value: number | undefined;
-  walkAst(ast(source), (node) => {
-    if (value !== undefined || node.type !== "ObjectProperty") {
-      return;
-    }
-    const expression = propName(node.key) === key ? node.value : undefined;
-    value = expression
-      ? numericExpression(expression as Expression)
-      : undefined;
-  });
-  return required(value, `${source}:${key}`);
+const gridInitialLayoutObject = () => {
+  const plugin = objectExpression(
+    variableInitializer("gridLayout", "GridLayoutPlugin"),
+    "GridLayoutPlugin",
+  );
+  const layout = objectProperty(plugin, "getInitialLayout");
+  return required(
+    layout?.type === "ArrowFunctionExpression" &&
+      layout.body.type === "ObjectExpression"
+      ? layout.body
+      : undefined,
+    "GridLayoutPlugin.getInitialLayout",
+  );
+};
+
+// Pull numeric layout defaults from the renderer's initial-layout contract.
+const gridLayoutDefault = (key: string) => {
+  const expression = objectProperty(gridInitialLayoutObject(), key);
+  return required(
+    expression ? numericExpression(expression) : undefined,
+    `GridLayoutPlugin.getInitialLayout:${key}`,
+  );
 };
 
 const themePath = (path: readonly string[]) =>
@@ -507,12 +599,32 @@ const fontSizeToken = (name: string): TypographyParts => {
   ) as TypographyParts;
 };
 
-// Config schema defaults are regex-read because the zod chain is not exported.
-const configDefault = (field: string) => {
-  const pattern = new RegExp(
-    `${field}:\\s*z\\.number\\(\\)\\.nonnegative\\(\\)\\.prefault\\((\\d+)\\)`,
+const configSchemaField = (path: readonly string[]) => {
+  let shape = required(
+    zodShapeObject(variableInitializer("configSchema", "UserConfigSchema")),
+    "UserConfigSchema",
   );
-  return required(readSource("configSchema").match(pattern)?.[1], field);
+  let expression: Expression | undefined;
+  path.forEach((segment, index) => {
+    expression = objectProperty(shape, segment);
+    if (index < path.length - 1) {
+      shape = required(
+        zodShapeObject(expression),
+        path.slice(0, index + 1).join("."),
+      );
+    }
+  });
+  return required(expression, path.join("."));
+};
+
+// Config schema defaults are read from the owning zod field.
+const configDefault = (field: string) => {
+  const prefault = methodArgument(
+    configSchemaField(["display", field]),
+    "prefault",
+  );
+  const value = prefault ? numericExpression(prefault) : undefined;
+  return String(required(value, `display.${field}.prefault`));
 };
 
 // Shared constructor for Tailwind-backed typography tokens.
@@ -591,7 +703,16 @@ const buildColors = () => {
   // The data grid accent is a TS literal, not a CSS custom property.
   colors["data-grid-accent"] = formatColor(
     required(
-      readSource("dataGridTheme").match(/accentColor:\s*"([^"]+)"/)?.[1],
+      expressionText(
+        required(
+          returnObjectProperty(
+            "dataGridTheme",
+            "getGlideTheme",
+            "accentColor",
+          ),
+          "data-grid-accent",
+        ),
+      ),
       "data-grid-accent",
     ),
   );
@@ -680,10 +801,10 @@ const buildSpacing = () => ({
     cssVars("appCss")["content-width-medium"],
     "content-medium",
   ),
-  "content-wide": `${numericProperty("gridLayout", "maxWidth")}px`,
-  "grid-row-height": `${numericProperty("gridLayout", "rowHeight")}px`,
+  "content-wide": `${gridLayoutDefault("maxWidth")}px`,
+  "grid-row-height": `${gridLayoutDefault("rowHeight")}px`,
   // String form avoids design.md treating this unitless count as a raw number.
-  "grid-columns": String(numericProperty("gridLayout", "columns")),
+  "grid-columns": String(gridLayoutDefault("columns")),
 });
 
 // Canonical examples only; prose guidance covers the larger component family.
@@ -755,10 +876,65 @@ const tokens = (): TokenObject => ({
   components: buildComponents(),
 });
 
+// Visual identity guidance emitted after the token block.
+const body = () =>
+  [
+    "## Brand Assets",
+    "",
+    `- Logo SVG: ${logoSvgUrl}`,
+    "- Preserve the original aspect ratio.",
+    "- Do not recolor unless explicitly requested.",
+    "",
+    "## Visual Character",
+    "",
+    "- Compact, software-native, and utilitarian.",
+    "- White or near-black work surfaces with slate borders and muted secondary text.",
+    "- Restrained blue for primary interaction; yellow for action, stale, or needs-run states.",
+    "- Avoid decorative gradients, marketing-style heroes, nested cards, and one-off palettes.",
+    "",
+    "## Color",
+    "",
+    "- Use background, surface, foreground, border, and muted tokens for structure.",
+    "- Use primary for primary actions, selection, progress, and clear focus only.",
+    "- Use action and stale colors for manual action or freshness state, not generic warning.",
+    "- Use destructive, error, and success colors only for their semantic states.",
+    "- Preserve light and dark token pairs whenever a color appears in both modes.",
+    "",
+    "## Typography",
+    "",
+    "- Use PT Sans for UI and prose, Lora for authored markdown headings, and Fira Mono for code-like values.",
+    "- Keep control text compact and legible.",
+    "- Do not add viewport-based type scaling beyond marimo's app defaults.",
+    "",
+    "## Surfaces",
+    "",
+    "- Use borders first and subtle shadows second.",
+    "- Cells, outputs, editors, markdown, tables, and data grids should be full-width and overflow-safe.",
+    "- Keep data UI dense and inspectable: stable columns, predictable overflow, readable headers, and no decorative framing around tables or charts.",
+    "- Cards are for repeated items, dialogs, or genuinely framed tools; do not style page sections as cards.",
+    "",
+    "## Components",
+    "",
+    "- Buttons should be compact, label-like, focusable, and drawn from primary, secondary, or action semantics.",
+    "- Icon buttons should use familiar existing icons and tooltips for unclear actions.",
+    "- Inputs, selects, and textareas should be compact, bordered, readable, and use code typography only for code-like values.",
+    "- Tabs, menus, popovers, dialogs, and tooltips should use semantic surfaces, borders, focus states, and restrained shadow.",
+    "- Runtime states should pair color with labels, icons, borders, position, or shape.",
+    "",
+    "## Motion",
+    "",
+    "Use short transitions for hover, focus, loading, resize, drag, and stale-output changes. Avoid decorative animation.",
+  ].join("\n");
+
 const renderDesignMd = () =>
-  `---\n${stringifyYaml(tokens(), { lineWidth: 0 })}---\n\n${
-    body.join("\n")
-  }\n`;
+  [
+    "---",
+    stringifyYaml(tokens(), { lineWidth: 0 }).trimEnd(),
+    "---",
+    "",
+    body(),
+    "",
+  ].join("\n");
 
 // Print the artifact so Make/CI can either write it or diff it without mutation.
 Deno.stdout.writeSync(new TextEncoder().encode(renderDesignMd()));
