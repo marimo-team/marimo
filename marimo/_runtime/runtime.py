@@ -1706,31 +1706,51 @@ class Kernel:
         graph = dataflow.DirectedGraph()
         graph.register_cell(SCRATCH_CELL_ID, cell)
 
-        # Copy hooks and add scratchpad-specific hooks
-        scratchpad_hooks = self._hooks.copy()
-        scratchpad_hooks.add_on_finish(
-            self.packages_callbacks.missing_packages_hook
-        )
+        # Also register __scratch__ in the kernel's main graph so any
+        # runtime-context consumer that reads ctx.graph.cells[cell_id]
+        # during scratchpad execution resolves it correctly (e.g.,
+        # @mo.cache, @mo.lru_cache, mo.persistent_cache). The scratch
+        # cell's defs and refs are cleared above, so this adds no edges
+        # and has no reactive side effects. We unregister in a `finally`
+        # so a scratchpad crash cannot leave the main graph polluted.
+        did_register_in_main_graph = False
+        if SCRATCH_CELL_ID not in self.graph.cells:
+            self.graph.register_cell(SCRATCH_CELL_ID, cell)
+            did_register_in_main_graph = True
+        try:
+            # Copy hooks and add scratchpad-specific hooks
+            scratchpad_hooks = self._hooks.copy()
+            scratchpad_hooks.add_on_finish(
+                self.packages_callbacks.missing_packages_hook
+            )
 
-        runner = cell_runner.Runner(
-            roots=roots,
-            graph=graph,
-            glbls=copy(self.globals),
-            excluded_cells=set(),
-            debugger=self.debugger,
-            execution_mode=self.reactive_execution_mode,
-            execution_type=self.execution_type,
-            execution_context=self._install_execution_context,
-            hooks=scratchpad_hooks,
-            user_config=self.user_config,
-        )
+            runner = cell_runner.Runner(
+                roots=roots,
+                graph=graph,
+                glbls=copy(self.globals),
+                excluded_cells=set(),
+                debugger=self.debugger,
+                execution_mode=self.reactive_execution_mode,
+                execution_type=self.execution_type,
+                execution_context=self._install_execution_context,
+                hooks=scratchpad_hooks,
+                user_config=self.user_config,
+            )
 
-        await runner.run_all()
+            await runner.run_all()
+        finally:
+            if (
+                did_register_in_main_graph
+                and SCRATCH_CELL_ID in self.graph.cells
+            ):
+                self.graph.delete_cell(SCRATCH_CELL_ID)
 
         # Flush any state updates queued during scratchpad execution
         # (e.g., from widget .observe() callbacks that call mo.state
         # setters). Without this, state updates are queued but never
-        # processed, so downstream cells don't re-run.
+        # processed, so downstream cells don't re-run. Run AFTER the
+        # scratchpad cleanup above so reactive cells see a clean kernel
+        # graph (without __scratch__).
         if self.state_updates:
             await self._run_cells(set())
 
