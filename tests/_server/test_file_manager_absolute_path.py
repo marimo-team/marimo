@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from marimo._server.workspace import DirectoryWorkspace, PathFileKey
+from marimo._server.workspace import DirectoryWorkspace
 from marimo._utils.http import HTTPException, HTTPStatus
 
 is_windows = sys.platform == "win32"
@@ -58,7 +58,7 @@ if __name__ == "__main__":
         assert file_info.path == "notebook.py"
 
         # Try to get a file manager using the relative path from files list
-        file_manager = router.load(PathFileKey(file_info.path))
+        file_manager = router.load(file_info.path)
         assert file_manager is not None
         # File manager resolves to absolute path
         assert file_manager.filename == str(test_file)
@@ -108,7 +108,7 @@ if __name__ == "__main__":
             assert file_info.path == "notebook.py"
 
             # Try to get a file manager using the relative file path
-            file_manager = router.load(PathFileKey(file_info.path))
+            file_manager = router.load(file_info.path)
             assert file_manager is not None
             assert file_manager.is_notebook_named
             # File manager resolves to absolute path
@@ -151,9 +151,7 @@ if __name__ == "__main__":
 
         # Get file manager with absolute path
         absolute_file_path = absolute_files[0].path
-        absolute_file_manager = absolute_router.load(
-            PathFileKey(absolute_file_path)
-        )
+        absolute_file_manager = absolute_router.load(absolute_file_path)
 
         # Change to the parent directory
         original_cwd = os.getcwd()
@@ -170,9 +168,7 @@ if __name__ == "__main__":
 
             # Get file manager with relative path
             relative_file_path = relative_files[0].path
-            relative_file_manager = relative_router.load(
-                PathFileKey(relative_file_path)
-            )
+            relative_file_manager = relative_router.load(relative_file_path)
 
             # Both should reference the same file
             assert (
@@ -233,7 +229,7 @@ if __name__ == "__main__":
         assert os.path.exists(full_path)
 
         # Try to get a file manager
-        file_manager = router.load(PathFileKey(full_path))
+        file_manager = router.load(full_path)
         assert file_manager is not None
         assert file_manager.is_notebook_named
         assert file_manager.read_file() is not None
@@ -289,7 +285,7 @@ if __name__ == "__main__":
 
             # Try to get a file manager
             file_path = files_after[0].path
-            file_manager = router.load(PathFileKey(file_path))
+            file_manager = router.load(file_path)
             assert file_manager is not None
             assert file_manager.is_notebook_named
             content = file_manager.read_file()
@@ -340,7 +336,7 @@ if __name__ == "__main__":
             # the router's directory
             relative_filename = "notebook.py"
 
-            file_manager = router.load(PathFileKey(relative_filename))
+            file_manager = router.load(relative_filename)
             assert file_manager is not None
             assert file_manager.is_notebook_named
             # Verify it opened the correct file
@@ -404,7 +400,7 @@ if __name__ == "__main__":
             file_info = files[0]
 
             # This should work - using the full absolute path
-            file_manager = router.load(PathFileKey(file_info.path))
+            file_manager = router.load(file_info.path)
             assert file_manager is not None
             assert file_manager.is_notebook_named
 
@@ -415,7 +411,7 @@ if __name__ == "__main__":
             # This currently fails but should succeed
             # The router should resolve the basename relative to its directory
             try:
-                file_manager_from_basename = router.load(PathFileKey(basename))
+                file_manager_from_basename = router.load(basename)
                 assert file_manager_from_basename is not None
                 assert file_manager_from_basename.is_notebook_named
             except HTTPException:
@@ -474,7 +470,7 @@ if __name__ == "__main__":
             relative_path = os.path.join("subdir", "notebook.py")
 
             try:
-                file_manager = router.load(PathFileKey(relative_path))
+                file_manager = router.load(relative_path)
                 assert file_manager is not None
                 assert file_manager.is_notebook_named
             except HTTPException:
@@ -516,7 +512,7 @@ if __name__ == "__main__":
 
         # Verify each file can be opened using its relative path
         for file_info in files:
-            file_manager = router.load(PathFileKey(file_info.path))
+            file_manager = router.load(file_info.path)
             assert file_manager is not None
             assert file_manager.is_notebook_named
 
@@ -543,12 +539,12 @@ if __name__ == "__main__":
         router = DirectoryWorkspace(absolute_dir, include_markdown=False)
 
         # Should be able to open file within the directory
-        file_manager = router.load(PathFileKey(str(test_file.absolute())))
+        file_manager = router.load(str(test_file.absolute()))
         assert file_manager is not None
 
         # Should NOT be able to open file outside the directory
         with pytest.raises(HTTPException) as exc_info:
-            router.load(PathFileKey(str(other_file.absolute())))
+            router.load(str(other_file.absolute()))
 
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
         assert "Access denied" in exc_info.value.detail
@@ -574,7 +570,7 @@ if __name__ == "__main__":
 
         # Try to access the secret file using absolute path
         with pytest.raises(HTTPException) as exc_info:
-            router.load(PathFileKey(str(secret_file.absolute())))
+            router.load(str(secret_file.absolute()))
 
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
 
@@ -613,7 +609,7 @@ class TestRelativePathsInFileListing:
 
         # Both should be openable using their relative paths
         for path in _collect_file_paths(files):
-            file_manager = router.load(PathFileKey(path))
+            file_manager = router.load(path)
             assert file_manager is not None
             assert file_manager.is_notebook_named
 
@@ -646,7 +642,7 @@ class TestRelativePathsInFileListing:
 
         # Should be openable using the actual path from the files list
         actual_paths = _collect_file_paths(files)
-        file_manager = router.load(PathFileKey(actual_paths[0]))
+        file_manager = router.load(actual_paths[0])
         assert file_manager is not None
         assert file_manager.filename == str(deep_file.absolute())
 
@@ -671,12 +667,12 @@ class TestRelativePathsInFileListing:
         assert relative_path == "notebook.py"
 
         # Open with relative path
-        manager_from_relative = router.load(PathFileKey(relative_path))
+        manager_from_relative = router.load(relative_path)
         assert manager_from_relative is not None
 
         # Open with absolute path
         absolute_path = str(test_file.absolute())
-        manager_from_absolute = router.load(PathFileKey(absolute_path))
+        manager_from_absolute = router.load(absolute_path)
         assert manager_from_absolute is not None
 
         # Both should point to the same file
@@ -699,7 +695,7 @@ class TestRelativePathsInFileListing:
 
         # Try to access file outside using path traversal
         with pytest.raises(HTTPException) as exc_info:
-            router.load(PathFileKey("../outside.py"))
+            router.load("../outside.py")
 
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
 
@@ -724,7 +720,7 @@ class TestRelativePathsInFileListing:
 
         for attempt in traversal_attempts:
             with pytest.raises(HTTPException) as exc_info:
-                router.load(PathFileKey(str(attempt)))
+                router.load(str(attempt))
             assert exc_info.value.status_code == HTTPStatus.FORBIDDEN, (
                 f"Path traversal '{attempt}' should be blocked"
             )
@@ -747,7 +743,7 @@ class TestFileManagerPathResolution:
         )
 
         # Try to open with ./ prefix
-        file_manager = router.load(PathFileKey("./notebook.py"))
+        file_manager = router.load("./notebook.py")
         assert file_manager is not None
         assert file_manager.filename == str(test_file.absolute())
 
@@ -767,7 +763,7 @@ class TestFileManagerPathResolution:
         )
 
         # Path normalization should handle redundant slashes
-        file_manager = router.load(PathFileKey("subdir//notebook.py"))
+        file_manager = router.load("subdir//notebook.py")
         assert file_manager is not None
         assert file_manager.filename == str(test_file.absolute())
 
@@ -781,7 +777,7 @@ class TestFileManagerPathResolution:
         )
 
         with pytest.raises(HTTPException) as exc_info:
-            router.load(PathFileKey("nonexistent.py"))
+            router.load("nonexistent.py")
 
         assert exc_info.value.status_code == HTTPStatus.NOT_FOUND
 
@@ -831,7 +827,7 @@ class TestFileManagerPathResolution:
             os.chdir(other_dir)
 
             # Should still be able to open file using relative path
-            file_manager = router.load(PathFileKey(relative_path))
+            file_manager = router.load(relative_path)
             assert file_manager is not None
             assert file_manager.filename == str(test_file.absolute())
 

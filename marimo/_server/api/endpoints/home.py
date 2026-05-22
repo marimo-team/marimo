@@ -25,7 +25,6 @@ from marimo._server.models.home import (
 )
 from marimo._server.router import APIRouter
 from marimo._server.workspace import (
-    PathFileKey,
     count_files,
     flatten_files,
 )
@@ -117,7 +116,7 @@ async def workspace_files(
             for file in marimo_files:
                 try:
                     resolved_path = session_manager.workspace.resolve(
-                        PathFileKey(file.path)
+                        file.path
                     )
                 except HTTPException as e:
                     if e.status_code == HTTPStatus.NOT_FOUND:
