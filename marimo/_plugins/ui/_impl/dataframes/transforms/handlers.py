@@ -509,8 +509,13 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             result_df = native_df.copy()
             # max_level=0 was used so that pandas doesn't recursively unnest dicts
             # causing mismatch between pandas vs. polars df
+            # using the map function to replace the None values
+            # Replace top-level null rows so pandas 2.x can normalise them, needed for
+            # older versions of pandas running on py310 otherwise CI will fail
             expanded = pd.json_normalize(
-                result_df.pop(transform.column_id),  # type: ignore[arg-type]
+                result_df.pop(transform.column_id).map(
+                    lambda value: {} if value is None else value
+                ),  # type: ignore[arg-type]
                 max_level=0,
             )
             expanded.index = result_df.index

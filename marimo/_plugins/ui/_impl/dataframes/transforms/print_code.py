@@ -224,7 +224,7 @@ def python_print_pandas(
         column_id = _as_literal(transform.column_id)
         return (
             f"{df_name}.join("
-            f"pd.json_normalize({df_name}.pop({column_id}), max_level=0).set_axis({df_name}.index, axis=0)"
+            f"pd.json_normalize({df_name}.pop({column_id}).map(lambda value: {{}} if value is None else value), max_level=0).set_axis({df_name}.index, axis=0)"
             f")"
         )
 
