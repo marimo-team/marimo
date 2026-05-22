@@ -9,7 +9,6 @@ from starlette.websockets import WebSocketDisconnect
 
 from marimo._config.manager import UserConfigManager
 from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
-from marimo._server.workspace import serialize_file_key
 from tests._server.api.endpoints.ws_helpers import (
     assert_kernel_ready_response,
     assert_parse_ready_response,
@@ -241,9 +240,7 @@ async def test_ws_sync_without_existing_session(client: TestClient) -> None:
     file_key = get_session_manager(client).workspace.get_unique_file_key()
     assert file_key is not None
 
-    ws_sync_url = (
-        f"/ws_sync?file={serialize_file_key(file_key)}&access_token=fake-token"
-    )
+    ws_sync_url = f"/ws_sync?file={file_key}&access_token=fake-token"
 
     # Try to connect to ws_sync without creating a main session first
     with pytest.raises(WebSocketDisconnect) as exc_info:
@@ -268,9 +265,7 @@ async def test_ws_sync_cleanup_on_main_disconnect(client: TestClient) -> None:
     DOC_MANAGER.loro_docs_clients.clear()
 
     ws_1 = "/ws?session_id=123&access_token=fake-token"
-    ws_sync_url = (
-        f"/ws_sync?file={serialize_file_key(file_key)}&access_token=fake-token"
-    )
+    ws_sync_url = f"/ws_sync?file={file_key}&access_token=fake-token"
 
     with rtc_enabled(get_user_config_manager(client)):
         with client.websocket_connect(ws_1) as main_websocket:

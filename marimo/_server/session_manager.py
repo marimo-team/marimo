@@ -26,12 +26,10 @@ from marimo._server.session.listeners import RecentsTrackerListener
 from marimo._server.token_manager import TokenManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.workspace import (
-    FileKey,
-    NewFileKey,
+    NEW_FILE,
+    MarimoFileKey,
     NotebookWorkspace,
-    PathFileKey,
     flatten_files,
-    serialize_file_key,
 )
 from marimo._session.app_host import AppHostContext, AppHostPool
 from marimo._session.consumer import SessionConsumer
@@ -161,11 +159,11 @@ class SessionManager:
         """Get all sessions as a dict."""
         return self._repository.sessions
 
-    def app_manager(self, key: FileKey) -> AppFileManager:
+    def app_manager(self, key: MarimoFileKey) -> AppFileManager:
         """Get the app manager for the given key."""
         defaults = AppDefaults.from_config_manager(self._config_manager)
-        if self.mode is SessionMode.EDIT and isinstance(key, PathFileKey):
-            self.workspace.register_allowed_path(key.path)
+        if self.mode is SessionMode.EDIT and not key.startswith(NEW_FILE):
+            self.workspace.register_allowed_path(key)
         return self.workspace.load(key, defaults)
 
     def create_session(
@@ -173,7 +171,7 @@ class SessionManager:
         session_id: SessionId,
         session_consumer: SessionConsumer,
         query_params: SerializedQueryParams,
-        file_key: FileKey,
+        file_key: MarimoFileKey,
         auto_instantiate: bool,
     ) -> Session:
         """Create a new session."""
@@ -186,8 +184,8 @@ class SessionManager:
 
         # Get app file manager
         defaults = AppDefaults.from_config_manager(self._config_manager)
-        if self.mode is SessionMode.EDIT and isinstance(file_key, PathFileKey):
-            self.workspace.register_allowed_path(file_key.path)
+        if self.mode is SessionMode.EDIT and not file_key.startswith(NEW_FILE):
+            self.workspace.register_allowed_path(file_key)
         app_file_manager = self.workspace.load(file_key, defaults)
 
         # Create the session
@@ -204,7 +202,7 @@ class SessionManager:
             )
 
         session = SessionImpl.create(
-            initialization_id=serialize_file_key(file_key),
+            initialization_id=file_key,
             session_consumer=session_consumer,
             mode=self.mode,
             app_metadata=AppMetadata(
@@ -314,12 +312,14 @@ class SessionManager:
         # Search for kiosk sessions by consumer ID
         return self._repository.get_by_consumer_id(ConsumerId(session_id))
 
-    def get_session_by_file_key(self, file_key: FileKey) -> Session | None:
+    def get_session_by_file_key(
+        self, file_key: MarimoFileKey
+    ) -> Session | None:
         """Get a session by file key."""
         return self._repository.get_by_file_key(file_key)
 
     def maybe_resume_session(
-        self, new_session_id: SessionId, file_key: FileKey
+        self, new_session_id: SessionId, file_key: MarimoFileKey
     ) -> Session | None:
         """Try to resume a session if one is resumable.
 
@@ -353,12 +353,12 @@ class SessionManager:
                 if session.kernel_state() is KernelState.STOPPED:
                     self.close_session(session_id)
 
-    def any_clients_connected(self, key: FileKey) -> bool:
+    def any_clients_connected(self, key: MarimoFileKey) -> bool:
         """Returns True if at least one client has an open socket."""
-        if isinstance(key, NewFileKey):
+        if key.startswith(NEW_FILE):
             return False
 
-        sessions_for_file = self._repository.get_by_file_path(key.path)
+        sessions_for_file = self._repository.get_by_file_path(key)
         return any(
             session.connection_state() == ConnectionState.OPEN
             for session in sessions_for_file
