@@ -190,6 +190,7 @@ interface Data<T> {
   fieldTypes?: FieldTypesWithExternalType | null;
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
+  hiddenColumns?: string[];
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
   headerTooltip?: Record<string, string>;
@@ -265,6 +266,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       rowHeaders: columnToFieldTypesSchema,
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
+      hiddenColumns: z.array(z.string()).optional(),
       textJustifyColumns: z
         .record(z.string(), z.enum(["left", "center", "right"]))
         .optional(),
@@ -814,6 +816,7 @@ const DataTableComponent = ({
   reloading,
   freezeColumnsLeft,
   freezeColumnsRight,
+  hiddenColumns,
   textJustifyColumns,
   wrappedColumns,
   headerTooltip,
@@ -1090,6 +1093,7 @@ const DataTableComponent = ({
             onRowSelectionChange={handleRowSelectionChange}
             freezeColumnsLeft={freezeColumnsLeft}
             freezeColumnsRight={freezeColumnsRight}
+            hiddenColumns={hiddenColumns}
             onCellSelectionChange={handleCellSelectionChange}
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
