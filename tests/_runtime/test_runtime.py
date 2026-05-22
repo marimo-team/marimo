@@ -3655,12 +3655,12 @@ class TestErrorHandling:
         assert len(errors) == 1
         assert isinstance(errors[0], MarimoExceptionRaisedError)
         assert errors[0].exception_type == "NameError"
-        # The base message is stable across Python versions; the
-        # "Did you mean: ..." hint is appended by CPython only when it finds
-        # a close match, with wording that varies across the CI matrix.
+        # The base message is stable across all supported Python versions.
         assert errors[0].msg.startswith("name 'aa' is not defined")
-        if "Did you mean" in errors[0].msg:
-            assert "'aaa'" in errors[0].msg
+        # CPython 3.12+ reliably emits "Did you mean: 'aaa'?" for this case.
+        # str(exc) drops it; the runtime must preserve it end-to-end.
+        if sys.version_info >= (3, 12):
+            assert "Did you mean: 'aaa'?" in errors[0].msg
 
     async def test_error_handling_in_run_mode_stop(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider

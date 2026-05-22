@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import traceback
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -177,18 +177,13 @@ class TestFormatExceptionMessage:
         aaa = 1
         with pytest.raises(NameError) as excinfo:
             print(aa)  # type: ignore[name-defined]  # noqa: F821
-        exc = excinfo.value
-        msg = format_exception_message(exc)
-        # The base message is stable across Python versions.
+        msg = format_exception_message(excinfo.value)
+        # The base message is stable across all supported Python versions.
         assert msg.startswith("name 'aa' is not defined")
-        # CPython appends a "Did you mean: ..." hint only when it finds a
-        # close match, and the exact wording varies across versions. Probe
-        # the stdlib's full formatter (a different code path than the helper)
-        # to decide whether this interpreter emits one — if it does, the
-        # helper must preserve it, since str(exc) would drop it.
-        if "Did you mean" in "".join(traceback.format_exception(exc)):
-            assert "Did you mean" in msg
-            assert "'aaa'" in msg
+        # CPython 3.12+ reliably emits "Did you mean: 'aaa'?" for this case.
+        # str(exc) drops it; the helper must preserve it.
+        if sys.version_info >= (3, 12):
+            assert "Did you mean: 'aaa'?" in msg
 
     def test_plain_message_unchanged(self) -> None:
         """Without a suggestion, the bare message is returned without the
