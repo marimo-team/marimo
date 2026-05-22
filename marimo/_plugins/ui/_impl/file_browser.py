@@ -261,9 +261,7 @@ class file_browser(
             )
         elif isinstance(filter, str):
             self._filter = re.compile(filter)
-        elif isinstance(filter, re.Pattern):
-            self._filter = filter
-        elif callable(filter):
+        elif isinstance(filter, re.Pattern) or callable(filter):
             self._filter = filter
         else:
             raise ValueError(

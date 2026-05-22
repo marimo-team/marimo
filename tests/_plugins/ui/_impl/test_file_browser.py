@@ -1281,9 +1281,7 @@ class TestFilterParameter:
         sub.mkdir()
         (tmp_path / "file.txt").touch()
 
-        fb = file_browser(
-            initial_path=tmp_path, filter=r"\.csv$"
-        )
+        fb = file_browser(initial_path=tmp_path, filter=r"\.csv$")
         response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
         names = {f["name"] for f in response.files}
         assert "subdir" in names
