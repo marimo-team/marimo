@@ -3635,6 +3635,30 @@ class TestErrorHandling:
         assert errors[0].traceback is not None
         assert "ValueError" in errors[0].traceback
 
+    async def test_name_error_includes_suggestion(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """A NameError's "Did you mean: ..." suggestion should not be
+        dropped from the error message (regression test)."""
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get("aaa = 1"),
+                exec_req.get("print(aa)"),
+            ]
+        )
+        cell_notifications = mocked_kernel.stream.cell_notifications
+        error_cell_notification = _filter_to_error_ops(cell_notifications)
+        assert len(error_cell_notification) == 1
+        errors = _parse_error_output(error_cell_notification[0])
+
+        assert len(errors) == 1
+        assert isinstance(errors[0], MarimoExceptionRaisedError)
+        assert errors[0].exception_type == "NameError"
+        assert (
+            errors[0].msg == "name 'aa' is not defined. Did you mean: 'aaa'?"
+        )
+
     async def test_error_handling_in_run_mode_stop(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
     ) -> None:

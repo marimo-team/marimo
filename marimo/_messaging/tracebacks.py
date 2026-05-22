@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import traceback
 
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.context import is_code_mode_request
@@ -103,6 +104,38 @@ def _trim_traceback(traceback: str) -> str:
                 return "\n".join(lines[:1] + lines[i:])
 
     return traceback
+
+
+def format_exception_message(exc: BaseException) -> str:
+    """Return an exception's message, including Python's helpful hints.
+
+    `str(exc)` yields only the bare message (`exc.args[0]`). Python's
+    "Did you mean: ..." suggestions for `NameError`, `AttributeError`,
+    `ImportError`, etc. are computed by the `traceback` module from the
+    exception's frame, so they are dropped by `str()`. Format via
+    `TracebackException` to keep them, while stripping the leading
+    "ExceptionType: " prefix (marimo displays the exception type separately).
+
+    Falls back to `str(exc)` when the formatted output can't be reconciled
+    with the bare message (e.g. `SyntaxError`, whose formatting spans
+    multiple lines).
+    """
+    base = str(exc)
+    try:
+        formatted = "".join(
+            traceback.TracebackException.from_exception(
+                exc
+            ).format_exception_only()
+        ).strip()
+    except Exception:
+        return base
+    if base:
+        # `formatted` is "{ExceptionType}: {base}{suggestion}"; slicing from
+        # where `base` begins drops the type prefix but keeps the suggestion.
+        idx = formatted.find(base)
+        if idx != -1:
+            return formatted[idx:]
+    return base
 
 
 def is_code_highlighting(value: str) -> bool:

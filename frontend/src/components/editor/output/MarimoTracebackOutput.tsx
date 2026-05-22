@@ -10,12 +10,7 @@ import {
   MessageCircleIcon,
   SearchIcon,
 } from "lucide-react";
-import { type JSX, useState } from "react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-} from "@/components/ui/accordion";
+import type { JSX } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -41,7 +36,6 @@ import {
   extractAllTracebackInfo,
   getTracebackInfo,
 } from "@/utils/traceback";
-import { cn } from "../../../utils/cn";
 import { AIFixButton } from "../errors/auto-fix";
 import { CellLinkTraceback } from "../links/cell-link";
 import type { OnRefactorWithAI } from "../Output";
@@ -51,8 +45,6 @@ interface Props {
   traceback: string;
   onRefactorWithAI?: OnRefactorWithAI;
 }
-
-const KEY = "item";
 
 /**
  * List of errors due to violations of Marimo semantics.
@@ -66,7 +58,6 @@ export const MarimoTracebackOutput = ({
     html: traceback,
     additionalReplacements: [replaceTracebackFilenames, replaceTracebackPrefix],
   });
-  const [expanded, setExpanded] = useState(true);
 
   const lastTracebackLine = lastLine(traceback);
   const aiEnabled = useAtomValue(aiEnabledAtom);
@@ -93,32 +84,11 @@ export const MarimoTracebackOutput = ({
     });
   };
 
-  const [error, errorMessage] = lastTracebackLine.split(":", 2);
-
   return (
     <div className="flex flex-col gap-2 min-w-full w-fit">
-      <Accordion type="single" collapsible={true} value={expanded ? KEY : ""}>
-        <AccordionItem value={KEY} className="border-none">
-          <div
-            className="flex gap-2 h-10 px-2 hover:bg-muted rounded-sm select-none items-center cursor-pointer transition-all"
-            onClick={() => setExpanded((prev) => !prev)}
-          >
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
-                expanded ? "rotate-180" : "rotate-0",
-              )}
-            />
-            <div className="text-sm inline font-mono">
-              <span className="text-destructive">{error || "Error"}:</span>{" "}
-              {errorMessage}
-            </div>
-          </div>
-          <AccordionContent className="text-muted-foreground px-4 pt-2 text-xs overflow-auto">
-            {htmlTraceback}
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+      <div className="text-muted-foreground pr-4 pt-2 text-xs overflow-auto">
+        {htmlTraceback}
+      </div>
       <div className="flex gap-2">
         {showAIFix && (
           <AIFixButton

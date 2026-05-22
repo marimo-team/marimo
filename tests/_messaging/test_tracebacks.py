@@ -3,10 +3,13 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from marimo._messaging.context import HTTP_REQUEST_CTX, is_code_mode_request
 from marimo._messaging.tracebacks import (
     _highlight_traceback,
     _trim_traceback,
+    format_exception_message,
     is_code_highlighting,
     write_traceback,
 )
@@ -165,6 +168,33 @@ class TestTracebacks:
             mock_stderr._write_with_mimetype.assert_called_once()
             _, kwargs = mock_stderr._write_with_mimetype.call_args
             assert kwargs["mimetype"] == "application/vnd.marimo+traceback"
+
+
+class TestFormatExceptionMessage:
+    def test_name_error_includes_suggestion(self) -> None:
+        """Python's "Did you mean: ..." suggestion is kept (str() drops it)."""
+        aaa = 1
+        with pytest.raises(NameError) as excinfo:
+            print(aa)  # type: ignore[name-defined]  # noqa: F821
+        msg = format_exception_message(excinfo.value)
+        assert msg == "name 'aa' is not defined. Did you mean: 'aaa'?"
+
+    def test_plain_message_unchanged(self) -> None:
+        """Without a suggestion, the bare message is returned without the
+        leading "ExceptionType: " prefix."""
+        with pytest.raises(ValueError) as excinfo:
+            raise ValueError("some message")
+        assert format_exception_message(excinfo.value) == "some message"
+
+    def test_empty_message(self) -> None:
+        with pytest.raises(RuntimeError) as excinfo:
+            raise RuntimeError
+        assert format_exception_message(excinfo.value) == ""
+
+    def test_message_containing_colon(self) -> None:
+        with pytest.raises(ValueError) as excinfo:
+            raise ValueError("expected: a value")
+        assert format_exception_message(excinfo.value) == "expected: a value"
 
 
 class TestIsCodeModeRequest:
