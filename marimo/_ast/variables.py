@@ -71,10 +71,10 @@ def get_cell_from_local(
 
 
 # Demangle every occurrence of `_cell_<cell_id><_name>` inside a free-form
-# string (test output, traceback lines, etc.) back to `<_name>`. The
-# negative-lookbehind excludes the compiled cell-file path
-# `__marimo__cell_<id>_.py`, which carries a leading `_` we must not strip.
-_MANGLED_LOCAL_IN_TEXT_RE = re.compile(r"(?<!_)_cell_\w+?(_\w+)")
+# string (test output, traceback lines, etc.) back to `<_name>`. Matches
+# normal ids and UUIDs; the `(?<!_)` lookbehind skips the compiled cell-file
+# path `__marimo__cell_<id>_.py`, which carries a leading `_`.
+_MANGLED_LOCAL_IN_TEXT_RE = re.compile(r"(?<!_)_cell_(?:[^\W_][\w-]*?)(_\w*)")
 
 
 def demangle_locals_in_text(text: str) -> str:

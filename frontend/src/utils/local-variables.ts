@@ -11,18 +11,15 @@ import type { CellId } from "@/core/cells/ids";
  * Mirrors `marimo/_ast/variables.py`.
  */
 
-// Matches `_cell_<cell_id><name>` where the cell id has no underscores and
-// `<name>` begins with `_` (the original ref was a local underscore name).
-// Python mangle is `f"_cell_{cell_id}{ref}"` (variables.py:41), so the only
-// `_` between the id and the name is the leading `_` of the name itself.
-// Non-greedy id group + name group that must start with `_` correctly
-// recovers the boundary.
-//
-// Anchored on a single leading `_cell_`, so the compiled cell file path
-// `__marimo__cell_<id>_.py` (two leading underscores, no trailing `_<name>`)
-// does not match.
-const MANGLED_LOCAL_PATTERN = String.raw`_cell_([^\W_]\w*?)(_\w+)`;
-const ANCHORED_RE = new RegExp(`^${MANGLED_LOCAL_PATTERN}$`);
+// Matches `_cell_<cell_id><name>` for normal ids and UUIDs. The `[\w-]`
+// id class admits hyphens; the `_\w*` name group admits the bare `_`
+// local; the `(?<!_)` lookbehind skips `__marimo__cell_...` paths.
+// Mirrors `_MANGLED_LOCAL_IN_TEXT_RE` in `variables.py`.
+const MANGLED_LOCAL_BODY = String.raw`_cell_([^\W_][\w-]*?)(_\w*)`;
+const MANGLED_LOCAL_PATTERN = String.raw`(?<!_)${MANGLED_LOCAL_BODY}`;
+// Strict (whole-string) form for `unmangleLocal`; the leading `^` makes the
+// lookbehind trivially satisfied, so use the bare body.
+const ANCHORED_RE = new RegExp(`^${MANGLED_LOCAL_BODY}$`);
 const UNANCHORED_RE = new RegExp(MANGLED_LOCAL_PATTERN);
 const GLOBAL_RE = new RegExp(MANGLED_LOCAL_PATTERN, "g");
 
