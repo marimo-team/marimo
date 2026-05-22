@@ -5,6 +5,7 @@ import base64
 import json
 import pathlib
 import sys
+import textwrap
 from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -20,6 +21,8 @@ from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.notification import CellNotification
 from marimo._server.export import (
     export_as_wasm,
+    run_app_then_export_as_html,
+    run_app_then_export_as_ipynb,
     run_app_then_export_as_pdf,
     run_app_until_completion,
 )
@@ -637,6 +640,108 @@ def test_export_as_html_with_error_outputs(session_view: SessionView) -> None:
 
     assert filename == "notebook.html"
     assert "Test error" in html or "ValueError" in html
+
+
+def _write_lazy_notebook(path: Path, lazy_arg: str) -> None:
+    path.write_text(
+        textwrap.dedent(
+            f"""
+            import marimo
+
+            app = marimo.App()
+
+
+            @app.cell
+            def _():
+                import marimo as mo
+
+                def _make_async():
+                    async def inner():
+                        return "ASYNC_RESULT"
+                    return inner
+
+                mo.lazy({lazy_arg})
+                return ()
+
+
+            if __name__ == "__main__":
+                app.run()
+            """
+        )
+    )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has(), reason="nbformat not installed"
+)
+@pytest.mark.parametrize(
+    ("lazy_arg", "expected_marker", "should_resolve"),
+    [
+        pytest.param('"EAGER_VALUE"', "EAGER_VALUE", True, id="eager_value"),
+        pytest.param(
+            'lambda: "SYNC_RESULT"', "SYNC_RESULT", True, id="sync_callable"
+        ),
+        pytest.param(
+            "_make_async()", "ASYNC_RESULT", False, id="async_callable"
+        ),
+    ],
+)
+async def test_run_app_then_export_as_ipynb_resolves_lazy(
+    tmp_path: Path,
+    lazy_arg: str,
+    expected_marker: str,
+    should_resolve: bool,
+) -> None:
+    """Regression test for https://github.com/marimo-team/marimo/issues/9624.
+
+    Non-interactive exports (ipynb, PDF) resolve sync `mo.lazy` content
+    eagerly. Async elements can't be awaited from `__new__` and stay as
+    placeholders.
+    """
+    notebook = tmp_path / "lazy_notebook.py"
+    _write_lazy_notebook(notebook, lazy_arg)
+
+    result = await run_app_then_export_as_ipynb(
+        filepath=MarimoPath(str(notebook)),
+        sort_mode="top-down",
+        cli_args={},
+        argv=[],
+    )
+
+    # The rendered HTML is wrapped in <span> by as_html; the raw marker
+    # alone appears in the cell source regardless, so check the wrapped
+    # form to confirm resolution.
+    rendered = f"<span>{expected_marker}</span>"
+    if should_resolve:
+        assert rendered in result.contents
+        assert "marimo-lazy" not in result.contents
+    else:
+        assert "marimo-lazy" in result.contents
+        assert rendered not in result.contents
+
+
+async def test_run_app_then_export_as_html_keeps_lazy_placeholder(
+    tmp_path: Path,
+) -> None:
+    """HTML export ships interactive widgets and leaves `mo.lazy` as a placeholder.
+
+    Static HTML exports don't resolve `mo.lazy` because the global
+    `is_non_interactive` flag would also switch tables/altair/plotly/etc.
+    to non-interactive fallbacks. A lazy-specific resolution path can be
+    added later as a follow-up.
+    """
+    notebook = tmp_path / "lazy_notebook.py"
+    _write_lazy_notebook(notebook, 'lambda: "SYNC_RESULT"')
+
+    result = await run_app_then_export_as_html(
+        path=MarimoPath(str(notebook)),
+        include_code=False,
+        cli_args={},
+        argv=[],
+    )
+
+    assert "marimo-lazy" in result.contents
+    assert "SYNC_RESULT" not in result.contents
 
 
 def test_export_as_html_code_hash_consistency(

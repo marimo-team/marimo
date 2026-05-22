@@ -8,12 +8,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from marimo._server.workspace._base import (
+    NEW_FILE,
+    MarimoFileKey,
     NotebookWorkspace,
     file_not_found,
-)
-from marimo._server.workspace._keys import (
-    FileKey,
-    NewFileKey,
 )
 from marimo._utils.paths import normalize_path
 
@@ -31,8 +29,8 @@ class EmptyWorkspace(NotebookWorkspace):
     continue to work.
     """
 
-    def get_unique_file_key(self) -> FileKey | None:
-        return NewFileKey()
+    def get_unique_file_key(self) -> MarimoFileKey | None:
+        return NEW_FILE
 
     def single_file(self) -> MarimoFile | None:
         return None
@@ -41,12 +39,12 @@ class EmptyWorkspace(NotebookWorkspace):
     def files(self) -> list[FileInfo]:
         return []
 
-    def resolve(self, key: FileKey) -> str | None:
-        if isinstance(key, NewFileKey):
+    def resolve(self, key: MarimoFileKey) -> str | None:
+        if key.startswith(NEW_FILE):
             return None
-        if os.path.exists(key.path):
+        if os.path.exists(key):
             # Match sibling workspaces: return an absolute normalized path so
             # downstream comparisons (e.g. session lookups) don't trip on
             # relative-vs-absolute mismatches.
-            return str(normalize_path(Path(key.path)))
+            return str(normalize_path(Path(key)))
         raise file_not_found(key)

@@ -18,7 +18,6 @@ from marimo._server.api.endpoints.ws.ws_connection_validator import (
 )
 from marimo._server.codes import WebSocketCodes
 from marimo._server.session_manager import SessionManager
-from marimo._server.workspace import serialize_file_key
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.api.endpoints.ws_helpers import (
@@ -164,9 +163,8 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
-        file_key = session_manager.workspace.get_unique_file_key()
-        assert file_key
-        filename = serialize_file_key(file_key)
+        filename = session_manager.workspace.get_unique_file_key()
+        assert filename
         with open(filename, "a") as f:  # noqa: ASYNC230
             f.write("\n# test")
             f.close()

@@ -13,18 +13,14 @@ from marimo._server.files.path_validator import PathValidator
 from marimo._server.models.files import FileInfo
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import (
-    NEW_FILE_WIRE,
+    NEW_FILE,
     DirectoryWorkspace,
     EmptyWorkspace,
     FixedFilesWorkspace,
-    NewFileKey,
-    PathFileKey,
     SingleFileWorkspace,
     count_files,
     flatten_files,
     infer_workspace,
-    parse_file_key,
-    serialize_file_key,
 )
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
@@ -100,7 +96,7 @@ class TestNotebookWorkspace(unittest.TestCase):
     def test_empty_workspace(self):
         workspace = EmptyWorkspace()
         assert workspace.single_file() is None
-        assert workspace.get_unique_file_key() == NewFileKey()
+        assert workspace.get_unique_file_key() == NEW_FILE
 
     def test_directory_workspace_lists_files(self):
         workspace = DirectoryWorkspace(self.test_dir, include_markdown=False)
@@ -128,26 +124,26 @@ class TestNotebookWorkspace(unittest.TestCase):
     def test_fixed_files_restricts_access(self):
         workspace = FixedFilesWorkspace([_marimo_file(self.test_file1.name)])
         with pytest.raises(HTTPException) as exc:
-            workspace.load(PathFileKey(self.test_file2.name))
+            workspace.load(self.test_file2.name)
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
     def test_fixed_files_register_allowed_path_is_noop(self):
         workspace = FixedFilesWorkspace([_marimo_file(self.test_file1.name)])
         workspace.register_allowed_path(self.test_file2.name)
         with pytest.raises(HTTPException) as exc:
-            workspace.load(PathFileKey(self.test_file2.name))
+            workspace.load(self.test_file2.name)
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
     def test_single_file_register_allowed_path_grows_allowlist(self):
         workspace = SingleFileWorkspace(_marimo_file(self.test_file1.name))
         workspace.register_allowed_path(self.test_file2.name)
-        manager = workspace.load(PathFileKey(self.test_file2.name))
+        manager = workspace.load(self.test_file2.name)
         assert manager is not None
 
     def test_fixed_files_disallows_new_file_key(self):
         workspace = FixedFilesWorkspace([_marimo_file(self.test_file1.name)])
         with pytest.raises(HTTPException) as exc:
-            workspace.load(NewFileKey())
+            workspace.load(NEW_FILE)
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
     def test_fixed_files_resolve_supports_relative_key(self):
@@ -158,20 +154,20 @@ class TestNotebookWorkspace(unittest.TestCase):
         relative_key = str(
             Path(self.test_file1.name).relative_to(self.test_dir)
         )
-        resolved = workspace.resolve(PathFileKey(relative_key))
+        resolved = workspace.resolve(relative_key)
         assert resolved == self.test_file1.name
 
     def test_directory_workspace_load(self):
         workspace = DirectoryWorkspace(self.test_dir, include_markdown=False)
         filename = self.test_file1.name
         assert os.path.exists(filename), f"File {filename} does not exist"
-        file_manager = workspace.load(key=PathFileKey(filename))
+        file_manager = workspace.load(key=filename)
         assert file_manager.filename == filename
 
     def test_directory_workspace_load_nested(self):
         workspace = DirectoryWorkspace(self.test_dir, include_markdown=False)
         nested_filename = self.nested_file.name
-        file_manager = workspace.load(key=PathFileKey(nested_filename))
+        file_manager = workspace.load(key=nested_filename)
         assert file_manager.filename == self.nested_file.name
         assert file_manager.filename is not None
         assert os.path.exists(file_manager.filename)
@@ -215,7 +211,7 @@ class TestNotebookWorkspace(unittest.TestCase):
             MarimoPath(self.test_file1.name)
         )
         with pytest.raises(HTTPException) as exc:
-            workspace.resolve(PathFileKey(self.test_file2.name))
+            workspace.resolve(self.test_file2.name)
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
     def test_single_file_blocks_path_traversal(self):
@@ -228,7 +224,7 @@ class TestNotebookWorkspace(unittest.TestCase):
             self.nested_dir, "..", "..", "..", "etc", "passwd"
         )
         with pytest.raises(HTTPException) as exc:
-            workspace.resolve(PathFileKey(traversal))
+            workspace.resolve(traversal)
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
     def test_single_file_accepts_dotdot_that_normalizes_to_allowed(self):
@@ -240,7 +236,7 @@ class TestNotebookWorkspace(unittest.TestCase):
         equivalent = os.path.join(
             self.nested_dir, "..", os.path.basename(self.test_file1.name)
         )
-        resolved = workspace.resolve(PathFileKey(equivalent))
+        resolved = workspace.resolve(equivalent)
         assert resolved == self.test_file1.name
 
     # ----- security: FixedFilesWorkspace -----
@@ -252,7 +248,7 @@ class TestNotebookWorkspace(unittest.TestCase):
             directory=self.test_dir,
         )
         with pytest.raises(HTTPException) as exc:
-            workspace.resolve(PathFileKey("../../../etc/passwd"))
+            workspace.resolve("../../../etc/passwd")
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
     def test_fixed_files_blocks_absolute_path_outside_allowlist(self):
@@ -264,7 +260,7 @@ class TestNotebookWorkspace(unittest.TestCase):
         # test_file2 exists on disk inside the same directory but is not on the
         # allowlist — must still be denied.
         with pytest.raises(HTTPException) as exc:
-            workspace.resolve(PathFileKey(self.test_file2.name))
+            workspace.resolve(self.test_file2.name)
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
     def test_fixed_files_accepts_dotdot_that_normalizes_to_allowed(self):
@@ -273,7 +269,7 @@ class TestNotebookWorkspace(unittest.TestCase):
             self.nested_dir, "..", os.path.basename(self.test_file1.name)
         )
         workspace = FixedFilesWorkspace([_marimo_file(dotdot_path)])
-        resolved = workspace.resolve(PathFileKey(dotdot_path))
+        resolved = workspace.resolve(dotdot_path)
         assert resolved is not None
         assert os.path.exists(resolved)
 
@@ -281,34 +277,25 @@ class TestNotebookWorkspace(unittest.TestCase):
         """`__new__` keys are not valid in run mode."""
         workspace = FixedFilesWorkspace([])
         with pytest.raises(HTTPException) as exc:
-            workspace.resolve(NewFileKey())
+            workspace.resolve(NEW_FILE)
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
     # ----- security: DirectoryWorkspace -----
 
-    def test_directory_workspace_new_file_key_returns_none(self):
-        """`NewFileKey` resolves to `None` (a blank notebook)."""
-        workspace = DirectoryWorkspace(self.test_dir, include_markdown=False)
-        assert workspace.resolve(NewFileKey()) is None
+    def test_directory_workspace_new_file_prefix_does_not_leak(self):
+        """`__new__` prefix returns None — does not bypass containment.
 
-    def test_directory_workspace_only_exact_sentinel_is_new(self):
-        """Only the exact `__new__` sentinel resolves to the blank notebook.
-
-        After the FileKey ADT migration, anything other than the literal
-        `__new__` parses to a :class:`PathFileKey` and goes through normal
-        containment validation.
+        `startswith(NEW_FILE)` could otherwise be coaxed into accepting
+        crafted keys like `__new__../etc/passwd`; verify those still resolve
+        to `None` (a blank notebook), never an arbitrary file.
         """
         workspace = DirectoryWorkspace(self.test_dir, include_markdown=False)
-        for raw in (
-            "__new__suffix.py",
-            "__new__/nested.py",
+        for key in (
+            NEW_FILE,
+            f"{NEW_FILE}../etc/passwd",
+            f"{NEW_FILE}/etc/passwd",
         ):
-            with pytest.raises(HTTPException) as exc:
-                workspace.resolve(PathFileKey(raw))
-            assert exc.value.status_code in (
-                HTTPStatus.FORBIDDEN,
-                HTTPStatus.NOT_FOUND,
-            )
+            assert workspace.resolve(key) is None
 
     def test_directory_workspace_temp_dir_does_not_enable_traversal(self):
         """A temp-dir bypass must not let attackers escape via `..`."""
@@ -322,7 +309,7 @@ class TestNotebookWorkspace(unittest.TestCase):
             # Path that traverses through the temp dir to escape entirely.
             traversal = os.path.join(temp_dir, "..", "..", "etc", "passwd")
             with pytest.raises(HTTPException) as exc:
-                workspace.resolve(PathFileKey(traversal))
+                workspace.resolve(traversal)
             # The path normalizes to /etc/passwd (or equivalent), neither in
             # the temp dir nor in the workspace directory — must be denied.
             assert exc.value.status_code in (
@@ -335,14 +322,14 @@ class TestNotebookWorkspace(unittest.TestCase):
     def test_empty_workspace_load_with_new_file_key_returns_blank(self):
         """Bare `__new__` key always yields an unbacked manager."""
         workspace = EmptyWorkspace()
-        manager = workspace.load(NewFileKey())
+        manager = workspace.load(NEW_FILE)
         assert manager.filename is None
 
     def test_empty_workspace_load_with_nonexistent_path_404s(self):
         """Concrete keys that don't exist on disk must 404."""
         workspace = EmptyWorkspace()
         with pytest.raises(HTTPException) as exc:
-            workspace.load(PathFileKey("/this/path/does/not/exist.py"))
+            workspace.load("/this/path/does/not/exist.py")
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
     def test_empty_workspace_resolve_returns_absolute_normalized(self):
@@ -355,7 +342,7 @@ class TestNotebookWorkspace(unittest.TestCase):
             os.chdir(self.test_dir)
             relative_key = os.path.basename(self.test_file1.name)
             workspace = EmptyWorkspace()
-            resolved = workspace.resolve(PathFileKey(relative_key))
+            resolved = workspace.resolve(relative_key)
             assert resolved is not None
             assert os.path.isabs(resolved)
             assert os.path.samefile(resolved, self.test_file1.name)
@@ -372,31 +359,8 @@ class TestNotebookWorkspace(unittest.TestCase):
         process owner.
         """
         workspace = EmptyWorkspace()
-        manager = workspace.load(PathFileKey(self.test_file1.name))
+        manager = workspace.load(self.test_file1.name)
         assert manager.filename == self.test_file1.name
-
-
-def test_file_key_roundtrip() -> None:
-    """parse(serialize(k)) == k for both variants."""
-    new_key = NewFileKey()
-    assert parse_file_key(serialize_file_key(new_key)) == new_key
-
-    path_key = PathFileKey("/tmp/notebook.py")
-    assert parse_file_key(serialize_file_key(path_key)) == path_key
-
-
-def test_file_key_wire_format() -> None:
-    """The serialized form is the wire string preserved across HTTP/WS."""
-    assert serialize_file_key(NewFileKey()) == NEW_FILE_WIRE
-    assert serialize_file_key(PathFileKey("/foo.py")) == "/foo.py"
-
-
-def test_parse_file_key_only_exact_sentinel_is_new() -> None:
-    """Strings that look like `__new__` prefixes are paths, not new files."""
-    assert parse_file_key(NEW_FILE_WIRE) == NewFileKey()
-    assert parse_file_key("__new__suffix.py") == PathFileKey(
-        "__new__suffix.py"
-    )
 
 
 def test_flatten_files() -> None:
@@ -854,7 +818,7 @@ def test_lazy_router_allows_temp_dir_files(tmp_path: Path):
 
     # Without registering temp dir, accessing temp file should fail
     with pytest.raises(HTTPException) as exc_info:
-        router.load(PathFileKey(str(temp_file)))
+        router.load(str(temp_file))
     assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
     assert "outside the allowed directory" in exc_info.value.detail
 
@@ -862,7 +826,7 @@ def test_lazy_router_allows_temp_dir_files(tmp_path: Path):
     router.register_temp_dir(str(temp_dir))
 
     # Now accessing the temp file should succeed
-    manager = router.load(PathFileKey(str(temp_file)))
+    manager = router.load(str(temp_file))
     assert manager is not None
     assert manager.path == str(temp_file)
 
@@ -894,13 +858,13 @@ def test_lazy_router_temp_dir_doesnt_affect_normal_files(
     router.register_temp_dir(str(other_temp_dir))
 
     # Base file should still be accessible
-    manager = router.load(PathFileKey(str(base_file)))
+    manager = router.load(str(base_file))
     assert manager is not None
     assert manager.path == str(base_file)
 
     # Outside file should still be blocked (not in registered temp dir)
     with pytest.raises(HTTPException) as exc_info:
-        router.load(PathFileKey(str(outside_file)))
+        router.load(str(outside_file))
     assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
 
 
@@ -932,5 +896,5 @@ def test_lazy_router_symlink_directory_outside_allowed(tmp_path: Path):
     # Symlinks are preserved (not resolved), so the path
     # base_dir/shared/outside.py is inside base_dir
     router = DirectoryWorkspace(str(base_dir), include_markdown=False)
-    manager = router.load(PathFileKey(str(file_through_symlink)))
+    manager = router.load(str(file_through_symlink))
     assert manager is not None

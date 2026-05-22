@@ -14,6 +14,8 @@ import os
 
 from marimo import _loggers
 from marimo._server.workspace._base import (
+    NEW_FILE,
+    MarimoFileKey,
     NotebookWorkspace,
     count_files,
     flatten_files,
@@ -21,14 +23,6 @@ from marimo._server.workspace._base import (
 from marimo._server.workspace._directory import DirectoryWorkspace
 from marimo._server.workspace._empty import EmptyWorkspace
 from marimo._server.workspace._fixed import FixedFilesWorkspace
-from marimo._server.workspace._keys import (
-    NEW_FILE_WIRE,
-    FileKey,
-    NewFileKey,
-    PathFileKey,
-    parse_file_key,
-    serialize_file_key,
-)
 from marimo._server.workspace._single import SingleFileWorkspace
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
@@ -51,18 +45,14 @@ def infer_workspace(path: str) -> NotebookWorkspace:
 
 
 __all__ = [
-    "NEW_FILE_WIRE",
+    "NEW_FILE",
     "DirectoryWorkspace",
     "EmptyWorkspace",
-    "FileKey",
     "FixedFilesWorkspace",
-    "NewFileKey",
+    "MarimoFileKey",
     "NotebookWorkspace",
-    "PathFileKey",
     "SingleFileWorkspace",
     "count_files",
     "flatten_files",
     "infer_workspace",
-    "parse_file_key",
-    "serialize_file_key",
 ]
