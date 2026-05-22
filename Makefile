@@ -8,7 +8,7 @@ DENO_VERSION := 2.7.14
 DENO ?= uv tool run --from deno==$(DENO_VERSION) deno
 DESIGN_MD_DENO_FLAGS := --no-config --no-lock --node-modules-dir=none
 DESIGN_MD_READ_PATHS := frontend/src/css/app/App.css,frontend/src/css/app/Cell.css,frontend/src/core/config/config-schema.ts,frontend/src/plugins/impl/data-editor/themes.ts,frontend/src/css/globals.css,frontend/src/components/editor/renderers/grid-layout/plugin.tsx,frontend/tailwind.config.cjs
-DESIGN_MD_DENO_RUN_FLAGS := $(DESIGN_MD_DENO_FLAGS) --allow-read=$(DESIGN_MD_READ_PATHS)
+DESIGN_MD_DENO_RUN_FLAGS := $(DESIGN_MD_DENO_FLAGS) --allow-read=$(DESIGN_MD_READ_PATHS) --allow-env=CI
 DESIGN_MD_LINTER ?= pnpm --silent dlx @google/design.md@0.1.1
 
 .PHONY: help
