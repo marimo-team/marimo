@@ -11,11 +11,11 @@ import type { DateValue, TimeValue } from "react-aria-components";
 import { TimeField } from "@/components/ui/date-input";
 import { DatePicker, DateRangePicker } from "@/components/ui/date-picker";
 import {
-  dateToISODate,
-  dateToISODateTime,
-  dateToISOTime,
-  type FilterType,
-} from "./filters";
+  dateToLocalISODate,
+  dateToLocalISODateTime,
+  dateToLocalISOTime,
+} from "@/utils/dates";
+import type { FilterType } from "./filters";
 
 export type DateLikeFilterType = Extract<
   FilterType,
@@ -28,11 +28,11 @@ function dateToAria(
 ): DateValue | TimeValue {
   switch (filterType) {
     case "date":
-      return parseDate(dateToISODate(d));
+      return parseDate(dateToLocalISODate(d));
     case "datetime":
-      return parseDateTime(dateToISODateTime(d));
+      return parseDateTime(dateToLocalISODateTime(d));
     case "time":
-      return parseTime(dateToISOTime(d));
+      return parseTime(dateToLocalISOTime(d));
   }
 }
 

@@ -1,11 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { logNever } from "@/utils/assertNever";
-import { exactDateTime } from "@/utils/dates";
+import {
+  dateToLocalISODate,
+  dateToLocalISOTime,
+  exactDateTime,
+} from "@/utils/dates";
 import { OPERATOR_LABELS } from "../operator-labels";
 import { stringifyUnknownValue } from "../utils";
 import type { ColumnFilterValue } from "./builders";
-import { dateToISODate, dateToISOTime } from "./serialize";
 import type { FormattedFilter } from "./types";
 
 interface FormatContext {
@@ -91,9 +94,9 @@ export function formatValue(
   ) {
     const format =
       value.type === "date"
-        ? dateToISODate
+        ? dateToLocalISODate
         : value.type === "time"
-          ? dateToISOTime
+          ? dateToLocalISOTime
           : (d: Date) => exactDateTime(d, ctx.timezone, ctx.locale);
     switch (value.operator) {
       case "between":

@@ -7,28 +7,13 @@ import type {
 } from "@/plugins/impl/data-frames/schema";
 import type { ColumnId } from "@/plugins/impl/data-frames/types";
 import { assertNever } from "@/utils/assertNever";
+import {
+  dateToLocalISODate,
+  dateToLocalISODateTime,
+  dateToLocalISOTime,
+} from "@/utils/dates";
 import type { ColumnFilterValue } from "./builders";
 import { isNullishFilter } from "./guards";
-
-function pad2(n: number): string {
-  return n.toString().padStart(2, "0");
-}
-
-function pad4(n: number): string {
-  return n.toString().padStart(4, "0");
-}
-
-export function dateToISODate(d: Date): string {
-  return `${pad4(d.getFullYear())}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-export function dateToISOTime(d: Date): string {
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
-}
-
-export function dateToISODateTime(d: Date): string {
-  return `${dateToISODate(d)}T${dateToISOTime(d)}`;
-}
 
 export function filterToFilterCondition(
   columnIdString: string,
@@ -137,10 +122,10 @@ export function filterToFilterCondition(
     case "time": {
       const encode =
         filter.type === "date"
-          ? dateToISODate
+          ? dateToLocalISODate
           : filter.type === "time"
-            ? dateToISOTime
-            : dateToISODateTime;
+            ? dateToLocalISOTime
+            : dateToLocalISODateTime;
       switch (filter.operator) {
         case "between":
           return [
