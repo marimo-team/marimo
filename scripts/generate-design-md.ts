@@ -49,6 +49,8 @@ const logoSvgUrl =
 const sources = {
   appCss: "frontend/src/css/app/App.css",
   cellCss: "frontend/src/css/app/Cell.css",
+  codeMirrorDarkTheme: "frontend/src/core/codemirror/theme/dark.ts",
+  codeMirrorLightTheme: "frontend/src/core/codemirror/theme/light.ts",
   configSchema: "frontend/src/core/config/config-schema.ts",
   dataGridTheme: "frontend/src/plugins/impl/data-editor/themes.ts",
   globalCss: "frontend/src/css/globals.css",
@@ -555,6 +557,32 @@ const gridLayoutDefault = (key: string) => {
   );
 };
 
+const codeMirrorThemeSetting = (source: SourceKey, key: string) => {
+  let settings: ObjectExpression | undefined;
+  walkAst(ast(source), (node) => {
+    if (
+      settings ||
+      node.type !== "CallExpression" ||
+      node.callee.type !== "Identifier" ||
+      node.callee.name !== "createTheme"
+    ) {
+      return;
+    }
+    const config = callArgument(node);
+    settings = config?.type === "ObjectExpression"
+      ? objectExpression(
+        objectProperty(config, "settings"),
+        `${source}:settings`,
+      )
+      : undefined;
+  });
+  const expression = objectProperty(
+    required(settings, `${source}:settings`),
+    key,
+  );
+  return required(expression ? expressionText(expression) : undefined, key);
+};
+
 const themePath = (path: readonly string[]) =>
   path.reduce<unknown>(
     (current, key) =>
@@ -700,6 +728,12 @@ const buildColors = () => {
     colors["card-dark"] ?? colors["background-dark"],
     "surface-dark",
   );
+  colors["code-foreground"] = formatColor(
+    codeMirrorThemeSetting("codeMirrorLightTheme", "foreground"),
+  );
+  colors["code-foreground-dark"] = formatColor(
+    codeMirrorThemeSetting("codeMirrorDarkTheme", "foreground"),
+  );
   // The data grid accent is a TS literal, not a CSS custom property.
   colors["data-grid-accent"] = formatColor(
     required(
@@ -732,7 +766,6 @@ const buildTypography = () => ({
     family: "text-font",
     size: "sm",
     weight: "medium",
-    lineHeight: "none",
   }),
   "label-xs": typographyToken({
     family: "text-font",
@@ -830,7 +863,7 @@ const buildComponents = () => ({
   },
   "code-editor": {
     backgroundColor: colorRef("code-background"),
-    textColor: colorRef("foreground"),
+    textColor: colorRef("code-foreground"),
     typography: typographyRef("code-editor"),
     width: cssDeclaration("cellCss", ".cm", "width"),
   },
@@ -851,7 +884,7 @@ const buildComponents = () => ({
   input: {
     backgroundColor: colorRef("background"),
     textColor: colorRef("foreground"),
-    typography: typographyRef("code-editor"),
+    typography: typographyRef("body-sm"),
     rounded: roundedRef("sm"),
     height: themeString(["spacing", "6"]),
   },

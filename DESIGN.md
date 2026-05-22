@@ -55,6 +55,8 @@ colors:
   code-background-dark: "#282C34"
   surface: "#FFFFFF"
   surface-dark: "#252927"
+  code-foreground: "#000000"
+  code-foreground-dark: "#ABB2BF"
   data-grid-accent: "#7C3AED"
 typography:
   body-md:
@@ -73,7 +75,7 @@ typography:
     fontFamily: PT Sans
     fontSize: 0.875rem
     fontWeight: "500"
-    lineHeight: "1"
+    lineHeight: 1.25rem
     letterSpacing: 0em
   label-xs:
     fontFamily: PT Sans
@@ -138,7 +140,7 @@ components:
     width: 100%
   code-editor:
     backgroundColor: "{colors.code-background}"
-    textColor: "{colors.foreground}"
+    textColor: "{colors.code-foreground}"
     typography: "{typography.code-editor}"
     width: 100%
   button-primary:
@@ -156,7 +158,7 @@ components:
   input:
     backgroundColor: "{colors.background}"
     textColor: "{colors.foreground}"
-    typography: "{typography.code-editor}"
+    typography: "{typography.body-sm}"
     rounded: "{rounded.sm}"
     height: 1.5rem
   data-table:
