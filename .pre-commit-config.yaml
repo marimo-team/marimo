@@ -62,3 +62,12 @@ repos:
         args: [--write, --config, .oxfmtrc.json]
         files: ^(frontend/src/|packages/)
         "types_or": [javascript, jsx, ts, tsx]
+
+  - repo: local
+    hooks:
+      - id: unique-test-filenames
+        name: Enforce unique test filenames
+        entry: python scripts/check_test_filenames.py
+        language: system
+        pass_filenames: false
+        files: ^tests/.*\.py$
