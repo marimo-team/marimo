@@ -127,7 +127,7 @@ export const FilterPills = <TData,>({
           onOpenChange={setOverflowOpen}
           className="w-fit max-w-[min(90vw,40rem)] p-0"
         >
-          <PopoverClose className="absolute top-2 right-2">
+          <PopoverClose className="absolute top-2 right-2" aria-label="Close">
             <XIcon className="h-4 w-4" aria-hidden={true} />
           </PopoverClose>
           <div className="flex flex-col pt-7">

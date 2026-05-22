@@ -298,23 +298,27 @@ const DataTableInternal = <TData,>({
 
   const [addFilterSnapshot, setAddFilterSnapshot] =
     React.useState<Snapshot | null>(null);
-  const requestAddFilter = React.useCallback(
-    (request: AddFilterRequest) => {
-      const column = table.getColumn(request.columnId);
-      if (!column) {
-        return;
-      }
-      setAddFilterSnapshot(
-        buildEditorSnapshot(column as Column<unknown, unknown>, {
-          operator: request.operator,
-        }),
-      );
-    },
+
+  // useMemo instead of useCallback because need to pass it as object
+  const filterEditor = React.useMemo(
+    () => ({
+      requestAddFilter: (request: AddFilterRequest) => {
+        const column = table.getColumn(request.columnId);
+        if (!column) {
+          return;
+        }
+        setAddFilterSnapshot(
+          buildEditorSnapshot(column as Column<unknown, unknown>, {
+            operator: request.operator,
+          }),
+        );
+      },
+    }),
     [table],
   );
 
   return (
-    <FilterEditorProvider value={{ requestAddFilter }}>
+    <FilterEditorProvider value={filterEditor}>
       <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
         <FilterPills
           filters={filters}
