@@ -6,6 +6,7 @@ import { CheckIcon, MinusIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
+import { Button } from "../ui/button";
 import { Combobox, ComboboxItem } from "../ui/combobox";
 import { Input } from "../ui/input";
 import { NumberField } from "../ui/number-field";
@@ -16,117 +17,49 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Button } from "../ui/button";
+import { Tooltip } from "../ui/tooltip";
 import { DateLikeInput, DateLikeRangeInput } from "./date-filter-inputs";
 import { FilterByValuesPicker } from "./filter-by-values-picker";
-import { RegexInput } from "./regex-input";
 import {
   type ColumnFilterValue,
-  DATETIME_OPS,
+  columnEditableType,
+  DEFAULT_OPERATOR_FOR_TYPE,
+  defaultFilterValueFor,
   EDITABLE_FILTER_TYPES,
   Filter,
   type FilterType,
-  isDatetimeComparisonOp,
-  isNumberComparisonOp,
+  isComparisonOp,
+  isDateLikeType,
   isTextScalarOp,
-  MEMBERSHIP_OPS,
-  NUMBER_OPS,
-  TEXT_OPS,
+  OPERATORS_BY_TYPE,
+  OPERATORS_WITHOUT_VALUE,
+  type Snapshot,
 } from "./filters";
 import { OPERATOR_LABELS } from "./operator-labels";
-import { Tooltip } from "../ui/tooltip";
-
-type DateLikeFilterType = Extract<FilterType, "date" | "datetime" | "time">;
-
-const DATE_LIKE_TYPES: ReadonlySet<FilterType> = new Set([
-  "date",
-  "datetime",
-  "time",
-]);
-
-const isDateLikeType = (type: FilterType): type is DateLikeFilterType =>
-  DATE_LIKE_TYPES.has(type);
-
-const BOOLEAN_OPS = ["is_true", "is_false", "is_null", "is_not_null"] as const;
-const SELECT_OPS = MEMBERSHIP_OPS;
-
-const OPERATORS_BY_TYPE: Record<FilterType, ReadonlyArray<OperatorType>> = {
-  number: NUMBER_OPS,
-  text: TEXT_OPS,
-  boolean: BOOLEAN_OPS,
-  select: SELECT_OPS,
-  date: DATETIME_OPS,
-  datetime: DATETIME_OPS,
-  time: DATETIME_OPS,
-};
-
-const DEFAULT_OPERATOR: Record<FilterType, OperatorType> = {
-  number: "between",
-  text: "contains",
-  boolean: "is_true",
-  select: "in",
-  date: "between",
-  datetime: "between",
-  time: "between",
-};
-
-const OPERATORS_WITHOUT_VALUE = new Set<OperatorType>([
-  "is_true",
-  "is_false",
-  "is_null",
-  "is_not_null",
-  "is_empty",
-]);
+import { RegexInput } from "./regex-input";
 
 type DraftValue =
   | { kind: "between"; min?: number; max?: number }
   | { kind: "single-number"; value?: number }
   | { kind: "single-text"; text?: string }
-  | { kind: "multi-text"; values?: string[] }
-  | { kind: "options"; options?: unknown[] }
+  | { kind: "multi-values"; values?: unknown[] }
   | { kind: "date-between"; min?: Date; max?: Date }
   | { kind: "date-single"; value?: Date }
   | { kind: "none" };
-
-export interface Snapshot {
-  columnId: string;
-  value: ColumnFilterValue;
-}
-
-function columnEditableType(column: Column<unknown, unknown>): FilterType {
-  const ft = column.columnDef.meta?.filterType;
-  return ft && EDITABLE_FILTER_TYPES.has(ft) ? (ft as FilterType) : "text";
-}
-
-/** Minimal ColumnFilterValue for a (type, operator) pair, seeding extra fields for shapes that require them. */
-export function defaultFilterValueFor(
-  type: FilterType,
-  operator: OperatorType,
-): ColumnFilterValue {
-  if (type === "select") {
-    return { type: "select", operator, options: [] } as ColumnFilterValue;
-  }
-  if (type === "text" && (operator === "in" || operator === "not_in")) {
-    return { type: "text", operator, values: [] } as ColumnFilterValue;
-  }
-  return { type, operator } as ColumnFilterValue;
-}
 
 export function buildEmptyFilterValue(
   column: Column<unknown, unknown>,
 ): ColumnFilterValue {
   const type = columnEditableType(column);
-  return defaultFilterValueFor(type, DEFAULT_OPERATOR[type]);
+  return defaultFilterValueFor(type, DEFAULT_OPERATOR_FOR_TYPE[type]);
 }
 
 export function buildEditorSnapshot(
   column: Column<unknown, unknown>,
   opts?: { operator?: OperatorType },
 ): Snapshot {
-  const columnType = columnEditableType(column);
-  const isMembership = opts?.operator === "in" || opts?.operator === "not_in";
-  const type = isMembership && columnType === "number" ? "select" : columnType;
-  const operator = opts?.operator ?? DEFAULT_OPERATOR[type];
+  const type = columnEditableType(column);
+  const operator = opts?.operator ?? DEFAULT_OPERATOR_FOR_TYPE[type];
   return {
     columnId: column.id,
     value: defaultFilterValueFor(type, operator),
@@ -161,7 +94,7 @@ export const FilterPillEditor = <TData,>({
   const operatorId = useId();
   const valueId = useId();
 
-  const snapshotType = getEditableType(snapshot.value);
+  const snapshotType: FilterType = snapshot.value.type;
   const snapshotOperator = snapshot.value.operator as OperatorType;
   const snapshotDraft = toDraftValue(snapshot.value);
 
@@ -187,12 +120,14 @@ export const FilterPillEditor = <TData,>({
       return;
     }
     const nextColumn = table.getColumn(nextColumnId);
-    const nextColumnType = (nextColumn?.columnDef.meta?.filterType ??
-      "text") as FilterType;
+    if (!nextColumn) {
+      return;
+    }
+    const nextColumnType = columnEditableType(nextColumn);
 
     let nextOperator = draftOperator;
     if (nextColumnType !== draftType) {
-      nextOperator = DEFAULT_OPERATOR[nextColumnType];
+      nextOperator = DEFAULT_OPERATOR_FOR_TYPE[nextColumnType];
       setDraftType(nextColumnType);
       setDraftOperator(nextOperator);
       setDraftValue(emptyDraftFor(nextColumnType, nextOperator));
@@ -427,7 +362,7 @@ const ValueSlot = <TData, TValue>({
       </div>
     );
   }
-  if (type === "number" && isNumberComparisonOp(operator)) {
+  if (type === "number" && isComparisonOp(operator)) {
     const v =
       value.kind === "single-number"
         ? value
@@ -444,22 +379,20 @@ const ValueSlot = <TData, TValue>({
     );
   }
   if (
-    type === "text" &&
+    (type === "text" || type === "number") &&
     (operator === "in" || operator === "not_in") &&
     column
   ) {
     const v =
-      value.kind === "multi-text" ? value : { kind: "multi-text" as const };
+      value.kind === "multi-values" ? value : { kind: "multi-values" as const };
     return (
       <div className="min-w-[14rem] w-fit max-w-[24rem]">
         <FilterByValuesPicker
           column={column}
           calculateTopKRows={calculateTopKRows}
           chosenValues={v.values ?? []}
-          onChange={(next) =>
-            onChange({ kind: "multi-text", values: next.map(String) })
-          }
-          creatable={true}
+          onChange={(next) => onChange({ kind: "multi-values", values: next })}
+          creatable={type === "text"}
         />
       </div>
     );
@@ -506,7 +439,7 @@ const ValueSlot = <TData, TValue>({
       />
     );
   }
-  if (isDateLikeType(type) && isDatetimeComparisonOp(operator)) {
+  if (isDateLikeType(type) && isComparisonOp(operator)) {
     const v =
       value.kind === "date-single" ? value : { kind: "date-single" as const };
     return (
@@ -520,42 +453,17 @@ const ValueSlot = <TData, TValue>({
       />
     );
   }
-  if (type === "select" && column) {
-    const v = value.kind === "options" ? value : { kind: "options" as const };
-    return (
-      <div className="flex min-w-[14rem] w-fit max-w-[24rem]">
-        <FilterByValuesPicker
-          column={column}
-          calculateTopKRows={calculateTopKRows}
-          chosenValues={v.options ?? []}
-          onChange={(values) => onChange({ kind: "options", options: values })}
-        />
-      </div>
-    );
-  }
   return null;
 };
-
-function getEditableType(value: ColumnFilterValue): FilterType {
-  switch (value.type) {
-    case "number":
-    case "text":
-    case "boolean":
-    case "select":
-    case "date":
-    case "datetime":
-    case "time":
-      return value.type;
-    default:
-      return "text";
-  }
-}
 
 function toDraftValue(value: ColumnFilterValue): DraftValue {
   if (value.type === "number") {
     switch (value.operator) {
       case "between":
         return { kind: "between", min: value.min, max: value.max };
+      case "in":
+      case "not_in":
+        return { kind: "multi-values", values: [...value.values] };
       case "is_null":
       case "is_not_null":
         return { kind: "none" };
@@ -567,7 +475,7 @@ function toDraftValue(value: ColumnFilterValue): DraftValue {
     switch (value.operator) {
       case "in":
       case "not_in":
-        return { kind: "multi-text", values: [...value.values] };
+        return { kind: "multi-values", values: [...value.values] };
       case "is_null":
       case "is_not_null":
       case "is_empty":
@@ -575,9 +483,6 @@ function toDraftValue(value: ColumnFilterValue): DraftValue {
       default:
         return { kind: "single-text", text: value.text };
     }
-  }
-  if (value.type === "select") {
-    return { kind: "options", options: [...value.options] };
   }
   if (
     value.type === "date" ||
@@ -601,18 +506,16 @@ function emptyDraftFor(type: FilterType, operator: OperatorType): DraftValue {
   if (OPERATORS_WITHOUT_VALUE.has(operator)) {
     return { kind: "none" };
   }
+  if (operator === "in" || operator === "not_in") {
+    return { kind: "multi-values", values: [] };
+  }
   if (type === "number") {
     return operator === "between"
       ? { kind: "between" }
       : { kind: "single-number" };
   }
   if (type === "text") {
-    return operator === "in" || operator === "not_in"
-      ? { kind: "multi-text", values: [] }
-      : { kind: "single-text" };
-  }
-  if (type === "select") {
-    return { kind: "options", options: [] };
+    return { kind: "single-text" };
   }
   if (isDateLikeType(type)) {
     return operator === "between"
@@ -623,13 +526,13 @@ function emptyDraftFor(type: FilterType, operator: OperatorType): DraftValue {
 }
 
 function getMissingValueMessage(
-  type: FilterType,
+  _type: FilterType,
   operator: OperatorType,
 ): string {
   if (operator === "between") {
     return "Min and max are required";
   }
-  if (type === "text" && (operator === "in" || operator === "not_in")) {
+  if (operator === "in" || operator === "not_in") {
     return "Pick at least one value";
   }
   return "Value is required";
@@ -662,7 +565,17 @@ function buildFilterValue({
         max: draft.max,
       });
     }
-    if (!isNumberComparisonOp(operator)) {
+    if (operator === "in" || operator === "not_in") {
+      if (
+        draft.kind !== "multi-values" ||
+        !draft.values ||
+        draft.values.length === 0
+      ) {
+        return undefined;
+      }
+      return Filter.number({ operator, values: draft.values });
+    }
+    if (!isComparisonOp(operator)) {
       return undefined;
     }
     if (draft.kind !== "single-number" || draft.value === undefined) {
@@ -680,7 +593,7 @@ function buildFilterValue({
     }
     if (operator === "in" || operator === "not_in") {
       if (
-        draft.kind !== "multi-text" ||
+        draft.kind !== "multi-values" ||
         !draft.values ||
         draft.values.length === 0
       ) {
@@ -697,29 +610,15 @@ function buildFilterValue({
     return Filter.text({ operator, text: draft.text });
   }
   if (type === "boolean") {
-    if (operator === "is_true") {
-      return Filter.boolean({ value: true, operator: "is_true" });
-    }
-    if (operator === "is_false") {
-      return Filter.boolean({ value: false, operator: "is_false" });
-    }
-    if (operator === "is_null" || operator === "is_not_null") {
+    if (
+      operator === "is_true" ||
+      operator === "is_false" ||
+      operator === "is_null" ||
+      operator === "is_not_null"
+    ) {
       return Filter.boolean({ operator });
     }
     return undefined;
-  }
-  if (type === "select") {
-    if (
-      draft.kind !== "options" ||
-      !draft.options ||
-      draft.options.length === 0
-    ) {
-      return undefined;
-    }
-    return Filter.select({
-      options: draft.options,
-      operator: operator === "not_in" ? "not_in" : "in",
-    });
   }
   if (isDateLikeType(type)) {
     const factory =
@@ -741,7 +640,7 @@ function buildFilterValue({
       }
       return factory({ operator: "between", min: draft.min, max: draft.max });
     }
-    if (!isDatetimeComparisonOp(operator)) {
+    if (!isComparisonOp(operator)) {
       return undefined;
     }
     if (draft.kind !== "date-single" || draft.value === undefined) {

@@ -14,7 +14,7 @@ import {
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
 import { useFilterEditor } from "./filter-editor-context";
-import { EDITABLE_FILTER_TYPES } from "./filters";
+import { EDITABLE_FILTER_TYPES, isMembershipFilterType } from "./filters";
 import {
   ClearFilterMenuItem,
   renderColumnPinning,
@@ -22,7 +22,7 @@ import {
   renderCopyColumn,
   renderDataType,
   renderFormatOptions,
-  renderSortFilterIcon,
+  renderSortIcon,
   renderSorts,
 } from "./header-items";
 
@@ -79,10 +79,8 @@ export const DataTableColumnHeader = <TData, TValue>({
     EDITABLE_FILTER_TYPES.has(filterType);
   const canFilterByValues =
     canEditFilter &&
-    filterType !== "boolean" &&
-    filterType !== "date" &&
-    filterType !== "datetime" &&
-    filterType !== "time";
+    filterType !== undefined &&
+    isMembershipFilterType(filterType);
 
   return (
     <div
@@ -205,7 +203,7 @@ const SortButton = <TData, TValue>({
       }
       data-testid="data-table-sort-button"
     >
-      {renderSortFilterIcon(column)}
+      {renderSortIcon(column)}
     </button>
   );
 };

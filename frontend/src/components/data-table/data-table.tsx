@@ -46,8 +46,9 @@ import {
   type AddFilterRequest,
   FilterEditorProvider,
 } from "./filter-editor-context";
-import { buildEditorSnapshot, type Snapshot } from "./filter-pill-editor";
+import { buildEditorSnapshot } from "./filter-pill-editor";
 import { FilterPills } from "./filter-pills";
+import type { Snapshot } from "./filters";
 import { FocusRowFeature } from "./focus-row/feature";
 import { useColumnPinning } from "./hooks/use-column-pinning";
 import { useScrollContainerHeight } from "./hooks/use-scroll-container-height";

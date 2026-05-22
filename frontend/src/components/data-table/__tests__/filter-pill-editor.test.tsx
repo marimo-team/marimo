@@ -5,10 +5,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   buildEditorSnapshot,
   buildEmptyFilterValue,
-  defaultFilterValueFor,
   FilterPillEditor,
 } from "../filter-pill-editor";
-import { Filter } from "../filters";
+import { defaultFilterValueFor, Filter } from "../filters";
 import {
   buildFilterTestTable,
   type FilterColumnSpec,
@@ -254,7 +253,8 @@ describe("defaultFilterValueFor", () => {
     ["text", "in", { type: "text", operator: "in", values: [] }],
     ["text", "not_in", { type: "text", operator: "not_in", values: [] }],
     ["boolean", "is_true", { type: "boolean", operator: "is_true" }],
-    ["select", "in", { type: "select", operator: "in", options: [] }],
+    ["number", "in", { type: "number", operator: "in", values: [] }],
+    ["number", "not_in", { type: "number", operator: "not_in", values: [] }],
     ["date", "between", { type: "date", operator: "between" }],
     ["datetime", "between", { type: "datetime", operator: "between" }],
     ["time", "between", { type: "time", operator: "between" }],
@@ -267,8 +267,8 @@ describe("buildEmptyFilterValue", () => {
   it.each([
     ["name", { type: "text", operator: "contains" }],
     ["age", { type: "number", operator: "between" }],
-    ["when", { type: "date", operator: "between" }],
-    ["at", { type: "datetime", operator: "between" }],
+    ["when", { type: "date", operator: "==" }],
+    ["at", { type: "datetime", operator: "==" }],
     ["clock", { type: "time", operator: "between" }],
   ] as const)(
     "picks the dtype-default operator for %s",

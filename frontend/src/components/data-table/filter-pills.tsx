@@ -6,9 +6,7 @@ import { MoreHorizontalIcon, XIcon } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useLocale } from "react-aria";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
-import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
-import { exactDateTime } from "@/utils/dates";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { DraggablePopover } from "../ui/draggable-popover";
@@ -20,15 +18,9 @@ import {
 } from "../ui/popover";
 import { Tooltip } from "../ui/tooltip";
 import { AddFilterButton } from "./add-filter-button";
-import { FilterPillEditor, type Snapshot } from "./filter-pill-editor";
-import {
-  type ColumnFilterValue,
-  dateToISODate,
-  dateToISOTime,
-} from "./filters";
-import { OPERATOR_LABELS } from "./operator-labels";
+import { FilterPillEditor } from "./filter-pill-editor";
+import { type ColumnFilterValue, formatValue, type Snapshot } from "./filters";
 import { extractTimezone } from "./types";
-import { stringifyUnknownValue } from "./utils";
 import { ChipWithComma, CompactChipRow } from "./value-chips";
 
 interface Props<TData> {
@@ -318,123 +310,4 @@ function Separator() {
   return (
     <span aria-hidden={true} className="mx-1.5 w-px h-3 bg-foreground/30" />
   );
-}
-
-type FormattedFilter =
-  | { kind: "scalar"; operator: string; value?: string }
-  | { kind: "list"; operator: string; items: string[] };
-
-interface FormatContext {
-  locale: string;
-  timezone: string | undefined;
-}
-
-function formatValue(
-  value: ColumnFilterValue,
-  ctx: FormatContext,
-): FormattedFilter | undefined {
-  if (!("type" in value)) {
-    return;
-  }
-
-  if (value.operator === "is_null") {
-    return { kind: "scalar", operator: "is null" };
-  }
-  if (value.operator === "is_not_null") {
-    return { kind: "scalar", operator: "is not null" };
-  }
-
-  if (value.type === "number") {
-    switch (value.operator) {
-      case "between":
-        return {
-          kind: "scalar",
-          operator: OPERATOR_LABELS.between.toLowerCase(),
-          value: `${value.min} - ${value.max}`,
-        };
-      case "==":
-      case "!=":
-      case ">":
-      case ">=":
-      case "<":
-      case "<=":
-        return {
-          kind: "scalar",
-          operator: value.operator,
-          value: String(value.value),
-        };
-    }
-  }
-  if (value.type === "text") {
-    switch (value.operator) {
-      case "in":
-      case "not_in":
-        return {
-          kind: "list",
-          operator: value.operator === "in" ? "is in" : "not in",
-          items: [...value.values].toSorted((a, b) => a.localeCompare(b)),
-        };
-      case "is_empty":
-        return { kind: "scalar", operator: "is empty" };
-      case "contains":
-      case "equals":
-      case "does_not_equal":
-      case "regex":
-      case "starts_with":
-      case "ends_with":
-        return {
-          kind: "scalar",
-          operator: OPERATOR_LABELS[value.operator].toLowerCase(),
-          value: `"${value.text}"`,
-        };
-    }
-  }
-  if (
-    value.type === "date" ||
-    value.type === "datetime" ||
-    value.type === "time"
-  ) {
-    const format =
-      value.type === "date"
-        ? dateToISODate
-        : value.type === "time"
-          ? dateToISOTime
-          : (d: Date) => exactDateTime(d, ctx.timezone, ctx.locale);
-    switch (value.operator) {
-      case "between":
-        return {
-          kind: "scalar",
-          operator: OPERATOR_LABELS.between.toLowerCase(),
-          value: `${format(value.min)} - ${format(value.max)}`,
-        };
-      case "==":
-      case "!=":
-      case ">":
-      case ">=":
-      case "<":
-      case "<=":
-        return {
-          kind: "scalar",
-          operator: value.operator,
-          value: format(value.value),
-        };
-    }
-  }
-  if (value.type === "boolean") {
-    return {
-      kind: "scalar",
-      operator: `is ${value.value ? "True" : "False"}`,
-    };
-  }
-  if (value.type === "select") {
-    return {
-      kind: "list",
-      operator: value.operator === "in" ? "is in" : "not in",
-      items: value.options
-        .map((o) => stringifyUnknownValue({ value: o }))
-        .toSorted((a, b) => a.localeCompare(b)),
-    };
-  }
-  logNever(value);
-  return undefined;
 }

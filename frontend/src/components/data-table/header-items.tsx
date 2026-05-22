@@ -238,9 +238,7 @@ export function renderSorts<TData, TValue>(
   );
 }
 
-export function renderSortFilterIcon<TData, TValue>(
-  column: Column<TData, TValue>,
-) {
+export function renderSortIcon<TData, TValue>(column: Column<TData, TValue>) {
   if (!column.getCanSort()) {
     return null;
   }

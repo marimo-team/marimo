@@ -172,7 +172,7 @@ describe("filterToFilterCondition", () => {
   it("handles boolean true filter", () => {
     const result = filterToFilterCondition(
       "active",
-      Filter.boolean({ value: true }),
+      Filter.boolean({ operator: "is_true" }),
     );
     expect(result).toEqual([
       {
@@ -187,7 +187,7 @@ describe("filterToFilterCondition", () => {
   it("handles boolean false filter", () => {
     const result = filterToFilterCondition(
       "active",
-      Filter.boolean({ value: false }),
+      Filter.boolean({ operator: "is_false" }),
     );
     expect(result).toEqual([
       {
@@ -199,16 +199,16 @@ describe("filterToFilterCondition", () => {
     ]);
   });
 
-  it("handles select in filter", () => {
+  it("handles number in filter", () => {
     const result = filterToFilterCondition(
       "status",
-      Filter.select({ options: ["a", "b"], operator: "in" }),
+      Filter.number({ operator: "in", values: [1, 2] }),
     );
     expect(result).toEqual([
       {
         column_id: "status",
         operator: "in",
-        value: ["a", "b"],
+        value: [1, 2],
         type: "condition",
         negate: false,
       },

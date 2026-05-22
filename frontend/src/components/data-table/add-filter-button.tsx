@@ -10,8 +10,8 @@ import {
   buildEditorSnapshot,
   editableColumns,
   FilterPillEditor,
-  type Snapshot,
 } from "./filter-pill-editor";
+import type { Snapshot } from "./filters";
 
 interface AddFilterButtonProps<TData> {
   table: Table<TData>;

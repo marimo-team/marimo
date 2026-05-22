@@ -5,8 +5,8 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AddFilterButton } from "../add-filter-button";
 import { FilterPills } from "../filter-pills";
-import { buildEditorSnapshot, type Snapshot } from "../filter-pill-editor";
-import { Filter } from "../filters";
+import { buildEditorSnapshot } from "../filter-pill-editor";
+import { Filter, type Snapshot } from "../filters";
 import {
   buildFilterTestTable,
   type FilterColumnSpec,
