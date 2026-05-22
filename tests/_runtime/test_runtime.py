@@ -1677,6 +1677,71 @@ except NameError:
         # Does not pollute globals, reverts back to 10
         assert k.globals["z"] == 10
 
+    @staticmethod
+    async def test_run_scratch_with_mo_cache_decorator(
+        mocked_kernel: MockedKernel,
+    ) -> None:
+        """Regression test: @mo.cache decoration inside the scratchpad must
+        not raise `KeyError: '__scratch__'`.
+
+        Before the fix that registers SCRATCH_CELL_ID in the kernel's main
+        graph during run_scratchpad, the cache decorator's `_set_context`
+        crashed at `graph.cells[cell_id]` because `__scratch__` lived only
+        in the Runner's local graph, never in `self.graph`.
+        """
+        k = mocked_kernel.k
+        await k.run_scratchpad(
+            "import marimo as mo\n@mo.cache\ndef f(x): return x * 2\nf(3)"
+        )
+        # No KeyError leaked
+        assert not any(
+            "__scratch__" in m for m in mocked_kernel.stderr.messages
+        )
+        # __scratch__ does not linger in the main graph after teardown
+        assert SCRATCH_CELL_ID not in k.graph.cells
+        # Scratchpad does not pollute globals
+        assert "f" not in k.globals
+
+    @staticmethod
+    async def test_run_scratch_with_persistent_cache_context(
+        mocked_kernel: MockedKernel,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        """Regression test: `with mo.persistent_cache(...)` in scratchpad
+        must not raise CacheException via the parallel
+        `_cache_context.trace` code path.
+        """
+        k = mocked_kernel.k
+        await k.run_scratchpad(
+            "import marimo as mo\n"
+            "from pathlib import Path\n"
+            f"with mo.persistent_cache('scratch_test', save_path=Path({str(tmp_path)!r})):\n"
+            "    x = sum(range(100))\n"
+            "x"
+        )
+        assert not any(
+            "CacheException" in m or "Could not resolve cell" in m
+            for m in mocked_kernel.stderr.messages
+        )
+        assert SCRATCH_CELL_ID not in k.graph.cells
+
+    @staticmethod
+    async def test_run_scratch_with_mo_cache_cleans_up_after_crash(
+        mocked_kernel: MockedKernel,
+    ) -> None:
+        """Regression test: if the scratchpad raises AFTER decorating,
+        `__scratch__` is still unregistered from the kernel graph (the
+        `try/finally` correctness guard).
+        """
+        k = mocked_kernel.k
+        await k.run_scratchpad(
+            "import marimo as mo\n"
+            "@mo.cache\n"
+            "def f(x): return x * 2\n"
+            "raise RuntimeError('intentional')"
+        )
+        assert SCRATCH_CELL_ID not in k.graph.cells
+
     async def test_rename(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
