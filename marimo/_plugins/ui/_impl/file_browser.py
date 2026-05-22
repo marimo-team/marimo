@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -167,6 +168,12 @@ class file_browser(
         filetypes (Sequence[str], optional): The file types to display in each
             directory; for example, filetypes=[".txt", ".csv"]. If None, all
             files are displayed. Defaults to None.
+        filter (str | re.Pattern | Callable[[Path], bool], optional): An
+            additional filter applied to files (directories are always shown
+            for navigation). Accepts a regex string or compiled pattern
+            matched against the filename, or a callable that receives the
+            file's `Path` and returns `True` to include it. Applied together
+            with `filetypes` (both must match). Defaults to None.
         selection_mode (str | Sequence[str], optional): Which kinds of entries
             the user can select. Accepts one of "file" (default), "directory",
             "all", or a list/tuple containing "file" and/or "directory".
@@ -200,6 +207,7 @@ class file_browser(
         multiple: bool = True,
         restrict_navigation: bool = False,
         *,
+        filter: str | re.Pattern[str] | Callable[[Path], bool] | None = None,  # noqa: A002
         limit: int | None = None,
         label: str = "",
         on_change: Callable[[Sequence[FileBrowserFileInfo]], None]
@@ -246,6 +254,22 @@ class file_browser(
             self._filetypes = set()
         self._restrict_navigation = restrict_navigation
         self._ignore_empty_dirs = ignore_empty_dirs
+
+        if filter is None:
+            self._filter: re.Pattern[str] | Callable[[Path], bool] | None = (
+                None
+            )
+        elif isinstance(filter, str):
+            self._filter = re.compile(filter)
+        elif isinstance(filter, re.Pattern):
+            self._filter = filter
+        elif callable(filter):
+            self._filter = filter
+        else:
+            raise ValueError(
+                f"filter must be a string, re.Pattern, or callable, "
+                f"got {type(filter).__name__}."
+            )
 
         # Smart default limit based on path type
         if limit is None:
@@ -330,6 +354,14 @@ class file_browser(
                         and item.suffix.lower() not in self._filetypes
                     ):
                         continue
+                    # Apply regex or callable filter
+                    if self._filter is not None:
+                        if isinstance(self._filter, re.Pattern):
+                            if not self._filter.search(item.name):
+                                continue
+                        else:
+                            if not self._filter(item):
+                                continue
                     return True
                 elif item.is_dir() and not item.is_symlink():
                     # Skip directory symlinks to avoid infinite loops
@@ -385,6 +417,15 @@ class file_browser(
             if self._filetypes and not is_directory:
                 if extension.lower() not in self._filetypes:
                     continue
+
+            # Apply regex or callable filter to files
+            if self._filter is not None and not is_directory:
+                if isinstance(self._filter, re.Pattern):
+                    if not self._filter.search(file.name):
+                        continue
+                else:
+                    if not self._filter(file):
+                        continue
 
             # Skip empty directories if ignore_empty_dirs is enabled
             if self._ignore_empty_dirs and is_directory:
