@@ -391,12 +391,27 @@ def test_file_key_wire_format() -> None:
     assert serialize_file_key(PathFileKey("/foo.py")) == "/foo.py"
 
 
-def test_parse_file_key_only_exact_sentinel_is_new() -> None:
-    """Strings that look like `__new__` prefixes are paths, not new files."""
-    assert parse_file_key(NEW_FILE_WIRE) == NewFileKey()
-    assert parse_file_key("__new__suffix.py") == PathFileKey(
-        "__new__suffix.py"
-    )
+def test_parse_file_key_new_file_prefix() -> None:
+    """A `__new__`-prefixed wire key is a new file; the suffix is the token.
+
+    Regression test for #9665: the frontend's `newNotebookURL` sends
+    `__new__<session-id>` as the `file` query param. An exact-match check
+    on the sentinel rejected those keys, so creating a new notebook from
+    the web UI failed with `File __new__... not found`.
+    """
+    assert parse_file_key(NEW_FILE_WIRE) == NewFileKey(token="")
+    assert parse_file_key("__new__s_fuy50s") == NewFileKey(token="s_fuy50s")
+    # Non-sentinel strings still flow through normal path validation.
+    assert parse_file_key("notebook.py") == PathFileKey("notebook.py")
+
+
+def test_new_file_key_token_roundtrip() -> None:
+    """The per-tab token survives serialize/parse so sessions stay distinct."""
+    key = NewFileKey(token="s_fuy50s")
+    assert serialize_file_key(key) == "__new__s_fuy50s"
+    assert parse_file_key(serialize_file_key(key)) == key
+    # Distinct tokens are distinct keys (distinct sessions).
+    assert NewFileKey(token="a") != NewFileKey(token="b")
 
 
 def test_flatten_files() -> None:
