@@ -8,6 +8,7 @@ import {
   ArrowUpNarrowWideIcon,
   ChevronsUpDown,
   CopyIcon,
+  EyeOffIcon,
   FilterX,
   PinOffIcon,
   WrapTextIcon,
@@ -139,6 +140,23 @@ export function renderColumnPinning<TData, TValue>(
   );
 }
 
+export function HideColumn<TData, TValue>({
+  column,
+}: {
+  column: Column<TData, TValue>;
+}) {
+  if (!column.getCanHide()) {
+    return null;
+  }
+
+  return (
+    <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
+      <EyeOffIcon className="mo-dropdown-icon" />
+      Hide column
+    </DropdownMenuItem>
+  );
+}
+
 export function renderCopyColumn<TData, TValue>(column: Column<TData, TValue>) {
   if (!column.getCanCopy?.()) {
     return null;
@@ -233,7 +251,6 @@ export function renderSorts<TData, TValue>(
         {sortDirection === "desc" && renderSortIndex()}
       </DropdownMenuItem>
       {renderClearSort()}
-      <DropdownMenuSeparator />
     </>
   );
 }

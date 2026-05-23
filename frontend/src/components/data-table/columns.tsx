@@ -44,9 +44,10 @@ import { detectSentinel, splitLeadingTrailingWhitespace } from "./utils";
 import { uniformSample } from "./uniformSample";
 import { MarkdownUrlDetector, UrlDetector } from "./url-detector";
 
+export const NAMELESS_COLUMN_PREFIX = "__m_column__";
 // Artificial limit to display long strings
+export const SELECT_ID = "__select__";
 const MAX_STRING_LENGTH = 50;
-const SELECT_ID = "__select__";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -105,8 +106,6 @@ export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
 
   return Objects.entries(fieldTypes);
 }
-
-export const NAMELESS_COLUMN_PREFIX = "__m_column__";
 
 export function generateColumns<T>({
   rowHeaders,
