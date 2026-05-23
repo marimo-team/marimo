@@ -541,7 +541,10 @@ class table(
         data: ListOrTuple[str | int | float | bool | MIME | None]
         | ListOrTuple[dict[str, JSONType]]
         | dict[str, ListOrTuple[JSONType]]
-        | IntoDataFrame,
+        | list[dict[str, Any]]
+        | dict[str, list[Any]]
+        | IntoDataFrame
+        | IntoLazyFrame,
         pagination: bool | None = None,
         selection: Literal["single", "multi", "single-cell", "multi-cell"]
         | None = "multi",
