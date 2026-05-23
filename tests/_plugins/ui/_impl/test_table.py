@@ -1200,6 +1200,79 @@ def test_freeze_columns_polars_regression() -> None:
     assert table._component_args["freeze-columns-left"] == ["a"]
 
 
+def test_table_with_hidden_columns() -> None:
+    data = {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}
+    table = ui.table(data, hidden_columns=["b"])
+    assert table._component_args["hidden-columns"] == ["b"]
+
+
+def test_table_with_visible_columns_normalizes_to_hidden() -> None:
+    data = {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}
+    table = ui.table(data, visible_columns=["a"])
+    assert sorted(table._component_args["hidden-columns"]) == ["b", "c"]
+
+
+def test_table_hidden_columns_empty_list() -> None:
+    data = {"a": [1, 2, 3]}
+    table = ui.table(data, hidden_columns=[])
+    assert table._component_args["hidden-columns"] == []
+
+
+def test_table_no_visibility_kwargs_emits_empty_list() -> None:
+    data = {"a": [1, 2, 3]}
+    table = ui.table(data)
+    assert table._component_args["hidden-columns"] == []
+
+
+def test_table_hidden_and_visible_columns_mutually_exclusive() -> None:
+    data = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        ui.table(data, hidden_columns=["a"], visible_columns=["b"])
+
+
+def test_table_hidden_columns_unknown_column_raises() -> None:
+    data = {"a": [1, 2, 3]}
+    with pytest.raises(ValueError, match="not found in table"):
+        ui.table(data, hidden_columns=["xyz"])
+
+
+def test_table_visible_columns_unknown_column_raises() -> None:
+    data = {"a": [1, 2, 3]}
+    with pytest.raises(ValueError, match="not found in table"):
+        ui.table(data, visible_columns=["xyz"])
+
+
+def test_table_hidden_columns_deduplicates() -> None:
+    data = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    table = ui.table(data, hidden_columns=["a", "a"])
+    assert table._component_args["hidden-columns"] == ["a"]
+
+
+def test_table_hidden_columns_does_not_affect_value() -> None:
+    data = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    table = ui.table(data, hidden_columns=["b"], selection="single")
+    payload_data = table._component_args["data"]
+    if isinstance(payload_data, str):
+        rows = json.loads(payload_data)
+    else:
+        rows = payload_data
+    assert all("b" in row for row in rows)
+
+
+def test_table_hidden_columns_row_header_raises() -> None:
+    import pandas as pd
+
+    name = "index"
+    df = pd.DataFrame(
+        {"a": [1, 2, 3]}, index=pd.Index(["x", "y", "z"], name=name)
+    )
+    with pytest.raises(
+        ValueError,
+        match=f"Cannot control visibility for row index '{name}'",
+    ):
+        ui.table(df, hidden_columns=[name])
+
+
 @pytest.mark.parametrize(
     "df",
     create_dataframes({"a": [1, 2, 3], "b": ["abc", "def", None]}),

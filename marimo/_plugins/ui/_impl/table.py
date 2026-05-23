@@ -457,6 +457,8 @@ class table(
             column names to formatting strings or functions.
         freeze_columns_left (Sequence[str], optional): List of column names to freeze on the left.
         freeze_columns_right (Sequence[str], optional): List of column names to freeze on the right.
+        hidden_columns (Sequence[str], optional): List of column names to hide. Mutually exclusive with `visible_columns`.
+        visible_columns (Sequence[str], optional): List of column names to show. All other columns will be hidden. Mutually exclusive with `hidden_columns`.
         text_justify_columns (Dict[str, Literal["left", "center", "right"]], optional):
             Dictionary of column names to text justification options: left, center, right.
         wrapped_columns (List[str], optional): List of column names to wrap.
@@ -555,6 +557,8 @@ class table(
         text_justify_columns: dict[str, Literal["left", "center", "right"]]
         | None = None,
         wrapped_columns: list[str] | None = None,
+        hidden_columns: Sequence[str] | None = None,
+        visible_columns: Sequence[str] | None = None,
         header_tooltip: dict[str, str] | None = None,
         show_download: bool = True,
         max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
@@ -784,12 +788,31 @@ class table(
                 column_names_set,
                 row_header_names_set,
             )
+            _validate_column_visibility(
+                hidden_columns,
+                visible_columns,
+                column_names_set,
+                row_header_names_set,
+            )
             _validate_column_formatting(
                 text_justify_columns, wrapped_columns, column_names_set
             )
             _validate_header_tooltip(header_tooltip, column_names_set)
 
             field_types = self._manager.get_field_types()
+
+        hidden_columns_list: list[str] = []
+        if hidden_columns:
+            hidden_columns_list = list(
+                dict.fromkeys(hidden_columns)
+            )  # Remove duplicates while preserving order
+        elif visible_columns:
+            visible_columns_set = set(visible_columns)
+            hidden_columns_list = [
+                col
+                for col in self._manager.get_column_names()
+                if col not in visible_columns_set
+            ]
 
         super().__init__(
             component_name=table._name,
@@ -824,6 +847,7 @@ class table(
                 "row-headers": row_headers,
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,
+                "hidden-columns": hidden_columns_list,
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
                 "header-tooltip": header_tooltip,
@@ -1807,6 +1831,46 @@ def _validate_frozen_columns(
         if invalid:
             raise ValueError(
                 f"Column '{next(iter(invalid))}' not found in table."
+            )
+
+
+def _validate_column_visibility(
+    hidden_columns: Sequence[str] | None,
+    visible_columns: Sequence[str] | None,
+    column_names_set: set[str],
+    row_header_names_set: set[str],
+) -> None:
+    """Validate column visibility configurations.
+
+    Validates that:
+    1. Only one of visible_columns and hidden_columns is specified
+    2. All specified columns exist in the table
+    3. Row header columns (indexes) cannot be hidden
+    """
+    if visible_columns is not None and hidden_columns is not None:
+        raise ValueError(
+            "hidden_columns and visible_columns are mutually exclusive."
+        )
+
+    visible_columns_set = set(visible_columns) if visible_columns else None
+    hidden_columns_set = set(hidden_columns) if hidden_columns else None
+
+    for columns_set in [visible_columns_set, hidden_columns_set]:
+        if not columns_set:
+            continue
+
+        row_header_overlap = columns_set & row_header_names_set
+        if row_header_overlap:
+            name = next(iter(row_header_overlap))
+            raise ValueError(
+                f"Cannot control visibility for row index '{name}'; "
+                "Row indices are always visible."
+            )
+
+        invalid_columns = columns_set - column_names_set
+        if invalid_columns:
+            raise ValueError(
+                f"Column '{next(iter(invalid_columns))}' not found in table."
             )
 
 
