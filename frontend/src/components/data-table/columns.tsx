@@ -192,7 +192,7 @@ export function generateColumns<T>({
       accessorFn: (row) => {
         return row[key as keyof T];
       },
-
+      enableHiding: !rowHeadersSet.has(key) && key !== "",
       header: ({ column, table }) => {
         const stats = chartSpecModel?.getColumnStats(key);
         const dtype = column.columnDef.meta?.dtype;

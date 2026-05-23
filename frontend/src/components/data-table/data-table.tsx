@@ -63,6 +63,7 @@ import {
   type TooManyRows,
 } from "./types";
 import { getStableRowId } from "./utils";
+import { useColumnVisibility } from "./hooks/use-column-visibility";
 
 interface DataTableProps<TData> extends Partial<ExportActionProps> {
   wrapperClassName?: string;
@@ -107,6 +108,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   // Columns
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
+  hiddenColumns?: string[];
   toggleDisplayHeader?: () => void;
   // Row viewer panel
   viewedRowIdx?: number;
@@ -158,6 +160,7 @@ const DataTableInternal = <TData,>({
   reloading,
   freezeColumnsLeft,
   freezeColumnsRight,
+  hiddenColumns,
   toggleDisplayHeader,
   showChartBuilder,
   isChartBuilderOpen,
@@ -176,6 +179,8 @@ const DataTableInternal = <TData,>({
     freezeColumnsLeft,
     freezeColumnsRight,
   );
+  const { columnVisibility, setColumnVisibility } =
+    useColumnVisibility(hiddenColumns);
 
   // Show loading bar only after a short delay to prevent flickering
   React.useEffect(() => {
@@ -267,6 +272,8 @@ const DataTableInternal = <TData,>({
     enableMultiCellSelection: selection === "multi-cell",
     // pinning
     onColumnPinningChange: setColumnPinning,
+    // col visibility
+    onColumnVisibilityChange: setColumnVisibility,
     // focus row
     enableFocusRow: true,
     onFocusRowChange: onViewedRowChange,
@@ -284,6 +291,7 @@ const DataTableInternal = <TData,>({
             { pagination: { pageIndex: 0, pageSize: data.length } }),
       rowSelection: rowSelection ?? {},
       cellSelection: cellSelection ?? [],
+      columnVisibility,
       cellStyling,
       columnPinning: columnPinning,
       cellHoverTemplate: hoverTemplate,
