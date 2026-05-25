@@ -68,7 +68,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       className={cn(
         "group bg-transparent text-left w-full flex relative justify-between items-center",
         "border-none rounded cursor-pointer",
-        "h-[21px] pl-[59px] font-inherit",
+        "h-[21px] pl-[65px] font-inherit",
         isSelected
           ? "text-primary-foreground"
           : "text-(--gray-8) hover:text-(--gray-9)",
@@ -106,7 +106,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       </div>
       <svg
         className={cn(
-          "absolute overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)+25px)] pointer-events-none",
+          "absolute overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)+31px)] pointer-events-none",
           isSelected ? "z-[1]" : "z-0",
           getTextColor({ cell, selectedCell }),
         )}
