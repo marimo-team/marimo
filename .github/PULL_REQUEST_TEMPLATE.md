@@ -7,6 +7,10 @@ Detail the specific changes made in this pull request. Explain the problem addre
 -->
 Closes #
 
+> [!TIP]
+> PR titles starting with `fix:`, `feat:`, `docs:`, `chore:`, `internal:`,
+> `ci:`, or `preview:` help the auto-labeller choose a default PR type.
+
 ## 📋 Pre-Review Checklist
 <!-- These checks need to be completed before a PR is reviewed -->
 
