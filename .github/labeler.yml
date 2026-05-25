@@ -1,3 +1,5 @@
+# File-based labels live here. Title-based fallback labels are applied in
+# .github/workflows/labeler.yml.
 documentation:
   - changed-files:
       - any-glob-to-any-file: ['docs/**']
