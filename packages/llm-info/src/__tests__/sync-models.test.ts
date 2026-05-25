@@ -5,7 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { MAX_MODELS_PER_PROVIDER, mergeModels } from "../sources/merge.ts";
+import {
+  MAX_COST_INPUT,
+  MAX_COST_OUTPUT,
+  MAX_MODELS_PER_PROVIDER,
+  MODEL_DENYLIST,
+  mergeModels,
+} from "../sources/merge.ts";
 import type { ModelsDevApi } from "../sources/models-dev.ts";
 import { syncModels } from "../sync-models.ts";
 
@@ -217,9 +223,9 @@ describe("mergeModels", () => {
     };
     const entries = mergeModels({}, fixture).newEntries["openai"]!;
     const byId = Object.fromEntries(entries.map((e) => [e.model, e]));
-    expect(byId.a!.release_date).toBe("2026-01-01");
-    expect(byId.b!.release_date).toBe("2026-05-07");
-    expect(byId.c!.release_date).toBe("1970-01-01");
+    expect(byId["a"]!.release_date).toBe("2026-01-01");
+    expect(byId["b"]!.release_date).toBe("2026-05-07");
+    expect(byId["c"]!.release_date).toBe("1970-01-01");
 
     // And the sort is now correct — `b` (May 7) ranks above `a` (Jan 1).
     expect(entries.map((e) => e.model)).toEqual(["b", "a", "c"]);
@@ -375,6 +381,247 @@ describe("mergeModels", () => {
       (e) => e.model === "text-embedding-3-large",
     );
     expect(embed!.cost).toBeUndefined();
+  });
+
+  // `-n N` means "the N freshest upstream models" — we then drop ids we
+  // already have curated, rather than backfilling with the N+1th, N+2th, ...
+  // freshest "missing" model. Otherwise the cap drifts toward "always add N
+  // entries per run" instead of tracking the upstream frontier.
+  it("picks the top-N latest upstream and only appends ones we don't already have", () => {
+    const make = (id: string, date: string) => ({
+      id,
+      name: id,
+      reasoning: false,
+      tool_call: false,
+      release_date: date,
+    });
+    const fixture: ModelsDevApi = {
+      anthropic: {
+        id: "anthropic",
+        models: {
+          a1: make("a1", "2020-01-01"),
+          a2: make("a2", "2021-01-01"),
+          a3: make("a3", "2022-01-01"),
+          a4: make("a4", "2023-01-01"),
+          a5: make("a5", "2024-01-01"),
+        },
+      },
+    };
+
+    // Top 2 = {a5, a4}. We already curated a5 → only a4 is added (not a3).
+    const partial = mergeModels({ anthropic: [{ model: "a5" }] }, fixture, {
+      maxPerProvider: 2,
+    });
+    expect(partial.newEntries["anthropic"]!.map((e) => e.model)).toEqual([
+      "a4",
+    ]);
+    expect(partial.skippedExisting).toEqual(["anthropic/a5"]);
+
+    // Top 2 = {a5, a4}. Both already curated → nothing is added; we don't
+    // dredge up a3.
+    const fullyCovered = mergeModels(
+      { anthropic: [{ model: "a5" }, { model: "a4" }] },
+      fixture,
+      { maxPerProvider: 2 },
+    );
+    expect(fullyCovered.newEntries["anthropic"]).toBeUndefined();
+    expect(fullyCovered.skippedExisting.sort()).toEqual([
+      "anthropic/a4",
+      "anthropic/a5",
+    ]);
+  });
+
+  describe("cost filter", () => {
+    const make = (
+      id: string,
+      cost: { input?: number; output?: number } | undefined,
+    ) => ({
+      id,
+      name: id,
+      reasoning: false,
+      tool_call: false,
+      release_date: "2026-01-01",
+      ...(cost && { cost }),
+    });
+
+    it("pins the price ceilings", () => {
+      // Tripping these values is a deliberate product decision — bump them
+      // here and update the comment on the constants.
+      expect(MAX_COST_INPUT).toBe(30);
+      expect(MAX_COST_OUTPUT).toBe(100);
+    });
+
+    it("drops models priced at or above the input ceiling", () => {
+      const fixture: ModelsDevApi = {
+        anthropic: {
+          id: "anthropic",
+          models: {
+            "ok-below": make("ok-below", { input: 29, output: 5 }),
+            "blocked-at": make("blocked-at", { input: 30, output: 5 }),
+            "blocked-above": make("blocked-above", { input: 100, output: 5 }),
+          },
+        },
+      };
+      const summary = mergeModels({}, fixture);
+      expect(
+        summary.newEntries["anthropic"]!.map((e) => e.model).sort(),
+      ).toEqual(["ok-below"]);
+    });
+
+    it("drops models priced at or above the output ceiling", () => {
+      const fixture: ModelsDevApi = {
+        anthropic: {
+          id: "anthropic",
+          models: {
+            "ok-below": make("ok-below", { input: 5, output: 99 }),
+            "blocked-at": make("blocked-at", { input: 5, output: 100 }),
+            "blocked-above": make("blocked-above", { input: 5, output: 500 }),
+          },
+        },
+      };
+      const summary = mergeModels({}, fixture);
+      expect(
+        summary.newEntries["anthropic"]!.map((e) => e.model).sort(),
+      ).toEqual(["ok-below"]);
+    });
+
+    it("keeps models with no cost data (assume free / unknown, not frontier)", () => {
+      const fixture: ModelsDevApi = {
+        anthropic: {
+          id: "anthropic",
+          models: {
+            "no-cost": make("no-cost", undefined),
+            "partial-cost-input-only": make("partial-cost-input-only", {
+              input: 1,
+            }),
+            "partial-cost-output-only": make("partial-cost-output-only", {
+              output: 1,
+            }),
+          },
+        },
+      };
+      const summary = mergeModels({}, fixture);
+      expect(
+        summary.newEntries["anthropic"]!.map((e) => e.model).sort(),
+      ).toEqual([
+        "no-cost",
+        "partial-cost-input-only",
+        "partial-cost-output-only",
+      ]);
+    });
+
+    it("filters before the N-latest cap, so expensive models don't burn the quota", () => {
+      const fixture: ModelsDevApi = {
+        anthropic: {
+          id: "anthropic",
+          models: {
+            // Newest two are frontier-priced and should be filtered out
+            // *before* `maxPerProvider` is applied. Without pre-filtering,
+            // a cap of 2 would yield zero additions instead of two.
+            "newest-expensive": {
+              id: "newest-expensive",
+              name: "newest-expensive",
+              release_date: "2026-05-01",
+              cost: { input: 50, output: 200 },
+            },
+            "second-newest-expensive": {
+              id: "second-newest-expensive",
+              name: "second-newest-expensive",
+              release_date: "2026-04-01",
+              cost: { input: 40, output: 150 },
+            },
+            "third-newest-cheap": {
+              id: "third-newest-cheap",
+              name: "third-newest-cheap",
+              release_date: "2026-03-01",
+              cost: { input: 1, output: 5 },
+            },
+            "fourth-newest-cheap": {
+              id: "fourth-newest-cheap",
+              name: "fourth-newest-cheap",
+              release_date: "2026-02-01",
+              cost: { input: 1, output: 5 },
+            },
+          },
+        },
+      };
+      const summary = mergeModels({}, fixture, { maxPerProvider: 2 });
+      expect(summary.newEntries["anthropic"]!.map((e) => e.model)).toEqual([
+        "third-newest-cheap",
+        "fourth-newest-cheap",
+      ]);
+    });
+  });
+
+  describe("denylist", () => {
+    const make = (id: string, date = "2026-01-01") => ({
+      id,
+      name: id,
+      reasoning: false,
+      tool_call: false,
+      release_date: date,
+    });
+
+    it("seeds the denylist with gpt-5.3-codex-spark under openai", () => {
+      // Changing this set is a deliberate product decision — when a model is
+      // added or removed here, leave a comment next to it explaining why.
+      expect(MODEL_DENYLIST["openai"]?.has("gpt-5.3-codex-spark")).toBe(true);
+    });
+
+    it("drops upstream models that match the per-provider denylist", () => {
+      const fixture: ModelsDevApi = {
+        openai: {
+          id: "openai",
+          name: "OpenAI",
+          models: {
+            "gpt-5.3-codex-spark": make("gpt-5.3-codex-spark"),
+            "gpt-5.3-codex": make("gpt-5.3-codex"),
+          },
+        },
+      };
+      const summary = mergeModels({}, fixture);
+      expect(summary.newEntries["openai"]!.map((e) => e.model)).toEqual([
+        "gpt-5.3-codex",
+      ]);
+    });
+
+    it("only blocks the id under the listed provider, not everywhere", () => {
+      // A made-up `anthropic/gpt-5.3-codex-spark` would still be synced —
+      // denylist entries don't leak across providers.
+      const fixture: ModelsDevApi = {
+        anthropic: {
+          id: "anthropic",
+          name: "Anthropic",
+          models: {
+            "gpt-5.3-codex-spark": make("gpt-5.3-codex-spark"),
+          },
+        },
+      };
+      const summary = mergeModels({}, fixture);
+      expect(summary.newEntries["anthropic"]!.map((e) => e.model)).toEqual([
+        "gpt-5.3-codex-spark",
+      ]);
+    });
+
+    it("filters before the N-latest cap, so denylisted models don't burn the quota", () => {
+      const fixture: ModelsDevApi = {
+        openai: {
+          id: "openai",
+          name: "OpenAI",
+          models: {
+            // Newest is denylisted — without pre-filtering, a cap of 1 would
+            // pick this and add zero. With pre-filtering, the cap falls
+            // through to `gpt-5.3-codex`.
+            "gpt-5.3-codex-spark": make("gpt-5.3-codex-spark", "2026-05-01"),
+            "gpt-5.3-codex": make("gpt-5.3-codex", "2026-04-01"),
+          },
+        },
+      };
+      const summary = mergeModels({}, fixture, { maxPerProvider: 1 });
+      expect(summary.newEntries["openai"]!.map((e) => e.model)).toEqual([
+        "gpt-5.3-codex",
+      ]);
+    });
   });
 });
 

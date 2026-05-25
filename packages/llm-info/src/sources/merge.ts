@@ -33,6 +33,29 @@ const UNKNOWN_DATE = "1970-01-01";
 export const MAX_MODELS_PER_PROVIDER = 10;
 
 /**
+ * Frontier-tier price ceilings, in USD per million tokens.
+ */
+export const MAX_COST_INPUT = 30;
+export const MAX_COST_OUTPUT = 100;
+
+/**
+ * Per-provider explicit denylist of model ids.
+
+ * Note: this only blocks future appends. To remove a model that's already
+ * in `models.yml`, delete the entry by hand.
+ */
+export const MODEL_DENYLIST: Readonly<Record<string, ReadonlySet<string>>> = {
+  openai: new Set([
+    // Surfaced inside ChatGPT only; not exposed via the OpenAI API.
+    "gpt-5.3-codex-spark",
+  ]),
+};
+
+function isDenylisted(marimoProviderId: string, modelId: string): boolean {
+  return MODEL_DENYLIST[marimoProviderId]?.has(modelId) ?? false;
+}
+
+/**
  * Loose shape for entries read from `models.yml` — we only need the `model` id
  * to detect duplicates within a provider section.
  */
@@ -103,6 +126,17 @@ function parseReleaseDate(raw: string | undefined): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
+function isWithinCostBudget(source: ModelsDevModel): boolean {
+  const cost = source.cost ?? {};
+  if (typeof cost.input === "number" && cost.input >= MAX_COST_INPUT) {
+    return false;
+  }
+  if (typeof cost.output === "number" && cost.output >= MAX_COST_OUTPUT) {
+    return false;
+  }
+  return true;
+}
+
 function deriveCost(source: ModelsDevModel): AiModel["cost"] {
   const { input, output } = source.cost ?? {};
   if (typeof input !== "number" && typeof output !== "number") {
@@ -157,10 +191,21 @@ export interface MergeOptions {
 /**
  * Merge models.dev data into existing per-provider entries.
  *
+ * Pipeline per provider:
+ *   1. Collect upstream candidates, dropping anything above the cost ceilings
+ *      or explicitly listed in `MODEL_DENYLIST`.
+ *   2. Sort newest-first and trim to `maxPerProvider` — this is what `-n N`
+ *      means: "the N freshest models upstream is exposing right now."
+ *   3. Of that top-N, drop ids we already have locally; the remainder is what
+ *      gets appended.
+ *
+ * Consequences worth knowing:
  * - Existing entries (matched by `(provider, model)` id pair) are never
  *   modified — all human curation is preserved.
  * - New entries are added with `description: ""` for the human to fill in.
  * - Idempotent: a second run with the same inputs produces no new entries.
+ * - If every model in the top-N is already curated, this run adds zero —
+ *   we don't backfill with older "missing" models.
  */
 export function mergeModels(
   existing: ExistingByProvider,
@@ -194,15 +239,14 @@ export function mergeModels(
     if (!provider) {
       continue;
     }
-    const existingIds = new Set(
-      (existing[marimoProviderId] ?? []).map((m) => m.model),
-    );
     const bucket =
       candidatesByProvider.get(marimoProviderId) ?? new Map<string, AiModel>();
 
     for (const model of Object.values(provider.models)) {
-      if (existingIds.has(model.id)) {
-        skippedExisting.push(`${marimoProviderId}/${model.id}`);
+      if (!isWithinCostBudget(model)) {
+        continue;
+      }
+      if (isDenylisted(marimoProviderId, model.id)) {
         continue;
       }
       // First mapped source wins on conflict — later iterations skip dupes.
@@ -215,11 +259,23 @@ export function mergeModels(
 
   const newEntries: ModelsByProvider = {};
   for (const [marimoProviderId, bucket] of candidatesByProvider) {
-    if (bucket.size > 0) {
-      newEntries[marimoProviderId as SyncableProviderId] = sortAndTrim(
-        [...bucket.values()],
-        maxPerProvider,
-      );
+    if (bucket.size === 0) {
+      continue;
+    }
+    const topN = sortAndTrim([...bucket.values()], maxPerProvider);
+    const existingIds = new Set(
+      (existing[marimoProviderId] ?? []).map((m) => m.model),
+    );
+    const fresh: AiModel[] = [];
+    for (const entry of topN) {
+      if (existingIds.has(entry.model)) {
+        skippedExisting.push(`${marimoProviderId}/${entry.model}`);
+        continue;
+      }
+      fresh.push(entry);
+    }
+    if (fresh.length > 0) {
+      newEntries[marimoProviderId as SyncableProviderId] = fresh;
     }
   }
 

@@ -350,6 +350,16 @@ azure:
     release_date: 2026-02-24
     cost: {input: 1.75, output: 14}
 
+  - name: Claude Sonnet 4.6
+    model: claude-sonnet-4-6
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-02-17
+    cost: {input: 3, output: 15}
+
 github:
   - name: DeepSeek-R1-0528
     model: deepseek/deepseek-r1-0528
