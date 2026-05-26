@@ -52,6 +52,34 @@ def test_save_config(mock_dump: Any) -> None:
 
 
 @restore_config
+def test_save_config_is_deterministic(tmp_path: Path) -> None:
+    """Two configs with identical content but different dict insertion
+    order must serialize to the same bytes (issue #9682)."""
+    config_path = tmp_path / "marimo.toml"
+    manager = UserConfigManager()
+    manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
+
+    a = PartialMarimoConfig(
+        runtime={"auto_reload": "off", "auto_instantiate": True},  # type: ignore[typeddict-item]
+        ai={"open_ai": {"api_key": "k", "model": "m"}},
+    )
+    b = PartialMarimoConfig(
+        ai={"open_ai": {"model": "m", "api_key": "k"}},
+        runtime={"auto_instantiate": True, "auto_reload": "off"},  # type: ignore[typeddict-item]
+    )
+
+    manager._load_config = lambda: merge_default_config(a)
+    manager.save_config(merge_default_config(a))
+    bytes_a = config_path.read_bytes()
+
+    manager._load_config = lambda: merge_default_config(b)
+    manager.save_config(merge_default_config(b))
+    bytes_b = config_path.read_bytes()
+
+    assert bytes_a == bytes_b
+
+
+@restore_config
 @patch("tomlkit.dump")
 def test_can_save_secrets(mock_dump: Any) -> None:
     mock_config = merge_default_config(PartialMarimoConfig())
