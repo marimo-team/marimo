@@ -1,4 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+"use no memo";
+
+// tanstack/table is not compatible with React compiler
+// https://github.com/TanStack/table/issues/5567
 
 import { Fill } from "@marimo-team/react-slotz";
 import type {

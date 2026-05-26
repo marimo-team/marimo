@@ -1,6 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+"use no memo";
 
-import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+// tanstack/table is not compatible with React compiler
+// https://github.com/TanStack/table/issues/5567
+
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  EyeIcon,
+  EyeOffIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { useLocale } from "react-aria";
 import {
@@ -39,7 +48,8 @@ import {
   SELECT_COLUMN_ID,
 } from "../types";
 import { smartMatch } from "@/utils/smartMatch";
-import type { Table } from "@tanstack/react-table";
+import type { Column, Table } from "@tanstack/react-table";
+import { cn } from "@/utils/cn";
 
 interface ColumnExplorerPanelProps<TData> {
   previewColumn: PreviewColumn;
@@ -101,11 +111,16 @@ export function ColumnExplorerPanel<TData>({
           <CommandEmpty>No results.</CommandEmpty>
           {filteredColumns?.map(
             ([columnName, [dataType, externalType]], index) => {
+              const column = table
+                .getAllLeafColumns()
+                .find((c) => c.id === columnName);
+
               return (
                 <ColumnItem
                   // Tables may have the same column names, hence we use tableId to make it unique
                   key={`${tableId}-${columnName}`}
                   columnName={columnName}
+                  column={column}
                   dataType={dataType}
                   externalType={externalType}
                   previewColumn={previewColumn}
@@ -120,19 +135,21 @@ export function ColumnExplorerPanel<TData>({
   );
 }
 
-const ColumnItem = ({
+function ColumnItem<TData>({
   columnName,
+  column,
   dataType,
   externalType,
   previewColumn,
   defaultExpanded = false,
 }: {
   columnName: string;
+  column?: Column<TData, unknown>;
   dataType: DataType;
   externalType: string;
   previewColumn: PreviewColumn;
   defaultExpanded?: boolean;
-}) => {
+}) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   const columnText = (
@@ -152,20 +169,44 @@ const ColumnItem = ({
           <ChevronRightIcon className="w-3 h-3 shrink-0 text-muted-foreground" />
         )}
         <ColumnName columnName={columnText} dataType={dataType} />
-        <div className="ml-auto">
-          <Tooltip content="Copy column name" delayDuration={400}>
-            <Button
-              variant="text"
-              size="icon"
-              className="group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground"
+        <div className="ml-auto flex items-center gap-0.5">
+          <CopyClipboardIcon
+            tooltip="Copy column name"
+            value={columnName}
+            className="h-3 w-3"
+            buttonClassName={cn(
+              "inline-flex items-center justify-center rounded-md h-6 w-6",
+              "group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-primary",
+            )}
+          />
+          {column?.getCanHide() && (
+            <Tooltip
+              content={column.getIsVisible() ? "Hide column" : "Show column"}
+              delayDuration={400}
             >
-              <CopyClipboardIcon
-                tooltip={false}
-                value={columnName}
-                className="h-3 w-3"
-              />
-            </Button>
-          </Tooltip>
+              <Button
+                variant="text"
+                size="icon"
+                className={cn(
+                  "hover:bg-muted text-muted-foreground hover:text-primary",
+                  column.getIsVisible()
+                    ? "group-hover:opacity-100 opacity-0"
+                    : "opacity-100",
+                )}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  column.toggleVisibility(!column.getIsVisible());
+                }}
+              >
+                {column.getIsVisible() ? (
+                  <EyeIcon className="h-3 w-3" strokeWidth={2.5} />
+                ) : (
+                  <EyeOffIcon className="h-3 w-3" strokeWidth={2.5} />
+                )}
+              </Button>
+            </Tooltip>
+          )}
           <span className="text-xs text-muted-foreground">{externalType}</span>
         </div>
       </CommandItem>
@@ -180,7 +221,7 @@ const ColumnItem = ({
       )}
     </>
   );
-};
+}
 
 const ColumnPreview = ({
   previewColumn,
