@@ -13,6 +13,7 @@ import {
 } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { Button } from "../ui/button";
 import { toast } from "../ui/use-toast";
+import { getUserColumnVisibilityCounts } from "./hooks/use-column-visibility";
 import { DataTablePagination, prettifyRowColumnCount } from "./pagination";
 import { CellSelectionStats } from "./range-focus/cell-selection-stats";
 import type { DataTableSelection } from "./types";
@@ -146,9 +147,7 @@ export const TableBottomBar = <TData,>({
       );
     }
 
-    const hiddenCount = table
-      .getAllLeafColumns()
-      .filter((c) => c.getCanHide() && !c.getIsVisible()).length;
+    const { hidden: hiddenCount } = getUserColumnVisibilityCounts(table);
     const { rowsAndColumns, hiddenSuffix } = prettifyRowColumnCount({
       numRows: table.getRowCount(),
       totalColumns,

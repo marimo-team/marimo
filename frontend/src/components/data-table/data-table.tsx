@@ -22,7 +22,9 @@ import {
 import React, { memo } from "react";
 import { useLocale } from "react-aria";
 
+import { Button } from "@/components/ui/button";
 import { Table } from "@/components/ui/table";
+import { Banner } from "@/plugins/impl/common/error-banner";
 import type {
   CalculateTopKRows,
   GetRowIds,
@@ -63,7 +65,10 @@ import {
   type TooManyRows,
 } from "./types";
 import { getStableRowId } from "./utils";
-import { useColumnVisibility } from "./hooks/use-column-visibility";
+import {
+  getUserColumnVisibilityCounts,
+  useColumnVisibility,
+} from "./hooks/use-column-visibility";
 
 interface DataTableProps<TData> extends Partial<ExportActionProps> {
   wrapperClassName?: string;
@@ -325,6 +330,10 @@ const DataTableInternal = <TData,>({
     [table],
   );
 
+  const visibilityCounts = getUserColumnVisibilityCounts(table);
+  const allUserColumnsHidden =
+    visibilityCounts.total > 0 && visibilityCounts.visible === 0;
+
   return (
     <FilterEditorProvider value={filterEditor}>
       <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
@@ -354,6 +363,18 @@ const DataTableInternal = <TData,>({
               downloadAs={downloadAs}
               sizeBytes={sizeBytes}
             />
+            {allUserColumnsHidden && (
+              <Banner className="mb-1 mx-2 rounded flex items-center justify-between">
+                <span>All columns are hidden.</span>
+                <Button
+                  variant="link"
+                  size="xs"
+                  onClick={() => table.resetColumnVisibility()}
+                >
+                  Unhide all
+                </Button>
+              </Banner>
+            )}
             <Table
               className={cn(
                 "relative",
