@@ -443,15 +443,28 @@ export function prettifyRowCount(rowCount: number, locale: string): string {
 export const prettifyRowColumnCount = ({
   numRows,
   totalColumns,
+  hiddenColumns,
   locale,
 }: {
   numRows: number | "too_many";
   totalColumns: number;
+  hiddenColumns?: number;
   locale: string;
-}): string => {
+}): { rowsAndColumns: string; hiddenSuffix: string | null } => {
   const rowsLabel =
     numRows === "too_many" ? "Unknown" : prettifyRowCount(numRows, locale);
-  const columnsLabel = `${prettyNumber(totalColumns, locale)} ${new PluralWord("column").pluralize(totalColumns)}`;
 
-  return [rowsLabel, columnsLabel].join(", ");
+  const hidden = hiddenColumns ?? 0;
+  const visibleColumns = totalColumns - hidden;
+
+  const columnsLabel =
+    hidden > 0
+      ? `${prettyNumber(visibleColumns, locale)} visible`
+      : `${prettyNumber(totalColumns, locale)} ${new PluralWord("column").pluralize(totalColumns)}`;
+
+  return {
+    rowsAndColumns: [rowsLabel, columnsLabel].join(", "),
+    hiddenSuffix:
+      hidden > 0 ? `(${prettyNumber(hidden, locale)} hidden)` : null,
+  };
 };

@@ -22,7 +22,9 @@ import {
 import React, { memo } from "react";
 import { useLocale } from "react-aria";
 
+import { Button } from "@/components/ui/button";
 import { Table } from "@/components/ui/table";
+import { Banner } from "@/plugins/impl/common/error-banner";
 import type {
   CalculateTopKRows,
   GetRowIds,
@@ -63,6 +65,10 @@ import {
   type TooManyRows,
 } from "./types";
 import { getStableRowId } from "./utils";
+import {
+  getUserColumnVisibilityCounts,
+  useColumnVisibility,
+} from "./hooks/use-column-visibility";
 
 interface DataTableProps<TData> extends Partial<ExportActionProps> {
   wrapperClassName?: string;
@@ -107,6 +113,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   // Columns
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
+  hiddenColumns?: string[];
   toggleDisplayHeader?: () => void;
   // Row viewer panel
   viewedRowIdx?: number;
@@ -158,6 +165,7 @@ const DataTableInternal = <TData,>({
   reloading,
   freezeColumnsLeft,
   freezeColumnsRight,
+  hiddenColumns,
   toggleDisplayHeader,
   showChartBuilder,
   isChartBuilderOpen,
@@ -176,6 +184,8 @@ const DataTableInternal = <TData,>({
     freezeColumnsLeft,
     freezeColumnsRight,
   );
+  const { columnVisibility, setColumnVisibility } =
+    useColumnVisibility(hiddenColumns);
 
   // Show loading bar only after a short delay to prevent flickering
   React.useEffect(() => {
@@ -267,6 +277,8 @@ const DataTableInternal = <TData,>({
     enableMultiCellSelection: selection === "multi-cell",
     // pinning
     onColumnPinningChange: setColumnPinning,
+    // col visibility
+    onColumnVisibilityChange: setColumnVisibility,
     // focus row
     enableFocusRow: true,
     onFocusRowChange: onViewedRowChange,
@@ -284,6 +296,7 @@ const DataTableInternal = <TData,>({
             { pagination: { pageIndex: 0, pageSize: data.length } }),
       rowSelection: rowSelection ?? {},
       cellSelection: cellSelection ?? [],
+      columnVisibility,
       cellStyling,
       columnPinning: columnPinning,
       cellHoverTemplate: hoverTemplate,
@@ -317,6 +330,10 @@ const DataTableInternal = <TData,>({
     [table],
   );
 
+  const visibilityCounts = getUserColumnVisibilityCounts(table);
+  const allUserColumnsHidden =
+    visibilityCounts.total > 0 && visibilityCounts.visible === 0;
+
   return (
     <FilterEditorProvider value={filterEditor}>
       <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
@@ -346,6 +363,18 @@ const DataTableInternal = <TData,>({
               downloadAs={downloadAs}
               sizeBytes={sizeBytes}
             />
+            {allUserColumnsHidden && (
+              <Banner className="mb-1 mx-2 rounded flex items-center justify-between">
+                <span>All columns are hidden.</span>
+                <Button
+                  variant="link"
+                  size="xs"
+                  onClick={() => table.resetColumnVisibility(true)}
+                >
+                  Unhide all
+                </Button>
+              </Banner>
+            )}
             <Table
               className={cn(
                 "relative",
@@ -377,6 +406,7 @@ const DataTableInternal = <TData,>({
               getRowIds={getRowIds}
               showPageSizeSelector={showPageSizeSelector}
               tableLoading={reloading}
+              togglePanel={togglePanel}
             />
           </div>
         </CellSelectionProvider>

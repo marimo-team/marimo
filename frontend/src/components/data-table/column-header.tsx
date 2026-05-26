@@ -17,6 +17,7 @@ import { useFilterEditor } from "./filter-editor-context";
 import { EDITABLE_FILTER_TYPES, isMembershipFilterType } from "./filters";
 import {
   ClearFilterMenuItem,
+  HideColumn,
   renderColumnPinning,
   renderColumnWrapping,
   renderCopyColumn,
@@ -124,6 +125,7 @@ export const DataTableColumnHeader = <TData, TValue>({
             {renderColumnPinning(column)}
             {renderColumnWrapping(column)}
             {renderFormatOptions(column, locale)}
+            <HideColumn column={column} />
             {canEditFilter && <DropdownMenuSeparator />}
             {canEditFilter && (
               <DropdownMenuItem

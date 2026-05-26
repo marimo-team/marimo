@@ -71,10 +71,16 @@ export const ColumnExplorerPanel = ({
     return columnName.toLowerCase().includes(searchValue.toLowerCase());
   });
 
+  const rowColumnHiddenStr = prettifyRowColumnCount({
+    numRows: totalRows,
+    totalColumns,
+    locale,
+  }).rowsAndColumns;
+
   return (
     <div className="mb-3">
       <span className="text-xs font-semibold ml-2 flex">
-        {prettifyRowColumnCount({ numRows: totalRows, totalColumns, locale })}
+        {rowColumnHiddenStr}
         <CopyClipboardIcon
           tooltip="Copy column names"
           value={columns?.map(([columnName]) => columnName).join(",\n") || ""}
