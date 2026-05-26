@@ -369,7 +369,7 @@ const DataTableInternal = <TData,>({
                 <Button
                   variant="link"
                   size="xs"
-                  onClick={() => table.resetColumnVisibility()}
+                  onClick={() => table.resetColumnVisibility(true)}
                 >
                   Unhide all
                 </Button>

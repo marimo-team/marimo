@@ -5,7 +5,7 @@ import type {
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataTable } from "../data-table";
@@ -292,6 +292,13 @@ describe("DataTable — all-hidden banner", () => {
 
   it("does not render the banner when no columns are hidden", () => {
     renderWithVisibility([]);
+    expect(screen.queryByText(/All columns are hidden/i)).toBeNull();
+  });
+
+  it("'Unhide all' restores columns hidden via the Python kwarg", () => {
+    renderWithVisibility(["a", "b"]);
+    expect(screen.getByText(/All columns are hidden/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Unhide all/i));
     expect(screen.queryByText(/All columns are hidden/i)).toBeNull();
   });
 });
