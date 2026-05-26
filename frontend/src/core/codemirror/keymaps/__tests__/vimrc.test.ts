@@ -118,4 +118,28 @@ describe("parseVimrc", () => {
     expect(mappings).toEqual([]);
     expect(err.mock.calls.length).toEqual(0);
   });
+
+  it("should parse set clipboard=unnamedplus", () => {
+    const content = `
+      set clipboard=unnamedplus
+    `;
+
+    const err = vi.fn();
+    const commands = parseVimrc(dedent(content), err);
+    expect(commands).toEqual([
+      { name: "set", args: { option: "clipboard=unnamedplus" } },
+    ]);
+    expect(err.mock.calls.length).toEqual(0);
+  });
+
+  it("should report error for set without arguments", () => {
+    const content = `
+      set
+    `;
+
+    const err = vi.fn();
+    const commands = parseVimrc(dedent(content), err);
+    expect(commands).toEqual([]);
+    expect(err.mock.calls.length).toEqual(1);
+  });
 });

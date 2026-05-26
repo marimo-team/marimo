@@ -75,6 +75,10 @@ export const KnownCommands: { [key: string]: VimCommandSchema } = {
   imapclear: {
     mode: "insert",
   },
+
+  set: {
+    args: ["option"],
+  },
 };
 
 export type ParseError = (msg: string) => void;
