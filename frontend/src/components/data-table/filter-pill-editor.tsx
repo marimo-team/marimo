@@ -47,6 +47,42 @@ type DraftValue =
   | { kind: "date-single"; value?: Date }
   | { kind: "none" };
 
+interface NumberTextDraft {
+  min?: string;
+  max?: string;
+  value?: string;
+}
+
+const EMPTY_NUMBER_TEXT_DRAFT: NumberTextDraft = {};
+
+function parseDraftNumber(text: string | undefined): number | undefined {
+  if (text === undefined || text.trim() === "") {
+    return undefined;
+  }
+  const n = Number.parseFloat(text);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function mergeNumberTextDraft(
+  draft: DraftValue,
+  textDraft: NumberTextDraft,
+): DraftValue {
+  if (draft.kind === "between") {
+    return {
+      kind: "between",
+      min: parseDraftNumber(textDraft.min) ?? draft.min,
+      max: parseDraftNumber(textDraft.max) ?? draft.max,
+    };
+  }
+  if (draft.kind === "single-number") {
+    return {
+      kind: "single-number",
+      value: parseDraftNumber(textDraft.value) ?? draft.value,
+    };
+  }
+  return draft;
+}
+
 export function buildEmptyFilterValue(
   column: Column<unknown, unknown>,
 ): ColumnFilterValue {
@@ -103,6 +139,9 @@ export const FilterPillEditor = <TData,>({
   const [draftOperator, setDraftOperator] =
     useState<OperatorType>(snapshotOperator);
   const [draftValue, setDraftValue] = useState<DraftValue>(snapshotDraft);
+  const [numberTextDraft, setNumberTextDraft] = useState<NumberTextDraft>(
+    EMPTY_NUMBER_TEXT_DRAFT,
+  );
 
   const columnOptions = editableColumns(table);
 
@@ -131,6 +170,7 @@ export const FilterPillEditor = <TData,>({
       setDraftType(nextColumnType);
       setDraftOperator(nextOperator);
       setDraftValue(emptyDraftFor(nextColumnType, nextOperator));
+      setNumberTextDraft(EMPTY_NUMBER_TEXT_DRAFT);
     }
     setDraftColumnId(nextColumnId);
     rehydrateIfMatchesSnapshot({
@@ -145,6 +185,7 @@ export const FilterPillEditor = <TData,>({
     if (nextEmpty.kind !== draftValue.kind) {
       setDraftValue(nextEmpty);
     }
+    setNumberTextDraft(EMPTY_NUMBER_TEXT_DRAFT);
     rehydrateIfMatchesSnapshot({
       id: draftColumnId,
       operator: nextOp,
@@ -154,7 +195,7 @@ export const FilterPillEditor = <TData,>({
   const pendingValue = buildFilterValue({
     type: draftType,
     operator: draftOperator,
-    draft: draftValue,
+    draft: mergeNumberTextDraft(draftValue, numberTextDraft),
   });
   const applyDisabled = pendingValue === undefined;
   const applyTooltip = applyDisabled
@@ -271,6 +312,9 @@ export const FilterPillEditor = <TData,>({
             operator={draftOperator}
             value={draftValue}
             onChange={setDraftValue}
+            onNumberTextChange={(field, text) =>
+              setNumberTextDraft((prev) => ({ ...prev, [field]: text }))
+            }
             column={table.getColumn(draftColumnId) ?? null}
             calculateTopKRows={calculateTopKRows}
           />
@@ -326,6 +370,7 @@ interface ValueSlotProps<TData, TValue> {
   operator: OperatorType;
   value: DraftValue;
   onChange: (next: DraftValue) => void;
+  onNumberTextChange: (field: "min" | "max" | "value", text: string) => void;
   column: Column<TData, TValue> | null;
   calculateTopKRows?: CalculateTopKRows;
 }
@@ -336,6 +381,7 @@ const ValueSlot = <TData, TValue>({
   operator,
   value,
   onChange,
+  onNumberTextChange,
   column,
   calculateTopKRows,
 }: ValueSlotProps<TData, TValue>) => {
@@ -347,6 +393,7 @@ const ValueSlot = <TData, TValue>({
           id={id}
           value={v.min}
           onChange={(n) => onChange({ kind: "between", min: n, max: v.max })}
+          onInputText={(t) => onNumberTextChange("min", t)}
           aria-label="min"
           placeholder="min"
           className="border-input flex-1 min-w-0"
@@ -355,6 +402,7 @@ const ValueSlot = <TData, TValue>({
         <NumberField
           value={v.max}
           onChange={(n) => onChange({ kind: "between", min: v.min, max: n })}
+          onInputText={(t) => onNumberTextChange("max", t)}
           aria-label="max"
           placeholder="max"
           className="border-input flex-1 min-w-0"
@@ -372,6 +420,7 @@ const ValueSlot = <TData, TValue>({
         id={id}
         value={v.value}
         onChange={(n) => onChange({ kind: "single-number", value: n })}
+        onInputText={(t) => onNumberTextChange("value", t)}
         aria-label="value"
         placeholder="value"
         className="border-input w-24 min-w-0"
