@@ -82,6 +82,7 @@ import { IncorrectModelId } from "./incorrect-model-id";
 import { IsOverridden } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
 import { aiSettingsSubTabAtom } from "./state";
+import { useProviderModels } from "./use-provider-models";
 
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;
@@ -1533,6 +1534,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
         form={form}
         customModels={customModels}
         customProviderNames={customProviderNames}
+        customProviders={customProviders || {}}
         onSubmit={onSubmit}
       />
     </SettingGroup>
@@ -1543,13 +1545,15 @@ export const AddModelForm: React.FC<{
   form: UseFormReturn<UserConfig>;
   customModels: QualifiedModelId[];
   customProviderNames: string[];
+  customProviders: Record<string, CustomProviderConfig>;
   onSubmit: (values: UserConfig) => void;
-}> = ({ form, customModels, customProviderNames, onSubmit }) => {
+}> = ({ form, customModels, customProviderNames, customProviders, onSubmit }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
   const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
   const [customProviderName, setCustomProviderName] = useState("");
   const [modelName, setModelName] = useState("");
+  const [modelSelectedFromDropdown, setModelSelectedFromDropdown] = useState(false);
 
   const providerSelectId = useId();
   const customProviderInputId = useId();
@@ -1558,6 +1562,16 @@ export const AddModelForm: React.FC<{
   const isCustomProvider = provider === "custom";
   const providerName = isCustomProvider ? customProviderName : provider;
   const hasValidValues = providerName?.trim() && modelName?.trim();
+
+  // Resolve base URL für den gewählten Provider
+  const resolvedProviderName = isCustomProvider ? customProviderName : provider;
+  const ollamaBaseUrl = form.getValues("ai.ollama.base_url");
+  const resolvedBaseUrl = resolvedProviderName
+    ? customProviders[resolvedProviderName]?.base_url ??
+      (resolvedProviderName === "ollama" ? (ollamaBaseUrl || "http://localhost:11434") : undefined)
+    : undefined;
+
+  const { models: availableModels, isLoading: isLoadingModels } = useProviderModels(resolvedBaseUrl);
 
   const resetForm = () => {
     setProvider(null);
@@ -1601,7 +1615,13 @@ export const AddModelForm: React.FC<{
         </Label>
         <Select
           value={provider || ""}
-          onValueChange={(v) => setProvider(v as ProviderId | "custom")}
+          onValueChange={(v) => {
+            setProvider(v as ProviderId | "custom");
+            if (modelSelectedFromDropdown) {
+              setModelName("");
+              setModelSelectedFromDropdown(false);
+            }
+          }}
         >
           <SelectTrigger id={providerSelectId} className={providerClassName}>
             {provider ? (
@@ -1684,27 +1704,55 @@ export const AddModelForm: React.FC<{
   );
 
   const modelInput = (
-    <div
-      className={cn(
-        "flex items-center gap-2",
-        isCustomProvider && "self-start",
-      )}
+  <div
+    className={cn(
+      "flex items-center gap-2",
+      isCustomProvider && "self-start",
+    )}
+  >
+    <Label
+      htmlFor={modelNameInputId}
+      className="text-sm font-medium text-muted-foreground"
     >
-      <Label
-        htmlFor={modelNameInputId}
-        className="text-sm font-medium text-muted-foreground"
-      >
-        Model
-      </Label>
+      Model
+    </Label>
+    {availableModels.length > 0 ? (
+      <Select value={modelName} onValueChange={(v) => {
+        setModelName(v);
+        setModelSelectedFromDropdown(true);
+      }}>
+        <SelectTrigger id={modelNameInputId} className="w-48 text-xs">
+          {isLoadingModels ? (
+            <span className="text-muted-foreground">Loading...</span>
+          ) : (
+            <span>{modelName || "Select model..."}</span>
+          )}
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {availableModels.map((m) => (
+              <SelectItem key={m} value={m}>
+                {m}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    ) : (
       <Input
         id={modelNameInputId}
         value={modelName}
-        onChange={(e) => setModelName(e.target.value)}
-        placeholder="gpt-4"
+        onChange={(e) => {
+          setModelName(e.target.value);
+          setModelSelectedFromDropdown(false);
+        }}
+        placeholder={isLoadingModels ? "Loading models..." : "gpt-4"}
+        disabled={isLoadingModels}
         className="text-xs mb-0"
       />
-    </div>
-  );
+    )}
+  </div>
+);
 
   const inputForm = (
     <div className="flex items-center gap-3 p-3 border border-border rounded-md">
