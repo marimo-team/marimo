@@ -147,11 +147,15 @@ export const TableBottomBar = <TData,>({
       );
     }
 
-    const { hidden: hiddenCount } = getUserColumnVisibilityCounts(table);
+    const counts = getUserColumnVisibilityCounts(table);
+    // When columns are clipped, the table instance only has the rendered
+    // subset, so the visible/hidden math must use that subset's total. The
+    // dataset-wide `totalColumns` prop is only correct for the no-hidden
+    // "N columns" label.
     const { rowsAndColumns, hiddenSuffix } = prettifyRowColumnCount({
       numRows: table.getRowCount(),
-      totalColumns,
-      hiddenColumns: hiddenCount,
+      totalColumns: counts.hidden > 0 ? counts.total : totalColumns,
+      hiddenColumns: counts.hidden,
       locale,
     });
 
