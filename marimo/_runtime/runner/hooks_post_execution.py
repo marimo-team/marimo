@@ -35,7 +35,6 @@ from marimo._messaging.notification_utils import (
 )
 from marimo._messaging.tracebacks import (
     _highlight_traceback,
-    _trim_traceback,
     write_traceback,
 )
 from marimo._messaging.variables import create_variable_value
@@ -426,9 +425,7 @@ def _broadcast_outputs(
             and run_result.exception.__traceback__
         ):
             tb_lines = tb.format_exception(run_result.exception)
-            formatted_traceback = _highlight_traceback(
-                _trim_traceback("".join(tb_lines))
-            )
+            formatted_traceback = _highlight_traceback("".join(tb_lines))
 
         CellNotificationUtils.broadcast_error(
             data=[

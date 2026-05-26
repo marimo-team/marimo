@@ -3,13 +3,29 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any, Protocol
 
 from marimo._ast.cell import _is_coroutine
 from marimo._runtime.exceptions import MarimoRuntimeException
+from marimo._types.globals import MutableGlobals
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
+
+
+def _strip_frame(e: BaseException, count: int = 1) -> None:
+    """Drop the top `count` frames from `e.__traceback__`.
+
+    Stops early if the traceback runs out — never strips the last
+    frame, so we don't lose the only frame we have.
+    """
+    tb = e.__traceback__
+    for _ in range(count):
+        if tb is None or tb.tb_next is None:
+            break
+        tb = tb.tb_next
+    e.__traceback__ = tb
 
 
 class Executor(Protocol):
@@ -17,17 +33,17 @@ class Executor(Protocol):
 
     name: str
 
-    def execute_cell(self, cell: CellImpl, glbls: dict[str, Any]) -> Any: ...
+    def execute_cell(self, cell: CellImpl, glbls: MutableGlobals) -> Any: ...
 
     async def execute_cell_async(
-        self, cell: CellImpl, glbls: dict[str, Any]
+        self, cell: CellImpl, glbls: MutableGlobals
     ) -> Any: ...
 
 
 class DefaultExecutor:
     name = "default"
 
-    def execute_cell(self, cell: CellImpl, glbls: dict[str, Any]) -> Any:
+    def execute_cell(self, cell: CellImpl, glbls: MutableGlobals) -> Any:
         if cell.body is None:
             return None
         assert cell.last_expr is not None
@@ -39,13 +55,16 @@ class DefaultExecutor:
         try:
             exec(cell.body, glbls)
             return eval(cell.last_expr, glbls)
+        except asyncio.CancelledError:
+            # Cancellation is control flow, not user error — surface bare.
+            raise
         except BaseException as e:
-            # Raising from BaseException folds in the stack trace prior
-            # to execution.
+            # Strip our own frame so user-facing tracebacks start at user code.
+            _strip_frame(e)
             raise MarimoRuntimeException from e
 
     async def execute_cell_async(
-        self, cell: CellImpl, glbls: dict[str, Any]
+        self, cell: CellImpl, glbls: MutableGlobals
     ) -> Any:
         if cell.body is None:
             return None
@@ -58,5 +77,8 @@ class DefaultExecutor:
             if _is_coroutine(cell.last_expr):
                 return await eval(cell.last_expr, glbls)
             return eval(cell.last_expr, glbls)
+        except asyncio.CancelledError:
+            raise
         except BaseException as e:
+            _strip_frame(e)
             raise MarimoRuntimeException from e

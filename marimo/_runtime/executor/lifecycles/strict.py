@@ -22,6 +22,7 @@ from marimo._runtime.primitives import (
     is_unclonable_type,
 )
 from marimo._runtime.runner.result import RunResult
+from marimo._types.globals import MutableGlobals
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
@@ -60,7 +61,7 @@ class StrictLifecycle:
         # Per-cell setup→teardown backup. Keyed by cell_id.
         self._backups: dict[CellId_t, dict[str, Any]] = {}
 
-    def setup(self, cell: CellImpl, glbls: dict[str, Any]) -> Skip | None:
+    def setup(self, cell: CellImpl, glbls: MutableGlobals) -> Skip | None:
         refs = self._graph.get_transitive_references(
             cell.refs,
             predicate=build_ref_predicate_for_primitives(
@@ -136,7 +137,7 @@ class StrictLifecycle:
     def teardown(
         self,
         cell: CellImpl,
-        glbls: dict[str, Any],
+        glbls: MutableGlobals,
         run_result: RunResult,  # noqa: ARG002
     ) -> None:
         backup = self._backups.pop(cell.cell_id, None)

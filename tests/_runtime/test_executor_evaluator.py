@@ -15,6 +15,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import pytest
+
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._runtime.executor import (
     DefaultExecutor,
@@ -201,6 +203,53 @@ async def test_default_executor_wraps_user_exception_in_marimo_runtime() -> (
     assert isinstance(a.last_run_result.exception, MarimoRuntimeException)
 
 
+def _cause_traceback_filenames(exc: BaseException) -> list[str]:
+    cause = exc.__cause__
+    assert cause is not None
+    tb = cause.__traceback__
+    files: list[str] = []
+    while tb is not None:
+        files.append(tb.tb_frame.f_code.co_filename)
+        tb = tb.tb_next
+    return files
+
+
+def test_default_executor_strips_own_frame_from_cause_sync() -> None:
+    """`DefaultExecutor.execute_cell` must not leave its own frame on
+    the cause's `__traceback__` — user-facing tracebacks should begin
+    at user code (the compiled `<test>` source)."""
+
+    class _FakeCell:
+        cell_id = "0"
+        body = compile("raise ValueError('user bomb')", "<test>", "exec")
+        last_expr = compile("None", "<test>", "eval")
+
+    with pytest.raises(MarimoRuntimeException) as exc_info:
+        DefaultExecutor().execute_cell(_FakeCell(), {})  # type: ignore[arg-type]
+
+    files = _cause_traceback_filenames(exc_info.value)
+    assert files, "cause traceback unexpectedly empty"
+    assert not any("executor/executor.py" in f for f in files), files
+    assert files[0] == "<test>"
+
+
+async def test_default_executor_strips_own_frame_from_cause_async() -> None:
+    """Same as the sync variant, for `execute_cell_async`."""
+
+    class _FakeCell:
+        cell_id = "0"
+        body = compile("raise ValueError('user bomb')", "<test>", "exec")
+        last_expr = compile("None", "<test>", "eval")
+
+    with pytest.raises(MarimoRuntimeException) as exc_info:
+        await DefaultExecutor().execute_cell_async(_FakeCell(), {})  # type: ignore[arg-type]
+
+    files = _cause_traceback_filenames(exc_info.value)
+    assert files, "cause traceback unexpectedly empty"
+    assert not any("executor/executor.py" in f for f in files), files
+    assert files[0] == "<test>"
+
+
 async def test_teardown_runs_for_completed_setups_when_later_setup_raises() -> (
     None
 ):
@@ -298,6 +347,158 @@ def test_strict_lifecycle_round_trip() -> None:
     assert glbls["y"] == pre["y"]
 
 
+class _StrictGraph:
+    """`_FakeGraph` for `StrictLifecycle` setup-path tests.
+
+    `transitive_refs` controls what `get_transitive_references` returns
+    so the test can drive `setup` past sanitization into the
+    error-construction branch. `defining_cells` maps refs to defining
+    cell IDs; refs absent from the map raise `KeyError` to exercise
+    the `unmangle_local` fallback.
+    """
+
+    def __init__(
+        self,
+        transitive_refs: set[str],
+        defining_cells: dict[str, list[str]] | None = None,
+    ) -> None:
+        self._transitive_refs = transitive_refs
+        self._defining_cells = defining_cells or {}
+
+    def get_transitive_references(
+        self, refs: set[str], predicate: Any
+    ) -> set[str]:
+        return set(self._transitive_refs)
+
+    def get_defining_cells(self, ref: str) -> list[str]:
+        return self._defining_cells[ref]
+
+
+class _StrictCell:
+    def __init__(self, refs: set[str], defs: set[str] | None = None) -> None:
+        self.cell_id = "c0"
+        self.refs = refs
+        self.defs = defs or set()
+
+
+def test_strict_setup_skip_on_undefined_ref() -> None:
+    """Unresolved ref → `Skip(result=RunResult(output=err, exception=err))`
+    where `err` is a `MarimoStrictExecutionError` with no blamed cell
+    (graph has no defining cell and the ref is not a private var)."""
+    from marimo._messaging.errors import MarimoStrictExecutionError
+    from marimo._runtime.executor.lifecycles.strict import StrictLifecycle
+
+    lifecycle = StrictLifecycle(
+        graph=_StrictGraph(transitive_refs={"x"})  # type: ignore[arg-type]
+    )
+    glbls: dict[str, Any] = {"__builtins__": {}}
+
+    skip = lifecycle.setup(_StrictCell(refs={"x"}), glbls)  # type: ignore[arg-type]
+
+    assert skip is not None
+    assert skip.result is not None
+    err = skip.result.exception
+    assert isinstance(err, MarimoStrictExecutionError)
+    assert err.ref == "x"
+    assert err.blamed_cell is None
+    assert skip.result.output is err
+
+
+def test_strict_setup_skip_on_ref_before_def() -> None:
+    """Ref appears in the cell's own `defs` → ref-before-def branch."""
+    from marimo._messaging.errors import MarimoStrictExecutionError
+    from marimo._runtime.executor.lifecycles.strict import StrictLifecycle
+
+    lifecycle = StrictLifecycle(
+        graph=_StrictGraph(transitive_refs={"x"})  # type: ignore[arg-type]
+    )
+    glbls: dict[str, Any] = {"__builtins__": {}}
+
+    skip = lifecycle.setup(
+        _StrictCell(refs={"x"}, defs={"x"}),  # type: ignore[arg-type]
+        glbls,
+    )
+
+    assert skip is not None
+    assert skip.result is not None
+    err = skip.result.exception
+    assert isinstance(err, MarimoStrictExecutionError)
+    assert err.ref == "x"
+    assert err.blamed_cell is None
+
+
+def test_strict_setup_skip_resolves_blamed_cell_via_graph() -> None:
+    """`get_defining_cells` returns the owning cell → blamed_cell."""
+    from marimo._messaging.errors import MarimoStrictExecutionError
+    from marimo._runtime.executor.lifecycles.strict import StrictLifecycle
+
+    lifecycle = StrictLifecycle(
+        graph=_StrictGraph(  # type: ignore[arg-type]
+            transitive_refs={"x"},
+            defining_cells={"x": ["other"]},
+        )
+    )
+    glbls: dict[str, Any] = {"__builtins__": {}}
+
+    skip = lifecycle.setup(_StrictCell(refs={"x"}), glbls)  # type: ignore[arg-type]
+
+    assert skip is not None
+    assert skip.result is not None
+    err = skip.result.exception
+    assert isinstance(err, MarimoStrictExecutionError)
+    assert err.blamed_cell == "other"
+
+
+def test_strict_setup_skip_falls_back_to_private_var_owner() -> None:
+    """`KeyError` from the graph → `unmangle_local` resolves the
+    owning cell for mangled private vars."""
+    from marimo._messaging.errors import MarimoStrictExecutionError
+    from marimo._runtime.executor.lifecycles.strict import StrictLifecycle
+
+    # `_cell_ZZZ_priv` unmangles to (name="_priv", cell="ZZZ").
+    private_ref = "_cell_ZZZ_priv"
+    lifecycle = StrictLifecycle(
+        graph=_StrictGraph(  # type: ignore[arg-type]
+            transitive_refs={private_ref},
+        )
+    )
+    glbls: dict[str, Any] = {"__builtins__": {}}
+
+    skip = lifecycle.setup(
+        _StrictCell(refs={private_ref}),  # type: ignore[arg-type]
+        glbls,
+    )
+
+    assert skip is not None
+    assert skip.result is not None
+    err = skip.result.exception
+    assert isinstance(err, MarimoStrictExecutionError)
+    assert err.blamed_cell == "ZZZ"
+
+
+def test_strict_setup_skip_does_not_mutate_globals_or_stash_backup() -> None:
+    """The Skip early-return must happen before globals are cleared and
+    before the backup is stashed. `teardown` must then be a no-op."""
+    from marimo._runtime.executor.lifecycles.strict import StrictLifecycle
+
+    lifecycle = StrictLifecycle(
+        graph=_StrictGraph(transitive_refs={"x"})  # type: ignore[arg-type]
+    )
+    glbls: dict[str, Any] = {
+        "preserve_me": 42,
+        "__builtins__": {},
+    }
+    pre = dict(glbls)
+
+    skip = lifecycle.setup(_StrictCell(refs={"x"}), glbls)  # type: ignore[arg-type]
+    assert skip is not None
+    assert glbls == pre, "Skip path must not mutate globals"
+    assert lifecycle._backups == {}, "Skip path must not stash a backup"
+
+    lifecycle.teardown(_StrictCell(refs={"x"}), glbls, skip.result)  # type: ignore[arg-type]
+    assert glbls == pre, "teardown after Skip must be a no-op"
+
+
 def test_execution_lifecycle_protocol_conformance() -> None:
     """A Protocol-conforming class without inheriting works as a
     lifecycle."""
@@ -320,3 +521,167 @@ def test_execution_lifecycle_protocol_conformance() -> None:
     # here, not at runtime.
     lifecycle: ExecutionLifecycle = _MyLifecycle()
     assert lifecycle.name == "mine"
+
+
+# --- Surface 4: _cancel_on_sigint + evaluate_interruptible ------------------
+
+
+def _async_body(src: str) -> Any:
+    """Compile `src` with top-level-await support; returns a code object
+    whose `co_flags` carry `CO_COROUTINE` so `_is_coroutine` is True."""
+    import ast
+
+    return compile(src, "<test>", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+
+
+async def test_cancel_on_sigint_installs_and_restores_handler(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`_cancel_on_sigint` swaps in its own handler on enter and
+    restores the previously-installed one on exit."""
+    import signal
+
+    from marimo._runtime.executor.evaluator import _cancel_on_sigint
+
+    def prior(signum: int, frame: Any) -> None:
+        del signum, frame
+
+    signal_calls: list[tuple[int, Any]] = []
+
+    def fake_signal(signum: int, handler: Any) -> Any:
+        signal_calls.append((signum, handler))
+        return prior
+
+    monkeypatch.setattr(signal, "signal", fake_signal)
+    monkeypatch.setattr(signal, "getsignal", lambda _signum: prior)
+
+    fut: asyncio.Future[Any] = asyncio.Future()
+    with _cancel_on_sigint(fut):
+        # On enter: a new handler installed (not the prior).
+        assert signal_calls, "no signal.signal call recorded on enter"
+        assert signal_calls[0][0] == signal.SIGINT
+        assert signal_calls[0][1] is not prior
+
+    # On exit: prior handler restored as the last call.
+    assert signal_calls[-1] == (signal.SIGINT, prior)
+
+
+async def test_cancel_on_sigint_handler_cancels_future_and_chains_prior(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The installed handler must cancel the wrapped future and invoke
+    the previously-installed handler for its side effects."""
+    import signal
+
+    from marimo._runtime.executor.evaluator import _cancel_on_sigint
+
+    prior_calls: list[tuple[int, Any]] = []
+
+    def prior(signum: int, frame: Any) -> None:
+        prior_calls.append((signum, frame))
+
+    captured: list[Any] = []
+
+    def fake_signal(signum: int, handler: Any) -> Any:
+        captured.append(handler)
+        return prior
+
+    monkeypatch.setattr(signal, "signal", fake_signal)
+    monkeypatch.setattr(signal, "getsignal", lambda _signum: prior)
+
+    fut: asyncio.Future[Any] = asyncio.Future()
+    with _cancel_on_sigint(fut):
+        marimo_handler = captured[0]
+        marimo_handler(signal.SIGINT, None)
+        # Cancellation propagates through done-callbacks asynchronously;
+        # yield to the loop so they fire.
+        await asyncio.sleep(0)
+
+        assert fut.cancelled()
+        assert prior_calls == [(signal.SIGINT, None)]
+
+
+async def test_cancel_on_sigint_swallows_marimo_interrupt_from_prior_handler(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prior handler raising `MarimoInterrupt` must not escape — the
+    kernel's sync-mode raise is irrelevant for async cells, where the
+    halt comes from cancelling the future."""
+    import signal
+
+    from marimo._runtime.control_flow import MarimoInterrupt
+    from marimo._runtime.executor.evaluator import _cancel_on_sigint
+
+    def prior(signum: int, frame: Any) -> None:
+        raise MarimoInterrupt
+
+    captured: list[Any] = []
+
+    def fake_signal(signum: int, handler: Any) -> Any:
+        captured.append(handler)
+        return prior
+
+    monkeypatch.setattr(signal, "signal", fake_signal)
+    monkeypatch.setattr(signal, "getsignal", lambda _signum: prior)
+
+    fut: asyncio.Future[Any] = asyncio.Future()
+    with _cancel_on_sigint(fut):
+        marimo_handler = captured[0]
+        # No exception escapes — the wrapper catches MarimoInterrupt
+        # from the prior handler.
+        marimo_handler(signal.SIGINT, None)
+        await asyncio.sleep(0)
+        assert fut.cancelled()
+
+
+async def test_executor_async_cancellation_propagates_unwrapped() -> None:
+    """`asyncio.CancelledError` must propagate unwrapped through
+    `DefaultExecutor.execute_cell_async` — wrapping it as
+    `MarimoRuntimeException` would mask the cancellation."""
+
+    class _AsyncCell:
+        cell_id = "0"
+        body = _async_body("import asyncio\nawait asyncio.sleep(100)")
+        last_expr = compile("None", "<test>", "eval")
+
+        def is_coroutine(self) -> bool:
+            return True
+
+    task = asyncio.create_task(
+        DefaultExecutor().execute_cell_async(_AsyncCell(), {})  # type: ignore[arg-type]
+    )
+    # Yield so the task enters the awaited sleep before we cancel.
+    await asyncio.sleep(0)
+    task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+async def test_evaluate_interruptible_no_op_for_sync_cell() -> None:
+    """Sync cells: `evaluate_interruptible` returns the same shape as a
+    direct `evaluate()` call. The SIGINT-handler wrap is for async only."""
+
+    class _SyncCell:
+        cell_id = "0"
+        body = compile("x = 1", "<test>", "exec")
+        last_expr = compile("x", "<test>", "eval")
+
+        def is_coroutine(self) -> bool:
+            return False
+
+    ev = Evaluator(executor=DefaultExecutor(), lifecycles=[])
+
+    sync_glbls: dict[str, Any] = {}
+    interruptible_glbls: dict[str, Any] = {}
+
+    direct = await ev.evaluate(_SyncCell(), sync_glbls)  # type: ignore[arg-type]
+    interruptible = await ev.evaluate_interruptible(
+        _SyncCell(),  # type: ignore[arg-type]
+        interruptible_glbls,
+    )
+
+    assert direct.output == interruptible.output == 1
+    assert direct.exception is None
+    assert interruptible.exception is None
+    assert direct.accumulated_output == interruptible.accumulated_output

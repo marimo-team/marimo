@@ -481,8 +481,12 @@ class Cell:
         if hasattr(self, "_is_coro_cached"):
             return self._is_coro_cached
         assert self._app is not None
-        self._is_coro_cached: bool = self._app.runner.is_coroutine(
-            self._cell.cell_id
+        from marimo._runtime.runner import by_kwargs
+
+        # Currently expensive since `graph` triggers _maybe_initialize on the
+        # underlying App.
+        self._is_coro_cached: bool = by_kwargs.is_coroutine(
+            self._app.graph, self._cell.cell_id
         )
         return self._is_coro_cached
 
@@ -655,8 +659,15 @@ class Cell:
                 }
                 refs = {**from_setup, **refs}
 
+        from marimo._runtime.runner import by_kwargs
+
         try:
-            if self._is_coroutine:
+            # Refresh the async decision with the caller's substitutions —
+            # an unsubstituted ancestor may have been async but isn't on
+            # this call's ancestor closure.
+            if by_kwargs.is_coroutine(
+                self._app.graph, self._cell.cell_id, refs
+            ):
                 return self._app.run_cell_async(cell=self, kwargs=refs)
             else:
                 return self._app.run_cell_sync(cell=self, kwargs=refs)
