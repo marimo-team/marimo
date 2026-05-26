@@ -1065,28 +1065,6 @@ const DataTableComponent = ({
         </Banner>
       )}
 
-      {isAnyPanelOpen && (showRowExplorer || canShowColumnExplorer) && (
-        <ContextAwarePanelItem>
-          <TableExplorerPanel
-            rowIdx={viewedRowIdx}
-            setRowIdx={setViewedRow}
-            totalRows={totalRows}
-            fieldTypes={memoizedUnclampedFieldTypes}
-            getRow={getRow}
-            isSelectable={isSelectable}
-            isRowSelected={Boolean(rowSelection[viewedRowIdx])}
-            handleRowSelectionChange={handleRowSelectionChange}
-            previewColumn={preview_column}
-            totalColumns={totalColumns}
-            tableId={id}
-            showRowExplorer={showRowExplorer && !isInVscode}
-            showColumnExplorer={canShowColumnExplorer && !isInVscode}
-            activeTab={panelType}
-            onTabChange={setPanelType}
-          />
-        </ContextAwarePanelItem>
-      )}
-
       <ColumnChartContext value={chartSpecModel}>
         <Labeled label={label} align="top" fullWidth={true}>
           <DataTable
@@ -1143,6 +1121,34 @@ const DataTableComponent = ({
             isAnyPanelOpen={isAnyPanelOpen}
             viewedRowIdx={viewedRowIdx}
             onViewedRowChange={(rowIdx) => setViewedRowIdx(rowIdx)}
+            renderTableExplorerPanel={
+              isAnyPanelOpen && (showRowExplorer || canShowColumnExplorer)
+                ? (table) => (
+                    <ContextAwarePanelItem>
+                      <TableExplorerPanel
+                        rowIdx={viewedRowIdx}
+                        setRowIdx={setViewedRow}
+                        totalRows={totalRows}
+                        fieldTypes={memoizedUnclampedFieldTypes}
+                        getRow={getRow}
+                        isSelectable={isSelectable}
+                        isRowSelected={Boolean(rowSelection[viewedRowIdx])}
+                        handleRowSelectionChange={handleRowSelectionChange}
+                        previewColumn={preview_column}
+                        totalColumns={totalColumns}
+                        tableId={id}
+                        table={table}
+                        showRowExplorer={showRowExplorer && !isInVscode}
+                        showColumnExplorer={
+                          canShowColumnExplorer && !isInVscode
+                        }
+                        activeTab={panelType}
+                        onTabChange={setPanelType}
+                      />
+                    </ContextAwarePanelItem>
+                  )
+                : undefined
+            }
           />
         </Labeled>
       </ColumnChartContext>

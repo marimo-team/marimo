@@ -17,6 +17,7 @@ import {
   type PaginationState,
   type RowSelectionState,
   type SortingState,
+  type Table as TanstackTable,
   useReactTable,
 } from "@tanstack/react-table";
 import React, { memo } from "react";
@@ -127,6 +128,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   togglePanel?: (panelType: PanelType) => void;
   isPanelOpen?: (panelType: PanelType) => boolean;
   isAnyPanelOpen?: boolean;
+  renderTableExplorerPanel?: (table: TanstackTable<TData>) => React.ReactNode;
 }
 
 const DataTableInternal = <TData,>({
@@ -178,6 +180,7 @@ const DataTableInternal = <TData,>({
   isAnyPanelOpen,
   viewedRowIdx,
   onViewedRowChange,
+  renderTableExplorerPanel,
 }: DataTableProps<TData>) => {
   const [showLoadingBar, setShowLoadingBar] = React.useState<boolean>(false);
   const { locale } = useLocale();
@@ -346,6 +349,7 @@ const DataTableInternal = <TData,>({
           addFilterSnapshot={addFilterSnapshot}
           onAddFilterSnapshotChange={setAddFilterSnapshot}
         />
+        {renderTableExplorerPanel?.(table)}
         <CellSelectionProvider>
           <div
             part="table-wrapper"

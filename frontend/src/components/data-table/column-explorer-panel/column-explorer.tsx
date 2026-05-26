@@ -38,22 +38,26 @@ import {
   INDEX_COLUMN_NAME,
   SELECT_COLUMN_ID,
 } from "../types";
+import { smartMatch } from "@/utils/smartMatch";
+import type { Table } from "@tanstack/react-table";
 
-interface ColumnExplorerPanelProps {
+interface ColumnExplorerPanelProps<TData> {
   previewColumn: PreviewColumn;
   fieldTypes: FieldTypesWithExternalType | undefined | null;
   totalRows: number | "too_many";
   totalColumns: number;
   tableId: string;
+  table: Table<TData>;
 }
 
-export const ColumnExplorerPanel = ({
+export function ColumnExplorerPanel<TData>({
   previewColumn,
   fieldTypes,
   totalRows,
   totalColumns,
   tableId,
-}: ColumnExplorerPanelProps) => {
+  table,
+}: ColumnExplorerPanelProps<TData>) {
   const [searchValue, setSearchValue] = useState("");
   const { locale } = useLocale();
   const columns = fieldTypes?.filter(([columnName]) => {
@@ -68,7 +72,7 @@ export const ColumnExplorerPanel = ({
   });
 
   const filteredColumns = columns?.filter(([columnName]) => {
-    return columnName.toLowerCase().includes(searchValue.toLowerCase());
+    return smartMatch(searchValue, columnName);
   });
 
   const rowColumnHiddenStr = prettifyRowColumnCount({
@@ -114,7 +118,7 @@ export const ColumnExplorerPanel = ({
       </Command>
     </div>
   );
-};
+}
 
 const ColumnItem = ({
   columnName,
