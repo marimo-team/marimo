@@ -7,6 +7,10 @@ import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { prettyNumber } from "@/utils/numbers";
+import {
+  PANEL_TYPES,
+  type PanelType,
+} from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { Button } from "../ui/button";
 import { toast } from "../ui/use-toast";
 import { DataTablePagination, prettifyRowColumnCount } from "./pagination";
@@ -22,6 +26,7 @@ interface TableBottomBarProps<TData> {
   getRowIds?: GetRowIds;
   showPageSizeSelector?: boolean;
   tableLoading?: boolean;
+  togglePanel?: (panelType: PanelType) => void;
   part?: string;
   className?: string;
 }
@@ -35,6 +40,7 @@ export const TableBottomBar = <TData,>({
   getRowIds,
   showPageSizeSelector,
   tableLoading,
+  togglePanel,
   part,
   className,
 }: TableBottomBarProps<TData>) => {
@@ -140,13 +146,28 @@ export const TableBottomBar = <TData,>({
       );
     }
 
+    const hiddenCount = table
+      .getAllLeafColumns()
+      .filter((c) => c.getCanHide() && !c.getIsVisible()).length;
+    const { rowsAndColumns, hiddenSuffix } = prettifyRowColumnCount({
+      numRows: table.getRowCount(),
+      totalColumns,
+      hiddenColumns: hiddenCount,
+      locale,
+    });
+
     return (
-      <span>
-        {prettifyRowColumnCount({
-          numRows: table.getRowCount(),
-          totalColumns,
-          locale,
-        })}
+      <span className="flex items-center gap-1">
+        <span>{rowsAndColumns}</span>
+        {hiddenSuffix && (
+          <button
+            type="button"
+            className="text-xs underline-offset-2 hover:underline cursor-pointer"
+            onClick={() => togglePanel?.(PANEL_TYPES.COLUMN_EXPLORER)}
+          >
+            {hiddenSuffix}
+          </button>
+        )}
       </span>
     );
   };

@@ -169,7 +169,7 @@ describe("HideColumn", () => {
 
   const renderInMenu = (node: React.ReactNode) =>
     render(
-      <DropdownMenu open>
+      <DropdownMenu open={true}>
         <DropdownMenuTrigger />
         <DropdownMenuContent>{node}</DropdownMenuContent>
       </DropdownMenu>,
