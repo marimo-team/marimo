@@ -42,7 +42,7 @@ export const FilterByValuesPicker = <TData, TValue>({
   onChange,
   creatable = false,
 }: Props<TData, TValue>) => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(chosenValues.length === 0);
 
   const chosenValuesSet = useMemo(() => new Set(chosenValues), [chosenValues]);
 
