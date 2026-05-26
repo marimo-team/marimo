@@ -620,8 +620,12 @@ async def get_provider_models(
             response = await client.get(models_url)
             response.raise_for_status()
             data = response.json()
-            model_ids = sorted([m["id"] for m in data.get("data", []) if m.get("id")])
+            model_ids = sorted(
+                [m["id"] for m in data.get("data", []) if m.get("id")]
+            )
             return StructResponse({"models": model_ids})
     except Exception as e:
-        LOGGER.warning("Could not fetch models from %s: %s", models_url, str(e))
+        LOGGER.warning(
+            "Could not fetch models from %s: %s", models_url, str(e)
+        )
         return StructResponse({"models": []})

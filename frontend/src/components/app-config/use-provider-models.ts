@@ -11,7 +11,9 @@ export interface ProviderModelsResult {
  * Fetches available models from an OpenAI-compatible endpoint
  * via the Marimo backend proxy to avoid CORS issues.
  */
-export function useProviderModels(baseUrl: string | null | undefined): ProviderModelsResult {
+export function useProviderModels(
+  baseUrl: string | null | undefined,
+): ProviderModelsResult {
   const [models, setModels] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export function useProviderModels(baseUrl: string | null | undefined): ProviderM
           throw new Error(`HTTP ${response.status}`);
         }
 
-        const data = await response.json() as { models: string[] };
+        const data = (await response.json()) as { models: string[] };
         setModels(data.models ?? []);
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
