@@ -47,7 +47,7 @@ import {
 } from "@/utils/traceback";
 import { cn } from "../../../utils/cn";
 import { AIFixButton } from "../errors/auto-fix";
-import { renderMangledSegments } from "../errors/mangled-local-chip";
+import { MangledSegments } from "../errors/mangled-local-chip";
 import { CellLinkTraceback } from "../links/cell-link";
 import type { OnRefactorWithAI } from "../Output";
 
@@ -123,7 +123,7 @@ export const MarimoTracebackOutput = ({
             />
             <div className="text-sm inline font-mono">
               <span className="text-destructive">{error || "Error"}:</span>{" "}
-              {renderMangledSegments(errorMessageSegments, "tb-header")}
+              <MangledSegments segments={errorMessageSegments} />
             </div>
           </div>
           <AccordionContent className="text-muted-foreground px-4 pt-2 text-xs overflow-auto">
@@ -275,7 +275,7 @@ export const replaceMangledLocal = (domNode: DOMNode) => {
     return;
   }
   const segments = splitMangledLocals(domNode.nodeValue);
-  return <>{renderMangledSegments(segments, "tb-body")}</>;
+  return <MangledSegments segments={segments} />;
 };
 
 export const replaceTracebackPrefix = (domNode: DOMNode) => {

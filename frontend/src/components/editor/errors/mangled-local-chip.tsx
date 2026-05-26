@@ -27,20 +27,24 @@ export const MangledLocalChip = ({ local }: Props): JSX.Element => {
   );
 };
 
+interface MangledSegmentsProps {
+  segments: MangledSegment[];
+}
+
 /**
  * Render an array of `splitMangledLocals` segments as alternating text and
- * `<MangledLocalChip>` nodes. The `keyPrefix` keeps React keys unique when
- * multiple lists coexist on the page.
+ * `<MangledLocalChip>` nodes.
  */
-export function renderMangledSegments(
-  segments: MangledSegment[],
-  keyPrefix: string,
-): JSX.Element[] {
-  return segments.map((segment, idx) => {
-    const key = `${keyPrefix}-${idx}`;
-    if (typeof segment === "string") {
-      return <span key={key}>{segment}</span>;
-    }
-    return <MangledLocalChip key={key} local={segment} />;
-  });
-}
+export const MangledSegments = ({
+  segments,
+}: MangledSegmentsProps): JSX.Element => (
+  <>
+    {segments.map((segment, idx) =>
+      typeof segment === "string" ? (
+        <span key={idx}>{segment}</span>
+      ) : (
+        <MangledLocalChip key={idx} local={segment} />
+      ),
+    )}
+  </>
+);

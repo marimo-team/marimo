@@ -25,7 +25,7 @@ import { Alert, AlertTitle } from "../../ui/alert";
 import { openPackageManager } from "../chrome/panels/packages-utils";
 import { useChromeActions } from "../chrome/state";
 import { AutoFixButton } from "../errors/auto-fix";
-import { renderMangledSegments } from "../errors/mangled-local-chip";
+import { MangledSegments } from "../errors/mangled-local-chip";
 import { CellLinkError } from "../links/cell-link";
 import { processTextForUrls } from "./console/text-rendering";
 
@@ -461,7 +461,7 @@ export const MarimoErrorOutput = ({
                 <li className="my-2" key={`exception-${idx}`}>
                   <div>
                     <p className="text-muted-foreground">
-                      {renderMangledSegments(segments, `exception-${idx}`)}
+                      <MangledSegments segments={segments} />
                     </p>
                     <p className="text-muted-foreground mt-2">
                       Variables prefixed with an underscore are local to a cell{" "}
