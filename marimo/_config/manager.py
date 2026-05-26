@@ -402,7 +402,7 @@ class UserConfigManager(MarimoConfigReader):
         merged = merge_config(current_config, config)
 
         with open(config_path, "w", encoding="utf-8") as f:
-            tomlkit.dump(merged, f)
+            tomlkit.dump(merged, f, sort_keys=True)
 
         return merge_default_config(merged)
 

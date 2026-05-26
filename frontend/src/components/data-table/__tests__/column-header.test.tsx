@@ -1,308 +1,141 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { Column } from "@tanstack/react-table";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { DataTableColumnHeader } from "../column-header";
 import {
-  DateFilterMenu,
-  NumberFilterMenu,
-  TextFilterMenu,
-} from "../column-header";
-import { Filter } from "../filters";
+  type AddFilterRequest,
+  FilterEditorProvider,
+} from "../filter-editor-context";
+import { buildFilterTestTable } from "./filter-test-utils";
 
 beforeAll(() => {
   global.HTMLElement.prototype.scrollIntoView = () => {
-    // jsdom does not implement scrollIntoView; Radix calls it on open.
+    // jsdom does not implement scrollIntoView
   };
-  // Radix Select gates pointer interactions on hasPointerCapture; jsdom omits it.
   if (!global.HTMLElement.prototype.hasPointerCapture) {
     global.HTMLElement.prototype.hasPointerCapture = () => false;
   }
   if (!global.HTMLElement.prototype.releasePointerCapture) {
     global.HTMLElement.prototype.releasePointerCapture = () => {
-      // no-op
+      // noop for jsdom
     };
   }
 });
 
-function mockColumn(initial?: ReturnType<typeof Filter.number>): Column<
-  unknown,
-  unknown
-> & {
-  setFilterValue: ReturnType<typeof vi.fn>;
-} {
-  let filterValue = initial;
-  const setFilterValue = vi.fn((next) => {
-    filterValue = next;
-  });
-  return {
-    id: "age",
-    columnDef: { meta: { dataType: "number", filterType: "number" } },
-    getFilterValue: () => filterValue,
-    setFilterValue,
-  } as unknown as Column<unknown, unknown> & {
-    setFilterValue: ReturnType<typeof vi.fn>;
-  };
+function renderHeader(opts: {
+  column: Column<unknown, unknown>;
+  requestAddFilter?: (req: AddFilterRequest) => void;
+  withProvider: boolean;
+}) {
+  const { column, requestAddFilter, withProvider } = opts;
+  const headerNode = (
+    <DataTableColumnHeader column={column} header={column.id} />
+  );
+  return render(
+    <TooltipProvider>
+      {withProvider ? (
+        <FilterEditorProvider
+          value={{ requestAddFilter: requestAddFilter ?? vi.fn() }}
+        >
+          {headerNode}
+        </FilterEditorProvider>
+      ) : (
+        headerNode
+      )}
+    </TooltipProvider>,
+  );
 }
 
-describe("NumberFilterMenu", () => {
-  it("shows all expected operators in the dropdown", () => {
-    const column = mockColumn();
-    render(<NumberFilterMenu column={column} />);
-    const trigger = screen.getByRole("combobox");
-    fireEvent.click(trigger);
-    const listbox = screen.getByRole("listbox");
-    const labels = within(listbox)
-      .getAllByRole("option")
-      .map((o) => o.textContent);
-    expect(labels).toEqual([
-      "Between",
-      "Equals",
-      "Doesn't equal",
-      "Greater than",
-      "Greater than or equal",
-      "Less than",
-      "Less than or equal",
-      "Is null",
-      "Is not null",
+const openMenu = () => {
+  const trigger = screen.getByLabelText("Column options");
+  trigger.focus();
+  fireEvent.keyDown(trigger, { key: "Enter" });
+};
+
+describe("DataTableColumnHeader — filter menu", () => {
+  it("renders Filter and Filter-by-values items for text columns inside a provider", () => {
+    const { table } = buildFilterTestTable([
+      { id: "name", filterType: "text" },
     ]);
+    renderHeader({ column: table.getColumn("name")!, withProvider: true });
+    openMenu();
+    expect(screen.getByText("Filter")).toBeInTheDocument();
+    expect(screen.getByText("Filter by values")).toBeInTheDocument();
   });
 
-  it("between mode disables Apply until both min and max are defined", () => {
-    const column = mockColumn();
-    render(<NumberFilterMenu column={column} />);
-    const apply = screen.getByRole("button", { name: /apply/i });
-    expect(apply).toBeDisabled();
-
-    const min = screen.getByLabelText("min");
-    fireEvent.change(min, { target: { value: "1" } });
-    fireEvent.blur(min);
-    expect(apply).toBeDisabled();
-
-    const max = screen.getByLabelText("max");
-    fireEvent.change(max, { target: { value: "10" } });
-    fireEvent.blur(max);
-    expect(apply).not.toBeDisabled();
-  });
-
-  it("comparison mode shows a single value field seeded from current filter", () => {
-    const column = mockColumn(Filter.number({ operator: ">", value: 18 }));
-    render(<NumberFilterMenu column={column} />);
-    const value = screen.getByLabelText("value") as HTMLInputElement;
-    expect(value).toBeInTheDocument();
-    expect(value.value).toBe("18");
-    expect(screen.queryByLabelText("min")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("max")).not.toBeInTheDocument();
-  });
-
-  it("selecting a nullish operator hides value inputs and commits on Apply", () => {
-    const column = mockColumn();
-    render(<NumberFilterMenu column={column} />);
-    fireEvent.click(screen.getByRole("combobox"));
-    const listbox = screen.getByRole("listbox");
-    fireEvent.click(within(listbox).getByText("Is null"));
-    expect(column.setFilterValue).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText("min")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("max")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("value")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /apply/i }));
-    expect(column.setFilterValue).toHaveBeenCalledWith(
-      Filter.number({ operator: "is_null" }),
-    );
-  });
-});
-
-function mockTextColumn(initial?: ReturnType<typeof Filter.text>): Column<
-  unknown,
-  unknown
-> & {
-  setFilterValue: ReturnType<typeof vi.fn>;
-} {
-  let filterValue = initial;
-  const setFilterValue = vi.fn((next) => {
-    filterValue = next;
-  });
-  return {
-    id: "name",
-    columnDef: { meta: { dataType: "string", filterType: "text" } },
-    getFilterValue: () => filterValue,
-    setFilterValue,
-  } as unknown as Column<unknown, unknown> & {
-    setFilterValue: ReturnType<typeof vi.fn>;
-  };
-}
-
-describe("TextFilterMenu", () => {
-  it("shows all 11 text operators in the dropdown", () => {
-    const column = mockTextColumn();
-    render(<TextFilterMenu column={column} />);
-    fireEvent.click(screen.getByRole("combobox"));
-    const listbox = screen.getByRole("listbox");
-    const labels = within(listbox)
-      .getAllByRole("option")
-      .map((o) => o.textContent);
-    expect(labels).toEqual([
-      "Contains",
-      "Equals",
-      "Doesn't equal",
-      "Matches regex",
-      "Starts with",
-      "Ends with",
-      "Is in",
-      "Not in",
-      "Is empty",
-      "Is null",
-      "Is not null",
+  it("renders Filter and Filter-by-values items for number columns", () => {
+    const { table } = buildFilterTestTable([
+      { id: "age", filterType: "number" },
     ]);
+    renderHeader({ column: table.getColumn("age")!, withProvider: true });
+    openMenu();
+    expect(screen.getByText("Filter")).toBeInTheDocument();
+    expect(screen.getByText("Filter by values")).toBeInTheDocument();
   });
 
-  it("single-string operator renders a text input seeded from current filter", () => {
-    const column = mockTextColumn(
-      Filter.text({ operator: "equals", text: "alice" }),
-    );
-    render(<TextFilterMenu column={column} />);
-    const input = screen.getByPlaceholderText("Text...") as HTMLInputElement;
-    expect(input).toBeInTheDocument();
-    expect(input.value).toBe("alice");
+  it.each(["date", "datetime", "time", "boolean"] as const)(
+    "hides Filter-by-values for %s columns",
+    (filterType) => {
+      const { table } = buildFilterTestTable([{ id: "col", filterType }]);
+      renderHeader({ column: table.getColumn("col")!, withProvider: true });
+      openMenu();
+      expect(screen.getByText("Filter")).toBeInTheDocument();
+      expect(screen.queryByText("Filter by values")).not.toBeInTheDocument();
+    },
+  );
+
+  it("hides both items when filterType is missing", () => {
+    const { table } = buildFilterTestTable([{ id: "opaque" }]);
+    renderHeader({ column: table.getColumn("opaque")!, withProvider: true });
+    openMenu();
+    expect(screen.queryByText("Filter")).not.toBeInTheDocument();
+    expect(screen.queryByText("Filter by values")).not.toBeInTheDocument();
   });
 
-  it("'in' operator renders the creatable values picker", async () => {
-    const column = mockTextColumn(
-      Filter.text({ operator: "in", values: ["a", "b"] }),
-    );
-    const calculateTopKRows = vi.fn(async () => ({
-      data: [["a", 1] as [unknown, number]],
-    }));
-    render(
-      <TextFilterMenu column={column} calculateTopKRows={calculateTopKRows} />,
-    );
-    expect(
-      await screen.findByPlaceholderText(/Search or add a value/i),
-    ).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText("Text...")).not.toBeInTheDocument();
+  it("hides both items when no FilterEditorProvider is present", () => {
+    const { table } = buildFilterTestTable([
+      { id: "name", filterType: "text" },
+    ]);
+    renderHeader({ column: table.getColumn("name")!, withProvider: false });
+    openMenu();
+    expect(screen.queryByText("Filter")).not.toBeInTheDocument();
+    expect(screen.queryByText("Filter by values")).not.toBeInTheDocument();
   });
 
-  it("selecting is_empty hides the value UI and commits on Apply", () => {
-    const column = mockTextColumn();
-    render(<TextFilterMenu column={column} />);
-    fireEvent.click(screen.getByRole("combobox"));
-    const listbox = screen.getByRole("listbox");
-    fireEvent.click(within(listbox).getByText("Is empty"));
-    expect(column.setFilterValue).not.toHaveBeenCalled();
-    expect(screen.queryByPlaceholderText("Text...")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /apply/i }));
-    expect(column.setFilterValue).toHaveBeenCalledWith(
-      Filter.text({ operator: "is_empty" }),
-    );
-  });
-
-  it("apply is disabled when scalar text is empty", () => {
-    const column = mockTextColumn();
-    render(<TextFilterMenu column={column} />);
-    expect(screen.getByRole("button", { name: /apply/i })).toBeDisabled();
-    fireEvent.change(screen.getByPlaceholderText("Text..."), {
-      target: { value: "x" },
+  it("invokes requestAddFilter with columnId when Filter is clicked", () => {
+    const requestAddFilter = vi.fn();
+    const { table } = buildFilterTestTable([
+      { id: "name", filterType: "text" },
+    ]);
+    renderHeader({
+      column: table.getColumn("name")!,
+      requestAddFilter,
+      withProvider: true,
     });
-    expect(screen.getByRole("button", { name: /apply/i })).not.toBeDisabled();
+    openMenu();
+    fireEvent.click(screen.getByText("Filter"));
+    expect(requestAddFilter).toHaveBeenCalledTimes(1);
+    expect(requestAddFilter).toHaveBeenCalledWith({ columnId: "name" });
   });
-});
 
-type DateFilterValue = ReturnType<typeof Filter.date>;
-
-function mockDateColumn(
-  filterType: "date" | "datetime" | "time" = "date",
-  initial?: DateFilterValue,
-): Column<unknown, unknown> & {
-  setFilterValue: ReturnType<typeof vi.fn>;
-} {
-  let filterValue = initial;
-  const setFilterValue = vi.fn((next) => {
-    filterValue = next;
-  });
-  return {
-    id: "when",
-    columnDef: { meta: { dataType: filterType, filterType } },
-    getFilterValue: () => filterValue,
-    setFilterValue,
-  } as unknown as Column<unknown, unknown> & {
-    setFilterValue: ReturnType<typeof vi.fn>;
-  };
-}
-
-describe("DateFilterMenu", () => {
-  it("shows all expected operators in the dropdown", () => {
-    const column = mockDateColumn("date");
-    render(<DateFilterMenu column={column} filterType="date" />);
-    fireEvent.click(screen.getByRole("combobox"));
-    const listbox = screen.getByRole("listbox");
-    const labels = within(listbox)
-      .getAllByRole("option")
-      .map((o) => o.textContent);
-    expect(labels).toEqual([
-      "Between",
-      "Equals",
-      "Doesn't equal",
-      "Greater than",
-      "Greater than or equal",
-      "Less than",
-      "Less than or equal",
-      "Is null",
-      "Is not null",
+  it("invokes requestAddFilter with operator='in' when Filter by values is clicked", () => {
+    const requestAddFilter = vi.fn();
+    const { table } = buildFilterTestTable([
+      { id: "name", filterType: "text" },
     ]);
-  });
-
-  it("defaults to between mode and disables Apply until both bounds set", () => {
-    const column = mockDateColumn("date");
-    render(<DateFilterMenu column={column} filterType="date" />);
-    expect(screen.getByLabelText("range")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /apply/i })).toBeDisabled();
-    expect(screen.queryByLabelText("value")).not.toBeInTheDocument();
-  });
-
-  it("seeds between min/max from current filter", () => {
-    const column = mockDateColumn(
-      "date",
-      Filter.date({
-        operator: "between",
-        min: new Date("2024-01-01T00:00:00Z"),
-        max: new Date("2024-06-01T00:00:00Z"),
-      }),
-    );
-    render(<DateFilterMenu column={column} filterType="date" />);
-    expect(screen.getByLabelText("range")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /apply/i })).not.toBeDisabled();
-  });
-
-  it("comparison operator swaps range for a single value picker", () => {
-    const column = mockDateColumn(
-      "date",
-      Filter.date({
-        operator: ">",
-        value: new Date("2024-01-01T00:00:00Z"),
-      }),
-    );
-    render(<DateFilterMenu column={column} filterType="date" />);
-    expect(screen.getByLabelText("value")).toBeInTheDocument();
-    expect(screen.queryByLabelText("range")).not.toBeInTheDocument();
-  });
-
-  it("time filter type renders two TimeFields for between", () => {
-    const column = mockDateColumn("time");
-    render(<DateFilterMenu column={column} filterType="time" />);
-    expect(screen.getByLabelText("min")).toBeInTheDocument();
-    expect(screen.getByLabelText("max")).toBeInTheDocument();
-  });
-
-  it("selecting a nullish operator hides value inputs and commits on Apply", () => {
-    const column = mockDateColumn("date");
-    render(<DateFilterMenu column={column} filterType="date" />);
-    fireEvent.click(screen.getByRole("combobox"));
-    const listbox = screen.getByRole("listbox");
-    fireEvent.click(within(listbox).getByText("Is null"));
-    expect(screen.queryByLabelText("range")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("value")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /apply/i }));
-    expect(column.setFilterValue).toHaveBeenCalledWith(
-      Filter.date({ operator: "is_null" }),
-    );
+    renderHeader({
+      column: table.getColumn("name")!,
+      requestAddFilter,
+      withProvider: true,
+    });
+    openMenu();
+    fireEvent.click(screen.getByText("Filter by values"));
+    expect(requestAddFilter).toHaveBeenCalledTimes(1);
+    expect(requestAddFilter).toHaveBeenCalledWith({
+      columnId: "name",
+      operator: "in",
+    });
   });
 });
