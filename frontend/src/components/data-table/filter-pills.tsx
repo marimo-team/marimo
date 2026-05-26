@@ -271,7 +271,7 @@ const FilterPill = <TData,>({
           "transition-colors",
         )}
       >
-        <Tooltip content={tooltip}>
+        <Tooltip content={tooltip} delayDuration={600}>
           <span className="inline-flex items-center">
             <PopoverTrigger asChild={true}>
               <button
@@ -293,6 +293,7 @@ const FilterPill = <TData,>({
         sideOffset={10}
         avoidCollisions={true}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
       >
         <FilterPillEditor
           snapshot={{ columnId, value }}

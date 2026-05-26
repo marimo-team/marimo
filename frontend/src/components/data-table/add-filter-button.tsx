@@ -69,6 +69,7 @@ export const AddFilterButton = <TData,>({
           sideOffset={10}
           avoidCollisions={true}
           onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
         >
           <FilterPillEditor
             key={`${snapshot.columnId}:${snapshot.value.operator}`}
