@@ -57,6 +57,7 @@ function getFormatter(dialect: string): SqlCodeFormatter {
     case "postgres":
     case "postgresql":
     case "duckdb":
+    case "dremio":
       // Quote column and table names to avoid raising errors on weird characters
       return {
         formatTableName: (tableName: string) => {

@@ -53,6 +53,8 @@ export function dbDisplayName(name: string) {
       return "MongoDB";
     case "iceberg":
       return "Apache Iceberg";
+    case "dremio":
+      return "Dremio";
     default:
       return name;
   }
