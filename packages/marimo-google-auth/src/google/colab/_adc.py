@@ -1,17 +1,20 @@
 """Application Default Credentials (ADC) file + scope sidecar writers.
 
-After the auth bridge round-trip succeeds, we have a short-lived access
-token in the kernel. To make every Google client library (``gdrive_fsspec``,
-``google-cloud-storage``, ``google-cloud-bigquery``, …) pick it up
-without per-library plumbing, we write standard ADC files:
+After the auth bridge round-trip succeeds, the supported credential
+path is the in-memory ``Credentials`` object returned by
+``google.colab.auth.authenticate_user`` (and handed directly to
+``pydata_google_auth`` callers by ``_patch.py``).
+
+We also write ADC/sidecar files:
 
 1. ``~/.config/gcloud/application_default_credentials.json`` in
-   ``authorized_user`` format. This is what ``google.auth.default()``
-   looks for after the env var.
+   ``authorized_user`` format. ``google.auth.default()`` can discover
+   and use this file until the access token expires. It cannot refresh
+   on its own because the ``refresh_token`` is deliberately fake.
 2. A sidecar at
    ``~/.config/marimo-google-auth/granted_scopes.json`` recording which
-   scopes were granted and when, so subsequent calls can detect a scope
-   mismatch and re-prompt.
+   scopes were granted and when. It is metadata for diagnostics and
+   future restart-aware UX, not an auth authority.
 
 Refresh-token model
 -------------------
@@ -19,14 +22,11 @@ Refresh-token model
 have a real one to write here: in molab Clerk holds the refresh token
 server-side, and the self-hosted GIS popup path doesn't mint refresh
 tokens to the browser at all. We write a sentinel ``refresh_token``
-value (see ``_REFRESH_TOKEN_SENTINEL`` below); google-auth happily
-reads the file and surfaces the access token via
-``Credentials.token``. A library that actually tries to refresh by
-hitting Google's OAuth endpoint will fail — by design. The patch in
+value (see ``_REFRESH_TOKEN_SENTINEL`` below) so the file shape is
+unmistakably non-real. A library that tries to refresh by hitting
+Google's OAuth endpoint will fail — by design. The patch in
 ``_patch.py`` sidesteps this by constructing a fresh ``Credentials``
-on every ``get_colab_default_credentials`` call, which re-issues the
-stdin round-trip when the cached token has expired. That keeps the
-refresh path inside the bridge instead of inside google-auth.
+from the bridge/cache instead of asking google-auth to refresh ADC.
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ import json
 import logging
 import os
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -121,9 +122,11 @@ def write_adc(
         "client_id": _CLIENT_ID_SENTINEL,
         "client_secret": _CLIENT_SECRET_SENTINEL,
         "refresh_token": _REFRESH_TOKEN_SENTINEL,
-        # Non-standard fields, but harmless: google-auth ignores them.
-        # Storing the access token lets us short-circuit refresh on first
-        # use via the credential factory in ``auth.py``.
+        # Standard google-auth authorized_user fields. These make
+        # ``google.auth.default()`` usable until expiry.
+        "token": access_token,
+        "expiry": _format_expiry(expires_at),
+        # Non-standard mirror fields for diagnostics / future tooling.
         "access_token": access_token,
         "expires_at": expires_at,
         "scopes": list(scopes),
@@ -144,6 +147,7 @@ def write_adc(
     # first, so point it at a non-default ADC, and clear it when we
     # revert to the default path (but only if we set it ourselves —
     # never clobber a user-provided service-account key).
+    # for me: do we need to check if this env vars exist first before overriding?
     if resolved_adc != default_adc_path():
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(resolved_adc)
         _ENV_VAR_PATHS_WE_OWN.add(str(resolved_adc))
@@ -187,6 +191,11 @@ def missing_scopes(
     """Return the subset of ``requested`` not present in the sidecar."""
     granted = set(read_sidecar_scopes(sidecar_path))
     return [s for s in requested if s not in granted]
+
+
+def _format_expiry(expires_at: int) -> str:
+    """Format unix seconds the way google-auth expects in ADC JSON."""
+    return datetime.fromtimestamp(expires_at, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _atomic_write_json(path: Path, doc: dict, *, mode: int = 0o600) -> None:

@@ -76,6 +76,7 @@ export type GauthErrorCode =
   | "popup_blocked"
   | "scope_denied"
   | "link_required"
+  | "parent_unavailable"
   | "rate_limited"
   | "server_error"
   | "timeout";
@@ -95,6 +96,7 @@ const KNOWN_GAUTH_ERROR_CODES: readonly GauthErrorCode[] = [
   "popup_blocked",
   "scope_denied",
   "link_required",
+  "parent_unavailable",
   "rate_limited",
   "server_error",
   "timeout",

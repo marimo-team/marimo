@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+from datetime import datetime
 
 from google.colab import _adc
 
@@ -36,6 +37,8 @@ def test_write_adc_contents(adc_paths):
 
     doc = json.loads(_adc.default_adc_path().read_text())
     assert doc["type"] == "authorized_user"
+    assert doc["token"] == "ya29.contents"
+    assert doc["expiry"] == "1970-01-01T00:00:42Z"
     assert doc["access_token"] == "ya29.contents"
     assert doc["expires_at"] == 42
     assert doc["scopes"] == ["drive", "sheets"]
@@ -102,6 +105,37 @@ def test_write_adc_default_path_preserves_user_env_var(tmp_path, monkeypatch):
     _adc.write_adc(access_token="t", expires_at=1, scopes=[])
 
     assert os.environ["GOOGLE_APPLICATION_CREDENTIALS"] == str(user_path)
+
+
+def test_google_auth_default_loads_adc_token(tmp_path, monkeypatch):
+    """The ADC file is usable by google.auth.default until token expiry."""
+    import google.auth
+
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    monkeypatch.setattr(_adc, "_ENV_VAR_PATHS_WE_OWN", set())
+    custom_adc = tmp_path / "custom" / "adc.json"
+
+    _adc.write_adc(
+        access_token="ya29.default-loads",
+        expires_at=9_999_999_999,
+        scopes=["https://www.googleapis.com/auth/drive"],
+        adc_path=custom_adc,
+    )
+
+    creds, project = google.auth.default(
+        scopes=["https://www.googleapis.com/auth/drive"]
+    )
+
+    assert project is None
+    assert creds.token == "ya29.default-loads"
+    assert creds.valid is True
+    assert creds.expired is False
+    assert creds.expiry == datetime(2286, 11, 20, 17, 46, 39)
+    assert (
+        creds.refresh_token
+        == "MARIMO_GOOGLE_AUTH:NOT_A_REAL_REFRESH_TOKEN:RPC_BRIDGE_HANDLES_REFRESH"
+    )
 
 
 def test_write_adc_file_mode_is_restrictive(adc_paths):

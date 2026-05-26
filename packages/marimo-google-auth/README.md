@@ -31,9 +31,11 @@ Real Colab provides this module. marimo, by default, does not. This
 package fills the gap: `authenticate_user()` opens an OAuth round-trip
 through marimo's stdin channel (a frontend bridge owned by marimo /
 molab / your own deployment handles the actual OAuth in the
-browser), then writes Application Default Credentials in the sandbox
-so every Google client library — Drive, Sheets, BigQuery, GCS — sees a
-valid token.
+browser), then returns a `google.oauth2.credentials.Credentials`
+object directly to `pydata-google-auth` callers. It also writes ADC
+and scope sidecar files; `google.auth.default()` can use the ADC file
+until the access token expires, but cannot refresh through
+`google-auth` because the refresh token is intentionally fake.
 
 ## Integration contract for deployers
 

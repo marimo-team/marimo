@@ -112,6 +112,7 @@ type BridgeState =
       sendOpenLink: () => void;
     }
   | { phase: "linking" }
+  | { phase: "unavailable" }
   | { phase: "error"; code: string; message: string };
 
 /**
@@ -203,17 +204,11 @@ export const AuthRequest: React.FC<{
       .catch((err: unknown) => {
         if (err instanceof GauthParentBridgeError) {
           if (err.code === "parent_unavailable") {
-            setState({
-              phase: "error",
-              code: err.code,
-              message:
-                "No parent frame available. Self-hosted browser sign-in is not enabled yet.",
-            });
+            setState({ phase: "unavailable" });
             submitError({
               requestId: parsed.request_id,
-              code: "server_error",
-              message:
-                "Parent frame unavailable; self-hosted GIS fallback not implemented.",
+              code: "parent_unavailable",
+              message: "No parent Google auth bridge is available.",
             });
             return;
           }
@@ -257,6 +252,10 @@ export const AuthRequest: React.FC<{
         </div>
       </div>
     );
+  }
+
+  if (state.phase === "unavailable") {
+    return null;
   }
 
   return (

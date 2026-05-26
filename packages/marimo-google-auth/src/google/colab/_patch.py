@@ -22,18 +22,19 @@ Two problems for us:
 1. The vendor copy calls ``auth.authenticate_user()`` with **no
    scopes**. Real Colab's implementation pre-grants a broad scope set,
    so this works. Ours is per-request and needs to know what to ask for.
-2. After ``authenticate_user()``, pydata calls
+2. After ``authenticate_user()``, pydata would normally call
    ``get_application_default_credentials(scopes=scopes)``, which goes
-   through ``google.auth.default()`` -> ADC file. Our ADC file points
-   at an access token that google-auth can't refresh on its own.
+   through ``google.auth.default()`` -> ADC file. Our ADC file works
+   until access-token expiry, but cannot refresh through google-auth
+   because the refresh token is intentionally fake.
 
 Our patch fixes both:
 
 - Forwards ``scopes`` directly into ``authenticate_user(_marimo_scopes=...)``
   so the user only sees a consent prompt for the scopes actually needed.
 - Constructs a fresh ``google.oauth2.credentials.Credentials`` from the
-  in-memory token cache populated by ``authenticate_user``, sidestepping
-  the ADC-refresh hazard.
+  in-memory token cache populated by ``authenticate_user``, avoiding the
+  ADC path entirely for pydata callers.
 
 Idempotent and reversible: ``install_pydata_patch()`` can be called
 many times; ``uninstall_pydata_patch()`` restores the original.
@@ -95,11 +96,11 @@ def uninstall_pydata_patch() -> None:
         return
 
     if _ORIGINAL is not None:
-        pga.get_colab_default_credentials = _ORIGINAL  # type: ignore[attr-defined]
+        pga.get_colab_default_credentials = _ORIGINAL
     else:
         # The attribute didn't exist before; delete the patch.
         try:
-            del pga.get_colab_default_credentials  # type: ignore[attr-defined]
+            del pga.get_colab_default_credentials
         except AttributeError:
             pass
 
@@ -129,6 +130,14 @@ def _patched_get_colab_default_credentials(
 
     try:
         credentials = colab_auth.authenticate_user(_marimo_scopes=list(scopes))
+    except colab_auth.AuthError as e:
+        if e.code == "parent_unavailable":
+            LOGGER.debug(
+                "marimo-google-auth bridge unavailable; falling back to pydata auth"
+            )
+            return None, None
+        LOGGER.warning("marimo-google-auth bridge failed in pydata patch: %s", e)
+        return None, None
     except Exception as e:
         # Mirror pydata's tolerance: if anything fails, return (None, None)
         # so pydata can fall back to ``get_user_credentials`` paths.

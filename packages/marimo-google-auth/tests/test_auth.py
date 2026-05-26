@@ -137,5 +137,28 @@ def test_authenticate_user_raises_auth_error_on_bridge_failure(
 
     install_fake_stdin(responder)
 
-    with pytest.raises(colab_auth.AuthError):
+    with pytest.raises(colab_auth.AuthError) as exc_info:
         colab_auth.authenticate_user(_marimo_scopes=["drive"])
+    assert exc_info.value.code == "user_cancelled"
+
+
+def test_pydata_patch_falls_back_on_parent_unavailable(
+    install_fake_stdin, adc_paths, clear_auth_cache
+):
+    """Top-level/local marimo should fall through to pydata's localhost flow."""
+    from google.colab import _patch
+
+    def responder(req):
+        return {
+            "protocol_version": 1,
+            "request_id": req["request_id"],
+            "status": "error",
+            "error_code": "parent_unavailable",
+            "error_message": "no parent bridge",
+        }
+
+    install_fake_stdin(responder)
+
+    creds, project = _patch._patched_get_colab_default_credentials(["drive"])
+    assert creds is None
+    assert project is None

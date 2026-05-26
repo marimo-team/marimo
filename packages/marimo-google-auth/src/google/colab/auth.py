@@ -7,9 +7,14 @@ Drop-in shim that satisfies the contract real Google Colab provides:
     from google.colab import auth
     auth.authenticate_user()
 
-After ``authenticate_user()`` returns, Application Default Credentials
-are available — every Google client library (Drive, Sheets, BigQuery,
-GCS) sees a valid access token.
+After ``authenticate_user()`` returns, the caller receives a
+``google.oauth2.credentials.Credentials`` object with a valid access
+token. This is what the ``pydata_google_auth`` patch hands directly to
+libraries like ``gdrive_fsspec``.
+
+We also write ADC/sidecar files. ``google.auth.default()`` can use the
+ADC file until the access token expires, but cannot refresh through
+google-auth because the refresh token is intentionally fake.
 
 Underneath, the call funnels through marimo's stdin auth-request RPC
 (see ``_bridge.py``) into the frontend, which drives the actual OAuth
@@ -33,6 +38,7 @@ LOGGER = logging.getLogger(__name__)
 
 # Default scope bundle for the no-argument ``authenticate_user()`` call,
 # matching real Colab's broad pre-grant.
+# Can strongly type?
 _DEFAULT_SCOPES: tuple[str, ...] = (
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
@@ -55,6 +61,10 @@ _cached: dict[str, Any] | None = None
 class AuthError(RuntimeError):
     """Public error class re-exported for users who want to except on it."""
 
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
+
 
 def authenticate_user(
     clear_output: bool = True,  # noqa: ARG001 — Colab API compat
@@ -62,7 +72,7 @@ def authenticate_user(
     _marimo_scopes: Sequence[str] | None = None,
     _force: bool = False,
 ) -> Any:
-    """Authenticate the current user and populate ADC.
+    """Authenticate the current user and return credentials.
 
     Args:
       clear_output: Accepted for Colab API parity; ignored. Real Colab
@@ -95,6 +105,8 @@ def authenticate_user(
 
         try:
             response = _bridge.request_auth(scopes)
+        except _bridge.AuthRequestRejectedError as e:
+            raise AuthError(str(e), code=e.code) from e
         except _bridge.AuthBridgeError as e:
             raise AuthError(str(e)) from e
 

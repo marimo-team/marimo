@@ -79,3 +79,28 @@ def test_patched_function_swallows_errors(
     creds, project = pga.get_colab_default_credentials(["drive"])
     assert creds is None
     assert project is None
+
+
+def test_patched_function_falls_back_when_parent_unavailable(
+    install_fake_stdin, adc_paths, clear_auth_cache, uninstall_patch
+):
+    """Top-level/self-hosted marimo should fall through to pydata's local flow."""
+    import pydata_google_auth.auth as pga
+
+    from google.colab import _patch
+
+    def responder(req):
+        return {
+            "protocol_version": 1,
+            "request_id": req["request_id"],
+            "status": "error",
+            "error_code": "parent_unavailable",
+            "error_message": "no parent bridge",
+        }
+
+    install_fake_stdin(responder)
+    _patch.install_pydata_patch()
+
+    creds, project = pga.get_colab_default_credentials(["drive"])
+    assert creds is None
+    assert project is None

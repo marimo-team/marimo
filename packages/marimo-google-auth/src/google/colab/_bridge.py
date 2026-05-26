@@ -148,7 +148,7 @@ def request_auth(
 
     scopes_list = list(scopes)
     rid = request_id or str(uuid.uuid4())
-    envelope = {
+    envelope = {  # can we strongly type this?
         "protocol_version": PROTOCOL_VERSION,
         "request_id": rid,
         "provider": provider,
@@ -172,6 +172,8 @@ def request_auth(
     return response
 
 
+# Is there a more built-in function to do this?
+# Feels very tedious and fragile
 def _parse_response(raw: str, *, expected_request_id: str) -> dict[str, Any]:
     try:
         parsed = json.loads(raw)
@@ -232,6 +234,7 @@ def _parse_response(raw: str, *, expected_request_id: str) -> dict[str, Any]:
 
     token_type = parsed.get("token_type") or "Bearer"
 
+    # Strongly type?
     return {
         "access_token": access_token,
         "expires_at": expires_at,
