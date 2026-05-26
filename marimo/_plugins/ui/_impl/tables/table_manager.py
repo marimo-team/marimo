@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import abc
+import math
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -142,10 +143,14 @@ class TableManager(abc.ABC, Generic[T]):
 
     def estimate_size_bytes(
         self,
-        format_mapping: FormatMapping | None = None,
         sample_rows: int = SIZE_ESTIMATE_SAMPLE_ROWS,
     ) -> int | None:
-        """Estimate JSON-serialized byte size by extrapolating from a head sample.
+        """Estimate JSON-download byte size by extrapolating from a head sample.
+
+        Always models a JSON download (raw values, `strict_json=True`,
+        `ensure_ascii=True`) since the frontend gates downloads before the
+        user picks a format; JSON with ASCII escaping is the upper-bound
+        proxy.
 
         Returns the exact size when the table fits within `sample_rows`,
         otherwise scales the sample size by `total_rows / sample_rows`.
@@ -156,13 +161,15 @@ class TableManager(abc.ABC, Generic[T]):
             return 0
         n = min(total_rows, sample_rows)
         try:
-            sample = self.take(n, 0).to_json_str(format_mapping)
+            sample = self.take(n, 0).to_json_str(
+                strict_json=True, ensure_ascii=True
+            )
         except Exception:
             return None
         sample_bytes = len(sample.encode("utf-8"))
         if n == total_rows:
             return sample_bytes
-        return int(sample_bytes * total_rows / n)
+        return math.ceil(sample_bytes * total_rows / n)
 
     @abc.abstractmethod
     def to_parquet(self) -> bytes:

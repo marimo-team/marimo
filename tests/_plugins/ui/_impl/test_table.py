@@ -1491,6 +1491,24 @@ def test_get_size_bytes_rpc_uses_searched_manager() -> None:
     assert filtered < full
 
 
+def test_get_size_bytes_rpc_returns_none_on_serialization_failure() -> None:
+    from unittest.mock import patch
+
+    from marimo._plugins.ui._impl.table import GetSizeBytesResponse
+
+    t = ui.table([{"a": 1}])
+    manager_cls = type(t._manager)
+
+    def _raise(*_args: object, **_kwargs: object) -> str:
+        raise RuntimeError("boom")
+
+    with patch.object(manager_cls, "to_json_str", _raise):
+        resp = t._get_size_bytes(EmptyArgs())
+
+    assert isinstance(resp, GetSizeBytesResponse)
+    assert resp.size_bytes is None
+
+
 def test_download_as_ignores_cell_selection() -> None:
     # Download should ignore selection when in cell selection modes
     data = {"a": [1, 2, 3]}

@@ -901,3 +901,26 @@ def test_dataframe_get_size_bytes_rpc_extrapolates() -> None:
     assert resp.size_bytes is not None
     exact = len(subject._manager.to_json(strict_json=True))
     assert abs(resp.size_bytes - exact) / exact < 0.25
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_get_size_bytes_rpc_returns_none_on_serialization_failure() -> (
+    None
+):
+    from unittest.mock import patch
+
+    import pandas as pd
+
+    from marimo._plugins.ui._impl.table import GetSizeBytesResponse
+
+    subject = ui.dataframe(pd.DataFrame({"a": [1, 2, 3]}))
+    manager_cls = type(subject._manager)
+
+    def _raise(*_args: object, **_kwargs: object) -> str:
+        raise RuntimeError("boom")
+
+    with patch.object(manager_cls, "to_json_str", _raise):
+        resp = subject._get_size_bytes(EmptyArgs())
+
+    assert isinstance(resp, GetSizeBytesResponse)
+    assert resp.size_bytes is None

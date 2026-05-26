@@ -632,13 +632,19 @@ export const LoadingDataTableComponent = memo(
     const { data: sizeBytesData, isPending: sizeBytesPending } = useAsyncData<
       number | null
     >(async () => {
-      if (!policy || props.lazy || props.totalRows === 0) {
+      if (
+        !policy ||
+        !props.showDownload ||
+        props.lazy ||
+        props.totalRows === 0
+      ) {
         return null;
       }
       const result = await props.get_size_bytes({});
       return result.size_bytes ?? null;
     }, [
       policy,
+      props.showDownload,
       props.get_size_bytes,
       props.lazy,
       props.totalRows,
@@ -647,7 +653,8 @@ export const LoadingDataTableComponent = memo(
       useDeepCompareMemoize(sorting),
     ]);
     const sizeBytes = sizeBytesData ?? null;
-    const sizeBytesIsLoading = !!policy && sizeBytesPending;
+    const sizeBytesIsLoading =
+      !!policy && props.showDownload && sizeBytesPending;
 
     const getRow = useCallback(
       async (rowId: number) => {
@@ -1088,6 +1095,7 @@ const DataTableComponent = ({
             sorting={sorting}
             totalRows={totalRows}
             sizeBytes={sizeBytes}
+            sizeBytesIsLoading={sizeBytesIsLoading}
             totalColumns={totalColumns}
             manualSorting={true}
             setSorting={setSorting}

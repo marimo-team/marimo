@@ -401,6 +401,4 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
     def _get_size_bytes(self, args: EmptyArgs) -> GetSizeBytesResponse:
         del args
         manager = self._get_cached_table_manager(self._value, self._limit)
-        return GetSizeBytesResponse(
-            size_bytes=manager.estimate_size_bytes(self._format_mapping)
-        )
+        return GetSizeBytesResponse(size_bytes=manager.estimate_size_bytes())

@@ -931,9 +931,7 @@ class table(
     def _get_size_bytes(self, args: EmptyArgs) -> GetSizeBytesResponse:
         del args
         manager = self._searched_manager or self._manager
-        return GetSizeBytesResponse(
-            size_bytes=manager.estimate_size_bytes(self._format_mapping)
-        )
+        return GetSizeBytesResponse(size_bytes=manager.estimate_size_bytes())
 
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the table data in the specified format.
