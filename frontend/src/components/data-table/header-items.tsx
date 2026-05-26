@@ -9,9 +9,6 @@ import {
   ChevronsUpDown,
   CopyIcon,
   FilterX,
-  FunnelPlusIcon,
-  ListFilterIcon,
-  ListFilterPlusIcon,
   PinOffIcon,
   WrapTextIcon,
 } from "lucide-react";
@@ -27,7 +24,6 @@ import type { DataType } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { DATA_TYPE_ICON } from "../datasets/icons";
-import { Button } from "../ui/button";
 import { formattingExample } from "./column-formatting/feature";
 import { formatOptions } from "./column-formatting/types";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
@@ -242,26 +238,18 @@ export function renderSorts<TData, TValue>(
   );
 }
 
-export function renderSortFilterIcon<TData, TValue>(
-  column: Column<TData, TValue>,
-) {
+export function renderSortIcon<TData, TValue>(column: Column<TData, TValue>) {
   if (!column.getCanSort()) {
     return null;
   }
 
   const isSorted = column.getIsSorted();
-  const isFiltered = column.getFilterValue() !== undefined;
 
-  let Icon: React.FC<React.SVGProps<SVGSVGElement>>;
-  if (isFiltered && isSorted) {
-    Icon = ListFilterPlusIcon;
-  } else if (isFiltered) {
-    Icon = FunnelPlusIcon;
-  } else if (isSorted) {
-    Icon = isSorted === "desc" ? DescIcon : AscIcon;
-  } else {
-    Icon = ChevronsUpDown;
-  }
+  const Icon: React.FC<React.SVGProps<SVGSVGElement>> = isSorted
+    ? isSorted === "desc"
+      ? DescIcon
+      : AscIcon
+    : ChevronsUpDown;
 
   return <Icon className="h-3 w-3" />;
 }
@@ -292,68 +280,3 @@ export const ClearFilterMenuItem = <TData, TValue>({
     Clear filter
   </DropdownMenuItem>
 );
-
-export function renderFilterByValues<TData, TValue>(
-  column: Column<TData, TValue>,
-  setIsFilterValueOpen: (open: boolean) => void,
-) {
-  const canFilter = column.getCanFilter();
-  if (!canFilter) {
-    return null;
-  }
-
-  const columnType = column.columnDef.meta?.dataType;
-  // skip boolean as this can be easily filtered through normal filters
-  if (columnType === "boolean") {
-    return null;
-  }
-
-  // there are some edge cases which do not support filtering (eg. dicts with None values)
-  const filterType = column.columnDef.meta?.filterType;
-  if (!filterType) {
-    return null;
-  }
-
-  return (
-    <DropdownMenuSub>
-      <DropdownMenuItem onClick={() => setIsFilterValueOpen(true)}>
-        <ListFilterIcon className="mo-dropdown-icon" />
-        Filter by values
-      </DropdownMenuItem>
-    </DropdownMenuSub>
-  );
-}
-
-export const FilterButtons = ({
-  onApply,
-  onClear,
-  clearButtonDisabled,
-  applyButtonDisabled,
-}: {
-  onApply: () => void;
-  onClear: () => void;
-  clearButtonDisabled?: boolean;
-  applyButtonDisabled?: boolean;
-}) => {
-  return (
-    <div className="flex gap-2 px-2 justify-between">
-      <Button
-        variant="link"
-        size="sm"
-        onClick={onApply}
-        disabled={applyButtonDisabled}
-      >
-        Apply
-      </Button>
-      <Button
-        variant="linkDestructive"
-        size="sm"
-        className=""
-        onClick={onClear}
-        disabled={clearButtonDisabled}
-      >
-        Clear
-      </Button>
-    </div>
-  );
-};
