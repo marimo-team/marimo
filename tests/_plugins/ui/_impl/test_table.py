@@ -1259,6 +1259,9 @@ def test_table_hidden_columns_does_not_affect_value() -> None:
     assert all("b" in row for row in rows)
 
 
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
 def test_table_hidden_columns_row_header_raises() -> None:
     import pandas as pd
 
