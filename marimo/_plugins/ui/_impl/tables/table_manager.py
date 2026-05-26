@@ -24,6 +24,10 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
+# Rows used when estimating the JSON-serialized size of the rendered data.
+# Bigger samples are more precise but cost more on the kernel control loop.
+SIZE_ESTIMATE_SAMPLE_ROWS = 100
+
 ColumnName = str
 RowId = str
 FieldType = DataType
@@ -135,6 +139,30 @@ class TableManager(abc.ABC, Generic[T]):
             strict_json=strict_json,
             ensure_ascii=ensure_ascii,
         ).encode(resolved_encoding)
+
+    def estimate_size_bytes(
+        self,
+        format_mapping: FormatMapping | None = None,
+        sample_rows: int = SIZE_ESTIMATE_SAMPLE_ROWS,
+    ) -> int | None:
+        """Estimate JSON-serialized byte size by extrapolating from a head sample.
+
+        Returns the exact size when the table fits within `sample_rows`,
+        otherwise scales the sample size by `total_rows / sample_rows`.
+        Returns `None` if serialization fails.
+        """
+        total_rows = self.get_num_rows(force=True) or 0
+        if total_rows == 0:
+            return 0
+        n = min(total_rows, sample_rows)
+        try:
+            sample = self.take(n, 0).to_json_str(format_mapping)
+        except Exception:
+            return None
+        sample_bytes = len(sample.encode("utf-8"))
+        if n == total_rows:
+            return sample_bytes
+        return int(sample_bytes * total_rows / n)
 
     @abc.abstractmethod
     def to_parquet(self) -> bytes:

@@ -1524,6 +1524,39 @@ def test_search_response_carries_size_bytes() -> None:
     assert filtered.size_bytes < unfiltered.size_bytes
 
 
+def test_get_size_bytes_rpc_extrapolates_from_sample() -> None:
+    from marimo._plugins.ui._impl.table import GetSizeBytesResponse
+    from marimo._plugins.ui._impl.tables.table_manager import (
+        SIZE_ESTIMATE_SAMPLE_ROWS,
+    )
+
+    small = ui.table([{"a": i} for i in range(SIZE_ESTIMATE_SAMPLE_ROWS)])
+    large = ui.table([{"a": i} for i in range(SIZE_ESTIMATE_SAMPLE_ROWS * 10)])
+
+    resp_small = small._get_size_bytes(EmptyArgs())
+    resp_large = large._get_size_bytes(EmptyArgs())
+
+    assert isinstance(resp_small, GetSizeBytesResponse)
+    assert isinstance(resp_large, GetSizeBytesResponse)
+    assert resp_small.size_bytes is not None
+    assert resp_large.size_bytes is not None
+    ratio = resp_large.size_bytes / resp_small.size_bytes
+    assert 7.5 < ratio < 12.5, f"unexpected ratio {ratio}"
+
+
+def test_get_size_bytes_rpc_uses_searched_manager() -> None:
+    data = [{"a": i, "b": "match" if i < 5 else "miss"} for i in range(50)]
+    t = ui.table(data)
+
+    full = t._get_size_bytes(EmptyArgs()).size_bytes
+    t._search(SearchTableArgs(query="match", page_size=5, page_number=0))
+    filtered = t._get_size_bytes(EmptyArgs()).size_bytes
+
+    assert full is not None
+    assert filtered is not None
+    assert filtered < full
+
+
 def test_download_as_ignores_cell_selection() -> None:
     # Download should ignore selection when in cell selection modes
     data = {"a": [1, 2, 3]}

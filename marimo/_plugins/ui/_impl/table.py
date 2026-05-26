@@ -170,6 +170,11 @@ class SearchTableResponse:
     size_bytes: int | None = None
 
 
+@dataclass(frozen=True)
+class GetSizeBytesResponse:
+    size_bytes: int | None = None
+
+
 @dataclass
 class GetRowIdsResponse:
     row_ids: list[int]
@@ -874,6 +879,11 @@ class table(
                     arg_cls=PreviewColumnArgs,
                     function=self._preview_column,
                 ),
+                Function(
+                    name="get_size_bytes",
+                    arg_cls=EmptyArgs,
+                    function=self._get_size_bytes,
+                ),
             ),
         )
 
@@ -939,6 +949,13 @@ class table(
             return len(manager.to_json(strict_json=True))
         except Exception:
             return None
+
+    def _get_size_bytes(self, args: EmptyArgs) -> GetSizeBytesResponse:
+        del args
+        manager = self._searched_manager or self._manager
+        return GetSizeBytesResponse(
+            size_bytes=manager.estimate_size_bytes(self._format_mapping)
+        )
 
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the table data in the specified format.
