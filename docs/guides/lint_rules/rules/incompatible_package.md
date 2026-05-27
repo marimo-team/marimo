@@ -6,9 +6,9 @@ MW003: Packages in the dependency tree incompatible with WASM.
 
 ## What it does
 
-Reads the notebook's PEP 723 ``dependencies``, walks their transitive
+Reads the notebook's PEP 723 `dependencies`, walks their transitive
 dependency tree via installed metadata, then queries PyPI's JSON API
-to check whether each package has a ``py3-none-any`` or emscripten
+to check whether each package has a `py3-none-any` or emscripten
 wheel available. Packages only in pyodide-lock.json are also accepted.
 
 ## Why is this bad?

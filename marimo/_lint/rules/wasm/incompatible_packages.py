@@ -134,14 +134,14 @@ class IncompatiblePackagesRule(LintRule):
 
     This rule resolves the notebook's PEP 723 dependency tree and checks
     each package against PyPI for WASM-compatible wheels. Catches
-    transitive dependencies like ``jaxlib`` (pulled in by ``jax``) that
+    transitive dependencies like `jaxlib` (pulled in by `jax`) that
     have no pure-python or emscripten wheel on PyPI.
 
     ## What it does
 
-    Reads the notebook's PEP 723 ``dependencies``, walks their transitive
+    Reads the notebook's PEP 723 `dependencies`, walks their transitive
     dependency tree via installed metadata, then queries PyPI's JSON API
-    to check whether each package has a ``py3-none-any`` or emscripten
+    to check whether each package has a `py3-none-any` or emscripten
     wheel available. Packages only in pyodide-lock.json are also accepted.
 
     ## Why is this bad?
