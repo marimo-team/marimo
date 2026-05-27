@@ -55,7 +55,9 @@ def _make_stream_install(mock_pm: Mock) -> Any:
             version = (versions or {}).get(pkg)
             cb = log_callback_factory(pkg) if log_callback_factory else None
             success = await mock_pm.install(
-                pkg, version=version, log_callback=cb,
+                pkg,
+                version=version,
+                log_callback=cb,
             )
             yield (pkg, success)
 
@@ -556,7 +558,9 @@ async def test_install_missing_packages_with_streaming_logs(
         return True
 
     mock_package_manager.install = AsyncMock(side_effect=mock_install)
-    mock_package_manager.stream_install = _make_stream_install(mock_package_manager)
+    mock_package_manager.stream_install = _make_stream_install(
+        mock_package_manager
+    )
 
     # Set up packages callbacks
     k.packages_callbacks.package_manager = mock_package_manager
@@ -633,7 +637,9 @@ async def test_install_missing_packages_streaming_logs_failure(
         return False  # Installation failed
 
     mock_package_manager.install = AsyncMock(side_effect=mock_install_fail)
-    mock_package_manager.stream_install = _make_stream_install(mock_package_manager)
+    mock_package_manager.stream_install = _make_stream_install(
+        mock_package_manager
+    )
     k.packages_callbacks.package_manager = mock_package_manager
 
     with (
@@ -698,7 +704,9 @@ async def test_install_missing_packages_streaming_logs_multiple_packages(
         return True
 
     mock_package_manager.install = AsyncMock(side_effect=mock_install)
-    mock_package_manager.stream_install = _make_stream_install(mock_package_manager)
+    mock_package_manager.stream_install = _make_stream_install(
+        mock_package_manager
+    )
     k.packages_callbacks.package_manager = mock_package_manager
 
     with (
@@ -774,7 +782,9 @@ async def test_install_missing_packages_no_logs_backward_compatibility(
     mock_package_manager.install = AsyncMock(
         side_effect=mock_install_old_style
     )
-    mock_package_manager.stream_install = _make_stream_install(mock_package_manager)
+    mock_package_manager.stream_install = _make_stream_install(
+        mock_package_manager
+    )
     k.packages_callbacks.package_manager = mock_package_manager
 
     with (

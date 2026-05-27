@@ -84,8 +84,12 @@ async def stream_transaction_install(
     `loadPackage`; pure-python wheels are downloaded and extracted in parallel.
     """
     import micropip  # type: ignore[import-not-found]
-    from micropip._utils import default_environment  # type: ignore[import-not-found]
-    from micropip.transaction import Transaction  # type: ignore[import-not-found]
+    from micropip._utils import (
+        default_environment,  # type: ignore[import-not-found]
+    )
+    from micropip.transaction import (
+        Transaction,  # type: ignore[import-not-found]
+    )
     from packaging.utils import canonicalize_name
 
     mgr = micropip._micropip  # singleton PackageManager
