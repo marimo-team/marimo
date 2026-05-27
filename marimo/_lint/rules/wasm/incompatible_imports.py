@@ -92,8 +92,9 @@ class IncompatibleImportsRule(GraphRule):
                     await ctx.add_diagnostic(
                         Diagnostic(
                             message=(
-                                f"Module '{top_level}' is not available in "
-                                "WASM/Pyodide and will fail to import."
+                                f"Module '{top_level}' is not fully "
+                                "supported in WASM/Pyodide and will fail "
+                                "at import or runtime."
                             ),
                             line=line,
                             column=column,

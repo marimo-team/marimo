@@ -27,8 +27,8 @@ def resolve_rules(
     """Resolve a LintConfig into a concrete list of enabled LintRule instances.
 
     Algorithm:
-        1. If config.select is non-empty, start with matching rules.
-           Otherwise, start with ALL available rules.
+        1. If config.select is non-empty, start with all available rules
+           Otherwise, uses `DEFAULT_RULE_CODES`.
         2. Remove rules matching config.ignore prefixes.
         3. Return instantiated rules in sorted code order.
 

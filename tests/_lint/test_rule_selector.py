@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from marimo._lint.rule_selector import resolve_rules
-from marimo._lint.rules import DEFAULT_RULE_CODES, RULE_CODES
+from marimo._lint.rules import DEFAULT_RULE_CODES, RULE_CODES, WASM_RULE_CODES
 
 
 class TestResolveRules:
@@ -86,7 +86,7 @@ class TestResolveRules:
     def test_select_wasm_rules(self):
         rules = resolve_rules({"select": ["MW"]})
         assert all(r.code.startswith("MW") for r in rules)
-        assert len(rules) == 3
+        assert len(rules) == len(WASM_RULE_CODES)
 
     def test_select_all_includes_wasm(self):
         rules = resolve_rules({"select": ["ALL"]})
