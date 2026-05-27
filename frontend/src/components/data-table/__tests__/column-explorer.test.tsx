@@ -32,29 +32,42 @@ const TEST_COLUMNS: ColumnDef<Row>[] = [
   { id: "order_total", accessorKey: "order_total" },
 ];
 
-function PanelHarness() {
+interface HarnessProps {
+  totalColumns?: number;
+  initiallyHidden?: string[];
+}
+
+function PanelHarness({
+  totalColumns = 3,
+  initiallyHidden = [],
+}: HarnessProps) {
   const table = useReactTable<Row>({
     data: [],
     columns: TEST_COLUMNS,
     getCoreRowModel: getCoreRowModel(),
     locale: "en-US",
+    state: {
+      columnVisibility: Object.fromEntries(
+        initiallyHidden.map((id) => [id, false]),
+      ),
+    },
   });
   return (
     <ColumnExplorerPanel
       previewColumn={vi.fn().mockResolvedValue({})}
       fieldTypes={FIELD_TYPES}
       totalRows={3}
-      totalColumns={3}
+      totalColumns={totalColumns}
       tableId="t1"
       table={table}
     />
   );
 }
 
-function renderPanel() {
+function renderPanel(props?: HarnessProps) {
   return render(
     <TooltipProvider>
-      <PanelHarness />
+      <PanelHarness {...(props ?? {})} />
     </TooltipProvider>,
   );
 }
@@ -93,5 +106,23 @@ describe("ColumnExplorerPanel search", () => {
     expect(screen.queryByText("customer_name")).not.toBeInTheDocument();
     expect(screen.queryByText("cust_age")).not.toBeInTheDocument();
     expect(screen.queryByText("order_total")).not.toBeInTheDocument();
+  });
+});
+
+describe("ColumnExplorerPanel header counts", () => {
+  it("uses rendered-subset total when a clipped column is hidden", () => {
+    // Dataset has 100 columns server-side; only 3 are rendered into the
+    // TanStack table (the clipped subset). Hiding one of the rendered columns
+    // must report "2 visible (1 hidden)", not "99 visible (1 hidden)".
+    renderPanel({ totalColumns: 100, initiallyHidden: ["cust_age"] });
+    expect(screen.getByText(/2 visible/)).toBeInTheDocument();
+    expect(screen.getByText(/\(1 hidden\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/99 visible/)).not.toBeInTheDocument();
+  });
+
+  it("uses dataset-wide total when no column is hidden", () => {
+    renderPanel({ totalColumns: 100 });
+    expect(screen.getByText(/100 columns/)).toBeInTheDocument();
+    expect(screen.queryByText(/hidden/)).not.toBeInTheDocument();
   });
 });

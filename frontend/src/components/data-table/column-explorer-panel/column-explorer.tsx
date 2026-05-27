@@ -50,7 +50,7 @@ import {
 import { smartMatch } from "@/utils/smartMatch";
 import type { Column, Table } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
-import { getUserColumnVisibilityCounts } from "../hooks/use-column-visibility";
+import { getColumnCountForDisplay } from "../hooks/use-column-visibility";
 
 interface ColumnExplorerPanelProps<TData> {
   previewColumn: PreviewColumn;
@@ -86,11 +86,14 @@ export function ColumnExplorerPanel<TData>({
     return smartMatch(searchValue, columnName);
   });
 
-  const { hidden: hiddenColumnCount } = getUserColumnVisibilityCounts(table);
+  const {
+    totalColumns: effectiveTotalColumns,
+    hiddenColumns: hiddenColumnCount,
+  } = getColumnCountForDisplay(table, totalColumns);
 
   const { rowsAndColumns, hiddenSuffix } = prettifyRowColumnCount({
     numRows: totalRows,
-    totalColumns,
+    totalColumns: effectiveTotalColumns,
     locale,
     hiddenColumns: hiddenColumnCount,
   });
