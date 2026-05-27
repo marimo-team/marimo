@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Per-cell setup/teardown lifecycles owned by the Evaluator."""
+"""Per-cell execution lifecycles setup/teardown wraps around cell execution."""
 
 from __future__ import annotations
 
@@ -27,15 +27,35 @@ class Skip:
 
 
 class ExecutionLifecycle(Protocol):
-    """Per-cell setup/teardown wrap."""
+    """Per-cell setup/teardown wrap for cell execution.
+
+    `setup`s fire in composition order; `teardown`s fire in reverse
+    order over the lifecycles whose `setup` was reached. Per-cell state
+    is stashed on the instance.
+    """
 
     name: str
 
-    def setup(self, cell: CellImpl, glbls: MutableGlobals) -> Skip | None: ...
+    def setup(self, cell: CellImpl, glbls: MutableGlobals) -> Skip | None:
+        """Run before the cell body.
+
+        May mutate `glbls`. Return `Skip` to short-circuit the body (and
+        any later lifecycle in the chain); return `None` to continue.
+        Raising is treated like a body exception — the chain unwinds via
+        `teardown` on the lifecycles whose `setup` was reached.
+        """
+        ...
 
     def teardown(
         self,
         cell: CellImpl,
         glbls: MutableGlobals,
         run_result: RunResult,
-    ) -> None: ...
+    ) -> None:
+        """Run after the body (or after a `Skip`), in reverse composition order.
+
+        May mutate `glbls`. Receives the final `RunResult` from the body or
+        `Skip`. Raising from `teardown` replaces `run_result.exception`; the
+        original body exception (if any) is logged and suppressed.
+        """
+        ...

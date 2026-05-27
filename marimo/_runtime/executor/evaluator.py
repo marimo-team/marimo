@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Evaluator — composes ExecutionLifecycles around an Executor."""
+"""Evaluator composes ExecutionLifecycles around an Executor."""
 
 from __future__ import annotations
 
@@ -29,20 +29,25 @@ LOGGER = _loggers.marimo_logger()
 
 
 class Evaluator:
-    """Compose ExecutionLifecycles around an Executor. Owns `evaluate`."""
+    """Run a cell through an `Executor`, wrapped in `ExecutionLifecycles`."""
 
     def __init__(
         self,
         executor: Executor,
-        lifecycles: list[ExecutionLifecycle] | None = None,
+        lifecycles: list[ExecutionLifecycle],
     ) -> None:
         self.executor = executor
-        self.lifecycles: list[ExecutionLifecycle] = lifecycles or []
+        self.lifecycles: list[ExecutionLifecycle] = lifecycles
 
     async def evaluate(
         self, cell: CellImpl, glbls: MutableGlobals
     ) -> RunResult:
-        """Setup lifecycles, execute, and teardown lifecycles."""
+        """Compose `ExecutionLifecycle`s around an `Executor` run.
+
+        Lifecycle `setup`s run in order; a returned `Skip` short-circuits the
+        body. `teardown`s run in reverse order on lifecycles whose `setup`
+        was reached.
+        """
         completed, skip, body_exc = self._setup_chain(cell, glbls)
 
         if body_exc is not None:
@@ -67,7 +72,7 @@ class Evaluator:
     def evaluate_sync(
         self, cell: CellImpl, glbls: MutableGlobals
     ) -> RunResult:
-        """Sync mirror of `evaluate` — for callers without an event loop."""
+        """`evaluate` for callers without an event loop."""
         completed, skip, body_exc = self._setup_chain(cell, glbls)
 
         if body_exc is not None:
@@ -102,6 +107,12 @@ class Evaluator:
     def _setup_chain(
         self, cell: CellImpl, glbls: MutableGlobals
     ) -> tuple[list[ExecutionLifecycle], Skip | None, BaseException | None]:
+        """Run each lifecycle's `setup` in order.
+
+        Runs `setup` on each lifecycle in `self.lifecycles` until one returns a
+        `Skip` or one raises an exception. Returns a tuple of (completed
+        lifecycles, first Skip if any, first exception if any).
+        """
         completed: list[ExecutionLifecycle] = []
         skip: Skip | None = None
         try:
@@ -122,6 +133,12 @@ class Evaluator:
         completed: list[ExecutionLifecycle],
         result: RunResult,
     ) -> RunResult:
+        """Run each lifecycle's `teardown` in order.
+
+        Runs `teardown` on each lifecycle in `self.lifecycles` in reverse order,
+        on lifecycles who successfully ran `setup`. Returns a `RunResult` with
+        the first exception raised by a `teardown`.
+        """
         teardown_exc: BaseException | None = None
         for life in reversed(completed):
             try:

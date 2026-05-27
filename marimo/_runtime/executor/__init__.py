@@ -4,7 +4,6 @@
 ExecutionLifecycle: Manages global information prior to execution
 Executor: Runs the execution
 Evaluator: Composes lifecycles and the executor.
-
 """
 
 from __future__ import annotations

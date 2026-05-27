@@ -459,8 +459,7 @@ class Runner:
             return raw_result
 
         if isinstance(exc, asyncio.exceptions.CancelledError):
-            # User interrupt — async cells can only be cancelled via SIGINT.
-            # Surface as MarimoInterrupt so `run` flips `self.interrupted`.
+            # Surface cancellation as a MarimoInterrupt for downstream handling.
             tmpio = io.StringIO()
             traceback.print_exception(
                 type(exc), exc, exc.__traceback__, file=tmpio
