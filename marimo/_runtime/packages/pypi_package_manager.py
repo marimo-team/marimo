@@ -272,6 +272,7 @@ class MicropipPackageManager(PypiPackageManager):
             for pkg in packages:
                 log_callback_factory(pkg)(f"Resolving {pkg}...\n")
 
+        yielded: set[str] = set()
         try:
             async for pkg, success in stream_transaction_install(
                 packages,
@@ -282,6 +283,7 @@ class MicropipPackageManager(PypiPackageManager):
                 # engine raises before any yields, the fallback path needs
                 # to start clean (it will mark via `install()`).
                 self._attempted_packages.add(pkg)
+                yielded.add(pkg)
                 if log_callback_factory:
                     msg = (
                         f"Successfully installed {pkg}\n"
@@ -298,8 +300,9 @@ class MicropipPackageManager(PypiPackageManager):
                 "micropip Transaction API unavailable, falling back to sequential installs",
                 exc_info=True,
             )
+            remaining = [p for p in packages if p not in yielded]
             async for result in super().stream_install(
-                packages,
+                remaining,
                 versions=versions,
                 index_urls=index_urls,
                 log_callback_factory=log_callback_factory,
