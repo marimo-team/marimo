@@ -255,3 +255,78 @@ async def test_streaming_order_first_done_first_yielded(
     results = await driver()
     assert results[0] == ("fast", True)
     assert results[1] == ("slow", True)
+
+
+async def test_versioned_spec_tracked_correctly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A versioned spec ("foo==1.0") must be tracked by its base name so the
+    wheel install ("foo") is recognized as fulfilling the request."""
+    from marimo._runtime.packages._micropip_streaming import (
+        stream_transaction_install,
+    )
+
+    tx = _FakeTransaction(wheels=[_FakeWheel("foo")])
+    _install_fake_micropip(monkeypatch, tx)
+
+    results = await _drain(stream_transaction_install(["foo==1.0"]))
+    # Yields the original spec string, not the bare name.
+    assert results == [("foo==1.0", True)]
+
+
+async def test_url_spec_tracked_correctly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A PEP 508 URL spec ("foo @ git+…") must be tracked by base name too."""
+    from marimo._runtime.packages._micropip_streaming import (
+        stream_transaction_install,
+    )
+
+    tx = _FakeTransaction(wheels=[_FakeWheel("foo")])
+    _install_fake_micropip(monkeypatch, tx)
+
+    spec = "foo @ git+https://example.com/repo@deadbeef"
+    results = await _drain(stream_transaction_install([spec]))
+    assert results == [(spec, True)]
+
+
+async def test_loadpackage_failure_yields_false_no_terminate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A loadPackage exception must yield (name, False) per pyodide package
+    rather than crashing the generator mid-stream."""
+    from marimo._runtime.packages._micropip_streaming import (
+        stream_transaction_install,
+    )
+
+    class _BadCompatLayer(_FakeCompatLayer):
+        async def loadPackage(self, names: list[str]) -> None:
+            del names
+            raise RuntimeError("pyodide load failed")
+
+    fake_mgr = _FakeMicropipManager(compat_layer=_BadCompatLayer())
+    tx = _FakeTransaction(
+        wheels=[_FakeWheel("foo")],
+        pyodide_packages=[("numpy", "1.26.0", "default")],
+    )
+
+    micropip_mod = types.ModuleType("micropip")
+    micropip_mod._micropip = fake_mgr  # type: ignore[attr-defined]
+    utils_mod = types.ModuleType("micropip._utils")
+    utils_mod.default_environment = dict  # type: ignore[attr-defined]
+    txn_mod = types.ModuleType("micropip.transaction")
+
+    def _Transaction(**kwargs: Any) -> _FakeTransaction:
+        tx.init_kwargs = kwargs
+        return tx
+
+    txn_mod.Transaction = _Transaction  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "micropip", micropip_mod)
+    monkeypatch.setitem(sys.modules, "micropip._utils", utils_mod)
+    monkeypatch.setitem(sys.modules, "micropip.transaction", txn_mod)
+
+    results = await _drain(stream_transaction_install(["foo", "numpy"]))
+    # Generator completed (no crash); numpy yielded False from the failure.
+    assert ("numpy", False) in results
+    # foo wheel still succeeded independently.
+    assert ("foo", True) in results
