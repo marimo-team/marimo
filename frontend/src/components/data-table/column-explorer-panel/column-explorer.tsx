@@ -126,9 +126,7 @@ export function ColumnExplorerPanel<TData>({
           <CommandEmpty>No results.</CommandEmpty>
           {filteredColumns?.map(
             ([columnName, [dataType, externalType]], index) => {
-              const column = table
-                .getAllLeafColumns()
-                .find((c) => c.id === columnName);
+              const column = table.getColumn(columnName);
 
               return (
                 <ColumnItem
