@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import json
-from typing import Self
+from typing import TYPE_CHECKING
 from unittest.mock import patch
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 from marimo._ast.parse import parse_notebook
 from marimo._lint.diagnostic import Severity
@@ -168,7 +171,7 @@ def _fake_lockfile_response(packages: dict[str, str]) -> Response:
 
 
 class _FakePypiResponse:
-    """Stand-in for the urllib response used by ``_has_wasm_compatible_wheel``."""
+    """Stand-in for the urllib response used by `_has_wasm_compatible_wheel`."""
 
     def __init__(self, payload: dict[str, object]):
         self._payload = json.dumps(payload).encode("utf-8")
