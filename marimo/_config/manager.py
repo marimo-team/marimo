@@ -400,6 +400,11 @@ class UserConfigManager(MarimoConfigReader):
         # Merge the current config with the new config
         current_config = self._load_config()
         merged = merge_config(current_config, config)
+        # None-as-delete: any key whose merged value is None (typically because
+        # the incoming config explicitly sent null) is removed from disk. Lets
+        # the UI clear optional scalars (e.g. ai.max_tokens) without a separate
+        # delete primitive.
+        _drop_none_values(cast(dict[str, Any], merged))
 
         with open(config_path, "w", encoding="utf-8") as f:
             tomlkit.dump(merged, f, sort_keys=True)
@@ -459,3 +464,13 @@ class MarimoConfigReaderWithOverrides(PartialMarimoConfigReader):
         if hide_secrets:
             return mask_secrets_partial(self.override_config)
         return self.override_config
+
+
+def _drop_none_values(d: dict[str, Any]) -> None:
+    """Recursively remove keys whose value is None, in place."""
+    for key in list(d):
+        v = d[key]
+        if v is None:
+            del d[key]
+        elif isinstance(v, dict):
+            _drop_none_values(v)

@@ -1279,6 +1279,82 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
         )}
       />
 
+      <FormField
+        control={form.control}
+        name="ai.max_tokens"
+        render={({ field }) => {
+          const isOn = field.value != null;
+          return (
+            <div className="flex flex-col gap-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel className="font-normal">
+                  Override max output tokens
+                </FormLabel>
+                <FormControl>
+                  <Checkbox
+                    data-testid="ai-max-tokens-checkbox"
+                    checked={isOn}
+                    onCheckedChange={(checked) => {
+                      // null signals delete to the server; cast because
+                      // UserConfig (OpenAPI-derived) types max_tokens as
+                      // `number | undefined`, but zod accepts `null`.
+                      const next = (checked === true ? 32768 : null) as
+                        | number
+                        | undefined;
+                      // shouldDirty: true forces RHF to keep this in
+                      // dirtyFields even when `next` happens to equal the
+                      // form's defaultValue (e.g. untick → tick when disk
+                      // started with 32768). Otherwise getDirtyValues
+                      // would skip it and the save body would be empty.
+                      form.setValue("ai.max_tokens", next, {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                      });
+                      onSubmit(form.getValues());
+                    }}
+                  />
+                </FormControl>
+              </FormItem>
+              <FormDescription>
+                Recommended: leave off. Each provider applies its own output
+                limit, which is usually the right value for the model in use.
+                Anthropic is the exception: its API requires an explicit limit,
+                so marimo sends 32,768 by default.
+              </FormDescription>
+              <div className="flex flex-col gap-y-1 pl-6">
+                <FormItem className={formItemClasses}>
+                  <FormLabel className="font-normal">
+                    Max output tokens
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      data-testid="ai-max-tokens-input"
+                      type="number"
+                      min={1}
+                      disabled={!isOn}
+                      className="m-0 inline-flex h-7 w-28"
+                      value={field.value ?? 32768}
+                      onChange={(e) => {
+                        const n = Number.parseInt(e.target.value, 10);
+                        field.onChange(Number.isFinite(n) && n > 0 ? n : null);
+                      }}
+                    />
+                  </FormControl>
+                </FormItem>
+                {isOn && (
+                  <FormDescription>
+                    Override applies to every provider, including Anthropic. Use
+                    this to cap response length for cost control, or to raise
+                    the limit for reasoning-heavy models that need longer
+                    outputs.
+                  </FormDescription>
+                )}
+              </div>
+            </div>
+          );
+        }}
+      />
+
       <FormErrorsBanner />
       <ModelSelector
         label="Chat Model"

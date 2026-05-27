@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-DEFAULT_MAX_TOKENS = 4096
+ANTHROPIC_DEFAULT_MAX_TOKENS = 32768
 DEFAULT_MODEL = "openai/gpt-4o"

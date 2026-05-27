@@ -452,3 +452,79 @@ async def test_completion_does_not_pass_redundant_instructions() -> None:
 
         # This asserts the duplication is gone
         assert instructions == "Test prompt"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.anthropic.has()
+    or not DependencyManager.pydantic_ai.has(),
+    reason="anthropic or pydantic_ai not installed",
+)
+def test_anthropic_applies_default_floor_when_max_tokens_none() -> None:
+    """When no max_tokens is configured, Anthropic still receives 32768."""
+    from marimo._server.ai.constants import ANTHROPIC_DEFAULT_MAX_TOKENS
+
+    config = AnyProviderConfig(api_key="test-key", base_url=None)
+    provider = AnthropicProvider("claude-sonnet-4-5", config)
+    model = provider.create_model(max_tokens=None)
+    assert (
+        dict(model.settings).get("max_tokens") == ANTHROPIC_DEFAULT_MAX_TOKENS
+    )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.anthropic.has()
+    or not DependencyManager.pydantic_ai.has(),
+    reason="anthropic or pydantic_ai not installed",
+)
+def test_anthropic_override_wins_over_default_floor() -> None:
+    """An explicit max_tokens overrides the Anthropic default floor."""
+    config = AnyProviderConfig(api_key="test-key", base_url=None)
+    provider = AnthropicProvider("claude-sonnet-4-5", config)
+    model = provider.create_model(max_tokens=12345)
+    assert dict(model.settings).get("max_tokens") == 12345
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_openai_chat_omits_max_tokens_when_none() -> None:
+    """Non-Anthropic providers omit max_tokens entirely when not set, so
+    pydantic-ai falls through to the upstream provider's default."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+    model = provider.create_model(max_tokens=None)
+    assert "max_tokens" not in dict(model.settings)
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_openai_chat_passes_explicit_max_tokens() -> None:
+    """Non-Anthropic providers pass through an explicit max_tokens."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+    model = provider.create_model(max_tokens=12345)
+    assert dict(model.settings).get("max_tokens") == 12345
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_custom_provider_agent_passes_explicit_max_tokens() -> None:
+    """The chat path builds the agent (not the model), so the agent's
+    model_settings must carry the explicit max_tokens."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = get_completion_provider(config, "openrouter/gpt-4")
+    with patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm:
+        mock_get_tm.return_value = MagicMock()
+        agent = provider.create_agent(
+            max_tokens=12345, tools=[], system_prompt="x"
+        )
+    assert dict(agent.model_settings or {}).get("max_tokens") == 12345
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_custom_provider_agent_omits_max_tokens_when_none() -> None:
+    """The chat path omits max_tokens from agent model_settings when unset."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = get_completion_provider(config, "openrouter/gpt-4")
+    with patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm:
+        mock_get_tm.return_value = MagicMock()
+        agent = provider.create_agent(
+            max_tokens=None, tools=[], system_prompt="x"
+        )
+    assert "max_tokens" not in dict(agent.model_settings or {})

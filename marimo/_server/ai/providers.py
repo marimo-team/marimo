@@ -29,6 +29,7 @@ from marimo._plugins.ui._impl.chat.chat import (
     require_vercel_ai_sdk_support,
 )
 from marimo._server.ai.config import AnyProviderConfig
+from marimo._server.ai.constants import ANTHROPIC_DEFAULT_MAX_TOKENS
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
@@ -114,12 +115,12 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         """Create a provider for the given config."""
 
     @abstractmethod
-    def create_model(self, max_tokens: int) -> Model:
+    def create_model(self, max_tokens: int | None) -> Model:
         """Create a Pydantic AI model for the given max tokens."""
 
     def create_agent(
         self,
-        max_tokens: int,
+        max_tokens: int | None,
         tools: list[ToolDefinition],
         system_prompt: str,
     ) -> Agent[None, DeferredToolRequests | str]:
@@ -165,7 +166,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         self,
         messages: list[ServerUIMessage],
         system_prompt: str,
-        max_tokens: int,
+        max_tokens: int | None,
         additional_tools: list[ToolDefinition],
         stream_options: StreamOptions | None = None,
     ) -> StreamingResponse:
@@ -201,7 +202,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         user_prompt: str,
         messages: list[ServerUIMessage],
         system_prompt: str,
-        max_tokens: int,
+        max_tokens: int | None,
         additional_tools: list[ToolDefinition],
     ) -> AsyncGenerator[str]:
         """Return a stream of text from the given messages."""
@@ -294,13 +295,16 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
             provider = PydanticGoogle()
         return provider
 
-    def create_model(self, max_tokens: int) -> GoogleModel:
+    def create_model(self, max_tokens: int | None) -> GoogleModel:
         from pydantic_ai.models.google import GoogleModel, GoogleModelSettings
 
+        settings: GoogleModelSettings = (
+            {"max_tokens": max_tokens} if max_tokens is not None else {}
+        )
         return GoogleModel(
             model_name=self.model,
             provider=self.provider,
-            settings=GoogleModelSettings(max_tokens=max_tokens),
+            settings=settings,
         )
 
 
@@ -399,16 +403,18 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
         client = self.get_openai_client(config)
         return PydanticOpenAI(openai_client=client)
 
-    def create_model(self, max_tokens: int) -> OpenAIResponsesModel:
+    def create_model(self, max_tokens: int | None) -> OpenAIResponsesModel:
         from pydantic_ai.models.openai import (
             OpenAIResponsesModel,
-            OpenAIResponsesModelSettings,
         )
 
+        settings: OpenAIResponsesModelSettings = (
+            {"max_tokens": max_tokens} if max_tokens is not None else {}
+        )
         return OpenAIResponsesModel(
             model_name=self.model,
             provider=self.provider,
-            settings=OpenAIResponsesModelSettings(max_tokens=max_tokens),
+            settings=settings,
         )
 
     def _build_agent_settings(self, model: Model) -> ModelSettings | None:
@@ -645,7 +651,7 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
             client = self.get_openai_client(config)
             return PydanticOpenAI(openai_client=client)
 
-    def create_model(self, max_tokens: int) -> OpenAIChatModel:
+    def create_model(self, max_tokens: int | None) -> OpenAIChatModel:
         """Default to OpenAIChatModel"""
 
         from pydantic_ai.models.openai import (
@@ -653,22 +659,24 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
             OpenAIChatModelSettings,
         )
 
+        settings: OpenAIChatModelSettings = (
+            {"max_tokens": max_tokens} if max_tokens is not None else {}
+        )
         return OpenAIChatModel(
             model_name=self.model,
             provider=self.provider,
-            settings=OpenAIChatModelSettings(max_tokens=max_tokens),
+            settings=settings,
         )
 
     def create_agent(
         self,
-        max_tokens: int,
+        max_tokens: int | None,
         tools: list[ToolDefinition],
         system_prompt: str,
     ) -> Agent[None, DeferredToolRequests | str]:
         """Create a Pydantic AI agent"""
         from pydantic_ai import Agent, UserError
         from pydantic_ai.models import infer_model
-        from pydantic_ai.settings import ModelSettings
 
         try:
             model = infer_model(
@@ -687,7 +695,9 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
             )
             model = self.create_model(max_tokens)
 
-        agent_settings = ModelSettings(max_tokens=max_tokens)
+        agent_settings: ModelSettings = (
+            {"max_tokens": max_tokens} if max_tokens is not None else {}
+        )
         agent_settings.update(self._build_agent_settings(model) or {})
 
         toolset, output_type = self._get_toolsets_and_output_type(tools)
@@ -724,7 +734,7 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
 
         return PydanticAnthropic(api_key=config.api_key)
 
-    def create_model(self, max_tokens: int) -> Model:
+    def create_model(self, max_tokens: int | None) -> Model:
         from pydantic_ai.models.anthropic import (
             AnthropicModel,
             AnthropicModelSettings,
@@ -734,7 +744,11 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
             anthropic_model_profile,
         )
 
-        settings: AnthropicModelSettings = {"max_tokens": max_tokens}
+        settings: AnthropicModelSettings = {
+            "max_tokens": max_tokens
+            if max_tokens is not None
+            else ANTHROPIC_DEFAULT_MAX_TOKENS
+        }
 
         # Anthropic extended thinking requires temperature=1; non-thinking
         # models keep our default coding temperature. Some adaptive-only
@@ -812,16 +826,19 @@ class BedrockProvider(PydanticProvider["PydanticBedrock"]):
         # For bedrock, the config sets the region name as the base_url
         return PydanticBedrock(region_name=config.base_url)
 
-    def create_model(self, max_tokens: int) -> BedrockConverseModel:
+    def create_model(self, max_tokens: int | None) -> BedrockConverseModel:
         from pydantic_ai.models.bedrock import (
             BedrockConverseModel,
             BedrockModelSettings,
         )
 
+        settings: BedrockModelSettings = (
+            {"max_tokens": max_tokens} if max_tokens is not None else {}
+        )
         return BedrockConverseModel(
             model_name=self.model,
             provider=self.provider,
-            settings=BedrockModelSettings(max_tokens=max_tokens),
+            settings=settings,
         )
 
 

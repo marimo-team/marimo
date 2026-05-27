@@ -320,7 +320,8 @@ class SaveAppConfigurationRequest(msgspec.Struct, rename="camel"):
 
 
 class SaveUserConfigurationRequest(msgspec.Struct, rename="camel"):
-    # deep partial user configuration
+    # deep partial user configuration; keys with value `None` are removed
+    # from the on-disk merged config (None-as-delete)
     config: dict[str, Any]
 
 

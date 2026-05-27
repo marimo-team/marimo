@@ -1355,7 +1355,7 @@ export const UserConfigForm: React.FC = () => {
     <Form {...form}>
       <form
         ref={formElement}
-        onChange={form.handleSubmit(onSubmit)}
+        onChange={form.handleSubmit((values) => onSubmit(values))}
         className="flex text-pretty overflow-hidden"
       >
         <Tabs

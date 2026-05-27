@@ -24,7 +24,7 @@ from marimo._server.ai.config import (
     get_edit_model,
     get_max_tokens,
 )
-from marimo._server.ai.constants import DEFAULT_MAX_TOKENS, DEFAULT_MODEL
+from marimo._server.ai.constants import DEFAULT_MODEL
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._utils.http import HTTPStatus
 
@@ -1081,7 +1081,7 @@ class TestUtilityFunctions:
         assert result == 2048
 
     def test_get_max_tokens_default_no_ai_config(self):
-        """Test getting default max tokens when no AI config."""
+        """Test getting max tokens returns None when no AI config."""
         config = cast(
             MarimoConfig,
             {
@@ -1091,10 +1091,10 @@ class TestUtilityFunctions:
 
         result = get_max_tokens(config)
 
-        assert result == DEFAULT_MAX_TOKENS
+        assert result is None
 
     def test_get_max_tokens_default_no_max_tokens(self):
-        """Test getting default max tokens when max_tokens not specified."""
+        """Test getting max tokens returns None when max_tokens not specified."""
         config = cast(
             MarimoConfig,
             {
@@ -1104,7 +1104,7 @@ class TestUtilityFunctions:
 
         result = get_max_tokens(config)
 
-        assert result == DEFAULT_MAX_TOKENS
+        assert result is None
 
     def test_get_autocomplete_model(self) -> None:
         """Test get_autocomplete_model with new ai.models.autocomplete_model config."""
