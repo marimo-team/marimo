@@ -86,6 +86,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   // JSON-serialized size of the currently-rendered data. Forwarded to
   // ExportMenu so hosts can size-gate the Export button via downloadSizeLimitAtom.
   sizeBytes?: number | null;
+  sizeBytesIsLoading?: boolean;
   totalColumns: number;
   pagination?: boolean;
   manualPagination?: boolean; // server-side pagination
@@ -139,6 +140,7 @@ const DataTableInternal = <TData,>({
   totalColumns,
   totalRows,
   sizeBytes,
+  sizeBytesIsLoading,
   manualSorting = false,
   sorting,
   setSorting,
@@ -362,6 +364,7 @@ const DataTableInternal = <TData,>({
               isAnyPanelOpen={isAnyPanelOpen}
               downloadAs={downloadAs}
               sizeBytes={sizeBytes}
+              sizeBytesIsLoading={sizeBytesIsLoading}
             />
             {allUserColumnsHidden && (
               <Banner className="mb-1 mx-2 rounded flex items-center justify-between">

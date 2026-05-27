@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import abc
+import math
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -23,6 +24,10 @@ if TYPE_CHECKING:
     from marimo._plugins.ui._impl.table import SortArgs
 
 T = TypeVar("T")
+
+# Rows used when estimating the JSON-serialized size of the rendered data.
+# Bigger samples are more precise but cost more on the kernel control loop.
+SIZE_ESTIMATE_SAMPLE_ROWS = 100
 
 ColumnName = str
 RowId = str
@@ -135,6 +140,36 @@ class TableManager(abc.ABC, Generic[T]):
             strict_json=strict_json,
             ensure_ascii=ensure_ascii,
         ).encode(resolved_encoding)
+
+    def estimate_size_bytes(
+        self,
+        sample_rows: int = SIZE_ESTIMATE_SAMPLE_ROWS,
+    ) -> int | None:
+        """Estimate JSON-download byte size by extrapolating from a head sample.
+
+        Always models a JSON download (raw values, `strict_json=True`,
+        `ensure_ascii=True`) since the frontend gates downloads before the
+        user picks a format; JSON with ASCII escaping is the upper-bound
+        proxy.
+
+        Returns the exact size when the table fits within `sample_rows`,
+        otherwise scales the sample size by `total_rows / sample_rows`.
+        Returns `None` if serialization fails.
+        """
+        total_rows = self.get_num_rows(force=True) or 0
+        if total_rows == 0:
+            return 0
+        n = min(total_rows, sample_rows)
+        try:
+            sample = self.take(n, 0).to_json_str(
+                strict_json=True, ensure_ascii=True
+            )
+        except Exception:
+            return None
+        sample_bytes = len(sample.encode("utf-8"))
+        if n == total_rows:
+            return sample_bytes
+        return math.ceil(sample_bytes * total_rows / n)
 
     @abc.abstractmethod
     def to_parquet(self) -> bytes:

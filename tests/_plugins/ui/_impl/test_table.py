@@ -1534,70 +1534,55 @@ def test_download_as(df: Any) -> None:
         assert selected_nw["cities"][0] == "New York"
 
 
-def test_json_size_bytes_matches_payload() -> None:
-    data = [{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]
-    table = ui.table(data)
-    expected = len(table._manager.to_json(strict_json=True))
-    assert table._get_json_size_bytes(table._manager) == expected
-    assert expected > 0
-
-
-def test_json_size_bytes_cached_per_manager_identity() -> None:
-    table = ui.table([{"a": 1}, {"a": 2}])
-    # The constructor already primed the cache with table._manager; verify
-    # that asking again does not re-serialize, while a fresh manager does.
-    call_count = 0
-    original_to_json = type(table._manager).to_json
-
-    def counting_to_json(self: Any, **kwargs: Any) -> Any:
-        nonlocal call_count
-        call_count += 1
-        return original_to_json(self, **kwargs)
-
-    other_manager = ui.table([{"a": 3, "b": 4}])._manager
-    # other_manager's construction primed the cache with a different key,
-    # so the next call on table._manager will be a fresh miss.
-    with patch.object(type(table._manager), "to_json", counting_to_json):
-        table._get_json_size_bytes(table._manager)
-        table._get_json_size_bytes(table._manager)
-        assert call_count == 1, (
-            "second call with same manager identity should hit cache"
-        )
-        table._get_json_size_bytes(other_manager)
-        assert call_count == 2, "different manager identity should recompute"
-
-
-def test_json_size_bytes_fails_open() -> None:
-    table = ui.table([{"a": 1}])
-
-    class _Boom:
-        def to_json(self, **_: Any) -> str:
-            raise RuntimeError("boom")
-
-    assert table._get_json_size_bytes(_Boom()) is None  # type: ignore[arg-type]
-
-
-def test_render_args_carry_size_bytes() -> None:
-    table = ui.table([{"a": 1}, {"a": 2}])
-    args = table._component_args  # type: ignore[attr-defined]
-    assert args["size-bytes"] == len(table._manager.to_json(strict_json=True))
-
-
-def test_search_response_carries_size_bytes() -> None:
-    data = [{"a": i} for i in range(10)]
-    table = ui.table(data)
-    # Unfiltered branch — should report _manager's size.
-    unfiltered = table._search(SearchTableArgs(page_size=5, page_number=0))
-    assert unfiltered.size_bytes == len(
-        table._manager.to_json(strict_json=True)
+def test_get_size_bytes_rpc_extrapolates_from_sample() -> None:
+    from marimo._plugins.ui._impl.table import GetSizeBytesResponse
+    from marimo._plugins.ui._impl.tables.table_manager import (
+        SIZE_ESTIMATE_SAMPLE_ROWS,
     )
-    # Filtered branch — should report the searched manager's size, which
-    # differs from the full manager.
-    filtered = table._search(
-        SearchTableArgs(query="1", page_size=5, page_number=0)
-    )
-    assert filtered.size_bytes is not None
-    assert filtered.size_bytes < unfiltered.size_bytes
+
+    small = ui.table([{"a": i} for i in range(SIZE_ESTIMATE_SAMPLE_ROWS)])
+    large = ui.table([{"a": i} for i in range(SIZE_ESTIMATE_SAMPLE_ROWS * 10)])
+
+    resp_small = small._get_size_bytes(EmptyArgs())
+    resp_large = large._get_size_bytes(EmptyArgs())
+
+    assert isinstance(resp_small, GetSizeBytesResponse)
+    assert isinstance(resp_large, GetSizeBytesResponse)
+    assert resp_small.size_bytes is not None
+    assert resp_large.size_bytes is not None
+    ratio = resp_large.size_bytes / resp_small.size_bytes
+    assert 7.5 < ratio < 12.5, f"unexpected ratio {ratio}"
+
+
+def test_get_size_bytes_rpc_uses_searched_manager() -> None:
+    data = [{"a": i, "b": "match" if i < 5 else "miss"} for i in range(50)]
+    t = ui.table(data)
+
+    full = t._get_size_bytes(EmptyArgs()).size_bytes
+    t._search(SearchTableArgs(query="match", page_size=5, page_number=0))
+    filtered = t._get_size_bytes(EmptyArgs()).size_bytes
+
+    assert full is not None
+    assert filtered is not None
+    assert filtered < full
+
+
+def test_get_size_bytes_rpc_returns_none_on_serialization_failure() -> None:
+    from unittest.mock import patch
+
+    from marimo._plugins.ui._impl.table import GetSizeBytesResponse
+
+    t = ui.table([{"a": 1}])
+    manager_cls = type(t._manager)
+
+    def _raise(*_args: object, **_kwargs: object) -> str:
+        raise RuntimeError("boom")
+
+    with patch.object(manager_cls, "to_json_str", _raise):
+        resp = t._get_size_bytes(EmptyArgs())
+
+    assert isinstance(resp, GetSizeBytesResponse)
+    assert resp.size_bytes is None
 
 
 def test_download_as_ignores_cell_selection() -> None:

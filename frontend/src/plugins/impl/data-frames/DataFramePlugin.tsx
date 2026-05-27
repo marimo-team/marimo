@@ -64,7 +64,6 @@ type PluginFunctions = {
     column_types_per_step: FieldTypesWithExternalType[];
     python_code?: string | null;
     sql_code?: string | null;
-    size_bytes?: number | null;
   }>;
   get_column_values: (req: { column: string }) => Promise<{
     values: unknown[];
@@ -82,9 +81,11 @@ type PluginFunctions = {
   }) => Promise<{
     data: TableData<T>;
     total_rows: number;
-    size_bytes?: number | null;
   }>;
   download_as: DownloadAsArgs;
+  get_size_bytes: (opts: Record<string, never>) => Promise<{
+    size_bytes?: number | null;
+  }>;
 };
 
 // Value is selection, but it is not currently exposed to the user
@@ -120,7 +121,6 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         column_types_per_step: z.array(columnToFieldTypesSchema),
         python_code: z.string().nullish(),
         sql_code: z.string().nullish(),
-        size_bytes: z.number().nullish(),
       }),
     ),
     get_column_values: rpc.input(z.object({ column: z.string() })).output(
@@ -150,10 +150,12 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         z.object({
           data: z.union([z.string(), z.array(z.object({}).passthrough())]),
           total_rows: z.number(),
-          size_bytes: z.number().nullish(),
         }),
       ),
     download_as: DownloadAsSchema,
+    get_size_bytes: rpc
+      .input(z.object({}))
+      .output(z.object({ size_bytes: z.number().nullish() })),
   })
   .renderer((props) => (
     <TableProviders>
@@ -192,6 +194,7 @@ export const DataFrameComponent = memo(
     get_column_values,
     search,
     download_as,
+    get_size_bytes,
     host,
   }: DataTableProps): JSX.Element => {
     const { data, error, isPending } = useAsyncData(
@@ -207,7 +210,6 @@ export const DataFrameComponent = memo(
       column_types_per_step,
       python_code,
       sql_code,
-      size_bytes,
     } = data || {};
 
     const totalColumns = field_types?.length;
@@ -327,7 +329,6 @@ export const DataFrameComponent = memo(
           data={url || ""}
           hasStableRowId={false}
           totalRows={total_rows ?? 0}
-          sizeBytes={size_bytes ?? null}
           totalColumns={totalColumns ?? 0}
           maxColumns="all"
           pageSize={pageSize}
@@ -336,6 +337,7 @@ export const DataFrameComponent = memo(
           rowHeaders={row_headers || Arrays.EMPTY}
           showDownload={showDownload}
           download_as={download_as}
+          get_size_bytes={get_size_bytes}
           enableSearch={false}
           showFilters={false}
           search={search}
