@@ -354,7 +354,8 @@ async def test_missing_packages_hook(
 
     with (
         patch(
-            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+            "marimo._runtime.callbacks.packages.broadcast_notification",
+            mock_broadcast,
         ),
         patch("micropip.install", new_callable=AsyncMock),
     ):
@@ -448,7 +449,8 @@ def test_missing_packages_hook_pip(
 
     with (
         patch(
-            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+            "marimo._runtime.callbacks.packages.broadcast_notification",
+            mock_broadcast,
         ),
     ):
         k.packages_callbacks.package_manager = create_package_manager("pip")
@@ -532,7 +534,8 @@ async def test_install_missing_packages_with_streaming_logs(
 
     with (
         patch(
-            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+            "marimo._runtime.callbacks.packages.broadcast_notification",
+            mock_broadcast,
         ),
     ):
         # Create install request
@@ -605,7 +608,8 @@ async def test_install_missing_packages_streaming_logs_failure(
 
     with (
         patch(
-            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+            "marimo._runtime.callbacks.packages.broadcast_notification",
+            mock_broadcast,
         ),
     ):
         request = InstallPackagesCommand(
@@ -668,7 +672,8 @@ async def test_install_missing_packages_streaming_logs_multiple_packages(
 
     with (
         patch(
-            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+            "marimo._runtime.callbacks.packages.broadcast_notification",
+            mock_broadcast,
         ),
     ):
         request = InstallPackagesCommand(
@@ -742,7 +747,8 @@ async def test_install_missing_packages_no_logs_backward_compatibility(
 
     with (
         patch(
-            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+            "marimo._runtime.callbacks.packages.broadcast_notification",
+            mock_broadcast,
         ),
     ):
         request = InstallPackagesCommand(

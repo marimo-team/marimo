@@ -5,7 +5,7 @@ DuckDB's native network scanner is unavailable in Pyodide. This module is the
 compatibility layer that recognizes supported URL shapes, validates the reader
 options we can reproduce, fetches bytes through WASM fetch shim, and
 dispatches to a local DataFrame reader. Unsupported readers or option
-combinations return ``None`` so callers can use the unpatched DuckDB path
+combinations return `None` so callers can use the unpatched DuckDB path
 and surface the underlying error.
 """
 
@@ -369,7 +369,7 @@ def _reader_by_name(
 
 
 def reader_for_url(url: str) -> _DataFrameReader | None:
-    """Infer a reader from direct URL table syntax such as ``FROM 'x.csv'``."""
+    """Infer a reader from direct URL table syntax such as `FROM 'x.csv'`."""
     path = urlparse(url).path.lower()
     return next(
         (

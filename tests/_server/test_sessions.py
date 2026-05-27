@@ -37,7 +37,7 @@ from marimo._runtime.commands import (
 )
 from marimo._server.session_manager import SessionManager
 from marimo._server.utils import initialize_asyncio
-from marimo._server.workspace import PathFileKey, SingleFileWorkspace
+from marimo._server.workspace import SingleFileWorkspace
 from marimo._session import Session
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
@@ -453,7 +453,7 @@ def __():
     1
 """
     )
-    file_key = PathFileKey(str(tmp_file))
+    file_key = str(tmp_file)
 
     try:
         # Create a session manager with file watching enabled
@@ -702,7 +702,7 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
             session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
-            file_key=PathFileKey(str(tmp_file)),
+            file_key=str(tmp_file),
             auto_instantiate=False,
         )
         mock_session_view = MagicMock(spec=SessionView)
@@ -811,7 +811,7 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
             session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
-            file_key=PathFileKey(str(tmp_file)),
+            file_key=str(tmp_file),
             auto_instantiate=False,
         )
 
@@ -907,7 +907,7 @@ def __():
             session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
-            file_key=PathFileKey(str(tmp_path1)),
+            file_key=str(tmp_path1),
             auto_instantiate=False,
         )
 

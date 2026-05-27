@@ -4,7 +4,7 @@
 The WASM patch fetches remote bytes in Python, but DuckDB's Python readers
 still expect local paths for CSV, JSON, and parquet parsing. This module
 materializes fetched bytes through short-lived temp files where DuckDB parsing
-is needed and synthesizes DataFrames for ``read_text`` and ``read_blob``.
+is needed and synthesizes DataFrames for `read_text` and `read_blob`.
 """
 
 from __future__ import annotations
@@ -121,7 +121,7 @@ def _read_json_objects_path(
 
 
 def read_text_dataframe(data: bytes, url: str) -> pd.DataFrame:
-    """Match DuckDB's ``read_text`` shape for an already-fetched object."""
+    """Match DuckDB's `read_text` shape for an already-fetched object."""
     import pandas as pd
 
     return pd.DataFrame(
@@ -135,7 +135,7 @@ def read_text_dataframe(data: bytes, url: str) -> pd.DataFrame:
 
 
 def read_blob_dataframe(data: bytes, url: str) -> pd.DataFrame:
-    """Match DuckDB's ``read_blob`` shape for an already-fetched object."""
+    """Match DuckDB's `read_blob` shape for an already-fetched object."""
     import pandas as pd
 
     return pd.DataFrame(

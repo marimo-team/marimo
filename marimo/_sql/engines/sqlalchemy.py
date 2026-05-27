@@ -69,10 +69,10 @@ def safe_execute(
         fallback: Value returned when the wrapped function raises.
         message: Message written to the logger on failure.
         log_level: Logger level – must be one of
-            ``'debug'``, ``'info'``, ``'warning'``, or ``'error'``.
+            `'debug'`, `'info'`, `'warning'`, or `'error'`.
         silent_exceptions: Exception types that should return *fallback*
             without any logging.  Useful for expected control-flow
-            exceptions like ``NotImplementedError``.
+            exceptions like `NotImplementedError`.
     """
 
     def decorator(func: Callable[P, T]) -> Callable[P, T | F]:
@@ -143,8 +143,8 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         this opens a connection, executes the command, and yields an
         inspector bound to that connection.
 
-        For all other dialects, it yields ``self.inspector`` (which may
-        be ``None``).
+        For all other dialects, it yields `self.inspector` (which may
+        be `None`).
 
         Usage::
 

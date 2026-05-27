@@ -2,60 +2,28 @@
 "use no memo";
 
 import type { Column, Table } from "@tanstack/react-table";
-import {
-  EllipsisIcon,
-  FilterIcon,
-  MinusIcon,
-  TextIcon,
-  XIcon,
-} from "lucide-react";
-import { useRef, useState } from "react";
+import { EllipsisIcon, FilterIcon, ListFilterIcon } from "lucide-react";
 import { useLocale } from "react-aria";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuPortal,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
-import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
-import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
-import { capitalize } from "@/utils/strings";
-import { Button } from "../ui/button";
-import { DraggablePopover } from "../ui/draggable-popover";
-import { Input } from "../ui/input";
-import { NumberField } from "../ui/number-field";
-import { PopoverClose } from "../ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import { FilterByValuesList } from "./filter-by-values-picker";
-import {
-  type ColumnFilterForType,
-  type ColumnFilterValue,
-  Filter,
-} from "./filters";
+import { useFilterEditor } from "./filter-editor-context";
+import { EDITABLE_FILTER_TYPES, isMembershipFilterType } from "./filters";
 import {
   ClearFilterMenuItem,
-  FilterButtons,
+  HideColumn,
   renderColumnPinning,
   renderColumnWrapping,
   renderCopyColumn,
   renderDataType,
-  renderFilterByValues,
   renderFormatOptions,
-  renderSortFilterIcon,
+  renderSortIcon,
   renderSorts,
 } from "./header-items";
 
@@ -77,11 +45,10 @@ export const DataTableColumnHeader = <TData, TValue>({
   subheader,
   justify,
   className,
-  calculateTopKRows,
   table,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
-  const [isFilterValueOpen, setIsFilterValueOpen] = useState(false);
   const { locale } = useLocale();
+  const editor = useFilterEditor();
 
   // No header
   if (!header) {
@@ -105,67 +72,101 @@ export const DataTableColumnHeader = <TData, TValue>({
   }
 
   const hasFilter = column.getFilterValue() !== undefined;
+  const filterType = column.columnDef.meta?.filterType;
+  const canEditFilter =
+    editor !== null &&
+    column.getCanFilter() &&
+    filterType !== undefined &&
+    EDITABLE_FILTER_TYPES.has(filterType);
+  const canFilterByValues =
+    canEditFilter &&
+    filterType !== undefined &&
+    isMembershipFilterType(filterType);
 
   return (
-    <>
+    <div
+      className={cn("group flex flex-col my-1 w-full select-none", className)}
+    >
       <div
-        className={cn("group flex flex-col my-1 w-full select-none", className)}
+        className={cn(
+          "flex items-center gap-1",
+          justify === "right" && "flex-row-reverse",
+          justify === "center" && "mx-auto",
+        )}
       >
-        <div
-          className={cn(
-            "flex items-center gap-1",
-            justify === "right" && "flex-row-reverse",
-            justify === "center" && "mx-auto",
-          )}
-        >
-          {justify === "center" ? (
-            <>
-              {column.getCanSort() && <SortButton column={column} />}
-              <span>{header}</span>
-            </>
-          ) : (
-            <>
-              <span>{header}</span>
-              {column.getCanSort() && <SortButton column={column} />}
-            </>
-          )}
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild={true}>
-              <button
-                type="button"
-                className="inline-flex items-center justify-center h-5 w-5 rounded hover:bg-(--slate-4) text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100 data-[state=open]:text-accent-foreground"
-                aria-label="Column options"
-                data-testid="data-table-column-menu-button"
+        {justify === "center" ? (
+          <>
+            {column.getCanSort() && <SortButton column={column} />}
+            {hasFilter && <FilterIndicator />}
+            <span>{header}</span>
+          </>
+        ) : (
+          <>
+            <span>{header}</span>
+            {hasFilter && <FilterIndicator />}
+            {column.getCanSort() && <SortButton column={column} />}
+          </>
+        )}
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild={true}>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center h-5 w-5 rounded hover:bg-(--slate-4) text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100 data-[state=open]:text-accent-foreground"
+              aria-label="Column options"
+              data-testid="data-table-column-menu-button"
+            >
+              <EllipsisIcon className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {renderDataType(column)}
+            {renderSorts(column, table)}
+            {renderCopyColumn(column)}
+            {renderColumnPinning(column)}
+            {renderColumnWrapping(column)}
+            {renderFormatOptions(column, locale)}
+            <HideColumn column={column} />
+            {canEditFilter && <DropdownMenuSeparator />}
+            {canEditFilter && (
+              <DropdownMenuItem
+                onSelect={() =>
+                  editor.requestAddFilter({ columnId: column.id })
+                }
               >
-                <EllipsisIcon className="h-3.5 w-3.5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {renderDataType(column)}
-              {renderSorts(column, table)}
-              {renderCopyColumn(column)}
-              {renderColumnPinning(column)}
-              {renderColumnWrapping(column)}
-              {renderFormatOptions(column, locale)}
-              <DropdownMenuSeparator />
-              {renderMenuItemFilter(column)}
-              {renderFilterByValues(column, setIsFilterValueOpen)}
-              {hasFilter && <ClearFilterMenuItem column={column} />}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        {subheader}
+                <FilterIcon className="mo-dropdown-icon" />
+                Filter
+              </DropdownMenuItem>
+            )}
+            {canFilterByValues && (
+              <DropdownMenuItem
+                onSelect={() =>
+                  editor.requestAddFilter({
+                    columnId: column.id,
+                    operator: "in",
+                  })
+                }
+              >
+                <ListFilterIcon className="mo-dropdown-icon" />
+                Filter by values
+              </DropdownMenuItem>
+            )}
+            {hasFilter && <ClearFilterMenuItem column={column} />}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-      {isFilterValueOpen && (
-        <PopoverFilterByValues
-          setIsFilterValueOpen={setIsFilterValueOpen}
-          calculateTopKRows={calculateTopKRows}
-          column={column}
-        />
-      )}
-    </>
+      {subheader}
+    </div>
   );
 };
+
+const FilterIndicator = () => (
+  <span
+    className="inline-flex items-center justify-center h-5 w-5 text-primary"
+    aria-label="Column is filtered"
+  >
+    <FilterIcon className="h-3 w-3" aria-hidden={true} />
+  </span>
+);
 
 const SortButton = <TData, TValue>({
   column,
@@ -204,426 +205,7 @@ const SortButton = <TData, TValue>({
       }
       data-testid="data-table-sort-button"
     >
-      {renderSortFilterIcon(column)}
+      {renderSortIcon(column)}
     </button>
-  );
-};
-
-export function renderMenuItemFilter<TData, TValue>(
-  column: Column<TData, TValue>,
-) {
-  const canFilter = column.getCanFilter();
-  if (!canFilter) {
-    return null;
-  }
-
-  const filterType = column.columnDef.meta?.filterType;
-  if (!filterType) {
-    return null;
-  }
-
-  const filterMenuItem = (
-    <DropdownMenuSubTrigger>
-      <FilterIcon className="mo-dropdown-icon" />
-      Filter
-    </DropdownMenuSubTrigger>
-  );
-
-  if (filterType === "boolean") {
-    return (
-      <DropdownMenuSub>
-        {filterMenuItem}
-        <DropdownMenuPortal>
-          <DropdownMenuSubContent>
-            <BooleanFilter column={column} />
-          </DropdownMenuSubContent>
-        </DropdownMenuPortal>
-      </DropdownMenuSub>
-    );
-  }
-
-  if (filterType === "text") {
-    return (
-      <DropdownMenuSub>
-        {filterMenuItem}
-        <DropdownMenuPortal>
-          <DropdownMenuSubContent>
-            <TextFilter column={column} />
-          </DropdownMenuSubContent>
-        </DropdownMenuPortal>
-      </DropdownMenuSub>
-    );
-  }
-
-  if (filterType === "number") {
-    return (
-      <DropdownMenuSub>
-        {filterMenuItem}
-        <DropdownMenuPortal>
-          <DropdownMenuSubContent>
-            <NumberRangeFilter column={column} />
-          </DropdownMenuSubContent>
-        </DropdownMenuPortal>
-      </DropdownMenuSub>
-    );
-  }
-
-  if (filterType === "select") {
-    // Not implemented
-    return null;
-  }
-
-  if (filterType === "time") {
-    // Not implemented
-    return null;
-  }
-
-  if (filterType === "datetime") {
-    // Not implemented
-    return null;
-  }
-
-  if (filterType === "date") {
-    // Not implemented
-    return null;
-  }
-
-  logNever(filterType);
-  return null;
-}
-
-// Type-safe constants for null filter operators
-const NULL_FILTER_OPERATORS = {
-  is_null: "is_null",
-  is_not_null: "is_not_null",
-} satisfies Record<string, OperatorType>;
-
-const NullFilter = <TData, TValue>({
-  column,
-  defaultItem,
-  operator,
-  setOperator,
-}: {
-  column: Column<TData, TValue>;
-  defaultItem?: OperatorType | "between";
-  operator: OperatorType | "between";
-  setOperator: (operator: OperatorType) => void;
-}) => {
-  const handleValueChange = (value: OperatorType) => {
-    setOperator(value);
-    if (value === "is_null" || value === "is_not_null") {
-      column.setFilterValue(Filter.text({ operator: value }));
-    }
-  };
-
-  const isNullOrNotNull = operator === "is_null" || operator === "is_not_null";
-
-  return (
-    <Select
-      value={operator}
-      onValueChange={(value) => handleValueChange(value as OperatorType)}
-    >
-      <SelectTrigger
-        className={cn(
-          "border-border shadow-none! ring-0! w-full mb-0.5",
-          isNullOrNotNull && "mb-2",
-        )}
-      >
-        <SelectValue defaultValue={operator} />
-      </SelectTrigger>
-      <SelectContent>
-        {defaultItem && (
-          <SelectItem value={defaultItem}>{capitalize(defaultItem)}</SelectItem>
-        )}
-        <SelectSeparator />
-        <SelectItem value={NULL_FILTER_OPERATORS.is_null}>Is null</SelectItem>
-        <SelectItem value={NULL_FILTER_OPERATORS.is_not_null}>
-          Is not null
-        </SelectItem>
-      </SelectContent>
-    </Select>
-  );
-};
-
-const BooleanFilter = <TData, TValue>({
-  column,
-}: {
-  column: Column<TData, TValue>;
-}) => {
-  return (
-    <>
-      <DropdownMenuItem
-        onClick={() =>
-          column.setFilterValue(
-            Filter.boolean({ value: true, operator: "is_true" }),
-          )
-        }
-      >
-        True
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        onClick={() =>
-          column.setFilterValue(
-            Filter.boolean({ value: false, operator: "is_false" }),
-          )
-        }
-      >
-        False
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem
-        onClick={() =>
-          column.setFilterValue(Filter.boolean({ operator: "is_null" }))
-        }
-      >
-        Is null
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        onClick={() =>
-          column.setFilterValue(Filter.boolean({ operator: "is_not_null" }))
-        }
-      >
-        Is not null
-      </DropdownMenuItem>
-    </>
-  );
-};
-
-const NumberRangeFilter = <TData, TValue>({
-  column,
-}: {
-  column: Column<TData, TValue>;
-}) => {
-  const currentFilter = column.getFilterValue() as
-    | ColumnFilterForType<"number">
-    | undefined;
-  const hasFilter = currentFilter !== undefined;
-
-  const [operator, setOperator] = useState<OperatorType | "between">(
-    currentFilter?.operator ?? "between",
-  );
-  const [min, setMin] = useState<number | undefined>(currentFilter?.min);
-  const [max, setMax] = useState<number | undefined>(currentFilter?.max);
-  const minRef = useRef<HTMLInputElement>(null);
-  const maxRef = useRef<HTMLInputElement>(null);
-
-  const handleApply = (opts: { min?: number; max?: number } = {}) => {
-    column.setFilterValue(
-      Filter.number({
-        min: opts.min ?? min,
-        max: opts.max ?? max,
-        operator: operator === "between" ? undefined : operator,
-      }),
-    );
-  };
-
-  return (
-    <div className="flex flex-col gap-1 pt-3 px-2">
-      <NullFilter
-        column={column}
-        defaultItem="between"
-        operator={operator}
-        setOperator={setOperator}
-      />
-      {operator === "between" && (
-        <>
-          <div className="flex gap-1 items-center">
-            <NumberField
-              ref={minRef}
-              value={min}
-              onChange={(value) => setMin(value)}
-              aria-label="min"
-              placeholder="min"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleApply({
-                    min: Number.parseFloat(e.currentTarget.value),
-                  });
-                }
-                if (e.key === "Tab") {
-                  maxRef.current?.focus();
-                }
-              }}
-              className="shadow-none! border-border hover:shadow-none!"
-            />
-            <MinusIcon className="h-5 w-5 text-muted-foreground" />
-            <NumberField
-              ref={maxRef}
-              value={max}
-              onChange={(value) => setMax(value)}
-              aria-label="max"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleApply({
-                    max: Number.parseFloat(e.currentTarget.value),
-                  });
-                }
-                if (e.key === "Tab") {
-                  minRef.current?.focus();
-                }
-              }}
-              placeholder="max"
-              className="shadow-none! border-border hover:shadow-none!"
-            />
-          </div>
-          <FilterButtons
-            onApply={handleApply}
-            onClear={() => {
-              setMin(undefined);
-              setMax(undefined);
-              column.setFilterValue(undefined);
-            }}
-            clearButtonDisabled={!hasFilter}
-          />
-        </>
-      )}
-    </div>
-  );
-};
-
-const TextFilter = <TData, TValue>({
-  column,
-}: {
-  column: Column<TData, TValue>;
-}) => {
-  const currentFilter = column.getFilterValue() as
-    | ColumnFilterForType<"text">
-    | undefined;
-  const hasFilter = currentFilter !== undefined;
-  const [value, setValue] = useState<string>(currentFilter?.text ?? "");
-  const [operator, setOperator] = useState<OperatorType>(
-    currentFilter?.operator ?? "contains",
-  );
-
-  const handleApply = () => {
-    if (operator !== "contains") {
-      column.setFilterValue(Filter.text({ operator }));
-      return;
-    }
-
-    if (value === "") {
-      column.setFilterValue(undefined);
-      return;
-    }
-
-    column.setFilterValue(Filter.text({ text: value, operator }));
-  };
-
-  return (
-    <div className="flex flex-col gap-1 pt-3 px-2">
-      <NullFilter
-        column={column}
-        defaultItem="contains"
-        operator={operator}
-        setOperator={setOperator}
-      />
-      {operator === "contains" && (
-        <>
-          <Input
-            type="text"
-            icon={<TextIcon className="h-3 w-3 text-muted-foreground mb-1" />}
-            value={value ?? ""}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="Text..."
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleApply();
-              }
-            }}
-            className="shadow-none! border-border hover:shadow-none!"
-          />
-          <FilterButtons
-            onApply={handleApply}
-            onClear={() => {
-              setValue("");
-              column.setFilterValue(undefined);
-            }}
-            clearButtonDisabled={!hasFilter}
-          />
-        </>
-      )}
-    </div>
-  );
-};
-
-/**
- * Seed the filter-by-values picker from a column's existing filter value.
- *
- * Reopening the picker should reflect what's already applied. Only `select`
- * filters carry checkbox-style values; other filter shapes (number, text,
- * etc.) seed an empty list.
- */
-export function seedFromFilter(value: ColumnFilterValue | undefined): {
-  values: unknown[];
-  operator: Extract<OperatorType, "in" | "not_in">;
-} {
-  if (value && "type" in value && value.type === "select") {
-    return {
-      values: [...value.options],
-      operator: value.operator === "not_in" ? "not_in" : "in",
-    };
-  }
-  return { values: [], operator: "in" };
-}
-
-const PopoverFilterByValues = <TData, TValue>({
-  setIsFilterValueOpen,
-  calculateTopKRows,
-  column,
-}: {
-  setIsFilterValueOpen: (open: boolean) => void;
-  calculateTopKRows?: CalculateTopKRows;
-  column: Column<TData, TValue>;
-}) => {
-  const seed = seedFromFilter(
-    column.getFilterValue() as ColumnFilterValue | undefined,
-  );
-
-  const [chosenValues, setChosenValues] = useState<Set<unknown>>(
-    () => new Set(seed.values),
-  );
-
-  const handleApply = () => {
-    if (chosenValues.size === 0) {
-      column.setFilterValue(undefined);
-      return;
-    }
-    column.setFilterValue(
-      Filter.select({
-        options: [...chosenValues],
-        operator: seed.operator,
-      }),
-    );
-  };
-
-  return (
-    <DraggablePopover
-      open={true}
-      onOpenChange={(open) => !open && setIsFilterValueOpen(false)}
-      className="w-80 p-0"
-    >
-      <PopoverClose className="absolute top-2 right-2">
-        <Button
-          variant="link"
-          size="sm"
-          onClick={() => setIsFilterValueOpen(false)}
-        >
-          <XIcon className="h-4 w-4" />
-        </Button>
-      </PopoverClose>
-      <div className="flex flex-col gap-1.5 py-2">
-        <FilterByValuesList
-          column={column}
-          calculateTopKRows={calculateTopKRows}
-          chosenValues={chosenValues}
-          onChange={(values) => setChosenValues(new Set(values))}
-        />
-        <FilterButtons
-          onApply={handleApply}
-          onClear={() => setChosenValues(new Set())}
-          clearButtonDisabled={chosenValues.size === 0}
-        />
-      </div>
-    </DraggablePopover>
   );
 };

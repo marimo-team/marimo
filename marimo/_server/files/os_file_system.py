@@ -21,10 +21,14 @@ from marimo._utils.files import natural_sort
 
 LOGGER = _loggers.marimo_logger()
 
-IGNORE_LIST = [
+LIST_IGNORE_LIST = [
     ".",
     "..",
     ".DS_Store",
+]
+
+SEARCH_IGNORE_LIST = [
+    *LIST_IGNORE_LIST,
     "__pycache__",
     "node_modules",
     ".git",
@@ -71,7 +75,7 @@ class OSFileSystem(FileSystem):
         try:
             with os.scandir(path) as it:
                 for entry in it:
-                    if entry.name in IGNORE_LIST:
+                    if entry.name in LIST_IGNORE_LIST:
                         continue
                     try:
                         is_directory = entry.is_dir()
@@ -224,7 +228,7 @@ class OSFileSystem(FileSystem):
         """Stream-write an uploaded file to disk, chunk by chunk.
 
         Avoids loading the full payload into memory (the HTTP multipart
-        path can otherwise buffer 100 MB at once). Writes to a ``.part``
+        path can otherwise buffer 100 MB at once). Writes to a `.part`
         temp file and atomically renames on success so a failed upload
         doesn't leave a half-written file at the final path.
         """
@@ -356,7 +360,7 @@ class OSFileSystem(FileSystem):
                             break
 
                         # Skip ignored files/directories
-                        if entry.name in IGNORE_LIST:
+                        if entry.name in SEARCH_IGNORE_LIST:
                             continue
 
                         # Check if name matches query

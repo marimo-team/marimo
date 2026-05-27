@@ -2,10 +2,9 @@
 
 The dataframe UI element outputs a visual editor to apply "transforms" to a dataframe, such as filtering rows, applying group-bys and aggregations, and more. The transformed dataframe is shown below the transform editor. The UI output also includes the generated Python used to generate the resulting dataframe, which you can copy paste into a cell. You can programmatically access the resulting dataframe by accessing the element's `.value` attribute.
 
-!!! note "Pandas or Polars Required"
+!!! note "Dataframe library required"
 
-    In order to use the dataframe UI element, you must have the `pandas` or `polars` package installed.
-    You can install it with `pip install pandas` or `pip install polars`.
+    To use the dataframe UI element, you must have a supported dataframe library installed (e.g., Polars, Pandas, PyArrow, Ibis, DuckDB).
 
 Supported transforms are:
 

@@ -11,6 +11,7 @@ from marimo._plugins.ui._impl.file_browser import (
     FileBrowserFileInfo,
     ListDirectoryArgs,
     ListDirectoryResponse,
+    _normalize_selection_mode,
     file_browser,
 )
 from marimo._utils.paths import normalize_path
@@ -21,7 +22,7 @@ def test_file_browser_init(tmp_path: Path) -> None:
     fb = file_browser(initial_path=tmp_path)
     assert isinstance(fb._initial_path, Path)
     assert str(fb._initial_path) == str(normalize_path(tmp_path))
-    assert fb._selection_mode == "file"
+    assert fb._selection_mode == frozenset({"file"})
     assert fb._filetypes == set()
     assert fb._restrict_navigation is False
 
@@ -35,7 +36,7 @@ def test_file_browser_init(tmp_path: Path) -> None:
     )
     assert fb._initial_path == normalize_path(tmp_path)
     assert fb._filetypes == set(custom_filetypes)
-    assert fb._selection_mode == "directory"
+    assert fb._selection_mode == frozenset({"directory"})
     assert fb._restrict_navigation is True
 
 
@@ -352,8 +353,8 @@ def test_extended_path_class(tmp_path: Path) -> None:
 
 def test_validation() -> None:
     with pytest.raises(ValueError) as e:
-        file_browser(initial_path="invalid", selection_mode="invalid")
-    assert "Value must be one of" in str(e.value)
+        file_browser(initial_path="invalid", selection_mode="invalid")  # type: ignore[arg-type]
+    assert "Invalid selection_mode" in str(e.value)
 
 
 def test_limit_arg(tmp_path: Path) -> None:
@@ -1090,3 +1091,144 @@ def test_file_browser_relative_path_sent_to_frontend_as_absolute(
 
     finally:
         os.chdir(original_cwd)
+
+
+class TestNormalizeSelectionMode:
+    def test_string_file(self) -> None:
+        assert _normalize_selection_mode("file") == frozenset({"file"})
+
+    def test_string_directory(self) -> None:
+        assert _normalize_selection_mode("directory") == frozenset(
+            {"directory"}
+        )
+
+    def test_string_all(self) -> None:
+        assert _normalize_selection_mode("all") == frozenset(
+            {"file", "directory"}
+        )
+
+    def test_list_single_file(self) -> None:
+        assert _normalize_selection_mode(["file"]) == frozenset({"file"})
+
+    def test_list_single_directory(self) -> None:
+        assert _normalize_selection_mode(["directory"]) == frozenset(
+            {"directory"}
+        )
+
+    def test_list_both(self) -> None:
+        assert _normalize_selection_mode(["file", "directory"]) == frozenset(
+            {"file", "directory"}
+        )
+
+    def test_list_order_independent(self) -> None:
+        assert _normalize_selection_mode(["directory", "file"]) == frozenset(
+            {"file", "directory"}
+        )
+
+    def test_list_dedup(self) -> None:
+        assert _normalize_selection_mode(["file", "file"]) == frozenset(
+            {"file"}
+        )
+
+    def test_tuple_accepted(self) -> None:
+        assert _normalize_selection_mode(("file", "directory")) == frozenset(
+            {"file", "directory"}
+        )
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "both",
+            "folder",
+            "",
+            "FILE",
+            [],
+            ["both"],
+            ["file", "nope"],
+            ["file", 1],
+            None,
+            123,
+        ],
+    )
+    def test_rejects_invalid(self, value: Any) -> None:
+        with pytest.raises(ValueError):
+            _normalize_selection_mode(value)
+
+
+class TestSelectionModeAll:
+    def test_init_all_string(self, tmp_path: Path) -> None:
+        fb = file_browser(initial_path=tmp_path, selection_mode="all")
+        assert fb._selection_mode == frozenset({"file", "directory"})
+
+    def test_init_list_form(self, tmp_path: Path) -> None:
+        fb = file_browser(
+            initial_path=tmp_path, selection_mode=["file", "directory"]
+        )
+        assert fb._selection_mode == frozenset({"file", "directory"})
+
+    def test_init_list_single(self, tmp_path: Path) -> None:
+        fb = file_browser(initial_path=tmp_path, selection_mode=["directory"])
+        assert fb._selection_mode == frozenset({"directory"})
+
+    def test_init_rejects_both(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError):
+            file_browser(initial_path=tmp_path, selection_mode="both")  # type: ignore[arg-type]
+
+    def test_init_rejects_empty_list(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError):
+            file_browser(initial_path=tmp_path, selection_mode=[])
+
+    def test_wire_format_all(self, tmp_path: Path) -> None:
+        fb = file_browser(initial_path=tmp_path, selection_mode="all")
+        assert fb._component_args["selection-mode"] == "all"
+
+    def test_wire_format_file(self, tmp_path: Path) -> None:
+        fb = file_browser(initial_path=tmp_path, selection_mode="file")
+        assert fb._component_args["selection-mode"] == "file"
+
+    def test_wire_format_directory(self, tmp_path: Path) -> None:
+        fb = file_browser(initial_path=tmp_path, selection_mode="directory")
+        assert fb._component_args["selection-mode"] == "directory"
+
+    def test_wire_format_list_normalized_to_all(self, tmp_path: Path) -> None:
+        fb = file_browser(
+            initial_path=tmp_path,
+            selection_mode=["directory", "file"],
+        )
+        assert fb._component_args["selection-mode"] == "all"
+
+    def test_list_directory_all_returns_files_and_dirs(
+        self, tmp_path: Path
+    ) -> None:
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "a.txt").touch()
+        (tmp_path / "b.parquet").touch()
+        fb = file_browser(initial_path=tmp_path, selection_mode="all")
+        response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+        names = {f["name"] for f in response.files}
+        assert names == {"sub", "a.txt", "b.parquet"}
+
+    def test_list_directory_all_respects_filetypes_for_files(
+        self, tmp_path: Path
+    ) -> None:
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "a.txt").touch()
+        (tmp_path / "b.parquet").touch()
+        fb = file_browser(
+            initial_path=tmp_path,
+            selection_mode="all",
+            filetypes=[".parquet"],
+        )
+        response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+        names = {f["name"] for f in response.files}
+        assert names == {"sub", "b.parquet"}
+
+    def test_list_directory_directory_only_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "a.txt").touch()
+        fb = file_browser(initial_path=tmp_path, selection_mode="directory")
+        response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+        names = {f["name"] for f in response.files}
+        assert names == {"sub"}

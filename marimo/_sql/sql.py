@@ -2,9 +2,13 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
-from marimo._dependencies.dependencies import DependencyManager
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+from marimo._config.config import SqlOutputType
+from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
 from marimo._sql.engines.dbapi import DBAPIConnection, DBAPIEngine
@@ -15,16 +19,61 @@ from marimo._sql.error_utils import MarimoSQLException, is_sql_parse_error
 from marimo._sql.get_engines import SUPPORTED_ENGINES
 from marimo._sql.utils import (
     extract_explain_content,
+    get_configured_sql_output_format,
     is_explain_query,
     raise_df_import_error,
 )
 from marimo._types.ids import VariableName
+from marimo._utils.assert_never import log_never
 from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
 
 
 def get_default_result_limit() -> int | None:
     limit = os.environ.get("MARIMO_SQL_DEFAULT_LIMIT")
     return int(limit) if limit is not None else None
+
+
+def _resolve_default_duckdb_deps(
+    sql_output: SqlOutputType,
+    *,
+    polars_installed: Callable[[], bool],
+    pandas_installed: Callable[[], bool],
+) -> list[Dependency]:
+    deps: list[Dependency] = [
+        DependencyManager.duckdb,
+        DependencyManager.sqlglot,
+    ]
+    polars_with_pyarrow = Dependency(
+        "polars", pkg_name_to_install="polars[pyarrow]"
+    )
+
+    if sql_output == "polars" or sql_output == "lazy-polars":
+        deps.append(polars_with_pyarrow)
+    elif sql_output == "pandas":
+        deps.append(DependencyManager.pandas)
+    elif sql_output == "auto":
+        if not polars_installed() and not pandas_installed():
+            deps.append(polars_with_pyarrow)
+    elif sql_output == "native":
+        # "native" returns the underlying DuckDB relation and needs no df lib.
+        pass
+    else:
+        log_never(sql_output)
+
+    return deps
+
+
+def _default_duckdb_deps() -> list[Dependency]:
+    """
+    Return all deps required to run `mo.sql(query)` with the default DuckDB
+    engine, including the dataframe library used for the configured output
+    format.
+    """
+    return _resolve_default_duckdb_deps(
+        get_configured_sql_output_format(),
+        polars_installed=DependencyManager.polars.has,
+        pandas_installed=DependencyManager.pandas.has,
+    )
 
 
 @mddoc
@@ -63,8 +112,7 @@ def sql(
     if engine is None:
         DependencyManager.require_many(
             "to execute sql",
-            DependencyManager.duckdb,
-            DependencyManager.sqlglot,
+            *_default_duckdb_deps(),
             source="kernel",
         )
         sql_engine = DuckDBEngine(connection=None)

@@ -75,8 +75,8 @@ class TrainableInfo:
 def _comma_to_br(html_str: str) -> str:
     """Replace top-level comma separators with <br> for multi-line display.
 
-    Also replaces the ``=`` between key/value pairs with a space for the
-    expanded view, without touching ``=`` inside HTML attributes.
+    Also replaces the `=` between key/value pairs with a space for the
+    expanded view, without touching `=` inside HTML attributes.
     """
     result = _TOP_COMMA_RE.sub("<br>", html_str)
     return result.replace("</span>=", "</span> ")
@@ -106,10 +106,10 @@ def _collect_dtype_device(
 ) -> tuple[str, str]:
     """Summarise dtype and device across parameters.
 
-    Returns ``(dtype_str, device_str)``.  When all parameters agree the
-    value is a single token (e.g. ``"float32"``); when mixed the unique
-    values are joined with ``"/"`` (e.g. ``"float32/float16"``).
-    If *params* is empty both strings are ``"–"``.
+    Returns `(dtype_str, device_str)`.  When all parameters agree the
+    value is a single token (e.g. `"float32"`); when mixed the unique
+    values are joined with `"/"` (e.g. `"float32/float16"`).
+    If *params* is empty both strings are `"–"`.
     """
     dtypes: set[str] = set()
     devices: set[str] = set()
@@ -129,7 +129,7 @@ def _extra_repr_html(module: torch.nn.Module) -> ExtraRepr:
 
     Uses PyTorch's own extra_repr() hook -- every built-in layer already
     implements this, and custom modules can override it too.  We highlight
-    the ``key=`` portions of ``key=value`` pairs; positional arguments and
+    the `key=` portions of `key=value` pairs; positional arguments and
     values are preserved as-is.
 
     Returns an ExtraRepr with positional and keyword HTML fragments.
@@ -575,10 +575,10 @@ def format(module: torch.nn.Module) -> Html:  # noqa: A001
     with child modules rendered as an expandable tree below.
 
     Args:
-        module: A ``torch.nn.Module`` instance.
+        module: A `torch.nn.Module` instance.
 
     Returns:
-        A ``marimo.Html`` object with the rendered tree.
+        A `marimo.Html` object with the rendered tree.
     """
     all_params = list(module.parameters())
     children = list(module.named_children())

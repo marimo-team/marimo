@@ -257,9 +257,9 @@ class SessionImpl(Session):
     def document(self) -> NotebookDocument:
         """The notebook document this session reflects.
 
-        Derived from ``self.app_file_manager.app.cell_manager.document``
+        Derived from `self.app_file_manager.app.cell_manager.document`
         rather than stored, so any code path that swaps the underlying
-        ``CellManager`` or ``app`` (save round-trip, file-watch reload,
+        `CellManager` or `app` (save round-trip, file-watch reload,
         export reload) is automatically picked up — no rebinding needed
         at the call sites. Read-only by design: the document's identity
         belongs to the cell manager.
@@ -311,12 +311,6 @@ class SessionImpl(Session):
     def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
         """Get the consumers in the session."""
         return self.room.consumers
-
-    def flush_messages(self) -> None:
-        """Flush any pending messages."""
-        ext = self.extensions.get(NotificationListenerExtension)
-        if ext is not None:
-            ext.flush()
 
     async def rename_path(self, new_path: str) -> None:
         """Rename the path of the session."""

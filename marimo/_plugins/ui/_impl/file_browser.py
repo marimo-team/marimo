@@ -14,12 +14,55 @@ from typing import (
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._plugins.validators import validate_one_of
 from marimo._runtime.functions import Function
 from marimo._utils.files import natural_sort
 from marimo._utils.paths import is_cloudpath, normalize_path
 
 LOGGER = _loggers.marimo_logger()
+
+
+_VALID_KINDS: Final[frozenset[str]] = frozenset({"file", "directory"})
+
+
+def _normalize_selection_mode(
+    value: object,
+) -> frozenset[str]:
+    """Normalize `selection_mode` to a frozenset of selectable kinds.
+
+    Accepted inputs:
+        - `"file"`      -> `{"file"}`
+        - `"directory"` -> `{"directory"}`
+        - `"all"`       -> `{"file", "directory"}`
+        - list/tuple containing `"file"` and/or `"directory"` (deduped)
+    """
+    if isinstance(value, str):
+        if value == "all":
+            return frozenset(_VALID_KINDS)
+        if value in _VALID_KINDS:
+            return frozenset({value})
+        raise ValueError(
+            f"Invalid selection_mode {value!r}. "
+            f"Expected one of 'file', 'directory', 'all', "
+            f"or a list of 'file'/'directory'."
+        )
+
+    if isinstance(value, (list, tuple)):
+        if len(value) == 0:
+            raise ValueError("selection_mode list must not be empty.")
+        kinds: set[str] = set()
+        for kind in value:
+            if not isinstance(kind, str) or kind not in _VALID_KINDS:
+                raise ValueError(
+                    f"Invalid selection_mode entry {kind!r}. "
+                    f"Each entry must be 'file' or 'directory'."
+                )
+            kinds.add(kind)
+        return frozenset(kinds)
+
+    raise ValueError(
+        f"selection_mode must be a string or a list of strings, "
+        f"got {type(value).__name__}."
+    )
 
 
 @dataclass
@@ -70,6 +113,16 @@ class file_browser(
         file_browser.name(index=0)
         ```
 
+        Selecting both files and directories (useful for formats like
+        deltalake that are stored as directories):
+        ```python
+        file_browser = mo.ui.file_browser(
+            initial_path=Path("path/to/dir"),
+            selection_mode="all",
+            # Equivalent: selection_mode=["file", "directory"]
+        )
+        ```
+
         Connecting to an S3 (or GCS, Azure) bucket:
         ```python
         from cloudpathlib import S3Path
@@ -114,8 +167,10 @@ class file_browser(
         filetypes (Sequence[str], optional): The file types to display in each
             directory; for example, filetypes=[".txt", ".csv"]. If None, all
             files are displayed. Defaults to None.
-        selection_mode (Literal["file", "directory"], optional): Either "file" or "directory". Defaults to
-            "file".
+        selection_mode (str | Sequence[str], optional): Which kinds of entries
+            the user can select. Accepts one of "file" (default), "directory",
+            "all", or a list/tuple containing "file" and/or "directory".
+            "all" is equivalent to ["file", "directory"]. Defaults to "file".
         multiple (bool, optional): If True, allow the user to select multiple
             files. Defaults to True.
         restrict_navigation (bool, optional): If True, prevent the user from
@@ -140,7 +195,8 @@ class file_browser(
         self,
         initial_path: str | Path = "",
         filetypes: Sequence[str] | None = None,
-        selection_mode: Literal["file", "directory"] = "file",
+        selection_mode: Literal["file", "directory", "all"]
+        | Sequence[Literal["file", "directory"]] = "file",
         multiple: bool = True,
         restrict_navigation: bool = False,
         *,
@@ -150,7 +206,7 @@ class file_browser(
         | None = None,
         ignore_empty_dirs: bool = False,
     ) -> None:
-        validate_one_of(selection_mode, ["file", "directory"])
+        self._selection_mode = _normalize_selection_mode(selection_mode)
 
         # Save the Path class of the initial path
         self._path_cls: type[Path]
@@ -176,7 +232,6 @@ class file_browser(
                 f"Initial path {initial_path} is not a directory."
             )
 
-        self._selection_mode = selection_mode
         # Normalize filetypes: ensure lowercase and dot prefix for case-insensitive matching
         if filetypes:
             normalized_filetypes = set()
@@ -201,13 +256,18 @@ class file_browser(
 
         self._limit = limit
 
+        if self._selection_mode == _VALID_KINDS:
+            wire_selection_mode = "all"
+        else:
+            (wire_selection_mode,) = self._selection_mode
+
         super().__init__(
             component_name=file_browser._name,
             initial_value=[],
             label=label,
             args={
                 "initial-path": str(self._initial_path),
-                "selection-mode": selection_mode,
+                "selection-mode": wire_selection_mode,
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
                 "restrict-navigation": restrict_navigation,
@@ -316,8 +376,9 @@ class file_browser(
             extension = file.suffix
             is_directory = file.is_dir()  # Expensive call for cloud paths
 
-            # Skip non-directories if selection mode is directory
-            if self._selection_mode == "directory" and not is_directory:
+            # Directories are always shown so the user can navigate into
+            # them. Files are hidden when files aren't selectable.
+            if not is_directory and "file" not in self._selection_mode:
                 continue
 
             # Skip non-matching file types (case-insensitive)

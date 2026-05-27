@@ -42,6 +42,7 @@ export const DataFrame: StoryObj = {
         host={document.body}
         showDownload={false}
         download_as={async () => ({ url: "", filename: "" })}
+        get_size_bytes={async () => ({ size_bytes: null })}
         lazy={false}
       />
     );

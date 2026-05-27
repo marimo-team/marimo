@@ -66,7 +66,7 @@ CACHE_PREFIX: dict[CacheType, str] = {
 class CacheState:
     """Groups cache-related state on RuntimeContext.
 
-    The ``is_memoizable`` method controls which value types are eligible
+    The `is_memoizable` method controls which value types are eligible
     for content-hash memoization.  Override (or swap the instance) to
     broaden memoization for cached / parallel execution.
     """

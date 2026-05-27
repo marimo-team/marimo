@@ -128,7 +128,7 @@ class data_editor(
     https://github.com/marimo-team/marimo/issues.
 
     The data can be supplied as:
-    1. a Pandas, Polars, or Pyarrow DataFrame
+    1. an eager dataframe (e.g., Polars, Pandas, PyArrow)
     2. a list of dicts, with one dict for each row, keyed by column names
     3. a dict of lists, with each list representing a column
 
@@ -240,7 +240,14 @@ class data_editor(
         self, value: DataEdits
     ) -> RowOrientedData | ColumnOrientedData | IntoDataFrame:
         self._edits = value
-        return apply_edits(deepcopy(self._data), value)
+        # list/dict edit paths mutate in place, so deepcopy first.
+        # The dataframe path constructs a new native frame via narwhals
+        # without mutating the input — and not all dataframes are picklable
+        # (e.g., DuckDBPyRelation), so skip the deepcopy in that case.
+        data = self._data
+        if isinstance(data, (list, dict)):
+            data = deepcopy(data)
+        return apply_edits(data, value)
 
     def __hash__(self) -> int:
         return id(self)

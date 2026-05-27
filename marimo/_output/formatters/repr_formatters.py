@@ -24,11 +24,11 @@ MEDIA_MIME_PREFIXES = (
 def _maybe_as_anywidget_html(
     contents: dict[str, Any],
 ) -> tuple[KnownMimeType, str] | None:
-    """If the mimebundle is for an anywidget, return ``text/html``.
+    """If the mimebundle is for an anywidget, return `text/html`.
 
-    Converts ``application/vnd.jupyter.widget-view+json`` mimebundles
-    into the same ``<marimo-anywidget>`` HTML that ``mo.ui.anywidget()``
-    produces.  Works for any comm whose open state included ``_esm``
+    Converts `application/vnd.jupyter.widget-view+json` mimebundles
+    into the same `<marimo-anywidget>` HTML that `mo.ui.anywidget()`
+    produces.  Works for any comm whose open state included `_esm`
     (both descriptor-based and ipywidgets-based anywidgets).
 
     Traditional (non-anywidget) jupyter widgets are left untouched so

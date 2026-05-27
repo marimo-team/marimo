@@ -35,7 +35,6 @@ import { useConnectionTransport } from "../useWebSocket";
 
 interface MockTransport {
   readyState: 0 | 1 | 2 | 3;
-  retryCount: number;
   reconnect: ReturnType<typeof vi.fn>;
   close: ReturnType<typeof vi.fn>;
   send: ReturnType<typeof vi.fn>;
@@ -48,7 +47,6 @@ function makeTransport(
 ): MockTransport {
   return {
     readyState,
-    retryCount: 0,
     reconnect: vi.fn(),
     close: vi.fn(),
     send: vi.fn(),
@@ -57,9 +55,12 @@ function makeTransport(
   };
 }
 
-function makeRuntimeManager(isHealthy = vi.fn().mockResolvedValue(true)) {
+function makeRuntimeManager(
+  reconcileFromHealth = vi.fn().mockResolvedValue(true),
+) {
   return {
-    isHealthy,
+    reconcileFromHealth,
+    probeHealth: vi.fn().mockResolvedValue(true),
     getWsURL: () => new URL("ws://localhost/ws"),
     waitForHealthy: vi.fn().mockResolvedValue(undefined),
     isSameOrigin: true,

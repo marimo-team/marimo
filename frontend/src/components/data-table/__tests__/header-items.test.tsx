@@ -1,7 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { SortingState } from "@tanstack/react-table";
+import type { Column, SortingState } from "@tanstack/react-table";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { HideColumn } from "../header-items";
 
 describe("multi-column sorting logic", () => {
   // Extract the core sorting logic to test in isolation
@@ -144,5 +151,44 @@ describe("multi-column sorting logic", () => {
 
     expect(clearSorting).toHaveBeenCalled();
     // After removal, dept should move from priority 3 to priority 2
+  });
+});
+
+describe("HideColumn", () => {
+  const makeColumn = ({
+    canHide = true,
+    toggleVisibility = vi.fn(),
+  }: {
+    canHide?: boolean;
+    toggleVisibility?: (value?: boolean) => void;
+  } = {}) =>
+    ({
+      getCanHide: () => canHide,
+      toggleVisibility,
+    }) as unknown as Column<unknown, unknown>;
+
+  const renderInMenu = (node: React.ReactNode) =>
+    render(
+      <DropdownMenu open={true}>
+        <DropdownMenuTrigger />
+        <DropdownMenuContent>{node}</DropdownMenuContent>
+      </DropdownMenu>,
+    );
+
+  it("renders 'Hide column' when canHide is true", () => {
+    renderInMenu(<HideColumn column={makeColumn()} />);
+    expect(screen.getByText("Hide column")).toBeInTheDocument();
+  });
+
+  it("returns null when getCanHide is false", () => {
+    renderInMenu(<HideColumn column={makeColumn({ canHide: false })} />);
+    expect(screen.queryByText("Hide column")).toBeNull();
+  });
+
+  it("calls toggleVisibility(false) on click", () => {
+    const toggleVisibility = vi.fn();
+    renderInMenu(<HideColumn column={makeColumn({ toggleVisibility })} />);
+    fireEvent.click(screen.getByText("Hide column"));
+    expect(toggleVisibility).toHaveBeenCalledWith(false);
   });
 });

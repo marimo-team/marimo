@@ -30,7 +30,7 @@ class data_explorer(UIElement[dict[str, Any], dict[str, Any]]):
             initial selections if provided via keyword arguments.
 
     Args:
-        df (IntoDataFrame): The DataFrame to visualize.
+        df (IntoDataFrame): The dataframe to visualize (e.g., Polars, Pandas, PyArrow, Ibis, DuckDB).
         on_change (Callable[[dict[str, Any]], None], optional): Optional callback
             to run when this element's value changes.
         x (Optional[str]): Initial column for the x-axis. Defaults to None.

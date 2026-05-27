@@ -1,0 +1,298 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  buildEditorSnapshot,
+  buildEmptyFilterValue,
+  FilterPillEditor,
+} from "../filter-pill-editor";
+import { defaultFilterValueFor, Filter } from "../filters";
+import {
+  buildFilterTestTable,
+  type FilterColumnSpec,
+} from "./filter-test-utils";
+
+const renderWithProviders = (ui: React.ReactElement) =>
+  render(<TooltipProvider>{ui}</TooltipProvider>);
+
+beforeAll(() => {
+  global.HTMLElement.prototype.scrollIntoView = () => {
+    // jsdom does not implement scrollIntoView; cmdk calls it on selection.
+  };
+  // jsdom lacks hasPointerCapture used by radix Select
+  if (!global.HTMLElement.prototype.hasPointerCapture) {
+    global.HTMLElement.prototype.hasPointerCapture = () => false;
+  }
+  if (!global.HTMLElement.prototype.scrollTo) {
+    global.HTMLElement.prototype.scrollTo = () => {
+      // noop for jsdom
+    };
+  }
+});
+
+const DEFAULT_COLUMNS: FilterColumnSpec[] = [
+  { id: "name", filterType: "text" },
+  { id: "age", filterType: "number" },
+  { id: "when", filterType: "date" },
+  { id: "at", filterType: "datetime" },
+  { id: "clock", filterType: "time" },
+];
+
+const mockTable = () => buildFilterTestTable(DEFAULT_COLUMNS).table;
+
+async function calculateTopK() {
+  return {
+    data: [
+      ["alice", 3],
+      ["bob", 1],
+    ] as Array<[string, number]>,
+  };
+}
+
+describe("FilterPillEditor — snapshot rehydration", () => {
+  it("rehydrates a number > snapshot with seeded value", () => {
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "age",
+          value: Filter.number({ operator: ">", value: 18 }),
+        }}
+        table={mockTable()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByDisplayValue("18")).toBeInTheDocument();
+    expect(screen.getByLabelText("value")).toBeInTheDocument();
+    // No min/max range fields rendered for comparison operator.
+    expect(screen.queryByLabelText("min")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("max")).not.toBeInTheDocument();
+  });
+
+  it("rehydrates a number between snapshot with seeded min/max", () => {
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "age",
+          value: Filter.number({ operator: "between", min: 1, max: 9 }),
+        }}
+        table={mockTable()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByDisplayValue("1")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("9")).toBeInTheDocument();
+  });
+
+  it("rehydrates a text in snapshot seeding the creatable picker", async () => {
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "name",
+          value: Filter.text({ operator: "in", values: ["a", "b"] }),
+        }}
+        table={mockTable()}
+        calculateTopKRows={calculateTopK}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(await screen.findByText("a")).toBeInTheDocument();
+    expect(screen.getByText("b")).toBeInTheDocument();
+  });
+
+  it("rehydrates a text contains snapshot with seeded text", () => {
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "name",
+          value: Filter.text({ operator: "contains", text: "hello" }),
+        }}
+        table={mockTable()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByDisplayValue("hello")).toBeInTheDocument();
+  });
+
+  it("hides the value slot for is_null/is_not_null/is_empty", () => {
+    const { rerender } = renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "name",
+          value: Filter.text({ operator: "is_null" }),
+        }}
+        table={mockTable()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Value")).not.toBeInTheDocument();
+
+    rerender(
+      <TooltipProvider>
+        <FilterPillEditor
+          snapshot={{
+            columnId: "name",
+            value: Filter.text({ operator: "is_empty" }),
+          }}
+          table={mockTable()}
+          onClose={vi.fn()}
+        />
+      </TooltipProvider>,
+    );
+    expect(screen.queryByText("Value")).not.toBeInTheDocument();
+  });
+});
+
+describe("FilterPillEditor — date/datetime/time", () => {
+  it("rehydrates a date between snapshot with the range picker", () => {
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "when",
+          value: Filter.date({
+            operator: "between",
+            min: new Date("2024-01-01T00:00:00Z"),
+            max: new Date("2024-06-01T00:00:00Z"),
+          }),
+        }}
+        table={mockTable()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("range")).toBeInTheDocument();
+    expect(screen.queryByLabelText("value")).not.toBeInTheDocument();
+  });
+
+  it("rehydrates a datetime <= snapshot with a single value picker", () => {
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "at",
+          value: Filter.datetime({
+            operator: "<=",
+            value: new Date("2024-06-01T12:00:00Z"),
+          }),
+        }}
+        table={mockTable()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("value")).toBeInTheDocument();
+    expect(screen.queryByLabelText("range")).not.toBeInTheDocument();
+  });
+
+  it("renders min/max TimeFields for time between", () => {
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "clock",
+          value: Filter.time({
+            operator: "between",
+            min: new Date("2024-01-01T08:00:00Z"),
+            max: new Date("2024-01-01T17:00:00Z"),
+          }),
+        }}
+        table={mockTable()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("min")).toBeInTheDocument();
+    expect(screen.getByLabelText("max")).toBeInTheDocument();
+  });
+
+  it("hides the value slot for date is_null", () => {
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "when",
+          value: Filter.date({ operator: "is_null" }),
+        }}
+        table={mockTable()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Value")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("range")).not.toBeInTheDocument();
+  });
+});
+
+describe("FilterPillEditor — apply", () => {
+  it("commits a number > filter via setColumnFilters", () => {
+    const { table, setColumnFilters } = buildFilterTestTable(DEFAULT_COLUMNS);
+    const onClose = vi.fn();
+    renderWithProviders(
+      <FilterPillEditor
+        snapshot={{
+          columnId: "age",
+          value: Filter.number({ operator: ">", value: 18 }),
+        }}
+        table={table}
+        onClose={onClose}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText("Apply filter"));
+    expect(setColumnFilters).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    const updater = setColumnFilters.mock.calls[0][0];
+    const next = updater([]);
+    expect(next).toEqual([
+      {
+        id: "age",
+        value: { type: "number", operator: ">", value: 18 },
+      },
+    ]);
+  });
+});
+
+describe("defaultFilterValueFor", () => {
+  it.each([
+    ["number", "between", { type: "number", operator: "between" }],
+    ["number", ">", { type: "number", operator: ">" }],
+    ["text", "contains", { type: "text", operator: "contains" }],
+    ["text", "in", { type: "text", operator: "in", values: [] }],
+    ["text", "not_in", { type: "text", operator: "not_in", values: [] }],
+    ["boolean", "is_true", { type: "boolean", operator: "is_true" }],
+    ["number", "in", { type: "number", operator: "in", values: [] }],
+    ["number", "not_in", { type: "number", operator: "not_in", values: [] }],
+    ["date", "between", { type: "date", operator: "between" }],
+    ["datetime", "between", { type: "datetime", operator: "between" }],
+    ["time", "between", { type: "time", operator: "between" }],
+  ] as const)("seeds %s + %s", (type, operator, expected) => {
+    expect(defaultFilterValueFor(type, operator)).toEqual(expected);
+  });
+});
+
+describe("buildEmptyFilterValue", () => {
+  it.each([
+    ["name", { type: "text", operator: "contains" }],
+    ["age", { type: "number", operator: "between" }],
+    ["when", { type: "date", operator: "==" }],
+    ["at", { type: "datetime", operator: "==" }],
+    ["clock", { type: "time", operator: "between" }],
+  ] as const)(
+    "picks the dtype-default operator for %s",
+    (columnId, expected) => {
+      const column = mockTable().getColumn(columnId)!;
+      expect(buildEmptyFilterValue(column)).toEqual(expected);
+    },
+  );
+});
+
+describe("buildEditorSnapshot", () => {
+  it("uses dtype-default operator when none provided", () => {
+    const column = mockTable().getColumn("name")!;
+    expect(buildEditorSnapshot(column)).toEqual({
+      columnId: "name",
+      value: { type: "text", operator: "contains" },
+    });
+  });
+
+  it("honors an explicit operator override", () => {
+    const column = mockTable().getColumn("name")!;
+    expect(buildEditorSnapshot(column, { operator: "in" })).toEqual({
+      columnId: "name",
+      value: { type: "text", operator: "in", values: [] },
+    });
+  });
+});

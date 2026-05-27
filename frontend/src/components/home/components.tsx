@@ -16,6 +16,7 @@ import {
   LinkIcon,
   MessagesSquareIcon,
   OrbitIcon,
+  PackageIcon,
   YoutubeIcon,
 } from "lucide-react";
 import type React from "react";
@@ -57,6 +58,11 @@ const TUTORIALS: Record<
     "File format",
     FileIcon,
     "Understand marimo's pure-Python file format",
+  ],
+  "external-dependencies": [
+    "External dependencies",
+    PackageIcon,
+    "Declare dependencies with Python script metadata",
   ],
   "for-jupyter-users": [
     "For Jupyter users",

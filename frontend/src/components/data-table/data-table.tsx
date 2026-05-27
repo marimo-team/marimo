@@ -5,6 +5,7 @@
 // https://github.com/TanStack/table/issues/5567
 
 import {
+  type Column,
   type ColumnDef,
   type ColumnFiltersState,
   ColumnPinning,
@@ -21,7 +22,9 @@ import {
 import React, { memo } from "react";
 import { useLocale } from "react-aria";
 
+import { Button } from "@/components/ui/button";
 import { Table } from "@/components/ui/table";
+import { Banner } from "@/plugins/impl/common/error-banner";
 import type {
   CalculateTopKRows,
   GetRowIds,
@@ -41,7 +44,13 @@ import { ColumnFormattingFeature } from "./column-formatting/feature";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import { CopyColumnFeature } from "./copy-column/feature";
 import type { ExportActionProps } from "./export-actions";
+import {
+  type AddFilterRequest,
+  FilterEditorProvider,
+} from "./filter-editor-context";
+import { buildEditorSnapshot } from "./filter-pill-editor";
 import { FilterPills } from "./filter-pills";
+import type { Snapshot } from "./filters";
 import { FocusRowFeature } from "./focus-row/feature";
 import { useColumnPinning } from "./hooks/use-column-pinning";
 import { useScrollContainerHeight } from "./hooks/use-scroll-container-height";
@@ -56,6 +65,10 @@ import {
   type TooManyRows,
 } from "./types";
 import { getStableRowId } from "./utils";
+import {
+  getUserColumnVisibilityCounts,
+  useColumnVisibility,
+} from "./hooks/use-column-visibility";
 
 interface DataTableProps<TData> extends Partial<ExportActionProps> {
   wrapperClassName?: string;
@@ -73,6 +86,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   // JSON-serialized size of the currently-rendered data. Forwarded to
   // ExportMenu so hosts can size-gate the Export button via downloadSizeLimitAtom.
   sizeBytes?: number | null;
+  sizeBytesIsLoading?: boolean;
   totalColumns: number;
   pagination?: boolean;
   manualPagination?: boolean; // server-side pagination
@@ -100,6 +114,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   // Columns
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
+  hiddenColumns?: string[];
   toggleDisplayHeader?: () => void;
   // Row viewer panel
   viewedRowIdx?: number;
@@ -125,6 +140,7 @@ const DataTableInternal = <TData,>({
   totalColumns,
   totalRows,
   sizeBytes,
+  sizeBytesIsLoading,
   manualSorting = false,
   sorting,
   setSorting,
@@ -151,6 +167,7 @@ const DataTableInternal = <TData,>({
   reloading,
   freezeColumnsLeft,
   freezeColumnsRight,
+  hiddenColumns,
   toggleDisplayHeader,
   showChartBuilder,
   isChartBuilderOpen,
@@ -169,6 +186,8 @@ const DataTableInternal = <TData,>({
     freezeColumnsLeft,
     freezeColumnsRight,
   );
+  const { columnVisibility, setColumnVisibility } =
+    useColumnVisibility(hiddenColumns);
 
   // Show loading bar only after a short delay to prevent flickering
   React.useEffect(() => {
@@ -260,6 +279,8 @@ const DataTableInternal = <TData,>({
     enableMultiCellSelection: selection === "multi-cell",
     // pinning
     onColumnPinningChange: setColumnPinning,
+    // col visibility
+    onColumnVisibilityChange: setColumnVisibility,
     // focus row
     enableFocusRow: true,
     onFocusRowChange: onViewedRowChange,
@@ -277,6 +298,7 @@ const DataTableInternal = <TData,>({
             { pagination: { pageIndex: 0, pageSize: data.length } }),
       rowSelection: rowSelection ?? {},
       cellSelection: cellSelection ?? [],
+      columnVisibility,
       cellStyling,
       columnPinning: columnPinning,
       cellHoverTemplate: hoverTemplate,
@@ -289,67 +311,110 @@ const DataTableInternal = <TData,>({
 
   const tableRef = useScrollContainerHeight({ maxHeight, virtualize });
 
+  const [addFilterSnapshot, setAddFilterSnapshot] =
+    React.useState<Snapshot | null>(null);
+
+  // useMemo instead of useCallback because need to pass it as object
+  const filterEditor = React.useMemo(
+    () => ({
+      requestAddFilter: (request: AddFilterRequest) => {
+        const column = table.getColumn(request.columnId);
+        if (!column) {
+          return;
+        }
+        setAddFilterSnapshot(
+          buildEditorSnapshot(column as Column<unknown, unknown>, {
+            operator: request.operator,
+          }),
+        );
+      },
+    }),
+    [table],
+  );
+
+  const visibilityCounts = getUserColumnVisibilityCounts(table);
+  const allUserColumnsHidden =
+    visibilityCounts.total > 0 && visibilityCounts.visible === 0;
+
   return (
-    <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
-      <FilterPills
-        filters={filters}
-        table={table}
-        calculateTopKRows={calculateTopKRows}
-      />
-      <CellSelectionProvider>
-        <div
-          part="table-wrapper"
-          className={cn(className || "rounded-md border overflow-hidden")}
-        >
-          <TableTopBar
-            enableSearch={enableSearch}
-            searchQuery={searchQuery}
-            onSearchQueryChange={onSearchQueryChange}
-            reloading={reloading}
-            showChartBuilder={showChartBuilder}
-            isChartBuilderOpen={isChartBuilderOpen}
-            toggleDisplayHeader={toggleDisplayHeader}
-            showTableExplorer={showTableExplorer}
-            togglePanel={togglePanel}
-            isAnyPanelOpen={isAnyPanelOpen}
-            downloadAs={downloadAs}
-            sizeBytes={sizeBytes}
-          />
-          <Table
-            className={cn(
-              "relative",
-              columns.length <= AUTO_WIDTH_MAX_COLUMNS ? "w-auto" : "w-full",
-            )}
-            ref={tableRef}
+    <FilterEditorProvider value={filterEditor}>
+      <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
+        <FilterPills
+          filters={filters}
+          table={table}
+          calculateTopKRows={calculateTopKRows}
+          addFilterSnapshot={addFilterSnapshot}
+          onAddFilterSnapshotChange={setAddFilterSnapshot}
+        />
+        <CellSelectionProvider>
+          <div
+            part="table-wrapper"
+            className={cn(className || "rounded-md border overflow-hidden")}
           >
-            {showLoadingBar && (
-              <thead className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
-            )}
-            {renderTableHeader(table, virtualize || Boolean(maxHeight))}
-            <DataTableBody
-              table={table}
-              columns={columns}
-              rowViewerPanelOpen={rowViewerPanelOpen}
-              getRowIndex={getPaginatedRowIndex}
-              viewedRowIdx={viewedRowIdx}
-              virtualize={virtualize}
+            <TableTopBar
+              enableSearch={enableSearch}
+              searchQuery={searchQuery}
+              onSearchQueryChange={onSearchQueryChange}
+              reloading={reloading}
+              showChartBuilder={showChartBuilder}
+              isChartBuilderOpen={isChartBuilderOpen}
+              toggleDisplayHeader={toggleDisplayHeader}
+              showTableExplorer={showTableExplorer}
+              togglePanel={togglePanel}
+              isAnyPanelOpen={isAnyPanelOpen}
+              downloadAs={downloadAs}
+              sizeBytes={sizeBytes}
+              sizeBytesIsLoading={sizeBytesIsLoading}
             />
-          </Table>
-          <TableBottomBar
-            part="table-footer"
-            className="pt-1.5 pb-0.5 border-t border-border"
-            totalColumns={totalColumns}
-            pagination={pagination}
-            selection={selection}
-            onRowSelectionChange={onRowSelectionChange}
-            table={table}
-            getRowIds={getRowIds}
-            showPageSizeSelector={showPageSizeSelector}
-            tableLoading={reloading}
-          />
-        </div>
-      </CellSelectionProvider>
-    </div>
+            {allUserColumnsHidden && (
+              <Banner className="mb-1 mx-2 rounded flex items-center justify-between">
+                <span>All columns are hidden.</span>
+                <Button
+                  variant="link"
+                  size="xs"
+                  onClick={() => table.resetColumnVisibility(true)}
+                >
+                  Unhide all
+                </Button>
+              </Banner>
+            )}
+            <Table
+              className={cn(
+                "relative",
+                columns.length <= AUTO_WIDTH_MAX_COLUMNS ? "w-auto" : "w-full",
+              )}
+              ref={tableRef}
+            >
+              {showLoadingBar && (
+                <thead className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
+              )}
+              {renderTableHeader(table, virtualize || Boolean(maxHeight))}
+              <DataTableBody
+                table={table}
+                columns={columns}
+                rowViewerPanelOpen={rowViewerPanelOpen}
+                getRowIndex={getPaginatedRowIndex}
+                viewedRowIdx={viewedRowIdx}
+                virtualize={virtualize}
+              />
+            </Table>
+            <TableBottomBar
+              part="table-footer"
+              className="pt-1.5 pb-0.5 border-t border-border"
+              totalColumns={totalColumns}
+              pagination={pagination}
+              selection={selection}
+              onRowSelectionChange={onRowSelectionChange}
+              table={table}
+              getRowIds={getRowIds}
+              showPageSizeSelector={showPageSizeSelector}
+              tableLoading={reloading}
+              togglePanel={togglePanel}
+            />
+          </div>
+        </CellSelectionProvider>
+      </div>
+    </FilterEditorProvider>
   );
 };
 

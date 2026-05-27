@@ -11,7 +11,6 @@ from marimo._messaging.notification import (
     CellNotification,
     KernelReadyNotification,
 )
-from marimo._server.workspace import serialize_file_key
 from marimo._session import Session
 from marimo._types.ids import SessionId
 from marimo._utils.parse_dataclass import parse_raw
@@ -264,9 +263,8 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
 
         # Write to the notebook file to add a new cell
         # we write it as the second to last cell
-        file_key = session_manager.workspace.get_unique_file_key()
-        assert file_key
-        filename = serialize_file_key(file_key)
+        filename = session_manager.workspace.get_unique_file_key()
+        assert filename
         with open(filename) as f:
             content = f.read()
         last_cell_pos = content.rindex("@app.cell")

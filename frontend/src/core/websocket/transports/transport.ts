@@ -25,7 +25,6 @@ export interface IConnectionTransport {
     callback: ConnectionTransportCallback<T>,
   ): void;
   readyState: WebSocket["readyState"];
-  readonly retryCount: number;
 }
 
 export class ConnectionSubscriptions {

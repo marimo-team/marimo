@@ -3,8 +3,8 @@
 
 The SQL patch should only rewrite queries it can execute with fetched
 DataFrames. This module recognizes direct URL table syntax and supported
-``read_*`` table functions, extracts literal URL/options from sqlglot's AST,
-and returns ``None`` for dynamic expressions so they continue through DuckDB
+`read_*` table functions, extracts literal URL/options from sqlglot's AST,
+and returns `None` for dynamic expressions so they continue through DuckDB
 unchanged.
 """
 
@@ -163,7 +163,7 @@ def _read_function_options(
 def _read_function_option(
     option_expr: exp.Expression,
 ) -> tuple[str, Any] | None:
-    """Return one static option or ``None`` for unsupported expressions."""
+    """Return one static option or `None` for unsupported expressions."""
     import sqlglot.expressions as exp
 
     property_eq = getattr(exp, "PropertyEQ", None)

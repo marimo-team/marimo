@@ -15,6 +15,7 @@ from marimo._plugins.ui._impl.data_editor import (
     _convert_value,
     apply_edits,
 )
+from tests._data.mocks import create_dataframes
 
 data_editor = ui.data_editor
 
@@ -410,6 +411,27 @@ def test_data_editor_with_polars_dataframe():
     editor = data_editor(data=df)
     assert isinstance(editor.data, pl.DataFrame)
     assert df.equals(editor.data)
+
+
+@pytest.mark.parametrize(
+    "df",
+    # data_editor uses narwhals with eager_only=True, so it only supports
+    # eager dataframe backends (pandas, polars, pyarrow), not lazy/relation
+    # types like Ibis and DuckDB.
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]},
+        exclude=["lazy-polars", "ibis", "duckdb"],
+    ),
+)
+def test_data_editor_supports_dataframe_backends(df: Any) -> None:
+    editor = data_editor(data=df)
+    assert type(editor.data) is type(df)
+    # An applied edit should round-trip back to the same native type.
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 1, "columnId": "B", "value": "x"}]
+    }
+    result = editor._convert_value(edits)
+    assert type(result) is type(df)
 
 
 @pytest.mark.skipif(

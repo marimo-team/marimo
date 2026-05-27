@@ -512,14 +512,14 @@ class LintConfig(TypedDict, total=False):
     """Configuration for lint rule selection.
 
     Follows ruff-inspired semantics for selecting which rules to run
-    during ``marimo check``.
+    during `marimo check`.
 
     **Keys.**
 
-    - ``select``: list of rule code prefixes that replaces the default
-      enabled set. Use ``"ALL"`` to select all rules.
-      Example: ``["MB", "MR001"]``
-    - ``ignore``: list of rule code prefixes to remove from the
+    - `select`: list of rule code prefixes that replaces the default
+      enabled set. Use `"ALL"` to select all rules.
+      Example: `["MB", "MR001"]`
+    - `ignore`: list of rule code prefixes to remove from the
       enabled set.
     """
 

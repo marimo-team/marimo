@@ -36,6 +36,7 @@ describe("DropdownPlugin", () => {
           fullWidth: false,
           searchable: true,
           initialValue: [],
+          disabled: false,
         },
         value: [],
         setValue: vi.fn(),
@@ -46,6 +47,58 @@ describe("DropdownPlugin", () => {
       expect(
         screen.getByTestId("marimo-plugin-searchable-dropdown"),
       ).toBeInTheDocument();
+    });
+
+    it("renders disabled native select when disabled is true", () => {
+      const plugin = new DropdownPlugin();
+      const host = document.createElement("div");
+      const props: IPluginProps<
+        string[],
+        z.infer<(typeof plugin)["validator"]>
+      > = {
+        data: {
+          label: "Test Label",
+          options: ["Option 1", "Option 2"],
+          allowSelectNone: false,
+          fullWidth: false,
+          searchable: false,
+          disabled: true,
+          initialValue: [],
+        },
+        value: [],
+        setValue: vi.fn(),
+        host,
+        functions: {},
+      };
+      render(plugin.render(props));
+      expect(screen.getByTestId("marimo-plugin-dropdown")).toBeDisabled();
+    });
+
+    it("renders disabled searchable combobox with aria-disabled", () => {
+      const plugin = new DropdownPlugin();
+      const host = document.createElement("div");
+      const props: IPluginProps<
+        string[],
+        z.infer<(typeof plugin)["validator"]>
+      > = {
+        data: {
+          label: "Test Label",
+          options: ["Option 1", "Option 2"],
+          allowSelectNone: false,
+          fullWidth: false,
+          searchable: true,
+          disabled: true,
+          initialValue: [],
+        },
+        value: [],
+        setValue: vi.fn(),
+        host,
+        functions: {},
+      };
+      render(plugin.render(props));
+      const trigger = screen.getByTestId("marimo-plugin-searchable-dropdown")
+        .firstChild as HTMLElement;
+      expect(trigger).toHaveAttribute("aria-disabled", "true");
     });
 
     it("renders default dropdown when searchable is false", () => {
@@ -62,6 +115,7 @@ describe("DropdownPlugin", () => {
           fullWidth: false,
           searchable: false,
           initialValue: [],
+          disabled: false,
         },
         value: [],
         setValue: vi.fn(),
@@ -87,6 +141,7 @@ describe("DropdownPlugin", () => {
           fullWidth: false,
           searchable: true,
           initialValue: [],
+          disabled: false,
         },
         value: [],
         setValue,
@@ -129,6 +184,7 @@ describe("DropdownPlugin", () => {
           fullWidth: false,
           searchable: true,
           initialValue: [],
+          disabled: false,
         },
         value: ["Apple"],
         setValue,

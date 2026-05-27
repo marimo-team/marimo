@@ -511,6 +511,28 @@ components:
       - data
       title: CellOutput
       type: object
+    CellOutputs:
+      description: "Per-cell output snapshot delivered alongside the document snapshot.\n\
+        \n    `output` carries the cell's last main (rich display) output;\n    `console_outputs`\
+        \ carries the buffered stdout/stderr stream from\n    its last execution.\
+        \  Both are keyed by cell id; missing keys mean\n    \"no output captured\"\
+        \ (the cell never ran, or produced nothing on\n    that channel)."
+      properties:
+        console_outputs:
+          additionalProperties:
+            items:
+              $ref: '#/components/schemas/CellOutput'
+            type: array
+          type: object
+        output:
+          additionalProperties:
+            $ref: '#/components/schemas/CellOutput'
+          type: object
+      required:
+      - output
+      - console_outputs
+      title: CellOutputs
+      type: object
     ChatAttachment:
       properties:
         content_type:
@@ -733,10 +755,10 @@ components:
     CompletedRunNotification:
       description: "Run of submitted cells and descendants completed.\n\n    Attributes:\n\
         \        run_id: Correlation ID echoed from the command that triggered\n \
-        \           this completion. ``None`` for handlers that don't take a\n   \
-        \         ``run_id`` (everything except ``handle_execute_scratchpad``\n  \
-        \          today). Consumers that want to wait for a specific command's\n\
-        \            completion filter on this field."
+        \           this completion. `None` for handlers that don't take a\n     \
+        \       `run_id` (everything except `handle_execute_scratchpad`\n        \
+        \    today). Consumers that want to wait for a specific command's\n      \
+        \      completion filter on this field."
       properties:
         op:
           enum:
@@ -1511,13 +1533,22 @@ components:
         \        request: HTTP request context if available.\n        notebook_cells:\
         \ Snapshot of notebook cells from the session document.\n            Used\
         \ to populate the document ContextVar so code_mode can read\n            cell\
-        \ ordering, code, names, and configs.\n        run_id: Optional correlation\
-        \ ID. When set, the\n            ``CompletedRunNotification`` emitted at the\
-        \ end of this command\n            carries the same ``run_id`` so a caller\
-        \ holding a\n            ``ScratchCellListener`` can filter for *its* completion\
-        \ and\n            ignore ``CompletedRun`` events from unrelated commands\
-        \ on the\n            same session."
+        \ ordering, code, names, and configs.\n        cell_outputs: Snapshot of per-cell\
+        \ outputs (main + console) from the\n            session view. Populates a\
+        \ parallel ContextVar so code_mode can\n            expose `cell.output` and\
+        \ `cell.console_outputs`. Frozen at\n            scratchpad start \u2014 not\
+        \ refreshed when `ctx.run_cell` produces\n            new outputs in the same\
+        \ batch.\n        run_id: Optional correlation ID. When set, the\n       \
+        \     `CompletedRunNotification` emitted at the end of this command\n    \
+        \        carries the same `run_id` so a caller holding a\n            `ScratchCellListener`\
+        \ can filter for *its* completion and\n            ignore `CompletedRun` events\
+        \ from unrelated commands on the\n            same session."
       properties:
+        cellOutputs:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CellOutputs'
+          default: null
         code:
           type: string
         notebookCells:
@@ -1547,6 +1578,11 @@ components:
       type: object
     ExecuteScratchpadRequest:
       properties:
+        cellOutputs:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CellOutputs'
+          default: null
         code:
           type: string
         notebookCells:
@@ -1692,9 +1728,9 @@ components:
     FileCreateMultipartRequest:
       description: "multipart/form-data body for POST /api/files/create.\n\n    Schema-only:\
         \ this struct exists to describe the multipart shape in\n    OpenAPI. At runtime,\
-        \ the endpoint reads the string fields from\n    ``MultipartRequest.body``\
-        \ and the uploaded bytes from\n    ``MultipartRequest.files[\"file\"]`` \u2014\
-        \ ``body.file`` is never populated."
+        \ the endpoint reads the string fields from\n    `MultipartRequest.body` and\
+        \ the uploaded bytes from\n    `MultipartRequest.files[\"file\"]` \u2014 `body.file`\
+        \ is never populated."
       properties:
         file:
           anyOf:
@@ -2744,11 +2780,11 @@ components:
       type: object
     LintConfig:
       description: "Configuration for lint rule selection.\n\n    Follows ruff-inspired\
-        \ semantics for selecting which rules to run\n    during ``marimo check``.\n\
-        \n    **Keys.**\n\n    - ``select``: list of rule code prefixes that replaces\
-        \ the default\n      enabled set. Use ``\"ALL\"`` to select all rules.\n \
-        \     Example: ``[\"MB\", \"MR001\"]``\n    - ``ignore``: list of rule code\
-        \ prefixes to remove from the\n      enabled set."
+        \ semantics for selecting which rules to run\n    during `marimo check`.\n\
+        \n    **Keys.**\n\n    - `select`: list of rule code prefixes that replaces\
+        \ the default\n      enabled set. Use `\"ALL\"` to select all rules.\n   \
+        \   Example: `[\"MB\", \"MR001\"]`\n    - `ignore`: list of rule code prefixes\
+        \ to remove from the\n      enabled set."
       properties:
         ignore:
           items:
@@ -3580,7 +3616,9 @@ components:
       title: MultipleDefinitionError
       type: object
     NotebookCell:
-      description: "A single cell in the document. Mutable \u2014 owned by the document."
+      description: "A single cell in the document. Mutable \u2014 owned by the document.\n\
+        \n    `version` increments on each `SetCode` that actually changes\n    `code`.\
+        \ Other property changes don't bump it."
       properties:
         code:
           type: string
@@ -3590,6 +3628,9 @@ components:
           $ref: '#/components/schemas/CellId'
         name:
           type: string
+        version:
+          default: 0
+          type: integer
       required:
       - id
       - code
@@ -3701,6 +3742,7 @@ components:
           anyOf:
           - enum:
             - dataflow
+            - external-dependencies
             - fileformat
             - for-jupyter-users
             - intro
@@ -4071,8 +4113,8 @@ components:
       type: object
     ReorderCells:
       description: "Replace the full cell ordering.\n\n    Cell IDs present in the\
-        \ document but missing from ``cell_ids``\n    are appended at the end. IDs\
-        \ not in the document are ignored."
+        \ document but missing from `cell_ids`\n    are appended at the end. IDs not\
+        \ in the document are ignored."
       properties:
         cellIds:
           items:
@@ -5080,8 +5122,8 @@ components:
       type: object
     Transaction:
       description: "An atomic batch of changes applied to a NotebookDocument.\n\n\
-        \    ``source`` identifies the writer (e.g. ``\"frontend\"``, ``\"kernel\"\
-        ``).\n    ``version`` is ``None`` when created and stamped by\n    ``NotebookDocument.apply()``."
+        \    `source` identifies the writer (e.g. `\"frontend\"`, `\"kernel\"`).\n\
+        \    `version` is `None` when created and stamped by\n    `NotebookDocument.apply()`."
       properties:
         changes:
           items:

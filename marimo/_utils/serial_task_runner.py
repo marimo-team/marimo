@@ -11,10 +11,10 @@ Usage::
     runner.shutdown()  # on session close
     await runner.drain()  # in async tests
 
-``submit`` and ``shutdown`` must be called from the asyncio event loop
-thread (or from any thread when no loop is running). ``work`` runs on
-the executor thread; ``on_error`` is routed back to the loop thread via
-``call_soon_threadsafe`` so it can safely touch asyncio primitives.
+`submit` and `shutdown` must be called from the asyncio event loop
+thread (or from any thread when no loop is running). `work` runs on
+the executor thread; `on_error` is routed back to the loop thread via
+`call_soon_threadsafe` so it can safely touch asyncio primitives.
 """
 
 from __future__ import annotations
@@ -57,17 +57,17 @@ class SerialTaskRunner:
         *,
         on_error: Callable[[Exception], None] | None = None,
     ) -> None:
-        """Run ``work()`` on the serial worker thread.
+        """Run `work()` on the serial worker thread.
 
         Offloads to the executor when called from the event loop;
         otherwise runs inline on the caller thread (e.g. the
-        ``QueueDistributor`` worker thread). ``on_error`` is invoked
-        with any exception raised by ``work`` — posted back to the event
-        loop when off-loop, inline otherwise. A failing ``on_error`` is
+        `QueueDistributor` worker thread). `on_error` is invoked
+        with any exception raised by `work` — posted back to the event
+        loop when off-loop, inline otherwise. A failing `on_error` is
         logged and swallowed.
 
-        After ``shutdown()``, ``submit`` is a no-op (and logs at debug).
-        Without this guard, ``cached_property`` would silently
+        After `shutdown()`, `submit` is a no-op (and logs at debug).
+        Without this guard, `cached_property` would silently
         re-materialize a fresh executor — and a new worker thread — for
         any late submissions that race session teardown.
         """
@@ -129,7 +129,7 @@ class SerialTaskRunner:
     async def drain(self) -> None:
         """Await every in-flight task, then clear the pending list.
 
-        ``return_exceptions=True`` so a failing task doesn't abort the drain.
+        `return_exceptions=True` so a failing task doesn't abort the drain.
         """
         if not self._pending:
             return
@@ -139,10 +139,10 @@ class SerialTaskRunner:
     def shutdown(self, *, wait: bool = False) -> None:
         """Tear down the executor. Idempotent; no-op if never materialized.
 
-        Uses ``__dict__.pop`` so we don't trigger the ``cached_property``
-        just to shut it down. Sets ``_closed`` so any subsequent
-        ``submit`` becomes a no-op instead of re-materializing a new
-        executor via ``cached_property``.
+        Uses `__dict__.pop` so we don't trigger the `cached_property`
+        just to shut it down. Sets `_closed` so any subsequent
+        `submit` becomes a no-op instead of re-materializing a new
+        executor via `cached_property`.
         """
         self._closed = True
         executor = self.__dict__.pop("_executor", None)

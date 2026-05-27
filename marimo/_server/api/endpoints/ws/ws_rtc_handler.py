@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from starlette.websockets import WebSocket
 
     from marimo._server.rtc.doc import LoroDocManager
-    from marimo._server.workspace import FileKey
+    from marimo._server.workspace import MarimoFileKey
 
 LOGGER = _loggers.marimo_logger()
 
@@ -24,7 +24,7 @@ class RTCWebSocketHandler:
     def __init__(
         self,
         websocket: WebSocket,
-        file_key: FileKey,
+        file_key: MarimoFileKey,
         doc_manager: LoroDocManager,
     ):
         self.websocket = websocket

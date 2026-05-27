@@ -35,10 +35,6 @@ class Distributor(Protocol, Generic[T]):
         """Stop the distributor."""
         ...
 
-    def flush(self) -> None:
-        """Flush the distributor."""
-        ...
-
 
 class ConnectionDistributor(Distributor[T]):
     """
@@ -97,7 +93,7 @@ class ConnectionDistributor(Distributor[T]):
         """Start distributing the response.
 
         Must be called from a thread that has a running event loop —
-        ``add_reader`` is loop-bound.
+        `add_reader` is loop-bound.
         """
         self._loop = asyncio.get_running_loop()
         self._loop.add_reader(self.input_connection.fileno(), self._on_change)
@@ -111,14 +107,6 @@ class ConnectionDistributor(Distributor[T]):
         if not self.input_connection.closed:
             self.input_connection.close()
         self.consumers.clear()
-
-    def flush(self) -> None:
-        """Flush the distributor."""
-        while self.input_connection.poll():
-            try:
-                self.input_connection.recv()
-            except EOFError:
-                break
 
 
 class QueueDistributor(Distributor[T]):
@@ -160,6 +148,3 @@ class QueueDistributor(Distributor[T]):
 
     def stop(self) -> None:
         self.queue.put_nowait(None)
-
-    def flush(self) -> None:
-        """Flush the distributor."""

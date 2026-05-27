@@ -138,10 +138,10 @@ def construct_kernel_env(
     """Build environment variables for a kernel subprocess.
 
     Args:
-        base_env: Starting environment (typically ``os.environ.copy()``).
+        base_env: Starting environment (typically `os.environ.copy()`).
         venv_python: Path to the Python executable in the target venv.
         is_ephemeral_sandbox: Whether this is an ephemeral sandbox venv
-            built by ``build_sandbox_venv``.
+            built by `build_sandbox_venv`.
         writable: Whether the kernel venv supports package installs.
         kernel_pythonpath: Extra PYTHONPATH entries for read-only
             configured venvs that don't have marimo installed.

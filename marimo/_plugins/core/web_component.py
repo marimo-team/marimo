@@ -38,7 +38,16 @@ S = TypeVar("S", bound=JSONType)
 
 
 def _build_attr(name: str, value: JSONType) -> str:
-    processed = escape(encode_json_str(value))
+    encoded = encode_json_str(value)
+    # Encode `<` and `>` as JSON `\uXXXX` escapes so the parsed attribute
+    # value (post HTML unescaping) contains no literal `<` or `>`.
+    # DOMPurify's SAFE_FOR_XML rule strips any attribute whose value matches
+    # `]>` (or `</style>` etc.); without this, cell strings like `]>` or
+    # `]>>` (atom-mapped reaction SMILES) would silently drop plugin args.
+    # `JSON.parse` decodes `<`/`>` natively, so the frontend sees
+    # the original characters.
+    encoded = encoded.replace(">", "\\u003e").replace("<", "\\u003c")
+    processed = escape(encoded)
     # manual escapes for things html.escape doesn't escape
     #
     # - backslashes, when unescaped can lead to problems

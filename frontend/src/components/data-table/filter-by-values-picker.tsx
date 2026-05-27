@@ -7,7 +7,6 @@ import { useMemo, useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
-import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { Sets } from "@/utils/sets";
 import { smartMatch } from "@/utils/smartMatch";
@@ -24,6 +23,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { SentinelCell } from "./sentinel-cell";
 import { detectSentinel, stringifyUnknownValue } from "./utils";
+import { CompactChipRow } from "./value-chips";
 
 const TOP_K_ROWS = 30;
 
@@ -32,6 +32,7 @@ interface Props<TData, TValue> {
   calculateTopKRows?: CalculateTopKRows;
   chosenValues: unknown[];
   onChange: (values: unknown[]) => void;
+  creatable?: boolean;
 }
 
 export const FilterByValuesPicker = <TData, TValue>({
@@ -39,37 +40,33 @@ export const FilterByValuesPicker = <TData, TValue>({
   calculateTopKRows,
   chosenValues,
   onChange,
+  creatable = false,
 }: Props<TData, TValue>) => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(chosenValues.length === 0);
 
   const chosenValuesSet = useMemo(() => new Set(chosenValues), [chosenValues]);
 
-  const selectedValuesStr = useMemo(() => {
-    if (chosenValuesSet.size === 0) {
-      return "Select values…";
-    }
-    const items = [...chosenValuesSet].map((v) =>
-      stringifyUnknownValue({ value: v }),
-    );
-    return `[${items.join(", ")}]`;
-  }, [chosenValuesSet]);
+  const displayItems = useMemo(
+    () => [...chosenValuesSet].map((v) => stringifyUnknownValue({ value: v })),
+    [chosenValuesSet],
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild={true}>
         <Button
+          type="button"
           variant="outline"
           size="xs"
           className="h-6 mb-1 w-full justify-between font-normal"
         >
-          <span
-            className={cn(
-              "truncate",
-              chosenValuesSet.size === 0 && "text-muted-foreground",
-            )}
-          >
-            {selectedValuesStr}
-          </span>
+          {displayItems.length === 0 ? (
+            <span className="truncate text-muted-foreground">
+              Select values…
+            </span>
+          ) : (
+            <CompactChipRow items={displayItems} max={3} />
+          )}
           <ChevronDownIcon className="h-4 w-4 opacity-50 shrink-0" />
         </Button>
       </PopoverTrigger>
@@ -79,6 +76,7 @@ export const FilterByValuesPicker = <TData, TValue>({
           calculateTopKRows={calculateTopKRows}
           chosenValues={chosenValuesSet}
           onChange={onChange}
+          creatable={creatable}
         />
       </PopoverContent>
     </Popover>
@@ -90,6 +88,7 @@ interface FilterByValuesListProps<TData, TValue> {
   calculateTopKRows?: CalculateTopKRows;
   chosenValues: Set<unknown>;
   onChange: (values: unknown[]) => void;
+  creatable?: boolean;
 }
 
 /**
@@ -100,6 +99,7 @@ export const FilterByValuesList = <TData, TValue>({
   calculateTopKRows,
   chosenValues,
   onChange,
+  creatable = false,
 }: FilterByValuesListProps<TData, TValue>) => {
   const [query, setQuery] = useState<string>("");
 
@@ -133,13 +133,48 @@ export const FilterByValuesList = <TData, TValue>({
     }
   }, [data, query]);
 
+  // Surface chosen values that aren't in the top-K so they stay visible/uncheckable.
+  // Count is undefined for these rows; the cell renders an em-dash.
+  const mergedData = useMemo<Array<[unknown, number | undefined]>>(() => {
+    const seen = new Set(filteredData.map(([v]) => v));
+    const extras: Array<[unknown, number | undefined]> = [];
+    for (const chosen of chosenValues) {
+      if (seen.has(chosen)) {
+        continue;
+      }
+      const str = String(chosen);
+      const matches =
+        query.length === 0 ||
+        smartMatch(query, str) ||
+        str.toLowerCase().includes(query.toLowerCase());
+      if (matches) {
+        extras.push([chosen, undefined]);
+      }
+    }
+    return [...filteredData, ...extras];
+  }, [filteredData, chosenValues, query]);
+
   const handleToggle = (value: unknown) => {
     onChange([...Sets.toggle(chosenValues, value)]);
   };
 
+  const trimmedQuery = query.trim();
+  const canCreate =
+    creatable &&
+    trimmedQuery !== "" &&
+    !mergedData.some(([v]) => String(v) === trimmedQuery);
+
+  const commitCreate = () => {
+    if (!canCreate) {
+      return;
+    }
+    onChange([...chosenValues, trimmedQuery]);
+    setQuery("");
+  };
+
   const allVisibleChecked =
-    filteredData.length > 0 &&
-    filteredData.every(([value]) => chosenValues.has(value));
+    mergedData.length > 0 &&
+    mergedData.every(([value]) => chosenValues.has(value));
 
   const selectAllState: boolean | "indeterminate" = allVisibleChecked
     ? true
@@ -153,11 +188,11 @@ export const FilterByValuesList = <TData, TValue>({
     }
     const next = new Set(chosenValues);
     if (allVisibleChecked) {
-      for (const [value] of filteredData) {
+      for (const [value] of mergedData) {
         next.delete(value);
       }
     } else {
-      for (const [value] of filteredData) {
+      for (const [value] of mergedData) {
         next.add(value);
       }
     }
@@ -183,13 +218,24 @@ export const FilterByValuesList = <TData, TValue>({
   return (
     <Command className="text-sm outline-hidden" shouldFilter={false}>
       <CommandInput
-        placeholder={`Search among the top ${data.length} values`}
+        placeholder={
+          creatable
+            ? "Search or add a value…"
+            : `Search among the top ${data.length} values`
+        }
         autoFocus={true}
-        onValueChange={(value) => setQuery(value.trim())}
+        value={query}
+        onValueChange={setQuery}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && canCreate) {
+            e.preventDefault();
+            commitCreate();
+          }
+        }}
       />
       <CommandEmpty>No results found.</CommandEmpty>
       <CommandList>
-        {filteredData.length > 0 && (
+        {mergedData.length > 0 && (
           <CommandItem
             value="__select-all__"
             className="border-b rounded-none px-3"
@@ -204,7 +250,7 @@ export const FilterByValuesList = <TData, TValue>({
             <span className="font-bold">Count</span>
           </CommandItem>
         )}
-        {filteredData.map(([value, count]) => {
+        {mergedData.map(([value, count]) => {
           const isSelected = chosenValues.has(value);
           const valueString = stringifyUnknownValue({ value });
           const sentinel = detectSentinel(
@@ -226,10 +272,19 @@ export const FilterByValuesList = <TData, TValue>({
               <span className="flex-1 overflow-hidden max-h-20 line-clamp-3">
                 {sentinel ? <SentinelCell sentinel={sentinel} /> : valueString}
               </span>
-              <span className="ml-3">{count}</span>
+              <span className="ml-3">{count === undefined ? "—" : count}</span>
             </CommandItem>
           );
         })}
+        {canCreate && (
+          <CommandItem
+            value={`__create__:${trimmedQuery}`}
+            className="border-t rounded-none px-3 italic"
+            onSelect={commitCreate}
+          >
+            + Add "{trimmedQuery}"
+          </CommandItem>
+        )}
       </CommandList>
       {data.length === TOP_K_ROWS && (
         <span className="text-xs text-muted-foreground py-1.5 text-center">

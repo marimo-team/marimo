@@ -15,10 +15,17 @@ import { maxFractionalDigits } from "@/utils/numbers";
 export interface NumberFieldProps extends AriaNumberFieldProps {
   placeholder?: string;
   variant?: "default" | "xs";
+  /**
+   * Fires on every keystroke with the raw text currently in the input.
+   * React-aria's `onChange` only fires on commit (blur/Enter/stepper); use this
+   * when callers need to peek at the in-progress value, e.g. to enable an Apply
+   * button while the user is still typing.
+   */
+  onInputText?: (text: string) => void;
 }
 
 export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
-  ({ placeholder, variant = "default", ...props }, ref) => {
+  ({ placeholder, variant = "default", onInputText, ...props }, ref) => {
     const { locale } = useLocale();
     return (
       <AriaNumberField
@@ -48,6 +55,11 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
                 e.stopPropagation();
               }
             }}
+            onInput={
+              onInputText
+                ? (e) => onInputText(e.currentTarget.value)
+                : undefined
+            }
             className={cn(
               "flex-1",
               "w-full",
@@ -62,6 +74,7 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
               slot="increment"
               isDisabled={props.isDisabled}
               variant={variant}
+              excludeFromTabOrder={true}
             >
               <ChevronUp
                 aria-hidden={true}
@@ -73,6 +86,7 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
               slot="decrement"
               isDisabled={props.isDisabled}
               variant={variant}
+              excludeFromTabOrder={true}
             >
               <ChevronDown
                 aria-hidden={true}

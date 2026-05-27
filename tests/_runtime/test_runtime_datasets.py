@@ -400,6 +400,38 @@ class TestPreviewDatasourceConnection:
         ]
         assert preview_datasource_connection_results == []
 
+    @pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")
+    async def test_query_only_engine_is_broadcast(
+        self,
+        mocked_kernel: MockedKernel,
+        connection_requests: list[ExecuteCellCommand],
+    ) -> None:
+        """Regression: query-only engines (QueryEngine, not EngineCatalog) must broadcast."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(connection_requests)
+
+        baseline = sum(
+            1
+            for op in stream.operations
+            if isinstance(op, DataSourceConnectionsNotification)
+        )
+
+        await k.handle_message(
+            ListDataSourceConnectionCommand(engine=SQLITE_CONN)
+        )
+
+        results = [
+            op
+            for op in stream.operations
+            if isinstance(op, DataSourceConnectionsNotification)
+        ]
+        assert len(results) == baseline + 1
+        connection = results[-1].connections[0]
+        assert connection.name == SQLITE_CONN
+        assert connection.databases == []
+
     @pytest.mark.xfail(
         reason="Should have only 2 connections (duckdb and sqlite)"
     )

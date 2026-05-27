@@ -8,12 +8,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from marimo._server.app_defaults import AppDefaults
-from marimo._server.workspace._keys import (
-    FileKey,
-    NewFileKey,
-    PathFileKey,
-    serialize_file_key,
-)
 from marimo._session.notebook import AppFileManager
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
@@ -25,11 +19,19 @@ if TYPE_CHECKING:
     from marimo._server.models.files import FileInfo
     from marimo._server.models.home import MarimoFile
 
+# Wire-format key for an untitled notebook. The string boundary is preserved
+# for HTTP query params and session initialization IDs.
+NEW_FILE: str = "__new__"
+
+# Some unique identifier for a file. Phase 3 will replace this with a tagged
+# union (NewFileKey | PathFileKey).
+MarimoFileKey = str
+
 
 class NotebookWorkspace(abc.ABC):
     """A server-side abstraction for the set of notebooks a server is hosting.
 
-    Owned by ``SessionManager``. Handles workspace browsing, allowlisting, lazy
+    Owned by `SessionManager`. Handles workspace browsing, allowlisting, lazy
     directory scanning, and security validation.
     """
 
@@ -48,12 +50,12 @@ class NotebookWorkspace(abc.ABC):
         """If this workspace represents a single notebook, return it."""
 
     @abc.abstractmethod
-    def get_unique_file_key(self) -> FileKey | None:
+    def get_unique_file_key(self) -> MarimoFileKey | None:
         """The unique file key for this workspace, if any."""
 
     @abc.abstractmethod
-    def resolve(self, key: FileKey) -> str | None:
-        """Resolve a key to an absolute path; ``None`` for new files.
+    def resolve(self, key: MarimoFileKey) -> str | None:
+        """Resolve a key to an absolute path; `None` for new files.
 
         Useful for endpoints that need file-backed resources (e.g. thumbnails)
         without the overhead of parsing/loading a notebook.
@@ -61,13 +63,13 @@ class NotebookWorkspace(abc.ABC):
 
     def load(
         self,
-        key: FileKey,
+        key: MarimoFileKey,
         defaults: AppDefaults | None = None,
     ) -> AppFileManager:
-        """Load the notebook for the given key into an ``AppFileManager``.
+        """Load the notebook for the given key into an `AppFileManager`.
 
-        Built on top of :meth:`resolve` — subclasses customize ``resolve`` and
-        inherit the right ``load`` semantics for free.
+        Built on top of :meth:`resolve` — subclasses customize `resolve` and
+        inherit the right `load` semantics for free.
         """
         defaults = defaults or AppDefaults()
         resolved = self.resolve(key)
@@ -89,7 +91,7 @@ class NotebookWorkspace(abc.ABC):
     def register_allowed_path(self, path: str) -> None:
         """Allow a file path that wasn't part of the original collection.
 
-        No-op by default. ``SingleFileWorkspace`` overrides to extend its
+        No-op by default. `SingleFileWorkspace` overrides to extend its
         allowlist for files created at runtime.
         """
         del path
@@ -97,15 +99,15 @@ class NotebookWorkspace(abc.ABC):
     def register_temp_dir(self, temp_dir: str) -> None:
         """Register a temp directory as allowed for file access.
 
-        No-op by default. ``DirectoryWorkspace`` overrides for tutorial
+        No-op by default. `DirectoryWorkspace` overrides for tutorial
         support.
         """
         del temp_dir
 
     def is_in_allowed_temp_dir(self, path: str) -> bool:
-        """Whether ``path`` lives inside an allowed temp directory.
+        """Whether `path` lives inside an allowed temp directory.
 
-        Returns ``False`` by default. ``DirectoryWorkspace`` overrides.
+        Returns `False` by default. `DirectoryWorkspace` overrides.
         """
         del path
         return False
@@ -113,23 +115,23 @@ class NotebookWorkspace(abc.ABC):
     def invalidate(self) -> None:  # noqa: B027 — intentional no-op default
         """Invalidate any cached listing.
 
-        No-op by default. ``DirectoryWorkspace`` overrides.
+        No-op by default. `DirectoryWorkspace` overrides.
         """
 
     def set_include_markdown(self, include_markdown: bool) -> None:
         """Toggle markdown inclusion in directory listings.
 
-        No-op by default. ``DirectoryWorkspace`` overrides — mutates in
+        No-op by default. `DirectoryWorkspace` overrides — mutates in
         place.
         """
         del include_markdown
 
 
-def file_not_found(key: FileKey) -> HTTPException:
+def file_not_found(key: MarimoFileKey) -> HTTPException:
     """Build the standard 404 response for an unresolvable file key."""
     return HTTPException(
         status_code=HTTPStatus.NOT_FOUND,
-        detail=f"File {serialize_file_key(key)} not found",
+        detail=f"File {key} not found",
     )
 
 
@@ -163,16 +165,3 @@ def flatten_files(files: list[FileInfo]) -> Iterator[FileInfo]:
             stack.extend(file.children)
         else:
             yield file
-
-
-__all__ = [
-    "FileKey",
-    "NewFileKey",
-    "NotebookWorkspace",
-    "PathFileKey",
-    "count_files",
-    "file_not_found",
-    "flatten_files",
-    "normalize_allowlist_entry",
-    "serialize_file_key",
-]

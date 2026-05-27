@@ -6,11 +6,11 @@ from unittest.mock import MagicMock
 import pytest
 
 from marimo._messaging.notification import SecretKeysResultNotification
+from marimo._runtime.callbacks import SecretsCallbacks
 from marimo._runtime.commands import (
     ListSecretKeysCommand,
     RefreshSecretsCommand,
 )
-from marimo._runtime.runtime import SecretsCallbacks
 from marimo._types.ids import RequestId
 from tests._messaging.mocks import MockStream
 from tests.conftest import MockedKernel
@@ -27,7 +27,7 @@ async def test_list_secrets_with_values(
     # Set some test secrets
     test_secrets = ["DUMMY_SECRET"]
     os.environ["DUMMY_SECRET"] = "dummy-value"
-    mocked_kernel.k._original_environ = os.environ.copy()
+    secrets_callbacks._original_environ = os.environ.copy()
 
     await secrets_callbacks.list_secrets(
         ListSecretKeysCommand(request_id=RequestId("test"))
@@ -58,7 +58,7 @@ async def test_refresh_secrets(
 ):
     # Set some test secrets
     os.environ["DUMMY_SECRET"] = "dummy-value"
-    mocked_kernel.k._original_environ = os.environ.copy()
+    secrets_callbacks._original_environ = os.environ.copy()
 
     # Spy on load_dotenv method
     original_load_dotenv = mocked_kernel.k.load_dotenv

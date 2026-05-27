@@ -14,7 +14,6 @@ import threading
 import time
 import traceback
 from copy import copy
-from functools import cached_property
 from multiprocessing import connection
 from pathlib import Path
 from typing import (
@@ -36,20 +35,11 @@ from marimo._config.config import (
     MarimoConfig,
     OnCellChangeType,
 )
-from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._data._external_storage.models import StorageBackend, StorageEntry
-from marimo._data.preview_column import (
-    get_column_preview_for_dataframe,
-    get_column_preview_for_duckdb,
-)
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import (
-    http_request_context,
-    is_code_mode_request,
     run_id_context,
 )
 from marimo._messaging.errors import (
@@ -61,33 +51,11 @@ from marimo._messaging.errors import (
     UnknownError,
 )
 from marimo._messaging.notebook.changes import ReorderCells, Transaction
-from marimo._messaging.notebook.document import (
-    NotebookDocument,
-    notebook_document_context,
-)
 from marimo._messaging.notification import (
-    CacheClearedNotification,
-    CacheInfoNotification,
-    CompletedRunNotification,
-    DataColumnPreviewNotification,
-    DataSourceConnectionsNotification,
-    FunctionCallResultNotification,
     HumanReadableStatus,
-    InstallingPackageAlertNotification,
-    MissingPackageAlertNotification,
     NotebookDocumentTransactionNotification,
-    PackageStatusType,
     RemoveUIElementsNotification,
-    SecretKeysResultNotification,
-    SQLDatabaseMetadata,
-    SQLMetadata,
-    SQLSchemaListPreviewNotification,
-    SQLTableListPreviewNotification,
-    SQLTablePreviewNotification,
-    StorageDownloadReadyNotification,
-    StorageEntriesNotification,
     UIElementMessageNotification,
-    ValidateSQLResultNotification,
     VariableDeclarationNotification,
     VariablesNotification,
     VariableValue,
@@ -118,42 +86,31 @@ from marimo._messaging.variables import create_variable_value
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
-from marimo._plugins.ui._impl.anywidget.init import WIDGET_COMM_MANAGER
 from marimo._runtime import dataflow, handlers, marimo_pdb, patches
+from marimo._runtime.agent import Agent
 from marimo._runtime.app_meta import AppMeta
+from marimo._runtime.callbacks import (
+    CacheCallbacks,
+    DatasetCallbacks,
+    ExternalStorageCallbacks,
+    KernelCallback,
+    PackagesCallbacks,
+    SecretsCallbacks,
+    SqlCallbacks,
+)
 from marimo._runtime.commands import (
     AppMetadata,
     BatchableCommand,
-    ClearCacheCommand,
     CodeCompletionCommand,
     CommandMessage,
     CreateNotebookCommand,
-    DebugCellCommand,
     DeleteCellCommand,
     ExecuteCellCommand,
-    ExecuteCellsCommand,
-    ExecuteScratchpadCommand,
     ExecuteStaleCellsCommand,
-    GetCacheInfoCommand,
-    InstallPackagesCommand,
     InvokeFunctionCommand,
-    ListDataSourceConnectionCommand,
-    ListSecretKeysCommand,
-    ListSQLSchemasCommand,
-    ListSQLTablesCommand,
-    ModelCommand,
-    PreviewDatasetColumnCommand,
-    PreviewSQLTableCommand,
-    RefreshSecretsCommand,
-    RenameNotebookCommand,
-    StopKernelCommand,
-    StorageDownloadCommand,
-    StorageListEntriesCommand,
-    SyncGraphCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
-    ValidateSQLCommand,
 )
 from marimo._runtime.context import (
     ContextNotInitializedError,
@@ -166,27 +123,15 @@ from marimo._runtime.context.kernel_context import (
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import getpass_override
-from marimo._runtime.packages.import_error_extractors import (
-    extract_missing_module_from_cause_chain,
-    try_extract_packages_from_import_error_message,
-)
+from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._runtime.packages.module_registry import ModuleRegistry
-from marimo._runtime.packages.package_manager import (
-    LogCallback,
-    PackageManager,
-)
-from marimo._runtime.packages.package_managers import create_package_manager
-from marimo._runtime.packages.utils import (
-    PackageRequirement,
-    is_python_isolated,
-)
 from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.parent_poller import (
     start_parent_poller,
 )
 from marimo._runtime.redirect_streams import redirect_streams
-from marimo._runtime.reload.autoreload import ModuleReloader
-from marimo._runtime.reload.module_watcher import ModuleWatcher
+from marimo._runtime.reload.manager import AutoreloadManager
+from marimo._runtime.request_router import RequestRouter
 from marimo._runtime.runner import cell_runner, hook_context
 from marimo._runtime.runner.hooks import (
     NotebookCellHooks,
@@ -194,29 +139,23 @@ from marimo._runtime.runner.hooks import (
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._runtime.state import State
-from marimo._runtime.virtual_file.virtual_file import VirtualFile
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._secrets.load_dotenv import (
     load_dotenv_with_fallback,
 )
-from marimo._secrets.secrets import get_secret_keys
 from marimo._session.model import SessionMode
 from marimo._session.queue import QueueType
-from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
 from marimo._sql.engines.types import (
     EngineCatalog,
     QueryEngine,
     SQLConnectionType,
 )
 from marimo._sql.get_engines import (
-    engine_to_data_source_connection,
     get_engines_from_variables,
 )
-from marimo._sql.parse import SqlCatalogCheckResult, parse_sql
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._types.lifespan import Lifespan
-from marimo._utils.assert_never import assert_never
 from marimo._utils.lifespans import Lifespans
 from marimo._utils.paths import normalize_path
 from marimo._utils.platform import is_pyodide
@@ -224,7 +163,7 @@ from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Iterator, Sequence
+    from collections.abc import Callable, Iterator, Sequence
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
@@ -540,13 +479,27 @@ class Kernel:
         # timestamp, to save the user from having to spam the interrupt button
         self.last_interrupt_timestamp: float | None = None
 
-        # Callbacks
+        # Named attributes exist because internal kernel paths (run hooks,
+        # script metadata) and tests reach into specific callbacks directly.
         self.secrets_callbacks = SecretsCallbacks(self)
         self.datasets_callbacks = DatasetCallbacks(self)
         self.packages_callbacks = PackagesCallbacks(self)
         self.sql_callbacks = SqlCallbacks(self)
         self.cache_callbacks = CacheCallbacks(self)
         self.external_storage_callbacks = ExternalStorageCallbacks(self)
+        self._callbacks: list[KernelCallback] = [
+            self.secrets_callbacks,
+            self.datasets_callbacks,
+            self.packages_callbacks,
+            self.sql_callbacks,
+            self.cache_callbacks,
+            self.external_storage_callbacks,
+        ]
+
+        self.router = RequestRouter()
+        KernelRequestHandlers(self).register(self.router)
+        for cb in self._callbacks:
+            cb.register(self.router)
 
         # Apply pythonpath from config at initialization
         pythonpath = user_config["runtime"].get("pythonpath")
@@ -556,8 +509,6 @@ class Kernel:
                     sys.path.insert(0, path)
 
         self._hooks = hooks
-
-        self._original_environ = os.environ.copy()
 
         self._globals_lock = threading.RLock()
         self._state_lock = threading.RLock()
@@ -592,6 +543,7 @@ class Kernel:
             sys.path.insert(0, "")
 
         self.graph = dataflow.DirectedGraph()
+        self.agent = Agent()
         # When autorun on startup is disabled, this holds cells that have
         # not yet been run; these cells are removed when they or their
         # descendants are run
@@ -605,8 +557,7 @@ class Kernel:
         self.module_registry = ModuleRegistry(
             self.graph, excluded_modules=set()
         )
-        self.module_reloader: ModuleReloader | None = None
-        self.module_watcher: ModuleWatcher | None = None
+        self.autoreload_manager = AutoreloadManager(self)
 
         # Load runtime settings from user config
         self.user_config = user_config
@@ -676,8 +627,7 @@ class Kernel:
             self.stdin._stop()
         self.stream.stop()
 
-        if self.module_watcher is not None:
-            self.module_watcher.stop()
+        self.autoreload_manager.teardown()
 
         # TODO(akshayka): There's a memory leak in run mode, with memory
         # usage increasing with each session creation. Somehow the kernel
@@ -702,35 +652,7 @@ class Kernel:
         self.user_config = config
 
         self.packages_callbacks.update_package_manager(package_manager)
-
-        if (
-            (autoreload_mode == "lazy" or autoreload_mode == "autorun")
-            # Pyodide doesn't support hot module reloading
-            and not is_pyodide()
-        ):
-            if self.module_reloader is None:
-                self.module_reloader = ModuleReloader()
-
-            if (
-                self.module_watcher is not None
-                and self.module_watcher.mode != autoreload_mode
-            ):
-                self.module_watcher.stop()
-                self.module_watcher = None
-
-            if self.module_watcher is None:
-                self.module_watcher = ModuleWatcher(
-                    self.graph,
-                    reloader=self.module_reloader,
-                    enqueue_run_stale_cells=self._execute_stale_cells_callback,
-                    mode=autoreload_mode,
-                    stream=self.stream,
-                )
-        else:
-            self.module_reloader = None
-            if self.module_watcher is not None:
-                self.module_watcher.stop()
-                self.module_watcher = None
+        self.autoreload_manager.update_from_config(autoreload_mode)
 
     @property
     def globals(self) -> dict[Any, Any]:
@@ -751,19 +673,16 @@ class Kernel:
         self, completion_queue: QueueType[CodeCompletionCommand]
     ) -> None:
         """Must be called after context is initialized"""
-        from marimo._runtime.complete import completion_worker
+        from marimo._runtime.kernel_lifecycle import drain_stale
 
-        threading.Thread(
-            target=completion_worker,
-            args=(
-                completion_queue,
-                self.graph,
-                self.globals,
-                self._globals_lock,
-                get_context().stream,
-            ),
-            daemon=True,
-        ).start()
+        def _worker() -> None:
+            while True:
+                request = drain_stale(
+                    completion_queue, latest=completion_queue.get()
+                )
+                self.code_completion(request, docstrings_limit=80)
+
+        threading.Thread(target=_worker, daemon=True).start()
         self._completion_worker_started = True
 
     @kernel_tracer.start_as_current_span("code_completion")
@@ -777,7 +696,7 @@ class Kernel:
             self.graph,
             self.globals,
             self._globals_lock,
-            get_context().stream,
+            self.stream,
             docstrings_limit,
         )
 
@@ -808,25 +727,12 @@ class Kernel:
                 stderr=self.stderr,
                 stdin=self.stdin,
             ),
+            self.autoreload_manager.cell_scope(),
         ):
-            modules = None
             try:
-                if self.module_reloader is not None:
-                    # Reload modules if they have changed
-                    modules = set(sys.modules)
-                    self.module_reloader.check(
-                        modules=sys.modules, reload=True
-                    )
                 yield exec_ctx
             finally:
                 ctx.execution_context = None
-                if self.module_reloader is not None and modules is not None:
-                    # Note timestamps for newly loaded modules
-                    new_modules = set(sys.modules) - modules
-                    self.module_reloader.check(
-                        modules={m: sys.modules[m] for m in new_modules},
-                        reload=False,
-                    )
 
     def _register_cell(
         self,
@@ -848,12 +754,7 @@ class Kernel:
             self.graph.cells[cell_id].set_stale(stale=True, broadcast=False)
         # leaky abstraction: the graph doesn't know about stale modules, so
         # we have to check for them here.
-        module_reloader = self.module_reloader
-        if (
-            module_reloader is not None
-            and module_reloader.cell_uses_stale_modules(cell)
-        ):
-            self.graph.set_stale({cell.cell_id}, prune_imports=True)
+        self.autoreload_manager.flag_if_imports_stale(cell)
         LOGGER.debug("registered cell %s", cell_id)
         LOGGER.debug("parents: %s", self.graph.parents[cell_id])
         LOGGER.debug("children: %s", self.graph.children[cell_id])
@@ -1440,9 +1341,7 @@ class Kernel:
                             cell_id=cid, status=status
                         )
 
-    async def _if_autorun_then_run_cells(
-        self, cell_ids: set[CellId_t]
-    ) -> None:
+    async def maybe_autorun_cells(self, cell_ids: set[CellId_t]) -> None:
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(cell_ids)
         else:
@@ -1767,7 +1666,7 @@ class Kernel:
         for cell in self.graph.cells.values():
             if "__file__" in cell.refs:
                 roots.add(cell.cell_id)
-        await self._if_autorun_then_run_cells(roots)
+        await self.maybe_autorun_cells(roots)
 
     @kernel_tracer.start_as_current_span("run_scratchpad")
     async def run_scratchpad(self, code: str) -> None:
@@ -1859,9 +1758,6 @@ class Kernel:
             )
         )
 
-        if self.module_watcher is not None:
-            self.module_watcher.run_is_processed.set()
-
     @kernel_tracer.start_as_current_span("set_cell_config")
     async def set_cell_config(self, request: UpdateCellConfigCommand) -> None:
         """Update cell configs.
@@ -1905,15 +1801,15 @@ class Kernel:
         Args:
             request: The UI element update command.
             notify_frontend: Whether to broadcast the new value back to
-                the frontend via a ``marimo-ui-value-update`` message.
-                Set ``False`` for user-initiated updates from the frontend
+                the frontend via a `marimo-ui-value-update` message.
+                Set `False` for user-initiated updates from the frontend
                 (the frontend already has the value locally;
                 re-broadcasting causes redundant traffic and, on transports
                 with non-negligible round-trip latency (LSP, remote
                 kernels), can visibly snap the rendered widget backward to
-                a stale value). Set ``True`` for genuinely
+                a stale value). Set `True` for genuinely
                 kernel-initiated changes (e.g. code_mode's
-                ``set_ui_value``) where the frontend has no other way to
+                `set_ui_value`) where the frontend has no other way to
                 learn about the update.
 
         Returns True if any ui elements were set, False otherwise
@@ -2348,201 +2244,16 @@ class Kernel:
                         "Failed to load dotenv file %s", env, exc_info=e
                     )
 
-    @cached_property
-    def request_handler(self) -> RequestHandler:
-        handler = RequestHandler()
-
-        async def handle_instantiate(request: CreateNotebookCommand) -> None:
-            with http_request_context(request.request):
-                await self.instantiate(request)
-            broadcast_notification(CompletedRunNotification())
-
-        async def handle_execute_multiple(
-            request: ExecuteCellsCommand,
-        ) -> None:
-            with http_request_context(request.request):
-                await self.run(request.execution_requests)
-            broadcast_notification(CompletedRunNotification())
-
-        async def handle_sync_graph(
-            request: SyncGraphCommand,
-        ) -> None:
-            with http_request_context(None):
-                await self.sync_graph(
-                    request.cells, request.run_ids, request.delete_ids
-                )
-            broadcast_notification(CompletedRunNotification())
-
-        async def handle_execute_scratchpad(
-            request: ExecuteScratchpadCommand,
-        ) -> None:
-            doc = (
-                NotebookDocument(list(request.notebook_cells))
-                if request.notebook_cells is not None
-                else None
-            )
-            try:
-                with (
-                    notebook_document_context(doc),
-                    http_request_context(request.request),
-                ):
-                    await self.run_scratchpad(request.code)
-            finally:
-                # Always emit completion so a waiting ``ScratchCellListener``
-                # doesn't block forever if ``run_scratchpad`` raises.
-                broadcast_notification(
-                    CompletedRunNotification(run_id=request.run_id)
-                )
-
-        async def handle_execute_stale(
-            request: ExecuteStaleCellsCommand,
-        ) -> None:
-            with http_request_context(request.request):
-                await self.run_stale_cells()
-            broadcast_notification(CompletedRunNotification())
-
-        async def handle_set_ui_element_value(
-            request: UpdateUIElementCommand,
-        ) -> None:
-            with http_request_context(request.request):
-                await self.set_ui_element_value(request, notify_frontend=False)
-            broadcast_notification(CompletedRunNotification())
-
-        async def handle_pdb_request(request: DebugCellCommand) -> None:
-            await self.pdb_request(request.cell_id)
-
-        async def handle_rename(request: RenameNotebookCommand) -> None:
-            await self.rename_file(request.filename)
-
-        async def handle_receive_model_message(
-            request: ModelCommand,
-        ) -> None:
-            ui_element_id, state = WIDGET_COMM_MANAGER.receive_comm_message(
-                request
-            )
-
-            # Directly handle the UI element update instead of
-            # re-enqueuing it as a separate command. Re-enqueuing
-            # caused Model+UI interleaving that the batch merger
-            # couldn't collapse (different types), leading to every
-            # drag tick getting its own full cell re-execution.
-            if ui_element_id and state:
-                await self.set_ui_element_value(
-                    UpdateUIElementCommand.from_ids_and_values(
-                        [(UIElementId(ui_element_id), state)]
-                    ),
-                    notify_frontend=False,
-                )
-                broadcast_notification(CompletedRunNotification())
-            elif self.state_updates:
-                # Callbacks during message processing (e.g. widget observe
-                # handlers) may have called mo.state setters. Process
-                # those pending state updates now.
-                await self._run_cells(set())
-                broadcast_notification(CompletedRunNotification())
-
-        async def handle_function_call(request: InvokeFunctionCommand) -> None:
-            status, ret, _ = await self.function_call_request(request)
-            LOGGER.debug("Function returned with status %s", status)
-            broadcast_notification(
-                FunctionCallResultNotification(
-                    function_call_id=request.function_call_id,
-                    return_value=ret,
-                    status=status,
-                ),
-            )
-
-        async def handle_set_user_config(
-            request: UpdateUserConfigCommand,
-        ) -> None:
-            self.set_user_config(request)
-
-        async def handle_install_missing_packages(
-            request: InstallPackagesCommand,
-        ) -> None:
-            await self.packages_callbacks.install_missing_packages(request)
-            broadcast_notification(CompletedRunNotification())
-
-        async def handle_stop(request: StopKernelCommand) -> None:
-            del request
-            return
-
-        handler.register(CreateNotebookCommand, handle_instantiate)
-        handler.register(DeleteCellCommand, self.delete_cell)
-        handler.register(ExecuteCellsCommand, handle_execute_multiple)
-        handler.register(SyncGraphCommand, handle_sync_graph)
-        handler.register(ExecuteScratchpadCommand, handle_execute_scratchpad)
-        handler.register(ExecuteStaleCellsCommand, handle_execute_stale)
-        handler.register(InvokeFunctionCommand, handle_function_call)
-        handler.register(
-            InstallPackagesCommand, handle_install_missing_packages
-        )
-        handler.register(DebugCellCommand, handle_pdb_request)
-        handler.register(RenameNotebookCommand, handle_rename)
-        handler.register(UpdateCellConfigCommand, self.set_cell_config)
-        handler.register(UpdateUIElementCommand, handle_set_ui_element_value)
-        handler.register(ModelCommand, handle_receive_model_message)
-        handler.register(UpdateUserConfigCommand, handle_set_user_config)
-        handler.register(StopKernelCommand, handle_stop)
-        # Datasets
-        handler.register(
-            PreviewDatasetColumnCommand,
-            self.datasets_callbacks.preview_dataset_column,
-        )
-        handler.register(
-            PreviewSQLTableCommand, self.datasets_callbacks.preview_sql_table
-        )
-        handler.register(
-            ListSQLTablesCommand,
-            self.datasets_callbacks.preview_sql_table_list,
-        )
-        handler.register(
-            ListSQLSchemasCommand,
-            self.datasets_callbacks.preview_sql_schema_list,
-        )
-        handler.register(
-            ListDataSourceConnectionCommand,
-            self.datasets_callbacks.preview_datasource_connection,
-        )
-        # SQL
-        handler.register(ValidateSQLCommand, self.sql_callbacks.validate_sql)
-        # External storage
-        handler.register(
-            StorageListEntriesCommand,
-            self.external_storage_callbacks.list_entries,
-        )
-        handler.register(
-            StorageDownloadCommand, self.external_storage_callbacks.download
-        )
-        # Secrets
-        handler.register(
-            ListSecretKeysCommand, self.secrets_callbacks.list_secrets
-        )
-        handler.register(
-            RefreshSecretsCommand, self.secrets_callbacks.refresh_secrets
-        )
-        # Cache
-        handler.register(ClearCacheCommand, self.cache_callbacks.clear_cache)
-        handler.register(
-            GetCacheInfoCommand, self.cache_callbacks.get_cache_info
-        )
-
-        return handler
-
     async def handle_message(self, request: CommandMessage) -> None:
         """Handle a message from the client.
 
-        The message is dispatched to the appropriate method based on its type.
-
-        Coarsely locks globals to avoid race conditions with code completion.
+        Coarsely locks globals to avoid race conditions with code completion;
+        acquiring an RLock costs ~100ns so the overhead is negligible.
         """
-        # acquiring and releasing an RLock takes ~100ns; the overhead is
-        # negligible because the lock is coarse.
         LOGGER.debug("Acquiring globals lock to handle request %s", request)
-
         with self.lock_globals():
             LOGGER.debug("Handling control request: %s", request)
-            await self.request_handler.handle(request)
+            await self.router.dispatch(request)
             LOGGER.debug("Handled control request: %s", request)
 
     def get_sql_connection(
@@ -2572,992 +2283,6 @@ class Kernel:
                 "Failed to get engine %s", variable_name, exc_info=e
             )
             return None, str(e)
-
-
-class DatasetCallbacks:
-    def __init__(self, kernel: Kernel):
-        self._kernel = kernel
-
-    def get_engine_catalog(
-        self, variable_name: str
-    ) -> tuple[EngineCatalog[Any] | None, str | None]:
-        """Get engines that support catalog operations.
-        Returns an error if the connection does not support catalog operations."""
-        variable_name = cast(VariableName, variable_name)
-        connection, error = self._kernel.get_sql_connection(variable_name)
-        if error is not None or connection is None:
-            return None, error
-
-        if isinstance(connection, EngineCatalog):
-            return connection, None
-        else:
-            return None, "Connection does not support catalog operations"
-
-    @kernel_tracer.start_as_current_span("preview_dataset_column")
-    async def preview_dataset_column(
-        self, request: PreviewDatasetColumnCommand
-    ) -> None:
-        """Preview a column of a dataset.
-
-        The dataset is loaded, and the column is displayed in the frontend.
-
-        Args:
-            request (PreviewDatasetColumnRequest): The preview request containing:
-                - table_name: Name of the table
-                - column_name: Name of the column
-                - source_type: Type of data source ("duckdb" or "local")
-        """
-        table_name = request.table_name
-        column_name = request.column_name
-        source_type = request.source_type
-
-        try:
-            if source_type == "duckdb":
-                column_preview = get_column_preview_for_duckdb(
-                    fully_qualified_table_name=request.fully_qualified_table_name
-                    or table_name,
-                    column_name=column_name,
-                )
-            elif source_type == "local":
-                dataset = self._kernel.globals[table_name]
-                column_preview = get_column_preview_for_dataframe(
-                    dataset, request
-                )
-            elif source_type == "connection":
-                broadcast_notification(
-                    DataColumnPreviewNotification(
-                        error="Column preview for connection data sources is not supported",
-                        column_name=column_name,
-                        table_name=table_name,
-                    ),
-                )
-                return
-            elif source_type == "catalog":
-                broadcast_notification(
-                    DataColumnPreviewNotification(
-                        error="Column preview for catalog data sources is not supported",
-                        column_name=column_name,
-                        table_name=table_name,
-                    ),
-                )
-                return
-            else:
-                assert_never(source_type)
-
-            if column_preview is None:
-                broadcast_notification(
-                    DataColumnPreviewNotification(
-                        error=f"Column {column_name} not found",
-                        column_name=column_name,
-                        table_name=table_name,
-                    ),
-                )
-            else:
-                broadcast_notification(column_preview)
-        except Exception as e:
-            LOGGER.warning(
-                "Failed to get preview for column %s in table %s",
-                column_name,
-                table_name,
-                exc_info=e,
-            )
-            broadcast_notification(
-                DataColumnPreviewNotification(
-                    error=str(e),
-                    column_name=column_name,
-                    table_name=table_name,
-                ),
-            )
-        return
-
-    @kernel_tracer.start_as_current_span("preview_sql_table")
-    async def preview_sql_table(self, request: PreviewSQLTableCommand) -> None:
-        """Get table details for an SQL table.
-
-        Args:
-            request (PreviewSQLTableRequest): The request containing:
-                - engine: Name of the SQL engine / connection
-                - database: Name of the database
-                - schema: Name of the schema
-                - table_name: Name of the table
-        """
-        variable_name = cast(VariableName, request.engine)
-        database_name = request.database
-        schema_name = request.schema
-        table_name = request.table_name
-        sql_metadata = SQLMetadata(
-            connection=variable_name,
-            database=database_name,
-            schema=schema_name,
-        )
-
-        engine, error = self.get_engine_catalog(variable_name)
-        if error is not None or engine is None:
-            broadcast_notification(
-                SQLTablePreviewNotification(
-                    request_id=request.request_id,
-                    table=None,
-                    error=error,
-                    metadata=sql_metadata,
-                ),
-            )
-            return
-
-        try:
-            table = engine.get_table_details(
-                table_name=table_name,
-                schema_name=schema_name,
-                database_name=database_name,
-            )
-
-            broadcast_notification(
-                SQLTablePreviewNotification(
-                    request_id=request.request_id,
-                    table=table,
-                    metadata=sql_metadata,
-                ),
-            )
-        except Exception as e:
-            LOGGER.exception(
-                "Failed to get preview for table %s in schema %s",
-                table_name,
-                schema_name,
-            )
-            broadcast_notification(
-                SQLTablePreviewNotification(
-                    request_id=request.request_id,
-                    table=None,
-                    error="Failed to get table details: " + str(e),
-                    metadata=sql_metadata,
-                ),
-            )
-
-    @kernel_tracer.start_as_current_span("preview_sql_table_list")
-    async def preview_sql_table_list(
-        self, request: ListSQLTablesCommand
-    ) -> None:
-        """Get a list of tables from an SQL schema
-
-        Args:
-            request (ListSQLTablesRequest): The request containing:
-                - engine: Name of the SQL engine / connection
-                - database: Name of the database
-                - schema: Name of the schema
-        """
-        variable_name = cast(VariableName, request.engine)
-        database_name = request.database
-        schema_name = request.schema
-        sql_metadata = SQLMetadata(
-            connection=variable_name,
-            database=database_name,
-            schema=schema_name,
-        )
-
-        engine, error = self.get_engine_catalog(variable_name)
-        if error is not None or engine is None:
-            broadcast_notification(
-                SQLTableListPreviewNotification(
-                    request_id=request.request_id,
-                    tables=[],
-                    error=error,
-                    metadata=sql_metadata,
-                ),
-            )
-            return
-
-        try:
-            table_list = engine.get_tables_in_schema(
-                schema=schema_name,
-                database=database_name,
-                include_table_details=False,
-            )
-            broadcast_notification(
-                SQLTableListPreviewNotification(
-                    request_id=request.request_id,
-                    tables=table_list,
-                    metadata=sql_metadata,
-                ),
-            )
-        except Exception as e:
-            LOGGER.exception(
-                "Failed to get table list for schema %s", schema_name
-            )
-            broadcast_notification(
-                SQLTableListPreviewNotification(
-                    request_id=request.request_id,
-                    tables=[],
-                    error="Failed to get table list: " + str(e),
-                    metadata=sql_metadata,
-                ),
-            )
-
-    @kernel_tracer.start_as_current_span("preview_sql_schema_list")
-    async def preview_sql_schema_list(
-        self, request: ListSQLSchemasCommand
-    ) -> None:
-        """Get a list of schemas from an SQL database
-
-        Args:
-            request (ListSQLSchemasCommand): The request containing:
-                - engine: Name of the SQL engine / connection
-                - database: Name of the database
-        """
-        variable_name = cast(VariableName, request.engine)
-        database_name = request.database
-        sql_db_metadata = SQLDatabaseMetadata(
-            connection=variable_name,
-            database=database_name,
-        )
-
-        engine, error = self.get_engine_catalog(variable_name)
-        if error is not None or engine is None:
-            broadcast_notification(
-                SQLSchemaListPreviewNotification(
-                    request_id=request.request_id,
-                    schemas=[],
-                    error=error,
-                    metadata=sql_db_metadata,
-                ),
-            )
-            return
-
-        try:
-            schema_list = engine.get_schemas(
-                database=database_name,
-                include_tables=False,
-                include_table_details=False,
-            )
-            broadcast_notification(
-                SQLSchemaListPreviewNotification(
-                    request_id=request.request_id,
-                    schemas=schema_list,
-                    metadata=sql_db_metadata,
-                ),
-            )
-        except Exception as e:
-            LOGGER.exception(
-                "Failed to get schema list for database %s", database_name
-            )
-            broadcast_notification(
-                SQLSchemaListPreviewNotification(
-                    request_id=request.request_id,
-                    schemas=[],
-                    error="Failed to get schema list: " + str(e),
-                    metadata=sql_db_metadata,
-                ),
-            )
-
-    @kernel_tracer.start_as_current_span("preview_datasource_connection")
-    async def preview_datasource_connection(
-        self, request: ListDataSourceConnectionCommand
-    ) -> None:
-        """Broadcasts a datasource connection for a given engine"""
-        variable_name = cast(VariableName, request.engine)
-        engine, error = self.get_engine_catalog(variable_name)
-        if error is not None or engine is None:
-            LOGGER.error("Failed to get engine %s", variable_name)
-            return
-
-        data_source_connection = engine_to_data_source_connection(
-            variable_name, engine
-        )
-
-        LOGGER.debug(
-            "Broadcasting datasource connection for %s engine", variable_name
-        )
-        broadcast_notification(
-            DataSourceConnectionsNotification(
-                connections=[data_source_connection],
-            ),
-        )
-
-
-class ExternalStorageCallbacks:
-    def __init__(self, kernel: Kernel):
-        self._kernel = kernel
-
-    def _get_storage_backend(
-        self, namespace: str
-    ) -> tuple[StorageBackend[Any] | None, str | None]:
-        """Look up a storage backend by variable name from kernel globals.
-
-        Returns (backend, error). If there is error, backend is None.
-        """
-        from marimo._data._external_storage.get_storage import STORAGE_BACKENDS
-
-        variable_name = VariableName(namespace)
-        if variable_name not in self._kernel.globals:
-            return None, f"Variable '{namespace}' not found"
-
-        var = self._kernel.globals[variable_name]
-
-        for backend in STORAGE_BACKENDS:
-            if backend.is_compatible(var):
-                return backend(var, variable_name), None
-        return None, (
-            f"Variable '{namespace}' is not a compatible "
-            "storage backend (expected obstore or fsspec)"
-        )
-
-    _VFILE_TTL_SECONDS = 60
-
-    def _schedule_vfile_cleanup(self, vfile: VirtualFile) -> None:
-        """Best-effort cleanup of a virtual file after a TTL."""
-        import asyncio
-
-        from marimo._runtime.context import get_context
-
-        try:
-            registry = get_context().virtual_file_registry
-            loop = asyncio.get_running_loop()
-            loop.call_later(self._VFILE_TTL_SECONDS, registry.remove, vfile)
-        except Exception:
-            LOGGER.debug(
-                "Could not schedule virtual file cleanup for %s",
-                vfile.filename,
-            )
-
-    @kernel_tracer.start_as_current_span("storage_list_entries")
-    async def list_entries(self, request: StorageListEntriesCommand) -> None:
-        """List storage entries at a given prefix."""
-        backend, error = self._get_storage_backend(request.namespace)
-        if error is not None or backend is None:
-            broadcast_notification(
-                StorageEntriesNotification(
-                    request_id=request.request_id,
-                    entries=[],
-                    namespace=request.namespace,
-                    prefix=request.prefix,
-                    error=error,
-                ),
-            )
-            return
-
-        # list_entries is synchronous, so we wrap it in asyncio.to_thread
-        def list_entries() -> list[StorageEntry]:
-            return backend.list_entries(
-                prefix=request.prefix, limit=request.limit
-            )
-
-        try:
-            entries = await asyncio.to_thread(list_entries)
-            broadcast_notification(
-                StorageEntriesNotification(
-                    request_id=request.request_id,
-                    entries=entries,
-                    namespace=request.namespace,
-                    prefix=request.prefix,
-                ),
-            )
-        except Exception as e:
-            LOGGER.exception(
-                "Failed to list entries for %s at prefix %s",
-                request.namespace,
-                request.prefix,
-            )
-            broadcast_notification(
-                StorageEntriesNotification(
-                    request_id=request.request_id,
-                    entries=[],
-                    namespace=request.namespace,
-                    prefix=request.prefix,
-                    error=f"Failed to list entries: {e}",
-                ),
-            )
-
-    _PREVIEW_MAX_BYTES = 1_000_000  # 1 MB
-
-    @kernel_tracer.start_as_current_span("storage_download")
-    async def download(self, request: StorageDownloadCommand) -> None:
-        """
-        Download a storage entry, preferring a signed URL.
-        If preview is true, downloads the first 1MB of the file and returns a same-origin virtual file URL.
-        """
-        backend, error = self._get_storage_backend(request.namespace)
-        if error is not None or backend is None:
-            broadcast_notification(
-                StorageDownloadReadyNotification(
-                    request_id=request.request_id,
-                    url=None,
-                    filename=None,
-                    error=error,
-                ),
-            )
-            return
-
-        filename = request.path.rsplit("/", 1)[-1] or "download"
-
-        try:
-            if request.preview:
-                await self._download_preview(backend, request, filename)
-            else:
-                await self._download_full(backend, request, filename)
-        except Exception as e:
-            LOGGER.exception(
-                "Failed to download %s from %s",
-                request.path,
-                request.namespace,
-            )
-            broadcast_notification(
-                StorageDownloadReadyNotification(
-                    request_id=request.request_id,
-                    url=None,
-                    filename=None,
-                    error=f"Failed to download: {e}",
-                ),
-            )
-
-    async def _download_full(
-        self,
-        backend: StorageBackend[Any],
-        request: StorageDownloadCommand,
-        filename: str,
-    ) -> None:
-        signed_url = await backend.sign_download_url(request.path)
-        if signed_url is not None:
-            broadcast_notification(
-                StorageDownloadReadyNotification(
-                    request_id=request.request_id,
-                    url=signed_url,
-                    filename=filename,
-                ),
-            )
-            return
-
-        # Signing not supported; fall back to virtual file with TTL
-        result = await backend.download_file(request.path)
-        vfile = VirtualFile.create_and_register(result.file_bytes, result.ext)
-        self._schedule_vfile_cleanup(vfile)
-
-        broadcast_notification(
-            StorageDownloadReadyNotification(
-                request_id=request.request_id,
-                url=vfile.url,
-                filename=result.filename,
-            ),
-        )
-
-    async def _download_preview(
-        self,
-        backend: StorageBackend[Any],
-        request: StorageDownloadCommand,
-        filename: str,
-    ) -> None:
-        """Read partial content and serve via a virtual file with TTL. This is useful to bypass CORS."""
-        data = await backend.read_range(
-            request.path, offset=0, length=self._PREVIEW_MAX_BYTES
-        )
-        _, ext = os.path.splitext(filename)
-        vfile = VirtualFile.create_and_register(data, ext.lstrip(".") or "txt")
-        self._schedule_vfile_cleanup(vfile)
-
-        broadcast_notification(
-            StorageDownloadReadyNotification(
-                request_id=request.request_id,
-                url=vfile.url,
-                filename=filename,
-            ),
-        )
-
-
-class SqlCallbacks:
-    def __init__(self, kernel: Kernel):
-        self._kernel = kernel
-
-    async def _validate_sql_query(self, request: ValidateSQLCommand) -> None:
-        """Validate an SQL query
-
-        This will validate:
-        - the syntax (parsing)
-        - the catalog (table and column names)
-        """
-        request_id = request.request_id
-
-        if request.only_parse:
-            if request.dialect is None:
-                broadcast_notification(
-                    ValidateSQLResultNotification(
-                        request_id=request_id,
-                        error="Dialect is required when only parsing",
-                    ),
-                )
-                return
-
-            # Just parse the query (no DB connection required)
-            parse_result, error = parse_sql(request.query, request.dialect)
-            broadcast_notification(
-                ValidateSQLResultNotification(
-                    request_id=request_id,
-                    parse_result=parse_result,
-                    error=error,
-                ),
-            )
-            return
-
-        # Validate against the database
-        # This can be cheap for in-memory engines (duckdb, sqlite)
-        # But potentially expensive and requires an active connection for remote engines
-        # For failed connections, we should not raise an error
-
-        if request.engine is None:
-            broadcast_notification(
-                ValidateSQLResultNotification(
-                    request_id=request_id,
-                    error="Engine is required for validating catalog",
-                ),
-            )
-            return
-
-        variable_name = cast(VariableName, request.engine)
-        engine: SQLConnectionType | None = None
-        if variable_name == INTERNAL_DUCKDB_ENGINE:
-            engine = DuckDBEngine(connection=None)
-            error = None
-        else:
-            engine, error = self._kernel.get_sql_connection(variable_name)
-
-        if error is not None or engine is None:
-            broadcast_notification(
-                ValidateSQLResultNotification(
-                    request_id=request_id,
-                    error="Failed to get engine " + variable_name,
-                ),
-            )
-            return
-
-        # Get the parse error for linting
-        parse_result, parse_error = parse_sql(request.query, engine.dialect)
-        if parse_error is not None:
-            # We don't want to fail the validation if there is a parse error
-            LOGGER.debug("Parse error: %s", parse_error)
-
-        if not isinstance(engine, QueryEngine):
-            broadcast_notification(
-                ValidateSQLResultNotification(
-                    request_id=request_id,
-                    error=f"Engine {variable_name} does not support catalog validation.",
-                    parse_result=parse_result,
-                ),
-            )
-            return
-
-        _, error_message = engine.execute_in_explain_mode(  # type: ignore
-            request.query, self._kernel.globals
-        )
-        validate_result = SqlCatalogCheckResult(
-            success=error_message is None,
-            error_message=error_message,
-        )
-        broadcast_notification(
-            ValidateSQLResultNotification(
-                request_id=request_id,
-                validate_result=validate_result,
-                parse_result=parse_result,
-                error=None,
-            ),
-        )
-
-    @kernel_tracer.start_as_current_span("validate_sql")
-    async def validate_sql(self, request: ValidateSQLCommand) -> None:
-        """Validate an SQL query"""
-
-        try:
-            await self._validate_sql_query(request)
-        except Exception as e:
-            LOGGER.exception("Failed to validate SQL query")
-            broadcast_notification(
-                ValidateSQLResultNotification(
-                    request_id=request.request_id,
-                    error="Failed to validate SQL query: " + str(e),
-                ),
-            )
-
-
-class SecretsCallbacks:
-    def __init__(self, kernel: Kernel):
-        self._kernel = kernel
-
-    async def list_secrets(self, request: ListSecretKeysCommand) -> None:
-        secrets = get_secret_keys(
-            self._kernel.user_config, self._kernel._original_environ
-        )
-        broadcast_notification(
-            SecretKeysResultNotification(
-                request_id=request.request_id, secrets=secrets
-            ),
-        )
-
-    async def refresh_secrets(self, request: RefreshSecretsCommand) -> None:
-        del request
-        self._kernel.load_dotenv()
-
-
-class PackagesCallbacks:
-    def __init__(self, kernel: Kernel):
-        self._kernel = kernel
-        self.package_manager: PackageManager | None = None
-
-    def update_package_manager(self, package_manager: str) -> None:
-        if (
-            self.package_manager is None
-            or package_manager != self.package_manager.name
-        ):
-            self.package_manager = create_package_manager(package_manager)
-
-            # All marimo notebooks depend on the marimo package; if the
-            # notebook already has marimo as a dependency, or an optional
-            # dependency group with marimo, such as marimo[sql], this is a
-            # NOOP.
-            self._maybe_add_marimo_to_script_metadata()
-
-    def send_missing_packages_alert(self, missing_packages: set[str]) -> None:
-        if self.package_manager is None:
-            return
-
-        packages = sorted(
-            pkg
-            for mod in missing_packages
-            if not self.package_manager.attempted_to_install(
-                pkg := self.package_manager.module_to_package(mod)
-            )
-        )
-        # Deleting a cell can make the set of missing packages smaller
-        broadcast_notification(
-            MissingPackageAlertNotification(
-                packages=packages,
-                isolated=is_python_isolated(),
-            ),
-        )
-
-    def missing_packages_hook(
-        self, ctx: hook_context.OnFinishHookContext
-    ) -> None:
-        module_not_found_errors = [
-            e
-            for e in ctx.exceptions.values()
-            if isinstance(e, (ImportError, ManyModulesNotFoundError))
-        ]
-
-        if len(module_not_found_errors) == 0:
-            return
-
-        if self.package_manager is None:
-            return
-
-        missing_modules: set[str] = set()
-        missing_packages: set[str] = set()
-
-        # Populate missing_modules and missing_packages from the errors
-        for e in module_not_found_errors:
-            if isinstance(e, ManyModulesNotFoundError):
-                # filter out packages that we already attempted to install
-                # to prevent an infinite loop
-                missing_packages.update(
-                    {
-                        pkg
-                        for pkg in e.package_names
-                        if not self.package_manager.attempted_to_install(pkg)
-                    }
-                )
-                continue
-
-            maybe_missing_module = extract_missing_module_from_cause_chain(e)
-            if maybe_missing_module:
-                missing_modules.add(maybe_missing_module)
-                continue
-
-            maybe_missing_packages = (
-                try_extract_packages_from_import_error_message(str(e))
-            )
-            if maybe_missing_packages:
-                missing_packages.update(
-                    {
-                        pkg
-                        for pkg in maybe_missing_packages
-                        if not self.package_manager.attempted_to_install(pkg)
-                    }
-                )
-
-        # Grab missing modules from module registry and from module not found errors
-        missing_modules = (
-            self._kernel.module_registry.missing_modules() | missing_modules
-        )
-
-        # Convert modules to packages
-        for mod in missing_modules:
-            pkg = self.package_manager.module_to_package(mod)
-            # filter out packages that we already attempted to install
-            # to prevent an infinite loop
-            if not self.package_manager.attempted_to_install(pkg):
-                missing_packages.add(pkg)
-
-        if not missing_packages:
-            return
-
-        packages = sorted(missing_packages)
-        if self.package_manager.should_auto_install():
-            version = {pkg: "" for pkg in packages}
-            self._kernel.enqueue_control_request(
-                InstallPackagesCommand(
-                    manager=self.package_manager.name, versions=version
-                )
-            )
-        else:
-            if is_code_mode_request():
-                return
-
-            broadcast_notification(
-                MissingPackageAlertNotification(
-                    packages=packages,
-                    isolated=is_python_isolated(),
-                ),
-            )
-
-    async def install_missing_packages(
-        self, request: InstallPackagesCommand
-    ) -> None:
-        """Attempts to install packages for modules that cannot be imported
-
-        Runs cells affected by successful installation.
-        """
-        assert self.package_manager is not None, (
-            "Cannot install packages without a package manager"
-        )
-        if request.manager != self.package_manager.name:
-            # Swap out the package manager
-            self.package_manager = create_package_manager(request.manager)
-
-        if not self.package_manager.is_manager_installed():
-            self.package_manager.alert_not_installed()
-            return
-
-        resolved_packages: dict[str, PackageRequirement] = {}
-        for pkg in request.versions:
-            pkg_req = PackageRequirement.parse(pkg)
-            resolved_packages[pkg_req.name] = pkg_req
-
-        # Append all other missing packages from the notebook; the missing
-        # package request only contains the packages from the cell the user
-        # executed.
-        for module in self._kernel.module_registry.missing_modules():
-            pkg_req = PackageRequirement.parse(
-                self.package_manager.module_to_package(module)
-            )
-            if pkg_req.name not in resolved_packages:
-                resolved_packages[pkg_req.name] = pkg_req
-
-        # Convert back to list of package strings
-        missing_packages = [
-            str(pkg)
-            for pkg in sorted(resolved_packages.values(), key=lambda p: p.name)
-        ]
-
-        # Frontend shows package names, not module names
-        package_statuses: PackageStatusType = {
-            pkg: "queued" for pkg in missing_packages
-        }
-        broadcast_notification(
-            InstallingPackageAlertNotification(
-                packages=package_statuses, source=request.source
-            )
-        )
-
-        def create_log_callback(pkg: str) -> LogCallback:
-            def log_callback(log_line: str) -> None:
-                broadcast_notification(
-                    InstallingPackageAlertNotification(
-                        packages=package_statuses,
-                        logs={pkg: log_line},
-                        log_status="append",
-                        source=request.source,
-                    ),
-                )
-
-            return log_callback
-
-        for pkg in missing_packages:
-            if self.package_manager.attempted_to_install(package=pkg):
-                # Already attempted an installation; it must have failed.
-                # Skip the installation.
-                continue
-            package_statuses[pkg] = "installing"
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=package_statuses, source=request.source
-                )
-            )
-
-            # Send initial "start" log
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=package_statuses,
-                    logs={pkg: f"Installing {pkg}...\n"},
-                    log_status="start",
-                    source=request.source,
-                )
-            )
-
-            version = request.versions.get(pkg)
-            if await self.package_manager.install(
-                pkg, version=version, log_callback=create_log_callback(pkg)
-            ):
-                package_statuses[pkg] = "installed"
-                # Send final "done" log
-                broadcast_notification(
-                    InstallingPackageAlertNotification(
-                        packages=package_statuses,
-                        logs={pkg: f"Successfully installed {pkg}\n"},
-                        log_status="done",
-                        source=request.source,
-                    ),
-                )
-            else:
-                package_statuses[pkg] = "failed"
-                mod = self.package_manager.package_to_module(pkg)
-                self._kernel.module_registry.excluded_modules.add(mod)
-                # Send final "done" log with error
-                broadcast_notification(
-                    InstallingPackageAlertNotification(
-                        packages=package_statuses,
-                        logs={pkg: f"Failed to install {pkg}\n"},
-                        log_status="done",
-                        source=request.source,
-                    ),
-                )
-
-        installed_modules = [
-            self.package_manager.package_to_module(pkg)
-            for pkg in package_statuses
-            if package_statuses[pkg] == "installed"
-        ]
-
-        # If a package was not installed at cell registration time, it won't
-        # yet be in the script metadata.
-        if self.should_update_script_metadata():
-            self.update_script_metadata(installed_modules)
-
-        # All cells that depend on successfully installed modules are re-run.
-        #
-        # This consists of cells that either statically reference the installed
-        # module, or that previously failed with a ModuleNotFoundError matching
-        # an installed module.
-        cells_to_run = {
-            cid
-            for module in installed_modules
-            if (cid := self._kernel.module_registry.defining_cell(module))
-            is not None
-        }
-
-        for cid, cell in self._kernel.graph.cells.items():
-            if (
-                isinstance(cell.exception, ModuleNotFoundError)
-                and cell.exception.name in installed_modules
-            ):
-                cells_to_run.add(cid)
-
-        if cells_to_run:
-            await self._kernel._if_autorun_then_run_cells(cells_to_run)
-
-    def _maybe_add_marimo_to_script_metadata(self) -> None:
-        if self.should_update_script_metadata():
-            self.update_script_metadata(["marimo"])
-
-    def should_update_script_metadata(self) -> bool:
-        return (
-            GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA is True
-            and self._kernel.app_metadata.filename is not None
-            and self.package_manager is not None
-        )
-
-    def update_script_metadata(
-        self, import_namespaces_to_add: list[str]
-    ) -> None:
-        filename = self._kernel.app_metadata.filename
-
-        if not filename or not self.package_manager:
-            return
-
-        try:
-            LOGGER.debug(
-                "Updating script metadata: %s. Adding namespaces: %s.",
-                filename,
-                import_namespaces_to_add,
-            )
-            self.package_manager.update_notebook_script_metadata(
-                filepath=filename,
-                import_namespaces_to_add=import_namespaces_to_add,
-                upgrade=False,
-            )
-        except Exception as e:
-            LOGGER.error("Failed to add script metadata to notebook: %s", e)
-
-
-class CacheCallbacks:
-    def __init__(self, kernel: Kernel):
-        self._kernel = kernel
-
-    async def clear_cache(self, request: ClearCacheCommand) -> None:
-        del request
-        from marimo._save.cache import CacheContext
-        from marimo._save.loaders import BasePersistenceLoader
-
-        ctx = get_context()
-        saved = 0
-        for obj in ctx.globals.values():
-            if isinstance(obj, CacheContext):
-                if isinstance(obj.loader, BasePersistenceLoader):
-                    obj.loader.clear()
-
-        broadcast_notification(CacheClearedNotification(bytes_freed=saved))
-
-    async def get_cache_info(self, request: GetCacheInfoCommand) -> None:
-        del request
-        from marimo._save.cache import CacheContext
-
-        ctx = get_context()
-        total_hits = 0
-        total_misses = 0
-        total_time = 0
-        disk_to_free = -1  # TODO: sum up disk usage
-        disk_total = -1
-
-        for obj in ctx.globals.values():
-            if isinstance(obj, CacheContext):
-                hits, misses, _, _, time = obj.cache_info()
-                total_hits += hits
-                total_misses += misses
-                total_time += time
-                # d2f, dt = obj.loader.disk_usage()
-        broadcast_notification(
-            CacheInfoNotification(
-                hits=total_hits,
-                misses=total_misses,
-                time=total_time,
-                disk_to_free=disk_to_free,
-                disk_total=disk_total,
-            ),
-        )
-
-
-class RequestHandler:
-    def __init__(self) -> None:
-        self._handlers: dict[
-            type[CommandMessage],
-            Callable[[CommandMessage], Awaitable[None]],
-        ] = {}
-
-    def register(
-        self,
-        request_type: type[CommandMessage],
-        handler: Callable[[Any], Awaitable[None]],
-    ) -> None:
-        self._handlers[request_type] = handler
-
-    async def handle(self, request: CommandMessage) -> None:
-        handler = self._handlers.get(type(request))
-        if handler:
-            return await handler(request)
-        raise ValueError(f"Unknown request {request}")
 
 
 @dataclasses.dataclass
