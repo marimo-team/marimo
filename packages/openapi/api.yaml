@@ -5778,6 +5778,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/MCPStatusResponse'
           description: Get MCP server status
+  /api/ai/models:
+    get:
+      parameters:
+      - description: The base URL of the OpenAI-compatible provider
+        in: query
+        name: base_url
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  models:
+                    items:
+                      type: string
+                    type: array
+                type: object
+          description: List of available models from the provider
   /api/cache/clear:
     post:
       parameters:
