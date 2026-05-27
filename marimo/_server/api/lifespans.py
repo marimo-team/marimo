@@ -25,7 +25,7 @@ from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import initialize_mimetypes
 from marimo._server.uvicorn_utils import close_uvicorn
-from marimo._server.workspace import NewFileKey
+from marimo._server.workspace import NEW_FILE
 from marimo._session.model import SessionMode
 from marimo._utils.asyncio_utils import cancel_and_wait, supervised_task
 from marimo._utils.subprocess import cancel_pending_reaps
@@ -174,7 +174,7 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
             file_name=file.name if file else None,
             url=_startup_url(state),
             run=manager.mode == SessionMode.RUN,
-            new=isinstance(workspace.get_unique_file_key(), NewFileKey),
+            new=workspace.get_unique_file_key() == NEW_FILE,
             network=state.host == "0.0.0.0",
             startup_tip=state.startup_tip,
         )
@@ -217,7 +217,7 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
 async def server_registry(app: Starlette) -> AsyncIterator[None]:
     """Register this server in the local registry for discovery.
 
-    Only servers started **without** an auth token (``--no-token``)
+    Only servers started **without** an auth token (`--no-token`)
     are registered.  This ensures only servers that have explicitly
     opted into relaxed local access are discoverable.
     """

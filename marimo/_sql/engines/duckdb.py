@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     import duckdb
+    import polars as pl
 
 # Internal engine names
 INTERNAL_DUCKDB_ENGINE = cast(VariableName, "__marimo_duckdb")
@@ -83,11 +84,29 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
 
         sql_output_format = self.sql_output_format()
 
+        def to_polars() -> pl.DataFrame:
+            import polars as pl
+
+            # Use the Arrow PyCapsule interface (pl.DataFrame(relation))
+            # instead of relation.pl() so that pyarrow is not required.
+            return pl.DataFrame(relation)
+
+        def to_lazy_polars() -> pl.LazyFrame:
+            # `lazy=True` requires DuckDB >= 1.4 and pyarrow. Fall back to the
+            # Arrow PyCapsule path on older DuckDB or when pyarrow is missing.
+            # batch_size of 100k bounds peak memory at ~10x less than DuckDB's
+            # 1M default while keeping per-batch overhead negligible.
+            try:
+                return relation.pl(batch_size=100_000, lazy=True)
+            except (TypeError, ImportError, ModuleNotFoundError):
+                return to_polars().lazy()
+
         return convert_to_output(
             sql_output_format=sql_output_format,
-            to_polars=lambda: relation.pl(),
+            to_polars=to_polars,
             to_pandas=lambda: relation.df(),
             to_native=lambda: relation,
+            to_lazy_polars=to_lazy_polars,
         )
 
     @staticmethod

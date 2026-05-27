@@ -5,7 +5,7 @@ import type {
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataTable } from "../data-table";
@@ -249,5 +249,56 @@ describe("DataTable", () => {
     // Other rows should still show "pending"
     expect(within(updatedRows[2]).getByText("pending")).toBeTruthy();
     expect(within(updatedRows[3]).getByText("pending")).toBeTruthy();
+  });
+});
+
+describe("DataTable — all-hidden banner", () => {
+  interface Row {
+    a: number;
+    b: number;
+  }
+
+  const columns: ColumnDef<Row>[] = [
+    { accessorKey: "a", header: "A" },
+    { accessorKey: "b", header: "B" },
+  ];
+  const data: Row[] = [{ a: 1, b: 2 }];
+
+  const renderWithVisibility = (hiddenColumns: string[]) =>
+    render(
+      <TooltipProvider>
+        <DataTable
+          data={data}
+          columns={columns}
+          selection={null}
+          totalRows={1}
+          totalColumns={2}
+          pagination={false}
+          hiddenColumns={hiddenColumns}
+        />
+      </TooltipProvider>,
+    );
+
+  it("renders banner when every user column is hidden", () => {
+    renderWithVisibility(["a", "b"]);
+    expect(screen.getByText(/All columns are hidden/i)).toBeInTheDocument();
+    expect(screen.getByText(/Unhide all/i)).toBeInTheDocument();
+  });
+
+  it("does not render the banner when at least one column is visible", () => {
+    renderWithVisibility(["a"]);
+    expect(screen.queryByText(/All columns are hidden/i)).toBeNull();
+  });
+
+  it("does not render the banner when no columns are hidden", () => {
+    renderWithVisibility([]);
+    expect(screen.queryByText(/All columns are hidden/i)).toBeNull();
+  });
+
+  it("'Unhide all' restores columns hidden via the Python kwarg", () => {
+    renderWithVisibility(["a", "b"]);
+    expect(screen.getByText(/All columns are hidden/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Unhide all/i));
+    expect(screen.queryByText(/All columns are hidden/i)).toBeNull();
   });
 });

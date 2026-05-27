@@ -71,7 +71,6 @@ from marimo._runtime.context.types import (
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.hashable import is_hashable
-from marimo._utils.memoize import memoize_last_value
 from marimo._utils.methods import getcallable
 from marimo._utils.narwhals_utils import (
     can_narwhalify_lazyframe,
@@ -166,7 +165,10 @@ class SearchTableResponse:
     # Unformatted data mirroring the same shape/page as `data`,
     # provided when format_mapping is applied.
     raw_data: str | None = None
-    # JSON-serialized size of the currently-rendered (searched/filtered) data.
+
+
+@dataclass(frozen=True)
+class GetSizeBytesResponse:
     size_bytes: int | None = None
 
 
@@ -319,10 +321,7 @@ class table(
 
     1. a list of dicts, with one dict for each row, keyed by column names;
     2. a list of values, representing a table with a single column;
-    3. a Pandas dataframe; or
-    4. a Polars dataframe; or
-    5. an Ibis dataframe; or
-    6. a PyArrow table.
+    3. a dataframe (e.g., Polars, Pandas, PyArrow, Ibis, DuckDB).
 
     Examples:
         Create a table from a list of dicts, one for each row:
@@ -460,6 +459,8 @@ class table(
             column names to formatting strings or functions.
         freeze_columns_left (Sequence[str], optional): List of column names to freeze on the left.
         freeze_columns_right (Sequence[str], optional): List of column names to freeze on the right.
+        hidden_columns (Sequence[str], optional): List of column names to hide. Mutually exclusive with `visible_columns`.
+        visible_columns (Sequence[str], optional): List of column names to show. All other columns will be hidden. Mutually exclusive with `hidden_columns`.
         text_justify_columns (Dict[str, Literal["left", "center", "right"]], optional):
             Dictionary of column names to text justification options: left, center, right.
         wrapped_columns (List[str], optional): List of column names to wrap.
@@ -492,7 +493,7 @@ class table(
         preload: bool = False,
     ) -> table:
         """
-        Create a table from a Polars LazyFrame.
+        Create a table from a lazy dataframe (e.g., Polars LazyFrame, Ibis Table, DuckDB Relation).
 
         This won't load the data into memory until requested by the user.
         Once requested, only the first 10 rows will be loaded.
@@ -558,6 +559,8 @@ class table(
         text_justify_columns: dict[str, Literal["left", "center", "right"]]
         | None = None,
         wrapped_columns: list[str] | None = None,
+        hidden_columns: Sequence[str] | None = None,
+        visible_columns: Sequence[str] | None = None,
         header_tooltip: dict[str, str] | None = None,
         show_download: bool = True,
         max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
@@ -759,6 +762,7 @@ class table(
         search_result_raw_data: str | None = None
         field_types: FieldTypes | None = None
         num_columns = 0
+        row_headers = self._manager.get_row_headers()
 
         if not _internal_lazy:
             # Search first page
@@ -779,8 +783,18 @@ class table(
             # Validate column configurations
             column_names_set = set(self._manager.get_column_names())
             num_columns = len(column_names_set)
+            row_header_names_set = {name for name, _ in row_headers}
             _validate_frozen_columns(
-                freeze_columns_left, freeze_columns_right, column_names_set
+                freeze_columns_left,
+                freeze_columns_right,
+                column_names_set,
+                row_header_names_set,
+            )
+            _validate_column_visibility(
+                hidden_columns,
+                visible_columns,
+                column_names_set,
+                row_header_names_set,
             )
             _validate_column_formatting(
                 text_justify_columns, wrapped_columns, column_names_set
@@ -788,6 +802,19 @@ class table(
             _validate_header_tooltip(header_tooltip, column_names_set)
 
             field_types = self._manager.get_field_types()
+
+        hidden_columns_list: list[str] = []
+        if hidden_columns:
+            hidden_columns_list = list(
+                dict.fromkeys(hidden_columns)
+            )  # Remove duplicates while preserving order
+        elif visible_columns:
+            visible_columns_set = set(visible_columns)
+            hidden_columns_list = [
+                col
+                for col in self._manager.get_column_names()
+                if col not in visible_columns_set
+            ]
 
         super().__init__(
             component_name=table._name,
@@ -797,11 +824,6 @@ class table(
                 "data": search_result_data,
                 "raw-data": search_result_raw_data,
                 "total-rows": total_rows,
-                "size-bytes": (
-                    self._get_json_size_bytes(self._manager)
-                    if not _internal_lazy
-                    else None
-                ),
                 "total-columns": num_columns,
                 "max-columns": max_columns_arg,
                 "banner-text": self._get_banner_text(),
@@ -819,9 +841,10 @@ class table(
                 "show-page-size-selector": show_page_size_selector,
                 "show-column-explorer": show_column_explorer,
                 "show-chart-builder": show_chart_builder,
-                "row-headers": self._manager.get_row_headers(),
+                "row-headers": row_headers,
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,
+                "hidden-columns": hidden_columns_list,
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
                 "header-tooltip": header_tooltip,
@@ -871,6 +894,11 @@ class table(
                     name="preview_column",
                     arg_cls=PreviewColumnArgs,
                     function=self._preview_column,
+                ),
+                Function(
+                    name="get_size_bytes",
+                    arg_cls=EmptyArgs,
+                    function=self._get_size_bytes,
                 ),
             ),
         )
@@ -924,19 +952,10 @@ class table(
                 )
             return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
 
-    @memoize_last_value
-    def _get_json_size_bytes(self, manager: TableManager[Any]) -> int | None:
-        """Size in bytes of the manager's JSON serialization.
-
-        JSON is the largest format we export, so this is a conservative size estimate:
-        if the JSON fits under a host's download limit, CSV and Parquet will
-        too. Memoized on manager identity — recomputed when filters/search
-        produce a new ``_searched_manager``.
-        """
-        try:
-            return len(manager.to_json(strict_json=True))
-        except Exception:
-            return None
+    def _get_size_bytes(self, args: EmptyArgs) -> GetSizeBytesResponse:
+        del args
+        manager = self._searched_manager or self._manager
+        return GetSizeBytesResponse(size_bytes=manager.estimate_size_bytes())
 
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the table data in the specified format.
@@ -949,24 +968,24 @@ class table(
 
         When a requested format requires a package that isn't installed
         (e.g., Parquet without pyarrow/pandas/polars), returns a
-        ``DownloadAsResponse`` with ``error`` and ``missing_packages``
+        `DownloadAsResponse` with `error` and `missing_packages`
         populated instead of raising. The frontend uses this to prompt the
         user to install the dependency and retry.
 
         Args:
             args (DownloadAsArgs): The requested download format. Must be
-                one of ``'csv'``, ``'json'``, or ``'parquet'``.
+                one of `'csv'`, `'json'`, or `'parquet'`.
 
         Returns:
-            DownloadAsResponse: Either a success response with ``url`` and
-                ``filename`` populated, or a missing-packages response with
-                ``error`` and ``missing_packages`` populated when the
+            DownloadAsResponse: Either a success response with `url` and
+                `filename` populated, or a missing-packages response with
+                `error` and `missing_packages` populated when the
                 format's dependencies are not available.
 
         Raises:
             NotImplementedError: If the current selection resolves to
-                something other than a ``TableManager`` (e.g., a raw list
-                of ``TableCell`` from cell-selection modes).
+                something other than a `TableManager` (e.g., a raw list
+                of `TableCell` from cell-selection modes).
         """
         # Short-circuit Parquet when no parquet-capable lib is importable.
         if args.format == "parquet":
@@ -1403,7 +1422,7 @@ class table(
         """Get the row IDs for a page of data.
 
         When all rows are present (no filter applied, e.g. sort-only),
-        this reads actual ``_marimo_row_id`` values from the searched
+        this reads actual `_marimo_row_id` values from the searched
         manager so that style/hover dict keys match what the frontend
         uses for lookup -- regardless of sort column or direction.
 
@@ -1641,7 +1660,6 @@ class table(
                     offset, args.page_size, total_rows
                 ),
                 raw_data=raw_data,
-                size_bytes=self._get_json_size_bytes(self._manager),
             )
 
         filter_function = (
@@ -1672,7 +1690,6 @@ class table(
                 offset, args.page_size, total_rows
             ),
             raw_data=raw_data,
-            size_bytes=self._get_json_size_bytes(result),
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:
@@ -1751,12 +1768,16 @@ def _validate_frozen_columns(
     freeze_columns_left: Sequence[str] | None,
     freeze_columns_right: Sequence[str] | None,
     column_names_set: set[str],
+    row_header_names_set: set[str],
 ) -> None:
     """Validate frozen column configurations.
 
     Validates that:
     1. The same column is not frozen on both sides
-    2. All frozen columns exist in the table
+    2. All left-frozen columns exist as table columns or row-header names
+    3. Right-frozen columns exist as table columns; row-header names are
+       rejected with a friendly error since row headers always render on
+       the left
     """
 
     freeze_columns_left_set = (
@@ -1766,24 +1787,81 @@ def _validate_frozen_columns(
         set(freeze_columns_right) if freeze_columns_right else None
     )
 
-    # Convert sequences to sets for O(1) lookups
     if freeze_columns_left_set and freeze_columns_right_set:
         if not freeze_columns_left_set.isdisjoint(freeze_columns_right_set):
             raise ValueError("The same column cannot be frozen on both sides.")
 
-    # Check all frozen columns exist
     if freeze_columns_left_set:
-        invalid = freeze_columns_left_set - column_names_set
+        # Unnamed row headers (e.g. a default pandas index) have no stable
+        # client-side id, so we can't freeze them. Surface this directly
+        # rather than letting the frontend silently no-op.
+        if "" in freeze_columns_left_set and "" in row_header_names_set:
+            raise ValueError(
+                "Cannot freeze an unnamed row index. "
+                "Set `df.index.name = '...'` (or `df.index.names = [...]` "
+                "for a MultiIndex) and pass that name to freeze_columns_left."
+            )
+        invalid = (
+            freeze_columns_left_set - column_names_set - row_header_names_set
+        )
         if invalid:
             raise ValueError(
                 f"Column '{next(iter(invalid))}' not found in table."
             )
 
     if freeze_columns_right_set:
+        row_header_on_right = freeze_columns_right_set & row_header_names_set
+        if row_header_on_right:
+            name = next(iter(row_header_on_right))
+            raise ValueError(
+                f"Row index '{name}' cannot be frozen on the right; "
+                "row headers always render on the left. "
+                "Use freeze_columns_left instead."
+            )
         invalid = freeze_columns_right_set - column_names_set
         if invalid:
             raise ValueError(
                 f"Column '{next(iter(invalid))}' not found in table."
+            )
+
+
+def _validate_column_visibility(
+    hidden_columns: Sequence[str] | None,
+    visible_columns: Sequence[str] | None,
+    column_names_set: set[str],
+    row_header_names_set: set[str],
+) -> None:
+    """Validate column visibility configurations.
+
+    Validates that:
+    1. Only one of visible_columns and hidden_columns is specified
+    2. All specified columns exist in the table
+    3. Row header columns (indexes) cannot be hidden
+    """
+    if visible_columns is not None and hidden_columns is not None:
+        raise ValueError(
+            "hidden_columns and visible_columns are mutually exclusive."
+        )
+
+    visible_columns_set = set(visible_columns) if visible_columns else None
+    hidden_columns_set = set(hidden_columns) if hidden_columns else None
+
+    for columns_set in [visible_columns_set, hidden_columns_set]:
+        if not columns_set:
+            continue
+
+        row_header_overlap = columns_set & row_header_names_set
+        if row_header_overlap:
+            name = next(iter(row_header_overlap))
+            raise ValueError(
+                f"Cannot control visibility for row index '{name}'; "
+                "Row indices are always visible."
+            )
+
+        invalid_columns = columns_set - column_names_set
+        if invalid_columns:
+            raise ValueError(
+                f"Column '{next(iter(invalid_columns))}' not found in table."
             )
 
 

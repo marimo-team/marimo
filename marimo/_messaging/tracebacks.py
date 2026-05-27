@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import traceback as tb
 
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.context import is_code_mode_request
@@ -78,6 +79,37 @@ def write_traceback(traceback: str) -> None:
         else:
             # Fallback to regular stderr if no context is available
             sys.stderr.write(traceback)
+
+
+def format_exception_message(exc: BaseException) -> str:
+    """Return an exception's message, including Python's helpful hints.
+
+    `str(exc)` yields only the bare message (`exc.args[0]`). Python's
+    "Did you mean: ..." suggestions for `NameError`, `AttributeError`,
+    `ImportError`, etc. are computed by the `traceback` module from the
+    exception's frame, so they are dropped by `str()`. Format via
+    `TracebackException` to keep them, while stripping the leading
+    "ExceptionType: " prefix (marimo displays the exception type separately).
+
+    Falls back to `str(exc)` when the formatted output isn't a single
+    "ExceptionType: message" line (e.g. `SyntaxError`, whose formatting
+    spans multiple lines, or an exception with no message).
+    """
+    base = str(exc)
+    try:
+        formatted = "".join(
+            tb.TracebackException.from_exception(exc).format_exception_only()
+        ).strip()
+    except Exception:
+        return base
+    # `format_exception_only` emits a single "{ExceptionType}: {message}"
+    # line, with any "Did you mean: ..." hint appended to the message.
+    # Partition on the first ": " to drop the type prefix; an exception
+    # type name never contains ": ", so a colon in the message is kept.
+    type_str, sep, rest = formatted.partition(": ")
+    if sep and "\n" not in type_str:
+        return rest
+    return base
 
 
 def is_code_highlighting(value: str) -> bool:

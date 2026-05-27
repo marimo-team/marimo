@@ -30,6 +30,14 @@ repos:
       - id: typos
         pass_filenames: false
 
+  - repo: local
+    hooks:
+      - id: no-double-backticks-in-docstrings
+        name: no double backticks in docstrings
+        entry: python scripts/check_docstring_backticks.py
+        language: python
+        types: [python]
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.10
     hooks:
@@ -54,3 +62,12 @@ repos:
         args: [--write, --config, .oxfmtrc.json]
         files: ^(frontend/src/|packages/)
         "types_or": [javascript, jsx, ts, tsx]
+
+  - repo: local
+    hooks:
+      - id: unique-test-filenames
+        name: Enforce unique test filenames
+        entry: python scripts/check_test_filenames.py
+        language: system
+        pass_filenames: false
+        files: ^tests/.*\.py$

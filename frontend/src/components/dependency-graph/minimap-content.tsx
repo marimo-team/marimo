@@ -21,6 +21,7 @@ import { extractCellPreview } from "./utils/cell-preview";
 
 interface MinimapCellProps {
   cellId: CellId;
+  index: number;
   cellPositions: Readonly<Record<CellId, number>>;
 }
 
@@ -67,7 +68,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       className={cn(
         "group bg-transparent text-left w-full flex relative justify-between items-center",
         "border-none rounded cursor-pointer",
-        "h-[21px] pl-[51px] font-inherit",
+        "h-[21px] pl-[65px] font-inherit",
         isSelected
           ? "text-primary-foreground"
           : "text-(--gray-8) hover:text-(--gray-9)",
@@ -78,6 +79,12 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       // transitions from current cell -> null -> new cell.
       onMouseDown={(e) => e.preventDefault()}
     >
+      <span
+        className="absolute left-0 top-0 h-full w-5 flex items-center justify-end pr-1.5 text-[10px] tabular-nums pointer-events-none select-none text-(--gray-9)"
+        aria-hidden="true"
+      >
+        {props.index}
+      </span>
       <div
         className={cn(
           "group-hover:bg-(--gray-2) flex h-full w-full px-0.5 items-center rounded",
@@ -99,7 +106,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       </div>
       <svg
         className={cn(
-          "absolute overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)+17px)] pointer-events-none",
+          "absolute overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)+31px)] pointer-events-none",
           isSelected ? "z-[1]" : "z-0",
           getTextColor({ cell, selectedCell }),
         )}
@@ -404,7 +411,11 @@ export const MinimapContent: React.FC = () => {
                   aria-hidden="true"
                 />
               )}
-              <MinimapCell cellId={cellId} cellPositions={cellPositions} />
+              <MinimapCell
+                cellId={cellId}
+                index={idx}
+                cellPositions={cellPositions}
+              />
             </React.Fragment>
           );
         })}

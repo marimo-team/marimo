@@ -1012,7 +1012,7 @@ def test_show_column_summaries_modes():
 class TestTableBinValues:
     @pytest.mark.parametrize(
         "df",
-        create_dataframes({"a": [None] * 20}, exclude=["duckdb"]),
+        create_dataframes({"a": [None] * 20}),
     )
     def test_bin_values_all_nulls(self, df: Any) -> None:
         table = ui.table(df)
@@ -1110,6 +1110,170 @@ def test_table_with_frozen_columns() -> None:
     )
     assert table._component_args["freeze-columns-left"] == ["a", "b"]
     assert table._component_args["freeze-columns-right"] == ["d", "e"]
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+class TestFrozenRowHeaders:
+    def test_freeze_unnamed_pandas_index_rejected(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame({"a": [1, 2, 3]}, index=["x", "y", "z"])
+        with pytest.raises(ValueError, match="unnamed row index"):
+            ui.table(df, freeze_columns_left=[""])
+
+    def test_freeze_named_pandas_index(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            {"a": [1, 2]}, index=pd.Index(["x", "y"], name="foo")
+        )
+        table = ui.table(df, freeze_columns_left=["foo"])
+        assert table._component_args["freeze-columns-left"] == ["foo"]
+
+    def test_freeze_multiindex_levels(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            {"v": [1, 2, 3, 4]},
+            index=pd.MultiIndex.from_tuples(
+                [("a", 1), ("a", 2), ("b", 1), ("b", 2)], names=["g", "n"]
+            ),
+        )
+        table = ui.table(df, freeze_columns_left=["g", "n"])
+        assert table._component_args["freeze-columns-left"] == ["g", "n"]
+
+    def test_freeze_collision_suffixed_index(self) -> None:
+        import pandas as pd
+
+        # Index name 'a' collides with a column named 'a'; the row-header
+        # name is suffixed to '_index' (see _resolve_index_name).
+        df = pd.DataFrame({"a": [1, 2]}, index=pd.Index(["x", "y"], name="a"))
+        table = ui.table(df, freeze_columns_left=["a_index"])
+        assert table._component_args["freeze-columns-left"] == ["a_index"]
+
+    def test_freeze_index_and_column_mixed(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            {"a": [1, 2], "b": [3, 4]},
+            index=pd.Index(["x", "y"], name="foo"),
+        )
+        table = ui.table(
+            df,
+            freeze_columns_left=["foo", "a"],
+            freeze_columns_right=["b"],
+        )
+        assert table._component_args["freeze-columns-left"] == ["foo", "a"]
+        assert table._component_args["freeze-columns-right"] == ["b"]
+
+    def test_freeze_row_header_on_right_raises(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            {"a": [1, 2]}, index=pd.Index(["x", "y"], name="foo")
+        )
+        with pytest.raises(
+            ValueError, match="row headers always render on the left"
+        ):
+            ui.table(df, freeze_columns_right=["foo"])
+
+    def test_freeze_unknown_column_still_raises(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            {"a": [1, 2]}, index=pd.Index(["x", "y"], name="foo")
+        )
+        with pytest.raises(ValueError, match="not found in table"):
+            ui.table(df, freeze_columns_left=["nonexistent"])
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_freeze_columns_polars_regression() -> None:
+    import polars as pl
+
+    df = pl.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+    table = ui.table(df, freeze_columns_left=["a"])
+    assert table._component_args["freeze-columns-left"] == ["a"]
+
+
+def test_table_with_hidden_columns() -> None:
+    data = {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}
+    table = ui.table(data, hidden_columns=["b"])
+    assert table._component_args["hidden-columns"] == ["b"]
+
+
+def test_table_with_visible_columns_normalizes_to_hidden() -> None:
+    data = {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}
+    table = ui.table(data, visible_columns=["a"])
+    assert sorted(table._component_args["hidden-columns"]) == ["b", "c"]
+
+
+def test_table_hidden_columns_empty_list() -> None:
+    data = {"a": [1, 2, 3]}
+    table = ui.table(data, hidden_columns=[])
+    assert table._component_args["hidden-columns"] == []
+
+
+def test_table_no_visibility_kwargs_emits_empty_list() -> None:
+    data = {"a": [1, 2, 3]}
+    table = ui.table(data)
+    assert table._component_args["hidden-columns"] == []
+
+
+def test_table_hidden_and_visible_columns_mutually_exclusive() -> None:
+    data = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        ui.table(data, hidden_columns=["a"], visible_columns=["b"])
+
+
+def test_table_hidden_columns_unknown_column_raises() -> None:
+    data = {"a": [1, 2, 3]}
+    with pytest.raises(ValueError, match="not found in table"):
+        ui.table(data, hidden_columns=["xyz"])
+
+
+def test_table_visible_columns_unknown_column_raises() -> None:
+    data = {"a": [1, 2, 3]}
+    with pytest.raises(ValueError, match="not found in table"):
+        ui.table(data, visible_columns=["xyz"])
+
+
+def test_table_hidden_columns_deduplicates() -> None:
+    data = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    table = ui.table(data, hidden_columns=["a", "a"])
+    assert table._component_args["hidden-columns"] == ["a"]
+
+
+def test_table_hidden_columns_does_not_affect_value() -> None:
+    data = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    table = ui.table(data, hidden_columns=["b"], selection="single")
+    payload_data = table._component_args["data"]
+    if isinstance(payload_data, str):
+        rows = json.loads(payload_data)
+    else:
+        rows = payload_data
+    assert all("b" in row for row in rows)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_table_hidden_columns_row_header_raises() -> None:
+    import pandas as pd
+
+    name = "index"
+    df = pd.DataFrame(
+        {"a": [1, 2, 3]}, index=pd.Index(["x", "y", "z"], name=name)
+    )
+    with pytest.raises(
+        ValueError,
+        match=f"Cannot control visibility for row index '{name}'",
+    ):
+        ui.table(df, hidden_columns=[name])
 
 
 @pytest.mark.parametrize(
@@ -1370,70 +1534,55 @@ def test_download_as(df: Any) -> None:
         assert selected_nw["cities"][0] == "New York"
 
 
-def test_json_size_bytes_matches_payload() -> None:
-    data = [{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]
-    table = ui.table(data)
-    expected = len(table._manager.to_json(strict_json=True))
-    assert table._get_json_size_bytes(table._manager) == expected
-    assert expected > 0
-
-
-def test_json_size_bytes_cached_per_manager_identity() -> None:
-    table = ui.table([{"a": 1}, {"a": 2}])
-    # The constructor already primed the cache with table._manager; verify
-    # that asking again does not re-serialize, while a fresh manager does.
-    call_count = 0
-    original_to_json = type(table._manager).to_json
-
-    def counting_to_json(self: Any, **kwargs: Any) -> Any:
-        nonlocal call_count
-        call_count += 1
-        return original_to_json(self, **kwargs)
-
-    other_manager = ui.table([{"a": 3, "b": 4}])._manager
-    # other_manager's construction primed the cache with a different key,
-    # so the next call on table._manager will be a fresh miss.
-    with patch.object(type(table._manager), "to_json", counting_to_json):
-        table._get_json_size_bytes(table._manager)
-        table._get_json_size_bytes(table._manager)
-        assert call_count == 1, (
-            "second call with same manager identity should hit cache"
-        )
-        table._get_json_size_bytes(other_manager)
-        assert call_count == 2, "different manager identity should recompute"
-
-
-def test_json_size_bytes_fails_open() -> None:
-    table = ui.table([{"a": 1}])
-
-    class _Boom:
-        def to_json(self, **_: Any) -> str:
-            raise RuntimeError("boom")
-
-    assert table._get_json_size_bytes(_Boom()) is None  # type: ignore[arg-type]
-
-
-def test_render_args_carry_size_bytes() -> None:
-    table = ui.table([{"a": 1}, {"a": 2}])
-    args = table._component_args  # type: ignore[attr-defined]
-    assert args["size-bytes"] == len(table._manager.to_json(strict_json=True))
-
-
-def test_search_response_carries_size_bytes() -> None:
-    data = [{"a": i} for i in range(10)]
-    table = ui.table(data)
-    # Unfiltered branch — should report _manager's size.
-    unfiltered = table._search(SearchTableArgs(page_size=5, page_number=0))
-    assert unfiltered.size_bytes == len(
-        table._manager.to_json(strict_json=True)
+def test_get_size_bytes_rpc_extrapolates_from_sample() -> None:
+    from marimo._plugins.ui._impl.table import GetSizeBytesResponse
+    from marimo._plugins.ui._impl.tables.table_manager import (
+        SIZE_ESTIMATE_SAMPLE_ROWS,
     )
-    # Filtered branch — should report the searched manager's size, which
-    # differs from the full manager.
-    filtered = table._search(
-        SearchTableArgs(query="1", page_size=5, page_number=0)
-    )
-    assert filtered.size_bytes is not None
-    assert filtered.size_bytes < unfiltered.size_bytes
+
+    small = ui.table([{"a": i} for i in range(SIZE_ESTIMATE_SAMPLE_ROWS)])
+    large = ui.table([{"a": i} for i in range(SIZE_ESTIMATE_SAMPLE_ROWS * 10)])
+
+    resp_small = small._get_size_bytes(EmptyArgs())
+    resp_large = large._get_size_bytes(EmptyArgs())
+
+    assert isinstance(resp_small, GetSizeBytesResponse)
+    assert isinstance(resp_large, GetSizeBytesResponse)
+    assert resp_small.size_bytes is not None
+    assert resp_large.size_bytes is not None
+    ratio = resp_large.size_bytes / resp_small.size_bytes
+    assert 7.5 < ratio < 12.5, f"unexpected ratio {ratio}"
+
+
+def test_get_size_bytes_rpc_uses_searched_manager() -> None:
+    data = [{"a": i, "b": "match" if i < 5 else "miss"} for i in range(50)]
+    t = ui.table(data)
+
+    full = t._get_size_bytes(EmptyArgs()).size_bytes
+    t._search(SearchTableArgs(query="match", page_size=5, page_number=0))
+    filtered = t._get_size_bytes(EmptyArgs()).size_bytes
+
+    assert full is not None
+    assert filtered is not None
+    assert filtered < full
+
+
+def test_get_size_bytes_rpc_returns_none_on_serialization_failure() -> None:
+    from unittest.mock import patch
+
+    from marimo._plugins.ui._impl.table import GetSizeBytesResponse
+
+    t = ui.table([{"a": 1}])
+    manager_cls = type(t._manager)
+
+    def _raise(*_args: object, **_kwargs: object) -> str:
+        raise RuntimeError("boom")
+
+    with patch.object(manager_cls, "to_json_str", _raise):
+        resp = t._get_size_bytes(EmptyArgs())
+
+    assert isinstance(resp, GetSizeBytesResponse)
+    assert resp.size_bytes is None
 
 
 def test_download_as_ignores_cell_selection() -> None:

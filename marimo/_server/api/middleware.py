@@ -41,6 +41,7 @@ from marimo._server.codes import WebSocketCodes
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._session.model import SessionMode
 from marimo._tracer import server_tracer
+from marimo._utils.asyncio_utils import supervised_task
 from marimo._utils.print import print_tabbed
 
 if TYPE_CHECKING:
@@ -700,8 +701,9 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
         self.app_state.timeout_tracker = time.time()
         self.timeout_duration_minutes = timeout_duration_minutes
 
-        # Hold a strong reference so the monitor task isn't GC'd.
-        self._monitor_task = asyncio.create_task(self.monitor())
+        self._monitor_task = supervised_task(
+            self.monitor(), name="timeout.monitor"
+        )
 
     async def __call__(
         self, scope: Scope, receive: Receive, send: Send

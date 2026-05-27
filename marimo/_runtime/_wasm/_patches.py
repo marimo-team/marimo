@@ -25,8 +25,8 @@ WrapperFactory = Callable[[Callable[..., Any]], Callable[..., Any]]
 class WasmPatchSet:
     """Collects WASM-only monkey-patches with a single unpatch handle.
 
-    `patch` replaces ``owner.attr`` with a wrapper: calls original; on
-    ``catch`` exception, runs ``fallback(original, *args, **kwargs)``. If the
+    `patch` replaces `owner.attr` with a wrapper: calls original; on
+    `catch` exception, runs `fallback(original, *args, **kwargs)`. If the
     fallback also raises, re-raises the original with the fallback chained so
     users see the real underlying error.
     """
@@ -43,9 +43,9 @@ class WasmPatchSet:
         *,
         catch: tuple[type[BaseException], ...] = (NameError, Exception),
     ) -> None:
-        """Register a patch on ``owner.attr``.
+        """Register a patch on `owner.attr`.
 
-        No-op outside pyodide or if ``attr`` is missing (e.g. renamed across
+        No-op outside pyodide or if `attr` is missing (e.g. renamed across
         polars versions).
         """
 
@@ -79,9 +79,9 @@ class WasmPatchSet:
         attr: str,
         wrapper_factory: WrapperFactory,
     ) -> None:
-        """Replace ``owner.attr`` with a WASM-only wrapper.
+        """Replace `owner.attr` with a WASM-only wrapper.
 
-        Unlike ``patch``, this does not call the original first. Use this for
+        Unlike `patch`, this does not call the original first. Use this for
         APIs where an original call can have side effects before failing.
         """
         if not self._active:

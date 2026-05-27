@@ -35,6 +35,7 @@ from marimo._messaging.notification_utils import (
 )
 from marimo._messaging.tracebacks import (
     _highlight_traceback,
+    format_exception_message,
     write_traceback,
 )
 from marimo._messaging.variables import create_variable_value
@@ -408,7 +409,10 @@ def _broadcast_outputs(
         # don't clear console because this cell was running and
         # its console outputs are not stale
         exception_type = type(run_result.exception).__name__
-        msg = str(run_result.exception)
+        if isinstance(run_result.exception, BaseException):
+            msg = format_exception_message(run_result.exception)
+        else:
+            msg = str(run_result.exception)
         if not msg:
             msg = f"This cell raised an exception: {exception_type}"
 
@@ -501,9 +505,9 @@ def _flush_console(
 
     Console messages (stdout/stderr) are batched by a background thread
     for performance.  Without an explicit flush, the messages may arrive
-    at the frontend *after* the cell is marked idle and ``completed-run``
+    at the frontend *after* the cell is marked idle and `completed-run`
     is sent.  A subsequent run would then clear the console (via
-    ``console=[]``) before the user sees the output.
+    `console=[]`) before the user sees the output.
     """
     del cell
     del run_result

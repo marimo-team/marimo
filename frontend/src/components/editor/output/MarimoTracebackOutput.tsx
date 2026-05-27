@@ -5,17 +5,13 @@ import { useAtomValue } from "jotai";
 import {
   BugPlayIcon,
   ChevronDown,
+  ChevronRight,
   CopyIcon,
   ExternalLinkIcon,
   MessageCircleIcon,
   SearchIcon,
 } from "lucide-react";
 import { type JSX, useState } from "react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -37,12 +33,16 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { sanitizeHtml } from "@/plugins/core/sanitize-html";
 import { copyToClipboard } from "@/utils/copy";
 import {
+  containsMangledLocal,
+  splitMangledLocals,
+} from "@/utils/local-variables";
+import {
   elementContainsMarimoCellFile,
   extractAllTracebackInfo,
   getTracebackInfo,
 } from "@/utils/traceback";
-import { cn } from "../../../utils/cn";
 import { AIFixButton } from "../errors/auto-fix";
+import { MangledSegments } from "../errors/mangled-local-chip";
 import { CellLinkTraceback } from "../links/cell-link";
 import type { OnRefactorWithAI } from "../Output";
 
@@ -51,8 +51,6 @@ interface Props {
   traceback: string;
   onRefactorWithAI?: OnRefactorWithAI;
 }
-
-const KEY = "item";
 
 /**
  * List of errors due to violations of Marimo semantics.
@@ -64,9 +62,12 @@ export const MarimoTracebackOutput = ({
 }: Props): JSX.Element => {
   const htmlTraceback = renderHTML({
     html: traceback,
-    additionalReplacements: [replaceTracebackFilenames, replaceTracebackPrefix],
+    additionalReplacements: [
+      replaceTracebackFilenames,
+      replaceTracebackPrefix,
+      replaceMangledLocal,
+    ],
   });
-  const [expanded, setExpanded] = useState(true);
 
   const lastTracebackLine = lastLine(traceback);
   const aiEnabled = useAtomValue(aiEnabledAtom);
@@ -86,6 +87,8 @@ export const MarimoTracebackOutput = ({
 
   const showSearch = !isStaticNotebook();
 
+  const [isOpen, setIsOpen] = useState(true);
+
   const handleRefactorWithAI = (triggerImmediately: boolean) => {
     onRefactorWithAI?.({
       prompt: `My code gives the following error:\n\n${lastTracebackLine}`,
@@ -93,32 +96,29 @@ export const MarimoTracebackOutput = ({
     });
   };
 
-  const [error, errorMessage] = lastTracebackLine.split(":", 2);
-
   return (
     <div className="flex flex-col gap-2 min-w-full w-fit">
-      <Accordion type="single" collapsible={true} value={expanded ? KEY : ""}>
-        <AccordionItem value={KEY} className="border-none">
-          <div
-            className="flex gap-2 h-10 px-2 hover:bg-muted rounded-sm select-none items-center cursor-pointer transition-all"
-            onClick={() => setExpanded((prev) => !prev)}
-          >
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
-                expanded ? "rotate-180" : "rotate-0",
-              )}
-            />
-            <div className="text-sm inline font-mono">
-              <span className="text-destructive">{error || "Error"}:</span>{" "}
-              {errorMessage}
-            </div>
-          </div>
-          <AccordionContent className="text-muted-foreground px-4 pt-2 text-xs overflow-auto">
-            {htmlTraceback}
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-label={isOpen ? "Collapse traceback" : "Expand traceback"}
+        className="self-start flex items-center gap-1 pt-2 text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+      >
+        {isOpen ? (
+          <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronRight className="h-3 w-3" />
+        )}
+        <span className="text-[0.6875rem] uppercase tracking-wider">
+          Traceback
+        </span>
+      </button>
+      {isOpen && (
+        <div className="text-muted-foreground pr-4 text-xs overflow-auto">
+          {htmlTraceback}
+        </div>
+      )}
       <div className="flex gap-2">
         {showAIFix && (
           <AIFixButton
@@ -247,6 +247,23 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
       </div>
     );
   }
+};
+
+/**
+ * Replace any cell-local mangled name (`_cell_<id>_<name>`) inside a text
+ * node with a {@link MangledLocalChip}. The mangled name appears in both
+ * the final `NameError:` line and inside compiled-cell source lines because
+ * the compiler rewrites underscore-prefixed references at AST-visit time.
+ */
+export const replaceMangledLocal = (domNode: DOMNode) => {
+  if (!(domNode instanceof Text) || !domNode.nodeValue) {
+    return;
+  }
+  if (!containsMangledLocal(domNode.nodeValue)) {
+    return;
+  }
+  const segments = splitMangledLocals(domNode.nodeValue);
+  return <MangledSegments segments={segments} />;
 };
 
 export const replaceTracebackPrefix = (domNode: DOMNode) => {

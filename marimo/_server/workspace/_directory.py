@@ -10,12 +10,10 @@ from marimo import _loggers
 from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.files.path_validator import PathValidator
 from marimo._server.workspace._base import (
+    NEW_FILE,
+    MarimoFileKey,
     NotebookWorkspace,
     file_not_found,
-)
-from marimo._server.workspace._keys import (
-    FileKey,
-    NewFileKey,
 )
 from marimo._utils.http import HTTPException, HTTPStatus
 
@@ -29,7 +27,7 @@ LOGGER = _loggers.marimo_logger()
 class DirectoryWorkspace(NotebookWorkspace):
     """A workspace backed by a directory, scanned lazily on demand.
 
-    Used by ``marimo edit ./`` and ``marimo run ./``. File access is validated
+    Used by `marimo edit ./` and `marimo run ./`. File access is validated
     via :class:`PathValidator` to ensure paths stay within the directory (or an
     explicitly registered temp directory).
     """
@@ -71,15 +69,15 @@ class DirectoryWorkspace(NotebookWorkspace):
     def single_file(self) -> MarimoFile | None:
         return None
 
-    def get_unique_file_key(self) -> FileKey | None:
+    def get_unique_file_key(self) -> MarimoFileKey | None:
         return None
 
-    def resolve(self, key: FileKey) -> str | None:
-        if isinstance(key, NewFileKey):
+    def resolve(self, key: MarimoFileKey) -> str | None:
+        if key.startswith(NEW_FILE):
             return None
 
         directory = Path(self._directory)
-        filepath = Path(key.path)
+        filepath = Path(key)
 
         # Resolve relative paths against the workspace directory.
         if not filepath.is_absolute():

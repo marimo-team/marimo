@@ -87,6 +87,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._runtime import dataflow, handlers, marimo_pdb, patches
+from marimo._runtime.agent import Agent
 from marimo._runtime.app_meta import AppMeta
 from marimo._runtime.callbacks import (
     CacheCallbacks,
@@ -129,8 +130,7 @@ from marimo._runtime.parent_poller import (
     start_parent_poller,
 )
 from marimo._runtime.redirect_streams import redirect_streams
-from marimo._runtime.reload.autoreload import ModuleReloader
-from marimo._runtime.reload.module_watcher import ModuleWatcher
+from marimo._runtime.reload.manager import AutoreloadManager
 from marimo._runtime.request_router import RequestRouter
 from marimo._runtime.runner import cell_runner, hook_context
 from marimo._runtime.runner.hooks import (
@@ -541,6 +541,7 @@ class Kernel:
             sys.path.insert(0, "")
 
         self.graph = dataflow.DirectedGraph()
+        self.agent = Agent()
         # When autorun on startup is disabled, this holds cells that have
         # not yet been run; these cells are removed when they or their
         # descendants are run
@@ -554,8 +555,7 @@ class Kernel:
         self.module_registry = ModuleRegistry(
             self.graph, excluded_modules=set()
         )
-        self.module_reloader: ModuleReloader | None = None
-        self.module_watcher: ModuleWatcher | None = None
+        self.autoreload_manager = AutoreloadManager(self)
 
         # Load runtime settings from user config
         self.user_config = user_config
@@ -625,8 +625,7 @@ class Kernel:
             self.stdin._stop()
         self.stream.stop()
 
-        if self.module_watcher is not None:
-            self.module_watcher.stop()
+        self.autoreload_manager.teardown()
 
         # TODO(akshayka): There's a memory leak in run mode, with memory
         # usage increasing with each session creation. Somehow the kernel
@@ -651,35 +650,7 @@ class Kernel:
         self.user_config = config
 
         self.packages_callbacks.update_package_manager(package_manager)
-
-        if (
-            (autoreload_mode == "lazy" or autoreload_mode == "autorun")
-            # Pyodide doesn't support hot module reloading
-            and not is_pyodide()
-        ):
-            if self.module_reloader is None:
-                self.module_reloader = ModuleReloader()
-
-            if (
-                self.module_watcher is not None
-                and self.module_watcher.mode != autoreload_mode
-            ):
-                self.module_watcher.stop()
-                self.module_watcher = None
-
-            if self.module_watcher is None:
-                self.module_watcher = ModuleWatcher(
-                    self.graph,
-                    reloader=self.module_reloader,
-                    enqueue_run_stale_cells=self._execute_stale_cells_callback,
-                    mode=autoreload_mode,
-                    stream=self.stream,
-                )
-        else:
-            self.module_reloader = None
-            if self.module_watcher is not None:
-                self.module_watcher.stop()
-                self.module_watcher = None
+        self.autoreload_manager.update_from_config(autoreload_mode)
 
     @property
     def globals(self) -> dict[Any, Any]:
@@ -700,19 +671,16 @@ class Kernel:
         self, completion_queue: QueueType[CodeCompletionCommand]
     ) -> None:
         """Must be called after context is initialized"""
-        from marimo._runtime.complete import completion_worker
+        from marimo._runtime.kernel_lifecycle import drain_stale
 
-        threading.Thread(
-            target=completion_worker,
-            args=(
-                completion_queue,
-                self.graph,
-                self.globals,
-                self._globals_lock,
-                get_context().stream,
-            ),
-            daemon=True,
-        ).start()
+        def _worker() -> None:
+            while True:
+                request = drain_stale(
+                    completion_queue, latest=completion_queue.get()
+                )
+                self.code_completion(request, docstrings_limit=80)
+
+        threading.Thread(target=_worker, daemon=True).start()
         self._completion_worker_started = True
 
     @kernel_tracer.start_as_current_span("code_completion")
@@ -726,7 +694,7 @@ class Kernel:
             self.graph,
             self.globals,
             self._globals_lock,
-            get_context().stream,
+            self.stream,
             docstrings_limit,
         )
 
@@ -757,25 +725,12 @@ class Kernel:
                 stderr=self.stderr,
                 stdin=self.stdin,
             ),
+            self.autoreload_manager.cell_scope(),
         ):
-            modules = None
             try:
-                if self.module_reloader is not None:
-                    # Reload modules if they have changed
-                    modules = set(sys.modules)
-                    self.module_reloader.check(
-                        modules=sys.modules, reload=True
-                    )
                 yield exec_ctx
             finally:
                 ctx.execution_context = None
-                if self.module_reloader is not None and modules is not None:
-                    # Note timestamps for newly loaded modules
-                    new_modules = set(sys.modules) - modules
-                    self.module_reloader.check(
-                        modules={m: sys.modules[m] for m in new_modules},
-                        reload=False,
-                    )
 
     def _register_cell(
         self,
@@ -797,12 +752,7 @@ class Kernel:
             self.graph.cells[cell_id].set_stale(stale=True, broadcast=False)
         # leaky abstraction: the graph doesn't know about stale modules, so
         # we have to check for them here.
-        module_reloader = self.module_reloader
-        if (
-            module_reloader is not None
-            and module_reloader.cell_uses_stale_modules(cell)
-        ):
-            self.graph.set_stale({cell.cell_id}, prune_imports=True)
+        self.autoreload_manager.flag_if_imports_stale(cell)
         LOGGER.debug("registered cell %s", cell_id)
         LOGGER.debug("parents: %s", self.graph.parents[cell_id])
         LOGGER.debug("children: %s", self.graph.children[cell_id])
@@ -1806,9 +1756,6 @@ class Kernel:
             )
         )
 
-        if self.module_watcher is not None:
-            self.module_watcher.run_is_processed.set()
-
     @kernel_tracer.start_as_current_span("set_cell_config")
     async def set_cell_config(self, request: UpdateCellConfigCommand) -> None:
         """Update cell configs.
@@ -1852,15 +1799,15 @@ class Kernel:
         Args:
             request: The UI element update command.
             notify_frontend: Whether to broadcast the new value back to
-                the frontend via a ``marimo-ui-value-update`` message.
-                Set ``False`` for user-initiated updates from the frontend
+                the frontend via a `marimo-ui-value-update` message.
+                Set `False` for user-initiated updates from the frontend
                 (the frontend already has the value locally;
                 re-broadcasting causes redundant traffic and, on transports
                 with non-negligible round-trip latency (LSP, remote
                 kernels), can visibly snap the rendered widget backward to
-                a stale value). Set ``True`` for genuinely
+                a stale value). Set `True` for genuinely
                 kernel-initiated changes (e.g. code_mode's
-                ``set_ui_value``) where the frontend has no other way to
+                `set_ui_value`) where the frontend has no other way to
                 learn about the update.
 
         Returns True if any ui elements were set, False otherwise

@@ -9,25 +9,25 @@ to feed to tools.
 
 These two functions fix that:
 
-``better_dir(obj)``
+`better_dir(obj)`
     Filters out all private/dunder attributes.
-    Appends type annotations to data attributes (e.g. ``host: str``).
-    Appends full signatures to callables (e.g. ``send(data: bytes) -> int``).
-    Returns a plain ``list[str]`` so it's a drop-in ``__dir__`` return value.
-    Uses ``object.__dir__(obj)`` internally to avoid infinite recursion
-    when wired as ``__dir__``.
+    Appends type annotations to data attributes (e.g. `host: str`).
+    Appends full signatures to callables (e.g. `send(data: bytes) -> int`).
+    Returns a plain `list[str]` so it's a drop-in `__dir__` return value.
+    Uses `object.__dir__(obj)` internally to avoid infinite recursion
+    when wired as `__dir__`.
 
-``better_help(obj)``
+`better_help(obj)`
     Returns a compact, markdown-ish summary: class name, docstring,
     attributes with types, methods with signatures and one-line docs.
     No pager, no dunders, no self parameter, no scroll.
-    Returns ``str`` so it can be wired to ``__repr__`` and will also be
-    picked up by ``help()`` via pydoc's repr fallback.
+    Returns `str` so it can be wired to `__repr__` and will also be
+    picked up by `help()` via pydoc's repr fallback.
 
-``@helpable``
-    Class decorator that rewrites ``__doc__`` at definition time so
-    ``help()`` shows the clean summary natively via pydoc -- no need to
-    touch ``__repr__``. Also wires ``__dir__`` automatically.
+`@helpable`
+    Class decorator that rewrites `__doc__` at definition time so
+    `help()` shows the clean summary natively via pydoc -- no need to
+    touch `__repr__`. Also wires `__dir__` automatically.
 
 Usage::
 
@@ -71,16 +71,16 @@ from typing import Any
 
 
 def _public_attrs(obj: Any) -> list[str]:
-    """Return sorted public attribute names using ``object.__dir__``.
+    """Return sorted public attribute names using `object.__dir__`.
 
-    Uses ``object.__dir__(obj)`` instead of ``dir(obj)`` to avoid infinite
-    recursion when this is called from inside ``__dir__`` itself.
+    Uses `object.__dir__(obj)` instead of `dir(obj)` to avoid infinite
+    recursion when this is called from inside `__dir__` itself.
 
     Args:
         obj: Any Python object.
 
     Returns:
-        Sorted list of attribute names that don't start with ``_``.
+        Sorted list of attribute names that don't start with `_`.
     """
     # Enum classes: only show member names.
     if isinstance(obj, type) and issubclass(obj, Enum):
@@ -97,9 +97,9 @@ _MISSING: Any = object()
 def _safe_getattr_static(obj: Any, name: str) -> Any:
     """Fetch an attribute without invoking descriptors or properties.
 
-    Uses ``inspect.getattr_static`` so that ``dir()``/``help()`` never
+    Uses `inspect.getattr_static` so that `dir()`/`help()` never
     trigger property getters (which could raise or have side effects).
-    Returns ``_MISSING`` if the attribute cannot be retrieved.
+    Returns `_MISSING` if the attribute cannot be retrieved.
     """
     try:
         return inspect.getattr_static(obj, name)
@@ -121,14 +121,14 @@ def _type_label(val: Any) -> str:
 
 
 def _unwrap_callable(val: Any) -> Any:
-    """Unwrap ``classmethod``/``staticmethod`` to the underlying function."""
+    """Unwrap `classmethod`/`staticmethod` to the underlying function."""
     if isinstance(val, (classmethod, staticmethod)):
         return val.__func__
     return val
 
 
 def _format_signature(func: Any) -> str:
-    """Return a string signature with ``self``/``cls`` stripped."""
+    """Return a string signature with `self`/`cls` stripped."""
     sig = inspect.signature(func)
     params = [p for n, p in sig.parameters.items() if n not in ("self", "cls")]
     return str(sig.replace(parameters=params))
@@ -141,21 +141,21 @@ def _first_doc_line(doc: str | None) -> str:
 
 
 def better_dir(obj: Any) -> list[str]:
-    """A cleaner ``dir()`` that shows only the public interface.
+    """A cleaner `dir()` that shows only the public interface.
 
-    Designed to be returned directly from ``__dir__``::
+    Designed to be returned directly from `__dir__`::
 
         def __dir__(self):
             return better_dir(self)
 
-    Improvements over built-in ``dir()``:
+    Improvements over built-in `dir()`:
 
     - Excludes all private and dunder attributes.
-    - Data attributes show their type       -> ``host: str``
-    - Callables show their full signature   -> ``send(data: bytes) -> int``
+    - Data attributes show their type       -> `host: str`
+    - Callables show their full signature   -> `send(data: bytes) -> int`
     - Sorted alphabetically for easy scanning.
-    - Returns ``list[str]`` -- the exact type ``__dir__`` requires.
-    - Safe from infinite recursion (uses ``object.__dir__`` internally).
+    - Returns `list[str]` -- the exact type `__dir__` requires.
+    - Safe from infinite recursion (uses `object.__dir__` internally).
 
     Args:
         obj: Any Python object (instance, class, module, ...).
@@ -198,24 +198,24 @@ def better_dir(obj: Any) -> list[str]:
 
 
 def better_help(obj: Any) -> str:
-    """A compact, AI-friendly replacement for ``help()``.
+    """A compact, AI-friendly replacement for `help()`.
 
-    Can be used standalone, or applied automatically via the ``@helpable``
-    decorator which rewrites ``__doc__`` at class definition time so that
-    ``help()`` shows this output natively through pydoc.
+    Can be used standalone, or applied automatically via the `@helpable`
+    decorator which rewrites `__doc__` at class definition time so that
+    `help()` shows this output natively through pydoc.
 
-    Improvements over built-in ``help()``:
+    Improvements over built-in `help()`:
 
     - Markdown-style heading with the class/module name.
     - Shows only the first line of each docstring -- enough to understand
       intent without the filler.
-    - ``self`` is stripped from method signatures by ``inspect.signature``.
+    - `self` is stripped from method signatures by `inspect.signature`.
     - Attributes and methods are grouped into clearly labelled sections.
     - No pager, no quitting, no scrolling -- just a string.
     - Output is structured for LLMs: paste it straight into a prompt,
       a README, or a tool description.
-    - Returns ``str`` instead of printing, so it composes cleanly with
-      logging, f-strings, ``__repr__``, etc.
+    - Returns `str` instead of printing, so it composes cleanly with
+      logging, f-strings, `__repr__`, etc.
 
     Args:
         obj: Any Python object (instance, class, module, ...).
@@ -318,8 +318,8 @@ def _build_enum_help(cls: type) -> str:
 def _enum_member_doc(cls: type, name: str) -> str:
     """Extract the inline docstring for an enum member, if any.
 
-    Python 3.13+ stores the immediately-following ``\"\"\"docstring\"\"\"``
-    literal as ``member.__doc__``. On older Pythons this is just the
+    Python 3.13+ stores the immediately-following `\"\"\"docstring\"\"\"`
+    literal as `member.__doc__`. On older Pythons this is just the
     class docstring; we treat that as "no per-member doc" and return "".
     """
     member = cls[name]  # type: ignore[index]
@@ -334,7 +334,7 @@ def _build_help(cls: type) -> str:
 
     Works at decoration time with no instance available, so it inspects
     the class itself -- methods via the class dict, and type hints via
-    ``__annotations__`` and ``__init__`` annotations.
+    `__annotations__` and `__init__` annotations.
 
     Args:
         cls: The class to document.
@@ -419,10 +419,10 @@ def _build_help(cls: type) -> str:
 
 
 class _HelpableEnumMeta(EnumMeta):
-    """Metaclass for enum classes that makes ``dir(EnumClass)`` clean.
+    """Metaclass for enum classes that makes `dir(EnumClass)` clean.
 
-    ``EnumType`` is the default metaclass for all ``Enum`` subclasses.
-    By subclassing it and overriding ``__dir__``, ``dir(MyEnum)`` returns
+    `EnumType` is the default metaclass for all `Enum` subclasses.
+    By subclassing it and overriding `__dir__`, `dir(MyEnum)` returns
     only the enum member names with values.
     """
 
@@ -431,12 +431,12 @@ class _HelpableEnumMeta(EnumMeta):
 
 
 class _HelpableMeta(type):
-    """Metaclass that makes ``dir(ClassName)`` return ``better_dir`` output.
+    """Metaclass that makes `dir(ClassName)` return `better_dir` output.
 
-    Without this, ``dir(cls)`` always calls ``type.__dir__(cls)`` which
+    Without this, `dir(cls)` always calls `type.__dir__(cls)` which
     returns the raw attribute list including dunders.  By overriding
-    ``__dir__`` on the metaclass, ``dir(MyClass)`` now returns the same
-    clean list that ``dir(instance)`` does.
+    `__dir__` on the metaclass, `dir(MyClass)` now returns the same
+    clean list that `dir(instance)` does.
     """
 
     def __dir__(cls) -> list[str]:  # type: ignore[override]
@@ -444,13 +444,13 @@ class _HelpableMeta(type):
 
 
 def helpable(cls: type) -> type:
-    """Class decorator that wires ``better_dir`` and ``better_help`` automatically.
+    """Class decorator that wires `better_dir` and `better_help` automatically.
 
-    Rewrites ``__doc__`` on the class at definition time so that ``help(obj)``
+    Rewrites `__doc__` on the class at definition time so that `help(obj)`
     shows a clean, AI-friendly summary through pydoc's normal machinery. Also
-    installs ``__dir__`` to return ``better_dir(self)``.
+    installs `__dir__` to return `better_dir(self)`.
 
-    The original docstring is preserved in ``_original_doc__`` and used as the
+    The original docstring is preserved in `_original_doc__` and used as the
     description line in the generated help output.
 
     Works on both classes and instances::
@@ -466,21 +466,21 @@ def helpable(cls: type) -> type:
         help(MyClient())   # clean output (via __doc__)
 
     Caveat:
-        For classes whose metaclass is the default ``type``, the decorator
-        recreates the class with ``_HelpableMeta`` so that ``dir(Class)``
-        is also clean. Methods that use zero-argument ``super()`` inside
+        For classes whose metaclass is the default `type`, the decorator
+        recreates the class with `_HelpableMeta` so that `dir(Class)`
+        is also clean. Methods that use zero-argument `super()` inside
         such classes will still bind to the *original* class (via the
-        ``__class__`` closure cell the compiler injects), which is not in
+        `__class__` closure cell the compiler injects), which is not in
         the new class's MRO. In practice this is only an issue if the
         decorated class subclasses another class *and* its methods call
-        ``super()``; keep ``@helpable`` for simple, leaf-level data/API
-        classes, or use explicit ``super(ClassName, self)`` calls.
+        `super()`; keep `@helpable` for simple, leaf-level data/API
+        classes, or use explicit `super(ClassName, self)` calls.
 
     Args:
         cls: The class to decorate.
 
     Returns:
-        The decorated class with new ``__doc__`` and ``__dir__``.
+        The decorated class with new `__doc__` and `__dir__`.
     """
     original_doc = cls.__doc__
 

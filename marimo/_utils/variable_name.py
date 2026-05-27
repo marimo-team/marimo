@@ -10,10 +10,10 @@ LOGGER = _loggers.marimo_logger()
 
 
 def infer_variable_name(value: Any, fallback: str) -> str:
-    """Infer the variable name that holds ``value`` in the caller's caller.
+    """Infer the variable name that holds `value` in the caller's caller.
 
     Walks up two frames (skipping this helper and the direct caller) and
-    searches locals for an identity match (``is``).  Returns *fallback* if
+    searches locals for an identity match (`is`).  Returns *fallback* if
     the lookup fails for any reason.
 
     Frame references are always cleaned up to avoid reference cycles.

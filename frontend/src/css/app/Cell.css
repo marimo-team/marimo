@@ -214,7 +214,6 @@
   &.error-outline,
   &.error-outline:focus-within {
     box-shadow: 8px 8px 0 0 color-mix(in srgb, var(--error), transparent 80%);
-    background-color: var(--red-2);
   }
 
   /* Needs Run */

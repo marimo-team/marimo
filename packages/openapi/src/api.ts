@@ -3691,6 +3691,24 @@ export interface components {
         | "video/mpeg";
       timestamp?: number;
     };
+    /**
+     * CellOutputs
+     * @description Per-cell output snapshot delivered alongside the document snapshot.
+     *
+     *         `output` carries the cell's last main (rich display) output;
+     *         `console_outputs` carries the buffered stdout/stderr stream from
+     *         its last execution.  Both are keyed by cell id; missing keys mean
+     *         "no output captured" (the cell never ran, or produced nothing on
+     *         that channel).
+     */
+    CellOutputs: {
+      console_outputs: {
+        [key: string]: components["schemas"]["CellOutput"][];
+      };
+      output: {
+        [key: string]: components["schemas"]["CellOutput"];
+      };
+    };
     /** ChatAttachment */
     ChatAttachment: {
       /** @default null */
@@ -3810,8 +3828,8 @@ export interface components {
      *
      *         Attributes:
      *             run_id: Correlation ID echoed from the command that triggered
-     *                 this completion. ``None`` for handlers that don't take a
-     *                 ``run_id`` (everything except ``handle_execute_scratchpad``
+     *                 this completion. `None` for handlers that don't take a
+     *                 `run_id` (everything except `handle_execute_scratchpad`
      *                 today). Consumers that want to wait for a specific command's
      *                 completion filter on this field.
      */
@@ -4278,14 +4296,21 @@ export interface components {
      *             notebook_cells: Snapshot of notebook cells from the session document.
      *                 Used to populate the document ContextVar so code_mode can read
      *                 cell ordering, code, names, and configs.
+     *             cell_outputs: Snapshot of per-cell outputs (main + console) from the
+     *                 session view. Populates a parallel ContextVar so code_mode can
+     *                 expose `cell.output` and `cell.console_outputs`. Frozen at
+     *                 scratchpad start — not refreshed when `ctx.run_cell` produces
+     *                 new outputs in the same batch.
      *             run_id: Optional correlation ID. When set, the
-     *                 ``CompletedRunNotification`` emitted at the end of this command
-     *                 carries the same ``run_id`` so a caller holding a
-     *                 ``ScratchCellListener`` can filter for *its* completion and
-     *                 ignore ``CompletedRun`` events from unrelated commands on the
+     *                 `CompletedRunNotification` emitted at the end of this command
+     *                 carries the same `run_id` so a caller holding a
+     *                 `ScratchCellListener` can filter for *its* completion and
+     *                 ignore `CompletedRun` events from unrelated commands on the
      *                 same session.
      */
     ExecuteScratchpadCommand: {
+      /** @default null */
+      cellOutputs?: null | components["schemas"]["CellOutputs"];
       code: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
@@ -4298,6 +4323,8 @@ export interface components {
     };
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
+      /** @default null */
+      cellOutputs?: null | components["schemas"]["CellOutputs"];
       code: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
@@ -4381,8 +4408,8 @@ export interface components {
      *
      *         Schema-only: this struct exists to describe the multipart shape in
      *         OpenAPI. At runtime, the endpoint reads the string fields from
-     *         ``MultipartRequest.body`` and the uploaded bytes from
-     *         ``MultipartRequest.files["file"]`` — ``body.file`` is never populated.
+     *         `MultipartRequest.body` and the uploaded bytes from
+     *         `MultipartRequest.files["file"]` — `body.file` is never populated.
      */
     FileCreateMultipartRequest: {
       /**
@@ -5015,14 +5042,14 @@ export interface components {
      * @description Configuration for lint rule selection.
      *
      *         Follows ruff-inspired semantics for selecting which rules to run
-     *         during ``marimo check``.
+     *         during `marimo check`.
      *
      *         **Keys.**
      *
-     *         - ``select``: list of rule code prefixes that replaces the default
-     *           enabled set. Use ``"ALL"`` to select all rules.
-     *           Example: ``["MB", "MR001"]``
-     *         - ``ignore``: list of rule code prefixes to remove from the
+     *         - `select`: list of rule code prefixes that replaces the default
+     *           enabled set. Use `"ALL"` to select all rules.
+     *           Example: `["MB", "MR001"]`
+     *         - `ignore`: list of rule code prefixes to remove from the
      *           enabled set.
      */
     LintConfig: {
@@ -5490,12 +5517,17 @@ export interface components {
     /**
      * NotebookCell
      * @description A single cell in the document. Mutable — owned by the document.
+     *
+     *         `version` increments on each `SetCode` that actually changes
+     *         `code`. Other property changes don't bump it.
      */
     NotebookCell: {
       code: string;
       config: components["schemas"]["CellConfig"];
       id: components["schemas"]["CellId"];
       name: string;
+      /** @default 0 */
+      version?: number;
     };
     /**
      * NotebookDocumentTransactionNotification
@@ -5819,7 +5851,7 @@ export interface components {
      * ReorderCells
      * @description Replace the full cell ordering.
      *
-     *         Cell IDs present in the document but missing from ``cell_ids``
+     *         Cell IDs present in the document but missing from `cell_ids`
      *         are appended at the end. IDs not in the document are ignored.
      */
     ReorderCells: {
@@ -6456,9 +6488,9 @@ export interface components {
      * Transaction
      * @description An atomic batch of changes applied to a NotebookDocument.
      *
-     *         ``source`` identifies the writer (e.g. ``"frontend"``, ``"kernel"``).
-     *         ``version`` is ``None`` when created and stamped by
-     *         ``NotebookDocument.apply()``.
+     *         `source` identifies the writer (e.g. `"frontend"`, `"kernel"`).
+     *         `version` is `None` when created and stamped by
+     *         `NotebookDocument.apply()`.
      */
     Transaction: {
       changes: (

@@ -9,6 +9,7 @@ from marimo._messaging.notebook.document import (
     NotebookDocument,
     notebook_document_context,
 )
+from marimo._messaging.notebook.outputs import notebook_outputs_context
 from marimo._messaging.notification import (
     CompletedRunNotification,
     FunctionCallResultNotification,
@@ -103,6 +104,7 @@ class KernelRequestHandlers:
         try:
             with (
                 notebook_document_context(doc),
+                notebook_outputs_context(request.cell_outputs),
                 http_request_context(request.request),
             ):
                 await self._kernel.run_scratchpad(request.code)

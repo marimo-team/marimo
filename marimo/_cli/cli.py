@@ -270,7 +270,7 @@ class _OptionalValueOption(click.Option):
     """A click Option that supports an optional value.
 
     Works around a regression in click 8.3.x where the documented
-    ``is_flag=False, flag_value=...`` pattern is broken.
+    `is_flag=False, flag_value=...` pattern is broken.
     See: https://github.com/pallets/click/issues/3084
     """
 
@@ -621,6 +621,9 @@ def edit(
     )
 
 
+# To make this more readable at 80 character terminal width, the bullet
+# that overflows is moved to the end, and _key_value_bullets is called
+# twice.
 new_help_msg = "\n".join(
     [
         "\b",
@@ -633,12 +636,16 @@ new_help_msg = "\n".join(
                     "Create an empty notebook",
                 ),
                 (
+                    "marimo new prompt.txt",
+                    "Generate a notebook from a prompt in a file.",
+                ),
+            ]
+        ),
+        _key_value_bullets(
+            [
+                (
                     'marimo new "Plot an interactive 3D surface with matplotlib."',
                     "Generate a notebook from a prompt.",
-                ),
-                (
-                    "marimo new prompt.txt",
-                    "Generate a notebook from a file containing a prompt.",
                 ),
             ]
         ),

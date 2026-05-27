@@ -47,7 +47,7 @@ class VirtualFileStorage(Protocol):
 
         Args:
             key: storage key
-            byte_length: total number of bytes to yield (after applying ``start``)
+            byte_length: total number of bytes to yield (after applying `start`)
             chunk_size: chunk size in bytes
             start: offset in bytes to begin reading from (default 0)
 
@@ -283,7 +283,7 @@ class VirtualFileStorageManager:
 
         Raises:
             KeyError: If file not found
-            RuntimeError: When ``SharedMemoryStorage`` is used on the Pyodide platform.
+            RuntimeError: When `SharedMemoryStorage` is used on the Pyodide platform.
         """
         storage = self.storage
         if storage is None:
@@ -306,7 +306,7 @@ class VirtualFileStorageManager:
 
         Raises:
             KeyError: If file not found
-            RuntimeError: When ``SharedMemoryStorage`` is used on the Pyodide platform.
+            RuntimeError: When `SharedMemoryStorage` is used on the Pyodide platform.
         """
         storage = self.storage
         if storage is None:

@@ -1,12 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Small in-tree asyncio helpers.
 
-- ``supervised_task`` / ``fire_and_forget``: create a task that won't be
+- `supervised_task` / `fire_and_forget`: create a task that won't be
   garbage-collected mid-flight and whose non-cancellation exceptions
   are always logged on completion (intended for fire-and-forget work
   where the loop's default handler would otherwise swallow them).
-- ``cancel_and_wait``: the ``task.cancel(); await task`` /
-  ``except CancelledError`` dance, in one place.
+- `cancel_and_wait`: the `task.cancel(); await task` /
+  `except CancelledError` dance, in one place.
 """
 
 from __future__ import annotations
@@ -49,20 +49,20 @@ def supervised_task(
     registry: set[asyncio.Task[Any]] | None = None,
     on_exception: Callable[[BaseException], None] | None = None,
 ) -> asyncio.Task[T]:
-    """Schedule ``coro`` with a strong reference and exception logging.
+    """Schedule `coro` with a strong reference and exception logging.
 
     Intended for fire-and-forget or shutdown-cancelled background tasks.
     A done-callback logs every non-cancellation exception at error level.
 
-    **Do not use this for tasks you plan to ``await``.** The done-callback
+    **Do not use this for tasks you plan to `await`.** The done-callback
     logs the exception even if the awaiter also handles it, producing
-    duplicate logs. For awaited tasks, prefer plain ``asyncio.create_task``
-    — or pass ``on_exception=lambda _: None`` to opt out of logging while
-    still benefiting from the strong-ref ``registry`` tracking.
+    duplicate logs. For awaited tasks, prefer plain `asyncio.create_task`
+    — or pass `on_exception=lambda _: None` to opt out of logging while
+    still benefiting from the strong-ref `registry` tracking.
 
     Args:
         coro: The coroutine to schedule.
-        name: Task name (shows up in logs and ``asyncio.all_tasks()``).
+        name: Task name (shows up in logs and `asyncio.all_tasks()`).
         registry: Optional set the task is added to and removed from on
             completion. Pass one for lifespan-scoped tracking.
         on_exception: Optional callback that replaces the default error
@@ -102,7 +102,7 @@ def supervised_task(
 def initialize_asyncio() -> None:
     """Platform-specific initialization of asyncio.
 
-    Sessions use the ``add_reader()`` API, which is only available in
+    Sessions use the `add_reader()` API, which is only available in
     the SelectorEventLoop policy; Windows defaults to the Proactor.
     """
     if sys.platform == "win32":
@@ -112,12 +112,12 @@ def initialize_asyncio() -> None:
 def fire_and_forget(
     coro: Coroutine[Any, Any, Any], *, name: str
 ) -> asyncio.Task[Any] | None:
-    """Schedule ``coro`` on the running loop; caller will not await it.
+    """Schedule `coro` on the running loop; caller will not await it.
 
-    Falls back to a synchronous ``asyncio.run`` (returning ``None``) when
+    Falls back to a synchronous `asyncio.run` (returning `None`) when
     no loop is running. The platform policy is initialized first so the
     fallback loop matches the selector-loop policy marimo relies on
-    elsewhere (required on Windows for ``add_reader``).
+    elsewhere (required on Windows for `add_reader`).
     """
     try:
         asyncio.get_running_loop()
@@ -129,12 +129,12 @@ def fire_and_forget(
 
 
 async def cancel_and_wait(task: asyncio.Task[Any]) -> None:
-    """Cancel ``task`` and await its completion, suppressing ``CancelledError``.
+    """Cancel `task` and await its completion, suppressing `CancelledError`.
 
     If the task is already done, any attached exception is marked
     retrieved so the loop doesn't log a "Task exception was never
     retrieved" warning. The exception itself remains queryable via
-    ``task.exception()``. Non-cancellation exceptions raised during
+    `task.exception()`. Non-cancellation exceptions raised during
     cancellation propagate to the caller.
     """
     if task.done():

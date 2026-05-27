@@ -30,11 +30,7 @@ from marimo._server.models.models import (
 )
 from marimo._server.router import APIRouter
 from marimo._server.uvicorn_utils import close_uvicorn
-from marimo._server.workspace import (
-    FileKey,
-    PathFileKey,
-    parse_file_key,
-)
+from marimo._server.workspace import MarimoFileKey
 from marimo._types.ids import ConsumerId
 from marimo._utils.asyncio_utils import cancel_and_wait
 
@@ -273,6 +269,7 @@ async def execute_code(
     from marimo._server.scratchpad import (
         ScratchCellListener,
         build_done_event,
+        snapshot_for_scratchpad,
     )
 
     app_state = AppState(request)
@@ -325,11 +322,15 @@ async def execute_code(
                     http_req.meta["screenshot_server_url"] = (
                         f"{scheme}://{app_state.host}:{app_state.port}{base_url}"
                     )
+                    notebook_cells, cell_outputs = snapshot_for_scratchpad(
+                        session
+                    )
                     session.put_control_request(
                         ExecuteScratchpadCommand(
                             code=body.code,
                             request=http_req,
-                            notebook_cells=tuple(session.document.cells),
+                            notebook_cells=notebook_cells,
+                            cell_outputs=cell_outputs,
                             run_id=run_id,
                         ),
                         from_consumer_id=None,
@@ -432,16 +433,12 @@ async def restart_session(
     session = app_state.require_current_session()
     session_manager.close_session(session_id)
 
-    # Close RTC doc if it exists. Empty ``?file=`` falls back to the workspace
-    # key — same as a missing query param — to preserve the prior or-chain.
-    raw_file_key = app_state.query_params(FILE_QUERY_PARAM_KEY)
-    file_key: FileKey | None
-    if raw_file_key:
-        file_key = parse_file_key(raw_file_key)
-    else:
-        file_key = session_manager.workspace.get_unique_file_key()
-        if file_key is None and session.app_file_manager.path is not None:
-            file_key = PathFileKey(session.app_file_manager.path)
+    # Close RTC doc if it exists
+    file_key: MarimoFileKey | None = (
+        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        or session_manager.workspace.get_unique_file_key()
+        or session.app_file_manager.path
+    )
     if file_key is not None:
         await DOC_MANAGER.remove_doc(file_key)
     else:
@@ -527,12 +524,9 @@ async def takeover_endpoint(
     """
     app_state = AppState(request)
 
-    raw_file_key = app_state.query_params(FILE_QUERY_PARAM_KEY)
-    # Empty ``?file=`` falls back to the workspace key — same as missing.
-    file_key: FileKey | None = (
-        parse_file_key(raw_file_key)
-        if raw_file_key
-        else app_state.session_manager.workspace.get_unique_file_key()
+    file_key: MarimoFileKey | None = (
+        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        or app_state.session_manager.workspace.get_unique_file_key()
     )
     if file_key is None:
         LOGGER.error("No file key provided")

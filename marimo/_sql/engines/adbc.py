@@ -89,11 +89,11 @@ def _adbc_info_to_dialect(*, info: dict[str | int, Any]) -> str:
     """Infer marimo's dialect identifier from ADBC metadata.
 
     Notes:
-    ADBC DB-API wrappers expose driver/database metadata via ``adbc_get_info()``,
-    including a ``vendor_name`` and ``driver_name`` (see ADBC quickstart:
+    ADBC DB-API wrappers expose driver/database metadata via `adbc_get_info()`,
+    including a `vendor_name` and `driver_name` (see ADBC quickstart:
     https://arrow.apache.org/adbc/current/python/quickstart.html).
 
-    In marimo, ``engine.dialect`` is used primarily for editor/formatter dialect
+    In marimo, `engine.dialect` is used primarily for editor/formatter dialect
     selection and for display in the UI.
     """
 

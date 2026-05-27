@@ -172,7 +172,7 @@ describe("filterToFilterCondition", () => {
   it("handles boolean true filter", () => {
     const result = filterToFilterCondition(
       "active",
-      Filter.boolean({ value: true }),
+      Filter.boolean({ operator: "is_true" }),
     );
     expect(result).toEqual([
       {
@@ -187,7 +187,7 @@ describe("filterToFilterCondition", () => {
   it("handles boolean false filter", () => {
     const result = filterToFilterCondition(
       "active",
-      Filter.boolean({ value: false }),
+      Filter.boolean({ operator: "is_false" }),
     );
     expect(result).toEqual([
       {
@@ -199,38 +199,109 @@ describe("filterToFilterCondition", () => {
     ]);
   });
 
-  it("handles select in filter", () => {
+  it("handles number in filter", () => {
     const result = filterToFilterCondition(
       "status",
-      Filter.select({ options: ["a", "b"], operator: "in" }),
+      Filter.number({ operator: "in", values: [1, 2] }),
     );
     expect(result).toEqual([
       {
         column_id: "status",
         operator: "in",
-        value: ["a", "b"],
+        value: [1, 2],
         type: "condition",
         negate: false,
       },
     ]);
   });
 
-  it("handles date filter with min and max", () => {
-    const min = new Date("2024-01-01");
-    const max = new Date("2024-12-31");
+  it("handles date between filter", () => {
+    const min = new Date(2024, 0, 1);
+    const max = new Date(2024, 11, 31);
     const result = filterToFilterCondition(
       "created",
-      Filter.date({ min, max }),
+      Filter.date({ operator: "between", min, max }),
     );
-    expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({
-      operator: ">=",
-      value: min.toISOString(),
-    });
-    expect(result[1]).toMatchObject({
-      operator: "<=",
-      value: max.toISOString(),
-    });
+    expect(result).toEqual([
+      {
+        column_id: "created",
+        operator: "between",
+        value: { min: "2024-01-01", max: "2024-12-31" },
+        type: "condition",
+        negate: false,
+      },
+    ]);
+  });
+
+  it("handles date comparison filter", () => {
+    const value = new Date(2024, 5, 15);
+    const result = filterToFilterCondition(
+      "created",
+      Filter.date({ operator: ">=", value }),
+    );
+    expect(result).toEqual([
+      {
+        column_id: "created",
+        operator: ">=",
+        value: "2024-06-15",
+        type: "condition",
+        negate: false,
+      },
+    ]);
+  });
+
+  it("handles datetime between filter as local ISO string without TZ", () => {
+    const min = new Date(2024, 0, 1, 0, 0, 0);
+    const max = new Date(2024, 11, 31, 23, 59, 59);
+    const result = filterToFilterCondition(
+      "created",
+      Filter.datetime({ operator: "between", min, max }),
+    );
+    expect(result).toEqual([
+      {
+        column_id: "created",
+        operator: "between",
+        value: {
+          min: "2024-01-01T00:00:00",
+          max: "2024-12-31T23:59:59",
+        },
+        type: "condition",
+        negate: false,
+      },
+    ]);
+  });
+
+  it("handles time between filter as HH:MM:SS", () => {
+    const min = new Date(2024, 0, 1, 9, 30, 0);
+    const max = new Date(2024, 0, 1, 17, 45, 15);
+    const result = filterToFilterCondition(
+      "start",
+      Filter.time({ operator: "between", min, max }),
+    );
+    expect(result).toEqual([
+      {
+        column_id: "start",
+        operator: "between",
+        value: { min: "09:30:00", max: "17:45:15" },
+        type: "condition",
+        negate: false,
+      },
+    ]);
+  });
+
+  it("handles date is_null filter", () => {
+    const result = filterToFilterCondition(
+      "created",
+      Filter.date({ operator: "is_null" }),
+    );
+    expect(result).toEqual([
+      {
+        column_id: "created",
+        operator: "is_null",
+        type: "condition",
+        negate: false,
+      },
+    ]);
   });
 
   it("every condition has type and negate fields", () => {

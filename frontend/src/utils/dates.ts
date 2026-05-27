@@ -134,6 +134,45 @@ export function timeAgo(
   return value.toString();
 }
 
+function pad2(n: number): string {
+  return n.toString().padStart(2, "0");
+}
+
+function pad4(n: number): string {
+  return n.toString().padStart(4, "0");
+}
+
+/**
+ * Format a Date as `YYYY-MM-DD` using the date's local-time fields.
+ *
+ * The output reflects what the user sees in their own timezone (the calendar
+ * day on their clock), not the UTC day. Use this when round-tripping values
+ * that originated from local-time inputs — date pickers, "filter on this
+ * day", calendar UI — so the displayed and serialized days agree.
+ *
+ * Not suitable for cross-timezone storage; use `Date.toISOString()` for that.
+ */
+export function dateToLocalISODate(d: Date): string {
+  return `${pad4(d.getFullYear())}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/**
+ * Format a Date as `HH:MM:SS` using the date's local-time fields.
+ *
+ * See `dateToLocalISODate` for the rationale on local vs UTC.
+ */
+export function dateToLocalISOTime(d: Date): string {
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+/**
+ * Format a Date as `YYYY-MM-DDTHH:MM:SS` (no timezone suffix) using local
+ * fields. See `dateToLocalISODate` for the rationale on local vs UTC.
+ */
+export function dateToLocalISODateTime(d: Date): string {
+  return `${dateToLocalISODate(d)}T${dateToLocalISOTime(d)}`;
+}
+
 export const supportedDateFormats = ["yyyy", "yyyy-MM", "yyyy-MM-dd"] as const;
 export type DateFormat = (typeof supportedDateFormats)[number];
 

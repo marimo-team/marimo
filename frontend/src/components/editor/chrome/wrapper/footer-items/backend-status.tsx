@@ -57,7 +57,7 @@ export const BackendConnectionStatus: React.FC = () => {
     }
 
     try {
-      const isHealthy = await runtime.isHealthy();
+      const isHealthy = await runtime.probeHealth();
       setConnectionStatus(isHealthy ? "healthy" : "unhealthy");
       return {
         isHealthy,

@@ -12,6 +12,7 @@ content has unnecessary leading whitespace that should be removed.
 ## Why is this bad?
 
 Indented markdown strings:
+
 - Are harder to read when viewing the source code
 - Produce larger diffs when making changes
 - Don't match the standard marimo formatting style

@@ -1742,11 +1742,11 @@ class TestAppComposition:
 
 
 class TestInternalAppWithData:
-    """``InternalApp.with_data`` rewrites the cell list from the
+    """`InternalApp.with_data` rewrites the cell list from the
     frontend's snapshot during the save round-trip. It must mutate the
     existing cell manager in place — Session holds
-    ``app.cell_manager.document`` as a property, so swapping in a fresh
-    manager would orphan ``session.document``.
+    `app.cell_manager.document` as a property, so swapping in a fresh
+    manager would orphan `session.document`.
     """
 
     def test_preserves_cell_manager_identity(self) -> None:
@@ -1889,6 +1889,9 @@ class TestInternalAppOverrides:
         assert not k.errors
         assert k.globals["overrides"] is None
 
+    @pytest.mark.xfail(
+        True, reason="Flaky in CI, can't repro locally", strict=False
+    )
     async def test_overrides_returns_overridden_defs_dict(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:

@@ -4,10 +4,11 @@ import { describe, it, expect } from "vitest";
 import { SlidesLayoutPlugin } from "../plugin";
 import type { CellData } from "@/core/cells/types";
 import type { CellId } from "@/core/cells/ids";
+import { cellId } from "@/__tests__/branded";
 
 function makeCell(id: string, code = "print('hi')"): CellData {
   return {
-    id: id as CellId,
+    id: cellId(id),
     name: id,
     code,
     edited: false,
@@ -198,7 +199,10 @@ const BACKWARDS_COMPAT_SNAPSHOTS: BackwardsCompatCase[] = [
   },
   {
     // Defensive: if a future version adds a new SlideConfig field and a user
-    // downgrades, we must not crash on unknown keys.
+    // downgrades, we must not crash on unknown keys — AND we must not silently
+    // drop them either. `notes` / `background` aren't in the current schema;
+    // they must still be present after validate + (de)serialize so a downgrade
+    // followed by a save doesn't erase the newer marimo's data.
     label: "forward-compat: unknown SlideConfig fields present",
     input: {
       cells: [{ type: "slide", notes: "x", background: "#000" }],
@@ -206,7 +210,42 @@ const BACKWARDS_COMPAT_SNAPSHOTS: BackwardsCompatCase[] = [
     expected: {
       deck: {},
       cellIds: ["a"],
-      cellEntries: [["a", { type: "slide" }]],
+      cellEntries: [["a", { type: "slide", notes: "x", background: "#000" }]],
+    },
+  },
+  {
+    // Same forward-compat guarantee for unknown deck-level fields (e.g. future
+    // Reveal options we haven't modeled yet).
+    label: "forward-compat: unknown deck fields present",
+    input: {
+      cells: [{}],
+      deck: { transition: "fade", controls: false, autoSlide: 5000 },
+    },
+    expected: {
+      deck: { transition: "fade", controls: false, autoSlide: 5000 },
+      cellIds: ["a"],
+    },
+  },
+  {
+    // `speakerNotes` was added to SlideConfig. The validator must
+    // know about it (so it isn't silently stripped), the deserializer must
+    // carry it through, and serialize → deserialize must round-trip it.
+    label: "speakerNotes round-trips through validate + (de)serialize",
+    input: {
+      cells: [
+        { type: "slide", speakerNotes: "intro" },
+        { type: "fragment", speakerNotes: "" },
+        { type: "fragment", speakerNotes: "multi\n\nline\n\nnotes" },
+      ],
+    },
+    expected: {
+      deck: {},
+      cellIds: ["a", "b", "c"],
+      cellEntries: [
+        ["a", { type: "slide", speakerNotes: "intro" }],
+        ["b", { type: "fragment", speakerNotes: "" }],
+        ["c", { type: "fragment", speakerNotes: "multi\n\nline\n\nnotes" }],
+      ],
     },
   },
 ];
@@ -223,20 +262,21 @@ describe("SlidesLayoutPlugin backwards compatibility", () => {
         parsed.success,
         `validator rejected: ${JSON.stringify(input)}`,
       ).toBe(true);
+      if (!parsed.success) {
+        return;
+      }
 
-      // 2. Deserialize must succeed and reflect the user-set fields.
-      const layout = SlidesLayoutPlugin.deserializeLayout(
-        // Use the raw input (not the validator output) because that is what
-        // `deserializeLayout` actually receives in production today.
-        // oxlint-disable-next-line typescript/no-explicit-any
-        input as any,
-        cells,
-      );
+      // 2. Deserializing the *validator output* (not the raw input) must
+      // preserve every field listed in `expected.cellEntries`. This is what
+      // catches a schema regression: if the validator silently strips a
+      // known field, the deserialized config won't carry it and the
+      // assertion below fails.
+      const layout = SlidesLayoutPlugin.deserializeLayout(parsed.data, cells);
       if (expected.deck !== undefined) {
         expect(layout.deck).toEqual(expected.deck);
       }
-      for (const [cellId, expectedConfig] of expected.cellEntries ?? []) {
-        expect(layout.cells.get(cellId as CellId)).toMatchObject(
+      for (const [cellEntryId, expectedConfig] of expected.cellEntries ?? []) {
+        expect(layout.cells.get(cellId(cellEntryId))).toMatchObject(
           expectedConfig as object,
         );
       }
@@ -251,8 +291,8 @@ describe("SlidesLayoutPlugin backwards compatibility", () => {
         reserialized,
         cells,
       );
-      for (const [cellId, expectedConfig] of expected.cellEntries ?? []) {
-        expect(redeserialized.cells.get(cellId as CellId)).toMatchObject(
+      for (const [cellEntryId, expectedConfig] of expected.cellEntries ?? []) {
+        expect(redeserialized.cells.get(cellId(cellEntryId))).toMatchObject(
           expectedConfig as object,
         );
       }

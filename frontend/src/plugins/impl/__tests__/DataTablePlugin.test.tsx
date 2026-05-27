@@ -107,6 +107,7 @@ describe("LoadingDataTableComponent", () => {
       }),
       get_data_url: vi.fn() as GetDataUrl,
       get_row_ids: vi.fn() as GetRowIds,
+      get_size_bytes: vi.fn().mockResolvedValue({ size_bytes: null }),
     };
 
     const Wrapper = ({ children }: { children: React.ReactNode }) => (

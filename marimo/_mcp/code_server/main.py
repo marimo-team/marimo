@@ -23,6 +23,7 @@ from marimo._server.scratchpad import (
     EXECUTION_TIMEOUT,
     ScratchCellListener,
     extract_result,
+    snapshot_for_scratchpad,
 )
 from marimo._types.ids import SessionId
 
@@ -131,8 +132,14 @@ def setup_code_mcp_server(
         listener = ScratchCellListener(run_id=run_id)
         with session.scoped(listener):
             async with session.scratchpad_lock:
+                notebook_cells, cell_outputs = snapshot_for_scratchpad(session)
                 session.put_control_request(
-                    ExecuteScratchpadCommand(code=code, run_id=run_id),
+                    ExecuteScratchpadCommand(
+                        code=code,
+                        notebook_cells=notebook_cells,
+                        cell_outputs=cell_outputs,
+                        run_id=run_id,
+                    ),
                     from_consumer_id=None,
                 )
                 await listener.wait(timeout=EXECUTION_TIMEOUT)

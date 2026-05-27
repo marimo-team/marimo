@@ -28,6 +28,7 @@ describe("ConsoleOutput integration", () => {
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
+    interrupted: false,
     debuggerActive: false,
     onSubmitDebugger: () => {
       // noop
@@ -59,6 +60,7 @@ describe("ConsoleOutput pdb history", () => {
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
+    interrupted: false,
     debuggerActive: false,
     onSubmitDebugger: vi.fn(),
   };
@@ -116,6 +118,82 @@ describe("ConsoleOutput pdb history", () => {
     fireEvent.keyDown(newInput, { key: "ArrowUp" });
 
     expect(newInput).toHaveValue("next");
+  });
+
+  it("should submit an empty string when Enter is pressed with no input", () => {
+    // Many CLIs prompt "Press Enter to continue" and expect "" back.
+    const onSubmitDebugger = vi.fn();
+    const outputs: WithResponse<OutputMessage>[] = [
+      stdinPrompt("Press Enter to continue: "),
+    ];
+
+    renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={outputs}
+        onSubmitDebugger={onSubmitDebugger}
+      />,
+    );
+
+    const input = screen.getByTestId("console-input");
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onSubmitDebugger).toHaveBeenCalledWith("", 0);
+  });
+
+  it("should not record empty submissions in input history", () => {
+    const onSubmitDebugger = vi.fn();
+    const outputs1: WithResponse<OutputMessage>[] = [stdinPrompt("(Pdb) ")];
+
+    const { rerender } = renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={outputs1}
+        onSubmitDebugger={onSubmitDebugger}
+      />,
+    );
+
+    let input = screen.getByTestId("console-input");
+    fireEvent.change(input, { target: { value: "step" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    const outputs2: WithResponse<OutputMessage>[] = [
+      stdinPrompt("(Pdb) ", "step"),
+      stdinPrompt("(Pdb) "),
+    ];
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={outputs2}
+          onSubmitDebugger={onSubmitDebugger}
+        />
+      </TooltipProvider>,
+    );
+
+    // Submit an empty value; this should NOT enter the history stack.
+    input = screen.getByTestId("console-input");
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    const outputs3: WithResponse<OutputMessage>[] = [
+      stdinPrompt("(Pdb) ", "step"),
+      stdinPrompt("(Pdb) ", ""),
+      stdinPrompt("(Pdb) "),
+    ];
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={outputs3}
+          onSubmitDebugger={onSubmitDebugger}
+        />
+      </TooltipProvider>,
+    );
+
+    // ArrowUp should jump back to "step", skipping the empty submission.
+    input = screen.getByTestId("console-input");
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(input).toHaveValue("step");
   });
 
   it("should navigate through multiple history entries across remounts", () => {
@@ -192,6 +270,41 @@ describe("ConsoleOutput pdb history", () => {
     fireEvent.keyDown(input, { key: "ArrowDown" });
     expect(input).toHaveValue("");
   });
+
+  it("should distinguish an interrupted prompt from a bare-Enter submission", () => {
+    // After interrupt, cell.ts coerces pending stdin prompts to response: "".
+    // We must render that case differently from a real bare-Enter response,
+    // so the user isn't told they "submitted" a blank value.
+    const interruptedOutputs: WithResponse<OutputMessage>[] = [
+      stdinPrompt("Press Enter to continue: ", ""),
+    ];
+
+    const { rerender } = renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={interruptedOutputs}
+        interrupted={true}
+      />,
+    );
+
+    // No response chunk should be rendered for an interrupted pending prompt.
+    expect(screen.queryByLabelText("stdin response")).not.toBeInTheDocument();
+
+    // Same outputs, but the cell isn't interrupted -- this is a real
+    // bare-Enter submission, so we should render the (empty) placeholder.
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={interruptedOutputs}
+          interrupted={false}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(screen.getByLabelText("stdin response")).toBeInTheDocument();
+    expect(screen.getByText("(empty)")).toBeInTheDocument();
+  });
 });
 
 describe("ConsoleOutput debounced clearing", () => {
@@ -219,6 +332,7 @@ describe("ConsoleOutput debounced clearing", () => {
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
+    interrupted: false,
     debuggerActive: false,
     onSubmitDebugger: vi.fn(),
   };

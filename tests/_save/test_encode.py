@@ -18,9 +18,9 @@ HAS_NUMPY = DependencyManager.numpy.has()
 class _ArrayWithSet:
     """Array-like whose pickle is non-deterministic across processes.
 
-    The ``_tags`` set has hash-randomized iteration order across Python
-    processes (PYTHONHASHSEED), so ``pickle.dumps`` produces different bytes
-    on each run. But since this class has ``__array__``, ``_ContentHashPickler``
+    The `_tags` set has hash-randomized iteration order across Python
+    processes (PYTHONHASHSEED), so `pickle.dumps` produces different bytes
+    on each run. But since this class has `__array__`, `_ContentHashPickler`
     replaces it with a deterministic content hash of the array data, discarding
     the non-deterministic set entirely.
     """
@@ -49,7 +49,7 @@ def test_deterministic_for_same_data_different_set() -> None:
     """Two objects with same array data but different set attrs must hash the same.
 
     This mirrors the cross-process case: PYTHONHASHSEED changes set iteration
-    order, so ``pickle.dumps`` differs between processes. ``deterministic_dumps``
+    order, so `pickle.dumps` differs between processes. `deterministic_dumps`
     must not — it is content-addressed on the array data only.
     """
     data = list(range(10))

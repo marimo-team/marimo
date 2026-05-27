@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from marimo._ast.cell import Cell
 from marimo._ast.pytest import MARIMO_TEST_STUB_NAME
+from marimo._ast.variables import demangle_locals_in_text
 from marimo._cli.print import bold, green
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.capture import capture_stdout
@@ -80,6 +81,30 @@ def _to_marimo_uri(uri: str) -> str:
 
     notebook = os.path.relpath(_get_name(), notebook_location())
     return f"marimo://{notebook}#cell_id={cell_id}"
+
+
+def _rewrite_longrepr(longrepr: Any) -> None:
+    """Rewrite a TerminalRepr in place for user-friendly test output.
+
+    Strips the parameter-workaround frame at the top of the traceback,
+    rewrites each entry's file location into a `marimo://` URI, and
+    demangles `_cell_<id>_<name>` -> `<_name>` in source/exception lines
+    and the short-summary `reprcrash.message`.
+    """
+    if "func_JYWB" in str(longrepr):
+        longrepr.reprtraceback.reprentries = (
+            longrepr.reprtraceback.reprentries[1:]
+        )
+    for entry in longrepr.reprtraceback.reprentries:
+        if entry.reprfileloc is not None:
+            entry.reprfileloc.path = _to_marimo_uri(entry.reprfileloc.path)
+        if getattr(entry, "lines", None):
+            entry.lines = [
+                demangle_locals_in_text(line) for line in entry.lines
+            ]
+    reprcrash = getattr(longrepr, "reprcrash", None)
+    if reprcrash is not None and reprcrash.message:
+        reprcrash.message = demangle_locals_in_text(reprcrash.message)
 
 
 def _sub_function(
@@ -313,19 +338,9 @@ class ReplaceStubPlugin:
         if isinstance(report.longrepr, tuple):
             _, lineno, msg = report.longrepr
             report.longrepr = (report.nodeid, lineno, f"({msg})")
-        # Not all TerminalRepr seem to have a reprtraceback
+        # Not all TerminalRepr seem to have a reprtraceback.
         elif hasattr(report.longrepr, "reprtraceback"):
-            longrepr = str(report.longrepr)
-            if "func_JYWB" in longrepr:
-                # Strip the first call of traceback
-                report.longrepr.reprtraceback.reprentries = (
-                    report.longrepr.reprtraceback.reprentries[1:]
-                )
-            for entry in report.longrepr.reprtraceback.reprentries:
-                if entry.reprfileloc is not None:
-                    entry.reprfileloc.path = _to_marimo_uri(
-                        entry.reprfileloc.path
-                    )
+            _rewrite_longrepr(report.longrepr)
 
 
 def run_pytest(

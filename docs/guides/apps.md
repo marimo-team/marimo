@@ -87,7 +87,8 @@ If you prefer a slideshow-like experience, you can use the slides layout. Enable
 
 - A slide minimap on the left where you can drag and drop slides to rearrange them.
 - A config sidebar on the right where you can configure the type of each slide.
-- Edit code and run cells by clicking the Code toggle or using the keyboard shortcut `C`.
+- Edit code and run cells by clicking the Code toggle or pressing `C`.
+- Add speaker notes at the bottom of each slide and launch speaker view by pressing `S`.
 - Powered by [reveal.js](https://revealjs.com/), so you can use most of its features like keyboard shortcuts, navigation, etc.
 
 #### Notes

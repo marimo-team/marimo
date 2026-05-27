@@ -54,6 +54,7 @@ from marimo._code_mode._plan import (
     _UpdateOp,
     _validate_ops,
 )
+from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.errors import Error
 from marimo._messaging.notebook.changes import (
     CreateCell,
@@ -68,6 +69,10 @@ from marimo._messaging.notebook.changes import (
 from marimo._messaging.notebook.document import (
     NotebookCell as _NotebookCell,
     NotebookDocument,
+)
+from marimo._messaging.notebook.outputs import (
+    CellOutputs,
+    get_current_outputs,
 )
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
@@ -87,7 +92,7 @@ from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.formatter import DefaultFormatter
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Callable, Iterator, Sequence
     from os import PathLike
     from types import TracebackType
 
@@ -103,8 +108,8 @@ if TYPE_CHECKING:
 class CellStatusType(str, Enum, metaclass=_HelpableEnumMeta):
     """Synthesized cell execution status.
 
-    Returned by ``NotebookCell.status``.  Compares equal to plain
-    strings, so ``cell.status == "idle"`` works as expected.
+    Returned by `NotebookCell.status`.  Compares equal to plain
+    strings, so `cell.status == "idle"` works as expected.
     """
 
     idle = "idle"
@@ -143,14 +148,14 @@ class CellError:
 
     Parameters
     ----------
-    kind : ``"graph"`` or ``"runtime"``
-        ``"graph"`` — a dataflow-graph error that *prevents* execution
+    kind : `"graph"` or `"runtime"`
+        `"graph"` — a dataflow-graph error that *prevents* execution
         (multiply-defined variable, cycle, etc.).
-        ``"runtime"`` — an exception raised during execution.
+        `"runtime"` — an exception raised during execution.
     msg : str
         Human-readable description.
     exception : Exception | None
-        The original ``Exception`` for runtime errors; ``None`` for
+        The original `Exception` for runtime errors; `None` for
         graph errors.
     """
 
@@ -163,7 +168,7 @@ class CellError:
 
 
 class CellRuntimeState(Protocol):
-    """The subset of ``CellImpl`` that ``NotebookCell`` reads."""
+    """The subset of `CellImpl` that `NotebookCell` reads."""
 
     @property
     def code(self) -> str: ...
@@ -189,8 +194,12 @@ _LEGACY_INSTALL_WARNED = False
 # ------------------------------------------------------------------
 
 
-def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
-    """Return an ``AsyncCodeModeContext`` for the running kernel.
+def get_context(
+    *,
+    skip_validation: bool = False,
+    skip_staleness_check: bool = False,
+) -> AsyncCodeModeContext:
+    """Return an `AsyncCodeModeContext` for the running kernel.
 
     Use as an async context manager::
 
@@ -206,6 +215,12 @@ def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
         and should almost never be disabled. Only set to True when you
         intentionally need to insert code that would fail validation
         (e.g. incomplete stubs the user plans to fix by hand).
+    skip_staleness_check : bool, default False
+        When False (the default), `edit_cell` raises
+        :class:`StaleCellError` if the agent tries to overwrite a cell
+        whose code has changed since the agent last read it (e.g. via
+        `ctx.cells[cell_id].code`). Set to True to overwrite blindly —
+        useful when the agent intentionally discards prior content.
     """
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
@@ -215,7 +230,36 @@ def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
         runtime_ctx._kernel,
         cell_manager=cell_manager,
         skip_validation=skip_validation,
+        skip_staleness_check=skip_staleness_check,
     )
+
+
+class StaleCellError(RuntimeError):
+    """Raised when `edit_cell` targets a cell the agent has not read at
+    its current version.
+
+    `stale_cells` is the full set of cells in the same boat, so the agent
+    can re-read all of them in one pass.
+    """
+
+    def __init__(
+        self,
+        cell_id: CellId_t,
+        stale_cells: frozenset[CellId_t],
+    ) -> None:
+        self.cell_id = cell_id
+        self.stale_cells = stale_cells
+        others = sorted(stale_cells - {cell_id})
+        other_hint = (
+            f"\nOther stale cells: {', '.join(others)}." if others else ""
+        )
+        super().__init__(
+            f"Cell {cell_id!r} was modified since the agent last read it.\n"
+            f"Read it first (e.g. `ctx.cells[{cell_id!r}].code`) before "
+            f"editing.{other_hint}\n"
+            f"To override and overwrite without re-reading, pass "
+            f"skip_staleness_check=True to cm.get_context()."
+        )
 
 
 @helpable
@@ -234,26 +278,45 @@ class NotebookCell:
     status : CellStatusType | None
         Synthesized execution status. Priority order:
         transient state (queued/running/disabled) > stale > last run result.
-        ``None`` if the cell has never been registered in the graph.
+        `None` if the cell has never been registered in the graph.
     errors : list[CellError]
         Structured errors affecting this cell.
-        Each entry is a ``CellError`` with ``kind``, ``msg``, and
-        ``exception`` fields. Covers both runtime exceptions
-        (e.g. ``NameError``) and graph errors (multiply-defined
+        Each entry is a `CellError` with `kind`, `msg`, and
+        `exception` fields. Covers both runtime exceptions
+        (e.g. `NameError`) and graph errors (multiply-defined
         variables, cycles, etc.).
+    output : CellOutput | None
+        The cell's last main (rich display) output, or `None` if no
+        output was captured. **Frozen snapshot** — taken at
+        scratchpad-start, not refreshed when `ctx.run_cell` produces
+        new outputs in the same batch. Re-enter `cm.get_context()` to
+        see fresh outputs.
+    console_outputs : list[CellOutput]
+        Buffered stdout/stderr outputs from the cell's last execution.
+        Same frozen-snapshot caveat as `output`.
     """
 
-    __slots__ = ("_cell", "_graph_errors", "_impl")
+    __slots__ = (
+        "_cell",
+        "_graph_errors",
+        "_impl",
+        "_outputs",
+        "_record_read",
+    )
 
     def __init__(
         self,
         cell: _NotebookCell,
         cell_impl: CellRuntimeState | None,
         graph_errors: tuple[Error, ...] = (),
+        outputs: CellOutputs | None = None,
+        record_read: Callable[[], None] | None = None,
     ) -> None:
         self._cell = cell
         self._impl = cell_impl
         self._graph_errors = graph_errors
+        self._outputs = outputs
+        self._record_read = record_read
 
     # -- document properties (delegated) --
 
@@ -265,6 +328,8 @@ class NotebookCell:
     @property
     def code(self) -> str:
         """The current source code of the cell."""
+        if self._record_read is not None:
+            self._record_read()
         return self._cell.code
 
     @property
@@ -297,16 +362,16 @@ class NotebookCell:
 
         Possible values:
 
-        - ``"idle"`` — ran successfully, up to date.
-        - ``"exception"`` — cell raised an exception.
-        - ``"stale"`` — needs re-run (code edited, inputs changed, or never run).
-        - ``"cancelled"`` — ancestor raised an exception.
-        - ``"interrupted"`` — execution was interrupted.
-        - ``"marimo-error"`` — prevented from executing (e.g. multiply-defined name).
-        - ``"disabled"`` — cell is disabled.
-        - ``"queued"`` — waiting to run.
-        - ``"running"`` — currently executing.
-        - ``None`` — empty cell, never registered in the graph.
+        - `"idle"` — ran successfully, up to date.
+        - `"exception"` — cell raised an exception.
+        - `"stale"` — needs re-run (code edited, inputs changed, or never run).
+        - `"cancelled"` — ancestor raised an exception.
+        - `"interrupted"` — execution was interrupted.
+        - `"marimo-error"` — prevented from executing (e.g. multiply-defined name).
+        - `"disabled"` — cell is disabled.
+        - `"queued"` — waiting to run.
+        - `"running"` — currently executing.
+        - `None` — empty cell, never registered in the graph.
 
         Priority: transient state (queued/running/disabled) >
         stale > last run result.
@@ -338,8 +403,8 @@ class NotebookCell:
         """All errors affecting this cell.
 
         Returns a list of :class:`CellError` objects. Each has a
-        ``kind`` (``"graph"`` or ``"runtime"``), a human-readable
-        ``msg``, and for runtime errors the original ``exception``.
+        `kind` (`"graph"` or `"runtime"`), a human-readable
+        `msg`, and for runtime errors the original `exception`.
 
         Returns an empty list when the cell is healthy.
         """
@@ -357,6 +422,29 @@ class NotebookCell:
                 )
             )
         return result
+
+    @property
+    def output(self) -> CellOutput | None:
+        """The cell's last main (rich display) output, or `None`.
+
+        Frozen at scratchpad-start — does not reflect outputs produced
+        by `ctx.run_cell` in the same batch.  Re-enter
+        `cm.get_context()` to see fresh outputs.
+        """
+        if self._outputs is None:
+            return None
+        return self._outputs.output.get(self._cell.id)
+
+    @property
+    def console_outputs(self) -> list[CellOutput]:
+        """Buffered stdout/stderr outputs from the last execution.
+
+        Returns an empty list when no console output was captured.
+        Same frozen-snapshot semantics as `output`.
+        """
+        if self._outputs is None:
+            return []
+        return list(self._outputs.console_outputs.get(self._cell.id, ()))
 
     # -- display --
 
@@ -389,7 +477,7 @@ class _CellsView:
         ctx.cells["Abcd1234"]  # by cell ID
         ctx.cells["my_cell"]  # by cell name
 
-    Iteration yields ``NotebookCell`` objects with runtime status::
+    Iteration yields `NotebookCell` objects with runtime status::
 
         for cell in ctx.cells:
             print(cell.id, cell.code, cell.status)
@@ -415,10 +503,22 @@ class _CellsView:
             graph = self._ctx.graph
             impl = graph.cells.get(cell.id)
             graph_errors = self._ctx._kernel.errors.get(cell.id, ())
+            outputs = self._ctx._outputs
         except AttributeError:
             impl = None
             graph_errors = ()
-        return NotebookCell(cell, impl, graph_errors=graph_errors)
+            outputs = None
+
+        def record_read() -> None:
+            self._ctx._note_read(cell.id, cell.version)
+
+        return NotebookCell(
+            cell,
+            impl,
+            graph_errors=graph_errors,
+            outputs=outputs,
+            record_read=record_read,
+        )
 
     def _cell_ids(self) -> list[CellId_t]:
         return list(self._doc)
@@ -430,9 +530,9 @@ class _CellsView:
         return doc_cell.name or None
 
     def _resolve(self, target: str) -> CellId_t:
-        """Resolve a cell ID or cell name to a ``CellId_t``.
+        """Resolve a cell ID or cell name to a `CellId_t`.
 
-        Raises ``KeyError`` if not found.
+        Raises `KeyError` if not found.
         """
         if target in self._doc:
             return CellId_t(target)
@@ -538,7 +638,9 @@ class _CellsView:
 
         def _fmt(i: int, c: _NotebookCell) -> str:
             cv = self._cell_view(c)
-            first_line = c.code.split("\n", 1)[0]
+            # Read through the wrapper so the staleness tracker sees
+            # the preview as a read of the cell's source.
+            first_line = cv.code.split("\n", 1)[0]
             code_preview = first_line[:50]
             if len(first_line) > 50:
                 code_preview += "..."
@@ -579,7 +681,7 @@ class AsyncCodeModeContext:
             ctx.edit_cell("my_cell", code="x = 42")
             ctx.delete_cell("old_cell")
 
-    Read cells via ``ctx.cells[key]`` where *key* is an integer index,
+    Read cells via `ctx.cells[key]` where *key* is an integer index,
     cell ID string, or cell name.
     """
 
@@ -589,6 +691,7 @@ class AsyncCodeModeContext:
         cell_manager: CellManager | None = None,
         *,
         skip_validation: bool = False,
+        skip_staleness_check: bool = False,
     ) -> None:
         from marimo._messaging.notebook.document import get_current_document
 
@@ -601,8 +704,14 @@ class AsyncCodeModeContext:
             )
         self._kernel = kernel
         self._document = document
+        # Output snapshot is optional — callers that don't pass one
+        # (e.g. the MCP code server) get ``cell.output is None`` and
+        # ``cell.console_outputs == []`` for every cell, same as cells
+        # that genuinely produced no output.
+        self._outputs: CellOutputs | None = get_current_outputs()
         self._cell_manager = cell_manager
         self._skip_validation = skip_validation
+        self._skip_staleness_check = skip_staleness_check
         self._ops: list[_Op] = []
         # Track cell IDs added during this batch so subsequent ops
         # can reference them before they exist in the graph.
@@ -628,6 +737,9 @@ class AsyncCodeModeContext:
                 "\n"
                 "Without 'async with', operations are silently lost."
             )
+
+    def _note_read(self, cell_id: CellId_t, version: int) -> None:
+        self._kernel.agent.read_tracker.record_read(cell_id, version)
 
     def __getattr__(self, name: str) -> Any:
         # Legacy alias: `ctx.install_packages(...)` was the pre-namespace
@@ -802,7 +914,7 @@ class AsyncCodeModeContext:
         return cell is not None and cell.exception is not None
 
     def _cell_label(self, cell_id: CellId_t) -> str:
-        """Return a display label: ``'id' (name)`` or ``'id'``."""
+        """Return a display label: `'id' (name)` or `'id'`."""
         short = repr(str(cell_id)[:8])
         doc_cell = self._document.get(cell_id)
         if doc_cell and doc_cell.name:
@@ -824,7 +936,7 @@ class AsyncCodeModeContext:
 
         Mutations via :meth:`run_cell` update the kernel globals but
         *not* the scratchpad's copy. Read values through this property
-        (``ctx.globals["x"]``) rather than bare variable names.
+        (`ctx.globals["x"]`) rather than bare variable names.
         """
         return self._kernel.globals
 
@@ -861,10 +973,10 @@ class AsyncCodeModeContext:
     # ------------------------------------------------------------------
 
     def _resolve_target(self, target: str) -> CellId_t:
-        """Resolve a cell ID or name to a ``CellId_t``.
+        """Resolve a cell ID or name to a `CellId_t`.
 
         Checks the live graph first, then pending adds (by ID and by
-        name), then queued renames from ``edit_cell``.
+        name), then queued renames from `edit_cell`.
         """
         # Try the live graph.
         try:
@@ -894,10 +1006,10 @@ class AsyncCodeModeContext:
     def _resolve_new_cell(
         self, name: str | None
     ) -> tuple[CellId_t, str | None]:
-        """Return ``(cell_id, resolved_name)`` for a new cell.
+        """Return `(cell_id, resolved_name)` for a new cell.
 
-        The ``"setup"`` name is special-cased to use the well-known setup
-        cell ID. Raises ``ValueError`` if a setup cell already exists.
+        The `"setup"` name is special-cased to use the well-known setup
+        cell ID. Raises `ValueError` if a setup cell already exists.
         """
         if name == SETUP_CELL_NAME:
             # Check if a setup cell already exists (by name or by ID).
@@ -932,9 +1044,9 @@ class AsyncCodeModeContext:
         """Queue a new cell. Returns the new cell's ID.
 
         The returned ID can be used in subsequent operations within the
-        same batch (e.g. as an ``after`` target for the next cell).
+        same batch (e.g. as an `after` target for the next cell).
 
-        Cells are not executed automatically. Use ``run_cell`` to queue
+        Cells are not executed automatically. Use `run_cell` to queue
         them for execution::
 
             cid = ctx.create_cell("x = 1")
@@ -957,16 +1069,16 @@ class AsyncCodeModeContext:
         Args:
             code (str): Python source code for the cell.
             before (str, optional): Insert before this cell (ID or name).
-                Mutually exclusive with ``after``.
+                Mutually exclusive with `after`.
             after (str, optional): Insert after this cell (ID or name).
-                Mutually exclusive with ``before``.
+                Mutually exclusive with `before`.
             hide_code (bool): Collapse the code editor in the UI.
                 Defaults to True.
             disabled (bool): Prevent the cell from executing.
                 Defaults to False.
             column (int, optional): Column index for multi-column layouts.
             name (str, optional): Cell names are a human-facing label,
-                reserved for special cases (e.g. ``"setup"``). Prefer
+                reserved for special cases (e.g. `"setup"`). Prefer
                 referencing cells by the returned cell ID unless
                 naming is important for the user.
         """
@@ -1010,9 +1122,9 @@ class AsyncCodeModeContext:
         """Queue an update to an existing cell's code and/or config.
 
         Only the arguments you explicitly pass are changed — the cell's
-        existing config is preserved for any argument left as ``None``.
+        existing config is preserved for any argument left as `None`.
 
-        Editing a cell does not automatically execute it. Use ``run_cell``
+        Editing a cell does not automatically execute it. Use `run_cell`
         to queue it for execution::
 
             ctx.edit_cell("my_cell", "x = 42")
@@ -1075,6 +1187,27 @@ class AsyncCodeModeContext:
                     code = self.graph.cells[cell_id].code
             # Setup is identified by cell_id alone — don't store a name.
             name = None
+
+        # Check after the setup-migration block so an implicit code-fill
+        # from the graph still trips the read-before-write guard.
+        if (
+            code is not None
+            and not self._skip_staleness_check
+            and cell_id not in self._pending_adds
+        ):
+            cell = self._document.get(cell_id)
+            tracker = self._kernel.agent.read_tracker
+            # Empty cells have no prior content to clobber. The agent's own
+            # writes record reads at __aexit__, so a follow-up edit in a
+            # later context passes the check normally.
+            if (
+                cell is not None
+                and cell.code.strip()
+                and not tracker.has_read(cell_id, cell.version)
+            ):
+                raise StaleCellError(
+                    cell_id, tracker.get_stale_cells(self._document)
+                )
 
         # Build config only if any config kwarg was explicitly set.
         config: CellConfig | None = None
@@ -1139,9 +1272,9 @@ class AsyncCodeModeContext:
         Args:
             target (str): Cell ID or cell name to move.
             before (str, optional): Place before this cell (ID or name).
-                Mutually exclusive with ``after``.
+                Mutually exclusive with `after`.
             after (str, optional): Place after this cell (ID or name).
-                Mutually exclusive with ``before``.
+                Mutually exclusive with `before`.
         """
         self._require_entered()
         if before is not None and after is not None:
@@ -1167,10 +1300,10 @@ class AsyncCodeModeContext:
         """Queue a cell for execution.
 
         Cells created or edited in the same batch are not executed
-        automatically — use ``run_cell`` to mark them for execution.
+        automatically — use `run_cell` to mark them for execution.
         Can also be used to re-run an existing cell without editing it.
 
-        All queued ``run_cell`` targets are executed in a single batch
+        All queued `run_cell` targets are executed in a single batch
         on context exit, after structural operations (create/edit/delete)
         have been applied.
 
@@ -1221,20 +1354,20 @@ class AsyncCodeModeContext:
         Launches a headless Chromium browser (reused across calls)
         connected to this server in kiosk mode.
 
-        Requires ``playwright`` + its Chromium binary::
+        Requires `playwright` + its Chromium binary::
 
             ctx.install_packages("playwright")
             # then once: python -m playwright install chromium
 
-        Does **not** require ``async with``.
+        Does **not** require `async with`.
 
         Args:
             target: Cell to screenshot.
 
-                - ``None`` — last cell.
-                - ``int`` — cell index (negative OK).
-                - ``str`` — cell ID or name.
-                - ``NotebookCell`` — e.g. ``ctx.cells[0]``.
+                - `None` — last cell.
+                - `int` — cell index (negative OK).
+                - `str` — cell ID or name.
+                - `NotebookCell` — e.g. `ctx.cells[0]`.
 
                 For an object defined by a cell, resolve first::
 
@@ -1242,12 +1375,12 @@ class AsyncCodeModeContext:
                     img = await ctx.screenshot(cid)
 
             timeout_ms: Max wait (ms) for the output to be visible.
-            as_data_url: Return ``data:image/png;base64,...`` str
+            as_data_url: Return `data:image/png;base64,...` str
                 instead of raw bytes.
             save_to: Also write the PNG to this path.
 
         Returns:
-            ``bytes`` (PNG), or ``str`` (data URL) if *as_data_url*.
+            `bytes` (PNG), or `str` (data URL) if *as_data_url*.
 
         Raises:
             ScreenshotError: Missing playwright, missing browser,
@@ -1310,8 +1443,8 @@ class AsyncCodeModeContext:
     async def close_screenshot_session(self) -> None:
         """Close the Playwright browser opened by :meth:`screenshot`.
 
-        Called automatically in ``__aexit__``.  Call this explicitly
-        when using ``screenshot()`` outside ``async with`` to avoid
+        Called automatically in `__aexit__`.  Call this explicitly
+        when using `screenshot()` outside `async with` to avoid
         leaking a headless browser process.
         """
         if self._screenshot_session is not None:
@@ -1373,10 +1506,10 @@ class AsyncCodeModeContext:
         )
 
     def find_cell_defining_object(self, obj: Any) -> CellId_t | None:
-        """Return the cell ID whose ``defs`` include a variable bound to *obj*.
+        """Return the cell ID whose `defs` include a variable bound to *obj*.
 
-        Uses identity (``is``) matching against kernel globals.
-        Returns ``None`` if no cell defines *obj*.
+        Uses identity (`is`) matching against kernel globals.
+        Returns `None` if no cell defines *obj*.
 
         Example::
 
@@ -1405,12 +1538,12 @@ class AsyncCodeModeContext:
         """Compile and graph-check every op before mutating real state.
 
         For each op with code:
-        1. ``compile_cell`` — validates syntax, extracts defs/refs.
+        1. `compile_cell` — validates syntax, extracts defs/refs.
         2. Temporarily register in the graph to detect multiply-defined
            names and cycles.
         3. Always clean up so the graph is left unchanged.
 
-        Raises ``SyntaxError`` for invalid code or ``RuntimeError`` for
+        Raises `SyntaxError` for invalid code or `RuntimeError` for
         graph conflicts (multiply-defined names, cycles).
         """
         graph = self.graph
@@ -1590,9 +1723,23 @@ class AsyncCodeModeContext:
             tx = Transaction(changes=tuple(doc_ops), source="code-mode")
             # Apply to local snapshot so _cell_label can read names.
             self._document.apply(tx)
-            self.notify(
+            self.broadcast_raw_notification(
                 NotebookDocumentTransactionNotification(transaction=tx)
             )
+
+        # The agent wrote these cells in this batch — its effective view is
+        # the post-write version. Without this, a cell created in call N
+        # can't be edited in call N+1 without re-reading.
+        for op in ops:
+            if isinstance(op, _AddOp):
+                written_id = op.cell_id
+            elif isinstance(op, _UpdateOp) and op.code is not None:
+                written_id = op.new_cell_id or op.cell_id
+            else:
+                continue
+            current = self._document.get_cell_version(written_id)
+            if current is not None:
+                self._note_read(written_id, current)
 
         # Run queued cells (explicit run_cell + autorun descendants),
         # filtered to cells that still exist after structural ops.
@@ -1661,7 +1808,7 @@ class AsyncCodeModeContext:
             ```
 
         Args:
-            element: A marimo UI element (e.g. ``mo.ui.slider``).
+            element: A marimo UI element (e.g. `mo.ui.slider`).
             value: The new value, matching the type the element expects.
         """
         self._require_entered()
@@ -1691,8 +1838,17 @@ class AsyncCodeModeContext:
                 type(command).__name__,
             )
 
-    def notify(self, notification: Notification) -> None:
-        """Send a notification to the frontend."""
+    def broadcast_raw_notification(self, notification: Notification) -> None:
+        """Low-level: broadcast a fully-constructed `Notification` to the frontend.
+
+        Escape hatch for emitting notification payloads directly; the
+        payload is delivered as-is, with no validation, batching, or
+        debouncing. Prefer a higher-level helper on `ctx` when one exists.
+
+        See `marimo._messaging.notification` for the full discriminated
+        union. Agent-facing subtypes include `BannerNotification` (persistent
+        banner) and `AlertNotification` (modal dialog).
+        """
         broadcast_notification(notification, stream=self._kernel.stream)  # type: ignore[arg-type]
 
 
