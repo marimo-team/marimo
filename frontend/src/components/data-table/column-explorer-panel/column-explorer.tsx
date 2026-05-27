@@ -50,6 +50,7 @@ import {
 import { smartMatch } from "@/utils/smartMatch";
 import type { Column, Table } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
+import { getUserColumnVisibilityCounts } from "../hooks/use-column-visibility";
 
 interface ColumnExplorerPanelProps<TData> {
   previewColumn: PreviewColumn;
@@ -85,22 +86,36 @@ export function ColumnExplorerPanel<TData>({
     return smartMatch(searchValue, columnName);
   });
 
-  const rowColumnHiddenStr = prettifyRowColumnCount({
+  const { hidden: hiddenColumnCount } = getUserColumnVisibilityCounts(table);
+
+  const { rowsAndColumns, hiddenSuffix } = prettifyRowColumnCount({
     numRows: totalRows,
     totalColumns,
     locale,
-  }).rowsAndColumns;
+    hiddenColumns: hiddenColumnCount,
+  });
 
   return (
     <div className="mb-3">
-      <span className="text-xs font-semibold ml-2 flex">
-        {rowColumnHiddenStr}
+      <div className="text-xs font-semibold ml-2 flex items-center gap-1">
+        {rowsAndColumns}
+        {hiddenColumnCount > 0 && <span>{hiddenSuffix}</span>}
         <CopyClipboardIcon
           tooltip="Copy column names"
           value={columns?.map(([columnName]) => columnName).join(",\n") || ""}
-          className="h-3 w-3 ml-1 mt-0.5"
+          className="h-3 w-3"
         />
-      </span>
+        {hiddenColumnCount > 0 && (
+          <Button
+            variant="link"
+            size="xs"
+            className="h-auto p-0"
+            onClick={() => table.resetColumnVisibility(true)}
+          >
+            Unhide all
+          </Button>
+        )}
+      </div>
       <Command className="h-5/6 bg-background" shouldFilter={false}>
         <CommandInput
           placeholder="Search columns..."
