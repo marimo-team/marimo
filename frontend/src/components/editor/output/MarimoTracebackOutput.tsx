@@ -32,11 +32,16 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { sanitizeHtml } from "@/plugins/core/sanitize-html";
 import { copyToClipboard } from "@/utils/copy";
 import {
+  containsMangledLocal,
+  splitMangledLocals,
+} from "@/utils/local-variables";
+import {
   elementContainsMarimoCellFile,
   extractAllTracebackInfo,
   getTracebackInfo,
 } from "@/utils/traceback";
 import { AIFixButton } from "../errors/auto-fix";
+import { MangledSegments } from "../errors/mangled-local-chip";
 import { CellLinkTraceback } from "../links/cell-link";
 import type { OnRefactorWithAI } from "../Output";
 
@@ -56,7 +61,11 @@ export const MarimoTracebackOutput = ({
 }: Props): JSX.Element => {
   const htmlTraceback = renderHTML({
     html: traceback,
-    additionalReplacements: [replaceTracebackFilenames, replaceTracebackPrefix],
+    additionalReplacements: [
+      replaceTracebackFilenames,
+      replaceTracebackPrefix,
+      replaceMangledLocal,
+    ],
   });
 
   const lastTracebackLine = lastLine(traceback);
@@ -217,6 +226,23 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
       </div>
     );
   }
+};
+
+/**
+ * Replace any cell-local mangled name (`_cell_<id>_<name>`) inside a text
+ * node with a {@link MangledLocalChip}. The mangled name appears in both
+ * the final `NameError:` line and inside compiled-cell source lines because
+ * the compiler rewrites underscore-prefixed references at AST-visit time.
+ */
+export const replaceMangledLocal = (domNode: DOMNode) => {
+  if (!(domNode instanceof Text) || !domNode.nodeValue) {
+    return;
+  }
+  if (!containsMangledLocal(domNode.nodeValue)) {
+    return;
+  }
+  const segments = splitMangledLocals(domNode.nodeValue);
+  return <MangledSegments segments={segments} />;
 };
 
 export const replaceTracebackPrefix = (domNode: DOMNode) => {

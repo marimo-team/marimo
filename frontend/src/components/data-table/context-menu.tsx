@@ -16,7 +16,11 @@ import {
   ContextMenuTrigger,
 } from "../ui/context-menu";
 import { DATA_CELL_ID } from "./cell-utils";
-import { Filter } from "./filters";
+import {
+  Filter,
+  isMembershipFilterType,
+  type MembershipFilterType,
+} from "./filters";
 import { selectedCellsAtom } from "./range-focus/atoms";
 import { getClipboardContent, getRawValue } from "./utils";
 
@@ -97,15 +101,21 @@ export const CellContextMenu = <TData,>({
   };
 
   const column = cell.column;
-  const canFilter = column.getCanFilter() && column.columnDef.meta?.filterType;
+  const filterType = column.columnDef.meta?.filterType;
+  const membershipFilterType: MembershipFilterType | undefined =
+    column.getCanFilter() && filterType && isMembershipFilterType(filterType)
+      ? filterType
+      : undefined;
 
-  const handleFilterCell = (operator: "in" | "not_in") => {
-    column.setFilterValue(
-      Filter.select({
-        options: [rawValue],
-        operator,
-      }),
-    );
+  const handleFilterCell = (
+    type: MembershipFilterType,
+    operator: "in" | "not_in",
+  ) => {
+    const filter =
+      type === "number"
+        ? Filter.number({ operator, values: [rawValue] })
+        : Filter.text({ operator, values: [rawValue] });
+    column.setFilterValue(filter);
   };
 
   return (
@@ -120,14 +130,18 @@ export const CellContextMenu = <TData,>({
           Copy selected cells
         </ContextMenuItem>
       )}
-      {canFilter && (
+      {membershipFilterType && (
         <>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => handleFilterCell("in")}>
+          <ContextMenuItem
+            onClick={() => handleFilterCell(membershipFilterType, "in")}
+          >
             <FilterIcon className="mo-dropdown-icon h-3 w-3" />
             Filter by this value
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => handleFilterCell("not_in")}>
+          <ContextMenuItem
+            onClick={() => handleFilterCell(membershipFilterType, "not_in")}
+          >
             <FilterIcon className="mo-dropdown-icon h-3 w-3" />
             Remove rows with this value
           </ContextMenuItem>

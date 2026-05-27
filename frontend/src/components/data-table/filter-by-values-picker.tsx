@@ -7,7 +7,6 @@ import { useMemo, useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
-import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { Sets } from "@/utils/sets";
 import { smartMatch } from "@/utils/smartMatch";
@@ -24,6 +23,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { SentinelCell } from "./sentinel-cell";
 import { detectSentinel, stringifyUnknownValue } from "./utils";
+import { CompactChipRow } from "./value-chips";
 
 const TOP_K_ROWS = 30;
 
@@ -42,19 +42,14 @@ export const FilterByValuesPicker = <TData, TValue>({
   onChange,
   creatable = false,
 }: Props<TData, TValue>) => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(chosenValues.length === 0);
 
   const chosenValuesSet = useMemo(() => new Set(chosenValues), [chosenValues]);
 
-  const selectedValuesStr = useMemo(() => {
-    if (chosenValuesSet.size === 0) {
-      return "Select values…";
-    }
-    const items = [...chosenValuesSet].map((v) =>
-      stringifyUnknownValue({ value: v }),
-    );
-    return `[${items.join(", ")}]`;
-  }, [chosenValuesSet]);
+  const displayItems = useMemo(
+    () => [...chosenValuesSet].map((v) => stringifyUnknownValue({ value: v })),
+    [chosenValuesSet],
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -65,14 +60,13 @@ export const FilterByValuesPicker = <TData, TValue>({
           size="xs"
           className="h-6 mb-1 w-full justify-between font-normal"
         >
-          <span
-            className={cn(
-              "truncate",
-              chosenValuesSet.size === 0 && "text-muted-foreground",
-            )}
-          >
-            {selectedValuesStr}
-          </span>
+          {displayItems.length === 0 ? (
+            <span className="truncate text-muted-foreground">
+              Select values…
+            </span>
+          ) : (
+            <CompactChipRow items={displayItems} max={3} />
+          )}
           <ChevronDownIcon className="h-4 w-4 opacity-50 shrink-0" />
         </Button>
       </PopoverTrigger>
