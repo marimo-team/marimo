@@ -889,37 +889,38 @@ def test_base_exception_handling():
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_dataframe_render_args_carry_size_bytes() -> None:
+def test_dataframe_get_size_bytes_rpc_extrapolates() -> None:
     import pandas as pd
 
-    df = pd.DataFrame({"a": [1, 2, 3]})
+    from marimo._plugins.ui._impl.table import GetSizeBytesResponse
+
+    df = pd.DataFrame({"a": list(range(2000))})
     subject = ui.dataframe(df)
-    args = subject._component_args  # type: ignore[attr-defined]
-    assert args["size-bytes"] == len(
-        subject._manager.to_json(strict_json=True)
-    )
+    resp = subject._get_size_bytes(EmptyArgs())
+    assert isinstance(resp, GetSizeBytesResponse)
+    assert resp.size_bytes is not None
+    exact = len(subject._manager.to_json(strict_json=True))
+    assert abs(resp.size_bytes - exact) / exact < 0.25
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_dataframe_get_dataframe_response_carries_size_bytes() -> None:
+def test_dataframe_get_size_bytes_rpc_returns_none_on_serialization_failure() -> (
+    None
+):
+    from unittest.mock import patch
+
     import pandas as pd
 
-    df = pd.DataFrame({"a": [1, 2, 3]})
-    subject = ui.dataframe(df)
-    response = subject._get_dataframe(EmptyArgs())
-    assert response.size_bytes == len(
-        subject._manager.to_json(strict_json=True)
-    )
+    from marimo._plugins.ui._impl.table import GetSizeBytesResponse
 
+    subject = ui.dataframe(pd.DataFrame({"a": [1, 2, 3]}))
+    manager_cls = type(subject._manager)
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_dataframe_get_json_size_bytes_fails_open() -> None:
-    import pandas as pd
+    def _raise(*_args: object, **_kwargs: object) -> str:
+        raise RuntimeError("boom")
 
-    subject = ui.dataframe(pd.DataFrame({"a": [1]}))
+    with patch.object(manager_cls, "to_json_str", _raise):
+        resp = subject._get_size_bytes(EmptyArgs())
 
-    class _Boom:
-        def to_json(self, **_: object) -> str:
-            raise RuntimeError("boom")
-
-    assert subject._get_json_size_bytes(_Boom()) is None  # type: ignore[arg-type]
+    assert isinstance(resp, GetSizeBytesResponse)
+    assert resp.size_bytes is None

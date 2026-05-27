@@ -1,8 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+"use no memo";
+
+// tanstack/table is not compatible with React compiler
+// https://github.com/TanStack/table/issues/5567
 
 import { Fill } from "@marimo-team/react-slotz";
-import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
-import type React from "react";
+import type {
+  OnChangeFn,
+  RowSelectionState,
+  Table,
+} from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { SlotNames } from "@/core/slots/slots";
@@ -19,7 +26,7 @@ import { ColumnExplorerPanel } from "../column-explorer-panel/column-explorer";
 import { RowViewerPanel } from "../row-viewer-panel/row-viewer";
 import type { FieldTypesWithExternalType, TooManyRows } from "../types";
 
-export interface TableExplorerPanelProps {
+export interface TableExplorerPanelProps<TData> {
   // Row viewer props
   rowIdx: number;
   setRowIdx: (rowIdx: number) => void;
@@ -33,6 +40,7 @@ export interface TableExplorerPanelProps {
   previewColumn?: PreviewColumn;
   totalColumns: number;
   tableId: string;
+  table: Table<TData>;
   // Visibility flags
   showRowExplorer: boolean;
   showColumnExplorer: boolean;
@@ -46,7 +54,7 @@ const tabTriggerClassName =
 const activeClassName = "text-primary";
 const inactiveClassName = "hover:text-foreground";
 
-export const TableExplorerPanel: React.FC<TableExplorerPanelProps> = ({
+export function TableExplorerPanel<TData>({
   // Row viewer
   rowIdx,
   setRowIdx,
@@ -60,13 +68,14 @@ export const TableExplorerPanel: React.FC<TableExplorerPanelProps> = ({
   previewColumn,
   totalColumns,
   tableId,
+  table,
   // Visibility
   showRowExplorer,
   showColumnExplorer,
   // Tab state
   activeTab,
   onTabChange,
-}) => {
+}: TableExplorerPanelProps<TData>) {
   const showTabs = showRowExplorer && showColumnExplorer;
 
   const rowViewer = (
@@ -89,6 +98,7 @@ export const TableExplorerPanel: React.FC<TableExplorerPanelProps> = ({
       totalRows={totalRows}
       totalColumns={totalColumns}
       tableId={tableId}
+      table={table}
     />
   );
 
@@ -158,4 +168,4 @@ export const TableExplorerPanel: React.FC<TableExplorerPanelProps> = ({
       </TabsContent>
     </Tabs>
   );
-};
+}

@@ -13,7 +13,7 @@ import {
 } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { Button } from "../ui/button";
 import { toast } from "../ui/use-toast";
-import { getUserColumnVisibilityCounts } from "./hooks/use-column-visibility";
+import { getColumnCountForDisplay } from "./hooks/use-column-visibility";
 import { DataTablePagination, prettifyRowColumnCount } from "./pagination";
 import { CellSelectionStats } from "./range-focus/cell-selection-stats";
 import type { DataTableSelection } from "./types";
@@ -147,15 +147,12 @@ export const TableBottomBar = <TData,>({
       );
     }
 
-    const counts = getUserColumnVisibilityCounts(table);
-    // When columns are clipped, the table instance only has the rendered
-    // subset, so the visible/hidden math must use that subset's total. The
-    // dataset-wide `totalColumns` prop is only correct for the no-hidden
-    // "N columns" label.
+    const { totalColumns: effectiveTotalColumns, hiddenColumns } =
+      getColumnCountForDisplay(table, totalColumns);
     const { rowsAndColumns, hiddenSuffix } = prettifyRowColumnCount({
       numRows: table.getRowCount(),
-      totalColumns: counts.hidden > 0 ? counts.total : totalColumns,
-      hiddenColumns: counts.hidden,
+      totalColumns: effectiveTotalColumns,
+      hiddenColumns,
       locale,
     });
 
