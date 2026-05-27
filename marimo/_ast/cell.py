@@ -659,15 +659,10 @@ class Cell:
                 }
                 refs = {**from_setup, **refs}
 
-        from marimo._runtime.runner import by_kwargs
-
         try:
-            # Refresh the async decision with the caller's substitutions —
-            # an unsubstituted ancestor may have been async but isn't on
-            # this call's ancestor closure.
-            if by_kwargs.is_coroutine(
-                self._app.graph, self._cell.cell_id, refs
-            ):
+            # TODO(dmadisetti): consider recomputing since caching doesn't close
+            # closure over the correct set of refs, but this is also expensive.
+            if self._is_coroutine:
                 return self._app.run_cell_async(cell=self, kwargs=refs)
             else:
                 return self._app.run_cell_sync(cell=self, kwargs=refs)
