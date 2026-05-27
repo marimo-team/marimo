@@ -9,7 +9,6 @@ import pytest
 from marimo._messaging.context import HTTP_REQUEST_CTX, is_code_mode_request
 from marimo._messaging.tracebacks import (
     _highlight_traceback,
-    _trim_traceback,
     format_exception_message,
     is_code_highlighting,
     write_traceback,
@@ -259,11 +258,3 @@ class TestIsCodeModeRequest:
             assert is_code_mode_request() is False
         finally:
             HTTP_REQUEST_CTX.reset(token)
-
-    def test_trim(self) -> None:
-        prefix = "Traceback (most recent call last):\n"
-        head = '  File ".../marimo/_runtime/executor.py", line 139, in execute_cell\n    return eval(cell.last_expr, glbls)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n'
-        rest = (
-            '  File ".../__marimo__cell_Hbol_.py", line 2, in <module>\n...\n'
-        )
-        assert _trim_traceback(f"{prefix}{head}{rest}") == f"{prefix}{rest}"

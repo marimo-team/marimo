@@ -2,14 +2,8 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
-import functools
 import io
-import signal
-import threading
 import traceback
-from collections import deque
-from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
@@ -22,7 +16,6 @@ from marimo._loggers import marimo_logger
 from marimo._messaging.errors import (
     MarimoExceptionRaisedError,
     MarimoSQLError,
-    MarimoStrictExecutionError,
     UnknownError,
 )
 from marimo._messaging.tracebacks import write_traceback
@@ -31,12 +24,14 @@ from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.exceptions import (
     MarimoMissingRefError,
-    MarimoNameError,
     MarimoRuntimeException,
+    unwrap_user_exception,
 )
 from marimo._runtime.executor import (
-    ExecutionConfig,
-    get_executor,
+    Evaluator,
+    ExecutionLifecycle,
+    StrictLifecycle,
+    resolve_executor,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.runner.hook_context import (
@@ -44,6 +39,8 @@ from marimo._runtime.runner.hook_context import (
     ExceptionOrError,
     ExecutionContextManager,
 )
+from marimo._runtime.runner.result import RunResult
+from marimo._runtime.runner.scheduler import SequentialScheduler
 from marimo._sql.error_utils import (
     create_sql_error_from_exception,
     is_sql_parse_error,
@@ -53,7 +50,7 @@ from marimo._types.ids import CellId_t
 LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections import deque
 
     from marimo._runtime.runner.hooks import NotebookCellHooks
     from marimo._runtime.state import State
@@ -83,22 +80,7 @@ def cell_filename(cell_id: CellId_t) -> str:
     return f"<cell-{cell_id}>"
 
 
-@dataclass
-class RunResult:
-    # Raw output of cell: last expression
-    output: Any
-    # Exception raised by cell, if any
-    #
-    # TODO(akshayka): Exceptions and "Errors" (most of which are at parse time
-    # and can't be encountered by the runner) shouldn't be packed into a single
-    # field.
-    exception: ExceptionOrError | None
-    # Accumulated output: via imperative mo.output.append()
-    accumulated_output: Any = None
-
-    def success(self) -> bool:
-        """Whether the cell expected successfully"""
-        return self.exception is None
+__all__ = ["RunResult", "Runner", "cell_filename", "should_show_traceback"]
 
 
 def should_show_traceback(
@@ -137,9 +119,6 @@ class Runner:
         self.graph = graph
         self.debugger = debugger
         self.excluded_cells = excluded_cells or set()
-        self._executor = get_executor(
-            ExecutionConfig(is_strict=execution_type == "strict")
-        )
         self.execution_context = execution_context
         self._hooks = hooks
         self.user_config = user_config
@@ -155,26 +134,29 @@ class Runner:
         # so that they can be transitioned out of error if a future
         # run request repairs the graph
         self.roots = roots
-        self.cells_to_run: deque[CellId_t] = deque(
-            Runner.compute_cells_to_run(
-                self.graph,
-                self.roots,
-                self.excluded_cells,
-                self.execution_mode,
-            )
+        cells_to_run_list = Runner.compute_cells_to_run(
+            self.graph,
+            self.roots,
+            self.excluded_cells,
+            self.execution_mode,
         )
 
-        # tracks cancelled cells: raising cell -> descendants, with O(1) lookup
-        self.cancelled_cells = CancelledCells()
-        # whether the runner has been interrupted
-        self.interrupted = False
+        self._scheduler = SequentialScheduler(cells_to_run_list, self.graph)
+
         # mapping from cell_id to exception it raised
         self.exceptions: dict[CellId_t, ExceptionOrError] = {}
 
-        # each cell's position in the run queue
+        # each cell's position in the original run queue
         self._run_position = {
-            cell_id: index for index, cell_id in enumerate(self.cells_to_run)
+            cell_id: index for index, cell_id in enumerate(cells_to_run_list)
         }
+
+        lifecycles: list[ExecutionLifecycle] = []
+        if execution_type == "strict":
+            lifecycles.append(StrictLifecycle(self.graph))
+        self._evaluator = Evaluator(
+            executor=resolve_executor(), lifecycles=lifecycles
+        )
 
     @staticmethod
     def compute_cells_to_run(
@@ -219,71 +201,33 @@ class Runner:
 
         return sorted_cells
 
-    # Adapted from
-    # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312
-    @staticmethod
-    @contextlib.contextmanager
-    def _cancel_on_sigint(future: asyncio.Future[Any]) -> Iterator[None]:
-        """ContextManager for capturing SIGINT and cancelling a future
+    @property
+    def cells_to_run(self) -> deque[CellId_t]:
+        return self._scheduler.cells_to_run
 
-        SIGINT raises in the event loop when running async code,
-        but we want it to halt a coroutine.
+    @property
+    def cancelled_cells(self) -> CancelledCells:
+        return self._scheduler.cancelled_cells
 
-        Ideally, it would raise KeyboardInterrupt, but this turns it into a
-        CancelledError.
-        """
-        sigint_future: asyncio.Future[int] = asyncio.Future()
+    @property
+    def interrupted(self) -> bool:
+        return self._scheduler.interrupted
 
-        # whichever future finishes first,
-        # cancel the other one
-        def cancel_unless_done(f: asyncio.Future[Any], _: Any) -> None:
-            if f.cancelled() or f.done():
-                return
-            f.cancel()
-
-        # when sigint finishes,
-        # abort the coroutine with CancelledError
-        sigint_future.add_done_callback(
-            functools.partial(cancel_unless_done, future)
-        )
-        # when the main future finishes,
-        # stop watching for SIGINT events
-        future.add_done_callback(
-            functools.partial(cancel_unless_done, sigint_future)
-        )
-
-        def handle_sigint(*_: Any) -> None:
-            if sigint_future.cancelled() or sigint_future.done():
-                return
-            # mark as done, to trigger cancellation
-            sigint_future.set_result(1)
-
-        # set the custom sigint handler during this context
-        save_sigint = signal.signal(signal.SIGINT, handle_sigint)
-        try:
-            yield
-        finally:
-            # restore the previous sigint handler
-            signal.signal(signal.SIGINT, save_sigint)
+    @interrupted.setter
+    def interrupted(self, value: bool) -> None:
+        self._scheduler.interrupted = value
 
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell (and its descendants) as cancelled."""
-        descendants = {
-            cid
-            for cid in dataflow.transitive_closure(self.graph, {cell_id})
-            if cid in self.cells_to_run
-        }
-        self.cancelled_cells.add(cell_id, descendants)
-        for cid in descendants:
-            self.graph.cells[cid].set_run_result_status("cancelled")
+        self._scheduler.cancel(cell_id)
 
     def cancelled(self, cell_id: CellId_t) -> bool:
         """Return whether a cell has been cancelled."""
-        return cell_id in self.cancelled_cells
+        return self._scheduler.cancelled(cell_id)
 
     def pending(self) -> bool:
         """Whether there are more cells to run."""
-        return not self.interrupted and len(self.cells_to_run) > 0
+        return self._scheduler.pending()
 
     def _get_run_position(self, cell_id: CellId_t) -> int | None:
         """Position in the original run queue"""
@@ -357,7 +301,7 @@ class Runner:
 
     def pop_cell(self) -> CellId_t:
         """Get the next cell to run."""
-        return self.cells_to_run.popleft()
+        return self._scheduler.pop_cell()
 
     def _run_result_from_exception(
         self,
@@ -461,65 +405,75 @@ class Runner:
                 self.debugger._last_traceback = None
 
         cell = self.graph.cells[cell_id]
-        run_result = None
+        # The Evaluator captures all body/lifecycle exceptions into the
+        # returned RunResult; cell_id-specific classification + side
+        # effects are applied below in `_finalize_run_result`.
         try:
-            if cell.is_coroutine():
-                return_value_future = asyncio.ensure_future(
-                    self._executor.execute_cell_async(
-                        cell,
-                        self.glbls,
-                        self.graph,
-                    )
-                )
-                if threading.current_thread() == threading.main_thread():
-                    # edit mode: need to handle user interrupts
-                    with Runner._cancel_on_sigint(return_value_future):
-                        return_value = await return_value_future
-                else:
-                    # run mode: can't use signal.signal, not interruptible
-                    # by user anyway.
-                    return_value = await return_value_future
-            else:
-                return_value = self._executor.execute_cell(
-                    cell,
-                    self.glbls,
-                    self.graph,
-                )
-            run_result = RunResult(output=return_value, exception=None)
-        except asyncio.exceptions.CancelledError:
-            # User interrupt
-            # interrupt the entire runner
-            # Async cells can only be cancelled via a user interrupt
-            run_result = RunResult(output=None, exception=MarimoInterrupt())
-            # Still provide a general traceback.
+            raw_result = await self._evaluator.evaluate_interruptible(
+                cell, self.glbls
+            )
+            run_result = self._finalize_run_result(raw_result, cell_id)
+        except BaseException:
+            # Defensive: an unexpected escape from the Evaluator or a bug
+            # in `_finalize_run_result` would otherwise tear down the
+            # runner loop. Degrade gracefully with an empty RunResult.
+            LOGGER.error(
+                """marimo encountered an internal error.
+
+                marimo finished executing a cell, but did not produce
+                a run result.
+
+                Please copy this message and paste it in a GitHub issue:
+
+                https://github.com/marimo-team/marimo/issues
+
+                Any additional context of what caused this error, such
+                as sample code to reproduce, will help us debug.
+                """
+            )
+            run_result = RunResult(output=None, exception=None)
+
+        # Mark as interrupted if the cell raised a MarimoInterrupt
+        # Set here since failed async can also trigger an Interrupt.
+        if isinstance(run_result.exception, MarimoInterrupt):
+            self.interrupted = True
+
+        self._update_debugger_state(run_result, cell_id)
+
+        if run_result.exception is not None:
+            self.exceptions[cell_id] = run_result.exception
+
+        return run_result
+
+    def _finalize_run_result(
+        self, raw_result: RunResult, cell_id: CellId_t
+    ) -> RunResult:
+        """Classify the Evaluator's RunResult and apply Runner side effects."""
+        exc = raw_result.exception
+        if exc is None:
+            return raw_result
+        if not isinstance(exc, BaseException):
+            # No exception to handle. Cancel descendants and surface the payload
+            # as-is.
+            self.cancel(cell_id)
+            return raw_result
+
+        if isinstance(exc, asyncio.exceptions.CancelledError):
+            # Surface cancellation as a MarimoInterrupt for downstream handling.
             tmpio = io.StringIO()
-            traceback.print_exc(file=tmpio)
+            traceback.print_exception(
+                type(exc), exc, exc.__traceback__, file=tmpio
+            )
             tmpio.seek(0)
             write_traceback(tmpio.read())
-        # Strict mode errors may also raise errors outside of execution.
-        except MarimoNameError as e:
-            self.cancel(cell_id)
-            strict_exception = MarimoStrictExecutionError(str(e), e.ref, None)
-            run_result = RunResult(
-                output=strict_exception, exception=strict_exception
-            )
-        except MarimoMissingRefError as e:
-            # In strict mode, marimo refuses to evaluate a cell if there are
-            # missing definitions. Since the cell hasn't run, this is a pre
-            # check error, but still mark descendants as cancelled.
-            self.cancel(cell_id)
-            ref, blamed_cell = self._get_blamed_cell(e)
-            name_output = MarimoStrictExecutionError(
-                "marimo was unable to resolve "
-                f"a reference to `{ref}` in cell : ",
-                ref,
-                blamed_cell,
-            )
-            run_result = RunResult(output=name_output, exception=name_output)
+            return RunResult(output=None, exception=MarimoInterrupt())
+
         # Should cover all cell runtime exceptions.
-        except MarimoRuntimeException as e:
-            output: Any = None
-            unwrapped_exception: BaseException | None = e.__cause__
+        if isinstance(exc, MarimoRuntimeException):
+            # Unwrap the user exception and upgrade a raw NameError to
+            # MarimoMissingRefError when the missing name is defined
+            # elsewhere in the graph.
+            unwrapped_exception = unwrap_user_exception(exc, self.graph)
 
             # Interrupts are sometimes sent multiple times; in particular,
             # it appears that polars forwards interrupts, so interrupting
@@ -531,7 +485,7 @@ class Runner:
             try:
                 run_result, unwrapped_exception = (
                     self._run_result_from_exception(
-                        output, unwrapped_exception, cell_id
+                        None, unwrapped_exception, cell_id
                     )
                 )
             except KeyboardInterrupt:
@@ -541,8 +495,8 @@ class Runner:
 
             # Exceptions trigger cancellation of descendants.
             #
-            # TODO(akshayka): Another interrupt will end up interrupting
-            # this call as well, so this should be lifted out of `run`.
+            # TODO(akshayka): A SIGINT during cancel() can interrupt this
+            # call, so this should be lifted to a non-interruptible path.
             self.cancel(cell_id)
 
             if should_show_traceback(run_result.exception):
@@ -567,81 +521,54 @@ class Runner:
                 )
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
-        except BaseException as e:
-            # Check that MarimoRuntimeException has't already handled the
-            # error, since exceptions fall through except blocks.
-            # If not, then this is an unexpected error.
-            if not isinstance(e, MarimoRuntimeException):
-                LOGGER.error(f"Unexpected error type: {e}")
-                self.cancel(cell_id)
-                unknown_error = UnknownError(f"{e}")
-                run_result = RunResult(output=None, exception=unknown_error)
-                tmpio = io.StringIO()
-                traceback.print_exc(file=tmpio)
-                tmpio.seek(0)
-                write_traceback(tmpio.read())
-        finally:
-            # TODO(akshayka): some of this logic should be lifted out
-            # of `run`, (in particular to where execution context is not set)
-            # so that it is not interruptible
-            if run_result is None:
-                LOGGER.error(
-                    """marimo encountered an internal error.
+            return run_result
 
-                    marimo finished executing a cell, but did not produce
-                    a run result.
+        # Anything else escaping the Evaluator is unexpected.
+        LOGGER.error(f"Unexpected error type: {exc}")
+        self.cancel(cell_id)
+        tmpio = io.StringIO()
+        traceback.print_exception(
+            type(exc), exc, exc.__traceback__, file=tmpio
+        )
+        tmpio.seek(0)
+        write_traceback(tmpio.read())
+        return RunResult(output=None, exception=UnknownError(f"{exc}"))
 
-                    Please copy this message and paste it in a GitHub issue:
+    def _update_debugger_state(
+        self, run_result: RunResult, cell_id: CellId_t
+    ) -> None:
+        """Skip marimo frames in the debugger and stash the cell's traceback."""
+        # if a debugger is active, force it to skip past marimo code.
+        try:
+            # Bdb defines the botframe attribute and sets it to non-None
+            # when it starts up
+            if self.debugger is not None:
+                if (
+                    hasattr(self.debugger, "botframe")
+                    and self.debugger.botframe is not None
+                ):
+                    self.debugger.set_continue()
+                # Hold on to this information for debugging postmortem etc.
+                if run_result.exception is not None and hasattr(
+                    run_result.exception, "__traceback__"
+                ):
+                    tb = run_result.exception.__traceback__
+                    if isinstance(tb, TracebackType):
+                        self.debugger._last_traceback = tb
+                        self.debugger._last_tracebacks[cell_id] = tb
+        except Exception as debugger_error:
+            # This has never been hit, but just in case -- don't want
+            # to crash the kernel.
+            LOGGER.error(
+                """Internal marimo error. Please copy this message and
+                paste it in a GitHub issue:
 
-                    https://github.com/marimo-team/marimo/issues
+                https://github.com/marimo-team/marimo/issues
 
-                    Any additional context of what caused this error, such
-                    as sample code to reproduce, will help us debug.
-                    """
-                )
-                run_result = RunResult(output=None, exception=None)
-
-            # Mark as interrupted if the cell raised a MarimoInterrupt
-            # Set here since failed async can also trigger an Interrupt.
-            if isinstance(run_result.exception, MarimoInterrupt):
-                self.interrupted = True
-
-            # if a debugger is active, force it to skip past marimo code.
-            try:
-                # Bdb defines the botframe attribute and sets it to non-None
-                # when it starts up
-                if self.debugger is not None:
-                    if (
-                        hasattr(self.debugger, "botframe")
-                        and self.debugger.botframe is not None
-                    ):
-                        self.debugger.set_continue()
-                    # Hold on to this information for debugging postmortem etc.
-                    if run_result.exception is not None and hasattr(
-                        run_result.exception, "__traceback__"
-                    ):
-                        tb = run_result.exception.__traceback__
-                        if isinstance(tb, TracebackType):
-                            self.debugger._last_traceback = tb
-                            self.debugger._last_tracebacks[cell_id] = tb
-            except Exception as debugger_error:
-                # This has never been hit, but just in case -- don't want
-                # to crash the kernel.
-                LOGGER.error(
-                    """Internal marimo error. Please copy this message and
-                    paste it in a GitHub issue:
-
-                    https://github.com/marimo-team/marimo/issues
-
-                    An exception raised attempting to continue debugger (%s).
-                    """,
-                    str(debugger_error),
-                )
-
-        if run_result.exception is not None:
-            self.exceptions[cell_id] = run_result.exception
-
-        return run_result
+                An exception raised attempting to continue debugger (%s).
+                """,
+                str(debugger_error),
+            )
 
     def _get_blamed_cell(
         self, e: MarimoMissingRefError
