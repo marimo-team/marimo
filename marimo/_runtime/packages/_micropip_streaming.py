@@ -83,13 +83,15 @@ async def stream_transaction_install(
     resolve to native pyodide-distribution entries are loaded via
     `loadPackage`; pure-python wheels are downloaded and extracted in parallel.
     """
-    import micropip  # type: ignore[import-not-found]
-    from micropip._utils import (
-        default_environment,  # type: ignore[import-not-found]
-    )
-    from micropip.transaction import (
-        Transaction,  # type: ignore[import-not-found]
-    )
+    # Lazy / dynamic import so this module loads cleanly outside Pyodide
+    # (where micropip isn't installed). A ModuleNotFoundError here propagates
+    # as ImportError, which the marimo-side wrapper catches and falls back.
+    micropip = importlib.import_module("micropip")
+    default_environment = importlib.import_module(
+        "micropip._utils"
+    ).default_environment
+    Transaction = importlib.import_module("micropip.transaction").Transaction
+    from packaging.requirements import Requirement
     from packaging.utils import canonicalize_name
 
     mgr = micropip._micropip  # singleton PackageManager
@@ -120,8 +122,21 @@ async def stream_transaction_install(
 
     await transaction.gather_requirements(flat_requirements)
 
-    # Map normalized name -> original name as the caller spelled it.
-    requested = {canonicalize_name(p): p for p in packages}
+    # Map normalized base-package-name -> original spec as the caller spelled
+    # it. The caller's strings may include version specifiers, URL specs, or
+    # markers (`foo==1.0`, `foo @ git+…@ref`, `foo; python_version>'3.10'`),
+    # so parse out the base name before canonicalizing — otherwise the wheel
+    # name micropip yields back ("foo") will fail to match the spec string.
+    requested: dict[str, str] = {}
+    for spec in packages:
+        try:
+            base_name = Requirement(spec).name
+        except Exception:
+            # Editable/path specs and other oddities Requirement can't parse;
+            # fall back to canonicalizing the whole string. Worst case it
+            # gets reconciled by the importlib.metadata pass at the end.
+            base_name = spec
+        requested[canonicalize_name(base_name)] = spec
 
     for failed_name in transaction.failed:
         normalized = canonicalize_name(failed_name)
@@ -147,16 +162,18 @@ async def stream_transaction_install(
                 yield (original, exc is None)
 
     if transaction.pyodide_packages:
-        await mgr.compat_layer.loadPackage(
-            mgr.compat_layer.to_js(
-                [name for name, _, _ in transaction.pyodide_packages]
-            )
-        )
-        for name, _, _ in transaction.pyodide_packages:
+        names = [name for name, _, _ in transaction.pyodide_packages]
+        try:
+            await mgr.compat_layer.loadPackage(mgr.compat_layer.to_js(names))
+        except Exception:
+            load_succeeded = False
+        else:
+            load_succeeded = True
+        for name in names:
             normalized = canonicalize_name(name)
             if normalized in requested:
                 original = requested.pop(normalized)
-                yield (original, True)
+                yield (original, load_succeeded)
 
     importlib.invalidate_caches()
 

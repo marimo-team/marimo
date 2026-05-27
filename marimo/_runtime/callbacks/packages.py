@@ -63,12 +63,16 @@ class PackagesCallbacks:
         except Exception:
             return []
         urls: list[str] = []
-        if reader.index_url:
+        if isinstance(reader.index_url, str) and reader.index_url:
             urls.append(reader.index_url)
-        urls.extend(reader.extra_index_urls)
+        for extra in reader.extra_index_urls:
+            if isinstance(extra, str) and extra and extra not in urls:
+                urls.append(extra)
         for entry in reader.index_configs:
+            if not isinstance(entry, dict):
+                continue
             url = entry.get("url")
-            if url and url not in urls:
+            if isinstance(url, str) and url and url not in urls:
                 urls.append(url)
         return urls
 
