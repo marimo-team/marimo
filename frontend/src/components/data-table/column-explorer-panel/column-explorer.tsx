@@ -110,6 +110,7 @@ export function ColumnExplorerPanel<TData>({
         />
         {hiddenColumnCount > 0 && (
           <Button
+            type="button"
             variant="link"
             size="xs"
             className="h-auto p-0"
@@ -201,8 +202,12 @@ function ColumnItem<TData>({
               delayDuration={400}
             >
               <Button
+                type="button"
                 variant="text"
                 size="icon"
+                aria-label={
+                  column.getIsVisible() ? "Hide column" : "Show column"
+                }
                 className={cn(
                   "hover:bg-muted text-muted-foreground hover:text-primary",
                   column.getIsVisible()

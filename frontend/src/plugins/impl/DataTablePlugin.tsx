@@ -8,6 +8,7 @@ import type {
   PaginationState,
   RowSelectionState,
   SortingState,
+  Table as TanstackTable,
 } from "@tanstack/react-table";
 import { Provider, useAtomValue } from "jotai";
 import { Table2Icon } from "lucide-react";
@@ -1040,6 +1041,52 @@ const DataTableComponent = ({
   const isInVscode = isInVscodeExtension();
   const isIslandsMode = isIslands();
 
+  const renderTableExplorerPanel = useMemo(() => {
+    if (!isAnyPanelOpen || !(showRowExplorer || canShowColumnExplorer)) {
+      return undefined;
+    }
+    return (table: TanstackTable<unknown>) => (
+      <ContextAwarePanelItem>
+        <TableExplorerPanel
+          rowIdx={viewedRowIdx}
+          setRowIdx={setViewedRow}
+          totalRows={totalRows}
+          fieldTypes={memoizedUnclampedFieldTypes}
+          getRow={getRow}
+          isSelectable={isSelectable}
+          isRowSelected={Boolean(rowSelection[viewedRowIdx])}
+          handleRowSelectionChange={handleRowSelectionChange}
+          previewColumn={preview_column}
+          totalColumns={totalColumns}
+          tableId={id}
+          table={table}
+          showRowExplorer={showRowExplorer && !isInVscode}
+          showColumnExplorer={canShowColumnExplorer && !isInVscode}
+          activeTab={panelType}
+          onTabChange={setPanelType}
+        />
+      </ContextAwarePanelItem>
+    );
+  }, [
+    isAnyPanelOpen,
+    showRowExplorer,
+    canShowColumnExplorer,
+    viewedRowIdx,
+    setViewedRow,
+    totalRows,
+    memoizedUnclampedFieldTypes,
+    getRow,
+    isSelectable,
+    rowSelection,
+    handleRowSelectionChange,
+    preview_column,
+    totalColumns,
+    id,
+    isInVscode,
+    panelType,
+    setPanelType,
+  ]);
+
   return (
     <>
       {/* When the totalRows is "too_many" and the pageSize is the same as the
@@ -1121,34 +1168,7 @@ const DataTableComponent = ({
             isAnyPanelOpen={isAnyPanelOpen}
             viewedRowIdx={viewedRowIdx}
             onViewedRowChange={(rowIdx) => setViewedRowIdx(rowIdx)}
-            renderTableExplorerPanel={
-              isAnyPanelOpen && (showRowExplorer || canShowColumnExplorer)
-                ? (table) => (
-                    <ContextAwarePanelItem>
-                      <TableExplorerPanel
-                        rowIdx={viewedRowIdx}
-                        setRowIdx={setViewedRow}
-                        totalRows={totalRows}
-                        fieldTypes={memoizedUnclampedFieldTypes}
-                        getRow={getRow}
-                        isSelectable={isSelectable}
-                        isRowSelected={Boolean(rowSelection[viewedRowIdx])}
-                        handleRowSelectionChange={handleRowSelectionChange}
-                        previewColumn={preview_column}
-                        totalColumns={totalColumns}
-                        tableId={id}
-                        table={table}
-                        showRowExplorer={showRowExplorer && !isInVscode}
-                        showColumnExplorer={
-                          canShowColumnExplorer && !isInVscode
-                        }
-                        activeTab={panelType}
-                        onTabChange={setPanelType}
-                      />
-                    </ContextAwarePanelItem>
-                  )
-                : undefined
-            }
+            renderTableExplorerPanel={renderTableExplorerPanel}
           />
         </Labeled>
       </ColumnChartContext>
