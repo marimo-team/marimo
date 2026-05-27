@@ -356,7 +356,18 @@ def compile_cell(
         expr, filename, mode="eval", dont_inherit=True, flags=flags
     )
 
-    nonlocals = {name for name in v.defs if not is_local(name)}
+    # Imports are exempt from the underscore "cell-local" rule: their
+    # name comes from the package (the user can't control it), and we
+    # need them in the graph so consumers in other cells can resolve.
+    nonlocals = {
+        name
+        for name in v.defs
+        if not is_local(name)
+        or (
+            name in v.variable_data
+            and any(d.kind == "import" for d in v.variable_data[name])
+        )
+    }
     temporaries = v.defs - nonlocals
     variable_data = {
         name: v.variable_data[name]

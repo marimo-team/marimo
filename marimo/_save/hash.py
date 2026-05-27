@@ -698,17 +698,28 @@ class BlockHasher:
         imports = get_imports(scope)
         for local_ref in sorted(refs):
             ref = if_local_then_mangle(local_ref, self.cell_id)
-            if ref in imports:
+            # Imports are never mangled (see `_get_alias_name`), so the
+            # `_private`-style import will appear in `imports` under its
+            # raw name while non-import locals are still keyed by their
+            # mangled form. Accept either.
+            import_key: Name | None = (
+                ref
+                if ref in imports
+                else local_ref
+                if local_ref in imports
+                else None
+            )
+            if import_key is not None:
                 # TODO: There may be a way to tie this in with module watching.
                 # e.g. module watcher could mutate the version number based
                 # last updated timestamp.
                 version = ""
                 module = None
                 if self.pin_modules:
-                    module = sys.modules[imports[ref].module]
+                    module = sys.modules[imports[import_key].module]
                     version = getattr(module, "__version__", "")
                     if not version:
-                        module = sys.modules[imports[ref].namespace]
+                        module = sys.modules[imports[import_key].namespace]
                         version = getattr(module, "__version__", "")
 
                 content_serialization[ref] = type_sign(

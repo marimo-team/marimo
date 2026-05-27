@@ -985,6 +985,37 @@ def test_relative_from_import() -> None:
     ]
 
 
+def test_underscore_imports_never_mangled() -> None:
+    # Imports must never be mangled — the user can't control upstream
+    # package names. Covers `from foo import _bar`, multi-name imports,
+    # plain `import _foo`, and `import x as _y`. Also checks that
+    # underscore-imported names referenced from a nested scope
+    # (decorator) stay unmangled.
+    cases = [
+        ("from foo import _bar", {"_bar"}),
+        ("from foo import _bar, _baz, _qux", {"_bar", "_baz", "_qux"}),
+        ("import _foo", {"_foo"}),
+        ("import marimo as _mo", {"_mo"}),
+        ("from a.b import _c as _d", {"_d"}),
+        (
+            "import marimo as _private\n"
+            "@_private.cache\n"
+            "def f(x):\n"
+            "    return _private.md('x')\n",
+            {"_private", "f"},
+        ),
+    ]
+    for source, expected_defs in cases:
+        v = visitor.ScopedVisitor(mangle_prefix="cell_test")
+        mod = ast.parse(source)
+        v.visit(mod)
+        assert v.defs == expected_defs, source
+        unparsed = ast.unparse(mod)
+        assert "_cell_test_" not in unparsed, (
+            f"import was mangled in {source!r}: {unparsed!r}"
+        )
+
+
 def test_from_import_star() -> None:
     expr = "from a.b.c import *"
     v = visitor.ScopedVisitor()
