@@ -91,6 +91,7 @@ export interface ExportActionProps {
   // marimo-lsp inside VS Code) declares a download size cap. Null/undefined
   // means "no info" and the gate stays disabled (fail-open).
   sizeBytes?: number | null;
+  sizeBytesIsLoading?: boolean;
 }
 
 const labelForDownloadFormat = (format: DownloadFormat): string =>
@@ -100,13 +101,19 @@ const labelForCopyFormat = (format: CopyFormat): string =>
 
 export const ExportMenu: React.FC<ExportActionProps> = (props) => {
   const { locale } = useLocale();
-  const [open, setOpen] = React.useState(false);
+  const [downloadMenuOpen, setDownloadMenuOpen] = React.useState(false);
   const policy = useAtomValue(downloadSizeLimitAtom);
-  const disabled = !!(
+  const overLimit = !!(
     policy &&
     props.sizeBytes != null &&
     props.sizeBytes > policy.limitBytes
   );
+  const disabled = !!(policy && (props.sizeBytesIsLoading || overLimit));
+  const tooltipContent = !disabled
+    ? "Export"
+    : props.sizeBytesIsLoading
+      ? "Checking download size…"
+      : policy?.unavailableMessage;
 
   const button = (
     <Button
@@ -116,7 +123,7 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
       disabled={disabled}
       className={cn(
         "print:hidden text-xs gap-1",
-        open ? "text-primary" : "text-muted-foreground",
+        downloadMenuOpen ? "text-primary" : "text-muted-foreground",
       )}
     >
       <DownloadIcon className="w-3.5 h-3.5" />
@@ -248,10 +255,14 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
   };
 
   return (
-    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
+    <DropdownMenu
+      modal={false}
+      open={downloadMenuOpen}
+      onOpenChange={setDownloadMenuOpen}
+    >
       <Tooltip
-        content={disabled ? policy?.unavailableMessage : "Export"}
-        open={open ? false : undefined}
+        content={tooltipContent}
+        open={downloadMenuOpen ? false : undefined}
       >
         <DropdownMenuTrigger asChild={true} disabled={disabled}>
           <span tabIndex={disabled ? 0 : -1} className="inline-flex">

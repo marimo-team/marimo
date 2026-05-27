@@ -17,6 +17,7 @@ import {
   type PaginationState,
   type RowSelectionState,
   type SortingState,
+  type Table as TanstackTable,
   useReactTable,
 } from "@tanstack/react-table";
 import React, { memo } from "react";
@@ -86,6 +87,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   // JSON-serialized size of the currently-rendered data. Forwarded to
   // ExportMenu so hosts can size-gate the Export button via downloadSizeLimitAtom.
   sizeBytes?: number | null;
+  sizeBytesIsLoading?: boolean;
   totalColumns: number;
   pagination?: boolean;
   manualPagination?: boolean; // server-side pagination
@@ -126,6 +128,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   togglePanel?: (panelType: PanelType) => void;
   isPanelOpen?: (panelType: PanelType) => boolean;
   isAnyPanelOpen?: boolean;
+  renderTableExplorerPanel?: (table: TanstackTable<TData>) => React.ReactNode;
 }
 
 const DataTableInternal = <TData,>({
@@ -139,6 +142,7 @@ const DataTableInternal = <TData,>({
   totalColumns,
   totalRows,
   sizeBytes,
+  sizeBytesIsLoading,
   manualSorting = false,
   sorting,
   setSorting,
@@ -176,6 +180,7 @@ const DataTableInternal = <TData,>({
   isAnyPanelOpen,
   viewedRowIdx,
   onViewedRowChange,
+  renderTableExplorerPanel,
 }: DataTableProps<TData>) => {
   const [showLoadingBar, setShowLoadingBar] = React.useState<boolean>(false);
   const { locale } = useLocale();
@@ -344,6 +349,7 @@ const DataTableInternal = <TData,>({
           addFilterSnapshot={addFilterSnapshot}
           onAddFilterSnapshotChange={setAddFilterSnapshot}
         />
+        {renderTableExplorerPanel?.(table)}
         <CellSelectionProvider>
           <div
             part="table-wrapper"
@@ -362,6 +368,7 @@ const DataTableInternal = <TData,>({
               isAnyPanelOpen={isAnyPanelOpen}
               downloadAs={downloadAs}
               sizeBytes={sizeBytes}
+              sizeBytesIsLoading={sizeBytesIsLoading}
             />
             {allUserColumnsHidden && (
               <Banner className="mb-1 mx-2 rounded flex items-center justify-between">

@@ -8,8 +8,9 @@ import type {
   PaginationState,
   RowSelectionState,
   SortingState,
+  Table as TanstackTable,
 } from "@tanstack/react-table";
-import { Provider } from "jotai";
+import { Provider, useAtomValue } from "jotai";
 import { Table2Icon } from "lucide-react";
 import type { JSX } from "react";
 import React, {
@@ -28,6 +29,7 @@ import { TablePanel } from "@/components/data-table/charts/charts";
 import { hasChart } from "@/components/data-table/charts/storage";
 import { ColumnChartSpecModel } from "@/components/data-table/column-summary/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary/column-summary";
+import { downloadSizeLimitAtom } from "@/components/data-table/download-policy/atoms";
 import { filtersToFilterGroup } from "@/components/data-table/filters";
 import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-ownership";
 import { LoadingTable } from "@/components/data-table/loading-table";
@@ -195,7 +197,6 @@ interface Data<T> {
   wrappedColumns?: string[];
   headerTooltip?: Record<string, string>;
   totalColumns: number;
-  sizeBytes?: number | null;
   maxColumns: number | "all";
   hasStableRowId: boolean;
   lazy: boolean;
@@ -222,12 +223,14 @@ type DataTableFunctions = {
     cell_styles?: CellStyleState | null;
     cell_hover_texts?: Record<string, Record<string, string | null>> | null;
     raw_data?: TableData<T> | null;
-    size_bytes?: number | null;
   }>;
   get_data_url?: GetDataUrl;
   get_row_ids?: GetRowIds;
   calculate_top_k_rows?: CalculateTopKRows;
   preview_column?: PreviewColumn;
+  get_size_bytes: (opts: Record<string, never>) => Promise<{
+    size_bytes?: number | null;
+  }>;
 };
 
 type S = (number | string | { rowId: string; columnName?: string })[];
@@ -274,7 +277,6 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       headerTooltip: z.record(z.string(), z.string()).optional(),
       fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
-      sizeBytes: z.number().nullish(),
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
       hasStableRowId: z.boolean().default(false),
       maxHeight: z.number().optional(),
@@ -332,7 +334,6 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             .nullable(),
           cell_hover_texts: cellHoverTextSchema.nullable(),
           raw_data: z.union([z.string(), z.array(z.looseObject({}))]).nullish(),
-          size_bytes: z.number().nullish(),
         }),
       ),
     get_row_ids: rpc.input(z.object({}).passthrough()).output(
@@ -364,6 +365,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         stats: columnStats.nullable(),
       }),
     ),
+    get_size_bytes: rpc
+      .input(z.object({}))
+      .output(z.object({ size_bytes: z.number().nullish() })),
   })
   .renderer((props) => {
     return (
@@ -538,7 +542,6 @@ export const LoadingDataTableComponent = memo(
       rows: T[];
       rawRows?: T[];
       totalRows: number | TooManyRows;
-      sizeBytes?: number | null;
       cellStyles: CellStyleState | undefined | null;
       cellHoverTexts?: Record<string, Record<string, string | null>> | null;
     }>(async () => {
@@ -555,7 +558,6 @@ export const LoadingDataTableComponent = memo(
       let tableData = props.data;
       let rawTableData: TableData<T> | undefined | null = props.rawData;
       let totalRows = props.totalRows;
-      let sizeBytes = props.sizeBytes ?? null;
       let cellStyles = props.cellStyles;
       let cellHoverTexts = props.cellHoverTexts;
 
@@ -599,7 +601,6 @@ export const LoadingDataTableComponent = memo(
         tableData = searchResults.data;
         rawTableData = searchResults.raw_data;
         totalRows = searchResults.total_rows;
-        sizeBytes = searchResults.size_bytes ?? null;
         cellStyles = searchResults.cell_styles || {};
         cellHoverTexts = searchResults.cell_hover_texts || {};
       }
@@ -612,7 +613,6 @@ export const LoadingDataTableComponent = memo(
         rows: tableData,
         rawRows: rawData,
         totalRows: totalRows,
-        sizeBytes,
         cellStyles,
         cellHoverTexts,
       };
@@ -624,13 +624,40 @@ export const LoadingDataTableComponent = memo(
       useDeepCompareMemoize(props.fieldTypes),
       props.data,
       props.totalRows,
-      props.sizeBytes,
       props.lazy,
       props.cellHoverTexts,
       props.cellStyles,
       paginationState.pageSize,
       paginationState.pageIndex,
     ]);
+
+    const policy = useAtomValue(downloadSizeLimitAtom);
+    const { data: sizeBytesData, isPending: sizeBytesPending } = useAsyncData<
+      number | null
+    >(async () => {
+      if (
+        !policy ||
+        !props.showDownload ||
+        props.lazy ||
+        props.totalRows === 0
+      ) {
+        return null;
+      }
+      const result = await props.get_size_bytes({});
+      return result.size_bytes ?? null;
+    }, [
+      policy,
+      props.showDownload,
+      props.get_size_bytes,
+      props.lazy,
+      props.totalRows,
+      searchQuery,
+      useDeepCompareMemoize(filters),
+      useDeepCompareMemoize(sorting),
+    ]);
+    const sizeBytes = sizeBytesData ?? null;
+    const sizeBytesIsLoading =
+      !!policy && props.showDownload && sizeBytesPending;
 
     const getRow = useCallback(
       async (rowId: number) => {
@@ -739,7 +766,8 @@ export const LoadingDataTableComponent = memo(
         setFilters={setFilters}
         reloading={isFetching && !isPending}
         totalRows={data?.totalRows ?? props.totalRows}
-        sizeBytes={data?.sizeBytes ?? props.sizeBytes ?? null}
+        sizeBytes={sizeBytes}
+        sizeBytesIsLoading={sizeBytesIsLoading}
         paginationState={paginationState}
         setPaginationState={setPaginationState}
         cellStyles={data?.cellStyles ?? props.cellStyles}
@@ -787,6 +815,7 @@ const DataTableComponent = ({
   rawData,
   totalRows,
   sizeBytes,
+  sizeBytesIsLoading,
   maxColumns,
   pagination,
   selection,
@@ -838,6 +867,8 @@ const DataTableComponent = ({
     rawData?: unknown[];
     columnSummaries?: ColumnSummaries;
     getRow: (rowIdx: number) => Promise<GetRowResult>;
+    sizeBytes?: number | null;
+    sizeBytesIsLoading?: boolean;
   }): JSX.Element => {
   const id = useId();
   const [viewedRowIdx, setViewedRowIdx] = useState(0);
@@ -1010,6 +1041,52 @@ const DataTableComponent = ({
   const isInVscode = isInVscodeExtension();
   const isIslandsMode = isIslands();
 
+  const renderTableExplorerPanel = useMemo(() => {
+    if (!isAnyPanelOpen || !(showRowExplorer || canShowColumnExplorer)) {
+      return undefined;
+    }
+    return (table: TanstackTable<unknown>) => (
+      <ContextAwarePanelItem>
+        <TableExplorerPanel
+          rowIdx={viewedRowIdx}
+          setRowIdx={setViewedRow}
+          totalRows={totalRows}
+          fieldTypes={memoizedUnclampedFieldTypes}
+          getRow={getRow}
+          isSelectable={isSelectable}
+          isRowSelected={Boolean(rowSelection[viewedRowIdx])}
+          handleRowSelectionChange={handleRowSelectionChange}
+          previewColumn={preview_column}
+          totalColumns={totalColumns}
+          tableId={id}
+          table={table}
+          showRowExplorer={showRowExplorer && !isInVscode}
+          showColumnExplorer={canShowColumnExplorer && !isInVscode}
+          activeTab={panelType}
+          onTabChange={setPanelType}
+        />
+      </ContextAwarePanelItem>
+    );
+  }, [
+    isAnyPanelOpen,
+    showRowExplorer,
+    canShowColumnExplorer,
+    viewedRowIdx,
+    setViewedRow,
+    totalRows,
+    memoizedUnclampedFieldTypes,
+    getRow,
+    isSelectable,
+    rowSelection,
+    handleRowSelectionChange,
+    preview_column,
+    totalColumns,
+    id,
+    isInVscode,
+    panelType,
+    setPanelType,
+  ]);
+
   return (
     <>
       {/* When the totalRows is "too_many" and the pageSize is the same as the
@@ -1035,28 +1112,6 @@ const DataTableComponent = ({
         </Banner>
       )}
 
-      {isAnyPanelOpen && (showRowExplorer || canShowColumnExplorer) && (
-        <ContextAwarePanelItem>
-          <TableExplorerPanel
-            rowIdx={viewedRowIdx}
-            setRowIdx={setViewedRow}
-            totalRows={totalRows}
-            fieldTypes={memoizedUnclampedFieldTypes}
-            getRow={getRow}
-            isSelectable={isSelectable}
-            isRowSelected={Boolean(rowSelection[viewedRowIdx])}
-            handleRowSelectionChange={handleRowSelectionChange}
-            previewColumn={preview_column}
-            totalColumns={totalColumns}
-            tableId={id}
-            showRowExplorer={showRowExplorer && !isInVscode}
-            showColumnExplorer={canShowColumnExplorer && !isInVscode}
-            activeTab={panelType}
-            onTabChange={setPanelType}
-          />
-        </ContextAwarePanelItem>
-      )}
-
       <ColumnChartContext value={chartSpecModel}>
         <Labeled label={label} align="top" fullWidth={true}>
           <DataTable
@@ -1068,6 +1123,7 @@ const DataTableComponent = ({
             sorting={sorting}
             totalRows={totalRows}
             sizeBytes={sizeBytes}
+            sizeBytesIsLoading={sizeBytesIsLoading}
             totalColumns={totalColumns}
             manualSorting={true}
             setSorting={setSorting}
@@ -1112,6 +1168,7 @@ const DataTableComponent = ({
             isAnyPanelOpen={isAnyPanelOpen}
             viewedRowIdx={viewedRowIdx}
             onViewedRowChange={(rowIdx) => setViewedRowIdx(rowIdx)}
+            renderTableExplorerPanel={renderTableExplorerPanel}
           />
         </Labeled>
       </ColumnChartContext>

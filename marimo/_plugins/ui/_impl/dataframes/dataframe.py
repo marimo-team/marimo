@@ -26,6 +26,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 from marimo._plugins.ui._impl.table import (
     DownloadAsArgs,
     DownloadAsResponse,
+    GetSizeBytesResponse,
     SearchTableArgs,
     SearchTableResponse,
     SortArgs,
@@ -72,9 +73,6 @@ class GetDataFrameResponse:
     column_types_per_step: list[FieldTypes]
     python_code: str | None = None
     sql_code: str | None = None
-    # JSON-serialized size of the current (post-transform) data; see
-    # ``SearchTableResponse.size_bytes`` for usage.
-    size_bytes: int | None = None
 
 
 @dataclass
@@ -199,7 +197,6 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                 "columns": self._get_column_types(),
                 "dataframe-name": dataframe_name,
                 "total": rows,
-                "size-bytes": self._get_json_size_bytes(self._manager),
                 "page-size": page_size,
                 "show-download": show_download,
                 "download-csv-encoding": download_csv_encoding,
@@ -227,6 +224,11 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                     name="download_as",
                     arg_cls=DownloadAsArgs,
                     function=self._download_as,
+                ),
+                Function(
+                    name="get_size_bytes",
+                    arg_cls=EmptyArgs,
+                    function=self._get_size_bytes,
                 ),
             ),
         )
@@ -271,7 +273,6 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             sql_code=self._handler.as_sql_code(
                 self._transform_container._snapshot_df
             ),
-            size_bytes=response.size_bytes,
         )
 
     def _get_column_values(
@@ -338,7 +339,6 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         return SearchTableResponse(
             data=data,
             total_rows=result.get_num_rows(force=True) or 0,
-            size_bytes=self._get_json_size_bytes(result),
         )
 
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
@@ -398,10 +398,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             tm = tm.take(limit, 0)
         return tm
 
-    @memoize_last_value
-    def _get_json_size_bytes(self, manager: TableManager[Any]) -> int | None:
-        """JSON-serialized size of `manager`; see table._get_json_size_bytes."""
-        try:
-            return len(manager.to_json(strict_json=True))
-        except Exception:
-            return None
+    def _get_size_bytes(self, args: EmptyArgs) -> GetSizeBytesResponse:
+        del args
+        manager = self._get_cached_table_manager(self._value, self._limit)
+        return GetSizeBytesResponse(size_bytes=manager.estimate_size_bytes())

@@ -40,3 +40,17 @@ export function getUserColumnVisibilityCounts<TData>(
     hidden: userColumns.length - visible,
   };
 }
+
+// When columns are clipped server-side, the TanStack instance only holds the
+// rendered subset, so visible/hidden math must use that subset's total. The
+// dataset-wide value is still correct for the no-hidden "N columns" label.
+export function getColumnCountForDisplay<TData>(
+  table: Table<TData>,
+  datasetTotalColumns: number,
+): { totalColumns: number; hiddenColumns: number } {
+  const counts = getUserColumnVisibilityCounts(table);
+  return {
+    totalColumns: counts.hidden > 0 ? counts.total : datasetTotalColumns,
+    hiddenColumns: counts.hidden,
+  };
+}

@@ -14,13 +14,21 @@ from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
-from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
+from marimo._ast.names import (
+    DEFAULT_CELL_NAME,
+    SETUP_CELL_NAME,
+    TOPLEVEL_CELL_PREFIX,
+)
 from marimo._ast.parse import ast_parse
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name, VariableData
 from marimo._convert.converters import MarimoConvert
-from marimo._schemas.serialization import NotebookSerializationV1
+from marimo._schemas.serialization import (
+    ClassCell,
+    FunctionCell,
+    NotebookSerializationV1,
+)
 from marimo._types.ids import CellId_t
 from marimo._utils.marimo_path import MarimoPath
 from marimo._version import __version__
@@ -495,9 +503,18 @@ def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
         else False
     )
     header_comments = _extract_header_comments(ir)
+    # Mark toplevel-style cells with TOPLEVEL_CELL_PREFIX (mirroring
+    # ir_cell_factory in compiler.py) so the reversion logic in
+    # TopLevelExtraction can reset names to `_` if they are demoted.
+    names = [
+        f"{TOPLEVEL_CELL_PREFIX}{cell.name}"
+        if isinstance(cell, (FunctionCell, ClassCell))
+        else cell.name
+        for cell in ir.cells
+    ]
     return generate_filecontents(
         codes=[cell.code for cell in ir.cells],
-        names=[cell.name for cell in ir.cells],
+        names=names,
         cell_configs=[CellConfig.from_dict(cell.options) for cell in ir.cells],
         config=_AppConfig.from_untrusted_dict(ir.app.options, silent=silent),
         header_comments=header_comments,

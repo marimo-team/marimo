@@ -2125,6 +2125,114 @@ def default_formatter():
 """
         )
 
+    @staticmethod
+    def test_demoted_function_cell_name_anonymized() -> None:
+        """A `@app.function` cell that gets demoted to a regular cell should
+        serialize with the canonical `_` name, not the original function
+        name. Regression test for `marimo check --fix` keeping the function
+        name in the cell signature.
+        """
+        from marimo._convert.converters import MarimoConvert
+
+        source = """\
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def deco(func):
+    return func
+
+
+@app.cell
+def _():
+    x = 2
+    return (x,)
+
+
+@app.function
+@deco
+def foo():
+    return "Hello" * x
+
+
+@app.cell
+def _(foo):
+    foo()
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        result = _strip_header_footer(MarimoConvert.from_py(source).to_py())
+        ast.parse(result)
+        # The demoted cell signature must be `def _(...)`, not `def foo(...)`.
+        assert "@app.cell\ndef foo(" not in result
+        assert result == snapshot(
+            """\
+@app.function
+def deco(func):
+    return func
+
+
+@app.cell
+def _():
+    x = 2
+    return (x,)
+
+
+@app.cell
+def _(x):
+    @deco
+    def foo():
+        return "Hello" * x
+
+    return (foo,)
+
+
+@app.cell
+def _(foo):
+    foo()
+    return\
+"""
+        )
+
+    @staticmethod
+    def test_demoted_class_cell_name_anonymized() -> None:
+        """A `@app.class_definition` cell demoted because of cell-defined refs
+        should also serialize with `_`, not the original class name."""
+        from marimo._convert.converters import MarimoConvert
+
+        source = """\
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    base_value = 10
+    return (base_value,)
+
+
+@app.class_definition
+class MyClass:
+    value = base_value
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        result = _strip_header_footer(MarimoConvert.from_py(source).to_py())
+        ast.parse(result)
+        # The demoted cell signature must be `def _(...)`, not `def MyClass(...)`.
+        assert "@app.cell\ndef MyClass(" not in result
+        assert "@app.cell\ndef _(" in result
+
 
 def _strip_header_footer(source: str) -> str:
     """Strip up to app = marimo.App() and after if __name__ == "__main__":"""
