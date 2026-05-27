@@ -2,13 +2,15 @@
 
 import { useAtomValue } from "jotai";
 import {
+  ChevronDown,
+  ChevronRight,
   InfoIcon,
   NotebookPenIcon,
   PackageIcon,
   SquareArrowOutUpRightIcon,
   TerminalIcon,
 } from "lucide-react";
-import { Fragment, type JSX } from "react";
+import { Fragment, type JSX, useState } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -32,6 +34,39 @@ import { AutoFixButton } from "../errors/auto-fix";
 import { MangledSegments } from "../errors/mangled-local-chip";
 import { CellLinkError } from "../links/cell-link";
 import { processTextForUrls } from "./console/text-rendering";
+
+const CollapsibleTraceback = ({
+  traceback,
+}: {
+  traceback: string;
+}): JSX.Element => {
+  const [isOpen, setIsOpen] = useState(true);
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-label={isOpen ? "Collapse traceback" : "Expand traceback"}
+        className="flex items-center gap-1 text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+      >
+        {isOpen ? (
+          <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronRight className="h-3 w-3" />
+        )}
+        <span className="text-[0.6875rem] uppercase tracking-wider">
+          Traceback
+        </span>
+      </button>
+      {isOpen && (
+        <div className="font-code text-sm mt-1 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text">
+          {renderHTML({ html: traceback })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Tip = (props: {
   title?: string;
@@ -524,9 +559,7 @@ export const MarimoErrorOutput = ({
                       {processTextForUrls(error.msg, `exception-${idx}`)}
                     </p>
                     {"traceback" in error && error.traceback ? (
-                      <div className="font-code text-sm mt-2 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text">
-                        {renderHTML({ html: error.traceback })}
-                      </div>
+                      <CollapsibleTraceback traceback={error.traceback} />
                     ) : (
                       showConsoleHint && (
                         <div className="text-muted-foreground mt-2">
@@ -540,9 +573,7 @@ export const MarimoErrorOutput = ({
                     {processTextForUrls(error.msg, `exception-${idx}`)}
                     <CellLinkError cellId={error.raising_cell} />
                     {"traceback" in error && error.traceback && (
-                      <div className="font-code text-sm mt-2 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text">
-                        {renderHTML({ html: error.traceback })}
-                      </div>
+                      <CollapsibleTraceback traceback={error.traceback} />
                     )}
                   </div>
                 )}

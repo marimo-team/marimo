@@ -5,12 +5,13 @@ import { useAtomValue } from "jotai";
 import {
   BugPlayIcon,
   ChevronDown,
+  ChevronRight,
   CopyIcon,
   ExternalLinkIcon,
   MessageCircleIcon,
   SearchIcon,
 } from "lucide-react";
-import type { JSX } from "react";
+import { type JSX, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -86,6 +87,8 @@ export const MarimoTracebackOutput = ({
 
   const showSearch = !isStaticNotebook();
 
+  const [isOpen, setIsOpen] = useState(true);
+
   const handleRefactorWithAI = (triggerImmediately: boolean) => {
     onRefactorWithAI?.({
       prompt: `My code gives the following error:\n\n${lastTracebackLine}`,
@@ -95,9 +98,27 @@ export const MarimoTracebackOutput = ({
 
   return (
     <div className="flex flex-col gap-2 min-w-full w-fit">
-      <div className="text-muted-foreground pr-4 pt-2 text-xs overflow-auto">
-        {htmlTraceback}
-      </div>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-label={isOpen ? "Collapse traceback" : "Expand traceback"}
+        className="self-start flex items-center gap-1 pt-2 text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+      >
+        {isOpen ? (
+          <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronRight className="h-3 w-3" />
+        )}
+        <span className="text-[0.6875rem] uppercase tracking-wider">
+          Traceback
+        </span>
+      </button>
+      {isOpen && (
+        <div className="text-muted-foreground pr-4 text-xs overflow-auto">
+          {htmlTraceback}
+        </div>
+      )}
       <div className="flex gap-2">
         {showAIFix && (
           <AIFixButton
