@@ -54,26 +54,111 @@ def test_save_config(mock_dump: Any) -> None:
 @restore_config
 def test_save_config_is_deterministic(tmp_path: Path) -> None:
     """Two configs with identical content but different dict insertion
-    order must serialize to the same bytes (issue #9682)."""
+    order must serialize to the same bytes.
+
+    Probabilistic guard: order depends on PYTHONHASHSEED, so this test catches
+    the regression on roughly 9 in 10 random pytest invocations rather than
+    every run. The fixture is intentionally wide (many out-of-order keys across
+    several tables) to maximize the per-seed catch rate.
+    """
+    from typing import cast
+
+    from marimo._config.config import MarimoConfig
+
     config_path = tmp_path / "marimo.toml"
     manager = UserConfigManager()
     manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
 
     a = PartialMarimoConfig(
-        runtime={"auto_reload": "off", "auto_instantiate": True},  # type: ignore[typeddict-item]
-        ai={"open_ai": {"api_key": "k", "model": "m"}},
+        runtime={  # type: ignore[typeddict-item]
+            "auto_reload": "off",
+            "auto_instantiate": True,
+            "on_cell_change": "autorun",
+            "watcher_on_save": "lazy",
+            "reactive_tests": False,
+        },
+        ai={
+            "open_ai": {"api_key": "k", "model": "m", "base_url": "u"},
+            "models": {  # type: ignore[typeddict-item]
+                "chat_model": "c",
+                "edit_model": "e",
+                "autocomplete_model": "a",
+            },
+        },
+        display={  # type: ignore[typeddict-item]
+            "theme": "light",
+            "code_editor_font_size": 14,
+            "cell_output": "below",
+            "dataframes": "rich",
+            "default_table_page_size": 10,
+        },
+        save={  # type: ignore[typeddict-item]
+            "autosave": "off",
+            "autosave_delay": 1000,
+            "format_on_save": False,
+        },
+        completion={  # type: ignore[typeddict-item]
+            "activate_on_typing": True,
+            "signature_hint_on_typing": True,
+            "copilot": False,
+        },
+        keymap={"preset": "default", "destructive_delete": False},  # type: ignore[typeddict-item]
+        server={  # type: ignore[typeddict-item]
+            "browser": "default",
+            "follow_symlink": False,
+        },
+        package_management={"manager": "uv"},
+        formatting={"line_length": 79},
     )
+    # b is `a` with every dict's keys reversed.
     b = PartialMarimoConfig(
-        ai={"open_ai": {"model": "m", "api_key": "k"}},
-        runtime={"auto_instantiate": True, "auto_reload": "off"},  # type: ignore[typeddict-item]
+        formatting={"line_length": 79},
+        package_management={"manager": "uv"},
+        server={  # type: ignore[typeddict-item]
+            "follow_symlink": False,
+            "browser": "default",
+        },
+        keymap={"destructive_delete": False, "preset": "default"},  # type: ignore[typeddict-item]
+        completion={  # type: ignore[typeddict-item]
+            "copilot": False,
+            "signature_hint_on_typing": True,
+            "activate_on_typing": True,
+        },
+        save={  # type: ignore[typeddict-item]
+            "format_on_save": False,
+            "autosave_delay": 1000,
+            "autosave": "off",
+        },
+        display={  # type: ignore[typeddict-item]
+            "default_table_page_size": 10,
+            "dataframes": "rich",
+            "cell_output": "below",
+            "code_editor_font_size": 14,
+            "theme": "light",
+        },
+        ai={
+            "models": {  # type: ignore[typeddict-item]
+                "autocomplete_model": "a",
+                "edit_model": "e",
+                "chat_model": "c",
+            },
+            "open_ai": {"base_url": "u", "model": "m", "api_key": "k"},
+        },
+        runtime={  # type: ignore[typeddict-item]
+            "reactive_tests": False,
+            "watcher_on_save": "lazy",
+            "on_cell_change": "autorun",
+            "auto_instantiate": True,
+            "auto_reload": "off",
+        },
     )
 
-    manager._load_config = lambda: merge_default_config(a)
-    manager.save_config(merge_default_config(a))
+    manager._load_config = lambda: cast(MarimoConfig, dict(a))
+    manager.save_config(a)
     bytes_a = config_path.read_bytes()
 
-    manager._load_config = lambda: merge_default_config(b)
-    manager.save_config(merge_default_config(b))
+    manager._load_config = lambda: cast(MarimoConfig, dict(b))
+    manager.save_config(b)
     bytes_b = config_path.read_bytes()
 
     assert bytes_a == bytes_b
