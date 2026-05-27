@@ -2,7 +2,7 @@
 """Lightweight runner functions for use in direct cell evaluation or testing.
 
 Walks the cell's ancestor closure (minus any ancestor whose defs the
-caller substituted via kwargs), runs them with a fresh globals dict,
+caller substituted via refs), runs them with a fresh globals dict,
 then runs the target cell.
 """
 
@@ -37,9 +37,9 @@ def _returns(cell_impl: CellImpl, glbls: Globals) -> dict[str, Any]:
 def _substitute_refs(
     cell_impl: CellImpl,
     glbls: MutableGlobals,
-    kwargs: dict[str, Any],
+    refs: dict[str, Any],
 ) -> None:
-    for argname, argvalue in kwargs.items():
+    for argname, argvalue in refs.items():
         if argname in cell_impl.refs:
             glbls[argname] = argvalue
         else:
@@ -49,8 +49,8 @@ def _substitute_refs(
             )
 
 
-def _validate_kwargs(cell_impl: CellImpl, kwargs: dict[str, Any]) -> None:
-    for argname in kwargs:
+def _validate_refs(cell_impl: CellImpl, refs: dict[str, Any]) -> None:
+    for argname in refs:
         if argname not in cell_impl.refs:
             raise ValueError(
                 f"Cell got unexpected argument {argname}; "
@@ -61,11 +61,11 @@ def _validate_kwargs(cell_impl: CellImpl, kwargs: dict[str, Any]) -> None:
 def _get_ancestors(
     graph: GraphTopology,
     cell_impl: CellImpl,
-    kwargs: dict[str, Any],
+    refs: dict[str, Any],
 ) -> set[CellId_t]:
     from marimo._runtime.dataflow import transitive_closure
 
-    substitutions = set(kwargs.keys())
+    substitutions = set(refs.keys())
     unsubstituted_refs = cell_impl.refs - substitutions
     parent_ids = {
         parent_id
@@ -97,7 +97,7 @@ def _classify(result: RunResult) -> MarimoStopError | None:
 def is_coroutine(
     graph: GraphTopology,
     cell_id: CellId_t,
-    kwargs: dict[str, Any] | None = None,
+    refs: dict[str, Any] | None = None,
 ) -> bool:
     """True if the cell or any of its unsubstituted ancestors is async.
 
@@ -105,25 +105,25 @@ def is_coroutine(
     """
     return graph.cells[cell_id].is_coroutine() or any(
         graph.cells[cid].is_coroutine()
-        for cid in _get_ancestors(graph, graph.cells[cell_id], kwargs or {})
+        for cid in _get_ancestors(graph, graph.cells[cell_id], refs or {})
     )
 
 
 async def run_cell_async(
     graph: GraphTopology,
     cell_id: CellId_t,
-    kwargs: dict[str, Any],
+    refs: dict[str, Any],
 ) -> tuple[Any, MutableGlobals]:
     """Run a possibly async cell and its ancestors.
 
-    Substitutes kwargs as refs for the cell, omitting ancestors whose
+    Substitutes refs for the cell, omitting ancestors whose
     refs are substituted.
     """
     from marimo._runtime.dataflow import topological_sort
 
     cell_impl = graph.cells[cell_id]
-    _validate_kwargs(cell_impl, kwargs)
-    ancestor_ids = _get_ancestors(graph, cell_impl, kwargs)
+    _validate_refs(cell_impl, refs)
+    ancestor_ids = _get_ancestors(graph, cell_impl, refs)
 
     evaluator = _new_evaluator()
     glbls: MutableGlobals = {}
@@ -132,7 +132,7 @@ async def run_cell_async(
         if stop is not None:
             return stop.output, _returns(cell_impl, glbls)
 
-    _substitute_refs(cell_impl, glbls, kwargs)
+    _substitute_refs(cell_impl, glbls, refs)
     target_result = await evaluator.evaluate(
         graph.cells[cell_impl.cell_id], glbls
     )
@@ -145,11 +145,11 @@ async def run_cell_async(
 def run_cell_sync(
     graph: GraphTopology,
     cell_id: CellId_t,
-    kwargs: dict[str, Any],
+    refs: dict[str, Any],
 ) -> tuple[Any, MutableGlobals]:
     """Run a synchronous cell and its ancestors.
 
-    Substitutes kwargs as refs for the cell, omitting ancestors whose
+    Substitutes refs for the cell, omitting ancestors whose
     refs are substituted.
 
     Raises `RuntimeError` if the cell or any of its unsubstituted
@@ -164,8 +164,8 @@ def run_cell_sync(
             "Use `run_async()` instead"
         )
 
-    _validate_kwargs(cell_impl, kwargs)
-    ancestor_ids = _get_ancestors(graph, cell_impl, kwargs)
+    _validate_refs(cell_impl, refs)
+    ancestor_ids = _get_ancestors(graph, cell_impl, refs)
 
     if any(graph.cells[cid].is_coroutine() for cid in ancestor_ids):
         raise RuntimeError(
@@ -180,7 +180,7 @@ def run_cell_sync(
         if stop is not None:
             return stop.output, _returns(cell_impl, glbls)
 
-    _substitute_refs(cell_impl, glbls, kwargs)
+    _substitute_refs(cell_impl, glbls, refs)
     target_result = evaluator.evaluate_sync(
         graph.cells[cell_impl.cell_id], glbls
     )

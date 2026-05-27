@@ -10,8 +10,8 @@ from marimo._ast import compiler
 from marimo._ast.visitor import Name, VariableData
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import dataflow
-from marimo._runtime.runner import by_kwargs
-from marimo._runtime.runner.by_kwargs import _get_ancestors
+from marimo._runtime.runner import by_refs
+from marimo._runtime.runner.by_refs import _get_ancestors
 
 parse_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -963,14 +963,14 @@ def test_runner_sync() -> None:
     graph.register_cell("2", third_cell)
 
     # Run the last cell
-    output, defs = by_kwargs.run_cell_sync(graph, "2", {})
+    output, defs = by_refs.run_cell_sync(graph, "2", {})
 
     # Check output and definitions
     assert output == 25  # 10 * 2 + 5
     assert defs == {"z": 25}
 
     # Run the last cell with substituted values
-    output, defs = by_kwargs.run_cell_sync(graph, "2", {"y": 50})
+    output, defs = by_refs.run_cell_sync(graph, "2", {"y": 50})
 
     # Check output and definitions with substituted value
     assert output == 55  # 50 + 5
@@ -978,7 +978,7 @@ def test_runner_sync() -> None:
 
     # Try to run with an invalid argument
     try:
-        by_kwargs.run_cell_sync(graph, "2", {"invalid": 100})
+        by_refs.run_cell_sync(graph, "2", {"invalid": 100})
         raise AssertionError("Should have raised an exception")
     except ValueError:
         pass  # Expected

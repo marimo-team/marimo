@@ -779,10 +779,10 @@ class App:
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, _Namespace]:
-        from marimo._runtime.runner import by_kwargs
+        from marimo._runtime.runner import by_refs
 
         self._maybe_initialize()
-        output, defs = await by_kwargs.run_cell_async(
+        output, defs = await by_refs.run_cell_async(
             self._graph, cell._cell.cell_id, kwargs
         )
         return output, _Namespace(defs, owner=self)
@@ -790,10 +790,10 @@ class App:
     def _run_cell_sync(
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, _Namespace]:
-        from marimo._runtime.runner import by_kwargs
+        from marimo._runtime.runner import by_refs
 
         self._maybe_initialize()
-        output, defs = by_kwargs.run_cell_sync(
+        output, defs = by_refs.run_cell_sync(
             self._graph, cell._cell.cell_id, kwargs
         )
         return output, _Namespace(defs, owner=self)
