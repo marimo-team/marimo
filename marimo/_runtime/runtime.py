@@ -479,8 +479,6 @@ class Kernel:
         # timestamp, to save the user from having to spam the interrupt button
         self.last_interrupt_timestamp: float | None = None
 
-        # Named attributes exist because internal kernel paths (run hooks,
-        # script metadata) and tests reach into specific callbacks directly.
         self.secrets_callbacks = SecretsCallbacks(self)
         self.datasets_callbacks = DatasetCallbacks(self)
         self.packages_callbacks = PackagesCallbacks(self)

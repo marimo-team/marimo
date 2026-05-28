@@ -35,7 +35,7 @@ from marimo._messaging.notification_utils import (
 )
 from marimo._messaging.tracebacks import (
     _highlight_traceback,
-    _trim_traceback,
+    format_exception_message,
     write_traceback,
 )
 from marimo._messaging.variables import create_variable_value
@@ -409,7 +409,10 @@ def _broadcast_outputs(
         # don't clear console because this cell was running and
         # its console outputs are not stale
         exception_type = type(run_result.exception).__name__
-        msg = str(run_result.exception)
+        if isinstance(run_result.exception, BaseException):
+            msg = format_exception_message(run_result.exception)
+        else:
+            msg = str(run_result.exception)
         if not msg:
             msg = f"This cell raised an exception: {exception_type}"
 
@@ -426,9 +429,7 @@ def _broadcast_outputs(
             and run_result.exception.__traceback__
         ):
             tb_lines = tb.format_exception(run_result.exception)
-            formatted_traceback = _highlight_traceback(
-                _trim_traceback("".join(tb_lines))
-            )
+            formatted_traceback = _highlight_traceback("".join(tb_lines))
 
         CellNotificationUtils.broadcast_error(
             data=[

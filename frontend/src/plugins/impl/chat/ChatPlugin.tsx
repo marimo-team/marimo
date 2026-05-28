@@ -6,7 +6,7 @@ import { z } from "zod";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import { Arrays } from "@/utils/arrays";
-import type { SendMessageRequest } from "./types";
+import type { CancelPromptRequest, SendMessageRequest } from "./types";
 
 const LazyChatbot = React.lazy(() =>
   import("./chat-ui").then((m) => ({ default: m.Chatbot })),
@@ -18,6 +18,7 @@ export type PluginFunctions = {
   delete_chat_history: (req: {}) => Promise<null>;
   delete_chat_message: (req: { index: number }) => Promise<null>;
   send_prompt: (req: SendMessageRequest) => Promise<unknown>;
+  cancel_prompt: (req: CancelPromptRequest) => Promise<null>;
 };
 
 const messageSchema = z.array(
@@ -65,11 +66,15 @@ export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
     send_prompt: rpc
       .input(
         z.object({
+          request_id: z.string(),
           messages: messageSchema,
           config: configSchema,
         }),
       )
       .output(z.unknown()),
+    cancel_prompt: rpc
+      .input(z.object({ request_id: z.string() }))
+      .output(z.null()),
   })
   .renderer((props) => (
     <Suspense>
@@ -84,6 +89,7 @@ export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
         delete_chat_history={props.functions.delete_chat_history}
         delete_chat_message={props.functions.delete_chat_message}
         send_prompt={props.functions.send_prompt}
+        cancel_prompt={props.functions.cancel_prompt}
         value={props.value?.messages || Arrays.EMPTY}
         setValue={(messages) => props.setValue({ messages })}
         host={props.host}

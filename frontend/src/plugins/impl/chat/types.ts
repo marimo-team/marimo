@@ -22,6 +22,11 @@ export interface ChatConfig {
 }
 
 export interface SendMessageRequest {
+  request_id: string;
   messages: ChatMessage[];
   config: ChatConfig;
+}
+
+export interface CancelPromptRequest {
+  request_id: string;
 }

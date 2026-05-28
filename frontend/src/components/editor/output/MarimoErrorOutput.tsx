@@ -1,12 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useAtomValue } from "jotai";
 import {
+  ChevronDown,
+  ChevronRight,
+  InfoIcon,
   NotebookPenIcon,
   PackageIcon,
   SquareArrowOutUpRightIcon,
   TerminalIcon,
 } from "lucide-react";
-import { Fragment, type JSX } from "react";
+import { Fragment, type JSX, useState } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -16,7 +20,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { ExternalLink } from "@/components/ui/links";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
+import { resolvedMarimoConfigAtom } from "@/core/config/config";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { splitMangledLocals } from "@/utils/local-variables";
 import type { MarimoError } from "../../../core/kernel/messages";
@@ -29,6 +35,39 @@ import { MangledSegments } from "../errors/mangled-local-chip";
 import { CellLinkError } from "../links/cell-link";
 import { processTextForUrls } from "./console/text-rendering";
 
+const CollapsibleTraceback = ({
+  traceback,
+}: {
+  traceback: string;
+}): JSX.Element => {
+  const [isOpen, setIsOpen] = useState(true);
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-label={isOpen ? "Collapse traceback" : "Expand traceback"}
+        className="flex items-center gap-1 text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+      >
+        {isOpen ? (
+          <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronRight className="h-3 w-3" />
+        )}
+        <span className="text-[0.6875rem] uppercase tracking-wider">
+          Traceback
+        </span>
+      </button>
+      {isOpen && (
+        <div className="font-code text-sm mt-1 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text">
+          {renderHTML({ html: traceback })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Tip = (props: {
   title?: string;
   className?: string;
@@ -37,10 +76,13 @@ const Tip = (props: {
   return (
     <Accordion type="single" collapsible={true} className={props.className}>
       <AccordionItem value="item-1" className="text-muted-foreground">
-        <AccordionTrigger className="pt-2 pb-2 font-normal">
+        <AccordionTrigger className="pt-2 pb-0 font-normal">
           {props.title ?? "Tip"}
         </AccordionTrigger>
-        <AccordionContent className="mr-24 text-[0.84375rem]">
+        <AccordionContent
+          className="mr-24 text-[0.84375rem]"
+          wrapperClassName="pt-0 pb-2"
+        >
           {props.children}
         </AccordionContent>
       </AccordionItem>
@@ -63,10 +105,21 @@ export const MarimoErrorOutput = ({
   className,
 }: Props): JSX.Element => {
   const chromeActions = useChromeActions();
+  // The console area (where tracebacks are shown) sits below the cell editor.
+  // When cell outputs are also displayed below the editor, the traceback is
+  // already adjacent, so the "See the console area" hint is redundant. It is
+  // only helpful when outputs are displayed above the editor.
+  const showConsoleHint =
+    useAtomValue(resolvedMarimoConfigAtom).display.cell_output === "above";
 
-  let titleContents = "This cell wasn't run because it has errors";
+  let titleContents: string | null =
+    "This cell wasn't run because it has errors";
   let alertVariant: "destructive" | "default" = "destructive";
   let titleColor = "text-error";
+  // A small muted overline shown above the title for static errors, where
+  // the cell genuinely never executes. These errors have no separate title:
+  // the body text already describes them, so the overline carries the status.
+  let statusOverline: string | null = null;
   const liStyle = "my-0.5 ml-8 text-muted-foreground/40";
 
   // Check for certain error types to adjust title and appearance
@@ -77,7 +130,6 @@ export const MarimoErrorOutput = ({
   } else if (errors.some((e) => e.type === "ancestor-prevented")) {
     titleContents = "Ancestor prevented from running";
     alertVariant = "default";
-    titleColor = "text-muted-foreground";
     titleColor = "text-secondary-foreground";
   } else if (errors.some((e) => e.type === "ancestor-stopped")) {
     titleContents = "Ancestor stopped";
@@ -85,6 +137,19 @@ export const MarimoErrorOutput = ({
     titleColor = "text-secondary-foreground";
   } else if (errors.some((e) => e.type === "sql-error")) {
     titleContents = "SQL error";
+  } else if (
+    errors.some(
+      (e) =>
+        e.type === "multiple-defs" ||
+        e.type === "cycle" ||
+        e.type === "setup-refs" ||
+        e.type === "import-star",
+    )
+  ) {
+    // Static errors: the body text describes the problem, so there is no
+    // separate title — only the status overline.
+    titleContents = null;
+    statusOverline = "Cell not run";
   } else {
     // Check for exception type
     const exceptionError = errors.find((e) => e.type === "exception");
@@ -475,9 +540,11 @@ export const MarimoErrorOutput = ({
                       </ExternalLink>
                       ).
                     </p>
-                    <div className="text-muted-foreground mt-2">
-                      See the console area for a traceback.
-                    </div>
+                    {showConsoleHint && (
+                      <div className="text-muted-foreground mt-2">
+                        See the console area for a traceback.
+                      </div>
+                    )}
                   </div>
                 </li>
               );
@@ -492,13 +559,13 @@ export const MarimoErrorOutput = ({
                       {processTextForUrls(error.msg, `exception-${idx}`)}
                     </p>
                     {"traceback" in error && error.traceback ? (
-                      <div className="font-code text-sm mt-2 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text">
-                        {renderHTML({ html: error.traceback })}
-                      </div>
+                      <CollapsibleTraceback traceback={error.traceback} />
                     ) : (
-                      <div className="text-muted-foreground mt-2">
-                        See the console area for a traceback.
-                      </div>
+                      showConsoleHint && (
+                        <div className="text-muted-foreground mt-2">
+                          See the console area for a traceback.
+                        </div>
+                      )
                     )}
                   </div>
                 ) : (
@@ -506,9 +573,7 @@ export const MarimoErrorOutput = ({
                     {processTextForUrls(error.msg, `exception-${idx}`)}
                     <CellLinkError cellId={error.raising_cell} />
                     {"traceback" in error && error.traceback && (
-                      <div className="font-code text-sm mt-2 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text">
-                        {renderHTML({ html: error.traceback })}
-                      </div>
+                      <CollapsibleTraceback traceback={error.traceback} />
                     )}
                   </div>
                 )}
@@ -633,23 +698,36 @@ export const MarimoErrorOutput = ({
   };
 
   const title = (
-    <AlertTitle className={`font-code font-medium tracking-wide ${titleColor}`}>
-      {titleContents}
-    </AlertTitle>
+    <div className="space-y-0.5">
+      {statusOverline && (
+        <div className="flex items-center gap-1 font-code text-[0.6875rem] uppercase tracking-wider text-muted-foreground/70">
+          {statusOverline}
+          <Tooltip
+            content="marimo didn't run this cell because it detected an error."
+            delayDuration={200}
+          >
+            <InfoIcon className="size-3 cursor-help" />
+          </Tooltip>
+        </div>
+      )}
+      {titleContents && (
+        <AlertTitle className={`font-code font-medium ${titleColor}`}>
+          {titleContents}
+        </AlertTitle>
+      )}
+    </div>
   );
 
   return (
     <Alert
       variant={alertVariant}
       className={cn(
-        "border-none font-code text-sm text-[0.84375rem] px-0 text-muted-foreground normal [&:has(svg)]:pl-0 space-y-4",
+        "border-none font-code text-sm text-[0.84375rem] p-0 text-muted-foreground normal [&:has(svg)]:pl-0 space-y-2",
         className,
       )}
     >
       {title}
-      <div>
-        <div className="flex flex-col gap-8">{renderMessages()}</div>
-      </div>
+      <div className="flex flex-col gap-4">{renderMessages()}</div>
     </Alert>
   );
 };
