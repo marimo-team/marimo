@@ -219,18 +219,9 @@ class TestObstore:
         backend = self._make_backend(mock_store)
         result = backend.list_entries(prefix=None, limit=100, page_token="900")
 
-        assert result.next_page_token == "1000"
+        assert result.next_page_token is None
         assert result.may_have_more is True
         assert len(result.entries) == 100
-
-        exhausted_result = backend.list_entries(
-            prefix=None, limit=100, page_token="1000"
-        )
-        assert exhausted_result == StorageListResult(
-            entries=[],
-            next_page_token=None,
-            may_have_more=True,
-        )
 
     def test_create_storage_entry_missing_fields(self) -> None:
         mock_store = MagicMock()

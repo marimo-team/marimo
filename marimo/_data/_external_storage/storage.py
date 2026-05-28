@@ -561,9 +561,7 @@ def _paginate_entries(
         )
 
     end = offset + limit
-    has_next_page = end < total_entries or (
-        may_have_more and offset < total_entries
-    )
+    has_next_page = end < total_entries
     next_page_token = str(end) if has_next_page else None
     return StorageListResult(
         entries=entries[offset:end],

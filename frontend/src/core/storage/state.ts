@@ -1,12 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom, useAtomValue } from "jotai";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { NotificationMessageData } from "../kernel/messages";
 import type { VariableName } from "../variables/types";
-import { ListStorageEntries } from "./request-registry";
+import {
+  ListStorageEntries,
+  type StorageEntriesResult,
+} from "./request-registry";
 import type { StorageEntry, StorageState } from "./types";
 import {
   DEFAULT_FETCH_LIMIT,
@@ -122,6 +125,39 @@ export function useStorageActions() {
 
 export { storageAtom };
 
+async function fetchStorageEntriesPage({
+  namespace,
+  prefix,
+  pageToken,
+  append,
+  setEntries,
+}: {
+  namespace: string;
+  prefix: string | null | undefined;
+  pageToken?: string | null;
+  append?: boolean;
+  setEntries: ReturnType<typeof useStorageActions>["setEntries"];
+}): Promise<StorageEntriesResult> {
+  const result = await ListStorageEntries.request({
+    namespace,
+    prefix: prefix ?? ROOT_PATH,
+    limit: DEFAULT_FETCH_LIMIT,
+    ...(pageToken ? { pageToken } : {}),
+  });
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  setEntries({
+    namespace,
+    prefix,
+    entries: result.entries,
+    nextPageToken: result.next_page_token,
+    mayHaveMore: result.may_have_more,
+    append,
+  });
+  return result;
+}
+
 /**
  * Hook that fetches and caches storage entries for a given namespace/prefix.
  * Entries are fetched on first access and cached in the store for subsequent renders.
@@ -134,6 +170,7 @@ export function useStorageEntries(namespace: string, prefix?: string) {
   const metadata = pageMetadataByPath.get(key);
   const nextPageToken = metadata?.nextPageToken ?? null;
   const mayHaveMore = metadata?.mayHaveMore ?? false;
+  const isLoadingMoreRef = useRef(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<Error | undefined>();
 
@@ -141,56 +178,38 @@ export function useStorageEntries(namespace: string, prefix?: string) {
     if (cached) {
       return;
     }
-    const result = await ListStorageEntries.request({
-      namespace,
-      prefix: prefix ?? ROOT_PATH,
-      limit: DEFAULT_FETCH_LIMIT,
-    });
-    if (result.error) {
-      throw new Error(result.error);
-    }
-    setEntries({
+    await fetchStorageEntriesPage({
       namespace,
       prefix,
-      entries: result.entries,
-      nextPageToken: result.next_page_token,
-      mayHaveMore: result.may_have_more,
+      setEntries,
     });
   }, [namespace, prefix, cached === undefined]);
 
   const loadMore = useCallback(async () => {
-    if (!nextPageToken || isLoadingMore) {
+    if (!nextPageToken || isLoadingMoreRef.current) {
       return;
     }
 
+    isLoadingMoreRef.current = true;
     setIsLoadingMore(true);
     setLoadMoreError(undefined);
     try {
-      const result = await ListStorageEntries.request({
-        namespace,
-        prefix: prefix ?? ROOT_PATH,
-        limit: DEFAULT_FETCH_LIMIT,
-        pageToken: nextPageToken,
-      });
-      if (result.error) {
-        throw new Error(result.error);
-      }
-      setEntries({
+      await fetchStorageEntriesPage({
         namespace,
         prefix,
-        entries: result.entries,
-        nextPageToken: result.next_page_token,
-        mayHaveMore: result.may_have_more,
+        pageToken: nextPageToken,
         append: true,
+        setEntries,
       });
     } catch (error) {
       setLoadMoreError(
         error instanceof Error ? error : new Error(String(error)),
       );
     } finally {
+      isLoadingMoreRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [namespace, prefix, nextPageToken, isLoadingMore, setEntries]);
+  }, [namespace, prefix, nextPageToken, setEntries]);
 
   return {
     entries: cached ?? [],
@@ -203,6 +222,23 @@ export function useStorageEntries(namespace: string, prefix?: string) {
     loadMoreError,
     refetch,
   };
+}
+
+export function useStoragePageFetcher() {
+  const { setEntries } = useStorageActions();
+  return useCallback(
+    (opts: {
+      namespace: string;
+      prefix: string | null | undefined;
+      pageToken?: string | null;
+      append?: boolean;
+    }) =>
+      fetchStorageEntriesPage({
+        ...opts,
+        setEntries,
+      }),
+    [setEntries],
+  );
 }
 
 export const exportedForTesting = {
