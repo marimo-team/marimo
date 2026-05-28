@@ -4938,7 +4938,10 @@ components:
         \ entries returned by the operation.\n        namespace: Variable name of\
         \ the storage backend.\n        prefix: The prefix that was listed (set by\
         \ list_entries).\n        query: The search query that was used (set by search).\n\
-        \        error: Error message if the operation failed."
+        \        next_page_token: Token for fetching the next page of entries.\n \
+        \       may_have_more: Whether the backend may have more entries it cannot\n\
+        \            currently page through.\n        error: Error message if the\
+        \ operation failed."
       properties:
         entries:
           items:
@@ -4949,8 +4952,16 @@ components:
           - type: string
           - type: 'null'
           default: null
+        may_have_more:
+          default: false
+          type: boolean
         namespace:
           type: string
+        next_page_token:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         op:
           enum:
           - storage-entries
@@ -5015,12 +5026,18 @@ components:
         \ and virtual directories at one level.\n\n    Attributes:\n        request_id:\
         \ Unique identifier for this request.\n        namespace: Variable name identifying\
         \ the storage backend.\n        limit: Max entries to return.\n        prefix:\
-        \ Path prefix to list (None = root)."
+        \ Path prefix to list (None = root).\n        page_token: Token for the next\
+        \ page of entries."
       properties:
         limit:
           type: integer
         namespace:
           type: string
+        pageToken:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         prefix:
           anyOf:
           - type: string
@@ -5044,6 +5061,11 @@ components:
           type: integer
         namespace:
           type: string
+        pageToken:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         prefix:
           anyOf:
           - type: string

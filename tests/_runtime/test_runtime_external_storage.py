@@ -8,7 +8,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from dirty_equals import IsPositiveFloat, IsStr
 
-from marimo._data._external_storage.models import StorageEntry
+from marimo._data._external_storage.models import (
+    StorageEntry,
+    StorageListResult,
+)
 from marimo._data._external_storage.storage import Obstore
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import (
@@ -290,6 +293,40 @@ class TestExternalStorageCallbacks:
                 ],
                 namespace=STORAGE_VAR,
                 prefix=None,
+                next_page_token="2",
+            )
+        ]
+
+        request = StorageListEntriesCommand(
+            request_id=RequestId("req-11-page-2"),
+            namespace=STORAGE_VAR,
+            limit=2,
+            prefix=None,
+            page_token="2",
+        )
+        await k.handle_message(request)
+
+        results = [
+            op
+            for op in stream.operations
+            if isinstance(op, StorageEntriesNotification)
+            and op.request_id == RequestId("req-11-page-2")
+        ]
+        assert results == [
+            StorageEntriesNotification(
+                request_id=RequestId("req-11-page-2"),
+                entries=[
+                    StorageEntry(
+                        path="c.txt",
+                        kind="object",
+                        size=1,
+                        last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
+                        metadata={"e_tag": IsStr()},
+                        mime_type="text/plain",
+                    ),
+                ],
+                namespace=STORAGE_VAR,
+                prefix=None,
             )
         ]
 
@@ -413,11 +450,14 @@ class TestExternalStorageCallbacks:
         original_list = real_backend.list_entries
 
         def spy_list_entries(
-            prefix: str | None, *, limit: int = 100
-        ) -> list[StorageEntry]:
+            prefix: str | None,
+            *,
+            limit: int = 100,
+            page_token: str | None = None,
+        ) -> StorageListResult:
             nonlocal call_thread_name
             call_thread_name = threading.current_thread().name
-            return original_list(prefix, limit=limit)
+            return original_list(prefix, limit=limit, page_token=page_token)
 
         real_backend.list_entries = spy_list_entries  # type: ignore[method-assign]
 
