@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal
 
+import httpx
+from pydantic import BaseModel
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
 from starlette.responses import (
@@ -67,6 +69,10 @@ LOGGER = _loggers.marimo_logger()
 
 # Router for file ai
 router = APIRouter()
+
+
+class ProviderModelsResponse(BaseModel):
+    models: list[str]
 
 
 async def safe_stream_wrapper(
@@ -600,7 +606,6 @@ async def get_provider_models(
                                 items:
                                     type: string
     """
-    import httpx
 
     base_url = request.query_params.get("base_url", "").rstrip("/")
     if not base_url:
@@ -620,12 +625,8 @@ async def get_provider_models(
             response = await client.get(models_url)
             response.raise_for_status()
             data = response.json()
-            model_ids = sorted(
-                [m["id"] for m in data.get("data", []) if m.get("id")]
-            )
-            return StructResponse({"models": model_ids})
+            model_ids = sorted([m["id"] for m in data.get("data", []) if m.get("id")])
+            return StructResponse(ProviderModelsResponse(models=model_ids))
     except Exception as e:
-        LOGGER.warning(
-            "Could not fetch models from %s: %s", models_url, str(e)
-        )
-        return StructResponse({"models": []})
+        LOGGER.warning("Could not fetch models from %s: %s", models_url, str(e))
+        return StructResponse(ProviderModelsResponse(models=[]))
