@@ -3853,10 +3853,13 @@ export interface components {
      *         - `signature_hint_on_typing`: if `False`, signature hint won't be shown when typing
      *         - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
      *         - `codeium_api_key`: the Codeium API key
+     *         - `auto_close_pairs`: if `False`, typing an opening bracket, parenthesis,
+     *         or quote will not automatically insert the closing character
      */
     CompletionConfig: {
       activate_on_typing: boolean;
       api_key?: string | null;
+      auto_close_pairs?: boolean;
       base_url?: string | null;
       codeium_api_key?: string | null;
       copilot: boolean | ("codeium" | "custom" | "github");

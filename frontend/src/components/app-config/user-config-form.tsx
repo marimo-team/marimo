@@ -503,6 +503,42 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="completion.auto_close_pairs"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel className="font-normal">
+                        Auto-close pairs
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="auto-close-pairs-checkbox"
+                          checked={field.value ?? true}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="completion.auto_close_pairs"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      Automatically insert closing brackets{" "}
+                      <code className="text-xs">{"()"}</code>,{" "}
+                      <code className="text-xs">{"[]"}</code>,{" "}
+                      <code className="text-xs">{"\\{\\}"}</code>, and quotes{" "}
+                      <code className="text-xs">{`""`}</code>,{" "}
+                      <code className="text-xs">{`''`}</code> when opening one.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
             <SettingGroup title="Language Servers">
               <FormDescription>

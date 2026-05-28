@@ -779,7 +779,8 @@ components:
         \ the completion hotkey is entered\n    - `signature_hint_on_typing`: if `False`,\
         \ signature hint won't be shown when typing\n    - `copilot`: one of `\"github\"\
         `, `\"codeium\"`, or `\"custom\"`\n    - `codeium_api_key`: the Codeium API\
-        \ key"
+        \ key\n    - `auto_close_pairs`: if `False`, typing an opening bracket, parenthesis,\n\
+        \    or quote will not automatically insert the closing character"
       properties:
         activate_on_typing:
           type: boolean
@@ -787,6 +788,8 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+        auto_close_pairs:
+          type: boolean
         base_url:
           anyOf:
           - type: string
