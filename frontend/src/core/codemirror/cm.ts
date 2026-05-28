@@ -182,6 +182,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     diagnosticsConfig,
   } = opts;
   const placeholderType = getPlaceholderType(opts);
+  const autoClosePairs = completionConfig.auto_close_pairs !== false;
 
   return [
     ///// View
@@ -208,12 +209,10 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     copilotBundle(completionConfig),
     foldGutter(),
     stringsAutoCloseBraces(),
-    completionConfig.auto_close_pairs !== false ? closeBrackets() : [],
+    autoClosePairs ? closeBrackets() : [],
     completionKeymap(acceptCompletionOnEnter),
     // to avoid clash with charDeleteBackward keymap
-    completionConfig.auto_close_pairs !== false
-      ? Prec.high(keymap.of(closeBracketsKeymap))
-      : [],
+    autoClosePairs ? Prec.high(keymap.of(closeBracketsKeymap)) : [],
     bracketMatching(),
     indentOnInput(),
     indentUnit.of("    "),

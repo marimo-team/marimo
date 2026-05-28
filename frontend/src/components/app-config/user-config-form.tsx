@@ -532,7 +532,7 @@ export const UserConfigForm: React.FC = () => {
                       Automatically insert closing brackets{" "}
                       <code className="text-xs">{"()"}</code>,{" "}
                       <code className="text-xs">{"[]"}</code>,{" "}
-                      <code className="text-xs">{"\\{\\}"}</code>, and quotes{" "}
+                      <code className="text-xs">{"{}"}</code>, and quotes{" "}
                       <code className="text-xs">{`""`}</code>,{" "}
                       <code className="text-xs">{`''`}</code> when opening one.
                     </FormDescription>
