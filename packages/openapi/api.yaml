@@ -2226,8 +2226,23 @@ components:
         \ kernel\n                subprocess; \"server\" installs directly into the\
         \ server's Python\n                environment (sys.executable), used when\
         \ the server itself needs\n                a package (e.g. nbformat for IPYNB\
-        \ auto-export in sandbox mode)."
+        \ auto-export in sandbox mode).\n        explicit: When True, install only\
+        \ the requested packages (e.g. from the\n                  packages panel),\
+        \ allowing retries of previously-failed\n                  installs and without\
+        \ pulling in other missing modules or\n                  excluding modules\
+        \ on failure. When False (default), resolve\n                  and install\
+        \ all of the notebook's missing packages.\n        upgrade: Whether to upgrade\
+        \ the requested packages (explicit installs).\n        group: Optional dependency\
+        \ group for the install (explicit installs)."
       properties:
+        explicit:
+          default: false
+          type: boolean
+        group:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         manager:
           type: string
         source:
@@ -2238,6 +2253,9 @@ components:
         type:
           enum:
           - install-packages
+        upgrade:
+          default: false
+          type: boolean
         versions:
           additionalProperties:
             type: string
@@ -2250,6 +2268,14 @@ components:
       type: object
     InstallPackagesRequest:
       properties:
+        explicit:
+          default: false
+          type: boolean
+        group:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         manager:
           type: string
         source:
@@ -2257,6 +2283,9 @@ components:
           enum:
           - kernel
           - server
+        upgrade:
+          default: false
+          type: boolean
         versions:
           additionalProperties:
             type: string

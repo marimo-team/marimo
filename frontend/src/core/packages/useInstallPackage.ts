@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useState } from "react";
+import { isWasm } from "@/core/wasm/utils";
 import { Logger } from "@/utils/Logger";
 import { useRequestClient } from "../network/requests";
 import { showAddPackageToast } from "./toast-components";
@@ -24,10 +25,14 @@ export function useInstallPackages(): {
     try {
       for (const [idx, packageName] of packages.entries()) {
         const response = await addPackage({ package: packageName });
-        if (response.success) {
-          showAddPackageToast(packageName);
-        } else {
-          showAddPackageToast(packageName, response.error);
+        // In server mode the install runs in the kernel and streams progress
+        // and errors into the package-install overlay. WASM installs run
+        // synchronously with no overlay, so surface the result as a toast.
+        if (isWasm()) {
+          showAddPackageToast(
+            packageName,
+            response.success ? undefined : response.error,
+          );
         }
         // Wait 1s if there are more packages to install
         if (idx < packages.length - 1) {

@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -15,6 +15,8 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import InstallPackagesCommand
+from marimo._runtime.context import get_context
+from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.packages.import_error_extractors import (
     extract_missing_module_from_cause_chain,
     try_extract_packages_from_import_error_message,
@@ -31,6 +33,7 @@ from marimo._runtime.packages.utils import (
 from marimo._runtime.runner import hook_context
 
 if TYPE_CHECKING:
+    from marimo._messaging.types import Stream
     from marimo._runtime.request_router import RequestRouter
     from marimo._runtime.runtime import Kernel
 
@@ -46,7 +49,10 @@ class PackagesCallbacks:
         router.register(InstallPackagesCommand, self._handle_install)
 
     async def _handle_install(self, request: InstallPackagesCommand) -> None:
-        await self.install_missing_packages(request)
+        if request.explicit:
+            await self.install_packages(request)
+        else:
+            await self.install_missing_packages(request)
         broadcast_notification(CompletedRunNotification())
 
     def update_package_manager(self, package_manager: str) -> None:
@@ -165,6 +171,150 @@ class PackagesCallbacks:
                 ),
             )
 
+    async def _stream_install(
+        self,
+        packages: list[str],
+        versions: dict[str, str],
+        *,
+        source: Literal["kernel", "server"],
+        upgrade: bool = False,
+        group: str | None = None,
+        skip_attempted: bool = True,
+    ) -> PackageStatusType:
+        """Install packages, streaming progress to the install overlay.
+
+        Broadcasts `InstallingPackageAlertNotification`s as each package moves
+        through queued -> installing -> installed/failed, streaming the package
+        manager's output as it runs. Returns the final per-package status map.
+
+        This is the shared engine for both the on-import missing-packages flow
+        and explicit installs from the packages panel; it deliberately performs
+        no module-registry bookkeeping or cell re-runs (callers handle those).
+        """
+        assert self.package_manager is not None, (
+            "Cannot install packages without a package manager"
+        )
+        package_manager = self.package_manager
+
+        # `install` streams logs from a worker thread (it runs via
+        # asyncio.to_thread). The runtime context is thread-local, so we
+        # capture the stream here -- on the kernel thread -- and pass it
+        # explicitly to every broadcast; otherwise log lines emitted from the
+        # worker thread can't resolve a context and are silently dropped.
+        try:
+            stream: Stream | None = get_context().stream
+        except ContextNotInitializedError:
+            stream = None
+
+        package_statuses: PackageStatusType = {
+            pkg: "queued" for pkg in packages
+        }
+        broadcast_notification(
+            InstallingPackageAlertNotification(
+                packages=package_statuses, source=source
+            ),
+            stream=stream,
+        )
+
+        def create_log_callback(pkg: str) -> LogCallback:
+            def log_callback(log_line: str) -> None:
+                broadcast_notification(
+                    InstallingPackageAlertNotification(
+                        packages=package_statuses,
+                        logs={pkg: log_line},
+                        log_status="append",
+                        source=source,
+                    ),
+                    stream=stream,
+                )
+
+            return log_callback
+
+        for pkg in packages:
+            if skip_attempted and package_manager.attempted_to_install(
+                package=pkg
+            ):
+                # Already attempted an installation; it must have failed.
+                # Skip the installation.
+                continue
+            package_statuses[pkg] = "installing"
+            broadcast_notification(
+                InstallingPackageAlertNotification(
+                    packages=package_statuses, source=source
+                ),
+                stream=stream,
+            )
+
+            # Send initial "start" log
+            broadcast_notification(
+                InstallingPackageAlertNotification(
+                    packages=package_statuses,
+                    logs={pkg: f"Installing {pkg}...\n"},
+                    log_status="start",
+                    source=source,
+                ),
+                stream=stream,
+            )
+
+            if await package_manager.install(
+                pkg,
+                version=versions.get(pkg),
+                upgrade=upgrade,
+                group=group,
+                log_callback=create_log_callback(pkg),
+            ):
+                package_statuses[pkg] = "installed"
+                # Send final "done" log
+                broadcast_notification(
+                    InstallingPackageAlertNotification(
+                        packages=package_statuses,
+                        logs={pkg: f"Successfully installed {pkg}\n"},
+                        log_status="done",
+                        source=source,
+                    ),
+                    stream=stream,
+                )
+            else:
+                package_statuses[pkg] = "failed"
+                # Send final "done" log with error
+                broadcast_notification(
+                    InstallingPackageAlertNotification(
+                        packages=package_statuses,
+                        logs={pkg: f"Failed to install {pkg}\n"},
+                        log_status="done",
+                        source=source,
+                    ),
+                    stream=stream,
+                )
+
+        return package_statuses
+
+    async def _rerun_cells_for_installed(
+        self, installed_modules: list[str]
+    ) -> None:
+        """Re-run cells affected by successfully installed modules.
+
+        This consists of cells that either statically reference an installed
+        module, or that previously failed with a `ModuleNotFoundError` matching
+        an installed module.
+        """
+        cells_to_run = {
+            cid
+            for module in installed_modules
+            if (cid := self._kernel.module_registry.defining_cell(module))
+            is not None
+        }
+
+        for cid, cell in self._kernel.graph.cells.items():
+            if (
+                isinstance(cell.exception, ModuleNotFoundError)
+                and cell.exception.name in installed_modules
+            ):
+                cells_to_run.add(cid)
+
+        if cells_to_run:
+            await self._kernel.maybe_autorun_cells(cells_to_run)
+
     async def install_missing_packages(
         self, request: InstallPackagesCommand
     ) -> None:
@@ -204,83 +354,24 @@ class PackagesCallbacks:
             for pkg in sorted(resolved_packages.values(), key=lambda p: p.name)
         ]
 
-        # Frontend shows package names, not module names
-        package_statuses: PackageStatusType = {
-            pkg: "queued" for pkg in missing_packages
-        }
-        broadcast_notification(
-            InstallingPackageAlertNotification(
-                packages=package_statuses, source=request.source
-            )
+        package_statuses = await self._stream_install(
+            missing_packages,
+            request.versions,
+            source=request.source,
+            skip_attempted=True,
         )
 
-        def create_log_callback(pkg: str) -> LogCallback:
-            def log_callback(log_line: str) -> None:
-                broadcast_notification(
-                    InstallingPackageAlertNotification(
-                        packages=package_statuses,
-                        logs={pkg: log_line},
-                        log_status="append",
-                        source=request.source,
-                    ),
-                )
-
-            return log_callback
-
-        for pkg in missing_packages:
-            if self.package_manager.attempted_to_install(package=pkg):
-                # Already attempted an installation; it must have failed.
-                # Skip the installation.
-                continue
-            package_statuses[pkg] = "installing"
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=package_statuses, source=request.source
-                )
-            )
-
-            # Send initial "start" log
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=package_statuses,
-                    logs={pkg: f"Installing {pkg}...\n"},
-                    log_status="start",
-                    source=request.source,
-                )
-            )
-
-            version = request.versions.get(pkg)
-            if await self.package_manager.install(
-                pkg, version=version, log_callback=create_log_callback(pkg)
-            ):
-                package_statuses[pkg] = "installed"
-                # Send final "done" log
-                broadcast_notification(
-                    InstallingPackageAlertNotification(
-                        packages=package_statuses,
-                        logs={pkg: f"Successfully installed {pkg}\n"},
-                        log_status="done",
-                        source=request.source,
-                    ),
-                )
-            else:
-                package_statuses[pkg] = "failed"
+        # Exclude modules whose package failed to install so we don't
+        # repeatedly prompt for them.
+        for pkg, status in package_statuses.items():
+            if status == "failed":
                 mod = self.package_manager.package_to_module(pkg)
                 self._kernel.module_registry.excluded_modules.add(mod)
-                # Send final "done" log with error
-                broadcast_notification(
-                    InstallingPackageAlertNotification(
-                        packages=package_statuses,
-                        logs={pkg: f"Failed to install {pkg}\n"},
-                        log_status="done",
-                        source=request.source,
-                    ),
-                )
 
         installed_modules = [
             self.package_manager.package_to_module(pkg)
-            for pkg in package_statuses
-            if package_statuses[pkg] == "installed"
+            for pkg, status in package_statuses.items()
+            if status == "installed"
         ]
 
         # If a package was not installed at cell registration time, it won't
@@ -288,27 +379,69 @@ class PackagesCallbacks:
         if self.should_update_script_metadata():
             self.update_script_metadata(installed_modules)
 
-        # All cells that depend on successfully installed modules are re-run.
-        #
-        # This consists of cells that either statically reference the installed
-        # module, or that previously failed with a ModuleNotFoundError matching
-        # an installed module.
-        cells_to_run = {
-            cid
-            for module in installed_modules
-            if (cid := self._kernel.module_registry.defining_cell(module))
-            is not None
-        }
+        await self._rerun_cells_for_installed(installed_modules)
 
-        for cid, cell in self._kernel.graph.cells.items():
-            if (
-                isinstance(cell.exception, ModuleNotFoundError)
-                and cell.exception.name in installed_modules
-            ):
-                cells_to_run.add(cid)
+    async def install_packages(self, request: InstallPackagesCommand) -> None:
+        """Install packages requested explicitly (e.g. from the packages panel).
 
-        if cells_to_run:
-            await self._kernel.maybe_autorun_cells(cells_to_run)
+        Unlike `install_missing_packages`, this installs only the requested
+        packages, retries previously-failed installs, and does not exclude
+        modules on failure. Progress and errors stream to the install overlay.
+        """
+        if (
+            self.package_manager is None
+            or request.manager != self.package_manager.name
+        ):
+            self.package_manager = create_package_manager(request.manager)
+
+        if not self.package_manager.is_manager_installed():
+            self.package_manager.alert_not_installed()
+            return
+
+        packages = list(request.versions.keys())
+        package_statuses = await self._stream_install(
+            packages,
+            request.versions,
+            source=request.source,
+            upgrade=request.upgrade,
+            group=request.group,
+            skip_attempted=False,
+        )
+
+        installed_specs = [
+            pkg
+            for pkg, status in package_statuses.items()
+            if status == "installed"
+        ]
+
+        # Record the exact specs (preserving version pins, extras, URLs) in the
+        # notebook's inline script metadata.
+        if installed_specs and self.should_update_script_metadata():
+            filename = self._kernel.app_metadata.filename
+            if filename:
+                try:
+                    self.package_manager.update_notebook_script_metadata(
+                        filepath=filename,
+                        packages_to_add=installed_specs,
+                        upgrade=request.upgrade,
+                    )
+                except Exception as e:
+                    LOGGER.error(
+                        "Failed to add script metadata to notebook: %s", e
+                    )
+
+        # Re-run cells that statically reference, or previously failed to
+        # import, a now-installed module. Spec parsing is best-effort.
+        installed_modules: list[str] = []
+        for spec in installed_specs:
+            try:
+                name = PackageRequirement.parse(spec).name
+            except Exception:
+                continue
+            installed_modules.append(
+                self.package_manager.package_to_module(name)
+            )
+        await self._rerun_cells_for_installed(installed_modules)
 
     def _maybe_add_marimo_to_script_metadata(self) -> None:
         if self.should_update_script_metadata():

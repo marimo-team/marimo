@@ -6,6 +6,7 @@ from marimo._runtime.packages.module_name_to_conda_name import (
 )
 from marimo._runtime.packages.package_manager import (
     CanonicalizingPackageManager,
+    LogCallback,
     PackageDescription,
 )
 from marimo._runtime.packages.utils import split_packages
@@ -33,11 +34,17 @@ class PixiPackageManager(CondaPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self,
+        package: str,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(
-            ["pixi", "remove", *split_packages(package)], log_callback=None
+            ["pixi", "remove", *split_packages(package)],
+            log_callback=log_callback,
         )
 
     def list_packages(self) -> list[PackageDescription]:

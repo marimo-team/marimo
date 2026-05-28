@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import msgspec
 import pytest
@@ -52,7 +52,11 @@ def test_add_package(client: TestClient, mock_package_manager: Mock) -> None:
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=False, group=None
+        "test-package",
+        version=None,
+        upgrade=False,
+        group=None,
+        log_callback=ANY,
     )
 
 
@@ -79,7 +83,7 @@ def test_remove_package(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.uninstall.assert_called_once_with(
-        "test-package", group=None
+        "test-package", group=None, log_callback=ANY
     )
 
 
@@ -139,6 +143,111 @@ def test_remove_package_failure(
     }
 
 
+def test_add_package_failure_surfaces_captured_output(
+    client: TestClient, mock_package_manager: Mock
+) -> None:
+    """A failed install returns the (ANSI-stripped) package-manager output."""
+
+    async def failing_install(*_args: Any, **kwargs: Any) -> bool:
+        log_callback = kwargs.get("log_callback")
+        if log_callback is not None:
+            log_callback("Collecting test-package\n")
+            log_callback("\x1b[31mERROR: could not resolve\x1b[0m\n")
+        return False
+
+    mock_package_manager.install = AsyncMock(side_effect=failing_install)
+    response = client.post(
+        "/api/packages/add",
+        headers=HEADERS,
+        json={"package": "test-package"},
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result["success"] is False
+    # The real error is surfaced, and ANSI codes are stripped.
+    assert "ERROR: could not resolve" in result["error"]
+    assert "\x1b" not in result["error"]
+    assert "See terminal" not in result["error"]
+
+
+def test_remove_package_failure_surfaces_captured_output(
+    client: TestClient, mock_package_manager: Mock
+) -> None:
+    async def failing_uninstall(*_args: Any, **kwargs: Any) -> bool:
+        log_callback = kwargs.get("log_callback")
+        if log_callback is not None:
+            log_callback("error: package not installed\n")
+        return False
+
+    mock_package_manager.uninstall = AsyncMock(side_effect=failing_uninstall)
+    response = client.post(
+        "/api/packages/remove",
+        headers=HEADERS,
+        json={"package": "test-package"},
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result["success"] is False
+    assert "error: package not installed" in result["error"]
+
+
+def test_add_package_routes_through_kernel_with_session(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With an active session, the install is dispatched to the kernel so it
+    streams into the package-install overlay rather than installing inline."""
+    from marimo._runtime.commands import InstallPackagesCommand
+
+    mock_session = MagicMock()
+    mock_app_state = MagicMock()
+    mock_app_state.get_current_session.return_value = mock_session
+    mock_app_state.app_config_manager.package_manager = "uv"
+    mock_app_state.require_current_session_id.return_value = SESSION_ID
+
+    monkeypatch.setattr(
+        "marimo._server.api.endpoints.packages.AppState",
+        lambda _request: mock_app_state,
+    )
+
+    response = client.post(
+        "/api/packages/add",
+        headers=HEADERS,
+        json={"package": "foo bar", "upgrade": True, "group": "dev"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"success": True, "error": None}
+
+    mock_session.put_control_request.assert_called_once()
+    command = mock_session.put_control_request.call_args.args[0]
+    assert isinstance(command, InstallPackagesCommand)
+    assert command.explicit is True
+    assert command.upgrade is True
+    assert command.group == "dev"
+    assert command.manager == "uv"
+    assert command.versions == {"foo": "", "bar": ""}
+
+
+def test_format_install_error() -> None:
+    from marimo._server.api.endpoints.packages import _format_install_error
+
+    # Falls back when there is no captured output.
+    assert _format_install_error("   \n  ", fallback="fallback") == "fallback"
+
+    # Strips ANSI escape codes.
+    assert (
+        _format_install_error("\x1b[31mboom\x1b[0m", fallback="fallback")
+        == "boom"
+    )
+
+    # Keeps only the tail of long output, with an ellipsis marker.
+    long_output = "\n".join(str(i) for i in range(100))
+    formatted = _format_install_error(long_output, fallback="fallback")
+    lines = formatted.splitlines()
+    assert lines[0] == "..."
+    assert lines[-1] == "99"
+    assert len(lines) == 31  # ellipsis + last 30 lines
+
+
 def test_add_package_with_upgrade(
     client: TestClient, mock_package_manager: Mock
 ) -> None:
@@ -151,7 +260,11 @@ def test_add_package_with_upgrade(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=True, group=None
+        "test-package",
+        version=None,
+        upgrade=True,
+        group=None,
+        log_callback=ANY,
     )
 
 
@@ -167,7 +280,11 @@ def test_add_package_without_upgrade(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=False, group=None
+        "test-package",
+        version=None,
+        upgrade=False,
+        group=None,
+        log_callback=ANY,
     )
 
 
@@ -207,7 +324,9 @@ def test_remove_package_with_empty_string(
         json={"package": ""},
     )
     assert response.status_code in [200, 400, 422]
-    mock_package_manager.uninstall.assert_called_once_with("", group=None)
+    mock_package_manager.uninstall.assert_called_once_with(
+        "", group=None, log_callback=ANY
+    )
 
 
 @pytest.fixture
@@ -588,7 +707,11 @@ def test_add_package_with_dev_dependency(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=True, group="dev"
+        "test-package",
+        version=None,
+        upgrade=True,
+        group="dev",
+        log_callback=ANY,
     )
 
 
@@ -605,7 +728,7 @@ def test_remove_package_with_dev_dependency(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.uninstall.assert_called_once_with(
-        "test-package", group="dev"
+        "test-package", group="dev", log_callback=ANY
     )
 
 

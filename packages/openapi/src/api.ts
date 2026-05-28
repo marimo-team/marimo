@@ -4708,8 +4708,19 @@ export interface components {
      *                     subprocess; "server" installs directly into the server's Python
      *                     environment (sys.executable), used when the server itself needs
      *                     a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
+     *             explicit: When True, install only the requested packages (e.g. from the
+     *                       packages panel), allowing retries of previously-failed
+     *                       installs and without pulling in other missing modules or
+     *                       excluding modules on failure. When False (default), resolve
+     *                       and install all of the notebook's missing packages.
+     *             upgrade: Whether to upgrade the requested packages (explicit installs).
+     *             group: Optional dependency group for the install (explicit installs).
      */
     InstallPackagesCommand: {
+      /** @default false */
+      explicit?: boolean;
+      /** @default null */
+      group?: string | null;
       manager: string;
       /**
        * @default kernel
@@ -4718,18 +4729,26 @@ export interface components {
       source?: "kernel" | "server";
       /** @enum {unknown} */
       type: "install-packages";
+      /** @default false */
+      upgrade?: boolean;
       versions: {
         [key: string]: string;
       };
     };
     /** InstallPackagesRequest */
     InstallPackagesRequest: {
+      /** @default false */
+      explicit?: boolean;
+      /** @default null */
+      group?: string | null;
       manager: string;
       /**
        * @default kernel
        * @enum {unknown}
        */
       source?: "kernel" | "server";
+      /** @default false */
+      upgrade?: boolean;
       versions: {
         [key: string]: string;
       };

@@ -116,12 +116,19 @@ class PackageManager(abc.ABC):
         )
 
     @abc.abstractmethod
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self,
+        package: str,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
+    ) -> bool:
         """Attempt to uninstall a package
 
         Args:
             package: The package to uninstall
             group: dependency group
+            log_callback: Optional callback to receive log output during
+                uninstallation
 
         Returns True if the package was uninstalled, else False.
         """

@@ -612,6 +612,13 @@ class InstallPackagesCommand(Command):
                 subprocess; "server" installs directly into the server's Python
                 environment (sys.executable), used when the server itself needs
                 a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
+        explicit: When True, install only the requested packages (e.g. from the
+                  packages panel), allowing retries of previously-failed
+                  installs and without pulling in other missing modules or
+                  excluding modules on failure. When False (default), resolve
+                  and install all of the notebook's missing packages.
+        upgrade: Whether to upgrade the requested packages (explicit installs).
+        group: Optional dependency group for the install (explicit installs).
     """
 
     # TODO: index URL (index/channel/...)
@@ -623,6 +630,12 @@ class InstallPackagesCommand(Command):
     versions: dict[str, str]
 
     source: Literal["kernel", "server"] = "kernel"
+
+    explicit: bool = False
+
+    upgrade: bool = False
+
+    group: str | None = None
 
 
 class PreviewDatasetColumnCommand(Command):

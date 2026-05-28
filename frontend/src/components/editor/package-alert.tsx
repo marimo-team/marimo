@@ -23,6 +23,7 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
+import { useChromeState } from "@/components/editor/chrome/state";
 import {
   isInstallingPackageAlert,
   isMissingPackageAlert,
@@ -94,6 +95,7 @@ const SourceBadge: React.FC<{ source?: "kernel" | "server" }> = ({
 export const PackageAlert: React.FC = () => {
   const { packageAlert, packageLogs } = useAlerts();
   const { clearPackageAlert } = useAlertActions();
+  const { selectedPanel } = useChromeState();
   const [userConfig] = useResolvedMarimoConfig();
   const [desiredPackageVersions, setDesiredPackageVersions] = useState<
     Record<string, string>
@@ -217,6 +219,13 @@ export const PackageAlert: React.FC = () => {
   }
 
   if (isInstallingPackageAlert(packageAlert)) {
+    // The packages panel renders install progress inline (docked to the
+    // bottom of the panel). When it's the active panel, defer to that view
+    // instead of also showing this overlay.
+    if (selectedPanel === "packages") {
+      return null;
+    }
+
     const { status, title, titleIcon, description } =
       getInstallationStatusElements(packageAlert.packages);
     if (status === "installed") {
@@ -283,7 +292,9 @@ export const PackageAlert: React.FC = () => {
   return null;
 };
 
-function getInstallationStatusElements(packages: PackageInstallationStatus) {
+export function getInstallationStatusElements(
+  packages: PackageInstallationStatus,
+) {
   const statuses = new Set(Object.values(packages));
   const status =
     statuses.has("queued") || statuses.has("installing")
@@ -316,7 +327,7 @@ function getInstallationStatusElements(packages: PackageInstallationStatus) {
   };
 }
 
-const ProgressIcon = ({
+export const ProgressIcon = ({
   status,
 }: {
   status: PackageInstallationStatus[string];
@@ -637,7 +648,7 @@ interface StreamingLogsViewerProps {
   packageLogs: { [packageName: string]: string };
 }
 
-const StreamingLogsViewer: React.FC<StreamingLogsViewerProps> = ({
+export const StreamingLogsViewer: React.FC<StreamingLogsViewerProps> = ({
   packageLogs,
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);

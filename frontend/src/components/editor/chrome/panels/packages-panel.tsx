@@ -20,14 +20,15 @@ import {
 } from "@/components/ui/table";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
+import {
+  isInstallingPackageAlert,
+  useAlerts,
+} from "@/core/alerts/state";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
 import type { DependencyTreeNode } from "@/core/network/types";
 import { stripPackageManagerPrefix } from "@/core/packages/package-input-utils";
-import {
-  showRemovePackageToast,
-  showUpgradePackageToast,
-} from "@/core/packages/toast-components";
+import { showRemovePackageToast } from "@/core/packages/toast-components";
 import { useInstallPackages } from "@/core/packages/useInstallPackage";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -36,6 +37,7 @@ import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
 import { PanelEmptyState } from "./empty-state";
+import { InlineInstallProgress } from "./install-progress";
 import { PACKAGES_INPUT_ID, packagesToInstallAtom } from "./packages-utils";
 
 type ViewMode = "tree" | "list";
@@ -87,6 +89,29 @@ const PackagesPanel: React.FC = () => {
     };
   }, [packageManager]);
 
+  // Refresh the package list once an install/upgrade finishes. Installs from
+  // the panel run in the kernel and stream into the package-install overlay,
+  // so completion is signalled via the alert rather than the request response.
+  const { packageAlert } = useAlerts();
+  const lastHandledAlertId = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (
+      packageAlert == null ||
+      !isInstallingPackageAlert(packageAlert) ||
+      lastHandledAlertId.current === packageAlert.id
+    ) {
+      return;
+    }
+    const statuses = Object.values(packageAlert.packages);
+    const isDone =
+      statuses.length > 0 &&
+      statuses.every((s) => s === "installed" || s === "failed");
+    if (isDone) {
+      lastHandledAlertId.current = packageAlert.id;
+      refetch();
+    }
+  }, [packageAlert, refetch]);
+
   // Only show on the first load
   if (isPending) {
     return <Spinner size="medium" centered={true} />;
@@ -103,7 +128,7 @@ const PackagesPanel: React.FC = () => {
   const isSandbox = name === "<root>"; // name is the project name otherwise
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden relative">
       <InstallPackageForm packageManager={packageManager} onSuccess={refetch} />
       {isTreeSupported && (
         <div className="flex items-center justify-between px-2 py-1 border-b">
@@ -158,6 +183,7 @@ const PackagesPanel: React.FC = () => {
           onSuccess={refetch}
         />
       )}
+      <InlineInstallProgress />
     </div>
   );
 };
@@ -337,7 +363,7 @@ const PackagesList: React.FC<{
             <TableCell>{item.name}</TableCell>
             <TableCell>{item.version}</TableCell>
             <TableCell className="flex justify-end">
-              <UpgradeButton packageName={item.name} onSuccess={onSuccess} />
+              <UpgradeButton packageName={item.name} />
               <RemoveButton packageName={item.name} onSuccess={onSuccess} />
             </TableCell>
           </TableRow>
@@ -350,8 +376,7 @@ const PackagesList: React.FC<{
 const UpgradeButton: React.FC<{
   packageName: string;
   tags?: { kind: string; value: string }[];
-  onSuccess: () => void;
-}> = ({ packageName, tags, onSuccess }) => {
+}> = ({ packageName, tags }) => {
   const [loading, setLoading] = React.useState(false);
   const { addPackage } = useRequestClient();
 
@@ -364,17 +389,13 @@ const UpgradeButton: React.FC<{
     try {
       setLoading(true);
       const group = tags?.find((tag) => tag.kind === "group")?.value;
-      const response = await addPackage({
+      // The upgrade runs in the kernel; progress and errors stream into the
+      // package-install overlay, and the panel refreshes once it completes.
+      await addPackage({
         package: packageName,
         upgrade: true,
         group,
       });
-      if (response.success) {
-        onSuccess();
-        showUpgradePackageToast(packageName);
-      } else {
-        showUpgradePackageToast(packageName, response.error);
-      }
     } finally {
       setLoading(false);
     }
@@ -605,11 +626,7 @@ const DependencyTreeNode: React.FC<{
         {/* Actions for top-level packages */}
         {isTopLevel && (
           <div className="flex gap-1 invisible group-hover:visible">
-            <UpgradeButton
-              packageName={node.name}
-              tags={node.tags}
-              onSuccess={onSuccess}
-            />
+            <UpgradeButton packageName={node.name} tags={node.tags} />
 
             <RemoveButton
               packageName={node.name}

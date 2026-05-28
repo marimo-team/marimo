@@ -167,7 +167,12 @@ class PipPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self,
+        package: str,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         LOGGER.info(f"Uninstalling {package} with pip")
@@ -180,7 +185,7 @@ class PipPackageManager(PypiPackageManager):
                 "-y",
                 *split_packages(package),
             ],
-            log_callback=None,
+            log_callback=log_callback,
         )
 
     def list_packages(self) -> list[PackageDescription]:
@@ -239,7 +244,12 @@ class MicropipPackageManager(PypiPackageManager):
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self,
+        package: str,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         assert is_pyodide()
@@ -248,7 +258,9 @@ class MicropipPackageManager(PypiPackageManager):
         try:
             micropip.uninstall(package)
             return True
-        except ValueError:
+        except ValueError as e:
+            if log_callback:
+                log_callback(f"Failed to uninstall {package}: {e}\n")
             return False
 
     def list_packages(self) -> list[PackageDescription]:
@@ -612,7 +624,12 @@ class UvPackageManager(PypiPackageManager):
         pyproject_path = Path(venv_path).parent / "pyproject.toml"
         return uv_lock_path.exists() and pyproject_path.exists()
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self,
+        package: str,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
+    ) -> bool:
         uninstall_cmd: list[str]
         if self.is_in_uv_project:
             LOGGER.info(f"Uninstalling {package} with 'uv remove'")
@@ -625,7 +642,7 @@ class UvPackageManager(PypiPackageManager):
 
         return await self.run(
             uninstall_cmd + [*split_packages(package), "-p", self._python_exe],
-            log_callback=None,
+            log_callback=log_callback,
         )
 
     def list_packages(self) -> list[PackageDescription]:
@@ -722,11 +739,17 @@ class RyePackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self,
+        package: str,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(
-            ["rye", "remove", *split_packages(package)], log_callback=None
+            ["rye", "remove", *split_packages(package)],
+            log_callback=log_callback,
         )
 
     def list_packages(self) -> list[PackageDescription]:
@@ -760,12 +783,17 @@ class PoetryPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self,
+        package: str,
+        group: str | None = None,
+        log_callback: LogCallback | None = None,
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(
             ["poetry", "remove", "--no-interaction", *split_packages(package)],
-            log_callback=None,
+            log_callback=log_callback,
         )
 
     def _list_packages_from_cmd(
