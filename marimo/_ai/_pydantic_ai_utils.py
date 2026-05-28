@@ -98,7 +98,7 @@ def convert_to_pydantic_messages(
             or generate_id("message")
         )
         role = message.get("role", "assistant")
-        parts = [_sanitize_part(part) for part in message.get("parts", [])]
+        parts = [sanitize_part(part) for part in message.get("parts", [])]
         metadata = message.get("metadata")
 
         ui_message = UIMessage(
@@ -147,7 +147,7 @@ def _tool_part_allowed_fields() -> dict[tuple[bool, str], frozenset[str]]:
     return result
 
 
-def _sanitize_part(part: Any) -> Any:
+def sanitize_part(part: Any) -> Any:
     """Drop fields the AI SDK spread onto a tool part during a state transition.
 
     The AI SDK transitions tool parts via `{ ...part, state, approval }`, which

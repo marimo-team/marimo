@@ -672,7 +672,7 @@ def test_ctx_create_cell_multiply_defined(session: _Session) -> None:
     assert lines == snapshot(
         [
             "event: stderr",
-            'data: {"data": "Traceback (most recent call last):\\n  File \\"<marimo>/marimo/_runtime/executor.py\\", line N, in execute_cell_async\\n    await eval(cell.body, glbls)\\n  File \\"<tmp>\\", line 2, in <module>\\n    async with cm.get_context() as ctx:\\n  File \\"<marimo>/marimo/_code_mode/_context.py\\", line N, in __aexit__\\n    self._dry_run_compile(ops)\\n  File \\"<marimo>/marimo/_code_mode/_context.py\\", line N, in _dry_run_compile\\n    raise RuntimeError(\\nRuntimeError: Multiply-defined names:\\n  - \'x\' is already defined in cell \'cell_a\' (cell_a)\\n\\nTo skip validation, use: async with cm.get_context(skip_validation=True) as ctx\\n"}',
+            'data: {"data": "Traceback (most recent call last):\\n  File \\"<tmp>\\", line 2, in <module>\\n    async with cm.get_context() as ctx:\\n  File \\"<marimo>/marimo/_code_mode/_context.py\\", line N, in __aexit__\\n    self._dry_run_compile(ops)\\n  File \\"<marimo>/marimo/_code_mode/_context.py\\", line N, in _dry_run_compile\\n    raise RuntimeError(\\nRuntimeError: Multiply-defined names:\\n  - \'x\' is already defined in cell \'cell_a\' (cell_a)\\n\\nTo skip validation, use: async with cm.get_context(skip_validation=True) as ctx\\n"}',
             "",
             "event: done",
             'data: {"success": false, "output": {"mimetype": "text/plain", "data": ""}}',

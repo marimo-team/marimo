@@ -109,8 +109,8 @@ class KernelRequestHandlers:
             ):
                 await self._kernel.run_scratchpad(request.code)
         finally:
-            # Always emit completion so a waiting ``ScratchCellListener``
-            # doesn't block forever if ``run_scratchpad`` raises.
+            # Always emit completion so a waiting `ScratchCellListener`
+            # doesn't block forever if `run_scratchpad` raises.
             broadcast_notification(
                 CompletedRunNotification(run_id=request.run_id)
             )

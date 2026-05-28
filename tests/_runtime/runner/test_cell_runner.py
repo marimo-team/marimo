@@ -276,3 +276,132 @@ async def test_converging_runs_when_all_branches_trigger(
     assert "b" in k.globals
     assert "result" in k.globals
     assert k.graph.cells["res"].run_result_status == "success"
+
+
+# --- Surface 3: registered plugin Executor runs via Runner ------------------
+
+
+async def test_runner_dispatches_to_registered_plugin_executor(
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A factory registered against `marimo.cell.executor` is the one
+    the kernel `Runner` dispatches through."""
+    from typing import Any
+
+    from marimo._runtime.executor.evaluator import _EXECUTOR_REGISTRY
+
+    recorded: list[str] = []
+    sentinel_output = object()
+
+    class _SentinelExecutor:
+        name = "sentinel"
+
+        def execute_cell(self, cell: Any, glbls: dict[str, Any]) -> object:
+            del glbls
+            recorded.append(cell.cell_id)
+            return sentinel_output
+
+        async def execute_cell_async(
+            self, cell: Any, glbls: dict[str, Any]
+        ) -> object:
+            del glbls
+            recorded.append(cell.cell_id)
+            return sentinel_output
+
+    def factory() -> _SentinelExecutor:
+        return _SentinelExecutor()
+
+    # Populate the kernel first (uses the real DefaultExecutor — the
+    # registry isn't patched yet).
+    k = execution_kernel
+    await k.run([er := exec_req.get("'hello'; 123")])
+
+    # Fully isolate the registry: replace both `_plugins` and
+    # `names` so installed third-party entry points can't shadow the
+    # sentinel. monkeypatch restores both on teardown.
+    monkeypatch.setattr(_EXECUTOR_REGISTRY, "_plugins", {"sentinel": factory})
+    monkeypatch.setattr(_EXECUTOR_REGISTRY, "names", lambda: ["sentinel"])
+
+    runner = Runner(
+        roots=set(k.graph.cells.keys()),
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=NotebookCellHooks(),
+    )
+    run_result = await runner.run(er.cell_id)
+
+    assert recorded == [er.cell_id]
+    assert run_result.output is sentinel_output
+
+
+# --- Surface 4: Runner.interrupted flips on cancellation --------------------
+
+
+async def test_runner_interrupted_flag_flips_on_sync_marimo_interrupt(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Sync cell body raising `MarimoInterrupt` (== `KeyboardInterrupt`)
+    surfaces as a bare `MarimoInterrupt` in the run result and flips
+    `runner.interrupted`."""
+    k = execution_kernel
+    await k.run([er := exec_req.get("raise KeyboardInterrupt")])
+
+    runner = Runner(
+        roots=set(k.graph.cells.keys()),
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=NotebookCellHooks(),
+    )
+    with capture_stderr():
+        await runner.run(er.cell_id)
+
+    assert runner.interrupted is True
+
+
+async def test_runner_interrupted_flag_flips_on_async_cell_cancellation(
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An async cell cancelled mid-await flips `runner.interrupted`.
+
+    A bare `asyncio.CancelledError` arriving in `RunResult.exception` is
+    converted to `MarimoInterrupt` by the bare-`CancelledError` branch
+    of `_finalize_run_result`, which `run()` recognises to flip the
+    flag.
+
+    Simulates the evaluator output directly (a bare `CancelledError` in
+    the `RunResult`) so this test is independent of the executor's
+    coroutine compilation.
+    """
+    import asyncio
+
+    from marimo._runtime.runner.result import RunResult
+
+    k = execution_kernel
+    await k.run([er := exec_req.get("123")])
+
+    runner = Runner(
+        roots=set(k.graph.cells.keys()),
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=NotebookCellHooks(),
+    )
+
+    async def fake_evaluate(cell, glbls):  # type: ignore[no-untyped-def]
+        del cell, glbls
+        return RunResult(output=None, exception=asyncio.CancelledError())
+
+    monkeypatch.setattr(
+        runner._evaluator, "evaluate_interruptible", fake_evaluate
+    )
+
+    with capture_stderr():
+        await runner.run(er.cell_id)
+
+    assert runner.interrupted is True

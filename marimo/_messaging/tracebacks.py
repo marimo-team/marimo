@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import traceback as tb
 
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.context import is_code_mode_request
@@ -49,10 +50,8 @@ def write_traceback(traceback: str) -> None:
         # In run mode, only forward to the frontend if show_tracebacks is on.
         if in_run_mode and not _show_tracebacks_enabled():
             return
-        # Strip marimo's internal executor.py frame and highlight for the UI
-        trimmed = _trim_traceback(traceback)
         sys.stderr._write_with_mimetype(
-            _highlight_traceback(trimmed),
+            _highlight_traceback(traceback),
             mimetype="application/vnd.marimo+traceback",
         )
     else:
@@ -64,16 +63,15 @@ def write_traceback(traceback: str) -> None:
             if in_run_mode and not _show_tracebacks_enabled():
                 sys.stderr.write(traceback)
                 return
-            trimmed = _trim_traceback(traceback)
             broadcast_notification(
                 CellNotification(
                     cell_id=ctx.cell_id,
                     console=CellOutput(
                         channel=CellChannel.STDERR,
                         mimetype="application/vnd.marimo+traceback",
-                        data=trimmed
+                        data=traceback
                         if code_mode
-                        else _highlight_traceback(trimmed),
+                        else _highlight_traceback(traceback),
                     ),
                 ),
                 ctx.stream,
@@ -83,26 +81,35 @@ def write_traceback(traceback: str) -> None:
             sys.stderr.write(traceback)
 
 
-def _trim_traceback(traceback: str) -> str:
-    """
-    Skip first DefaultExecutor.execute_cell traceback item which all traces start with.
-    """
+def format_exception_message(exc: BaseException) -> str:
+    """Return an exception's message, including Python's helpful hints.
 
-    lines = traceback.split("\n")
-    if (
-        len(lines) > 2
-        and lines[0] == "Traceback (most recent call last):"
-        and (
-            '/marimo/_runtime/executor.py", line ' in lines[1]
-            or '\\marimo\\_runtime\\executor.py", line ' in lines[1]
-        )
-        and lines[1].endswith(", in execute_cell")
-    ):
-        for i in range(2, len(lines)):
-            if lines[i].startswith("  File "):
-                return "\n".join(lines[:1] + lines[i:])
+    `str(exc)` yields only the bare message (`exc.args[0]`). Python's
+    "Did you mean: ..." suggestions for `NameError`, `AttributeError`,
+    `ImportError`, etc. are computed by the `traceback` module from the
+    exception's frame, so they are dropped by `str()`. Format via
+    `TracebackException` to keep them, while stripping the leading
+    "ExceptionType: " prefix (marimo displays the exception type separately).
 
-    return traceback
+    Falls back to `str(exc)` when the formatted output isn't a single
+    "ExceptionType: message" line (e.g. `SyntaxError`, whose formatting
+    spans multiple lines, or an exception with no message).
+    """
+    base = str(exc)
+    try:
+        formatted = "".join(
+            tb.TracebackException.from_exception(exc).format_exception_only()
+        ).strip()
+    except Exception:
+        return base
+    # `format_exception_only` emits a single "{ExceptionType}: {message}"
+    # line, with any "Did you mean: ..." hint appended to the message.
+    # Partition on the first ": " to drop the type prefix; an exception
+    # type name never contains ": ", so a colon in the message is kept.
+    type_str, sep, rest = formatted.partition(": ")
+    if sep and "\n" not in type_str:
+        return rest
+    return base
 
 
 def is_code_highlighting(value: str) -> bool:
