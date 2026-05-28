@@ -242,12 +242,6 @@ class IbisEngine(SQLConnection["SQLBackend"]):
                     include_table_details=include_table_details,
                 )
 
-                # ignore schemas with 0 tables
-                if len(tables) == 0:
-                    LOGGER.debug(
-                        f"No table found for schema `{schema_name}`. Not displaying schema."
-                    )
-
             schema = Schema(name=schema_name, tables=tables)
             schemas.append(schema)
 
