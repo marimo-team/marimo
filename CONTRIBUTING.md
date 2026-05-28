@@ -84,7 +84,7 @@ _Note: We recommend that Windows developers use [WSL](https://learn.microsoft.co
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python package manager)
 - [Node.js](https://nodejs.org/) 22+
-- [pnpm](https://pnpm.io/installation) 9+
+- [pnpm](https://pnpm.io/installation) 10+
 
 ### Getting started
 
