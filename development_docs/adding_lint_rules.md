@@ -4,11 +4,12 @@ This guide explains how to add new lint rules to marimo's linting system.
 
 ## Overview
 
-marimo's lint system helps users write better, more reliable notebooks by detecting various issues that could prevent notebooks from running correctly. The system is organized around three severity levels:
+marimo's lint system helps users write better, more reliable notebooks by detecting various issues that could prevent notebooks from running correctly. The system is organized around four severity levels:
 
 - **Breaking (MB)**: Errors that prevent notebook execution
 - **Runtime (MR)**: Issues that may cause runtime problems
 - **Formatting (MF)**: Style and formatting issues
+- **WASM (MW)**: Compatibility issues for WASM/Pyodide notebooks *(off by default)*
 
 ## Rule Code Assignment
 
@@ -19,6 +20,7 @@ Rule codes follow a specific pattern: `M[severity][number]`
 - **MB001-MB099**: Breaking rules
 - **MR001-MR099**: Runtime rules
 - **MF001-MF099**: Formatting rules
+- **MW001-MW099**: WASM compatibility rules *(off by default)*
 
 ### Assigning New Codes
 
@@ -45,6 +47,7 @@ Create your rule in the appropriate directory:
 - Breaking rules: `marimo/_lint/rules/breaking/`
 - Runtime rules: `marimo/_lint/rules/runtime/`
 - Formatting rules: `marimo/_lint/rules/formatting/`
+- WASM rules: `marimo/_lint/rules/wasm/`
 
 **Template for a new rule**:
 
@@ -314,6 +317,24 @@ rules may implement unsafe fixes (mutating the notebook structure) that require
 the `--unsafe-fixes` flag. To do this, implement an `async def
 apply_unsafe_fixes(self, notebook, diagnostics) -> Notebook` method in your
 rule class, and inherit from `UnsafeFixRule` instead of `LintRule`.
+
+## Default vs Opt-in Rules
+
+Rules in `RULE_CODES` are the full set of all rules. Rules in `DEFAULT_RULE_CODES` are those enabled when no `--select` is specified.
+
+To make a category **off by default** (like WASM rules), include it in `RULE_CODES` but exclude it from `DEFAULT_RULE_CODES` in `marimo/_lint/rules/__init__.py`:
+
+```python
+# Rules enabled by default (excludes opt-in categories like WASM).
+DEFAULT_RULE_CODES: dict[str, type[LintRule]] = (
+    BREAKING_RULE_CODES | RUNTIME_RULE_CODES | FORMATTING_RULE_CODES
+)
+
+# All known rules (including opt-in). Used when --select is provided.
+RULE_CODES: dict[str, type[LintRule]] = DEFAULT_RULE_CODES | WASM_RULE_CODES
+```
+
+Users opt in via `marimo check --select MW` or `--select ALL`. The `resolve_rules()` function in `rule_selector.py` uses `DEFAULT_RULE_CODES` when no `select` is specified, and `RULE_CODES` when it is.
 
 ## Common Patterns
 

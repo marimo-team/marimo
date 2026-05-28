@@ -14,6 +14,7 @@ class Severity(Enum):
     FORMATTING = "formatting"  # prefix: MF0000
     RUNTIME = "runtime"  # prefix: MR0000
     BREAKING = "breaking"  # prefix: MB0000
+    WASM = "wasm"  # prefix: MW0000
 
 
 def line_num(line: int) -> str:
