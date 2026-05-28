@@ -9,11 +9,11 @@ import pytest
 pytest.importorskip("pydantic_ai", reason="pydantic_ai not installed")
 
 from marimo._ai._pydantic_ai_utils import (
-    _sanitize_part,
     convert_to_pydantic_messages,
     create_simple_prompt,
     form_toolsets,
     generate_id,
+    sanitize_part,
 )
 from marimo._server.ai.tools.types import ToolDefinition
 
@@ -521,7 +521,7 @@ class TestSanitizePart:
             "output": "Invalid arguments for tool request_user_blessing",
             "errorText": "boom",
         }
-        clean = _sanitize_part(stale)
+        clean = sanitize_part(stale)
         assert "output" not in clean
         assert "errorText" not in clean
         assert clean["approval"] == {"id": "call_abc", "approved": True}
@@ -538,7 +538,7 @@ class TestSanitizePart:
             "output": {"ok": True},
             "preliminary": False,
         }
-        clean = _sanitize_part(part)
+        clean = sanitize_part(part)
         assert clean["output"] == {"ok": True}
         assert clean["preliminary"] is False
 
@@ -551,7 +551,7 @@ class TestSanitizePart:
             "rawInput": {"x": 1},
             "errorText": "boom",
         }
-        clean = _sanitize_part(part)
+        clean = sanitize_part(part)
         assert clean["errorText"] == "boom"
         assert clean["rawInput"] == {"x": 1}
 
@@ -565,7 +565,7 @@ class TestSanitizePart:
             "approval": {"id": "c1", "approved": True},
             "output": "stale",
         }
-        clean = _sanitize_part(stale)
+        clean = sanitize_part(stale)
         assert "output" not in clean
         assert clean["toolName"] == "my_tool"
 
@@ -584,7 +584,7 @@ class TestSanitizePart:
         ],
     )
     def test_non_tool_parts_pass_through_unchanged(self, part):
-        assert _sanitize_part(part) is part
+        assert sanitize_part(part) is part
 
     @pytest.mark.parametrize(
         "part",
@@ -606,7 +606,7 @@ class TestSanitizePart:
         ],
     )
     def test_malformed_parts_pass_through_unchanged(self, part):
-        assert _sanitize_part(part) == part
+        assert sanitize_part(part) == part
 
 
 class TestConvertToPydanticMessagesSanitizes:
