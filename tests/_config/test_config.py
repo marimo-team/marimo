@@ -26,6 +26,7 @@ def test_configure_full() -> None:
         PartialMarimoConfig(
             completion={
                 "activate_on_typing": False,
+                "auto_close_pairs": True,
                 "copilot": False,
                 "signature_hint_on_typing": False,
             },
