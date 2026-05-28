@@ -723,7 +723,7 @@ const StorageNamespaceSection: React.FC<{
         </span>
       );
     }
-    if (remoteSearch.status === "exhausted") {
+    if (remoteSearch.status === "exhausted" && !hasLoadedMatches) {
       return "No matches";
     }
     if (!hasSearch && !isPending && entries.length === 0 && !error) {

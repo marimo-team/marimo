@@ -330,4 +330,31 @@ describe("useStorageEntries", () => {
       pageToken: "150",
     });
   });
+
+  it("should forward an empty string page token", async () => {
+    mockRequest.mockResolvedValue({
+      entries: [],
+      next_page_token: null,
+      may_have_more: false,
+    });
+
+    const { result } = renderHook(() => useStoragePageFetcher(), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current({
+        namespace: "ns",
+        prefix: "folder/",
+        pageToken: "",
+      });
+    });
+
+    expect(mockRequest).toHaveBeenLastCalledWith({
+      namespace: "ns",
+      prefix: "folder/",
+      limit: 150,
+      pageToken: "",
+    });
+  });
 });

@@ -142,7 +142,7 @@ async function fetchStorageEntriesPage({
     namespace,
     prefix: prefix ?? ROOT_PATH,
     limit: DEFAULT_FETCH_LIMIT,
-    ...(pageToken ? { pageToken } : {}),
+    ...(pageToken != null ? { pageToken } : {}),
   });
   if (result.error) {
     throw new Error(result.error);
