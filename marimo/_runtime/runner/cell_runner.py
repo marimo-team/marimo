@@ -739,9 +739,7 @@ class Runner:
             LOGGER.debug("Cell runner processing %s", cell_id)
             cell = self.graph.cells[cell_id]
 
-            blocked_ancestor_id = self._find_first_blocked_missing_ref(
-                cell_id
-            )
+            blocked_ancestor_id = self._find_first_blocked_missing_ref(cell_id)
             if blocked_ancestor_id is not None:
                 # Cancel cell_id and descendants before the check below.
                 LOGGER.debug(
@@ -752,10 +750,9 @@ class Runner:
                 if blocked_ancestor_id not in self.exceptions:
                     # TODO (jlehuen): We wouldn't have to create this MarimoStopError if those were stored directly
                     # in CellImpl.exception. See: marimo._runtime.runner.hooks_post_execution._set_run_result_status
-                    self.exceptions[blocked_ancestor_id] = (
-                        self.graph.cells[blocked_ancestor_id].exception
-                        or MarimoStopError(None)
-                    )
+                    self.exceptions[blocked_ancestor_id] = self.graph.cells[
+                        blocked_ancestor_id
+                    ].exception or MarimoStopError(None)
                 pending = {cell_id} | {
                     cid
                     for cid in dataflow.transitive_closure(
