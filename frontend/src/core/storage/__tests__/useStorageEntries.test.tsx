@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import type { ReactNode } from "react";
 import * as React from "react";
@@ -175,13 +175,61 @@ describe("useStorageEntries", () => {
 
   it("should store fetched entries in the atom", async () => {
     const entries = [makeEntry({ path: "new.txt" })];
-    mockRequest.mockResolvedValue({ entries });
+    mockRequest.mockResolvedValue({
+      entries,
+      next_page_token: "150",
+      may_have_more: true,
+    });
 
     renderHook(() => useStorageEntries("ns", "sub/"), { wrapper });
 
     await waitFor(() => {
       const state = store.get(storageAtom);
       expect(state.entriesByPath.get("ns::sub/")).toEqual(entries);
+      expect(state.pageMetadataByPath.get("ns::sub/")?.nextPageToken).toBe(
+        "150",
+      );
+      expect(state.pageMetadataByPath.get("ns::sub/")?.mayHaveMore).toBe(true);
+    });
+  });
+
+  it("should load more entries when a next page token exists", async () => {
+    const firstPage = [makeEntry({ path: "a.txt" })];
+    const secondPage = [makeEntry({ path: "b.txt" })];
+    mockRequest
+      .mockResolvedValueOnce({
+        entries: firstPage,
+        next_page_token: "150",
+        may_have_more: true,
+      })
+      .mockResolvedValueOnce({
+        entries: secondPage,
+        next_page_token: null,
+        may_have_more: true,
+      });
+
+    const { result } = renderHook(() => useStorageEntries("ns", "sub/"), {
+      wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.entries).toEqual(firstPage);
+    });
+    expect(result.current.hasMore).toBe(true);
+    expect(result.current.mayHaveMore).toBe(false);
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    expect(result.current.entries).toEqual([...firstPage, ...secondPage]);
+    expect(result.current.hasMore).toBe(false);
+    expect(result.current.mayHaveMore).toBe(true);
+    expect(mockRequest).toHaveBeenLastCalledWith({
+      namespace: "ns",
+      prefix: "sub/",
+      limit: 150,
+      pageToken: "150",
     });
   });
 });

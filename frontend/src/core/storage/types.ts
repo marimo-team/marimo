@@ -30,13 +30,24 @@ export interface StorageState {
   namespaces: StorageNamespace[];
   /** Lazy-loaded entries keyed by "namespace::prefix" */
   entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>;
+  /** Pagination metadata keyed by "namespace::prefix" */
+  pageMetadataByPath: ReadonlyMap<StoragePathKey, StoragePageMetadata>;
 }
 
-export function storageUrl(
-  protocol: string,
-  rootPath: string,
-  entryPath: string,
-): URL {
+export interface StoragePageMetadata {
+  nextPageToken: string | null;
+  mayHaveMore: boolean;
+}
+
+export function storageUrl({
+  protocol,
+  rootPath,
+  entryPath,
+}: {
+  protocol: string;
+  rootPath: string;
+  entryPath: string;
+}): URL {
   const parts = [rootPath, entryPath].filter(Boolean);
   const path = parts.join("/").replaceAll(/\/+/g, "/");
   return new URL(`${protocol}://${path}`);
