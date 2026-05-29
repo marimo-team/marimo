@@ -24,6 +24,7 @@ PRIORITY_MAP = {
     Severity.BREAKING: 0,
     Severity.RUNTIME: 1,
     Severity.FORMATTING: 2,
+    Severity.WASM: 3,
 }
 
 

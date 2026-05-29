@@ -15,9 +15,9 @@ export function isSchemaless(schemaName: string) {
 
 interface SqlCodeFormatter {
   /**
-   * Format the table name based on dialect-specific rules
+   * Format the table path based on dialect-specific rules
    */
-  formatTableName: (tableName: string) => string;
+  formatTablePath: (tablePath: string[]) => string;
   /**
    * Format the SELECT clause
    */
@@ -25,7 +25,7 @@ interface SqlCodeFormatter {
 }
 
 const defaultFormatter: SqlCodeFormatter = {
-  formatTableName: (tableName: string) => tableName,
+  formatTablePath: (tablePath: string[]) => tablePath.join("."),
   formatSelectClause: (columnName: string, tableName: string) =>
     `SELECT ${columnName} FROM ${tableName} LIMIT 100`,
 };
@@ -41,7 +41,8 @@ function getFormatter(dialect: string): SqlCodeFormatter {
       const quote = BigQueryDialect.spec.identifierQuotes;
       return {
         // BigQuery uses backticks for identifiers
-        formatTableName: (tableName: string) => `${quote}${tableName}${quote}`,
+        formatTablePath: (tablePath: string[]) =>
+          `${quote}${tablePath.join(".")}${quote}`,
         formatSelectClause: defaultFormatter.formatSelectClause,
       };
     }
@@ -49,7 +50,7 @@ function getFormatter(dialect: string): SqlCodeFormatter {
     case "sqlserver":
     case "microsoft sql server":
       return {
-        formatTableName: defaultFormatter.formatTableName,
+        formatTablePath: defaultFormatter.formatTablePath,
         formatSelectClause: (columnName: string, tableName: string) =>
           `SELECT TOP 100 ${columnName} FROM ${tableName}`,
       };
@@ -57,12 +58,11 @@ function getFormatter(dialect: string): SqlCodeFormatter {
     case "postgres":
     case "postgresql":
     case "duckdb":
+    case "dremio":
       // Quote column and table names to avoid raising errors on weird characters
       return {
-        formatTableName: (tableName: string) => {
-          const parts = tableName.split(".");
-          return parts.map((part) => `"${part}"`).join(".");
-        },
+        formatTablePath: (tablePath: string[]) =>
+          tablePath.map((part) => `"${part}"`).join("."),
         formatSelectClause: (columnName: string, tableName: string) =>
           `SELECT ${columnName === "*" ? "*" : `"${columnName}"`} FROM ${tableName} LIMIT 100`,
       };
@@ -114,26 +114,27 @@ export function sqlCode({
       database,
       dialect,
     } = sqlTableContext;
-    let tableName = table.name;
+    const tablePath = [table.name];
 
     // Set the fully qualified table name based on schema and database
     if (isSchemaless(schema)) {
-      tableName =
-        database === defaultDatabase ? tableName : `${database}.${tableName}`;
+      if (database !== defaultDatabase) {
+        tablePath.unshift(database);
+      }
     } else {
       // Include schema if it's not the default schema
       if (schema !== defaultSchema) {
-        tableName = `${schema}.${tableName}`;
+        tablePath.unshift(schema);
       }
 
       // Include database if it's not the default database
       if (database !== defaultDatabase) {
-        tableName = `${database}.${tableName}`;
+        tablePath.unshift(database);
       }
     }
 
     const formatter = getFormatter(dialect);
-    const formattedTableName = formatter.formatTableName(tableName);
+    const formattedTableName = formatter.formatTablePath(tablePath);
     const selectClause = formatter.formatSelectClause(
       columnName,
       formattedTableName,

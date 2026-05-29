@@ -313,6 +313,26 @@ describe("sqlCode", () => {
       );
     });
 
+    it("should preserve dots inside quoted schema names", () => {
+      const sqlTableContext: SQLTableContext = {
+        engine: "postgres",
+        schema: "analytics.events",
+        defaultSchema: "public",
+        defaultDatabase: "mydb",
+        database: "remote",
+        dialect: "postgres",
+      };
+
+      const result = sqlCode({
+        table: mockTable,
+        columnName: mockColumn.name,
+        sqlTableContext,
+      });
+      expect(result).toBe(
+        '_df = mo.sql(f"""\nSELECT "email" FROM "remote"."analytics.events"."users" LIMIT 100\n""", engine=postgres)',
+      );
+    });
+
     it("should not quote * column name", () => {
       const sqlTableContext: SQLTableContext = {
         engine: "postgres",
@@ -330,6 +350,68 @@ describe("sqlCode", () => {
       });
       expect(result).toBe(
         '_df = mo.sql(f"""\nSELECT * FROM "users" LIMIT 100\n""", engine=postgres)',
+      );
+    });
+  });
+
+  describe("Dremio dialect", () => {
+    it("should quote reserved column names and table path parts", () => {
+      const sqlTableContext: SQLTableContext = {
+        engine: "dremio_conn",
+        schema: "operations",
+        defaultSchema: "",
+        defaultDatabase: "",
+        database: "lakehouse",
+        dialect: "dremio",
+      };
+
+      const result = sqlCode({
+        table: { ...mockTable, name: "shipments" as const },
+        columnName: "order",
+        sqlTableContext,
+      });
+      expect(result).toBe(
+        '_df = mo.sql(f"""\nSELECT "order" FROM "lakehouse"."operations"."shipments" LIMIT 100\n""", engine=dremio_conn)',
+      );
+    });
+
+    it("should not quote * column name", () => {
+      const sqlTableContext: SQLTableContext = {
+        engine: "dremio_conn",
+        schema: "operations",
+        defaultSchema: "",
+        defaultDatabase: "",
+        database: "lakehouse",
+        dialect: "dremio",
+      };
+
+      const result = sqlCode({
+        table: { ...mockTable, name: "customers" as const },
+        columnName: "*",
+        sqlTableContext,
+      });
+      expect(result).toBe(
+        '_df = mo.sql(f"""\nSELECT * FROM "lakehouse"."operations"."customers" LIMIT 100\n""", engine=dremio_conn)',
+      );
+    });
+
+    it("should preserve dots inside quoted schema names", () => {
+      const sqlTableContext: SQLTableContext = {
+        engine: "dremio_conn",
+        schema: "samples.dremio.com",
+        defaultSchema: "",
+        defaultDatabase: "",
+        database: "Samples",
+        dialect: "dremio",
+      };
+
+      const result = sqlCode({
+        table: { ...mockTable, name: "airlines" as const },
+        columnName: "*",
+        sqlTableContext,
+      });
+      expect(result).toBe(
+        '_df = mo.sql(f"""\nSELECT * FROM "Samples"."samples.dremio.com"."airlines" LIMIT 100\n""", engine=dremio_conn)',
       );
     });
   });

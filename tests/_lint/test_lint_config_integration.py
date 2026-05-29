@@ -10,9 +10,9 @@ from marimo._lint.rule_engine import RuleEngine
 class TestRuleEngineConfig:
     def test_create_default_no_config(self):
         engine = RuleEngine.create_default()
-        from marimo._lint.rules import RULE_CODES
+        from marimo._lint.rules import DEFAULT_RULE_CODES
 
-        assert len(engine.rules) == len(RULE_CODES)
+        assert len(engine.rules) == len(DEFAULT_RULE_CODES)
 
     def test_create_default_with_select(self):
         engine = RuleEngine.create_default(lint_config={"select": ["MB"]})
@@ -26,9 +26,9 @@ class TestRuleEngineConfig:
 
     def test_create_default_empty_config(self):
         engine = RuleEngine.create_default(lint_config={})
-        from marimo._lint.rules import RULE_CODES
+        from marimo._lint.rules import DEFAULT_RULE_CODES
 
-        assert len(engine.rules) == len(RULE_CODES)
+        assert len(engine.rules) == len(DEFAULT_RULE_CODES)
 
 
 class TestLinterConfig:
@@ -53,9 +53,9 @@ class TestLinterConfig:
 
     def test_linter_no_config(self):
         linter = Linter()
-        from marimo._lint.rules import RULE_CODES
+        from marimo._lint.rules import DEFAULT_RULE_CODES
 
-        assert len(linter.rule_engine.rules) == len(RULE_CODES)
+        assert len(linter.rule_engine.rules) == len(DEFAULT_RULE_CODES)
 
 
 class TestPep723LintConfig:

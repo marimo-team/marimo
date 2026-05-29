@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from marimo._lint.context import LintContext, RuleContext
 from marimo._lint.diagnostic import Severity
-from marimo._lint.rules import RULE_CODES
+from marimo._lint.rules import DEFAULT_RULE_CODES
 from marimo._schemas.serialization import NotebookSerialization
 
 if TYPE_CHECKING:
@@ -154,5 +154,5 @@ class RuleEngine:
 
             rules = resolve_rules(lint_config)
         else:
-            rules = [rule() for rule in RULE_CODES.values()]
+            rules = [rule() for rule in DEFAULT_RULE_CODES.values()]
         return cls(rules, early_stopping)

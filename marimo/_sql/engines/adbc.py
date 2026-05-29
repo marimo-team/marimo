@@ -30,6 +30,22 @@ AdbcGetObjectsDepth = Literal[
     "all", "catalogs", "db_schemas", "tables", "columns"
 ]
 
+ARROW_INTEGER_TYPES = frozenset(
+    f"{prefix}{bits}"
+    for prefix in ("int", "uint")
+    for bits in ("8", "16", "32", "64")
+)
+ARROW_STRING_TYPES = frozenset(
+    (
+        "binary",
+        "binary_view",
+        "large_binary",
+        "large_string",
+        "string",
+        "string_view",
+    )
+)
+
 
 class AdbcDbApiCursor(Protocol):
     description: Any
@@ -108,10 +124,22 @@ def _adbc_info_to_dialect(*, info: dict[str | int, Any]) -> str:
 
 def _schema_field_to_data_type(external_type: str) -> DataType:
     """Map an Arrow-like dtype string to marimo DataType."""
-    t = external_type.lower()
-    if "bool" in t:
+    t = external_type.strip().lower()
+    if t.startswith(
+        (
+            "array<",
+            "fixed_size_list<",
+            "large_list<",
+            "list<",
+            "map<",
+            "struct<",
+            "union<",
+        )
+    ) or t.endswith("[]"):
+        return "unknown"
+    if t == "bool":
         return "boolean"
-    if "int" in t or "uint" in t:
+    if t in ARROW_INTEGER_TYPES:
         return "integer"
     if "float" in t or "double" in t or "decimal" in t:
         return "number"
@@ -121,7 +149,10 @@ def _schema_field_to_data_type(external_type: str) -> DataType:
         return "date"
     if t.startswith("time") or " time" in t:
         return "time"
-    return "string"
+    # Arrow renders fixed-size binary with its width, e.g. fixed_size_binary[16].
+    if t in ARROW_STRING_TYPES or t.startswith("fixed_size_binary["):
+        return "string"
+    return "unknown"
 
 
 class AdbcConnectionCatalog:

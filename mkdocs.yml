@@ -209,6 +209,9 @@ nav:
               - SQL parse error: guides/lint_rules/rules/sql_parse_error.md
               - Misc parse log: guides/lint_rules/rules/misc_log_capture.md
               - Reusable ordering: guides/lint_rules/rules/reusable_definition_order.md
+              - Incompatible import: guides/lint_rules/rules/incompatible_import.md
+              - Unsafe system call: guides/lint_rules/rules/unsafe_system_call.md
+              - Incompatible package: guides/lint_rules/rules/incompatible_package.md
       - Testing:
           - Testing notebooks: guides/testing/index.md
           - pytest: guides/testing/pytest.md
