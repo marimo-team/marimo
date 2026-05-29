@@ -12,6 +12,7 @@ concurrency:
 
 permissions:
   contents: write
+  id-token: write
   pull-requests: write
 
 jobs:
@@ -24,10 +25,27 @@ jobs:
         shell: bash
 
     steps:
+      - name: 🔐 Fetch Doppler secrets
+        uses: dopplerhq/secrets-fetch-action@cd2efbf9a404504316435873eff298b82f7e0562 # v1.3.0
+        id: secrets
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
+          doppler-project: marimo-oss
+          doppler-config: ci_deploy
+
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ steps.secrets.outputs.RELEASE_APP_PRIVATE_KEY }}
+
       - name: ⬇️ Checkout repo
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: 📥 Install repo
         uses: ./.github/actions/install
@@ -56,7 +74,7 @@ jobs:
         id: existing_pr
         if: steps.changes.outputs.has_changes == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_TITLE: Update LLM model catalog
         run: |
           number="$(gh pr list --state open --search "$PR_TITLE in:title" --json number,title --jq '.[0].number // ""')"
@@ -68,7 +86,7 @@ jobs:
       - name: 📝 Create update PR
         if: steps.changes.outputs.has_changes == 'true' && steps.existing_pr.outputs.number == ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_TITLE: Update LLM model catalog
           BRANCH_NAME: automation/sync-llm-info-models-${{ github.run_id }}
         run: |
