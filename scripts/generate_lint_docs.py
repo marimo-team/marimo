@@ -33,6 +33,7 @@ class Severity(Enum):
     FORMATTING = "formatting"
     RUNTIME = "runtime"
     BREAKING = "breaking"
+    WASM = "wasm"
 
 
 @dataclass
@@ -109,16 +110,18 @@ def extract_rule_info_from_file(file_path: Path) -> list[RuleInfo]:
 def discover_all_rules() -> dict[str, RuleInfo]:
     """Discover all lint rules that are actually registered in the codebase."""
     # First, get the registered rule codes from the init files
-    breaking_init = MARIMO_ROOT / "marimo" / "_lint" / "rules" / "breaking" / "__init__.py"
-    formatting_init = MARIMO_ROOT / "marimo" / "_lint" / "rules" / "formatting" / "__init__.py"
-    runtime_init = MARIMO_ROOT / "marimo" / "_lint" / "rules" / "runtime" / "__init__.py"
+    rules_dir = MARIMO_ROOT / "marimo" / "_lint" / "rules"
+    breaking_init = rules_dir / "breaking" / "__init__.py"
+    formatting_init = rules_dir / "formatting" / "__init__.py"
+    runtime_init = rules_dir / "runtime" / "__init__.py"
+    wasm_init = rules_dir / "wasm" / "__init__.py"
 
     registered_codes = set()
 
     def process(init_file: Path, prefix: str, registered_codes: set[str]) -> None:
         try:
             content = init_file.read_text()
-            # Extract codes from BREAKING_RULE_CODES dictionary
+            # Extract codes from *_RULE_CODES dictionary
             for line in content.split('\n'):
                 if f'"{prefix}' in line and ':' in line:
                     # Extract the code between quotes
@@ -131,10 +134,11 @@ def discover_all_rules() -> dict[str, RuleInfo]:
         except Exception as e:
             print(f"Warning: Could not parse rules init: {e}")
 
-    # Parse the breaking rules init file
+    # Parse the rules init files
     process(breaking_init, "MB", registered_codes)
     process(runtime_init, "MR", registered_codes)
     process(formatting_init, "MF", registered_codes)
+    process(wasm_init, "MW", registered_codes)
 
     # Now discover rules from source files
     rules_dir = MARIMO_ROOT / "marimo" / "_lint" / "rules"
@@ -166,6 +170,7 @@ def get_severity_info(severity: Severity) -> tuple[str, str, str]:
         Severity.BREAKING: ("🚨", "Breaking", "These errors prevent notebook execution"),
         Severity.RUNTIME: ("⚠️", "Runtime", "These issues may cause runtime problems"),
         Severity.FORMATTING: ("✨", "Formatting", "These are style and formatting issues"),
+        Severity.WASM: ("🌐", "WASM", "These issues affect WASM/Pyodide compatibility (off by default)"),
     }
     return severity_map.get(severity, ("❓", "Unknown", ""))
 
@@ -177,8 +182,8 @@ def validate_rule_info(rule: RuleInfo) -> list[str]:
     # Check required attributes are present and valid
     if not rule.code:
         issues.append("Missing rule code")
-    elif not re.match(r'^M[BRF]\d{3}$', rule.code):
-        issues.append(f"Invalid rule code format: {rule.code} (expected MB###, MR###, or MF###)")
+    elif not re.match(r'^M[BRFW]\d{3}$', rule.code):
+        issues.append(f"Invalid rule code format: {rule.code} (expected MB###, MR###, MF###, or MW###)")
 
     if not rule.name:
         issues.append("Missing rule name")
@@ -208,7 +213,8 @@ def validate_rule_info(rule: RuleInfo) -> list[str]:
     expected_prefixes = {
         Severity.BREAKING: "MB",
         Severity.RUNTIME: "MR",
-        Severity.FORMATTING: "MF"
+        Severity.FORMATTING: "MF",
+        Severity.WASM: "MW",
     }
     expected_prefix = expected_prefixes.get(rule.severity)
     if expected_prefix and code_prefix != expected_prefix:
@@ -296,11 +302,11 @@ marimo check --fix .
 
 ## Rule Categories
 
-marimo's lint rules are organized into three main categories based on their severity:
+marimo's lint rules are organized into categories based on their severity:
 
 """
 
-    for severity in [Severity.BREAKING, Severity.RUNTIME, Severity.FORMATTING]:
+    for severity in [Severity.BREAKING, Severity.RUNTIME, Severity.FORMATTING, Severity.WASM]:
         if severity not in rules_by_severity:
             continue
 

@@ -22,7 +22,7 @@ marimo check --fix .
 
 ## Rule Categories
 
-marimo's lint rules are organized into three main categories based on their severity:
+marimo's lint rules are organized into categories based on their severity:
 
 ### 🚨 Breaking Rules
 
@@ -59,6 +59,16 @@ These are style and formatting issues.
 | [MF005](rules/sql_parse_error.md) | sql-parse-error | SQL parsing errors during dependency analysis | ❌ |
 | [MF006](rules/misc_log_capture.md) | misc-log-capture | Miscellaneous log messages during processing | ❌ |
 | [MF007](rules/markdown_indentation.md) | markdown-indentation | Markdown cells in `mo.md()` should be properly indented. | 🛠️ |
+
+### 🌐 WASM Rules
+
+These issues affect WASM/Pyodide compatibility (off by default).
+
+| Code | Name | Description | Fixable |
+|------|------|-------------|----------|
+| [MW001](rules/incompatible_import.md) | incompatible-import | Importing a module unavailable in WASM/Pyodide | ❌ |
+| [MW002](rules/unsafe_system_call.md) | unsafe-system-call | System call that fails in WASM/Pyodide | ❌ |
+| [MW003](rules/incompatible_package.md) | incompatible-package | Package with native extensions not available in Pyodide | ❌ |
 
 ## Legend
 

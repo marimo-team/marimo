@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
-import { Objects } from "@/utils/objects";
 import { store } from "../state/jotai";
 import { notebookAtom } from "./cells";
 
@@ -10,12 +9,12 @@ import { notebookAtom } from "./cells";
  */
 export function notebookScrollToRunning() {
   // find cell that is currently in "running" state
-  const { cellRuntime } = store.get(notebookAtom);
-  const cell = Objects.entries(cellRuntime).find(
-    ([cellid, runtimestate]) => runtimestate.status === "running",
+  const { cellIds, cellRuntime } = store.get(notebookAtom);
+  const cellId = cellIds.inOrderIds.find(
+    (id) => cellRuntime[id]?.status === "running",
   );
-  if (!cell) {
+  if (!cellId) {
     return;
   }
-  scrollAndHighlightCell(cell[0], "focus");
+  scrollAndHighlightCell(cellId, "focus");
 }

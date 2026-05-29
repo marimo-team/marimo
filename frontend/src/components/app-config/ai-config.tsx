@@ -509,7 +509,7 @@ const ModelInfoCard = ({ model }: { model: AiModel }) => {
         <Tooltip content="Custom model">
           {model.custom && <BotIcon className="h-4 w-4" />}
         </Tooltip>
-        {model.thinking && (
+        {model.capabilities.includes("thinking") && (
           <div
             className={cn(
               "flex items-center gap-1 rounded px-1 py-0.5 w-fit",

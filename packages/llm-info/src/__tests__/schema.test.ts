@@ -2,62 +2,62 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { LLMInfoSchema, ProviderSchema } from "../generate";
+import {
+  LLMInfoSchema,
+  ModelsByProviderSchema,
+  ProviderSchema,
+} from "../generate";
 
 describe("LLMInfoSchema", () => {
-  it("should validate a valid LLM info object", () => {
+  it("validates a complete model entry", () => {
     const validModel = {
       name: "Test Model",
       model: "test-model-v1",
       description: "A test model for validation",
-      providers: ["test-provider"],
       roles: ["chat", "edit"],
-      thinking: true,
+      capabilities: ["thinking", "tool_calling"],
+      input_types: ["text", "image"],
+      output_types: ["text"],
+      release_date: "2026-01-15",
     };
 
-    expect(() => LLMInfoSchema.parse(validModel)).not.toThrow();
-    const result = LLMInfoSchema.parse(validModel);
-    expect(result).toEqual(validModel);
+    expect(LLMInfoSchema.parse(validModel)).toEqual(validModel);
   });
 
-  it("should set thinking to false by default", () => {
-    const modelWithoutThinking = {
+  it("defaults capabilities / input_types / output_types to empty arrays", () => {
+    const minimal = {
       name: "Test Model",
       model: "test-model-v1",
-      description: "A test model for validation",
-      providers: ["test-provider"],
+      description: "A test model",
       roles: ["chat"],
     };
 
-    const result = LLMInfoSchema.parse(modelWithoutThinking);
-    expect(result.thinking).toBe(false);
+    const parsed = LLMInfoSchema.parse(minimal);
+    expect(parsed.capabilities).toEqual([]);
+    expect(parsed.input_types).toEqual([]);
+    expect(parsed.output_types).toEqual([]);
   });
 
-  it("should reject invalid roles", () => {
+  it("rejects unknown roles", () => {
     const invalidModel = {
       name: "Test Model",
       model: "test-model-v1",
-      description: "A test model for validation",
-      providers: ["test-provider"],
+      description: "A test model",
       roles: ["invalid-role"],
-      thinking: false,
     };
 
     expect(() => LLMInfoSchema.parse(invalidModel)).toThrow();
   });
 
-  it("should require all mandatory fields", () => {
-    const incompleteModel = {
-      name: "Test Model",
-      model: "test-model-v1",
-    };
-
-    expect(() => LLMInfoSchema.parse(incompleteModel)).toThrow();
+  it("requires the core identity fields", () => {
+    expect(() =>
+      LLMInfoSchema.parse({ name: "Test Model", model: "test-model-v1" }),
+    ).toThrow();
   });
 });
 
 describe("ProviderSchema", () => {
-  it("should validate a valid provider object", () => {
+  it("validates a valid provider object", () => {
     const validProvider = {
       name: "Test Provider",
       id: "test-provider",
@@ -65,45 +65,35 @@ describe("ProviderSchema", () => {
       url: "https://example.com",
     };
 
-    expect(() => ProviderSchema.parse(validProvider)).not.toThrow();
-    const result = ProviderSchema.parse(validProvider);
-    expect(result).toEqual(validProvider);
+    expect(ProviderSchema.parse(validProvider)).toEqual(validProvider);
   });
 
-  it("should reject invalid URLs", () => {
-    const invalidProvider = {
-      name: "Test Provider",
-      id: "test-provider",
-      description: "A test provider for validation",
-      url: "not-a-valid-url",
-    };
-
-    expect(() => ProviderSchema.parse(invalidProvider)).toThrow();
+  it("rejects invalid URLs", () => {
+    expect(() =>
+      ProviderSchema.parse({
+        name: "Test Provider",
+        id: "test-provider",
+        description: "A test provider",
+        url: "not-a-valid-url",
+      }),
+    ).toThrow();
   });
 
-  it("should require all fields", () => {
-    const incompleteProvider = {
-      name: "Test Provider",
-      id: "test-provider",
-    };
-
-    expect(() => ProviderSchema.parse(incompleteProvider)).toThrow();
+  it("requires all fields", () => {
+    expect(() =>
+      ProviderSchema.parse({ name: "Test Provider", id: "test-provider" }),
+    ).toThrow();
   });
 });
 
 describe("Data Validation", () => {
-  it("should validate all models in data/models.yml", () => {
+  it("validates the structure of data/models.yml as a provider-keyed map", () => {
     const modelsPath = join(__dirname, "../../data/models.yml");
     const modelsYaml = readFileSync(modelsPath, "utf-8");
-    const models = parse(modelsYaml);
+    const data = parse(modelsYaml);
 
-    expect(Array.isArray(models)).toBe(true);
-    expect(models.length).toBeGreaterThan(0);
-
-    models.forEach((model: any, index: number) => {
-      expect(() => LLMInfoSchema.parse(model)).not.toThrow(
-        `Model at index ${index} failed validation: ${JSON.stringify(model)}`,
-      );
-    });
+    expect(typeof data).toBe("object");
+    expect(Array.isArray(data)).toBe(false);
+    expect(() => ModelsByProviderSchema.parse(data)).not.toThrow();
   });
 });

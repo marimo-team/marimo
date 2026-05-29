@@ -4,46 +4,51 @@ import type { AiModel } from "@marimo-team/llm-info";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UserConfig } from "@/core/config/config-schema";
 
-// Mock the models.json import
 vi.mock("@marimo-team/llm-info/models.json", () => {
-  const models: AiModel[] = [
-    {
-      name: "GPT-4",
-      model: "gpt-4",
-      description: "OpenAI GPT-4 model",
-      providers: ["openai"],
-      roles: ["chat", "edit"],
-      thinking: false,
-    },
-    {
-      name: "Claude 3",
-      model: "claude-3-sonnet",
-      description: "Anthropic Claude 3 Sonnet",
-      providers: ["anthropic"],
-      roles: ["chat", "edit"],
-      thinking: false,
-    },
-    {
-      name: "Gemini Pro",
-      model: "gemini-pro",
-      description: "Google Gemini Pro model",
-      providers: ["google"],
-      roles: ["chat", "edit"],
-      thinking: false,
-    },
-    {
-      name: "Ollama Model",
-      model: "llama2",
-      description: "Ollama Llama 2 model",
-      providers: ["ollama"],
-      roles: ["chat", "edit"],
-      thinking: false,
-    },
-  ];
+  const make = (
+    overrides: Partial<AiModel> & Pick<AiModel, "name" | "model">,
+  ): AiModel => ({
+    description: "",
+    roles: ["chat", "edit"],
+    capabilities: [],
+    input_types: [],
+    output_types: [],
+    release_date: "1970-01-01",
+    ...overrides,
+  });
 
-  return {
-    models: models,
+  const models: Record<string, AiModel[]> = {
+    openai: [
+      make({
+        name: "GPT-4",
+        model: "gpt-4",
+        description: "OpenAI GPT-4 model",
+      }),
+    ],
+    anthropic: [
+      make({
+        name: "Claude 3",
+        model: "claude-3-sonnet",
+        description: "Anthropic Claude 3 Sonnet",
+      }),
+    ],
+    google: [
+      make({
+        name: "Gemini Pro",
+        model: "gemini-pro",
+        description: "Google Gemini Pro model",
+      }),
+    ],
+    ollama: [
+      make({
+        name: "Ollama Model",
+        model: "llama2",
+        description: "Ollama Llama 2 model",
+      }),
+    ],
   };
+
+  return { models };
 });
 
 // Must import after mock

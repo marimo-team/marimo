@@ -15,6 +15,7 @@
   },
   "scripts": {
     "codegen": "node --experimental-transform-types src/generate.ts",
+    "sync-models": "node --experimental-transform-types src/sync-models.ts",
     "test": "vitest",
     "build": "echo 'No build step'"
   },

@@ -8,15 +8,43 @@ import { z } from "zod";
 import { Logger } from "./simple_logger.ts";
 
 const ROLES = ["chat", "edit", "rerank", "embed", "autocomplete"] as const;
+const CAPABILITIES = ["thinking", "tool_calling"] as const;
+const DATA_TYPES = ["text", "image", "pdf"] as const;
+
+const CostSchema = z
+  .object({
+    input: z.number().optional(),
+    output: z.number().optional(),
+  })
+  .partial();
+
+/** YAML may parse `YYYY-MM-DD` scalars as Date; coerce back to ISO string. */
+const ReleaseDateSchema = z
+  .union([z.string(), z.date()])
+  .optional()
+  .transform((v) => {
+    if (v === undefined) return undefined;
+    if (v instanceof Date) return v.toISOString().slice(0, 10);
+    return v;
+  });
 
 export const LLMInfoSchema = z.object({
   name: z.string(),
   model: z.string(),
   description: z.string(),
-  providers: z.array(z.string()),
   roles: z.array(z.enum(ROLES)),
-  thinking: z.boolean().default(false),
+  capabilities: z.array(z.enum(CAPABILITIES)).default([]),
+  input_types: z.array(z.enum(DATA_TYPES)).default([]),
+  output_types: z.array(z.enum(DATA_TYPES)).default([]),
+  release_date: ReleaseDateSchema,
+  cost: CostSchema.optional(),
 });
+
+/** Top-level shape of `models.yml` / `models.json`: provider id → models. */
+export const ModelsByProviderSchema = z.record(
+  z.string(),
+  z.array(LLMInfoSchema),
+);
 
 export const ProviderSchema = z.object({
   name: z.string(),
@@ -33,7 +61,6 @@ function ensureDirectoryExists(filePath: string): void {
   try {
     mkdirSync(dir, { recursive: true });
   } catch (error: any) {
-    // Ignore error if directory already exists, otherwise rethrow
     if (error?.code !== "EEXIST") {
       Logger.error("Failed to create directory:", error);
       throw error;
@@ -41,30 +68,25 @@ function ensureDirectoryExists(filePath: string): void {
   }
 }
 
-function loadAndValidateModels(yamlPath: string): any[] {
+function loadAndValidateModels(yamlPath: string): Record<string, unknown[]> {
   const yamlContent = readFileSync(yamlPath, "utf-8");
-  const models = parse(yamlContent);
+  const raw = parse(yamlContent);
 
-  if (!Array.isArray(models)) {
-    throw new Error("Models YAML file must contain an array");
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(
+      "Models YAML must be a map keyed by provider id (e.g. `anthropic:`)",
+    );
   }
 
-  // Validate each model against the schema
-  const validatedModels = models.map((model, index) => {
-    try {
-      return LLMInfoSchema.parse(model);
-    } catch (error) {
-      Logger.error(`Validation failed for model at index ${index}:`, error);
-      throw new Error(
-        `Model validation failed at index ${index}: ${JSON.stringify(model, null, 2)}`,
-      );
-    }
-  });
-
-  return validatedModels;
+  try {
+    return ModelsByProviderSchema.parse(raw);
+  } catch (error) {
+    Logger.error("Model validation failed:", error);
+    throw error;
+  }
 }
 
-function loadAndValidateProviders(yamlPath: string): any[] {
+function loadAndValidateProviders(yamlPath: string): unknown[] {
   const yamlContent = readFileSync(yamlPath, "utf-8");
   const providers = parse(yamlContent);
 
@@ -72,8 +94,7 @@ function loadAndValidateProviders(yamlPath: string): any[] {
     throw new Error("Providers YAML file must contain an array");
   }
 
-  // Validate each provider against the schema
-  const validatedProviders = providers.map((provider, index) => {
+  return providers.map((provider, index) => {
     try {
       return ProviderSchema.parse(provider);
     } catch (error) {
@@ -83,18 +104,15 @@ function loadAndValidateProviders(yamlPath: string): any[] {
       );
     }
   });
-
-  return validatedProviders;
 }
 
-function writeJsonFile(filePath: string, data: any): void {
+function writeJsonFile(filePath: string, data: unknown): void {
   ensureDirectoryExists(filePath);
   writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
 async function main(): Promise<void> {
   try {
-    // Define paths
     const dataDir = join(__dirname, "../data");
     const generatedDir = join(dataDir, "generated");
     const modelsYamlPath = join(dataDir, "models.yml");
@@ -102,20 +120,18 @@ async function main(): Promise<void> {
     const modelsJsonPath = join(generatedDir, "models.json");
     const providersJsonPath = join(generatedDir, "providers.json");
 
-    // For compatibility with Vite and other bundlers, `import` returns a JS module and not a JSON object.
-    // So we need to nest the models and providers data under a json key to access them,
-    // otherwise a keyword can conflict with a JS reserved keyword (e.g. `default` or `with`).
-
-    // Load and validate models
     const models = loadAndValidateModels(modelsYamlPath);
-    writeJsonFile(modelsJsonPath, { models: models });
+    writeJsonFile(modelsJsonPath, { models });
 
-    // Load and validate providers
     const providers = loadAndValidateProviders(providersYamlPath);
-    writeJsonFile(providersJsonPath, { providers: providers });
+    writeJsonFile(providersJsonPath, { providers });
 
+    const totalModels = Object.values(models).reduce(
+      (acc, list) => acc + list.length,
+      0,
+    );
     Logger.info(
-      `Generated ${models.length} models and ${providers.length} providers`,
+      `Generated ${totalModels} models across ${Object.keys(models).length} providers and ${providers.length} provider entries`,
     );
   } catch (error) {
     Logger.error("Generation failed:", error);
@@ -123,5 +139,4 @@ async function main(): Promise<void> {
   }
 }
 
-// Run the script
 main().catch(Logger.error);
