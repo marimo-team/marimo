@@ -12,6 +12,7 @@ import {
   NetworkIcon,
   NotebookPenIcon,
   ScrollTextIcon,
+  ServerIcon,
   SquareDashedBottomCodeIcon,
   TerminalSquareIcon,
   TextSearchIcon,
@@ -42,7 +43,8 @@ export type PanelType =
   | "secrets"
   | "logs"
   | "terminal"
-  | "cache";
+  | "cache"
+  | "server-logs";
 
 export type PanelSection = "sidebar" | "developer-panel";
 
@@ -193,6 +195,14 @@ export const PANELS: PanelDescriptor[] = [
     defaultSection: "developer-panel",
     hidden: !getFeatureFlag("cache_panel"),
     additionalKeywords: ["memory", "memoize"],
+  },
+  {
+    type: "server-logs",
+    Icon: ServerIcon,
+    label: "Server Logs",
+    tooltip: "View server logs",
+    hidden: !import.meta.env.DEV,
+    defaultSection: "developer-panel",
   },
 ];
 
