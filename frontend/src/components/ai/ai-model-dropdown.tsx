@@ -305,7 +305,7 @@ const AiModelDropdownItem = ({
       <div className="flex flex-row w-full items-center">
         <span>{model.name}</span>
         <div className="ml-auto">
-          {model.thinking && (
+          {model.capabilities.includes("thinking") && (
             <Tooltip content="Reasoning model">
               <BrainIcon
                 className={`h-5 w-5 rounded-md p-1 ${getTagColour("thinking")}`}
@@ -362,7 +362,7 @@ export const AiModelInfoDisplay = ({
         </div>
       )}
 
-      {model.thinking && (
+      {model.capabilities.includes("thinking") && (
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
           <span className="text-xs text-muted-foreground">
