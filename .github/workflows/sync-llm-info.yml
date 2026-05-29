@@ -83,6 +83,7 @@ jobs:
             --draft \
             --base main \
             --head "$BRANCH_NAME" \
+            --label enhancement \
             --title "$PR_TITLE" \
             --body "$(cat <<'EOF'
           This pull request was generated automatically by the weekly llm-info sync workflow.
