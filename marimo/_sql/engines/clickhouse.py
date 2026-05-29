@@ -344,7 +344,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             # Skip introspection for meta tables for performance
             is_meta_db = db_name.lower() in self._meta_dbs
             if is_meta_db or not include_tables_bool:
-                tables = []
+                tables: list[DataTable] = []
                 tables_resolved = False
             else:
                 tables, tables_resolved = (
