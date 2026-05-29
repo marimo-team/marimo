@@ -5,6 +5,7 @@ from typing import Any
 
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notification import (
+    ConsumerCapabilities,
     KernelCapabilitiesNotification,
     KernelReadyNotification,
 )
@@ -30,6 +31,17 @@ def create_response(
         "capabilities": asdict(KernelCapabilitiesNotification()),
     }
     response.update(partial_response)
+
+    if "consumer_capabilities" not in partial_response:
+        kiosk = response.get("kiosk", False)
+        response.update(
+            {
+                "consumer_capabilities": asdict(
+                    ConsumerCapabilities(edit=not kiosk, interact=not kiosk)
+                )
+            }
+        )
+
     return response
 
 
@@ -63,6 +75,7 @@ def assert_kernel_ready_response(
     assert data.kiosk == expected.kiosk
     assert data.last_execution_time == expected.last_execution_time
     assert data.capabilities == expected.capabilities
+    assert data.consumer_capabilities == expected.consumer_capabilities
 
 
 def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
