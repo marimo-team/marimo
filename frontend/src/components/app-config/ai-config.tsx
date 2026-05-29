@@ -1318,8 +1318,8 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
               <FormDescription>
                 Recommended: leave off. Each provider applies its own output
                 limit, which is usually the right value for the model in use.
-                Anthropic is the exception: its API requires an explicit limit,
-                so marimo sends 32,768 by default.
+                Models that require an explicit limit (Anthropic) will still
+                send a default of 32,768 tokens.
               </FormDescription>
               <div className="flex flex-col gap-y-1 pl-6">
                 <FormItem className={formItemClasses}>
