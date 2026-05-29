@@ -859,6 +859,31 @@ components:
       - options
       title: CompletionResultNotification
       type: object
+    ConsumerCapabilities:
+      description: Capabilities that the frontend consumer supports.
+      properties:
+        edit:
+          type: boolean
+        interact:
+          type: boolean
+      required:
+      - edit
+      - interact
+      title: ConsumerCapabilities
+      type: object
+    ConsumerCapabilitiesChangedNotification:
+      description: Notification of the frontend consumer's capabilities.
+      properties:
+        consumer_capabilities:
+          $ref: '#/components/schemas/ConsumerCapabilities'
+        op:
+          enum:
+          - consumer-capabilities-changed
+      required:
+      - op
+      - consumer_capabilities
+      title: ConsumerCapabilitiesChangedNotification
+      type: object
     CopyNotebookRequest:
       properties:
         destination:
@@ -2479,6 +2504,8 @@ components:
           items:
             $ref: '#/components/schemas/CellConfig'
           type: array
+        consumer_capabilities:
+          $ref: '#/components/schemas/ConsumerCapabilities'
         kiosk:
           type: boolean
         last_executed_code:
@@ -2524,6 +2551,7 @@ components:
       - app_config
       - kiosk
       - capabilities
+      - consumer_capabilities
       title: KernelReadyNotification
       type: object
     KernelStartupErrorNotification:
@@ -2720,6 +2748,7 @@ components:
           - $ref: '#/components/schemas/CacheInfoNotification'
           - $ref: '#/components/schemas/FocusCellNotification'
           - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
+          - $ref: '#/components/schemas/ConsumerCapabilitiesChangedNotification'
           discriminator:
             mapping:
               alert: '#/components/schemas/AlertNotification'
@@ -2729,6 +2758,7 @@ components:
               cell-op: '#/components/schemas/CellNotification'
               completed-run: '#/components/schemas/CompletedRunNotification'
               completion-result: '#/components/schemas/CompletionResultNotification'
+              consumer-capabilities-changed: '#/components/schemas/ConsumerCapabilitiesChangedNotification'
               data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
               data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
               datasets: '#/components/schemas/DatasetsNotification'
