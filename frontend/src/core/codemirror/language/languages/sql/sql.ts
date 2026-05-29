@@ -410,6 +410,7 @@ function connectionNameToParserDialect(
     case "spark":
     case "databricks":
     case "datafusion":
+    case "dremio":
       Logger.debug("Unsupported dialect", { dialect });
       return null;
     default:

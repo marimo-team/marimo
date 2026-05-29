@@ -52,6 +52,7 @@ const KNOWN_DIALECTS_ARRAY = [
   "databricks",
   "datafusion",
   "microsoft sql server",
+  "dremio",
 ] as const;
 const KNOWN_DIALECTS: ReadonlySet<string> = new Set(KNOWN_DIALECTS_ARRAY);
 type KnownDialect = (typeof KNOWN_DIALECTS_ARRAY)[number];
@@ -115,6 +116,7 @@ export function guessDialect(
     case "spark":
     case "databricks":
     case "datafusion":
+    case "dremio":
       Logger.debug("Unsupported dialect", { dialect });
       return ModifiedStandardSQL;
     default:
