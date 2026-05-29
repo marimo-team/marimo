@@ -327,6 +327,9 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             )
             return databases
 
+        include_tables_bool = self._resolve_should_auto_discover(
+            include_tables
+        )
         include_table_details = self._resolve_should_auto_discover(
             include_table_details
         )
@@ -339,21 +342,30 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         for db in db_names:
             db_name = cast(str, db)
             # Skip introspection for meta tables for performance
-            if db_name.lower() in self._meta_dbs or not include_tables:
+            is_meta_db = db_name.lower() in self._meta_dbs
+            if is_meta_db or not include_tables_bool:
                 tables = []
+                tables_resolved = False
             else:
                 tables = self.get_tables_in_schema(
                     schema=NO_SCHEMA_NAME,
                     database=db,
                     include_table_details=include_table_details,
                 )
+                tables_resolved = True
             databases.append(
                 Database(
                     name=db,
                     dialect=self.dialect,
                     engine=self._engine_name,
                     # ClickHouse does not have schemas
-                    schemas=[Schema(name=NO_SCHEMA_NAME, tables=tables)],
+                    schemas=[
+                        Schema(
+                            name=NO_SCHEMA_NAME,
+                            tables=tables,
+                            tables_resolved=tables_resolved,
+                        )
+                    ],
                 )
             )
         return databases

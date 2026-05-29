@@ -4075,7 +4075,14 @@ export interface components {
      *     Attributes:
      *         name (str): The name of the database
      *         dialect (str): The dialect of the database
-     *         schemas (List[Schema]): List of schemas in the database
+     *         schemas (List[Schema]): List of schemas in the database. May be empty
+     *             for either of two reasons; consult `schemas_resolved` to
+     *             disambiguate.
+     *         schemas_resolved (bool): True when `schemas` has been enumerated and
+     *             is authoritative (an empty list means the database is truly
+     *             empty). False when schema discovery was deferred; clients should
+     *             request schemas on demand. Defaults to True for backward
+     *             compatibility.
      *         engine (Optional[VariableName]): Database engine or connection handler, if any.
      */
     Database: {
@@ -4084,6 +4091,8 @@ export interface components {
       engine?: components["schemas"]["VariableName"] | null;
       name: string;
       schemas: components["schemas"]["Schema"][];
+      /** @default true */
+      schemas_resolved?: boolean;
     };
     /**
      * DatasetsNotification
@@ -6061,10 +6070,26 @@ export interface components {
     SaveUserConfigurationRequest: {
       config: Record<string, any>;
     };
-    /** Schema */
+    /**
+     * Schema
+     * @description Represents a database schema and its tables.
+     *
+     *     Attributes:
+     *         name (str): The name of the schema.
+     *         tables (List[DataTable]): Tables in this schema. May be empty for
+     *             either of two reasons; consult `tables_resolved` to disambiguate.
+     *         tables_resolved (bool): True when `tables` has been enumerated and is
+     *             authoritative (an empty list means the schema is truly empty).
+     *             False when table discovery was deferred (e.g. expensive backends
+     *             such as Snowflake/Redshift); clients should request tables on
+     *             demand and treat the empty list as "unknown". Defaults to True
+     *             for backward compatibility.
+     */
     Schema: {
       name: string;
       tables: components["schemas"]["DataTable"][];
+      /** @default true */
+      tables_resolved?: boolean;
     };
     /** SchemaColumn */
     SchemaColumn: {

@@ -253,13 +253,20 @@ class AdbcConnectionCatalog:
                                     )
                                 )
 
-                    schemas.append(Schema(name=schema_name, tables=tables))
+                    schemas.append(
+                        Schema(
+                            name=schema_name,
+                            tables=tables,
+                            tables_resolved=include_tables_bool,
+                        )
+                    )
 
             databases.append(
                 Database(
                     name=catalog_name,
                     dialect=self._dialect,
                     schemas=schemas,
+                    schemas_resolved=include_schemas_bool,
                     engine=self._engine_name,
                 )
             )

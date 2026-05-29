@@ -91,13 +91,14 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
 
         del include_schemas
         databases: list[Database] = []
+        tables_resolved = self._resolve_should_auto_discover(include_tables)
         try:
             namespaces = sorted(
                 self._connection.list_namespaces()
             )  # Sort for consistent ordering
             for namespace in namespaces:
                 tables = []
-                if self._resolve_should_auto_discover(include_tables):
+                if tables_resolved:
                     tables = self.get_tables_in_schema(
                         schema=NO_SCHEMA_NAME,
                         database=Catalog.identifier_to_database(namespace),
@@ -114,6 +115,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
                             Schema(
                                 name=NO_SCHEMA_NAME,
                                 tables=tables,
+                                tables_resolved=tables_resolved,
                             )
                         ],
                         engine=self._engine_name,

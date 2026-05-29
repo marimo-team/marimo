@@ -430,6 +430,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                     name=database_name,
                     dialect=self.dialect,
                     schemas=schemas,
+                    schemas_resolved=should_include_schemas,
                     engine=self._engine_name,
                 )
             )
@@ -475,7 +476,13 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                     database=database if database is not None else "",
                     include_table_details=include_table_details,
                 )
-            schemas.append(Schema(name=schema, tables=tables))
+            schemas.append(
+                Schema(
+                    name=schema,
+                    tables=tables,
+                    tables_resolved=include_tables,
+                )
+            )
 
         return schemas
 

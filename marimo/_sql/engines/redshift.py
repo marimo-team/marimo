@@ -209,6 +209,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
                     name=catalog,
                     dialect=self.dialect,
                     schemas=schemas,
+                    schemas_resolved=include_schemas,
                     engine=self._engine_name,
                 )
             )
@@ -250,7 +251,13 @@ class RedshiftEngine(SQLConnection["Connection"]):
                     if include_tables
                     else []
                 )
-                output_schemas.append(Schema(name=schema_name, tables=tables))
+                output_schemas.append(
+                    Schema(
+                        name=schema_name,
+                        tables=tables,
+                        tables_resolved=include_tables,
+                    )
+                )
 
             return output_schemas
 
