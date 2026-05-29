@@ -1182,14 +1182,10 @@ components:
     Database:
       description: "Represents a collection of schemas.\n\nAttributes:\n    name (str):\
         \ The name of the database\n    dialect (str): The dialect of the database\n\
-        \    schemas (List[Schema]): List of schemas in the database. May be empty\n\
-        \        for either of two reasons; consult `schemas_resolved` to\n      \
-        \  disambiguate.\n    schemas_resolved (bool): True when `schemas` has been\
-        \ enumerated and\n        is authoritative (an empty list means the database\
-        \ is truly\n        empty). False when schema discovery was deferred; clients\
-        \ should\n        request schemas on demand. Defaults to True for backward\n\
-        \        compatibility.\n    engine (Optional[VariableName]): Database engine\
-        \ or connection handler, if any."
+        \    schemas (List[Schema]): List of schemas in the database.\n    schemas_resolved\
+        \ (bool): True when `schemas` has been enumerated.\n        False when schema\
+        \ discovery was deferred. Defaults to True\n    engine (Optional[VariableName]):\
+        \ Database engine or connection handler, if any."
       properties:
         dialect:
           type: string
@@ -4444,13 +4440,9 @@ components:
     Schema:
       description: "Represents a database schema and its tables.\n\nAttributes:\n\
         \    name (str): The name of the schema.\n    tables (List[DataTable]): Tables\
-        \ in this schema. May be empty for\n        either of two reasons; consult\
-        \ `tables_resolved` to disambiguate.\n    tables_resolved (bool): True when\
-        \ `tables` has been enumerated and is\n        authoritative (an empty list\
-        \ means the schema is truly empty).\n        False when table discovery was\
-        \ deferred (e.g. expensive backends\n        such as Snowflake/Redshift);\
-        \ clients should request tables on\n        demand and treat the empty list\
-        \ as \"unknown\". Defaults to True\n        for backward compatibility."
+        \ in this schema.\n    tables_resolved (bool): True when `tables` has been\
+        \ enumerated\n        False when table discovery was deferred. Defaults to\
+        \ True"
       properties:
         name:
           type: string
