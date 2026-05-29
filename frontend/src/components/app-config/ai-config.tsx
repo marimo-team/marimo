@@ -1253,6 +1253,13 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
   config,
   onSubmit,
 }) => {
+  // Tracked locally rather than derived from the field value so that clearing
+  // the input (a transient empty value, which commits `null`) does not disable
+  // the input mid-edit and force the user to re-tick the Override checkbox.
+  const [maxTokensEnabled, setMaxTokensEnabled] = useState(
+    config.ai?.max_tokens != null,
+  );
+
   return (
     <SettingGroup>
       <SettingSubtitle>AI Assistant</SettingSubtitle>
@@ -1283,7 +1290,6 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
         control={form.control}
         name="ai.max_tokens"
         render={({ field }) => {
-          const isOn = field.value != null;
           return (
             <div className="flex flex-col gap-y-1">
               <div className="flex items-center gap-x-2">
@@ -1296,9 +1302,9 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
                       data-testid="ai-max-tokens-input"
                       type="number"
                       min={1}
-                      disabled={!isOn}
+                      disabled={!maxTokensEnabled}
                       className="w-28 h-6"
-                      value={field.value ?? 32768}
+                      value={field.value ?? (maxTokensEnabled ? "" : 32768)}
                       onChange={(e) => {
                         const n = Number.parseInt(e.target.value, 10);
                         field.onChange(Number.isFinite(n) && n > 0 ? n : null);
@@ -1309,14 +1315,16 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
                 <FormItem className={formItemClasses}>
                   <Checkbox
                     data-testid="ai-max-tokens-checkbox"
-                    checked={isOn}
+                    checked={maxTokensEnabled}
                     onCheckedChange={(checked) => {
+                      const isChecked = checked === true;
+                      setMaxTokensEnabled(isChecked);
                       // null signals delete to the server; cast because
                       // UserConfig (OpenAPI-derived) types max_tokens as
                       // `number | undefined`, but zod accepts `null`.
-                      const next = (checked === true ? 32768 : null) as
-                        | number
-                        | undefined;
+                      const next = (
+                        isChecked ? (field.value ?? 32768) : null
+                      ) as number | undefined;
                       // shouldDirty: true forces RHF to keep this in
                       // dirtyFields even when `next` happens to equal the
                       // form's defaultValue (e.g. untick → tick when disk
