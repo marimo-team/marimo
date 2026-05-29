@@ -1286,11 +1286,27 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
           const isOn = field.value != null;
           return (
             <div className="flex flex-col gap-y-1">
-              <FormItem className={formItemClasses}>
-                <FormLabel className="font-normal">
-                  Override max output tokens
-                </FormLabel>
-                <FormControl>
+              <div className="flex items-center gap-x-2">
+                <FormItem className={formItemClasses}>
+                  <FormLabel className="font-normal">
+                    Max output tokens
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      data-testid="ai-max-tokens-input"
+                      type="number"
+                      min={1}
+                      disabled={!isOn}
+                      className="w-28 h-6"
+                      value={field.value ?? 32768}
+                      onChange={(e) => {
+                        const n = Number.parseInt(e.target.value, 10);
+                        field.onChange(Number.isFinite(n) && n > 0 ? n : null);
+                      }}
+                    />
+                  </FormControl>
+                </FormItem>
+                <FormItem className={formItemClasses}>
                   <Checkbox
                     data-testid="ai-max-tokens-checkbox"
                     checked={isOn}
@@ -1313,34 +1329,15 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
                       onSubmit(form.getValues());
                     }}
                   />
-                </FormControl>
-              </FormItem>
-              <FormDescription>
-                We recommend leaving this off, as each provider applies its own
-                limit (except Anthropic, where we set a default). Use it to
-                control costs or raise limits for heavy-reasoning models.
-              </FormDescription>
-              <div className="flex flex-col gap-y-1 pl-6">
-                <FormItem className={formItemClasses}>
-                  <FormLabel className="font-normal">
-                    Max output tokens
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      data-testid="ai-max-tokens-input"
-                      type="number"
-                      min={1}
-                      disabled={!isOn}
-                      className="m-0 inline-flex h-7 w-28"
-                      value={field.value ?? 32768}
-                      onChange={(e) => {
-                        const n = Number.parseInt(e.target.value, 10);
-                        field.onChange(Number.isFinite(n) && n > 0 ? n : null);
-                      }}
-                    />
-                  </FormControl>
+                  <FormLabel className="font-normal">Override</FormLabel>
                 </FormItem>
               </div>
+
+              <FormDescription>
+                Each provider sets its own max output tokens (Anthropic uses a
+                recommended default). Adjust to control costs or enable more
+                output.
+              </FormDescription>
             </div>
           );
         }}
