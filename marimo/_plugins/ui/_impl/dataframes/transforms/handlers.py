@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import datetime
 import decimal
-from collections.abc import Callable
 from functools import reduce
 from typing import TYPE_CHECKING, Any
 
