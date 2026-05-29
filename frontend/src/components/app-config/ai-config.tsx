@@ -1316,10 +1316,9 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
                 </FormControl>
               </FormItem>
               <FormDescription>
-                Recommended: leave off. Each provider applies its own output
-                limit, which is usually the right value for the model in use.
-                Models that require an explicit limit (Anthropic) will still
-                send a default of 32,768 tokens.
+                We recommend leaving this off, as each provider applies its own
+                limit (except Anthropic, where we set a default). Use it to
+                control costs or raise limits for heavy-reasoning models.
               </FormDescription>
               <div className="flex flex-col gap-y-1 pl-6">
                 <FormItem className={formItemClasses}>
@@ -1341,14 +1340,6 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
                     />
                   </FormControl>
                 </FormItem>
-                {isOn && (
-                  <FormDescription>
-                    Override applies to every provider, including Anthropic. Use
-                    this to cap response length for cost control, or to raise
-                    the limit for reasoning-heavy models that need longer
-                    outputs.
-                  </FormDescription>
-                )}
               </div>
             </div>
           );
