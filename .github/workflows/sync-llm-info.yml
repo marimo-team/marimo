@@ -1,0 +1,97 @@
+name: Sync LLM models
+
+on:
+  # Weekly, Mondays at 08:30 UTC.
+  schedule:
+    - cron: "30 8 * * 1"
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-models:
+    name: Sync models.dev catalog
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Install repo
+        uses: ./.github/actions/install
+
+      - name: 🔄 Sync models (5 newest per provider)
+        run: pnpm --dir packages/llm-info sync-models -n 5
+
+      - name: 🛠️ Generate llm-info data
+        run: pnpm --dir packages/llm-info codegen
+
+      - name: 🧪 Test llm-info
+        run: pnpm --dir packages/llm-info test
+
+      - name: 🔎 Check for model catalog changes
+        id: changes
+        run: |
+          if git diff --quiet -- packages/llm-info/data/models.yml; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No model catalog changes."
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            git --no-pager diff --stat -- packages/llm-info/data/models.yml
+          fi
+
+      - name: 🔎 Check for existing update PR
+        id: existing_pr
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: Update LLM model catalog
+        run: |
+          number="$(gh pr list --state open --search "$PR_TITLE in:title" --json number,title --jq '.[0].number // ""')"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          if [[ -n "$number" ]]; then
+            echo "An update PR already exists: #$number"
+          fi
+
+      - name: 📝 Create update PR
+        if: steps.changes.outputs.has_changes == 'true' && steps.existing_pr.outputs.number == ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: Update LLM model catalog
+          BRANCH_NAME: automation/sync-llm-info-models-${{ github.run_id }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH_NAME"
+          git add packages/llm-info/data/models.yml
+          git commit -m "Update LLM model catalog"
+          git push origin "$BRANCH_NAME"
+
+          gh pr create \
+            --draft \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --title "$PR_TITLE" \
+            --body "$(cat <<'EOF'
+          This pull request was generated automatically by the weekly llm-info sync workflow.
+
+          ## Summary
+          - Syncs `packages/llm-info/data/models.yml` from `models.dev`.
+          - Runs llm-info code generation and tests.
+
+          ## Test plan
+          - `pnpm --dir packages/llm-info test`
+          EOF
+          )"
