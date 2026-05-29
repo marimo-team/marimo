@@ -635,7 +635,7 @@ describe("syncModels", () => {
     writeFileSync(yamlPath, FIXTURE_YAML);
   });
 
-  it("appends new entries to existing provider sections and creates new ones", async () => {
+  it("prepends new entries to existing provider sections and creates new ones", async () => {
     const result = await syncModels({
       modelsYamlPath: yamlPath,
       modelsDev: FIXTURE_API,
@@ -664,6 +664,10 @@ describe("syncModels", () => {
     );
     expect(opus45.description).toBe("A hand-written description.");
     expect(opus45.name).toBe("Claude Opus 4.5");
+    expect(parsed.anthropic.map((m: { model: string }) => m.model)).toEqual([
+      "claude-opus-4-7",
+      "claude-opus-4-5",
+    ]);
   });
 
   it("renders flow-style arrays and a blank line between entries", async () => {

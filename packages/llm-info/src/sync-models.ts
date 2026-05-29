@@ -39,7 +39,7 @@ interface SyncOptions {
   modelsDev?: ModelsDevApi;
   write?: boolean;
   mode?: SyncMode;
-  /** Cap on new entries appended per provider section. */
+  /** Cap on new entries inserted per provider section. */
   maxPerProvider?: number;
   /** Restrict sync to these marimo provider ids (defaults to all). */
   providers?: readonly string[];
@@ -170,10 +170,10 @@ function renderFresh(entries: ModelsByProvider): string {
 }
 
 /**
- * Append new entries into an existing document, creating provider sections if
+ * Insert new entries into an existing document, creating provider sections if
  * needed. Preserves comments and ordering of unchanged sections.
  */
-function appendIntoDocument(
+function insertIntoDocument(
   yamlText: string,
   newEntries: ModelsByProvider,
 ): string {
@@ -199,13 +199,20 @@ function appendIntoDocument(
       // New section appended after existing content — always blank-line separated.
       addProviderSection(doc, root, provider, seq, true);
     }
-    for (const model of models) {
+    const originalFirstItem = seq.items[0] as { spaceBefore?: boolean };
+    const newItems: YAMLMap[] = [];
+    for (const [index, model] of models.entries()) {
       const item = buildEntryNode(doc, model);
-      if (seq.items.length > 0) {
+      if (index > 0 || originalFirstItem?.spaceBefore) {
         (item as { spaceBefore?: boolean }).spaceBefore = true;
       }
-      seq.items.push(item);
+      newItems.push(item);
     }
+    if (newItems.length > 0 && seq.items.length > 0) {
+      // Preserve a blank line between the prepended block and curated entries.
+      originalFirstItem.spaceBefore = true;
+    }
+    seq.items.unshift(...newItems);
   }
 
   return doc.toString({ lineWidth: 0, flowCollectionPadding: false });
@@ -253,7 +260,7 @@ export async function syncModels(options: SyncOptions): Promise<SyncResult> {
   const yaml = isFresh
     ? renderFresh(summary.newEntries)
     : addedCount > 0
-      ? appendIntoDocument(existingText, summary.newEntries)
+      ? insertIntoDocument(existingText, summary.newEntries)
       : existingText;
 
   if (write && (addedCount > 0 || mode === "replace")) {
