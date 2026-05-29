@@ -20,6 +20,9 @@ jobs:
     name: Sync models.dev catalog
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      BRANCH_NAME: automation/sync-llm-info-models
+      PR_TITLE: Update LLM model catalog
     defaults:
       run:
         shell: bash
@@ -75,28 +78,32 @@ jobs:
         if: steps.changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          PR_TITLE: Update LLM model catalog
         run: |
-          number="$(gh pr list --state open --search "$PR_TITLE in:title" --json number,title --jq '.[0].number // ""')"
+          number="$(gh pr list --state open --head "$BRANCH_NAME" --json number --jq '.[0].number // ""')"
           echo "number=$number" >> "$GITHUB_OUTPUT"
           if [[ -n "$number" ]]; then
             echo "An update PR already exists: #$number"
           fi
 
+      - name: ⬆️ Push update branch
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          git fetch origin "$BRANCH_NAME":"refs/remotes/origin/$BRANCH_NAME" || true
+          git switch -c "$BRANCH_NAME"
+          git add packages/llm-info/data/models.yml
+          git commit -m "Update LLM model catalog"
+          git push --force-with-lease origin "$BRANCH_NAME"
+
       - name: 📝 Create update PR
         if: steps.changes.outputs.has_changes == 'true' && steps.existing_pr.outputs.number == ''
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          PR_TITLE: Update LLM model catalog
-          BRANCH_NAME: automation/sync-llm-info-models-${{ github.run_id }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$BRANCH_NAME"
-          git add packages/llm-info/data/models.yml
-          git commit -m "Update LLM model catalog"
-          git push origin "$BRANCH_NAME"
-
           gh pr create \
             --draft \
             --base main \
