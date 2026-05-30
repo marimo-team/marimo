@@ -10,7 +10,6 @@ import narwhals as nw_main
 import narwhals.dtypes as nw_dtypes
 import narwhals.stable.v1 as nw1
 import narwhals.stable.v2 as nw
-from narwhals.typing import IntoDataFrame
 
 from marimo import _loggers
 

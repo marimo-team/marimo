@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import pathlib
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, Mock, call, patch
 
