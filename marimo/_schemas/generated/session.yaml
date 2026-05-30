@@ -79,6 +79,10 @@ components:
           type: array
         metadata:
           $ref: '#/components/schemas/NotebookSessionMetadata'
+        ui_values:
+          additionalProperties: {}
+          nullable: true
+          type: object
         version:
           type: string
       required:

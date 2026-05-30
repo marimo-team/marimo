@@ -40,6 +40,9 @@ export interface components {
     NotebookSessionV1: {
       cells: components["schemas"]["Cell"][];
       metadata: components["schemas"]["NotebookSessionMetadata"];
+      ui_values?: {
+        [key: string]: unknown;
+      } | null;
       version: string;
     };
     StreamMediaOutput: {
