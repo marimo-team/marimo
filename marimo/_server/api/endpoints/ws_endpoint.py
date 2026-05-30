@@ -423,7 +423,7 @@ class WebSocketHandler(SessionConsumer):
         message_loop = WebSocketMessageLoop(
             websocket=self.websocket,
             message_queue=self.message_queue,
-            kiosk=self.params.kiosk,
+            is_kiosk=lambda: session.room.main_consumer is not self,
             on_disconnect=self._on_disconnect,
             on_check_status_update=self._check_status_update,
         )

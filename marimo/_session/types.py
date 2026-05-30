@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     )
     from marimo._session.notebook.file_manager import AppFileManager
     from marimo._session.queue import ProcessLike, QueueType
+    from marimo._session.room import Room
     from marimo._session.state.session_view import SessionView
     from marimo._types.ids import ConsumerId
     from marimo._utils.typed_connection import TypedConnection
@@ -133,6 +134,7 @@ class Session(Protocol):
     session_view: SessionView
     ttl_seconds: int
     scratchpad_lock: asyncio.Lock
+    room: Room
 
     @property
     def document(self) -> NotebookDocument:
