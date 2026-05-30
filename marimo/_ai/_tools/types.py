@@ -41,6 +41,7 @@ class MarimoNotebookInfo:
     name: str
     path: str
     session_id: SessionId
+    follow_along_url: Optional[str] = None
 
 
 @dataclass
