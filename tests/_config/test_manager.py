@@ -3,7 +3,7 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 from unittest.mock import patch
 
 import pytest
@@ -162,6 +162,65 @@ def test_save_config_is_deterministic(tmp_path: Path) -> None:
     bytes_b = config_path.read_bytes()
 
     assert bytes_a == bytes_b
+
+
+@restore_config
+@patch("tomlkit.dump")
+def test_save_config_none_deletes_key(mock_dump: Any) -> None:
+    """None-as-delete: sending {ai: {max_tokens: None}} removes the key."""
+    mock_config = merge_default_config(
+        PartialMarimoConfig(ai={"max_tokens": 8192, "rules": "be terse"})
+    )
+    manager = UserConfigManager()
+    manager._load_config = lambda: mock_config
+
+    manager.save_config(
+        cast(
+            PartialMarimoConfig,
+            {"ai": {"max_tokens": None}},
+        )
+    )
+
+    written = mock_dump.mock_calls[0][1][0]
+    assert "max_tokens" not in written["ai"]
+    # sibling key untouched
+    assert written["ai"]["rules"] == "be terse"
+
+
+@restore_config
+def test_save_config_with_none_does_not_raise(tmp_path: Path) -> None:
+    """Regression guard: TOML has no null type, so a None value reaching
+    tomlkit.dump raises ConvertError. _drop_none_values must strip it first,
+    making the real (unmocked) save succeed and omit the key."""
+    config_path = tmp_path / "marimo.toml"
+    mock_config = merge_default_config(
+        PartialMarimoConfig(ai={"max_tokens": 8192, "rules": "be terse"})
+    )
+    manager = UserConfigManager()
+    manager._load_config = lambda: mock_config
+
+    with patch.object(
+        manager, "get_config_path", return_value=str(config_path)
+    ):
+        manager.save_config(
+            cast(PartialMarimoConfig, {"ai": {"max_tokens": None}})
+        )
+
+    contents = config_path.read_text()
+    assert "max_tokens" not in contents
+    assert "be terse" in contents
+
+
+def test_drop_none_values_strips_nested_none() -> None:
+    from marimo._config.manager import _drop_none_values
+
+    d: dict[str, Any] = {
+        "keep": 1,
+        "drop": None,
+        "nested": {"keep": "x", "drop": None},
+    }
+    _drop_none_values(d)
+    assert d == {"keep": 1, "nested": {"keep": "x"}}
 
 
 @restore_config

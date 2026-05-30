@@ -786,7 +786,8 @@ def merge_default_config(
 
 
 def merge_config(
-    config: MarimoConfig, new_config: PartialMarimoConfig | MarimoConfig
+    config: MarimoConfig,
+    new_config: PartialMarimoConfig | MarimoConfig,
 ) -> MarimoConfig:
     """Merge a user configuration with a new configuration. The new config
     will take precedence over the default config.
