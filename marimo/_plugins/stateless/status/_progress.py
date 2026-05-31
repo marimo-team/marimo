@@ -404,8 +404,6 @@ class progress_bar(Generic[S]):
                         "A `total` must be provided."
                     )
 
-            if isinstance(collection, range):
-                self.step = cast(range, collection).step
 
         elif total is None:
             raise ValueError(

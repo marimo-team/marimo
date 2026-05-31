@@ -148,6 +148,16 @@ def test_spinner_without_context():
         _spinner.update(subtitle="Crunching numbers ...")
 
 
+def test_progress_range_with_step():
+    assert runtime_context_installed() is False
+
+    # range(0, 10, 2) has 5 elements; progress should not exceed total
+    bar = progress_bar(range(0, 10, 2))
+    for _ in bar:
+        pass
+    assert bar.progress.current == bar.progress.total
+
+
 def test_progress_without_context():
     assert runtime_context_installed() is False
 
