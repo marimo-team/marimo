@@ -404,7 +404,6 @@ class progress_bar(Generic[S]):
                         "A `total` must be provided."
                     )
 
-
         elif total is None:
             raise ValueError(
                 "`total` is required when using as a context manager"
