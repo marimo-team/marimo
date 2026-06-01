@@ -112,6 +112,35 @@ export function vimKeymapExtension(): Extension[] {
   ];
 }
 
+function scrollCursorTo(cm: CodeMirror, position: "center" | "start" | "end") {
+  const view = cm.cm6;
+  if (!view) {
+    return;
+  }
+  const coords = view.coordsAtPos(view.state.selection.main.head);
+  if (!coords) {
+    return;
+  }
+  const appEl = document.getElementById("App");
+  if (!appEl) {
+    return;
+  }
+  const viewportHeight = appEl.clientHeight;
+  let delta: number;
+  switch (position) {
+    case "center":
+      delta = (coords.top + coords.bottom) / 2 - viewportHeight / 2;
+      break;
+    case "start":
+      delta = coords.top;
+      break;
+    case "end":
+      delta = coords.bottom - viewportHeight;
+      break;
+  }
+  appEl.scrollBy({ top: delta, behavior: "smooth" });
+}
+
 const addCustomVimCommandsOnce = once(() => {
   // Go to definition
   Vim.defineAction("goToDefinition", (cm: CodeMirror) => {
@@ -119,6 +148,40 @@ const addCustomVimCommandsOnce = once(() => {
     return goToDefinitionAtCursorPosition(view);
   });
   Vim.mapCommand("gd", "action", "goToDefinition", {}, { context: "normal" });
+
+  // Scroll cursor to center/top/bottom of viewport (mirrors zz/zt/zb in classic vim)
+  Vim.defineAction("scrollCursorToCenter", (cm: CodeMirror) =>
+    scrollCursorTo(cm, "center"),
+  );
+  Vim.mapCommand(
+    "zz",
+    "action",
+    "scrollCursorToCenter",
+    {},
+    { context: "normal" },
+  );
+
+  Vim.defineAction("scrollCursorToTop", (cm: CodeMirror) =>
+    scrollCursorTo(cm, "start"),
+  );
+  Vim.mapCommand(
+    "zt",
+    "action",
+    "scrollCursorToTop",
+    {},
+    { context: "normal" },
+  );
+
+  Vim.defineAction("scrollCursorToBottom", (cm: CodeMirror) =>
+    scrollCursorTo(cm, "end"),
+  );
+  Vim.mapCommand(
+    "zb",
+    "action",
+    "scrollCursorToBottom",
+    {},
+    { context: "normal" },
+  );
 
   // Save command
   Vim.defineEx("write", "w", (cm: CodeMirror) => {
