@@ -82,7 +82,6 @@ const SUPPORTS_LAZY_KERNELS = true;
 // (marimo/_server/api/endpoints/ws_endpoint.py and ws/*.py). Keep in sync with
 // the backend literals.
 export type CloseReason =
-  | "MARIMO_ALREADY_CONNECTED"
   | "MARIMO_WRONG_KERNEL_ID"
   | "MARIMO_NO_FILE_KEY"
   | "MARIMO_NO_SESSION_ID"
@@ -99,17 +98,6 @@ export type CloseDecision =
 
 export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
   switch (event.reason as CloseReason | undefined) {
-    case "MARIMO_ALREADY_CONNECTED":
-      return {
-        kind: "terminal",
-        status: {
-          state: WebSocketState.CLOSED,
-          code: WebSocketClosedReason.ALREADY_RUNNING,
-          reason: "another browser tab is already connected to the kernel",
-          canTakeover: true,
-        },
-        closeTransport: true,
-      };
     case TRANSPORT_EXHAUSTED_REASON:
       return {
         kind: "gave-up",
