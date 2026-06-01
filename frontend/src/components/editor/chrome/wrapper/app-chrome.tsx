@@ -33,6 +33,26 @@ import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { raf2 } from "../../navigation/focus-utils";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
 import { PanelSectionProvider } from "../panels/panel-context";
+import { useTheme } from "@/theme/useTheme";
+import {
+  LazyAgentPanel,
+  LazyCachePanel,
+  LazyChatPanel,
+  LazyDependencyGraphPanel,
+  LazyDocumentationPanel,
+  LazyErrorsPanel,
+  LazyFileExplorerPanel,
+  LazyLogsPanel,
+  LazyOutlinePanel,
+  LazyPackagesPanel,
+  LazyScratchpadPanel,
+  LazySecretsPanel,
+  LazySessionPanel,
+  LazySnippetsPanel,
+  LazyTerminal,
+  LazyTracingPanel,
+  PANEL_PRELOADERS,
+} from "./lazy-panels";
 import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
 import {
   isPanelHidden,
@@ -49,33 +69,26 @@ import { useAiPanelTab } from "./useAiPanel";
 import { useDependencyPanelTab } from "./useDependencyPanelTab";
 import { handleDragging } from "./utils";
 
-const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
-const LazyChatPanel = React.lazy(() => import("@/components/chat/chat-panel"));
-const LazyAgentPanel = React.lazy(
-  () => import("@/components/chat/acp/agent-panel"),
-);
-const LazyDependencyGraphPanel = React.lazy(
-  () => import("@/components/editor/chrome/panels/dependency-graph-panel"),
-);
-const LazySessionPanel = React.lazy(() => import("../panels/session-panel"));
-const LazyDocumentationPanel = React.lazy(
-  () => import("../panels/documentation-panel"),
-);
-const LazyErrorsPanel = React.lazy(() => import("../panels/error-panel"));
-const LazyFileExplorerPanel = React.lazy(
-  () => import("../panels/file-explorer-panel"),
-);
-const LazyLogsPanel = React.lazy(() => import("../panels/logs-panel"));
-const LazyOutlinePanel = React.lazy(() => import("../panels/outline-panel"));
-const LazyPackagesPanel = React.lazy(() => import("../panels/packages-panel"));
-const LazyScratchpadPanel = React.lazy(
-  () => import("../panels/scratchpad-panel"),
-);
-const LazySecretsPanel = React.lazy(() => import("../panels/secrets-panel"));
-const LazySnippetsPanel = React.lazy(() => import("../panels/snippets-panel"));
-const LazyTracingPanel = React.lazy(() => import("../panels/tracing-panel"));
-const LazyCachePanel = React.lazy(() => import("../panels/cache-panel"));
-
+// Placeholder that matches the eventual xterm theme background so the
+// transition into the loaded terminal is seamless rather than a blank flash.
+const TerminalSkeleton: React.FC = () => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <div
+      aria-label="Loading terminal"
+      role="status"
+      className="w-full h-full flex items-start p-3 font-mono text-xs select-none"
+      style={{
+        background: isDark ? "#0f172a" : "#ffffff",
+        color: isDark ? "#94a3b8" : "#64748b",
+      }}
+    >
+      <span className="opacity-70">Starting terminal</span>
+      <span className="ml-1 inline-block w-2 h-3.5 align-middle bg-current animate-pulse" />
+    </div>
+  );
+};
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const {
     isSidebarOpen,
@@ -93,6 +106,26 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const [panelLayout, setPanelLayout] = useAtom(panelLayoutAtom);
   // Subscribe to capabilities to re-render when they change (e.g., terminal capability)
   const capabilities = useAtomValue(capabilitiesAtom);
+
+  // On mount, idle-preload whichever panels the user had open at last unload,
+  // so the first interaction with the sidebar/dev panel doesn't hit a cold
+  // chunk fetch. Runs once.
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const schedule =
+      typeof window !== "undefined" &&
+      typeof window.requestIdleCallback === "function"
+        ? (cb: () => void) => window.requestIdleCallback(cb, { timeout: 2000 })
+        : (cb: () => void) => setTimeout(cb, 300);
+    schedule(() => {
+      if (isSidebarOpen && selectedPanel) {
+        PANEL_PRELOADERS[selectedPanel]?.();
+      }
+      if (isDeveloperPanelOpen && selectedDeveloperPanelTab) {
+        PANEL_PRELOADERS[selectedDeveloperPanelTab]?.();
+      }
+    });
+  }, []);
 
   // Convert current developer panel items to PanelDescriptors
   // Filter out hidden panels (e.g., terminal when capability is not available)
@@ -254,32 +287,34 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   const renderAiPanel = () => {
     if (agentsEnabled && aiPanelTab === "agents") {
-      return <LazyAgentPanel />;
+      return <LazyAgentPanel.Component />;
     }
-    return <LazyChatPanel />;
+    return <LazyChatPanel.Component />;
   };
 
   const SIDEBAR_PANELS: Record<PanelType, React.ReactNode> = {
-    files: <LazyFileExplorerPanel />,
-    variables: <LazySessionPanel />,
-    dependencies: <LazyDependencyGraphPanel />,
-    packages: <LazyPackagesPanel />,
-    outline: <LazyOutlinePanel />,
-    documentation: <LazyDocumentationPanel />,
-    snippets: <LazySnippetsPanel />,
+    files: <LazyFileExplorerPanel.Component />,
+    variables: <LazySessionPanel.Component />,
+    dependencies: <LazyDependencyGraphPanel.Component />,
+    packages: <LazyPackagesPanel.Component />,
+    outline: <LazyOutlinePanel.Component />,
+    documentation: <LazyDocumentationPanel.Component />,
+    snippets: <LazySnippetsPanel.Component />,
     ai: renderAiPanel(),
-    errors: <LazyErrorsPanel />,
-    scratchpad: <LazyScratchpadPanel />,
-    tracing: <LazyTracingPanel />,
-    secrets: <LazySecretsPanel />,
-    logs: <LazyLogsPanel />,
+    errors: <LazyErrorsPanel.Component />,
+    scratchpad: <LazyScratchpadPanel.Component />,
+    tracing: <LazyTracingPanel.Component />,
+    secrets: <LazySecretsPanel.Component />,
+    logs: <LazyLogsPanel.Component />,
     terminal: (
-      <LazyTerminal
-        visible={isSidebarOpen && selectedPanel === "terminal"}
-        onClose={() => setIsSidebarOpen(false)}
-      />
+      <Suspense fallback={<TerminalSkeleton />}>
+        <LazyTerminal.Component
+          visible={isSidebarOpen && selectedPanel === "terminal"}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+      </Suspense>
     ),
-    cache: <LazyCachePanel />,
+    cache: <LazyCachePanel.Component />,
   };
 
   const helpPaneBody = (
@@ -412,12 +447,14 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const DEVELOPER_PANELS: Record<PanelType, React.ReactNode> = {
     ...SIDEBAR_PANELS,
     terminal: (
-      <LazyTerminal
-        visible={
-          isDeveloperPanelOpen && selectedDeveloperPanelTab === "terminal"
-        }
-        onClose={() => setIsDeveloperPanelOpen(false)}
-      />
+      <Suspense fallback={<TerminalSkeleton />}>
+        <LazyTerminal.Component
+          visible={
+            isDeveloperPanelOpen && selectedDeveloperPanelTab === "terminal"
+          }
+          onClose={() => setIsDeveloperPanelOpen(false)}
+        />
+      </Suspense>
     ),
   };
 
@@ -480,6 +517,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
                     ? "bg-muted"
                     : "hover:bg-muted/50",
                 )}
+                onMouseEnter={PANEL_PRELOADERS[panel.type]}
+                onFocus={PANEL_PRELOADERS[panel.type]}
               >
                 <panel.Icon
                   className={cn(
