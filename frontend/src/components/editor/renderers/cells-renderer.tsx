@@ -6,18 +6,11 @@ import { memo, type PropsWithChildren } from "react";
 import { flattenTopLevelNotebookCells, useNotebook } from "@/core/cells/cells";
 import type { AppConfig } from "@/core/config/config-schema";
 import { KnownQueryParams } from "@/core/constants";
-import {
-  type LayoutData,
-  useLayoutActions,
-  useLayoutState,
-} from "@/core/layout/layout";
+import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
-import { cellRendererPlugins } from "./plugins";
-import {
-  type ICellRendererPlugin,
-  type LayoutType,
-  OVERRIDABLE_LAYOUT_TYPES,
-} from "./types";
+import { logNever } from "@/utils/assertNever";
+import { getCellRendererPlugin, type LayoutDataByType } from "./plugins";
+import { type LayoutType, OVERRIDABLE_LAYOUT_TYPES } from "./types";
 
 interface Props {
   appConfig: AppConfig;
@@ -46,20 +39,12 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
       }
     }
 
-    const plugin = cellRendererPlugins.find((p) => p.type === finalLayout);
-
-    // Just render children if there is no plugin
-    if (!plugin) {
-      return children;
-    }
-
     return (
       <PluginCellRenderer
         appConfig={appConfig}
         mode={mode}
-        plugin={plugin}
-        layoutData={layoutData}
         finalLayout={finalLayout}
+        layoutData={layoutData}
       />
     );
   },
@@ -69,28 +54,42 @@ CellsRenderer.displayName = "CellsRenderer";
 interface PluginCellRendererProps extends PropsWithChildren<Props> {
   appConfig: AppConfig;
   mode: AppMode;
-  // oxlint-disable-next-line typescript/no-explicit-any
-  plugin: ICellRendererPlugin<any, any>;
-  layoutData: Partial<Record<LayoutType, LayoutData>>;
+  layoutData: Partial<LayoutDataByType>;
   finalLayout: LayoutType;
 }
 
 export const PluginCellRenderer = (props: PluginCellRendererProps) => {
-  const { appConfig, mode, plugin, layoutData, finalLayout } = props;
+  const { appConfig, mode, layoutData, finalLayout } = props;
   const notebook = useNotebook();
   const { setCurrentLayoutData } = useLayoutActions();
   const cells = flattenTopLevelNotebookCells(notebook);
 
-  const Renderer = plugin.Component;
-  const body = (
-    <Renderer
-      appConfig={appConfig}
-      mode={mode}
-      cells={cells}
-      layout={layoutData[finalLayout] || plugin.getInitialLayout(cells)}
-      setLayout={setCurrentLayoutData}
-    />
-  );
+  const renderFor = <K extends LayoutType>(
+    type: K,
+    data: LayoutDataByType[K] | undefined,
+  ) => {
+    const plugin = getCellRendererPlugin(type);
+    const Renderer = plugin.Component;
+    return (
+      <Renderer
+        appConfig={appConfig}
+        mode={mode}
+        cells={cells}
+        layout={data ?? plugin.getInitialLayout(cells)}
+        setLayout={setCurrentLayoutData}
+      />
+    );
+  };
 
-  return body;
+  switch (finalLayout) {
+    case "vertical":
+      return renderFor("vertical", layoutData.vertical);
+    case "grid":
+      return renderFor("grid", layoutData.grid);
+    case "slides":
+      return renderFor("slides", layoutData.slides);
+    default:
+      logNever(finalLayout);
+      return null;
+  }
 };
