@@ -16,7 +16,7 @@ const SCOPE_CREATING_NODES = new Set([
   "FunctionDefinition",
   "LambdaExpression",
   "ArrayComprehensionExpression",
-  "SetComprehension",
+  "SetComprehensionExpression",
   "DictionaryComprehensionExpression",
   "ComprehensionExpression",
   "ClassDefinition",
@@ -152,7 +152,7 @@ export function findReactiveVariables(options: {
       }
       case "ArrayComprehensionExpression":
       case "DictionaryComprehensionExpression":
-      case "SetComprehension":
+      case "SetComprehensionExpression":
       case "ComprehensionExpression": {
         // Domprehension variables - look for VariableName or TupleExpression after 'for'
         const subCursor = node.cursor();
@@ -276,49 +276,52 @@ export function findReactiveVariables(options: {
         break;
       }
       case "ImportStatement": {
-        // Handle import x
+        // The grammar emits a single ImportStatement for both `import x [as y]`
+        // and `from m import x [as y], ...`. Direct children mix keywords,
+        // module-path names (before `import`), imported names, and aliases.
+        // Only post-`import` names that aren't shadowed by a following `as`
+        // (and the alias itself when `as` is present) bind in the current
+        // scope.
         const subCursor = node.cursor();
         subCursor.firstChild();
-        do {
-          if (subCursor.name === "VariableName") {
-            const varName = options.state.doc.sliceString(
-              subCursor.from,
-              subCursor.to,
-            );
-
-            const currentScope =
-              currentScopeStack[currentScopeStack.length - 1] ?? -1;
-            if (!allDeclarations.has(currentScope)) {
-              allDeclarations.set(currentScope, new Set());
-            }
-            allDeclarations.get(currentScope)?.add(varName);
+        const currentScope =
+          currentScopeStack[currentScopeStack.length - 1] ?? -1;
+        if (!allDeclarations.has(currentScope)) {
+          allDeclarations.set(currentScope, new Set());
+        }
+        const scope = allDeclarations.get(currentScope);
+        let pastImport = false;
+        let pending: string | null = null;
+        const commit = () => {
+          if (pending !== null) {
+            scope?.add(pending);
           }
-        } while (subCursor.nextSibling());
-
-        break;
-      }
-      case "ImportFromStatement": {
-        // Handle from x import y as z
-        const subCursor = node.cursor();
-        subCursor.firstChild();
-        let foundImport = false;
+          pending = null;
+        };
         do {
           if (subCursor.name === "import") {
-            foundImport = true;
-          } else if (foundImport && subCursor.name === "VariableName") {
-            const varName = options.state.doc.sliceString(
+            pastImport = true;
+            continue;
+          }
+          if (!pastImport) {
+            continue;
+          }
+          if (subCursor.name === "as") {
+            // Drop the imported name; the next VariableName is the alias.
+            pending = null;
+            continue;
+          }
+          if (subCursor.name === "VariableName") {
+            commit();
+            pending = options.state.doc.sliceString(
               subCursor.from,
               subCursor.to,
             );
-            // Add to the current innermost scope
-            const currentScope =
-              currentScopeStack[currentScopeStack.length - 1] ?? -1;
-            if (!allDeclarations.has(currentScope)) {
-              allDeclarations.set(currentScope, new Set());
-            }
-            allDeclarations.get(currentScope)?.add(varName);
+          } else if (subCursor.name === ",") {
+            commit();
           }
         } while (subCursor.nextSibling());
+        commit();
 
         break;
       }
@@ -423,6 +426,12 @@ export function findReactiveVariables(options: {
     const cursor = node.cursor();
     const nodeName = cursor.name;
     const nodeStart = cursor.from;
+
+    // Names inside an import statement are module paths, imported names, or
+    // aliases — none of them are reactive *uses* of an outer-cell global.
+    if (nodeName === "ImportStatement") {
+      return;
+    }
 
     const isNewScope = SCOPE_CREATING_NODES.has(nodeName);
 
