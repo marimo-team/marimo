@@ -4,6 +4,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from marimo._session.consumer_policy import initial_capabilities
+
 if TYPE_CHECKING:
     from starlette.websockets import WebSocket
 
@@ -70,16 +72,28 @@ class SessionConnector:
         if existing_by_id is not None:
             return self._reconnect_session(existing_by_id)
 
-        # 3. Connect to existing session (RTC mode)
+        # 3. Connect to existing session
+        # 3a. If RTC enabled and session exists for file key, connect to it
+
         existing_by_file = self.manager.get_session_by_file_key(
             self.params.file_key
         )
+        session_in_edit_mode = self.manager.mode == SessionMode.EDIT
+
         if (
             existing_by_file is not None
+            and session_in_edit_mode
             and self.params.rtc_enabled
-            and self.manager.mode == SessionMode.EDIT
         ):
             return self._connect_rtc_session(existing_by_file)
+
+        # 3b. Viewer only mode: a second connection request is auto routed as reader only
+        if (
+            existing_by_file is not None
+            and session_in_edit_mode
+            and not initial_capabilities(existing_by_file, self.params).edit
+        ):
+            return self._connect_kiosk()
 
         # 4. Resume previous session
         resumable = self.manager.maybe_resume_session(
