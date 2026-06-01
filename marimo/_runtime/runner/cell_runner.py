@@ -33,6 +33,7 @@ from marimo._runtime.executor import (
     StrictLifecycle,
     resolve_executor,
 )
+from marimo._runtime.executor.executor import _strip_frame
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.runner.hook_context import (
     CancelledCells,
@@ -45,6 +46,7 @@ from marimo._sql.error_utils import (
     create_sql_error_from_exception,
     is_sql_parse_error,
 )
+from marimo._types.globals import MutableGlobals
 from marimo._types.ids import CellId_t
 
 LOGGER = marimo_logger()
@@ -52,6 +54,7 @@ LOGGER = marimo_logger()
 if TYPE_CHECKING:
     from collections import deque
 
+    from marimo._ast.cell import CellImpl
     from marimo._runtime.runner.hooks import NotebookCellHooks
     from marimo._runtime.state import State
 
@@ -107,7 +110,7 @@ class Runner:
         self,
         roots: set[CellId_t],
         graph: dataflow.DirectedGraph,
-        glbls: dict[Any, Any],
+        glbls: MutableGlobals,
         debugger: MarimoPdb | None,
         hooks: NotebookCellHooks,
         execution_mode: OnCellChangeType = "autorun",
@@ -397,6 +400,23 @@ class Runner:
             output=output, exception=exception
         ), unwrapped_exception
 
+    async def evaluate_interruptible(self, cell: CellImpl) -> RunResult:
+        """Evaluate `cell`. Coroutine cells run as a scheduler-tracked
+        task so the SIGINT-handler's `cancel_all` can preempt them — a
+        plain `await` is not cancellable from another thread."""
+        coro = self._evaluator.evaluate(cell, self.glbls)
+        if not cell.is_coroutine():
+            return await coro
+        try:
+            async with self._scheduler.start_task(cell.cell_id, coro) as task:
+                return await task
+        except asyncio.CancelledError as exc:
+            # SIGINT cancelled the task at any point — either pre-admit
+            # (start_task refused entry) or mid-await. Hand back to
+            # `_finalize_run_result` so it converts to MarimoInterrupt
+            # rather than escaping to the broad except below.
+            return RunResult(output=None, exception=exc)
+
     async def run(self, cell_id: CellId_t) -> RunResult:
         """Run a cell."""
         if self.debugger is not None:
@@ -409,9 +429,7 @@ class Runner:
         # returned RunResult; cell_id-specific classification + side
         # effects are applied below in `_finalize_run_result`.
         try:
-            raw_result = await self._evaluator.evaluate_interruptible(
-                cell, self.glbls
-            )
+            raw_result = await self.evaluate_interruptible(cell)
             run_result = self._finalize_run_result(raw_result, cell_id)
         except BaseException:
             # Defensive: an unexpected escape from the Evaluator or a bug
@@ -459,7 +477,10 @@ class Runner:
             return raw_result
 
         if isinstance(exc, asyncio.exceptions.CancelledError):
-            # Surface cancellation as a MarimoInterrupt for downstream handling.
+            # Drop the two marimo frames above user code (the evaluator's
+            # `await execute_cell_async` and the executor's `await eval`)
+            # before surfacing as MarimoInterrupt.
+            _strip_frame(exc, 2)
             tmpio = io.StringIO()
             traceback.print_exception(
                 type(exc), exc, exc.__traceback__, file=tmpio
@@ -603,6 +624,34 @@ class Runner:
                     return defining_cell_id
         return None
 
+    async def _run_one(
+        self,
+        cell_id: CellId_t,
+        pre_exec_ctx: Any,
+        post_exec_ctx: Any,
+    ) -> None:
+        cell = self.graph.cells[cell_id]
+        for pre_hook in self._hooks.pre_execution_hooks:
+            pre_hook(cell, pre_exec_ctx)
+        LOGGER.debug("Running cell %s", cell_id)
+
+        if self.execution_context is not None:
+            try:
+                with self.execution_context(cell_id) as exc_ctx:
+                    run_result = await self.run(cell_id)
+                    run_result.accumulated_output = exc_ctx.output
+                    for post_hook in self._hooks.post_execution_hooks:
+                        post_hook(cell, post_exec_ctx, run_result)
+            except KeyboardInterrupt:
+                LOGGER.error(
+                    "A keyboard interrupt was raised but not handled by "
+                    "the runner."
+                )
+        else:
+            run_result = await self.run(cell_id)
+            for post_hook in self._hooks.post_execution_hooks:
+                post_hook(cell, post_exec_ctx, run_result)
+
     async def run_all(self) -> None:
         from marimo._runtime.runner.hook_context import (
             OnFinishHookContext,
@@ -642,8 +691,51 @@ class Runner:
             user_config=self.user_config,
         )
 
-        while self.pending():
-            cell_id = self.pop_cell()
+        # `async with self._scheduler` publishes the scheduler on the
+        # current context for SIGINT routing — must wrap the prescan
+        # too, otherwise an interrupt during a large prescan finds no
+        # scheduler and is dropped.
+        #
+        # `try/except KeyboardInterrupt` catches the raise produced by
+        # the sync-path SIGINT handler (which fires between any two
+        # bytecodes in the prescan or batch loop). `cancel_all` already
+        # ran on the scheduler, so `interrupted` is True and the queue
+        # is halted; suppress the raise so `on_finish_hooks` still fire
+        # and the kernel control loop doesn't see a `BaseException`.
+        async with self._scheduler:
+            try:
+                await self._dispatch_runnable(pre_exec_ctx, post_exec_ctx)
+            except KeyboardInterrupt:
+                LOGGER.info("Runner interrupted via SIGINT")
+
+        finish_ctx = OnFinishHookContext(
+            graph=self.graph,
+            cells_to_run=self.cells_to_run,
+            interrupted=self.interrupted,
+            cancelled_cells=self.cancelled_cells,
+            exceptions=self.exceptions,
+        )
+        LOGGER.debug("Running on_finish hooks")
+        for finish_hook in self._hooks.on_finish_hooks:
+            finish_hook(finish_ctx)
+
+    async def _dispatch_runnable(
+        self,
+        pre_exec_ctx: Any,
+        post_exec_ctx: Any,
+    ) -> None:
+        """Filter the queue then run each runnable cell.
+
+        Prescan iterates a snapshot of `_cells_to_run` and *removes*
+        filtered cells (cancelled/disabled) from the queue in place.
+        The live queue therefore always represents "cells still to
+        run" — a SIGINT mid-prescan leaves on_finish_hooks with the
+        correct remaining set (no spurious interrupted for filtered
+        cells, and the cell currently being filtered stays visible).
+        """
+        for cell_id in list(self._scheduler.cells_to_run):
+            if self._scheduler.interrupted:
+                break
             LOGGER.debug("Cell runner processing %s", cell_id)
             cell = self.graph.cells[cell_id]
 
@@ -680,52 +772,29 @@ class Runner:
                 LOGGER.debug("%s cancelled", cell_id)
                 cell.set_run_result_status("cancelled")
                 cell.set_runtime_state("idle")
+                self._scheduler.cells_to_run.remove(cell_id)
                 continue
             if cell.config.disabled:
                 LOGGER.debug("%s disabled", cell_id)
                 cell.set_run_result_status("disabled")
                 cell.set_runtime_state("idle")
+                self._scheduler.cells_to_run.remove(cell_id)
                 continue
             if self.graph.is_disabled(cell_id):
                 LOGGER.debug("%s disabled transitively", cell_id)
                 cell.set_run_result_status("disabled")
                 cell.set_runtime_state("disabled-transitively")
+                self._scheduler.cells_to_run.remove(cell_id)
                 continue
+            # Runnable: leave in queue for dispatch.
 
-            LOGGER.debug("Running pre_execution hooks")
-            for pre_hook in self._hooks.pre_execution_hooks:
-                pre_hook(cell, pre_exec_ctx)
-            LOGGER.debug("Running cell %s", cell_id)
-            if self.execution_context is not None:
-                try:
-                    # TODO(akshayka): The execution context should be pushed
-                    # down to as close to kernel execution as possible.
-                    with self.execution_context(cell_id) as exc_ctx:
-                        run_result = await self.run(cell_id)
-                        run_result.accumulated_output = exc_ctx.output
-                        LOGGER.debug("Running post_execution hooks in context")
-                        for post_hook in self._hooks.post_execution_hooks:
-                            post_hook(cell, post_exec_ctx, run_result)
-                except KeyboardInterrupt:
-                    LOGGER.error(
-                        """
-                        A keyboard interrupt was raised but not handled by the runner.
-                        """
-                    )
-
-            else:
-                run_result = await self.run(cell_id)
-                LOGGER.debug("Running post_execution hooks out of context")
-                for post_hook in self._hooks.post_execution_hooks:
-                    post_hook(cell, post_exec_ctx, run_result)
-
-        finish_ctx = OnFinishHookContext(
-            graph=self.graph,
-            cells_to_run=self.cells_to_run,
-            interrupted=self.interrupted,
-            cancelled_cells=self.cancelled_cells,
-            exceptions=self.exceptions,
-        )
-        LOGGER.debug("Running on_finish hooks")
-        for finish_hook in self._hooks.on_finish_hooks:
-            finish_hook(finish_ctx)
+        for batch in self._scheduler.batch():
+            for cell_id in batch:
+                # Re-check: an earlier cell in this run may have
+                # cancelled its descendants while we were dispatching.
+                if self.cancelled(cell_id):
+                    cell = self.graph.cells[cell_id]
+                    cell.set_run_result_status("cancelled")
+                    cell.set_runtime_state("idle")
+                    continue
+                await self._run_one(cell_id, pre_exec_ctx, post_exec_ctx)

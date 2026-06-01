@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.app import InternalApp
     from marimo._messaging.types import KernelStreams
+    from marimo._runtime.runner.scheduler import Scheduler
     from marimo._runtime.runtime import Kernel
     from marimo._runtime.state import State
     from marimo._runtime.virtual_file import VirtualFileStorageType
@@ -41,6 +42,14 @@ class KernelRuntimeContext(RuntimeContext):
     _app: InternalApp | None = None
     _id_provider: IDProvider | None = None
     _execution_context: ExecutionContext | None = None
+    # Set while a Scheduler's `async with` is open. Lookup goes through
+    # the currently-installed context — not one captured at install
+    # time — so embedded-app child contexts route SIGINT correctly.
+    _active_scheduler: Scheduler | None = None
+
+    @property
+    def active_scheduler(self) -> Scheduler | None:
+        return self._active_scheduler
 
     @property
     def graph(self) -> DirectedGraph:

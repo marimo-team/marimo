@@ -98,7 +98,9 @@ def _set_run_result_status(
     ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
-    if isinstance(run_result.exception, MarimoInterruptionError):
+    if isinstance(run_result.exception, MarimoInterrupt):
+        # `MarimoInterruptionError` is a broadcast payload (never raised);
+        # the exception held here is the raised `MarimoInterrupt`.
         cell.set_run_result_status("interrupted")
     elif cell.cell_id in ctx.cancelled_cells:
         cell.set_run_result_status("cancelled")
