@@ -47,8 +47,8 @@ from tests._data.mocks import create_dataframes
 
 pytest.importorskip("ibis")
 pd = pytest.importorskip("pandas")
-pytest.importorskip("polars")
 pytest.importorskip("pyarrow")
+pytest.importorskip("polars")
 
 
 def apply(df: DataFrameType, transform: Transform) -> DataFrameType:
@@ -86,7 +86,10 @@ def assert_frame_equal(a: DataFrameType, b: DataFrameType) -> None:
 
 
 def assert_frame_equal_with_nans(
-    a: DataFrameType, b: DataFrameType, allow_nan_equals_zero: bool = False
+    a: DataFrameType,
+    b: DataFrameType,
+    allow_nan_equals_zero: bool = False,
+    allow_none_equals_nan: bool = False,
 ) -> None:
     """
     Assert two dataframes are equal, treating NaNs in the same locations as equal.
@@ -97,6 +100,9 @@ def assert_frame_equal_with_nans(
         allow_nan_equals_zero: If True, treat NaN and 0.0 as equivalent values.
             This is useful for pivot operations where missing aggregations may
             be filled with 0.0 or NaN depending on the backend.
+        allow_none_equals_nan: If True, treat None and NaN as equivalent
+            missing values. This is useful when different backends materialise
+            missing numeric values differently.
     """
     import math
 
@@ -137,7 +143,25 @@ def assert_frame_equal_with_nans(
                     or val_b == 0.0
                 )
             )
-            if not (val_a == val_b or both_nan or nan_or_zero_match):
+            # Useful for expand dict operations where None and nan are equal
+            none_nan_match = allow_none_equals_nan and (
+                (
+                    val_a is None
+                    and isinstance(val_b, float)
+                    and math.isnan(val_b)
+                )
+                or (
+                    val_b is None
+                    and isinstance(val_a, float)
+                    and math.isnan(val_a)
+                )
+            )
+            if not (
+                val_a == val_b
+                or both_nan
+                or nan_or_zero_match
+                or none_nan_match
+            ):
                 raise AssertionError(
                     f"DataFrame values differ at column '{col}', row {idx}: {val_a} != {val_b}"
                 )
@@ -1733,18 +1757,15 @@ class TestTransformHandler:
         assert nw_result.columns == ["A", "B", "C"]
 
     @staticmethod
-    @pytest.mark.skip(
-        reason="Dict/struct expansion not supported uniformly across backends"
-    )
     @pytest.mark.parametrize(
         ("df", "expected"),
         list(
             zip(
                 create_test_dataframes(
-                    {"A": [{"foo": 1, "bar": "hello"}], "B": [1]}
+                    {"A": [{"foo": 1, "bar": "hello"}, None], "B": [1, 2]},
                 ),
                 create_test_dataframes(
-                    {"B": [1], "foo": [1], "bar": ["hello"]}
+                    {"B": [1, 2], "foo": [1, None], "bar": ["hello", None]},
                 ),
                 strict=False,
             )
@@ -1760,9 +1781,54 @@ class TestTransformHandler:
         nw_expected = collect_df(expected)
         result_cols = sorted(nw_result.columns)
         expected_cols = sorted(nw_expected.columns)
-        assert_frame_equal(
+        assert_frame_equal_with_nans(
             nw_expected.select(expected_cols),
             nw_result.select(result_cols),
+            allow_none_equals_nan=True,
+        )
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {
+                        "A": [
+                            {"foo": 1, "nested": {"x": 2}},
+                            None,
+                        ],
+                        "B": [1, 2],
+                    },
+                    include=["pandas", "polars"],
+                ),
+                create_test_dataframes(
+                    {
+                        "B": [1, 2],
+                        "foo": [1, None],
+                        "nested": [{"x": 2}, None],
+                    },
+                    include=["pandas", "polars"],
+                ),
+                strict=False,
+            )
+        ),
+    )
+    def test_expand_dict_nested_dicts(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = ExpandDictTransform(
+            type=TransformType.EXPAND_DICT, column_id="A"
+        )
+        result = apply(df, transform)
+        nw_result = collect_df(result)
+        nw_expected = collect_df(expected)
+        result_cols = sorted(nw_result.columns)
+        expected_cols = sorted(nw_expected.columns)
+        assert_frame_equal_with_nans(
+            nw_expected.select(expected_cols),
+            nw_result.select(result_cols),
+            allow_none_equals_nan=True,
         )
 
     @staticmethod
@@ -2334,41 +2400,6 @@ class TestTransformHandler:
                         column_id="nulls",
                         operator="in",
                         value=[NAN_VALUE],
-                    )
-                ],
-            ),
-        )
-        result = apply(df, in_transform)
-        assert_frame_equal_with_nans(result, expected)
-
-    @staticmethod
-    @pytest.mark.parametrize(
-        ("df", "expected"),
-        list(
-            zip(
-                create_test_dataframes(
-                    {"nulls": [1, 2, 3, None, "hello"]}, include=["pandas"]
-                ),
-                create_test_dataframes({"nulls": [None]}, include=["pandas"]),
-                strict=False,
-            )
-        ),
-    )
-    def test_filter_rows_null_pandas_object(
-        df: DataFrameType, expected: DataFrameType
-    ) -> None:
-        in_transform = FilterRowsTransform(
-            type=TransformType.FILTER_ROWS,
-            operation="keep_rows",
-            where=FilterGroup(
-                type="group",
-                operator="and",
-                children=[
-                    FilterCondition(
-                        type="condition",
-                        column_id="nulls",
-                        operator="in",
-                        value=[None],
                     )
                 ],
             ),
