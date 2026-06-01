@@ -112,7 +112,6 @@ export function useNotebookActions() {
   const kioskMode = useAtomValue(kioskModeAtom);
   const hideAllMarkdownCode = useHideAllMarkdownCode();
   const [resolvedConfig] = useResolvedMarimoConfig();
-  const aiEnabled = resolvedConfig.ai?.enabled !== false;
 
   const {
     updateCellConfig,
@@ -351,7 +350,7 @@ export function useNotebookActions() {
     {
       icon: <SparklesIcon size={14} strokeWidth={1.5} />,
       label: "Pair with an agent",
-      hidden: isWasm() || !aiEnabled,
+      hidden: isWasm(),
       handle: async () => {
         openModal(<PairWithAgentModal onClose={closeModal} />);
       },
