@@ -60,6 +60,16 @@ export function vimKeymapExtension(): Extension[] {
     ]),
     keymap.of([
       {
+        key: "p",
+        run: (ev) => interceptVimPaste(ev, "p"),
+      },
+      {
+        key: "P",
+        run: (ev) => interceptVimPaste(ev, "P"),
+      },
+    ]),
+    keymap.of([
+      {
         // Ctrl-[ by default is to dedent
         // But for Vim (on Linux and Windows), it should exit insert mode when in Insert mode
         linux: "Ctrl-[",
@@ -302,6 +312,17 @@ function applyVimCommands(vimCommands: VimCommand[]) {
       "mapclear|nmapclear|vmapclear|imapclear".split("|").includes(command.name)
     ) {
       mapclear(command);
+    } else if (command.name === "set") {
+      if (
+        command.args?.option === "clipboard=unnamedplus" ||
+        command.args?.option === "clipboard=unnamed"
+      ) {
+        enableVimClipboardSync();
+      } else {
+        Logger.warn(
+          `Could not execute vimrc "set" command: unsupported option "${command.args?.option}"`,
+        );
+      }
     } else {
       Logger.warn(
         `Could not execute vimrc command "${command.name}: unknown command"`,
@@ -315,6 +336,17 @@ interface ExtendedVim {
     macroModeState?: {
       isRecording: boolean;
       isPlaying: boolean;
+    };
+    registerController?: {
+      unnamedRegister: {
+        setText: (
+          text: string,
+          linewise?: boolean,
+          blockwise?: boolean,
+        ) => void;
+        pushText: (text: string, linewise?: boolean) => void;
+        toString: () => string;
+      };
     };
   };
 }
@@ -334,6 +366,87 @@ function isMacroActive() {
     return false;
   }
   return Boolean(macroModeState.isRecording || macroModeState.isPlaying);
+}
+
+let _clipboardSyncEnabled = false;
+let _origSetTextFn:
+  | ((text: string, linewise?: boolean, blockwise?: boolean) => void)
+  | null = null;
+
+function enableVimClipboardSync(): void {
+  if (_clipboardSyncEnabled) {
+    return;
+  }
+  if (!isExtendedVim(Vim)) {
+    Logger.warn("enableVimClipboardSync: getVimGlobalState_ not available");
+    return;
+  }
+  const unnamedRegister =
+    Vim.getVimGlobalState_()?.registerController?.unnamedRegister;
+  if (!unnamedRegister) {
+    Logger.warn("enableVimClipboardSync: unnamedRegister not found");
+    return;
+  }
+  const origSetText = unnamedRegister.setText.bind(unnamedRegister);
+  const origPushText = unnamedRegister.pushText.bind(unnamedRegister);
+  // Saved before patching so the paste interceptor can update the register without also writing to the clipboard.
+  _origSetTextFn = origSetText;
+
+  unnamedRegister.setText = (text, linewise, blockwise) => {
+    origSetText(text, linewise, blockwise);
+    if (text) {
+      navigator.clipboard?.writeText(text).catch(() => {});
+    }
+  };
+  unnamedRegister.pushText = (text, linewise) => {
+    origPushText(text, linewise);
+    if (text) {
+      navigator.clipboard
+        ?.writeText(unnamedRegister.toString())
+        .catch(() => {});
+    }
+  };
+
+  _clipboardSyncEnabled = true;
+  const isFirefox = /firefox/i.test(navigator.userAgent);
+  Logger.log(
+    `[vim] clipboard sync (unnamedplus) enabled${isFirefox ? " — Firefox will show a paste-permission popup on each p/P; workaround: set dom.events.testing.asyncClipboard=true in about:config (at your own risk)" : ""}`,
+  );
+}
+
+// Pulls system clipboard into the unnamed register on p/P, then lets vim paste normally.
+function interceptVimPaste(view: EditorView, key: "p" | "P"): boolean {
+  if (!_clipboardSyncEnabled || !_origSetTextFn) {
+    return false;
+  }
+  if (!isInVimNormalMode(view)) {
+    return false;
+  }
+  const cm = getCM(view);
+  if (!cm || !hasVimState(cm)) {
+    return false;
+  }
+  // Don't intercept explicit register prefixes like "ap.
+  const registerName = (
+    cm.state.vim as { inputState?: { registerName?: string } }
+  ).inputState?.registerName;
+  if (registerName && registerName !== '"') {
+    return false;
+  }
+  const origSet = _origSetTextFn;
+  navigator.clipboard
+    ?.readText()
+    .then((text) => {
+      if (text) {
+        origSet(text, false, false);
+      }
+      Vim.handleKey(cm, key, "mapping");
+    })
+    .catch(() => {
+      // Clipboard unavailable — fall back to whatever is in the register.
+      Vim.handleKey(cm, key, "mapping");
+    });
+  return true;
 }
 
 class CodeMirrorVimSync {
