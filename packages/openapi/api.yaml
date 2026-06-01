@@ -488,6 +488,7 @@ components:
           - application/vnd.vega.v6+json
           - application/vnd.vegalite.v5+json
           - application/vnd.vegalite.v6+json
+          - application/x-marimo-auth-request
           - image/avif
           - image/bmp
           - image/gif
@@ -5270,6 +5271,7 @@ components:
               - application/vnd.vega.v6+json
               - application/vnd.vegalite.v5+json
               - application/vnd.vegalite.v6+json
+              - application/x-marimo-auth-request
               - image/avif
               - image/bmp
               - image/gif

@@ -36,6 +36,41 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+def _auth_debug_log(msg: str) -> None:
+    """Opt-in round-trip tracer for ``sys.stdin._request_auth``.
+
+    Writes a single timestamped line to the file named by the
+    ``MARIMO_AUTH_DEBUG_LOG`` env var. No-op (and zero cost) when the
+    env var is unset, so it is safe to leave compiled into production
+    builds.
+
+    Why a side-channel file instead of ``LOGGER``:
+      - Survives `marimo` logger silencing during noisy notebook runs.
+      - Tailable from one place across the kernel + frontend + shim
+        hops; the shim's ``google.colab._bridge._debug_log`` writes to
+        the same file under the same env var.
+
+    Security contract — DO NOT relax:
+      Callers must log **metadata only** (request IDs, byte counts,
+      protocol versions). Never pass the raw payload, the access
+      token, or any field of the response envelope into ``msg``.
+      Compromising this property would turn an opt-in dev tracer
+      into a token-exfiltration channel.
+    """
+    path = os.environ.get("MARIMO_AUTH_DEBUG_LOG")
+    if not path:
+        return
+    try:
+        import time
+
+        line = f"[{time.time():.3f}] [streams.py] {msg}\n"
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(line)
+    except Exception:
+        # Tracer must never break the kernel.
+        pass
+
+
 # Maximum time to block waiting for the buffered console writer to flush.
 # The flush hook runs on the hot path between cell execution and idle, so
 # we bound the wait even though flushes normally complete in <10ms.
@@ -465,6 +500,90 @@ class ThreadSafeStdin(Stdin):
             self._stream.console_msg_cv.notify()
 
         return self._stream.input_queue.get()
+
+    def _request_auth(self, payload: str) -> str:
+        """Send an auth-request envelope to the frontend and block for the reply.
+
+        Used by external shim packages (e.g. ``marimo-google-auth``) to
+        implement a Colab-style ``google.colab.auth.authenticate_user`` from
+        inside the sandbox kernel. The contract is intentionally opaque:
+        ``payload`` is a JSON-encoded request envelope (see plan.md §5.1),
+        the return value is a JSON-encoded response envelope (see plan.md
+        §5.2). marimo's only responsibility is the round-trip plumbing —
+        all schema lives in the shim package.
+
+        Underscore-prefixed because it is **not** part of marimo's stable
+        public API. The schema is owned by the shim package(s), so this
+        method may evolve in lock-step with those without a marimo
+        deprecation cycle.
+        """
+        assert self._stream.cell_id is not None
+        if not isinstance(payload, str):
+            raise TypeError(
+                f"payload must be a str, not {type(payload).__name__}"
+            )
+
+        max_bytes = std_stream_max_bytes()
+        # Measure UTF-8 wire bytes, not Python object size. `sys.getsizeof`
+        # would include ~49 bytes of PyObject overhead and reports the
+        # in-memory representation (1/2/4 bytes per code point), neither
+        # of which matches what crosses the stdin channel.
+        payload_bytes = len(payload.encode("utf-8"))
+        if payload_bytes > max_bytes:
+            raise ValueError(
+                f"auth request payload exceeds {max_bytes} bytes "
+                f"(got {payload_bytes})"
+            )
+
+        _auth_debug_log(
+            "kernel -> frontend: sending auth request "
+            f"(cell_id={self._stream.cell_id}, payload_bytes={payload_bytes})"
+        )
+
+        with self._stream.console_msg_cv:
+            self._stream.console_msg_queue.append(
+                ConsoleMsg(
+                    stream=CellChannel.STDIN,
+                    cell_id=self._stream.cell_id,
+                    data=payload,
+                    mimetype="application/x-marimo-auth-request",
+                )
+            )
+            self._stream.console_msg_cv.notify()
+
+        response = self._stream.input_queue.get()
+        # Enforce the str + size cap symmetrically with the request so
+        # a malformed producer surfaces as a clear error instead of a
+        # downstream encode crash or unbounded memory use.
+        if not isinstance(response, str):
+            raise TypeError(
+                f"auth response must be a str, not {type(response).__name__}"
+            )
+        response_bytes = len(response.encode("utf-8"))
+        if response_bytes > max_bytes:
+            raise ValueError(
+                f"auth response exceeds {max_bytes} bytes "
+                f"(got {response_bytes})"
+            )
+        _auth_debug_log(
+            "kernel <- frontend: received auth response "
+            f"(response_bytes={response_bytes})"
+        )
+        return response
+
+    def readline(self, size: int | None = -1) -> str:  # type: ignore[override]
+        # size only included for compatibility with sys.stdin.readline API;
+        # we don't support it.
+        del size
+        return self._readline_with_prompt(prompt="")
+
+    def readlines(self, hint: int | None = -1) -> list[str]:  # type: ignore[override]
+        # Just an alias for readline.
+        #
+        # hint only included for compatibility with sys.stdin.readlines API;
+        # we don't support it.
+        del hint
+        return self._readline_with_prompt(prompt="").split("\n")
 
 
 @contextlib.contextmanager

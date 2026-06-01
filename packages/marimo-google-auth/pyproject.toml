@@ -1,0 +1,68 @@
+[build-system]
+requires = ["uv_build>=0.5"]
+build-backend = "uv_build"
+
+[project]
+name = "marimo-google-auth"
+version = "0.0.1.dev0"
+description = "Colab-style Google auth bridge for marimo notebooks."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [{ name = "marimo" }]
+keywords = ["marimo", "google", "oauth", "colab", "gdrive"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    # Required: we register a fake `google.colab.auth` module that satisfies
+    # `pydata_google_auth`'s Colab-detection contract. The runtime credential
+    # construction needs `google-auth`.
+    "google-auth>=2.0",
+]
+
+[project.optional-dependencies]
+# Tested/intended integrations. These are not hard deps because users might
+# import only `google.colab.auth` (e.g. for direct `google.auth.default()`
+# usage) without ever touching `pydata-google-auth` / `gdrive-fsspec`.
+pydata = ["pydata-google-auth>=1.9"]
+gdrive = ["pydata-google-auth>=1.9", "gdrive-fsspec>=0.4"]
+test = [
+    "pytest>=9",
+    "pytest-mock>=3",
+    "pydata-google-auth>=1.9",
+]
+
+[project.urls]
+Homepage = "https://github.com/marimo-team/marimo/tree/main/packages/marimo-google-auth"
+Issues = "https://github.com/marimo-team/marimo/issues"
+
+[tool.uv.build-backend]
+# PEP 420 namespace: `src/google/` has no __init__.py so other
+# `google.*` packages (e.g. google-auth, google-cloud-*) coexist with
+# ours. `google.colab` is a regular sub-package we own outright.
+# `namespace = true` tells uv_build to leave `google/` un-init'd in
+# the wheel.
+module-name = "google.colab"
+module-root = "src"
+namespace = true
+source-include = ["tests/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff.lint]
+extend-select = ["ARG", "B", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Pytest fixtures and callback-protocol args show up in test signatures
+# even when only their side effects matter.
+"tests/**/*.py" = ["ARG001", "ARG002"]

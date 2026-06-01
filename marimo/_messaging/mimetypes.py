@@ -20,6 +20,7 @@ KnownMimeType = Literal[
     "application/vnd.vega.v6+json",
     "application/vnd.vegalite.v6+json",
     "application/vnd.jupyter.widget-view+json",
+    "application/x-marimo-auth-request",
     "image/png",
     "image/svg+xml",
     "image/tiff",
@@ -39,6 +40,7 @@ KnownMimeType = Literal[
 
 ConsoleMimeType = Literal[
     "application/vnd.marimo+traceback",
+    "application/x-marimo-auth-request",
     "text/plain",
     "text/password",
     "image/png",

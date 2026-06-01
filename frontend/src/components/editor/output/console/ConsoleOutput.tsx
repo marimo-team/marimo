@@ -30,6 +30,11 @@ import { NameCellContentEditable } from "../../actions/name-cell-input";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { type OnRefactorWithAI, OutputRenderer } from "../../Output";
 import { useWrapText } from "../useWrapText";
+import {
+  AUTH_REQUEST_MIMETYPE,
+  AuthRequest,
+  AuthRequestWithResponse,
+} from "./AuthRequest";
 import { processOutput } from "./process-output";
 import { RenderTextWithLinks } from "./text-rendering";
 
@@ -259,6 +264,26 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
             const originalIdx = consoleOutputs.length - idx - 1;
             const isPassword = output.mimetype === "text/password";
+            const isAuthRequest = output.mimetype === AUTH_REQUEST_MIMETYPE;
+
+            if (isAuthRequest) {
+              if (output.response == null && lastStdInputIdx === idx) {
+                return (
+                  <AuthRequest
+                    key={idx}
+                    payload={output.data}
+                    onSubmit={(text) => onSubmitDebugger(text, originalIdx)}
+                  />
+                );
+              }
+              return (
+                <AuthRequestWithResponse
+                  key={idx}
+                  payload={output.data}
+                  response={output.response}
+                />
+              );
+            }
 
             if (output.response == null && lastStdInputIdx === idx) {
               return (
