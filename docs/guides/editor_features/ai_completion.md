@@ -161,8 +161,9 @@ If you don't use marimo's AI assistant, you can hide AI actions and panels in th
 enabled = false
 ```
 
-This hides AI assistant surfaces such as the Chat panel and Generate with AI. Code completion settings including GitHub Copilot, remain available separately.
-Pairing with an agent is still available with [marimo pair](../generate_with_ai/marimo_pair.md).
+This hides AI assistant surfaces such as the Chat panel and Generate with AI. Code completion settings including GitHub Copilot, remain available.
+
+You can still collaborate with an AI agent using [marimo pair](../generate_with_ai/marimo_pair.md).
 
 ## Agents
 
