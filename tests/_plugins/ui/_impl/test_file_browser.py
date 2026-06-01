@@ -1275,6 +1275,27 @@ class TestFilterParameter:
         names = {f["name"] for f in response.files if not f["is_directory"]}
         assert names == {"big_file.bin"}
 
+    def test_filter_callable_exception_is_isolated(
+        self, tmp_path: Path
+    ) -> None:
+        """A callable that raises on one file must not crash the listing.
+
+        The offending file is treated as "no match" and the rest of the
+        directory is still returned.
+        """
+        (tmp_path / "good.txt").touch()
+        (tmp_path / "bad.txt").touch()
+
+        def flaky(path: Path) -> bool:
+            if path.name == "bad.txt":
+                raise ValueError("boom")
+            return True
+
+        fb = file_browser(initial_path=tmp_path, filter=flaky)
+        response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+        names = {f["name"] for f in response.files if not f["is_directory"]}
+        assert names == {"good.txt"}
+
     def test_filter_does_not_hide_directories(self, tmp_path: Path) -> None:
         """Directories are always shown regardless of filter."""
         sub = tmp_path / "subdir"

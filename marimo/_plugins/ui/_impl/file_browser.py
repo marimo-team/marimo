@@ -316,6 +316,28 @@ class file_browser(
         path = self._path_cls(path_str, **kwargs)
         return path
 
+    def _passes_filter(self, file: Path) -> bool:
+        """Return True if `file` passes the configured `filter`.
+
+        Centralizes filter evaluation so `_list_directory` and
+        `_has_files_recursive` stay in sync. A callable filter that raises is
+        treated as "does not match" rather than crashing the whole directory
+        listing, so one bad file can't take down the browser.
+        """
+        if self._filter is None:
+            return True
+        if isinstance(self._filter, re.Pattern):
+            return self._filter.search(file.name) is not None
+        try:
+            return self._filter(file)
+        except Exception:
+            LOGGER.warning(
+                "file_browser filter callable raised on %s; treating as no match",
+                file,
+                exc_info=True,
+            )
+            return False
+
     def _has_files_recursive(
         self, directory: Path, max_depth: int = 100
     ) -> bool:
@@ -353,13 +375,8 @@ class file_browser(
                     ):
                         continue
                     # Apply regex or callable filter
-                    if self._filter is not None:
-                        if isinstance(self._filter, re.Pattern):
-                            if not self._filter.search(item.name):
-                                continue
-                        else:
-                            if not self._filter(item):
-                                continue
+                    if not self._passes_filter(item):
+                        continue
                     return True
                 elif item.is_dir() and not item.is_symlink():
                     # Skip directory symlinks to avoid infinite loops
@@ -417,13 +434,8 @@ class file_browser(
                     continue
 
             # Apply regex or callable filter to files
-            if self._filter is not None and not is_directory:
-                if isinstance(self._filter, re.Pattern):
-                    if not self._filter.search(file.name):
-                        continue
-                else:
-                    if not self._filter(file):
-                        continue
+            if not is_directory and not self._passes_filter(file):
+                continue
 
             # Skip empty directories if ignore_empty_dirs is enabled
             if self._ignore_empty_dirs and is_directory:
