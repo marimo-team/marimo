@@ -154,8 +154,7 @@ See the [llm_providers](../configuration/llm_providers.md) guide for detailed in
 
 ## Hide AI actions and panels
 
-If you don't use marimo's AI assistant, you can hide AI actions and panels from
-the editor UI:
+If you don't use marimo's AI assistant, you can hide AI actions and panels in the editor:
 
 ```toml title="marimo.toml"
 [ai]
@@ -163,6 +162,7 @@ enabled = false
 ```
 
 This hides AI assistant surfaces such as the Chat panel and Generate with AI. Code completion settings including GitHub Copilot, remain available separately.
+Pairing with an agent is still available with [marimo pair](../generate_with_ai/marimo_pair.md).
 
 ## Agents
 
