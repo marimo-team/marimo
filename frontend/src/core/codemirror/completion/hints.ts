@@ -16,7 +16,10 @@ import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 export function hintTooltip(lspConfig: LSPConfig) {
   return [
     // Hover tooltip is already covered by LSP
-    lspConfig?.pylsp?.enabled && hasCapability("pylsp")
+    (lspConfig?.pylsp?.enabled && hasCapability("pylsp")) ||
+    (lspConfig?.ty?.enabled && hasCapability("ty")) ||
+    (lspConfig?.pyrefly?.enabled && hasCapability("pyrefly")) ||
+    (lspConfig?.basedpyright?.enabled && hasCapability("basedpyright"))
       ? []
       : hoverTooltip(
           async (view, pos) => {
