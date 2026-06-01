@@ -167,6 +167,22 @@ def test_progress_without_context():
             pass
 
 
+def test_progress_with_stepped_range_without_total() -> None:
+    assert runtime_context_installed() is False
+
+    progress = progress_bar(range(0, 10, 2))
+    assert list(progress) == [0, 2, 4, 6, 8]
+    assert (progress.progress.current, progress.progress.total) == (5, 5)
+
+
+def test_progress_with_stepped_range_and_total() -> None:
+    assert runtime_context_installed() is False
+
+    progress = progress_bar(range(0, 10, 2), total=10)
+    assert list(progress) == [0, 2, 4, 6, 8]
+    assert (progress.progress.current, progress.progress.total) == (10, 10)
+
+
 async def sleep(seconds):
     import asyncio
 
