@@ -38,6 +38,21 @@ class ConnectionType(Enum):
     NEW = "new"
 
 
+def is_viewer_connection(
+    *, connection_type: ConnectionType, is_main_consumer: bool
+) -> bool:
+    """Whether a connection should receive read-only (kiosk) message filtering.
+
+    RTC collaborators are full editors even though they are not the room's
+    main consumer, so they are never treated as viewers. For the single-editor
+    model, the viewer is whichever connection is not currently the main
+    consumer; takeover flips this by reassigning the main consumer.
+    """
+    if connection_type is ConnectionType.RTC_EXISTING:
+        return False
+    return not is_main_consumer
+
+
 class SessionConnector:
     """Handles different session connection strategies."""
 

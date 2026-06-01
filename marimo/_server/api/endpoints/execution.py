@@ -527,7 +527,15 @@ async def takeover_endpoint(
     """
     app_state = AppState(request)
 
-    caller_id = ConsumerId(app_state.require_current_session_id())
+    session_id = app_state.get_current_session_id()
+    if session_id is None:
+        LOGGER.error("Missing Marimo-Session-Id header")
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Cannot take over session."},
+        )
+    caller_id = ConsumerId(session_id)
+
     session = app_state.get_current_session()
     if not session:
         LOGGER.error("No current session found")

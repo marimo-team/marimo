@@ -298,6 +298,15 @@ class TestExecutionRoutes_EditMode:
 
     @staticmethod
     @with_session(SESSION_ID)
+    def test_takeover_missing_session_id_header(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/takeover",
+            headers=token_header("fake-token"),
+        )
+        assert response.status_code == 400, response.text
+
+    @staticmethod
+    @with_session(SESSION_ID)
     def test_takeover_file_key(client: TestClient) -> None:
         response = client.post(
             "/api/kernel/takeover?file=test.py",

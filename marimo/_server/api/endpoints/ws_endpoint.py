@@ -40,6 +40,7 @@ from marimo._server.api.endpoints.ws.ws_message_loop import (
 from marimo._server.api.endpoints.ws.ws_rtc_handler import RTCWebSocketHandler
 from marimo._server.api.endpoints.ws.ws_session_connector import (
     SessionConnector,
+    is_viewer_connection,
 )
 from marimo._server.codes import WebSocketCodes
 from marimo._server.router import APIRouter
@@ -418,7 +419,10 @@ class WebSocketHandler(SessionConsumer):
         message_loop = WebSocketMessageLoop(
             websocket=self.websocket,
             message_queue=self.message_queue,
-            is_kiosk=lambda: session.room.main_consumer is not self,
+            is_kiosk=lambda: is_viewer_connection(
+                connection_type=connection_type,
+                is_main_consumer=session.room.main_consumer is self,
+            ),
             on_disconnect=self._on_disconnect,
             on_check_status_update=self._check_status_update,
         )
