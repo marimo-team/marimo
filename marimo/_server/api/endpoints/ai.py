@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal
 
+import httpx
+from pydantic import BaseModel
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
 from starlette.responses import (
@@ -67,6 +69,10 @@ LOGGER = _loggers.marimo_logger()
 
 # Router for file ai
 router = APIRouter()
+
+
+class ProviderModelsResponse(BaseModel):
+    models: list[str]
 
 
 async def safe_stream_wrapper(
@@ -571,3 +577,60 @@ async def mcp_refresh(
                 servers={},
             )
         )
+
+
+@router.get("/models")
+@requires("edit")
+async def get_provider_models(
+    *,
+    request: Request,
+) -> Response:
+    """
+    parameters:
+        - in: query
+          name: base_url
+          schema:
+            type: string
+          required: true
+          description: The base URL of the OpenAI-compatible provider
+    responses:
+        200:
+            description: List of available models from the provider
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            models:
+                                type: array
+                                items:
+                                    type: string
+    """
+
+    base_url = request.query_params.get("base_url", "").rstrip("/")
+    if not base_url:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="base_url query parameter is required",
+        )
+
+    # Normalize URL
+    if base_url.endswith("/v1"):
+        models_url = f"{base_url}/models"
+    else:
+        models_url = f"{base_url}/v1/models"
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(models_url)
+            response.raise_for_status()
+            data = response.json()
+            model_ids = sorted(
+                [m["id"] for m in data.get("data", []) if m.get("id")]
+            )
+            return StructResponse(ProviderModelsResponse(models=model_ids))
+    except Exception as e:
+        LOGGER.warning(
+            "Could not fetch models from %s: %s", models_url, str(e)
+        )
+        return StructResponse(ProviderModelsResponse(models=[]))
