@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { HourglassIcon, LockIcon, UnlinkIcon } from "lucide-react";
+import { HourglassIcon, UnlinkIcon } from "lucide-react";
 import React from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { notebookScrollToRunning } from "@/core/cells/actions";
@@ -24,13 +24,13 @@ export const StatusOverlay: React.FC<{
   const isOpen = connection.state === WebSocketState.OPEN;
   // Only KERNEL_DISCONNECTED is recoverable by a retry. Other terminal
   // reasons (MALFORMED_QUERY, KERNEL_STARTUP_ERROR) would deterministically
-  // fail the same way; ALREADY_RUNNING is handled by `LockedIcon` below.
+  // fail the same way.
   const canReconnect =
     isClosed && connection.code === WebSocketClosedReason.KERNEL_DISCONNECTED;
 
   return (
     <>
-      {isClosed && !connection.canTakeover && <NoiseBackground />}
+      {isClosed && <NoiseBackground />}
       <div
         className={cn(
           "z-50 top-4 left-4",
@@ -38,12 +38,11 @@ export const StatusOverlay: React.FC<{
         )}
       >
         {isOpen && isRunning && <RunningIcon />}
-        {isClosed && !connection.canTakeover && (
+        {isClosed && (
           <DisconnectedIcon
             onReconnect={canReconnect ? onReconnect : undefined}
           />
         )}
-        {isClosed && connection.canTakeover && <LockedIcon />}
       </div>
     </>
   );
@@ -78,14 +77,6 @@ const DisconnectedIcon: React.FC<{ onReconnect?: () => void }> = ({
     </Tooltip>
   );
 };
-
-const LockedIcon = () => (
-  <Tooltip content="Notebook locked">
-    <div className={topLeftStatus}>
-      <LockIcon className="w-[25px] h-[25px] text-(--blue-11)" />
-    </div>
-  </Tooltip>
-);
 
 const RunningIcon = () => {
   const scratchpadOnly = useAtomValue(onlyScratchpadIsRunningAtom);

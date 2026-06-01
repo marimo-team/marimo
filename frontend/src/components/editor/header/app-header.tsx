@@ -18,10 +18,7 @@ export const AppHeader: React.FC<PropsWithChildren<Props>> = ({
     <div className={className}>
       {children}
       {connection.state === WebSocketState.CLOSED && (
-        <Disconnected
-          reason={connection.reason}
-          canTakeover={connection.canTakeover}
-        />
+        <Disconnected reason={connection.reason} />
       )}
     </div>
   );

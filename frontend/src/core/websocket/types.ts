@@ -14,7 +14,6 @@ export type WebSocketState =
 
 export const WebSocketClosedReason = {
   KERNEL_DISCONNECTED: "KERNEL_DISCONNECTED",
-  ALREADY_RUNNING: "ALREADY_RUNNING",
   MALFORMED_QUERY: "MALFORMED_QUERY",
   KERNEL_STARTUP_ERROR: "KERNEL_STARTUP_ERROR",
 } as const;
@@ -30,11 +29,6 @@ export type ConnectionStatus =
        * Human-readable reason for closing the connection.
        */
       reason: string;
-      /**
-       * Whether the current session can be taken over by another session,
-       * since we only allow single-user editing.
-       */
-      canTakeover?: boolean;
     }
   | {
       state:

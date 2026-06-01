@@ -279,6 +279,26 @@ class KernelCapabilitiesNotification(msgspec.Struct):
         self.pyrefly = DependencyManager.pyrefly.has()
 
 
+class ConsumerCapabilities(msgspec.Struct, frozen=True):
+    """
+    Capabilities that the frontend consumer supports.
+    """
+
+    edit: bool
+    interact: bool
+
+
+class ConsumerCapabilitiesChangedNotification(
+    Notification, tag="consumer-capabilities-changed"
+):
+    """
+    Notification of the frontend consumer's capabilities.
+    """
+
+    name: ClassVar[str] = "consumer-capabilities-changed"
+    consumer_capabilities: ConsumerCapabilities
+
+
 class KernelReadyNotification(Notification, tag="kernel-ready"):
     """Kernel ready for execution. First notification sent at startup.
 
@@ -311,6 +331,7 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     app_config: _AppConfig
     kiosk: bool
     capabilities: KernelCapabilitiesNotification
+    consumer_capabilities: ConsumerCapabilities
     auto_instantiated: bool = False
 
 
@@ -869,4 +890,6 @@ NotificationMessage = (
     | FocusCellNotification
     # Document
     | NotebookDocumentTransactionNotification
+    # Consumer
+    | ConsumerCapabilitiesChangedNotification
 )
