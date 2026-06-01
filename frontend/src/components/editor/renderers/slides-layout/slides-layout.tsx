@@ -55,7 +55,7 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
       setLayout={setLayout}
       activeIndex={resolvedIndex}
       onSlideChange={handleSlideChange}
-      configWidth={300}
+      configWidth={280}
       mode={isReading ? "read" : mode}
       isEditable={!isReading}
     />

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING

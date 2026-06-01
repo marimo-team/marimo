@@ -1,4 +1,15 @@
 anthropic:
+
+  - name: Claude Opus 4.8
+    model: claude-opus-4-8
+    description: "Modest but tangible improvement over Claude Opus 4.7"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-05-28
+    cost: {input: 5, output: 25}
+
   - name: Claude Opus 4.7
     model: claude-opus-4-7
     description: "Next generation of Anthropic's Opus family, built for long-running, asynchronous agents"
@@ -199,6 +210,17 @@ google:
     cost: {input: 2, output: 12}
 
 bedrock:
+
+  - name: Claude Opus 4.8 (Global)
+    model: global.anthropic.claude-opus-4-8
+    description: "Modest but tangible improvement over Claude Opus 4.7"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-05-28
+    cost: {input: 5, output: 25}
+
   - name: Claude Opus 4.7
     model: anthropic.claude-opus-4-7
     description: "Next generation of Anthropic's Opus family, built for long-running, asynchronous agents"
@@ -654,6 +676,17 @@ wandb:
     cost: {input: 0.1, output: 0.1}
 
 opencode-go:
+
+  - name: Qwen3.7 Max
+    model: qwen3.7-max
+    description: "Capable of writing and debugging code, and sustaining autonomous execution across hundreds or thousands of steps"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-05-21
+    cost: {input: 2.5, output: 7.5}
+
   - name: DeepSeek V4 Flash
     model: deepseek-v4-flash
     description: "Efficiency-optimized Mixture-of-Experts model from DeepSeek with 284B total parameters and 13B activated parameters, supporting a 1M-token context window"

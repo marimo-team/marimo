@@ -231,7 +231,7 @@ const RevealSlidesComponent = ({
   activeIndex,
   onSlideChange,
   mode,
-  configWidth = 300, // px
+  configWidth, // px
   isEditable = false,
 }: {
   cellsWithOutput: RuntimeCell[];
@@ -240,7 +240,7 @@ const RevealSlidesComponent = ({
   activeIndex?: number;
   onSlideChange?: (index: number) => void;
   mode: AppMode;
-  configWidth?: number;
+  configWidth: number;
   isEditable?: boolean;
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -439,7 +439,7 @@ const RevealSlidesComponent = ({
       <div className="group relative" style={{ width, height }}>
         <Deck
           deckRef={deckRef}
-          className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides"
+          className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides focus:outline-none focus-visible:outline-none"
           config={revealConfig}
           onReady={handleDeckReady}
           onSlideChange={handleSlideChange}

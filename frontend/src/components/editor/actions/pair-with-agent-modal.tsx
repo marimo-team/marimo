@@ -113,6 +113,7 @@ export const PairWithAgentModal: React.FC<{
             className="underline"
           >
             Learn more
+            <span className="sr-only"> about pairing marimo with an agent</span>
           </a>
           .
         </DialogDescription>

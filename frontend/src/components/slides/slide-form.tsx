@@ -26,15 +26,23 @@ import type {
   SlidesLayout,
   SlideType,
 } from "../editor/renderers/slides-layout/types";
-import { useState } from "react";
+import { useAtom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 import { Tooltip } from "../ui/tooltip";
 import { Button } from "../ui/button";
 import { Kbd } from "../ui/kbd";
 import type { RuntimeCell } from "@/core/cells/types";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
 
 export const DEFAULT_SLIDE_TYPE: SlideType = "slide";
 export const DEFAULT_DECK_TRANSITION: DeckTransition = "slide";
 const COLLAPSED_CONFIG_WIDTH = 36;
+const slideConfigOpenAtom = atomWithStorage<boolean>(
+  "marimo:slides:config-open",
+  true,
+  jotaiJsonStorage,
+  { getOnInit: true },
+);
 
 export interface SlideTypeOption {
   value: SlideType;
@@ -322,7 +330,7 @@ export const SlideSidebar = ({
   setLayout: (layout: SlidesLayout) => void;
   activeConfigCell?: RuntimeCell;
 }) => {
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useAtom(slideConfigOpenAtom);
 
   return (
     <aside
@@ -350,7 +358,7 @@ export const SlideSidebar = ({
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-foreground"
-            onClick={() => setIsConfigOpen(!isConfigOpen)}
+            onClick={() => setIsConfigOpen((open) => !open)}
             aria-expanded={isConfigOpen}
             aria-controls="slide-config-panel"
           >

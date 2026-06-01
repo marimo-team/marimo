@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, TypeVar, Union
 
-from narwhals.typing import IntoDataFrame
+from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
 from marimo import _loggers
 from marimo._output.data import data as mo_data
@@ -69,8 +69,11 @@ TableData = Union[
     list[JSONType],
     ListOrTuple[Union[str, int, float, bool, MIME, None]],
     ListOrTuple[dict[str, JSONType]],
+    list[dict[str, Any]],
+    dict[str, list[Any]],
     dict[str, ListOrTuple[JSONType]],
     IntoDataFrame,
+    IntoLazyFrame,
 ]
 
 
