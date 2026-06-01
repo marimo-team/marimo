@@ -24,60 +24,94 @@ describe("storageNamespacePrefix", () => {
 
 describe("storageUrl", () => {
   it("should combine protocol, rootPath, and entryPath", () => {
-    expect(storageUrl("s3", "my-bucket", "data/file.csv")).toEqual(
-      new URL("s3://my-bucket/data/file.csv"),
-    );
+    expect(
+      storageUrl({
+        protocol: "s3",
+        rootPath: "my-bucket",
+        entryPath: "data/file.csv",
+      }),
+    ).toEqual(new URL("s3://my-bucket/data/file.csv"));
   });
 
   it("should handle empty rootPath", () => {
-    expect(storageUrl("s3", "", "marimo-artifacts/file.csv")).toEqual(
-      new URL("s3://marimo-artifacts/file.csv"),
-    );
+    expect(
+      storageUrl({
+        protocol: "s3",
+        rootPath: "",
+        entryPath: "marimo-artifacts/file.csv",
+      }),
+    ).toEqual(new URL("s3://marimo-artifacts/file.csv"));
   });
 
   it("should handle rootPath with trailing slash", () => {
-    expect(storageUrl("s3", "my-bucket/", "data/file.csv")).toEqual(
-      new URL("s3://my-bucket/data/file.csv"),
-    );
+    expect(
+      storageUrl({
+        protocol: "s3",
+        rootPath: "my-bucket/",
+        entryPath: "data/file.csv",
+      }),
+    ).toEqual(new URL("s3://my-bucket/data/file.csv"));
   });
 
   it("should handle entryPath with leading slash", () => {
-    expect(storageUrl("s3", "my-bucket", "/data/file.csv")).toEqual(
-      new URL("s3://my-bucket/data/file.csv"),
-    );
+    expect(
+      storageUrl({
+        protocol: "s3",
+        rootPath: "my-bucket",
+        entryPath: "/data/file.csv",
+      }),
+    ).toEqual(new URL("s3://my-bucket/data/file.csv"));
   });
 
   it("should collapse multiple slashes between rootPath and entryPath", () => {
-    expect(storageUrl("s3", "my-bucket/", "/data/file.csv")).toEqual(
-      new URL("s3://my-bucket/data/file.csv"),
-    );
+    expect(
+      storageUrl({
+        protocol: "s3",
+        rootPath: "my-bucket/",
+        entryPath: "/data/file.csv",
+      }),
+    ).toEqual(new URL("s3://my-bucket/data/file.csv"));
   });
 
   it("should handle directory paths with trailing slash", () => {
-    expect(storageUrl("gcs", "my-bucket", "data/")).toEqual(
-      new URL("gcs://my-bucket/data/"),
-    );
+    expect(
+      storageUrl({
+        protocol: "gcs",
+        rootPath: "my-bucket",
+        entryPath: "data/",
+      }),
+    ).toEqual(new URL("gcs://my-bucket/data/"));
   });
 
   it("should handle empty entryPath", () => {
-    expect(storageUrl("s3", "my-bucket", "")).toEqual(
-      new URL("s3://my-bucket"),
-    );
+    expect(
+      storageUrl({ protocol: "s3", rootPath: "my-bucket", entryPath: "" }),
+    ).toEqual(new URL("s3://my-bucket"));
   });
 
   it("should handle both rootPath and entryPath empty", () => {
-    expect(storageUrl("s3", "", "")).toEqual(new URL("s3://"));
+    expect(storageUrl({ protocol: "s3", rootPath: "", entryPath: "" })).toEqual(
+      new URL("s3://"),
+    );
   });
 
   it("should work with file protocol", () => {
-    expect(storageUrl("file", "/home/user", "docs/readme.md")).toEqual(
-      new URL("file:///home/user/docs/readme.md"),
-    );
+    expect(
+      storageUrl({
+        protocol: "file",
+        rootPath: "/home/user",
+        entryPath: "docs/readme.md",
+      }),
+    ).toEqual(new URL("file:///home/user/docs/readme.md"));
   });
 
   it("should work with nested rootPath", () => {
-    expect(storageUrl("s3", "bucket/prefix", "sub/file.txt")).toEqual(
-      new URL("s3://bucket/prefix/sub/file.txt"),
-    );
+    expect(
+      storageUrl({
+        protocol: "s3",
+        rootPath: "bucket/prefix",
+        entryPath: "sub/file.txt",
+      }),
+    ).toEqual(new URL("s3://bucket/prefix/sub/file.txt"));
   });
 });

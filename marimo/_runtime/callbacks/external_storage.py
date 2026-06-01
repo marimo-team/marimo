@@ -6,7 +6,10 @@ import os
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
-from marimo._data._external_storage.models import StorageBackend, StorageEntry
+from marimo._data._external_storage.models import (
+    StorageBackend,
+    StorageListResult,
+)
 from marimo._messaging.notification import (
     StorageDownloadReadyNotification,
     StorageEntriesNotification,
@@ -92,19 +95,23 @@ class ExternalStorageCallbacks:
             return
 
         # list_entries is synchronous, so we wrap it in asyncio.to_thread
-        def list_entries() -> list[StorageEntry]:
+        def list_entries() -> StorageListResult:
             return backend.list_entries(
-                prefix=request.prefix, limit=request.limit
+                prefix=request.prefix,
+                limit=request.limit,
+                page_token=request.page_token,
             )
 
         try:
-            entries = await asyncio.to_thread(list_entries)
+            result = await asyncio.to_thread(list_entries)
             broadcast_notification(
                 StorageEntriesNotification(
                     request_id=request.request_id,
-                    entries=entries,
+                    entries=result.entries,
                     namespace=request.namespace,
                     prefix=request.prefix,
+                    next_page_token=result.next_page_token,
+                    may_have_more=result.may_have_more,
                 ),
             )
         except Exception as e:

@@ -1,11 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import type { ReactNode } from "react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { storageAtom, useStorageEntries } from "../state";
+import {
+  storageAtom,
+  useStorageEntries,
+  useStoragePageFetcher,
+} from "../state";
 import type { StorageEntry, StorageState } from "../types";
 
 const mockRequest = vi.fn();
@@ -175,13 +179,155 @@ describe("useStorageEntries", () => {
 
   it("should store fetched entries in the atom", async () => {
     const entries = [makeEntry({ path: "new.txt" })];
-    mockRequest.mockResolvedValue({ entries });
+    mockRequest.mockResolvedValue({
+      entries,
+      next_page_token: "150",
+      may_have_more: true,
+    });
 
     renderHook(() => useStorageEntries("ns", "sub/"), { wrapper });
 
     await waitFor(() => {
       const state = store.get(storageAtom);
       expect(state.entriesByPath.get("ns::sub/")).toEqual(entries);
+      expect(state.pageMetadataByPath.get("ns::sub/")?.nextPageToken).toBe(
+        "150",
+      );
+      expect(state.pageMetadataByPath.get("ns::sub/")?.mayHaveMore).toBe(true);
+    });
+  });
+
+  it("should load more entries when a next page token exists", async () => {
+    const firstPage = [makeEntry({ path: "a.txt" })];
+    const secondPage = [makeEntry({ path: "b.txt" })];
+    mockRequest
+      .mockResolvedValueOnce({
+        entries: firstPage,
+        next_page_token: "150",
+        may_have_more: true,
+      })
+      .mockResolvedValueOnce({
+        entries: secondPage,
+        next_page_token: null,
+        may_have_more: true,
+      });
+
+    const { result } = renderHook(() => useStorageEntries("ns", "sub/"), {
+      wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.entries).toEqual(firstPage);
+    });
+    expect(result.current.hasMore).toBe(true);
+    expect(result.current.mayHaveMore).toBe(false);
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    expect(result.current.entries).toEqual([...firstPage, ...secondPage]);
+    expect(result.current.hasMore).toBe(false);
+    expect(result.current.mayHaveMore).toBe(true);
+    expect(mockRequest).toHaveBeenLastCalledWith({
+      namespace: "ns",
+      prefix: "sub/",
+      limit: 150,
+      pageToken: "150",
+    });
+  });
+
+  it("should ignore duplicate load more calls while a page is loading", async () => {
+    const firstPage = [makeEntry({ path: "a.txt" })];
+    const secondPage = [makeEntry({ path: "b.txt" })];
+    let resolveLoadMore!: (value: {
+      entries: StorageEntry[];
+      next_page_token: string | null;
+      may_have_more: boolean;
+    }) => void;
+    const loadMorePromise = new Promise<{
+      entries: StorageEntry[];
+      next_page_token: string | null;
+      may_have_more: boolean;
+    }>((resolve) => {
+      resolveLoadMore = resolve;
+    });
+    mockRequest
+      .mockResolvedValueOnce({
+        entries: firstPage,
+        next_page_token: "150",
+        may_have_more: true,
+      })
+      .mockReturnValueOnce(loadMorePromise);
+
+    const { result } = renderHook(() => useStorageEntries("ns", "sub/"), {
+      wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.entries).toEqual(firstPage);
+    });
+
+    await act(async () => {
+      const firstLoad = result.current.loadMore();
+      const secondLoad = result.current.loadMore();
+
+      expect(mockRequest).toHaveBeenCalledTimes(2);
+      resolveLoadMore({
+        entries: secondPage,
+        next_page_token: null,
+        may_have_more: false,
+      });
+      await Promise.all([firstLoad, secondLoad]);
+    });
+
+    expect(result.current.entries).toEqual([...firstPage, ...secondPage]);
+    expect(mockRequest).toHaveBeenCalledTimes(2);
+  });
+
+  it("should fetch arbitrary storage pages", async () => {
+    const firstPage = [makeEntry({ path: "folder/a.txt" })];
+    const secondPage = [makeEntry({ path: "folder/b.txt" })];
+    mockRequest
+      .mockResolvedValueOnce({
+        entries: firstPage,
+        next_page_token: "150",
+        may_have_more: false,
+      })
+      .mockResolvedValueOnce({
+        entries: secondPage,
+        next_page_token: null,
+        may_have_more: false,
+      });
+
+    const { result } = renderHook(() => useStoragePageFetcher(), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current({
+        namespace: "ns",
+        prefix: "folder/",
+      });
+    });
+    await act(async () => {
+      await result.current({
+        namespace: "ns",
+        prefix: "folder/",
+        pageToken: "150",
+        append: true,
+      });
+    });
+
+    expect(store.get(storageAtom).entriesByPath.get("ns::folder/")).toEqual([
+      ...firstPage,
+      ...secondPage,
+    ]);
+    expect(mockRequest).toHaveBeenLastCalledWith({
+      namespace: "ns",
+      prefix: "folder/",
+      limit: 150,
+      pageToken: "150",
     });
   });
 });

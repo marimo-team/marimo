@@ -15,16 +15,19 @@ from marimo._data._external_storage.models import (
     BackendType,
     StorageBackend,
     StorageEntry,
+    StorageListResult,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.assert_never import log_never
 from marimo._utils.dicts import remove_none_values
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from fsspec import (  # type: ignore[import-untyped]
         AbstractFileSystem,  # noqa: F401
     )
-    from obstore import ObjectMeta
+    from obstore import ListResult, ObjectMeta
     from obstore.store import (
         AzureConfig,
         AzureStore,
@@ -44,7 +47,20 @@ class Obstore(StorageBackend["ObjectStore"]):
         prefix: str | None,
         *,
         limit: int = DEFAULT_FETCH_LIMIT,
-    ) -> list[StorageEntry]:
+        page_token: str | None = None,
+    ) -> StorageListResult:
+        offset = _parse_page_offset(page_token)
+        storage_entries, may_have_more = self._list_storage_entries(prefix)
+        return _paginate_entries(
+            storage_entries,
+            offset=offset,
+            limit=limit,
+            may_have_more=may_have_more,
+        )
+
+    def _list_storage_entries(
+        self, prefix: str | None
+    ) -> tuple[list[StorageEntry], bool]:
         result = self.store.list_with_delimiter(prefix=prefix)
 
         storage_entries: list[StorageEntry] = []
@@ -71,15 +87,18 @@ class Obstore(StorageBackend["ObjectStore"]):
                 continue
             storage_entries.append(self._create_storage_entry(entry))
 
-        if len(storage_entries) > limit:
-            LOGGER.debug(
-                "Fetched %s entries, but limiting to %s",
-                len(storage_entries),
-                limit,
-            )
-            storage_entries = storage_entries[:limit]
+        return storage_entries, self._result_may_have_more(result)
 
-        return storage_entries
+    def _result_may_have_more(
+        self,
+        result: ListResult[Sequence[ObjectMeta]],
+    ) -> bool:
+        """Return whether an obstore delimiter listing may be provider-truncated."""
+        # Object stores commonly cap delimiter listings at 1000 returned entries.
+        # https://docs.rs/object_store/latest/object_store/struct.ListResult.html
+        LIMIT_ENTRIES = 1000
+        entry_count = len(result["common_prefixes"]) + len(result["objects"])
+        return entry_count >= LIMIT_ENTRIES
 
     async def get_entry(self, path: str) -> StorageEntry:
         entry = await self.store.head_async(path)
@@ -247,7 +266,13 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         prefix: str | None,
         *,
         limit: int = DEFAULT_FETCH_LIMIT,
-    ) -> list[StorageEntry]:
+        page_token: str | None = None,
+    ) -> StorageListResult:
+        offset = _parse_page_offset(page_token)
+        entries = self._list_storage_entries(prefix)
+        return _paginate_entries(entries, offset=offset, limit=limit)
+
+    def _list_storage_entries(self, prefix: str | None) -> list[StorageEntry]:
         # If no prefix provided, we use empty string to list root entries
         # Else, an error is raised
         if prefix is None:
@@ -262,15 +287,6 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
             )
             self._invalidate_listing_cache_for_prefix(prefix)
             files = self._list_files(prefix)
-
-        total_files = len(files)
-        if total_files > limit:
-            LOGGER.debug(
-                "Fetched %s files, but limiting to %s",
-                total_files,
-                limit,
-            )
-            files = files[:limit]
 
         storage_entries = []
         for file in files:
@@ -511,3 +527,44 @@ def detect_protocol_from_url(url: str) -> CLOUD_STORAGE_TYPES | None:
 def normalize_protocol(protocol: str) -> KNOWN_STORAGE_TYPES | None:
     """Normalize a protocol string (e.g. 's3a', 'gs', 'abfs') to a known storage type."""
     return _PROTOCOL_MAP.get(protocol.strip().lower())
+
+
+def _parse_page_offset(page_token: str | None) -> int:
+    if page_token is None:
+        return 0
+    try:
+        offset = int(page_token)
+    except ValueError as exc:
+        raise ValueError(f"Invalid storage page token: {page_token}") from exc
+    if offset < 0:
+        raise ValueError(f"Invalid storage page token: {page_token}")
+    return offset
+
+
+def _paginate_entries(
+    entries: list[StorageEntry],
+    *,
+    offset: int,
+    limit: int,
+    may_have_more: bool = False,
+) -> StorageListResult:
+    if limit < 1:
+        raise ValueError("Storage list limit must be positive")
+
+    total_entries = len(entries)
+    if total_entries > limit:
+        LOGGER.debug(
+            "Fetched %s entries, returning page offset %s with limit %s",
+            total_entries,
+            offset,
+            limit,
+        )
+
+    end = offset + limit
+    has_next_page = end < total_entries
+    next_page_token = str(end) if has_next_page else None
+    return StorageListResult(
+        entries=entries[offset:end],
+        next_page_token=next_page_token,
+        may_have_more=may_have_more,
+    )
