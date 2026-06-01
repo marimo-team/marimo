@@ -80,7 +80,8 @@ own workspace.
 From the molab user interface, you can add notebooks hosted on GitHub. These
 "synced" notebooks use GitHub as their source of truth: develop locally, push
 your changes, and see them reflected in molab automatically. Synced notebooks
-can be previewed statically or run on an ephemeral server.
+can be previewed statically, run on an ephemeral server, or run in the browser
+(and embedded in web pages) with WebAssembly.
 
 To create a synced notebook, use the new notebook dropdown button on the molab homepage, and paste the URL of a notebook hosted on GitHub.
 
