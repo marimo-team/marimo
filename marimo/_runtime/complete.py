@@ -5,7 +5,6 @@ import ast
 import html
 import re
 import sys
-import threading
 import time
 from collections.abc import Collection, Mapping
 from functools import lru_cache

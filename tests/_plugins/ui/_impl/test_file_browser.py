@@ -1232,3 +1232,141 @@ class TestSelectionModeAll:
         response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
         names = {f["name"] for f in response.files}
         assert names == {"sub"}
+
+
+class TestFilterParameter:
+    def test_filter_regex_string(self, tmp_path: Path) -> None:
+        """Regex string filter matches filenames."""
+        (tmp_path / "report_2024.csv").touch()
+        (tmp_path / "report_2025.csv").touch()
+        (tmp_path / "notes.txt").touch()
+
+        fb = file_browser(initial_path=tmp_path, filter=r"report_\d{4}\.csv")
+        response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+        names = {f["name"] for f in response.files if not f["is_directory"]}
+        assert names == {"report_2024.csv", "report_2025.csv"}
+        assert "notes.txt" not in names
+
+    def test_filter_compiled_pattern(self, tmp_path: Path) -> None:
+        """Compiled re.Pattern works the same as a string."""
+        import re as _re
+
+        (tmp_path / "train.parquet").touch()
+        (tmp_path / "test.parquet").touch()
+        (tmp_path / "readme.md").touch()
+
+        pattern = _re.compile(r"\.(parquet)$", _re.IGNORECASE)
+        fb = file_browser(initial_path=tmp_path, filter=pattern)
+        response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+        names = {f["name"] for f in response.files if not f["is_directory"]}
+        assert names == {"train.parquet", "test.parquet"}
+
+    def test_filter_callable(self, tmp_path: Path) -> None:
+        """Callable filter receives a Path and returns bool."""
+        (tmp_path / "big_file.bin").write_bytes(b"x" * 100)
+        (tmp_path / "small_file.bin").write_bytes(b"x" * 10)
+        (tmp_path / "tiny.txt").write_bytes(b"hi")
+
+        fb = file_browser(
+            initial_path=tmp_path,
+            filter=lambda p: p.stat().st_size >= 50,
+        )
+        response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+        names = {f["name"] for f in response.files if not f["is_directory"]}
+        assert names == {"big_file.bin"}
+
+    def test_filter_callable_oserror_is_isolated(self, tmp_path: Path) -> None:
+        """A callable that raises OSError on one file must not crash the listing.
+
+        The offending file is treated as "no match" and the rest of the
+        directory is still returned (e.g. a broken symlink shouldn't hide the
+        other files).
+        """
+        (tmp_path / "good.txt").touch()
+        (tmp_path / "bad.txt").touch()
+
+        def flaky(path: Path) -> bool:
+            if path.name == "bad.txt":
+                raise OSError("broken symlink")
+            return True
+
+        fb = file_browser(initial_path=tmp_path, filter=flaky)
+        response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+        names = {f["name"] for f in response.files if not f["is_directory"]}
+        assert names == {"good.txt"}
+
+    def test_filter_callable_non_oserror_propagates(
+        self, tmp_path: Path
+    ) -> None:
+        """A non-OSError from the filter callable propagates (not swallowed)."""
+        (tmp_path / "file.txt").touch()
+
+        def boom(_path: Path) -> bool:
+            raise ValueError("programming error")
+
+        fb = file_browser(initial_path=tmp_path, filter=boom)
+        with pytest.raises(ValueError, match="programming error"):
+            fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    def test_filter_does_not_hide_directories(self, tmp_path: Path) -> None:
+        """Directories are always shown regardless of filter."""
+        sub = tmp_path / "subdir"
+        sub.mkdir()
+        (tmp_path / "file.txt").touch()
+
+        fb = file_browser(initial_path=tmp_path, filter=r"\.csv$")
+        response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+        names = {f["name"] for f in response.files}
+        assert "subdir" in names
+        assert "file.txt" not in names
+
+    def test_filter_and_filetypes_both_applied(self, tmp_path: Path) -> None:
+        """filter and filetypes must both match (AND semantics)."""
+        (tmp_path / "train_v1.csv").touch()
+        (tmp_path / "train_v2.csv").touch()
+        (tmp_path / "test_v1.csv").touch()
+        (tmp_path / "train_v1.txt").touch()
+
+        fb = file_browser(
+            initial_path=tmp_path,
+            filetypes=[".csv"],
+            filter=r"^train_",
+        )
+        response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+        names = {f["name"] for f in response.files if not f["is_directory"]}
+        assert names == {"train_v1.csv", "train_v2.csv"}
+
+    def test_filter_none_shows_all_files(self, tmp_path: Path) -> None:
+        """Default filter=None does not restrict files."""
+        (tmp_path / "a.csv").touch()
+        (tmp_path / "b.txt").touch()
+
+        fb = file_browser(initial_path=tmp_path, filter=None)
+        response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+        names = {f["name"] for f in response.files if not f["is_directory"]}
+        assert names == {"a.csv", "b.txt"}
+
+    def test_filter_invalid_type_raises(self, tmp_path: Path) -> None:
+        """Non-string/pattern/callable raises ValueError."""
+        with pytest.raises((ValueError, TypeError)):
+            file_browser(initial_path=tmp_path, filter=123)  # type: ignore[arg-type]
+
+    def test_filter_with_ignore_empty_dirs(self, tmp_path: Path) -> None:
+        """ignore_empty_dirs respects the filter when scanning recursively."""
+        matched_dir = tmp_path / "matched"
+        matched_dir.mkdir()
+        (matched_dir / "data.csv").touch()
+
+        unmatched_dir = tmp_path / "unmatched"
+        unmatched_dir.mkdir()
+        (unmatched_dir / "notes.txt").touch()
+
+        fb = file_browser(
+            initial_path=tmp_path,
+            filter=r"\.csv$",
+            ignore_empty_dirs=True,
+        )
+        response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+        dir_names = {f["name"] for f in response.files if f["is_directory"]}
+        assert "matched" in dir_names
+        assert "unmatched" not in dir_names

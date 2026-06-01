@@ -1253,6 +1253,13 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
   config,
   onSubmit,
 }) => {
+  // Tracked locally rather than derived from the field value so that clearing
+  // the input (a transient empty value, which commits `null`) does not disable
+  // the input mid-edit and force the user to re-tick the Override checkbox.
+  const [maxTokensEnabled, setMaxTokensEnabled] = useState(
+    config.ai?.max_tokens != null,
+  );
+
   return (
     <SettingGroup>
       <SettingSubtitle>AI Assistant</SettingSubtitle>
@@ -1277,6 +1284,71 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
             </FormDescription>
           </div>
         )}
+      />
+
+      <FormField
+        control={form.control}
+        name="ai.max_tokens"
+        render={({ field }) => {
+          return (
+            <div className="flex flex-col gap-y-1">
+              <div className="flex items-center gap-x-2">
+                <FormItem className={formItemClasses}>
+                  <FormLabel className="font-normal">
+                    Max output tokens
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      data-testid="ai-max-tokens-input"
+                      type="number"
+                      min={1}
+                      disabled={!maxTokensEnabled}
+                      className="w-28 h-6"
+                      value={field.value ?? (maxTokensEnabled ? "" : 32768)}
+                      onChange={(e) => {
+                        const n = Number.parseInt(e.target.value, 10);
+                        field.onChange(Number.isFinite(n) && n > 0 ? n : null);
+                      }}
+                    />
+                  </FormControl>
+                </FormItem>
+                <FormItem className={formItemClasses}>
+                  <Checkbox
+                    data-testid="ai-max-tokens-checkbox"
+                    checked={maxTokensEnabled}
+                    onCheckedChange={(checked) => {
+                      const isChecked = checked === true;
+                      setMaxTokensEnabled(isChecked);
+                      // null signals delete to the server; cast because
+                      // UserConfig (OpenAPI-derived) types max_tokens as
+                      // `number | undefined`, but zod accepts `null`.
+                      const next = (
+                        isChecked ? (field.value ?? 32768) : null
+                      ) as number | undefined;
+                      // shouldDirty: true forces RHF to keep this in
+                      // dirtyFields even when `next` happens to equal the
+                      // form's defaultValue (e.g. untick → tick when disk
+                      // started with 32768). Otherwise getDirtyValues
+                      // would skip it and the save body would be empty.
+                      form.setValue("ai.max_tokens", next, {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                      });
+                      onSubmit(form.getValues());
+                    }}
+                  />
+                  <FormLabel className="font-normal">Override</FormLabel>
+                </FormItem>
+              </div>
+
+              <FormDescription>
+                Each provider sets its own max output tokens (Anthropic uses a
+                recommended default). Adjust to control costs or enable more
+                output.
+              </FormDescription>
+            </div>
+          );
+        }}
       />
 
       <FormErrorsBanner />

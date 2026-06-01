@@ -15,7 +15,7 @@ from marimo._config.config import (
     MarimoConfig,
     PartialMarimoConfig,
 )
-from marimo._server.ai.constants import DEFAULT_MAX_TOKENS, DEFAULT_MODEL
+from marimo._server.ai.constants import DEFAULT_MODEL
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
@@ -346,11 +346,9 @@ def get_autocomplete_model(
     )
 
 
-def get_max_tokens(config: MarimoConfig) -> int:
-    if "ai" not in config:
-        return DEFAULT_MAX_TOKENS
-    if "max_tokens" not in config["ai"]:
-        return DEFAULT_MAX_TOKENS
+def get_max_tokens(config: MarimoConfig) -> int | None:
+    if "ai" not in config or "max_tokens" not in config["ai"]:
+        return None
     return config["ai"]["max_tokens"]
 
 

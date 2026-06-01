@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import functools
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -14,7 +13,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
 from narwhals.typing import IntoDataFrame
 
@@ -78,7 +77,7 @@ from marimo._utils.narwhals_utils import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Sequence
 
     from narwhals.typing import IntoLazyFrame
 
@@ -545,7 +544,10 @@ class table(
         data: ListOrTuple[str | int | float | bool | MIME | None]
         | ListOrTuple[dict[str, JSONType]]
         | dict[str, ListOrTuple[JSONType]]
-        | IntoDataFrame,
+        | list[dict[str, Any]]
+        | dict[str, list[Any]]
+        | IntoDataFrame
+        | IntoLazyFrame,
         pagination: bool | None = None,
         selection: Literal["single", "multi", "single-cell", "multi-cell"]
         | None = "multi",

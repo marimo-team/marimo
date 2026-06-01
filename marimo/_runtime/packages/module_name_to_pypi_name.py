@@ -704,7 +704,6 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "sphinx_pypi_upload": "ATD-document",
         "sphinxcontrib": "sphinxcontrib-programoutput",
         "sqlalchemy": "SQLAlchemy",
-        "src": "auto-mix-prep",
         "stats_toolkit": "bw-stats-toolkit",
         "statsd": "dogstatsd-python",
         "stdnum": "python-stdnum",

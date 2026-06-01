@@ -15,7 +15,7 @@ If you want to add a new LLM model or provider, you can do so by editing the YAM
 
 ## Syncing from `models.dev`
 
-`pnpm sync-models` appends latest models from [`models.dev`](https://models.dev/api.json) to `models.yml`. Existing entries are preserved. Run `pnpm codegen` afterwards.
+`pnpm sync-models` adds the latest models from [`models.dev`](https://models.dev/api.json) to the top of each provider section in `models.yml`. Existing entries are preserved. Run `pnpm codegen` afterwards.
 
 ```bash
 pnpm sync-models                          # all providers, 10 newest each

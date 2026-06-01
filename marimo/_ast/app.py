@@ -66,7 +66,6 @@ from marimo._schemas.serialization import (
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
     from types import FrameType, TracebackType
     from typing import TypeGuard
 
