@@ -4,12 +4,17 @@ from __future__ import annotations
 import json
 import sys
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.lists import first
+from tests._server.api.endpoints.ws_helpers import (
+    HEADERS as WS_HEADERS,
+    assert_kernel_ready_response,
+    create_response,
+)
 from tests._server.mocks import (
     get_session_manager,
     token_header,
@@ -18,7 +23,7 @@ from tests._server.mocks import (
 )
 
 if TYPE_CHECKING:
-    from starlette.testclient import TestClient
+    from starlette.testclient import TestClient, WebSocketTestSession
 
 SESSION_ID = SessionId("session-123")
 HEADERS = {
@@ -544,3 +549,52 @@ def get_printed_object(
         pytest.fail(f"Console is an error: {console.data}")
     assert isinstance(console.data, str)
     return json.loads(console.data)
+
+
+def _receive_until(op: str, websocket: WebSocketTestSession) -> dict[str, Any]:
+    while True:
+        data = websocket.receive_json()
+        if data["op"] == op:
+            return data
+
+
+def test_takeover_transfers_edit_without_disconnect(
+    client: TestClient,
+) -> None:
+    with client.websocket_connect(
+        "/ws?session_id=ed1", headers=WS_HEADERS
+    ) as editor:
+        assert_kernel_ready_response(editor.receive_json())
+        with client.websocket_connect(
+            "/ws?session_id=vw1", headers=WS_HEADERS
+        ) as viewer:
+            assert_kernel_ready_response(
+                viewer.receive_json(),
+                create_response(
+                    {
+                        "kiosk": True,
+                        "resumed": True,
+                        "consumer_capabilities": {
+                            "edit": False,
+                            "interact": False,
+                        },
+                    }
+                ),
+            )
+
+            resp = client.post(
+                "/api/kernel/takeover",
+                headers={**WS_HEADERS, "Marimo-Session-Id": "vw1"},
+            )
+            assert resp.status_code == 200, resp.text
+
+            ed = _receive_until("consumer-capabilities-changed", editor)
+            vw = _receive_until("consumer-capabilities-changed", viewer)
+            assert ed["data"]["consumer_capabilities"] == {
+                "edit": False,
+                "interact": False,
+            }
+            assert vw["data"]["consumer_capabilities"] == {
+                "edit": True,
+                "interact": True,
+            }
