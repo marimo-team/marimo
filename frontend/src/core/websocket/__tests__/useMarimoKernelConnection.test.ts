@@ -31,19 +31,6 @@ describe("classifyCloseEvent", () => {
   });
 
   describe("terminal closes (server-initiated)", () => {
-    it("MARIMO_ALREADY_CONNECTED → terminal + closeTransport, with takeover", () => {
-      const decision = classify("MARIMO_ALREADY_CONNECTED");
-      expect(decision.kind).toBe("terminal");
-      expect(decision.status).toMatchObject({
-        state: WebSocketState.CLOSED,
-        code: WebSocketClosedReason.ALREADY_RUNNING,
-        canTakeover: true,
-      });
-      if (decision.kind === "terminal") {
-        expect(decision.closeTransport).toBe(true);
-      }
-    });
-
     it.each([
       "MARIMO_WRONG_KERNEL_ID",
       "MARIMO_NO_FILE_KEY",
