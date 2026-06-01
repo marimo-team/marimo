@@ -19,6 +19,10 @@ from marimo._convert.common.filename import (
     make_download_headers,
 )
 from marimo._convert.markdown import convert_from_ir_to_markdown
+from marimo._convert.markdown.flavor import (
+    markdown_output_filename,
+    normalize_markdown_flavor,
+)
 from marimo._convert.script import convert_from_ir_to_script
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
@@ -43,12 +47,30 @@ from marimo._utils.http import HTTPStatus
 if TYPE_CHECKING:
     from starlette.requests import Request
 
+    from marimo._schemas.serialization import NotebookSerializationV1
+
 LOGGER = _loggers.marimo_logger()
 
 # Router for export endpoints
 router = APIRouter()
 
 auto_exporter = AutoExporter()
+
+
+def _export_markdown(
+    notebook: NotebookSerializationV1, filename: str | None
+) -> tuple[str, str]:
+    export_filename = filename or notebook.filename
+    markdown_flavor = normalize_markdown_flavor(
+        None, filename=export_filename or "notebook.md"
+    )
+    markdown = convert_from_ir_to_markdown(
+        notebook, filename=export_filename, flavor=markdown_flavor
+    )
+    return (
+        markdown,
+        markdown_output_filename(export_filename, markdown_flavor),
+    )
 
 
 @router.post("/html")
@@ -277,12 +299,11 @@ async def export_as_markdown(
             detail="File must be saved before downloading",
         )
 
-    markdown = convert_from_ir_to_markdown(app_file_manager.app.to_ir())
+    markdown, download_filename = _export_markdown(
+        app_file_manager.app.to_ir(), app_file_manager.filename
+    )
 
     if body.download:
-        download_filename = get_download_filename(
-            app_file_manager.filename, "md"
-        )
         headers = make_download_headers(download_filename)
     else:
         headers = {}
