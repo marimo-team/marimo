@@ -15,11 +15,13 @@ import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import {
   BotMessageSquareIcon,
   HatGlasses,
+  ArrowRightIcon,
   Loader2,
   type LucideIcon,
   MessageCircleIcon,
   NotebookText,
   PlusIcon,
+  SparklesIcon,
   SettingsIcon,
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
@@ -53,11 +55,13 @@ import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
+import { isWasm } from "@/core/wasm/utils";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
+import { PairWithAgentModal } from "../editor/actions/pair-with-agent-modal";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import {
   addContextCompletion,
@@ -65,6 +69,7 @@ import {
 } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
+import { useImperativeModal } from "../modal/ImperativeModal";
 import { MCPStatusIndicator } from "../mcp/mcp-status-indicator";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import {
@@ -416,6 +421,26 @@ const ChatInput: React.FC<ChatInputProps> = memo(
 
 ChatInput.displayName = "ChatInput";
 
+const PairWithAgentCallout: React.FC<{
+  onPairWithAgent: () => void;
+}> = ({ onPairWithAgent }) => {
+  if (isWasm()) {
+    return null;
+  }
+
+  return (
+    <Button
+      variant="text"
+      className="gap-1.5 text-sm text-link hover:underline"
+      onClick={onPairWithAgent}
+    >
+      <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
+      <span>Work on this notebook with your own agent</span>
+      <ArrowRightIcon className="h-3 w-3 shrink-0" />
+    </Button>
+  );
+};
+
 const ChatPanel = () => {
   const aiConfigured = useAtomValue(aiEnabledAtom);
   const { handleClick } = useOpenSettingsToTab();
@@ -455,6 +480,7 @@ const ChatPanelBody = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool, sendRun } = useRequestClient();
+  const { openModal, closeModal } = useImperativeModal();
 
   const activeChatId = activeChat?.id;
   const store = useStore();
@@ -614,6 +640,10 @@ const ChatPanelBody = () => {
     clearFiles();
   });
 
+  const handlePairWithAgent = useEvent(() => {
+    openModal(<PairWithAgentModal onClose={closeModal} />);
+  });
+
   const handleMessageEdit = useEvent((index: number, newValue: string) => {
     const editedMessage = messages[index];
     const fileParts = editedMessage.parts?.filter((p) => p.type === "file");
@@ -724,9 +754,12 @@ const ChatPanelBody = () => {
         ref={scrollContainerRef}
       >
         {isNewThread && (
-          <div className="rounded-md border bg-background">
-            {filesPills}
-            {chatInput}
+          <div className="flex flex-col gap-2">
+            <div className="rounded-md border bg-background">
+              {filesPills}
+              {chatInput}
+            </div>
+            <PairWithAgentCallout onPairWithAgent={handlePairWithAgent} />
           </div>
         )}
 
