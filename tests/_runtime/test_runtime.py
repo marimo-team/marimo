@@ -877,7 +877,9 @@ except NameError:
     async def test_import_module_as_local_var(
         self, any_kernel: Kernel
     ) -> None:
-        # Tests that imported names are mangled but still usable
+        # Imports are never mangled (see `_get_alias_name`) and are
+        # exposed as graph defs even when underscore-prefixed, so they
+        # can be referenced across cells.
         k = any_kernel
         await k.run(
             [
@@ -887,9 +889,50 @@ except NameError:
                 ),
             ]
         )
-        # _sys mangled, should not be in globals
-        assert "_sys" not in k.globals
         assert k.globals["msize"] == sys.maxsize
+        assert "_sys" in k.graph.cells["0"].defs
+
+    async def test_underscore_prefixed_import_in_cell(
+        self, any_kernel: Kernel
+    ) -> None:
+        # An underscore-prefixed `from x import _y` in a single cell
+        # must resolve when used in the same cell.
+        k = any_kernel
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code=(
+                        "from marimo import _output\nmsg = _output.md.md('hi')"
+                    ),
+                ),
+            ]
+        )
+        assert not k.errors, k.errors
+        assert "hi" in k.globals["msg"].text
+
+    async def test_underscore_prefixed_import_across_cells(
+        self, k: Kernel
+    ) -> None:
+        # Cross-cell: one cell does `from x import _y`, another uses
+        # `_y`. The consumer resolves at runtime via shared globals
+        # (the importer ran first). No reactive edge is created — the
+        # consumer is not in the importer's children — so editing the
+        # importer won't automatically re-run the consumer. We accept
+        # that trade-off rather than promoting every undefined
+        # underscore Load to a cross-cell ref.
+        importer = ExecuteCellCommand(
+            cell_id="0",
+            code="from marimo import _output",
+        )
+        consumer = ExecuteCellCommand(
+            cell_id="1",
+            code="msg = _output.md.md('cross')",
+        )
+        await k.run([importer, consumer])
+        assert not k.errors, k.errors
+        assert "cross" in k.globals["msg"].text
+        assert "1" not in k.graph.children.get("0", set())
 
     async def test_cell_transitioned_to_error_is_not_stale(
         self, lazy_kernel: Kernel
