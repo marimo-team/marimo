@@ -26,6 +26,10 @@ export function createStaticRequests(): EditRequests & RunRequests {
       Logger.log("Viewing as static notebook");
       return null;
     },
+    sendUpdateQueryParams: async () => {
+      Logger.log("Query params not updated in static mode");
+      return null;
+    },
     sendFunctionRequest: async () => {
       toast({
         title: "Static notebook",

@@ -421,6 +421,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  sendUpdateQueryParams: RunRequests["sendUpdateQueryParams"] = async (
+    request,
+  ) => {
+    await this.putControlRequest({
+      type: "update-query-params",
+      ...request,
+    });
+    return null;
+  };
+
   sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (request) => {
     await this.putControlRequest({
       type: "invoke-function",

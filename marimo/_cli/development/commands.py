@@ -341,6 +341,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         snippets.Snippet,
         snippets.Snippets,
         commands.UpdateUIElementCommand,
+        commands.UpdateQueryParamsCommand,
         # Requests/responses
         completion.VariableContext,
         completion.SchemaColumn,
@@ -454,6 +455,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.NotebookDocumentTransactionRequest,
         models.FocusCellRequest,
         models.UpdateUIElementValuesRequest,
+        models.UpdateQueryParamsRequest,
         models.UpdateUIElementRequest,
         models.UpdateUserConfigRequest,
         models.ModelRequest,

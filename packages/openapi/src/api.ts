@@ -2604,6 +2604,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/update_query_params": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["UpdateQueryParamsRequest"];
+        };
+      };
+      responses: {
+        /** @description Update query parameters from browser navigation */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/lsp/health": {
     parameters: {
       query?: never;
@@ -4938,6 +4979,7 @@ export interface components {
         | components["schemas"]["UpdateCellConfigCommand"]
         | components["schemas"]["InstallPackagesCommand"]
         | components["schemas"]["UpdateUIElementCommand"]
+        | components["schemas"]["UpdateQueryParamsCommand"]
         | components["schemas"]["ModelCommand"]
         | components["schemas"]["InvokeFunctionCommand"]
         | components["schemas"]["UpdateUserConfigCommand"]
@@ -6607,6 +6649,29 @@ export interface components {
           ),
           unknown,
         ];
+      };
+    };
+    /**
+     * UpdateQueryParamsCommand
+     * @description Update query parameters from browser navigation.
+     *
+     *         Triggered when user navigates using browser back/forward buttons.
+     *         Updates query params state and re-executes dependent cells.
+     *
+     *         Attributes:
+     *             query_params: New query parameter values from URL.
+     */
+    UpdateQueryParamsCommand: {
+      queryParams: {
+        [key: string]: string | string[];
+      };
+      /** @enum {unknown} */
+      type: "update-query-params";
+    };
+    /** UpdateQueryParamsRequest */
+    UpdateQueryParamsRequest: {
+      queryParams: {
+        [key: string]: string | string[];
       };
     };
     /**
