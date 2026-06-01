@@ -413,12 +413,16 @@ export function goToVariableDefinition(
   view: EditorView,
   variableName: string,
   usagePosition?: number,
+  fallbackToFirstMatch = true,
 ): boolean {
   const { state } = view;
   const from =
     (usagePosition !== undefined
       ? findScopedDefinitionPosition(state, variableName, usagePosition)
-      : null) ?? findFirstMatchingVariable(state, variableName);
+      : null) ??
+    (fallbackToFirstMatch
+      ? findFirstMatchingVariable(state, variableName)
+      : null);
 
   if (from === null) {
     return false;
