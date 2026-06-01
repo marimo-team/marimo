@@ -15,6 +15,7 @@ from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
     MarimoConfig,
+    SharingConfig,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.utils import deep_copy
@@ -102,12 +103,13 @@ class Exporter:
         session_view: SessionView,
         display_config: DisplayConfig,
         request: ExportAsHTMLRequest,
+        sharing_config: SharingConfig | None = None,
     ) -> tuple[str, str]:
         index_html = get_html_contents()
         filename = get_filename(filename)
 
-        # Configure notebook with display settings
-        config = self._prepare_display_config(display_config)
+        # Configure notebook with display and sharing settings
+        config = self._prepare_display_config(display_config, sharing_config)
 
         # Serialize notebook state
         session_snapshot = serialize_session_view(
@@ -165,15 +167,15 @@ class Exporter:
         return html, download_filename
 
     def _prepare_display_config(
-        self, display_config: DisplayConfig
+        self,
+        display_config: DisplayConfig,
+        sharing_config: SharingConfig | None = None,
     ) -> MarimoConfig:
-        """Prepare config with display settings for static notebook."""
-        # We only want pass the display config in the static notebook,
-        # since we use:
-        # - display.theme
-        # - display.cell_output
+        """Prepare config with display and sharing settings for static notebook."""
         config = deep_copy(DEFAULT_CONFIG)
         config["display"] = display_config
+        if sharing_config:
+            config["sharing"] = sharing_config  # type: ignore[typeddict-item]
         return cast(MarimoConfig, config)
 
     @staticmethod
@@ -396,14 +398,13 @@ class Exporter:
         asset_url: str | None = None,
         session_snapshot: NotebookSessionV1 | None = None,
         notebook_snapshot: NotebookV1 | None = None,
+        sharing_config: SharingConfig | None = None,
     ) -> tuple[str, str]:
         """Export notebook as a WASM-powered standalone HTML file."""
         index_html = get_html_contents()
         filename = get_filename(filename)
 
-        # We only want to pass the display config in the static notebook
-        config: MarimoConfig = deep_copy(DEFAULT_CONFIG)
-        config["display"] = display_config
+        config = self._prepare_display_config(display_config, sharing_config)
         # Remove autosave
         config["save"]["autosave"] = "off"
 
