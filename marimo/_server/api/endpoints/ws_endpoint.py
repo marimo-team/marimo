@@ -395,11 +395,6 @@ class WebSocketHandler(SessionConsumer):
         )
         LOGGER.debug("Existing sessions: %s", self.manager.sessions)
 
-        # Check if connection is allowed
-        if not self._can_connect():
-            await self._close_already_connected()
-            return
-
         # Use SessionConnector to establish session connection
         connector = SessionConnector(
             manager=self.manager,
@@ -434,24 +429,6 @@ class WebSocketHandler(SessionConsumer):
         except asyncio.CancelledError:
             LOGGER.debug("Websocket terminated with CancelledError")
 
-    def _can_connect(self) -> bool:
-        """Check if this connection is allowed.
-
-        Only one frontend can be connected at a time in edit mode,
-        if RTC is not enabled.
-        """
-        if (
-            self.manager.mode == SessionMode.EDIT
-            and self.manager.any_clients_connected(self.params.file_key)
-            and not self.params.kiosk
-            and not self.params.rtc_enabled
-        ):
-            LOGGER.debug(
-                "Refusing connection; a frontend is already connected."
-            )
-            return False
-        return True
-
     async def _safe_close(self, code: int, reason: str) -> None:
         """Close the WebSocket, ignoring errors from uninitialized state.
 
@@ -469,14 +446,6 @@ class WebSocketHandler(SessionConsumer):
                 "Ignoring AttributeError during websocket close: "
                 "missing transfer_data_task",
                 exc_info=True,
-            )
-
-    async def _close_already_connected(self) -> None:
-        """Close the WebSocket with an 'already connected' error."""
-        if self.websocket.application_state is WebSocketState.CONNECTED:
-            await self._safe_close(
-                WebSocketCodes.ALREADY_CONNECTED,
-                "MARIMO_ALREADY_CONNECTED",
             )
 
     async def _close_kernel_startup_error(self, error_message: str) -> None:

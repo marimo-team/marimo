@@ -74,6 +74,31 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             }
 
 
+def test_second_edit_connection_joins_as_viewer(client: TestClient) -> None:
+    with client.websocket_connect(
+        "/ws?session_id=ed1", headers=_HEADERS
+    ) as editor:
+        assert_kernel_ready_response(editor.receive_json())
+
+        with client.websocket_connect(
+            "/ws?session_id=vw1", headers=_HEADERS
+        ) as viewer:
+            data = viewer.receive_json()
+            assert_kernel_ready_response(
+                data,
+                create_response(
+                    {
+                        "kiosk": True,
+                        "resumed": True,
+                        "consumer_capabilities": {
+                            "edit": False,
+                            "interact": False,
+                        },
+                    }
+                ),
+            )
+
+
 def _receive_until(op: str, websocket: WebSocketTestSession) -> dict[str, Any]:
     while True:
         data = websocket.receive_json()
