@@ -22,6 +22,12 @@ export interface Figure {
   frames: PlotlyTypes.Frame[] | null;
 }
 
+export interface SelectedPoint {
+  curveNumber?: unknown;
+  pointIndex?: unknown;
+  pointNumber?: unknown;
+}
+
 export interface PlotProps {
   data: PlotlyTypes.Data[];
   layout: Partial<PlotlyTypes.Layout>;
@@ -31,6 +37,9 @@ export interface PlotProps {
   style?: React.CSSProperties;
   useResizeHandler?: boolean;
   divId?: string;
+  hasSelection?: boolean;
+  selectedPoints?: ReadonlyArray<SelectedPoint>;
+  layoutSelections?: ReadonlyArray<unknown>;
   onRelayout?: (event: PlotlyTypes.PlotRelayoutEvent) => void;
   onRelayouting?: (event: PlotlyTypes.PlotRelayoutEvent) => void;
   onSelected?: (event: PlotlyTypes.PlotSelectionEvent) => void;
@@ -135,6 +144,121 @@ export const Plot = (props: PlotProps) => {
     },
     EVENT_NAMES.map((name) => props[propName(name)]),
   );
+
+  // Escape = clear selection. Plotly only supports double-click, so we wire up
+  // the keyboard shortcut: clear per-point highlights, remove box/lasso
+  // overlays, then notify the plugin to reset state.
+  const { hasSelection, selectedPoints, layoutSelections, onDeselect } = props;
+  useEffect(() => {
+    if (!hasSelection || !onDeselect) {
+      return;
+    }
+    const el = containerRef.current;
+    if (!el) {
+      return;
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) {
+        return;
+      }
+      // Don't hijack Escape from text editors elsewhere on the page
+      // (e.g. CodeMirror notebook cells, inputs, search boxes).
+      const active = document.activeElement;
+      if (active instanceof HTMLElement) {
+        const tag = active.tagName;
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT" ||
+          active.isContentEditable
+        ) {
+          return;
+        }
+        // With multiple plots on the page, only clear the one whose
+        // container holds focus. A bare-body activeElement means nothing
+        // in particular is focused, in which case it's fine to clear.
+        if (active !== document.body && !el.contains(active)) {
+          return;
+        }
+      }
+      Plotly.restyle(el, "selectedpoints", null).catch(() => {});
+      Plotly.relayout(el, "selections", null).catch(() => {});
+      onDeselect();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [hasSelection, onDeselect]);
+
+  // Sync selection visuals to Plotly in one atomic `Plotly.update` pass, so
+  // we don't race Plotly's own click animation.
+  //
+  // `selectedpoints` per trace: null = normal render, [] = all greyed,
+  // [i…] = those highlighted, rest greyed. Plotly's default click handling
+  // only updates the clicked trace, so we explicitly set [] on all others to
+  // grey them out. `layout.selections` is cleared whenever the plugin has no
+  // active overlay, otherwise the box/lasso outline sticks around.
+  //
+  // When the plugin is not managing selection state at all (both props
+  // undefined) we leave Plotly alone — the figure may carry persistent
+  // `layout.selections` or per-trace `selectedpoints` that belong to the
+  // user, and wiping them would contradict the figure they passed in.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) {
+      return;
+    }
+    if (!data.length) {
+      return;
+    }
+    if (selectedPoints === undefined && layoutSelections === undefined) {
+      return;
+    }
+
+    const traceIndices = data.map((_, i) => i);
+    const traceUpdate: Partial<PlotlyTypes.Data> = {};
+    if (selectedPoints !== undefined) {
+      const byTrace = new Map<number, number[]>();
+      for (const point of selectedPoints) {
+        const curve =
+          typeof point.curveNumber === "number" ? point.curveNumber : undefined;
+        if (curve === undefined) {
+          continue;
+        }
+        const pointIdx =
+          typeof point.pointIndex === "number"
+            ? point.pointIndex
+            : typeof point.pointNumber === "number"
+              ? point.pointNumber
+              : undefined;
+        if (pointIdx === undefined) {
+          continue;
+        }
+        const indices = byTrace.get(curve) ?? [];
+        indices.push(pointIdx);
+        byTrace.set(curve, indices);
+      }
+      const anySelection = byTrace.size > 0;
+      const emptyFill: number[] | null = anySelection ? [] : null;
+      (traceUpdate as { selectedpoints: (number[] | null)[] }).selectedpoints =
+        traceIndices.map((i) => byTrace.get(i) ?? emptyFill);
+    }
+
+    const layoutUpdate: Partial<PlotlyTypes.Layout> = {};
+    if (layoutSelections !== undefined) {
+      const hasActiveOverlay =
+        Array.isArray(layoutSelections) && layoutSelections.length > 0;
+      if (!hasActiveOverlay) {
+        // `null` removes the attribute; cast because Layout's type omits it.
+        (layoutUpdate as { selections: null }).selections = null;
+      }
+    }
+
+    Plotly.update(el, traceUpdate, layoutUpdate, traceIndices).catch(() => {});
+  }, [selectedPoints, layoutSelections, data]);
 
   // Window resize handler
   useEffect(() => {
