@@ -39,6 +39,43 @@ afterEach(() => {
 });
 
 describe("goToDefinitionAtCursorPosition", () => {
+  test("jumps to a reactive variable definition in another cell", async () => {
+    const definingCell = cellId("defining-cell");
+    const usageCell = cellId("usage-cell");
+    const definingCode = "a = 10";
+    const usageCode = "print(a)";
+
+    const definingView = createEditor(definingCode, definingCode.length);
+    const usageView = createEditor(usageCode, usageCode.indexOf("a"));
+    views.push(definingView, usageView);
+
+    const notebook = initialNotebookState();
+    notebook.cellHandles[definingCell] = {
+      current: { editorView: definingView, editorViewOrNull: definingView },
+    };
+    notebook.cellHandles[usageCell] = {
+      current: { editorView: usageView, editorViewOrNull: usageView },
+    };
+
+    store.set(notebookAtom, notebook);
+    store.set(variablesAtom, {
+      [variableName("a")]: {
+        dataType: "int",
+        declaredBy: [definingCell],
+        name: variableName("a"),
+        usedBy: [usageCell],
+        value: "10",
+      },
+    });
+
+    const result = goToDefinitionAtCursorPosition(usageView);
+
+    expect(result).toBe(true);
+    await tick();
+    expect(definingView.state.selection.main.head).toBe(0);
+    expect(usageView.state.selection.main.head).toBe(usageCode.indexOf("a"));
+  });
+
   test("prefers the current-cell local definition over a reactive global", async () => {
     const globalCell = cellId("global-cell");
     const localCell = cellId("local-cell");
