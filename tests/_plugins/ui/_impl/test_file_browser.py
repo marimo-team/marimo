@@ -1275,26 +1275,38 @@ class TestFilterParameter:
         names = {f["name"] for f in response.files if not f["is_directory"]}
         assert names == {"big_file.bin"}
 
-    def test_filter_callable_exception_is_isolated(
-        self, tmp_path: Path
-    ) -> None:
-        """A callable that raises on one file must not crash the listing.
+    def test_filter_callable_oserror_is_isolated(self, tmp_path: Path) -> None:
+        """A callable that raises OSError on one file must not crash the listing.
 
         The offending file is treated as "no match" and the rest of the
-        directory is still returned.
+        directory is still returned (e.g. a broken symlink shouldn't hide the
+        other files).
         """
         (tmp_path / "good.txt").touch()
         (tmp_path / "bad.txt").touch()
 
         def flaky(path: Path) -> bool:
             if path.name == "bad.txt":
-                raise ValueError("boom")
+                raise OSError("broken symlink")
             return True
 
         fb = file_browser(initial_path=tmp_path, filter=flaky)
         response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
         names = {f["name"] for f in response.files if not f["is_directory"]}
         assert names == {"good.txt"}
+
+    def test_filter_callable_non_oserror_propagates(
+        self, tmp_path: Path
+    ) -> None:
+        """A non-OSError from the filter callable propagates (not swallowed)."""
+        (tmp_path / "file.txt").touch()
+
+        def boom(_path: Path) -> bool:
+            raise ValueError("programming error")
+
+        fb = file_browser(initial_path=tmp_path, filter=boom)
+        with pytest.raises(ValueError, match="programming error"):
+            fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
 
     def test_filter_does_not_hide_directories(self, tmp_path: Path) -> None:
         """Directories are always shown regardless of filter."""

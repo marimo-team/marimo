@@ -320,9 +320,13 @@ class file_browser(
         """Return True if `file` passes the configured `filter`.
 
         Centralizes filter evaluation so `_list_directory` and
-        `_has_files_recursive` stay in sync. A callable filter that raises is
-        treated as "does not match" rather than crashing the whole directory
-        listing, so one bad file can't take down the browser.
+        `_has_files_recursive` stay in sync.
+
+        A regex filter is applied with `re.Pattern.search`, so it matches
+        anywhere within the filename; anchor with `^`/`$` to match the whole
+        name. A callable filter that raises an `OSError` (e.g. a broken symlink)
+        is treated as "does not match" so one bad file can't take down the
+        listing of the other files; any other exception propagates.
         """
         if self._filter is None:
             return True
@@ -330,12 +334,8 @@ class file_browser(
             return self._filter.search(file.name) is not None
         try:
             return self._filter(file)
-        except Exception:
-            LOGGER.warning(
-                "file_browser filter callable raised on %s; treating as no match",
-                file,
-                exc_info=True,
-            )
+        except OSError as e:
+            LOGGER.debug(f"file_browser filter could not evaluate {file}: {e}")
             return False
 
     def _has_files_recursive(
