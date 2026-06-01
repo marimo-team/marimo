@@ -36,7 +36,7 @@ const RecoveryModal = (props: {
   const getNotebookJSON = useEvent(() => {
     const notebook = getNotebook();
     const cells = notebookCells(notebook);
-    const notbook: Notebook["NotebookV1"] = {
+    const notebook: Notebook["NotebookV1"] = {
       version: "1",
       metadata: {
         marimo_version: getMarimoVersion(),
@@ -54,7 +54,7 @@ const RecoveryModal = (props: {
         };
       }),
     };
-    return JSON.stringify(notbook, null, 2);
+    return JSON.stringify(notebook, null, 2);
   });
 
   // NB: we use markdown class to have sane styling for list, paragraph
