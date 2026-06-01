@@ -13,7 +13,7 @@
     "@typescript/native-preview": "7.0.0-dev.20260324.1",
     "oxfmt": "^0.42.0",
     "turbo": "^2.8.0",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.0"
   },
   "engines": {
     "node": ">=22",
