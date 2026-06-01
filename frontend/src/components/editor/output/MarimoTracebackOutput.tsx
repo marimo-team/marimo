@@ -25,7 +25,7 @@ import { getCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { insertDebuggerAtLine } from "@/core/codemirror/editing/debugging";
-import { aiEnabledAtom } from "@/core/config/config";
+import { aiFeaturesEnabledAtom } from "@/core/config/config";
 import { getRequestClient } from "@/core/network/requests";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { isWasm } from "@/core/wasm/utils";
@@ -70,7 +70,7 @@ export const MarimoTracebackOutput = ({
   });
 
   const lastTracebackLine = lastLine(traceback);
-  const aiEnabled = useAtomValue(aiEnabledAtom);
+  const aiFeaturesEnabled = useAtomValue(aiFeaturesEnabledAtom);
 
   // Get last traceback info
   const tracebackInfo = extractAllTracebackInfo(traceback)?.at(0);
@@ -83,7 +83,8 @@ export const MarimoTracebackOutput = ({
     !isStaticNotebook() &&
     cellId !== SCRATCH_CELL_ID;
 
-  const showAIFix = onRefactorWithAI && aiEnabled && !isStaticNotebook();
+  const showAIFix =
+    onRefactorWithAI && aiFeaturesEnabled && !isStaticNotebook();
 
   const showSearch = !isStaticNotebook();
 

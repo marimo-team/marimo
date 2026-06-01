@@ -48,7 +48,7 @@ import {
 import { switchLanguage } from "@/core/codemirror/language/extension";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import {
-  aiEnabledAtom,
+  aiFeaturesEnabledAtom,
   appWidthAtom,
   autoInstantiateAtom,
 } from "@/core/config/config";
@@ -100,7 +100,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
   const deleteCell = useDeleteCellCallback();
   const { openModal } = useImperativeModal();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
-  const aiEnabled = useAtomValue(aiEnabledAtom);
+  const aiFeaturesEnabled = useAtomValue(aiFeaturesEnabledAtom);
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const appWidth = useAtomValue(appWidthAtom);
@@ -162,7 +162,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
       {
         icon: <SparklesIcon size={13} strokeWidth={1.5} />,
         label: "Refactor with AI",
-        hidden: !aiEnabled,
+        hidden: !aiFeaturesEnabled,
         handle: () => {
           setAiCompletionCell((current) =>
             current?.cellId === cellId ? null : { cellId },

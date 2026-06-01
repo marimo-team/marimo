@@ -3394,6 +3394,7 @@ export interface components {
      *
      *         **Keys.**
      *
+     *         - `enabled`: if `False`, hide AI actions and panels in the marimo UI
      *         - `rules`: custom rules to include in all AI completion prompts
      *         - `max_tokens`: the maximum number of tokens to use in AI completions
      *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
@@ -3419,6 +3420,7 @@ export interface components {
       custom_providers?: {
         [key: string]: components["schemas"]["OpenAiConfig"];
       };
+      enabled?: boolean;
       github?: components["schemas"]["GitHubConfig"];
       google?: components["schemas"]["GoogleAiConfig"];
       inline_tooltip?: boolean;

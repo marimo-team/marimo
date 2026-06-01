@@ -201,14 +201,21 @@ export const PANEL_MAP = new Map<PanelType, PanelDescriptor>(
 );
 
 /**
- * Check if a panel should be hidden based on its `hidden` property
- * and `requiredCapability`.
+ * Check if a panel should be hidden based on its descriptor and runtime state.
  */
-export function isPanelHidden(
-  panel: PanelDescriptor,
-  capabilities: Capabilities,
-): boolean {
+export function isPanelHidden({
+  panel,
+  capabilities,
+  aiEnabled,
+}: {
+  panel: PanelDescriptor;
+  capabilities: Capabilities;
+  aiEnabled: boolean;
+}): boolean {
   if (panel.hidden) {
+    return true;
+  }
+  if (panel.type === "ai" && !aiEnabled) {
     return true;
   }
   if (panel.requiredCapability && !capabilities[panel.requiredCapability]) {

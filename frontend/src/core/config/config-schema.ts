@@ -158,6 +158,7 @@ export const UserConfigSchema = z
       .prefault({}),
     ai: z
       .looseObject({
+        enabled: z.boolean().prefault(true),
         rules: z.string().prefault(""),
         max_tokens: z.number().int().positive().nullable().optional(),
         mode: z.enum(COPILOT_MODES).prefault("manual"),
