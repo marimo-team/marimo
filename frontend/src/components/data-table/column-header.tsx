@@ -17,11 +17,11 @@ import { useFilterEditor } from "./filter-editor-context";
 import { EDITABLE_FILTER_TYPES, isMembershipFilterType } from "./filters";
 import {
   ClearFilterMenuItem,
+  DataType,
   HideColumn,
   renderColumnPinning,
   renderColumnWrapping,
   renderCopyColumn,
-  renderDataType,
   renderFormatOptions,
   renderSortIcon,
   renderSorts,
@@ -119,7 +119,7 @@ export const DataTableColumnHeader = <TData, TValue>({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            {renderDataType(column)}
+            <DataType column={column} />
             {renderSorts(column, table)}
             {renderCopyColumn(column)}
             {renderColumnPinning(column)}

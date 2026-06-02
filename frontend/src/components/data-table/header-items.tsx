@@ -271,7 +271,11 @@ export function renderSortIcon<TData, TValue>(column: Column<TData, TValue>) {
   return <Icon className="h-3 w-3" />;
 }
 
-export function renderDataType<TData, TValue>(column: Column<TData, TValue>) {
+export function DataType<TData, TValue>({
+  column,
+}: {
+  column: Column<TData, TValue>;
+}) {
   const dtype: string | undefined = column.columnDef.meta?.dtype;
   if (!dtype) {
     return null;

@@ -8,7 +8,15 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { HideColumn } from "../header-items";
+import { DataType, HideColumn } from "../header-items";
+
+const renderInMenu = (node: React.ReactNode) =>
+  render(
+    <DropdownMenu open={true}>
+      <DropdownMenuTrigger />
+      <DropdownMenuContent>{node}</DropdownMenuContent>
+    </DropdownMenu>,
+  );
 
 describe("multi-column sorting logic", () => {
   // Extract the core sorting logic to test in isolation
@@ -167,14 +175,6 @@ describe("HideColumn", () => {
       toggleVisibility,
     }) as unknown as Column<unknown, unknown>;
 
-  const renderInMenu = (node: React.ReactNode) =>
-    render(
-      <DropdownMenu open={true}>
-        <DropdownMenuTrigger />
-        <DropdownMenuContent>{node}</DropdownMenuContent>
-      </DropdownMenu>,
-    );
-
   it("renders 'Hide column' when canHide is true", () => {
     renderInMenu(<HideColumn column={makeColumn()} />);
     expect(screen.getByText("Hide column")).toBeInTheDocument();
@@ -190,5 +190,22 @@ describe("HideColumn", () => {
     renderInMenu(<HideColumn column={makeColumn({ toggleVisibility })} />);
     fireEvent.click(screen.getByText("Hide column"));
     expect(toggleVisibility).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("DataType", () => {
+  const makeColumn = (dtype?: string) =>
+    ({
+      columnDef: { meta: dtype === undefined ? {} : { dtype } },
+    }) as unknown as Column<unknown, unknown>;
+
+  it("renders the dtype label when present", () => {
+    renderInMenu(<DataType column={makeColumn("int64")} />);
+    expect(screen.getByText("int64")).toBeInTheDocument();
+  });
+
+  it("returns null when dtype is absent", () => {
+    renderInMenu(<DataType column={makeColumn()} />);
+    expect(screen.queryByText("int64")).toBeNull();
   });
 });
