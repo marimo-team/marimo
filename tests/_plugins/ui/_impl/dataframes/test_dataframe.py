@@ -392,7 +392,7 @@ class TestDataframes:
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
-    @pytest.mark.parametrize("format_type", ["csv", "json", "parquet"])
+    @pytest.mark.parametrize("format_type", ["csv", "tsv", "json", "parquet"])
     def test_dataframe_download_formats(format_type) -> None:
         df = pd.DataFrame(
             {
@@ -410,6 +410,25 @@ class TestDataframes:
         data_bytes = from_data_uri(download_url)[1]
         assert len(data_bytes) > 0
         assert type(subject.value) is type(df)
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_tsv_ignores_csv_separator() -> None:
+        # download_csv_separator configures CSV only; TSV always uses a tab.
+        df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        subject = ui.dataframe(df, download_csv_separator=";")
+
+        tsv = from_data_uri(
+            subject._download_as(DownloadAsArgs(format="tsv")).url
+        )[1].decode("utf-8")
+        csv = from_data_uri(
+            subject._download_as(DownloadAsArgs(format="csv")).url
+        )[1].decode("utf-8")
+
+        assert tsv.splitlines()[0] == "a\tb"
+        assert csv.splitlines()[0] == "a;b"
 
     @staticmethod
     @pytest.mark.skipif(
@@ -466,9 +485,7 @@ class TestDataframes:
         with pytest.raises(ValueError) as exc_info:
             subject._download_as(DownloadAsArgs(format="xml"))
 
-        assert "format must be one of 'csv', 'json', or 'parquet'" in str(
-            exc_info.value
-        )
+        assert "format must be one of" in str(exc_info.value)
         assert type(subject.value) is type(df)
 
     @staticmethod
@@ -485,7 +502,7 @@ class TestDataframes:
         subject = ui.dataframe(df)
 
         # Test that download works with different dataframe backends
-        for format_type in ["csv", "json", "parquet"]:
+        for format_type in ["csv", "tsv", "json", "parquet"]:
             try:
                 download_url = subject._download_as(
                     DownloadAsArgs(format=format_type)
@@ -529,7 +546,7 @@ class TestDataframes:
                 return_value="utf-8",
             ),
             patch(
-                "marimo._output.data.data.csv",
+                "marimo._output.data.data.any_data",
                 return_value=mock_vfile,
             ),
         ):
