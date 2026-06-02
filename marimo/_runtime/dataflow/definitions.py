@@ -76,17 +76,7 @@ class DefinitionRegistry:
         typed_def = (name, variable.kind)
         conflict_key = self._conflict_key(name, variable)
 
-        # Check if this is a duplicate definition
-        if (
-            name in self.definitions
-            and typed_def not in self.typed_definitions
-        ):
-            # Duplicate if the qualified name is no different
-            if variable.qualified_name == name or variable.language != "sql":
-                self.definitions[name].add(cell_id)
-        else:
-            self.definitions.setdefault(name, set()).add(cell_id)
-
+        self.definitions.setdefault(name, set()).add(cell_id)
         self.typed_definitions.setdefault(typed_def, set()).add(cell_id)
         self.definition_conflicts.setdefault(conflict_key, set()).add(cell_id)
         self.conflict_names.setdefault(conflict_key, name)

@@ -581,6 +581,22 @@ class TestSQL:
         multiply_defined = graph.get_multiply_defined()
         assert multiply_defined == []
 
+    def test_qualified_sql_table_in_defining_cells(self):
+        graph = dataflow.DirectedGraph()
+        code = "t1 = 123"
+        first_cell = parse_cell(code)
+        graph.register_cell(CellId_t("0"), first_cell)
+
+        code = 'mo.sql("CREATE TABLE schema1.t1 (i INTEGER, j INTEGER)")'
+        second_cell = parse_cell(code)
+        graph.register_cell(CellId_t("1"), second_cell)
+
+        assert graph.get_defining_cells("t1") == {
+            CellId_t("0"),
+            CellId_t("1"),
+        }
+        assert graph.get_multiply_defined() == []
+
     def test_redefine_sql_table_same_name_diff_schema(self):
         graph = dataflow.DirectedGraph()
         code = 'mo.sql("CREATE TABLE finance.datalake.xx (id INT)")'
