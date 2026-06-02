@@ -384,14 +384,20 @@ describe("FormatOptions", () => {
 
   it("returns null when the column cannot be formatted", () => {
     renderInMenu(
-      <FormatOptions column={makeColumn({ canFormat: false })} locale="en-US" />,
+      <FormatOptions
+        column={makeColumn({ canFormat: false })}
+        locale="en-US"
+      />,
     );
     expect(screen.queryByText("Format")).toBeNull();
   });
 
   it("returns null when the data type has no format options", () => {
     renderInMenu(
-      <FormatOptions column={makeColumn({ dataType: "unknown" })} locale="en-US" />,
+      <FormatOptions
+        column={makeColumn({ dataType: "unknown" })}
+        locale="en-US"
+      />,
     );
     expect(screen.queryByText("Format")).toBeNull();
   });
