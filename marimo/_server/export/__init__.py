@@ -13,7 +13,7 @@ from marimo._ast.app import InternalApp
 from marimo._ast.errors import CycleError, MultipleDefinitionError
 from marimo._ast.load import load_app
 from marimo._cli.print import echo
-from marimo._config.config import DisplayConfig, RuntimeConfig
+from marimo._config.config import RuntimeConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
@@ -335,7 +335,7 @@ async def run_app_then_export_as_html(
 
     config = get_default_config_manager(current_path=file_manager.path)
     resolved = config.get_config()
-    display_config = cast(DisplayConfig, resolved["display"])
+    display_config = resolved["display"]
     session_view, did_error = await run_app_until_completion(
         file_manager,
         cli_args,
@@ -382,7 +382,7 @@ async def run_app_then_export_as_wasm(
 
     config = get_default_config_manager(current_path=file_manager.path)
     resolved = config.get_config()
-    display_config = cast(DisplayConfig, resolved["display"])
+    display_config = resolved["display"]
 
     session_view, did_error = await run_app_until_completion(
         file_manager,
@@ -439,7 +439,7 @@ async def export_as_html_without_execution(
         view.last_executed_code[cell_data.cell_id] = cell_data.code
 
     config = get_default_config_manager(current_path=file_manager.path)
-    display_config = cast(DisplayConfig, config.get_config()["display"])
+    display_config = config.get_config()["display"]
 
     html, filename = Exporter().export_as_html(
         filename=file_manager.filename,

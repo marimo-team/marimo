@@ -164,11 +164,11 @@ class Exporter:
         sharing_config: SharingConfig | None = None,
     ) -> MarimoConfig:
         """Prepare config with display and sharing settings for static notebook."""
-        config = deep_copy(DEFAULT_CONFIG)
+        config: MarimoConfig = deep_copy(DEFAULT_CONFIG)
         config["display"] = display_config
         if sharing_config:
-            config["sharing"] = sharing_config  # type: ignore[typeddict-item]
-        return cast(MarimoConfig, config)
+            config["sharing"] = sharing_config
+        return config
 
     def _inline_virtual_files(
         self, session_snapshot: NotebookSessionV1
