@@ -415,6 +415,25 @@ class TestDataframes:
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
+    def test_dataframe_download_tsv_ignores_csv_separator() -> None:
+        # download_csv_separator configures CSV only; TSV always uses a tab.
+        df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        subject = ui.dataframe(df, download_csv_separator=";")
+
+        tsv = from_data_uri(
+            subject._download_as(DownloadAsArgs(format="tsv")).url
+        )[1].decode("utf-8")
+        csv = from_data_uri(
+            subject._download_as(DownloadAsArgs(format="csv")).url
+        )[1].decode("utf-8")
+
+        assert tsv.splitlines()[0] == "a\tb"
+        assert csv.splitlines()[0] == "a;b"
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
     def test_dataframe_download_with_transformations() -> None:
         df = pd.DataFrame(
             {
