@@ -6169,9 +6169,11 @@ export interface components {
      *
      *         - `html`: if `False`, HTML sharing options will be hidden from the UI
      *         - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
+     *         - `molab`: if `False`, molab sharing options will be hidden from the UI
      */
     SharingConfig: {
       html?: boolean;
+      molab?: boolean;
       wasm?: boolean;
     };
     /** ShutdownSessionRequest */
