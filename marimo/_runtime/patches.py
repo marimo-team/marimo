@@ -182,7 +182,6 @@ def extract_docstring_from_header(header: str | None) -> str | None:
 def create_main_module(
     file: str | None,
     input_override: Callable[[Any], str] | None,
-    print_override: Callable[[Any], None] | None,
     doc: str | None = None,
 ) -> types.ModuleType:
     # Every kernel gets its own main module, whose __dict__ attribute
@@ -196,8 +195,9 @@ def create_main_module(
 
     if input_override is not None:
         _module.__dict__.setdefault("input", input_override)
-    if print_override is not None:
-        _module.__dict__.setdefault("print", print_override)
+    # Don't shadow the builtin `print`: libraries that special-case it (e.g.
+    # numba's `@njit`) need `print is builtins.print`. mo.Thread patches it
+    # lazily when its output routing is needed. See #9765.
 
     if file is not None:
         _module.__dict__.setdefault("__file__", file)
@@ -216,7 +216,6 @@ def create_main_module(
 def patch_main_module(
     file: str | None,
     input_override: Callable[[Any], str] | None,
-    print_override: Callable[[Any], None] | None,
     doc: str | None = None,
 ) -> types.ModuleType:
     """Patches __main__ module
@@ -224,7 +223,7 @@ def patch_main_module(
     - Makes functions pickleable
     - Loads some overrides and mocks into globals
     """
-    _module = create_main_module(file, input_override, print_override, doc=doc)
+    _module = create_main_module(file, input_override, doc=doc)
 
     # TODO(akshayka): In run mode, this can introduce races between different
     # kernel threads, since they each share sys.modules. Unfortunately, Python

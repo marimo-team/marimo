@@ -104,6 +104,51 @@ async def test_thread_output_append(
     assert "world" in thread_stream_cell_notifications[1].output.data
 
 
+async def test_print_is_builtin_without_threads(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Thread-free notebooks keep the real builtin `print` that numba and
+    similar libraries require (#9765)."""
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import builtins
+                is_builtin = print is builtins.print
+                print_in_globals = "print" in globals()
+                """
+            ),
+        ]
+    )
+
+    assert not k.errors
+    assert k.globals["is_builtin"] is True
+    # Not shadowed in cell globals; resolves to the real builtin via __builtins__.
+    assert k.globals["print_in_globals"] is False
+
+
+async def test_print_overridden_after_thread(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Creating a mo.Thread lazily patches `print` so thread output is routed."""
+    await k.run(
+        [
+            exec_req.get("import builtins; import marimo as mo"),
+            exec_req.get("before = print is builtins.print"),
+            exec_req.get(
+                """
+                t = mo.Thread(target=lambda: None)
+                after = print is builtins.print
+                """
+            ),
+        ]
+    )
+
+    assert not k.errors
+    assert k.globals["before"] is True
+    assert k.globals["after"] is False
+
+
 async def test_thread_print(k: Kernel, exec_req: ExecReqProvider) -> None:
     """Test that a thread starts, runs, and prints."""
 
