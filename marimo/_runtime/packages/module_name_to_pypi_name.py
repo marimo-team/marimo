@@ -460,6 +460,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "google": "protobuf",
         "googleapiclient": "google-api-python-client",
         "grace-dizmo": "grace-dizmo",
+        "grandcypher": "grand-cypher",
         "grammar": "anovelmous-grammar",
         "grapheneapi": "graphenelib",
         "greplin": "scales",

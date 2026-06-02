@@ -47,6 +47,7 @@ def test_module_to_package() -> None:
     mgr = PipPackageManager()
     assert mgr.module_to_package("marimo") == "marimo"
     assert mgr.module_to_package("123_456_789") == "123-456-789"
+    assert mgr.module_to_package("grandcypher") == "grand-cypher"
     assert mgr.module_to_package("sklearn") == "scikit-learn"
 
 
