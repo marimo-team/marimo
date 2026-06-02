@@ -232,6 +232,13 @@ class ErrorResponse(BaseResponse):
     message: str | None = None
 
 
+class KernelStatusResponse(msgspec.Struct, rename="camel"):
+    # `running`: at least one cell is queued or running.
+    # `idle`: the kernel is alive but not executing.
+    # `stopped`: the kernel process is not running (dead or not started).
+    state: Literal["running", "idle", "stopped"]
+
+
 class FormatCellsRequest(msgspec.Struct, rename="camel"):
     codes: dict[CellId_t, str]
     line_length: int

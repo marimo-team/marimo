@@ -2524,6 +2524,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Report whether the kernel is currently executing. `running` means at least one cell is queued or running; `idle` means the kernel is alive but not executing; `stopped` means the kernel process is not running. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["KernelStatusResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/kernel/stdin": {
     parameters: {
       query?: never;
@@ -4904,6 +4941,11 @@ export interface components {
       error: string;
       /** @enum {unknown} */
       op: "kernel-startup-error";
+    };
+    /** KernelStatusResponse */
+    KernelStatusResponse: {
+      /** @enum {unknown} */
+      state: "idle" | "running" | "stopped";
     };
     /**
      * KeymapConfig

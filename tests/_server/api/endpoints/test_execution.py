@@ -121,6 +121,41 @@ class TestExecutionRoutes_EditMode:
         assert "success" in response.json()
 
     @staticmethod
+    @with_session(SESSION_ID)
+    def test_kernel_status(client: TestClient) -> None:
+        response = client.get("/api/kernel/status", headers=HEADERS)
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert response.json()["state"] in ("running", "idle", "stopped")
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_kernel_status_running(client: TestClient) -> None:
+        from marimo._messaging.notification import CellNotification
+
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        # Seed a synthetic running cell the real kernel never emits, so a
+        # concurrent idle broadcast for the notebook's own cells can't race
+        # this assertion.
+        session.session_view.cell_notifications[CellId_t("status-test")] = (
+            CellNotification(cell_id=CellId_t("status-test"), status="running")
+        )
+        response = client.get("/api/kernel/status", headers=HEADERS)
+        assert response.status_code == 200, response.text
+        assert response.json()["state"] == "running"
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_kernel_status_idle(client: TestClient) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        session.session_view.cell_notifications.clear()
+        response = client.get("/api/kernel/status", headers=HEADERS)
+        assert response.status_code == 200, response.text
+        assert response.json()["state"] == "idle"
+
+    @staticmethod
     def test_restart_session(client: TestClient) -> None:
         with client.websocket_connect(
             f"/ws?session_id={SESSION_ID}&access_token=fake-token"
@@ -436,6 +471,12 @@ class TestExecutionRoutes_RunMode:
     @with_read_session(SESSION_ID)
     def test_interrupt(client: TestClient) -> None:
         response = client.post("/api/kernel/interrupt", headers=HEADERS)
+        assert response.status_code == 401, response.text
+
+    @staticmethod
+    @with_read_session(SESSION_ID)
+    def test_kernel_status(client: TestClient) -> None:
+        response = client.get("/api/kernel/status", headers=HEADERS)
         assert response.status_code == 401, response.text
 
     @staticmethod

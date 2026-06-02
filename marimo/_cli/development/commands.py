@@ -431,6 +431,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.InvokeAiToolRequest,
         models.InvokeAiToolResponse,
         models.InvokeFunctionRequest,
+        models.KernelStatusResponse,
         models.ListDataSourceConnectionRequest,
         models.ListSecretKeysRequest,
         models.ListSQLTablesRequest,
