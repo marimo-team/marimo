@@ -46,6 +46,7 @@ test("default UserConfig - empty", () => {
     {
       "ai": {
         "custom_providers": {},
+        "enabled": true,
         "inline_tooltip": false,
         "mode": "manual",
         "models": {
@@ -118,6 +119,7 @@ test("default UserConfig - one level", () => {
     {
       "ai": {
         "custom_providers": {},
+        "enabled": true,
         "inline_tooltip": false,
         "mode": "manual",
         "models": {

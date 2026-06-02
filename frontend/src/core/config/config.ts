@@ -78,6 +78,14 @@ export const aiEnabledAtom = atom<boolean>((get) => {
   return isAiEnabled(get(resolvedMarimoConfigAtom));
 });
 
+export const aiModelConfiguredAtom = atom<boolean>((get) => {
+  return isAiModelConfigured(get(resolvedMarimoConfigAtom));
+});
+
+export const aiFeaturesEnabledAtom = atom<boolean>((get) => {
+  return isAiFeatureEnabled(get(resolvedMarimoConfigAtom));
+});
+
 export const editorFontSizeAtom = atom<number>((get) => {
   return get(resolvedMarimoConfigAtom).display.code_editor_font_size;
 });
@@ -87,11 +95,19 @@ export const localeAtom = atom<string | null | undefined>((get) => {
 });
 
 export function isAiEnabled(config: UserConfig) {
+  return config.ai?.enabled !== false;
+}
+
+export function isAiModelConfigured(config: UserConfig) {
   return (
     Boolean(config.ai?.models?.chat_model) ||
     Boolean(config.ai?.models?.edit_model) ||
     Boolean(config.ai?.models?.autocomplete_model)
   );
+}
+
+export function isAiFeatureEnabled(config: UserConfig) {
+  return isAiEnabled(config) && isAiModelConfigured(config);
 }
 
 /**

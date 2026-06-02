@@ -24,6 +24,7 @@ import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import { scrollCellIntoView } from "@/core/cells/scrollCellIntoView";
 import {
   hotkeysAtom,
+  isAiFeatureEnabled,
   keymapPresetAtom,
   userConfigAtom,
 } from "@/core/config/config";
@@ -195,6 +196,7 @@ export function useCellNavigationProps(
   const pendingDeleteService = usePendingDeleteService();
   const deleteCells = useDeleteManyCellsCallback();
   const userConfig = useAtomValue(userConfigAtom);
+  const aiFeaturesEnabled = isAiFeatureEnabled(userConfig);
 
   // Wrap selection actions to clear pending cells on any selection change
   const selectionActions = {
@@ -496,6 +498,9 @@ export function useCellNavigationProps(
           return true;
         }),
         "cell.aiCompletion": (cellId) => {
+          if (!aiFeaturesEnabled) {
+            return false;
+          }
           let closed = false;
           setAiCompletionCell((v) => {
             // Toggle close

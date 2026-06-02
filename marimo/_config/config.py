@@ -298,6 +298,7 @@ class AiConfig(TypedDict, total=False):
 
     **Keys.**
 
+    - `enabled`: if `False`, hide AI actions and panels in the marimo UI
     - `rules`: custom rules to include in all AI completion prompts
     - `max_tokens`: the maximum number of tokens to use in AI completions
     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
@@ -317,6 +318,7 @@ class AiConfig(TypedDict, total=False):
     - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
     """
 
+    enabled: NotRequired[bool]
     rules: NotRequired[str]
     max_tokens: NotRequired[int]
     mode: NotRequired[CopilotMode]
@@ -758,6 +760,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         }
     },
     "ai": {
+        "enabled": True,
         "models": {
             "displayed_models": [],
             "custom_models": [],
