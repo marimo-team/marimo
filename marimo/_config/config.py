@@ -565,10 +565,12 @@ class SharingConfig(TypedDict):
 
     - `html`: if `False`, HTML sharing options will be hidden from the UI
     - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
+    - `molab`: if `False`, molab sharing options will be hidden from the UI
     """
 
     html: NotRequired[bool]
     wasm: NotRequired[bool]
+    molab: NotRequired[bool]
 
 
 @dataclass

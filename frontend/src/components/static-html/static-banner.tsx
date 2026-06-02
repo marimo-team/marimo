@@ -68,7 +68,7 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
   }
 
   const [resolvedConfig] = useResolvedMarimoConfig();
-  const molabEnabled = resolvedConfig.sharing?.wasm !== false;
+  const molabEnabled = resolvedConfig.sharing?.molab !== false;
 
   const href = window.location.href;
   const molabLink = createShareableLink({

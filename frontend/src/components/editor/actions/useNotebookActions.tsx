@@ -142,9 +142,10 @@ export function useNotebookActions() {
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
   const togglePresenting = useTogglePresenting();
-  // Fallback: if sharing is undefined, both are enabled by default
+  // Fallback: if sharing is undefined, all options are enabled by default
   const sharingHtmlEnabled = resolvedConfig.sharing?.html ?? true;
   const sharingWasmEnabled = resolvedConfig.sharing?.wasm ?? true;
+  const sharingMolabEnabled = resolvedConfig.sharing?.molab ?? true;
 
   // Server-side PDF export is always available outside WASM.
   // Browser print fallback is used in WASM.
@@ -360,7 +361,8 @@ export function useNotebookActions() {
       icon: <Share2Icon size={14} strokeWidth={1.5} />,
       label: "Share",
       handle: NOOP_HANDLER,
-      hidden: !sharingHtmlEnabled && !sharingWasmEnabled,
+      hidden:
+        !sharingHtmlEnabled && !sharingWasmEnabled && !sharingMolabEnabled,
       dropdown: [
         {
           icon: <GlobeIcon size={14} strokeWidth={1.5} />,
@@ -387,7 +389,7 @@ export function useNotebookActions() {
         {
           icon: <MarimoPlusIcon size={14} strokeWidth={1.5} />,
           label: "Create molab notebook",
-          hidden: !sharingWasmEnabled,
+          hidden: !sharingMolabEnabled,
           handle: async () => {
             const code = await readCode();
             const url = createShareableLink({

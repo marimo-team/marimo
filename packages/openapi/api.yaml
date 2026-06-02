@@ -4576,9 +4576,12 @@ components:
       description: "Configuration for sharing features.\n\n    **Keys.**\n\n    -\
         \ `html`: if `False`, HTML sharing options will be hidden from the UI\n  \
         \  - `wasm`: if `False`, WebAssembly sharing options will be hidden from the\
-        \ UI"
+        \ UI\n    - `molab`: if `False`, molab sharing options will be hidden from\
+        \ the UI"
       properties:
         html:
+          type: boolean
+        molab:
           type: boolean
         wasm:
           type: boolean

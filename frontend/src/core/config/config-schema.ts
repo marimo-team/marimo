@@ -207,6 +207,7 @@ export const UserConfigSchema = z
       .looseObject({
         html: z.boolean().optional(),
         wasm: z.boolean().optional(),
+        molab: z.boolean().optional(),
       })
       .optional(),
     mcp: z
