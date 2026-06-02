@@ -37,6 +37,15 @@ from marimo._utils.narwhals_utils import (
 )
 
 LOGGER = _loggers.marimo_logger()
+MARIMO_DATA_TRANSFORMERS: Final = frozenset(
+    (
+        "marimo",
+        "marimo_arrow",
+        "marimo_csv",
+        "marimo_inline_csv",
+        "marimo_json",
+    )
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -123,6 +132,13 @@ def _using_vegafusion() -> bool:
     import altair
 
     return altair.data_transformers.active.startswith("vegafusion")  # type: ignore
+
+
+def _using_marimo_data_transformer() -> bool:
+    """Return True if the current data transformer is a marimo transformer."""
+    import altair
+
+    return altair.data_transformers.active in MARIMO_DATA_TRANSFORMERS
 
 
 def _combine_conditions_with_and(
@@ -459,6 +475,9 @@ def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
     if _has_geoshape(spec):
         with alt.data_transformers.enable("default"):
             return spec.to_dict()  # type: ignore
+
+    if _using_marimo_data_transformer():
+        return spec.to_dict(validate=False)  # type: ignore
 
     with alt.data_transformers.enable("marimo_arrow"):
         return spec.to_dict(validate=False)  # type: ignore

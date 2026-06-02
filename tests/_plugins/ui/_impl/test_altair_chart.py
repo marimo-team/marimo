@@ -28,6 +28,9 @@ from marimo._plugins.ui._impl.altair_chart import (
     altair_chart,
     maybe_fix_vegafusion_background,
 )
+from marimo._plugins.ui._impl.charts.altair_transformer import (
+    register_transformers,
+)
 from marimo._runtime.runtime import Kernel
 from marimo._utils.narwhals_utils import is_narwhals_lazyframe
 from tests._data.mocks import create_dataframes
@@ -815,6 +818,35 @@ def test_parse_spec_pandas() -> None:
     # Replace data.url with a placeholder
     spec["data"] = {"url": "_placeholder_", "format": spec["data"]["format"]}
     snapshot("parse_spec_pandas.txt", json.dumps(spec, indent=2))
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    ("transformer", "format_type"),
+    [
+        ("marimo_csv", "csv"),
+        ("marimo_json", "json"),
+    ],
+)
+def test_parse_spec_honors_selected_marimo_transformer(
+    transformer: str, format_type: str
+) -> None:
+    import altair as alt
+    import pandas as pd
+
+    register_transformers()
+    original_transformer = alt.data_transformers.active
+
+    try:
+        alt.data_transformers.enable(transformer)
+        data = pd.DataFrame({"values": [1, 2, 3]})
+        chart = alt.Chart(data).mark_point().encode(x="values:Q")
+
+        spec = _parse_spec(chart)
+
+        assert spec["data"]["format"] == {"type": format_type}
+    finally:
+        alt.data_transformers.enable(original_transformer)
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
