@@ -546,7 +546,7 @@ class TestDataframes:
                 return_value="utf-8",
             ),
             patch(
-                "marimo._output.data.data.csv",
+                "marimo._output.data.data.any_data",
                 return_value=mock_vfile,
             ),
         ):

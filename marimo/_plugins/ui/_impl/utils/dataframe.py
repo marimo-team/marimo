@@ -21,8 +21,6 @@ from marimo._types.ids import UIElementId
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from marimo._runtime.virtual_file import VirtualFile
-
 LOGGER = _loggers.marimo_logger()
 
 DEFAULT_CSV_ENCODING = "utf-8"
@@ -120,52 +118,48 @@ class DownloadOptions:
 @dataclass(frozen=True)
 class _ExportFormat:
     extension: str
-    write: Callable[[TableManager[Any], DownloadOptions], VirtualFile]
+    serialize: Callable[[TableManager[Any], DownloadOptions], bytes]
 
 
-def _delimited_writer(
+def _serialize_delimited(
     separator_override: str | None,
-) -> Callable[[TableManager[Any], DownloadOptions], VirtualFile]:
-    def write(
+) -> Callable[[TableManager[Any], DownloadOptions], bytes]:
+    def serialize(
         manager: TableManager[Any], options: DownloadOptions
-    ) -> VirtualFile:
+    ) -> bytes:
         encoding = options.delimited.encoding or get_default_csv_encoding()
         separator = (
             separator_override
             if separator_override is not None
             else options.delimited.separator
         )
-        return mo_data.csv(
-            manager.to_csv(encoding=encoding, separator=separator)
-        )
+        return manager.to_csv(encoding=encoding, separator=separator)
 
-    return write
+    return serialize
 
 
-def _write_json(
+def _serialize_json(
     manager: TableManager[Any], options: DownloadOptions
-) -> VirtualFile:
+) -> bytes:
     # Use strict JSON to ensure compliance with JSON spec
-    return mo_data.json(
-        manager.to_json(
-            encoding=None,
-            ensure_ascii=options.json.ensure_ascii,
-            strict_json=True,
-        )
+    return manager.to_json(
+        encoding=None,
+        ensure_ascii=options.json.ensure_ascii,
+        strict_json=True,
     )
 
 
-def _write_parquet(
+def _serialize_parquet(
     manager: TableManager[Any], _options: DownloadOptions
-) -> VirtualFile:
-    return mo_data.parquet(manager.to_parquet())
+) -> bytes:
+    return manager.to_parquet()
 
 
 _EXPORT_FORMATS: dict[str, _ExportFormat] = {
-    "csv": _ExportFormat("csv", _delimited_writer(None)),
-    "tsv": _ExportFormat("tsv", _delimited_writer("\t")),
-    "json": _ExportFormat("json", _write_json),
-    "parquet": _ExportFormat("parquet", _write_parquet),
+    "csv": _ExportFormat("csv", _serialize_delimited(None)),
+    "tsv": _ExportFormat("tsv", _serialize_delimited("\t")),
+    "json": _ExportFormat("json", _serialize_json),
+    "parquet": _ExportFormat("parquet", _serialize_parquet),
 }
 
 
@@ -206,6 +200,8 @@ def download_as(
         allowed = ", ".join(map(repr, _EXPORT_FORMATS))
         raise ValueError(f"format must be one of {allowed}.")
 
-    vfile = fmt.write(manager, options)
+    vfile = mo_data.any_data(
+        fmt.serialize(manager, options), ext=fmt.extension
+    )
     base_name = filename if filename is not None else "download"
     return (vfile.url, f"{base_name}.{fmt.extension}")

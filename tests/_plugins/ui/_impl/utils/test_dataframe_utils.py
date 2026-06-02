@@ -106,7 +106,10 @@ def test_download_as_tsv_uses_tab_separator() -> None:
     url, filename = download_as(manager, "tsv")
 
     assert filename.endswith(".tsv")
-    text = from_data_uri(url)[1].decode("utf-8")
+    mimetype, payload = from_data_uri(url)
+    # The virtual file carries the tsv mimetype, not csv.
+    assert mimetype == "text/tab-separated-values"
+    text = payload.decode("utf-8")
     assert text.splitlines()[0] == "a\tb"
     assert "1\t2" in text
 
