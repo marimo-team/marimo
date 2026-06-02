@@ -67,36 +67,6 @@ export function jsonParseWithSpecialChar<T = unknown>(
 }
 
 /**
- * Formats a value for TSV export, respecting user's locale for numbers
- */
-function formatValueForTSV(value: unknown, locale: string): string {
-  if (value === null || value === undefined) {
-    return "";
-  }
-  if (typeof value === "number" && !Number.isNaN(value)) {
-    // Use toLocaleString to format numbers according to user's locale
-    // This will use the appropriate decimal separator (e.g., "," in European locales)
-    return value.toLocaleString(locale, {
-      useGrouping: false,
-      maximumFractionDigits: 20,
-    });
-  }
-  return String(value);
-}
-
-export function jsonToTSV(json: Record<string, unknown>[], locale: string) {
-  if (json.length === 0) {
-    return "";
-  }
-
-  const keys = Object.keys(json[0]);
-  const values = json.map((row) =>
-    keys.map((key) => formatValueForTSV(row[key], locale)).join("\t"),
-  );
-  return `${keys.join("\t")}\n${values.join("\n")}`;
-}
-
-/**
  * Converts JSON data to a Markdown table format
  * Detects URLs and converts them to markdown links [url](url)
  */

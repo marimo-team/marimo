@@ -9,7 +9,6 @@ import {
   TableIcon,
 } from "lucide-react";
 import React from "react";
-import { useLocale } from "react-aria";
 import { downloadSizeLimitAtom } from "./download-policy/atoms";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
@@ -20,7 +19,6 @@ import { Filenames } from "@/utils/filenames";
 import {
   jsonParseWithSpecialChar,
   jsonToMarkdown,
-  jsonToTSV,
 } from "@/utils/json/json-parser";
 import { MissingPackagePrompt } from "../datasources/missing-package-prompt";
 import { Button } from "../ui/button";
@@ -68,7 +66,12 @@ const FILE_TYPES = {
   },
 } as const;
 
-const downloadOptions = [FILE_TYPES.CSV, FILE_TYPES.JSON, FILE_TYPES.PARQUET];
+const downloadOptions = [
+  FILE_TYPES.CSV,
+  FILE_TYPES.TSV,
+  FILE_TYPES.JSON,
+  FILE_TYPES.PARQUET,
+];
 const copyOptions = [
   FILE_TYPES.TSV,
   FILE_TYPES.JSON,
@@ -78,6 +81,15 @@ const copyOptions = [
 
 type DownloadFormat = (typeof downloadOptions)[number]["format"];
 type CopyFormat = (typeof copyOptions)[number]["format"];
+
+// Each clipboard-copy format fetches from a backend download format, then
+// transforms the payload client-side as needed.
+const COPY_SOURCE_FORMAT: Record<CopyFormat, DownloadFormat> = {
+  csv: "csv",
+  tsv: "tsv",
+  json: "json",
+  markdown: "json",
+};
 
 export interface ExportActionProps {
   downloadAs: (req: { format: DownloadFormat }) => Promise<{
@@ -100,7 +112,6 @@ const labelForCopyFormat = (format: CopyFormat): string =>
   copyOptions.find((opt) => opt.format === format)?.label ?? format;
 
 export const ExportMenu: React.FC<ExportActionProps> = (props) => {
-  const { locale } = useLocale();
   const [downloadMenuOpen, setDownloadMenuOpen] = React.useState(false);
   const policy = useAtomValue(downloadSizeLimitAtom);
   const overLimit = !!(
@@ -213,7 +224,7 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
     await withLoadingToast(
       `Preparing ${labelForCopyFormat(format)} for clipboard...`,
       async () => {
-        const sourceFormat: DownloadFormat = format === "csv" ? "csv" : "json";
+        const sourceFormat = COPY_SOURCE_FORMAT[format];
         const result = await resolveDownloadUrl(sourceFormat, () => {
           void handleClipboardCopy(format);
         });
@@ -223,19 +234,15 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
 
         let text: string;
         switch (format) {
-          case "tsv": {
-            const json = await fetchJson(result.url);
-            text = jsonToTSV(json, locale);
+          case "tsv":
+          case "csv":
+            text = await fetchText(result.url);
             break;
-          }
           case "json": {
             const json = await fetchJson(result.url);
             text = JSON.stringify(json, null, 2);
             break;
           }
-          case "csv":
-            text = await fetchText(result.url);
-            break;
           case "markdown": {
             const json = await fetchJson(result.url);
             text = jsonToMarkdown(json);

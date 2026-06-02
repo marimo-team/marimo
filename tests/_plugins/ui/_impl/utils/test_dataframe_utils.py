@@ -95,6 +95,48 @@ def test_get_default_csv_encoding():
     assert get_default_csv_encoding() == DEFAULT_CSV_ENCODING
 
 
+def test_download_as_tsv_uses_tab_separator() -> None:
+    from marimo._plugins.ui._impl.tables.default_table import (
+        DefaultTableManager,
+    )
+    from marimo._plugins.ui._impl.utils.dataframe import download_as
+    from marimo._utils.data_uri import from_data_uri
+
+    manager = DefaultTableManager([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
+    url, filename = download_as(manager, "tsv")
+
+    assert filename.endswith(".tsv")
+    mimetype, payload = from_data_uri(url)
+    # The virtual file carries the tsv mimetype, not csv.
+    assert mimetype == "text/tab-separated-values"
+    text = payload.decode("utf-8")
+    assert text.splitlines()[0] == "a\tb"
+    assert "1\t2" in text
+
+
+def test_download_as_csv_honors_separator_option() -> None:
+    from marimo._plugins.ui._impl.tables.default_table import (
+        DefaultTableManager,
+    )
+    from marimo._plugins.ui._impl.utils.dataframe import (
+        DelimitedOptions,
+        DownloadOptions,
+        download_as,
+    )
+    from marimo._utils.data_uri import from_data_uri
+
+    manager = DefaultTableManager([{"a": 1, "b": 2}])
+    url, filename = download_as(
+        manager,
+        "csv",
+        options=DownloadOptions(delimited=DelimitedOptions(separator=";")),
+    )
+
+    assert filename.endswith(".csv")
+    text = from_data_uri(url)[1].decode("utf-8")
+    assert text.splitlines()[0] == "a;b"
+
+
 def test_union_tolerates_string_type_aliases() -> None:
     """Verify that Union[] handles string-valued type aliases (narwhals compat).
 
