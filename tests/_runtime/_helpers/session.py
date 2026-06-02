@@ -14,7 +14,6 @@ import sys
 from typing import TYPE_CHECKING, cast
 
 from marimo._config.config import DEFAULT_CONFIG
-from marimo._messaging.print_override import print_override
 from marimo._messaging.types import KernelStreams
 from marimo._runtime.kernel_lifecycle import KernelArgs, kernel_session
 from marimo._runtime.marimo_pdb import MarimoPdb
@@ -110,7 +109,6 @@ def mocked_kernel_session(
         control_queue=asyncio.Queue(),
         set_ui_element_queue=asyncio.Queue(),
         virtual_file_storage=virtual_file_storage,
-        print_override_fn=print_override,
     )
 
     try:

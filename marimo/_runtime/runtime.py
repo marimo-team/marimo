@@ -65,7 +65,6 @@ from marimo._messaging.notification_utils import (
     CellNotificationUtils,
     broadcast_notification,
 )
-from marimo._messaging.print_override import print_override
 from marimo._messaging.streams import (
     QueuePipe,
     ThreadSafeStderr,
@@ -2539,7 +2538,6 @@ def launch_kernel(
                 control_queue=control_queue,
                 set_ui_element_queue=set_ui_element_queue,
                 virtual_file_storage=virtual_file_storage,
-                print_override_fn=print_override,
             )
         ) as (kernel, ctx):
             if is_edit_mode:

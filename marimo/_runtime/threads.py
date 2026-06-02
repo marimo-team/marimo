@@ -86,6 +86,13 @@ class Thread(threading.Thread):
         ctx.cell_lifecycle_registry.add(ThreadLifecycle())
 
         if isinstance(ctx, KernelRuntimeContext):
+            # Patch `print` lazily, only once a mo.Thread exists, to route
+            # thread output to the spawning cell. Thread-free notebooks keep
+            # the real builtin that libraries like numba require. See #9765.
+            from marimo._messaging.print_override import print_override
+
+            ctx.globals.setdefault("print", print_override)
+
             self._marimo_ctx = KernelRuntimeContext(**ctx.__dict__)
             # standard IO is not yet threadsafe
             self._marimo_ctx.stdout = None

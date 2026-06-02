@@ -478,7 +478,6 @@ def _launch_pyodide_kernel(
             control_queue=control_queue,
             set_ui_element_queue=set_ui_element_queue,
             virtual_file_storage=None,
-            print_override_fn=None,
         )
     )
 
