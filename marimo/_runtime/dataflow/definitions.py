@@ -123,7 +123,10 @@ class DefinitionRegistry:
                     del self.qualified_definitions[qualified_def]
 
             if name in self.definitions:
-                for qualified_def, cell_ids in self.qualified_definitions.items():
+                for (
+                    qualified_def,
+                    cell_ids,
+                ) in self.qualified_definitions.items():
                     if qualified_def[0] == name and len(cell_ids) < 2:
                         self.definitions[name].difference_update(cell_ids)
                 if not self.definitions[name]:
