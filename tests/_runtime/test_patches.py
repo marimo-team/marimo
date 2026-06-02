@@ -510,3 +510,42 @@ class TestPolarsIoWasmPatch:
                 assert exc_info.value.name == "pyarrow"
             finally:
                 unpatch()
+
+
+class TestMultiprocessingReduction:
+    @staticmethod
+    def test_kernel_main_function_pickled_by_value() -> None:
+        # Functions defined in a cell live in the kernel's synthetic __main__
+        # module. The default pickle serializes them by reference, which breaks
+        # when they are sent to a subprocess started with the "spawn" method
+        # (the child's __main__ doesn't contain them). The cloudpickle-backed
+        # reducer serializes them by value instead. See #9717.
+        import pickle
+        import sys
+        import types
+        from multiprocessing.reduction import ForkingPickler
+
+        pytest.importorskip("cloudpickle")
+
+        from marimo._runtime.patches import patch_multiprocessing_reduction
+
+        patch_multiprocessing_reduction()
+
+        kernel_main = types.ModuleType("__main__")
+        exec("def kernel_fn(x):\n    return x * 3", kernel_main.__dict__)
+        kernel_fn = kernel_main.__dict__["kernel_fn"]
+        assert kernel_fn.__module__ == "__main__"
+
+        data = bytes(ForkingPickler.dumps(kernel_fn))
+
+        # Simulate a spawned subprocess whose __main__ lacks the function: a
+        # by-reference pickle would fail to resolve it here.
+        empty_main = types.ModuleType("__main__")
+        original_main = sys.modules["__main__"]
+        sys.modules["__main__"] = empty_main
+        try:
+            restored = pickle.loads(data)
+        finally:
+            sys.modules["__main__"] = original_main
+
+        assert restored(14) == 42
