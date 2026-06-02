@@ -14,11 +14,15 @@ from typing import (
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
+from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.functions import Function
 from marimo._runtime.virtual_file.virtual_file import VirtualFile
 
 if TYPE_CHECKING:
+    from bokeh.document import Document
     from panel.viewable import Viewable
+
+    from marimo._runtime.context.types import RuntimeContext
 
 LOGGER = _loggers.marimo_logger()
 
@@ -160,7 +164,7 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
 
 def render_component(
     obj: Viewable,
-) -> tuple[str, dict[str, Any], dict[str, Any]]:
+) -> tuple[str, dict[str, Any], dict[str, Any], Document]:
     """
     Render a Panel component.
 
@@ -168,7 +172,7 @@ def render_component(
         obj: Panel Viewable object
 
     Returns:
-        Tuple containing reference ID, docs JSON, and render JSON
+        Tuple containing reference ID, docs JSON, render JSON, and document
     """
     from bokeh.document import Document
     from bokeh.embed.util import standalone_docs_json_and_render_items
@@ -184,7 +188,24 @@ def render_component(
         [root], suppress_callback_warning=True
     )
     render_json = render_item.to_json()
-    return ref, docs_json, render_json  # type: ignore[return-value]
+    return ref, docs_json, render_json, doc  # type: ignore[return-value]
+
+
+class _PanelCleanupHandle(CellLifecycleItem):
+    """Cleans up Panel documents on cell re-run or deletion."""
+
+    def __init__(self, doc: Document) -> None:
+        self._doc = doc
+
+    def create(self, context: RuntimeContext) -> None:
+        del context
+
+    def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
+        del context, deletion
+        from panel.io.document import _cleanup_doc
+
+        _cleanup_doc(self._doc)
+        return True
 
 
 def _extract_holoviews_settings(obj: Any) -> dict[str, Any]:
@@ -297,9 +318,21 @@ class panel(UIElement[T, T]):
         # This gets set to True in super().__init__()
         self._initialized = False
 
-        ref, docs_json, render_json = render_component(self.obj)
+        ref, docs_json, render_json, doc = render_component(self.obj)
         self._ref = ref
+        self._doc = doc
         self._manager = PanelCommManager(plot_id=ref)  # type: ignore[no-untyped-call]
+
+        from marimo._runtime.context import (
+            ContextNotInitializedError,
+            get_context,
+        )
+
+        try:
+            ctx = get_context()
+            ctx.cell_lifecycle_registry.add(_PanelCleanupHandle(doc))
+        except ContextNotInitializedError:
+            pass
 
         global loaded_extension
         extension = render_extension(loaded=loaded_extension == id(self))

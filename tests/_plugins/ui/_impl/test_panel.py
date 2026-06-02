@@ -8,6 +8,7 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.from_panel import (
     _extract_holoviews_settings,
+    _PanelCleanupHandle,
     panel,
 )
 from marimo._runtime.runtime import Kernel
@@ -98,6 +99,66 @@ slider = mo.ui.panel(slider)
         # The extension URL must be a virtual file path; absolute or data:
         # URLs would let raw-HTML attackers load arbitrary JavaScript.
         assert "@file/" in text
+
+    @staticmethod
+    def test_lifecycle_cleanup_removes_panel_view() -> None:
+        from panel.io.state import state
+
+        slider = pn.widgets.IntSlider(start=0, end=10, value=5)
+        element = panel(slider)
+        ref = element._ref
+
+        assert ref in state._views
+
+        cleanup = _PanelCleanupHandle(element._doc)
+        cleanup.dispose(context=Mock(), deletion=False)
+
+        assert ref not in state._views
+
+    @staticmethod
+    async def test_rerun_cleans_previous_panel_view(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        from panel.io.state import state
+
+        state._views.clear()
+
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    "panel_cell",
+                    """
+                    import marimo as mo
+                    import panel as pn
+
+                    slider = pn.widgets.IntSlider(start=0, end=10, value=5)
+                    panel_element = mo.ui.panel(slider)
+                    panel_ref = panel_element._ref
+                    """,
+                )
+            ]
+        )
+        first_ref = k.globals["panel_ref"]
+        assert first_ref in state._views
+
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    "panel_cell",
+                    """
+                    import marimo as mo
+                    import panel as pn
+
+                    slider = pn.widgets.IntSlider(start=0, end=10, value=6)
+                    panel_element = mo.ui.panel(slider)
+                    panel_ref = panel_element._ref
+                    """,
+                )
+            ]
+        )
+
+        assert first_ref not in state._views
+        assert k.globals["panel_ref"] in state._views
 
 
 @pytest.mark.skipif(not HAS_HOLOVIEWS, reason="holoviews not installed")
