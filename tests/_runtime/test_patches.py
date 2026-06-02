@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import io
+import sys
 from contextlib import nullcontext
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 
+from marimo._runtime import patches
 from marimo._runtime._wasm._patches import WasmPatchSet
 from marimo._runtime._wasm._polars import patch_polars_for_wasm
 from marimo._runtime.capture import capture_stderr
@@ -19,6 +21,22 @@ from tests.conftest import ExecReqProvider, mock_pyodide
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
+
+
+def test_patch_main_module_preserves_host_main() -> None:
+    main = sys.modules["__main__"]
+
+    module = patches.patch_main_module(
+        file="/tmp/marimo-main.py",
+        input_override=None,
+        print_override=None,
+        doc="test doc",
+    )
+
+    assert sys.modules["__main__"] is main
+    assert module.__name__ == "__main__"
+    assert module.__file__ == "/tmp/marimo-main.py"
+    assert module.__doc__ == "test doc"
 
 
 class TestMicropip:

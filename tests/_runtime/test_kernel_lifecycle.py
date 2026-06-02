@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import queue as _queue
+import sys
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -21,6 +22,7 @@ from marimo._runtime.kernel_lifecycle import (
     make_control_enqueuer,
 )
 from marimo._types.ids import CellId_t, UIElementId, WidgetModelId
+from tests._runtime._helpers.session import mocked_kernel_session
 
 
 @pytest.fixture
@@ -50,6 +52,16 @@ def _ui_update(
     return UpdateUIElementCommand(
         object_ids=[UIElementId(elem_id)], values=[value]
     )
+
+
+def test_kernel_session_preserves_host_main_during_construction() -> None:
+    main = sys.modules["__main__"]
+
+    with mocked_kernel_session() as session:
+        assert sys.modules["__main__"] is main
+        assert session.kernel._module.__name__ == "__main__"
+
+    assert sys.modules["__main__"] is main
 
 
 async def test_listen_messages_exits_on_stop_command(

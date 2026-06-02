@@ -219,26 +219,12 @@ def patch_main_module(
     print_override: Callable[[Any], None] | None,
     doc: str | None = None,
 ) -> types.ModuleType:
-    """Patches __main__ module
+    """Creates a __main__ module for the marimo kernel.
 
     - Makes functions pickleable
     - Loads some overrides and mocks into globals
     """
-    _module = create_main_module(file, input_override, print_override, doc=doc)
-
-    # TODO(akshayka): In run mode, this can introduce races between different
-    # kernel threads, since they each share sys.modules. Unfortunately, Python
-    # doesn't provide a way for different threads to have their own sys.modules
-    # (replacing the dict with a new one isn't guaranteed to have the intended
-    # effect, since CPython C code has a reference to the original dict).
-    # In practice, as far as I can tell, this only causes problems when using
-    # Python pickle, but there may be other subtle issues.
-    #
-    # As a workaround, the runtime can re-patch sys.modules() on each run,
-    # but the issue will still persist as a race condition. Streamlit suffers
-    # from the same issue.
-    patch_sys_module(_module)
-    return _module
+    return create_main_module(file, input_override, print_override, doc=doc)
 
 
 @contextlib.contextmanager
