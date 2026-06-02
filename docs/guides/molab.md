@@ -1,27 +1,73 @@
 # Run in the cloud with molab
 
+[molab](https://molab.marimo.io/notebooks) is a free cloud-hosted marimo notebook
+environment. Notebooks run on powerful compute, with generous CPU,
+RAM, and GPUs. molab is designed for sharing and is integrated with
+GitHub; notebooks are public but undiscoverable by default.
+
 !!! tip "Contribute to our community gallery!"
     We welcome submissions to our curated [community gallery](https://marimo.io/gallery?tag=community).
     To propose an example, share your notebook on socials and [tag us](publishing/public_gallery.md).
 
-[molab](https://molab.marimo.io/notebooks) is a free cloud-hosted marimo notebook
-environment. molab is designed for sharing, and is integrated with GitHub;
-notebooks are public but undiscoverable by default.
 
 **Highlights**.
 
-- ☁️ Use any Python package
-- 🤖 Generate code with AI
-- 📦 Install packages with a built-in package manager
-- 🛢️ Use a limited amount of persistent storage per notebook
-- 🔗 Share links and [open-in-molab badges](#share-open-in-molab-badges)
-- 👀 [Preview notebooks hosted on GitHub](#preview-notebooks-from-github), with interactivity
+- ☁️ [Run on powerful compute](#compute), including NVIDIA GPUs
+- 🤖 [Pair with coding agents](#work-with-ai) like Claude Code, or use built-in AI assistance
+- 🪞 [Mirror notebooks from GitHub](#mirror-notebooks-from-github), with GitHub as the source of truth
+- 🔗 Share [open-in-molab badges](#share-open-in-molab-badges)
+- 🎞️ [Share as interactive slides or data apps](#share-as-slides-or-apps)
 - 🌐 [Embed interactive notebooks](#embed-in-other-webpages) in your own webpages
+- 📦 [Install packages](#package-management) with a built-in package manager
+- 🛢️ Use a limited amount of [persistent storage](#storage) per notebook
 - 📄 Export to PDF
-- 📥 Download notebooks to your machine, reuse them as Python scripts or apps
-- 📤 Upload local notebooks to the cloud from our CLI (coming soon)
-- 🕹️ Real-time collaboration (coming soon)
-- 🧩 Configure computational resources to obtain more CPU or GPU (coming soon)
+- 📥 Run notebooks [on your machine](#run-notebooks-locally)
+
+## Compute
+
+molab notebooks run on cloud compute, giving you the full power of Python on a
+traditional server. By default, each notebook runs with **4 CPUs and 32 GB of
+RAM**.
+
+**GPUs.** You can attach an NVIDIA RTX Pro 6000 Blackwell GPU — with 96 GB of
+VRAM and 125 TFLOPS — to any notebook. Toggle the GPU by clicking the notebook
+specs button in the app header. GPUs make it possible to finetune open-source
+models, train and run modern ML workloads, and tackle compute-intensive
+problems in the physical sciences, all from your browser.
+
+<div align="center">
+  <video autoplay muted loop playsinline width="700px" align="center">
+    <source src="/_static/molab-attach-gpu.mp4" type="video/mp4">
+  </video>
+</div>
+
+<p align="center"><em>Toggle GPUs by clicking the notebook specs button in the app header.</em></p>
+
+**Long-running sessions.** Notebooks can run for as long as 12 hours before
+molab shuts them down. Notebooks that are idle for more than 90 minutes are
+automatically shut down.
+
+**Fast startups.** molab notebooks are containers running marimo, preloaded
+with popular packages for AI, ML, and computational science. They start up in
+just a few seconds, so you can start coding right away.
+
+## Work with AI
+
+You can bring AI coding tools to bear on molab notebooks in two ways: control
+notebooks with your favorite agent, or use built-in AI assistance (or both).
+
+**Pair with coding agents.** Connect your favorite coding agent — such as Claude
+Code, Codex, or OpenCode — to a running molab notebook using
+[marimo pair](https://links.marimo.app/marimo-pair). Install the skill locally,
+then copy the prompt that appears when you select "Pair with an agent" from the
+notebook menu. marimo pair turns your notebook into a collaborative canvas you
+share with your agent: it can do anything you can — write code, install
+packages, manipulate UI widgets — and more.
+
+**Built-in AI assistance.** The marimo editor has AI features integrated
+throughout, including the ability to refactor existing cells and generate new
+ones. In molab, these features are powered by free access to fast open-source
+models, so you can generate code without bringing your own API key.
 
 ## Sharing
 
@@ -29,54 +75,45 @@ To share notebooks created in molab, just share the notebook's URL. Viewers
 will see a static preview of your notebook and the option to fork it into their
 own workspace.
 
-### Preview notebooks from GitHub
+### Mirror notebooks from GitHub
 
-> See our [gallery examples](https://github.com/marimo-team/gallery-examples) repository for best practices on previewing notebooks from GitHub.
+From the molab user interface, you can add notebooks hosted on GitHub. These
+"synced" notebooks use GitHub as their source of truth: develop locally, push
+your changes, and see them reflected in molab automatically. Synced notebooks
+can be previewed statically, run on an ephemeral server, or run in the browser
+(and embedded in web pages) with WebAssembly.
 
-In addition to sharing notebooks created in your workspace, you can also
-preview notebooks hosted on GitHub. In some cases, these previews can be
-interactive, but they are static by default.
+To create a synced notebook, use the new notebook dropdown button on the molab homepage, and paste the URL of a notebook hosted on GitHub.
+
+<div align="center">
+  <img src="/_static/molab-sync-notebook.png" alt="Screenshot of the molab dialog for creating a synced notebook from a GitHub URL"/>
+</div>
+
+<p align="center"><em>Use GitHub as the source of truth for notebooks by
+creating synced notebooks.</em></p>
+
+This lets you add the notebook to your workspace. It also gives you sharing
+links (and a snippet for an open-in-molab badge) so others can view the
+notebook on molab, run it on an ephemeral server, or fork it into their own
+workspace.
+
+<div align="center">
+  <img src="/_static/docs-create-a-synced-notebook.png" width="500px" alt="Screenshot of a synced molab notebook showing sharing links and an open-in-molab badge snippet"/>
+</div>
+
+<p align="center"><em>Add mirrored notebooks to your workspace or share them as links or badges.</em></p>
 
 #### Static previews
 
-To construct a static (read-only, not interactive) preview, replace `github.com` in your notebook's GitHub URL
-with `molab.marimo.io/github`. For example, a notebook at
+> See our [gallery examples](https://github.com/marimo-team/gallery-examples) repository for best practices on previewing notebooks from GitHub.
 
-```
-https://github.com/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py
-```
+By default, notebooks mirrored from GitHub show a static preview of the notebook. (The notebook dropdown in the app header allows you to toggle to interactive previews with a running notebook.)
 
-becomes
-
-```
-https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py
-```
-
-(Visit [molab.marimo.io/github](https://molab.marimo.io/github) to automatically generate preview URLs from GitHub links.)
-
-**Rendering outputs.** In order for your static preview to include outputs, you must
+In order for your static preview to include outputs, you must
 commit the notebook's corresponding session JSON file, in the `__marimo__/session/`
 directory that exists alongside the notebook. The session is automatically generated when
 you run the notebook from the marimo editor; you can also generate the session
 from the command-line with `marimo export session notebook.py`
-
-#### Interactive previews
-
-Interactive previews let viewers run and interact with your notebook before
-forking it. Append `/wasm` to the static preview URL to construct an
-interactive preview. For example:
-
-```
-https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm
-```
-
-Your notebook must be [WebAssembly-compatible](wasm.md) for interactive
-previews to work. We also recommend creating these notebooks
-[with `--sandbox`](package_management/inlining_dependencies.md)
-to make sure their dependencies get installed. If you use coding
-agents like Claude Code, use our [official
-skills](generate_with_ai/skills.md) to automatically check for WebAssembly
-compatibility.
 
 ### Share open-in-molab badges
 
@@ -90,16 +127,26 @@ Use the following markdown snippet (replace the notebook URL with a link to your
 [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py)
 ```
 
-For notebooks hosted on GitHub, use our [badge
-generator](https://molab.marimo.io/github) to automatically generate embeddable
-links. If you want the preview to be interactive (and if your notebook is
-[WebAssembly-compatible](wasm.md)), append `/wasm` to the URL.
+### Share as slides or apps
+
+Every notebook can be shared as interactive slides or a data app:
+
+- To share as a **data app**, choose "Run as app" from the share button on any
+  running notebook.
+- To share as **slides**, toggle the app preview of a notebook, then select
+  "slides" from the view dropdown near the top of the page.
+
+### Discover notebooks from the community
+
+The molab landing page includes a **Discover** tab showcasing notebooks from
+the community. Share your notebooks on socials and [tag us](publishing/public_gallery.md)
+for a chance to be featured.
 
 ## Embed in other webpages
 
 You can embed interactive molab notebooks in your own webpages using iframes.
 Obtain iframe snippets by clicking the share button on interactive [molab previews
-of GitHub notebooks](#preview-notebooks-from-github), or construct
+of GitHub notebooks](#mirror-notebooks-from-github), or construct
 embeddable URLs yourself using the recipes below.
 
 > Embedded notebooks run in the browser via WebAssembly, so your notebook must be
@@ -265,14 +312,14 @@ Use this recipe to embed an empty editable notebook:
 | `show-code=false` | `true` | Hides code by default, but viewers can still reveal it |
 
 
-## Features
+## Other features
 
 ### Package management
 
 Each notebook runs in an environment with several popular packages
 pre-installed, including torch, numpy, polars, and more. marimo’s built-in
 package manager will install additional packages as you import them (use the
-package manager panel to install specific package versions).
+package manager sidebar panel to install specific package versions).
 
 ### Storage
 
@@ -296,22 +343,29 @@ Currently, this brings just the notebook file down, and does not include your at
 
 **What’s the difference between molab and Google Colab?** Google Colab is a
 hosted Jupyter notebook service provider. molab is a hosted [marimo
-notebook](https://github.com/marimo-team/marimo) service with similar compute
-and sharing capabilities, but powered by marimo notebooks instead of Jupyter.
+notebook](https://github.com/marimo-team/marimo) service with more compute
+and sharing capabilities, and powered by marimo notebooks instead of Jupyter.
 Unlike Colab, molab also supports embedding interactive notebooks in your own
-webpages, no login required.
+webpages and sharing notebooks as apps and slides, no login required for readers.
 
 **Is molab free?** Yes.
 
-**How do I get more RAM, CPU or GPUs?** [Reach out to us](https://marimo.io/discord) and we’ll see what we can do.
+**What compute do I get?** By default, each notebook runs with 4 CPUs and 32 GB
+of RAM. You can attach an NVIDIA RTX Pro 6000 Blackwell GPU (96 GB VRAM) to any
+notebook using the notebook specs button in the app header. See
+[Compute](#compute) for details.
+
+**Can I use GPUs?** Yes. Attach a GPU to any notebook from the notebook specs
+button in the app header. If you need additional compute beyond what's offered,
+[reach out to us](https://marimo.io/discord).
+
+**Does molab have built-in AI?** Yes. The marimo editor's AI features are
+available in molab with free access to fast open-source models, and you can
+also connect your own coding agent with [marimo pair](#work-with-ai).
 
 **How does molab relate to marimo’s open source notebook?** molab is a hosted
 offering of marimo’s open source notebook with cloud-based compute and sharing
 capabilities. You can use marimo open source on your own machine or on your own remote
 servers.
 
-**I’m a compute provider. How do I get plugged into molab as an offered backend?** [Get in touch](mailto:contact@marimo.io).
-
 **How does molab relate to marimo’s WebAssembly playground?** The [WebAssembly playground](https://marimo.app) runs notebooks entirely in the browser through [Pyodide](https://pyodide.org/en/stable/). This makes for a snappy user experience, at the cost of limited compute and limited support for Python packages. The playground is well-suited for lightweight notebooks and embedding interactive notebooks in documentation, but it is not well-suited for modern ML or AI workflows. molab bridges the gap: develop notebooks with the full power of Python running on a traditional server, and (when compatible) share interactive previews using WebAssembly, which others can fork and develop further using a server-backed notebook.
-
-**Why are you making molab?** See our [announcement blog post](https://marimo.io/blog/announcing-molab).

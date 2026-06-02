@@ -17,14 +17,14 @@ import { useFilterEditor } from "./filter-editor-context";
 import { EDITABLE_FILTER_TYPES, isMembershipFilterType } from "./filters";
 import {
   ClearFilterMenuItem,
+  ColumnPinning,
+  ColumnWrapping,
+  CopyColumn,
+  DataType,
+  FormatOptions,
   HideColumn,
-  renderColumnPinning,
-  renderColumnWrapping,
-  renderCopyColumn,
-  renderDataType,
-  renderFormatOptions,
   renderSortIcon,
-  renderSorts,
+  Sorts,
 } from "./header-items";
 
 interface DataTableColumnHeaderProps<
@@ -36,6 +36,11 @@ interface DataTableColumnHeaderProps<
   subheader?: React.ReactNode;
   justify?: "left" | "center" | "right";
   calculateTopKRows?: CalculateTopKRows;
+  /**
+   * Optional: only used to surface multi-column sort actions ("Clear all
+   * sorts"). Omitted by call sites that define their header inside column
+   * definitions, where the table instance isn't yet available.
+   */
   table?: Table<TData>;
 }
 
@@ -119,12 +124,12 @@ export const DataTableColumnHeader = <TData, TValue>({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            {renderDataType(column)}
-            {renderSorts(column, table)}
-            {renderCopyColumn(column)}
-            {renderColumnPinning(column)}
-            {renderColumnWrapping(column)}
-            {renderFormatOptions(column, locale)}
+            <DataType column={column} />
+            <Sorts column={column} table={table} />
+            <CopyColumn column={column} />
+            <ColumnPinning column={column} />
+            <ColumnWrapping column={column} />
+            <FormatOptions column={column} locale={locale} />
             <HideColumn column={column} />
             {canEditFilter && <DropdownMenuSeparator />}
             {canEditFilter && (

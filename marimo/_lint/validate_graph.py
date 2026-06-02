@@ -52,17 +52,14 @@ def check_for_multiple_definitions(
 ) -> dict[CellId_t, list[MultipleDefinitionError]]:
     """Check whether multiple cells define the same global name."""
     errors = defaultdict(list)
-    defs = sorted(set().union(*(cell.defs for cell in graph.cells.values())))
-    for name in defs:
-        defining_cells = graph.definitions[name]
-        if len(defining_cells) > 1:
-            for cid in defining_cells:
-                errors[cid].append(
-                    MultipleDefinitionError(
-                        name=str(name),
-                        cells=tuple(sorted(defining_cells - {cid})),
-                    )
+    for name, defining_cells in graph.get_multiply_defined_conflicts():
+        for cid in defining_cells:
+            errors[cid].append(
+                MultipleDefinitionError(
+                    name=str(name),
+                    cells=tuple(sorted(defining_cells - {cid})),
                 )
+            )
     return errors
 
 

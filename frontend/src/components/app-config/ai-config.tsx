@@ -1849,6 +1849,38 @@ export type AiSettingsSubTab =
   | "ai-models"
   | "mcp";
 
+const AiEnabledConfig: React.FC<AiConfigProps> = ({ form, config }) => {
+  return (
+    <SettingGroup>
+      <FormField
+        control={form.control}
+        name="ai.enabled"
+        render={({ field }) => (
+          <div className="flex flex-col gap-y-1">
+            <FormItem className={formItemClasses}>
+              <FormLabel className="font-normal">Enable AI features</FormLabel>
+              <FormControl>
+                <Checkbox
+                  data-testid="ai-enabled-checkbox"
+                  checked={field.value !== false}
+                  onCheckedChange={(checked) =>
+                    field.onChange(checked === true)
+                  }
+                />
+              </FormControl>
+              <IsOverridden userConfig={config} name="ai.enabled" />
+            </FormItem>
+            <FormDescription>
+              When disabled, AI actions and panels are hidden from the marimo
+              UI.
+            </FormDescription>
+          </div>
+        )}
+      />
+    </SettingGroup>
+  );
+};
+
 export const AiConfig: React.FC<AiConfigProps> = ({
   form,
   config,
@@ -1857,18 +1889,30 @@ export const AiConfig: React.FC<AiConfigProps> = ({
   // MCP is not supported in WASM
   const wasm = isWasm();
   const [activeTab, setActiveTab] = useAtom(aiSettingsSubTabAtom);
+  const aiEnabled = useWatch({
+    control: form.control,
+    name: "ai.enabled",
+  });
+  const activeVisibleTab =
+    aiEnabled === false && activeTab !== "ai-features"
+      ? "ai-features"
+      : activeTab;
 
   return (
     <Tabs
-      value={activeTab}
+      value={activeVisibleTab}
       onValueChange={(value) => setActiveTab(value as AiSettingsSubTab)}
       className="flex-1"
     >
       <TabsList className="mb-2">
         <TabsTrigger value="ai-features">AI Features</TabsTrigger>
-        <TabsTrigger value="ai-providers">AI Providers</TabsTrigger>
-        <TabsTrigger value="ai-models">AI Models</TabsTrigger>
-        {!wasm && <TabsTrigger value="mcp">MCP</TabsTrigger>}
+        {aiEnabled !== false && (
+          <>
+            <TabsTrigger value="ai-providers">AI Providers</TabsTrigger>
+            <TabsTrigger value="ai-models">AI Models</TabsTrigger>
+            {!wasm && <TabsTrigger value="mcp">MCP</TabsTrigger>}
+          </>
+        )}
       </TabsList>
 
       <TabsContent value="ai-features">
@@ -1877,18 +1921,33 @@ export const AiConfig: React.FC<AiConfigProps> = ({
           config={config}
           onSubmit={onSubmit}
         />
-        <AiAssistConfig form={form} config={config} onSubmit={onSubmit} />
+        <AiEnabledConfig form={form} config={config} onSubmit={onSubmit} />
+        {aiEnabled !== false && (
+          <AiAssistConfig form={form} config={config} onSubmit={onSubmit} />
+        )}
       </TabsContent>
-      <TabsContent value="ai-providers">
-        <AiProvidersConfig form={form} config={config} onSubmit={onSubmit} />
-      </TabsContent>
-      <TabsContent value="ai-models">
-        <AiModelDisplayConfig form={form} config={config} onSubmit={onSubmit} />
-      </TabsContent>
-      {!wasm && (
-        <TabsContent value="mcp">
-          <MCPConfig form={form} onSubmit={onSubmit} />
-        </TabsContent>
+      {aiEnabled !== false && (
+        <>
+          <TabsContent value="ai-providers">
+            <AiProvidersConfig
+              form={form}
+              config={config}
+              onSubmit={onSubmit}
+            />
+          </TabsContent>
+          <TabsContent value="ai-models">
+            <AiModelDisplayConfig
+              form={form}
+              config={config}
+              onSubmit={onSubmit}
+            />
+          </TabsContent>
+          {!wasm && (
+            <TabsContent value="mcp">
+              <MCPConfig form={form} onSubmit={onSubmit} />
+            </TabsContent>
+          )}
+        </>
       )}
     </Tabs>
   );

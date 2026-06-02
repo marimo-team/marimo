@@ -6,8 +6,8 @@ as web documentation, educational platforms, or static sites in general.
 ## molab (recommended)
 
 The easiest way to embed interactive notebooks is with [molab](../molab.md).
-Click the "Share" button on molab WebAssembly previews of [notebooks from
-GitHub](../molab.md/#preview-notebooks-from-github) to get an iframe snippet
+Click the "Share" button on molab previews of [notebooks from
+GitHub](../molab.md/#mirror-notebooks-from-github) to get an iframe snippet
 you can copy into your own webpages; or, construct embeddable URLs
 [from notebook source code](../molab.md#embed-from-source-code). This is what
 we do throughout this documentation website.

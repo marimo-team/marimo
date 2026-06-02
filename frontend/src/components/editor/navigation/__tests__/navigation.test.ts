@@ -1207,6 +1207,21 @@ describe("useCellNavigationProps", () => {
   });
 
   describe("AI completion functionality", () => {
+    beforeEach(() => {
+      const config = defaultUserConfig();
+      store.set(userConfigAtom, {
+        ...config,
+        ai: {
+          ...config.ai,
+          models: {
+            displayed_models: [],
+            custom_models: [],
+            edit_model: "openai/gpt-4o",
+          },
+        },
+      });
+    });
+
     it("should toggle AI completion when shortcut is pressed", () => {
       const { result } = renderWithProvider(() =>
         useCellNavigationProps(cellId1, optionsWithMockEditor),

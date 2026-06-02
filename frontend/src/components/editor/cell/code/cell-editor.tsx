@@ -26,7 +26,7 @@ import {
   connectedDocAtom,
   realTimeCollaboration,
 } from "@/core/codemirror/rtc/extension";
-import { autoInstantiateAtom, isAiEnabled } from "@/core/config/config";
+import { autoInstantiateAtom, isAiFeatureEnabled } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { connectionAtom } from "@/core/network/connection";
@@ -173,13 +173,13 @@ const CellEditorInternal = ({
     });
   });
 
-  const aiEnabled = isAiEnabled(userConfig);
+  const aiFeaturesEnabled = isAiFeatureEnabled(userConfig);
 
   const extensions = useMemo(() => {
     const extensions = setupCodeMirror({
       cellId,
       showPlaceholder,
-      enableAI: aiEnabled,
+      enableAI: aiFeaturesEnabled,
       cellActions: {
         ...cellActions,
         afterToggleMarkdown,
@@ -201,6 +201,9 @@ const CellEditorInternal = ({
         splitCell,
         toggleHideCode,
         aiCellCompletion: () => {
+          if (!aiFeaturesEnabled) {
+            return false;
+          }
           let closed = false;
           setAiCompletionCell((v) => {
             // Toggle close
@@ -271,7 +274,7 @@ const CellEditorInternal = ({
     userConfig.display,
     userConfig.diagnostics,
     userConfig.ai?.inline_tooltip,
-    aiEnabled,
+    aiFeaturesEnabled,
     theme,
     showPlaceholder,
     cellActions,

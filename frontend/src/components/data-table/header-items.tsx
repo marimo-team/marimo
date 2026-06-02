@@ -29,10 +29,13 @@ import { formattingExample } from "./column-formatting/feature";
 import { formatOptions } from "./column-formatting/types";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
 
-export function renderFormatOptions<TData, TValue>(
-  column: Column<TData, TValue>,
-  locale: string,
-) {
+export function FormatOptions<TData, TValue>({
+  column,
+  locale,
+}: {
+  column: Column<TData, TValue>;
+  locale: string;
+}) {
   const dataType: DataType | undefined = column.columnDef.meta?.dataType;
   const columnFormatOptions = dataType ? formatOptions[dataType] : [];
 
@@ -83,9 +86,11 @@ export function renderFormatOptions<TData, TValue>(
   );
 }
 
-export function renderColumnWrapping<TData, TValue>(
-  column: Column<TData, TValue>,
-) {
+export function ColumnWrapping<TData, TValue>({
+  column,
+}: {
+  column: Column<TData, TValue>;
+}) {
   if (!column.getCanWrap?.() || !column.getColumnWrapping) {
     return null;
   }
@@ -108,9 +113,11 @@ export function renderColumnWrapping<TData, TValue>(
   );
 }
 
-export function renderColumnPinning<TData, TValue>(
-  column: Column<TData, TValue>,
-) {
+export function ColumnPinning<TData, TValue>({
+  column,
+}: {
+  column: Column<TData, TValue>;
+}) {
   if (!column.getCanPin?.() || !column.getIsPinned) {
     return null;
   }
@@ -157,7 +164,11 @@ export function HideColumn<TData, TValue>({
   );
 }
 
-export function renderCopyColumn<TData, TValue>(column: Column<TData, TValue>) {
+export function CopyColumn<TData, TValue>({
+  column,
+}: {
+  column: Column<TData, TValue>;
+}) {
   if (!column.getCanCopy?.()) {
     return null;
   }
@@ -177,10 +188,19 @@ export function renderCopyColumn<TData, TValue>(column: Column<TData, TValue>) {
 const AscIcon = ArrowUpNarrowWideIcon;
 const DescIcon = ArrowDownWideNarrowIcon;
 
-export function renderSorts<TData, TValue>(
-  column: Column<TData, TValue>,
-  table?: Table<TData>,
-) {
+/**
+ * `table` is optional: it is only needed to detect multi-column sorting and
+ * offer "Clear all sorts". Call sites that build their header inside column
+ * definitions (where the table instance isn't yet in scope) omit it and fall
+ * back to single-column "Clear sort".
+ */
+export function Sorts<TData, TValue>({
+  column,
+  table,
+}: {
+  column: Column<TData, TValue>;
+  table?: Table<TData>;
+}) {
   if (!column.getCanSort()) {
     return null;
   }
@@ -271,7 +291,11 @@ export function renderSortIcon<TData, TValue>(column: Column<TData, TValue>) {
   return <Icon className="h-3 w-3" />;
 }
 
-export function renderDataType<TData, TValue>(column: Column<TData, TValue>) {
+export function DataType<TData, TValue>({
+  column,
+}: {
+  column: Column<TData, TValue>;
+}) {
   const dtype: string | undefined = column.columnDef.meta?.dtype;
   if (!dtype) {
     return null;

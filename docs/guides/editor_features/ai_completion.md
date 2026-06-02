@@ -152,6 +152,19 @@ You can configure the following providers:
 
 See the [llm_providers](../configuration/llm_providers.md) guide for detailed instructions on how to configure each provider.
 
+## Hide AI actions and panels
+
+If you don't use marimo's AI assistant, you can hide AI actions and panels in the editor:
+
+```toml title="marimo.toml"
+[ai]
+enabled = false
+```
+
+This hides AI assistant surfaces such as the Chat panel and Generate with AI. Code completion settings including GitHub Copilot, remain available.
+
+You can still collaborate with an AI agent using [marimo pair](../generate_with_ai/marimo_pair.md).
+
 ## Agents
 
 !!! example "Experimental: Agents"

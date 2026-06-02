@@ -9,7 +9,7 @@ The easiest way to publish and share interactive notebooks is with
 With molab, you can:
 
 - Share notebooks by links
-- [Preview notebooks from GitHub](../molab.md#preview-notebooks-from-github) with full interactivity
+- [Preview notebooks from GitHub](../molab.md#mirror-notebooks-from-github) with full interactivity
 - Share [open-in-molab badges](../molab.md#share-open-in-molab-badges) in READMEs and docs
 - [Embed interactive notebooks](../molab.md#embed-in-other-webpages) in your own webpages
 - Contribute to our [public gallery](public_gallery.md)

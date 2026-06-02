@@ -104,7 +104,7 @@ fe-typecheck:
 .PHONY: fe-codegen
 # 🔄 Generate frontend API
 fe-codegen:
-	uv run --python=3.12 ./marimo development openapi > packages/openapi/api.yaml
+	uv run --isolated --python=3.12 --with-editable . marimo development openapi > packages/openapi/api.yaml
 	pnpm run codegen
 	pnpm format packages/openapi/
 
