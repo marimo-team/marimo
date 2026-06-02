@@ -83,9 +83,11 @@ export function renderFormatOptions<TData, TValue>(
   );
 }
 
-export function renderColumnWrapping<TData, TValue>(
-  column: Column<TData, TValue>,
-) {
+export function ColumnWrapping<TData, TValue>({
+  column,
+}: {
+  column: Column<TData, TValue>;
+}) {
   if (!column.getCanWrap?.() || !column.getColumnWrapping) {
     return null;
   }

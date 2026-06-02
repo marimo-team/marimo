@@ -18,10 +18,10 @@ import { EDITABLE_FILTER_TYPES, isMembershipFilterType } from "./filters";
 import {
   ClearFilterMenuItem,
   ColumnPinning,
+  ColumnWrapping,
   CopyColumn,
   DataType,
   HideColumn,
-  renderColumnWrapping,
   renderFormatOptions,
   renderSortIcon,
   Sorts,
@@ -128,7 +128,7 @@ export const DataTableColumnHeader = <TData, TValue>({
             <Sorts column={column} table={table} />
             <CopyColumn column={column} />
             <ColumnPinning column={column} />
-            {renderColumnWrapping(column)}
+            <ColumnWrapping column={column} />
             {renderFormatOptions(column, locale)}
             <HideColumn column={column} />
             {canEditFilter && <DropdownMenuSeparator />}

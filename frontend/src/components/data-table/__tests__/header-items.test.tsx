@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   ColumnPinning,
+  ColumnWrapping,
   CopyColumn,
   DataType,
   HideColumn,
@@ -327,5 +328,35 @@ describe("ColumnPinning", () => {
   it("offers 'Unfreeze' when pinned", () => {
     renderInMenu(<ColumnPinning column={makeColumn({ pinned: "left" })} />);
     expect(screen.getByText("Unfreeze")).toBeInTheDocument();
+  });
+});
+
+describe("ColumnWrapping", () => {
+  const makeColumn = ({
+    canWrap = true,
+    wrapping = "nowrap",
+  }: {
+    canWrap?: boolean;
+    wrapping?: "wrap" | "nowrap";
+  } = {}) =>
+    ({
+      getCanWrap: () => canWrap,
+      getColumnWrapping: () => wrapping,
+      toggleColumnWrapping: vi.fn(),
+    }) as unknown as Column<unknown, unknown>;
+
+  it("returns null when the column cannot wrap", () => {
+    renderInMenu(<ColumnWrapping column={makeColumn({ canWrap: false })} />);
+    expect(screen.queryByText("Wrap text")).toBeNull();
+  });
+
+  it("offers 'Wrap text' when not wrapping", () => {
+    renderInMenu(<ColumnWrapping column={makeColumn()} />);
+    expect(screen.getByText("Wrap text")).toBeInTheDocument();
+  });
+
+  it("offers 'No wrap text' when wrapping", () => {
+    renderInMenu(<ColumnWrapping column={makeColumn({ wrapping: "wrap" })} />);
+    expect(screen.getByText("No wrap text")).toBeInTheDocument();
   });
 });
