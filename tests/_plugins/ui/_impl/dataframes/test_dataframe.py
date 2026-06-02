@@ -392,7 +392,7 @@ class TestDataframes:
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
-    @pytest.mark.parametrize("format_type", ["csv", "json", "parquet"])
+    @pytest.mark.parametrize("format_type", ["csv", "tsv", "json", "parquet"])
     def test_dataframe_download_formats(format_type) -> None:
         df = pd.DataFrame(
             {
@@ -483,7 +483,7 @@ class TestDataframes:
         subject = ui.dataframe(df)
 
         # Test that download works with different dataframe backends
-        for format_type in ["csv", "json", "parquet"]:
+        for format_type in ["csv", "tsv", "json", "parquet"]:
             try:
                 download_url = subject._download_as(
                     DownloadAsArgs(format=format_type)

@@ -351,7 +351,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
 
         Args:
             args (DownloadAsArgs): Arguments specifying the download format.
-                format must be one of 'csv', 'json', or 'parquet'.
+                format must be one of 'csv', 'tsv', 'json', or 'parquet'.
 
         Returns:
             DownloadAsResponse: URL and filename for the downloaded file.
