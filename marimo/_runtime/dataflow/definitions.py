@@ -26,15 +26,35 @@ class DefinitionRegistry:
     # A mapping from defs to the cells that define them
     definitions: dict[Name, set[CellId_t]] = field(default_factory=dict)
 
-    # Typed definitions for SQL support: (name, type) -> cell_ids
+    # Typed definitions: (name, type) -> cell_ids
     # e.g. ("my_table", "table") -> {cell_id_1}
     typed_definitions: dict[tuple[Name, str], set[CellId_t]] = field(
         default_factory=dict
     )
 
-    # Track all types for a given definition name
-    # e.g. "my_table" -> {"table", "view"}
-    definition_types: dict[Name, set[str]] = field(default_factory=dict)
+    # Track definition conflicts separately from lookup indexes.
+    # Qualified SQL definitions with the same leaf name are distinct objects
+    # in the database, but still need to be discoverable by their leaf name
+    # when computing SQL edges.
+    definition_conflicts: dict[tuple[str, str], set[CellId_t]] = field(
+        default_factory=dict
+    )
+    conflict_names: dict[tuple[str, str], Name] = field(default_factory=dict)
+
+    def _conflict_key(
+        self, name: Name, variable: VariableData
+    ) -> tuple[str, str]:
+        """
+        Return the key used to group definitions that conflict.
+        Only qualified SQL definitions return a non-global key.
+        """
+        if (
+            variable.language == "sql"
+            and variable.qualified_name is not None
+            and variable.qualified_name != name
+        ):
+            return ("sql", variable.qualified_name)
+        return ("global", name)
 
     def register_definition(
         self,
@@ -54,6 +74,7 @@ class DefinitionRegistry:
         """
         variable = variable_data[-1]  # Only the last definition matters
         typed_def = (name, variable.kind)
+        conflict_key = self._conflict_key(name, variable)
 
         # Check if this is a duplicate definition
         if (
@@ -67,37 +88,49 @@ class DefinitionRegistry:
             self.definitions.setdefault(name, set()).add(cell_id)
 
         self.typed_definitions.setdefault(typed_def, set()).add(cell_id)
-        self.definition_types.setdefault(name, set()).add(variable.kind)
+        self.definition_conflicts.setdefault(conflict_key, set()).add(cell_id)
+        self.conflict_names.setdefault(conflict_key, name)
 
-        # Return siblings (other cells that define this name)
-        siblings = self.definitions[name] - {cell_id}
+        # Return siblings (other cells that define the same semantic object)
+        siblings = self.definition_conflicts[conflict_key] - {cell_id}
         return siblings
 
     def unregister_definitions(
         self,
         cell_id: CellId_t,
-        defs: set[Name],
+        variable_data: dict[Name, list[VariableData]],
     ) -> None:
         """Unregister all definitions for a cell.
 
         Args:
             cell_id: The cell being removed
-            defs: The set of variable names defined by the cell
+            variable_data: Definitions and metadata for the cell
         """
-        for name in defs:
+        for name, data in variable_data.items():
             if name not in self.definitions:
                 continue
 
+            variable = data[-1]
+            typed_def = (name, variable.kind)
+            conflict_key = self._conflict_key(name, variable)
+
             name_defs = self.definitions[name]
             name_defs.discard(cell_id)
+            if typed_def in self.typed_definitions:
+                self.typed_definitions[typed_def].discard(cell_id)
+                if not self.typed_definitions[typed_def]:
+                    del self.typed_definitions[typed_def]
+
+            if conflict_key in self.definition_conflicts:
+                conflict_defs = self.definition_conflicts[conflict_key]
+                conflict_defs.discard(cell_id)
+                if not conflict_defs:
+                    del self.definition_conflicts[conflict_key]
+                    self.conflict_names.pop(conflict_key, None)
 
             if not name_defs:
                 # No more cells define this name, so we remove it
                 del self.definitions[name]
-                # Clean up all typed definitions
-                for typed_def in self.definition_types.get(name, set()):
-                    self.typed_definitions.pop((name, typed_def), None)
-                self.definition_types.pop(name, None)
 
     def get_defining_cells(self, name: Name) -> set[CellId_t]:
         """Get all cells that define a variable name.
@@ -144,10 +177,10 @@ class DefinitionRegistry:
 
         return matching_cell_ids_list
 
-    def get_multiply_defined(self) -> list[Name]:
-        """Return a list of names that are defined in multiple cells."""
-        names: list[Name] = []
-        for name, definers in self.definitions.items():
-            if len(definers) > 1:
-                names.append(name)
-        return names
+    def get_multiply_defined(self) -> list[tuple[Name, set[CellId_t]]]:
+        """Return multiply-defined names with their conflicting cells."""
+        return [
+            (self.conflict_names[conflict_key], definers)
+            for conflict_key, definers in self.definition_conflicts.items()
+            if len(definers) > 1
+        ]

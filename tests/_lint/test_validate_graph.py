@@ -4,8 +4,11 @@ from __future__ import annotations
 from functools import partial
 from typing import cast
 
+import pytest
+
 from marimo._ast import compiler
 from marimo._ast.names import SETUP_CELL_NAME
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.errors import (
     CycleError,
@@ -13,8 +16,10 @@ from marimo._messaging.errors import (
     SetupRootError,
 )
 from marimo._runtime import dataflow
+from marimo._types.ids import CellId_t
 
 parse_cell = partial(compiler.compile_cell, cell_id="0")
+HAS_DUCKDB = DependencyManager.duckdb.has()
 
 
 def test_multiple_definition_error() -> None:
@@ -53,6 +58,35 @@ def test_overlapping_multiple_definition_errors() -> None:
         MultipleDefinitionError(name="y", cells=("2",)),
     )
     assert errors["2"] == (MultipleDefinitionError(name="y", cells=("1",)),)
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="duckdb is required")
+def test_sql_multiple_definition_errors_use_qualified_names() -> None:
+    graph = dataflow.DirectedGraph()
+    graph.register_cell(
+        CellId_t("0"),
+        parse_cell('mo.sql("CREATE TABLE finance.datalake.xx (id INT)")'),
+    )
+    graph.register_cell(
+        CellId_t("1"),
+        parse_cell(
+            'mo.sql("CREATE TABLE finance.information_layer.xx (id INT)")'
+        ),
+    )
+    graph.register_cell(
+        CellId_t("2"),
+        parse_cell('mo.sql("CREATE TABLE finance.datalake.xx (id INT)")'),
+    )
+
+    errors = check_for_errors(graph)
+
+    assert set(errors.keys()) == {CellId_t("0"), CellId_t("2")}
+    assert errors[CellId_t("0")] == (
+        MultipleDefinitionError(name="xx", cells=(CellId_t("2"),)),
+    )
+    assert errors[CellId_t("2")] == (
+        MultipleDefinitionError(name="xx", cells=(CellId_t("0"),)),
+    )
 
 
 def test_underscore_variables_are_private() -> None:

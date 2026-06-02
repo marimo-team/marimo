@@ -210,7 +210,9 @@ class DirectedGraph(GraphTopology):
 
             # Removing this cell from its defs' definer sets
             cell = self.topology.cells[cell_id]
-            self.definition_registry.unregister_definitions(cell_id, cell.defs)
+            self.definition_registry.unregister_definitions(
+                cell_id, cell.variable_data
+            )
 
             # Remove cycles that are broken from removing this cell
             edges = [
@@ -265,6 +267,12 @@ class DirectedGraph(GraphTopology):
 
     def get_multiply_defined(self) -> list[Name]:
         """Return a list of names that are defined in multiple cells."""
+        return [name for name, _ in self.get_multiply_defined_conflicts()]
+
+    def get_multiply_defined_conflicts(
+        self,
+    ) -> list[tuple[Name, set[CellId_t]]]:
+        """Return multiply-defined names with their conflicting cells."""
         return self.definition_registry.get_multiply_defined()
 
     def get_deleted_nonlocal_ref(self) -> list[Name]:
