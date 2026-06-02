@@ -13,7 +13,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DataType, HideColumn, Sorts } from "../header-items";
+import { CopyColumn, DataType, HideColumn, Sorts } from "../header-items";
 
 const renderInMenu = (node: React.ReactNode) =>
   render(
@@ -266,5 +266,29 @@ describe("Sorts", () => {
       />,
     );
     expect(screen.getByText("Clear all sorts")).toBeInTheDocument();
+  });
+});
+
+describe("CopyColumn", () => {
+  const makeColumn = ({
+    canCopy = true,
+    id = "name",
+  }: {
+    canCopy?: boolean;
+    id?: string;
+  } = {}) =>
+    ({
+      id,
+      getCanCopy: () => canCopy,
+    }) as unknown as Column<unknown, unknown>;
+
+  it("renders 'Copy column name' when copyable", () => {
+    renderInMenu(<CopyColumn column={makeColumn()} />);
+    expect(screen.getByText("Copy column name")).toBeInTheDocument();
+  });
+
+  it("returns null when the column cannot be copied", () => {
+    renderInMenu(<CopyColumn column={makeColumn({ canCopy: false })} />);
+    expect(screen.queryByText("Copy column name")).toBeNull();
   });
 });

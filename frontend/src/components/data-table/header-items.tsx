@@ -157,7 +157,11 @@ export function HideColumn<TData, TValue>({
   );
 }
 
-export function renderCopyColumn<TData, TValue>(column: Column<TData, TValue>) {
+export function CopyColumn<TData, TValue>({
+  column,
+}: {
+  column: Column<TData, TValue>;
+}) {
   if (!column.getCanCopy?.()) {
     return null;
   }
