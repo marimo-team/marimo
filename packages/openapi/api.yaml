@@ -1182,7 +1182,9 @@ components:
     Database:
       description: "Represents a collection of schemas.\n\nAttributes:\n    name (str):\
         \ The name of the database\n    dialect (str): The dialect of the database\n\
-        \    schemas (List[Schema]): List of schemas in the database\n    engine (Optional[VariableName]):\
+        \    schemas (List[Schema]): List of schemas in the database.\n    schemas_resolved\
+        \ (bool): True when `schemas` has been enumerated.\n        False when schema\
+        \ discovery was deferred. Defaults to True\n    engine (Optional[VariableName]):\
         \ Database engine or connection handler, if any."
       properties:
         dialect:
@@ -1198,6 +1200,9 @@ components:
           items:
             $ref: '#/components/schemas/Schema'
           type: array
+        schemas_resolved:
+          default: true
+          type: boolean
       required:
       - name
       - dialect
@@ -4433,6 +4438,11 @@ components:
       title: SaveUserConfigurationRequest
       type: object
     Schema:
+      description: "Represents a database schema and its tables.\n\nAttributes:\n\
+        \    name (str): The name of the schema.\n    tables (List[DataTable]): Tables\
+        \ in this schema.\n    tables_resolved (bool): True when `tables` has been\
+        \ enumerated\n        False when table discovery was deferred. Defaults to\
+        \ True"
       properties:
         name:
           type: string
@@ -4440,6 +4450,9 @@ components:
           items:
             $ref: '#/components/schemas/DataTable'
           type: array
+        tables_resolved:
+          default: true
+          type: boolean
       required:
       - name
       - tables

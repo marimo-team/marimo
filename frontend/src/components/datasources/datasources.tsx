@@ -135,36 +135,48 @@ export const hideEmptyDatasourcesAtom = atomWithStorage<boolean>(
   { getOnInit: true },
 );
 
+function isKnownEmptySchema(schema: DatabaseSchema): boolean {
+  return schema.tables_resolved !== false && schema.tables.length === 0;
+}
+
 /**
  * Apply the "hide empty" filter to a connection's databases.
  *
- * - Schemas with no tables are hidden.
- * - Databases are hidden when they have at least one schema and every schema
- *   is empty.
- * - Databases with no schemas yet (lazy state) are preserved so users can
- *   still expand them to trigger a schema fetch.
+ * - Schemas with confirmed-empty table lists are hidden.
+ * - Databases are hidden when either (a) their schemas have been enumerated
+ *   and the list is empty, or (b) every schema in them was hidden by the
+ *   schema-level filter.
+ * - Databases / schemas whose contents haven't been resolved yet (deferred
+ *   discovery — `schemas_resolved === false` or `tables_resolved === false`)
+ *   are preserved so the user can expand them to trigger a fetch.
  */
 export function filterEmptyDatabases(databases: Database[]): Database[] {
   let changed = false;
   const result: Database[] = [];
   for (const database of databases) {
+    // Known-empty database: schema list was enumerated and is empty.
+    if (database.schemas_resolved !== false && database.schemas.length === 0) {
+      changed = true;
+      continue;
+    }
+    // Deferred schema discovery — keep so the user can expand and load.
     if (database.schemas.length === 0) {
       result.push(database);
       continue;
     }
-    const nonEmptySchemas = database.schemas.filter(
-      (schema) => schema.tables.length > 0,
+    const visibleSchemas = database.schemas.filter(
+      (schema) => !isKnownEmptySchema(schema),
     );
-    if (nonEmptySchemas.length === 0) {
+    if (visibleSchemas.length === 0) {
       changed = true;
       continue;
     }
-    if (nonEmptySchemas.length === database.schemas.length) {
+    if (visibleSchemas.length === database.schemas.length) {
       result.push(database);
       continue;
     }
     changed = true;
-    result.push({ ...database, schemas: nonEmptySchemas });
+    result.push({ ...database, schemas: visibleSchemas });
   }
   return changed ? result : databases;
 }

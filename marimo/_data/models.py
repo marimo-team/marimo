@@ -85,8 +85,19 @@ class DataTable(BaseStruct):
 
 
 class Schema(BaseStruct):
+    """
+    Represents a database schema and its tables.
+
+    Attributes:
+        name (str): The name of the schema.
+        tables (List[DataTable]): Tables in this schema.
+        tables_resolved (bool): True when `tables` has been enumerated
+            False when table discovery was deferred. Defaults to True
+    """
+
     name: str
     tables: list[DataTable]
+    tables_resolved: bool = True
 
 
 class Database(BaseStruct):
@@ -96,13 +107,16 @@ class Database(BaseStruct):
     Attributes:
         name (str): The name of the database
         dialect (str): The dialect of the database
-        schemas (List[Schema]): List of schemas in the database
+        schemas (List[Schema]): List of schemas in the database.
+        schemas_resolved (bool): True when `schemas` has been enumerated.
+            False when schema discovery was deferred. Defaults to True
         engine (Optional[VariableName]): Database engine or connection handler, if any.
     """
 
     name: str
     dialect: str
     schemas: list[Schema]
+    schemas_resolved: bool = True
     engine: VariableName | None = None
 
 
