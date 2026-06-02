@@ -12,6 +12,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import dataflow
 from marimo._runtime.runner import by_refs
 from marimo._runtime.runner.by_refs import _get_ancestors
+from marimo._types.ids import CellId_t
 
 parse_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -579,6 +580,90 @@ class TestSQL:
         # Because t1 is qualified with schema1, it is not considered multiply defined
         multiply_defined = graph.get_multiply_defined()
         assert multiply_defined == []
+
+    def test_qualified_sql_table_in_defining_cells(self):
+        graph = dataflow.DirectedGraph()
+        code = "t1 = 123"
+        first_cell = parse_cell(code)
+        graph.register_cell(CellId_t("0"), first_cell)
+
+        code = 'mo.sql("CREATE TABLE schema1.t1 (i INTEGER, j INTEGER)")'
+        second_cell = parse_cell(code)
+        graph.register_cell(CellId_t("1"), second_cell)
+
+        assert graph.get_defining_cells("t1") == {
+            CellId_t("0"),
+            CellId_t("1"),
+        }
+        assert graph.get_multiply_defined() == []
+
+    def test_redefine_sql_table_same_name_diff_schema(self):
+        graph = dataflow.DirectedGraph()
+        code = 'mo.sql("CREATE TABLE finance.datalake.xx (id INT)")'
+        first_cell = parse_cell(code)
+        graph.register_cell(CellId_t("0"), first_cell)
+
+        code = 'mo.sql("CREATE TABLE finance.information_layer.xx (id INT)")'
+        second_cell = parse_cell(code)
+        graph.register_cell(CellId_t("1"), second_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+        }
+        assert graph.get_multiply_defined() == []
+
+    def test_redefine_sql_table_same_name_diff_catalog(self):
+        graph = dataflow.DirectedGraph()
+        code = 'mo.sql("CREATE TABLE catalog_one.schema_name.xx (id INT)")'
+        first_cell = parse_cell(code)
+        graph.register_cell(CellId_t("0"), first_cell)
+
+        code = 'mo.sql("CREATE TABLE catalog_two.schema_name.xx (id INT)")'
+        second_cell = parse_cell(code)
+        graph.register_cell(CellId_t("1"), second_cell)
+
+        assert graph.get_multiply_defined() == []
+
+    def test_redefine_sql_table_same_qualified_name(self):
+        graph = dataflow.DirectedGraph()
+        code = 'mo.sql("CREATE TABLE finance.datalake.xx (id INT)")'
+        first_cell = parse_cell(code)
+        graph.register_cell(CellId_t("0"), first_cell)
+
+        code = 'mo.sql("CREATE TABLE finance.datalake.xx (id INT)")'
+        second_cell = parse_cell(code)
+        graph.register_cell(CellId_t("1"), second_cell)
+
+        assert graph.get_multiply_defined() == ["xx"]
+
+    def test_redefine_sql_table_unqualified_same_name(self):
+        graph = dataflow.DirectedGraph()
+        code = 'mo.sql("CREATE TABLE xx (id INT)")'
+        first_cell = parse_cell(code)
+        graph.register_cell(CellId_t("0"), first_cell)
+
+        code = 'mo.sql("CREATE TABLE xx (id INT)")'
+        second_cell = parse_cell(code)
+        graph.register_cell(CellId_t("1"), second_cell)
+
+        assert graph.get_multiply_defined() == ["xx"]
+
+    def test_delete_redefined_sql_table_clears_conflict(self):
+        graph = dataflow.DirectedGraph()
+        code = 'mo.sql("CREATE TABLE finance.datalake.xx (id INT)")'
+        first_cell = parse_cell(code)
+        graph.register_cell(CellId_t("0"), first_cell)
+
+        code = 'mo.sql("CREATE TABLE finance.datalake.xx (id INT)")'
+        second_cell = parse_cell(code)
+        graph.register_cell(CellId_t("1"), second_cell)
+
+        assert graph.get_multiply_defined() == ["xx"]
+
+        graph.delete_cell(CellId_t("1"))
+
+        assert graph.get_multiply_defined() == []
 
     def test_sql_table_schema_to_python_ref(self):
         graph = dataflow.DirectedGraph()
