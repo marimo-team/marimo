@@ -1,8 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { CommandList } from "cmdk";
-import { atom, useAtomValue, useSetAtom } from "jotai";
-import { PlusIcon, PlusSquareIcon, XIcon } from "lucide-react";
+import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
+import {
+  EyeIcon,
+  EyeOffIcon,
+  PlusIcon,
+  PlusSquareIcon,
+  XIcon,
+} from "lucide-react";
 import React from "react";
 import { dbDisplayName } from "@/components/databases/display";
 import { EngineVariable } from "@/components/databases/engine-variable";
@@ -52,6 +59,7 @@ import { sortBy } from "@/utils/arrays";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import {
   DatabaseIcon,
   SchemaIcon,
@@ -117,6 +125,63 @@ const sortedTablesAtom = atom((get) => {
 });
 
 /**
+ * Whether to hide empty schemas and databases (those with no tables) in the
+ * datasources panel.
+ */
+export const hideEmptyDatasourcesAtom = atomWithStorage<boolean>(
+  "marimo:datasources:hideEmpty",
+  false,
+  jotaiJsonStorage,
+  { getOnInit: true },
+);
+
+function isKnownEmptySchema(schema: DatabaseSchema): boolean {
+  return schema.tables_resolved !== false && schema.tables.length === 0;
+}
+
+/**
+ * Apply the "hide empty" filter to a connection's databases.
+ *
+ * - Schemas with confirmed-empty table lists are hidden.
+ * - Databases are hidden when either (a) their schemas have been enumerated
+ *   and the list is empty, or (b) every schema in them was hidden by the
+ *   schema-level filter.
+ * - Databases / schemas whose contents haven't been resolved yet (deferred
+ *   discovery — `schemas_resolved === false` or `tables_resolved === false`)
+ *   are preserved so the user can expand them to trigger a fetch.
+ */
+export function filterEmptyDatabases(databases: Database[]): Database[] {
+  let changed = false;
+  const result: Database[] = [];
+  for (const database of databases) {
+    // Known-empty database: schema list was enumerated and is empty.
+    if (database.schemas_resolved !== false && database.schemas.length === 0) {
+      changed = true;
+      continue;
+    }
+    // Deferred schema discovery — keep so the user can expand and load.
+    if (database.schemas.length === 0) {
+      result.push(database);
+      continue;
+    }
+    const visibleSchemas = database.schemas.filter(
+      (schema) => !isKnownEmptySchema(schema),
+    );
+    if (visibleSchemas.length === 0) {
+      changed = true;
+      continue;
+    }
+    if (visibleSchemas.length === database.schemas.length) {
+      result.push(database);
+      continue;
+    }
+    changed = true;
+    result.push({ ...database, schemas: visibleSchemas });
+  }
+  return changed ? result : databases;
+}
+
+/**
  * This atom is used to get the data connections that are available to the user.
  * It filters out the internal engines if it has no databases or if it has only the in-memory database and no schemas.
  */
@@ -152,10 +217,27 @@ export const connectionsAtom = atom((get) => {
 
 export const DataSources: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");
+  const [hideEmpty, setHideEmpty] = useAtom(hideEmptyDatasourcesAtom);
 
   const closeAllColumns = useSetAtom(closeAllColumnsAtom);
   const tables = useAtomValue(sortedTablesAtom);
-  const dataConnections = useAtomValue(connectionsAtom);
+  const rawConnections = useAtomValue(connectionsAtom);
+
+  const dataConnections = React.useMemo(() => {
+    if (!hideEmpty) {
+      return rawConnections;
+    }
+    let changed = false;
+    const filtered = rawConnections.map((connection) => {
+      const databases = filterEmptyDatabases(connection.databases);
+      if (databases === connection.databases) {
+        return connection;
+      }
+      changed = true;
+      return { ...connection, databases };
+    });
+    return changed ? filtered : rawConnections;
+  }, [rawConnections, hideEmpty]);
 
   if (tables.length === 0 && dataConnections.length === 0) {
     return (
@@ -203,6 +285,28 @@ export const DataSources: React.FC = () => {
             <XIcon className="h-4 w-4" />
           </button>
         )}
+
+        <Tooltip
+          content={
+            hideEmpty
+              ? "Show empty schemas and databases"
+              : "Hide empty schemas and databases"
+          }
+        >
+          <Button
+            data-testid="datasources-hide-empty-button"
+            variant="ghost"
+            size="sm"
+            className="px-2 rounded-none focus-visible:outline-hidden"
+            onClick={() => setHideEmpty(!hideEmpty)}
+          >
+            {hideEmpty ? (
+              <EyeOffIcon className="h-4 w-4" />
+            ) : (
+              <EyeIcon className="h-4 w-4" />
+            )}
+          </Button>
+        </Tooltip>
 
         <AddConnectionDialog>
           <Button

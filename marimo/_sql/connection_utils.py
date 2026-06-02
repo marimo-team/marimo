@@ -56,6 +56,7 @@ def update_schema_list_in_connection(
                 continue
 
             database.schemas = updated_schema_list
+            database.schemas_resolved = True
             return
 
 
@@ -84,4 +85,5 @@ def update_table_list_in_connection(
                     continue
 
                 schema.tables = updated_table_list
+                schema.tables_resolved = True
                 return

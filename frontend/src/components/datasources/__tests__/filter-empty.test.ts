@@ -1,0 +1,183 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+import { describe, expect, it } from "vitest";
+import type {
+  Database,
+  DatabaseSchema,
+  DataTable,
+} from "@/core/kernel/messages";
+import { filterEmptyDatabases } from "../datasources";
+
+function makeTable(name: string): DataTable {
+  return {
+    name,
+    columns: [],
+    source: "memory",
+    source_type: "local",
+    type: "table",
+    engine: null,
+    indexes: null,
+    num_columns: null,
+    num_rows: null,
+    variable_name: null,
+    primary_keys: null,
+  };
+}
+
+function makeSchema(opts: {
+  name: string;
+  tables: DataTable[];
+  tables_resolved?: boolean;
+}): DatabaseSchema {
+  return {
+    name: opts.name,
+    tables: opts.tables,
+    tables_resolved: opts.tables_resolved ?? true,
+  };
+}
+
+function makeDatabase(
+  name: string,
+  schemas: DatabaseSchema[],
+  schemas_resolved = true,
+): Database {
+  return {
+    name,
+    dialect: "duckdb",
+    schemas,
+    schemas_resolved,
+    engine: null,
+  };
+}
+
+describe("filterEmptyDatabases", () => {
+  it("hides schemas whose tables are resolved and empty", () => {
+    const databases = [
+      makeDatabase("memory", [
+        makeSchema({ name: "main", tables: [makeTable("t1")] }),
+        makeSchema({ name: "empty_schema", tables: [] }),
+      ]),
+    ];
+
+    expect(filterEmptyDatabases(databases)).toEqual([
+      makeDatabase("memory", [
+        makeSchema({ name: "main", tables: [makeTable("t1")] }),
+      ]),
+    ]);
+  });
+
+  it("preserves databases whose schemas have not been resolved yet (lazy state)", () => {
+    const databases = [
+      makeDatabase("not_loaded_yet", [], /* schemas_resolved */ false),
+    ];
+
+    expect(filterEmptyDatabases(databases)).toEqual([
+      makeDatabase("not_loaded_yet", [], false),
+    ]);
+  });
+
+  it("hides databases that have been resolved as empty", () => {
+    const databases = [
+      makeDatabase("really_empty", [], /* schemas_resolved */ true),
+      makeDatabase("has_tables", [
+        makeSchema({ name: "main", tables: [makeTable("t1")] }),
+      ]),
+    ];
+
+    expect(filterEmptyDatabases(databases)).toEqual([
+      makeDatabase("has_tables", [
+        makeSchema({ name: "main", tables: [makeTable("t1")] }),
+      ]),
+    ]);
+  });
+
+  it("hides databases whose schemas all filtered to empty", () => {
+    const databases = [
+      makeDatabase("only_empty", [
+        makeSchema({ name: "a", tables: [] }),
+        makeSchema({ name: "b", tables: [] }),
+      ]),
+      makeDatabase("has_tables", [
+        makeSchema({ name: "main", tables: [makeTable("t1")] }),
+      ]),
+    ];
+
+    expect(filterEmptyDatabases(databases)).toEqual([
+      makeDatabase("has_tables", [
+        makeSchema({ name: "main", tables: [makeTable("t1")] }),
+      ]),
+    ]);
+  });
+
+  it("treats missing schemas_resolved as resolved (backward compatible)", () => {
+    const databases = [
+      { name: "memory", dialect: "duckdb", schemas: [], engine: null },
+    ] as Database[];
+
+    expect(filterEmptyDatabases(databases)).toEqual([]);
+  });
+
+  it("preserves schemas whose tables have not been resolved yet", () => {
+    const databases = [
+      makeDatabase("snowflake_db", [
+        // include_tables=False was used; the schema is not actually empty,
+        // tables will be fetched lazily on expand.
+        makeSchema({ name: "public", tables: [], tables_resolved: false }),
+        makeSchema({ name: "audit", tables: [], tables_resolved: false }),
+        makeSchema({
+          name: "really_empty",
+          tables: [],
+          tables_resolved: true,
+        }),
+      ]),
+    ];
+
+    expect(filterEmptyDatabases(databases)).toEqual([
+      makeDatabase("snowflake_db", [
+        makeSchema({ name: "public", tables: [], tables_resolved: false }),
+        makeSchema({ name: "audit", tables: [], tables_resolved: false }),
+      ]),
+    ]);
+  });
+
+  it("treats missing tables_resolved as resolved (backward compatible)", () => {
+    // Older payloads predating the new flag may omit it; default semantics
+    // treat the schema as resolved/authoritative.
+    const databases = [
+      makeDatabase("memory", [
+        { name: "main", tables: [makeTable("t1")] },
+        { name: "empty_schema", tables: [] },
+      ] as DatabaseSchema[]),
+    ];
+
+    expect(filterEmptyDatabases(databases)).toEqual([
+      makeDatabase("memory", [
+        { name: "main", tables: [makeTable("t1")] },
+      ] as DatabaseSchema[]),
+    ]);
+  });
+
+  it("returns the same reference when nothing was filtered", () => {
+    const databases = [
+      makeDatabase("memory", [
+        makeSchema({ name: "main", tables: [makeTable("t1")] }),
+      ]),
+    ];
+
+    expect(filterEmptyDatabases(databases)).toBe(databases);
+  });
+
+  it("does not mutate the input", () => {
+    const databases = [
+      makeDatabase("memory", [
+        makeSchema({ name: "main", tables: [makeTable("t1")] }),
+        makeSchema({ name: "empty_schema", tables: [] }),
+      ]),
+    ];
+    const snapshot = JSON.parse(JSON.stringify(databases));
+
+    filterEmptyDatabases(databases);
+
+    expect(databases).toEqual(snapshot);
+  });
+});
