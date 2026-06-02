@@ -178,9 +178,24 @@ class DefinitionRegistry:
         return matching_cell_ids_list
 
     def get_multiply_defined(self) -> list[tuple[Name, set[CellId_t]]]:
-        """Return multiply-defined names with their conflicting cells."""
+        """
+        Return multiply-defined names with their conflicting cells.
+
+        Results are sorted by display name and conflict key to keep diagnostics
+        deterministic.
+        """
+
+        def sort_key(
+            item: tuple[tuple[str, str], set[CellId_t]],
+        ) -> tuple[Name, tuple[str, str]]:
+            conflict_key, _definers = item
+            return (self.conflict_names[conflict_key], conflict_key)
+
         return [
             (self.conflict_names[conflict_key], definers)
-            for conflict_key, definers in self.definition_conflicts.items()
+            for conflict_key, definers in sorted(
+                self.definition_conflicts.items(),
+                key=sort_key,
+            )
             if len(definers) > 1
         ]
