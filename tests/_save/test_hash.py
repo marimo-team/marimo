@@ -672,6 +672,37 @@ class TestHashMemo:
         not DependencyManager.numpy.has(),
         reason="optional dependencies not installed",
     )
+    def test_cached_fn_distinct_ndarray_args(app) -> None:
+        """Distinct ndarray args vs kwargs must not collide."""
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import numpy as np
+
+            import marimo as mo
+
+            return mo, np
+
+        @app.cell
+        def one(mo, np) -> tuple[Any]:
+            @mo.cache
+            def f(a):
+                return float(a.sum())
+
+            assert f(np.array([1.0, 2.0, 3.0])) == 6.0
+            # Check alternative arg path to ensure no collision between args and kwargs.
+            assert f(np.array([4.0, 5.0, 6.0])) == 15.0
+            # Keyword form exercises the same arg path.
+            assert f(a=np.array([7.0, 8.0, 9.0])) == 24.0
+            assert f.hits == 0
+            assert f.misses == 3
+            return (f,)
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(),
+        reason="optional dependencies not installed",
+    )
     def test_lifecycle_cleanup(app) -> None:
         """HashMemoCleanup clears memo when defining cell is disposed."""
 
