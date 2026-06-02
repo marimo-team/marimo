@@ -141,6 +141,22 @@ NODE_ENV=development make fe -B
 | `docs-serve`   | Docs      | 📚 Serve docs                                                  |
 | `storybook`    | Docs      | 🧩 Start Storybook for UI development                          |
 
+## Specialized development docs
+
+For development workflows that are more specific than the standard setup,
+checks, and tests covered in this guide, see
+[`development_docs/`](development_docs/).
+
+Current topics include:
+
+- [Adding backend and MCP tools](development_docs/adding_backend_and_mcp_tools.md)
+- [Adding lint rules](development_docs/adding_lint_rules.md)
+- [OpenAPI schema updates](development_docs/openapi.md)
+- [Prompts](development_docs/prompts.md)
+- [Pyodide development](development_docs/pyodide.md)
+- [Testing](development_docs/testing.md)
+- [Tracing and profiling](development_docs/traces.md)
+
 ## Lint, Typecheck, Format
 
 **All checks.**
