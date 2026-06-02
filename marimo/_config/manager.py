@@ -139,15 +139,33 @@ class MarimoConfigManager(MarimoConfigReader):
     ) -> PartialMarimoConfig:
         """Get the configuration overrides"""
         if not self.partials:
-            return {}
-        if len(self.partials) == 1:
-            return self.partials[0].get_config(hide_secrets=hide_secrets)
-        result: MarimoConfig = cast(MarimoConfig, {})
-        for partial in self.partials:
-            result = merge_config(
-                result, partial.get_config(hide_secrets=hide_secrets)
+            overrides: PartialMarimoConfig = {}
+        elif len(self.partials) == 1:
+            overrides = self.partials[0].get_config(hide_secrets=hide_secrets)
+        else:
+            result: MarimoConfig = cast(MarimoConfig, {})
+            for partial in self.partials:
+                result = merge_config(
+                    result, partial.get_config(hide_secrets=hide_secrets)
+                )
+            overrides = cast(PartialMarimoConfig, result)
+        if GLOBAL_SETTINGS.RESTRICT_SHARING:
+            # Clamp after all overrides are merged so the restriction cannot be
+            # re-enabled by any config source (including a later
+            # with_overrides()). Build a new dict to avoid mutating a partial's
+            # (possibly cached) returned config.
+            overrides = cast(
+                PartialMarimoConfig,
+                {
+                    **overrides,
+                    "sharing": {
+                        "wasm": False,
+                        "html": False,
+                        "molab": False,
+                    },
+                },
             )
-        return cast(PartialMarimoConfig, result)
+        return overrides
 
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the configuration, by merging the user configuration and the configuration overrides"""
@@ -332,13 +350,6 @@ class EnvConfigManager(PartialMarimoConfigReader):
             ["runtime", "auto_instantiate"],
             project_config,
         )
-        if GLOBAL_SETTINGS.RESTRICT_SHARING:
-            # Highest-priority override: hide every external sharing affordance.
-            project_config["sharing"] = {
-                "wasm": False,
-                "html": False,
-                "molab": False,
-            }
         if hide_secrets:
             return mask_secrets_partial(project_config)
         return project_config
