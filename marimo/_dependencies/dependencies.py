@@ -216,6 +216,7 @@ class DependencyManager:
     anywidget = Dependency("anywidget")
     traitlets = Dependency("traitlets")
     watchdog = Dependency("watchdog")
+    cloudpickle = Dependency("cloudpickle")
     ipython = Dependency("IPython")
     ipywidgets = Dependency("ipywidgets")
     nbformat = Dependency("nbformat")
