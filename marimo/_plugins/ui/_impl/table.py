@@ -92,7 +92,7 @@ class TableSearchError(Exception):
 
 @dataclass
 class DownloadAsArgs:
-    format: Literal["csv", "json", "parquet"]
+    format: Literal["csv", "tsv", "json", "parquet"]
 
 
 @dataclass
@@ -976,7 +976,7 @@ class table(
 
         Args:
             args (DownloadAsArgs): The requested download format. Must be
-                one of `'csv'`, `'json'`, or `'parquet'`.
+                one of `'csv'`, `'tsv'`, `'json'`, or `'parquet'`.
 
         Returns:
             DownloadAsResponse: Either a success response with `url` and
