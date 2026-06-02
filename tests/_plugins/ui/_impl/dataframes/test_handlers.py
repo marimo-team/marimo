@@ -2413,6 +2413,41 @@ class TestTransformHandler:
         list(
             zip(
                 create_test_dataframes(
+                    {"nulls": [1, 2, 3, None, "hello"]}, include=["pandas"]
+                ),
+                create_test_dataframes({"nulls": [None]}, include=["pandas"]),
+                strict=False,
+            )
+        ),
+    )
+    def test_filter_rows_null_pandas_object(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="nulls",
+                        operator="in",
+                        value=[None],
+                    )
+                ],
+            ),
+        )
+        result = apply(df, in_transform)
+        assert_frame_equal_with_nans(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
                     {"nulls": [1, 2, 3, float("nan")]},
                     exclude=["pandas", "ibis"],  # Ibis serializes nans to None
                     strict=False,
