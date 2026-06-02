@@ -10,6 +10,7 @@ import narwhals.stable.v2 as nw
 from narwhals.stable.v2 import col
 from narwhals.typing import IntoLazyFrame
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
     python_print_ibis,
     python_print_pandas,
@@ -520,6 +521,9 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             expanded.index = result_df.index
             return undo(nw.from_native(result_df.join(expanded)))
 
+        DependencyManager.polars.require(
+            why="to expand dict/struct columns for non-pandas backends"
+        )
         polars_df = collected_df.to_polars()
         unnested = polars_df.unnest(transform.column_id)
         return undo(nw.from_native(unnested))
