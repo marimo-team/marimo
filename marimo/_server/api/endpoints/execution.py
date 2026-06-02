@@ -24,6 +24,7 @@ from marimo._server.models.models import (
     ExecuteScratchpadRequest,
     InstantiateNotebookRequest,
     InvokeFunctionRequest,
+    KernelStatusResponse,
     ModelRequest,
     SuccessResponse,
     UpdateUIElementValuesRequest,
@@ -31,6 +32,7 @@ from marimo._server.models.models import (
 from marimo._server.router import APIRouter
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._server.workspace import MarimoFileKey
+from marimo._session.types import KernelState
 from marimo._types.ids import ConsumerId
 from marimo._utils.asyncio_utils import cancel_and_wait
 
@@ -243,6 +245,46 @@ async def run_cell(
     )
 
     return SuccessResponse()
+
+
+@router.get("/status")
+@requires("edit")
+async def kernel_status(
+    *,
+    request: Request,
+) -> KernelStatusResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    responses:
+        200:
+            description: Report whether the kernel is currently executing.
+                `running` means at least one cell is queued or running;
+                `idle` means the kernel is alive but not executing; `stopped`
+                means the kernel process is not running.
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/KernelStatusResponse"
+    """
+    app_state = AppState(request)
+    session = app_state.require_current_session()
+
+    if session.kernel_state() in (
+        KernelState.STOPPED,
+        KernelState.NOT_STARTED,
+    ):
+        return KernelStatusResponse(state="stopped")
+
+    is_running = any(
+        notification.status in ("queued", "running")
+        for notification in session.session_view.cell_notifications.values()
+    )
+    return KernelStatusResponse(state="running" if is_running else "idle")
 
 
 @router.post("/execute", include_in_schema=False)

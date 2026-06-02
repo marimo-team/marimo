@@ -2540,6 +2540,17 @@ components:
       - error
       title: KernelStartupErrorNotification
       type: object
+    KernelStatusResponse:
+      properties:
+        state:
+          enum:
+          - idle
+          - running
+          - stopped
+      required:
+      - state
+      title: KernelStatusResponse
+      type: object
     KeymapConfig:
       description: "Configuration for keymaps.\n\n    **Keys.**\n\n    - `preset`:\
         \ one of `\"default\"` or `\"vim\"`\n    - `overrides`: a dict of keymap actions\
@@ -6770,6 +6781,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Shutdown the kernel
+  /api/kernel/status:
+    get:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KernelStatusResponse'
+          description: Report whether the kernel is currently executing. `running`
+            means at least one cell is queued or running; `idle` means the kernel
+            is alive but not executing; `stopped` means the kernel process is not
+            running.
   /api/kernel/stdin:
     post:
       parameters:
