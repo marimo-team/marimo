@@ -3,7 +3,7 @@
 marimo makes it very easy to share links to executable notebooks from notebooks
 hosted on GitHub. 
 
-- [Share molab links](../molab.md#preview-notebooks-from-github) to obtain interactive previews of notebooks hosted on GitHub, no login required
+- [Share molab links](../molab.md#mirror-notebooks-from-github) to obtain interactive previews of notebooks hosted on GitHub, no login required
 - Publish notebooks to [GitHub Pages](#publish-to-github-pages)
 
 ## Share previews of notebooks hosted on GitHub
@@ -46,7 +46,7 @@ becomes
 Visit [molab.marimo.io/github](https://molab.marimo.io/github) to automatically
 generate preview URLs and badges from GitHub links.
 
-For full details on previewing, embedding, and sharing, see the [molab guide](../molab.md#preview-notebooks-from-github).
+For full details on previewing, embedding, and sharing, see the [molab guide](../molab.md#mirror-notebooks-from-github).
 
 ## Export to ipynb to view on GitHub
 
@@ -70,7 +70,7 @@ right corner:
 
 ## Publish to GitHub Pages
 
-> For a simpler solution, use [molab's built in GitHub previewer](../molab.md#preview-notebooks-from-github)
+> For a simpler solution, use [molab's built in GitHub previewer](../molab.md#mirror-notebooks-from-github)
 
 You can publish executable notebooks to [GitHub Pages](https://pages.github.com/)
 for free, after exporting your notebook to a WebAssembly notebook.

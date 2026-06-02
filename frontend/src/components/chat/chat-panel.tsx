@@ -51,7 +51,7 @@ import {
   FRONTEND_TOOL_REGISTRY,
 } from "@/core/ai/tools/registry";
 import { useCellActions } from "@/core/cells/cells";
-import { aiAtom, aiEnabledAtom } from "@/core/config/config";
+import { aiAtom, aiModelConfiguredAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
@@ -442,7 +442,7 @@ const PairWithAgentCallout: React.FC<{
 };
 
 const ChatPanel = () => {
-  const aiConfigured = useAtomValue(aiEnabledAtom);
+  const aiConfigured = useAtomValue(aiModelConfiguredAtom);
   const { handleClick } = useOpenSettingsToTab();
 
   if (!aiConfigured) {

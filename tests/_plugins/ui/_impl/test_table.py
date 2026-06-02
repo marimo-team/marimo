@@ -1423,7 +1423,7 @@ def test_show_download(df: Any) -> None:
     assert table_false._component_args["show-download"] is False
 
 
-DOWNLOAD_FORMATS = ["csv", "json", "parquet"]
+DOWNLOAD_FORMATS = ["csv", "tsv", "json", "parquet"]
 
 # Parquet export requires pandas+pyarrow or polars (see the `_download_as`
 # short-circuit in `table.py`). In environments without those — e.g. the
@@ -1432,7 +1432,7 @@ _CAN_EXPORT_PARQUET = DependencyManager.polars.has() or (
     DependencyManager.pandas.has() and DependencyManager.pyarrow.has()
 )
 _TESTABLE_DOWNLOAD_FORMATS = (
-    DOWNLOAD_FORMATS if _CAN_EXPORT_PARQUET else ["csv", "json"]
+    DOWNLOAD_FORMATS if _CAN_EXPORT_PARQUET else ["csv", "tsv", "json"]
 )
 
 
@@ -1506,6 +1506,22 @@ def test_download_as(df: Any) -> None:
                 import pyarrow.csv as pacsv
 
                 return pacsv.read_csv(buffer)
+        elif format_type == "tsv":
+            if DependencyManager.pandas.has():
+                import pandas as pd
+
+                return pd.read_csv(buffer, sep="\t")
+            elif DependencyManager.polars.has():
+                import polars as pl
+
+                return pl.read_csv(buffer, separator="\t")
+            elif DependencyManager.pyarrow.has():
+                import pyarrow.csv as pacsv
+
+                return pacsv.read_csv(
+                    buffer,
+                    parse_options=pacsv.ParseOptions(delimiter="\t"),
+                )
         raise ValueError(f"Unsupported format: {format_type}")
 
     # Test base downloads (full data)
@@ -1655,7 +1671,7 @@ def test_download_as_for_supported_cell_selection() -> None:
 )
 @pytest.mark.parametrize(
     "fmt",
-    ["csv", "json", "parquet"],
+    ["csv", "tsv", "json", "parquet"],
 )
 def test_download_as_for_dataframes(df: Any, fmt: str) -> None:
     table = ui.table(df)

@@ -13,7 +13,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { notebookAtom, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { aiEnabledAtom } from "@/core/config/config";
+import { aiFeaturesEnabledAtom } from "@/core/config/config";
 import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
@@ -30,9 +30,9 @@ export const AutoFixButton = ({
 }) => {
   const store = useStore();
   const { createNewCell } = useCellActions();
-  const aiEnabled = useAtomValue(aiEnabledAtom);
+  const aiFeaturesEnabled = useAtomValue(aiFeaturesEnabledAtom);
   const autoFixes = errors.flatMap((error) =>
-    getAutoFixes(error, { aiEnabled }),
+    getAutoFixes(error, { aiEnabled: aiFeaturesEnabled }),
   );
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
 

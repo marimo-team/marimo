@@ -94,7 +94,8 @@ components:
       title: AiCompletionRequest
       type: object
     AiConfig:
-      description: "Configuration options for AI.\n\n    **Keys.**\n\n    - `rules`:\
+      description: "Configuration options for AI.\n\n    **Keys.**\n\n    - `enabled`:\
+        \ if `False`, hide AI actions and panels in the marimo UI\n    - `rules`:\
         \ custom rules to include in all AI completion prompts\n    - `max_tokens`:\
         \ the maximum number of tokens to use in AI completions\n    - `mode`: the\
         \ mode to use for AI completions. Can be one of: `\"ask\"` or `\"manual\"\
@@ -119,6 +120,8 @@ components:
           additionalProperties:
             $ref: '#/components/schemas/OpenAiConfig'
           type: object
+        enabled:
+          type: boolean
         github:
           $ref: '#/components/schemas/GitHubConfig'
         google:
@@ -4621,9 +4624,12 @@ components:
       description: "Configuration for sharing features.\n\n    **Keys.**\n\n    -\
         \ `html`: if `False`, HTML sharing options will be hidden from the UI\n  \
         \  - `wasm`: if `False`, WebAssembly sharing options will be hidden from the\
-        \ UI"
+        \ UI\n    - `molab`: if `False`, molab sharing options will be hidden from\
+        \ the UI"
       properties:
         html:
+          type: boolean
+        molab:
           type: boolean
         wasm:
           type: boolean

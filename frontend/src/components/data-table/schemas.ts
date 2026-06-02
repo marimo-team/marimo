@@ -4,7 +4,7 @@ import z from "zod";
 import { rpc } from "@/plugins/core/rpc";
 
 export type DownloadAsArgs = (req: {
-  format: "csv" | "json" | "parquet";
+  format: "csv" | "json" | "parquet" | "tsv";
 }) => Promise<{
   url: string;
   filename: string;
@@ -15,7 +15,7 @@ export type DownloadAsArgs = (req: {
 export const DownloadAsSchema = rpc
   .input(
     z.object({
-      format: z.enum(["csv", "json", "parquet"]),
+      format: z.enum(["csv", "json", "parquet", "tsv"]),
     }),
   )
   .output(

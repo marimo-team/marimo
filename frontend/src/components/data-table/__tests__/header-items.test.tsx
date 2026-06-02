@@ -1,6 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Column, SortingState } from "@tanstack/react-table";
+import type {
+  Column,
+  SortDirection,
+  SortingState,
+  Table,
+} from "@tanstack/react-table";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -8,7 +13,23 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { HideColumn } from "../header-items";
+import {
+  ColumnPinning,
+  ColumnWrapping,
+  CopyColumn,
+  DataType,
+  FormatOptions,
+  HideColumn,
+  Sorts,
+} from "../header-items";
+
+const renderInMenu = (node: React.ReactNode) =>
+  render(
+    <DropdownMenu open={true}>
+      <DropdownMenuTrigger />
+      <DropdownMenuContent>{node}</DropdownMenuContent>
+    </DropdownMenu>,
+  );
 
 describe("multi-column sorting logic", () => {
   // Extract the core sorting logic to test in isolation
@@ -167,14 +188,6 @@ describe("HideColumn", () => {
       toggleVisibility,
     }) as unknown as Column<unknown, unknown>;
 
-  const renderInMenu = (node: React.ReactNode) =>
-    render(
-      <DropdownMenu open={true}>
-        <DropdownMenuTrigger />
-        <DropdownMenuContent>{node}</DropdownMenuContent>
-      </DropdownMenu>,
-    );
-
   it("renders 'Hide column' when canHide is true", () => {
     renderInMenu(<HideColumn column={makeColumn()} />);
     expect(screen.getByText("Hide column")).toBeInTheDocument();
@@ -190,5 +203,202 @@ describe("HideColumn", () => {
     renderInMenu(<HideColumn column={makeColumn({ toggleVisibility })} />);
     fireEvent.click(screen.getByText("Hide column"));
     expect(toggleVisibility).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("DataType", () => {
+  const makeColumn = (dtype?: string) =>
+    ({
+      columnDef: { meta: dtype === undefined ? {} : { dtype } },
+    }) as unknown as Column<unknown, unknown>;
+
+  it("renders the dtype label when present", () => {
+    renderInMenu(<DataType column={makeColumn("int64")} />);
+    expect(screen.getByText("int64")).toBeInTheDocument();
+  });
+
+  it("returns null when dtype is absent", () => {
+    renderInMenu(<DataType column={makeColumn()} />);
+    expect(screen.queryByText("int64")).toBeNull();
+  });
+});
+
+describe("Sorts", () => {
+  const makeColumn = ({
+    canSort = true,
+    sorted = false,
+    sortIndex = 0,
+  }: {
+    canSort?: boolean;
+    sorted?: false | SortDirection;
+    sortIndex?: number;
+  } = {}) =>
+    ({
+      getCanSort: () => canSort,
+      getIsSorted: () => sorted,
+      getSortIndex: () => sortIndex,
+      clearSorting: vi.fn(),
+      toggleSorting: vi.fn(),
+    }) as unknown as Column<unknown, unknown>;
+
+  const makeTable = (sorting: SortingState) =>
+    ({
+      getState: () => ({ sorting }),
+      resetSorting: vi.fn(),
+    }) as unknown as Table<unknown>;
+
+  it("returns null when the column cannot sort", () => {
+    renderInMenu(<Sorts column={makeColumn({ canSort: false })} />);
+    expect(screen.queryByText("Asc")).toBeNull();
+  });
+
+  it("renders Asc and Desc items", () => {
+    renderInMenu(<Sorts column={makeColumn()} />);
+    expect(screen.getByText("Asc")).toBeInTheDocument();
+    expect(screen.getByText("Desc")).toBeInTheDocument();
+  });
+
+  it("offers single-column 'Clear sort' when sorted without multi-sort", () => {
+    renderInMenu(<Sorts column={makeColumn({ sorted: "asc" })} />);
+    expect(screen.getByText("Clear sort")).toBeInTheDocument();
+  });
+
+  it("offers 'Clear all sorts' when the table has multiple sorts", () => {
+    renderInMenu(
+      <Sorts
+        column={makeColumn({ sorted: "asc" })}
+        table={makeTable([
+          { id: "a", desc: false },
+          { id: "b", desc: true },
+        ])}
+      />,
+    );
+    expect(screen.getByText("Clear all sorts")).toBeInTheDocument();
+  });
+});
+
+describe("CopyColumn", () => {
+  const makeColumn = ({
+    canCopy = true,
+    id = "name",
+  }: {
+    canCopy?: boolean;
+    id?: string;
+  } = {}) =>
+    ({
+      id,
+      getCanCopy: () => canCopy,
+    }) as unknown as Column<unknown, unknown>;
+
+  it("renders 'Copy column name' when copyable", () => {
+    renderInMenu(<CopyColumn column={makeColumn()} />);
+    expect(screen.getByText("Copy column name")).toBeInTheDocument();
+  });
+
+  it("returns null when the column cannot be copied", () => {
+    renderInMenu(<CopyColumn column={makeColumn({ canCopy: false })} />);
+    expect(screen.queryByText("Copy column name")).toBeNull();
+  });
+});
+
+describe("ColumnPinning", () => {
+  const makeColumn = ({
+    canPin = true,
+    pinned = false,
+  }: {
+    canPin?: boolean;
+    pinned?: false | "left" | "right";
+  } = {}) =>
+    ({
+      getCanPin: () => canPin,
+      getIsPinned: () => pinned,
+      pin: vi.fn(),
+    }) as unknown as Column<unknown, unknown>;
+
+  it("returns null when the column cannot be pinned", () => {
+    renderInMenu(<ColumnPinning column={makeColumn({ canPin: false })} />);
+    expect(screen.queryByText("Freeze left")).toBeNull();
+  });
+
+  it("offers freeze options when unpinned", () => {
+    renderInMenu(<ColumnPinning column={makeColumn()} />);
+    expect(screen.getByText("Freeze left")).toBeInTheDocument();
+    expect(screen.getByText("Freeze right")).toBeInTheDocument();
+  });
+
+  it("offers 'Unfreeze' when pinned", () => {
+    renderInMenu(<ColumnPinning column={makeColumn({ pinned: "left" })} />);
+    expect(screen.getByText("Unfreeze")).toBeInTheDocument();
+  });
+});
+
+describe("ColumnWrapping", () => {
+  const makeColumn = ({
+    canWrap = true,
+    wrapping = "nowrap",
+  }: {
+    canWrap?: boolean;
+    wrapping?: "wrap" | "nowrap";
+  } = {}) =>
+    ({
+      getCanWrap: () => canWrap,
+      getColumnWrapping: () => wrapping,
+      toggleColumnWrapping: vi.fn(),
+    }) as unknown as Column<unknown, unknown>;
+
+  it("returns null when the column cannot wrap", () => {
+    renderInMenu(<ColumnWrapping column={makeColumn({ canWrap: false })} />);
+    expect(screen.queryByText("Wrap text")).toBeNull();
+  });
+
+  it("offers 'Wrap text' when not wrapping", () => {
+    renderInMenu(<ColumnWrapping column={makeColumn()} />);
+    expect(screen.getByText("Wrap text")).toBeInTheDocument();
+  });
+
+  it("offers 'No wrap text' when wrapping", () => {
+    renderInMenu(<ColumnWrapping column={makeColumn({ wrapping: "wrap" })} />);
+    expect(screen.getByText("No wrap text")).toBeInTheDocument();
+  });
+});
+
+describe("FormatOptions", () => {
+  const makeColumn = ({
+    dataType = "number",
+    canFormat = true,
+  }: {
+    dataType?: string;
+    canFormat?: boolean;
+  } = {}) =>
+    ({
+      columnDef: { meta: { dataType } },
+      getCanFormat: () => canFormat,
+      getColumnFormatting: () => undefined,
+      setColumnFormatting: vi.fn(),
+    }) as unknown as Column<unknown, unknown>;
+
+  it("renders the 'Format' submenu trigger for formattable columns", () => {
+    renderInMenu(<FormatOptions column={makeColumn()} locale="en-US" />);
+    expect(screen.getByText("Format")).toBeInTheDocument();
+  });
+
+  it("returns null when the column cannot be formatted", () => {
+    renderInMenu(
+      <FormatOptions
+        column={makeColumn({ canFormat: false })}
+        locale="en-US"
+      />,
+    );
+    expect(screen.queryByText("Format")).toBeNull();
+  });
+
+  it("returns null when the data type has no format options", () => {
+    renderInMenu(
+      <FormatOptions
+        column={makeColumn({ dataType: "unknown" })}
+        locale="en-US"
+      />,
+    );
+    expect(screen.queryByText("Format")).toBeNull();
   });
 });

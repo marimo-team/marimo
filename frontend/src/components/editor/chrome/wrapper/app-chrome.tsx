@@ -27,6 +27,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyActivity } from "@/components/utils/lazy-mount";
 import { cellErrorCount } from "@/core/cells/cells";
 import { capabilitiesAtom } from "@/core/config/capabilities";
+import { aiEnabledAtom } from "@/core/config/config";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
@@ -93,18 +94,19 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const [panelLayout, setPanelLayout] = useAtom(panelLayoutAtom);
   // Subscribe to capabilities to re-render when they change (e.g., terminal capability)
   const capabilities = useAtomValue(capabilitiesAtom);
+  const aiEnabled = useAtomValue(aiEnabledAtom);
 
   // Convert current developer panel items to PanelDescriptors
   // Filter out hidden panels (e.g., terminal when capability is not available)
   const devPanelItems = useMemo(() => {
     return panelLayout.developerPanel.flatMap((id) => {
       const panel = PANEL_MAP.get(id);
-      if (!panel || isPanelHidden(panel, capabilities)) {
+      if (!panel || isPanelHidden({ panel, capabilities, aiEnabled })) {
         return [];
       }
       return [panel];
     });
-  }, [panelLayout.developerPanel, capabilities]);
+  }, [panelLayout.developerPanel, capabilities, aiEnabled]);
 
   const handleSetDevPanelItems = (items: PanelDescriptor[]) => {
     setPanelLayout((prev) => ({
@@ -141,7 +143,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const availableDevPanels = useMemo(() => {
     const sidebarIds = new Set(panelLayout.sidebar);
     return PANELS.filter((p) => {
-      if (isPanelHidden(p, capabilities)) {
+      if (isPanelHidden({ panel: p, capabilities, aiEnabled })) {
         return false;
       }
       // Exclude panels that are in the sidebar
@@ -150,7 +152,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       }
       return true;
     });
-  }, [panelLayout.sidebar, capabilities]);
+  }, [panelLayout.sidebar, capabilities, aiEnabled]);
 
   const emitResizeEvent = useEvent(() => {
     // HACK: Unfortunately, we have to do this twice to make sure the

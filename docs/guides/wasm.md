@@ -56,7 +56,7 @@ of Python to WebAssembly that enables browsers to run Python code._
 marimo provides three ways to create and share WASM notebooks:
 
 1. [molab](molab.md). Our free cloud-hosted marimo notebook service.
-   Append `/wasm` to [GitHub previews](molab.md#preview-notebooks-from-github) to create interactive previews
+   Append `/wasm` to [GitHub previews](molab.md#mirror-notebooks-from-github) to create interactive previews
    of notebooks hosted on GitHub. molab also allows embedding WebAssembly notebooks in
    other [webpages](publishing/embedding.md) (we do this throughout these docs).
 2. [Export to WASM HTML](exporting/webassembly_html.md),

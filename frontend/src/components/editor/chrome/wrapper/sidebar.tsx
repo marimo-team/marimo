@@ -12,6 +12,7 @@ import {
   notebookQueuedOrRunningCountAtom,
 } from "@/core/cells/cells";
 import { capabilitiesAtom } from "@/core/config/capabilities";
+import { aiEnabledAtom } from "@/core/config/config";
 import { cn } from "@/utils/cn";
 import { FeedbackButton } from "../components/feedback-button";
 import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
@@ -30,6 +31,7 @@ export const Sidebar: React.FC = () => {
   const [panelLayout, setPanelLayout] = useAtom(panelLayoutAtom);
   // Subscribe to capabilities to re-render when they change
   const capabilities = useAtomValue(capabilitiesAtom);
+  const aiEnabled = useAtomValue(aiEnabledAtom);
 
   const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
     return <Icon className={cn("h-5 w-5", className)} />;
@@ -40,7 +42,7 @@ export const Sidebar: React.FC = () => {
   const availableSidebarPanels = useMemo(() => {
     const devPanelIds = new Set(panelLayout.developerPanel);
     return PANELS.filter((p) => {
-      if (isPanelHidden(p, capabilities)) {
+      if (isPanelHidden({ panel: p, capabilities, aiEnabled })) {
         return false;
       }
       // Exclude panels that are in the developer panel
@@ -49,19 +51,19 @@ export const Sidebar: React.FC = () => {
       }
       return true;
     });
-  }, [panelLayout.developerPanel, capabilities]);
+  }, [panelLayout.developerPanel, capabilities, aiEnabled]);
 
   // Convert current sidebar items to PanelDescriptors
   // Filter out hidden panels (e.g., when capability is not available)
   const sidebarItems = useMemo(() => {
     return panelLayout.sidebar.flatMap((id) => {
       const panel = PANEL_MAP.get(id);
-      if (!panel || isPanelHidden(panel, capabilities)) {
+      if (!panel || isPanelHidden({ panel, capabilities, aiEnabled })) {
         return [];
       }
       return [panel];
     });
-  }, [panelLayout.sidebar, capabilities]);
+  }, [panelLayout.sidebar, capabilities, aiEnabled]);
 
   const handleSetSidebarItems = (items: PanelDescriptor[]) => {
     setPanelLayout((prev) => ({
@@ -218,7 +220,7 @@ const SidebarItem: React.FC<
   // Render as div when not clickable (e.g., inside ReorderableList)
   // This avoids nested interactive elements which break react-aria's drag behavior
   const content = onClick ? (
-    <button className={itemClassName} onClick={onClick}>
+    <button type="button" className={itemClassName} onClick={onClick}>
       {children}
     </button>
   ) : (

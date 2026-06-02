@@ -6,6 +6,7 @@ import { useAtomValue } from "jotai";
 import { CopyIcon, DownloadIcon } from "lucide-react";
 import type React from "react";
 import { Constants } from "@/core/constants";
+import { useResolvedMarimoConfig } from "@/core/config/config";
 import { codeAtom } from "@/core/saving/file-state";
 import { useFilename } from "@/core/saving/filename";
 import { isStaticNotebook } from "@/core/static/static-state";
@@ -66,6 +67,9 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
     filename = filename.slice(lastSlash + 1);
   }
 
+  const [resolvedConfig] = useResolvedMarimoConfig();
+  const molabEnabled = resolvedConfig.sharing?.molab !== false;
+
   const href = window.location.href;
   const molabLink = createShareableLink({
     code,
@@ -118,28 +122,30 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
               </div>
             )}
 
-            <div className="pt-3 border-t flex gap-2 items-center">
-              <Button
-                asChild={true}
-                variant="outline"
-                size="xs"
-                className="shrink-0"
-              >
-                <a href={molabLink} target="_blank" rel="noopener noreferrer">
-                  <MarimoPlusIcon
-                    size={12}
-                    strokeWidth={1.5}
-                    className="mr-1.5 mt-px text-(--grass-11)"
-                  />
-                  Open in molab
-                </a>
-              </Button>
-              <p className="text-sm text-(--sky-12)">
-                Run this notebook in{" "}
-                <span className="font-semibold">molab</span>, marimo's
-                cloud-hosted notebook platform.
-              </p>
-            </div>
+            {molabEnabled && (
+              <div className="pt-3 border-t flex gap-2 items-center">
+                <Button
+                  asChild={true}
+                  variant="outline"
+                  size="xs"
+                  className="shrink-0"
+                >
+                  <a href={molabLink} target="_blank" rel="noopener noreferrer">
+                    <MarimoPlusIcon
+                      size={12}
+                      strokeWidth={1.5}
+                      className="mr-1.5 mt-px text-(--grass-11)"
+                    />
+                    Open in molab
+                  </a>
+                </Button>
+                <p className="text-sm text-(--sky-12)">
+                  Run this notebook in{" "}
+                  <span className="font-semibold">molab</span>, marimo's
+                  cloud-hosted notebook platform.
+                </p>
+              </div>
+            )}
           </DialogDescription>
         </DialogHeader>
         <div className="flex gap-3 pt-2">

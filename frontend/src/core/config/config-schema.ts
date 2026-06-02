@@ -158,6 +158,7 @@ export const UserConfigSchema = z
       .prefault({}),
     ai: z
       .looseObject({
+        enabled: z.boolean().prefault(true),
         rules: z.string().prefault(""),
         max_tokens: z.number().int().positive().nullable().optional(),
         mode: z.enum(COPILOT_MODES).prefault("manual"),
@@ -209,6 +210,7 @@ export const UserConfigSchema = z
       .looseObject({
         html: z.boolean().optional(),
         wasm: z.boolean().optional(),
+        molab: z.boolean().optional(),
       })
       .optional(),
     mcp: z
