@@ -18,6 +18,7 @@ import {
   ColumnWrapping,
   CopyColumn,
   DataType,
+  FormatOptions,
   HideColumn,
   Sorts,
 } from "../header-items";
@@ -358,5 +359,40 @@ describe("ColumnWrapping", () => {
   it("offers 'No wrap text' when wrapping", () => {
     renderInMenu(<ColumnWrapping column={makeColumn({ wrapping: "wrap" })} />);
     expect(screen.getByText("No wrap text")).toBeInTheDocument();
+  });
+});
+
+describe("FormatOptions", () => {
+  const makeColumn = ({
+    dataType = "number",
+    canFormat = true,
+  }: {
+    dataType?: string;
+    canFormat?: boolean;
+  } = {}) =>
+    ({
+      columnDef: { meta: { dataType } },
+      getCanFormat: () => canFormat,
+      getColumnFormatting: () => undefined,
+      setColumnFormatting: vi.fn(),
+    }) as unknown as Column<unknown, unknown>;
+
+  it("renders the 'Format' submenu trigger for formattable columns", () => {
+    renderInMenu(<FormatOptions column={makeColumn()} locale="en-US" />);
+    expect(screen.getByText("Format")).toBeInTheDocument();
+  });
+
+  it("returns null when the column cannot be formatted", () => {
+    renderInMenu(
+      <FormatOptions column={makeColumn({ canFormat: false })} locale="en-US" />,
+    );
+    expect(screen.queryByText("Format")).toBeNull();
+  });
+
+  it("returns null when the data type has no format options", () => {
+    renderInMenu(
+      <FormatOptions column={makeColumn({ dataType: "unknown" })} locale="en-US" />,
+    );
+    expect(screen.queryByText("Format")).toBeNull();
   });
 });

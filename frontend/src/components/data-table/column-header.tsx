@@ -21,8 +21,8 @@ import {
   ColumnWrapping,
   CopyColumn,
   DataType,
+  FormatOptions,
   HideColumn,
-  renderFormatOptions,
   renderSortIcon,
   Sorts,
 } from "./header-items";
@@ -129,7 +129,7 @@ export const DataTableColumnHeader = <TData, TValue>({
             <CopyColumn column={column} />
             <ColumnPinning column={column} />
             <ColumnWrapping column={column} />
-            {renderFormatOptions(column, locale)}
+            <FormatOptions column={column} locale={locale} />
             <HideColumn column={column} />
             {canEditFilter && <DropdownMenuSeparator />}
             {canEditFilter && (

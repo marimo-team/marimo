@@ -29,10 +29,13 @@ import { formattingExample } from "./column-formatting/feature";
 import { formatOptions } from "./column-formatting/types";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
 
-export function renderFormatOptions<TData, TValue>(
-  column: Column<TData, TValue>,
-  locale: string,
-) {
+export function FormatOptions<TData, TValue>({
+  column,
+  locale,
+}: {
+  column: Column<TData, TValue>;
+  locale: string;
+}) {
   const dataType: DataType | undefined = column.columnDef.meta?.dataType;
   const columnFormatOptions = dataType ? formatOptions[dataType] : [];
 
