@@ -247,6 +247,15 @@ class CellCreationStream {
   stream(chunk: TextDeltaChunk) {
     const delta = chunk.delta;
     this.buffer += delta;
+
+    // If no code fence has appeared yet and no cells have been created,
+    // buffer the content and wait. This prevents conversational preamble
+    // (e.g. "I'll create a cell that...") from becoming a Python cell.
+    // Once a fence appears, codeToCells will correctly extract only the code.
+    if (!this.buffer.includes("```") && this.createdCells.length === 0) {
+      return;
+    }
+
     const completionCells = codeToCells(this.buffer);
 
     // As incoming chunks are appended to the buffer,
@@ -288,8 +297,19 @@ class CellCreationStream {
   }
 
   stop() {
+    // If the stream ended with buffered content but no cells were created
+    // (model returned code without fences), create a cell from the buffer.
+    if (this.buffer.trim() && this.createdCells.length === 0) {
+      const completionCells = codeToCells(this.buffer);
+      for (const cell of completionCells) {
+        const newCellId = this.onCreateCell(cell.code);
+        this.createdCells.push({ cellId: newCellId, cell });
+      }
+    }
     // Clear all state
     this.buffer = "";
+    this.createdCells = [];
+    this.hasMarimoImport = false;
   }
 }
 
