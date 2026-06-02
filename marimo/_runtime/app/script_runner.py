@@ -72,6 +72,57 @@ class AppScriptRunner:
         self._scheduler = SequentialScheduler(cells_to_run, self.app.graph)
         self._evaluator = Evaluator(executor=resolve_executor(), lifecycles=[])
 
+    def _is_async(self) -> bool:
+        app = self.app
+        for cell in app.cell_manager.cells():
+            if cell is None:
+                raise RuntimeError(
+                    "Unparsable cell encountered. This is a bug in marimo, "
+                    "please raise an issue."
+                )
+
+            if cell._is_coroutine:
+                return True
+        return False
+
+    def _get_post_execute_hooks(self) -> list[Callable[[], Any]]:
+        post_execute_hooks: list[Callable[[], Any]] = []
+        if DependencyManager.matplotlib.has():
+            from marimo._output.mpl import close_figures
+
+            post_execute_hooks.append(close_figures)
+        return post_execute_hooks
+
+    def _initialize_runtime_context(self) -> bool:
+        from marimo._runtime.context.script_context import (
+            initialize_script_context,
+        )
+
+        if runtime_context_installed():
+            return False
+
+        # script context is ephemeral, only installed while the app is
+        # running
+        initialize_script_context(
+            app=self.app, stream=NoopStream(), filename=self.filename
+        )
+        return True
+
+    def _register_formatters(self) -> None:
+        # formatters aren't automatically registered when running as a
+        # script
+        from marimo._output.formatters.formatters import (
+            register_formatters,
+        )
+        from marimo._output.formatting import FORMATTERS
+
+        if not FORMATTERS.is_empty():
+            from marimo._runtime.context import get_context
+
+            register_formatters(
+                theme=get_context().marimo_config["display"]["theme"]
+            )
+
     # _run_synchronous and _run_asynchronous are deliberate near-twins:
     # the only difference is the await on the cell step. Keeping them
     # as separate methods (rather than wrapping with asyncio.run
@@ -178,59 +229,42 @@ class AppScriptRunner:
         raise exc
 
     def run(self) -> RunOutput:
-        from marimo._runtime.context.script_context import (
-            initialize_script_context,
-        )
-
-        app = self.app
-
-        is_async = False
-        for cell in app.cell_manager.cells():
-            if cell is None:
-                raise RuntimeError(
-                    "Unparsable cell encountered. This is a bug in marimo, "
-                    "please raise an issue."
-                )
-
-            if cell._is_coroutine:
-                is_async = True
-                break
-
         installed_script_context = False
         try:
-            if not runtime_context_installed():
-                # script context is ephemeral, only installed while the app is
-                # running
-                initialize_script_context(
-                    app=app, stream=NoopStream(), filename=self.filename
-                )
-                installed_script_context = True
+            installed_script_context = self._initialize_runtime_context()
+            self._register_formatters()
+            post_execute_hooks = self._get_post_execute_hooks()
 
-            # formatters aren't automatically registered when running as a
-            # script
-            from marimo._output.formatters.formatters import (
-                register_formatters,
-            )
-            from marimo._output.formatting import FORMATTERS
-
-            if not FORMATTERS.is_empty():
-                from marimo._runtime.context import get_context
-
-                register_formatters(
-                    theme=get_context().marimo_config["display"]["theme"]
-                )
-
-            post_execute_hooks: list[Callable[[], Any]] = []
-            if DependencyManager.matplotlib.has():
-                from marimo._output.mpl import close_figures
-
-                post_execute_hooks.append(close_figures)
-
-            if is_async:
+            if self._is_async():
                 outputs, defs = asyncio.run(
                     self._run_asynchronous(
                         post_execute_hooks=post_execute_hooks,
                     )
+                )
+            else:
+                outputs, defs = self._run_synchronous(
+                    post_execute_hooks=post_execute_hooks,
+                )
+            return outputs, defs
+
+        # Raise the wrapped user exception from "None" so the stack
+        # trace points at the failing cell, not the runner.
+        except MarimoRuntimeException as e:
+            raise e.__cause__ from None  # type: ignore
+        finally:
+            if installed_script_context:
+                teardown_context()
+
+    async def run_async(self) -> RunOutput:
+        installed_script_context = False
+        try:
+            installed_script_context = self._initialize_runtime_context()
+            self._register_formatters()
+            post_execute_hooks = self._get_post_execute_hooks()
+
+            if self._is_async():
+                outputs, defs = await self._run_asynchronous(
+                    post_execute_hooks=post_execute_hooks,
                 )
             else:
                 outputs, defs = self._run_synchronous(

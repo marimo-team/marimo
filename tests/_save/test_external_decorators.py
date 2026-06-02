@@ -346,6 +346,19 @@ class TestAsExternalApp:
             return
 
     @staticmethod
+    async def test_async_external_app_embedded(app) -> None:
+        with app.setup:
+            from tests._save.external_decorators.async_app import (
+                app as async_ex_app,
+            )
+
+        @app.cell
+        async def _():
+            result = await async_ex_app.embed()
+            assert result.defs["value"] == 42
+            return
+
+    @staticmethod
     async def test_as_external_app_embedded_in_kernel(
         lazy_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:

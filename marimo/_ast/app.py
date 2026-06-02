@@ -741,6 +741,12 @@ class App:
             edit.invoke(ctx)
             return ((), {})
 
+        self._maybe_initialize_for_script_run()
+
+        outputs, glbls = self._get_script_runner(defs).run()
+        return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
+
+    def _maybe_initialize_for_script_run(self) -> None:
         try:
             self._maybe_initialize()
         except (CycleError, MultipleDefinitionError, UnparsableError) as e:
@@ -757,6 +763,9 @@ class App:
             else:
                 raise
 
+    def _get_script_runner(
+        self, defs: dict[str, Any] | None = None
+    ) -> AppScriptRunner:
         glbls: dict[str, Any] = {}
         if self._setup is not None:
             glbls = {**self._setup._glbls}
@@ -768,11 +777,18 @@ class App:
         if defs is not None:
             glbls.update(defs)
 
-        outputs, glbls = AppScriptRunner(
+        return AppScriptRunner(
             InternalApp(self),
             filename=self._filename,
             glbls=glbls,
-        ).run()
+        )
+
+    async def _run_async(
+        self,
+        defs: dict[str, Any] | None = None,
+    ) -> tuple[Sequence[Any], Mapping[str, Any]]:
+        self._maybe_initialize_for_script_run()
+        outputs, glbls = await self._get_script_runner(defs).run_async()
         return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 
     async def _run_cell_async(
@@ -955,7 +971,9 @@ class App:
                 defs=self._globals_to_defs(glbls),
             )
         else:
-            flat_outputs, computed_defs = self.run(defs=defs or {})
+            flat_outputs, computed_defs = await self._run_async(
+                defs=defs or {}
+            )
             return AppEmbedResult(
                 output=vstack([o for o in flat_outputs if o is not None]),
                 defs=computed_defs,
