@@ -1,7 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, TypeVar, Union
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, TypeVar, Union
 
 from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
@@ -16,6 +17,11 @@ from marimo._runtime.context.types import (
     get_context,
 )
 from marimo._types.ids import UIElementId
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from marimo._runtime.virtual_file import VirtualFile
 
 LOGGER = _loggers.marimo_logger()
 
@@ -77,31 +83,112 @@ TableData = Union[
 ]
 
 
+@dataclass(frozen=True)
+class DelimitedOptions:
+    """Output options shared by delimited-text formats (CSV, TSV).
+
+    Attributes:
+        encoding: Text encoding for the output bytes. Falls back to the
+            runtime config value (or "utf-8") when None.
+        separator: Field separator. Ignored by formats that pin their own
+            separator (e.g. TSV always uses a tab).
+    """
+
+    encoding: str | None = None
+    separator: str | None = None
+
+
+@dataclass(frozen=True)
+class JsonOptions:
+    """Output options for the JSON format.
+
+    Attributes:
+        ensure_ascii: Whether to escape non-ASCII characters.
+    """
+
+    ensure_ascii: bool = True
+
+
+@dataclass(frozen=True)
+class DownloadOptions:
+    """Per-format output options for `download_as`."""
+
+    delimited: DelimitedOptions = field(default_factory=DelimitedOptions)
+    json: JsonOptions = field(default_factory=JsonOptions)
+
+
+@dataclass(frozen=True)
+class _ExportFormat:
+    extension: str
+    write: Callable[[TableManager[Any], DownloadOptions], VirtualFile]
+
+
+def _delimited_writer(
+    separator_override: str | None,
+) -> Callable[[TableManager[Any], DownloadOptions], VirtualFile]:
+    def write(
+        manager: TableManager[Any], options: DownloadOptions
+    ) -> VirtualFile:
+        encoding = options.delimited.encoding or get_default_csv_encoding()
+        separator = (
+            separator_override
+            if separator_override is not None
+            else options.delimited.separator
+        )
+        return mo_data.csv(
+            manager.to_csv(encoding=encoding, separator=separator)
+        )
+
+    return write
+
+
+def _write_json(
+    manager: TableManager[Any], options: DownloadOptions
+) -> VirtualFile:
+    # Use strict JSON to ensure compliance with JSON spec
+    return mo_data.json(
+        manager.to_json(
+            encoding=None,
+            ensure_ascii=options.json.ensure_ascii,
+            strict_json=True,
+        )
+    )
+
+
+def _write_parquet(
+    manager: TableManager[Any], _options: DownloadOptions
+) -> VirtualFile:
+    return mo_data.parquet(manager.to_parquet())
+
+
+_EXPORT_FORMATS: dict[str, _ExportFormat] = {
+    "csv": _ExportFormat("csv", _delimited_writer(None)),
+    "tsv": _ExportFormat("tsv", _delimited_writer("\t")),
+    "json": _ExportFormat("json", _write_json),
+    "parquet": _ExportFormat("parquet", _write_parquet),
+}
+
+
 def download_as(
     manager: TableManager[Any],
     ext: str,
     drop_marimo_index: bool = False,
-    csv_encoding: str | None = None,
-    csv_separator: str | None = None,
-    json_ensure_ascii: bool = True,
+    options: DownloadOptions | None = None,
     filename: str | None = None,
 ) -> tuple[str, str]:
     """Download the table data in the specified format.
 
     Args:
         manager (TableManager[Any]): The table manager to download.
-        ext (str): The format to download the table data in.
-        drop_marimo_index (bool, optional): Whether to drop the marimo selection column.
-            Defaults to False.
-        csv_encoding (str | None, optional): Encoding used when generating CSV bytes.
-            Defaults to the runtime config value (or "utf-8" if not configured).
-            Ignored for non-CSV formats.
-        csv_separator (str | None, optional): Separator used in CSV downloads.
-            Defaults to "," when not configured.
-        json_ensure_ascii (bool, optional): Whether to escape non-ASCII characters
-            in JSON output. Defaults to True.
-        filename (str | None, optional): The filename to use for the downloaded file.
-            Defaults to None, which uses a random filename.
+        ext (str): The format to download the table data in. One of
+            `csv`, `tsv`, `json`, or `parquet`.
+        drop_marimo_index (bool, optional): Whether to drop the marimo
+            selection column. Defaults to False.
+        options (DownloadOptions | None, optional): Per-format output
+            options (delimited encoding/separator, JSON ascii escaping).
+            Defaults to each format's defaults.
+        filename (str | None, optional): The filename to use for the
+            downloaded file. Defaults to None, which uses a random filename.
 
     Returns:
         tuple: (url, user-facing filename with extension) for the downloaded file.
@@ -109,29 +196,16 @@ def download_as(
     Raises:
         ValueError: If unrecognized format.
     """
+    options = options or DownloadOptions()
     if drop_marimo_index:
         # Remove the selection column if exists
         manager = manager.drop_columns([INDEX_COLUMN_NAME])
 
-    if ext == "csv":
-        encoding = (
-            csv_encoding
-            if csv_encoding is not None
-            else get_default_csv_encoding()
-        )
-        payload = manager.to_csv(encoding=encoding, separator=csv_separator)
-        vfile = mo_data.csv(payload)
-    elif ext == "json":
-        # Use strict JSON to ensure compliance with JSON spec
-        payload = manager.to_json(
-            encoding=None, ensure_ascii=json_ensure_ascii, strict_json=True
-        )
-        vfile = mo_data.json(payload)
-    elif ext == "parquet":
-        payload = manager.to_parquet()
-        vfile = mo_data.parquet(payload)
-    else:
-        raise ValueError("format must be one of 'csv', 'json', or 'parquet'.")
+    fmt = _EXPORT_FORMATS.get(ext)
+    if fmt is None:
+        allowed = ", ".join(map(repr, _EXPORT_FORMATS))
+        raise ValueError(f"format must be one of {allowed}.")
 
+    vfile = fmt.write(manager, options)
     base_name = filename if filename is not None else "download"
-    return (vfile.url, f"{base_name}.{ext}")
+    return (vfile.url, f"{base_name}.{fmt.extension}")

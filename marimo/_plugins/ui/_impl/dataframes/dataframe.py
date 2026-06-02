@@ -41,6 +41,9 @@ from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
 )
 from marimo._plugins.ui._impl.utils.dataframe import (
+    DelimitedOptions,
+    DownloadOptions,
+    JsonOptions,
     download_as,
     get_bound_name,
 )
@@ -364,9 +367,15 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         url, filename = download_as(
             manager,
             args.format,
-            csv_encoding=self._download_csv_encoding,
-            csv_separator=self._download_csv_separator,
-            json_ensure_ascii=self._download_json_ensure_ascii,
+            options=DownloadOptions(
+                delimited=DelimitedOptions(
+                    encoding=self._download_csv_encoding,
+                    separator=self._download_csv_separator,
+                ),
+                json=JsonOptions(
+                    ensure_ascii=self._download_json_ensure_ascii
+                ),
+            ),
             filename=bound_filename,
         )
         return DownloadAsResponse(url=url, filename=filename)

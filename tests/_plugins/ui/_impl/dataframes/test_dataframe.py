@@ -466,9 +466,7 @@ class TestDataframes:
         with pytest.raises(ValueError) as exc_info:
             subject._download_as(DownloadAsArgs(format="xml"))
 
-        assert "format must be one of 'csv', 'json', or 'parquet'" in str(
-            exc_info.value
-        )
+        assert "format must be one of" in str(exc_info.value)
         assert type(subject.value) is type(df)
 
     @staticmethod
