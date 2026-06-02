@@ -17,10 +17,10 @@ import { useFilterEditor } from "./filter-editor-context";
 import { EDITABLE_FILTER_TYPES, isMembershipFilterType } from "./filters";
 import {
   ClearFilterMenuItem,
+  ColumnPinning,
   CopyColumn,
   DataType,
   HideColumn,
-  renderColumnPinning,
   renderColumnWrapping,
   renderFormatOptions,
   renderSortIcon,
@@ -127,7 +127,7 @@ export const DataTableColumnHeader = <TData, TValue>({
             <DataType column={column} />
             <Sorts column={column} table={table} />
             <CopyColumn column={column} />
-            {renderColumnPinning(column)}
+            <ColumnPinning column={column} />
             {renderColumnWrapping(column)}
             {renderFormatOptions(column, locale)}
             <HideColumn column={column} />

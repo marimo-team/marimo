@@ -13,7 +13,13 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CopyColumn, DataType, HideColumn, Sorts } from "../header-items";
+import {
+  ColumnPinning,
+  CopyColumn,
+  DataType,
+  HideColumn,
+  Sorts,
+} from "../header-items";
 
 const renderInMenu = (node: React.ReactNode) =>
   render(
@@ -290,5 +296,36 @@ describe("CopyColumn", () => {
   it("returns null when the column cannot be copied", () => {
     renderInMenu(<CopyColumn column={makeColumn({ canCopy: false })} />);
     expect(screen.queryByText("Copy column name")).toBeNull();
+  });
+});
+
+describe("ColumnPinning", () => {
+  const makeColumn = ({
+    canPin = true,
+    pinned = false,
+  }: {
+    canPin?: boolean;
+    pinned?: false | "left" | "right";
+  } = {}) =>
+    ({
+      getCanPin: () => canPin,
+      getIsPinned: () => pinned,
+      pin: vi.fn(),
+    }) as unknown as Column<unknown, unknown>;
+
+  it("returns null when the column cannot be pinned", () => {
+    renderInMenu(<ColumnPinning column={makeColumn({ canPin: false })} />);
+    expect(screen.queryByText("Freeze left")).toBeNull();
+  });
+
+  it("offers freeze options when unpinned", () => {
+    renderInMenu(<ColumnPinning column={makeColumn()} />);
+    expect(screen.getByText("Freeze left")).toBeInTheDocument();
+    expect(screen.getByText("Freeze right")).toBeInTheDocument();
+  });
+
+  it("offers 'Unfreeze' when pinned", () => {
+    renderInMenu(<ColumnPinning column={makeColumn({ pinned: "left" })} />);
+    expect(screen.getByText("Unfreeze")).toBeInTheDocument();
   });
 });

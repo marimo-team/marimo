@@ -108,9 +108,11 @@ export function renderColumnWrapping<TData, TValue>(
   );
 }
 
-export function renderColumnPinning<TData, TValue>(
-  column: Column<TData, TValue>,
-) {
+export function ColumnPinning<TData, TValue>({
+  column,
+}: {
+  column: Column<TData, TValue>;
+}) {
   if (!column.getCanPin?.() || !column.getIsPinned) {
     return null;
   }
