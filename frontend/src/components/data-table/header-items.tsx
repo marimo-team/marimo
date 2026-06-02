@@ -177,10 +177,19 @@ export function renderCopyColumn<TData, TValue>(column: Column<TData, TValue>) {
 const AscIcon = ArrowUpNarrowWideIcon;
 const DescIcon = ArrowDownWideNarrowIcon;
 
-export function renderSorts<TData, TValue>(
-  column: Column<TData, TValue>,
-  table?: Table<TData>,
-) {
+/**
+ * `table` is optional: it is only needed to detect multi-column sorting and
+ * offer "Clear all sorts". Call sites that build their header inside column
+ * definitions (where the table instance isn't yet in scope) omit it and fall
+ * back to single-column "Clear sort".
+ */
+export function Sorts<TData, TValue>({
+  column,
+  table,
+}: {
+  column: Column<TData, TValue>;
+  table?: Table<TData>;
+}) {
   if (!column.getCanSort()) {
     return null;
   }

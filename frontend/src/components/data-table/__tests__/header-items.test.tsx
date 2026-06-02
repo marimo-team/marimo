@@ -1,6 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Column, SortingState } from "@tanstack/react-table";
+import type {
+  Column,
+  SortDirection,
+  SortingState,
+  Table,
+} from "@tanstack/react-table";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -8,7 +13,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DataType, HideColumn } from "../header-items";
+import { DataType, HideColumn, Sorts } from "../header-items";
 
 const renderInMenu = (node: React.ReactNode) =>
   render(
@@ -207,5 +212,59 @@ describe("DataType", () => {
   it("returns null when dtype is absent", () => {
     renderInMenu(<DataType column={makeColumn()} />);
     expect(screen.queryByText("int64")).toBeNull();
+  });
+});
+
+describe("Sorts", () => {
+  const makeColumn = ({
+    canSort = true,
+    sorted = false,
+    sortIndex = 0,
+  }: {
+    canSort?: boolean;
+    sorted?: false | SortDirection;
+    sortIndex?: number;
+  } = {}) =>
+    ({
+      getCanSort: () => canSort,
+      getIsSorted: () => sorted,
+      getSortIndex: () => sortIndex,
+      clearSorting: vi.fn(),
+      toggleSorting: vi.fn(),
+    }) as unknown as Column<unknown, unknown>;
+
+  const makeTable = (sorting: SortingState) =>
+    ({
+      getState: () => ({ sorting }),
+      resetSorting: vi.fn(),
+    }) as unknown as Table<unknown>;
+
+  it("returns null when the column cannot sort", () => {
+    renderInMenu(<Sorts column={makeColumn({ canSort: false })} />);
+    expect(screen.queryByText("Asc")).toBeNull();
+  });
+
+  it("renders Asc and Desc items", () => {
+    renderInMenu(<Sorts column={makeColumn()} />);
+    expect(screen.getByText("Asc")).toBeInTheDocument();
+    expect(screen.getByText("Desc")).toBeInTheDocument();
+  });
+
+  it("offers single-column 'Clear sort' when sorted without multi-sort", () => {
+    renderInMenu(<Sorts column={makeColumn({ sorted: "asc" })} />);
+    expect(screen.getByText("Clear sort")).toBeInTheDocument();
+  });
+
+  it("offers 'Clear all sorts' when the table has multiple sorts", () => {
+    renderInMenu(
+      <Sorts
+        column={makeColumn({ sorted: "asc" })}
+        table={makeTable([
+          { id: "a", desc: false },
+          { id: "b", desc: true },
+        ])}
+      />,
+    );
+    expect(screen.getByText("Clear all sorts")).toBeInTheDocument();
   });
 });

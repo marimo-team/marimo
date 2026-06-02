@@ -24,7 +24,7 @@ import {
   renderCopyColumn,
   renderFormatOptions,
   renderSortIcon,
-  renderSorts,
+  Sorts,
 } from "./header-items";
 
 interface DataTableColumnHeaderProps<
@@ -36,6 +36,11 @@ interface DataTableColumnHeaderProps<
   subheader?: React.ReactNode;
   justify?: "left" | "center" | "right";
   calculateTopKRows?: CalculateTopKRows;
+  /**
+   * Optional: only used to surface multi-column sort actions ("Clear all
+   * sorts"). Omitted by call sites that define their header inside column
+   * definitions, where the table instance isn't yet available.
+   */
   table?: Table<TData>;
 }
 
@@ -120,7 +125,7 @@ export const DataTableColumnHeader = <TData, TValue>({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DataType column={column} />
-            {renderSorts(column, table)}
+            <Sorts column={column} table={table} />
             {renderCopyColumn(column)}
             {renderColumnPinning(column)}
             {renderColumnWrapping(column)}
