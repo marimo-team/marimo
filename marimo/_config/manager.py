@@ -36,6 +36,7 @@ from marimo._config.secrets import (
     mask_secrets_partial,
     remove_secret_placeholders,
 )
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.utils import (
     get_or_create_user_config_path,
 )
@@ -331,6 +332,13 @@ class EnvConfigManager(PartialMarimoConfigReader):
             ["runtime", "auto_instantiate"],
             project_config,
         )
+        if GLOBAL_SETTINGS.RESTRICT_SHARING:
+            # Highest-priority override: hide every external sharing affordance.
+            project_config["sharing"] = {
+                "wasm": False,
+                "html": False,
+                "molab": False,
+            }
         if hide_secrets:
             return mask_secrets_partial(project_config)
         return project_config

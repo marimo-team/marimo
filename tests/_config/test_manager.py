@@ -17,6 +17,7 @@ from marimo._config.manager import (
     UserConfigManager,
     get_default_config_manager,
 )
+from marimo._config.settings import GLOBAL_SETTINGS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -660,3 +661,36 @@ def test_env_config_manager_no_env_vars() -> None:
     manager = EnvConfigManager()
     config = manager.get_config(hide_secrets=False)
     assert config == {}
+
+
+def test_env_config_manager_restrict_sharing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """MARIMO_RESTRICT_SHARING hides every external sharing affordance."""
+    monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
+    manager = EnvConfigManager()
+    config = manager.get_config(hide_secrets=False)
+    assert config == {
+        "sharing": {"wasm": False, "html": False, "molab": False}
+    }
+
+
+def test_env_config_manager_restrict_sharing_disabled() -> None:
+    """Without the env var, no sharing config is injected."""
+    manager = EnvConfigManager()
+    config = manager.get_config(hide_secrets=False)
+    assert "sharing" not in config
+
+
+def test_restrict_sharing_overrides_user_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The env restriction wins over a user config that enables sharing."""
+    monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
+    user = UserConfigManager()
+    user._load_config = lambda: merge_default_config(
+        {"sharing": {"wasm": True, "html": True, "molab": True}}
+    )
+    manager = MarimoConfigManager(user, EnvConfigManager())
+    sharing = manager.get_config(hide_secrets=False)["sharing"]
+    assert sharing == {"wasm": False, "html": False, "molab": False}
