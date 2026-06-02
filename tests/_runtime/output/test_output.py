@@ -67,6 +67,40 @@ async def test_mutating_appended_outputs(
     assert "after" in outputs[1]
 
 
+async def test_replace_formats_output_once(
+    mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+) -> None:
+    await mocked_kernel.k.run(
+        [
+            exec_req.get(
+                """
+                import marimo as mo
+
+                class Probe:
+                    count = 0
+
+                    def _repr_html_(self):
+                        Probe.count += 1
+                        return f"<div>formatted {Probe.count} time(s)</div>"
+
+                probe = Probe()
+                mo.output.replace(probe)
+                Probe.count
+                """
+            )
+        ]
+    )
+
+    outputs: list[str] = []
+    for msg in mocked_kernel.stream.operations:
+        if isinstance(msg, CellNotification) and msg.output is not None:
+            outputs.append(str(msg.output.data))
+
+    assert len(outputs) == 2
+    assert "formatted 1 time(s)" in outputs[0]
+    assert ">1<" in outputs[1]
+
+
 async def test_nested_output(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:

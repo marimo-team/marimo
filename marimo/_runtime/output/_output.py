@@ -11,14 +11,18 @@ from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._types.ids import CellId_t
 
 
-def write_internal(cell_id: CellId_t, value: object) -> None:
-    output = formatting.try_format(value)
-    if output.traceback is not None:
-        write_traceback(output.traceback)
+def write_internal(
+    cell_id: CellId_t,
+    value: object | None = None,
+    formatted_output: formatting.FormattedOutput | None = None,
+) -> None:
+    formatted_output = formatted_output or formatting.try_format(value)
+    if formatted_output.traceback is not None:
+        write_traceback(formatted_output.traceback)
     CellNotificationUtils.broadcast_output(
         channel=CellChannel.OUTPUT,
-        mimetype=output.mimetype,
-        data=output.data,
+        mimetype=formatted_output.mimetype,
+        data=formatted_output.data,
         cell_id=cell_id,
         status=None,
     )
@@ -45,8 +49,19 @@ def replace(value: object) -> None:
     output = ctx.execution_context.output
     output.clear()
     if value is not None:
-        output.append(formatting.as_html(value))
-    write_internal(cell_id=ctx.execution_context.cell_id, value=value)
+        formatted_output = formatting.try_format(value)
+        output.append(
+            formatting.mime_to_html(
+                formatted_output.mimetype,
+                formatted_output.data,
+            )
+        )
+        write_internal(
+            cell_id=ctx.execution_context.cell_id,
+            formatted_output=formatted_output,
+        )
+    else:
+        write_internal(cell_id=ctx.execution_context.cell_id, value=None)
 
 
 @mddoc
