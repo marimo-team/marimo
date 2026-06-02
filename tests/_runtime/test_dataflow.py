@@ -580,6 +580,38 @@ class TestSQL:
         multiply_defined = graph.get_multiply_defined()
         assert multiply_defined == []
 
+    def test_redefine_sql_tables_same_name_different_schemas(self):
+        graph = dataflow.DirectedGraph()
+        first_cell = parse_cell(
+            'mo.sql("CREATE TABLE finance.xx (id INTEGER)")'
+        )
+        graph.register_cell("0", first_cell)
+
+        second_cell = parse_cell('mo.sql("CREATE TABLE eng.xx (id INTEGER)")')
+        graph.register_cell("1", second_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+        }
+        assert first_cell.defs == {"xx"}
+        assert second_cell.defs == {"xx"}
+        assert graph.get_multiply_defined() == []
+
+    def test_redefine_sql_tables_same_qualified_name(self):
+        graph = dataflow.DirectedGraph()
+        first_cell = parse_cell(
+            'mo.sql("CREATE TABLE finance.xx (id INTEGER)")'
+        )
+        graph.register_cell("0", first_cell)
+
+        second_cell = parse_cell(
+            'mo.sql("CREATE TABLE finance.xx (id INTEGER)")'
+        )
+        graph.register_cell("1", second_cell)
+
+        assert graph.get_multiply_defined() == ["xx"]
+
     def test_sql_table_schema_to_python_ref(self):
         graph = dataflow.DirectedGraph()
         code = 'df = mo.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")'

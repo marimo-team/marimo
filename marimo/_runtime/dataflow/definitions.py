@@ -36,6 +36,12 @@ class DefinitionRegistry:
     # e.g. "my_table" -> {"table", "view"}
     definition_types: dict[Name, set[str]] = field(default_factory=dict)
 
+    # SQL table/view definitions that include a schema or catalog should only
+    # collide with the exact same qualified name.
+    qualified_definitions: dict[tuple[Name, str, str], set[CellId_t]] = field(
+        default_factory=dict
+    )
+
     def register_definition(
         self,
         cell_id: CellId_t,
@@ -54,15 +60,22 @@ class DefinitionRegistry:
         """
         variable = variable_data[-1]  # Only the last definition matters
         typed_def = (name, variable.kind)
+        qualified_name = variable.qualified_name
+        is_qualified_sql_def = (
+            variable.language == "sql"
+            and qualified_name is not None
+            and qualified_name != name
+        )
 
-        # Check if this is a duplicate definition
-        if (
-            name in self.definitions
-            and typed_def not in self.typed_definitions
-        ):
-            # Duplicate if the qualified name is no different
-            if variable.qualified_name == name or variable.language != "sql":
+        if is_qualified_sql_def:
+            qualified_def = (name, variable.kind, qualified_name)
+            existing_defs = self.qualified_definitions.setdefault(
+                qualified_def, set()
+            )
+            if existing_defs:
+                self.definitions.setdefault(name, set()).update(existing_defs)
                 self.definitions[name].add(cell_id)
+            existing_defs.add(cell_id)
         else:
             self.definitions.setdefault(name, set()).add(cell_id)
 
@@ -70,7 +83,7 @@ class DefinitionRegistry:
         self.definition_types.setdefault(name, set()).add(variable.kind)
 
         # Return siblings (other cells that define this name)
-        siblings = self.definitions[name] - {cell_id}
+        siblings = self.definitions.get(name, set()) - {cell_id}
         return siblings
 
     def unregister_definitions(
@@ -85,18 +98,45 @@ class DefinitionRegistry:
             defs: The set of variable names defined by the cell
         """
         for name in defs:
-            if name not in self.definitions:
-                continue
+            if name in self.definitions:
+                name_defs = self.definitions[name]
+                name_defs.discard(cell_id)
 
-            name_defs = self.definitions[name]
-            name_defs.discard(cell_id)
+                if not name_defs:
+                    # No more cells define this name, so we remove it
+                    del self.definitions[name]
 
-            if not name_defs:
-                # No more cells define this name, so we remove it
-                del self.definitions[name]
-                # Clean up all typed definitions
-                for typed_def in self.definition_types.get(name, set()):
-                    self.typed_definitions.pop((name, typed_def), None)
+            for typed_def, cell_ids in list(self.typed_definitions.items()):
+                if typed_def[0] != name:
+                    continue
+                cell_ids.discard(cell_id)
+                if not cell_ids:
+                    del self.typed_definitions[typed_def]
+
+            for qualified_def, cell_ids in list(
+                self.qualified_definitions.items()
+            ):
+                if qualified_def[0] != name:
+                    continue
+                cell_ids.discard(cell_id)
+                if not cell_ids:
+                    del self.qualified_definitions[qualified_def]
+
+            if name in self.definitions:
+                for qualified_def, cell_ids in self.qualified_definitions.items():
+                    if qualified_def[0] == name and len(cell_ids) < 2:
+                        self.definitions[name].difference_update(cell_ids)
+                if not self.definitions[name]:
+                    del self.definitions[name]
+
+            remaining_types = {
+                kind
+                for def_name, kind in self.typed_definitions
+                if def_name == name
+            }
+            if remaining_types:
+                self.definition_types[name] = remaining_types
+            else:
                 self.definition_types.pop(name, None)
 
     def get_defining_cells(self, name: Name) -> set[CellId_t]:
