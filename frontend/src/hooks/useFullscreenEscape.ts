@@ -20,7 +20,8 @@ function getKeyboardLock(): KeyboardLock | undefined {
 
 interface UseFullscreenEscapeOptions {
   enabled?: boolean;
-  /** Escape is only intercepted while this element is fullscreen. */
+  /** Escape is only intercepted while this element (or a descendant) is the
+   * document's fullscreen element. */
   getElement: () => Element | null | undefined;
   /**
    * Return `true` to keep fullscreen (the callback owns any `preventDefault` /
@@ -43,8 +44,11 @@ export function useFullscreenEscape({
   const isOwnedFullscreen = useEvent(() => {
     const fullscreenEl = document.fullscreenElement;
     const element = getElement();
+    // True when our element is the fullscreen element or contains it. We
+    // deliberately don't match when an *ancestor* is fullscreen, so an
+    // unrelated whole-page fullscreen doesn't hijack Escape.
     return (
-      fullscreenEl != null && element != null && fullscreenEl.contains(element)
+      fullscreenEl != null && element != null && element.contains(fullscreenEl)
     );
   });
   const handleEscape = useEvent(
@@ -84,6 +88,10 @@ export function useFullscreenEscape({
         Logger.error("Failed to exit fullscreen", error);
       });
     };
+
+    // Acquire the lock if we mount while already fullscreen; no
+    // `fullscreenchange` event fires in that case.
+    handleFullscreenChange();
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     window.addEventListener("keydown", handleKeyDown, { capture: true });

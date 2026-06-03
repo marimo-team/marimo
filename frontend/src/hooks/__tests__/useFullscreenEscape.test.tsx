@@ -122,6 +122,45 @@ describe("useFullscreenEscape", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
+  it("intercepts Escape when a descendant is the fullscreen element", () => {
+    const child = document.createElement("div");
+    element.append(child);
+    const onEscape = vi.fn(() => false);
+    renderHook(() =>
+      useFullscreenEscape({ getElement: () => element, onEscape }),
+    );
+    setFullscreenElement(child);
+
+    dispatchEscape();
+
+    expect(onEscape).toHaveBeenCalledTimes(1);
+    expect(exitFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores Escape when an unrelated ancestor is fullscreen", () => {
+    const ancestor = document.createElement("div");
+    ancestor.append(element);
+    document.body.append(ancestor);
+    const onEscape = vi.fn(() => false);
+    renderHook(() =>
+      useFullscreenEscape({ getElement: () => element, onEscape }),
+    );
+    setFullscreenElement(ancestor);
+
+    dispatchEscape();
+
+    expect(onEscape).not.toHaveBeenCalled();
+    expect(exitFullscreen).not.toHaveBeenCalled();
+  });
+
+  it("locks Escape when mounted already in fullscreen", () => {
+    setFullscreenElement(element);
+
+    renderHook(() => useFullscreenEscape({ getElement: () => element }));
+
+    expect(lock).toHaveBeenCalledWith(["Escape"]);
+  });
+
   it("locks Escape on entering fullscreen and unlocks on leaving", () => {
     renderHook(() => useFullscreenEscape({ getElement: () => element }));
 
