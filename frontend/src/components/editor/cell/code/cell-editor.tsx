@@ -65,6 +65,11 @@ export interface CellEditorProps
   hasOutput?: boolean;
   languageAdapter: LanguageAdapterType | undefined;
   showLanguageToggles?: boolean;
+  /**
+   * Override for the inline "Edit with AI" tooltip. Defaults to the user's
+   * `ai.inline_tooltip` config. Set to `false` to force-disable it.
+   */
+  inlineAiTooltip?: boolean;
   setLanguageAdapter: React.Dispatch<
     React.SetStateAction<LanguageAdapterType | undefined>
   >;
@@ -73,6 +78,12 @@ export interface CellEditorProps
   editorViewParentRef?: React.RefObject<HTMLDivElement | null>;
   showHiddenCode: (opts?: { focus?: boolean }) => void;
   outputArea?: "above" | "below";
+  /**
+   * CSS selector for the element that editor tooltips (completions, hover,
+   * signature help) are appended to. Useful for fullscreen/dialog containers;
+   * defaults to `#App`.
+   */
+  tooltipParentSelector?: string;
 }
 
 const CellEditorInternal = ({
@@ -94,7 +105,9 @@ const CellEditorInternal = ({
   languageAdapter,
   setLanguageAdapter,
   showLanguageToggles = true,
+  inlineAiTooltip,
   outputArea,
+  tooltipParentSelector,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const deleteCell = useDeleteCellCallback();
@@ -224,7 +237,9 @@ const CellEditorInternal = ({
       hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
       diagnosticsConfig: userConfig.diagnostics,
       displayConfig: userConfig.display,
-      inlineAiTooltip: userConfig.ai?.inline_tooltip ?? false,
+      inlineAiTooltip:
+        inlineAiTooltip ?? userConfig.ai?.inline_tooltip ?? false,
+      tooltipParentSelector,
     });
 
     extensions.push(
@@ -274,6 +289,8 @@ const CellEditorInternal = ({
     userConfig.display,
     userConfig.diagnostics,
     userConfig.ai?.inline_tooltip,
+    inlineAiTooltip,
+    tooltipParentSelector,
     aiFeaturesEnabled,
     theme,
     showPlaceholder,

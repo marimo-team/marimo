@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
+import { cellDomProps } from "@/components/editor/common";
 import { CellEditor } from "@/components/editor/cell/code/cell-editor";
 import { CellStatusComponent } from "@/components/editor/cell/CellStatus";
 import { RunButton } from "@/components/editor/cell/RunButton";
@@ -111,7 +112,10 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
   );
 
   const editor = (
-    <div className={editorWrapperClassName}>
+    <div
+      className={editorWrapperClassName}
+      {...cellDomProps(cell.id, cell.name)}
+    >
       <CellEditor
         theme={theme}
         showPlaceholder={false}
@@ -134,7 +138,14 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
         languageAdapter={languageAdapter}
         setLanguageAdapter={setLanguageAdapter}
         showLanguageToggles={false}
+        // The reveal.js transforms in slides view break the inline AI
+        // tooltip's fixed positioning, so disable it here.
+        inlineAiTooltip={false}
         outputArea={cellOutputPosition}
+        // Parent tooltips (completions, hover, signature help) to the Reveal
+        // viewport so they stay visible when presenting fullscreen; `#App` sits
+        // outside the fullscreened subtree and would never paint.
+        tooltipParentSelector=".reveal-viewport"
       />
       {toolbar}
     </div>
