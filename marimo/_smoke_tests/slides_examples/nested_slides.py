@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.23.8"
 app = marimo.App(
     width="medium",
     layout_file="layouts/nested_slides.slides.json",
