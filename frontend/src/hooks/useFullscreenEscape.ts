@@ -61,15 +61,35 @@ export function useFullscreenEscape({
     }
 
     const keyboard = getKeyboardLock();
+    // The lock is document-global, so only release it if *this* instance holds
+    // it; otherwise we'd clobber another component's (or deck's) Escape lock.
+    let locked = false;
+
+    const lockEscape = () => {
+      const promise = keyboard?.lock?.(["Escape"]);
+      if (promise == null) {
+        return;
+      }
+      locked = true;
+      promise.catch(() => {
+        // Unsupported or denied: native single-press exit remains in effect.
+        locked = false;
+        Logger.debug("Keyboard lock not supported or denied");
+      });
+    };
+
+    const unlockEscape = () => {
+      if (locked) {
+        keyboard?.unlock?.();
+        locked = false;
+      }
+    };
 
     const handleFullscreenChange = () => {
       if (isOwnedFullscreen()) {
-        keyboard?.lock?.(["Escape"]).catch(() => {
-          // Unsupported or denied: native single-press exit remains in effect.
-          Logger.debug("Keyboard lock not supported or denied");
-        });
+        lockEscape();
       } else {
-        keyboard?.unlock?.();
+        unlockEscape();
       }
     };
 
@@ -98,7 +118,7 @@ export function useFullscreenEscape({
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
-      keyboard?.unlock?.();
+      unlockEscape();
     };
   }, [enabled, isOwnedFullscreen, handleEscape]);
 }

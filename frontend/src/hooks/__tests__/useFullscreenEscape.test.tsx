@@ -173,13 +173,27 @@ describe("useFullscreenEscape", () => {
     expect(unlock).toHaveBeenCalled();
   });
 
-  it("unlocks Escape on unmount", () => {
+  it("unlocks Escape on unmount when it holds the lock", () => {
+    setFullscreenElement(element);
     const { unmount } = renderHook(() =>
       useFullscreenEscape({ getElement: () => element }),
     );
+    expect(lock).toHaveBeenCalledWith(["Escape"]);
 
     unmount();
 
-    expect(unlock).toHaveBeenCalled();
+    expect(unlock).toHaveBeenCalledTimes(1);
+  });
+
+  it("never unlocks a lock it did not acquire", () => {
+    // Not fullscreen, so this instance never locks. Mount, a stray
+    // fullscreenchange, and unmount must not release another component's lock.
+    const { unmount } = renderHook(() =>
+      useFullscreenEscape({ getElement: () => element }),
+    );
+    document.dispatchEvent(new Event("fullscreenchange"));
+    unmount();
+
+    expect(unlock).not.toHaveBeenCalled();
   });
 });
