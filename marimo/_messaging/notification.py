@@ -280,8 +280,16 @@ class KernelCapabilitiesNotification(msgspec.Struct):
 
 
 class ConsumerCapabilities(msgspec.Struct, frozen=True):
-    """
-    Capabilities that the frontend consumer supports.
+    """Per-consumer access capabilities for a session connection.
+
+    - editor: `{edit: True, interact: True}`
+    - viewer: `{edit: False, interact: False}`
+
+    These gate the frontend UI; they are not the server's authority boundary.
+    Scopes are granted per session mode (see `@requires`), so in an edit session
+    every connection (viewers included) carries the `edit` scope and can issue
+    edit requests. A viewer's read-only status is enforced by the client hiding
+    edit affordances, not by the server rejecting the request.
     """
 
     edit: bool
