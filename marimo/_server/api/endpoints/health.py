@@ -438,7 +438,7 @@ def _parse_rocm_smi_stats() -> list[dict[str, Any]]:
         LOGGER.warning("No JSON found in rocm-smi output")
         return []
     try:
-        data = json.loads(stdout[json_start:])
+        data: dict[str, dict[str, str]] = json.loads(stdout[json_start:])
     except json.JSONDecodeError as e:
         LOGGER.warning("Failed to parse rocm-smi JSON: %s", e)
         return []
