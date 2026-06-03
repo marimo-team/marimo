@@ -32,7 +32,6 @@ import { atomWithStorage } from "jotai/utils";
 import { Tooltip } from "../ui/tooltip";
 import { Button } from "../ui/button";
 import { Kbd } from "../ui/kbd";
-import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
 import type { RuntimeCell } from "@/core/cells/types";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 
