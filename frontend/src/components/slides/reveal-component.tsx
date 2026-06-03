@@ -221,22 +221,50 @@ const SubslideView = ({
   );
 };
 
+const ParkedPreviewContent = ({
+  cell,
+  isNoOutputPreview,
+  isEditable,
+  codeShown,
+}: {
+  cell: RuntimeCell;
+  isNoOutputPreview: boolean;
+  isEditable: boolean;
+  codeShown: boolean;
+}) => {
+  if (isNoOutputPreview && isEditable) {
+    return <SlideCellView cell={cell} />;
+  }
+  if (isNoOutputPreview && codeShown) {
+    return <SlideCellReadOnlyView cell={cell} />;
+  }
+  return (
+    <CellOutputSlide
+      cellId={cell.id}
+      status={cell.status}
+      output={cell.output}
+    />
+  );
+};
+
 // There is an upstream react bug in dev mode (https://github.com/facebook/react/issues/34840)
 // Uncaught SecurityError: Failed to read a named property '$$typeof' from 'Window'
 // Happens with cells containing iframes / external content
 const RevealSlidesComponent = ({
-  cellsWithOutput,
+  slideCells,
   layout,
   setLayout,
+  noOutputIds,
   activeIndex,
   onSlideChange,
   mode,
   configWidth, // px
   isEditable = false,
 }: {
-  cellsWithOutput: RuntimeCell[];
+  slideCells: RuntimeCell[];
   layout: SlidesLayout;
   setLayout: (layout: SlidesLayout) => void;
+  noOutputIds: ReadonlySet<CellId>;
   activeIndex?: number;
   onSlideChange?: (index: number) => void;
   mode: AppMode;
@@ -255,42 +283,46 @@ const RevealSlidesComponent = ({
   );
 
   const [showCode, setShowCode] = useState(false);
-  const codeAvailable = useNotebookCodeAvailable(cellsWithOutput);
+  const codeAvailable = useNotebookCodeAvailable(slideCells);
   const codeToggleEnabled = !isIslands() && codeAvailable;
   const codeShown = codeToggleEnabled && showCode;
 
-  const activeCell =
-    activeIndex != null ? cellsWithOutput[activeIndex] : undefined;
+  const activeCell = activeIndex != null ? slideCells[activeIndex] : undefined;
   // Fall back to the first cell while the deck settles on an initial slide.
   // Still `undefined` when the deck is empty (handled below).
-  const activeConfigCell = activeCell ?? cellsWithOutput.at(0);
+  const activeConfigCell = activeCell ?? slideCells.at(0);
 
   const composition = useMemo(
     () =>
       composeSlides({
-        cells: cellsWithOutput,
+        cells: slideCells,
         getType: (cell) =>
-          layout.cells.get(cell.id)?.type ?? DEFAULT_SLIDE_TYPE,
+          noOutputIds.has(cell.id)
+            ? "skip"
+            : (layout.cells.get(cell.id)?.type ?? DEFAULT_SLIDE_TYPE),
       }),
-    [cellsWithOutput, layout.cells],
+    [slideCells, noOutputIds, layout.cells],
   );
 
-  // Skip cells aren't part of the composed deck. When one is selected in the
-  // minimap we render a preview over the deck and park reveal on a neighboring
-  // real slide; keyboard nav while parked is handled below.
-  const skippedPreviewCell =
-    activeCell && layout.cells.get(activeCell.id)?.type === "skip"
-      ? activeCell
-      : null;
+  // Skipped and output-less cells aren't part of the composed deck. When one is
+  // selected in the minimap we render a preview over the deck and park reveal on
+  // a neighboring real slide; keyboard nav while parked is handled below.
+  const activeCellSlideType = activeCell
+    ? layout.cells.get(activeCell.id)?.type
+    : undefined;
+  const isNoOutputPreview =
+    activeCell != null && noOutputIds.has(activeCell.id);
+  const isParkedPreview = activeCellSlideType === "skip" || isNoOutputPreview;
+  const parkedPreviewCell = isParkedPreview ? activeCell : null;
 
   const { cellToTarget, targetToCellIndex } = useMemo(
     () =>
       buildSlideIndices({
         composition,
-        cells: cellsWithOutput,
+        cells: slideCells,
         getId: (c) => c.id,
       }),
-    [composition, cellsWithOutput],
+    [composition, slideCells],
   );
 
   const deckTransition = layout.deck?.transition ?? DEFAULT_DECK_TRANSITION;
@@ -322,7 +354,7 @@ const RevealSlidesComponent = ({
   const navigateDeckToActiveCell = useEvent((deck: RevealApi) => {
     const target = resolveDeckNavigationTarget({
       activeIndex,
-      cells: cellsWithOutput,
+      cells: slideCells,
       cellToTarget,
       getId: (cell) => cell.id,
     });
@@ -340,7 +372,7 @@ const RevealSlidesComponent = ({
       return;
     }
     navigateDeckToActiveCell(deck);
-  }, [activeIndex, cellToTarget, cellsWithOutput, navigateDeckToActiveCell]);
+  }, [activeIndex, cellToTarget, slideCells, navigateDeckToActiveCell]);
 
   // Toggling code (re)mounts a CodeMirror editor on the active slide. Defer
   // the state update so the button/keypress paints first and the heavier mount
@@ -380,12 +412,12 @@ const RevealSlidesComponent = ({
     return { h: target.h, v: target.v };
   }, [activeCell, cellToTarget]);
 
-  // Forward the deck's current cell to the parent, except while a skipped
+  // Forward the deck's current cell to the parent, except while a parked
   // preview is parked: every reveal.js event during that window is an echo
   // of the programmatic park (possibly with transient indices), so ignoring
-  // them keeps `activeCellId` pinned on the skipped cell.
+  // them keeps `activeCellId` pinned on the minimap cell.
   const reportCurrentCell = useEvent(() => {
-    if (skippedPreviewCell != null) {
+    if (parkedPreviewCell != null) {
       return;
     }
     const deck = deckRef.current;
@@ -401,10 +433,10 @@ const RevealSlidesComponent = ({
     }
   });
 
-  // While parked on a skipped preview, step through minimap order instead of
+  // While parked on a preview, step through minimap order instead of
   // letting reveal.js advance from the parked slide the user can't see.
   const handleParkedNavKey = useEvent((event: KeyboardEvent) => {
-    if (!skippedPreviewCell || activeIndex == null) {
+    if (!parkedPreviewCell || activeIndex == null) {
       return;
     }
     if (Events.fromInput(event)) {
@@ -418,7 +450,7 @@ const RevealSlidesComponent = ({
     event.preventDefault();
     event.stopPropagation();
     const nextIndex = activeIndex + direction;
-    if (nextIndex < 0 || nextIndex >= cellsWithOutput.length) {
+    if (nextIndex < 0 || nextIndex >= slideCells.length) {
       return;
     }
     onSlideChange?.(nextIndex);
@@ -430,6 +462,10 @@ const RevealSlidesComponent = ({
   });
 
   useEventListener(document, "keydown", handleParkedNavKey, { capture: true });
+
+  const parkedPreviewLabel = isNoOutputPreview
+    ? "Hidden as there is no output"
+    : "Skipped in presentation";
 
   const slideArea = (
     <div
@@ -480,21 +516,30 @@ const RevealSlidesComponent = ({
             );
           })}
         </Deck>
-        {skippedPreviewCell && (
+        {parkedPreviewCell && (
           <div
+            key={parkedPreviewCell.id}
             className="absolute inset-0 z-10 border rounded bg-background flex flex-col overflow-hidden"
-            aria-label="Skipped in presentation"
+            aria-label={parkedPreviewLabel}
           >
             <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/40">
               <EyeOffIcon className="h-3.5 w-3.5" />
-              <span>Skipped in presentation</span>
+              <span>{parkedPreviewLabel}</span>
             </div>
             <div className="flex-1 overflow-auto flex">
-              <div className="mo-slide-content" style={{ margin: "auto 20px" }}>
-                <CellOutputSlide
-                  cellId={skippedPreviewCell.id}
-                  status={skippedPreviewCell.status}
-                  output={skippedPreviewCell.output}
+              <div
+                className={
+                  isNoOutputPreview && (isEditable || codeShown)
+                    ? "mo-slide-content flex flex-col gap-3"
+                    : "mo-slide-content"
+                }
+                style={{ margin: "auto 20px" }}
+              >
+                <ParkedPreviewContent
+                  cell={parkedPreviewCell}
+                  isNoOutputPreview={isNoOutputPreview}
+                  isEditable={isEditable}
+                  codeShown={codeShown}
                 />
               </div>
             </div>

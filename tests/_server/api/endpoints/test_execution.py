@@ -4,12 +4,17 @@ from __future__ import annotations
 import json
 import sys
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.lists import first
+from tests._server.api.endpoints.ws_helpers import (
+    HEADERS as WS_HEADERS,
+    assert_kernel_ready_response,
+    create_response,
+)
 from tests._server.mocks import (
     get_session_manager,
     token_header,
@@ -18,7 +23,7 @@ from tests._server.mocks import (
 )
 
 if TYPE_CHECKING:
-    from starlette.testclient import TestClient
+    from starlette.testclient import TestClient, WebSocketTestSession
 
 SESSION_ID = SessionId("session-123")
 HEADERS = {
@@ -119,6 +124,41 @@ class TestExecutionRoutes_EditMode:
         assert response.status_code == 200, response.text
         assert response.headers["content-type"] == "application/json"
         assert "success" in response.json()
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_kernel_status(client: TestClient) -> None:
+        response = client.get("/api/kernel/status", headers=HEADERS)
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert response.json()["state"] in ("running", "idle", "stopped")
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_kernel_status_running(client: TestClient) -> None:
+        from marimo._messaging.notification import CellNotification
+
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        # Seed a synthetic running cell the real kernel never emits, so a
+        # concurrent idle broadcast for the notebook's own cells can't race
+        # this assertion.
+        session.session_view.cell_notifications[CellId_t("status-test")] = (
+            CellNotification(cell_id=CellId_t("status-test"), status="running")
+        )
+        response = client.get("/api/kernel/status", headers=HEADERS)
+        assert response.status_code == 200, response.text
+        assert response.json()["state"] == "running"
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_kernel_status_idle(client: TestClient) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        session.session_view.cell_notifications.clear()
+        response = client.get("/api/kernel/status", headers=HEADERS)
+        assert response.status_code == 200, response.text
+        assert response.json()["state"] == "idle"
 
     @staticmethod
     def test_restart_session(client: TestClient) -> None:
@@ -293,6 +333,15 @@ class TestExecutionRoutes_EditMode:
 
     @staticmethod
     @with_session(SESSION_ID)
+    def test_takeover_missing_session_id_header(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/takeover",
+            headers=token_header("fake-token"),
+        )
+        assert response.status_code == 400, response.text
+
+    @staticmethod
+    @with_session(SESSION_ID)
     def test_takeover_file_key(client: TestClient) -> None:
         response = client.post(
             "/api/kernel/takeover?file=test.py",
@@ -440,6 +489,12 @@ class TestExecutionRoutes_RunMode:
 
     @staticmethod
     @with_read_session(SESSION_ID)
+    def test_kernel_status(client: TestClient) -> None:
+        response = client.get("/api/kernel/status", headers=HEADERS)
+        assert response.status_code == 401, response.text
+
+    @staticmethod
+    @with_read_session(SESSION_ID)
     def test_restart_session(client: TestClient) -> None:
         response = client.post("/api/kernel/restart_session", headers=HEADERS)
         assert response.status_code == 401, response.text
@@ -544,3 +599,52 @@ def get_printed_object(
         pytest.fail(f"Console is an error: {console.data}")
     assert isinstance(console.data, str)
     return json.loads(console.data)
+
+
+def _receive_until(op: str, websocket: WebSocketTestSession) -> dict[str, Any]:
+    while True:
+        data = websocket.receive_json()
+        if data["op"] == op:
+            return data
+
+
+def test_takeover_transfers_edit_without_disconnect(
+    client: TestClient,
+) -> None:
+    with client.websocket_connect(
+        "/ws?session_id=ed1", headers=WS_HEADERS
+    ) as editor:
+        assert_kernel_ready_response(editor.receive_json())
+        with client.websocket_connect(
+            "/ws?session_id=vw1", headers=WS_HEADERS
+        ) as viewer:
+            assert_kernel_ready_response(
+                viewer.receive_json(),
+                create_response(
+                    {
+                        "kiosk": True,
+                        "resumed": True,
+                        "consumer_capabilities": {
+                            "edit": False,
+                            "interact": False,
+                        },
+                    }
+                ),
+            )
+
+            resp = client.post(
+                "/api/kernel/takeover",
+                headers={**WS_HEADERS, "Marimo-Session-Id": "vw1"},
+            )
+            assert resp.status_code == 200, resp.text
+
+            ed = _receive_until("consumer-capabilities", editor)
+            vw = _receive_until("consumer-capabilities", viewer)
+            assert ed["data"]["consumer_capabilities"] == {
+                "edit": False,
+                "interact": False,
+            }
+            assert vw["data"]["consumer_capabilities"] == {
+                "edit": True,
+                "interact": True,
+            }

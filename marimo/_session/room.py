@@ -11,6 +11,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._messaging.notification import (
+    ConsumerCapabilities,
+    ConsumerCapabilitiesNotification,
+)
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._session.model import ConnectionState
 from marimo._types.ids import ConsumerId
@@ -63,6 +68,56 @@ class Room:
             self.main_consumer = None
         self.consumers.pop(consumer)
         consumer.on_detach()
+
+    def promote_consumer_to_main(self, consumer: SessionConsumer) -> None:
+        """Promote a consumer to be the main consumer of the room.
+
+        Demotes the current main consumer (editor) to a regular consumer (reader).
+        Emits a targeted notification to each targeted consumer to inform capability change.
+        """
+
+        assert consumer in self.consumers, (
+            "Consumer must be in the room to be promoted."
+        )
+        previous_main_consumer = self.main_consumer
+
+        if previous_main_consumer is consumer:
+            # The consumer is already the main consumer, no need to promote.
+            return
+
+        self.main_consumer = consumer
+
+        if previous_main_consumer is not None:
+            self._notify_consumer_capability_change(
+                previous_main_consumer,
+                self.get_capabilities(previous_main_consumer),
+            )
+        self._notify_consumer_capability_change(
+            consumer, self.get_capabilities(consumer)
+        )
+
+    def get_capabilities(
+        self, consumer: SessionConsumer
+    ) -> ConsumerCapabilities:
+        """Get the capabilities of a consumer based on its role in the room."""
+        is_editor = consumer is self.main_consumer
+        return ConsumerCapabilities(edit=is_editor, interact=is_editor)
+
+    def get_consumer(self, consumer_id: ConsumerId) -> SessionConsumer | None:
+        for consumer, cid in self.consumers.items():
+            if cid == consumer_id:
+                return consumer
+        return None
+
+    def _notify_consumer_capability_change(
+        self, consumer: SessionConsumer, capabilities: ConsumerCapabilities
+    ) -> None:
+        if consumer.connection_state() != ConnectionState.OPEN:
+            return
+        notification = ConsumerCapabilitiesNotification(
+            consumer_capabilities=capabilities
+        )
+        consumer.notify(serialize_kernel_message(notification))
 
     def broadcast(
         self,

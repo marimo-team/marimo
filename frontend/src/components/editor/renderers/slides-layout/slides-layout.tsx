@@ -30,19 +30,17 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   const isMultiColumn = numColumns > 1;
   const [activeCellId, setActiveCellId] = useState<CellId | null>(null);
 
-  const { cellsWithOutput, skippedIds, slideTypes, startCellIndex } = useMemo(
-    () => computeSlideCellsInfo(cells, layout),
-    [cells, layout],
-  );
+  const { slideCells, skippedIds, noOutputIds, slideTypes, startCellIndex } =
+    useMemo(() => computeSlideCellsInfo(cells, layout), [cells, layout]);
 
   const activeSlideIndex = activeCellId
-    ? cellsWithOutput.findIndex((c) => c.id === activeCellId)
+    ? slideCells.findIndex((c) => c.id === activeCellId)
     : startCellIndex;
   const resolvedIndex =
     activeSlideIndex === -1 ? startCellIndex : activeSlideIndex;
 
   const handleSlideChange = useEvent((index: number) => {
-    const cell = cellsWithOutput[index];
+    const cell = slideCells[index];
     if (cell) {
       setActiveCellId(cell.id);
     }
@@ -50,9 +48,10 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
 
   const slides = (
     <LazySlidesComponent
-      cellsWithOutput={cellsWithOutput}
+      slideCells={slideCells}
       layout={layout}
       setLayout={setLayout}
+      noOutputIds={noOutputIds}
       activeIndex={resolvedIndex}
       onSlideChange={handleSlideChange}
       configWidth={280}
@@ -85,13 +84,12 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   return (
     <div className="flex-1 pr-18 pb-2 flex flex-row gap-2 min-h-0">
       <SlidesMinimap
-        cells={cellsWithOutput}
+        cells={slideCells}
         thumbnailWidth={220}
         canReorder={!isMultiColumn}
-        activeCellId={
-          activeCellId ?? cellsWithOutput[startCellIndex]?.id ?? null
-        }
+        activeCellId={activeCellId ?? slideCells[startCellIndex]?.id ?? null}
         skippedIds={skippedIds}
+        noOutputIds={noOutputIds}
         slideTypes={slideTypes}
         onSlideClick={handleSlideChange}
       />

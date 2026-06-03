@@ -443,11 +443,12 @@ class BlockHasher:
         ctx: RuntimeContext,
     ) -> bool:
         """Check if a variable's content hash can be memoized."""
+        defs = self.graph.definitions.get(local_ref, set())
         return (
             ctx.cache.is_memoizable(value)
             and local_ref not in self.stateful_refs
-            and self.cell_id
-            not in self.graph.definitions.get(local_ref, set())
+            and bool(defs)
+            and self.cell_id not in defs
         )
 
     def _apply_content_hash(

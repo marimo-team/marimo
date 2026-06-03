@@ -83,11 +83,56 @@ export interface CodeMirrorSetupOpts {
   diagnosticsConfig: DiagnosticsConfig;
   displayConfig: Pick<DisplayConfig, "reference_highlighting">;
   inlineAiTooltip: boolean;
+  /**
+   * CSS selector for the element that CodeMirror tooltips (completions, hover,
+   * signature help) should be appended to. Defaults to `#App`.
+   */
+  tooltipParentSelector?: string;
 }
 
 function getPlaceholderType(opts: CodeMirrorSetupOpts) {
   const { showPlaceholder, enableAI } = opts;
   return showPlaceholder ? "marimo-import" : enableAI ? "ai" : "none";
+}
+
+const CODEMIRROR_TOOLTIP_PORTAL_CLASS = "cm-tooltip-portal";
+
+/**
+ * Resolve the element that editor tooltips (completions, hover, signature help)
+ * should be appended to.
+ *
+ * The default `#App` parent is returned directly. Custom parents are useful
+ * when editors live inside a fullscreen subtree, dialog, or scoped typography
+ * region. In those cases we append tooltips to a dedicated `not-prose` portal
+ * inside the requested parent, reusing it across cells so surrounding typography
+ * styles don't leak into editor popups.
+ */
+function resolveCodeMirrorTooltipParent(
+  selector: string | undefined,
+): HTMLElement | undefined {
+  if (selector == null) {
+    return document.querySelector<HTMLElement>("#App") ?? undefined;
+  }
+
+  const host = document.querySelector<HTMLElement>(selector);
+  if (host == null) {
+    return undefined;
+  }
+
+  const existing = host.querySelector<HTMLElement>(
+    `:scope > .${CODEMIRROR_TOOLTIP_PORTAL_CLASS}`,
+  );
+  if (existing != null) {
+    return existing;
+  }
+
+  const portal = document.createElement("div");
+  // `not-prose` escapes scoped typography; `contents` keeps the wrapper
+  // layout-neutral. Tooltips are `position: fixed`, so the wrapper having no
+  // box doesn't affect positioning.
+  portal.className = `${CODEMIRROR_TOOLTIP_PORTAL_CLASS} not-prose contents`;
+  host.append(portal);
+  return portal;
 }
 
 /**
@@ -180,6 +225,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     cellId,
     lspConfig,
     diagnosticsConfig,
+    tooltipParentSelector,
   } = opts;
   const placeholderType = getPlaceholderType(opts);
   const autoClosePairs = completionConfig.auto_close_pairs !== false;
@@ -200,7 +246,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
       position: "fixed",
       // This the z-index multiple tooltips being stacked
       // For example, if we have a hover tooltip and a completion tooltip
-      parent: document.querySelector<HTMLElement>("#App") ?? undefined,
+      parent: resolveCodeMirrorTooltipParent(tooltipParentSelector),
     }),
     scrollActiveLineIntoViewExtension(),
     theme === "dark" ? darkTheme : lightTheme,

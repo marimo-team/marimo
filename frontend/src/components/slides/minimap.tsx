@@ -66,6 +66,7 @@ interface SlideThumbnailCardProps extends React.HTMLAttributes<HTMLDivElement> {
   isActiveDragSource?: boolean;
   isOverlay?: boolean;
   isVisible?: boolean;
+  isNoOutput?: boolean;
   slideType?: SlideType;
   ref?: React.Ref<HTMLDivElement>;
 }
@@ -77,6 +78,7 @@ interface SlideThumbnailRowProps extends React.ButtonHTMLAttributes<HTMLButtonEl
   dropIndicator?: DropPosition | null;
   isActiveDragSource?: boolean;
   isVisible?: boolean;
+  isNoOutput?: boolean;
   slideType?: SlideType;
   ref?: React.Ref<HTMLButtonElement>;
 }
@@ -86,15 +88,23 @@ interface SlidesMinimapProps {
   thumbnailWidth: number;
   canReorder: boolean;
   activeCellId: CellId | null;
-  // Set of cell ids that are marked `skip` in the slides layout.
+  // Set of cell ids that should be visually treated like skipped entries.
   skippedIds?: ReadonlySet<CellId>;
+  // Set of cell ids that currently have no rendered output.
+  noOutputIds?: ReadonlySet<CellId>;
   slideTypes?: ReadonlyMap<CellId, SlideType>;
   onSlideClick: (index: number) => void;
 }
 
+interface ThumbnailVisual {
+  label: string;
+  description: string;
+  Icon?: LucideIcon;
+}
+
 function getSlideTypeVisual(
   slideType: SlideType | undefined,
-): { label: string; description: string; Icon: LucideIcon } | null {
+): ThumbnailVisual | null {
   if (!slideType || slideType === "slide") {
     return null;
   }
@@ -102,8 +112,13 @@ function getSlideTypeVisual(
   return { label, description, Icon };
 }
 
+const NO_OUTPUT_VISUAL: ThumbnailVisual = {
+  label: "No output",
+  description: "Hidden because this cell has no output.",
+};
+
 const SLIDE_ASPECT_RATIO = 16 / 9;
-const SLIDE_BASE_WIDTH = 960;
+const SLIDE_BASE_WIDTH = 520;
 
 function computeThumbnailDimensions(width: number): ThumbnailDimensions {
   return {
@@ -196,6 +211,7 @@ export const SlidesMinimap = ({
   canReorder,
   activeCellId,
   skippedIds,
+  noOutputIds,
   slideTypes,
   onSlideClick,
 }: SlidesMinimapProps) => {
@@ -288,6 +304,7 @@ export const SlidesMinimap = ({
             dimensions={dimensions}
             isActiveSlide={cell.id === activeCellId}
             isVisible={visibleIds.has(cell.id)}
+            isNoOutput={noOutputIds?.has(cell.id)}
             slideType={resolveSlideType({
               cellId: cell.id,
               slideTypes,
@@ -325,6 +342,7 @@ export const SlidesMinimap = ({
               isActive={activeId === cell.id}
               isActiveSlide={cell.id === activeCellId}
               isVisible={visibleIds.has(cell.id)}
+              isNoOutput={noOutputIds?.has(cell.id)}
               slideType={resolveSlideType({
                 cellId: cell.id,
                 slideTypes,
@@ -347,6 +365,7 @@ export const SlidesMinimap = ({
             dimensions={dimensions}
             isOverlay={true}
             isActiveDragSource={true}
+            isNoOutput={noOutputIds?.has(activeCell.id)}
           />
         )}
       </DragOverlay>
@@ -378,6 +397,7 @@ interface SortableSlideThumbnailProps {
   isActive: boolean;
   isActiveSlide?: boolean;
   isVisible?: boolean;
+  isNoOutput?: boolean;
   slideType?: SlideType;
   onClick?: () => void;
 }
@@ -389,6 +409,7 @@ const SortableSlideThumbnail = ({
   isActive,
   isActiveSlide,
   isVisible,
+  isNoOutput,
   slideType,
   onClick,
 }: SortableSlideThumbnailProps) => {
@@ -405,6 +426,7 @@ const SortableSlideThumbnail = ({
       isActiveDragSource={isActive}
       isActiveSlide={isActiveSlide}
       isVisible={isVisible}
+      isNoOutput={isNoOutput}
       slideType={slideType}
       onClick={onClick}
       {...attributes}
@@ -422,6 +444,7 @@ const SlideThumbnailRow = ({
   isActiveSlide = false,
   isActiveDragSource = false,
   isVisible,
+  isNoOutput,
   slideType,
   onClick,
   ref,
@@ -462,6 +485,7 @@ const SlideThumbnailRow = ({
         isActiveSlide={isActiveSlide}
         isActiveDragSource={isActiveDragSource}
         isVisible={isVisible}
+        isNoOutput={isNoOutput}
         slideType={slideType}
       />
     </button>
@@ -477,13 +501,14 @@ const SlideThumbnailCard = ({
   isActiveDragSource = false,
   isOverlay = false,
   isVisible = false,
+  isNoOutput = false,
   slideType,
   ref,
   ...props
 }: SlideThumbnailCardProps) => {
   const { width, height, scale } = dimensions;
-  const visual = getSlideTypeVisual(slideType);
-  const isSkipped = slideType === "skip";
+  const visual = isNoOutput ? NO_OUTPUT_VISUAL : getSlideTypeVisual(slideType);
+  const isSkipped = isNoOutput || slideType === "skip";
 
   const outerStyle: React.CSSProperties = {
     width,
@@ -525,16 +550,20 @@ const SlideThumbnailCard = ({
             height: height / scale,
           }}
         >
-          <Slide cellId={cell.id} status={cell.status} output={cell.output} />
+          {isNoOutput ? (
+            <MiniCodePreview code={cell.code} />
+          ) : (
+            <Slide cellId={cell.id} status={cell.status} output={cell.output} />
+          )}
         </div>
       )}
       {isSkipped && (
         <div
-          className="absolute inset-0 bg-muted/60 pointer-events-none"
+          className="absolute inset-0 bg-muted/50 pointer-events-none"
           aria-hidden={true}
         />
       )}
-      {visual && (
+      {visual?.Icon && (
         <Tooltip
           content={
             <span className="text-xs opacity-80">{visual.description}</span>
@@ -550,11 +579,18 @@ const SlideThumbnailCard = ({
             aria-label={visual.label}
           >
             <visual.Icon className="h-3.5 w-3.5" />
-            {/* <span>{visual.label}</span> */}
           </span>
         </Tooltip>
       )}
     </div>
+  );
+};
+
+const MiniCodePreview = ({ code }: { code: string }) => {
+  return (
+    <pre className="my-auto w-full overflow-hidden whitespace-pre-wrap wrap-break-word text-lg">
+      {code}
+    </pre>
   );
 };
 
