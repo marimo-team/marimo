@@ -10,6 +10,7 @@ import {
   PanelRightOpenIcon,
   KeyboardIcon,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -31,6 +32,7 @@ import { atomWithStorage } from "jotai/utils";
 import { Tooltip } from "../ui/tooltip";
 import { Button } from "../ui/button";
 import { Kbd } from "../ui/kbd";
+import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
 import type { RuntimeCell } from "@/core/cells/types";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 
@@ -196,13 +198,22 @@ const SlideConfigForm = ({
   setLayout: (layout: SlidesLayout) => void;
   cellId: CellId;
 }) => {
-  const currentSlideType: SlideType =
-    layout.cells.get(cellId)?.type ?? DEFAULT_SLIDE_TYPE;
+  const currentConfig = layout.cells.get(cellId);
+  const currentSlideType: SlideType = currentConfig?.type ?? DEFAULT_SLIDE_TYPE;
+  const showCode = currentConfig?.showCode ?? false;
 
   const handleSlideTypeChange = (value: SlideType) => {
-    const existingConfig = layout.cells.get(cellId);
     const newCells = new Map(layout.cells);
-    newCells.set(cellId, { ...existingConfig, type: value });
+    newCells.set(cellId, { ...currentConfig, type: value });
+    setLayout({
+      ...layout,
+      cells: newCells,
+    });
+  };
+
+  const handleShowCodeChange = (checked: boolean) => {
+    const newCells = new Map(layout.cells);
+    newCells.set(cellId, { ...currentConfig, showCode: checked });
     setLayout({
       ...layout,
       cells: newCells,
@@ -261,6 +272,19 @@ const SlideConfigForm = ({
           );
         })}
       </RadioGroup>
+      <div className="flex items-center gap-2">
+        <label htmlFor="slide-show-code" className="text-sm">
+          Show code
+        </label>
+        <Switch
+          id="slide-show-code"
+          aria-label="Show code"
+          checked={showCode}
+          onCheckedChange={handleShowCodeChange}
+          size="sm"
+        />
+        <KeyboardHotkeys shortcut="shift-c" />
+      </div>
     </div>
   );
 };
