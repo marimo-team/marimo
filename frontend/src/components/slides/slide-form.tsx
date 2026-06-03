@@ -283,7 +283,6 @@ const SlideConfigForm = ({
           onCheckedChange={handleShowCodeChange}
           size="sm"
         />
-        <KeyboardHotkeys shortcut="shift-c" />
       </div>
     </div>
   );
