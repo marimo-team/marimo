@@ -335,7 +335,7 @@ _AMD_GPU_STATS_CMD = [
     "--showuse",
     "--showmeminfo",
     "vram",
-    "--csv",
+    "--json",
 ]
 
 
@@ -417,6 +417,7 @@ def _parse_nvidia_smi_stats() -> list[dict[str, Any]]:
 
 
 def _parse_rocm_smi_stats() -> list[dict[str, Any]]:
+    import json
     import subprocess
 
     try:
@@ -429,25 +430,30 @@ def _parse_rocm_smi_stats() -> list[dict[str, Any]]:
     except (subprocess.SubprocessError, FileNotFoundError) as e:
         LOGGER.warning("Failed to extract AMD GPU stats: %s", e)
         return []
+
+    stdout = result.stdout.strip()
+    # Find the JSON object (rocm-smi may emit WARNING lines before the JSON)
+    json_start = stdout.find("{")
+    if json_start == -1:
+        LOGGER.warning("No JSON found in rocm-smi output")
+        return []
+    try:
+        data = json.loads(stdout[json_start:])
+    except json.JSONDecodeError as e:
+        LOGGER.warning("Failed to parse rocm-smi JSON: %s", e)
+        return []
+
     stats: list[dict[str, Any]] = []
-    for line in result.stdout.strip().split("\n"):
-        line = line.strip()
-        if not line or line.startswith(("WARNING", "device")):
+    for device_key, device_info in data.items():
+        if not device_key.startswith("card"):
             continue
-        parts = [p.strip() for p in line.split(",")]
-        if len(parts) < 4:
-            continue
-        device = parts[0]
-        index = int(device.replace("card", ""))
-        total_str = parts[2]
-        used_str = parts[3]
-        name = parts[4] if len(parts) > 4 else "AMD GPU"
-        if total_str == "N/A" or total_str == "[N/A]":
-            total_str = "0"
-        if used_str == "N/A" or used_str == "[N/A]":
-            used_str = "0"
-        total = int(total_str)
-        used = int(used_str)
+        index = int(device_key.replace("card", ""))
+        name = device_info.get("Card Series", "AMD GPU")
+        total_str = device_info.get("VRAM Total Memory (B)", "0")
+        used_str = device_info.get("VRAM Total Used Memory (B)", "0")
+        total = int(total_str) if total_str not in ("N/A", "[N/A]", "") else 0
+        used = int(used_str) if used_str not in ("N/A", "[N/A]", "") else 0
+        total = max(total, used)
         free = total - used
         stats.append(
             {
