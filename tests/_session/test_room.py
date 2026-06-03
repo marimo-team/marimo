@@ -37,7 +37,7 @@ def _caps(received: list[KernelMessage]) -> list[ConsumerCapabilities]:
     out: list[ConsumerCapabilities] = []
     for raw in received:
         notif = deserialize_kernel_message(raw)
-        if notif.name == "consumer-capabilities-changed":
+        if notif.name == "consumer-capabilities":
             out.append(notif.consumer_capabilities)  # type: ignore[attr-defined]
     return out
 

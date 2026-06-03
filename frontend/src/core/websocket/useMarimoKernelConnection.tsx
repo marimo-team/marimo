@@ -409,7 +409,7 @@ export function useMarimoKernelConnection(opts: {
       case "notebook-document-transaction":
         handleDocumentTransaction(msg.data.transaction);
         return;
-      case "consumer-capabilities-changed":
+      case "consumer-capabilities":
         setKioskMode(!msg.data.consumer_capabilities.edit);
         return;
       default:

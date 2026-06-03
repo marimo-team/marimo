@@ -20,7 +20,7 @@ export const ViewerBanner = () => {
   const handleTakeover = async () => {
     try {
       const searchParams = new URL(window.location.href).searchParams;
-      // No reload: the server replies with consumer-capabilities-changed
+      // No reload: the server replies with consumer-capabilities
       // (edit: true), which flips kiosk mode off and hides this banner.
       await API.post(`/kernel/takeover?${searchParams.toString()}`, {});
     } catch (error) {

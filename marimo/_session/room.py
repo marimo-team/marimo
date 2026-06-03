@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from marimo import _loggers
 from marimo._messaging.notification import (
     ConsumerCapabilities,
-    ConsumerCapabilitiesChangedNotification,
+    ConsumerCapabilitiesNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -114,7 +114,7 @@ class Room:
     ) -> None:
         if consumer.connection_state() != ConnectionState.OPEN:
             return
-        notification = ConsumerCapabilitiesChangedNotification(
+        notification = ConsumerCapabilitiesNotification(
             consumer_capabilities=capabilities
         )
         consumer.notify(serialize_kernel_message(notification))

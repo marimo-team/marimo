@@ -123,12 +123,8 @@ def test_takeover_ping_pong_preserves_membership(client: TestClient) -> None:
                     headers={**HEADERS, "Marimo-Session-Id": caller},
                 )
                 assert resp.status_code == 200, resp.text
-                caller_msg = _receive_until(
-                    "consumer-capabilities-changed", ws_caller
-                )
-                other_msg = _receive_until(
-                    "consumer-capabilities-changed", ws_other
-                )
+                caller_msg = _receive_until("consumer-capabilities", ws_caller)
+                other_msg = _receive_until("consumer-capabilities", ws_other)
                 assert (
                     caller_msg["data"]["consumer_capabilities"]["edit"] is True
                 )
@@ -154,7 +150,7 @@ def test_third_viewer_survives_takeover(client: TestClient) -> None:
                     headers={**HEADERS, "Marimo-Session-Id": "b"},
                 )
                 assert resp.status_code == 200, resp.text
-                _receive_until("consumer-capabilities-changed", tb)
+                _receive_until("consumer-capabilities", tb)
 
                 # New editor (b) broadcasts; the third viewer (c) still gets it.
                 resp = client.post(
@@ -184,7 +180,7 @@ def test_capabilities_changed_is_not_recorded(client: TestClient) -> None:
                 "/api/kernel/takeover",
                 headers={**HEADERS, "Marimo-Session-Id": "b"},
             )
-            _receive_until("consumer-capabilities-changed", tb)
+            _receive_until("consumer-capabilities", tb)
 
             sm = client.app.state.session_manager
             session = next(iter(sm.sessions.values()))
@@ -192,7 +188,7 @@ def test_capabilities_changed_is_not_recorded(client: TestClient) -> None:
                 deserialize_kernel_message(n).name
                 for n in session.session_view.notifications
             ]
-            assert "consumer-capabilities-changed" not in recorded
+            assert "consumer-capabilities" not in recorded
 
 
 def test_refresh_resumes_as_editor(client: TestClient) -> None:

@@ -255,7 +255,7 @@ function handleMessage(
         handleWidgetMessage(MODEL_MANAGER, msg.data);
         return;
 
-      case "consumer-capabilities-changed":
+      case "consumer-capabilities":
         return;
       default:
         logNever(msg);

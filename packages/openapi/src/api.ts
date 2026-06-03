@@ -3936,13 +3936,13 @@ export interface components {
       interact: boolean;
     };
     /**
-     * ConsumerCapabilitiesChangedNotification
+     * ConsumerCapabilitiesNotification
      * @description Notification of the frontend consumer's capabilities.
      */
-    ConsumerCapabilitiesChangedNotification: {
+    ConsumerCapabilitiesNotification: {
       consumer_capabilities: components["schemas"]["ConsumerCapabilities"];
       /** @enum {unknown} */
-      op: "consumer-capabilities-changed";
+      op: "consumer-capabilities";
     };
     /** CopyNotebookRequest */
     CopyNotebookRequest: {
@@ -5079,7 +5079,7 @@ export interface components {
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
         | components["schemas"]["NotebookDocumentTransactionNotification"]
-        | components["schemas"]["ConsumerCapabilitiesChangedNotification"];
+        | components["schemas"]["ConsumerCapabilitiesNotification"];
     };
     /**
      * LanguageServersConfig

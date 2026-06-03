@@ -638,8 +638,8 @@ def test_takeover_transfers_edit_without_disconnect(
             )
             assert resp.status_code == 200, resp.text
 
-            ed = _receive_until("consumer-capabilities-changed", editor)
-            vw = _receive_until("consumer-capabilities-changed", viewer)
+            ed = _receive_until("consumer-capabilities", editor)
+            vw = _receive_until("consumer-capabilities", viewer)
             assert ed["data"]["consumer_capabilities"] == {
                 "edit": False,
                 "interact": False,

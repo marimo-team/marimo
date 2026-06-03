@@ -871,18 +871,18 @@ components:
       - interact
       title: ConsumerCapabilities
       type: object
-    ConsumerCapabilitiesChangedNotification:
+    ConsumerCapabilitiesNotification:
       description: Notification of the frontend consumer's capabilities.
       properties:
         consumer_capabilities:
           $ref: '#/components/schemas/ConsumerCapabilities'
         op:
           enum:
-          - consumer-capabilities-changed
+          - consumer-capabilities
       required:
       - op
       - consumer_capabilities
-      title: ConsumerCapabilitiesChangedNotification
+      title: ConsumerCapabilitiesNotification
       type: object
     CopyNotebookRequest:
       properties:
@@ -2748,7 +2748,7 @@ components:
           - $ref: '#/components/schemas/CacheInfoNotification'
           - $ref: '#/components/schemas/FocusCellNotification'
           - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
-          - $ref: '#/components/schemas/ConsumerCapabilitiesChangedNotification'
+          - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
           discriminator:
             mapping:
               alert: '#/components/schemas/AlertNotification'
@@ -2758,7 +2758,7 @@ components:
               cell-op: '#/components/schemas/CellNotification'
               completed-run: '#/components/schemas/CompletedRunNotification'
               completion-result: '#/components/schemas/CompletionResultNotification'
-              consumer-capabilities-changed: '#/components/schemas/ConsumerCapabilitiesChangedNotification'
+              consumer-capabilities: '#/components/schemas/ConsumerCapabilitiesNotification'
               data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
               data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
               datasets: '#/components/schemas/DatasetsNotification'

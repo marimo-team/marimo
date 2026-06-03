@@ -288,14 +288,14 @@ class ConsumerCapabilities(msgspec.Struct, frozen=True):
     interact: bool
 
 
-class ConsumerCapabilitiesChangedNotification(
-    Notification, tag="consumer-capabilities-changed"
+class ConsumerCapabilitiesNotification(
+    Notification, tag="consumer-capabilities"
 ):
     """
     Notification of the frontend consumer's capabilities.
     """
 
-    name: ClassVar[str] = "consumer-capabilities-changed"
+    name: ClassVar[str] = "consumer-capabilities"
     consumer_capabilities: ConsumerCapabilities
 
 
@@ -891,5 +891,5 @@ NotificationMessage = (
     # Document
     | NotebookDocumentTransactionNotification
     # Consumer
-    | ConsumerCapabilitiesChangedNotification
+    | ConsumerCapabilitiesNotification
 )
