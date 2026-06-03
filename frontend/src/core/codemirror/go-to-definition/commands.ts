@@ -403,8 +403,9 @@ function findScopedDefinitionPosition(
 }
 
 /**
- * This function will select the first occurrence of the given variable name,
- * for a given editor view.
+ * This function selects a scoped definition for the given variable name, when
+ * a usage position is available, or optionally falls back to the first matching
+ * variable name in the given editor view.
  * @param view The editor view which contains the variable name.
  * @param variableName The name of the variable to select, if found in the editor.
  * @param usagePosition The position of the variable usage, if available.
