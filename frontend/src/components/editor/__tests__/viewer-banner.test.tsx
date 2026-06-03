@@ -21,6 +21,24 @@ describe("ViewerBanner", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("renders nothing for an intentional kiosk client (?kiosk=true)", () => {
+    const store = createStore();
+    store.set(kioskModeAtom, true);
+    window.history.pushState({}, "", "/?kiosk=true");
+    try {
+      const { container } = render(
+        <Provider store={store}>
+          <TooltipProvider>
+            <ViewerBanner />
+          </TooltipProvider>
+        </Provider>,
+      );
+      expect(container).toBeEmptyDOMElement();
+    } finally {
+      window.history.pushState({}, "", "/");
+    }
+  });
+
   it("shows take over and posts without reload when viewing", () => {
     const store = createStore();
     store.set(kioskModeAtom, true);

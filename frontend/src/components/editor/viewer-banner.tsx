@@ -2,6 +2,7 @@
 
 import { useAtomValue } from "jotai/react";
 import { ArrowRightSquareIcon, EyeIcon } from "lucide-react";
+import { KnownQueryParams } from "@/core/constants";
 import { kioskModeAtom } from "@/core/mode";
 import { API } from "@/core/network/api";
 import { Banner } from "@/plugins/impl/common/error-banner";
@@ -13,7 +14,14 @@ import { toast } from "../ui/use-toast";
 export const ViewerBanner = () => {
   const isViewing = useAtomValue(kioskModeAtom);
 
-  if (!isViewing) {
+  // Only a demoted editor (a second tab auto-routed to read-only) is offered
+  // takeover. A client that explicitly requested kiosk (?kiosk=true: embeds,
+  // slide previews, dashboards) is an intentional viewer and gets no banner.
+  const isIntentionalKiosk = new URL(window.location.href).searchParams.has(
+    KnownQueryParams.kiosk,
+  );
+
+  if (!isViewing || isIntentionalKiosk) {
     return null;
   }
 
