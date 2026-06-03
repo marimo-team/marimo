@@ -7,6 +7,7 @@ import os
 import sys
 import threading
 from collections import deque
+from contextvars import ContextVar
 from typing import (
     TYPE_CHECKING,
     Protocol,
@@ -107,6 +108,10 @@ class ThreadSafeStream(Stream):
         cell_id: CellId_t | None = None,
     ):
         self.pipe = pipe
+        self._cell_id_context: ContextVar[CellId_t | None] = ContextVar(
+            "marimo_stream_cell_id",
+            default=None,
+        )
         self.cell_id = cell_id
         self.redirect_console = redirect_console
         # A single stream is shared by the kernel and the code completion
@@ -144,6 +149,14 @@ class ThreadSafeStream(Stream):
                     deserialize_kernel_notification_name(data),
                     e,
                 )
+
+    @property
+    def cell_id(self) -> CellId_t | None:
+        return self._cell_id_context.get()
+
+    @cell_id.setter
+    def cell_id(self, cell_id: CellId_t | None) -> None:
+        self._cell_id_context.set(cell_id)
 
     def copy_for_thread(self) -> ThreadSafeStream:
         stream = type(self)(

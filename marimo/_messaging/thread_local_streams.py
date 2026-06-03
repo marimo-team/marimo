@@ -15,6 +15,7 @@ from __future__ import annotations
 import io
 import sys
 import threading
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, TextIO
 
 from marimo._messaging.types import Stderr, Stdout
@@ -40,6 +41,9 @@ class ThreadLocalStreamProxy(io.TextIOBase):
     def __init__(self, original: io.TextIOBase | TextIO, name: str) -> None:
         self._original = original
         self._local = threading.local()
+        self._context_stream: ContextVar[io.TextIOBase | TextIO | None] = (
+            ContextVar(f"marimo_stream_{name}", default=None)
+        )
         self._name = name
         # Expose the underlying binary buffer so that code writing to
         # sys.stdout.buffer (e.g. package installation logging) keeps working.
@@ -51,11 +55,16 @@ class ThreadLocalStreamProxy(io.TextIOBase):
 
     def _set_stream(self, stream: io.TextIOBase) -> None:
         self._local.stream = stream
+        self._context_stream.set(stream)
 
     def _clear_stream(self) -> None:
         self._local.stream = None
+        self._context_stream.set(None)
 
     def _get_stream(self) -> io.TextIOBase | TextIO:
+        stream = self._context_stream.get()
+        if stream is not None:
+            return stream
         stream = getattr(self._local, "stream", None)
         return stream if stream is not None else self._original
 
@@ -106,6 +115,14 @@ def install_thread_local_proxies() -> None:
     global _proxies_installed, _original_stdout, _original_stderr
     with _install_lock:
         if _proxies_installed:
+            if not isinstance(sys.stdout, ThreadLocalStreamProxy):
+                sys.stdout = ThreadLocalStreamProxy(  # type: ignore[assignment]
+                    sys.stdout, "<stdout>"
+                )
+            if not isinstance(sys.stderr, ThreadLocalStreamProxy):
+                sys.stderr = ThreadLocalStreamProxy(  # type: ignore[assignment]
+                    sys.stderr, "<stderr>"
+                )
             return
         _original_stdout = sys.stdout
         _original_stderr = sys.stderr

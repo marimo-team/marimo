@@ -10,6 +10,7 @@ from marimo._messaging.streams import redirect
 from marimo._messaging.thread_local_streams import (
     ThreadLocalStreamProxy,
     clear_thread_local_streams,
+    install_thread_local_proxies,
     set_thread_local_streams,
 )
 from marimo._messaging.types import Stderr, Stdin, Stdout, Stream
@@ -82,16 +83,30 @@ def redirect_streams(
             stream.cell_id = cell_id_old
         return
 
+    if not isinstance(sys.stdout, ThreadLocalStreamProxy):
+        install_thread_local_proxies()
+
     if isinstance(sys.stdout, ThreadLocalStreamProxy):
-        # In run mode with console redirection enabled, sys.stdout/sys.stderr
-        # are already patched to point to an object that forwards read/write.
-        #
-        # We don't support redirecting file descriptors in run mode.
-        # We also don't support sys.stdin redirection.
+        # Route Python writes through context-aware proxies. asyncio tasks
+        # spawned inside a cell inherit this context, so their later writes
+        # still reach the originating cell even after this context exits.
         set_thread_local_streams(stdout, stderr)
+        py_stdin = sys.stdin
+        if stdin is not None:
+            sys.stdin = stdin  # type: ignore
         try:
-            yield
+            if stdin is not None:
+                # Edit mode still supports fd/stdin redirection while the
+                # cell is actively running.
+                with redirect(stdout), redirect(stderr):
+                    yield
+            else:
+                # In run mode, multiple sessions share a process; fd/stdin
+                # redirection is intentionally unsupported.
+                yield
         finally:
+            if stdin is not None:
+                sys.stdin = py_stdin
             clear_thread_local_streams()
             stream.cell_id = cell_id_old
     else:
