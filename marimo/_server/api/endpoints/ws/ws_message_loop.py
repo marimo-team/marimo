@@ -40,13 +40,13 @@ class WebSocketMessageLoop:
         self,
         websocket: WebSocket,
         message_queue: asyncio.Queue[KernelMessage],
-        kiosk: bool,
+        is_kiosk: Callable[[], bool],
         on_disconnect: Callable[[Exception, Callable[[], Any]], None],
         on_check_status_update: Callable[[], None],
     ):
         self.websocket = websocket
         self.message_queue = message_queue
-        self.kiosk = kiosk
+        self.is_kiosk = is_kiosk
         self.on_disconnect = on_disconnect
         self.on_check_status_update = on_check_status_update
         self._listen_messages_task: asyncio.Task[None] | None = None
@@ -134,13 +134,14 @@ class WebSocketMessageLoop:
             True if the operation should be filtered (not sent), False
             otherwise.
         """
-        if op in KIOSK_ONLY_OPERATIONS and not self.kiosk:
+        kiosk = self.is_kiosk()
+        if op in KIOSK_ONLY_OPERATIONS and not kiosk:
             LOGGER.debug(
                 "Ignoring operation %s, not in kiosk mode",
                 op,
             )
             return True
-        if op in KIOSK_EXCLUDED_OPERATIONS and self.kiosk:
+        if op in KIOSK_EXCLUDED_OPERATIONS and kiosk:
             LOGGER.debug(
                 "Ignoring operation %s, in kiosk mode",
                 op,

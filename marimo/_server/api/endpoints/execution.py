@@ -9,7 +9,6 @@ from starlette.authentication import requires
 from starlette.responses import JSONResponse, StreamingResponse
 
 from marimo import _loggers
-from marimo._messaging.notification import AlertNotification
 from marimo._runtime.commands import HTTPRequest, UpdateUIElementCommand
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
@@ -32,6 +31,10 @@ from marimo._server.models.models import (
 from marimo._server.router import APIRouter
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._server.workspace import MarimoFileKey
+from marimo._session.consumer_policy import (
+    TakeoverDecision,
+    can_take_over_editing,
+)
 from marimo._session.types import KernelState
 from marimo._types.ids import ConsumerId
 from marimo._utils.asyncio_utils import cancel_and_wait
@@ -566,35 +569,39 @@ async def takeover_endpoint(
     """
     app_state = AppState(request)
 
-    file_key: MarimoFileKey | None = (
-        app_state.query_params(FILE_QUERY_PARAM_KEY)
-        or app_state.session_manager.workspace.get_unique_file_key()
-    )
-    if file_key is None:
-        LOGGER.error("No file key provided")
+    session_id = app_state.get_current_session_id()
+    if session_id is None:
+        LOGGER.error("Missing Marimo-Session-Id header")
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Cannot take over session."},
+        )
+    caller_id = ConsumerId(session_id)
+
+    session = app_state.get_current_session()
+    if not session:
+        LOGGER.error("No current session found")
         return JSONResponse(
             status_code=400,
             content={"error": "Cannot take over session."},
         )
 
-    # Find and close any existing sessions for this file
-    existing_session = app_state.session_manager.get_session_by_file_key(
-        file_key
-    )
-    if existing_session is not None:
-        # Send a disconnect message to the client
-        existing_session.notify(
-            AlertNotification(
-                title="Session taken over",
-                description="Another user has taken over this session.",
-                variant="danger",
-            ),
-            from_consumer_id=None,
+    caller = session.room.get_consumer(caller_id)
+    if not caller:
+        LOGGER.error("No consumer found for caller ID %s", caller_id)
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Cannot take over session."},
         )
-        # Wait 100ms to ensure the client has received the message
-        await asyncio.sleep(0.1)
-        existing_session.disconnect_main_consumer()
-    else:
-        LOGGER.warning("No existing session found for file key %s", file_key)
+
+    takeover_decision = can_take_over_editing(session, caller_id)
+    if takeover_decision != TakeoverDecision.ALLOW:
+        LOGGER.debug("Takeover denied by policy for consumer %s", caller_id)
+        return JSONResponse(
+            status_code=403,
+            content={"error": "Not allowed to take over session."},
+        )
+
+    session.room.promote_consumer_to_main(caller)
 
     return JSONResponse(status_code=200, content={"status": "ok"})

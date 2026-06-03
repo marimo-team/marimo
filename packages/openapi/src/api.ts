@@ -3927,6 +3927,32 @@ export interface components {
       options: components["schemas"]["CompletionOption"][];
       prefix_length: number;
     };
+    /**
+     * ConsumerCapabilities
+     * @description Per-consumer access capabilities for a session connection.
+     *
+     *         - editor: `{edit: True, interact: True}`
+     *         - viewer: `{edit: False, interact: False}`
+     *
+     *         These gate the frontend UI; they are not the server's authority boundary.
+     *         Scopes are granted per session mode (see `@requires`), so in an edit session
+     *         every connection (viewers included) carries the `edit` scope and can issue
+     *         edit requests. A viewer's read-only status is enforced by the client hiding
+     *         edit affordances, not by the server rejecting the request.
+     */
+    ConsumerCapabilities: {
+      edit: boolean;
+      interact: boolean;
+    };
+    /**
+     * ConsumerCapabilitiesNotification
+     * @description Notification of the frontend consumer's capabilities.
+     */
+    ConsumerCapabilitiesNotification: {
+      consumer_capabilities: components["schemas"]["ConsumerCapabilities"];
+      /** @enum {unknown} */
+      op: "consumer-capabilities";
+    };
     /** CopyNotebookRequest */
     CopyNotebookRequest: {
       destination: string;
@@ -4916,6 +4942,7 @@ export interface components {
       cell_ids: components["schemas"]["CellId"][];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
+      consumer_capabilities: components["schemas"]["ConsumerCapabilities"];
       kiosk: boolean;
       last_executed_code: {
         [key: string]: string;
@@ -5060,7 +5087,8 @@ export interface components {
         | components["schemas"]["CacheClearedNotification"]
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
-        | components["schemas"]["NotebookDocumentTransactionNotification"];
+        | components["schemas"]["NotebookDocumentTransactionNotification"]
+        | components["schemas"]["ConsumerCapabilitiesNotification"];
     };
     /**
      * LanguageServersConfig

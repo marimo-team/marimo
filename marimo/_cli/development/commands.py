@@ -328,6 +328,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         notifications.QueryParamsDeleteNotification,
         notifications.QueryParamsClearNotification,
         notifications.FocusCellNotification,
+        notifications.ConsumerCapabilitiesNotification,
         notifications.NotificationMessage,
         # ai
         ChatMessage,

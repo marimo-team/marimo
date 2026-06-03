@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from marimo._config.config import merge_config
 from marimo._messaging.notification import (
+    ConsumerCapabilities,
     KernelCapabilitiesNotification,
     KernelReadyNotification,
 )
@@ -132,6 +133,9 @@ def create_session(
                 app_config=app.config,
                 kiosk=False,
                 capabilities=KernelCapabilitiesNotification(),
+                consumer_capabilities=ConsumerCapabilities(
+                    edit=True, interact=True
+                ),
             )
         ),
     )

@@ -859,6 +859,38 @@ components:
       - options
       title: CompletionResultNotification
       type: object
+    ConsumerCapabilities:
+      description: "Per-consumer access capabilities for a session connection.\n\n\
+        \    - editor: `{edit: True, interact: True}`\n    - viewer: `{edit: False,\
+        \ interact: False}`\n\n    These gate the frontend UI; they are not the server's\
+        \ authority boundary.\n    Scopes are granted per session mode (see `@requires`),\
+        \ so in an edit session\n    every connection (viewers included) carries the\
+        \ `edit` scope and can issue\n    edit requests. A viewer's read-only status\
+        \ is enforced by the client hiding\n    edit affordances, not by the server\
+        \ rejecting the request."
+      properties:
+        edit:
+          type: boolean
+        interact:
+          type: boolean
+      required:
+      - edit
+      - interact
+      title: ConsumerCapabilities
+      type: object
+    ConsumerCapabilitiesNotification:
+      description: Notification of the frontend consumer's capabilities.
+      properties:
+        consumer_capabilities:
+          $ref: '#/components/schemas/ConsumerCapabilities'
+        op:
+          enum:
+          - consumer-capabilities
+      required:
+      - op
+      - consumer_capabilities
+      title: ConsumerCapabilitiesNotification
+      type: object
     CopyNotebookRequest:
       properties:
         destination:
@@ -2479,6 +2511,8 @@ components:
           items:
             $ref: '#/components/schemas/CellConfig'
           type: array
+        consumer_capabilities:
+          $ref: '#/components/schemas/ConsumerCapabilities'
         kiosk:
           type: boolean
         last_executed_code:
@@ -2524,6 +2558,7 @@ components:
       - app_config
       - kiosk
       - capabilities
+      - consumer_capabilities
       title: KernelReadyNotification
       type: object
     KernelStartupErrorNotification:
@@ -2720,6 +2755,7 @@ components:
           - $ref: '#/components/schemas/CacheInfoNotification'
           - $ref: '#/components/schemas/FocusCellNotification'
           - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
+          - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
           discriminator:
             mapping:
               alert: '#/components/schemas/AlertNotification'
@@ -2729,6 +2765,7 @@ components:
               cell-op: '#/components/schemas/CellNotification'
               completed-run: '#/components/schemas/CompletedRunNotification'
               completion-result: '#/components/schemas/CompletionResultNotification'
+              consumer-capabilities: '#/components/schemas/ConsumerCapabilitiesNotification'
               data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
               data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
               datasets: '#/components/schemas/DatasetsNotification'

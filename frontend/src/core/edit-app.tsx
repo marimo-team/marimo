@@ -12,6 +12,7 @@ import { Controls } from "@/components/editor/controls/Controls";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { FilenameForm } from "@/components/editor/header/filename-form";
 import { MultiCellActionToolbar } from "@/components/editor/navigation/multi-cell-action-toolbar";
+import { ViewerBanner } from "@/components/editor/viewer-banner";
 import { cn } from "@/utils/cn";
 import { Paths } from "@/utils/paths";
 import { AppContainer } from "../components/editor/app-container";
@@ -163,6 +164,8 @@ export const EditApp: React.FC<AppProps> = ({
             </div>
           )}
         </AppHeader>
+
+        <ViewerBanner />
 
         {/* Don't render until we have a single cell */}
         {hasCells && (
