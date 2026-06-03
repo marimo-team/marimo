@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
+import { cellDomProps } from "@/components/editor/common";
 import { CellEditor } from "@/components/editor/cell/code/cell-editor";
 import { CellStatusComponent } from "@/components/editor/cell/CellStatus";
 import { RunButton } from "@/components/editor/cell/RunButton";
@@ -111,7 +112,10 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
   );
 
   const editor = (
-    <div className={editorWrapperClassName}>
+    <div
+      className={editorWrapperClassName}
+      {...cellDomProps(cell.id, cell.name)}
+    >
       <CellEditor
         theme={theme}
         showPlaceholder={false}
