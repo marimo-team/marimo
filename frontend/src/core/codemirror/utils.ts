@@ -1,6 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import { completionStatus } from "@codemirror/autocomplete";
 import type { EditorState, Transaction } from "@codemirror/state";
 import type { EditorView, ViewUpdate } from "@codemirror/view";
+import { signatureHelpTooltipField } from "@marimo-team/codemirror-languageserver";
 import { getCM } from "@replit/codemirror-vim";
 
 export function isAtStartOfEditor(ev: { state: EditorState }) {
@@ -51,6 +53,24 @@ export function isInVimNormalMode(ev: EditorView): boolean {
     return true;
   }
   return vimState.mode === "normal";
+}
+
+/**
+ * Whether the editor would handle Escape itself: closing an autocomplete or
+ * signature-help popup, clearing a selection, or leaving Vim insert mode. When
+ * `false`, callers can repurpose Escape (e.g. blur or exit fullscreen).
+ */
+export function editorWillConsumeEscape(view: EditorView): boolean {
+  if (getCM(view)?.state.vim?.insertMode) {
+    return true;
+  }
+  if (completionStatus(view.state) !== null) {
+    return true;
+  }
+  if (view.state.field(signatureHelpTooltipField, false) != null) {
+    return true;
+  }
+  return view.state.selection.ranges.some((range) => !range.empty);
 }
 
 export function selectAllText(ev: EditorView | undefined) {
