@@ -47,7 +47,6 @@ import {
 import { SlideNotesEditor } from "./slide-notes-editor";
 import { buildSubslideNotes, NOTES_DIVIDER } from "./slide-notes";
 import { cn } from "@/utils/cn";
-import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { isIslands } from "@/core/islands/utils";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
@@ -73,9 +72,6 @@ function clearPreviousVerticalIndices(deck: RevealApi) {
     stack.removeAttribute("data-previous-indexv");
   }
 }
-
-// Toggles the persisted `showCode` config for the active cell.
-const showCodeConfigKeyPressed = parseShortcut("Shift-c");
 
 const FORWARD_NAV_KEYS = new Set([
   " ",
@@ -451,32 +447,6 @@ const RevealSlidesComponent = ({
     );
   });
 
-  // `Shift+C` flips the persisted `showCode` config for the active cell
-  const toggleShowCodeConfig = useEvent(() => {
-    if (cellIdToShowCode == null) {
-      return;
-    }
-    const current = layout.cells.get(cellIdToShowCode);
-    const newCells = new Map(layout.cells);
-    newCells.set(cellIdToShowCode, {
-      ...current,
-      showCode: !(current?.showCode ?? false),
-    });
-    setLayout({ ...layout, cells: newCells });
-  });
-
-  const handleShowCodeConfigKey = useEvent((event: KeyboardEvent) => {
-    if (!isEditable || !codeToggleEnabled) {
-      return;
-    }
-    if (!showCodeConfigKeyPressed(event) || Events.fromInput(event)) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    toggleShowCodeConfig();
-  });
-
   const handleDeckReady = useEvent((deck: RevealApi) => {
     navigateDeckToActiveCell(deck);
     if (codeToggleEnabled) {
@@ -551,9 +521,6 @@ const RevealSlidesComponent = ({
   });
 
   useEventListener(document, "keydown", handleParkedNavKey, { capture: true });
-  useEventListener(document, "keydown", handleShowCodeConfigKey, {
-    capture: true,
-  });
 
   const parkedPreviewLabel = isNoOutputPreview
     ? "Hidden as there is no output"
