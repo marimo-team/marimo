@@ -3,7 +3,8 @@
 import { useAtomValue } from "jotai/react";
 import { ArrowRightSquareIcon, EyeIcon } from "lucide-react";
 import { KnownQueryParams } from "@/core/constants";
-import { kioskModeAtom } from "@/core/mode";
+import { useLayoutState } from "@/core/layout/layout";
+import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { API } from "@/core/network/api";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { prettyError } from "@/utils/errors";
@@ -13,6 +14,8 @@ import { toast } from "../ui/use-toast";
 
 export const ViewerBanner = () => {
   const isViewing = useAtomValue(kioskModeAtom);
+  const { selectedLayout } = useLayoutState();
+  const { mode } = useAtomValue(viewStateAtom);
 
   // Only a demoted editor (a second tab auto-routed to read-only) is offered
   // takeover. A client that explicitly requested kiosk (?kiosk=true: embeds,
@@ -21,7 +24,15 @@ export const ViewerBanner = () => {
     KnownQueryParams.kiosk,
   );
 
-  if (!isViewing || isIntentionalKiosk) {
+  // Takeover is an editing affordance: only surface it in the default vertical
+  // reading view. Grid/slides layouts and present mode are app-style views
+  // where a floating take-over banner is out of place.
+  if (
+    !isViewing ||
+    isIntentionalKiosk ||
+    selectedLayout !== "vertical" ||
+    mode === "present"
+  ) {
     return null;
   }
 

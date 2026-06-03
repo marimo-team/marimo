@@ -165,7 +165,7 @@ export const EditApp: React.FC<AppProps> = ({
           )}
         </AppHeader>
 
-        {!hideControls && <ViewerBanner />}
+        <ViewerBanner />
 
         {/* Don't render until we have a single cell */}
         {hasCells && (
