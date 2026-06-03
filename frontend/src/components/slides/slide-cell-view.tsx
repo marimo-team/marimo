@@ -138,6 +138,9 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
         languageAdapter={languageAdapter}
         setLanguageAdapter={setLanguageAdapter}
         showLanguageToggles={false}
+        // The reveal.js transforms in slides view break the inline AI
+        // tooltip's fixed positioning, so disable it here.
+        inlineAiTooltip={false}
         outputArea={cellOutputPosition}
       />
       {toolbar}

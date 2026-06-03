@@ -65,6 +65,11 @@ export interface CellEditorProps
   hasOutput?: boolean;
   languageAdapter: LanguageAdapterType | undefined;
   showLanguageToggles?: boolean;
+  /**
+   * Override for the inline "Edit with AI" tooltip. Defaults to the user's
+   * `ai.inline_tooltip` config. Set to `false` to force-disable it.
+   */
+  inlineAiTooltip?: boolean;
   setLanguageAdapter: React.Dispatch<
     React.SetStateAction<LanguageAdapterType | undefined>
   >;
@@ -94,6 +99,7 @@ const CellEditorInternal = ({
   languageAdapter,
   setLanguageAdapter,
   showLanguageToggles = true,
+  inlineAiTooltip,
   outputArea,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
@@ -224,7 +230,8 @@ const CellEditorInternal = ({
       hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
       diagnosticsConfig: userConfig.diagnostics,
       displayConfig: userConfig.display,
-      inlineAiTooltip: userConfig.ai?.inline_tooltip ?? false,
+      inlineAiTooltip:
+        inlineAiTooltip ?? userConfig.ai?.inline_tooltip ?? false,
     });
 
     extensions.push(
@@ -274,6 +281,7 @@ const CellEditorInternal = ({
     userConfig.display,
     userConfig.diagnostics,
     userConfig.ai?.inline_tooltip,
+    inlineAiTooltip,
     aiFeaturesEnabled,
     theme,
     showPlaceholder,
