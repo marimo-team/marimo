@@ -24,11 +24,12 @@ import { cn } from "@/utils/cn";
 import { getCellDomProps } from "./cell-utils";
 import { COLUMN_WRAPPING_STYLES } from "./column-wrapping/feature";
 import { DataTableContextMenu } from "./context-menu";
+import { HoverTooltip } from "./hover-tooltip/hover-tooltip";
+import { useTableHoverTooltip } from "./hover-tooltip/use-table-hover-tooltip";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
 import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
 import { AUTO_WIDTH_MAX_COLUMNS, TABLE_ROW_HEIGHT_PX } from "./types";
-import { stringifyUnknownValue } from "./utils";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -135,24 +136,7 @@ export const DataTableBody = <TData,>({
     contextMenuCell.current = cell;
   });
 
-  function applyHoverTemplate(
-    template: string,
-    cells: Cell<TData, unknown>[],
-  ): string {
-    const variableRegex = /{{(\w+)}}/g;
-    // Map column id -> stringified value
-    const idToValue = new Map<string, string>();
-    for (const c of cells) {
-      const v = c.getValue();
-      // Prefer empty string for nulls to keep tooltip clean
-      const s = stringifyUnknownValue({ value: v, nullAsEmptyString: true });
-      idToValue.set(c.column.id, s);
-    }
-    return template.replaceAll(variableRegex, (_substr, varName: string) => {
-      const val = idToValue.get(varName);
-      return val === undefined ? `{{${varName}}}` : val;
-    });
-  }
+  const hoverTooltip = useTableHoverTooltip({ table, scrollElement });
 
   const renderCells = (cells: Cell<TData, unknown>[]) => {
     return cells.map((cell) => {
@@ -163,7 +147,6 @@ export const DataTableBody = <TData,>({
         pinningstyle,
       );
 
-      const title = cell.getHoverTitle?.() ?? undefined;
       return (
         <TableCell
           tabIndex={0}
@@ -178,10 +161,18 @@ export const DataTableBody = <TData,>({
             className,
           )}
           style={style}
-          title={title}
-          onMouseDown={(e) => handleCellMouseDown(e, cell)}
+          onMouseDown={(e) => {
+            handleCellMouseDown(e, cell);
+            hoverTooltip.hideTooltip();
+          }}
           onMouseUp={handleCellMouseUp}
-          onMouseOver={(e) => handleCellMouseOver(e, cell)}
+          onMouseOver={(e) => {
+            handleCellMouseOver(e, cell);
+            hoverTooltip.handleCellMouseOver(e, cell);
+          }}
+          onMouseLeave={hoverTooltip.handleCellMouseLeave}
+          onFocus={(e) => hoverTooltip.handleCellFocus(e, cell)}
+          onBlur={hoverTooltip.handleCellBlur}
           onContextMenu={() => handleContextMenu(cell)}
         >
           <CellRangeSelectionIndicator cellId={cell.id} />
@@ -200,8 +191,6 @@ export const DataTableBody = <TData,>({
     }
   };
 
-  const hoverTemplate = table.getState().cellHoverTemplate || null;
-
   const renderRow = (row: Row<TData>) => {
     // Only find the row index if the row viewer panel is open
     const rowIndex = rowViewerPanelOpen
@@ -209,22 +198,10 @@ export const DataTableBody = <TData,>({
       : undefined;
     const isRowViewedInPanel = rowViewerPanelOpen && viewedRowIdx === rowIndex;
 
-    // Compute hover title once per row using all visible cells
-    let rowTitle: string | undefined;
-    if (hoverTemplate) {
-      const visibleCells = row.getVisibleCells?.() ?? [
-        ...row.getLeftVisibleCells(),
-        ...row.getCenterVisibleCells(),
-        ...row.getRightVisibleCells(),
-      ];
-      rowTitle = applyHoverTemplate(hoverTemplate, visibleCells);
-    }
-
     return (
       <TableRow
         key={row.id}
         data-state={row.getIsSelected() && "selected"}
-        title={rowTitle}
         // These classes ensure that empty rows (nulls) still render
         className={cn(
           "border-t h-6",
@@ -296,12 +273,18 @@ export const DataTableBody = <TData,>({
   );
 
   return (
-    <DataTableContextMenu
-      tableBody={tableBody}
-      contextMenuRef={contextMenuCell}
-      tableRef={tableRef}
-      copyAllCells={handleCopyAllCells}
-    />
+    <>
+      <DataTableContextMenu
+        tableBody={tableBody}
+        contextMenuRef={contextMenuCell}
+        tableRef={tableRef}
+        copyAllCells={handleCopyAllCells}
+      />
+      <HoverTooltip
+        state={hoverTooltip.tooltipState}
+        onClose={hoverTooltip.hideTooltip}
+      />
+    </>
   );
 };
 
