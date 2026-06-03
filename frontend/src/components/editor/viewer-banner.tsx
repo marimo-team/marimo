@@ -52,7 +52,7 @@ export const ViewerBanner = () => {
   };
 
   return (
-    <div className="fixed top-2 left-14 z-50 w-fit print:hidden">
+    <div className="absolute top-2 left-2 z-50 w-fit print:hidden">
       <Banner
         kind="info"
         className="flex items-center gap-2 rounded px-2 py-1 text-xs shadow-sm"
