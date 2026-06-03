@@ -264,17 +264,19 @@ const RevealSlidesComponent = ({
   const handleFullscreenEscape = useEvent((event: KeyboardEvent): boolean => {
     const target = Events.composedTarget(event);
     const editorEl = target.closest<HTMLElement>(".cm-editor");
-    if (editorEl == null) {
+    const view = editorEl != null ? EditorView.findFromDOM(editorEl) : null;
+    if (view == null) {
+      // Not focused in a live editor: let the hook exit fullscreen.
       return false;
     }
-    const view = EditorView.findFromDOM(editorEl);
-    if (view != null && !editorWillConsumeEscape(view)) {
+    if (!editorWillConsumeEscape(view)) {
       // Nothing left for the editor to do: blur and hand focus back to the deck.
       event.preventDefault();
       event.stopImmediatePropagation();
       view.contentDOM.blur();
       focusRevealElement(deckRef.current);
     }
+    // The editor owns this Escape (it consumes it, or we just blurred it).
     return true;
   });
   // Editors only exist in edit mode; read mode keeps native fullscreen exit.
