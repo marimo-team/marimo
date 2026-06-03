@@ -5,7 +5,7 @@ import type {
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataTable } from "../data-table";
@@ -63,17 +63,15 @@ describe("DataTable", () => {
     expect(commonProps.rowSelection).toEqual(initialRowSelection);
   });
 
-  it("applies hoverTemplate to the row title using row values", () => {
+  it("shows the hoverTemplate text as a styled tooltip on hover", async () => {
+    vi.useFakeTimers();
     interface RowData {
       id: number;
       first: string;
       last: string;
     }
 
-    const testData: RowData[] = [
-      { id: 1, first: "Michael", last: "Scott" },
-      { id: 2, first: "Jim", last: "Halpert" },
-    ];
+    const testData: RowData[] = [{ id: 1, first: "Michael", last: "Scott" }];
 
     const columns: ColumnDef<RowData>[] = [
       { accessorKey: "first", header: "First" },
@@ -86,7 +84,7 @@ describe("DataTable", () => {
           data={testData}
           columns={columns}
           selection={null}
-          totalRows={2}
+          totalRows={1}
           totalColumns={2}
           pagination={false}
           hoverTemplate={"{{first}} {{last}}"}
@@ -94,11 +92,50 @@ describe("DataTable", () => {
       </TooltipProvider>,
     );
 
-    // Grab all rows and assert title attribute computed from template
     const rows = screen.getAllByRole("row");
-    // The first row is header; subsequent rows correspond to data
-    expect(rows[1]).toHaveAttribute("title", "Michael Scott");
-    expect(rows[2]).toHaveAttribute("title", "Jim Halpert");
+    // Native title is gone; hover text now comes from the styled tooltip.
+    expect(rows[1]).not.toHaveAttribute("title");
+
+    const cell = within(rows[1]).getAllByRole("cell")[0];
+    fireEvent.mouseOver(cell, { buttons: 0 });
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    // Radix renders the content twice (visible + a11y-hidden), so match all.
+    expect(screen.getAllByText("Michael Scott").length).toBeGreaterThan(0);
+    vi.useRealTimers();
+  });
+
+  it("shows per-cell hover text from cellHoverTexts on hover", () => {
+    vi.useFakeTimers();
+    const testData: TestData[] = [{ id: 1, name: "Test 1" }];
+    const columns: ColumnDef<TestData>[] = [
+      { id: "name", accessorKey: "name", header: "Name" },
+    ];
+
+    render(
+      <TooltipProvider>
+        <DataTable
+          data={testData}
+          columns={columns}
+          selection={null}
+          totalRows={1}
+          totalColumns={1}
+          pagination={false}
+          cellHoverTexts={{ "0": { name: "per-cell tip" } }}
+        />
+      </TooltipProvider>,
+    );
+
+    const cell = within(screen.getAllByRole("row")[1]).getByRole("cell");
+    fireEvent.mouseOver(cell, { buttons: 0 });
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(screen.getAllByText("per-cell tip").length).toBeGreaterThan(0);
+    vi.useRealTimers();
   });
 
   it("does not virtualize small datasets without pagination", () => {
