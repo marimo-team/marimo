@@ -37,6 +37,23 @@ HAS_DEPS = (
 HAS_IBIS = DependencyManager.ibis.has()
 HAS_POLARS = DependencyManager.polars.has()
 
+ROW_FILTER_LIST_WHERE_VALUE = {
+    "transforms": [
+        {
+            "type": "filter_rows",
+            "operation": "keep_rows",
+            "where": [
+                {
+                    "type": "condition",
+                    "column_id": "sepal_length",
+                    "operator": ">",
+                    "value": 5,
+                },
+            ],
+        },
+    ]
+}
+
 if TYPE_CHECKING:
     from narwhals.stable.v2.typing import IntoDataFrame, IntoLazyFrame
 
@@ -71,6 +88,20 @@ class TestDataframes:
         # Construction should succeed and the value should round-trip to the
         # original native type for each supported dataframe backend.
         assert type(subject.value) is type(df)
+
+    @staticmethod
+    def test_dataframe_form_accepts_filter_rows_list_where() -> None:
+        df = pd.DataFrame(
+            {
+                "sepal_length": [4.9, 5.1, 6.2],
+                "species": ["setosa", "setosa", "virginica"],
+            }
+        )
+        subject = ui.dataframe(df).form()
+
+        subject._convert_value(ROW_FILTER_LIST_WHERE_VALUE)
+
+        assert subject.element._error is None
 
     @staticmethod
     @pytest.mark.parametrize(

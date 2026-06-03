@@ -45,6 +45,28 @@ def test_parse_transforms() -> None:
     assert isinstance(result, Transformations)
 
 
+def test_parse_filter_rows_transform_with_legacy_list_where() -> None:
+    value = {
+        "transforms": [
+            {
+                "type": "filter_rows",
+                "operation": "keep_rows",
+                "where": [
+                    {
+                        "type": "condition",
+                        "column_id": "sepal_length",
+                        "operator": ">",
+                        "value": 5,
+                    },
+                ],
+            },
+        ]
+    }
+
+    result = parse_raw(value, Transformations)
+    assert isinstance(result, Transformations)
+
+
 def test_parse_transforms_with_in_operator() -> None:
     def create_transform(operator: str):
         return {

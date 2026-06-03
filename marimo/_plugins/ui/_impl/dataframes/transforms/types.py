@@ -207,7 +207,15 @@ class SortColumnTransform:
 class FilterRowsTransform:
     type: Literal[TransformType.FILTER_ROWS]
     operation: Literal["keep_rows", "remove_rows"]
-    where: FilterGroup
+    where: FilterGroup | list[FilterCondition | FilterGroup]
+
+    def __post_init__(self) -> None:
+        if isinstance(self.where, list):
+            object.__setattr__(
+                self,
+                "where",
+                FilterGroup(children=tuple(self.where)),
+            )
 
 
 @dataclass
