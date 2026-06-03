@@ -255,6 +255,8 @@ function handleMessage(
         handleWidgetMessage(MODEL_MANAGER, msg.data);
         return;
 
+      case "consumer-capabilities":
+        return;
       default:
         logNever(msg);
         return;

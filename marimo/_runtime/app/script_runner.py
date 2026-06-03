@@ -85,7 +85,6 @@ class AppScriptRunner:
             create_main_module(
                 file=self.filename,
                 input_override=None,
-                print_override=None,
                 doc=self._docstring,
             )
         ) as module:
@@ -120,7 +119,6 @@ class AppScriptRunner:
             create_main_module(
                 file=self.filename,
                 input_override=None,
-                print_override=None,
                 doc=self._docstring,
             )
         ) as module:

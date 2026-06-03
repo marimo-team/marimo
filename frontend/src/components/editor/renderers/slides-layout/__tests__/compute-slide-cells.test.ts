@@ -26,8 +26,9 @@ const layoutOf = (entries: Array<[string, SlideConfig]>): SlidesLayout => ({
 describe("computeSlideCellsInfo", () => {
   it("returns empty results for empty input", () => {
     const result = computeSlideCellsInfo([], layoutOf([]));
-    expect(result.cellsWithOutput).toEqual([]);
+    expect(result.slideCells).toEqual([]);
     expect(result.skippedIds.size).toBe(0);
+    expect(result.noOutputIds.size).toBe(0);
     expect(result.slideTypes.size).toBe(0);
     expect(result.startCellIndex).toBe(0);
   });
@@ -62,22 +63,26 @@ describe("computeSlideCellsInfo", () => {
     expect(result.startCellIndex).toBe(0);
   });
 
-  it("filters out cells with no output", () => {
+  it("keeps cells with no output for the minimap", () => {
     const result = computeSlideCellsInfo(
       [cell("a"), cell("b", null), cell("c")],
       layoutOf([]),
     );
-    expect(result.cellsWithOutput.map((c) => c.id)).toEqual(["a", "c"]);
+    expect(result.slideCells.map((c) => c.id)).toEqual(["a", "b", "c"]);
+    expect([...result.noOutputIds]).toEqual(["b"]);
+    expect([...result.skippedIds]).toEqual(["b"]);
   });
 
-  it("filters out cells whose output data is empty string", () => {
+  it("keeps cells whose output data is empty string for the minimap", () => {
     // Mirrors the editor contract: an explicit empty-string payload means the
-    // cell rendered nothing, so it should not occupy a slide.
+    // cell rendered nothing, so it should not occupy a reveal slide.
     const result = computeSlideCellsInfo(
       [cell("a"), cell("b", { data: "" }), cell("c")],
       layoutOf([]),
     );
-    expect(result.cellsWithOutput.map((c) => c.id)).toEqual(["a", "c"]);
+    expect(result.slideCells.map((c) => c.id)).toEqual(["a", "b", "c"]);
+    expect([...result.noOutputIds]).toEqual(["b"]);
+    expect([...result.skippedIds]).toEqual(["b"]);
   });
 
   it("keeps cells whose output data is a non-empty value (including falsy ones)", () => {
@@ -91,7 +96,8 @@ describe("computeSlideCellsInfo", () => {
       ],
       layoutOf([]),
     );
-    expect(result.cellsWithOutput.map((c) => c.id)).toEqual(["a", "b", "c"]);
+    expect(result.slideCells.map((c) => c.id)).toEqual(["a", "b", "c"]);
+    expect(result.noOutputIds.size).toBe(0);
   });
 
   it("populates slideTypes only for cells with an explicit type", () => {
@@ -121,14 +127,12 @@ describe("computeSlideCellsInfo", () => {
     expect([...result.skippedIds]).toEqual(["b", "c"]);
     // Skipped cells are still "visible" deck cells — they just aren't rendered
     // in reveal. The minimap relies on the full list plus skippedIds.
-    expect(result.cellsWithOutput.map((c) => c.id)).toEqual(["a", "b", "c"]);
+    expect(result.slideCells.map((c) => c.id)).toEqual(["a", "b", "c"]);
     expect(result.slideTypes.get(cellId("b"))).toBe("skip");
   });
 
-  it("ignores layout entries for cells that have no output", () => {
-    // If a cell was skipped in the layout but no longer produces output (e.g.
-    // the user deleted its code), it should drop out of both maps — otherwise
-    // the skip set would reference ghosts.
+  it("preserves configured slide types for cells that have no output", () => {
+    // The missing output is transient runtime state, not persisted slide config.
     const result = computeSlideCellsInfo(
       [cell("a"), cell("b", null)],
       layoutOf([
@@ -136,16 +140,25 @@ describe("computeSlideCellsInfo", () => {
         ["b", { type: "skip" }],
       ]),
     );
-    expect(result.cellsWithOutput.map((c) => c.id)).toEqual(["a"]);
-    expect(result.skippedIds.size).toBe(0);
-    expect(result.slideTypes.has(cellId("b"))).toBe(false);
+    expect(result.slideCells.map((c) => c.id)).toEqual(["a", "b"]);
+    expect([...result.noOutputIds]).toEqual(["b"]);
+    expect([...result.skippedIds]).toEqual(["b"]);
+    expect(result.slideTypes.get(cellId("b"))).toBe("skip");
   });
 
-  it("preserves the input order of cells in cellsWithOutput", () => {
+  it("skips no-output cells when computing the starting cell", () => {
+    const result = computeSlideCellsInfo(
+      [cell("a", null), cell("b", { data: "" }), cell("c")],
+      layoutOf([]),
+    );
+    expect(result.startCellIndex).toBe(2);
+  });
+
+  it("preserves the input order of cells in slideCells", () => {
     const result = computeSlideCellsInfo(
       [cell("c"), cell("a"), cell("b")],
       layoutOf([]),
     );
-    expect(result.cellsWithOutput.map((c) => c.id)).toEqual(["c", "a", "b"]);
+    expect(result.slideCells.map((c) => c.id)).toEqual(["c", "a", "b"]);
   });
 });

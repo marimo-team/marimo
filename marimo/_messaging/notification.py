@@ -279,6 +279,34 @@ class KernelCapabilitiesNotification(msgspec.Struct):
         self.pyrefly = DependencyManager.pyrefly.has()
 
 
+class ConsumerCapabilities(msgspec.Struct, frozen=True):
+    """Per-consumer access capabilities for a session connection.
+
+    - editor: `{edit: True, interact: True}`
+    - viewer: `{edit: False, interact: False}`
+
+    These gate the frontend UI; they are not the server's authority boundary.
+    Scopes are granted per session mode (see `@requires`), so in an edit session
+    every connection (viewers included) carries the `edit` scope and can issue
+    edit requests. A viewer's read-only status is enforced by the client hiding
+    edit affordances, not by the server rejecting the request.
+    """
+
+    edit: bool
+    interact: bool
+
+
+class ConsumerCapabilitiesNotification(
+    Notification, tag="consumer-capabilities"
+):
+    """
+    Notification of the frontend consumer's capabilities.
+    """
+
+    name: ClassVar[str] = "consumer-capabilities"
+    consumer_capabilities: ConsumerCapabilities
+
+
 class KernelReadyNotification(Notification, tag="kernel-ready"):
     """Kernel ready for execution. First notification sent at startup.
 
@@ -311,6 +339,7 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     app_config: _AppConfig
     kiosk: bool
     capabilities: KernelCapabilitiesNotification
+    consumer_capabilities: ConsumerCapabilities
     auto_instantiated: bool = False
 
 
@@ -869,4 +898,6 @@ NotificationMessage = (
     | FocusCellNotification
     # Document
     | NotebookDocumentTransactionNotification
+    # Consumer
+    | ConsumerCapabilitiesNotification
 )

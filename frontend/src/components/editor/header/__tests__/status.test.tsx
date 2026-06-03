@@ -90,19 +90,4 @@ describe("StatusOverlay disconnect indicator", () => {
       expect(onReconnect).not.toHaveBeenCalled();
     },
   );
-
-  it("does not render the disconnect icon when another tab has taken over", () => {
-    const onReconnect = vi.fn();
-    const { queryByTestId } = renderOverlay(
-      {
-        state: WebSocketState.CLOSED,
-        code: WebSocketClosedReason.ALREADY_RUNNING,
-        reason: "another browser tab is already connected to the kernel",
-        canTakeover: true,
-      },
-      onReconnect,
-    );
-
-    expect(queryByTestId("disconnected-indicator")).toBeNull();
-  });
 });

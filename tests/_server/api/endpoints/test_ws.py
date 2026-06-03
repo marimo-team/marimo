@@ -104,18 +104,18 @@ def test_allows_multiple_connections_with_other_sessions(
                 )
 
 
-def test_fails_on_multiple_connections_with_other_sessions(
+def test_second_connection_with_other_session_joins_as_viewer(
     client: TestClient,
 ) -> None:
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
-        with pytest.raises(WebSocketDisconnect) as exc_info:  # noqa: PT012
-            with client.websocket_connect(OTHER_WS_URL) as other_websocket:
-                other_websocket.receive_json()
-                raise AssertionError()
-        assert exc_info.value.code == 1003
-        assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"
+        # A second EDIT connection is not refused; auto-routes to a viewer.
+        with client.websocket_connect(OTHER_WS_URL) as other_websocket:
+            assert_kernel_ready_response(
+                other_websocket.receive_json(),
+                create_response({"kiosk": True, "resumed": True}),
+            )
 
 
 def test_allows_multiple_connections_with_same_file(
@@ -135,7 +135,7 @@ def test_allows_multiple_connections_with_same_file(
                 assert_parse_ready_response(data)
 
 
-def test_fails_on_multiple_connections_with_same_file(
+def test_second_connection_with_same_file_joins_as_viewer(
     client: TestClient,
     temp_marimo_file: str,
 ) -> None:
@@ -144,12 +144,15 @@ def test_fails_on_multiple_connections_with_same_file(
     with client.websocket_connect(ws_1) as websocket:
         data = websocket.receive_json()
         assert_parse_ready_response(data)
-        with pytest.raises(WebSocketDisconnect) as exc_info:  # noqa: PT012
-            with client.websocket_connect(ws_2) as other_websocket:
-                other_websocket.receive_json()
-                raise AssertionError()
-        assert exc_info.value.code == 1003
-        assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"
+        # A second EDIT connection is not refused; auto-routes to a viewer.
+        with client.websocket_connect(ws_2) as other_websocket:
+            viewer = parse_raw(
+                other_websocket.receive_json()["data"],
+                KernelReadyNotification,
+            )
+            assert viewer.kiosk is True
+            assert viewer.resumed is True
+            assert viewer.consumer_capabilities.edit is False
 
 
 async def test_file_watcher_calls_reload(client: TestClient) -> None:

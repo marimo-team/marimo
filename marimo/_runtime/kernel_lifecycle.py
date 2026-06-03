@@ -72,7 +72,6 @@ class KernelArgs:
     control_queue: ControlQueue
     set_ui_element_queue: UIElementQueue
     virtual_file_storage: VirtualFileStorageType | None
-    print_override_fn: Callable[[Any], None] | None
 
     @property
     def is_edit_mode(self) -> bool:
@@ -153,7 +152,6 @@ def create_kernel(
         module=patches.patch_main_module(
             file=args.app_metadata.filename,
             input_override=input_override,
-            print_override=args.print_override_fn,
             doc=args.app_metadata.docstring,
         ),
         debugger_override=args.debugger,

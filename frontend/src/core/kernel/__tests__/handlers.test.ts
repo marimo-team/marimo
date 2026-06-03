@@ -90,6 +90,7 @@ describe("buildCellData", () => {
         terminal: false,
       },
       auto_instantiated: false,
+      consumer_capabilities: { edit: true, interact: true },
     };
 
     const cells = buildCellData(kernelReadyData);
@@ -158,6 +159,7 @@ describe("buildCellData", () => {
         terminal: false,
       },
       auto_instantiated: false,
+      consumer_capabilities: { edit: true, interact: true },
     };
 
     const cells = buildCellData(kernelReadyData);
@@ -191,6 +193,7 @@ describe("buildCellData", () => {
         terminal: false,
       },
       auto_instantiated: false,
+      consumer_capabilities: { edit: true, interact: true },
     };
 
     const cells = buildCellData(kernelReadyData);
@@ -223,6 +226,7 @@ describe("buildLayoutState", () => {
         terminal: false,
       },
       auto_instantiated: false,
+      consumer_capabilities: { edit: true, interact: true },
     };
 
     const cells = buildCellData(kernelReadyData);
@@ -271,6 +275,7 @@ describe("buildLayoutState", () => {
         terminal: false,
       },
       auto_instantiated: false,
+      consumer_capabilities: { edit: true, interact: true },
     };
 
     const cells = buildCellData(kernelReadyData);

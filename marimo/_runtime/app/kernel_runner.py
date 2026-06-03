@@ -129,7 +129,6 @@ class AppKernelRunner:
             module=create_main_module(
                 filename,
                 input_override=None,
-                print_override=None,
                 doc=extract_docstring_from_header(app._app._header),
             ),
             user_config=DEFAULT_CONFIG,

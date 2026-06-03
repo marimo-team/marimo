@@ -10,6 +10,7 @@ from marimo._ast.cell import CellConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
+    ConsumerCapabilities,
     KernelCapabilitiesNotification,
     KernelReadyNotification,
 )
@@ -85,6 +86,9 @@ def build_kernel_ready(
         last_execution_time=last_execution_time,
         app_config=session.app_file_manager.app.config,
         kiosk=kiosk,
+        consumer_capabilities=ConsumerCapabilities(
+            edit=not kiosk, interact=not kiosk
+        ),
         capabilities=KernelCapabilitiesNotification(),
         auto_instantiated=auto_instantiated,
     )
