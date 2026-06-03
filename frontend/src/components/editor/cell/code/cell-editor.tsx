@@ -78,6 +78,12 @@ export interface CellEditorProps
   editorViewParentRef?: React.RefObject<HTMLDivElement | null>;
   showHiddenCode: (opts?: { focus?: boolean }) => void;
   outputArea?: "above" | "below";
+  /**
+   * CSS selector for the element that editor tooltips (completions, hover,
+   * signature help) are appended to. Useful for fullscreen/dialog containers;
+   * defaults to `#App`.
+   */
+  tooltipParentSelector?: string;
 }
 
 const CellEditorInternal = ({
@@ -101,6 +107,7 @@ const CellEditorInternal = ({
   showLanguageToggles = true,
   inlineAiTooltip,
   outputArea,
+  tooltipParentSelector,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const deleteCell = useDeleteCellCallback();
@@ -232,6 +239,7 @@ const CellEditorInternal = ({
       displayConfig: userConfig.display,
       inlineAiTooltip:
         inlineAiTooltip ?? userConfig.ai?.inline_tooltip ?? false,
+      tooltipParentSelector,
     });
 
     extensions.push(
@@ -282,6 +290,7 @@ const CellEditorInternal = ({
     userConfig.diagnostics,
     userConfig.ai?.inline_tooltip,
     inlineAiTooltip,
+    tooltipParentSelector,
     aiFeaturesEnabled,
     theme,
     showPlaceholder,

@@ -142,6 +142,10 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
         // tooltip's fixed positioning, so disable it here.
         inlineAiTooltip={false}
         outputArea={cellOutputPosition}
+        // Parent tooltips (completions, hover, signature help) to the Reveal
+        // viewport so they stay visible when presenting fullscreen; `#App` sits
+        // outside the fullscreened subtree and would never paint.
+        tooltipParentSelector=".reveal-viewport"
       />
       {toolbar}
     </div>
