@@ -8,6 +8,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.context import is_code_mode_request
 from marimo._messaging.notification import CellNotification
 from marimo._messaging.notification_utils import broadcast_notification
+from marimo._messaging.thread_local_streams import ThreadLocalStreamProxy
 from marimo._messaging.types import Stderr
 from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.context.utils import get_mode
@@ -45,12 +46,17 @@ def _show_tracebacks_enabled() -> bool:
 def write_traceback(traceback: str) -> None:
     in_run_mode = get_mode() == "run"
     code_mode = is_code_mode_request()
+    stderr = (
+        sys.stderr._get_stream()
+        if isinstance(sys.stderr, ThreadLocalStreamProxy)
+        else sys.stderr
+    )
 
-    if isinstance(sys.stderr, Stderr) and not code_mode:
+    if isinstance(stderr, Stderr) and not code_mode:
         # In run mode, only forward to the frontend if show_tracebacks is on.
         if in_run_mode and not _show_tracebacks_enabled():
             return
-        sys.stderr._write_with_mimetype(
+        stderr._write_with_mimetype(
             _highlight_traceback(traceback),
             mimetype="application/vnd.marimo+traceback",
         )
