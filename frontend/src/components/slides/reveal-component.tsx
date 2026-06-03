@@ -159,9 +159,7 @@ const NotesAside = ({ text }: { text: string }) => {
  * Resolve whether a slide cell shows its source instead of its output.
  *
  * Code is shown when either the cell's persisted `showCode` config is set or
- * the transient `C` override is active for it (logical OR). The override only
- * ever reveals code as a "peek"; it never hides a slide that is configured to
- * show its code.
+ * the keyboard toggle `C` override is active for it (logical OR).
  */
 export function shouldShowCode(options: {
   cells: ReadonlyMap<CellId, SlideConfig>;
