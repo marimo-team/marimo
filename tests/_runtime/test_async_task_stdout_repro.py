@@ -16,7 +16,7 @@ def _captured_console_messages() -> tuple[list[str], list[str]]:
                 [
                     ExecuteCellCommand(
                         cell_id="defs",
-code="""
+                        code="""
 import asyncio
 import sys
 
