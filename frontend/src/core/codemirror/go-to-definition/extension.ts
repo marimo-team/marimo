@@ -9,8 +9,8 @@ import { goToDefinition } from "./utils";
 export function goToDefinitionBundle() {
   return [
     underlineField,
-    createUnderlinePlugin((view, variableName) => {
-      goToDefinition(view, variableName);
+    createUnderlinePlugin((view, variableName, position) => {
+      goToDefinition(view, variableName, position);
     }),
     EditorView.baseTheme({
       ".underline": {

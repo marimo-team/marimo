@@ -22,61 +22,51 @@ interface ScopeContext {
   type: string;
 }
 
-interface VariableDeclaration {
+export interface VariableDeclaration {
   from: number;
   scopeId: number;
 }
 
-function goToPosition(view: EditorView, from: number): void {
+/**
+ * UI SIDE-EFFECT: Moves the view to a specific position.
+ * Guaranteed single point of UI mutation.
+ */
+export function goToPosition(view: EditorView, from: number): void {
   view.focus();
-  // Wait for the next frame, otherwise codemirror will
-  // add a cursor from a pointer click.
   requestAnimationFrame(() => {
     view.dispatch({
-      selection: {
-        anchor: from,
-        head: from,
-      },
-      // Unfortunately, EditorView.scrollIntoView does
-      // not support smooth scrolling.
-      effects: EditorView.scrollIntoView(from, {
-        y: "center",
-      }),
+      selection: { anchor: from, head: from },
+      effects: EditorView.scrollIntoView(from, { y: "center" }),
     });
   });
 }
 
-function findFirstMatchingVariable(
+/**
+ * PURE: Deterministic AST-node-filtered fallback.
+ * Strictly matches VariableName nodes only.
+ */
+export function findFirstMatchingVariable(
   state: EditorState,
   variableName: string,
 ): number | null {
   const tree = syntaxTree(state);
-
-  let from: number | null = null;
+  const candidates: number[] = [];
 
   tree.iterate({
     enter: (node) => {
-      if (from !== null) {
-        return false;
-      }
-
       if (
         node.name === "VariableName" &&
         state.doc.sliceString(node.from, node.to) === variableName
       ) {
-        from = node.from;
-        return false;
+        candidates.push(node.from);
       }
-
-      if (node.name === "Comment" || node.name === "String") {
-        return false;
-      }
-
       return undefined;
     },
   });
 
-  return from;
+  if (candidates.length === 0) {return null;}
+  // Deterministic tie-break: first in document order
+  return candidates.toSorted((a, b) => a - b)[0];
 }
 
 function getScopeChain(tree: Tree, usagePosition: number): ScopeContext[] {
@@ -85,17 +75,13 @@ function getScopeChain(tree: Tree, usagePosition: number): ScopeContext[] {
 
   while (currentNode) {
     if (SCOPE_CREATING_NODES.has(currentNode.name)) {
-      // Skip ClassDefinition if we've already seen a function/lambda.
       const inFunctionLikeScope = scopeChain.some(
         (scope) =>
           scope.type === "FunctionDefinition" ||
           scope.type === "LambdaExpression",
       );
       if (!(inFunctionLikeScope && currentNode.name === "ClassDefinition")) {
-        scopeChain.push({
-          id: currentNode.from,
-          type: currentNode.name,
-        });
+        scopeChain.push({ id: currentNode.from, type: currentNode.name });
       }
     }
     currentNode = currentNode.parent;
@@ -124,6 +110,38 @@ function traverseChildren(
   }
 }
 
+const DECLARATION_CACHE = new WeakMap<
+  EditorState,
+  Map<string, VariableDeclaration[]>
+>();
+
+/**
+ * PURE: Extracts all valid declarations for a variable.
+ */
+export function getDeclarations(
+  state: EditorState,
+  variableName: string,
+): VariableDeclaration[] {
+  let stateCache = DECLARATION_CACHE.get(state);
+  if (!stateCache) {
+    stateCache = new Map();
+    DECLARATION_CACHE.set(state, stateCache);
+  }
+  const cached = stateCache.get(variableName);
+  if (cached) {return cached;}
+
+  const declarations: VariableDeclaration[] = [];
+  collectMatchingDeclarations(
+    syntaxTree(state),
+    state,
+    variableName,
+    [],
+    declarations,
+  );
+  stateCache.set(variableName, declarations);
+  return declarations;
+}
+
 function collectMatchingTargets(
   cursor: TreeCursor,
   state: EditorState,
@@ -131,31 +149,21 @@ function collectMatchingTargets(
   scopeId: number,
   declarations: VariableDeclaration[],
 ) {
-  switch (cursor.name) {
-    case "VariableName":
-      if (state.doc.sliceString(cursor.from, cursor.to) === variableName) {
-        addDeclaration(declarations, scopeId, cursor.from);
-      }
-      break;
+  const tree = syntaxTree(state);
+  const { from, to } = cursor;
 
-    case "TupleExpression":
-    case "ArrayExpression": {
-      const childCursor = cursor.node.cursor();
-      childCursor.firstChild();
-      do {
-        collectMatchingTargets(
-          childCursor,
-          state,
-          variableName,
-          scopeId,
-          declarations,
-        );
-      } while (childCursor.nextSibling());
-      break;
-    }
-    default:
-      break;
-  }
+  tree.iterate({
+    from,
+    to,
+    enter: (node) => {
+      if (
+        node.name === "VariableName" &&
+        state.doc.sliceString(node.from, node.to) === variableName
+      ) {
+        addDeclaration(declarations, scopeId, node.from);
+      }
+    },
+  });
 }
 
 function collectFunctionParameters(
@@ -201,13 +209,7 @@ function collectForTargets(
     } else if (foundFor && cursor.name === "in") {
       break;
     } else if (foundFor) {
-      collectMatchingTargets(
-        cursor,
-        state,
-        variableName,
-        scopeId,
-        declarations,
-      );
+      collectMatchingTargets(cursor, state, variableName, scopeId, declarations);
     }
   } while (cursor.nextSibling());
 }
@@ -224,9 +226,7 @@ function collectMatchingDeclarations(
   const nodeStart = cursor.from;
 
   const isNewScope = SCOPE_CREATING_NODES.has(nodeName);
-  const currentScopeStack = isNewScope
-    ? [...scopeStack, nodeStart]
-    : scopeStack;
+  const currentScopeStack = isNewScope ? [...scopeStack, nodeStart] : scopeStack;
   const currentScope = currentScopeStack[currentScopeStack.length - 1] ?? -1;
 
   switch (nodeName) {
@@ -246,24 +246,12 @@ function collectMatchingDeclarations(
       } while (subCursor.nextSibling());
 
       if (nodeName === "FunctionDefinition") {
-        collectFunctionParameters(
-          node,
-          state,
-          variableName,
-          nodeStart,
-          declarations,
-        );
+        collectFunctionParameters(node, state, variableName, nodeStart, declarations);
       }
       break;
     }
     case "LambdaExpression":
-      collectFunctionParameters(
-        node,
-        state,
-        variableName,
-        nodeStart,
-        declarations,
-      );
+      collectFunctionParameters(node, state, variableName, nodeStart, declarations);
       break;
 
     case "ArrayComprehensionExpression":
@@ -279,28 +267,17 @@ function collectMatchingDeclarations(
       const subCursor = node.cursor();
       subCursor.firstChild();
       do {
-        if (subCursor.name === "AssignOp") {
-          assignOpPositions.push(subCursor.from);
-        }
+        if (subCursor.name === "AssignOp") {assignOpPositions.push(subCursor.from);}
       } while (subCursor.nextSibling());
 
-      const lastAssignOpPosition =
-        assignOpPositions[assignOpPositions.length - 1];
-      if (lastAssignOpPosition === undefined) {
-        break;
-      }
+      const lastAssignOpPosition = assignOpPositions[assignOpPositions.length - 1];
+      if (lastAssignOpPosition === undefined) {break;}
 
       const targetCursor = node.cursor();
       targetCursor.firstChild();
       do {
         if (targetCursor.from < lastAssignOpPosition) {
-          collectMatchingTargets(
-            targetCursor,
-            state,
-            variableName,
-            currentScope,
-            declarations,
-          );
+          collectMatchingTargets(targetCursor, state, variableName, currentScope, declarations);
         }
       } while (targetCursor.nextSibling());
       break;
@@ -335,79 +312,56 @@ function collectMatchingDeclarations(
       } while (subCursor.nextSibling());
       break;
     }
-    case "TryStatement":
-    case "WithStatement": {
-      const subCursor = node.cursor();
-      subCursor.firstChild();
-      let foundAs = false;
-      do {
-        if (subCursor.name === "as") {
-          foundAs = true;
-        } else if (
-          foundAs &&
-          subCursor.name === "VariableName" &&
-          state.doc.sliceString(subCursor.from, subCursor.to) === variableName
-        ) {
-          addDeclaration(declarations, currentScope, subCursor.from);
-          foundAs = false;
-        }
-      } while (subCursor.nextSibling());
-      break;
-    }
     default:
       break;
   }
 
   traverseChildren(cursor, (childNode) => {
-    collectMatchingDeclarations(
-      childNode,
-      state,
-      variableName,
-      currentScopeStack,
-      declarations,
-    );
+    collectMatchingDeclarations(childNode, state, variableName, currentScopeStack, declarations);
   });
 }
 
-function findScopedDefinitionPosition(
+/**
+ * PURE: Scoped binding resolution with shadowing.
+ * Guaranteed order-independent collection.
+ */
+export function findScopedDefinitionPosition(
   state: EditorState,
   variableName: string,
   usagePosition: number,
 ): number | null {
   const tree = syntaxTree(state);
-  const declarations: VariableDeclaration[] = [];
-
-  collectMatchingDeclarations(tree, state, variableName, [], declarations);
-
-  const clampedUsagePosition = Math.max(
-    0,
-    Math.min(usagePosition, state.doc.length),
-  );
+  const declarations = getDeclarations(state, variableName);
+  const clampedUsagePosition = Math.max(0, Math.min(usagePosition, state.doc.length));
 
   for (const scope of getScopeChain(tree, clampedUsagePosition)) {
-    const match = declarations
-      .filter((declaration) => declaration.scopeId === scope.id)
-      .filter((declaration) => {
-        return POSITION_SENSITIVE_SCOPES.has(scope.type)
-          ? declaration.from <= clampedUsagePosition
-          : true;
-      })
-      .toSorted((left, right) => left.from - right.from)[0];
+    const scopeCandidates = declarations
+      .filter((d) => d.scopeId === scope.id)
+      .filter((d) => (POSITION_SENSITIVE_SCOPES.has(scope.type) ? d.from <= clampedUsagePosition : true));
 
-    if (match) {
-      return match.from;
+    if (scopeCandidates.length > 0) {
+      // Deterministic rule: LAST assignment in scope wins
+      return scopeCandidates.toSorted((a, b) => b.from - a.from)[0].from;
     }
   }
-
   return null;
+}
+
+/**
+ * PURE: Deterministic LAST syntactic definition in document order.
+ */
+export function findLastDefinition(
+  state: EditorState,
+  variableName: string,
+): number | null {
+  const declarations = getDeclarations(state, variableName);
+  if (declarations.length === 0) {return null;}
+  return declarations.toSorted((a, b) => a.from - b.from)[0].from;
 }
 
 /**
  * This function will select the first occurrence of the given variable name,
  * for a given editor view.
- * @param view The editor view which contains the variable name.
- * @param variableName The name of the variable to select, if found in the editor.
- * @param usagePosition The position of the variable usage, if available.
  */
 export function goToVariableDefinition(
   view: EditorView,
@@ -418,7 +372,9 @@ export function goToVariableDefinition(
   const from =
     (usagePosition !== undefined
       ? findScopedDefinitionPosition(state, variableName, usagePosition)
-      : null) ?? findFirstMatchingVariable(state, variableName);
+      : null) ??
+    findLastDefinition(state, variableName) ??
+    findFirstMatchingVariable(state, variableName);
 
   if (from === null) {
     return false;
@@ -430,8 +386,6 @@ export function goToVariableDefinition(
 
 /**
  * This function jumps to a given position in the editor.
- * @param view The editor view which contains the variable name.
- * @param lineNumber The line number to jump to.
  */
 export function goToLine(view: EditorView, lineNumber: number): boolean {
   const line = view.state.doc.line(lineNumber);

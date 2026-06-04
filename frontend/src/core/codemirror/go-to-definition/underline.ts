@@ -55,11 +55,15 @@ class MetaUnderlineVariablePlugin {
   private view: EditorView;
   private commandClickMode: boolean;
   private hoveredRange: { from: number; to: number; position: number } | null;
-  private onClick: (view: EditorView, variableName: string) => void;
+  private onClick: (
+    view: EditorView,
+    variableName: string,
+    position: number,
+  ) => void;
 
   constructor(
     view: EditorView,
-    onClick: (view: EditorView, variableName: string) => void,
+    onClick: (view: EditorView, variableName: string, position: number) => void,
   ) {
     this.view = view;
     this.commandClickMode = false;
@@ -197,7 +201,7 @@ class MetaUnderlineVariablePlugin {
       );
       event.preventDefault();
       event.stopPropagation();
-      this.onClick(this.view, variableName);
+      this.onClick(this.view, variableName, this.hoveredRange.position);
       // Move the cursor to the clicked position
       this.view.dispatch({
         selection: {
@@ -218,6 +222,6 @@ class MetaUnderlineVariablePlugin {
 }
 
 export const createUnderlinePlugin = (
-  onClick: (view: EditorView, variableName: string) => void,
+  onClick: (view: EditorView, variableName: string, position: number) => void,
 ) =>
   ViewPlugin.define((view) => new MetaUnderlineVariablePlugin(view, onClick));
