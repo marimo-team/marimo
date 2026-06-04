@@ -47,6 +47,15 @@ class DirectedGraph(GraphTopology):
     )
     cycle_tracker: CycleTracker = field(default_factory=CycleTracker)
 
+    # Cell ids whose last post-execution broadcast advertised a top-level
+    # reusability hint. Tracked here (not on the per-run CellImpl, which is
+    # replaced when a cell's code changes) so the hint can be cleared exactly
+    # on the top-level -> non-top-level transition. Not topology; broadcast
+    # bookkeeping that needs to survive cell re-registration.
+    cells_serving_serialization_hint: set[CellId_t] = field(
+        default_factory=set
+    )
+
     # This lock must be acquired during methods that mutate the graph; it's
     # only needed because a graph is shared between the kernel and the code
     # completion service. It should almost always be uncontended.

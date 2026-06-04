@@ -1839,6 +1839,37 @@ except NameError:
             else:
                 assert cell_notification.run_id is not None
 
+    async def test_serialization_hint_cleared_only_on_demotion(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        import msgspec
+
+        k = mocked_kernel.k
+
+        def serialization_hints() -> list[str | None]:
+            stream = MockStream(mocked_kernel.stream)
+            return [
+                cn.serialization
+                for op in stream.operations
+                if op["op"] == "cell-op"
+                for cn in [parse_raw(op, CellNotification)]
+                if cn.serialization is not msgspec.UNSET
+            ]
+
+        # A top-level definition advertises its reusability hint.
+        req = exec_req.get("def foo():\n    return 1")
+        await k.run([req])
+        assert serialization_hints() == ["Valid"]
+
+        # Editing it into a plain assignment clears the hint exactly once
+        # (an explicit None, not an omitted/UNSET field).
+        await k.run([exec_req.get_with_id(req.cell_id, "x = 1")])
+        assert serialization_hints() == ["Valid", None]
+
+        # Re-running the now-ordinary cell emits no further serialization op.
+        await k.run([exec_req.get_with_id(req.cell_id, "x = 2")])
+        assert serialization_hints() == ["Valid", None]
+
     async def test_sync_graph_basic(self, execution_kernel: Kernel) -> None:
         """Test basic synchronization: file changes cell B in A→B→C chain.
 

@@ -296,3 +296,22 @@ class CellNotificationUtils:
             CellNotification(cell_id=cell_id, serialization=str(status)),
             stream,
         )
+
+    @staticmethod
+    def broadcast_serialization_cleared(
+        cell_id: CellId_t,
+        stream: Stream | None = None,
+    ) -> None:
+        """Clear a cell's reusability hint (it is no longer a top-level def).
+
+        Sends an explicit None: in the partial-update cell-op contract a
+        missing field means "unchanged", so a concrete None is required to
+        remove a previously shown hint.
+        """
+        # Import here to avoid circular dependency
+        from marimo._messaging.notification import CellNotification
+
+        broadcast_notification(
+            CellNotification(cell_id=cell_id, serialization=None),
+            stream,
+        )
