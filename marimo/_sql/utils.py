@@ -27,7 +27,13 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
-CHEAP_DISCOVERY_DATABASES = ["duckdb", "sqlite", "mysql", "postgresql"]
+CHEAP_DISCOVERY_DATABASES = [
+    "duckdb",
+    "sqlite",
+    "mysql",
+    "mariadb",
+    "postgresql",
+]
 # DuckDB SQL can return None for DDL, so keep "patch did not apply" distinct.
 _NO_WASM_DUCKDB_RESULT = object()
 

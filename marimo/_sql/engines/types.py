@@ -34,8 +34,8 @@ class InferenceConfig(ABC):
 def default_inference_config() -> InferenceConfig:
     """Default discovery config shared by general-purpose SQL engines.
 
-    Expensive backends can have large number of schemas and tables, so we gate
-    discovery behind the `"auto"` heuristic.
+    Expensive backends can have a large number of schemas and tables, so we
+    gate discovery behind the `"auto"` heuristic.
     """
     return InferenceConfig(
         auto_discover_schemas="auto",
