@@ -32,6 +32,17 @@ CHEAP_DISCOVERY_DATABASES = ["duckdb", "sqlite", "mysql", "postgresql"]
 _NO_WASM_DUCKDB_RESULT = object()
 
 
+def is_cheap_dialect(dialect: str) -> bool:
+    """Whether schema/table discovery is cheap for the given SQL dialect.
+
+    Used as the default heuristic for resolving `"auto"` discovery flags: local
+    or lightweight dialects are cheap to introspect, whereas remote analytical
+    backends (e.g. Snowflake, BigQuery) can be slow and should not be scanned
+    eagerly.
+    """
+    return dialect.lower() in CHEAP_DISCOVERY_DATABASES
+
+
 def get_configured_sql_output_format() -> SqlOutputType:
     """Read the configured SQL output format from the runtime context.
 

@@ -420,10 +420,6 @@ class RedshiftEngine(SQLConnection["Connection"]):
             return "string"
         return None
 
-    def _resolve_should_auto_discover(
-        self, value: bool | Literal["auto"]
-    ) -> bool:
+    def _is_cheap_discovery(self) -> bool:
         # Opt to not auto-discover for now
-        if value == "auto":
-            return False
-        return value
+        return False

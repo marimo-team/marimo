@@ -11,7 +11,11 @@ import pytest
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine, safe_execute
-from marimo._sql.engines.types import EngineCatalog, QueryEngine
+from marimo._sql.engines.types import (
+    EngineCatalog,
+    QueryEngine,
+    default_inference_config,
+)
 from marimo._sql.sql import sql
 from marimo._types.ids import VariableName
 
@@ -113,6 +117,17 @@ def test_sqlalchemy_engine_dialect(sqlite_engine: sa.Engine) -> None:
         sqlite_engine, engine_name=VariableName("test_sqlite")
     )
     assert engine.dialect == "sqlite"
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_engine_uses_default_inference_config(
+    sqlite_engine: sa.Engine,
+) -> None:
+    """SQLAlchemy shares the default discovery config (see #9775)."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("test_sqlite")
+    )
+    assert engine.inference_config == default_inference_config()
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
