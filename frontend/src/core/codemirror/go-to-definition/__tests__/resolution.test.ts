@@ -3,7 +3,11 @@
 import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { describe, expect, test, vi } from "vitest";
-import { getDeclarations, findScopedDefinitionPosition, findFirstMatchingVariable } from "../commands";
+import {
+  getDeclarations,
+  findScopedDefinitionPosition,
+  findFirstMatchingVariable,
+} from "../commands";
 
 // Mock store to avoid Jotai dependencies in pure tests
 vi.mock("../../state/jotai", () => ({
@@ -33,7 +37,7 @@ def foo(x):
     const state = createEditorState(code);
     const usagePos = code.lastIndexOf("x");
     const result = findScopedDefinitionPosition(state, "x", usagePos);
-    
+
     // Should point to the parameter 'x' in 'foo(x)', not the global 'x = 10'
     const paramPos = code.indexOf("(x") + 1;
     expect(result).toBe(paramPos);
@@ -43,7 +47,7 @@ def foo(x):
     const code = "x = 10";
     const state = createEditorState(code);
     const decls = getDeclarations(state, "x");
-    
+
     expect(decls).toHaveLength(1);
     expect(decls[0].from).toBe(0);
   });
@@ -56,7 +60,7 @@ print(x)`;
     const state = createEditorState(code);
     const usagePos = code.lastIndexOf("x");
     const result = findScopedDefinitionPosition(state, "x", usagePos);
-    
+
     // Should point to 'x = 2', not 'x = 1'
     expect(result).toBe(code.indexOf("x = 2"));
   });
@@ -68,7 +72,7 @@ s = "x in string"
 print(x)`;
     const state = createEditorState(code);
     const result = findFirstMatchingVariable(state, "x");
-    
+
     // Should only match the 'x' in 'print(x)'
     expect(result).toBe(code.lastIndexOf("x"));
   });

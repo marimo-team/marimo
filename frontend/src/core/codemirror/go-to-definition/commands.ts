@@ -64,7 +64,9 @@ export function findFirstMatchingVariable(
     },
   });
 
-  if (candidates.length === 0) {return null;}
+  if (candidates.length === 0) {
+    return null;
+  }
   // Deterministic tie-break: first in document order
   return candidates.toSorted((a, b) => a - b)[0];
 }
@@ -128,7 +130,9 @@ export function getDeclarations(
     DECLARATION_CACHE.set(state, stateCache);
   }
   const cached = stateCache.get(variableName);
-  if (cached) {return cached;}
+  if (cached) {
+    return cached;
+  }
 
   const declarations: VariableDeclaration[] = [];
   collectMatchingDeclarations(
@@ -209,7 +213,13 @@ function collectForTargets(
     } else if (foundFor && cursor.name === "in") {
       break;
     } else if (foundFor) {
-      collectMatchingTargets(cursor, state, variableName, scopeId, declarations);
+      collectMatchingTargets(
+        cursor,
+        state,
+        variableName,
+        scopeId,
+        declarations,
+      );
     }
   } while (cursor.nextSibling());
 }
@@ -226,7 +236,9 @@ function collectMatchingDeclarations(
   const nodeStart = cursor.from;
 
   const isNewScope = SCOPE_CREATING_NODES.has(nodeName);
-  const currentScopeStack = isNewScope ? [...scopeStack, nodeStart] : scopeStack;
+  const currentScopeStack = isNewScope
+    ? [...scopeStack, nodeStart]
+    : scopeStack;
   const currentScope = currentScopeStack[currentScopeStack.length - 1] ?? -1;
 
   switch (nodeName) {
@@ -246,12 +258,24 @@ function collectMatchingDeclarations(
       } while (subCursor.nextSibling());
 
       if (nodeName === "FunctionDefinition") {
-        collectFunctionParameters(node, state, variableName, nodeStart, declarations);
+        collectFunctionParameters(
+          node,
+          state,
+          variableName,
+          nodeStart,
+          declarations,
+        );
       }
       break;
     }
     case "LambdaExpression":
-      collectFunctionParameters(node, state, variableName, nodeStart, declarations);
+      collectFunctionParameters(
+        node,
+        state,
+        variableName,
+        nodeStart,
+        declarations,
+      );
       break;
 
     case "ArrayComprehensionExpression":
@@ -267,17 +291,28 @@ function collectMatchingDeclarations(
       const subCursor = node.cursor();
       subCursor.firstChild();
       do {
-        if (subCursor.name === "AssignOp") {assignOpPositions.push(subCursor.from);}
+        if (subCursor.name === "AssignOp") {
+          assignOpPositions.push(subCursor.from);
+        }
       } while (subCursor.nextSibling());
 
-      const lastAssignOpPosition = assignOpPositions[assignOpPositions.length - 1];
-      if (lastAssignOpPosition === undefined) {break;}
+      const lastAssignOpPosition =
+        assignOpPositions[assignOpPositions.length - 1];
+      if (lastAssignOpPosition === undefined) {
+        break;
+      }
 
       const targetCursor = node.cursor();
       targetCursor.firstChild();
       do {
         if (targetCursor.from < lastAssignOpPosition) {
-          collectMatchingTargets(targetCursor, state, variableName, currentScope, declarations);
+          collectMatchingTargets(
+            targetCursor,
+            state,
+            variableName,
+            currentScope,
+            declarations,
+          );
         }
       } while (targetCursor.nextSibling());
       break;
@@ -317,7 +352,13 @@ function collectMatchingDeclarations(
   }
 
   traverseChildren(cursor, (childNode) => {
-    collectMatchingDeclarations(childNode, state, variableName, currentScopeStack, declarations);
+    collectMatchingDeclarations(
+      childNode,
+      state,
+      variableName,
+      currentScopeStack,
+      declarations,
+    );
   });
 }
 
@@ -332,12 +373,19 @@ export function findScopedDefinitionPosition(
 ): number | null {
   const tree = syntaxTree(state);
   const declarations = getDeclarations(state, variableName);
-  const clampedUsagePosition = Math.max(0, Math.min(usagePosition, state.doc.length));
+  const clampedUsagePosition = Math.max(
+    0,
+    Math.min(usagePosition, state.doc.length),
+  );
 
   for (const scope of getScopeChain(tree, clampedUsagePosition)) {
     const scopeCandidates = declarations
       .filter((d) => d.scopeId === scope.id)
-      .filter((d) => (POSITION_SENSITIVE_SCOPES.has(scope.type) ? d.from <= clampedUsagePosition : true));
+      .filter((d) =>
+        POSITION_SENSITIVE_SCOPES.has(scope.type)
+          ? d.from <= clampedUsagePosition
+          : true,
+      );
 
     if (scopeCandidates.length > 0) {
       // Deterministic rule: LAST assignment in scope wins
@@ -355,7 +403,9 @@ export function findLastDefinition(
   variableName: string,
 ): number | null {
   const declarations = getDeclarations(state, variableName);
-  if (declarations.length === 0) {return null;}
+  if (declarations.length === 0) {
+    return null;
+  }
   return declarations.toSorted((a, b) => a.from - b.from)[0].from;
 }
 

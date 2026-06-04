@@ -81,7 +81,9 @@ function buildSymbolTable(notebook: any, variableName: string): SymbolTable {
   const entries: SymbolEntry[] = [];
   for (const cellId of cellIds) {
     const state = notebook.cellHandles[cellId]?.current?.editorView?.state;
-    if (!state) {continue;}
+    if (!state) {
+      continue;
+    }
 
     const declarations = getDeclarations(state, variableName);
     if (declarations.length > 0) {
@@ -114,7 +116,11 @@ function resolveDefinition(
 ): DefinitionTarget | null {
   // Phase 1: Scoped Binding (Hard Stop)
   if (usagePosition !== undefined && currentCellState) {
-    const from = findScopedDefinitionPosition(currentCellState, name, usagePosition);
+    const from = findScopedDefinitionPosition(
+      currentCellState,
+      name,
+      usagePosition,
+    );
     if (from !== null) {
       return { cellId: currentCellId, position: from };
     }
@@ -125,7 +131,7 @@ function resolveDefinition(
     const entries = symbolTable.index.get(name);
     if (entries && entries.length > 0) {
       const orderMap = new Map(cellOrder.map((id, i) => [id, i]));
-      
+
       // Latest cell in canonical order first
       const sortedCells = [...entries].toSorted((a, b) => {
         const idxA = orderMap.get(a.cellId) ?? -1;
@@ -135,7 +141,7 @@ function resolveDefinition(
 
       const bestEntry = sortedCells[0];
       const bestPos = bestEntry.definitions[bestEntry.definitions.length - 1];
-      
+
       return { cellId: bestEntry.cellId, position: bestPos };
     }
   }
@@ -166,9 +172,14 @@ export function goToDefinitionAtCursorPosition(view: EditorView): boolean {
   const { state } = view;
   const { from } = state.selection.main;
   const wordBounds = getPositionAtWordBounds(state.doc, from);
-  const word = state.doc.sliceString(wordBounds.startToken, wordBounds.endToken);
-  
-  if (!word) {return false;}
+  const word = state.doc.sliceString(
+    wordBounds.startToken,
+    wordBounds.endToken,
+  );
+
+  if (!word) {
+    return false;
+  }
 
   closeCompletion(view);
   view.dispatch({ effects: closeHoverTooltips });
@@ -184,26 +195,44 @@ export function goToDefinition(
   const notebook = store.get(notebookAtom);
   const cellOrder = getDeterministicCellOrder(notebook);
   const symbolTable = buildSymbolTable(notebook, variableName);
-  
+
   // Find current cellId
   const currentCellId = Object.entries(notebook.cellHandles).find(
-    ([_, handle]) => (handle as any).current?.editorView === view
+    ([_, handle]) => (handle as any).current?.editorView === view,
   )?.[0] as CellId;
 
-  const result1 = resolveDefinition(symbolTable, currentCellId, variableName, cellOrder, usagePosition, view.state);
+  const result1 = resolveDefinition(
+    symbolTable,
+    currentCellId,
+    variableName,
+    cellOrder,
+    usagePosition,
+    view.state,
+  );
 
   // Assertion Layer (Dev Mode)
   if (process.env.NODE_ENV === "development") {
-    const result2 = resolveDefinition(symbolTable, currentCellId, variableName, cellOrder, usagePosition, view.state);
+    const result2 = resolveDefinition(
+      symbolTable,
+      currentCellId,
+      variableName,
+      cellOrder,
+      usagePosition,
+      view.state,
+    );
     if (JSON.stringify(result1) !== JSON.stringify(result2)) {
-      throw new Error(`[marimo] Nondeterministic navigation detected for "${variableName}"`);
+      throw new Error(
+        `[marimo] Nondeterministic navigation detected for "${variableName}"`,
+      );
     }
   }
 
-  if (!result1) {return false;}
+  if (!result1) {
+    return false;
+  }
 
-  const targetView = result1.cellId 
-    ? notebook.cellHandles[result1.cellId]?.current?.editorView 
+  const targetView = result1.cellId
+    ? notebook.cellHandles[result1.cellId]?.current?.editorView
     : view;
 
   if (targetView) {
@@ -221,8 +250,10 @@ export function goToDefinition(
 export function goToCellLine(cellId: CellId, lineNumber: number): boolean {
   const notebook = store.get(notebookAtom);
   const view = notebook.cellHandles[cellId]?.current?.editorView;
-  if (!view) {return false;}
-  
+  if (!view) {
+    return false;
+  }
+
   const line = view.state.doc.line(lineNumber);
   goToPosition(view, line.from);
   return true;
