@@ -35,6 +35,9 @@ export function useTableHoverTooltip<TData extends RowData>({
   // assistive tech (the radix trigger is an aria-hidden phantom anchor).
   const tooltipContentId = useId();
   const anchorCell = useRef<HTMLElement | null>(null);
+  // Focus fires for pointer interactions too; track pointer state so
+  // click/drag-select focus doesn't show a tooltip (keyboard focus still does).
+  const pointerDown = useRef(false);
 
   const clearTimer = () => {
     if (timer.current != null) {
@@ -70,6 +73,21 @@ export function useTableHoverTooltip<TData extends RowData>({
     return () => cell?.removeAttribute("aria-describedby");
   }, [tooltipState, tooltipContentId]);
 
+  useEffect(() => {
+    const onDown = () => {
+      pointerDown.current = true;
+    };
+    const onUp = () => {
+      pointerDown.current = false;
+    };
+    window.addEventListener("mousedown", onDown, true);
+    window.addEventListener("mouseup", onUp, true);
+    return () => {
+      window.removeEventListener("mousedown", onDown, true);
+      window.removeEventListener("mouseup", onUp, true);
+    };
+  }, []);
+
   const handleCellMouseOver = useEvent(
     (e: React.MouseEvent, cell: Cell<TData, unknown>) => {
       // Suppress while a mouse button is held (range-select drag).
@@ -98,6 +116,11 @@ export function useTableHoverTooltip<TData extends RowData>({
       // Cancel any pending hover-show so a stale timer can't overwrite the
       // focus-triggered tooltip after the delay.
       clearTimer();
+      // Focus also fires for click/drag-select; only keyboard focus (no pointer
+      // held) should show the tooltip, mirroring the hover drag suppression.
+      if (pointerDown.current) {
+        return;
+      }
       const content = computeCellTooltipContent(cell, hoverTemplate);
       if (content == null || content === "") {
         return;

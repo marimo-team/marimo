@@ -175,6 +175,35 @@ describe("DataTable", () => {
     expect(cell).not.toHaveAttribute("aria-describedby");
   });
 
+  it("does not show a tooltip on pointer-induced focus", () => {
+    const testData: TestData[] = [{ id: 1, name: "Test 1" }];
+    const columns: ColumnDef<TestData>[] = [
+      { id: "name", accessorKey: "name", header: "Name" },
+    ];
+
+    render(
+      <TooltipProvider>
+        <DataTable
+          data={testData}
+          columns={columns}
+          selection={null}
+          totalRows={1}
+          totalColumns={1}
+          pagination={false}
+          cellHoverTexts={{ "0": { name: "click tip" } }}
+        />
+      </TooltipProvider>,
+    );
+
+    const cell = within(screen.getAllByRole("row")[1]).getByRole("cell");
+    // A click focuses the cell; the resulting focus must not show a tooltip.
+    fireEvent.mouseDown(cell);
+    fireEvent.focus(cell);
+
+    expect(cell).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText("click tip")).toBeNull();
+  });
+
   it("does not let a pending hover timer overwrite a focus tooltip", () => {
     vi.useFakeTimers();
     interface RowData {
