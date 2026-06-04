@@ -229,35 +229,42 @@ export function useParkedPreview(options: {
   heldEditCellId: CellId | null;
 } {
   const { activeCell, slideConfigs, noOutputIds } = options;
+  const activeCellId = activeCell?.id ?? null;
   const isNoOutputPreview =
     activeCell != null && noOutputIds.has(activeCell.id);
+  const isSkippedPreview =
+    activeCell != null && slideConfigs.get(activeCell.id)?.type === "skip";
   // Genuinely parked: skipped in the deck, or no output to compose yet.
-  const baseParked =
-    (activeCell != null && slideConfigs.get(activeCell.id)?.type === "skip") ||
-    isNoOutputPreview;
+  const baseParked = isSkippedPreview || isNoOutputPreview;
 
-  const heldParkedCellRef = useRef<CellId | null>(null);
-  if (activeCell == null) {
-    heldParkedCellRef.current = null;
-  } else if (baseParked) {
-    // Arm/refresh the hold while the cell is genuinely parked (no output yet).
-    heldParkedCellRef.current = activeCell.id;
-  } else if (heldParkedCellRef.current !== activeCell.id) {
-    // A different, already-rendered cell is active: nothing to hold.
-    heldParkedCellRef.current = null;
+  // The cell pinned in the overlay, tracked alongside the active cell it was
+  // armed against so we can release it exactly when the active cell changes.
+  const [held, setHeld] = useState<{
+    activeCellId: CellId | null;
+    cellId: CellId | null;
+  }>({ activeCellId, cellId: null });
+
+  let heldCellId = held.cellId;
+  if (held.activeCellId !== activeCellId) {
+    // Active cell changed: drop any prior hold, arming a fresh one only while
+    // the new cell has no output yet (skipped cells park via `baseParked`).
+    heldCellId = isNoOutputPreview ? activeCellId : null;
+    setHeld({ activeCellId, cellId: heldCellId });
+  } else if (isNoOutputPreview && heldCellId !== activeCellId) {
+    // Same active cell, still output-less: (re)arm the hold.
+    heldCellId = activeCellId;
+    setHeld({ activeCellId, cellId: heldCellId });
   }
 
   const isHeldEdit =
-    !baseParked &&
-    activeCell != null &&
-    heldParkedCellRef.current === activeCell.id;
+    !baseParked && activeCellId != null && heldCellId === activeCellId;
   return {
     parkedPreviewCell: baseParked || isHeldEdit ? (activeCell ?? null) : null,
     isHeldEdit,
     isNoOutputPreview,
     // Keep the held cell out of the composed deck so its editor isn't mounted a
     // second time (the overlay already renders it); it rejoins once released.
-    heldEditCellId: isHeldEdit ? heldParkedCellRef.current : null,
+    heldEditCellId: isHeldEdit ? heldCellId : null,
   };
 }
 

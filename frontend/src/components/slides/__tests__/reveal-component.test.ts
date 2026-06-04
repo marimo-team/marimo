@@ -307,4 +307,33 @@ describe("useParkedPreview", () => {
       heldEditCellId: null,
     });
   });
+
+  it("releases a skipped cell into the deck as soon as it is un-skipped", () => {
+    const { result, rerender } = renderHook(
+      (props: Parameters<typeof useParkedPreview>[0]) =>
+        useParkedPreview(props),
+      {
+        initialProps: {
+          activeCell: cell(A),
+          slideConfigs: cells([A, { type: "skip" }]),
+          noOutputIds: NONE,
+        },
+      },
+    );
+    expect(result.current.parkedPreviewCell).toEqual(cell(A));
+
+    // Un-skip the still-active cell: it has output, so it must rejoin the deck
+    // immediately rather than staying held in the overlay until navigation.
+    rerender({
+      activeCell: cell(A),
+      slideConfigs: NO_CONFIG,
+      noOutputIds: NONE,
+    });
+    expect(result.current).toEqual({
+      parkedPreviewCell: null,
+      isHeldEdit: false,
+      isNoOutputPreview: false,
+      heldEditCellId: null,
+    });
+  });
 });

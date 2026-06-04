@@ -502,6 +502,7 @@ const SlideThumbnailRow = ({
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget && event.key === "Enter") {
       event.preventDefault();
+      event.stopPropagation();
       event.currentTarget.click();
     }
   };
