@@ -31,9 +31,18 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { cn } from "@/utils/cn";
+import { Events } from "@/utils/events";
 import { Slide } from "./slide";
-import { InfoIcon, type LucideIcon } from "lucide-react";
+import { InfoIcon, type LucideIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import { Logger } from "@/utils/Logger";
 import { SLIDE_TYPE_OPTIONS_BY_VALUE } from "./slide-form";
 
@@ -71,7 +80,7 @@ interface SlideThumbnailCardProps extends React.HTMLAttributes<HTMLDivElement> {
   ref?: React.Ref<HTMLDivElement>;
 }
 
-interface SlideThumbnailRowProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface SlideThumbnailRowProps extends React.HTMLAttributes<HTMLDivElement> {
   cell: SlideCell;
   dimensions: ThumbnailDimensions;
   isActiveSlide?: boolean;
@@ -80,7 +89,13 @@ interface SlideThumbnailRowProps extends React.ButtonHTMLAttributes<HTMLButtonEl
   isVisible?: boolean;
   isNoOutput?: boolean;
   slideType?: SlideType;
-  ref?: React.Ref<HTMLButtonElement>;
+  // Insert a blank cell before this row.
+  onInsertAbove?: () => void;
+  // Insert a blank cell after this row.
+  onInsertBelow?: () => void;
+  // Delete the cell backing this row.
+  onDelete?: () => void;
+  ref?: React.Ref<HTMLDivElement>;
 }
 
 interface SlidesMinimapProps {
@@ -216,7 +231,8 @@ export const SlidesMinimap = ({
   onSlideClick,
 }: SlidesMinimapProps) => {
   const cellIds = useCellIds();
-  const { moveCellToIndex } = useCellActions();
+  const { moveCellToIndex, createNewCell } = useCellActions();
+  const deleteCell = useDeleteCellCallback();
   const containerRef = useRef<HTMLDivElement>(null);
   const visibleIds = useVisibleCellIds(containerRef);
   const [activeId, setActiveId] = useState<CellId | null>(null);
@@ -224,6 +240,10 @@ export const SlidesMinimap = ({
     null,
   );
   const dimensions = computeThumbnailDimensions(thumbnailWidth);
+
+  const insertCell = (cellId: CellId, before: boolean) => {
+    createNewCell({ cellId, before, code: "", autoFocus: false });
+  };
 
   useEffect(() => {
     if (!activeCellId || !containerRef.current) {
@@ -310,6 +330,11 @@ export const SlidesMinimap = ({
               slideTypes,
               skippedIds,
             })}
+            onInsertAbove={
+              index === 0 ? () => insertCell(cell.id, true) : undefined
+            }
+            onInsertBelow={() => insertCell(cell.id, false)}
+            onDelete={() => deleteCell({ cellId: cell.id })}
             onClick={() => onSlideClick(index)}
           />
         ))}
@@ -353,6 +378,11 @@ export const SlidesMinimap = ({
                   ? dropTarget.position
                   : null
               }
+              onInsertAbove={
+                index === 0 ? () => insertCell(cell.id, true) : undefined
+              }
+              onInsertBelow={() => insertCell(cell.id, false)}
+              onDelete={() => deleteCell({ cellId: cell.id })}
               onClick={() => onSlideClick(index)}
             />
           ))}
@@ -399,6 +429,9 @@ interface SortableSlideThumbnailProps {
   isVisible?: boolean;
   isNoOutput?: boolean;
   slideType?: SlideType;
+  onInsertAbove?: () => void;
+  onInsertBelow?: () => void;
+  onDelete?: () => void;
   onClick?: () => void;
 }
 
@@ -411,6 +444,9 @@ const SortableSlideThumbnail = ({
   isVisible,
   isNoOutput,
   slideType,
+  onInsertAbove,
+  onInsertBelow,
+  onDelete,
   onClick,
 }: SortableSlideThumbnailProps) => {
   const { attributes, listeners, setNodeRef } = useSortable({
@@ -428,6 +464,9 @@ const SortableSlideThumbnail = ({
       isVisible={isVisible}
       isNoOutput={isNoOutput}
       slideType={slideType}
+      onInsertAbove={onInsertAbove}
+      onInsertBelow={onInsertBelow}
+      onDelete={onDelete}
       onClick={onClick}
       {...attributes}
       {...listeners}
@@ -446,6 +485,9 @@ const SlideThumbnailRow = ({
   isVisible,
   isNoOutput,
   slideType,
+  onInsertAbove,
+  onInsertBelow,
+  onDelete,
   onClick,
   ref,
   ...props
@@ -456,10 +498,22 @@ const SlideThumbnailRow = ({
     ...style,
   };
 
-  return (
-    <button
+  // Space is ignored as Reveal.js listens for Space on `document` to advance
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget && event.key === "Enter") {
+      event.preventDefault();
+      event.currentTarget.click();
+    }
+  };
+
+  const row = (
+    <div
       ref={ref}
-      type="button"
+      // A real <button> can't host the nested insert <button>s (invalid HTML),
+      // so we keep button semantics via role + keyboard handling below.
+      // eslint-disable-next-line jsx-a11y/prefer-tag-over-role
+      role="button"
+      tabIndex={0}
       data-cell-id={cell.id}
       className={cn(
         "relative shrink-0 appearance-none text-left p-0 bg-transparent outline-none",
@@ -467,6 +521,7 @@ const SlideThumbnailRow = ({
       )}
       style={rowStyle}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
       {...props}
     >
       {dropIndicator && (
@@ -479,6 +534,9 @@ const SlideThumbnailRow = ({
           )}
         />
       )}
+      {onInsertAbove && (
+        <InsertCellLine position="above" onInsert={onInsertAbove} />
+      )}
       <SlideThumbnailCard
         cell={cell}
         dimensions={dimensions}
@@ -488,7 +546,68 @@ const SlideThumbnailRow = ({
         isNoOutput={isNoOutput}
         slideType={slideType}
       />
-    </button>
+      {onInsertBelow && (
+        <InsertCellLine position="below" onInsert={onInsertBelow} />
+      )}
+    </div>
+  );
+
+  if (!onInsertBelow && !onDelete) {
+    return row;
+  }
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild={true}>{row}</ContextMenuTrigger>
+      <ContextMenuContent>
+        {onInsertBelow && (
+          <ContextMenuItem onSelect={onInsertBelow}>
+            <PlusIcon className="mr-2 h-3.5 w-3.5" />
+            Add cell
+          </ContextMenuItem>
+        )}
+        <ContextMenuSeparator />
+        {onDelete && (
+          <ContextMenuItem variant="danger" onSelect={onDelete}>
+            <Trash2Icon className="mr-2 h-3.5 w-3.5" />
+            Delete cell
+          </ContextMenuItem>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+};
+
+const InsertCellLine = ({
+  position,
+  onInsert,
+}: {
+  position: "above" | "below";
+  onInsert: () => void;
+}) => {
+  return (
+    <Tooltip content="Add Python cell">
+      <button
+        type="button"
+        aria-label="Add Python cell"
+        data-testid="minimap-insert-cell"
+        className={cn(
+          "absolute left-0 right-0 z-30 flex h-3 items-center justify-center",
+          "opacity-0 transition-opacity hover:opacity-80 focus-visible:opacity-100 focus:outline-none",
+          position === "below"
+            ? "bottom-0 translate-y-1/2"
+            : "top-0 -translate-y-1/2",
+        )}
+        // Stop the pointer event from reaching the row's drag sensor / click.
+        onPointerDown={Events.stopPropagation()}
+        onClick={Events.stopPropagation(onInsert)}
+      >
+        <span className="absolute left-2 right-2 h-px rounded-full bg-blue-500" />
+        <span className="relative flex h-3 w-3 items-center justify-center rounded-full bg-blue-500 text-background shadow-xs">
+          <PlusIcon className="h-2 w-2" strokeWidth={3} />
+        </span>
+      </button>
+    </Tooltip>
   );
 };
 
@@ -529,10 +648,10 @@ const SlideThumbnailCard = ({
     <div
       ref={ref}
       className={cn(
-        "border-2 shrink-0 rounded-md relative select-none bg-background cursor-pointer active:cursor-grabbing overflow-hidden",
+        "border-2 shrink-0 rounded-md relative select-none bg-background cursor-pointer active:cursor-grabbing overflow-hidden transition-colors",
         isActiveSlide || isActiveDragSource || isOverlay
           ? "border-blue-500"
-          : "border-border",
+          : "border-border hover:border-blue-500/50",
         isActiveDragSource && !isOverlay && "opacity-35",
         isOverlay && "opacity-95 shadow-lg",
         className,
