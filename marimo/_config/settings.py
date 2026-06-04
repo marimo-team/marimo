@@ -28,11 +28,11 @@ class GlobalSettings:
         "_MARIMO_DISABLE_AUTH_ON_VIRTUAL_FILES", "false"
     ) in ("true", "1")
     # Hide all external code-sharing affordances (shareable WASM links, molab,
-    # HTML sharing) across every notebook session. Enforced as a final clamp
-    # after all config sources are merged (see MarimoConfigManager
-    # .get_config_overrides), so it cannot be re-enabled by any config file or
-    # runtime override. Intended for machine-wide enforcement set by infra
-    # admins in a devpod or container spec.
+    # HTML sharing) across every notebook session. Enforced by
+    # SecurityConfigManager, which MarimoConfigManager merges after all other
+    # config sources, so it cannot be re-enabled by any config file or runtime
+    # override. Intended for machine-wide enforcement set by infra admins in a
+    # devpod or container spec.
     #
     # Note: this is a UI-hiding/policy control, not a server-side security
     # boundary -- exported HTML still embeds source and endpoints still serve

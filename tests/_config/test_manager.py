@@ -14,6 +14,7 @@ from marimo._config.manager import (
     MarimoConfigManager,
     MarimoConfigReaderWithOverrides,
     ScriptConfigManager,
+    SecurityConfigManager,
     UserConfigManager,
     get_default_config_manager,
 )
@@ -671,11 +672,13 @@ def test_restrict_sharing_clamps_config_overrides(
 ) -> None:
     """MARIMO_RESTRICT_SHARING forces sharing off in the served overrides.
 
-    The editor serves get_config_overrides() to the frontend, so the clamp
-    must be visible there for the Share affordances to be hidden.
+    The editor serves get_config_overrides() to the frontend, so the
+    enforcement must be visible there for the Share affordances to be hidden.
     """
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
-    manager = MarimoConfigManager(UserConfigManager(), EnvConfigManager())
+    manager = MarimoConfigManager(
+        UserConfigManager(), EnvConfigManager(), SecurityConfigManager()
+    )
     overrides = manager.get_config_overrides(hide_secrets=False)
     assert overrides["sharing"] == RESTRICTED_SHARING
 
@@ -689,7 +692,9 @@ def test_restrict_sharing_overrides_user_config(
     user._load_config = lambda: merge_default_config(
         {"sharing": {"wasm": True, "html": True, "molab": True}}
     )
-    manager = MarimoConfigManager(user, EnvConfigManager())
+    manager = MarimoConfigManager(
+        user, EnvConfigManager(), SecurityConfigManager()
+    )
     assert manager.get_config(hide_secrets=False)["sharing"] == (
         RESTRICTED_SHARING
     )
@@ -700,12 +705,13 @@ def test_restrict_sharing_beats_later_override(
 ) -> None:
     """A later with_overrides() cannot re-enable sharing.
 
-    with_overrides() appends a partial after EnvConfigManager, so the clamp
-    must run after the full merge rather than inside a single reader.
+    with_overrides() appends its partial after EnvConfigManager, but
+    MarimoConfigManager keeps the SecurityConfigManager last, so the
+    enforcement still wins over the later override.
     """
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
     manager = MarimoConfigManager(
-        UserConfigManager(), EnvConfigManager()
+        UserConfigManager(), EnvConfigManager(), SecurityConfigManager()
     ).with_overrides({"sharing": {"wasm": True, "html": True, "molab": True}})
     assert manager.get_config_overrides(hide_secrets=False)["sharing"] == (
         RESTRICTED_SHARING
@@ -718,7 +724,7 @@ def test_restrict_sharing_disabled_keeps_user_config(
     """With the flag off, an explicit sharing config is left untouched."""
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", False)
     manager = MarimoConfigManager(
-        UserConfigManager(), EnvConfigManager()
+        UserConfigManager(), EnvConfigManager(), SecurityConfigManager()
     ).with_overrides({"sharing": {"wasm": True}})
     assert manager.get_config_overrides(hide_secrets=False)["sharing"] == {
         "wasm": True

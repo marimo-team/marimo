@@ -66,6 +66,8 @@ def get_default_config_manager(
         ProjectConfigManager(current_path),
         ScriptConfigManager(current_path),
         EnvConfigManager(),
+        # Always merged last; see SecurityConfigManager.
+        SecurityConfigManager(),
     )
 
 
@@ -128,7 +130,16 @@ class MarimoConfigManager(MarimoConfigReader):
         *partials: PartialMarimoConfigReader,
     ) -> None:
         self.user_config_mgr = user_config_mgr
-        self.partials = partials
+        # Security partials are pulled out and always merged last (after every
+        # other partial, including any added by with_overrides()), so the
+        # enforcements they apply cannot be re-enabled by a lower-priority
+        # config source. See SecurityConfigManager.
+        self.partials = tuple(
+            p for p in partials if not isinstance(p, SecurityConfigManager)
+        )
+        self.security_partials = tuple(
+            p for p in partials if isinstance(p, SecurityConfigManager)
+        )
 
     def get_user_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the user configuration"""
@@ -137,35 +148,22 @@ class MarimoConfigManager(MarimoConfigReader):
     def get_config_overrides(
         self, *, hide_secrets: bool = True
     ) -> PartialMarimoConfig:
-        """Get the configuration overrides"""
-        if not self.partials:
-            overrides: PartialMarimoConfig = {}
-        elif len(self.partials) == 1:
-            overrides = self.partials[0].get_config(hide_secrets=hide_secrets)
-        else:
-            result: MarimoConfig = cast(MarimoConfig, {})
-            for partial in self.partials:
-                result = merge_config(
-                    result, partial.get_config(hide_secrets=hide_secrets)
-                )
-            overrides = cast(PartialMarimoConfig, result)
-        if GLOBAL_SETTINGS.RESTRICT_SHARING:
-            # Clamp after all overrides are merged so the restriction cannot be
-            # re-enabled by any config source (including a later
-            # with_overrides()). Build a new dict to avoid mutating a partial's
-            # (possibly cached) returned config.
-            overrides = cast(
-                PartialMarimoConfig,
-                {
-                    **overrides,
-                    "sharing": {
-                        "wasm": False,
-                        "html": False,
-                        "molab": False,
-                    },
-                },
+        """Get the configuration overrides
+
+        Security partials are merged last, so the enforcements they apply
+        cannot be overridden by any other config source.
+        """
+        all_partials = (*self.partials, *self.security_partials)
+        if not all_partials:
+            return {}
+        if len(all_partials) == 1:
+            return all_partials[0].get_config(hide_secrets=hide_secrets)
+        result: MarimoConfig = cast(MarimoConfig, {})
+        for partial in all_partials:
+            result = merge_config(
+                result, partial.get_config(hide_secrets=hide_secrets)
             )
-        return overrides
+        return cast(PartialMarimoConfig, result)
 
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the configuration, by merging the user configuration and the configuration overrides"""
@@ -183,11 +181,16 @@ class MarimoConfigManager(MarimoConfigReader):
     def with_overrides(
         self, overrides: PartialMarimoConfig
     ) -> MarimoConfigManager:
-        """Get a new config manager with the given overrides"""
+        """Get a new config manager with the given overrides
+
+        The new override is appended after the existing partials but before the
+        security partials, which the constructor keeps last so they always win.
+        """
         return MarimoConfigManager(
             self.user_config_mgr,
             *self.partials,
             MarimoConfigReaderWithOverrides(overrides),
+            *self.security_partials,
         )
 
 
@@ -353,6 +356,34 @@ class EnvConfigManager(PartialMarimoConfigReader):
         if hide_secrets:
             return mask_secrets_partial(project_config)
         return project_config
+
+
+class SecurityConfigManager(PartialMarimoConfigReader):
+    """Machine-wide security enforcements that always take precedence.
+
+    `MarimoConfigManager` merges partials of this type last, after every other
+    config source (including any added by `with_overrides()`), so the
+    enforcements they apply cannot be re-enabled by a user, project, script,
+    env, or runtime override. Intended for restrictions set by infra admins
+    outside the user's control, e.g. in a devpod or container spec.
+
+    This is the surface area for future required enforcements; today it only
+    handles `MARIMO_RESTRICT_SHARING`.
+    """
+
+    def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
+        del hide_secrets  # no secrets are produced here
+        config: PartialMarimoConfig = {}
+        if GLOBAL_SETTINGS.RESTRICT_SHARING:
+            # Hide every external code-sharing affordance (shareable WASM
+            # links, molab, HTML publishing) across all notebook sessions.
+            # See GLOBAL_SETTINGS.RESTRICT_SHARING.
+            config["sharing"] = {
+                "wasm": False,
+                "html": False,
+                "molab": False,
+            }
+        return config
 
 
 class ScriptConfigManager(PartialMarimoConfigReader):
