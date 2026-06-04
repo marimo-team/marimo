@@ -11,11 +11,13 @@ td.bracket-l::before {
   border-left: 2px solid var(--foreground);
   pointer-events: none;
 }
+
 td.bracket-l.bracket-t::before {
   top: -1px;
   width: 8px;
   border-top: 2px solid var(--foreground);
 }
+
 td.bracket-l.bracket-b::before {
   bottom: -1px;
   width: 8px;
@@ -33,11 +35,13 @@ td.bracket-r::after {
   border-right: 2px solid var(--foreground);
   pointer-events: none;
 }
+
 td.bracket-r.bracket-t::after {
   top: -1px;
   width: 8px;
   border-top: 2px solid var(--foreground);
 }
+
 td.bracket-r.bracket-b::after {
   bottom: -1px;
   width: 8px;

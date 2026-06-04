@@ -65,13 +65,16 @@
 .marimo-json-output {
   padding-top: 2px;
   padding-bottom: 2px;
+
   /* content-visibility is set by material UI;
    * when set on an element that has overflow auto, causes abrupt jumps when
    * scrolling in Chrome */
   content-visibility: unset;
+
   /* Coarse hack to stop children from overflowing; doesn't seem to affect
    * margin collapse. */
   overflow: auto;
+
   @apply text-xs;
 
   .data-key-pair:not(:last-child) {

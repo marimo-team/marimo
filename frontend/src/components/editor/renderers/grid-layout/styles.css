@@ -11,8 +11,8 @@
 }
 
 .dark .react-grid-item > .react-resizable-handle::after {
-  border-right: 2px solid rgba(255, 255, 255, 0.5);
-  border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+  border-right: 2px solid rgb(255 255 255 / 50%);
+  border-bottom: 2px solid rgb(255 255 255 / 50%);
 }
 
 .disable-animation .react-grid-item {

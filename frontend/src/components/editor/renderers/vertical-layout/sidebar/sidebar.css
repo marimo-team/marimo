@@ -3,6 +3,7 @@
 /* Improve markdown when in the sidebar */
 .app-sidebar .markdown {
   display: block;
+
   @apply px-5;
 }
 

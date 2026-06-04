@@ -2,6 +2,7 @@
 
 .missing-filename {
   text-align: center;
+
   @apply shadow-md-solid shadow-stale;
 }
 

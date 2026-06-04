@@ -25,7 +25,7 @@
     display: block !important;
     flex: 1;
 
-    @media (min-width: 500px) {
+    @media (width >= 500px) {
       min-width: 350px;
     }
   }
@@ -46,6 +46,7 @@
 }
 
 /* helpful for debugging */
+
 /* .mo-slide-content {
   background-color: red;
 

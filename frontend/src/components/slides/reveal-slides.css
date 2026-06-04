@@ -1,4 +1,4 @@
-@import "reveal.js/reveal.css";
+@import url("reveal.js/reveal.css");
 
 /* Neutralize reveal-viewport styles so the slides inherit marimo's defaults */
 .reveal-viewport {
@@ -8,13 +8,16 @@
   overflow: visible;
   height: auto;
 }
+
 .reveal-viewport:fullscreen {
   background-color: var(--background);
 }
+
 .reveal-viewport:fullscreen .mo-slide-content {
   padding-left: 2rem;
   padding-right: 2rem;
 }
+
 .reveal-viewport::backdrop {
   background-color: var(--background);
 }
@@ -25,10 +28,12 @@
   font-size: inherit;
   color: inherit;
 }
+
 /* Use marimo's primary color for controls and progress */
 .mo-slides-theme.reveal .controls {
   color: var(--primary);
 }
+
 .mo-slides-theme.reveal .progress {
   color: var(--primary);
 }
@@ -69,6 +74,7 @@
 .reveal .mo-slide-content {
   flex-direction: column;
 }
+
 .reveal .mo-slide-content .output {
   margin: 0;
 }
@@ -77,6 +83,7 @@
   border-radius: 8px;
   padding-right: 10px;
 }
+
 .reveal .marimo-cell .cm-panels {
   margin-right: 0;
 }
