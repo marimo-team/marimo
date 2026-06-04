@@ -175,6 +175,45 @@ describe("DataTable", () => {
     expect(cell).not.toHaveAttribute("aria-describedby");
   });
 
+  it("does not let a pending hover timer overwrite a focus tooltip", () => {
+    vi.useFakeTimers();
+    interface RowData {
+      id: number;
+      a: string;
+      b: string;
+    }
+    const testData: RowData[] = [{ id: 1, a: "a", b: "b" }];
+    const columns: ColumnDef<RowData>[] = [
+      { id: "a", accessorKey: "a", header: "A" },
+      { id: "b", accessorKey: "b", header: "B" },
+    ];
+
+    render(
+      <TooltipProvider>
+        <DataTable
+          data={testData}
+          columns={columns}
+          selection={null}
+          totalRows={1}
+          totalColumns={2}
+          pagination={false}
+          cellHoverTexts={{ "0": { a: "hover A", b: "focus B" } }}
+        />
+      </TooltipProvider>,
+    );
+
+    const cells = within(screen.getAllByRole("row")[1]).getAllByRole("cell");
+    // Start a pending hover-show on cell A, then focus cell B before it fires.
+    fireEvent.mouseOver(cells[0], { buttons: 0 });
+    fireEvent.focus(cells[1]);
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(screen.getAllByText("focus B").length).toBeGreaterThan(0);
+    expect(screen.queryByText("hover A")).toBeNull();
+  });
+
   it("does not virtualize small datasets without pagination", () => {
     const testData = Array.from({ length: 50 }, (_, i) => ({
       id: i,

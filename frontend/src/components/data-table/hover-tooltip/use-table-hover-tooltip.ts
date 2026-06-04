@@ -95,6 +95,9 @@ export function useTableHoverTooltip<TData extends RowData>({
   // Keyboard parity: cells are tabIndex=0, native `title` showed on focus too.
   const handleCellFocus = useEvent(
     (e: React.FocusEvent, cell: Cell<TData, unknown>) => {
+      // Cancel any pending hover-show so a stale timer can't overwrite the
+      // focus-triggered tooltip after the delay.
+      clearTimer();
       const content = computeCellTooltipContent(cell, hoverTemplate);
       if (content == null || content === "") {
         return;
