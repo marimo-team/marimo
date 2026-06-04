@@ -1,6 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { Cell, RowData, Table } from "@tanstack/react-table";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import useEvent from "react-use-event-hook";
 import { computeCellTooltipContent } from "./content";
 
@@ -15,16 +22,19 @@ export interface HoverTooltipState {
 
 export function useTableHoverTooltip<TData extends RowData>({
   table,
-  scrollElement,
 }: {
   table: Table<TData>;
-  scrollElement: HTMLElement | null;
 }) {
   const hoverTemplate = table.getState().cellHoverTemplate || null;
   const [tooltipState, setTooltipState] = useState<HoverTooltipState | null>(
     null,
   );
   const timer = useRef<number | null>(null);
+
+  // Stable id linking the focused/hovered cell to the tooltip content for
+  // assistive tech (the radix trigger is an aria-hidden phantom anchor).
+  const tooltipContentId = useId();
+  const anchorCell = useRef<HTMLElement | null>(null);
 
   const clearTimer = () => {
     if (timer.current != null) {
@@ -39,12 +49,26 @@ export function useTableHoverTooltip<TData extends RowData>({
   });
 
   const showFor = (target: HTMLElement, content: ReactNode) => {
+    anchorCell.current = target;
     const r = target.getBoundingClientRect();
     setTooltipState({
       rect: { top: r.top, left: r.left, width: r.width, height: r.height },
       content,
     });
   };
+
+  // Point the real cell at the tooltip content while it is shown. Done in a
+  // layout effect (after commit) so React's re-render from `setTooltipState`
+  // can't clobber an imperatively set attribute; cleanup unlinks the previous
+  // cell.
+  useLayoutEffect(() => {
+    if (!tooltipState) {
+      return;
+    }
+    const cell = anchorCell.current;
+    cell?.setAttribute("aria-describedby", tooltipContentId);
+    return () => cell?.removeAttribute("aria-describedby");
+  }, [tooltipState, tooltipContentId]);
 
   const handleCellMouseOver = useEvent(
     (e: React.MouseEvent, cell: Cell<TData, unknown>) => {
@@ -81,20 +105,25 @@ export function useTableHoverTooltip<TData extends RowData>({
 
   const handleCellBlur = useEvent(() => hideTooltip());
 
-  // The anchor rect is captured at hover time, so scrolling would leave it
-  // stale; hide instead of trying to track.
+  // The anchor rect is captured at hover time, so any scroll or resize leaves
+  // it stale; hide instead of tracking. Capture catches scrolls inside the
+  // table's own container too (scroll events don't bubble but do fire in
+  // capture).
   useEffect(() => {
-    if (!scrollElement) {
-      return;
-    }
-    scrollElement.addEventListener("scroll", hideTooltip, { passive: true });
-    return () => scrollElement.removeEventListener("scroll", hideTooltip);
-  }, [scrollElement, hideTooltip]);
+    const opts = { passive: true, capture: true } as const;
+    window.addEventListener("scroll", hideTooltip, opts);
+    window.addEventListener("resize", hideTooltip);
+    return () => {
+      window.removeEventListener("scroll", hideTooltip, { capture: true });
+      window.removeEventListener("resize", hideTooltip);
+    };
+  }, [hideTooltip]);
 
   useEffect(() => clearTimer, []);
 
   return {
     tooltipState,
+    tooltipContentId,
     hideTooltip,
     handleCellMouseOver,
     handleCellMouseLeave,

@@ -142,6 +142,39 @@ describe("DataTable", () => {
     expect(screen.getAllByText("per-cell tip").length).toBeGreaterThan(0);
   });
 
+  it("links the focused cell to the tooltip content for assistive tech", () => {
+    const testData: TestData[] = [{ id: 1, name: "Test 1" }];
+    const columns: ColumnDef<TestData>[] = [
+      { id: "name", accessorKey: "name", header: "Name" },
+    ];
+
+    render(
+      <TooltipProvider>
+        <DataTable
+          data={testData}
+          columns={columns}
+          selection={null}
+          totalRows={1}
+          totalColumns={1}
+          pagination={false}
+          cellHoverTexts={{ "0": { name: "focus tip" } }}
+        />
+      </TooltipProvider>,
+    );
+
+    const cell = within(screen.getAllByRole("row")[1]).getByRole("cell");
+    fireEvent.focus(cell);
+
+    const describedBy = cell.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy as string)).toHaveTextContent(
+      "focus tip",
+    );
+
+    fireEvent.blur(cell);
+    expect(cell).not.toHaveAttribute("aria-describedby");
+  });
+
   it("does not virtualize small datasets without pagination", () => {
     const testData = Array.from({ length: 50 }, (_, i) => ({
       id: i,

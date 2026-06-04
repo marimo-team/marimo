@@ -9,6 +9,7 @@ import type { HoverTooltipState } from "./use-table-hover-tooltip";
 
 interface HoverTooltipProps {
   state: HoverTooltipState | null;
+  contentId: string;
   onClose: () => void;
 }
 
@@ -17,7 +18,11 @@ interface HoverTooltipProps {
  * Rendering one instance per table (instead of one per cell) keeps the cost
  * constant regardless of how many cells are on screen.
  */
-export const HoverTooltip = ({ state, onClose }: HoverTooltipProps) => {
+export const HoverTooltip = ({
+  state,
+  contentId,
+  onClose,
+}: HoverTooltipProps) => {
   return (
     <TooltipRoot
       open={state != null}
@@ -43,7 +48,7 @@ export const HoverTooltip = ({ state, onClose }: HoverTooltipProps) => {
         />
       </TooltipTrigger>
       <TooltipPortal>
-        <TooltipContent>{state?.content}</TooltipContent>
+        <TooltipContent id={contentId}>{state?.content}</TooltipContent>
       </TooltipPortal>
     </TooltipRoot>
   );

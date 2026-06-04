@@ -136,7 +136,7 @@ export const DataTableBody = <TData,>({
     contextMenuCell.current = cell;
   });
 
-  const hoverTooltip = useTableHoverTooltip({ table, scrollElement });
+  const hoverTooltip = useTableHoverTooltip({ table });
 
   const renderCells = (cells: Cell<TData, unknown>[]) => {
     return cells.map((cell) => {
@@ -282,6 +282,7 @@ export const DataTableBody = <TData,>({
       />
       <HoverTooltip
         state={hoverTooltip.tooltipState}
+        contentId={hoverTooltip.tooltipContentId}
         onClose={hoverTooltip.hideTooltip}
       />
     </>
