@@ -594,13 +594,31 @@ def test_public_file_security(client: TestClient) -> None:
 
 def test_inject_service_worker() -> None:
     assert (
-        "const notebookId = 'path%2Fto%2Fnotebook.py';"
+        'const notebookId = "path%2Fto%2Fnotebook.py";'
         in _inject_service_worker("<body></body>", "path/to/notebook.py")
     )
     assert (
-        "const notebookId = 'c%3A%5Cpath%5Cto%5Cnotebook.py';"
+        'const notebookId = "c%3A%5Cpath%5Cto%5Cnotebook.py";'
         in _inject_service_worker("<body></body>", r"c:\path\to\notebook.py")
     )
+
+
+def test_inject_service_worker_escapes_file_key() -> None:
+    # The file key is user-controlled, so it must be emitted as a JSON string
+    # literal and not interpolated directly into the inline <script>. A single
+    # quote in the value must not be able to terminate the string literal.
+    payload = "__new__'-alert(document.domain)-'"
+    result = _inject_service_worker("<body></body>", payload)
+    # The value is emitted as a double-quoted JSON string literal, so the
+    # single quotes in the payload are inert.
+    assert "const notebookId = '" not in result
+    assert (
+        "const notebookId = \"__new__'-alert(document.domain)-'\";" in result
+    )
+    # `</script>` sequences in the value are neutralized too.
+    script_payload = "__new__</script><script>alert(1)</script>"
+    script_result = _inject_service_worker("<body></body>", script_payload)
+    assert "</script><script>" not in script_result
 
 
 def test_inject_service_worker_null_check() -> None:
