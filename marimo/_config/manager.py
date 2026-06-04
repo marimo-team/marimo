@@ -17,6 +17,7 @@ from marimo._config.config import (
     MarimoConfig,
     PartialMarimoConfig,
     RuntimeConfig,
+    SharingConfig,
     SqlOutputType,
     Theme,
     WidthType,
@@ -377,12 +378,14 @@ class SecurityConfigManager(PartialMarimoConfigReader):
         if GLOBAL_SETTINGS.RESTRICT_SHARING:
             # Hide every external code-sharing affordance (shareable WASM
             # links, molab, HTML publishing) across all notebook sessions.
-            # See GLOBAL_SETTINGS.RESTRICT_SHARING.
-            config["sharing"] = {
-                "wasm": False,
-                "html": False,
-                "molab": False,
-            }
+            # See GLOBAL_SETTINGS.RESTRICT_SHARING. Derive the keys from the
+            # schema so any future sharing target is disabled automatically;
+            # every key in SharingConfig is a boolean that hides the affordance
+            # when False.
+            config["sharing"] = cast(
+                SharingConfig,
+                {key: False for key in SharingConfig.__annotations__},
+            )
         return config
 
 

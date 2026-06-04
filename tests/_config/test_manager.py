@@ -689,8 +689,12 @@ def test_restrict_sharing_overrides_user_config(
     """The restriction wins over a user config that enables sharing."""
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
     user = UserConfigManager()
-    user._load_config = lambda: merge_default_config(
-        {"sharing": {"wasm": True, "html": True, "molab": True}}
+    monkeypatch.setattr(
+        user,
+        "_load_config",
+        lambda: merge_default_config(
+            {"sharing": {"wasm": True, "html": True, "molab": True}}
+        ),
     )
     manager = MarimoConfigManager(
         user, EnvConfigManager(), SecurityConfigManager()
