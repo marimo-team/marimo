@@ -6,7 +6,7 @@ import type {
   SortingState,
 } from "@tanstack/react-table";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataTable } from "../data-table";
 
@@ -16,6 +16,12 @@ interface TestData {
 }
 
 describe("DataTable", () => {
+  // Restore real timers unconditionally so a failed assertion in a
+  // fake-timer test can't leak fake timers into later tests.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("should maintain selection state when remounted", () => {
     const mockOnRowSelectionChange = vi.fn();
     const testData: TestData[] = [
@@ -104,7 +110,6 @@ describe("DataTable", () => {
 
     // Radix renders the content twice (visible + a11y-hidden), so match all.
     expect(screen.getAllByText("Michael Scott").length).toBeGreaterThan(0);
-    vi.useRealTimers();
   });
 
   it("shows per-cell hover text from cellHoverTexts on hover", () => {
@@ -135,7 +140,6 @@ describe("DataTable", () => {
     });
 
     expect(screen.getAllByText("per-cell tip").length).toBeGreaterThan(0);
-    vi.useRealTimers();
   });
 
   it("does not virtualize small datasets without pagination", () => {
