@@ -80,11 +80,11 @@ export function useTableHoverTooltip<TData extends RowData>({
     const onUp = () => {
       pointerDown.current = false;
     };
-    window.addEventListener("mousedown", onDown, true);
-    window.addEventListener("mouseup", onUp, true);
+    window.addEventListener("mousedown", onDown, { capture: true });
+    window.addEventListener("mouseup", onUp, { capture: true });
     return () => {
-      window.removeEventListener("mousedown", onDown, true);
-      window.removeEventListener("mouseup", onUp, true);
+      window.removeEventListener("mousedown", onDown, { capture: true });
+      window.removeEventListener("mouseup", onUp, { capture: true });
     };
   }, []);
 
