@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
@@ -194,6 +194,8 @@ describe("useParkedPreview", () => {
       isHeldEdit: false,
       isNoOutputPreview: false,
       heldEditCellId: null,
+      heldShowsCode: true,
+      toggleHeldShowsCode: expect.any(Function),
     });
   });
 
@@ -210,6 +212,8 @@ describe("useParkedPreview", () => {
       isHeldEdit: false,
       isNoOutputPreview: false,
       heldEditCellId: null,
+      heldShowsCode: true,
+      toggleHeldShowsCode: expect.any(Function),
     });
   });
 
@@ -226,6 +230,8 @@ describe("useParkedPreview", () => {
       isHeldEdit: false,
       isNoOutputPreview: false,
       heldEditCellId: null,
+      heldShowsCode: true,
+      toggleHeldShowsCode: expect.any(Function),
     });
   });
 
@@ -242,6 +248,8 @@ describe("useParkedPreview", () => {
       isHeldEdit: false,
       isNoOutputPreview: true,
       heldEditCellId: null,
+      heldShowsCode: true,
+      toggleHeldShowsCode: expect.any(Function),
     });
   });
 
@@ -271,6 +279,8 @@ describe("useParkedPreview", () => {
       isHeldEdit: true,
       isNoOutputPreview: false,
       heldEditCellId: A,
+      heldShowsCode: true,
+      toggleHeldShowsCode: expect.any(Function),
     });
   });
 
@@ -305,6 +315,8 @@ describe("useParkedPreview", () => {
       isHeldEdit: false,
       isNoOutputPreview: false,
       heldEditCellId: null,
+      heldShowsCode: true,
+      toggleHeldShowsCode: expect.any(Function),
     });
   });
 
@@ -334,6 +346,80 @@ describe("useParkedPreview", () => {
       isHeldEdit: false,
       isNoOutputPreview: false,
       heldEditCellId: null,
+      heldShowsCode: true,
+      toggleHeldShowsCode: expect.any(Function),
     });
+  });
+
+  it("shows the held editor by default and toggles it off without navigating", () => {
+    const { result, rerender } = renderHook(
+      (props: Parameters<typeof useParkedPreview>[0]) =>
+        useParkedPreview(props),
+      {
+        initialProps: {
+          activeCell: cell(A),
+          slideConfigs: NO_CONFIG,
+          noOutputIds: new Set([A]),
+        },
+      },
+    );
+    // A gains output: held, with its editor shown by default.
+    rerender({
+      activeCell: cell(A),
+      slideConfigs: NO_CONFIG,
+      noOutputIds: NONE,
+    });
+    expect(result.current.isHeldEdit).toBe(true);
+    expect(result.current.heldShowsCode).toBe(true);
+
+    // The `C` toggle hides the editor in place, no navigation required.
+    act(() => {
+      result.current.toggleHeldShowsCode();
+    });
+    expect(result.current.heldShowsCode).toBe(false);
+
+    // Toggling again brings it back.
+    act(() => {
+      result.current.toggleHeldShowsCode();
+    });
+    expect(result.current.heldShowsCode).toBe(true);
+  });
+
+  it("resets held code visibility when a new cell takes the held slot", () => {
+    const { result, rerender } = renderHook(
+      (props: Parameters<typeof useParkedPreview>[0]) =>
+        useParkedPreview(props),
+      {
+        initialProps: {
+          activeCell: cell(A),
+          slideConfigs: NO_CONFIG,
+          noOutputIds: new Set([A]),
+        },
+      },
+    );
+    rerender({
+      activeCell: cell(A),
+      slideConfigs: NO_CONFIG,
+      noOutputIds: NONE,
+    });
+    act(() => {
+      result.current.toggleHeldShowsCode();
+    });
+    expect(result.current.heldShowsCode).toBe(false);
+
+    // Move to a fresh output-less cell B, then let it gain output (held).
+    rerender({
+      activeCell: cell(B),
+      slideConfigs: NO_CONFIG,
+      noOutputIds: new Set([B]),
+    });
+    rerender({
+      activeCell: cell(B),
+      slideConfigs: NO_CONFIG,
+      noOutputIds: NONE,
+    });
+    expect(result.current.heldEditCellId).toBe(B);
+    // The new cell starts with its editor visible again.
+    expect(result.current.heldShowsCode).toBe(true);
   });
 });

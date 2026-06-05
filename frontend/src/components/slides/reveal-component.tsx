@@ -227,6 +227,8 @@ export function useParkedPreview(options: {
   isHeldEdit: boolean;
   isNoOutputPreview: boolean;
   heldEditCellId: CellId | null;
+  heldShowsCode: boolean;
+  toggleHeldShowsCode: () => void;
 } {
   const { activeCell, slideConfigs, noOutputIds } = options;
   const activeCellId = activeCell?.id ?? null;
@@ -258,13 +260,33 @@ export function useParkedPreview(options: {
 
   const isHeldEdit =
     !baseParked && activeCellId != null && heldCellId === activeCellId;
+  // Keep the held cell out of the composed deck so its editor isn't mounted a
+  // second time (the overlay already renders it); it rejoins once released.
+  const heldEditCellId = isHeldEdit ? heldCellId : null;
+
+  // Code visibility for the held overlay. Defaults to showing the editor so it
+  // survives the no-output -> output transition mid-edit; the `C` toggle can
+  // hide it on demand.
+  const [heldShow, setHeldShow] = useState<{
+    cellId: CellId | null;
+    show: boolean;
+  }>({ cellId: heldEditCellId, show: true });
+  let heldShowsCode = heldShow.show;
+  if (heldShow.cellId !== heldEditCellId) {
+    heldShowsCode = true;
+    setHeldShow({ cellId: heldEditCellId, show: true });
+  }
+  const toggleHeldShowsCode = useEvent(() =>
+    setHeldShow((prev) => ({ ...prev, show: !prev.show })),
+  );
+
   return {
     parkedPreviewCell: baseParked || isHeldEdit ? (activeCell ?? null) : null,
     isHeldEdit,
     isNoOutputPreview,
-    // Keep the held cell out of the composed deck so its editor isn't mounted a
-    // second time (the overlay already renders it); it rejoins once released.
-    heldEditCellId: isHeldEdit ? heldCellId : null,
+    heldEditCellId,
+    heldShowsCode,
+    toggleHeldShowsCode,
   };
 }
 
@@ -426,6 +448,19 @@ const RevealSlidesComponent = ({
   // Still `undefined` when the deck is empty (handled below).
   const activeConfigCell = activeCell ?? slideCells.at(0);
 
+  const {
+    parkedPreviewCell,
+    isHeldEdit,
+    isNoOutputPreview,
+    heldEditCellId,
+    heldShowsCode,
+    toggleHeldShowsCode,
+  } = useParkedPreview({
+    activeCell,
+    slideConfigs: layout.cells,
+    noOutputIds,
+  });
+
   const resolveShowCode = (cellId: CellId | undefined): boolean =>
     shouldShowCode({
       cells: layout.cells,
@@ -437,20 +472,15 @@ const RevealSlidesComponent = ({
   // `C` and the toolbar button target the active slide's cell (the revealed
   // fragment when stepping through a stack, otherwise the lead cell).
   const cellIdToShowCode = activeCell?.id ?? activeConfigCell?.id;
-  const cellShowsCode = resolveShowCode(cellIdToShowCode);
+  const cellShowsCode = isHeldEdit
+    ? heldShowsCode
+    : resolveShowCode(cellIdToShowCode);
 
   // A slide persisted with `showCode: true` always renders code
   const codeAlwaysShown =
     codeToggleEnabled &&
     cellIdToShowCode != null &&
     (layout.cells.get(cellIdToShowCode)?.showCode ?? false);
-
-  const { parkedPreviewCell, isHeldEdit, isNoOutputPreview, heldEditCellId } =
-    useParkedPreview({
-      activeCell,
-      slideConfigs: layout.cells,
-      noOutputIds,
-    });
 
   const composition = useMemo(
     () =>
@@ -532,6 +562,10 @@ const RevealSlidesComponent = ({
   // can be interrupted by higher-priority work.
   const toggleShowCode = useEvent(() => {
     if (cellIdToShowCode == null || codeAlwaysShown) {
+      return;
+    }
+    if (isHeldEdit) {
+      toggleHeldShowsCode();
       return;
     }
     startTransition(() =>
@@ -630,9 +664,9 @@ const RevealSlidesComponent = ({
       ? "Hidden as there is no output"
       : "Skipped in presentation";
 
-  // While holding a cell in the overlay for an in-progress edit we must keep
-  // the editor mounted
-  const parkedShowCode = resolveShowCode(parkedPreviewCell?.id) || isHeldEdit;
+  const parkedShowCode = isHeldEdit
+    ? heldShowsCode
+    : resolveShowCode(parkedPreviewCell?.id);
   const parkedShowsSource = parkedRendersSource({
     isNoOutputPreview,
     isEditable,
