@@ -193,7 +193,6 @@ class _SetupContext:
                 source="cell-manager",
             )
         )
-        self._cell._cell.configure({"hide_code": hide_code})
         self._hide_code = hide_code
         return self
 

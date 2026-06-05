@@ -900,3 +900,18 @@ def test_registered_cell_reflects_set_config() -> None:
     )
 
     assert compiled._cell.config.disabled is True
+
+
+def test_bound_configure_writes_through_to_document() -> None:
+    cm = CellManager()
+    compiled = Cell(_name="c", _cell=compile_cell("x = 1", cell_id=CELL_A))
+    cm.register_cell(CELL_A, "x = 1", CellConfig(), cell=compiled)
+
+    version_before = cm.document.version
+    compiled._cell.configure({"disabled": True})
+
+    # The document is the writer: a SetConfig landed (version bumped)
+    # and the read-through reflects it.
+    assert cm.document.version > version_before
+    assert cm.document.get_cell(CELL_A).config.disabled is True
+    assert compiled._cell.config.disabled is True
