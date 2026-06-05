@@ -136,6 +136,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
 
   const editor = (
     <div
+      tabIndex={-1}
       className={editorWrapperClassName}
       {...cellDomProps(cell.id, cell.name)}
     >
