@@ -233,6 +233,9 @@ class CellManager:
             )
         )
         self._compiled_cells[cell_id] = cell
+        if cell is not None:
+            cell._cell._binding.document = self._document
+            cell._cell._binding.cell_id = cell_id
 
     def register_ir_cell(
         self, cell_def: CellDef, app: InternalApp | None = None

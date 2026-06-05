@@ -862,3 +862,41 @@ def test_standalone_cell_name_returns_fallback() -> None:
         _name="standalone", _cell=compile_cell("x = 1", cell_id=CELL_A)
     )
     assert cell.name == "standalone"
+
+
+def test_registered_cell_reflects_set_code() -> None:
+    from marimo._messaging.notebook.changes import SetCode, Transaction
+
+    cm = CellManager()
+    compiled = Cell(_name="c", _cell=compile_cell("x = 1", cell_id=CELL_A))
+    cm.register_cell(CELL_A, "x = 1", CellConfig(), cell=compiled)
+
+    cm.document.apply(
+        Transaction(changes=(SetCode(CELL_A, "x = 2"),), source="test")
+    )
+
+    assert compiled._cell.code == "x = 2"
+
+
+def test_registered_cell_reflects_set_config() -> None:
+    from marimo._messaging.notebook.changes import SetConfig, Transaction
+
+    cm = CellManager()
+    compiled = Cell(_name="c", _cell=compile_cell("x = 1", cell_id=CELL_A))
+    cm.register_cell(CELL_A, "x = 1", CellConfig(), cell=compiled)
+
+    cm.document.apply(
+        Transaction(
+            changes=(
+                SetConfig(
+                    cell_id=CELL_A,
+                    column=None,
+                    disabled=True,
+                    hide_code=False,
+                ),
+            ),
+            source="test",
+        )
+    )
+
+    assert compiled._cell.config.disabled is True

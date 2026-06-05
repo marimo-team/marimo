@@ -345,7 +345,7 @@ class App:
                         cell_id=new_cell_id,
                         code=code,
                         name=name,
-                        config=config,
+                        config=CellConfig.from_dict(config.asdict()),
                         cell=new_cell,
                     )
         return app
