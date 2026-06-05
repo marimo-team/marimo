@@ -28,10 +28,11 @@ interface VariableDeclaration {
 }
 
 function goToPosition(view: EditorView, from: number): void {
-  view.focus();
-  // Wait for the next frame, otherwise codemirror will
-  // add a cursor from a pointer click.
+  // Focus on the next frame: a synchronous focus is a no-op while a Radix
+  // context menu still owns focus, and codemirror would otherwise add a
+  // cursor from the pointer click.
   requestAnimationFrame(() => {
+    view.focus();
     view.dispatch({
       selection: {
         anchor: from,
