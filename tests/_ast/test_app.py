@@ -1934,19 +1934,23 @@ class TestInternalAppWithData:
         # resets to the rebuilt manager's value (False).
         assert internal_app.cell_manager.unparsable is False
 
-    def test_noop_save_bumps_document_version(self) -> None:
+    def test_noop_save_does_not_bump_document_version(self) -> None:
+        # with_data routes through apply(); a save with identical content
+        # produces an empty transaction, which leaves the document version
+        # unchanged (consistent with SetCode no-op staying stable).
         internal_app, cell_id = self._seed_single()
         doc = internal_app.cell_manager.document
+        cell = doc.get_cell(cell_id)
         before = doc.version
 
         internal_app.with_data(
             cell_ids=[cell_id],
-            codes=[doc.get_cell(cell_id).code],
-            names=["__"],
-            configs=[CellConfig()],
+            codes=[cell.code],
+            names=[cell.name],
+            configs=[cell.config],
         )
 
-        assert doc.version == before + 1
+        assert doc.version == before
 
 
 class TestInternalAppOverrides:
