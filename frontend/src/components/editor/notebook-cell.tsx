@@ -644,10 +644,7 @@ const EditableCellComponent = ({
             status={cellRuntime.status}
             connectionState={connection.state}
             onClick={() => {
-              if (
-                !loading &&
-                !isAppInteractionDisabled(connection.state)
-              ) {
+              if (!loading && !isAppInteractionDisabled(connection.state)) {
                 deleteCell({ cellId });
               }
             }}
