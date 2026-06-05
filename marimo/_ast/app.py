@@ -30,7 +30,6 @@ from typing import (
 from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig, CellImpl, ImportWorkspace
-from marimo._ast.cell_diff import build_transaction
 from marimo._ast.cell_id import external_prefix
 from marimo._ast.cell_manager import CellManager
 from marimo._ast.errors import (
@@ -1054,18 +1053,7 @@ class InternalApp:
                 cell=prev_compiled.get(cell_id),
             )
 
-        transaction, _ = build_transaction(
-            prev=cm, new=rebuilt, source="cell-manager"
-        )
-        cm.document.apply(transaction)
-
-        # _compiled_cells, unparsable, and seen_ids aren't in the document;
-        # copy them too. Mutate _compiled_cells in place so its holders keep
-        # the dict; union seen_ids so a deleted id isn't reused.
-        cm._compiled_cells.clear()
-        cm._compiled_cells.update(rebuilt._compiled_cells)
-        cm.unparsable = rebuilt.unparsable
-        cm._cell_id_generator.seen_ids |= rebuilt._cell_id_generator.seen_ids
+        cm.apply_diff_from(rebuilt, source="cell-manager")
         return self
 
     async def run_cell_async(

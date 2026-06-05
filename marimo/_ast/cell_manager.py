@@ -23,7 +23,17 @@ from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.parse import fixed_dedent
 from marimo._ast.pytest import process_for_pytest
-from marimo._messaging.notebook.changes import CreateCell, Transaction
+from marimo._messaging.notebook.changes import (
+    CreateCell,
+    DeleteCell,
+    DocumentChange,
+    ReorderCells,
+    SetCode,
+    SetConfig,
+    SetName,
+    Transaction,
+    TransactionSource,
+)
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._schemas.serialization import (
     CellDef,
@@ -542,6 +552,89 @@ class CellManager:
 
         for new_id in id_mapping:
             self._cell_id_generator.seen_ids.add(new_id)
+
+    def _build_transaction(
+        self, *, new: CellManager, source: TransactionSource
+    ) -> tuple[Transaction, set[CellId_t]]:
+        """Diff `self` -> `new`, returning `(transaction, changed_cell_ids)`.
+
+        The transaction is unstamped; the caller applies it to the document
+        (which assigns `version`). `changed_cell_ids` covers code, name,
+        or config changes plus all creates and deletes - reorder-only cells
+        are excluded.
+        """
+        prev_data = {cd.cell_id: cd for cd in self.cell_data()}
+        prev_cell_ids = list(self.cell_ids())
+        new_cell_ids = list(new.cell_ids())
+        deleted = set(prev_data) - set(new_cell_ids)
+
+        changes: list[DocumentChange] = []
+        changed_cell_ids: set[CellId_t] = set(deleted)
+        for cid in deleted:
+            changes.append(DeleteCell(cell_id=cid))
+
+        for cd in new.cell_data():
+            prev_cd = prev_data.get(cd.cell_id)
+            if prev_cd is None:
+                changes.append(
+                    CreateCell(
+                        cell_id=cd.cell_id,
+                        code=cd.code,
+                        name=cd.name,
+                        config=cd.config,
+                    )
+                )
+                changed_cell_ids.add(cd.cell_id)
+                continue
+            if cd.code != prev_cd.code:
+                changes.append(SetCode(cell_id=cd.cell_id, code=cd.code))
+                changed_cell_ids.add(cd.cell_id)
+            if cd.name != prev_cd.name:
+                changes.append(SetName(cell_id=cd.cell_id, name=cd.name))
+                changed_cell_ids.add(cd.cell_id)
+            if cd.config != prev_cd.config:
+                changes.append(
+                    SetConfig(
+                        cell_id=cd.cell_id,
+                        column=cd.config.column,
+                        disabled=cd.config.disabled,
+                        hide_code=cd.config.hide_code,
+                    )
+                )
+                changed_cell_ids.add(cd.cell_id)
+
+        if tuple(new_cell_ids) != tuple(prev_cell_ids):
+            changes.append(ReorderCells(cell_ids=tuple(new_cell_ids)))
+
+        return (
+            Transaction(changes=tuple(changes), source=source),
+            changed_cell_ids,
+        )
+
+    def apply_diff_from(
+        self, new: CellManager, *, source: TransactionSource
+    ) -> tuple[Transaction, set[CellId_t]]:
+        """Diff `self` -> `new`, apply to the document, and carry over the
+        state the document doesn't track.
+
+        `self` is mutated in place, so holders of it (and of its `document`)
+        keep live state. `_compiled_cells`, `unparsable`, and `seen_ids`
+        live outside the document, so they are copied alongside the
+        transaction: `_compiled_cells` is mutated in place so its holders
+        keep the dict, and `seen_ids` is unioned so a deleted id isn't reused.
+
+        Returns the stamped transaction and the ids whose code, name, or
+        config changed, plus all creates and deletes.
+        """
+        transaction, changed_cell_ids = self._build_transaction(
+            new=new, source=source
+        )
+        transaction = self.document.apply(transaction)
+        self._compiled_cells.clear()
+        self._compiled_cells.update(new._compiled_cells)
+        self.unparsable = new.unparsable
+        self._cell_id_generator.seen_ids |= new._cell_id_generator.seen_ids
+        return transaction, changed_cell_ids
 
     @property
     def seen_ids(self) -> set[CellId_t]:

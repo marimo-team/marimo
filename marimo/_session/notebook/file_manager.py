@@ -11,7 +11,6 @@ from marimo._ast import load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import overloads_from_env
 from marimo._ast.cell import CellConfig
-from marimo._ast.cell_diff import build_transaction
 from marimo._messaging.notebook.changes import (
     Transaction,
 )
@@ -144,23 +143,8 @@ class AppFileManager:
         new_app = self._load_app(self.path)
         new_app.cell_manager.sort_cell_ids_by_similarity(current_cell_manager)
 
-        transaction, changed_cell_ids = build_transaction(
-            prev=current_cell_manager,
-            new=new_app.cell_manager,
-            source="file-watch",
-        )
-        transaction = current_cell_manager.document.apply(transaction)
-
-        # _compiled_cells, unparsable, and seen_ids aren't in the document;
-        # copy them too. Mutate _compiled_cells in place so its holders keep
-        # the dict; union seen_ids so a deleted id isn't reused.
-        current_cell_manager._compiled_cells.clear()
-        current_cell_manager._compiled_cells.update(
-            new_app.cell_manager._compiled_cells
-        )
-        current_cell_manager.unparsable = new_app.cell_manager.unparsable
-        current_cell_manager._cell_id_generator.seen_ids |= (
-            new_app.cell_manager._cell_id_generator.seen_ids
+        transaction, changed_cell_ids = current_cell_manager.apply_diff_from(
+            new_app.cell_manager, source="file-watch"
         )
 
         # Splice the preserved cell_manager into new_app, then swap the

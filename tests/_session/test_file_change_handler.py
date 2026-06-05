@@ -11,7 +11,6 @@ import pytest
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
-from marimo._ast.cell_diff import build_transaction
 from marimo._ast.cell_manager import CellManager
 from marimo._config.manager import get_default_config_manager
 from marimo._messaging.notebook.changes import (
@@ -45,7 +44,7 @@ if TYPE_CHECKING:
 def _cm_from_doc(doc: NotebookDocument) -> CellManager:
     """Build a `CellManager` mirroring `doc`'s cells.
 
-    Used to drive `build_transaction` from tests that already
+    Used to drive `_build_transaction` from tests that already
     express the prior state as a synthetic `NotebookDocument`.
     """
     cm = CellManager()
@@ -131,8 +130,7 @@ def _run_reload(
     mock_session.document = prev_document
     strategy = EditModeReloadStrategy(config_manager)
     cell_ids = list(afm.app.cell_manager.cell_ids())
-    transaction, _ = build_transaction(
-        prev=_cm_from_doc(prev_document),
+    transaction, _ = _cm_from_doc(prev_document)._build_transaction(
         new=afm.app.cell_manager,
         source="file-watch",
     )
@@ -261,8 +259,7 @@ def test_edit_mode_reload_with_deleted_cells(
     mock_session.document = prev_document
 
     strategy = EditModeReloadStrategy(config)
-    transaction, _ = build_transaction(
-        prev=_cm_from_doc(prev_document),
+    transaction, _ = _cm_from_doc(prev_document)._build_transaction(
         new=afm.app.cell_manager,
         source="file-watch",
     )
