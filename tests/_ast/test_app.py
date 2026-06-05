@@ -1825,6 +1825,21 @@ class TestInternalAppWithData:
             is original_compiled
         )
 
+    def test_preserves_compiled_cells_dict_identity(self) -> None:
+        internal_app, cell_id = self._seed_single()
+        compiled = internal_app.cell_manager._compiled_cells
+
+        internal_app.with_data(
+            cell_ids=["new"],
+            codes=["y = 2"],
+            names=["__"],
+            configs=[CellConfig()],
+        )
+
+        # The dict is mutated in place, not reassigned, so holders of the
+        # original reference still see live state.
+        assert internal_app.cell_manager._compiled_cells is compiled
+
     def test_writes_new_codes_and_names(self) -> None:
         app = App()
 
