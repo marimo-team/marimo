@@ -915,3 +915,21 @@ def test_bound_configure_writes_through_to_document() -> None:
     assert cm.document.version > version_before
     assert cm.document.get_cell(CELL_A).config.disabled is True
     assert compiled._cell.config.disabled is True
+
+
+def test_cell_name_reflects_set_name() -> None:
+    from marimo._messaging.notebook.changes import SetName, Transaction
+
+    cm = CellManager()
+    compiled = Cell(
+        _name="original", _cell=compile_cell("x = 1", cell_id=CELL_A)
+    )
+    cm.register_cell(
+        CELL_A, "x = 1", CellConfig(), name="original", cell=compiled
+    )
+
+    cm.document.apply(
+        Transaction(changes=(SetName(CELL_A, "renamed"),), source="test")
+    )
+
+    assert compiled.name == "renamed"

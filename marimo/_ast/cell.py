@@ -531,6 +531,9 @@ class Cell:
 
     @property
     def name(self) -> str:
+        binding = self._cell._binding
+        if binding.document is not None:
+            return binding.document.get_cell(self._cell.cell_id).name
         return self._name
 
     @property
