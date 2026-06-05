@@ -149,25 +149,30 @@ class download(UIElement[None, None]):
         )
 
     async def _load(self, _args: EmptyArgs) -> LoadResponse:
-        if callable(self._data) and not isinstance(self._data, UIElement):
+        filename = (
+            self._filename() if callable(self._filename) else self._filename
+        )
+
+        # Eager data already ships as the button's href; a callable filename is
+        # the only reason load runs here, so resolve the name and let the
+        # frontend reuse the href instead of re-encoding the payload.
+        if not callable(self._data):
+            return LoadResponse(data="", filename=filename)
+
+        if isinstance(self._data, UIElement):
+            result = self._data
+        else:
             result_or_coroutine = self._data()
             if asyncio.iscoroutine(result_or_coroutine):
                 result = await result_or_coroutine
             else:
                 result = result_or_coroutine
-        else:
-            result = self._data
 
         url = io_to_data_url(
             result, fallback_mime_type=self._mimetype or "text/plain"
         )
-
         if url is None:
             raise ValueError("Failed to convert data to data URL")
-
-        filename = (
-            self._filename() if callable(self._filename) else self._filename
-        )
         return LoadResponse(data=url, filename=filename)
 
     def _convert_value(self, value: None) -> None:

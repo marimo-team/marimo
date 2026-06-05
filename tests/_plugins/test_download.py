@@ -235,6 +235,19 @@ async def test_download_lazy_filename_with_lazy_data():
     assert loaded_data.filename == "dynamic.csv"
 
 
+async def test_download_lazy_filename_eager_data_reuses_href():
+    """Eager data ships as the href; load returns only the resolved name."""
+    result = download(b"test data", filename=lambda: "dynamic.xlsx")
+    args = result._component_args
+    # Data URL is shipped eagerly for the frontend to reuse.
+    assert args["data"].startswith("data:")
+
+    loaded_data = await result._load(EmptyArgs())
+    # No re-encode: load supplies the fresh name, the href carries the data.
+    assert loaded_data.data == ""
+    assert loaded_data.filename == "dynamic.xlsx"
+
+
 def test_download_lazy_filename_mimetype_fallback():
     """Test callable filename skips extension inference without raising."""
     # No extension to inspect at render time, so mimetype falls back to
