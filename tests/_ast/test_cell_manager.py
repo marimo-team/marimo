@@ -842,3 +842,23 @@ class TestSortCellIdsByCompiledCells:
         compiled = curr._compiled_cells[outer_id]
         assert compiled is not None
         assert compiled._cell.cell_id == outer_id
+
+
+def test_unbound_cellimpl_returns_compile_time_values() -> None:
+    impl = compile_cell("x = 1", cell_id=CELL_A)
+    assert impl.code == "x = 1"
+    assert impl.cell_id == CELL_A
+    assert impl.config == CellConfig()
+
+
+def test_unbound_cellimpl_config_is_mutable_in_place() -> None:
+    impl = compile_cell("x = 1", cell_id=CELL_A)
+    impl.configure({"disabled": True})
+    assert impl.config.disabled is True
+
+
+def test_standalone_cell_name_returns_fallback() -> None:
+    cell = Cell(
+        _name="standalone", _cell=compile_cell("x = 1", cell_id=CELL_A)
+    )
+    assert cell.name == "standalone"
