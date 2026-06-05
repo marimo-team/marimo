@@ -4280,7 +4280,7 @@ export interface components {
      *
      *         - `theme`: `"light"`, `"dark"`, or `"system"`
      *         - `code_editor_font_size`: font size for the code editor
-     *         - `cell_output`: `"above"` or `"below"`
+     *         - `cell_output`: `"above"`, `"below"`, or `"right"`
      *         - `dataframes`: `"rich"` or `"plain"`
      *         - `custom_css`: list of paths to custom CSS files
      *         - `default_table_page_size`: default number of rows to display in tables
@@ -4290,7 +4290,7 @@ export interface components {
      */
     DisplayConfig: {
       /** @enum {unknown} */
-      cell_output: "above" | "below";
+      cell_output: "above" | "below" | "right";
       code_editor_font_size: number;
       custom_css?: string[];
       /** @enum {unknown} */

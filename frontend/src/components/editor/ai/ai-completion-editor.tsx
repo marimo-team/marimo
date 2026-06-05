@@ -59,7 +59,7 @@ interface Props {
   declineChange: () => void;
   acceptChange: (rightHandCode: string) => void;
   runCell: () => void;
-  outputArea?: "above" | "below";
+  outputArea?: "above" | "below" | "right";
   /**
    * Children shown when there is no completion
    */

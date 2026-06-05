@@ -1033,7 +1033,7 @@ export const UserConfigForm: React.FC = () => {
                           disabled={field.disabled}
                           className="inline-flex mr-2"
                         >
-                          {["above", "below"].map((option) => (
+                          {["above", "below", "right"].map((option) => (
                             <option value={option} key={option}>
                               {option}
                             </option>
