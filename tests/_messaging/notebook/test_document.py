@@ -825,3 +825,40 @@ class TestReorderCells:
         doc = _doc("a", "b", "c")
         doc.apply(_tx(ReorderCells(cell_ids=(CellId_t("b"),))))
         assert _ids(doc) == snapshot(["b", "a", "c"])
+
+
+# ------------------------------------------------------------------
+# _by_id index
+# ------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda d: d.apply(
+            _tx(CreateCell(CellId_t("c"), "z = 3", "c", CellConfig()))
+        ),
+        lambda d: d.apply(_tx(DeleteCell(CellId_t("a")))),
+        lambda d: d.apply(_tx(MoveCell(CellId_t("a"), after=CellId_t("b")))),
+        lambda d: d.apply(
+            _tx(ReorderCells(cell_ids=(CellId_t("b"), CellId_t("a"))))
+        ),
+        lambda d: d.apply(_tx(SetCode(CellId_t("a"), "x = 99"))),
+        lambda d: d._rekey({CellId_t("a"): CellId_t("a2")}),
+        lambda d: d._replace_cells([_cell("n")]),
+    ],
+)
+def test_by_id_index_mirrors_cells_after_mutation(mutate) -> None:
+    doc = _doc("a", "b")
+    _ = doc._by_id  # prime the cache, then mutate
+    mutate(doc)
+    assert doc._by_id == {c.id: c for c in doc._cells}
+
+
+def test_get_cell_reflects_create_and_delete() -> None:
+    doc = _doc("a", "b")
+    assert doc.get_cell(CellId_t("a")).id == CellId_t("a")
+    doc.apply(_tx(DeleteCell(CellId_t("a"))))
+    assert CellId_t("a") not in doc
+    with pytest.raises(KeyError):
+        doc.get_cell(CellId_t("a"))

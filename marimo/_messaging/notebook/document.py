@@ -95,6 +95,8 @@ class NotebookDocument:
     def __init__(self, cells: Iterable[NotebookCell] | None = None) -> None:
         self._cells: list[NotebookCell] = list(cells) if cells else []
         self._version: int = 0
+        self._by_id_cache: dict[CellId_t, NotebookCell] = {}
+        self._cache_version: int = -1
 
     # ------------------------------------------------------------------
     # Read-only accessors
@@ -114,19 +116,23 @@ class NotebookDocument:
     def version(self) -> int:
         return self._version
 
+    @property
+    def _by_id(self) -> dict[CellId_t, NotebookCell]:
+        if self._cache_version != self._version:
+            self._by_id_cache = {c.id: c for c in self._cells}
+            self._cache_version = self._version
+        return self._by_id_cache
+
     def get_cell(self, cell_id: CellId_t) -> NotebookCell:
         """Lookup by ID. Raises `KeyError` if not found."""
-        for cell in self._cells:
-            if cell.id == cell_id:
-                return cell
-        raise KeyError(f"Cell {cell_id!r} not found in document")
+        cell = self.get(cell_id)
+        if cell is None:
+            raise KeyError(f"Cell {cell_id!r} not found in document")
+        return cell
 
     def get(self, cell_id: CellId_t) -> NotebookCell | None:
         """Lookup by ID, returning `None` if not found."""
-        for cell in self._cells:
-            if cell.id == cell_id:
-                return cell
-        return None
+        return self._by_id.get(cell_id)
 
     def get_cell_version(self, cell_id: CellId_t) -> int | None:
         """Return the cell's version counter, or `None` if not found."""
@@ -134,7 +140,7 @@ class NotebookDocument:
         return cell.version if cell is not None else None
 
     def __contains__(self, cell_id: object) -> bool:
-        return any(c.id == cell_id for c in self._cells)
+        return cell_id in self._by_id
 
     def __len__(self) -> int:
         return len(self._cells)
