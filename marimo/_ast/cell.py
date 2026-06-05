@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from types import CodeType
 
     from marimo._ast.app import InternalApp
+    from marimo._messaging.notebook.document import NotebookDocument
     from marimo._messaging.types import Stream
     from marimo._output.hypertext import Html
 
@@ -151,11 +152,26 @@ class CellOutput:
     output: Any = None
 
 
+@dataclasses.dataclass
+class CellBinding:
+    """Binds a compiled cell to the live document that owns its
+    code/name/config/id.
+
+    Unbound cells (kernel reactive graph, ipynb/markdown conversion,
+    islands, lint) leave both fields `None` and keep their compile-time
+    copies. `cell_id` is tracked here rather than read through the
+    document because it is the lookup key and cannot resolve itself.
+    """
+
+    document: NotebookDocument | None = None
+    cell_id: CellId_t | None = None
+
+
 @dataclasses.dataclass(frozen=True)
 class CellImpl:
     # hash of code
     key: int
-    code: str
+    _code: str
     mod: ast.Module
     defs: set[Name]
     refs: set[Name]
@@ -172,7 +188,7 @@ class CellImpl:
     # whether this cell is Python or SQL
     language: Language
     # unique id
-    cell_id: CellId_t
+    _cell_id: CellId_t
 
     # Markdown content of the cell if it exists
     markdown: str | None = None
@@ -180,7 +196,7 @@ class CellImpl:
     # ------------------ Mutable fields --------------------------------------
     #
     # explicit configuration of cell
-    config: CellConfig = dataclasses.field(default_factory=CellConfig)
+    _config: CellConfig = dataclasses.field(default_factory=CellConfig)
     # workspace for runtimes to use to store metadata about imports
     import_workspace: ImportWorkspace = dataclasses.field(
         default_factory=ImportWorkspace
@@ -196,13 +212,68 @@ class CellImpl:
     _output: CellOutput = dataclasses.field(default_factory=CellOutput)
     # Whether this cell can be executed as a test cell.
     _test: bool = False
+    # binds this compiled cell to the document that owns its
+    # code/name/config/id; unset for kernel/conversion cells
+    _binding: CellBinding = dataclasses.field(
+        default_factory=CellBinding, compare=False
+    )
+
+    @property
+    def cell_id(self) -> CellId_t:
+        binding = self._binding
+        if binding.cell_id is not None:
+            return binding.cell_id
+        return self._cell_id
+
+    @property
+    def code(self) -> str:
+        binding = self._binding
+        if binding.document is not None:
+            return binding.document.get_cell(self.cell_id).code
+        return self._code
+
+    @property
+    def config(self) -> CellConfig:
+        binding = self._binding
+        if binding.document is not None:
+            return binding.document.get_cell(self.cell_id).config
+        return self._config
 
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cell config.
 
         `update` can be a partial config.
+
+        On a cell bound to a document, the update is applied as a
+        `SetConfig` transaction so the document stays the sole writer.
+        On an unbound cell (kernel/conversion), the stored fallback is
+        mutated in place.
         """
-        self.config.configure(update)
+        binding = self._binding
+        if binding.document is None:
+            self._config.configure(update)
+            return self
+
+        from marimo._messaging.notebook.changes import (
+            SetConfig,
+            Transaction,
+        )
+
+        merged = CellConfig.from_dict(self.config.asdict())
+        merged.configure(update)
+        binding.document.apply(
+            Transaction(
+                changes=(
+                    SetConfig(
+                        cell_id=self.cell_id,
+                        column=merged.column,
+                        disabled=merged.disabled,
+                        hide_code=merged.hide_code,
+                    ),
+                ),
+                source="cell-manager",
+            )
+        )
         return self
 
     @property

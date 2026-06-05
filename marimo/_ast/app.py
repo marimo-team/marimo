@@ -318,9 +318,9 @@ class App:
                         _name=cell.name,
                         # CellImpl has mutable fields and cannot safely be shallow copied.
                         _cell=CellImpl(
-                            cell_id=new_cell_id,
+                            _cell_id=new_cell_id,
                             key=cell_impl.key,
-                            code=cell_impl.code,
+                            _code=cell_impl.code,
                             mod=cell_impl.mod,
                             defs=cell_impl.defs,
                             refs=cell_impl.refs,
@@ -332,7 +332,7 @@ class App:
                             last_expr=cell_impl.last_expr,
                             language=cell_impl.language,
                             markdown=cell_impl.markdown,
-                            config=CellConfig.from_dict(
+                            _config=CellConfig.from_dict(
                                 cell_impl.config.asdict()
                             ),
                             import_workspace=ImportWorkspace(

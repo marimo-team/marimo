@@ -276,7 +276,7 @@ def compile_cell(
         # either empty code or just comments
         return CellImpl(
             key=hash(""),
-            code=code,
+            _code=code,
             mod=module,
             defs=set(),
             refs=set(),
@@ -287,7 +287,7 @@ def compile_cell(
             language="python",
             body=None,
             last_expr=None,
-            cell_id=cell_id,
+            _cell_id=cell_id,
         )
 
     is_test = contains_only_tests(module)
@@ -383,7 +383,7 @@ def compile_cell(
     return CellImpl(
         # keyed by original (user) code, for cache lookups
         key=code_key(code),
-        code=code,
+        _code=code,
         mod=original_module,
         defs=nonlocals,
         refs=v.refs,
@@ -398,7 +398,7 @@ def compile_cell(
         language=v.language,
         body=body,
         last_expr=last_expr,
-        cell_id=cell_id,
+        _cell_id=cell_id,
         markdown=maybe_md,
         _test=is_test,
     )
