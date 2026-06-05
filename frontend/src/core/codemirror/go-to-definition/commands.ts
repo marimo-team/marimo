@@ -403,22 +403,29 @@ function findScopedDefinitionPosition(
 }
 
 /**
- * This function will select the first occurrence of the given variable name,
- * for a given editor view.
+ * This function selects a scoped definition for the given variable name, when
+ * a usage position is available, or optionally falls back to the first matching
+ * variable name in the given editor view.
  * @param view The editor view which contains the variable name.
  * @param variableName The name of the variable to select, if found in the editor.
  * @param usagePosition The position of the variable usage, if available.
+ * @param fallbackToFirstMatch Whether to fall back to the first matching
+ * variable name when no scoped definition is found. Defaults to true.
  */
 export function goToVariableDefinition(
   view: EditorView,
   variableName: string,
   usagePosition?: number,
+  fallbackToFirstMatch = true,
 ): boolean {
   const { state } = view;
-  const from =
-    (usagePosition !== undefined
-      ? findScopedDefinitionPosition(state, variableName, usagePosition)
-      : null) ?? findFirstMatchingVariable(state, variableName);
+  let from: number | null = null;
+  if (usagePosition !== undefined) {
+    from = findScopedDefinitionPosition(state, variableName, usagePosition);
+  }
+  if (from === null && fallbackToFirstMatch) {
+    from = findFirstMatchingVariable(state, variableName);
+  }
 
   if (from === null) {
     return false;
