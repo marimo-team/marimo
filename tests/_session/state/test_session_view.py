@@ -4,6 +4,8 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import patch
 
+import msgspec
+
 from marimo._ast.cell import RuntimeStateType
 from marimo._data.models import (
     Database,
@@ -81,6 +83,57 @@ def test_session_view_cell_notification(session_view: SessionView) -> None:
 
     assert session_view.cell_notifications[cell_id].output == updated_output
     assert session_view.cell_notifications[cell_id].status == updated_status
+
+
+def test_session_view_serialization_hint_survives_status_updates(
+    session_view: SessionView,
+) -> None:
+    # A top-level definition advertises its reusability hint.
+    session_view.add_notification(
+        CellNotification(cell_id=cell_id, serialization="Valid")
+    )
+    assert session_view.cell_notifications[cell_id].serialization == "Valid"
+
+    # Subsequent lifecycle updates omit serialization (UNSET) and must not
+    # wipe the hint — otherwise a reconnect snapshot loses the badge.
+    for status in ("queued", "running", "idle"):
+        status_update = CellNotification(cell_id=cell_id, status=status)
+        assert status_update.serialization is msgspec.UNSET
+        session_view.add_notification(status_update)
+        assert (
+            session_view.cell_notifications[cell_id].serialization == "Valid"
+        )
+
+
+def test_session_view_serialization_hint_explicit_clear(
+    session_view: SessionView,
+) -> None:
+    session_view.add_notification(
+        CellNotification(cell_id=cell_id, serialization="Valid")
+    )
+    # An explicit None clears the hint (cell is no longer a top-level def).
+    session_view.add_notification(
+        CellNotification(cell_id=cell_id, serialization=None)
+    )
+    assert session_view.cell_notifications[cell_id].serialization is None
+
+
+def test_cell_notification_serialization_wire_encoding() -> None:
+    # UNSET is omitted (unchanged), None is sent explicitly (clear), a string
+    # is sent verbatim (set).
+    assert "serialization" not in serialize(CellNotification(cell_id=cell_id))
+    assert (
+        serialize(CellNotification(cell_id=cell_id, serialization=None))[
+            "serialization"
+        ]
+        is None
+    )
+    assert (
+        serialize(CellNotification(cell_id=cell_id, serialization="Valid"))[
+            "serialization"
+        ]
+        == "Valid"
+    )
 
 
 # Test adding Variables to SessionView

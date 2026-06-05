@@ -5,6 +5,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
+import msgspec
+
 from marimo import _loggers
 from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -656,5 +658,11 @@ def merge_cell_notification(
 
     if current.output is None:
         current.output = previous.output
+
+    # UNSET means "unchanged" — inherit the previously broadcast hint so a
+    # reconnect snapshot keeps the reusability badge. None (explicit clear) and
+    # concrete values are left as-is.
+    if current.serialization is msgspec.UNSET:
+        current.serialization = previous.serialization
 
     return current

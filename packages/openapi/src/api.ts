@@ -3647,8 +3647,10 @@ export interface components {
      * CellNotification
      * @description Updates a cell's state in the frontend.
      *
-     *         Only fields that are set (not None) will update the cell state.
-     *         Omitting a field leaves that aspect unchanged.
+     *         This is a partial update: each field carries its own "unchanged" semantics,
+     *         documented per field below. Most fields treat None as "unchanged"; fields
+     *         that need to distinguish "unchanged" from "clear" use msgspec.UNSET for the
+     *         former and None for the latter.
      *
      *         Attributes:
      *             cell_id: Unique identifier of the cell being updated.
@@ -3657,7 +3659,7 @@ export interface components {
      *             status: Execution status (idle/running/stale/queued/disabled-transitively).
      *             stale_inputs: Whether cell has stale inputs from changed dependencies.
      *             run_id: Execution run ID for tracing. Auto-set from context.
-     *             serialization: Serialization status (TopLevelHints).
+     *             serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
      *             timestamp: Creation timestamp, auto-set.
      */
     CellNotification: {
@@ -3673,7 +3675,6 @@ export interface components {
       output?: null | components["schemas"]["CellOutput"];
       /** @default null */
       run_id?: string | null;
-      /** @default null */
       serialization?: string | null;
       /** @default null */
       stale_inputs?: boolean | null;

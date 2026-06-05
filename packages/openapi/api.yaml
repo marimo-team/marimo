@@ -380,16 +380,18 @@ components:
       format: cell-id
       type: string
     CellNotification:
-      description: "Updates a cell's state in the frontend.\n\n    Only fields that\
-        \ are set (not None) will update the cell state.\n    Omitting a field leaves\
-        \ that aspect unchanged.\n\n    Attributes:\n        cell_id: Unique identifier\
-        \ of the cell being updated.\n        output: Cell's output. Use CellOutput.empty()\
-        \ to clear.\n        console: Console messages. Single/list appends, [] clears,\
-        \ None unchanged.\n        status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
+      description: "Updates a cell's state in the frontend.\n\n    This is a partial\
+        \ update: each field carries its own \"unchanged\" semantics,\n    documented\
+        \ per field below. Most fields treat None as \"unchanged\"; fields\n    that\
+        \ need to distinguish \"unchanged\" from \"clear\" use msgspec.UNSET for the\n\
+        \    former and None for the latter.\n\n    Attributes:\n        cell_id:\
+        \ Unique identifier of the cell being updated.\n        output: Cell's output.\
+        \ Use CellOutput.empty() to clear.\n        console: Console messages. Single/list\
+        \ appends, [] clears, None unchanged.\n        status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
         \        stale_inputs: Whether cell has stale inputs from changed dependencies.\n\
         \        run_id: Execution run ID for tracing. Auto-set from context.\n  \
-        \      serialization: Serialization status (TopLevelHints).\n        timestamp:\
-        \ Creation timestamp, auto-set."
+        \      serialization: Top-level reusability hint. UNSET unchanged, None clears,\
+        \ str sets.\n        timestamp: Creation timestamp, auto-set."
       properties:
         cell_id:
           $ref: '#/components/schemas/CellId'
@@ -418,7 +420,6 @@ components:
           anyOf:
           - type: string
           - type: 'null'
-          default: null
         stale_inputs:
           anyOf:
           - type: boolean
