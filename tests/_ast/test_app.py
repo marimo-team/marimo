@@ -1918,7 +1918,7 @@ class TestInternalAppWithData:
         # at version 0.
         assert doc.get_cell_version(CellId_t("new")) == 0
 
-    def test_delete_then_recreate_same_id_is_rejected(self) -> None:
+    def test_deleted_id_stays_reserved_for_generation(self) -> None:
         internal_app, cell_id = self._seed_single()
 
         # Drop the original cell.
@@ -1929,12 +1929,12 @@ class TestInternalAppWithData:
             configs=[CellConfig()],
         )
 
-        # Recreating the original id must still be rejected: seen_ids
-        # remembers it even though it's gone from the document.
+        # seen_ids remembers the dropped id so the generator won't mint it
+        # again, even though it's gone from the document.
         seen = internal_app.cell_manager._cell_id_generator.seen_ids
         assert cell_id in seen
 
-    def test_unparsable_carried_over(self) -> None:
+    def test_unparsable_not_carried_over(self) -> None:
         internal_app, cell_id = self._seed_single()
         internal_app.cell_manager.unparsable = True
 
