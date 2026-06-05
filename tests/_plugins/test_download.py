@@ -191,3 +191,54 @@ async def test_download_xlsx_lazy_with_filename():
     )
     # Verify filename is preserved in lazy load response
     assert loaded_data.filename == "output.xlsx"
+
+
+async def test_download_lazy_filename():
+    """Test callable filename forces lazy path and resolves at click time."""
+    result = download(b"test data", filename=lambda: "dynamic.xlsx")
+    args = result._component_args
+    # A callable filename forces the lazy path even with static data...
+    assert args["lazy"]
+    # ...and is not serialized into render args; load supplies it instead.
+    assert args["filename"] is None
+
+    loaded_data = await result._load(EmptyArgs())
+    assert loaded_data.filename == "dynamic.xlsx"
+
+
+async def test_download_lazy_filename_evaluated_at_call():
+    """Test the callable filename is evaluated per load, not at construction."""
+    name = {"value": "first.txt"}
+    result = download(b"test data", filename=lambda: name["value"])
+
+    first = await result._load(EmptyArgs())
+    assert first.filename == "first.txt"
+
+    name["value"] = "second.txt"
+    second = await result._load(EmptyArgs())
+    assert second.filename == "second.txt"
+
+
+async def test_download_lazy_filename_with_lazy_data():
+    """Test callable data and callable filename resolve together in load."""
+
+    def get_data():
+        return b"test data"
+
+    result = download(data=get_data, filename=lambda: "dynamic.csv")
+    args = result._component_args
+    assert args["lazy"]
+    assert args["filename"] is None
+
+    loaded_data = await result._load(EmptyArgs())
+    assert loaded_data.data.startswith("data:text/plain;base64")
+    assert loaded_data.filename == "dynamic.csv"
+
+
+def test_download_lazy_filename_mimetype_fallback():
+    """Test callable filename skips extension inference without raising."""
+    # No extension to inspect at render time, so mimetype falls back to
+    # text/plain rather than being guessed from the (unevaluated) callable.
+    result = download(b"test data", filename=lambda: "dynamic.xlsx")
+    args = result._component_args
+    assert args["data"].startswith("data:text/plain;base64")

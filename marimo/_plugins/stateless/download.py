@@ -41,7 +41,11 @@ class download(UIElement[None, None]):
             - file opened in binary mode
             - callable returning any of the above (for lazy loading)
             - async callable returning any of the above (for lazy loading)
-        filename (str): The name of the file to download.
+        filename (str, callable): The name of the file to download. Can be a
+            zero-arg callable returning a string, evaluated at click time so
+            the name reflects the latest application state. A callable filename
+            disables extension-based mimetype inference; pass `mimetype`
+            explicitly if you need a specific one.
             If not provided, the name will be guessed from the data.
         mimetype (str): The mimetype of the file to download, for example,
             (e.g. "text/csv", "image/png"). If not provided,
@@ -78,7 +82,7 @@ class download(UIElement[None, None]):
         data: DataType
         | Callable[[], DataType]
         | Callable[[], Coroutine[None, None, DataType]],
-        filename: str | None = None,
+        filename: str | Callable[[], str] | None = None,
         mimetype: str | None = None,
         disabled: bool = False,
         *,
@@ -89,10 +93,15 @@ class download(UIElement[None, None]):
         self._mimetype = mimetype
 
         data_url = ""
-        is_lazy = callable(data)
+        is_lazy = callable(data) or callable(filename)
 
-        # name used to guess mimetype
-        name_for_mime = data if isinstance(data, str) else filename
+        # name used to guess mimetype; a callable filename has no extension to
+        # inspect at render time, so skip inference and fall back to text/plain
+        name_for_mime = (
+            data
+            if isinstance(data, str)
+            else (None if callable(filename) else filename)
+        )
         resolved_mimetype = (
             mimetype or guess_mime_type(name_for_mime) or "text/plain"
         )
@@ -124,7 +133,7 @@ class download(UIElement[None, None]):
             on_change=None,
             args={
                 "data": data_url,
-                "filename": filename,
+                "filename": None if callable(filename) else filename,
                 "disabled": disabled,
                 "lazy": is_lazy,
             },
@@ -156,7 +165,10 @@ class download(UIElement[None, None]):
         if url is None:
             raise ValueError("Failed to convert data to data URL")
 
-        return LoadResponse(data=url, filename=self._filename)
+        filename = (
+            self._filename() if callable(self._filename) else self._filename
+        )
+        return LoadResponse(data=url, filename=filename)
 
     def _convert_value(self, value: None) -> None:
         return value
