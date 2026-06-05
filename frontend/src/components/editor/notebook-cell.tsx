@@ -455,7 +455,13 @@ const EditableCellComponent = ({
   const hasOutput = !isOutputEmpty(cellRuntime.output);
   const isStaleCell = outputIsStale(cellRuntime, cellData.edited);
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
-  const cellOutput = userConfig.display.cell_output;
+  const configuredCellOutput = userConfig.display.cell_output;
+  // Side-by-side doesn't make sense for markdown with hidden code: the editor
+  // collapses to h-0 and leaves a phantom empty column. Fall back to "below".
+  const cellOutput =
+    configuredCellOutput === "right" && isMarkdownCodeHidden
+      ? "below"
+      : configuredCellOutput;
 
   const hasOutputAbove = hasOutput && cellOutput === "above";
 
@@ -575,6 +581,82 @@ const EditableCellComponent = ({
 
   const isToplevel = cellRuntime.serialization?.toLowerCase() === "valid";
 
+  const trayElement = (
+    <div
+      className={cn("tray")}
+      data-has-output-above={hasOutputAbove}
+      data-hidden={isMarkdownCodeHidden}
+    >
+      <StagedAICellBackground cellId={cellId} />
+      <div className="absolute right-2 -top-4 z-10">
+        <CellToolbar
+          edited={cellData.edited}
+          status={cellRuntime.status}
+          cellConfig={cellData.config}
+          needsRun={needsRun}
+          hasOutput={hasOutput}
+          hasConsoleOutput={hasConsoleOutput}
+          cellActionDropdownRef={cellActionDropdownRef}
+          cellId={cellId}
+          name={cellData.name}
+          getEditorView={getEditorView}
+          onRun={runCell}
+        />
+      </div>
+      <CellEditor
+        theme={theme}
+        showPlaceholder={showPlaceholder}
+        id={cellId}
+        code={cellData.code}
+        config={cellData.config}
+        status={cellRuntime.status}
+        serializedEditorState={cellData.serializedEditorState}
+        runCell={runCell}
+        setEditorView={setEditorView}
+        userConfig={userConfig}
+        editorViewRef={editorView}
+        editorViewParentRef={editorViewParentRef}
+        hidden={!isCellCodeShown}
+        hasOutput={hasOutput}
+        showHiddenCode={showHiddenCode}
+        languageAdapter={languageAdapter}
+        setLanguageAdapter={setLanguageAdapter}
+        outputArea={cellOutput}
+      />
+      <CellRightSideActions
+        className={cn(
+          isMarkdownCodeHidden && cellOutput === "below" && "top-14",
+        )}
+        edited={cellData.edited}
+        status={cellRuntime.status}
+        isCellStatusInline={isCellStatusInline}
+        uninstantiated={uninstantiated}
+        disabled={cellData.config.disabled}
+        runElapsedTimeMs={cellRuntime.runElapsedTimeMs}
+        runStartTimestamp={cellRuntime.runStartTimestamp}
+        lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
+        staleInputs={cellRuntime.staleInputs}
+        interrupted={cellRuntime.interrupted}
+      />
+      <div className="shoulder-bottom hover-action">
+        {canDelete && isCellCodeShown && (
+          <DeleteButton
+            status={cellRuntime.status}
+            connectionState={connection.state}
+            onClick={() => {
+              if (
+                !loading &&
+                !isAppInteractionDisabled(connection.state)
+              ) {
+                deleteCell({ cellId });
+              }
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <TooltipProvider>
       <CellActionsContextMenu cellId={cellId} getEditorView={getEditorView}>
@@ -601,79 +683,14 @@ const EditableCellComponent = ({
           >
             <CellLeftSideActions cellId={cellId} actions={actions} />
             {cellOutput === "above" && (outputArea || emptyMarkdownPlaceholder)}
-            <div
-              className={cn("tray")}
-              data-has-output-above={hasOutputAbove}
-              data-hidden={isMarkdownCodeHidden}
-            >
-              <StagedAICellBackground cellId={cellId} />
-              <div className="absolute right-2 -top-4 z-10">
-                <CellToolbar
-                  edited={cellData.edited}
-                  status={cellRuntime.status}
-                  cellConfig={cellData.config}
-                  needsRun={needsRun}
-                  hasOutput={hasOutput}
-                  hasConsoleOutput={hasConsoleOutput}
-                  cellActionDropdownRef={cellActionDropdownRef}
-                  cellId={cellId}
-                  name={cellData.name}
-                  getEditorView={getEditorView}
-                  onRun={runCell}
-                />
+            {cellOutput === "right" ? (
+              <div className="cell-row-container--side-by-side">
+                {trayElement}
+                {outputArea || emptyMarkdownPlaceholder}
               </div>
-              <CellEditor
-                theme={theme}
-                showPlaceholder={showPlaceholder}
-                id={cellId}
-                code={cellData.code}
-                config={cellData.config}
-                status={cellRuntime.status}
-                serializedEditorState={cellData.serializedEditorState}
-                runCell={runCell}
-                setEditorView={setEditorView}
-                userConfig={userConfig}
-                editorViewRef={editorView}
-                editorViewParentRef={editorViewParentRef}
-                hidden={!isCellCodeShown}
-                hasOutput={hasOutput}
-                showHiddenCode={showHiddenCode}
-                languageAdapter={languageAdapter}
-                setLanguageAdapter={setLanguageAdapter}
-                outputArea={cellOutput}
-              />
-              <CellRightSideActions
-                className={cn(
-                  isMarkdownCodeHidden && cellOutput === "below" && "top-14",
-                )}
-                edited={cellData.edited}
-                status={cellRuntime.status}
-                isCellStatusInline={isCellStatusInline}
-                uninstantiated={uninstantiated}
-                disabled={cellData.config.disabled}
-                runElapsedTimeMs={cellRuntime.runElapsedTimeMs}
-                runStartTimestamp={cellRuntime.runStartTimestamp}
-                lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
-                staleInputs={cellRuntime.staleInputs}
-                interrupted={cellRuntime.interrupted}
-              />
-              <div className="shoulder-bottom hover-action">
-                {canDelete && isCellCodeShown && (
-                  <DeleteButton
-                    status={cellRuntime.status}
-                    connectionState={connection.state}
-                    onClick={() => {
-                      if (
-                        !loading &&
-                        !isAppInteractionDisabled(connection.state)
-                      ) {
-                        deleteCell({ cellId });
-                      }
-                    }}
-                  />
-                )}
-              </div>
-            </div>
+            ) : (
+              trayElement
+            )}
             <SqlValidationErrorBanner
               cellId={cellId}
               hide={cellRuntime.errored && !isStaleCell}

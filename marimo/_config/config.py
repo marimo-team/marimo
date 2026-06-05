@@ -202,7 +202,7 @@ class DisplayConfig(TypedDict):
 
     - `theme`: `"light"`, `"dark"`, or `"system"`
     - `code_editor_font_size`: font size for the code editor
-    - `cell_output`: `"above"` or `"below"`
+    - `cell_output`: `"above"`, `"below"`, or `"right"`
     - `dataframes`: `"rich"` or `"plain"`
     - `custom_css`: list of paths to custom CSS files
     - `default_table_page_size`: default number of rows to display in tables
@@ -213,7 +213,7 @@ class DisplayConfig(TypedDict):
 
     theme: Theme
     code_editor_font_size: int
-    cell_output: Literal["above", "below"]
+    cell_output: Literal["above", "below", "right"]
     default_width: WidthType
     dataframes: Literal["rich", "plain"]
     custom_css: NotRequired[list[str]]

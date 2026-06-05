@@ -308,7 +308,7 @@ interface VerticalCellProps extends Pick<
   | "staleInputs"
   | "runStartTimestamp"
 > {
-  cellOutputArea: "above" | "below";
+  cellOutputArea: "above" | "below" | "right";
   cellId: CellId;
   config: CellConfig;
   code: string;

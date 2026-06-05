@@ -80,7 +80,7 @@ export interface CellEditorProps
   // DOM node where the editorView will be mounted
   editorViewParentRef?: React.RefObject<HTMLDivElement | null>;
   showHiddenCode: (opts?: { focus?: boolean }) => void;
-  outputArea?: "above" | "below";
+  outputArea?: "above" | "below" | "right";
   /**
    * CSS selector for the element that editor tooltips (completions, hover,
    * signature help) are appended to. Useful for fullscreen/dialog containers;
