@@ -818,14 +818,6 @@ class TestSortCellIdsByCompiledCells:
         curr.sort_cell_ids_by_similarity(prev)
         assert curr.document.version > version_before
 
-    @pytest.mark.xfail(
-        reason=(
-            "Latent: the inner Cell._cell.cell_id is set at compile time "
-            "and is not rekeyed when sort_cell_ids_by_similarity remaps "
-            "the dict key. Tracked separately."
-        ),
-        strict=True,
-    )
     def test_inner_cell_id_tracks_outer_key(self) -> None:
         prev = CellManager()
         prev.register_cell(CELL_A, "x = 1", CellConfig())
@@ -933,3 +925,16 @@ def test_cell_name_reflects_set_name() -> None:
     )
 
     assert compiled.name == "renamed"
+
+
+def test_replace_state_from_rebinds_to_own_document() -> None:
+    other = CellManager()
+    compiled = Cell(_name="c", _cell=compile_cell("x = 1", cell_id=CELL_A))
+    other.register_cell(CELL_A, "x = 1", CellConfig(), cell=compiled)
+
+    cm = CellManager()
+    cm._replace_state_from(other)
+
+    rebound = cm._compiled_cells[CELL_A]
+    assert rebound is not None
+    assert rebound._cell._binding.document is cm.document

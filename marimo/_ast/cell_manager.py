@@ -545,6 +545,10 @@ class CellManager:
         self._document._replace_cells(list(other._document._cells))
         self._compiled_cells.clear()
         self._compiled_cells.update(other._compiled_cells)
+        for cell_id, cell in self._compiled_cells.items():
+            if cell is not None:
+                cell._cell._binding.document = self._document
+                cell._cell._binding.cell_id = cell_id
         self.unparsable = other.unparsable
         self._cell_id_generator.seen_ids |= other._cell_id_generator.seen_ids
 
@@ -563,10 +567,13 @@ class CellManager:
         rekey = {old_id: new_id for new_id, old_id in id_mapping.items()}
 
         self._document._rekey(rekey)
-        self._compiled_cells = {
-            rekey.get(old_id, old_id): cell
-            for old_id, cell in self._compiled_cells.items()
-        }
+        new_compiled: dict[CellId_t, Cell | None] = {}
+        for old_id, cell in self._compiled_cells.items():
+            new_id = rekey.get(old_id, old_id)
+            if cell is not None:
+                cell._cell._binding.cell_id = new_id
+            new_compiled[new_id] = cell
+        self._compiled_cells = new_compiled
 
         for new_id in id_mapping:
             self._cell_id_generator.seen_ids.add(new_id)
