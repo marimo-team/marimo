@@ -22,3 +22,10 @@ For sharing interactive notebooks on the public web, consider using [molab](../m
 | [Markdown](markdown.md) | `marimo export md` | Markdown with code blocks |
 | [WebAssembly HTML](webassembly_html.md) | `marimo export html-wasm` | Self-contained, interactive HTML powered by WebAssembly |
 | [Session snapshot](sessions.md) | `marimo export session` | Serialized session snapshot (JSON) |
+
+## Publishing plugins
+
+| Tool | Description |
+|------|-------------|
+| [Quarto](quarto.md) | Publish marimo Markdown with the Quarto extension |
+| [Jupyter Book](jupyter_book.md) | Embed marimo cells in Jupyter Book |
