@@ -8,6 +8,7 @@ import pytest
 from marimo._config.config import AiConfig
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
+from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.providers import (
     AnthropicProvider,
     AzureOpenAIProvider,
@@ -15,6 +16,8 @@ from marimo._server.ai.providers import (
     CustomProvider,
     GoogleProvider,
     OpenAIProvider,
+    _infer_provider_name_from_base_url,
+    _normalize_base_url,
     get_completion_provider,
 )
 
@@ -528,3 +531,118 @@ def test_custom_provider_agent_omits_max_tokens_when_none() -> None:
             max_tokens=None, tools=[], system_prompt="x"
         )
     assert "max_tokens" not in dict(agent.model_settings or {})
+
+
+@pytest.mark.parametrize(
+    ("base_url", "expected"),
+    [
+        pytest.param(None, None, id="none"),
+        pytest.param("", None, id="empty"),
+        pytest.param(
+            "https://api.deepseek.com", "api.deepseek.com", id="https"
+        ),
+        pytest.param(
+            "http://api.deepseek.com/", "api.deepseek.com", id="http_trailing"
+        ),
+        pytest.param(
+            "https://api.deepseek.com/v1/",
+            "api.deepseek.com",
+            id="strip_v1",
+        ),
+        pytest.param(
+            "  https://API.DeepSeek.com/v1  ",
+            "api.deepseek.com",
+            id="whitespace_and_case",
+        ),
+    ],
+)
+def test_normalize_base_url(
+    base_url: str | None, expected: str | None
+) -> None:
+    assert _normalize_base_url(base_url) == expected
+
+
+@pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize(
+    ("base_url", "expected"),
+    [
+        pytest.param("https://api.deepseek.com", "deepseek", id="deepseek"),
+        pytest.param(
+            "https://api.deepseek.com/v1/", "deepseek", id="deepseek_v1"
+        ),
+        pytest.param(
+            "https://api.moonshot.ai/v1", "moonshotai", id="moonshot"
+        ),
+        pytest.param(
+            "https://openrouter.ai/api/v1/", "openrouter", id="openrouter"
+        ),
+        # Hosts not discovered from pydantic-ai's providers -> no match, so we
+        # fall back to the generic OpenAI provider (preserving prior behavior).
+        # `api.openai.com` is LiteLLM's client-derived default, which we skip.
+        pytest.param("https://my.internal.llm/v1", None, id="unknown_host"),
+        pytest.param("https://api.openai.com/v1", None, id="openai_host"),
+        pytest.param(None, None, id="no_base_url"),
+    ],
+)
+def test_infer_provider_name_from_base_url(
+    base_url: str | None, expected: str | None
+) -> None:
+    assert _infer_provider_name_from_base_url(base_url) == expected
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_custom_provider_inherits_profile_from_base_url() -> None:
+    """A custom provider whose name we don't recognize, but whose base URL
+    points at DeepSeek, inherits DeepSeek's profile so `reasoning_content`
+    round-trips. Regression test for #9786."""
+    from pydantic_ai.profiles.openai import OpenAIModelProfile
+
+    config = AnyProviderConfig(
+        api_key="test-key", base_url="https://api.deepseek.com"
+    )
+    provider = CustomProvider(
+        AiModelId.from_model("deepseek_official/deepseek-v4-flash"), config
+    )
+
+    # The unknown name was resolved to the known `deepseek` provider.
+    assert provider._provider_name == "deepseek"
+    assert provider.provider.name == "deepseek"
+
+    model = provider.create_model(max_tokens=None)
+    profile = OpenAIModelProfile.from_profile(model.profile)
+    assert profile.openai_chat_thinking_field == "reasoning_content"
+    assert profile.openai_chat_send_back_thinking_parts == "field"
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_custom_provider_unknown_base_url_stays_generic() -> None:
+    """An unknown name with an unrecognized base URL falls back to the generic
+    OpenAI provider (no thinking field), preserving prior behavior."""
+    from pydantic_ai.profiles.openai import OpenAIModelProfile
+
+    config = AnyProviderConfig(
+        api_key="test-key", base_url="https://my.internal.llm/v1"
+    )
+    provider = CustomProvider(
+        AiModelId.from_model("my_provider/my-model"), config
+    )
+
+    assert provider._provider_name == "my_provider"
+    assert provider.provider.name == "openai"
+
+    model = provider.create_model(max_tokens=None)
+    profile = OpenAIModelProfile.from_profile(model.profile)
+    assert profile.openai_chat_thinking_field is None
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_custom_provider_known_name_not_overridden_by_base_url() -> None:
+    """A recognized provider name is used as-is; the base URL never overrides
+    it (so e.g. an OpenRouter config pointed at DeepSeek keeps OpenRouter)."""
+    config = AnyProviderConfig(
+        api_key="test-key", base_url="https://api.deepseek.com"
+    )
+    provider = CustomProvider(
+        AiModelId.from_model("openrouter/some-model"), config
+    )
+    assert provider._provider_name == "openrouter"
