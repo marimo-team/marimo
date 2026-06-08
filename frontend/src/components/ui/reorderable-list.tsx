@@ -58,6 +58,12 @@ export interface ReorderableListProps<T> {
    */
   onAction?: (item: T) => void;
   /**
+   * Fired when an item is hovered or focused. Useful for preloading the
+   * resource the item points to before it is activated. Attached to the
+   * focusable list item so it works for both pointer and keyboard users.
+   */
+  onItemPreloadHint?: (item: T) => void;
+  /**
    * All available items that can be added to the list
    */
   availableItems?: T[];
@@ -142,6 +148,7 @@ export const ReorderableList = <T extends object>({
   ariaLabel = "Reorderable list",
   className,
   crossListDrag,
+  onItemPreloadHint,
 }: ReorderableListProps<T>) => {
   const mimeType = crossListDrag
     ? getDragMimeType(crossListDrag.dragType)
@@ -294,6 +301,12 @@ export const ReorderableList = <T extends object>({
           key={getKey(item)}
           id={getKey(item)}
           className="active:cursor-grabbing data-[dragging]:opacity-60 outline-none"
+          onHoverStart={
+            onItemPreloadHint ? () => onItemPreloadHint(item) : undefined
+          }
+          onFocus={
+            onItemPreloadHint ? () => onItemPreloadHint(item) : undefined
+          }
         >
           {renderItem(item)}
         </ListBoxItem>
