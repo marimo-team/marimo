@@ -3,14 +3,18 @@
 import { useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
+import useEvent from "react-use-event-hook";
 import { cellDomProps } from "@/components/editor/common";
 import { CellEditor } from "@/components/editor/cell/code/cell-editor";
+import { LanguageToggles } from "@/components/editor/cell/code/language-toggle";
 import { CellStatusComponent } from "@/components/editor/cell/CellStatus";
 import { RunButton } from "@/components/editor/cell/RunButton";
 import { StopButton } from "@/components/editor/cell/StopButton";
 import { useRunCell } from "@/components/editor/cell/useRunCells";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
-import { useUserConfig } from "@/core/config/config";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { useCellActions } from "@/core/cells/cells";
+import { autoInstantiateAtom, useUserConfig } from "@/core/config/config";
 import {
   cellNeedsRun,
   cellStatusClasses,
@@ -37,11 +41,23 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
   const { theme } = useTheme();
   const runCell = useRunCell(cell.id);
   const connection = useAtomValue(connectionAtom);
+  const cellActions = useCellActions();
+  const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const editorViewRef = useRef<EditorView | null>(null);
   const editorViewParentRef = useRef<HTMLDivElement | null>(null);
   const [languageAdapter, setLanguageAdapter] = useState<
     LanguageAdapterType | undefined
   >();
+
+  const afterToggleLanguage = useEvent(() => {
+    maybeAddMarimoImport({
+      autoInstantiate,
+      createNewCell: cellActions.createNewCell,
+    });
+  });
+
+  // Must be a stable identity: it feeds the editor's `extensions` memo
+  const showHiddenCode = useEvent(() => undefined);
 
   const cellOutputPosition = userConfig.display.cell_output;
   const hasOutput = cell.output != null;
@@ -97,6 +113,13 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
         lastRunStartTimestamp={cell.lastRunStartTimestamp}
         uninstantiated={uninstantiated}
       />
+      <LanguageToggles
+        code={cell.code}
+        editorView={editorViewRef.current}
+        currentLanguageAdapter={languageAdapter}
+        onAfterToggle={afterToggleLanguage}
+        className="flex items-center gap-1"
+      />
       <div className="flex items-center shadow-none gap-1">
         <RunButton
           edited={cell.edited}
@@ -113,6 +136,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
 
   const editor = (
     <div
+      tabIndex={-1}
       className={editorWrapperClassName}
       {...cellDomProps(cell.id, cell.name)}
     >
@@ -134,7 +158,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
         hasOutput={hasOutput}
         // hide_code is intentionally overridden in the slide view; the editor
         // is unmounted entirely when the user toggles code off.
-        showHiddenCode={() => undefined}
+        showHiddenCode={showHiddenCode}
         languageAdapter={languageAdapter}
         setLanguageAdapter={setLanguageAdapter}
         showLanguageToggles={false}

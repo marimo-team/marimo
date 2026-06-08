@@ -17,6 +17,11 @@ interface LanguageTogglesProps {
   code: string;
   currentLanguageAdapter: LanguageAdapter["type"] | undefined;
   onAfterToggle: () => void;
+  /**
+   * Classes for the wrapper element. Defaults to the absolutely-positioned,
+   * hover-revealed placement used inside the notebook cell editor.
+   */
+  className?: string;
 }
 
 export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
@@ -24,6 +29,7 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
   code,
   currentLanguageAdapter,
   onAfterToggle,
+  className = "absolute right-3 top-2 z-20 flex hover-action gap-1",
 }) => {
   const canUseMarkdown = useMemo(
     () => LanguageAdapters.markdown.isSupported(code) || code.trim() === "",
@@ -35,7 +41,7 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
   );
 
   return (
-    <div className="absolute right-3 top-2 z-20 flex hover-action gap-1">
+    <div className={className}>
       <LanguageToggle
         editorView={editorView}
         currentLanguageAdapter={currentLanguageAdapter}
