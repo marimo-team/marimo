@@ -554,6 +554,26 @@ def test_custom_provider_agent_omits_max_tokens_when_none() -> None:
             "api.deepseek.com",
             id="whitespace_and_case",
         ),
+        pytest.param(
+            "https://openrouter.ai/api/v1",
+            "openrouter.ai/api",
+            id="path_before_v1",
+        ),
+        pytest.param(
+            "https://models.github.ai/inference",
+            "models.github.ai/inference",
+            id="path_without_v1",
+        ),
+        pytest.param(
+            "https://api.x.ai/V1",
+            "api.x.ai",
+            id="uppercase_v1_suffix",
+        ),
+        pytest.param(
+            "https://generativelanguage.googleapis.com/v1beta",
+            "generativelanguage.googleapis.com/v1beta",
+            id="v1beta_not_stripped",
+        ),
     ],
 )
 def test_normalize_base_url(
