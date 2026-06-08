@@ -18,8 +18,9 @@ def _get_resolved_src(
     """Determine the correct URL for the given video source.
 
     Local files, bytes, and file-like objects are stored as virtual files so
-    that the (potentially large) video data is served via a URL
-    rather than inlinebase64 data URL.
+    that the (potentially large) video data is served via a URL rather than
+    inlined as a base64 data URL. This mirrors how `mo.audio` and `mo.image`
+    handle their sources.
     """
     if isinstance(src, (io.BufferedReader, io.BytesIO)):
         pos = src.tell()
