@@ -418,7 +418,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                     # Restore the original index structure
                     native_df = native_df.set_index(index_columns)
-                    native_df.index.names = original_names
+                    native_df.index = native_df.index.set_names(original_names)
                     return PandasTableManager(native_df)
                 result = super().search(query)
                 native_df = nw.to_native(result.data)
