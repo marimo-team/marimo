@@ -104,6 +104,28 @@ def test_object_with_getattr_returning_non_callable() -> None:
     assert result["base"] == "http://example.com/"
 
 
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(),
+    reason="pandas not installed",
+)
+def test_serialize_pandas_object_without_to_json() -> None:
+    """A PandasObject that doesn't define `to_json` must not crash.
+
+    The catch-all branch guards the `to_json` lookup with getattr/callable
+    (only Series/DataFrame define it, and those are handled earlier), so a
+    GroupBy object should fall through to generic handling instead of raising.
+    """
+    import pandas as pd
+
+    grouped = pd.DataFrame({"a": [1, 1, 2], "b": [1, 2, 3]}).groupby("a")
+    assert isinstance(grouped, pd.core.base.PandasObject)
+    assert not callable(getattr(grouped, "to_json", None))
+
+    # Should not raise (regression guard for the getattr-based fallback).
+    result = enc_hook(grouped)
+    assert result is not None
+
+
 def test_serialize_decimal() -> None:
     decimal_obj = decimal.Decimal("123.45")
     result = enc_hook(decimal_obj)
