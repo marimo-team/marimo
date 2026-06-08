@@ -57,7 +57,7 @@
     "@marimo-team/codemirror-ai": "^0.3.7",
     "@marimo-team/codemirror-languageserver": "^1.16.12",
     "@marimo-team/codemirror-mcp": "^0.1.5",
-    "@marimo-team/codemirror-sql": "^0.2.4",
+    "@marimo-team/codemirror-sql": "^0.2.7",
     "@marimo-team/llm-info": "workspace:*",
     "@marimo-team/marimo-api": "workspace:*",
     "@marimo-team/react-slotz": "^0.2.0",
