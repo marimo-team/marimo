@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -30,7 +31,7 @@ from marimo._plugins.ui._impl.chat.chat import (
 )
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.constants import ANTHROPIC_DEFAULT_MAX_TOKENS
-from marimo._server.ai.ids import AiModelId
+from marimo._server.ai.ids import AiModelId, AiProviderId
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.models.completion import UIMessage as ServerUIMessage
@@ -506,6 +507,86 @@ class AzureOpenAIProvider(OpenAIProvider):
         )
 
 
+def _normalize_base_url(base_url: str | None) -> str | None:
+    """Normalize a base URL for cross-provider comparison.
+
+    Strips the scheme, a trailing `/v1` path segment, and trailing slashes so
+    that e.g. `https://api.provider.com` and `https://api.provider.com/v1/`
+    compare equal.
+    """
+    if not base_url:
+        return None
+    normalized = base_url.strip().lower()
+    normalized = normalized.removeprefix("https://").removeprefix("http://")
+    normalized = normalized.rstrip("/").removesuffix("/v1")
+    return normalized.rstrip("/") or None
+
+
+def _try_infer_provider_class(
+    provider_name: str,
+) -> type[Provider[Any]] | None:
+    """Resolve a pydantic-ai provider class by name, or `None` if unknown."""
+    from pydantic_ai.providers import infer_provider_class
+
+    try:
+        return infer_provider_class(provider_name)
+    except ValueError:
+        return None
+
+
+@functools.lru_cache(maxsize=1)
+def _openai_compatible_provider_names() -> tuple[
+    frozenset[str], frozenset[str]
+]:
+    """(responses-compatible, chat-compatible) provider names from pydantic-ai."""
+    from pydantic_ai.models import (
+        OpenAIChatCompatibleProvider,
+        OpenAIResponsesCompatibleProvider,
+    )
+
+    # TypeAliasType objects; `.__value__` exposes the underlying Literal.
+    return (
+        frozenset(get_args(OpenAIResponsesCompatibleProvider.__value__)),
+        frozenset(get_args(OpenAIChatCompatibleProvider.__value__)),
+    )
+
+
+@functools.lru_cache(maxsize=1)
+def _known_provider_base_urls() -> dict[str, str]:
+    """Map normalized base URLs to pydantic-ai provider names.
+
+    Discovered from pydantic-ai's OpenAI-compatible providers so that a custom
+    provider whose *name* we don't recognize, but whose *base URL* points at a
+    known service (e.g. `https://api.deepseek.com`) points to the correct provider.
+    """
+    responses, chat = _openai_compatible_provider_names()
+    mapping: dict[str, str] = {}
+    # Sorted so that, if two providers normalize alike, the first wins.
+    for name in sorted(responses | chat):
+        provider_class = _try_infer_provider_class(name)
+        if provider_class is None:
+            continue
+        try:
+            base_url = object.__new__(provider_class).base_url
+        except Exception as e:
+            LOGGER.debug(
+                f"Skipping provider '{name}' during base URL discovery: {e}"
+            )
+            continue
+        normalized = _normalize_base_url(base_url)
+        if normalized:
+            mapping.setdefault(normalized, name)
+    return mapping
+
+
+def _infer_provider_name_from_base_url(base_url: str | None) -> str | None:
+    """Resolve a known pydantic-ai provider name from a base URL, if any."""
+    normalized = _normalize_base_url(base_url)
+    if not normalized:
+        return None
+    return _known_provider_base_urls().get(normalized)
+
+
 class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
     """Support for custom providers which may or may not be OpenAI-compatible.
 
@@ -522,28 +603,18 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
         deps: list[Dependency] | None = None,
     ):
         self._provider_name = model_id.provider
+        if _try_infer_provider_class(self._provider_name) is None:
+            matched = _infer_provider_name_from_base_url(config.base_url)
+            if matched is not None:
+                LOGGER.debug(
+                    f"Custom provider '{self._provider_name}' matched known "
+                    f"provider '{matched}' by base URL; using its profile."
+                )
+                self._provider_name = AiProviderId(matched)
         self._responses_compatible, self._chat_compatible = (
-            self._get_openai_compatible_providers()
+            _openai_compatible_provider_names()
         )
         super().__init__(model_id.model, config, deps)
-
-    def _get_openai_compatible_providers(self) -> tuple[set[str], set[str]]:
-        """Get the sets of OpenAI-compatible providers from pydantic_ai.
-
-        Returns:
-            Tuple of (responses_compatible, chat_compatible) provider names.
-        """
-        from pydantic_ai.models import (
-            OpenAIChatCompatibleProvider,
-            OpenAIResponsesCompatibleProvider,
-        )
-
-        # These are TypeAliasType objects, so we need .__value__ to get the Literal
-        responses_compatible = set(
-            get_args(OpenAIResponsesCompatibleProvider.__value__)
-        )
-        chat_compatible = set(get_args(OpenAIChatCompatibleProvider.__value__))
-        return responses_compatible, chat_compatible
 
     def _is_openai_compatible(self) -> bool:
         """Check if the provider uses an OpenAI-compatible API."""
@@ -567,22 +638,21 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
 
         Reference: https://ai.pydantic.dev/models/openai/#openai-compatible-models
         """
-        from pydantic_ai.providers import infer_provider_class
         from pydantic_ai.providers.openai import (
             OpenAIProvider as PydanticOpenAI,
         )
 
         # Try to infer the provider class
-        try:
-            provider_class = infer_provider_class(self._provider_name)
-            LOGGER.debug(f"Inferred provider class: {provider_class.__name__}")
-        except ValueError:
+        provider_class = _try_infer_provider_class(self._provider_name)
+        if provider_class is None:
             # Unknown provider, fall back to OpenAI-compatible
             LOGGER.debug(
                 f"Unknown provider: {self._provider_name}. Falling back to OpenAIProvider."
             )
             client = self.get_openai_client(config)
             return PydanticOpenAI(openai_client=client)
+
+        LOGGER.debug(f"Inferred provider class: {provider_class.__name__}")
 
         if self._is_openai_compatible():
             client = self.get_openai_client(config)
