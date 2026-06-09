@@ -266,39 +266,39 @@ def _resolve_aliased_definition(
 ) -> jedi.api.classes.BaseName | None:
     """Follow an assignment statement to its underlying definition.
 
-    Aliases such as `func = another_func` are reported by Jedi as a `statement` with no
-    docstring of their own, so we infer the assignment to get the docstring and signature
-    of the function/class/module it points at.
+    Aliases such as `func = another_func` are reported by Jedi as a `statement`
+    with no docstring of their own, so we infer the assignment to surface the
+    docstring and signature of the function/class/module it points at.
+
+    Only an unambiguous, single definition is resolved; multiple candidates
+    (e.g. a conditional assignment) would mean guessing which docs to show, so
+    we defer to the type hint instead.
     """
     try:
         inferred = completion.infer()
     except Exception:
         return None
-    for definition in inferred:
-        if definition.type in _DOCUMENTABLE_TYPES:
-            return definition
+    documentable = [d for d in inferred if d.type in _DOCUMENTABLE_TYPES]
+    if len(documentable) == 1:
+        return documentable[0]
     return None
 
 
 def _get_completion_info(completion: jedi.api.classes.BaseName) -> str:
-    if completion.type == "statement":
-        definition = _resolve_aliased_definition(completion)
-        if definition is not None:
-            try:
-                return _get_docstring(definition)
-            except Exception as e:
-                LOGGER.debug("jedi failed to get docstring: %s", str(e))
-        try:
+    try:
+        if completion.type == "statement":
+            definition = _resolve_aliased_definition(completion)
+            # Fall back to the type hint when the alias has no resolvable
+            # definition, or when its docstring comes back empty.
+            if definition is not None:
+                docstring = _get_docstring(definition)
+                if docstring:
+                    return docstring
             return _get_type_hint(completion)
-        except Exception as e:
-            LOGGER.debug("jedi failed to get type hint: %s", str(e))
-            return ""
-    else:
-        try:
-            return _get_docstring(completion)
-        except Exception as e:
-            LOGGER.debug("jedi failed to get docstring: %s", str(e))
-            return ""
+        return _get_docstring(completion)
+    except Exception as e:
+        LOGGER.debug("jedi failed to get completion info: %s", str(e))
+        return ""
 
 
 def _get_completion_option(

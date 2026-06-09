@@ -949,6 +949,33 @@ def test_completion_info_plain_value_statement_uses_type_hint() -> None:
     assert "codehilite" not in info
 
 
+def test_completion_info_ambiguous_alias_falls_back_to_type_hint() -> None:
+    """When `infer()` resolves to multiple definitions (e.g. a conditional
+    assignment), don't guess a docstring — defer to the type hint."""
+    code = (
+        "import random\n"
+        "\n"
+        "def foo(a: int) -> int:\n"
+        '    """Foo docstring."""\n'
+        "    return a\n"
+        "\n"
+        "def bar(b: str) -> str:\n"
+        '    """Bar docstring."""\n'
+        "    return b\n"
+        "\n"
+        "chosen = foo if random.random() > 0.5 else bar\n"
+        "chosen"
+    )
+    completion = _completion_for(code, "chosen")
+    assert completion.type == "statement"
+
+    info = _get_completion_info(completion)
+    assert info.startswith("chosen: ")
+    assert "Foo docstring." not in info
+    assert "Bar docstring." not in info
+    assert "codehilite" not in info
+
+
 def test_infer_skipped_for_statements_past_limit() -> None:
     """The docstring limit must prevent `.infer()` fan-out.
 
