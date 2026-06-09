@@ -80,6 +80,13 @@ def hash_module(code: CodeType | None, hash_type: str = DEFAULT_HASH) -> bytes:
         for const in code_obj.co_consts:
             if isinstance(const, types.CodeType):
                 process(const)
+            elif isinstance(const, frozenset) and len(const) > 1:
+                # Set literals fold to frozensets whose str()/iteration order is
+                # PYTHONHASHSEED-dependent once there are 2+ elements.
+                # Sort the element reprs for a deterministic order.
+                hash_alg.update(
+                    ",".join(sorted(map(repr, const))).encode("utf8")
+                )
             else:
                 hash_alg.update(str(const).encode("utf8"))
         # Concatenate the names and bytecode of the current code object
