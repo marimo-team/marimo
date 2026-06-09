@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import { useCellActions, useCellIds } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { CellColumnId } from "@/utils/id-tree";
@@ -227,7 +228,8 @@ export const SlidesMinimap = ({
   onSlideClick,
 }: SlidesMinimapProps) => {
   const cellIds = useCellIds();
-  const { moveCellToIndex, createNewCell, deleteCell } = useCellActions();
+  const { moveCellToIndex, createNewCell } = useCellActions();
+  const deleteCell = useDeleteCellCallback();
   const containerRef = useRef<HTMLDivElement>(null);
   const visibleIds = useVisibleCellIds(containerRef);
   const [activeId, setActiveId] = useState<CellId | null>(null);
