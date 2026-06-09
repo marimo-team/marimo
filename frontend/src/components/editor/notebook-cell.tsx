@@ -684,8 +684,7 @@ const EditableCellComponent = ({
               <div
                 className={cn(
                   "cell-row-container--side-by-side",
-                  cellOutput === "left" &&
-                    "cell-row-container--output-left",
+                  cellOutput === "left" && "cell-row-container--output-left",
                 )}
               >
                 {trayElement}
