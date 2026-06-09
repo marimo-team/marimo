@@ -165,6 +165,30 @@ export function useConfigActions() {
         });
       },
     },
+    {
+      label: "Config > Set cell output area: left",
+      hidden: config.display.cell_output === "left",
+      handle: () => {
+        handleUserConfig({
+          display: {
+            ...config.display,
+            cell_output: "left",
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Set cell output area: right",
+      hidden: config.display.cell_output === "right",
+      handle: () => {
+        handleUserConfig({
+          display: {
+            ...config.display,
+            cell_output: "right",
+          },
+        });
+      },
+    },
   ];
 
   return actions.filter((a) => !a.hidden);
