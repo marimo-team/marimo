@@ -4,7 +4,6 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { FormWrapper } from "../FormPlugin";
 
-
 describe("FormPlugin", () => {
   it("submits the form on Ctrl+Enter and calls setValue", async () => {
     const setValue = vi.fn();
@@ -27,7 +26,7 @@ describe("FormPlugin", () => {
         label={null}
       >
         <input data-testid="input" />
-      </FormWrapper>
+      </FormWrapper>,
     );
 
     const input = screen.getByTestId("input");
@@ -61,7 +60,7 @@ describe("FormPlugin", () => {
         label={null}
       >
         <input data-testid="input" />
-      </FormWrapper>
+      </FormWrapper>,
     );
 
     const input = screen.getByTestId("input");
@@ -82,7 +81,7 @@ describe("FormPlugin", () => {
     const setValue = vi.fn();
     const validate = vi.fn().mockResolvedValue(null);
 
-    let mockUIElement: HTMLElement & { reset?: () => void } | null = null;
+    let mockUIElement: (HTMLElement & { reset?: () => void }) | null = null;
     const mockReset = vi.fn();
 
     render(
@@ -114,7 +113,7 @@ describe("FormPlugin", () => {
             }
           }}
         />
-      </FormWrapper>
+      </FormWrapper>,
     );
 
     const input = screen.getByRole("textbox");
@@ -149,7 +148,7 @@ describe("FormPlugin", () => {
         label={null}
       >
         <input data-testid="input" />
-      </FormWrapper>
+      </FormWrapper>,
     );
 
     const input = screen.getByTestId("input");
