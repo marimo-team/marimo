@@ -23,6 +23,8 @@ INCOMPATIBLE_MODULES = frozenset(
         "readline",
         "curses",
         "tkinter",
+        "pydecimal",
+        "test",
     }
 )
 
