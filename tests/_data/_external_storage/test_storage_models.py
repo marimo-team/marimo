@@ -852,6 +852,31 @@ class TestFsspecFilesystem:
             )
         )
 
+    def test_create_storage_entry_includes_id(self) -> None:
+        # Backends such as Google Drive allow duplicate paths, so the stable
+        # id must flow through to disambiguate entries on the client.
+        mock_store = MagicMock()
+        backend = self._make_backend(mock_store)
+
+        entry = backend._create_storage_entry(
+            {
+                "name": "File.pdf",
+                "size": 1024,
+                "type": "file",
+                "id": "drive-file-id-123",
+            }
+        )
+        assert entry == snapshot(
+            StorageEntry(
+                path="File.pdf",
+                kind="file",
+                size=1024,
+                last_modified=None,
+                metadata={"id": "drive-file-id-123"},
+                mime_type="application/pdf",
+            )
+        )
+
     def test_create_storage_entry_missing_fields(self) -> None:
         mock_store = MagicMock()
         backend = self._make_backend(mock_store)
