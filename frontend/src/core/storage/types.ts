@@ -30,6 +30,13 @@ export interface StorageState {
   namespaces: StorageNamespace[];
   /** Lazy-loaded entries keyed by "namespace::prefix" */
   entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>;
+  /** Pagination metadata keyed by "namespace::prefix" */
+  pageMetadataByPath: ReadonlyMap<StoragePathKey, StoragePageMetadata>;
+}
+
+export interface StoragePageMetadata {
+  nextPageToken: string | null;
+  mayHaveMore: boolean;
 }
 
 export function storageUrl(

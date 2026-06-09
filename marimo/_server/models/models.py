@@ -155,6 +155,7 @@ class StorageListEntriesRequest(StorageListEntriesCommand, tag=False):
             namespace=self.namespace,
             limit=self.limit,
             prefix=self.prefix,
+            page_token=self.page_token,
         )
 
 

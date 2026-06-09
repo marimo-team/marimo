@@ -7,6 +7,7 @@ import {
   FolderIcon,
   HardDriveIcon,
   HelpCircleIcon,
+  InfoIcon,
   LoaderCircle,
   PlusIcon,
   ViewIcon,
@@ -153,6 +154,50 @@ function filterEntries(
   return entries.filter((entry) => entryMatchesSearch(entry, context));
 }
 
+const LoadMoreStorageEntries: React.FC<{
+  depth: number;
+  isLoading: boolean;
+  error?: Error;
+  onLoadMore: () => void;
+}> = ({ depth, isLoading, error, onLoadMore }) => {
+  return (
+    <div className="py-px text-xs" style={indentStyle(depth)}>
+      <Button
+        variant="text"
+        size="xs"
+        className="h-6 px-0 hover:text-blue-600"
+        disabled={isLoading}
+        onClick={onLoadMore}
+      >
+        {isLoading && <LoaderCircle className="h-3 w-3 mr-1 animate-spin" />}
+        {isLoading ? "Loading..." : "Load more"}
+      </Button>
+      {error && (
+        <span className="ml-2 text-destructive">
+          Failed to load: {error.message}
+        </span>
+      )}
+    </div>
+  );
+};
+
+const MayHaveMoreStorageEntries: React.FC<{ depth: number }> = ({ depth }) => {
+  return (
+    <div
+      className="py-1 text-xs text-muted-foreground italic flex items-center"
+      style={indentStyle(depth)}
+    >
+      More files may exist in this folder.
+      <Tooltip
+        content="We only fetch a limited number of entries. Please file a GitHub issue if you need more."
+        delayDuration={100}
+      >
+        <InfoIcon className="h-3 w-3 ml-1 text-blue-500" />
+      </Tooltip>
+    </div>
+  );
+};
+
 /**
  * Lazily loaded children of a directory entry.
  * Caches fetched entries in the Jotai store so re-expanding doesn't re-fetch.
@@ -183,6 +228,11 @@ const StorageEntryChildren: React.FC<{
     entries: children,
     isPending,
     error,
+    hasMore,
+    mayHaveMore,
+    loadMore,
+    isLoadingMore,
+    loadMoreError,
   } = useStorageEntries(namespace, prefix);
 
   if (isPending) {
@@ -242,6 +292,15 @@ const StorageEntryChildren: React.FC<{
           />
         );
       })}
+      {hasMore && (
+        <LoadMoreStorageEntries
+          depth={depth}
+          isLoading={isLoadingMore}
+          error={loadMoreError}
+          onLoadMore={loadMore}
+        />
+      )}
+      {mayHaveMore && <MayHaveMoreStorageEntries depth={depth} />}
     </>
   );
 };
@@ -461,6 +520,11 @@ const StorageNamespaceSection: React.FC<{
     entries: fetchedEntries,
     isPending,
     error,
+    hasMore,
+    mayHaveMore,
+    loadMore,
+    isLoadingMore,
+    loadMoreError,
     refetch,
   } = useStorageEntries(namespaceName);
 
@@ -559,6 +623,15 @@ const StorageNamespaceSection: React.FC<{
               />
             );
           })}
+          {hasMore && (
+            <LoadMoreStorageEntries
+              depth={1}
+              isLoading={isLoadingMore}
+              error={loadMoreError}
+              onLoadMore={loadMore}
+            />
+          )}
+          {mayHaveMore && <MayHaveMoreStorageEntries depth={1} />}
         </>
       )}
     </>

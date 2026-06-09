@@ -757,12 +757,14 @@ class StorageListEntriesCommand(Command):
         namespace: Variable name identifying the storage backend.
         limit: Max entries to return.
         prefix: Path prefix to list (None = root).
+        page_token: Token for the next page of entries.
     """
 
     request_id: RequestId
     namespace: str
     limit: int
     prefix: str | None = None
+    page_token: str | None = None
 
 
 class StorageDownloadCommand(Command):
