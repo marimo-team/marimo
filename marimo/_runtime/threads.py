@@ -1,8 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
 import threading
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from marimo._messaging.streams import ThreadSafeStream
 from marimo._output.rich_help import mddoc
@@ -16,8 +17,13 @@ from marimo._runtime.context.types import (
     get_context,
     initialize_context,
     runtime_context_installed,
+    safe_get_context,
     teardown_context,
 )
+from marimo._utils.platform import is_pyodide
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable
 
 # Set of thread ids for running mo.Threads
 THREADS: set[int] = set()
@@ -34,6 +40,11 @@ class Thread(threading.Thread):
     Threads can append to a cell's output using `mo.output.append`, or to the
     console output area using `print`. The corresponding outputs will be
     forwarded to the frontend.
+
+    In Pyodide, `mo.Thread` keeps the `threading.Thread` call shape but runs on
+    marimo's WASM threading patch. It has a synthetic thread identity, does not
+    create an OS thread, and waits such as `join()` progress through Pyodide
+    JSPI.
 
     Writing directly to sys.stdout or sys.stderr, or to file descriptors 1 and
     2, is not yet supported.
@@ -149,12 +160,34 @@ class Thread(threading.Thread):
         """
         return self._exit_event.is_set()
 
-    def run(self) -> None:
-        if self._marimo_ctx is not None:
+    async def _finish_awaitable_run(
+        self,
+        awaitable: Awaitable[Any],
+        *,
+        context_initialized: bool,
+        thread_id: int,
+    ) -> Any:
+        try:
+            return await awaitable
+        finally:
+            THREADS.discard(thread_id)
+            if context_initialized:
+                teardown_context()
+
+    def run(self) -> Any:
+        context_initialized = False
+        defer_cleanup = False
+        managed_thread = threading.current_thread() is self
+        if managed_thread and self._marimo_ctx is not None:
             try:
                 initialize_context(self._marimo_ctx)
-            except RuntimeError:
-                pass
+                context_initialized = True
+            except RuntimeError as exc:
+                if is_pyodide() and safe_get_context() is not self._marimo_ctx:
+                    raise RuntimeError(
+                        "mo.Thread could not install its copied runtime "
+                        "context under the WASM thread identity."
+                    ) from exc
 
         output = CellOutputList()
         if self._marimo_ctx is not None:
@@ -170,10 +203,24 @@ class Thread(threading.Thread):
                 output=output,
             )
         thread_id = threading.get_ident()
-        THREADS.add(thread_id)
-        super().run()
-        THREADS.remove(thread_id)
-        teardown_context()
+        try:
+            if managed_thread:
+                THREADS.add(thread_id)
+            result = super().run()
+            if is_pyodide() and managed_thread and inspect.isawaitable(result):
+                defer_cleanup = True
+                return self._finish_awaitable_run(
+                    result,
+                    context_initialized=context_initialized,
+                    thread_id=thread_id,
+                )
+            return result
+        finally:
+            if not defer_cleanup:
+                if managed_thread:
+                    THREADS.discard(thread_id)
+                if context_initialized:
+                    teardown_context()
 
 
 def current_thread() -> Thread:

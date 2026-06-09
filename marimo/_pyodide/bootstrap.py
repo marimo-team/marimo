@@ -1,8 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
+# ruff: noqa: E402
 from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING
+
+from marimo._runtime._wasm import ensure_wasm_runtime_bootstrapped
+
+ensure_wasm_runtime_bootstrapped()
 
 from marimo._config.config import merge_config
 from marimo._messaging.notification import (
@@ -88,6 +93,7 @@ def create_session(
 
     This function is called by the WebAssembly frontend.
     """
+    ensure_wasm_runtime_bootstrapped()
 
     def write_kernel_message(notification: KernelMessage) -> None:
         data_json_str = notification.decode("utf-8")

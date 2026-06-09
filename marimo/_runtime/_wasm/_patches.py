@@ -19,7 +19,7 @@ LOGGER = _loggers.marimo_logger()
 
 Unpatch = Callable[[], None]
 Fallback = Callable[..., Any]
-WrapperFactory = Callable[[Callable[..., Any]], Callable[..., Any]]
+WrapperFactory = Callable[[Any], Any]
 
 
 class WasmPatchSet:
@@ -78,6 +78,8 @@ class WasmPatchSet:
         owner: Any,
         attr: str,
         wrapper_factory: WrapperFactory,
+        *,
+        before_restore: Callable[[], None] | None = None,
     ) -> None:
         """Replace `owner.attr` with a WASM-only wrapper.
 
@@ -97,7 +99,11 @@ class WasmPatchSet:
         def _unpatch() -> None:
             # Only restore if we're still the active wrapper.
             if getattr(owner, attr, None) is wrapper:
-                setattr(owner, attr, original)
+                try:
+                    if before_restore is not None:
+                        before_restore()
+                finally:
+                    setattr(owner, attr, original)
 
         self._unpatches.append(_unpatch)
 
