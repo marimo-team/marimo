@@ -33,6 +33,7 @@ import { cellActionsState } from "../../cells/state";
 import { pythonCompletionSource } from "../../completion/completer";
 import type { PlaceholderType } from "../../config/types";
 import { FederatedLanguageServerClient } from "../../lsp/federated-lsp";
+import { createLspMarkdownRenderer } from "../../lsp/markdown-renderer";
 import { NotebookLanguageServerClient } from "../../lsp/notebook-lsp";
 import { createTransport } from "../../lsp/transports";
 import { CellDocumentUri, type ILanguageServerClient } from "../../lsp/types";
@@ -342,6 +343,7 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
             client: client as unknown as LanguageServerClient,
             languageId: "python",
             allowHTMLContent: true,
+            markdownRenderer: createLspMarkdownRenderer(),
             useSnippetOnCompletion: true,
             hoverConfig: hoverOptions,
             completionConfig: autocompleteOptions,
