@@ -224,13 +224,16 @@ export const DataSources: React.FC = () => {
     if (!hideEmpty) {
       return rawConnections;
     }
-    return rawConnections.map((connection) => {
+    let changed = false;
+    const filtered = rawConnections.map((connection) => {
       const databases = filterEmptyDatabases(connection.databases);
       if (databases === connection.databases) {
         return connection;
       }
+      changed = true;
       return { ...connection, databases };
     });
+    return changed ? filtered : rawConnections;
   }, [rawConnections, hideEmpty]);
 
   if (tables.length === 0 && dataConnections.length === 0) {
