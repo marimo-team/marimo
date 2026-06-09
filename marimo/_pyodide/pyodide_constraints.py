@@ -21,10 +21,10 @@ from marimo._version import __version__
 LOGGER = _loggers.marimo_logger()
 
 # Pyodide version matching frontend/package.json — update together.
-PYODIDE_VERSION = "0.27.7"
+PYODIDE_VERSION = "314.0.0"
 
-# Derived from the lockfile's info.python field (Pyodide 0.27.7 → 3.12.7).
-PYODIDE_PYTHON_VERSION = "3.12"
+# Derived from the lockfile's info.python field (Pyodide 314.0.0 → 3.14.2).
+PYODIDE_PYTHON_VERSION = "3.14"
 
 # Env var pointing at a local pyodide-lock.json. Lets offline / air-gapped
 # users supply the lockfile out-of-band instead of fetching from the host.
