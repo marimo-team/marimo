@@ -51,6 +51,22 @@
     }
   }
 
+  a {
+    cursor: pointer;
+    text-decoration: inherit;
+
+    @apply text-link;
+  }
+
+  a:hover,
+  a:active {
+    text-decoration: underline;
+  }
+
+  a:visited {
+    @apply text-link-visited;
+  }
+
   code {
     @apply border px-1 rounded font-mono bg-[var(--slate-2)] text-sm mb-4 mt-2;
   }
