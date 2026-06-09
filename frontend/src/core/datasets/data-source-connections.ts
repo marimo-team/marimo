@@ -169,6 +169,7 @@ const {
         return {
           ...db,
           schemas: schemas,
+          schemas_resolved: true,
         };
       }),
     };
@@ -213,6 +214,7 @@ const {
             return {
               ...schema,
               tables: tables,
+              tables_resolved: true,
             };
           }),
         };

@@ -4144,7 +4144,9 @@ export interface components {
      *     Attributes:
      *         name (str): The name of the database
      *         dialect (str): The dialect of the database
-     *         schemas (List[Schema]): List of schemas in the database
+     *         schemas (List[Schema]): List of schemas in the database.
+     *         schemas_resolved (bool): True when `schemas` has been enumerated.
+     *             False when schema discovery was deferred. Defaults to True
      *         engine (Optional[VariableName]): Database engine or connection handler, if any.
      */
     Database: {
@@ -4153,6 +4155,8 @@ export interface components {
       engine?: components["schemas"]["VariableName"] | null;
       name: string;
       schemas: components["schemas"]["Schema"][];
+      /** @default true */
+      schemas_resolved?: boolean;
     };
     /**
      * DatasetsNotification
@@ -6137,10 +6141,21 @@ export interface components {
     SaveUserConfigurationRequest: {
       config: Record<string, any>;
     };
-    /** Schema */
+    /**
+     * Schema
+     * @description Represents a database schema and its tables.
+     *
+     *     Attributes:
+     *         name (str): The name of the schema.
+     *         tables (List[DataTable]): Tables in this schema.
+     *         tables_resolved (bool): True when `tables` has been enumerated
+     *             False when table discovery was deferred. Defaults to True
+     */
     Schema: {
       name: string;
       tables: components["schemas"]["DataTable"][];
+      /** @default true */
+      tables_resolved?: boolean;
     };
     /** SchemaColumn */
     SchemaColumn: {
