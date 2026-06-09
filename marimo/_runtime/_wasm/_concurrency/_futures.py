@@ -16,8 +16,9 @@ import functools
 import time
 from collections import deque
 from concurrent import futures as _futures
+from concurrent.futures import _base as _futures_base
 from dataclasses import dataclass
-from itertools import islice
+from itertools import count, islice
 from typing import TYPE_CHECKING, Any
 
 from marimo._runtime._wasm._concurrency import _state
@@ -40,38 +41,72 @@ from marimo._runtime._wasm._concurrency._wait import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Iterator
+    from collections.abc import Callable, Collection, Iterable, Iterator
+
+
+_completion_order = count()
 
 
 class AsyncioFuture(_futures.Future[Any]):
     def __init__(self) -> None:
         super().__init__()
-        self._async_done: asyncio.Event | None = None
+        self._async_done_events: dict[
+            asyncio.AbstractEventLoop, asyncio.Event
+        ] = {}
+        self._wasm_completion_order: int | None = None
 
     def _done_event(self) -> asyncio.Event:
-        if self._async_done is None:
-            self._async_done = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        event = self._async_done_events.get(loop)
+        if event is None:
+            event = asyncio.Event()
+            self._async_done_events[loop] = event
         if self.done():
-            self._async_done.set()
-        return self._async_done
+            event.set()
+        return event
+
+    def _mark_completion_order(self) -> int | None:
+        previous_order = self._wasm_completion_order
+        if self._wasm_completion_order is None:
+            self._wasm_completion_order = next(_completion_order)
+        return previous_order
+
+    def _restore_completion_order(self, previous_order: int | None) -> None:
+        if previous_order is None:
+            self._wasm_completion_order = None
+
+    def _notify_done(self) -> None:
+        for event in self._async_done_events.values():
+            event.set()
+        self._async_done_events.clear()
 
     def set_result(self, result: Any) -> None:
-        super().set_result(result)
-        if self._async_done is not None:
-            self._async_done.set()
+        previous_order = self._mark_completion_order()
+        try:
+            super().set_result(result)
+        except BaseException:
+            self._restore_completion_order(previous_order)
+            raise
+        self._notify_done()
 
     def set_exception(self, exception: BaseException | None) -> None:
         if exception is None:
             raise TypeError("exception must be a BaseException")
-        super().set_exception(exception)
-        if self._async_done is not None:
-            self._async_done.set()
+        previous_order = self._mark_completion_order()
+        try:
+            super().set_exception(exception)
+        except BaseException:
+            self._restore_completion_order(previous_order)
+            raise
+        self._notify_done()
 
     def cancel(self) -> bool:
+        previous_order = self._mark_completion_order()
         cancelled = super().cancel()
         if cancelled:
-            if self._async_done is not None:
-                self._async_done.set()
+            self._notify_done()
+        else:
+            self._restore_completion_order(previous_order)
         return cancelled
 
     async def _wait_done(self, timeout: float | None) -> bool:
@@ -113,6 +148,243 @@ class WorkItem:
     fn: Callable[..., Any]
     args: tuple[Any, ...]
     kwargs: dict[str, Any]
+
+
+async def _wait_for_wasm_futures(
+    futures: set[AsyncioFuture],
+    timeout: float | None,
+    return_when: str,
+) -> None:
+    end_time = None if timeout is None else time.monotonic() + timeout
+
+    while True:
+        done = {future for future in futures if future.done()}
+        if _wait_condition_met(done, futures, return_when):
+            return
+
+        remaining = None
+        if end_time is not None:
+            remaining = end_time - time.monotonic()
+            if remaining <= 0:
+                return
+
+        events = [
+            asyncio.create_task(future._done_event().wait())
+            for future in futures
+            if not future.done()
+        ]
+        if not events:
+            return
+        timeout_task = (
+            None
+            if remaining is None
+            else asyncio.create_task(asyncio.sleep(remaining))
+        )
+        tasks: list[asyncio.Task[Any]] = events.copy()
+        if timeout_task is not None:
+            tasks.append(timeout_task)
+        try:
+            done_tasks, _pending_tasks = await asyncio.wait(
+                tasks, return_when=asyncio.FIRST_COMPLETED
+            )
+            for task in done_tasks:
+                task.result()
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+
+def _ordered_done_futures(
+    futures: Iterable[_futures.Future[Any]],
+) -> list[_futures.Future[Any]]:
+    def completion_key(future: _futures.Future[Any]) -> tuple[bool, int]:
+        if isinstance(future, AsyncioFuture):
+            order = future._wasm_completion_order
+            if order is not None:
+                return (False, order)
+        return (True, 0)
+
+    return sorted(futures, key=completion_key)
+
+
+def _wait_condition_met(
+    done: Collection[_futures.Future[Any]],
+    futures: Collection[_futures.Future[Any]],
+    return_when: str,
+) -> bool:
+    if return_when == _futures.FIRST_COMPLETED:
+        return bool(done)
+    if return_when == _futures.FIRST_EXCEPTION:
+        return any(
+            future.done()
+            and not future.cancelled()
+            and future.exception(timeout=0) is not None
+            for future in done
+        ) or len(done) == len(futures)
+    return len(done) == len(futures)
+
+
+def _validate_return_when(return_when: str) -> None:
+    if return_when not in {
+        _futures.FIRST_COMPLETED,
+        _futures.FIRST_EXCEPTION,
+        _futures.ALL_COMPLETED,
+    }:
+        raise ValueError(f"Invalid return condition: {return_when!r}")
+
+
+def wasm_wait(
+    fs: Iterable[_futures.Future[Any]],
+    timeout: float | None = None,
+    return_when: str = _futures.ALL_COMPLETED,
+) -> _futures_base.DoneAndNotDoneFutures[Any]:
+    _validate_return_when(return_when)
+    future_set = set(fs)
+    if not future_set:
+        return _futures_base.DoneAndNotDoneFutures(set(), set())
+    shim_futures = {
+        future for future in future_set if isinstance(future, AsyncioFuture)
+    }
+    if not shim_futures:
+        return ORIGINAL_WAIT(
+            future_set, timeout=timeout, return_when=return_when
+        )
+    if len(shim_futures) != len(future_set):
+        return _wasm_mixed_wait(
+            future_set, timeout=timeout, return_when=return_when
+        )
+
+    done = {future for future in future_set if future.done()}
+    if not _wait_condition_met(done, future_set, return_when) and not (
+        timeout is not None and timeout <= 0
+    ):
+        cooperative_wait(
+            _wait_for_wasm_futures(
+                shim_futures, timeout=timeout, return_when=return_when
+            )
+        )
+
+    done = {future for future in future_set if future.done()}
+    return _futures_base.DoneAndNotDoneFutures(done, future_set - done)
+
+
+def _wasm_mixed_wait(
+    futures: set[_futures.Future[Any]],
+    timeout: float | None,
+    return_when: str,
+) -> _futures_base.DoneAndNotDoneFutures[Any]:
+    shim_futures = {
+        future for future in futures if isinstance(future, AsyncioFuture)
+    }
+    foreign_futures = futures - shim_futures
+    foreign_done, foreign_not_done = ORIGINAL_WAIT(
+        foreign_futures, timeout=0, return_when=return_when
+    )
+    done = set(foreign_done) | {
+        future for future in shim_futures if future.done()
+    }
+    if _wait_condition_met(done, futures, return_when) or (
+        timeout is not None and timeout <= 0
+    ):
+        return _futures_base.DoneAndNotDoneFutures(done, futures - done)
+    if foreign_not_done:
+        raise UnsupportedWasmConcurrencyError(
+            "mixed pending concurrent.futures.wait inputs cannot block the "
+            "Pyodide event-loop lane"
+        )
+    cooperative_wait(
+        _wait_for_wasm_futures(
+            shim_futures,
+            timeout=timeout,
+            return_when=return_when,
+        )
+    )
+    done = set(foreign_done) | {
+        future for future in shim_futures if future.done()
+    }
+    return _futures_base.DoneAndNotDoneFutures(done, futures - done)
+
+
+def wasm_as_completed(
+    fs: Iterable[_futures.Future[Any]],
+    timeout: float | None = None,
+) -> Iterator[_futures.Future[Any]]:
+    future_set = set(fs)
+    shim_futures = {
+        future for future in future_set if isinstance(future, AsyncioFuture)
+    }
+    if not shim_futures:
+        yield from ORIGINAL_AS_COMPLETED(future_set, timeout=timeout)
+        return
+    pending_foreign: set[_futures.Future[Any]] = set()
+    if len(shim_futures) != len(future_set):
+        _foreign_done, foreign_not_done = ORIGINAL_WAIT(
+            list(future_set - shim_futures), timeout=0
+        )
+        pending_foreign = set(foreign_not_done)
+
+    end_time = None if timeout is None else time.monotonic() + timeout
+    yielded: set[_futures.Future[Any]] = set()
+    for future in _ordered_done_futures(
+        future for future in future_set if future.done()
+    ):
+        yielded.add(future)
+        pending_foreign.discard(future)
+        yield future
+
+    while len(yielded) < len(future_set):
+        remaining = None
+        if end_time is not None:
+            remaining = end_time - time.monotonic()
+            if remaining <= 0:
+                raise _futures.TimeoutError(
+                    f"{len(future_set) - len(yielded)} futures unfinished"
+                )
+        newly_done_shim = _ordered_done_futures(
+            future
+            for future in shim_futures
+            if future.done() and future not in yielded
+        )
+        if newly_done_shim:
+            for future in newly_done_shim:
+                yielded.add(future)
+                yield future
+            continue
+        if pending_foreign:
+            newly_done_foreign = [
+                future
+                for future in pending_foreign
+                if future.done() and future not in yielded
+            ]
+            if newly_done_foreign:
+                for future in newly_done_foreign:
+                    pending_foreign.remove(future)
+                    yielded.add(future)
+                    yield future
+                continue
+            raise UnsupportedWasmConcurrencyError(
+                "mixed pending concurrent.futures.as_completed inputs cannot "
+                "block the Pyodide event-loop lane"
+            )
+
+        done, _not_done = wasm_wait(
+            [future for future in shim_futures if future not in yielded],
+            timeout=remaining,
+            return_when=_futures.FIRST_COMPLETED,
+        )
+        if not done:
+            raise _futures.TimeoutError(
+                f"{len(future_set) - len(yielded)} futures unfinished"
+            )
+        for future in _ordered_done_futures(done):
+            if future not in yielded:
+                yielded.add(future)
+                yield future
+
+
+ORIGINAL_WAIT = _futures.wait
+ORIGINAL_AS_COMPLETED = _futures.as_completed
 
 
 class SerializedWasmExecutor(_futures.Executor):

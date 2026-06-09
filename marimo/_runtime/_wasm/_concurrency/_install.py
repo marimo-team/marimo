@@ -2,10 +2,10 @@
 """Install Pyodide concurrency patches.
 
 `install_wasm_concurrency_shims()` keeps code that calls `threading.Thread`,
-`threading.Event`, `threading.local`, and `ThreadPoolExecutor` callable in
-Pyodide. Started threads and executor work run on the browser-backed asyncio
-loop with synthetic thread identities. They do not create OS threads or run
-Python bytecode in parallel.
+`threading.Event`, `threading.local`, `ThreadPoolExecutor`, `wait`, and
+`as_completed` callable in Pyodide. Started threads and executor work run on
+the browser-backed asyncio loop with synthetic thread identities. They do not
+create OS threads or run Python bytecode in parallel.
 
 The installer must run before marimo runtime modules capture `threading.local`.
 If those modules were already imported, the repair step replaces their captured
@@ -22,6 +22,8 @@ from typing import Any
 from marimo._runtime._wasm._concurrency import _state
 from marimo._runtime._wasm._concurrency._futures import (
     AsyncioThreadPoolExecutor,
+    wasm_as_completed,
+    wasm_wait,
 )
 from marimo._runtime._wasm._concurrency._threading import (
     AsyncEvent,
@@ -76,6 +78,8 @@ def install_wasm_concurrency_shims() -> Unpatch:
             (_threading, "activeCount", _state.active_count),
             (futures, "ThreadPoolExecutor", AsyncioThreadPoolExecutor),
             (futures_thread, "ThreadPoolExecutor", AsyncioThreadPoolExecutor),
+            (futures, "wait", wasm_wait),
+            (futures, "as_completed", wasm_as_completed),
         ):
 
             def replacement_factory(

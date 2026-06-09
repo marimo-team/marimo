@@ -6,14 +6,92 @@ import concurrent.futures
 import contextvars
 import functools
 import threading
+import time
+from typing import Any, cast
 
 import pytest
 
+from marimo._runtime._wasm._concurrency._futures import AsyncioFuture
 from marimo._runtime._wasm._concurrency._install import (
     install_wasm_concurrency_shims,
 )
-from tests._runtime._helpers.wasm import wait_until
+from marimo._runtime._wasm._concurrency._wait import (
+    UnsupportedWasmConcurrencyError,
+)
+from tests._runtime._helpers.wasm import install_run_sync, wait_until
 from tests.conftest import mock_pyodide
+
+
+def _identity(value: int) -> int:
+    return value
+
+
+class _OrderedAsyncioFuture(AsyncioFuture):
+    def __init__(self, order: int) -> None:
+        super().__init__()
+        self._order = order
+
+    def __hash__(self) -> int:
+        return self._order
+
+
+class _OrderedFuture(concurrent.futures.Future[str]):
+    def __init__(self, order: int) -> None:
+        super().__init__()
+        self._order = order
+
+    def __hash__(self) -> int:
+        return self._order
+
+
+def _mixed_futures_with_done_shim_before_foreign() -> tuple[
+    _OrderedAsyncioFuture, _OrderedFuture, _OrderedAsyncioFuture
+]:
+    for done_order in range(20):
+        for foreign_order in range(20):
+            for late_order in range(20):
+                if len({done_order, foreign_order, late_order}) < 3:
+                    continue
+                shim_done = _OrderedAsyncioFuture(done_order)
+                foreign = _OrderedFuture(foreign_order)
+                shim_late = _OrderedAsyncioFuture(late_order)
+                ordered = list({shim_done, foreign, shim_late})
+                if ordered.index(shim_done) < ordered.index(foreign):
+                    return shim_done, foreign, shim_late
+    raise AssertionError("could not build ordered futures")
+
+
+def _mixed_futures_with_late_shim_before_done_shim() -> tuple[
+    _OrderedAsyncioFuture, _OrderedFuture, _OrderedAsyncioFuture
+]:
+    # Control set iteration so the generator has already skipped the late
+    # shim before the caller completes it.
+    for done_order in range(20):
+        for foreign_order in range(20):
+            for late_order in range(20):
+                if len({done_order, foreign_order, late_order}) < 3:
+                    continue
+                shim_done = _OrderedAsyncioFuture(done_order)
+                foreign = _OrderedFuture(foreign_order)
+                shim_late = _OrderedAsyncioFuture(late_order)
+                ordered = list({shim_done, foreign, shim_late})
+                if ordered.index(shim_late) < ordered.index(shim_done):
+                    return shim_done, foreign, shim_late
+    raise AssertionError("could not build ordered futures")
+
+
+def _wasm_futures_with_reversed_hash_order() -> tuple[
+    _OrderedAsyncioFuture, _OrderedAsyncioFuture
+]:
+    for first_order in range(20):
+        for second_order in range(20):
+            if first_order == second_order:
+                continue
+            first = _OrderedAsyncioFuture(first_order)
+            second = _OrderedAsyncioFuture(second_order)
+            if list({first, second}) == [second, first]:
+                return first, second
+    raise AssertionError("could not build ordered futures")
 
 
 def test_wasm_thread_pool_map_returns_ordered_results() -> None:
@@ -211,6 +289,371 @@ def test_wasm_thread_pool_result_exception_and_callbacks() -> None:
                 ("error", "ValueError"),
             ]
         finally:
+            unpatch()
+
+
+def test_wasm_thread_pool_wait_returns_done_futures() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=2
+            ) as executor:
+                futures = [
+                    executor.submit(_identity, value) for value in range(3)
+                ]
+                done, not_done = concurrent.futures.wait(futures)
+
+            assert done == set(futures)
+            assert not not_done
+        finally:
+            unpatch()
+
+
+def test_wasm_wait_accepts_stdlib_fs_keyword() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        future: concurrent.futures.Future[str] = AsyncioFuture()
+        try:
+            future.set_result("done")
+
+            done, not_done = concurrent.futures.wait(fs=[future])
+
+            assert done == {future}
+            assert not not_done
+        finally:
+            unpatch()
+
+
+def test_wasm_wait_first_exception_returns_all_done_without_exception() -> (
+    None
+):
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                futures = [
+                    executor.submit(_identity, value) for value in range(3)
+                ]
+                done, not_done = concurrent.futures.wait(
+                    futures,
+                    return_when=concurrent.futures.FIRST_EXCEPTION,
+                )
+
+            assert done == set(futures)
+            assert not not_done
+        finally:
+            unpatch()
+
+
+def test_wasm_wait_rejects_invalid_return_when() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(lambda: "done")
+
+                with pytest.raises(
+                    ValueError, match="Invalid return condition"
+                ):
+                    concurrent.futures.wait(
+                        [future],
+                        return_when="not-a-return-condition",
+                    )
+        finally:
+            unpatch()
+
+
+def test_wasm_future_timed_waits_honor_short_timeouts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        install_run_sync(monkeypatch)
+        future: concurrent.futures.Future[str] = AsyncioFuture()
+        try:
+            with pytest.raises(concurrent.futures.TimeoutError):
+                future.result(timeout=0.001)
+
+            done, not_done = concurrent.futures.wait([future], timeout=0.001)
+
+            assert done == set()
+            assert not_done == {future}
+        finally:
+            future.cancel()
+            unpatch()
+
+
+def test_wasm_future_timed_waits_can_reuse_pending_future(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        install_run_sync(monkeypatch)
+        future: concurrent.futures.Future[str] = AsyncioFuture()
+        try:
+            done, not_done = concurrent.futures.wait([future], timeout=0.001)
+            assert done == set()
+            assert not_done == {future}
+
+            with pytest.raises(concurrent.futures.TimeoutError):
+                future.result(timeout=0.001)
+        finally:
+            future.cancel()
+            unpatch()
+
+
+def test_wasm_thread_pool_as_completed_yields_finished_futures() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=2
+            ) as executor:
+                futures = [
+                    executor.submit(_identity, value) for value in range(3)
+                ]
+                assert sorted(
+                    future.result()
+                    for future in concurrent.futures.as_completed(futures)
+                ) == [0, 1, 2]
+        finally:
+            unpatch()
+
+
+def test_wasm_as_completed_accepts_stdlib_fs_keyword() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        future: concurrent.futures.Future[str] = AsyncioFuture()
+        try:
+            future.set_result("done")
+
+            assert list(concurrent.futures.as_completed(fs=[future])) == [
+                future
+            ]
+        finally:
+            unpatch()
+
+
+def test_wasm_as_completed_preserves_completion_order_after_waiter_starts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        install_run_sync(monkeypatch)
+        from pyodide import ffi
+
+        first, second = _wasm_futures_with_reversed_hash_order()
+
+        def run_sync(awaitable: object) -> object:
+            async def run() -> object:
+                loop = asyncio.get_running_loop()
+                loop.call_soon(first.set_result, "first")
+                loop.call_soon(second.set_result, "second")
+                return await cast(Any, awaitable)
+
+            return asyncio.run(run())
+
+        monkeypatch.setattr(ffi, "run_sync", run_sync)
+        try:
+            iterator = concurrent.futures.as_completed(
+                [first, second], timeout=1
+            )
+
+            assert next(iterator) is first
+            assert next(iterator) is second
+        finally:
+            unpatch()
+
+
+def test_wasm_as_completed_orders_callback_completion_after_trigger() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        first: concurrent.futures.Future[str] = AsyncioFuture()
+        second: concurrent.futures.Future[str] = AsyncioFuture()
+        try:
+            first.add_done_callback(
+                lambda _future: second.set_result("second")
+            )
+
+            first.set_result("first")
+
+            assert list(concurrent.futures.as_completed([first, second])) == [
+                first,
+                second,
+            ]
+        finally:
+            unpatch()
+
+
+def test_wasm_as_completed_deduplicates_input_futures() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(lambda: "done")
+
+                assert list(
+                    concurrent.futures.as_completed(
+                        [future, future], timeout=1
+                    )
+                ) == [future]
+        finally:
+            unpatch()
+
+
+def test_wasm_as_completed_timeout_zero_yields_done_futures() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        done_future: concurrent.futures.Future[str] = AsyncioFuture()
+        pending_future: concurrent.futures.Future[str] = AsyncioFuture()
+        try:
+            done_future.set_result("done")
+            iterator = concurrent.futures.as_completed(
+                [done_future, pending_future], timeout=0
+            )
+
+            assert next(iterator) is done_future
+            with pytest.raises(concurrent.futures.TimeoutError):
+                next(iterator)
+        finally:
+            pending_future.cancel()
+            unpatch()
+
+
+def test_wasm_as_completed_deadline_excludes_late_completions() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        first: concurrent.futures.Future[str] = AsyncioFuture()
+        second: concurrent.futures.Future[str] = AsyncioFuture()
+        try:
+            first.set_result("first")
+            iterator = concurrent.futures.as_completed(
+                [first, second], timeout=0.001
+            )
+
+            assert next(iterator) is first
+            time.sleep(0.01)
+            second.set_result("late")
+
+            with pytest.raises(concurrent.futures.TimeoutError):
+                next(iterator)
+        finally:
+            second.cancel()
+            unpatch()
+
+
+def test_wasm_mixed_pending_wait_raises_clear_error() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        shim_future: concurrent.futures.Future[str] = AsyncioFuture()
+        foreign_future: concurrent.futures.Future[str] = (
+            concurrent.futures.Future()
+        )
+        try:
+            with pytest.raises(
+                UnsupportedWasmConcurrencyError, match="mixed pending"
+            ):
+                concurrent.futures.wait([shim_future, foreign_future])
+        finally:
+            shim_future.cancel()
+            foreign_future.cancel()
+            unpatch()
+
+
+def test_wasm_mixed_as_completed_yields_done_before_clear_error() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        shim_done: concurrent.futures.Future[str] = AsyncioFuture()
+        foreign_pending: concurrent.futures.Future[str] = (
+            concurrent.futures.Future()
+        )
+        try:
+            shim_done.set_result("shim")
+            iterator = concurrent.futures.as_completed(
+                [shim_done, foreign_pending]
+            )
+
+            assert next(iterator) is shim_done
+            with pytest.raises(
+                UnsupportedWasmConcurrencyError, match="mixed pending"
+            ):
+                next(iterator)
+        finally:
+            foreign_pending.cancel()
+            unpatch()
+
+
+def test_wasm_mixed_as_completed_accepts_foreign_completion_between_yields() -> (
+    None
+):
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        shim_done: concurrent.futures.Future[str] = AsyncioFuture()
+        foreign_future: concurrent.futures.Future[str] = (
+            concurrent.futures.Future()
+        )
+        try:
+            shim_done.set_result("shim")
+            iterator = concurrent.futures.as_completed(
+                [shim_done, foreign_future]
+            )
+
+            assert next(iterator) is shim_done
+            foreign_future.set_result("foreign")
+            assert next(iterator) is foreign_future
+            with pytest.raises(StopIteration):
+                next(iterator)
+        finally:
+            unpatch()
+
+
+def test_wasm_mixed_as_completed_does_not_repeat_foreign_future() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        shim_done, foreign_future, shim_late = (
+            _mixed_futures_with_done_shim_before_foreign()
+        )
+        try:
+            shim_done.set_result("shim")
+            iterator = concurrent.futures.as_completed(
+                [shim_done, foreign_future, shim_late]
+            )
+
+            assert next(iterator) is shim_done
+            foreign_future.set_result("foreign")
+            assert next(iterator) is foreign_future
+            shim_late.set_result("late")
+            assert next(iterator) is shim_late
+            with pytest.raises(StopIteration):
+                next(iterator)
+        finally:
+            unpatch()
+
+
+def test_wasm_mixed_as_completed_yields_late_wasm_before_foreign_error() -> (
+    None
+):
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        shim_done, foreign_pending, shim_late = (
+            _mixed_futures_with_late_shim_before_done_shim()
+        )
+        try:
+            shim_done.set_result("shim")
+            iterator = concurrent.futures.as_completed(
+                [shim_done, foreign_pending, shim_late]
+            )
+
+            assert next(iterator) is shim_done
+            shim_late.set_result("late")
+            assert next(iterator) is shim_late
+            with pytest.raises(
+                UnsupportedWasmConcurrencyError, match="mixed pending"
+            ):
+                next(iterator)
+        finally:
+            foreign_pending.cancel()
             unpatch()
 
 
