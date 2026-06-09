@@ -1,9 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
 import type { StorageEntry } from "@/core/storage/types";
-import { exportedForTesting } from "../storage-inspector";
-
-const { storageEntryKey } = exportedForTesting;
+import { storageEntryKey } from "../storage-inspector";
 
 function makeEntry(
   overrides: Partial<StorageEntry> & { path: string },

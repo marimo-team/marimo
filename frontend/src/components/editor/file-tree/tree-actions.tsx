@@ -84,9 +84,7 @@ export const VisibilityToggleButton: React.FC<{
   /** Whether the optional items are currently visible. */
   isVisible: boolean;
   onToggle: () => void;
-  /** Tooltip shown while items are hidden (clicking will show them). */
   showTooltip: string;
-  /** Tooltip shown while items are visible (clicking will hide them). */
   hideTooltip: string;
   size?: ButtonProps["size"];
   className?: string;

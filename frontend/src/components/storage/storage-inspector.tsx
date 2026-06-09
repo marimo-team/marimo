@@ -98,12 +98,18 @@ function displayName(path: string): string {
  * Stable, unique identity for an entry row. Prefer the
  * backend's stable id when present and fall back to the list index
  */
-function storageEntryKey(entry: StorageEntry, index: number): string {
+export function storageEntryKey(entry: StorageEntry, index: number): string {
   const id = entry.metadata?.id;
   if (typeof id === "string" && id.length > 0) {
     return id;
   }
   return `${entry.path}::${index}`;
+}
+
+interface SearchContext {
+  namespace: string;
+  searchValue: string;
+  entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>;
 }
 
 /**
@@ -112,9 +118,7 @@ function storageEntryKey(entry: StorageEntry, index: number): string {
  */
 function entryMatchesSearch(
   entry: StorageEntry,
-  namespace: string,
-  searchValue: string,
-  entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>,
+  { namespace, searchValue, entriesByPath }: SearchContext,
 ): boolean {
   const query = searchValue.toLowerCase();
 
@@ -127,7 +131,7 @@ function entryMatchesSearch(
     const children = entriesByPath.get(storagePathKey(namespace, entry.path));
     if (children) {
       return children.some((child) =>
-        entryMatchesSearch(child, namespace, searchValue, entriesByPath),
+        entryMatchesSearch(child, { namespace, searchValue, entriesByPath }),
       );
     }
   }
@@ -141,16 +145,12 @@ function entryMatchesSearch(
  */
 function filterEntries(
   entries: StorageEntry[],
-  namespace: string,
-  searchValue: string,
-  entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>,
+  context: SearchContext,
 ): StorageEntry[] {
-  if (!searchValue.trim()) {
+  if (!context.searchValue.trim()) {
     return entries;
   }
-  return entries.filter((entry) =>
-    entryMatchesSearch(entry, namespace, searchValue, entriesByPath),
-  );
+  return entries.filter((entry) => entryMatchesSearch(entry, context));
 }
 
 /**
@@ -216,12 +216,11 @@ const StorageEntryChildren: React.FC<{
     );
   }
 
-  const filtered = filterEntries(
-    children,
+  const filtered = filterEntries(children, {
     namespace,
     searchValue,
     entriesByPath,
-  );
+  });
 
   return (
     <>
@@ -289,7 +288,7 @@ const StorageEntryRow: React.FC<{
     !!entriesByPath
       .get(storagePathKey(namespace, entry.path))
       ?.some((child) =>
-        entryMatchesSearch(child, namespace, searchValue, entriesByPath),
+        entryMatchesSearch(child, { namespace, searchValue, entriesByPath }),
       );
 
   // Folder is shown expanded by manual toggle OR by search auto-expand
@@ -476,12 +475,11 @@ const StorageNamespaceSection: React.FC<{
 
   // While loading, fall back to initial entries from the namespace notification
   const entries = isPending ? namespace.storageEntries : fetchedEntries;
-  const filtered = filterEntries(
-    entries,
-    namespaceName,
+  const filtered = filterEntries(entries, {
+    namespace: namespaceName,
     searchValue,
     entriesByPath,
-  );
+  });
 
   return (
     <>
@@ -673,8 +671,4 @@ export const StorageInspector: React.FC = () => {
       </Command>
     </div>
   );
-};
-
-export const exportedForTesting = {
-  storageEntryKey,
 };
