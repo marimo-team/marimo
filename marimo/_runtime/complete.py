@@ -257,18 +257,47 @@ def _get_type_hint(completion: jedi.api.classes.BaseName) -> str:
         return ""
 
 
+# Jedi types that carry a signature/docstring worth surfacing in live docs.
+_DOCUMENTABLE_TYPES = ("function", "class", "module")
+
+
+def _resolve_aliased_definition(
+    completion: jedi.api.classes.BaseName,
+) -> jedi.api.classes.BaseName | None:
+    """Follow an assignment statement to its underlying definition.
+
+    Aliases such as `func = another_func` are reported by Jedi as a `statement` with no
+    docstring of their own, so we infer the assignment to get the docstring and signature
+    of the function/class/module it points at.
+    """
+    try:
+        inferred = completion.infer()
+    except Exception:
+        return None
+    for definition in inferred:
+        if definition.type in _DOCUMENTABLE_TYPES:
+            return definition
+    return None
+
+
 def _get_completion_info(completion: jedi.api.classes.BaseName) -> str:
-    if completion.type != "statement":
-        try:
-            return _get_docstring(completion)
-        except Exception as e:
-            LOGGER.debug("jedi failed to get docstring: %s", str(e))
-            return ""
-    else:
+    if completion.type == "statement":
+        definition = _resolve_aliased_definition(completion)
+        if definition is not None:
+            try:
+                return _get_docstring(definition)
+            except Exception as e:
+                LOGGER.debug("jedi failed to get docstring: %s", str(e))
         try:
             return _get_type_hint(completion)
         except Exception as e:
             LOGGER.debug("jedi failed to get type hint: %s", str(e))
+            return ""
+    else:
+        try:
+            return _get_docstring(completion)
+        except Exception as e:
+            LOGGER.debug("jedi failed to get docstring: %s", str(e))
             return ""
 
 

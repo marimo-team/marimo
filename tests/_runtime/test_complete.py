@@ -20,6 +20,7 @@ from marimo._messaging.types import KernelMessage, Stream
 from marimo._runtime.commands import CodeCompletionCommand
 from marimo._runtime.complete import (
     _build_docstring_cached,
+    _get_completion_info,
     _get_completion_option,
     _get_completion_options,
     _get_docstring,
@@ -717,8 +718,8 @@ def test_resolve_chained_key_path(
 class _FakeCompletion:
     """Stand-in for jedi.api.classes.Completion.
 
-    Tracks whether `type` was accessed so we can assert we didn't pay the
-    (expensive) jedi inference cost in the fast path.
+    Tracks whether `type` was accessed and how often `infer()` ran so we can
+    assert we didn't pay the (expensive) jedi inference cost in the fast path.
     """
 
     def __init__(
@@ -726,12 +727,15 @@ class _FakeCompletion:
         name: str,
         completion_type: str = "function",
         raise_on_type: bool = False,
+        inferred: list[Any] | None = None,
     ) -> None:
         self.name = name
         self._type = completion_type
         self._raise_on_type = raise_on_type
+        self._inferred = inferred or []
         self.type_access_count = 0
         self.docstring_called = False
+        self.infer_count = 0
 
     @property
     def type(self) -> str:
@@ -745,6 +749,16 @@ class _FakeCompletion:
     def docstring(self, *_args: Any, **_kwargs: Any) -> str:
         self.docstring_called = True
         return ""
+
+    def get_signatures(self) -> list[Any]:
+        return []
+
+    def get_type_hint(self) -> str:
+        return "int"
+
+    def infer(self) -> list[Any]:
+        self.infer_count += 1
+        return self._inferred
 
 
 def test_get_completion_option_skips_type_when_compute_type_false() -> None:
@@ -869,3 +883,131 @@ def test_get_completion_options_respects_prefix_filter() -> None:
     )
 
     assert [opt.name for opt in options] == ["public"]
+
+
+def _completion_for(code: str, name: str) -> Any:
+    """Return the Jedi completion named `name` at the end of `code`."""
+    script = jedi.Script(code=code)
+    lines = code.split("\n")
+    completions = script.complete(line=len(lines), column=len(lines[-1]))
+    matches = [c for c in completions if c.name == name]
+    assert matches, (
+        f"no completion named {name!r}; got {[c.name for c in completions]}"
+    )
+    return matches[0]
+
+
+def test_completion_info_resolves_aliased_function() -> None:
+    """Aliases to a function show the underlying docstring + signature.
+
+    Regression test for #9822: `alias = func` is reported by Jedi as a
+    `statement`, which previously fell through to a bare type hint, dropping
+    the docstring and signature highlighting in live docs / hover.
+    """
+    code = (
+        "def my_documented_func(arg: int) -> None:\n"
+        '    """Docstring for the aliased function."""\n'
+        "    print(arg)\n"
+        "\n"
+        "alias = my_documented_func\n"
+        "alias"
+    )
+    completion = _completion_for(code, "alias")
+    assert completion.type == "statement"
+
+    info = _get_completion_info(completion)
+    assert "Docstring for the aliased function." in info
+    # Signature is rendered as a highlighted python code block.
+    assert "codehilite" in info
+    assert "my_documented_func" in info
+
+
+def test_completion_info_resolves_aliased_class() -> None:
+    code = (
+        "class MyDocumentedClass:\n"
+        '    """Docstring for the aliased class."""\n'
+        "\n"
+        "Alias = MyDocumentedClass\n"
+        "Alias"
+    )
+    completion = _completion_for(code, "Alias")
+    assert completion.type == "statement"
+
+    info = _get_completion_info(completion)
+    assert "Docstring for the aliased class." in info
+
+
+def test_completion_info_plain_value_statement_uses_type_hint() -> None:
+    """Statements resolving to plain values keep the type-hint fallback rather
+    than surfacing a builtin's docstring."""
+    code = "answer = 42\nanswer"
+    completion = _completion_for(code, "answer")
+    assert completion.type == "statement"
+
+    info = _get_completion_info(completion)
+    assert info == "answer: int"
+    assert "codehilite" not in info
+
+
+def test_infer_skipped_for_statements_past_limit() -> None:
+    """The docstring limit must prevent `.infer()` fan-out.
+
+    Aliased-statement resolution calls `jedi`'s `infer()`, which "follows all
+    results" and is very slow across large completion sets (e.g. `np.`). The
+    `len(completions) <= limit` gate has to keep us out of that path entirely.
+    """
+    completions = [
+        _FakeCompletion(f"v{i}", completion_type="statement")
+        for i in range(10)
+    ]
+
+    _get_completion_options(
+        completions, mock.MagicMock(), prefix="", limit=5, timeout=5.0
+    )
+
+    assert all(c.infer_count == 0 for c in completions)
+
+
+def test_infer_only_runs_for_statements_under_budget() -> None:
+    """Within budget, only statement completions infer (once each); other
+    types go straight to `_get_docstring` and never touch `infer()`."""
+    statements = [
+        _FakeCompletion(f"s{i}", completion_type="statement") for i in range(3)
+    ]
+    functions = [
+        _FakeCompletion(f"f{i}", completion_type="function") for i in range(3)
+    ]
+
+    _get_completion_options(
+        statements + functions,
+        mock.MagicMock(),
+        prefix="",
+        limit=100,
+        timeout=5.0,
+    )
+
+    assert all(c.infer_count == 1 for c in statements)
+    assert all(c.infer_count == 0 for c in functions)
+
+
+def test_infer_skipped_once_timeout_elapsed() -> None:
+    """Once the time budget is blown, remaining statements skip `.infer()`
+    just like they skip type/docstring inference."""
+    completions = [
+        _FakeCompletion(f"v{i}", completion_type="statement") for i in range(4)
+    ]
+
+    original_monotonic = time.monotonic
+    times = iter([0.0, 0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0])
+
+    with mock.patch(
+        "marimo._runtime.complete.time.monotonic",
+        side_effect=lambda: next(times, original_monotonic()),
+    ):
+        _get_completion_options(
+            completions, mock.MagicMock(), prefix="", limit=100, timeout=1.0
+        )
+
+    # First completion is under budget and infers; the rest are skipped.
+    assert completions[0].infer_count == 1
+    assert all(c.infer_count == 0 for c in completions[1:])
