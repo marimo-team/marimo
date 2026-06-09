@@ -14,6 +14,7 @@ import { Deck, Fragment, Slide, Stack } from "@revealjs/react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { Button } from "@/components/ui/button";
+import { useFullScreenElement } from "@/components/ui/fullscreen";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import type { RuntimeCell } from "@/core/cells/types";
@@ -274,6 +275,8 @@ const RevealSlidesComponent = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef<RevealApi | null>(null);
   const { width, height } = useSlideDimensions(containerRef);
+  const isFullscreen = useFullScreenElement() != null;
+
   // Skip the Notes plugin inside reveal's own speaker-view iframes so pressing
   // `S` there doesn't try to spawn another popup.
   const kioskMode = useAtomValue(kioskModeAtom);
@@ -607,6 +610,7 @@ const RevealSlidesComponent = ({
         <PanelResizeHandle
           className="mo-slides-notes-resize"
           hitAreaMargins={{ coarse: 12, fine: 4 }}
+          disabled={isFullscreen}
         />
         <Panel
           defaultSize={10}
