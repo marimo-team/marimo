@@ -15,6 +15,7 @@ from marimo._data.models import (
 )
 from marimo._messaging.notification import SQLDatabaseMetadata, SQLMetadata
 from marimo._sql.connection_utils import (
+    _find_schema_by_path,
     update_schema_list_in_connection,
     update_table_in_connection,
     update_table_list_in_connection,
@@ -578,3 +579,125 @@ class TestPerformance:
         print("cProfile Results (top 20):")
         print("=" * 80)
         stats.print_stats(20)
+
+
+def _create_nested_connection() -> list[DataSourceConnection]:
+    """Connection with a top-level namespace ("top") holding a recursive
+    sub-namespace tree: top -> nested -> deep."""
+    deep = Schema(
+        name="deep",
+        tables=[],
+        tables_resolved=False,
+        schemas=[],
+        schemas_resolved=False,
+    )
+    nested = Schema(
+        name="nested",
+        tables=[create_test_table("table4")],
+        tables_resolved=True,
+        schemas=[deep],
+        schemas_resolved=True,
+    )
+    top = Database(
+        name="top",
+        dialect="iceberg",
+        schemas=[
+            Schema(name="", tables=[], tables_resolved=True),
+            nested,
+        ],
+    )
+    return [
+        DataSourceConnection(
+            source="iceberg",
+            dialect="iceberg",
+            name="my_iceberg",
+            display_name="iceberg (my_iceberg)",
+            databases=[top],
+        )
+    ]
+
+
+class TestFindSchemaByPath:
+    def test_finds_top_level(self) -> None:
+        connections = _create_nested_connection()
+        schemas = connections[0].databases[0].schemas
+        found = _find_schema_by_path(schemas, ["nested"])
+        assert found is not None
+        assert found.name == "nested"
+
+    def test_descends_into_nested(self) -> None:
+        connections = _create_nested_connection()
+        schemas = connections[0].databases[0].schemas
+        found = _find_schema_by_path(schemas, ["nested", "deep"])
+        assert found is not None
+        assert found.name == "deep"
+
+    def test_missing_path_returns_none(self) -> None:
+        connections = _create_nested_connection()
+        schemas = connections[0].databases[0].schemas
+        assert _find_schema_by_path(schemas, ["nested", "missing"]) is None
+        assert _find_schema_by_path(schemas, []) is None
+
+
+class TestNestedNamespaceUpdates:
+    def test_update_child_schema_list_at_path(self) -> None:
+        """Resolving child namespaces of a nested namespace updates the right
+        node in-place."""
+        connections = _create_nested_connection()
+        sql_db_metadata = SQLDatabaseMetadata(
+            connection="my_iceberg",
+            database="top",
+            namespace_path=["nested"],
+        )
+        new_children = [Schema(name="deep", tables=[])]
+
+        update_schema_list_in_connection(
+            connections, sql_db_metadata, new_children
+        )
+
+        nested = _find_schema_by_path(
+            connections[0].databases[0].schemas, ["nested"]
+        )
+        assert nested is not None
+        assert [s.name for s in nested.schemas] == ["deep"]
+        assert nested.schemas_resolved is True
+
+    def test_update_table_list_at_nested_path(self) -> None:
+        """Resolving tables of a deeply nested namespace targets that schema."""
+        connections = _create_nested_connection()
+        sql_metadata = SQLMetadata(
+            connection="my_iceberg",
+            database="top",
+            schema="deep",
+            namespace_path=["nested", "deep"],
+        )
+        new_tables = [create_test_table("table5")]
+
+        update_table_list_in_connection(connections, sql_metadata, new_tables)
+
+        deep = _find_schema_by_path(
+            connections[0].databases[0].schemas, ["nested", "deep"]
+        )
+        assert deep is not None
+        assert [t.name for t in deep.tables] == ["table5"]
+        assert deep.tables_resolved is True
+
+    def test_update_table_at_nested_path(self) -> None:
+        """A single-table update descends the namespace path."""
+        connections = _create_nested_connection()
+        sql_metadata = SQLMetadata(
+            connection="my_iceberg",
+            database="top",
+            schema="nested",
+            namespace_path=["nested"],
+        )
+        updated = create_test_table("table4")
+        updated.num_rows = 999
+
+        update_table_in_connection(connections, sql_metadata, updated)
+
+        nested = _find_schema_by_path(
+            connections[0].databases[0].schemas, ["nested"]
+        )
+        assert nested is not None
+        assert nested.tables[0].num_rows == 999

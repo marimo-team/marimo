@@ -2903,12 +2903,19 @@ components:
         \ schemas in a database. Used by the SQL editor for\n    schema selection.\n\
         \n    Attributes:\n        request_id: Unique identifier for this request.\n\
         \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
-        \     database: Database to query."
+        \     database: Database to query.\n        namespace_path: Parent namespace\
+        \ path (relative to `database`) whose\n            child namespaces should\
+        \ be listed. Empty lists the database's\n            top-level schemas/namespaces."
       properties:
         database:
           type: string
         engine:
           type: string
+        namespacePath:
+          default: []
+          items:
+            type: string
+          type: array
         requestId:
           $ref: '#/components/schemas/RequestId'
         type:
@@ -2927,6 +2934,11 @@ components:
           type: string
         engine:
           type: string
+        namespacePath:
+          default: []
+          items:
+            type: string
+          type: array
         requestId:
           $ref: '#/components/schemas/RequestId'
       required:
@@ -2941,12 +2953,19 @@ components:
         \n    Attributes:\n        request_id: Unique identifier for this request.\n\
         \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
         \     database: Database to query.\n        schema: Schema to list tables\
-        \ from."
+        \ from.\n        namespace_path: Nested namespace path (relative to `database`)\
+        \ for\n            catalogs with hierarchical namespaces. Empty for the top\
+        \ level."
       properties:
         database:
           type: string
         engine:
           type: string
+        namespacePath:
+          default: []
+          items:
+            type: string
+          type: array
         requestId:
           $ref: '#/components/schemas/RequestId'
         schema:
@@ -2968,6 +2987,11 @@ components:
           type: string
         engine:
           type: string
+        namespacePath:
+          default: []
+          items:
+            type: string
+          type: array
         requestId:
           $ref: '#/components/schemas/RequestId'
         schema:
@@ -3933,12 +3957,19 @@ components:
         \ Attributes:\n        request_id: Unique identifier for this request.\n \
         \       engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n    \
         \    database: Database containing the table.\n        schema: Schema containing\
-        \ the table.\n        table_name: Table to preview."
+        \ the table.\n        table_name: Table to preview.\n        namespace_path:\
+        \ Nested namespace path (relative to `database`) for\n            catalogs\
+        \ with hierarchical namespaces. Empty for the top level."
       properties:
         database:
           type: string
         engine:
           type: string
+        namespacePath:
+          default: []
+          items:
+            type: string
+          type: array
         requestId:
           $ref: '#/components/schemas/RequestId'
         schema:
@@ -3963,6 +3994,11 @@ components:
           type: string
         engine:
           type: string
+        namespacePath:
+          default: []
+          items:
+            type: string
+          type: array
         requestId:
           $ref: '#/components/schemas/RequestId'
         schema:
@@ -4310,12 +4346,19 @@ components:
       type: object
     SQLDatabaseMetadata:
       description: "SQL database metadata.\n\n    Attributes:\n        connection:\
-        \ Connection identifier.\n        database: Database name."
+        \ Connection identifier.\n        database: Database name.\n        namespace_path:\
+        \ Parent namespace path (relative to `database`) the\n            schemas\
+        \ belong under. Empty for the database's top level."
       properties:
         connection:
           type: string
         database:
           type: string
+        namespace_path:
+          default: []
+          items:
+            type: string
+          type: array
       required:
       - connection
       - database
@@ -4324,12 +4367,19 @@ components:
     SQLMetadata:
       description: "SQL database and schema metadata.\n\n    Attributes:\n       \
         \ connection: Connection identifier.\n        database: Database name.\n \
-        \       schema: Schema name."
+        \       schema: Schema name.\n        namespace_path: Nested namespace path\
+        \ (relative to `database`) for\n            catalogs with hierarchical namespaces.\
+        \ Empty for the top level."
       properties:
         connection:
           type: string
         database:
           type: string
+        namespace_path:
+          default: []
+          items:
+            type: string
+          type: array
         schema:
           type: string
         type:
@@ -4501,14 +4551,26 @@ components:
       title: SaveUserConfigurationRequest
       type: object
     Schema:
-      description: "Represents a database schema and its tables.\n\nAttributes:\n\
-        \    name (str): The name of the schema.\n    tables (List[DataTable]): Tables\
-        \ in this schema.\n    tables_resolved (bool): True when `tables` has been\
-        \ enumerated\n        False when table discovery was deferred. Defaults to\
-        \ True"
+      description: "Represents a database schema and its tables.\n\nA schema may itself\
+        \ contain nested child schemas, e.g. for catalogs with\nhierarchical namespaces\
+        \ such as Iceberg (`top.nested.deep`).\n\nAttributes:\n    name (str): The\
+        \ name of the schema.\n    tables (List[DataTable]): Tables in this schema.\n\
+        \    tables_resolved (bool): True when `tables` has been enumerated\n    \
+        \    False when table discovery was deferred. Defaults to True\n    schemas\
+        \ (List[Schema]): Nested child schemas (sub-namespaces).\n    schemas_resolved\
+        \ (bool): True when `schemas` has been enumerated.\n        False when child-schema\
+        \ discovery was deferred. Defaults to True"
       properties:
         name:
           type: string
+        schemas:
+          default: []
+          items:
+            $ref: '#/components/schemas/Schema'
+          type: array
+        schemas_resolved:
+          default: true
+          type: boolean
         tables:
           items:
             $ref: '#/components/schemas/DataTable'

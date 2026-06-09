@@ -38,6 +38,11 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+def _absolute_namespace(database: str, namespace_path: list[str]) -> str:
+    """Dotted namespace from a database and a path relative to it."""
+    return ".".join([database, *namespace_path])
+
+
 class DatasetCallbacks:
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
@@ -161,10 +166,12 @@ class DatasetCallbacks:
         database_name = request.database
         schema_name = request.schema
         table_name = request.table_name
+        namespace_path = request.namespace_path
         sql_metadata = SQLMetadata(
             connection=variable_name,
             database=database_name,
             schema=schema_name,
+            namespace_path=namespace_path,
         )
 
         engine, error = self.get_engine_catalog(variable_name)
@@ -183,7 +190,9 @@ class DatasetCallbacks:
             table = engine.get_table_details(
                 table_name=table_name,
                 schema_name=schema_name,
-                database_name=database_name,
+                database_name=_absolute_namespace(
+                    database_name, namespace_path
+                ),
             )
 
             broadcast_notification(
@@ -223,10 +232,12 @@ class DatasetCallbacks:
         variable_name = cast(VariableName, request.engine)
         database_name = request.database
         schema_name = request.schema
+        namespace_path = request.namespace_path
         sql_metadata = SQLMetadata(
             connection=variable_name,
             database=database_name,
             schema=schema_name,
+            namespace_path=namespace_path,
         )
 
         engine, error = self.get_engine_catalog(variable_name)
@@ -244,7 +255,7 @@ class DatasetCallbacks:
         try:
             table_list = engine.get_tables_in_schema(
                 schema=schema_name,
-                database=database_name,
+                database=_absolute_namespace(database_name, namespace_path),
                 include_table_details=False,
             )
             broadcast_notification(
@@ -280,9 +291,11 @@ class DatasetCallbacks:
         """
         variable_name = cast(VariableName, request.engine)
         database_name = request.database
+        namespace_path = request.namespace_path
         sql_db_metadata = SQLDatabaseMetadata(
             connection=variable_name,
             database=database_name,
+            namespace_path=namespace_path,
         )
 
         engine, error = self.get_engine_catalog(variable_name)
@@ -298,11 +311,18 @@ class DatasetCallbacks:
             return
 
         try:
-            schema_list = engine.get_schemas(
-                database=database_name,
-                include_tables=False,
-                include_table_details=False,
-            )
+            if namespace_path:
+                # Expanding a nested namespace: list its immediate children.
+                schema_list = engine.get_child_namespaces(
+                    namespace_path=[database_name, *namespace_path],
+                    include_tables=False,
+                )
+            else:
+                schema_list = engine.get_schemas(
+                    database=database_name,
+                    include_tables=False,
+                    include_table_details=False,
+                )
             broadcast_notification(
                 SQLSchemaListPreviewNotification(
                     request_id=request.request_id,
