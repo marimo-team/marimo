@@ -9,8 +9,6 @@ import {
   CopyMinusIcon,
   DownloadIcon,
   ExternalLinkIcon,
-  EyeIcon,
-  EyeOffIcon,
   FilePlus2Icon,
   FolderPlusIcon,
   ListTreeIcon,
@@ -43,6 +41,7 @@ import {
   MENU_ITEM_ICON_CLASS,
   RefreshIconButton,
   TreeChevron,
+  VisibilityToggleButton,
 } from "@/components/editor/file-tree/tree-actions";
 import { MarimoIcon, MarimoPlusIcon } from "@/components/icons/marimo-icons";
 import { Spinner } from "@/components/icons/spinner";
@@ -338,22 +337,13 @@ const Toolbar = ({
         data-testid="file-explorer-refresh-button"
         onClick={onRefresh}
       />
-      <Tooltip
-        content={showHiddenFiles ? "Hide hidden files" : "Show hidden files"}
-      >
-        <Button
-          data-testid="file-explorer-hidden-files-button"
-          onClick={onHidden}
-          variant="text"
-          size="xs"
-        >
-          {showHiddenFiles ? (
-            <EyeIcon size={16} className="text-primary" />
-          ) : (
-            <EyeOffIcon size={16} />
-          )}
-        </Button>
-      </Tooltip>
+      <VisibilityToggleButton
+        data-testid="file-explorer-hidden-files-button"
+        isVisible={showHiddenFiles}
+        onToggle={onHidden}
+        showTooltip="Show hidden files"
+        hideTooltip="Hide hidden files"
+      />
       <Tooltip content="Collapse all folders">
         <Button
           data-testid="file-explorer-collapse-button"

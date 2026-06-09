@@ -3,18 +3,15 @@
 import { CommandList } from "cmdk";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import {
-  EyeIcon,
-  EyeOffIcon,
-  PlusIcon,
-  PlusSquareIcon,
-  XIcon,
-} from "lucide-react";
+import { PlusIcon, PlusSquareIcon, XIcon } from "lucide-react";
 import React from "react";
 import { dbDisplayName } from "@/components/databases/display";
 import { EngineVariable } from "@/components/databases/engine-variable";
 import { DatabaseLogo } from "@/components/databases/icon";
-import { RefreshIconButton } from "@/components/editor/file-tree/tree-actions";
+import {
+  RefreshIconButton,
+  VisibilityToggleButton,
+} from "@/components/editor/file-tree/tree-actions";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { Button } from "@/components/ui/button";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
@@ -227,16 +224,13 @@ export const DataSources: React.FC = () => {
     if (!hideEmpty) {
       return rawConnections;
     }
-    let changed = false;
-    const filtered = rawConnections.map((connection) => {
+    return rawConnections.map((connection) => {
       const databases = filterEmptyDatabases(connection.databases);
       if (databases === connection.databases) {
         return connection;
       }
-      changed = true;
       return { ...connection, databases };
     });
-    return changed ? filtered : rawConnections;
   }, [rawConnections, hideEmpty]);
 
   if (tables.length === 0 && dataConnections.length === 0) {
@@ -286,27 +280,15 @@ export const DataSources: React.FC = () => {
           </button>
         )}
 
-        <Tooltip
-          content={
-            hideEmpty
-              ? "Show empty schemas and databases"
-              : "Hide empty schemas and databases"
-          }
-        >
-          <Button
-            data-testid="datasources-hide-empty-button"
-            variant="ghost"
-            size="sm"
-            className="px-2 rounded-none focus-visible:outline-hidden"
-            onClick={() => setHideEmpty(!hideEmpty)}
-          >
-            {hideEmpty ? (
-              <EyeOffIcon className="h-4 w-4" />
-            ) : (
-              <EyeIcon className="h-4 w-4" />
-            )}
-          </Button>
-        </Tooltip>
+        <VisibilityToggleButton
+          data-testid="datasources-hide-empty-button"
+          isVisible={!hideEmpty}
+          onToggle={() => setHideEmpty(!hideEmpty)}
+          showTooltip="Show empty schemas and databases"
+          hideTooltip="Hide empty schemas and databases"
+          size="sm"
+          className="px-2 rounded-none focus-visible:outline-hidden"
+        />
 
         <AddConnectionDialog>
           <Button

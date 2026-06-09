@@ -2,11 +2,13 @@
 
 import {
   ChevronRightIcon,
+  EyeIcon,
+  EyeOffIcon,
   MoreVerticalIcon,
   RefreshCwIcon,
 } from "lucide-react";
 import React, { useCallback, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 
@@ -71,6 +73,51 @@ export const RefreshIconButton: React.FC<{
   );
 
   return <Tooltip content={tooltip}>{button}</Tooltip>;
+};
+
+/**
+ * Toggle button that switches between an eye (visible) and crossed-out eye
+ * (hidden) icon. Used to show/hide optional items in toolbars, e.g. hidden
+ * files in the file explorer or empty schemas in the data sources panel.
+ */
+export const VisibilityToggleButton: React.FC<{
+  /** Whether the optional items are currently visible. */
+  isVisible: boolean;
+  onToggle: () => void;
+  /** Tooltip shown while items are hidden (clicking will show them). */
+  showTooltip: string;
+  /** Tooltip shown while items are visible (clicking will hide them). */
+  hideTooltip: string;
+  size?: ButtonProps["size"];
+  className?: string;
+  iconClassName?: string;
+  "data-testid"?: string;
+}> = ({
+  isVisible,
+  onToggle,
+  showTooltip,
+  hideTooltip,
+  size = "xs",
+  className,
+  iconClassName,
+  "data-testid": dataTestId,
+}) => {
+  const Icon = isVisible ? EyeIcon : EyeOffIcon;
+  return (
+    <Tooltip content={isVisible ? hideTooltip : showTooltip}>
+      <Button
+        data-testid={dataTestId}
+        variant="text"
+        size={size}
+        className={className}
+        onClick={onToggle}
+      >
+        <Icon
+          className={cn("h-4 w-4", isVisible && "text-primary", iconClassName)}
+        />
+      </Button>
+    </Tooltip>
+  );
 };
 
 /**
