@@ -18,7 +18,7 @@ from sys import platform as _platform
 
 if _platform == "emscripten":
     # Runtime modules imported below capture `threading.Thread` and
-    # `threading.local`. Install the Pyodide threading patch first so public
+    # `threading.local`. Install the Pyodide concurrency patch first so public
     # imports and runtime context storage share the same stdlib view.
     from marimo._runtime._wasm import (
         ensure_wasm_runtime_bootstrapped as _ensure_wasm_runtime_bootstrapped,

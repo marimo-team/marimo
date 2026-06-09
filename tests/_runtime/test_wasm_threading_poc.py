@@ -12,7 +12,7 @@ from types import ModuleType
 from typing import Any, cast
 
 from marimo._runtime._wasm._concurrency._install import (
-    install_wasm_threading_shims,
+    install_wasm_concurrency_shims,
 )
 from tests.conftest import mock_pyodide
 
@@ -35,7 +35,7 @@ def test_wasm_threading_patch_is_inert_outside_pyodide() -> None:
     original_local = threading.local
     original_event = threading.Event
 
-    unpatch = install_wasm_threading_shims()
+    unpatch = install_wasm_concurrency_shims()
     unpatch()
 
     assert threading.Thread is original_thread
@@ -49,8 +49,8 @@ def test_wasm_threading_redundant_handle_does_not_unpatch_owner() -> None:
 
     with mock_pyodide():
         _install_run_sync()
-        owner_unpatch = install_wasm_threading_shims()
-        redundant_unpatch = install_wasm_threading_shims()
+        owner_unpatch = install_wasm_concurrency_shims()
+        redundant_unpatch = install_wasm_concurrency_shims()
         try:
             assert threading.Thread is not original_thread
             assert threading.local is not original_local
@@ -76,7 +76,7 @@ def test_wasm_threading_repairs_preimported_runtime_context_storage() -> None:
 
     with mock_pyodide():
         _install_run_sync()
-        unpatch = install_wasm_threading_shims()
+        unpatch = install_wasm_concurrency_shims()
         try:
             assert context_types.safe_get_context() is parent_context
             observed: list[object | None] = []

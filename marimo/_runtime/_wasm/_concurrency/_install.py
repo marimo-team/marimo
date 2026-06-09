@@ -1,10 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Install the Pyodide threading patch.
+"""Install Pyodide concurrency patches.
 
-`install_wasm_threading_shims()` keeps code that calls `threading.Thread`,
-`threading.Event`, and `threading.local` callable in Pyodide. Started threads
-run on the browser-backed asyncio loop with synthetic thread identities. They
-do not create OS threads or run Python bytecode in parallel.
+`install_wasm_concurrency_shims()` keeps code that calls `threading.Thread`,
+`threading.Event`, `threading.local`, and `ThreadPoolExecutor` callable in
+Pyodide. Started threads and executor work run on the browser-backed asyncio
+loop with synthetic thread identities. They do not create OS threads or run
+Python bytecode in parallel.
 
 The installer must run before marimo runtime modules capture `threading.local`.
 If those modules were already imported, the repair step replaces their captured
@@ -19,6 +20,9 @@ import threading as _threading
 from typing import Any
 
 from marimo._runtime._wasm._concurrency import _state
+from marimo._runtime._wasm._concurrency._futures import (
+    AsyncioThreadPoolExecutor,
+)
 from marimo._runtime._wasm._concurrency._threading import (
     AsyncEvent,
     AsyncioThread,
@@ -28,15 +32,18 @@ from marimo._runtime._wasm._patches import Unpatch, WasmPatchSet
 from marimo._utils.platform import is_pyodide
 
 
-def install_wasm_threading_shims() -> Unpatch:
-    """Patch `threading` for Pyodide and return the owning unpatch handle."""
+def install_wasm_concurrency_shims() -> Unpatch:
+    """Patch thread-shaped concurrency APIs in Pyodide."""
     if not is_pyodide():
         return lambda: None
     if _state.active_unpatch() is not None:
         return lambda: None
 
+    import concurrent.futures.thread as futures_thread
+    from concurrent import futures
+
     _state.set_patch_state(
-        _state.ThreadingPatchState(
+        _state.PatchState(
             original_thread_type=_threading.Thread,
             original_current_thread=_threading.current_thread,
             original_get_ident=_threading.get_ident,
@@ -67,6 +74,8 @@ def install_wasm_threading_shims() -> Unpatch:
             (_threading, "enumerate", _state.active_threads),
             (_threading, "active_count", _state.active_count),
             (_threading, "activeCount", _state.active_count),
+            (futures, "ThreadPoolExecutor", AsyncioThreadPoolExecutor),
+            (futures_thread, "ThreadPoolExecutor", AsyncioThreadPoolExecutor),
         ):
 
             def replacement_factory(
@@ -86,7 +95,7 @@ def install_wasm_threading_shims() -> Unpatch:
             is _state.current_native_id
         ):
             del _threading.get_native_id  # type: ignore[attr-defined]
-        _state.reset_threading_state()
+        _state.reset_runtime_state()
         raise
 
     unpatch = patches.unpatch_all()
@@ -99,12 +108,12 @@ def install_wasm_threading_shims() -> Unpatch:
             is _state.current_native_id
         ):
             del _threading.get_native_id  # type: ignore[attr-defined]
-        _state.reset_threading_state()
+        _state.reset_runtime_state()
 
     _state.set_active_unpatch(_run_unpatch)
 
     def _guarded_unpatch() -> None:
-        unpatch_wasm_threading_shims()
+        unpatch_wasm_concurrency_shims()
 
     return _guarded_unpatch
 
@@ -147,11 +156,14 @@ def repair_preimported_runtime_context_storage(
     )
 
 
-def unpatch_wasm_threading_shims() -> None:
-    """Remove the active Pyodide threading patch, if this process owns it."""
+def unpatch_wasm_concurrency_shims() -> None:
+    """Remove active Pyodide concurrency patches."""
     unpatch = _state.active_unpatch()
     if unpatch is None:
         return
-    if _state.live_threads:
-        raise RuntimeError("Cannot unpatch while WASM threads are still live")
+    _state.discard_finished_runtime_records()
+    if _state.has_live_core_work():
+        raise RuntimeError(
+            "Cannot unpatch while WASM concurrency work is live"
+        )
     unpatch()

@@ -1,9 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Interpreter-wide state for the Pyodide threading patch.
+"""Interpreter-wide state for Pyodide concurrency patches.
 
-Pyodide runs notebook code on one Python interpreter. The threading patch
-therefore creates synthetic thread identities and stores the original stdlib
-threading objects in one place so install, runtime lookup, and teardown agree.
+Pyodide runs notebook code on one Python interpreter. The patches therefore
+create synthetic thread identities and store original stdlib objects in one
+place so install, runtime lookup, and teardown agree.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class ThreadingPatchState:
+class PatchState:
     original_thread_type: type[Any]
     original_current_thread: Callable[[], Any]
     original_get_ident: Callable[[], int]
@@ -51,8 +51,10 @@ current_thread_var: contextvars.ContextVar[ThreadIdentity | None] = (
     contextvars.ContextVar("marimo_wasm_current_thread", default=None)
 )
 live_threads: set[ThreadIdentity] = set()
+live_executors: set[Any] = set()
+live_executor_tasks: set[asyncio.Task[Any]] = set()
 fallback_loop: asyncio.AbstractEventLoop | None = None
-patch_state_value: ThreadingPatchState | None = None
+patch_state_value: PatchState | None = None
 active_unpatch_value: Callable[[], None] | None = None
 
 _IDENTS = itertools.count(10_000)
@@ -66,14 +68,14 @@ def new_thread_name(prefix: str) -> str:
     return f"{prefix}-{new_ident()}"
 
 
-def set_patch_state(patch_state: ThreadingPatchState | None) -> None:
+def set_patch_state(patch_state: PatchState | None) -> None:
     global patch_state_value
     patch_state_value = patch_state
 
 
-def patch_state() -> ThreadingPatchState:
+def patch_state() -> PatchState:
     if patch_state_value is None:
-        raise RuntimeError("WASM threading patch is not installed")
+        raise RuntimeError("WASM concurrency shim is not installed")
     return patch_state_value
 
 
@@ -154,11 +156,50 @@ def run_until_complete_in_empty_wasm_context(
     return contextvars.Context().run(loop.run_until_complete, awaitable)
 
 
-def reset_threading_state() -> None:
+def register_executor(executor: Any) -> None:
+    live_executors.add(executor)
+
+
+def unregister_executor(executor: Any) -> None:
+    live_executors.discard(executor)
+
+
+def executor_task_registry() -> set[asyncio.Task[Any]]:
+    return live_executor_tasks
+
+
+def discard_finished_runtime_records() -> None:
+    for thread in list(live_threads):
+        if not thread.is_alive():
+            live_threads.discard(thread)
+    for executor in list(live_executors):
+        if _executor_is_idle(executor):
+            unregister_executor(executor)
+    for task in list(live_executor_tasks):
+        if task.done():
+            live_executor_tasks.discard(task)
+
+
+def has_live_core_work() -> bool:
+    return bool(live_threads or live_executors or live_executor_tasks)
+
+
+def _executor_is_idle(executor: Any) -> bool:
+    is_idle_for_wasm_teardown = getattr(
+        executor, "is_idle_for_wasm_teardown", None
+    )
+    if not callable(is_idle_for_wasm_teardown):
+        return False
+    return bool(is_idle_for_wasm_teardown())
+
+
+def reset_runtime_state() -> None:
     global fallback_loop
     live_threads.clear()
-    set_patch_state(None)
-    set_active_unpatch(None)
+    live_executors.clear()
+    live_executor_tasks.clear()
     if fallback_loop is not None and not fallback_loop.is_closed():
         fallback_loop.close()
     fallback_loop = None
+    set_patch_state(None)
+    set_active_unpatch(None)
