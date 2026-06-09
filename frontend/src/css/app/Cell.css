@@ -445,25 +445,36 @@
   align-items: stretch;
 }
 
+.cell-row-container--side-by-side.cell-row-container--output-left {
+  flex-direction: row-reverse;
+}
+
 .cell-row-container--side-by-side > .tray {
   flex: 1 1 0;
   min-width: 0;
 }
 
-/* The output wrapper is the non-tray direct child. Give it a visible
-   left edge so the editor and output read as two distinct columns. */
 .cell-row-container--side-by-side > :not(.tray) {
   flex: 1 1 0;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
   border-left: 1px solid var(--slate-5);
   margin-left: 0.5rem;
   padding-left: 0.5rem;
-  display: flex;
-  flex-direction: column;
 }
 
-/* In row mode, the editor is the rightmost edge of its column, so give
-   it a rounded bottom — there's no output below it to butt up against. */
+/* When output is on the left, mirror the divider to the right side
+   so it still sits between the two columns. */
+.cell-row-container--output-left > :not(.tray) {
+  border-left: none;
+  margin-left: 0;
+  padding-left: 0;
+  border-right: 1px solid var(--slate-5);
+  margin-right: 0.5rem;
+  padding-right: 0.5rem;
+}
+
 .cell-row-container--side-by-side .tray .cm-editor {
   border-bottom-left-radius: 9px;
   border-bottom-right-radius: 9px;

@@ -456,12 +456,12 @@ const EditableCellComponent = ({
   const isStaleCell = outputIsStale(cellRuntime, cellData.edited);
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
   const configuredCellOutput = userConfig.display.cell_output;
+  const isSideBySide =
+    configuredCellOutput === "right" || configuredCellOutput === "left";
   // Side-by-side doesn't make sense for markdown with hidden code: the editor
   // collapses to h-0 and leaves a phantom empty column. Fall back to "below".
   const cellOutput =
-    configuredCellOutput === "right" && isMarkdownCodeHidden
-      ? "below"
-      : configuredCellOutput;
+    isSideBySide && isMarkdownCodeHidden ? "below" : configuredCellOutput;
 
   const hasOutputAbove = hasOutput && cellOutput === "above";
 
@@ -680,8 +680,14 @@ const EditableCellComponent = ({
           >
             <CellLeftSideActions cellId={cellId} actions={actions} />
             {cellOutput === "above" && (outputArea || emptyMarkdownPlaceholder)}
-            {cellOutput === "right" ? (
-              <div className="cell-row-container--side-by-side">
+            {cellOutput === "right" || cellOutput === "left" ? (
+              <div
+                className={cn(
+                  "cell-row-container--side-by-side",
+                  cellOutput === "left" &&
+                    "cell-row-container--output-left",
+                )}
+              >
                 {trayElement}
                 {outputArea || emptyMarkdownPlaceholder}
               </div>
