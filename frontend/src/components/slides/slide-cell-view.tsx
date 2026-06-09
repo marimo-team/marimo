@@ -59,7 +59,10 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
   // Must be a stable identity: it feeds the editor's `extensions` memo
   const showHiddenCode = useEvent(() => undefined);
 
-  const cellOutputPosition = userConfig.display.cell_output;
+  // Slides is a presentation mode; side-by-side doesn't apply, so
+  // normalize "left"/"right" to "below".
+  const cellOutputPosition: "above" | "below" =
+    userConfig.display.cell_output === "above" ? "above" : "below";
   const hasOutput = cell.output != null;
 
   const uninstantiated = isUninstantiated({
@@ -186,7 +189,10 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
 
 export const SlideCellReadOnlyView = ({ cell }: { cell: RuntimeCell }) => {
   const [userConfig] = useUserConfig();
-  const cellOutputPosition = userConfig.display.cell_output;
+  // Slides is a presentation mode; side-by-side doesn't apply, so
+  // normalize "left"/"right" to "below".
+  const cellOutputPosition: "above" | "below" =
+    userConfig.display.cell_output === "above" ? "above" : "below";
 
   const language = useMemo(() => {
     const adapter = languageAdapterFromCode(cell.code.trim());

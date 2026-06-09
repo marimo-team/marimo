@@ -301,7 +301,7 @@ test.each(["above", "below", "left", "right"] as const)(
   "display.cell_output accepts %s",
   (value) => {
     const config = UserConfigSchema.parse({ display: { cell_output: value } });
-    expect(config.display.cell_output).toBe(value);
+    expect(config.display?.cell_output).toBe(value);
   },
 );
 
