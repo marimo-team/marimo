@@ -114,11 +114,15 @@ class array(UIElement[dict[str, JSONType], Sequence[object]]):
 
     def _convert_value(self, value: dict[str, JSONType]) -> Sequence[object]:
         if self._initialized:
+            updating_value = getattr(self, "_updating_value", False)
             for k, v in value.items():
                 element = self._elements[int(k)]
                 # only call update if the value has changed
                 if element._value_frontend != v:
-                    element._update(v)
+                    if updating_value:
+                        element._update_value(v)
+                    else:
+                        element._update(v)
         return [e._value for e in self._elements]
 
     def _on_update_completion(self) -> bool:
