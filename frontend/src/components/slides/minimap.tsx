@@ -42,7 +42,6 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import { Logger } from "@/utils/Logger";
 import { SLIDE_TYPE_OPTIONS_BY_VALUE } from "./slide-form";
 
@@ -89,11 +88,8 @@ interface SlideThumbnailRowProps extends React.HTMLAttributes<HTMLDivElement> {
   isVisible?: boolean;
   isNoOutput?: boolean;
   slideType?: SlideType;
-  // Insert a blank cell before this row.
   onInsertAbove?: () => void;
-  // Insert a blank cell after this row.
   onInsertBelow?: () => void;
-  // Delete the cell backing this row.
   onDelete?: () => void;
   ref?: React.Ref<HTMLDivElement>;
 }
@@ -231,8 +227,7 @@ export const SlidesMinimap = ({
   onSlideClick,
 }: SlidesMinimapProps) => {
   const cellIds = useCellIds();
-  const { moveCellToIndex, createNewCell } = useCellActions();
-  const deleteCell = useDeleteCellCallback();
+  const { moveCellToIndex, createNewCell, deleteCell } = useCellActions();
   const containerRef = useRef<HTMLDivElement>(null);
   const visibleIds = useVisibleCellIds(containerRef);
   const [activeId, setActiveId] = useState<CellId | null>(null);
