@@ -379,6 +379,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
             )
         entry_meta = remove_none_values(
             {
+                "id": file.get("id"),
                 "e_tag": file.get("ETag"),
                 "is_link": file.get("islink"),
                 "mode": file.get("mode"),

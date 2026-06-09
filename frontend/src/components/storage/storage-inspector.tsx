@@ -102,6 +102,18 @@ function directoryPrefix(path: string): string {
 }
 
 /**
+ * Stable, unique identity for an entry row. Prefer the
+ * backend's stable id when present and fall back to the list index
+ */
+function storageEntryKey(entry: StorageEntry, index: number): string {
+  const id = entry.metadata?.id;
+  if (typeof id === "string" && id.length > 0) {
+    return id;
+  }
+  return `${entry.path}::${index}`;
+}
+
+/**
  * Recursively check whether an entry (or any of its loaded descendants)
  * matches the search query.
  */
@@ -375,20 +387,24 @@ const StorageEntryChildren: React.FC<{
 
   return (
     <>
-      {filtered.map((child) => (
-        <StorageEntryRow
-          key={child.path}
-          entry={child}
-          namespace={namespace}
-          protocol={protocol}
-          rootPath={rootPath}
-          backendType={backendType}
-          depth={depth}
-          locale={locale}
-          searchValue={searchValue}
-          onOpenFile={onOpenFile}
-        />
-      ))}
+      {filtered.map((child, index) => {
+        const rowKey = storageEntryKey(child, index);
+        return (
+          <StorageEntryRow
+            key={rowKey}
+            rowKey={rowKey}
+            entry={child}
+            namespace={namespace}
+            protocol={protocol}
+            rootPath={rootPath}
+            backendType={backendType}
+            depth={depth}
+            locale={locale}
+            searchValue={searchValue}
+            onOpenFile={onOpenFile}
+          />
+        );
+      })}
       {hasMore && (
         <LoadMoreStorageEntries
           depth={depth}
@@ -404,6 +420,7 @@ const StorageEntryChildren: React.FC<{
 
 const StorageEntryRow: React.FC<{
   entry: StorageEntry;
+  rowKey: string;
   namespace: string;
   protocol: string;
   rootPath: string;
@@ -414,6 +431,7 @@ const StorageEntryRow: React.FC<{
   onOpenFile: (info: OpenFileInfo) => void;
 }> = ({
   entry,
+  rowKey,
   namespace,
   protocol,
   rootPath,
@@ -488,7 +506,7 @@ const StorageEntryRow: React.FC<{
           isDir && "font-medium",
         )}
         style={indentStyle(depth)}
-        value={`${namespace}:${entry.path}`}
+        value={`${namespace}:${rowKey}`}
         onSelect={() => {
           if (isDir) {
             setIsExpanded(!effectiveExpanded);
@@ -794,24 +812,12 @@ const StorageNamespaceSection: React.FC<{
               {statusRow}
             </div>
           )}
-          {filtered.map((entry) => (
-            <StorageEntryRow
-              key={entry.path}
-              entry={entry}
-              namespace={namespaceName}
-              protocol={namespace.protocol}
-              rootPath={namespace.rootPath}
-              backendType={namespace.backendType}
-              depth={1}
-              locale={locale}
-              searchValue={searchValue}
-              onOpenFile={onOpenFile}
-            />
-          ))}
-          {showRemoteResults &&
-            filteredRemoteEntries.map((entry) => (
+          {filtered.map((entry, index) => {
+            const rowKey = storageEntryKey(entry, index);
+            return (
               <StorageEntryRow
-                key={`remote-search:${entry.path}`}
+                key={rowKey}
+                rowKey={rowKey}
                 entry={entry}
                 namespace={namespaceName}
                 protocol={namespace.protocol}
@@ -822,7 +828,27 @@ const StorageNamespaceSection: React.FC<{
                 searchValue={searchValue}
                 onOpenFile={onOpenFile}
               />
-            ))}
+            );
+          })}
+          {showRemoteResults &&
+            filteredRemoteEntries.map((entry, index) => {
+              const rowKey = storageEntryKey(entry, index);
+              return (
+                <StorageEntryRow
+                  key={`remote-search:${rowKey}`}
+                  rowKey={`remote-search:${rowKey}`}
+                  entry={entry}
+                  namespace={namespaceName}
+                  protocol={namespace.protocol}
+                  rootPath={namespace.rootPath}
+                  backendType={namespace.backendType}
+                  depth={1}
+                  locale={locale}
+                  searchValue={searchValue}
+                  onOpenFile={onOpenFile}
+                />
+              );
+            })}
           {hasMore && !canSearchMore && (
             <LoadMoreStorageEntries
               depth={1}
@@ -1115,4 +1141,5 @@ export const StorageInspector: React.FC = () => {
 export const exportedForTesting = {
   filterEntries,
   remoteSearchPrefix,
+  storageEntryKey,
 };
