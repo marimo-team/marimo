@@ -5175,10 +5175,15 @@ export interface components {
      *             request_id: Unique identifier for this request.
      *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
      *             database: Database to query.
+     *             namespace_path: Parent namespace path (relative to `database`) whose
+     *                 child namespaces should be listed. Empty lists the database's
+     *                 top-level schemas/namespaces.
      */
     ListSQLSchemasCommand: {
       database: string;
       engine: string;
+      /** @default [] */
+      namespacePath?: string[];
       requestId: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       type: "list-sql-schemas";
@@ -5187,6 +5192,8 @@ export interface components {
     ListSQLSchemasRequest: {
       database: string;
       engine: string;
+      /** @default [] */
+      namespacePath?: string[];
       requestId: components["schemas"]["RequestId"];
     };
     /**
@@ -5201,10 +5208,14 @@ export interface components {
      *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
      *             database: Database to query.
      *             schema: Schema to list tables from.
+     *             namespace_path: Nested namespace path (relative to `database`) for
+     *                 catalogs with hierarchical namespaces. Empty for the top level.
      */
     ListSQLTablesCommand: {
       database: string;
       engine: string;
+      /** @default [] */
+      namespacePath?: string[];
       requestId: components["schemas"]["RequestId"];
       schema: string;
       /** @enum {unknown} */
@@ -5214,6 +5225,8 @@ export interface components {
     ListSQLTablesRequest: {
       database: string;
       engine: string;
+      /** @default [] */
+      namespacePath?: string[];
       requestId: components["schemas"]["RequestId"];
       schema: string;
     };
@@ -5769,10 +5782,14 @@ export interface components {
      *             database: Database containing the table.
      *             schema: Schema containing the table.
      *             table_name: Table to preview.
+     *             namespace_path: Nested namespace path (relative to `database`) for
+     *                 catalogs with hierarchical namespaces. Empty for the top level.
      */
     PreviewSQLTableCommand: {
       database: string;
       engine: string;
+      /** @default [] */
+      namespacePath?: string[];
       requestId: components["schemas"]["RequestId"];
       schema: string;
       tableName: string;
@@ -5783,6 +5800,8 @@ export interface components {
     PreviewSQLTableRequest: {
       database: string;
       engine: string;
+      /** @default [] */
+      namespacePath?: string[];
       requestId: components["schemas"]["RequestId"];
       schema: string;
       tableName: string;
@@ -6031,10 +6050,14 @@ export interface components {
      *         Attributes:
      *             connection: Connection identifier.
      *             database: Database name.
+     *             namespace_path: Parent namespace path (relative to `database`) the
+     *                 schemas belong under. Empty for the database's top level.
      */
     SQLDatabaseMetadata: {
       connection: string;
       database: string;
+      /** @default [] */
+      namespace_path?: string[];
     };
     /**
      * SQLMetadata
@@ -6044,10 +6067,14 @@ export interface components {
      *             connection: Connection identifier.
      *             database: Database name.
      *             schema: Schema name.
+     *             namespace_path: Nested namespace path (relative to `database`) for
+     *                 catalogs with hierarchical namespaces. Empty for the top level.
      */
     SQLMetadata: {
       connection: string;
       database: string;
+      /** @default [] */
+      namespace_path?: string[];
       schema: string;
       /** @enum {unknown} */
       type: "sql-metadata";
@@ -6151,14 +6178,24 @@ export interface components {
      * Schema
      * @description Represents a database schema and its tables.
      *
+     *     A schema may itself contain nested child schemas, e.g. for catalogs with
+     *     hierarchical namespaces such as Iceberg (`top.nested.deep`).
+     *
      *     Attributes:
      *         name (str): The name of the schema.
      *         tables (List[DataTable]): Tables in this schema.
      *         tables_resolved (bool): True when `tables` has been enumerated
      *             False when table discovery was deferred. Defaults to True
+     *         schemas (List[Schema]): Nested child schemas (sub-namespaces).
+     *         schemas_resolved (bool): True when `schemas` has been enumerated.
+     *             False when child-schema discovery was deferred. Defaults to True
      */
     Schema: {
       name: string;
+      /** @default [] */
+      schemas?: components["schemas"]["Schema"][];
+      /** @default true */
+      schemas_resolved?: boolean;
       tables: components["schemas"]["DataTable"][];
       /** @default true */
       tables_resolved?: boolean;
