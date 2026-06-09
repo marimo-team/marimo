@@ -401,7 +401,7 @@ const VerticalCell = memo(
               />
             </div>
           )}
-          {cellOutputArea === "below" && outputArea}
+          {cellOutputArea !== "above" && outputArea}
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
             stale={outputStale}
