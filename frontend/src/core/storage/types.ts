@@ -32,11 +32,15 @@ export interface StorageState {
   entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>;
 }
 
-export function storageUrl(
-  protocol: string,
-  rootPath: string,
-  entryPath: string,
-): URL {
+export function storageUrl({
+  protocol,
+  rootPath,
+  entryPath,
+}: {
+  protocol: string;
+  rootPath: string;
+  entryPath: string;
+}): URL {
   const parts = [rootPath, entryPath].filter(Boolean);
   const path = parts.join("/").replaceAll(/\/+/g, "/");
   return new URL(`${protocol}://${path}`);
