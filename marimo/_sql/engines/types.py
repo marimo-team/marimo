@@ -123,6 +123,22 @@ class EngineCatalog(BaseEngine[CONN], ABC):
     ) -> list[Schema]:
         """Return the schemas for a database in the engine."""
 
+    def get_child_namespaces(
+        self,
+        *,
+        namespace_path: list[str],
+        include_tables: bool,
+        include_table_details: bool = False,
+    ) -> list[Schema]:
+        """Return the immediate child namespaces (as Schemas) of an absolute
+        namespace path.
+
+        Only engines with hierarchical namespaces (e.g. Iceberg) override this;
+        the default returns an empty list.
+        """
+        del namespace_path, include_tables, include_table_details
+        return []
+
     @abstractmethod
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool

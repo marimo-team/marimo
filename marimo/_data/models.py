@@ -88,16 +88,24 @@ class Schema(BaseStruct):
     """
     Represents a database schema and its tables.
 
+    A schema may itself contain nested child schemas, e.g. for catalogs with
+    hierarchical namespaces such as Iceberg (`top.nested.deep`).
+
     Attributes:
         name (str): The name of the schema.
         tables (List[DataTable]): Tables in this schema.
         tables_resolved (bool): True when `tables` has been enumerated
             False when table discovery was deferred. Defaults to True
+        schemas (List[Schema]): Nested child schemas (sub-namespaces).
+        schemas_resolved (bool): True when `schemas` has been enumerated.
+            False when child-schema discovery was deferred. Defaults to True
     """
 
     name: str
     tables: list[DataTable]
     tables_resolved: bool = True
+    schemas: list[Schema] = []
+    schemas_resolved: bool = True
 
 
 class Database(BaseStruct):

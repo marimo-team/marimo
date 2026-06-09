@@ -552,10 +552,13 @@ class SQLDatabaseMetadata(msgspec.Struct):
     Attributes:
         connection: Connection identifier.
         database: Database name.
+        namespace_path: Parent namespace path (relative to `database`) the
+            schemas belong under. Empty for the database's top level.
     """
 
     connection: str
     database: str
+    namespace_path: list[str] = []
 
 
 class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
@@ -565,11 +568,14 @@ class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
         connection: Connection identifier.
         database: Database name.
         schema: Schema name.
+        namespace_path: Nested namespace path (relative to `database`) for
+            catalogs with hierarchical namespaces. Empty for the top level.
     """
 
     connection: str
     database: str
     schema: str
+    namespace_path: list[str] = []
 
 
 class SQLTablePreviewNotification(Notification, tag="sql-table-preview"):
