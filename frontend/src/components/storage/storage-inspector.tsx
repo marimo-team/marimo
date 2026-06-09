@@ -225,8 +225,8 @@ const StorageEntryChildren: React.FC<{
 
   return (
     <>
-      {filtered.map((child, index) => {
-        const rowKey = storageEntryKey(child, index);
+      {filtered.map((child) => {
+        const rowKey = storageEntryKey(child, children.indexOf(child));
         return (
           <StorageEntryRow
             key={rowKey}
@@ -543,8 +543,8 @@ const StorageNamespaceSection: React.FC<{
               No matches
             </div>
           )}
-          {filtered.map((entry, index) => {
-            const rowKey = storageEntryKey(entry, index);
+          {filtered.map((entry) => {
+            const rowKey = storageEntryKey(entry, entries.indexOf(entry));
             return (
               <StorageEntryRow
                 key={rowKey}
