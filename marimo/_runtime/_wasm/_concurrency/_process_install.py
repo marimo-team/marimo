@@ -22,6 +22,11 @@ from marimo._runtime._wasm._concurrency._mp_context import (
     unsupported_factory,
     validate_start_method,
 )
+from marimo._runtime._wasm._concurrency._mp_pool import (
+    AsyncPool,
+    direct_pool_factory,
+    pool_factory,
+)
 from marimo._runtime._wasm._concurrency._mp_process import (
     AsyncProcess,
     active_children,
@@ -53,6 +58,7 @@ TOP_LEVEL_FACTORIES = (
     MultiprocessingPatch("Process", AsyncProcess),
     MultiprocessingPatch("Queue", direct_queue_factory),
     MultiprocessingPatch("SimpleQueue", direct_simple_queue_factory),
+    MultiprocessingPatch("Pool", direct_pool_factory),
 )
 
 TOP_LEVEL_HELPERS = (
@@ -99,12 +105,16 @@ def install_wasm_process_shims() -> Unpatch:
         ) or _create_submodule(
             patches, multiprocessing, "multiprocessing.queues", "queues"
         )
+        multiprocessing_pool = _import_or_create_submodule(
+            patches, multiprocessing, "multiprocessing.pool", "pool"
+        )
         _install_multiprocessing_process(
             patches,
             multiprocessing=multiprocessing,
             multiprocessing_context=multiprocessing_context,
             multiprocessing_process=multiprocessing_process,
             multiprocessing_queues=multiprocessing_queues,
+            multiprocessing_pool=multiprocessing_pool,
         )
     except BaseException:
         patches.unpatch_all()()
@@ -132,7 +142,7 @@ def unpatch_wasm_process_shims() -> None:
     if unpatch is None:
         return
     _state.discard_finished_runtime_records()
-    if _state.has_live_process_work():
+    if _state.has_live_process_work() or _has_live_pool_work():
         raise RuntimeError("Cannot unpatch while WASM process work is live")
     unpatch()
 
@@ -144,6 +154,7 @@ def _install_multiprocessing_process(
     multiprocessing_context: Any,
     multiprocessing_process: Any,
     multiprocessing_queues: ModuleType,
+    multiprocessing_pool: ModuleType,
 ) -> None:
     for spec in TOP_LEVEL_FACTORIES:
         patches.replace(
@@ -175,8 +186,16 @@ def _install_multiprocessing_process(
         PROCESS_MODULE_HELPERS,
     )
     _replace_queue_submodule_factories(patches, multiprocessing_queues)
+    _replace_pool_submodule_factories(patches, multiprocessing_pool)
     _replace_context_processes(patches, multiprocessing_context)
     _replace_context_helpers(patches, multiprocessing_context)
+
+
+def _has_live_pool_work() -> bool:
+    return any(
+        getattr(executor, "_wasm_process_pool", False)
+        for executor in _state.live_executors
+    )
 
 
 def _replace_context_processes(
@@ -207,6 +226,12 @@ def _replace_context_processes(
                     unsupported_factory(f"{context_name}.Process")
                 ),
             )
+            _replace_or_add_class_attr(
+                patches,
+                context_type,
+                "Pool",
+                unsupported_factory(f"{context_name}.Pool"),
+            )
 
 
 def _replace_context_helpers(
@@ -224,6 +249,11 @@ def _replace_context_helpers(
             base_context,
             "SimpleQueue",
             _constant_replacement(simple_queue_factory),
+        )
+        patches.replace(
+            base_context,
+            "Pool",
+            _constant_replacement(pool_factory),
         )
         patches.replace(
             base_context,
@@ -329,6 +359,19 @@ def _replace_queue_submodule_factories(
     )
 
 
+def _replace_pool_submodule_factories(
+    patches: WasmPatchSet,
+    module: ModuleType,
+) -> None:
+    _replace_or_add(patches, module, "Pool", AsyncPool)
+    _replace_or_add(
+        patches,
+        module,
+        "ThreadPool",
+        unsupported_factory("multiprocessing.pool.ThreadPool"),
+    )
+
+
 def _replace_or_add(
     patches: WasmPatchSet,
     module: ModuleType,
@@ -347,11 +390,64 @@ def _replace_or_add(
     patches.add_cleanup(_remove)
 
 
+def _replace_or_add_class_attr(
+    patches: WasmPatchSet,
+    owner: type[Any],
+    attr: str,
+    replacement: Any,
+) -> None:
+    if attr in vars(owner):
+        patches.replace_descriptor(owner, attr, lambda _original: replacement)
+        return
+    setattr(owner, attr, replacement)
+
+    def _remove() -> None:
+        if vars(owner).get(attr, None) is replacement:
+            delattr(owner, attr)
+
+    patches.add_cleanup(_remove)
+
+
 def _optional_import(module_name: str) -> ModuleType | None:
     try:
         return import_module(module_name)
     except (ImportError, OSError):
         return None
+
+
+def _import_or_create_submodule(
+    patches: WasmPatchSet,
+    parent: Any,
+    module_name: str,
+    parent_attr: str,
+) -> ModuleType:
+    had_module = module_name in sys.modules
+    had_parent_attr = hasattr(parent, parent_attr)
+    original_parent_attr = getattr(parent, parent_attr, None)
+    try:
+        module = import_module(module_name)
+    except (ImportError, OSError):
+        return _create_submodule(patches, parent, module_name, parent_attr)
+    if had_module and had_parent_attr:
+        return module
+
+    def _restore_imported() -> None:
+        if not had_module and sys.modules.get(module_name) is module:
+            sys.modules.pop(module_name, None)
+        if (
+            not had_parent_attr
+            and getattr(parent, parent_attr, None) is module
+        ):
+            delattr(parent, parent_attr)
+        elif (
+            had_parent_attr
+            and getattr(parent, parent_attr, None) is module
+            and original_parent_attr is not module
+        ):
+            setattr(parent, parent_attr, original_parent_attr)
+
+    patches.add_cleanup(_restore_imported)
+    return module
 
 
 def _create_submodule(

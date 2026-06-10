@@ -522,7 +522,8 @@ class SerializedWasmExecutor(_futures.Executor):
             )
             result = fn(*args, **kwargs)
         except BaseException as exc:
-            item.future.set_exception(exc)
+            if not item.future.done():
+                item.future.set_exception(exc)
         else:
             if not item.future.done():
                 item.future.set_result(result)
@@ -617,7 +618,8 @@ class SerializedWasmExecutor(_futures.Executor):
                     try:
                         future.result()
                     except UnsupportedWasmConcurrencyError:
-                        raise
+                        if not future.done():
+                            raise
                     except BaseException:
                         pass
         if wait or self._runner_task is None or self._runner_task.done():
@@ -625,6 +627,32 @@ class SerializedWasmExecutor(_futures.Executor):
         if not self._queue and not self._futures:
             self._cancel_idle_runner_task()
         if self._worker is None and not self._queue and not self._futures:
+            _state.unregister_executor(self)
+
+    def terminate_wasm_work(self) -> None:
+        self._shutdown = True
+        self._discard_cancelled_queue_items()
+        while self._queue:
+            item = self._queue.pop()
+            item.future.cancel()
+            self._futures.discard(item.future)
+        running_futures = [
+            future
+            for future in self._futures
+            if future.running() and not future.done()
+        ]
+        if running_futures:
+            raise UnsupportedWasmConcurrencyError(
+                f"{self._api_name}.terminate() cannot stop running work in "
+                "Pyodide"
+            )
+        for future in list(self._futures):
+            if not future.done():
+                future.cancel()
+            self._futures.discard(future)
+        self._cancel_idle_runner_task()
+        self._finish_worker_lane()
+        if not self._queue and not self._futures:
             _state.unregister_executor(self)
 
     def shutdown_for_wasm_teardown(self) -> None:
