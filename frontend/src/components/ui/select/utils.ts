@@ -34,23 +34,24 @@ export function deselectMatching<V>(selected: V[], toRemove: V[]): V[] {
 
 /**
  * Order options for the idle (no active search) menu: pinned selections first in
- * option order, then everything else in option order. `pinnedSelection` is a frozen
- * snapshot taken when the menu opens, so toggling an item does not reorder the list
- * under the cursor.
+ * pin insertion order (so a freshly added selection appears after earlier ones),
+ * then everything else in option order. `pinnedSelection` is a frozen snapshot
+ * taken when the menu opens, so toggling an item does not reorder the list under
+ * the cursor.
  */
 export function getVisibleOptions<V>(
   options: Array<Option<V>>,
   pinnedSelection: ReadonlySet<V>,
 ): Array<Option<V>> {
+  const byValue = new Map(options.map((o) => [o.value, o] as const));
   const pinned: Array<Option<V>> = [];
-  const rest: Array<Option<V>> = [];
-  for (const option of options) {
-    if (pinnedSelection.has(option.value)) {
+  for (const value of pinnedSelection) {
+    const option = byValue.get(value);
+    if (option) {
       pinned.push(option);
-    } else {
-      rest.push(option);
     }
   }
+  const rest = options.filter((o) => !pinnedSelection.has(o.value));
   return [...pinned, ...rest];
 }
 
