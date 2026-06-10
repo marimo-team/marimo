@@ -6,6 +6,11 @@ import sys
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, cast
 
+from marimo._runtime._wasm._concurrency._install import (
+    install_wasm_concurrency_shims,
+    install_wasm_process_shims,
+)
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -23,6 +28,19 @@ def install_run_sync(monkeypatch: pytest.MonkeyPatch) -> None:
     cast(Any, pyodide_module).ffi = ffi_module
     monkeypatch.setitem(sys.modules, "pyodide", pyodide_module)
     monkeypatch.setitem(sys.modules, "pyodide.ffi", ffi_module)
+
+
+def install_wasm_process_test_shims() -> Callable[[], None]:
+    core_unpatch = install_wasm_concurrency_shims()
+    process_unpatch = install_wasm_process_shims()
+
+    def unpatch() -> None:
+        try:
+            process_unpatch()
+        finally:
+            core_unpatch()
+
+    return unpatch
 
 
 async def wait_until(

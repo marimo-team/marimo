@@ -107,6 +107,36 @@ class WasmPatchSet:
 
         self._unpatches.append(_unpatch)
 
+    def replace_descriptor(
+        self,
+        owner: Any,
+        attr: str,
+        wrapper_factory: WrapperFactory,
+        *,
+        before_restore: Callable[[], None] | None = None,
+    ) -> None:
+        """Replace `owner.attr` while preserving raw class descriptors."""
+        if not self._active:
+            return
+
+        missing = object()
+        original = vars(owner).get(attr, missing)
+        if original is missing:
+            return
+
+        wrapper = wrapper_factory(original)
+        setattr(owner, attr, wrapper)
+
+        def _unpatch() -> None:
+            if vars(owner).get(attr, missing) is wrapper:
+                try:
+                    if before_restore is not None:
+                        before_restore()
+                finally:
+                    setattr(owner, attr, original)
+
+        self._unpatches.append(_unpatch)
+
     def unpatch_all(self) -> Unpatch:
         """Return a callable that restores all originals (idempotent)."""
         unpatches = self._unpatches

@@ -15,11 +15,12 @@ context.
 
 from __future__ import annotations
 
+import asyncio
 import sys
 import threading as _threading
 from typing import Any
 
-from marimo._runtime._wasm._concurrency import _state
+from marimo._runtime._wasm._concurrency import _process_install, _state
 from marimo._runtime._wasm._concurrency._futures import (
     AsyncioThreadPoolExecutor,
     wasm_as_completed,
@@ -90,6 +91,7 @@ def install_wasm_concurrency_shims() -> Unpatch:
 
             patches.replace(owner, attr, replacement_factory)
 
+        replace_loop_create_task(patches)
         repair_preimported_runtime_context_storage(patches)
     except BaseException:
         patches.unpatch_all()()
@@ -120,6 +122,21 @@ def install_wasm_concurrency_shims() -> Unpatch:
         unpatch_wasm_concurrency_shims()
 
     return _guarded_unpatch
+
+
+def replace_loop_create_task(patches: WasmPatchSet) -> None:
+    patches.replace(
+        asyncio.BaseEventLoop,
+        "create_task",
+        _state.loop_create_task_wrapper,
+    )
+    loop_type = type(_state.get_event_loop())
+    if "create_task" in vars(loop_type):
+        patches.replace(
+            loop_type,
+            "create_task",
+            _state.loop_create_task_wrapper,
+        )
 
 
 def repair_preimported_runtime_context_storage(
@@ -166,8 +183,22 @@ def unpatch_wasm_concurrency_shims() -> None:
     if unpatch is None:
         return
     _state.discard_finished_runtime_records()
+    if _state.active_process_unpatch() is not None:
+        raise RuntimeError(
+            "Cannot unpatch while WASM process shims are installed"
+        )
     if _state.has_live_core_work():
         raise RuntimeError(
             "Cannot unpatch while WASM concurrency work is live"
         )
     unpatch()
+
+
+def install_wasm_process_shims() -> Unpatch:
+    """Patch process-shaped multiprocessing APIs in Pyodide."""
+    return _process_install.install_wasm_process_shims()
+
+
+def unpatch_wasm_process_shims() -> None:
+    """Remove active process-shaped multiprocessing patches."""
+    _process_install.unpatch_wasm_process_shims()

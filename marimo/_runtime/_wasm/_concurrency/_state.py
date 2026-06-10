@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import functools
 import itertools
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -53,9 +54,20 @@ current_thread_var: contextvars.ContextVar[ThreadIdentity | None] = (
 live_threads: set[ThreadIdentity] = set()
 live_executors: set[Any] = set()
 live_executor_tasks: set[asyncio.Task[Any]] = set()
+live_processes: set[Any] = set()
+live_process_tasks: dict[Any, set[asyncio.Task[Any]]] = {}
 fallback_loop: asyncio.AbstractEventLoop | None = None
 patch_state_value: PatchState | None = None
 active_unpatch_value: Callable[[], None] | None = None
+active_process_unpatch_value: Callable[[], None] | None = None
+inherited_context_vars: list[contextvars.ContextVar[Any]] = []
+process_owner_getter: Callable[[], Any | None] | None = None
+process_task_tracking_suppressed: contextvars.ContextVar[bool] = (
+    contextvars.ContextVar(
+        "marimo_wasm_process_task_tracking_suppressed",
+        default=False,
+    )
+)
 
 _IDENTS = itertools.count(10_000)
 
@@ -86,6 +98,94 @@ def set_active_unpatch(unpatch: Callable[[], None] | None) -> None:
 
 def active_unpatch() -> Callable[[], None] | None:
     return active_unpatch_value
+
+
+def set_active_process_unpatch(unpatch: Callable[[], None] | None) -> None:
+    global active_process_unpatch_value
+    active_process_unpatch_value = unpatch
+
+
+def active_process_unpatch() -> Callable[[], None] | None:
+    return active_process_unpatch_value
+
+
+def register_inherited_context_var(
+    context_var: contextvars.ContextVar[Any],
+) -> None:
+    if context_var not in inherited_context_vars:
+        inherited_context_vars.append(context_var)
+
+
+def empty_wasm_context() -> contextvars.Context:
+    context = contextvars.Context()
+    for context_var in inherited_context_vars:
+        try:
+            value = context_var.get()
+        except LookupError:
+            continue
+        context.run(context_var.set, value)
+    return context
+
+
+def set_process_owner_getter(getter: Callable[[], Any | None]) -> None:
+    global process_owner_getter
+    process_owner_getter = getter
+
+
+def current_process_owner() -> Any | None:
+    if process_owner_getter is None:
+        return None
+    return process_owner_getter()
+
+
+def loop_create_task_wrapper(
+    original: Callable[..., asyncio.Task[Any]],
+) -> Callable[..., asyncio.Task[Any]]:
+    @functools.wraps(original)
+    def create_task(*args: Any, **kwargs: Any) -> asyncio.Task[Any]:
+        task = original(*args, **kwargs)
+        owner = current_process_owner()
+        if owner is not None and not process_task_tracking_suppressed.get():
+            register_process_task(owner, task)
+        return task
+
+    return create_task
+
+
+def register_process_task(owner: Any, task: asyncio.Task[Any]) -> None:
+    if task.done():
+        return
+    tasks = live_process_tasks.setdefault(owner, set())
+    tasks.add(task)
+
+    def _discard(done_task: asyncio.Task[Any]) -> None:
+        owner_tasks = live_process_tasks.get(owner)
+        if owner_tasks is None:
+            return
+        owner_tasks.discard(done_task)
+        if not owner_tasks:
+            live_process_tasks.pop(owner, None)
+
+    task.add_done_callback(_discard)
+
+
+def has_process_tasks(owner: Any) -> bool:
+    tasks = live_process_tasks.get(owner)
+    if tasks is None:
+        return False
+    for task in list(tasks):
+        if task.done():
+            tasks.discard(task)
+    if not tasks:
+        live_process_tasks.pop(owner, None)
+        return False
+    return True
+
+
+def cancel_process_tasks(owner: Any) -> None:
+    for task in list(live_process_tasks.get(owner, ())):
+        if not task.done():
+            task.cancel()
 
 
 def current_identity() -> ThreadIdentity | None:
@@ -142,18 +242,41 @@ def create_task_in_empty_wasm_context(
     loop: asyncio.AbstractEventLoop, coro: Any
 ) -> asyncio.Task[Any]:
     """Schedule shim work without inheriting caller `ContextVar` values."""
-    context = contextvars.Context()
+    context = empty_wasm_context()
+
+    async def run_without_tracking_suppression() -> Any:
+        nested_token = process_task_tracking_suppressed.set(False)
+        try:
+            return await coro
+        finally:
+            process_task_tracking_suppressed.reset(nested_token)
+
+    token = process_task_tracking_suppressed.set(True)
     try:
-        return loop.create_task(coro, context=context)
-    except TypeError:
-        return context.run(loop.create_task, coro)
+        try:
+            return loop.create_task(coro, context=context)
+        except TypeError:
+
+            def create_task() -> asyncio.Task[Any]:
+                nested_token = process_task_tracking_suppressed.set(True)
+                try:
+                    return loop.create_task(run_without_tracking_suppression())
+                finally:
+                    process_task_tracking_suppressed.reset(nested_token)
+
+            return context.run(create_task)
+    finally:
+        process_task_tracking_suppressed.reset(token)
 
 
 def run_until_complete_in_empty_wasm_context(
     loop: asyncio.AbstractEventLoop, awaitable: Any
 ) -> Any:
     """Run fallback-loop shim work outside caller `ContextVar` values."""
-    return contextvars.Context().run(loop.run_until_complete, awaitable)
+    if asyncio.isfuture(awaitable):
+        return loop.run_until_complete(awaitable)
+    task = create_task_in_empty_wasm_context(loop, awaitable)
+    return loop.run_until_complete(task)
 
 
 def register_executor(executor: Any) -> None:
@@ -178,10 +301,19 @@ def discard_finished_runtime_records() -> None:
     for task in list(live_executor_tasks):
         if task.done():
             live_executor_tasks.discard(task)
+    for process in list(live_processes):
+        if not process.is_alive():
+            live_processes.discard(process)
+    for owner in list(live_process_tasks):
+        has_process_tasks(owner)
 
 
 def has_live_core_work() -> bool:
     return bool(live_threads or live_executors or live_executor_tasks)
+
+
+def has_live_process_work() -> bool:
+    return bool(live_processes or live_process_tasks)
 
 
 def _executor_is_idle(executor: Any) -> bool:
@@ -198,8 +330,11 @@ def reset_runtime_state() -> None:
     live_threads.clear()
     live_executors.clear()
     live_executor_tasks.clear()
+    live_processes.clear()
+    live_process_tasks.clear()
     if fallback_loop is not None and not fallback_loop.is_closed():
         fallback_loop.close()
     fallback_loop = None
     set_patch_state(None)
     set_active_unpatch(None)
+    set_active_process_unpatch(None)

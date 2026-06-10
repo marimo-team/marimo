@@ -19,7 +19,7 @@ from concurrent import futures as _futures
 from concurrent.futures import _base as _futures_base
 from dataclasses import dataclass
 from itertools import count, islice
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo._runtime._wasm._concurrency import _state
 from marimo._runtime._wasm._concurrency._state import (
@@ -54,6 +54,7 @@ class AsyncioFuture(_futures.Future[Any]):
             asyncio.AbstractEventLoop, asyncio.Event
         ] = {}
         self._wasm_completion_order: int | None = None
+        self._wasm_process_owner: Any | None = None
 
     def _done_event(self) -> asyncio.Event:
         loop = asyncio.get_running_loop()
@@ -148,6 +149,8 @@ class WorkItem:
     fn: Callable[..., Any]
     args: tuple[Any, ...]
     kwargs: dict[str, Any]
+    context: contextvars.Context
+    process_owner: Any | None
 
 
 async def _wait_for_wasm_futures(
@@ -410,6 +413,7 @@ class SerializedWasmExecutor(_futures.Executor):
         self._max_workers = max_workers or 1
         self._api_name = api_name
         self._task_registry = _state.executor_task_registry()
+        self._event_loop = get_event_loop()
         self._thread_name_prefix = thread_name_prefix or "WasmExecutor"
         self._initializer = initializer
         self._initargs = initargs
@@ -420,6 +424,8 @@ class SerializedWasmExecutor(_futures.Executor):
         self._queue: deque[WorkItem] = deque()
         self._runner_task: asyncio.Task[None] | None = None
         self._broken_initializer: BaseException | None = None
+        self._running_process_owner: Any | None = None
+        self._wasm_process_owner: Any | None = _state.current_process_owner()
         _state.register_executor(self)
 
     def submit(
@@ -433,6 +439,8 @@ class SerializedWasmExecutor(_futures.Executor):
             ) from self._broken_initializer
         loop = get_event_loop()
         future = AsyncioFuture()
+        process_owner = _state.current_process_owner()
+        future._wasm_process_owner = process_owner
         self._futures.add(future)
         self._queue.append(
             WorkItem(
@@ -440,6 +448,8 @@ class SerializedWasmExecutor(_futures.Executor):
                 fn=fn,
                 args=args,
                 kwargs=kwargs,
+                context=_state.empty_wasm_context(),
+                process_owner=process_owner,
             )
         )
         self._start_runner(loop)
@@ -466,29 +476,17 @@ class SerializedWasmExecutor(_futures.Executor):
                 continue
 
             worker = self._worker_for_lane()
-            token = current_thread_var.set(worker)
             try:
-                if not self._initialized and self._initializer is not None:
-                    try:
-                        self._initializer(*self._initargs)
-                    except BaseException as exc:
-                        self._broken_initializer = exc
-                        future.set_exception(exc)
-                        self._fail_queued_work()
-                        continue
-                self._initialized = True
-                fn, args, kwargs = _wrap_context_run_with_worker_identity(
-                    item.fn,
-                    item.args,
-                    item.kwargs,
+                self._running_process_owner = item.process_owner
+                worker._wasm_process_owner = item.process_owner
+                item.context.run(
+                    self._run_item,
+                    item,
                     worker,
                 )
-                result = fn(*args, **kwargs)
-                future.set_result(result)
-            except BaseException as exc:
-                future.set_exception(exc)
             finally:
-                current_thread_var.reset(token)
+                self._running_process_owner = None
+                worker._wasm_process_owner = None
                 self._futures.discard(future)
         if self._shutdown:
             self._finish_worker_lane()
@@ -503,6 +501,33 @@ class SerializedWasmExecutor(_futures.Executor):
                     RuntimeError(f"{self._api_name} initializer failed")
                 )
             self._futures.discard(item.future)
+
+    def _run_item(self, item: WorkItem, worker: ExecutorThread) -> Any:
+        token = current_thread_var.set(worker)
+        try:
+            if not self._initialized and self._initializer is not None:
+                try:
+                    self._initializer(*self._initargs)
+                except BaseException as exc:
+                    self._broken_initializer = exc
+                    item.future.set_exception(exc)
+                    self._fail_queued_work()
+                    return None
+            self._initialized = True
+            fn, args, kwargs = _wrap_context_run_with_worker_identity(
+                item.fn,
+                item.args,
+                item.kwargs,
+                worker,
+            )
+            result = fn(*args, **kwargs)
+        except BaseException as exc:
+            item.future.set_exception(exc)
+        else:
+            if not item.future.done():
+                item.future.set_result(result)
+        finally:
+            current_thread_var.reset(token)
 
     def _worker_for_lane(self) -> ExecutorThread:
         if self._worker is None or not self._worker.is_alive():
@@ -604,6 +629,54 @@ class SerializedWasmExecutor(_futures.Executor):
 
     def shutdown_for_wasm_teardown(self) -> None:
         self.shutdown(wait=False, cancel_futures=True)
+
+    def has_pending_wasm_work(self) -> bool:
+        return bool(
+            self._queue
+            or self._futures
+            or (self._runner_task is not None and not self._runner_task.done())
+        )
+
+    def has_pending_wasm_work_for_owner(self, owner: Any) -> bool:
+        return (
+            any(item.process_owner is owner for item in self._queue)
+            or any(
+                getattr(future, "_wasm_process_owner", None) is owner
+                and not future.done()
+                for future in self._futures
+            )
+            or self._running_process_owner is owner
+        )
+
+    def cancel_wasm_work_for_owner(self, owner: Any) -> None:
+        pending: deque[WorkItem] = deque()
+        while self._queue:
+            item = self._queue.popleft()
+            if item.process_owner is owner:
+                item.future.cancel()
+                self._futures.discard(item.future)
+            else:
+                pending.append(item)
+        self._queue = pending
+        for future in list(self._futures):
+            if getattr(future, "_wasm_process_owner", None) is owner:
+                future.cancel()
+        if (
+            self._running_process_owner is owner
+            and self._runner_task is not None
+            and not self._runner_task.done()
+        ):
+            self._runner_task.cancel()
+
+    def shutdown_wasm_executor_for_owner(self, owner: Any) -> None:
+        if self._wasm_process_owner is owner:
+            self._clear_default_executor_reference()
+            self.shutdown(wait=False, cancel_futures=True)
+
+    def _clear_default_executor_reference(self) -> None:
+        event_loop = cast(Any, self._event_loop)
+        if getattr(event_loop, "_default_executor", None) is self:
+            event_loop._default_executor = None
 
     def is_idle_for_wasm_teardown(self) -> bool:
         return (

@@ -292,6 +292,34 @@ def test_wasm_thread_pool_result_exception_and_callbacks() -> None:
             unpatch()
 
 
+@pytest.mark.asyncio
+async def test_wasm_thread_pool_callbacks_run_in_worker_identity() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_concurrency_shims()
+        callback_threads: list[tuple[str, str]] = []
+
+        def worker() -> str:
+            return threading.current_thread().name
+
+        try:
+            with concurrent.futures.ThreadPoolExecutor(
+                thread_name_prefix="CallbackWorker"
+            ) as executor:
+                future = executor.submit(worker)
+                future.add_done_callback(
+                    lambda done: callback_threads.append(
+                        (done.result(), threading.current_thread().name)
+                    )
+                )
+                await wait_until(lambda: bool(callback_threads))
+
+            worker_thread, callback_thread = callback_threads[0]
+            assert worker_thread.startswith("CallbackWorker_")
+            assert callback_thread == worker_thread
+        finally:
+            unpatch()
+
+
 def test_wasm_thread_pool_wait_returns_done_futures() -> None:
     with mock_pyodide():
         unpatch = install_wasm_concurrency_shims()

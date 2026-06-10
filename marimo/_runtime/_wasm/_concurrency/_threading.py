@@ -21,6 +21,7 @@ from marimo._runtime._wasm._concurrency._state import (
     create_task_in_empty_wasm_context,
     current_ident,
     current_identity,
+    current_process_owner,
     current_thread,
     current_thread_var,
     get_event_loop,
@@ -254,6 +255,8 @@ class AsyncioThread(ThreadIdentity, metaclass=AsyncioThreadMeta):
         self._done_future: asyncio.Future[None] | None = None
         self._task: asyncio.Task[None] | None = None
         self._exception: BaseException | None = None
+        self._suppress_excepthook_for: tuple[type[BaseException], ...] = ()
+        self._wasm_process_owner: Any | None = None
 
     @property
     def daemon(self) -> bool:
@@ -272,6 +275,7 @@ class AsyncioThread(ThreadIdentity, metaclass=AsyncioThreadMeta):
             self._ident = new_ident()
             self._native_id = self._ident
             self._started = True
+            self._wasm_process_owner = current_process_owner()
             loop = get_event_loop()
             self._done_future = loop.create_future()
             live_threads.add(self)
@@ -299,10 +303,12 @@ class AsyncioThread(ThreadIdentity, metaclass=AsyncioThreadMeta):
                 await result
         except asyncio.CancelledError as exc:
             self._exception = exc
-            self._call_excepthook(exc)
+            if not isinstance(exc, self._suppress_excepthook_for):
+                self._call_excepthook(exc)
         except BaseException as exc:
             self._exception = exc
-            self._call_excepthook(exc)
+            if not isinstance(exc, self._suppress_excepthook_for):
+                self._call_excepthook(exc)
         finally:
             current_thread_var.reset(token)
             self._finish()
