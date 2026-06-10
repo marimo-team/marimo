@@ -137,9 +137,12 @@ export function SelectList<V>(props: SelectListProps<V>): React.JSX.Element {
     );
   }
 
+  // Rendered at the start of the first unpinned row, not after the last pinned row,
+  // so the menu-separator's `last:hidden` Tailwind variant doesn't hide it inside
+  // Virtuoso's per-item wrapper.
   const pinnedSeparator = (index: number): React.ReactNode =>
     list.pinnedCount > 0 &&
-    index === list.pinnedCount - 1 &&
+    index === list.pinnedCount &&
     list.pinnedCount < list.visibleOptions.length ? (
       <CommandSeparator key="_pinned_separator" data-slot="select-separator" />
     ) : null;
@@ -157,13 +160,13 @@ export function SelectList<V>(props: SelectListProps<V>): React.JSX.Element {
             return (
               <>
                 {i === 0 && bulkRows}
+                {pinnedSeparator(i)}
                 <OptionRow
                   option={option}
                   checked={list.isChecked(option.value)}
                   active={false}
                   renderOption={renderOption}
                 />
-                {pinnedSeparator(i)}
               </>
             );
           }}
@@ -182,7 +185,7 @@ export function SelectList<V>(props: SelectListProps<V>): React.JSX.Element {
           renderOption={renderOption}
         />
       );
-      return separator ? [row, separator] : [row];
+      return separator ? [separator, row] : [row];
     });
 
     return (
