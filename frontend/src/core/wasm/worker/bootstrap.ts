@@ -72,6 +72,7 @@ export class DefaultWasmController implements WasmController {
         // `Could not extract indexURL path from pyodide module`
         // This fixes for Firefox and does not break Chrome/others
         indexURL: `https://cdn.jsdelivr.net/pyodide/${opts.pyodideVersion}/full/`,
+        convertNullToNone: true,
       });
       this.pyodide = pyodide;
       span.end("ok");
