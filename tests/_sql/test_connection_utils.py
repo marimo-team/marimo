@@ -647,7 +647,7 @@ class TestNestedNamespaceUpdates:
         sql_db_metadata = SQLDatabaseMetadata(
             connection="my_iceberg",
             database="top",
-            namespace_path=["nested"],
+            schema_path=["nested"],
         )
         new_children = [Schema(name="deep", tables=[])]
 
@@ -669,7 +669,7 @@ class TestNestedNamespaceUpdates:
             connection="my_iceberg",
             database="top",
             schema="deep",
-            namespace_path=["nested", "deep"],
+            schema_path=["nested", "deep"],
         )
         new_tables = [create_test_table("table5")]
 
@@ -689,7 +689,7 @@ class TestNestedNamespaceUpdates:
             connection="my_iceberg",
             database="top",
             schema="nested",
-            namespace_path=["nested"],
+            schema_path=["nested"],
         )
         updated = create_test_table("table4")
         updated.num_rows = 999

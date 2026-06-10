@@ -640,7 +640,7 @@ describe("nested namespaces", () => {
         sqlSchemaContext: {
           engine: "ice",
           database: "top",
-          namespacePath: ["nested"],
+          schemaPath: ["nested"],
         },
       },
     });
@@ -674,7 +674,7 @@ describe("nested namespaces", () => {
           database: "top",
           schema: "nested",
           dialect: "iceberg",
-          namespacePath: ["nested"],
+          schemaPath: ["nested"],
         },
       },
     });
@@ -700,7 +700,7 @@ describe("nested namespaces", () => {
       database: "top",
       schema: "nested",
       dialect: "iceberg",
-      namespacePath: ["nested"],
+      schemaPath: ["nested"],
     };
     let state = reducer(baseState, {
       type: "addTableList",
@@ -725,7 +725,7 @@ describe("nested namespaces", () => {
         sqlSchemaContext: {
           engine: "ice",
           database: "top",
-          namespacePath: ["does_not_exist"],
+          schemaPath: ["does_not_exist"],
         },
       },
     });

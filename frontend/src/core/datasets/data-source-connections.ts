@@ -49,10 +49,9 @@ export interface DataSourceState {
 export interface SQLSchemaContext {
   engine: string;
   database: string;
-  // Parent namespace path (relative to `database`) the schemas belong under.
-  // Empty/undefined for the database's top level. Used for catalogs with
-  // nested namespaces (e.g. Iceberg).
-  namespacePath?: string[];
+  // Parent schema path (relative to `database`) for nested schemas.
+  // Empty/undefined for the database's top level.
+  schemaPath?: string[];
 }
 
 export interface SQLTableContext {
@@ -62,15 +61,13 @@ export interface SQLTableContext {
   dialect: string;
   defaultSchema?: string | null;
   defaultDatabase?: string | null;
-  // Nested namespace path (relative to `database`) the tables live under.
-  // Empty/undefined for the top level.
-  namespacePath?: string[];
+  // Nested schema path (relative to `database`). Empty/undefined at top level.
+  schemaPath?: string[];
 }
 
 /**
- * Immutably descend `path` (schema/namespace segment names) into a nested
- * schema list and apply `update` to the matching schema. Returns a new list;
- * unmatched branches are returned unchanged.
+ * Immutably descend `path` (schema segment names) into a nested schema list
+ * and apply `update` to the matching schema. Unmatched branches are unchanged.
  */
 function updateSchemaAtPath(
   schemas: DatabaseSchema[],
@@ -98,11 +95,11 @@ function updateSchemaAtPath(
 /**
  * The path (schema/namespace segment names within a database) that locates the
  * schema holding a set of tables. For nested namespaces this is the
- * `namespacePath`; otherwise it is the single (possibly schemaless) schema name.
+ * `schemaPath`; otherwise it is the single (possibly schemaless) schema name.
  */
 function tableSchemaPath(sqlTableContext: SQLTableContext): string[] {
-  const { namespacePath, schema } = sqlTableContext;
-  return namespacePath && namespacePath.length > 0 ? namespacePath : [schema];
+  const { schemaPath, schema } = sqlTableContext;
+  return schemaPath && schemaPath.length > 0 ? schemaPath : [schema];
 }
 
 function initialState(): DataSourceState {
@@ -204,7 +201,7 @@ const {
       return state;
     }
 
-    const namespacePath = sqlSchemaContext.namespacePath ?? [];
+    const schemaPath = sqlSchemaContext.schemaPath ?? [];
     const newMap = new Map(connectionsMap);
     const newConn: DataSourceConnection = {
       ...conn,
@@ -213,7 +210,7 @@ const {
           return db;
         }
         // Top level: replace the database's schemas.
-        if (namespacePath.length === 0) {
+        if (schemaPath.length === 0) {
           return {
             ...db,
             schemas: schemas,
@@ -223,7 +220,7 @@ const {
         // Nested namespace: replace the child schemas of the namespace at path.
         return {
           ...db,
-          schemas: updateSchemaAtPath(db.schemas, namespacePath, (schema) => ({
+          schemas: updateSchemaAtPath(db.schemas, schemaPath, (schema) => ({
             ...schema,
             schemas: schemas,
             schemas_resolved: true,

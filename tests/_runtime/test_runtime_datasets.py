@@ -281,12 +281,12 @@ class TestPreviewSQLSchemaList:
             )
         ]
 
-    async def test_nested_namespace_path_echoed(
+    async def test_nested_schema_path_echoed(
         self,
         mocked_kernel: MockedKernel,
         connection_requests: list[ExecuteCellCommand],
     ) -> None:
-        """A request with a namespace_path routes to get_child_namespaces and
+        """A request with a schema_path routes to get_child_schemas and
         echoes the path in the response metadata. Catalog engines without
         hierarchical namespaces return an empty list."""
         k = mocked_kernel.k
@@ -298,7 +298,7 @@ class TestPreviewSQLSchemaList:
             request_id=RequestId("0"),
             engine=DUCKDB_CONN,
             database="test",
-            namespace_path=["sub"],
+            schema_path=["sub"],
         )
         await k.handle_message(preview_sql_schema_list_request)
 
@@ -315,7 +315,7 @@ class TestPreviewSQLSchemaList:
                 metadata=SQLDatabaseMetadata(
                     connection=DUCKDB_CONN,
                     database="test",
-                    namespace_path=["sub"],
+                    schema_path=["sub"],
                 ),
             )
         ]
