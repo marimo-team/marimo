@@ -11,6 +11,7 @@ import {
 import useEvent from "react-use-event-hook";
 import { CodeIcon, ExpandIcon, EyeOffIcon } from "lucide-react";
 import { Deck, Fragment, Slide, Stack } from "@revealjs/react";
+import { EditorView } from "@codemirror/view";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,9 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import type { RuntimeCell } from "@/core/cells/types";
 import type { RevealApi, RevealConfig } from "reveal.js";
+import { editorWillConsumeEscape } from "@/core/codemirror/utils";
 import { useEventListener } from "@/hooks/useEventListener";
+import { useFullscreenEscape } from "@/hooks/useFullscreenEscape";
 import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import "./slides.css";
@@ -130,6 +133,14 @@ function triggerResize(deck: RevealApi | null) {
     requestAnimationFrame(() => {
       window.dispatchEvent(new Event("resize"));
     });
+  }
+}
+
+function focusRevealElement(deck: RevealApi | null) {
+  const revealEl = deck?.getRevealElement();
+  if (revealEl != null) {
+    revealEl.tabIndex = -1;
+    revealEl.focus({ preventScroll: true });
   }
 }
 
@@ -274,6 +285,35 @@ const RevealSlidesComponent = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef<RevealApi | null>(null);
   const { width, height } = useSlideDimensions(containerRef);
+
+  // In fullscreen, route Escape through a focused editor first: it handles its
+  // own Escape (Vim, popups, selection), then a press blurs it, then the next
+  // press exits fullscreen.
+  const handleFullscreenEscape = useEvent((event: KeyboardEvent): boolean => {
+    const target = Events.composedTarget(event);
+    const editorEl = target.closest<HTMLElement>(".cm-editor");
+    const view = editorEl != null ? EditorView.findFromDOM(editorEl) : null;
+    if (view == null) {
+      // Not focused in a live editor: let the hook exit fullscreen.
+      return false;
+    }
+    if (!editorWillConsumeEscape(view)) {
+      // Nothing left for the editor to do: blur and hand focus back to the deck.
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      view.contentDOM.blur();
+      focusRevealElement(deckRef.current);
+    }
+    // The editor owns this Escape (it consumes it, or we just blurred it).
+    return true;
+  });
+  // Editors only exist in edit mode; read mode keeps native fullscreen exit.
+  useFullscreenEscape({
+    enabled: isEditable,
+    getElement: () => deckRef.current?.getViewportElement(),
+    onEscape: handleFullscreenEscape,
+  });
+
   // Skip the Notes plugin inside reveal's own speaker-view iframes so pressing
   // `S` there doesn't try to spawn another popup.
   const kioskMode = useAtomValue(kioskModeAtom);
@@ -394,11 +434,7 @@ const RevealSlidesComponent = ({
     // `document.activeElement` is an input/contenteditable (e.g. the speaker
     // notes textarea below the deck). Park focus on the deck wrapper so arrow
     // keys reliably advance slides without the user having to click first.
-    const revealEl = deck.getSlidesElement()?.closest(".reveal");
-    if (revealEl instanceof HTMLElement) {
-      revealEl.tabIndex = -1;
-      revealEl.focus({ preventScroll: true });
-    }
+    focusRevealElement(deck);
   });
 
   const activeSubslide = useMemo(() => {
