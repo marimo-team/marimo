@@ -10,41 +10,41 @@ from marimo._server.models.models import (
 )
 
 
-def test_list_sql_schemas_request_preserves_namespace_path() -> None:
+def test_list_sql_schemas_request_preserves_schema_path() -> None:
     # Wire format is camelCase (Command uses rename="camel").
     body = (
         b'{"requestId":"1","engine":"e","database":"top",'
-        b'"namespacePath":["nested"]}'
+        b'"schemaPath":["nested"]}'
     )
     request = msgspec.json.decode(body, type=ListSQLSchemasRequest)
-    assert request.namespace_path == ["nested"]
+    assert request.schema_path == ["nested"]
     # as_command must not drop the field.
-    assert request.as_command().namespace_path == ["nested"]
+    assert request.as_command().schema_path == ["nested"]
 
 
-def test_list_sql_tables_request_preserves_namespace_path() -> None:
+def test_list_sql_tables_request_preserves_schema_path() -> None:
     body = (
         b'{"requestId":"1","engine":"e","database":"top","schema":"deep",'
-        b'"namespacePath":["nested","deep"]}'
+        b'"schemaPath":["nested","deep"]}'
     )
     request = msgspec.json.decode(body, type=ListSQLTablesRequest)
-    assert request.namespace_path == ["nested", "deep"]
-    assert request.as_command().namespace_path == ["nested", "deep"]
+    assert request.schema_path == ["nested", "deep"]
+    assert request.as_command().schema_path == ["nested", "deep"]
 
 
-def test_preview_sql_table_request_preserves_namespace_path() -> None:
+def test_preview_sql_table_request_preserves_schema_path() -> None:
     body = (
         b'{"requestId":"1","engine":"e","database":"top","schema":"deep",'
-        b'"tableName":"t","namespacePath":["nested","deep"]}'
+        b'"tableName":"t","schemaPath":["nested","deep"]}'
     )
     request = msgspec.json.decode(body, type=PreviewSQLTableRequest)
-    assert request.namespace_path == ["nested", "deep"]
-    assert request.as_command().namespace_path == ["nested", "deep"]
+    assert request.schema_path == ["nested", "deep"]
+    assert request.as_command().schema_path == ["nested", "deep"]
 
 
-def test_namespace_path_defaults_to_empty() -> None:
+def test_schema_path_defaults_to_empty() -> None:
     # Older clients omit the field entirely.
     body = b'{"requestId":"1","engine":"e","database":"top","schema":"s","tableName":"t"}'
     request = msgspec.json.decode(body, type=PreviewSQLTableRequest)
-    assert request.namespace_path == []
-    assert request.as_command().namespace_path == []
+    assert request.schema_path == []
+    assert request.as_command().schema_path == []

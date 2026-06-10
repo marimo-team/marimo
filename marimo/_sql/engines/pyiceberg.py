@@ -153,27 +153,38 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
             )
         ]
         schemas.extend(
-            self.get_child_namespaces(
-                namespace_path=[database],
+            self._child_schemas(
+                (database,),
                 include_tables=include_tables,
                 include_table_details=include_table_details,
             )
         )
         return schemas
 
-    def get_child_namespaces(
+    def get_child_schemas(
         self,
         *,
-        namespace_path: list[str],
+        database: str,
+        schema_path: list[str],
         include_tables: bool,
         include_table_details: bool = False,
     ) -> list[Schema]:
-        """Return the immediate child namespaces (as Schemas) of an absolute
-        namespace path."""
+        return self._child_schemas(
+            (database, *schema_path),
+            include_tables=include_tables,
+            include_table_details=include_table_details,
+        )
+
+    def _child_schemas(
+        self,
+        namespace: tuple[str, ...],
+        *,
+        include_tables: bool,
+        include_table_details: bool,
+    ) -> list[Schema]:
+        """Immediate child namespaces of `namespace` as Schemas."""
         try:
-            children = sorted(
-                self._connection.list_namespaces(tuple(namespace_path))
-            )
+            children = sorted(self._connection.list_namespaces(namespace))
         except Exception:
             LOGGER.warning("Failed to list child namespaces", exc_info=True)
             return []
@@ -197,19 +208,18 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         namespaces are resolved only when `include_tables` is set."""
         from pyiceberg.catalog import Catalog
 
-        database = Catalog.namespace_to_string(namespace)
         tables = (
             self.get_tables_in_schema(
                 schema=NO_SCHEMA_NAME,
-                database=database,
+                database=Catalog.namespace_to_string(namespace),
                 include_table_details=include_table_details,
             )
             if include_tables
             else []
         )
         child_schemas = (
-            self.get_child_namespaces(
-                namespace_path=list(namespace),
+            self._child_schemas(
+                namespace,
                 include_tables=include_tables,
                 include_table_details=include_table_details,
             )

@@ -2903,21 +2903,21 @@ components:
         \ schemas in a database. Used by the SQL editor for\n    schema selection.\n\
         \n    Attributes:\n        request_id: Unique identifier for this request.\n\
         \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
-        \     database: Database to query.\n        namespace_path: Parent namespace\
-        \ path (relative to `database`) whose\n            child namespaces should\
-        \ be listed. Empty lists the database's\n            top-level schemas/namespaces."
+        \     database: Database to query.\n        schema_path: Parent schema path\
+        \ whose child schemas to list.\n            Empty lists the database's top-level\
+        \ schemas."
       properties:
         database:
           type: string
         engine:
           type: string
-        namespacePath:
+        requestId:
+          $ref: '#/components/schemas/RequestId'
+        schemaPath:
           default: []
           items:
             type: string
           type: array
-        requestId:
-          $ref: '#/components/schemas/RequestId'
         type:
           enum:
           - list-sql-schemas
@@ -2934,13 +2934,13 @@ components:
           type: string
         engine:
           type: string
-        namespacePath:
+        requestId:
+          $ref: '#/components/schemas/RequestId'
+        schemaPath:
           default: []
           items:
             type: string
           type: array
-        requestId:
-          $ref: '#/components/schemas/RequestId'
       required:
       - requestId
       - engine
@@ -2953,23 +2953,22 @@ components:
         \n    Attributes:\n        request_id: Unique identifier for this request.\n\
         \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
         \     database: Database to query.\n        schema: Schema to list tables\
-        \ from.\n        namespace_path: Nested namespace path (relative to `database`)\
-        \ for\n            catalogs with hierarchical namespaces. Empty for the top\
-        \ level."
+        \ from.\n        schema_path: Path of nested schemas (relative to `database`)\
+        \ for\n            catalogs with nested schemas. Empty for the top level."
       properties:
         database:
           type: string
         engine:
           type: string
-        namespacePath:
-          default: []
-          items:
-            type: string
-          type: array
         requestId:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
         type:
           enum:
           - list-sql-tables
@@ -2987,15 +2986,15 @@ components:
           type: string
         engine:
           type: string
-        namespacePath:
-          default: []
-          items:
-            type: string
-          type: array
         requestId:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
       required:
       - requestId
       - engine
@@ -3957,23 +3956,23 @@ components:
         \ Attributes:\n        request_id: Unique identifier for this request.\n \
         \       engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n    \
         \    database: Database containing the table.\n        schema: Schema containing\
-        \ the table.\n        table_name: Table to preview.\n        namespace_path:\
-        \ Nested namespace path (relative to `database`) for\n            catalogs\
-        \ with hierarchical namespaces. Empty for the top level."
+        \ the table.\n        table_name: Table to preview.\n        schema_path:\
+        \ Path of nested schemas (relative to `database`) for\n            catalogs\
+        \ with nested schemas. Empty for the top level."
       properties:
         database:
           type: string
         engine:
           type: string
-        namespacePath:
-          default: []
-          items:
-            type: string
-          type: array
         requestId:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
         tableName:
           type: string
         type:
@@ -3994,15 +3993,15 @@ components:
           type: string
         engine:
           type: string
-        namespacePath:
-          default: []
-          items:
-            type: string
-          type: array
         requestId:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
         tableName:
           type: string
       required:
@@ -4346,15 +4345,15 @@ components:
       type: object
     SQLDatabaseMetadata:
       description: "SQL database metadata.\n\n    Attributes:\n        connection:\
-        \ Connection identifier.\n        database: Database name.\n        namespace_path:\
-        \ Parent namespace path (relative to `database`) the\n            schemas\
-        \ belong under. Empty for the database's top level."
+        \ Connection identifier.\n        database: Database name.\n        schema_path:\
+        \ Parent schema path the schemas belong under. Empty for\n            the\
+        \ database's top level."
       properties:
         connection:
           type: string
         database:
           type: string
-        namespace_path:
+        schema_path:
           default: []
           items:
             type: string
@@ -4367,21 +4366,20 @@ components:
     SQLMetadata:
       description: "SQL database and schema metadata.\n\n    Attributes:\n       \
         \ connection: Connection identifier.\n        database: Database name.\n \
-        \       schema: Schema name.\n        namespace_path: Nested namespace path\
-        \ (relative to `database`) for\n            catalogs with hierarchical namespaces.\
-        \ Empty for the top level."
+        \       schema: Schema name.\n        schema_path: Path of nested schemas\
+        \ (relative to `database`). Empty\n            for the top level."
       properties:
         connection:
           type: string
         database:
           type: string
-        namespace_path:
+        schema:
+          type: string
+        schema_path:
           default: []
           items:
             type: string
           type: array
-        schema:
-          type: string
         type:
           enum:
           - sql-metadata

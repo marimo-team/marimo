@@ -42,12 +42,10 @@ def _find_schema_by_path(
 def _find_table_schema(
     database: Database, sql_metadata: SQLMetadata
 ) -> Schema | None:
-    """Locate the schema holding a table. For nested namespaces the schema is
-    found by descending `namespace_path`; otherwise by schema name."""
-    if sql_metadata.namespace_path:
-        return _find_schema_by_path(
-            database.schemas, sql_metadata.namespace_path
-        )
+    """Locate the schema holding a table. For nested schemas it is found by
+    descending `schema_path`; otherwise by schema name."""
+    if sql_metadata.schema_path:
+        return _find_schema_by_path(database.schemas, sql_metadata.schema_path)
     for schema in database.schemas:
         if schema.name == sql_metadata.schema:
             return schema
@@ -87,9 +85,8 @@ def update_schema_list_in_connection(
 ) -> None:
     """Update a list of schemas in the connection hierarchy, updates in-place.
 
-    When `namespace_path` is empty the database's top-level schemas are
-    replaced; otherwise the child schemas of the nested namespace at that path
-    are replaced.
+    When `schema_path` is empty the database's top-level schemas are replaced;
+    otherwise the child schemas of the schema at that path are replaced.
 
     Args:
         connections: List of data source connections
@@ -101,9 +98,9 @@ def update_schema_list_in_connection(
     )
     if database is None:
         return
-    if sql_db_metadata.namespace_path:
+    if sql_db_metadata.schema_path:
         parent = _find_schema_by_path(
-            database.schemas, sql_db_metadata.namespace_path
+            database.schemas, sql_db_metadata.schema_path
         )
         if parent is None:
             return

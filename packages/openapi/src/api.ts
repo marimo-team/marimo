@@ -5175,16 +5175,15 @@ export interface components {
      *             request_id: Unique identifier for this request.
      *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
      *             database: Database to query.
-     *             namespace_path: Parent namespace path (relative to `database`) whose
-     *                 child namespaces should be listed. Empty lists the database's
-     *                 top-level schemas/namespaces.
+     *             schema_path: Parent schema path whose child schemas to list.
+     *                 Empty lists the database's top-level schemas.
      */
     ListSQLSchemasCommand: {
       database: string;
       engine: string;
-      /** @default [] */
-      namespacePath?: string[];
       requestId: components["schemas"]["RequestId"];
+      /** @default [] */
+      schemaPath?: string[];
       /** @enum {unknown} */
       type: "list-sql-schemas";
     };
@@ -5192,9 +5191,9 @@ export interface components {
     ListSQLSchemasRequest: {
       database: string;
       engine: string;
-      /** @default [] */
-      namespacePath?: string[];
       requestId: components["schemas"]["RequestId"];
+      /** @default [] */
+      schemaPath?: string[];
     };
     /**
      * ListSQLTablesCommand
@@ -5208,16 +5207,16 @@ export interface components {
      *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
      *             database: Database to query.
      *             schema: Schema to list tables from.
-     *             namespace_path: Nested namespace path (relative to `database`) for
-     *                 catalogs with hierarchical namespaces. Empty for the top level.
+     *             schema_path: Path of nested schemas (relative to `database`) for
+     *                 catalogs with nested schemas. Empty for the top level.
      */
     ListSQLTablesCommand: {
       database: string;
       engine: string;
-      /** @default [] */
-      namespacePath?: string[];
       requestId: components["schemas"]["RequestId"];
       schema: string;
+      /** @default [] */
+      schemaPath?: string[];
       /** @enum {unknown} */
       type: "list-sql-tables";
     };
@@ -5225,10 +5224,10 @@ export interface components {
     ListSQLTablesRequest: {
       database: string;
       engine: string;
-      /** @default [] */
-      namespacePath?: string[];
       requestId: components["schemas"]["RequestId"];
       schema: string;
+      /** @default [] */
+      schemaPath?: string[];
     };
     /**
      * ListSecretKeysCommand
@@ -5782,16 +5781,16 @@ export interface components {
      *             database: Database containing the table.
      *             schema: Schema containing the table.
      *             table_name: Table to preview.
-     *             namespace_path: Nested namespace path (relative to `database`) for
-     *                 catalogs with hierarchical namespaces. Empty for the top level.
+     *             schema_path: Path of nested schemas (relative to `database`) for
+     *                 catalogs with nested schemas. Empty for the top level.
      */
     PreviewSQLTableCommand: {
       database: string;
       engine: string;
-      /** @default [] */
-      namespacePath?: string[];
       requestId: components["schemas"]["RequestId"];
       schema: string;
+      /** @default [] */
+      schemaPath?: string[];
       tableName: string;
       /** @enum {unknown} */
       type: "preview-sql-table";
@@ -5800,10 +5799,10 @@ export interface components {
     PreviewSQLTableRequest: {
       database: string;
       engine: string;
-      /** @default [] */
-      namespacePath?: string[];
       requestId: components["schemas"]["RequestId"];
       schema: string;
+      /** @default [] */
+      schemaPath?: string[];
       tableName: string;
     };
     /**
@@ -6050,14 +6049,14 @@ export interface components {
      *         Attributes:
      *             connection: Connection identifier.
      *             database: Database name.
-     *             namespace_path: Parent namespace path (relative to `database`) the
-     *                 schemas belong under. Empty for the database's top level.
+     *             schema_path: Parent schema path the schemas belong under. Empty for
+     *                 the database's top level.
      */
     SQLDatabaseMetadata: {
       connection: string;
       database: string;
       /** @default [] */
-      namespace_path?: string[];
+      schema_path?: string[];
     };
     /**
      * SQLMetadata
@@ -6067,15 +6066,15 @@ export interface components {
      *             connection: Connection identifier.
      *             database: Database name.
      *             schema: Schema name.
-     *             namespace_path: Nested namespace path (relative to `database`) for
-     *                 catalogs with hierarchical namespaces. Empty for the top level.
+     *             schema_path: Path of nested schemas (relative to `database`). Empty
+     *                 for the top level.
      */
     SQLMetadata: {
       connection: string;
       database: string;
-      /** @default [] */
-      namespace_path?: string[];
       schema: string;
+      /** @default [] */
+      schema_path?: string[];
       /** @enum {unknown} */
       type: "sql-metadata";
     };

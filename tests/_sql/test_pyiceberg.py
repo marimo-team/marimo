@@ -362,15 +362,15 @@ def test_pyiceberg_connection_is_lazy(memory_catalog: Catalog) -> None:
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
-def test_pyiceberg_get_child_namespaces(memory_catalog: Catalog) -> None:
-    """get_child_namespaces lists immediate children one level at a time."""
+def test_pyiceberg_get_child_schemas(memory_catalog: Catalog) -> None:
+    """get_child_schemas lists immediate children one level at a time."""
     engine = PyIcebergEngine(
         memory_catalog, engine_name=VariableName("my_iceberg")
     )
 
     # Immediate child of "top" is "nested" (deferred, not recursed).
-    children = engine.get_child_namespaces(
-        namespace_path=["top"], include_tables=False
+    children = engine.get_child_schemas(
+        database="top", schema_path=[], include_tables=False
     )
     assert [s.name for s in children] == ["nested"]
     assert children[0].schemas_resolved is False
@@ -378,15 +378,17 @@ def test_pyiceberg_get_child_namespaces(memory_catalog: Catalog) -> None:
     assert children[0].schemas == []
 
     # Immediate child of "top.nested" is "deep".
-    children = engine.get_child_namespaces(
-        namespace_path=["top", "nested"], include_tables=False
+    children = engine.get_child_schemas(
+        database="top", schema_path=["nested"], include_tables=False
     )
     assert [s.name for s in children] == ["deep"]
 
     # "top.nested.deep" is a leaf.
     assert (
-        engine.get_child_namespaces(
-            namespace_path=["top", "nested", "deep"], include_tables=False
+        engine.get_child_schemas(
+            database="top",
+            schema_path=["nested", "deep"],
+            include_tables=False,
         )
         == []
     )
