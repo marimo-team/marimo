@@ -23,7 +23,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { SentinelCell } from "./sentinel-cell";
 import { detectSentinel, stringifyUnknownValue } from "./utils";
-import { CompactChipRow } from "./value-chips";
+import { CompactChipRow } from "@/components/ui/value-chips";
 
 const TOP_K_ROWS = 30;
 
