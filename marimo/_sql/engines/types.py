@@ -77,6 +77,13 @@ class EngineCatalog(BaseEngine[CONN], ABC):
     """Protocol for querying the catalog of an engine."""
 
     @property
+    def supports_nested_schemas(self) -> bool:
+        """Engines whose schemas nest (Iceberg, Spark). When True, the handler
+        folds `schema_path` into the database identifier passed to table calls;
+        flat engines keep `database` and `schema` separate."""
+        return False
+
+    @property
     @abstractmethod
     def inference_config(self) -> InferenceConfig:
         """Return the inference config for the engine."""
