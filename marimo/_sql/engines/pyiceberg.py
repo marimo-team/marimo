@@ -43,6 +43,10 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
     def dialect(self) -> str:
         return "iceberg"
 
+    @property
+    def supports_nested_schemas(self) -> bool:
+        return True
+
     @staticmethod
     def is_compatible(var: Any) -> bool:
         if not DependencyManager.pyiceberg.imported():

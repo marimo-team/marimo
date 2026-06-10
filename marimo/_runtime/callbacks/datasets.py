@@ -38,8 +38,14 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
-def _qualified_database(database: str, schema_path: list[str]) -> str:
-    """Dotted database identifier for the schema at `schema_path`."""
+def _table_database(
+    engine: EngineCatalog[Any], database: str, schema_path: list[str]
+) -> str:
+    """The database identifier passed to an engine's table calls. Engines with
+    nested schemas (Iceberg, Spark) fold `schema_path` into a dotted name; flat
+    engines keep `database` as-is and locate the schema via the `schema` arg."""
+    if not schema_path or not engine.supports_nested_schemas:
+        return database
     return ".".join([database, *schema_path])
 
 
@@ -190,7 +196,9 @@ class DatasetCallbacks:
             table = engine.get_table_details(
                 table_name=table_name,
                 schema_name=schema_name,
-                database_name=_qualified_database(database_name, schema_path),
+                database_name=_table_database(
+                    engine, database_name, schema_path
+                ),
             )
 
             broadcast_notification(
@@ -253,7 +261,7 @@ class DatasetCallbacks:
         try:
             table_list = engine.get_tables_in_schema(
                 schema=schema_name,
-                database=_qualified_database(database_name, schema_path),
+                database=_table_database(engine, database_name, schema_path),
                 include_table_details=False,
             )
             broadcast_notification(
