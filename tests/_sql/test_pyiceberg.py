@@ -166,6 +166,7 @@ def test_pyiceberg_engine_source_and_dialect(memory_catalog: Catalog) -> None:
     engine = PyIcebergEngine(memory_catalog)
     assert engine.source == "iceberg"
     assert engine.dialect == "iceberg"
+    assert engine.supports_nested_schemas is True
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
