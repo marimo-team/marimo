@@ -525,7 +525,6 @@ const SchemaList: React.FC<SchemaListProps> = (props) => {
     searchValue,
   } = props;
   const { addSchemaList } = useDataSourceActions();
-  const [schemasRequested, setSchemasRequested] = React.useState(false);
 
   // Custom loading state, we need to wait for the data to propagate once requested
   // useAsyncData's loading state may return false before data has propagated
@@ -533,8 +532,7 @@ const SchemaList: React.FC<SchemaListProps> = (props) => {
   const schemaPathKey = schemaPath.join(" ");
 
   const { isPending, error } = useAsyncData(async () => {
-    if (!schemasResolved && engineName && !schemasRequested) {
-      setSchemasRequested(true);
+    if (!schemasResolved && engineName) {
       setSchemasLoading(true);
       try {
         const previewSchemaList = await PreviewSQLSchemaList.request({
@@ -556,34 +554,23 @@ const SchemaList: React.FC<SchemaListProps> = (props) => {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    schemasResolved,
-    engineName,
-    databaseName,
-    schemaPathKey,
-    schemasRequested,
-  ]);
+  }, [schemasResolved, engineName, databaseName, schemaPathKey]);
+
+  const stateProps = stateIndentProps(
+    schemaHeaderIndentRem(depth),
+    INDENT.schemaLoading,
+  );
 
   if (isPending || schemasLoading) {
-    return (
-      <LoadingState
-        message="Loading schemas..."
-        className={INDENT.schemaLoading}
-      />
-    );
+    return <LoadingState message="Loading schemas..." {...stateProps} />;
   }
 
   if (error) {
-    return <ErrorState error={error} className={INDENT.schemaLoading} />;
+    return <ErrorState error={error} {...stateProps} />;
   }
 
   if (schemas.length === 0) {
-    return (
-      <EmptyState
-        content="No schemas available"
-        className={INDENT.schemaEmpty}
-      />
-    );
+    return <EmptyState content="No schemas available" {...stateProps} />;
   }
 
   const context: SchemaListContext = {
@@ -742,15 +729,15 @@ const TableList: React.FC<{
   columnIndentRem,
 }) => {
   const { addTableList } = useDataSourceActions();
-  const [tablesRequested, setTablesRequested] = React.useState(false);
 
   // Custom loading state, we need to wait for the data to propagate once requested
   // useAsyncData's loading state may return false before data has propagated
   const [tablesLoading, setTablesLoading] = React.useState(false);
 
+  // Fetch when discovery is deferred (also re-fetches after a refresh, which
+  // resets tablesResolved to false).
   const { isPending, error } = useAsyncData(async () => {
-    if (!tablesResolved && sqlTableContext && !tablesRequested) {
-      setTablesRequested(true);
+    if (!tablesResolved && sqlTableContext) {
       setTablesLoading(true);
 
       const { engine, database, schema, schemaPath } = sqlTableContext;
@@ -772,7 +759,7 @@ const TableList: React.FC<{
       });
       setTablesLoading(false);
     }
-  }, [tablesResolved, sqlTableContext, tablesRequested]);
+  }, [tablesResolved, sqlTableContext]);
 
   const stateProps = stateIndentProps(tableIndentRem, INDENT.tableLoading);
 
@@ -827,18 +814,10 @@ const DatasetTableItem: React.FC<{
   const { addTable } = useDataSourceActions();
 
   const [isExpanded, setIsExpanded] = React.useState(false);
-  const [tableDetailsRequested, setTableDetailsRequested] =
-    React.useState(false);
   const tableDetailsExist = table.columns.length > 0;
 
   const { isFetching, isPending, error } = useAsyncData(async () => {
-    if (
-      isExpanded &&
-      !tableDetailsExist &&
-      sqlTableContext &&
-      !tableDetailsRequested
-    ) {
-      setTableDetailsRequested(true);
+    if (isExpanded && !tableDetailsExist && sqlTableContext) {
       const { engine, database, schema, schemaPath } = sqlTableContext;
       const previewTable = await PreviewSQLTable.request({
         engine: engine,
