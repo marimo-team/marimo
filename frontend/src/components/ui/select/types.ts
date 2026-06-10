@@ -23,15 +23,23 @@ export interface OptionState {
   active: boolean;
 }
 
-/** A select/deselect-all action scoped to the currently visible options. */
-export interface BulkAction {
-  label: string;
-  /** False when the action is a no-op (e.g. nothing left to select). */
-  enabled: boolean;
-}
+/**
+ * Pure-data description of one bulk row to render above the option list. The
+ * hook decides which specs exist for the current search/cap state; the facade
+ * decides labels and markup.
+ *
+ * - `select-all` / `deselect-all` act on the whole option list — the facade
+ *   already has it as a prop, so the spec just carries `enabled` for the
+ *   disabled-but-visible state (e.g. everything already picked).
+ * - `select-matching` / `deselect-matching` act on the search-filtered subset,
+ *   which the facade can't see; `items` carries that subset so the facade can
+ *   label the row ("Select N matching") and the slot is omitted when empty.
+ */
+export type BulkActionSpec<V> =
+  | { kind: "select-all"; enabled: boolean }
+  | { kind: "deselect-all"; enabled: boolean }
+  | { kind: "select-matching"; items: Array<Option<V>> }
+  | { kind: "deselect-matching"; items: Array<Option<V>> };
 
-/** Bulk actions offered above the option list; each is omitted when N/A. */
-export interface BulkActions {
-  select?: BulkAction;
-  deselect?: BulkAction;
-}
+/** A renderable bulk action: spec + the closure that applies it on click. */
+export type BulkAction<V> = BulkActionSpec<V> & { run: () => void };

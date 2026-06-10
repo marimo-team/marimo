@@ -6,9 +6,16 @@ export {
 } from "./select-list";
 export { useSelectList } from "./use-select-list";
 export { renderSlot, type Slot } from "./render-slot";
-export type { BulkAction, BulkActions, Option, OptionState } from "./types";
+export type {
+  BulkAction,
+  BulkActionSpec,
+  Option,
+  OptionState,
+} from "./types";
 export {
   deselectMatching,
+  getBulkActions,
+  getVisibleOptions,
   multiselectFilterFn,
   selectMatching,
 } from "./utils";

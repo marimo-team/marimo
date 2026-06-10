@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Option } from "../types";
+import type { BulkAction, Option } from "../types";
 import { useSelectList } from "../use-select-list";
 
 const opts: Array<Option<string>> = [
@@ -202,29 +202,37 @@ describe("useSelectList - pinning + freeze", () => {
 });
 
 describe("useSelectList - bulk", () => {
-  it("idle select runs over all options; deselect clears", () => {
+  const findAction = <K extends BulkAction<string>["kind"]>(
+    actions: ReadonlyArray<BulkAction<string>>,
+    kind: K,
+  ): Extract<BulkAction<string>, { kind: K }> | undefined =>
+    actions.find(
+      (a): a is Extract<BulkAction<string>, { kind: K }> => a.kind === kind,
+    );
+
+  it("idle: select-all picks every option; deselect-all clears", () => {
     const onChange = vi.fn();
     const { result } = renderHook(() =>
       useSelectList({ options: opts, value: ["a"], onChange, multiple: true }),
     );
-    act(() => result.current.runBulk("select"));
+    act(() => findAction(result.current.bulkActions, "select-all")?.run());
     expect(onChange).toHaveBeenCalledWith(["a", "b", "c"]);
     onChange.mockClear();
-    act(() => result.current.runBulk("deselect"));
+    act(() => findAction(result.current.bulkActions, "deselect-all")?.run());
     expect(onChange).toHaveBeenCalledWith([]);
   });
 
-  it("searching select/deselect act only on the matches (additive)", () => {
+  it("searching: select-matching acts only on the matches (additive)", () => {
     const onChange = vi.fn();
     const { result } = renderHook(() =>
       useSelectList({ options: opts, value: ["a"], onChange, multiple: true }),
     );
     act(() => result.current.setSearchQuery("b"));
-    act(() => result.current.runBulk("select"));
+    act(() => findAction(result.current.bulkActions, "select-matching")?.run());
     expect(onChange).toHaveBeenCalledWith(["a", "b"]);
   });
 
-  it("exposes bulkActions from getBulkActions (multi only)", () => {
+  it("exposes idle bulkActions in select-then-deselect order", () => {
     const { result } = renderHook(() =>
       useSelectList({
         options: opts,
@@ -233,10 +241,10 @@ describe("useSelectList - bulk", () => {
         multiple: true,
       }),
     );
-    expect(result.current.bulkActions).toEqual({
-      select: { label: "Select all", enabled: true },
-      deselect: { label: "Deselect all", enabled: true },
-    });
+    const kinds = result.current.bulkActions.map((a) => a.kind);
+    expect(kinds).toEqual(["select-all", "deselect-all"]);
+    const selectAll = findAction(result.current.bulkActions, "select-all");
+    expect(selectAll && "enabled" in selectAll && selectAll.enabled).toBe(true);
   });
 
   it("bulkActions is empty for single-select", () => {
@@ -248,6 +256,6 @@ describe("useSelectList - bulk", () => {
         multiple: false,
       }),
     );
-    expect(result.current.bulkActions).toEqual({});
+    expect(result.current.bulkActions).toEqual([]);
   });
 });

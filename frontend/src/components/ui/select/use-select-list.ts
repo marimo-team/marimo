@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { useMemo, useState } from "react";
-import type { BulkActions, Option } from "./types";
+import { assertNever } from "@/utils/assertNever";
+import type { BulkAction, Option } from "./types";
 import {
   deselectMatching,
   getBulkActions,
@@ -39,10 +40,14 @@ interface UseSelectListResult<V> {
   pinnedCount: number;
   isChecked: (value: V) => boolean;
   toggle: (value: V) => void;
-  /** Bulk-row config for the current search/cap state (empty for single-select). */
-  bulkActions: BulkActions;
-  /** Apply a bulk action: search-scoped additive when searching, all/none when idle. */
-  runBulk: (kind: "select" | "deselect") => void;
+  /**
+   * Renderable bulk rows for the current search/cap state, in display order.
+   * Empty for single-select. Each entry carries its data (`enabled` or `items`)
+   * and a `run` closure that applies it.
+   */
+  bulkActions: Array<BulkAction<V>>;
+  /** Map a value back to its option label; falls back to `String(value)`. */
+  labelOf: (value: V) => string;
 }
 
 function asArray<V>(value: V[] | V | null): V[] {
@@ -113,19 +118,12 @@ function usePinning<V>({
     }
   };
 
-  const visibleOptions = useMemo(() => {
+  const { visibleOptions, pinnedCount } = useMemo(() => {
     if (searchQuery || !pinSelected) {
-      return filteredOptions;
+      return { visibleOptions: filteredOptions, pinnedCount: 0 };
     }
     return getVisibleOptions(options, pinnedSelection);
   }, [searchQuery, pinSelected, filteredOptions, options, pinnedSelection]);
-
-  const pinnedCount = useMemo(() => {
-    if (searchQuery || !pinSelected) {
-      return 0;
-    }
-    return options.filter((o) => pinnedSelection.has(o.value)).length;
-  }, [searchQuery, pinSelected, options, pinnedSelection]);
 
   return { open, setOpen, repin, visibleOptions, pinnedCount };
 }
@@ -189,7 +187,7 @@ interface BulkParams<V> {
   maxSelections: number | undefined;
 }
 
-/** Bulk-row config and execution; inert for single-select. */
+/** Bulk-row specs paired with run closures; inert for single-select. */
 function useBulk<V>({
   value,
   onChange,
@@ -198,38 +196,64 @@ function useBulk<V>({
   filteredOptions,
   searchQuery,
   maxSelections,
-}: BulkParams<V>): {
-  bulkActions: BulkActions;
-  runBulk: (kind: "select" | "deselect") => void;
-} {
-  const bulkActions = useMemo<BulkActions>(() => {
+}: BulkParams<V>): { bulkActions: Array<BulkAction<V>> } {
+  const bulkActions = useMemo<Array<BulkAction<V>>>(() => {
     if (!multiple) {
-      return {};
+      return [];
     }
-    return getBulkActions({
+    const specs = getBulkActions({
       options,
       filteredOptions,
       value: asArray(value),
       searchQuery,
       maxSelections,
     });
-  }, [multiple, options, filteredOptions, value, searchQuery, maxSelections]);
+    return specs.map((spec): BulkAction<V> => {
+      switch (spec.kind) {
+        case "select-all":
+          return {
+            ...spec,
+            run: () => onChange(options.map((o) => o.value)),
+          };
+        case "deselect-all":
+          return { ...spec, run: () => onChange([]) };
+        case "select-matching":
+          return {
+            ...spec,
+            run: () =>
+              onChange(
+                selectMatching(
+                  asArray(value),
+                  spec.items.map((o) => o.value),
+                ),
+              ),
+          };
+        case "deselect-matching":
+          return {
+            ...spec,
+            run: () =>
+              onChange(
+                deselectMatching(
+                  asArray(value),
+                  spec.items.map((o) => o.value),
+                ),
+              ),
+          };
+        default:
+          return assertNever(spec);
+      }
+    });
+  }, [
+    multiple,
+    options,
+    filteredOptions,
+    value,
+    searchQuery,
+    maxSelections,
+    onChange,
+  ]);
 
-  const runBulk = (kind: "select" | "deselect"): void => {
-    const current = asArray(value);
-    const matches = filteredOptions.map((o) => o.value);
-    if (kind === "select") {
-      onChange(
-        searchQuery
-          ? selectMatching(current, matches)
-          : options.map((o) => o.value),
-      );
-    } else {
-      onChange(searchQuery ? deselectMatching(current, matches) : []);
-    }
-  };
-
-  return { bulkActions, runBulk };
+  return { bulkActions };
 }
 
 /**
@@ -250,6 +274,16 @@ export function useSelectList<V>({
   pinSelected = false,
 }: UseSelectListParams<V>): UseSelectListResult<V> {
   const selected = useMemo(() => new Set(asArray(value)), [value]);
+
+  const labelByValue = useMemo(() => {
+    const map = new Map<V, string>();
+    for (const option of options) {
+      map.set(option.value, option.label);
+    }
+    return map;
+  }, [options]);
+  const labelOf = (candidate: V): string =>
+    labelByValue.get(candidate) ?? String(candidate);
 
   const {
     searchQuery,
@@ -274,7 +308,7 @@ export function useSelectList<V>({
     selected,
   });
 
-  const { bulkActions, runBulk } = useBulk({
+  const { bulkActions } = useBulk({
     value,
     onChange,
     multiple,
@@ -301,6 +335,6 @@ export function useSelectList<V>({
     isChecked,
     toggle,
     bulkActions,
-    runBulk,
+    labelOf,
   };
 }
