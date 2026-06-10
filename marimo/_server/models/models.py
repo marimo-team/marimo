@@ -103,7 +103,7 @@ class ListSQLTablesRequest(ListSQLTablesCommand, tag=False):
             engine=self.engine,
             database=self.database,
             schema=self.schema,
-            namespace_path=self.namespace_path,
+            schema_path=self.schema_path,
         )
 
 
@@ -113,7 +113,7 @@ class ListSQLSchemasRequest(ListSQLSchemasCommand, tag=False):
             request_id=self.request_id,
             engine=self.engine,
             database=self.database,
-            namespace_path=self.namespace_path,
+            schema_path=self.schema_path,
         )
 
 
@@ -136,7 +136,7 @@ class PreviewSQLTableRequest(PreviewSQLTableCommand, tag=False):
             database=self.database,
             schema=self.schema,
             table_name=self.table_name,
-            namespace_path=self.namespace_path,
+            schema_path=self.schema_path,
         )
 
 

@@ -95,15 +95,15 @@ const INDENT = {
   columnPreview: "pl-10",
 };
 
-// Indentation (rem) for nested namespace levels, by nesting depth. Calibrated
+// Indentation (rem) for nested schema levels, by nesting depth. Calibrated
 // so depth 0 matches the fixed pl-7 / pl-12 / pl-13 classes.
-function namespaceHeaderIndentRem(depth: number): number {
+function schemaHeaderIndentRem(depth: number): number {
   return 1.75 + depth;
 }
-function namespaceTableIndentRem(depth: number): number {
+function schemaTableIndentRem(depth: number): number {
   return 3 + depth;
 }
-function namespaceColumnIndentRem(depth: number): number {
+function schemaColumnIndentRem(depth: number): number {
   return 3.25 + depth;
 }
 
@@ -157,7 +157,7 @@ export const hideEmptyDatasourcesAtom = atomWithStorage<boolean>(
 
 /**
  * Recursively hide schemas confirmed empty (no tables and no visible child
- * namespaces). Deferred schemas are kept so the user can expand them.
+ * schemas). Deferred schemas are kept so the user can expand them.
  */
 function filterEmptySchemas(schemas: DatabaseSchema[]): DatabaseSchema[] {
   let changed = false;
@@ -186,7 +186,7 @@ function filterEmptySchemas(schemas: DatabaseSchema[]): DatabaseSchema[] {
 /**
  * Apply the "hide empty" filter to a connection's databases.
  *
- * - Schemas with confirmed-empty table lists (and no child namespaces) are
+ * - Schemas with confirmed-empty table lists (and no child schemas) are
  *   hidden, recursively.
  * - Databases are hidden when either (a) their schemas have been enumerated
  *   and the list is empty, or (b) every schema in them was hidden by the
@@ -367,7 +367,7 @@ export const DataSources: React.FC = () => {
                 <SchemaList
                   schemas={database.schemas}
                   schemasResolved={database.schemas_resolved !== false}
-                  namespacePath={[]}
+                  schemaPath={[]}
                   depth={0}
                   defaultSchema={connection.default_schema}
                   defaultDatabase={connection.default_database}
@@ -500,23 +500,21 @@ interface SchemaListContext {
   searchValue?: string;
 }
 
-const SchemaList: React.FC<
-  SchemaListContext & {
-    schemas: DatabaseSchema[];
-    // Whether `schemas` has been enumerated; when false, discovery is deferred
-    // and a request is issued on mount (i.e. when the parent is expanded).
-    schemasResolved: boolean;
-    // Parent namespace path (relative to the database) of these schemas. Empty
-    // for the database's top-level schemas.
-    namespacePath: string[];
-    // Nesting depth of these schemas (0 = top-level).
-    depth: number;
-  }
-> = (props) => {
+interface SchemaListProps extends SchemaListContext {
+  schemas: DatabaseSchema[];
+  // False when discovery is deferred; a request is then issued on mount.
+  schemasResolved: boolean;
+  // Parent schema path (relative to the database). Empty at the top level.
+  schemaPath: string[];
+  // Nesting depth (0 = top-level).
+  depth: number;
+}
+
+const SchemaList: React.FC<SchemaListProps> = (props) => {
   const {
     schemas,
     schemasResolved,
-    namespacePath,
+    schemaPath,
     depth,
     defaultSchema,
     defaultDatabase,
@@ -532,7 +530,7 @@ const SchemaList: React.FC<
   // Custom loading state, we need to wait for the data to propagate once requested
   // useAsyncData's loading state may return false before data has propagated
   const [schemasLoading, setSchemasLoading] = React.useState(false);
-  const namespaceKey = namespacePath.join(" ");
+  const schemaPathKey = schemaPath.join(" ");
 
   const { isPending, error } = useAsyncData(async () => {
     if (!schemasResolved && engineName && !schemasRequested) {
@@ -542,7 +540,7 @@ const SchemaList: React.FC<
         const previewSchemaList = await PreviewSQLSchemaList.request({
           engine: engineName,
           database: databaseName,
-          namespacePath: namespacePath,
+          schemaPath: schemaPath,
         });
 
         addSchemaList({
@@ -550,7 +548,7 @@ const SchemaList: React.FC<
           sqlSchemaContext: {
             engine: engineName,
             database: databaseName,
-            namespacePath: namespacePath,
+            schemaPath: schemaPath,
           },
         });
       } finally {
@@ -562,7 +560,7 @@ const SchemaList: React.FC<
     schemasResolved,
     engineName,
     databaseName,
-    namespaceKey,
+    schemaPathKey,
     schemasRequested,
   ]);
 
@@ -601,7 +599,7 @@ const SchemaList: React.FC<
   return (
     <>
       {schemas.map((schema) => {
-        // Schemaless namespaces (the database's own tables) render their tables
+        // Schemaless schemas (the database's own tables) render their tables
         // directly under the database with no expandable node.
         if (isSchemaless(schema.name)) {
           return (
@@ -614,7 +612,7 @@ const SchemaList: React.FC<
                 engine: engineName,
                 database: databaseName,
                 schema: schema.name,
-                namespacePath: namespacePath,
+                schemaPath: schemaPath,
                 defaultSchema: defaultSchema,
                 defaultDatabase: defaultDatabase,
                 dialect: dialect,
@@ -623,10 +621,10 @@ const SchemaList: React.FC<
           );
         }
         return (
-          <NamespaceNode
+          <SchemaNode
             key={schema.name}
             schema={schema}
-            namespacePath={[...namespacePath, schema.name]}
+            schemaPath={[...schemaPath, schema.name]}
             depth={depth}
             {...context}
           />
@@ -636,17 +634,17 @@ const SchemaList: React.FC<
   );
 };
 
-const NamespaceNode: React.FC<
-  SchemaListContext & {
-    schema: DatabaseSchema;
-    // Path of this namespace relative to the database (includes this node).
-    namespacePath: string[];
-    depth: number;
-  }
-> = (props) => {
+interface SchemaNodeProps extends SchemaListContext {
+  schema: DatabaseSchema;
+  // Path of this schema relative to the database (includes this node).
+  schemaPath: string[];
+  depth: number;
+}
+
+const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
   const {
     schema,
-    namespacePath,
+    schemaPath,
     depth,
     engineName,
     databaseName,
@@ -658,14 +656,14 @@ const NamespaceNode: React.FC<
   } = props;
   const [isExpanded, setIsExpanded] = React.useState(hasSearch);
   const [isSelected, setIsSelected] = React.useState(false);
-  const uniqueValue = `${databaseName}:${namespacePath.join(".")}`;
+  const uniqueValue = `${databaseName}:${schemaPath.join(".")}`;
   const childSchemas = schema.schemas ?? [];
 
   return (
     <>
       <CommandItem
         className="text-sm flex flex-row gap-1 items-center cursor-pointer rounded-none"
-        style={{ paddingLeft: `${namespaceHeaderIndentRem(depth)}rem` }}
+        style={{ paddingLeft: `${schemaHeaderIndentRem(depth)}rem` }}
         onSelect={() => {
           setIsExpanded(!isExpanded);
           setIsSelected(!isSelected);
@@ -685,12 +683,12 @@ const NamespaceNode: React.FC<
       </CommandItem>
       {isExpanded && (
         <>
-          {/* Nested child namespaces */}
+          {/* Nested child schemas */}
           {(childSchemas.length > 0 || schema.schemas_resolved === false) && (
             <SchemaList
               schemas={childSchemas}
               schemasResolved={schema.schemas_resolved !== false}
-              namespacePath={namespacePath}
+              schemaPath={schemaPath}
               depth={depth + 1}
               engineName={engineName}
               databaseName={databaseName}
@@ -701,18 +699,18 @@ const NamespaceNode: React.FC<
               searchValue={searchValue}
             />
           )}
-          {/* Tables that live directly in this namespace */}
+          {/* Tables that live directly in this schema */}
           <TableList
             tables={schema.tables}
             tablesResolved={schema.tables_resolved !== false}
             searchValue={searchValue}
-            tableIndentRem={namespaceTableIndentRem(depth)}
-            columnIndentRem={namespaceColumnIndentRem(depth)}
+            tableIndentRem={schemaTableIndentRem(depth)}
+            columnIndentRem={schemaColumnIndentRem(depth)}
             sqlTableContext={{
               engine: engineName,
               database: databaseName,
               schema: schema.name,
-              namespacePath: namespacePath,
+              schemaPath: schemaPath,
               defaultSchema: defaultSchema,
               defaultDatabase: defaultDatabase,
               dialect: dialect,
@@ -731,7 +729,7 @@ const TableList: React.FC<{
   // Whether `tables` has been enumerated; when false, discovery is deferred and
   // a request is issued on mount (i.e. when the parent is expanded).
   tablesResolved?: boolean;
-  // Depth-based indentation (rem) for nested namespace tables/columns. When
+  // Depth-based indentation (rem) for nested schema tables/columns. When
   // omitted, the fixed INDENT classes are used (top-level / schemaless tables).
   tableIndentRem?: number;
   columnIndentRem?: number;
@@ -755,12 +753,12 @@ const TableList: React.FC<{
       setTablesRequested(true);
       setTablesLoading(true);
 
-      const { engine, database, schema, namespacePath } = sqlTableContext;
+      const { engine, database, schema, schemaPath } = sqlTableContext;
       const previewTableList = await PreviewSQLTableList.request({
         engine: engine,
         database: database,
         schema: schema,
-        namespacePath: namespacePath ?? [],
+        schemaPath: schemaPath ?? [],
       });
 
       if (!previewTableList?.tables) {
@@ -841,13 +839,13 @@ const DatasetTableItem: React.FC<{
       !tableDetailsRequested
     ) {
       setTableDetailsRequested(true);
-      const { engine, database, schema, namespacePath } = sqlTableContext;
+      const { engine, database, schema, schemaPath } = sqlTableContext;
       const previewTable = await PreviewSQLTable.request({
         engine: engine,
         database: database,
         schema: schema,
         tableName: table.name,
-        namespacePath: namespacePath ?? [],
+        schemaPath: schemaPath ?? [],
       });
 
       if (!previewTable?.table) {
@@ -875,11 +873,11 @@ const DatasetTableItem: React.FC<{
     const getCode = () => {
       if (table.source_type === "catalog") {
         // Build the fully-qualified, dotted name including any nested
-        // namespace path, e.g. `top.nested.table`.
+        // schema path, e.g. `top.nested.table`.
         const identifier = sqlTableContext?.database
           ? [
               sqlTableContext.database,
-              ...(sqlTableContext.namespacePath ?? []),
+              ...(sqlTableContext.schemaPath ?? []),
               table.name,
             ].join(".")
           : table.name;
@@ -972,13 +970,13 @@ const DatasetTableItem: React.FC<{
   const uniqueId = sqlTableContext
     ? [
         sqlTableContext.database,
-        ...(sqlTableContext.namespacePath ?? []),
+        ...(sqlTableContext.schemaPath ?? []),
         sqlTableContext.schema,
         table.name,
       ].join(".")
     : table.name;
 
-  // Use depth-based indentation for nested namespace tables; otherwise fall
+  // Use depth-based indentation for nested schema tables; otherwise fall
   // back to the fixed schemaless / with-schema classes.
   const useInlineIndent = tableIndentRem != null;
 
