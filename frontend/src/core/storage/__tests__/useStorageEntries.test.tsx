@@ -237,6 +237,44 @@ describe("useStorageEntries", () => {
     });
   });
 
+  it("should load more entries when the next page token is an empty string", async () => {
+    const firstPage = [makeEntry({ path: "a.txt" })];
+    const secondPage = [makeEntry({ path: "b.txt" })];
+    mockRequest
+      .mockResolvedValueOnce({
+        entries: firstPage,
+        next_page_token: "",
+        may_have_more: false,
+      })
+      .mockResolvedValueOnce({
+        entries: secondPage,
+        next_page_token: null,
+        may_have_more: false,
+      });
+
+    const { result } = renderHook(() => useStorageEntries("ns", "sub/"), {
+      wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.entries).toEqual(firstPage);
+    });
+    expect(result.current.hasMore).toBe(true);
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    expect(result.current.entries).toEqual([...firstPage, ...secondPage]);
+    expect(result.current.hasMore).toBe(false);
+    expect(mockRequest).toHaveBeenLastCalledWith({
+      namespace: "ns",
+      prefix: "sub/",
+      limit: 150,
+      pageToken: "",
+    });
+  });
+
   it("should ignore duplicate load more calls while a page is loading", async () => {
     const firstPage = [makeEntry({ path: "a.txt" })];
     const secondPage = [makeEntry({ path: "b.txt" })];

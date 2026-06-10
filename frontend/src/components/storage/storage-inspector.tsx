@@ -191,8 +191,12 @@ const MayHaveMoreStorageEntries: React.FC<{ depth: number }> = ({ depth }) => {
       <Tooltip
         content="We only fetch a limited number of entries. Please file a GitHub issue if you need more."
         delayDuration={100}
+        tabIndex={0}
       >
-        <InfoIcon className="h-3 w-3 ml-1 text-blue-500" />
+        <InfoIcon
+          className="h-3 w-3 ml-1 text-blue-500"
+          aria-label="More files may exist in this folder"
+        />
       </Tooltip>
     </div>
   );

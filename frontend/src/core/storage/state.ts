@@ -186,7 +186,7 @@ export function useStorageEntries(namespace: string, prefix?: string) {
   }, [namespace, prefix, cached === undefined]);
 
   const loadMore = useCallback(async () => {
-    if (!nextPageToken || isLoadingMoreRef.current) {
+    if (nextPageToken == null || isLoadingMoreRef.current) {
       return;
     }
 
