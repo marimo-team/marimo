@@ -137,6 +137,10 @@ class WasmPatchSet:
 
         self._unpatches.append(_unpatch)
 
+    def add_cleanup(self, cleanup: Unpatch) -> None:
+        if self._active:
+            self._unpatches.append(cleanup)
+
     def unpatch_all(self) -> Unpatch:
         """Return a callable that restores all originals (idempotent)."""
         unpatches = self._unpatches
