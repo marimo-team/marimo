@@ -7,6 +7,8 @@ import { useMemo, useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
+import type { Option } from "@/components/ui/select-core";
+import { useSelectList } from "@/components/ui/select-core";
 import { Logger } from "@/utils/Logger";
 import { Sets } from "@/utils/sets";
 import { smartMatch } from "@/utils/smartMatch";
@@ -101,8 +103,6 @@ export const FilterByValuesList = <TData, TValue>({
   onChange,
   creatable = false,
 }: FilterByValuesListProps<TData, TValue>) => {
-  const [query, setQuery] = useState<string>("");
-
   const { data, isPending, error } = useAsyncData(async () => {
     if (!calculateTopKRows) {
       return null;
@@ -111,27 +111,49 @@ export const FilterByValuesList = <TData, TValue>({
     return res.data;
   }, [calculateTopKRows, column.id]);
 
-  const filteredData = useMemo(() => {
+  const options = useMemo<Array<Option<unknown>>>(() => {
     if (!data) {
       return [];
     }
     try {
-      // try to do includes and also smart match for prefixes
-      return data.filter(([value, _count]) => {
-        if (value === undefined) {
-          return false;
-        }
-        const str = String(value);
-        return (
-          smartMatch(query, str) ||
-          str.toLowerCase().includes(query.toLowerCase())
-        );
-      });
+      return data
+        .filter(([value]) => value !== undefined)
+        .map(([value, count]) => ({
+          value,
+          label: String(value),
+          data: { count },
+        }));
     } catch (error_) {
-      Logger.error("Error filtering data", error_);
+      Logger.error("Error building filter options", error_);
       return [];
     }
-  }, [data, query]);
+  }, [data]);
+
+  const list = useSelectList<unknown>({
+    options,
+    value: [...chosenValues],
+    onChange: (next) => onChange(next as unknown[]),
+    multiple: true,
+    filterFn: (label, q) =>
+      smartMatch(q, label) || label.toLowerCase().includes(q.toLowerCase())
+        ? 1
+        : 0,
+  });
+
+  const query = list.searchQuery;
+  const setQuery = list.setSearchQuery;
+
+  const filteredData = useMemo<Array<[unknown, number | undefined]>>(
+    () =>
+      list.visibleOptions.map(
+        (o) =>
+          [o.value, (o.data as { count: number }).count] as [
+            unknown,
+            number | undefined,
+          ],
+      ),
+    [list.visibleOptions],
+  );
 
   // Surface chosen values that aren't in the top-K so they stay visible/uncheckable.
   // Count is undefined for these rows; the cell renders an em-dash.
