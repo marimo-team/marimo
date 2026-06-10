@@ -62,6 +62,14 @@ class TestMW001IncompatibleImports:
         messages = [d.message for d in diagnostics]
         assert any("pdb" in m for m in messages)
 
+    def test_pydecimal_flagged(self):
+        notebook, contents = _load_notebook()
+        diagnostics = lint_notebook(
+            notebook, contents, lint_config={"select": ["MW001"]}
+        )
+        messages = [d.message for d in diagnostics]
+        assert any("pydecimal" in m for m in messages)
+
     def test_severity_is_wasm(self):
         notebook, contents = _load_notebook()
         diagnostics = lint_notebook(

@@ -23,6 +23,9 @@ INCOMPATIBLE_MODULES = frozenset(
         "readline",
         "curses",
         "tkinter",
+        # Removed entirely from the distribution as of Pyodide 314.0.0.
+        "pydecimal",
+        "test",
     }
 )
 
