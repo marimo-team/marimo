@@ -35,7 +35,6 @@ from marimo._session.file_change_handler import (
     RunModeReloadStrategy,
 )
 from marimo._session.notebook import AppFileManager
-from marimo._session.notebook.file_manager import _build_transaction
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -131,8 +130,9 @@ def _run_reload(
     mock_session.document = prev_document
     strategy = EditModeReloadStrategy(config_manager)
     cell_ids = list(afm.app.cell_manager.cell_ids())
-    transaction, _ = _build_transaction(
-        prev=_cm_from_doc(prev_document), new=afm.app.cell_manager
+    transaction, _ = _cm_from_doc(prev_document)._build_transaction(
+        new=afm.app.cell_manager,
+        source="file-watch",
     )
     strategy.handle_reload(
         mock_session,
@@ -259,8 +259,9 @@ def test_edit_mode_reload_with_deleted_cells(
     mock_session.document = prev_document
 
     strategy = EditModeReloadStrategy(config)
-    transaction, _ = _build_transaction(
-        prev=_cm_from_doc(prev_document), new=afm.app.cell_manager
+    transaction, _ = _cm_from_doc(prev_document)._build_transaction(
+        new=afm.app.cell_manager,
+        source="file-watch",
     )
     strategy.handle_reload(
         mock_session,

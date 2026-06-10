@@ -178,50 +178,34 @@ class TestCrossContextWriteRead:
 
 
 class TestFileWatchReload:
-    async def test_replace_cells_same_code_keeps_reads_valid(
-        self, k: Kernel
-    ) -> None:
-        from marimo._ast.cell import CellConfig
-
+    async def test_same_code_keeps_reads_valid(self, k: Kernel) -> None:
         await _seed(k, "0", "a = 1")
         with _ctx(k) as ctx:
             async with ctx as nb:
                 _ = nb.cells["0"].code
 
         with _ctx(k) as ctx:
-            ctx._document._replace_cells(
-                [
-                    NotebookCell(
-                        id=CellId_t("0"),
-                        code="a = 1",
-                        name="",
-                        config=CellConfig(),
-                    )
-                ]
+            ctx._document.apply(
+                Transaction(
+                    changes=(SetCode(cell_id=CellId_t("0"), code="a = 1"),),
+                    source="file-watch",
+                )
             )
             async with ctx as nb:
                 nb.edit_cell("0", "a = 2")
 
-    async def test_replace_cells_changed_code_invalidates_reads(
-        self, k: Kernel
-    ) -> None:
-        from marimo._ast.cell import CellConfig
-
+    async def test_changed_code_invalidates_reads(self, k: Kernel) -> None:
         await _seed(k, "0", "a = 1")
         with _ctx(k) as ctx:
             async with ctx as nb:
                 _ = nb.cells["0"].code
 
         with _ctx(k) as ctx:
-            ctx._document._replace_cells(
-                [
-                    NotebookCell(
-                        id=CellId_t("0"),
-                        code="a = 100",
-                        name="",
-                        config=CellConfig(),
-                    )
-                ]
+            ctx._document.apply(
+                Transaction(
+                    changes=(SetCode(cell_id=CellId_t("0"), code="a = 100"),),
+                    source="file-watch",
+                )
             )
             async with ctx as nb:
                 with pytest.raises(StaleCellError):

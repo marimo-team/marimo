@@ -1052,7 +1052,8 @@ class InternalApp:
                 config=config,
                 cell=prev_compiled.get(cell_id),
             )
-        cm._replace_state_from(rebuilt)
+
+        cm.apply_diff_from(rebuilt, source="cell-manager")
         return self
 
     async def run_cell_async(
