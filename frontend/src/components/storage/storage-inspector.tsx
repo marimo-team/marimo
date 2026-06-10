@@ -195,7 +195,7 @@ const MayHaveMoreStorageEntries: React.FC<{ depth: number }> = ({ depth }) => {
       >
         <InfoIcon
           className="h-3 w-3 ml-1 text-blue-500"
-          aria-label="More files may exist in this folder"
+          aria-label="More information"
         />
       </Tooltip>
     </div>
