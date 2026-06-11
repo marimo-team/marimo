@@ -8,6 +8,26 @@ import type { DataTable, DataType } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import type { ColumnHeaderStatsKey } from "../data-table/types";
 
+/**
+ * Stable id for a table node in the datasources tree.
+ *
+ * schemaPath already includes the leaf schema for nested namespaces, so use it
+ * when present and fall back to the flat schema name otherwise (avoids
+ * duplicating the leaf, e.g. `top.nested.nested.table`).
+ */
+export function tableUniqueId(
+  sqlTableContext: SQLTableContext | undefined,
+  tableName: string,
+): string {
+  if (!sqlTableContext) {
+    return tableName;
+  }
+  const segments = sqlTableContext.schemaPath?.length
+    ? sqlTableContext.schemaPath
+    : [sqlTableContext.schema];
+  return [sqlTableContext.database, ...segments, tableName].join(".");
+}
+
 // Some databases have no schemas, so we don't show it (eg. Clickhouse)
 export function isSchemaless(schemaName: string) {
   return schemaName === "";
