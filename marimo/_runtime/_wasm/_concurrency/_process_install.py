@@ -81,7 +81,22 @@ PROCESS_MODULE_HELPERS = (
     MultiprocessingPatch("active_children", active_children),
 )
 
-BLOCKED_FACTORIES = ("JoinableQueue",)
+BLOCKED_FACTORIES = (
+    "Array",
+    "Barrier",
+    "BoundedSemaphore",
+    "Condition",
+    "Event",
+    "JoinableQueue",
+    "Lock",
+    "Manager",
+    "Pipe",
+    "RawArray",
+    "RawValue",
+    "RLock",
+    "Semaphore",
+    "Value",
+)
 
 
 def install_wasm_process_shims() -> Unpatch:
@@ -228,6 +243,14 @@ def _replace_context_processes(
             attr,
             _constant_replacement(AsyncProcess),
         )
+    for attr in ("ForkProcess", "ForkServerProcess"):
+        patches.replace(
+            multiprocessing_context,
+            attr,
+            _constant_replacement(
+                unsupported_factory(f"multiprocessing.context.{attr}")
+            ),
+        )
     for context_name in ("DefaultContext", "SpawnContext"):
         context_type = getattr(multiprocessing_context, context_name, None)
         if context_type is not None:
@@ -275,11 +298,12 @@ def _replace_context_helpers(
             "Pool",
             _constant_replacement(pool_factory),
         )
-        patches.replace(
-            base_context,
-            "JoinableQueue",
-            _unsupported_context_factory("JoinableQueue"),
-        )
+        for attr in BLOCKED_FACTORIES:
+            patches.replace(
+                base_context,
+                attr,
+                _unsupported_context_factory(attr),
+            )
         patches.replace_descriptor(
             base_context,
             "current_process",

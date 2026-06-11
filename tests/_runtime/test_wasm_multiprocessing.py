@@ -104,6 +104,72 @@ def test_wasm_process_context_uses_spawn_process_factory() -> None:
             unpatch()
 
 
+def test_wasm_process_blocks_unsupported_factories() -> None:
+    with mock_pyodide():
+        unpatch = install_wasm_process_test_shims()
+        try:
+            ctx = multiprocessing.get_context("spawn")
+            calls = (
+                ("Pipe", lambda: multiprocessing.Pipe()),
+                ("Manager", lambda: multiprocessing.Manager()),
+                ("JoinableQueue", lambda: multiprocessing.JoinableQueue()),
+                ("Value", lambda: multiprocessing.Value("i", 1)),
+                ("Array", lambda: multiprocessing.Array("i", [1])),
+                ("RawValue", lambda: multiprocessing.RawValue("i", 1)),
+                ("RawArray", lambda: multiprocessing.RawArray("i", [1])),
+                ("Event", lambda: multiprocessing.Event()),
+                ("Lock", lambda: multiprocessing.Lock()),
+                ("RLock", lambda: multiprocessing.RLock()),
+                ("Semaphore", lambda: multiprocessing.Semaphore()),
+                (
+                    "BoundedSemaphore",
+                    lambda: multiprocessing.BoundedSemaphore(),
+                ),
+                ("Condition", lambda: multiprocessing.Condition()),
+                ("Barrier", lambda: multiprocessing.Barrier(2)),
+                ("Pipe", lambda: ctx.Pipe()),
+                ("Manager", lambda: ctx.Manager()),
+                ("JoinableQueue", lambda: ctx.JoinableQueue()),
+                ("Value", lambda: ctx.Value("i", 1)),
+                ("Array", lambda: ctx.Array("i", [1])),
+                ("RawValue", lambda: ctx.RawValue("i", 1)),
+                ("RawArray", lambda: ctx.RawArray("i", [1])),
+                ("Event", lambda: ctx.Event()),
+                ("Lock", lambda: ctx.Lock()),
+                ("RLock", lambda: ctx.RLock()),
+                ("Semaphore", lambda: ctx.Semaphore()),
+                ("BoundedSemaphore", lambda: ctx.BoundedSemaphore()),
+                ("Condition", lambda: ctx.Condition()),
+                ("Barrier", lambda: ctx.Barrier(2)),
+            )
+            for attr, call in calls:
+                with pytest.raises(
+                    UnsupportedWasmConcurrencyError,
+                    match=attr,
+                ):
+                    call()
+            for attr in ("ForkProcess", "ForkServerProcess"):
+                process_type = getattr(multiprocessing.context, attr, None)
+                if process_type is None:
+                    continue
+                with pytest.raises(
+                    UnsupportedWasmConcurrencyError,
+                    match=attr,
+                ):
+                    process_type(target=lambda: None)
+            for attr in ("ForkContext", "ForkServerContext"):
+                context_type = getattr(multiprocessing.context, attr, None)
+                if context_type is None:
+                    continue
+                with pytest.raises(
+                    UnsupportedWasmConcurrencyError,
+                    match="Process",
+                ):
+                    context_type().Process(target=lambda: None)
+        finally:
+            unpatch()
+
+
 def test_wasm_process_sets_exitcode_for_target_errors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

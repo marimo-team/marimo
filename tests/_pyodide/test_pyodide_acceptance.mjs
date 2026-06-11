@@ -14,6 +14,7 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 
 /**
@@ -85,6 +86,22 @@ function startWheelServer(wheelPath) {
   });
 }
 
+async function loadPyodideModule() {
+  try {
+    return await import("pyodide");
+  } catch (error) {
+    for (const candidate of [
+      path.resolve(process.cwd(), "node_modules/pyodide/pyodide.mjs"),
+      path.resolve(process.cwd(), "frontend/node_modules/pyodide/pyodide.mjs"),
+    ]) {
+      if (fs.existsSync(candidate)) {
+        return await import(pathToFileURL(candidate).href);
+      }
+    }
+    throw error;
+  }
+}
+
 /**
  * Main test function
  */
@@ -122,7 +139,7 @@ async function main() {
 
     // Step 2: Load Pyodide
     console.log("Step 2: Loading Pyodide...");
-    const { loadPyodide, version } = await import("pyodide");
+    const { loadPyodide, version } = await loadPyodideModule();
     console.log(`Pyodide version: ${version}`);
 
     // In Node.js, loadPyodide uses the bundled files from the npm package
