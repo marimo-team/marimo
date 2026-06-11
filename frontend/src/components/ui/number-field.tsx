@@ -25,7 +25,10 @@ export interface NumberFieldProps extends AriaNumberFieldProps {
 }
 
 export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
-  ({ placeholder, variant = "default", onInputText, ...props }, ref) => {
+  (
+    { placeholder, variant = "default", onInputText, formatOptions, ...props },
+    ref,
+  ) => {
     const { locale } = useLocale();
     return (
       <AriaNumberField
@@ -33,6 +36,7 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
         formatOptions={{
           minimumFractionDigits: 0,
           maximumFractionDigits: maxFractionalDigits(locale),
+          ...formatOptions,
         }}
       >
         <div
