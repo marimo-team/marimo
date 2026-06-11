@@ -14,6 +14,9 @@ import sys
 from typing import TYPE_CHECKING, cast
 
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._messaging.thread_local_streams import (
+    uninstall_thread_local_proxies,
+)
 from marimo._messaging.types import KernelStreams
 from marimo._runtime.kernel_lifecycle import KernelArgs, kernel_session
 from marimo._runtime.marimo_pdb import MarimoPdb
@@ -119,6 +122,7 @@ def mocked_kernel_session(
                 kernel.reactive_execution_mode = reactive_mode  # type: ignore[assignment]
             yield TestKernel(kernel=kernel, ctx=ctx, streams=streams)
     finally:
+        uninstall_thread_local_proxies()
         sys.meta_path[:] = saved_meta_path
         if saved_main is not None:
             sys.modules["__main__"] = saved_main
