@@ -558,7 +558,7 @@ class SQLDatabaseMetadata(msgspec.Struct):
 
     connection: str
     database: str
-    schema_path: list[str] = []
+    schema_path: list[str] = msgspec.field(default_factory=list)
 
 
 class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
@@ -575,7 +575,7 @@ class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
     connection: str
     database: str
     schema: str
-    schema_path: list[str] = []
+    schema_path: list[str] = msgspec.field(default_factory=list)
 
 
 class SQLTablePreviewNotification(Notification, tag="sql-table-preview"):

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import type { DataTable, DataTableColumn } from "@/core/kernel/messages";
-import { sqlCode } from "../utils";
+import { sqlCode, tableUniqueId } from "../utils";
 
 describe("sqlCode", () => {
   const mockTable: DataTable = {
@@ -456,5 +456,57 @@ describe("sqlCode", () => {
         '_df = mo.sql(f"""\nSELECT email FROM users LIMIT 100\n""", engine=postgres)',
       );
     });
+  });
+});
+
+describe("tableUniqueId", () => {
+  const ctx = (
+    overrides: Partial<SQLTableContext> & { database: string; schema: string },
+  ): SQLTableContext => ({
+    engine: "e",
+    dialect: "duckdb",
+    ...overrides,
+  });
+
+  it("returns just the table name without a context", () => {
+    expect(tableUniqueId(undefined, "t")).toBe("t");
+  });
+
+  it("uses database + schema for flat engines", () => {
+    expect(tableUniqueId(ctx({ database: "db", schema: "public" }), "t")).toBe(
+      "db.public.t",
+    );
+  });
+
+  it("does not duplicate the leaf schema for nested namespaces", () => {
+    // Regression: previously produced "top.nested.nested.t".
+    expect(
+      tableUniqueId(
+        ctx({ database: "top", schema: "nested", schemaPath: ["nested"] }),
+        "t",
+      ),
+    ).toBe("top.nested.t");
+  });
+
+  it("includes the full schema path for deeply nested namespaces", () => {
+    expect(
+      tableUniqueId(
+        ctx({
+          database: "top",
+          schema: "deep",
+          schemaPath: ["nested", "deep"],
+        }),
+        "t",
+      ),
+    ).toBe("top.nested.deep.t");
+  });
+
+  it("falls back to the flat schema when schemaPath is empty", () => {
+    expect(
+      tableUniqueId(
+        ctx({ database: "db", schema: "public", schemaPath: [] }),
+        "t",
+      ),
+    ).toBe("db.public.t");
   });
 });

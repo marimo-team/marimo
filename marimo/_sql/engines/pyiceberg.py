@@ -83,7 +83,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
 
         Each top-level Iceberg namespace becomes a `Database`. Nested
         sub-namespaces are exposed as recursive child `Schema`s (see
-        `get_schemas` / `get_child_namespaces`).
+        `get_schemas` / `get_child_schemas`).
         """
         from pyiceberg.catalog import Catalog
 
