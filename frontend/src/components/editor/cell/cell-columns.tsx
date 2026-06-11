@@ -87,14 +87,18 @@ const ColumnResizer: React.FC = () => {
     const onMove = (e: PointerEvent) =>
       applySplit(fractionFromPointer(row, e.clientX));
 
-    const onUp = () => {
+    const onEnd = () => {
       handle.removeEventListener("pointermove", onMove);
-      handle.removeEventListener("pointerup", onUp);
+      handle.removeEventListener("pointerup", onEnd);
+      handle.removeEventListener("pointercancel", onEnd);
+      handle.removeEventListener("lostpointercapture", onEnd);
       persistSplit(readSplit());
     };
 
     handle.addEventListener("pointermove", onMove);
-    handle.addEventListener("pointerup", onUp);
+    handle.addEventListener("pointerup", onEnd);
+    handle.addEventListener("pointercancel", onEnd);
+    handle.addEventListener("lostpointercapture", onEnd);
   };
 
   return (
