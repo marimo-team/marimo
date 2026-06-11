@@ -483,3 +483,26 @@ def test_try_convert_to_polars() -> None:
         assert df is None
         assert isinstance(error, pl.exceptions.ComputeError)
         assert str(error) == "Test error"
+
+
+def test_get_child_schemas_default_enforces_contract() -> None:
+    """The default get_child_schemas returns [] for flat engines but raises if
+    an engine claims nested schemas without overriding it (so nesting can't be
+    silently dropped)."""
+    from types import SimpleNamespace
+
+    from marimo._sql.engines.types import EngineCatalog
+
+    flat = SimpleNamespace(supports_nested_schemas=False)
+    assert (
+        EngineCatalog.get_child_schemas(
+            flat, database="d", schema_path=[], include_tables=False
+        )
+        == []
+    )
+
+    nested = SimpleNamespace(supports_nested_schemas=True)
+    with pytest.raises(NotImplementedError):
+        EngineCatalog.get_child_schemas(
+            nested, database="d", schema_path=[], include_tables=False
+        )
