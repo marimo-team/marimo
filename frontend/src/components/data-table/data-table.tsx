@@ -356,6 +356,7 @@ const DataTableInternal = <TData,>({
             className={cn(className || "rounded-md border overflow-hidden")}
           >
             <TableTopBar
+              table={table}
               enableSearch={enableSearch}
               searchQuery={searchQuery}
               onSearchQueryChange={onSearchQueryChange}
