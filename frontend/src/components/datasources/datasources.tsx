@@ -77,7 +77,7 @@ import {
   LoadingState,
   RotatingChevron,
 } from "./components";
-import { isSchemaless, sqlCode } from "./utils";
+import { isSchemaless, sqlCode, tableUniqueId } from "./utils";
 
 // Indentation classes for the datasource tree hierarchy.
 const INDENT = {
@@ -529,7 +529,8 @@ const SchemaList: React.FC<SchemaListProps> = (props) => {
   // Custom loading state, we need to wait for the data to propagate once requested
   // useAsyncData's loading state may return false before data has propagated
   const [schemasLoading, setSchemasLoading] = React.useState(false);
-  const schemaPathKey = schemaPath.join(" ");
+  // Stable, collision-free key for the effect deps (names may contain dots).
+  const schemaPathKey = JSON.stringify(schemaPath);
 
   const { isPending, error } = useAsyncData(async () => {
     if (!schemasResolved && engineName) {
@@ -946,14 +947,7 @@ const DatasetTableItem: React.FC<{
     );
   };
 
-  const uniqueId = sqlTableContext
-    ? [
-        sqlTableContext.database,
-        ...(sqlTableContext.schemaPath ?? []),
-        sqlTableContext.schema,
-        table.name,
-      ].join(".")
-    : table.name;
+  const uniqueId = tableUniqueId(sqlTableContext, table.name);
 
   // Use depth-based indentation for nested schema tables; otherwise fall
   // back to the fixed schemaless / with-schema classes.
