@@ -356,6 +356,7 @@ const DataTableInternal = <TData,>({
             className={cn(className || "rounded-md border overflow-hidden")}
           >
             <TableTopBar
+              table={table}
               enableSearch={enableSearch}
               searchQuery={searchQuery}
               onSearchQueryChange={onSearchQueryChange}
@@ -413,7 +414,6 @@ const DataTableInternal = <TData,>({
               getRowIds={getRowIds}
               showPageSizeSelector={showPageSizeSelector}
               tableLoading={reloading}
-              togglePanel={togglePanel}
             />
           </div>
         </CellSelectionProvider>
