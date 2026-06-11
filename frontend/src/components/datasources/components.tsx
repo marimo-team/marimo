@@ -14,13 +14,15 @@ export const RotatingChevron: React.FC<{ isExpanded: boolean }> = ({
 export const DatasourceLabel: React.FC<{
   children: React.ReactNode;
   className?: string;
-}> = ({ children, className }) => {
+  style?: CSSProperties;
+}> = ({ children, className, style }) => {
   return (
     <div
       className={cn(
         "flex gap-1.5 items-center font-bold py-1.5 text-muted-foreground bg-(--slate-2) text-sm",
         className,
       )}
+      style={style}
     >
       {children}
     </div>
