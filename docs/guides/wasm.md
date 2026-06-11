@@ -148,36 +148,6 @@ uv and pip evaluate markers when installing with `--sandbox`, so the same
 metadata works for local sandboxes and WASM exports. See also
 [Inlining dependencies](package_management/inlining_dependencies.md#platform-specific-dependencies-pep-508).
 
-### Emscripten wheels on PyPI (PEP 783)
-
-Package authors can publish binary wheels for Pyodide using the
-`pyemscripten_*_wasm32` platform tags defined in [PEP
-783](https://peps.python.org/pep-0783/). micropip can install these alongside
-pure-Python (`py3-none-any`) wheels. Use the trove classifier
-`Environment :: WebAssembly :: Emscripten` when uploading such wheels.
-
-### Avoiding native-only imports
-
-Some packages cannot run in the browser even if they install (for example
-`multiprocessing`, `subprocess`, or native extensions without a WASM wheel).
-In addition to PEP 508 markers in your dependencies, branch your **imports**
-when a package is only needed locally:
-
-```python
-import sys
-
-if sys.platform == "emscripten":
-    # WebAssembly path — use micropip, Pyodide builtins, or skip the feature
-    ...
-else:
-    import multiprocessing
-    ...
-```
-
-marimo's linter flags imports of modules that are unavailable in Pyodide (MW001)
-and packages without WASM-compatible wheels (MW003). Run `marimo check --select
-MW` before exporting to catch issues early.
-
 ## Including data
 
 **For notebooks exported to WASM HTML.**
@@ -211,8 +181,7 @@ all the files in the GitHub repo are made available to your notebook.
 
 ## Detecting WebAssembly
 
-To check if your notebook is running in a WebAssembly environment, use
-`sys.platform`:
+To check if your notebook is running in a WebAssembly environment, use:
 
 ```python
 import sys
@@ -225,19 +194,8 @@ else:
     ...
 ```
 
-You can also check whether Pyodide has been imported:
-
-```python
-import sys
-
-if "pyodide" in sys.modules:
-    # Pyodide is loaded (typical in WASM notebooks)
-    ...
-```
-
-Use these checks to branch logic — for example, using `micropip` for package
-installation in WASM while using standard imports locally, or skipping
-native-only features such as multiprocessing.
+This is useful for branching logic, such as using `micropip` for package
+installation in WASM while using standard imports locally.
 
 ## Limitations
 
