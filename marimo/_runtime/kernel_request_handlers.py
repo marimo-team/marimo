@@ -167,13 +167,14 @@ class KernelRequestHandlers:
     async def _handle_function_call(
         self, request: InvokeFunctionCommand
     ) -> None:
-        status, ret, _ = await self._kernel.function_call_request(request)
+        status, ret, found = await self._kernel.function_call_request(request)
         LOGGER.debug("Function returned with status %s", status)
         broadcast_notification(
             FunctionCallResultNotification(
                 function_call_id=request.function_call_id,
                 return_value=ret,
                 status=status,
+                found=found,
             ),
         )
 

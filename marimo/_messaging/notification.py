@@ -131,6 +131,9 @@ class FunctionCallResultNotification(Notification, tag="function-call-result"):
         function_call_id: ID matching the original request.
         return_value: Function return value as JSON.
         status: Human-readable success/failure status.
+        found: Whether the requested function was found in the registry. When
+            False the function never executed, so the request is safe to
+            retry; when True with a non-ok status the function ran and raised.
     """
 
     name: ClassVar[str] = "function-call-result"
@@ -138,6 +141,7 @@ class FunctionCallResultNotification(Notification, tag="function-call-result"):
     function_call_id: RequestId
     return_value: JSONType
     status: HumanReadableStatus
+    found: bool
 
 
 class RemoveUIElementsNotification(Notification, tag="remove-ui-elements"):

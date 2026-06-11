@@ -4660,8 +4660,12 @@ export interface components {
      *             function_call_id: ID matching the original request.
      *             return_value: Function return value as JSON.
      *             status: Human-readable success/failure status.
+     *             found: Whether the requested function was found in the registry. When
+     *                 False the function never executed, so the request is safe to
+     *                 retry; when True with a non-ok status the function ran and raised.
      */
     FunctionCallResultNotification: {
+      found: boolean;
       function_call_id: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       op: "function-call-result";
