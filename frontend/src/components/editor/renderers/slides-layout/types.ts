@@ -9,6 +9,7 @@ export type SlideType = z.infer<typeof SlideTypeSchema>;
 const SlideConfigSchema = z.looseObject({
   type: SlideTypeSchema.optional(),
   speakerNotes: z.string().optional(),
+  showCode: z.boolean().optional(),
 });
 export type SlideConfig = z.infer<typeof SlideConfigSchema>;
 

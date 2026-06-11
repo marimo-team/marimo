@@ -27,6 +27,7 @@ import "./reveal-slides.css";
 import type {
   SlideConfig,
   SlidesLayout,
+  SlideType,
 } from "../editor/renderers/slides-layout/types";
 import {
   buildSlideIndices,
@@ -156,14 +157,148 @@ const NotesAside = ({ text }: { text: string }) => {
   );
 };
 
+/**
+ * Resolve whether a slide cell shows its source instead of its output.
+ *
+ * Code is shown when either the cell's persisted `showCode` config is set or
+ * the keyboard toggle `C` override is active for it (logical OR).
+ */
+export function shouldShowCode(options: {
+  cells: ReadonlyMap<CellId, SlideConfig>;
+  cellId: CellId | undefined;
+  showCodeOverrides: ReadonlySet<CellId>;
+  codeToggleEnabled: boolean;
+}): boolean {
+  const { cells, cellId, showCodeOverrides, codeToggleEnabled } = options;
+  if (cellId == null || !codeToggleEnabled) {
+    return false;
+  }
+  const configured = cells.get(cellId)?.showCode ?? false;
+  return configured || showCodeOverrides.has(cellId);
+}
+
+/**
+ * The slide type a cell takes *in the composed deck*. Cells without output and
+ * the cell currently held in the parked edit overlay are dropped (`"skip"`) so
+ * they aren't mounted a second time in the deck — the overlay renders them
+ * instead. Everything else uses its configured type, defaulting to a slide.
+ */
+export function deckSlideType(options: {
+  cell: RuntimeCell;
+  noOutputIds: ReadonlySet<CellId>;
+  heldEditCellId: CellId | null;
+  slideConfigs: ReadonlyMap<CellId, SlideConfig>;
+}): SlideType {
+  const { cell, noOutputIds, heldEditCellId, slideConfigs } = options;
+  if (noOutputIds.has(cell.id) || cell.id === heldEditCellId) {
+    return "skip";
+  }
+  return slideConfigs.get(cell.id)?.type ?? DEFAULT_SLIDE_TYPE;
+}
+
+/**
+ * Tracks the cell pinned in the parked overlay (rendered over the deck for
+ * skipped / output-less cells, and during in-progress edits).
+ *
+ * A brand-new (or output-less) cell is edited in the parked overlay, which
+ * lives outside reveal's slide DOM. The moment it first produces output it
+ * would normally jump to its composed slide — a different React subtree that
+ * reveal also re-syncs/transitions — tearing down the editor and dropping
+ * focus mid-edit (e.g. typing in a new markdown cell). To avoid that we *hold*
+ * the cell in the overlay even after it gains output, and only let it settle
+ * into the deck once the user navigates to a different cell.
+ *
+ * The hold is keyed off the active cell rather than DOM focus on purpose: the
+ * slide editor doesn't participate in the global cell-focus state, and the
+ * active cell only changes when the user moves in the minimap — exactly when
+ * we want to release the hold.
+ *
+ * Returns:
+ * - `parkedPreviewCell`: the cell to render in the overlay
+ * - `isHeldEdit`: whether the cell is held in the overlay
+ * - `isNoOutputPreview`: whether the cell is output-less
+ * - `heldEditCellId`: the id of the cell that is held in the overlay
+ */
+export function useParkedPreview(options: {
+  activeCell: RuntimeCell | undefined;
+  slideConfigs: ReadonlyMap<CellId, SlideConfig>;
+  noOutputIds: ReadonlySet<CellId>;
+}): {
+  parkedPreviewCell: RuntimeCell | null;
+  isHeldEdit: boolean;
+  isNoOutputPreview: boolean;
+  heldEditCellId: CellId | null;
+  heldShowsCode: boolean;
+  toggleHeldShowsCode: () => void;
+} {
+  const { activeCell, slideConfigs, noOutputIds } = options;
+  const activeCellId = activeCell?.id ?? null;
+  const isNoOutputPreview =
+    activeCell != null && noOutputIds.has(activeCell.id);
+  const isSkippedPreview =
+    activeCell != null && slideConfigs.get(activeCell.id)?.type === "skip";
+  // Genuinely parked: skipped in the deck, or no output to compose yet.
+  const baseParked = isSkippedPreview || isNoOutputPreview;
+
+  // The cell pinned in the overlay, tracked alongside the active cell it was
+  // armed against so we can release it exactly when the active cell changes.
+  const [held, setHeld] = useState<{
+    activeCellId: CellId | null;
+    cellId: CellId | null;
+  }>({ activeCellId, cellId: null });
+
+  let heldCellId = held.cellId;
+  if (held.activeCellId !== activeCellId) {
+    // Active cell changed: drop any prior hold, arming a fresh one only while
+    // the new cell has no output yet (skipped cells park via `baseParked`).
+    heldCellId = isNoOutputPreview ? activeCellId : null;
+    setHeld({ activeCellId, cellId: heldCellId });
+  } else if (isNoOutputPreview && heldCellId !== activeCellId) {
+    // Same active cell, still output-less: (re)arm the hold.
+    heldCellId = activeCellId;
+    setHeld({ activeCellId, cellId: heldCellId });
+  }
+
+  const isHeldEdit =
+    !baseParked && activeCellId != null && heldCellId === activeCellId;
+  // Keep the held cell out of the composed deck so its editor isn't mounted a
+  // second time (the overlay already renders it); it rejoins once released.
+  const heldEditCellId = isHeldEdit ? heldCellId : null;
+
+  // Code visibility for the held overlay. Defaults to showing the editor so it
+  // survives the no-output -> output transition mid-edit; the `C` toggle can
+  // hide it on demand.
+  const [heldShow, setHeldShow] = useState<{
+    cellId: CellId | null;
+    show: boolean;
+  }>({ cellId: heldEditCellId, show: true });
+  let heldShowsCode = heldShow.show;
+  if (heldShow.cellId !== heldEditCellId) {
+    heldShowsCode = true;
+    setHeldShow({ cellId: heldEditCellId, show: true });
+  }
+  const toggleHeldShowsCode = useEvent(() =>
+    setHeldShow((prev) => ({ ...prev, show: !prev.show })),
+  );
+
+  return {
+    parkedPreviewCell: baseParked || isHeldEdit ? (activeCell ?? null) : null,
+    isHeldEdit,
+    isNoOutputPreview,
+    heldEditCellId,
+    heldShowsCode,
+    toggleHeldShowsCode,
+  };
+}
+
 const SubslideView = ({
   subslide,
-  showCode,
+  resolveShowCode,
   isEditable,
   slideConfigs,
 }: {
   subslide: ComposedSubslide<RuntimeCell>;
-  showCode: boolean;
+  resolveShowCode: (cellId: CellId) => boolean;
   isEditable: boolean;
   slideConfigs: ReadonlyMap<CellId, SlideConfig>;
 }) => {
@@ -172,12 +307,16 @@ const SubslideView = ({
     slideConfigs,
   );
 
+  const anyCodeShown = subslide.blocks.some((block) =>
+    block.cells.some((cell) => resolveShowCode(cell.id)),
+  );
+
   return (
     <Slide>
       <div className="h-full w-full overflow-auto flex">
         <div
           className={
-            showCode
+            anyCodeShown
               ? "mo-slide-content flex flex-col gap-3"
               : "mo-slide-content"
           }
@@ -187,7 +326,7 @@ const SubslideView = ({
         >
           {subslide.blocks.map((block, i) => {
             const rendered = block.cells.map((cell) => {
-              if (!showCode) {
+              if (!resolveShowCode(cell.id)) {
                 return (
                   <CellOutputSlide
                     key={cell.id}
@@ -222,22 +361,36 @@ const SubslideView = ({
   );
 };
 
+/**
+ * Whether the parked overlay renders the cell's *source* instead of its output.
+ */
+export function parkedRendersSource(options: {
+  isNoOutputPreview: boolean;
+  isEditable: boolean;
+  showCode: boolean;
+}): boolean {
+  const { isNoOutputPreview, isEditable, showCode } = options;
+  return isNoOutputPreview ? isEditable || showCode : showCode;
+}
+
 const ParkedPreviewContent = ({
   cell,
   isNoOutputPreview,
   isEditable,
-  codeShown,
+  showCode,
 }: {
   cell: RuntimeCell;
   isNoOutputPreview: boolean;
   isEditable: boolean;
-  codeShown: boolean;
+  showCode: boolean;
 }) => {
-  if (isNoOutputPreview && isEditable) {
-    return <SlideCellView cell={cell} />;
-  }
-  if (isNoOutputPreview && codeShown) {
-    return <SlideCellReadOnlyView cell={cell} />;
+  if (parkedRendersSource({ isNoOutputPreview, isEditable, showCode })) {
+    // Editable cells get the live editor; otherwise a read-only source view.
+    return isEditable ? (
+      <SlideCellView cell={cell} />
+    ) : (
+      <SlideCellReadOnlyView cell={cell} />
+    );
   }
   return (
     <CellOutputSlide
@@ -285,38 +438,67 @@ const RevealSlidesComponent = ({
     [kioskMode],
   );
 
-  const [showCode, setShowCode] = useState(false);
+  // Store the state of the code toggle for each cell
+  // This acts like a 'peek' at the code.
+  const [showCodeOverrides, setShowCodeOverrides] = useState<
+    ReadonlySet<CellId>
+  >(() => new Set());
   const codeAvailable = useNotebookCodeAvailable(slideCells);
   const codeToggleEnabled = !isIslands() && codeAvailable;
-  const codeShown = codeToggleEnabled && showCode;
 
   const activeCell = activeIndex != null ? slideCells[activeIndex] : undefined;
   // Fall back to the first cell while the deck settles on an initial slide.
   // Still `undefined` when the deck is empty (handled below).
   const activeConfigCell = activeCell ?? slideCells.at(0);
 
+  const {
+    parkedPreviewCell,
+    isHeldEdit,
+    isNoOutputPreview,
+    heldEditCellId,
+    heldShowsCode,
+    toggleHeldShowsCode,
+  } = useParkedPreview({
+    activeCell,
+    slideConfigs: layout.cells,
+    noOutputIds,
+  });
+
+  const resolveShowCode = (cellId: CellId | undefined): boolean =>
+    shouldShowCode({
+      cells: layout.cells,
+      cellId,
+      showCodeOverrides,
+      codeToggleEnabled,
+    });
+
+  // `C` and the toolbar button target the active slide's cell (the revealed
+  // fragment when stepping through a stack, otherwise the lead cell).
+  const cellIdToShowCode = activeCell?.id ?? activeConfigCell?.id;
+  const cellShowsCode = isHeldEdit
+    ? heldShowsCode
+    : resolveShowCode(cellIdToShowCode);
+
+  // A slide persisted with `showCode: true` always renders code
+  const codeAlwaysShown =
+    codeToggleEnabled &&
+    cellIdToShowCode != null &&
+    (layout.cells.get(cellIdToShowCode)?.showCode ?? false);
+
   const composition = useMemo(
     () =>
       composeSlides({
         cells: slideCells,
         getType: (cell) =>
-          noOutputIds.has(cell.id)
-            ? "skip"
-            : (layout.cells.get(cell.id)?.type ?? DEFAULT_SLIDE_TYPE),
+          deckSlideType({
+            cell,
+            noOutputIds,
+            heldEditCellId,
+            slideConfigs: layout.cells,
+          }),
       }),
-    [slideCells, noOutputIds, layout.cells],
+    [slideCells, noOutputIds, layout.cells, heldEditCellId],
   );
-
-  // Skipped and output-less cells aren't part of the composed deck. When one is
-  // selected in the minimap we render a preview over the deck and park reveal on
-  // a neighboring real slide; keyboard nav while parked is handled below.
-  const activeCellSlideType = activeCell
-    ? layout.cells.get(activeCell.id)?.type
-    : undefined;
-  const isNoOutputPreview =
-    activeCell != null && noOutputIds.has(activeCell.id);
-  const isParkedPreview = activeCellSlideType === "skip" || isNoOutputPreview;
-  const parkedPreviewCell = isParkedPreview ? activeCell : null;
 
   const { cellToTarget, targetToCellIndex } = useMemo(
     () =>
@@ -339,6 +521,7 @@ const RevealSlidesComponent = ({
     url.searchParams.set("show-chrome", "false");
     return url.toString();
   }, []);
+
   const revealConfig: RevealConfig = useMemo(
     () => ({
       embedded: true,
@@ -381,14 +564,35 @@ const RevealSlidesComponent = ({
   // the state update so the button/keypress paints first and the heavier mount
   // can be interrupted by higher-priority work.
   const toggleShowCode = useEvent(() => {
-    startTransition(() => setShowCode((value) => !value));
+    if (cellIdToShowCode == null || codeAlwaysShown) {
+      return;
+    }
+    if (isHeldEdit) {
+      toggleHeldShowsCode();
+      return;
+    }
+    startTransition(() =>
+      setShowCodeOverrides((prev) => {
+        const next = new Set(prev);
+        if (next.has(cellIdToShowCode)) {
+          next.delete(cellIdToShowCode);
+        } else {
+          next.add(cellIdToShowCode);
+        }
+        return next;
+      }),
+    );
   });
 
   const handleDeckReady = useEvent((deck: RevealApi) => {
     navigateDeckToActiveCell(deck);
     if (codeToggleEnabled) {
       deck.addKeyBinding(
-        { keyCode: 67, key: "C", description: "Toggle code editor" },
+        {
+          keyCode: 67,
+          key: "C",
+          description: "Toggle code editor",
+        },
         toggleShowCode,
       );
     }
@@ -403,17 +607,6 @@ const RevealSlidesComponent = ({
       revealEl.focus({ preventScroll: true });
     }
   });
-
-  const activeSubslide = useMemo(() => {
-    if (!activeCell) {
-      return null;
-    }
-    const target = cellToTarget.get(activeCell.id);
-    if (!target) {
-      return null;
-    }
-    return { h: target.h, v: target.v };
-  }, [activeCell, cellToTarget]);
 
   // Forward the deck's current cell to the parent, except while a parked
   // preview is parked: every reveal.js event during that window is an echo
@@ -466,9 +659,22 @@ const RevealSlidesComponent = ({
 
   useEventListener(document, "keydown", handleParkedNavKey, { capture: true });
 
-  const parkedPreviewLabel = isNoOutputPreview
-    ? "Hidden as there is no output"
-    : "Skipped in presentation";
+  // `isHeldEdit` means the cell already produces output and is only kept in the
+  // overlay so the editor survives the edit, so the parked banners don't apply.
+  const parkedPreviewLabel = isHeldEdit
+    ? null
+    : isNoOutputPreview
+      ? "Hidden as there is no output"
+      : "Skipped in presentation";
+
+  const parkedShowCode = isHeldEdit
+    ? heldShowsCode
+    : resolveShowCode(parkedPreviewCell?.id);
+  const parkedShowsSource = parkedRendersSource({
+    isNoOutputPreview,
+    isEditable,
+    showCode: parkedShowCode,
+  });
 
   const slideArea = (
     <div
@@ -488,13 +694,11 @@ const RevealSlidesComponent = ({
         >
           {composition.stacks.map((stack, h) => {
             if (stack.subslides.length === 1) {
-              const isActive =
-                activeSubslide?.h === h && activeSubslide?.v === 0;
               return (
                 <SubslideView
                   key={h}
                   subslide={stack.subslides[0]}
-                  showCode={codeShown && isActive}
+                  resolveShowCode={resolveShowCode}
                   isEditable={isEditable}
                   slideConfigs={layout.cells}
                 />
@@ -503,13 +707,11 @@ const RevealSlidesComponent = ({
             return (
               <Stack key={h}>
                 {stack.subslides.map((sub, v) => {
-                  const isActive =
-                    activeSubslide?.h === h && activeSubslide?.v === v;
                   return (
                     <SubslideView
                       key={v}
                       subslide={sub}
-                      showCode={codeShown && isActive}
+                      resolveShowCode={resolveShowCode}
                       isEditable={isEditable}
                       slideConfigs={layout.cells}
                     />
@@ -523,16 +725,18 @@ const RevealSlidesComponent = ({
           <div
             key={parkedPreviewCell.id}
             className="absolute inset-0 z-10 border rounded bg-background flex flex-col overflow-hidden"
-            aria-label={parkedPreviewLabel}
+            aria-label={parkedPreviewLabel ?? undefined}
           >
-            <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/40">
-              <EyeOffIcon className="h-3.5 w-3.5" />
-              <span>{parkedPreviewLabel}</span>
-            </div>
+            {parkedPreviewLabel && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/40">
+                <EyeOffIcon className="h-3.5 w-3.5" />
+                <span>{parkedPreviewLabel}</span>
+              </div>
+            )}
             <div className="flex-1 overflow-auto flex">
               <div
                 className={
-                  isNoOutputPreview && (isEditable || codeShown)
+                  parkedShowsSource
                     ? "mo-slide-content flex flex-col gap-3"
                     : "mo-slide-content"
                 }
@@ -542,7 +746,7 @@ const RevealSlidesComponent = ({
                   cell={parkedPreviewCell}
                   isNoOutputPreview={isNoOutputPreview}
                   isEditable={isEditable}
-                  codeShown={codeShown}
+                  showCode={parkedShowCode}
                 />
               </div>
             </div>
@@ -550,17 +754,35 @@ const RevealSlidesComponent = ({
         )}
         <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-70 text-muted-foreground transition-opacity">
           {codeToggleEnabled && (
-            <Tooltip content={codeShown ? "Hide code (C)" : "Show code (C)"}>
+            <Tooltip
+              content={
+                codeAlwaysShown
+                  ? "Code is always shown for this slide"
+                  : cellShowsCode
+                    ? "Hide code (C)"
+                    : "Show code (C)"
+              }
+            >
               <Button
                 data-testid="marimo-plugin-slides-toggle-code"
                 variant="ghost"
                 size="icon"
+                // Stay hoverable (no `disabled` attr) so the tooltip can
+                // explain why the toggle is inert when code is pinned on.
                 className={cn(
                   "text-muted-foreground h-7 w-7",
-                  codeShown && "text-foreground bg-muted",
+                  cellShowsCode && "text-foreground bg-muted",
+                  codeAlwaysShown && "opacity-50 cursor-not-allowed",
                 )}
-                aria-pressed={codeShown}
-                aria-label={codeShown ? "Hide code" : "Show code"}
+                aria-pressed={cellShowsCode}
+                aria-disabled={codeAlwaysShown}
+                aria-label={
+                  codeAlwaysShown
+                    ? "Code always shown"
+                    : cellShowsCode
+                      ? "Hide code"
+                      : "Show code"
+                }
                 onClick={toggleShowCode}
               >
                 <CodeIcon className="h-4 w-4" />
