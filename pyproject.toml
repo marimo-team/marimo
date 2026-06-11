@@ -343,6 +343,7 @@ ignore = [
     "D415", # First line should end with a period, question mark, or exclamation point
     "FA102", # Use `from __future__ import annotations`
     "PLR1711", # Useless returns. We use this currently to delimit the end of a cell.
+    "ASYNC119", # Yield in context manager in async generator; required for streaming generators (LLM/SSE), no clean refactor
 
     # From new version of Ruff: We should fix these, but it raises too many errors
     "BLE001", # Do not catch blind exception: `Exception`
