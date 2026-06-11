@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from starlette.authentication import requires
 from starlette.responses import JSONResponse, PlainTextResponse
@@ -217,7 +217,6 @@ async def usage(request: Request) -> JSONResponse:
                             - cpu
 
     """
-    import subprocess
 
     import psutil
 
@@ -277,44 +276,11 @@ async def usage(request: Request) -> JSONResponse:
 
     # GPU stats
     gpu_stats: list[dict[str, Any]] = []
-    if _is_gpu_available():
-        try:
-            result = subprocess.run(  # noqa: ASYNC221
-                _GPU_STATS_CMD,
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            for line in result.stdout.strip().split("\n"):
-                index_str, name, total_str, used_str, free_str = line.split(
-                    ", "
-                )
-                # This is what you get on a DGX Spark
-                if total_str == "[N/A]":
-                    total_str = "0"
-                if used_str == "[N/A]":
-                    used_str = "0"
-                if free_str == "[N/A]":
-                    free_str = "0"
-                total = int(total_str) * 1024 * 1024  # Convert MB to bytes
-                used = int(used_str) * 1024 * 1024
-                free = int(free_str) * 1024 * 1024
-                gpu_stats.append(
-                    {
-                        "index": int(index_str),
-                        "name": name.strip(),
-                        "memory": {
-                            "total": total,
-                            "used": used,
-                            "free": free,
-                            "percent": (used / total) * 100
-                            if total > 0
-                            else 0,
-                        },
-                    }
-                )
-        except (subprocess.SubprocessError, FileNotFoundError) as e:
-            LOGGER.warning("Failed to extract GPU stats: %s", e)
+    gpu_available = _is_gpu_available()
+    if gpu_available == "nvidia":
+        gpu_stats = _parse_nvidia_smi_stats()
+    elif gpu_available == "rocm":
+        gpu_stats = _parse_rocm_smi_stats()
 
     return JSONResponse(
         {
@@ -357,27 +323,148 @@ async def connections(request: Request) -> JSONResponse:
     )
 
 
-_GPU_STATS_CMD = [
+_NVIDIA_GPU_STATS_CMD = [
     "nvidia-smi",
     "--query-gpu=index,name,memory.total,memory.used,memory.free",
     "--format=csv,noheader,nounits",
 ]
 
+_AMD_GPU_STATS_CMD = [
+    "rocm-smi",
+    "--showproductname",
+    "--showuse",
+    "--showmeminfo",
+    "vram",
+    "--json",
+]
+
 
 @lru_cache(maxsize=1)
-def _is_gpu_available() -> bool:
+def _is_gpu_available() -> Literal["nvidia", "rocm", False]:
     import subprocess
 
     if DependencyManager.which("nvidia-smi"):
         try:
-            _ = subprocess.run(
-                _GPU_STATS_CMD,
+            subprocess.run(
+                _NVIDIA_GPU_STATS_CMD,
                 capture_output=True,
                 text=True,
                 check=True,
             )
-            return True
-        except (subprocess.SubprocessError, FileNotFoundError) as e:
-            LOGGER.warning("Failed to extract GPU stats: %s", e)
-            return False
+            return "nvidia"
+        except (subprocess.SubprocessError, FileNotFoundError):
+            pass
+
+    if DependencyManager.which("rocm-smi"):
+        try:
+            subprocess.run(
+                _AMD_GPU_STATS_CMD,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return "rocm"
+        except (subprocess.SubprocessError, FileNotFoundError):
+            pass
+
+    LOGGER.warning(
+        "Neither nvidia-smi nor rocm-smi succeeded, cannot get GPU stats"
+    )
     return False
+
+
+def _parse_nvidia_smi_stats() -> list[dict[str, Any]]:
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            _NVIDIA_GPU_STATS_CMD,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (subprocess.SubprocessError, FileNotFoundError) as e:
+        LOGGER.warning("Failed to extract Nvidia GPU stats: %s", e)
+        return []
+    stats: list[dict[str, Any]] = []
+    for line in result.stdout.strip().split("\n"):
+        if not line:
+            continue
+        index_str, name, total_str, used_str, free_str = line.split(", ")
+        # This is what you get on a DGX Spark
+        if total_str == "[N/A]":
+            total_str = "0"
+        if used_str == "[N/A]":
+            used_str = "0"
+        if free_str == "[N/A]":
+            free_str = "0"
+        total = int(total_str) * 1024 * 1024  # Convert MB to bytes
+        used = int(used_str) * 1024 * 1024
+        free = int(free_str) * 1024 * 1024
+        stats.append(
+            {
+                "index": int(index_str),
+                "name": name.strip(),
+                "memory": {
+                    "total": total,
+                    "used": used,
+                    "free": free,
+                    "percent": (used / total) * 100 if total > 0 else 0,
+                },
+            }
+        )
+    return stats
+
+
+def _parse_rocm_smi_stats() -> list[dict[str, Any]]:
+    import json
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            _AMD_GPU_STATS_CMD,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (subprocess.SubprocessError, FileNotFoundError) as e:
+        LOGGER.warning("Failed to extract AMD GPU stats: %s", e)
+        return []
+
+    stdout = result.stdout.strip()
+    # Find the JSON object (rocm-smi may emit WARNING lines before the JSON)
+    json_start = stdout.find("{")
+    if json_start == -1:
+        LOGGER.warning("No JSON found in rocm-smi output")
+        return []
+    try:
+        data: dict[str, dict[str, str]] = json.loads(stdout[json_start:])
+    except json.JSONDecodeError as e:
+        LOGGER.warning("Failed to parse rocm-smi JSON: %s", e)
+        return []
+
+    stats: list[dict[str, Any]] = []
+    for device_key, device_info in data.items():
+        if not device_key.startswith("card"):
+            continue
+        index = int(device_key.replace("card", ""))
+        name = device_info.get("Card Series", "AMD GPU")
+        total_str = device_info.get("VRAM Total Memory (B)", "0")
+        used_str = device_info.get("VRAM Total Used Memory (B)", "0")
+        total = int(total_str) if total_str not in ("N/A", "[N/A]", "") else 0
+        used = int(used_str) if used_str not in ("N/A", "[N/A]", "") else 0
+        total = max(total, used)
+        free = total - used
+        stats.append(
+            {
+                "index": index,
+                "name": name.strip(),
+                "memory": {
+                    "total": total,
+                    "used": used,
+                    "free": free,
+                    "percent": (used / total) * 100 if total > 0 else 0,
+                },
+            }
+        )
+    return stats
