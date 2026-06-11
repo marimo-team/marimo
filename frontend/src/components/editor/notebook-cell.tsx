@@ -14,6 +14,7 @@ import {
   type KeyboardEvent,
   memo,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -272,6 +273,24 @@ export interface CellProps {
   collapseCount: number;
 }
 
+/**
+ * Stacked and side-by-side layouts need the editor in structurally different
+ * DOM positions. Switching layout therefore reparents the editor subtree, which unmounts and remounts
+ * `CellEditor`. The view is an expensive imperative resource whose DOM is
+ * re-attached on remount, so `CellEditor` intentionally does not destroy it.
+ * Instead the edit-mode cell owns it: we destroy it only when the cell stops
+ * being editable (removed, or switched to read-only / present mode) and null
+ * the ref so a fresh view is built if we return to edit mode.
+ */
+function useEditorViewLifetime(editorView: React.RefObject<EditorView | null>) {
+  useEffect(() => {
+    return () => {
+      editorView.current?.destroy();
+      editorView.current = null;
+    };
+  }, [editorView]);
+}
+
 const CellComponent = (props: CellProps) => {
   const { cellId, mode } = props;
   const ref = useCellHandle(cellId);
@@ -392,6 +411,8 @@ const EditableCellComponent = ({
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
   const cellContainerRef = useRef<HTMLDivElement>(null);
+
+  useEditorViewLifetime(editorView);
 
   const actions = useCellActions();
   const connection = useAtomValue(connectionAtom);
@@ -1053,6 +1074,8 @@ const SetupCellComponent = ({
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
   const connection = useAtomValue(connectionAtom);
+
+  useEditorViewLifetime(editorView);
 
   const actions = useCellActions();
   const requestClient = useRequestClient();
