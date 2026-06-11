@@ -163,11 +163,14 @@ function filterEmptySchemas(schemas: DatabaseSchema[]): DatabaseSchema[] {
   let changed = false;
   const result: DatabaseSchema[] = [];
   for (const schema of schemas) {
-    if (schema.tables_resolved === false || schema.schemas_resolved === false) {
+    if (
+      schema.tables_resolved === false ||
+      schema.child_schemas_resolved === false
+    ) {
       result.push(schema);
       continue;
     }
-    const childSchemas = schema.schemas ?? [];
+    const childSchemas = schema.child_schemas ?? [];
     const visibleChildren = filterEmptySchemas(childSchemas);
     if (schema.tables.length === 0 && visibleChildren.length === 0) {
       changed = true;
@@ -178,7 +181,7 @@ function filterEmptySchemas(schemas: DatabaseSchema[]): DatabaseSchema[] {
       continue;
     }
     changed = true;
-    result.push({ ...schema, schemas: visibleChildren });
+    result.push({ ...schema, child_schemas: visibleChildren });
   }
   return changed ? result : schemas;
 }
@@ -645,7 +648,7 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
   const [isExpanded, setIsExpanded] = React.useState(hasSearch);
   const [isSelected, setIsSelected] = React.useState(false);
   const uniqueValue = `${databaseName}:${schemaPath.join(".")}`;
-  const childSchemas = schema.schemas ?? [];
+  const childSchemas = schema.child_schemas ?? [];
 
   return (
     <>
@@ -672,10 +675,11 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
       {isExpanded && (
         <>
           {/* Nested child schemas */}
-          {(childSchemas.length > 0 || schema.schemas_resolved === false) && (
+          {(childSchemas.length > 0 ||
+            schema.child_schemas_resolved === false) && (
             <SchemaList
               schemas={childSchemas}
-              schemasResolved={schema.schemas_resolved !== false}
+              schemasResolved={schema.child_schemas_resolved !== false}
               schemaPath={schemaPath}
               depth={depth + 1}
               engineName={engineName}

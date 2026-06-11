@@ -599,8 +599,8 @@ describe("nested namespaces", () => {
               name: "nested",
               tables: [],
               tables_resolved: false,
-              schemas: [],
-              schemas_resolved: false,
+              child_schemas: [],
+              child_schemas_resolved: false,
             },
           ],
         },
@@ -624,7 +624,7 @@ describe("nested namespaces", () => {
     let found: DatabaseSchema | undefined;
     for (const segment of path) {
       found = schemas.find((s) => s.name === segment);
-      schemas = found?.schemas ?? [];
+      schemas = found?.child_schemas ?? [];
     }
     return found;
   };
@@ -646,8 +646,8 @@ describe("nested namespaces", () => {
     });
 
     const nested = findSchema(newState, ["nested"]);
-    expect(nested?.schemas_resolved).toBe(true);
-    expect(nested?.schemas?.map((s) => s.name)).toEqual(["deep"]);
+    expect(nested?.child_schemas_resolved).toBe(true);
+    expect(nested?.child_schemas?.map((s) => s.name)).toEqual(["deep"]);
     // The schemaless sibling is untouched.
     expect(findSchema(newState, [""])?.name).toBe("");
   });
@@ -733,7 +733,9 @@ describe("nested namespaces", () => {
     const newDb = newState.connectionsMap
       .get("ice" as ConnectionName)
       ?.databases.find((d) => d.name === "top");
-    expect(findSchema(newState, ["nested"])?.schemas_resolved).toBe(false);
+    expect(findSchema(newState, ["nested"])?.child_schemas_resolved).toBe(
+      false,
+    );
     expect(newDb?.schemas.length).toBe(2);
   });
 });
@@ -773,14 +775,14 @@ describe("allTablesAtom with nested namespaces", () => {
                   name: "nested",
                   tables: [table("nestedtable")],
                   tables_resolved: true,
-                  schemas_resolved: true,
-                  schemas: [
+                  child_schemas_resolved: true,
+                  child_schemas: [
                     {
                       name: "deep",
                       tables: [table("deeptable")],
                       tables_resolved: true,
-                      schemas: [],
-                      schemas_resolved: true,
+                      child_schemas: [],
+                      child_schemas_resolved: true,
                     },
                   ],
                 },

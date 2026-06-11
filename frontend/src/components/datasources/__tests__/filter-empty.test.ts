@@ -28,15 +28,15 @@ function makeSchema(opts: {
   name: string;
   tables: DataTable[];
   tables_resolved?: boolean;
-  schemas?: DatabaseSchema[];
-  schemas_resolved?: boolean;
+  child_schemas?: DatabaseSchema[];
+  child_schemas_resolved?: boolean;
 }): DatabaseSchema {
   return {
     name: opts.name,
     tables: opts.tables,
     tables_resolved: opts.tables_resolved ?? true,
-    schemas: opts.schemas ?? [],
-    schemas_resolved: opts.schemas_resolved ?? true,
+    child_schemas: opts.child_schemas ?? [],
+    child_schemas_resolved: opts.child_schemas_resolved ?? true,
   };
 }
 
@@ -191,7 +191,9 @@ describe("filterEmptyDatabases", () => {
         makeSchema({
           name: "top",
           tables: [],
-          schemas: [makeSchema({ name: "nested", tables: [makeTable("t1")] })],
+          child_schemas: [
+            makeSchema({ name: "nested", tables: [makeTable("t1")] }),
+          ],
         }),
       ]),
     ];
@@ -205,8 +207,8 @@ describe("filterEmptyDatabases", () => {
         makeSchema({
           name: "top",
           tables: [],
-          schemas: [],
-          schemas_resolved: false,
+          child_schemas: [],
+          child_schemas_resolved: false,
         }),
       ]),
     ];
@@ -220,7 +222,7 @@ describe("filterEmptyDatabases", () => {
         makeSchema({
           name: "top",
           tables: [makeTable("t1")],
-          schemas: [
+          child_schemas: [
             makeSchema({ name: "empty_child", tables: [] }),
             makeSchema({ name: "full_child", tables: [makeTable("t2")] }),
           ],
@@ -233,7 +235,7 @@ describe("filterEmptyDatabases", () => {
         makeSchema({
           name: "top",
           tables: [makeTable("t1")],
-          schemas: [
+          child_schemas: [
             makeSchema({ name: "full_child", tables: [makeTable("t2")] }),
           ],
         }),
@@ -247,7 +249,7 @@ describe("filterEmptyDatabases", () => {
         makeSchema({
           name: "top",
           tables: [],
-          schemas: [makeSchema({ name: "empty_child", tables: [] })],
+          child_schemas: [makeSchema({ name: "empty_child", tables: [] })],
         }),
         makeSchema({ name: "other", tables: [makeTable("t1")] }),
       ]),

@@ -6185,16 +6185,16 @@ export interface components {
      *         tables (List[DataTable]): Tables in this schema.
      *         tables_resolved (bool): True when `tables` has been enumerated
      *             False when table discovery was deferred. Defaults to True
-     *         schemas (List[Schema]): Nested child schemas (sub-namespaces).
-     *         schemas_resolved (bool): True when `schemas` has been enumerated.
-     *             False when child-schema discovery was deferred. Defaults to True
+     *         child_schemas (List[Schema]): Nested child schemas (sub-namespaces).
+     *         child_schemas_resolved (bool): True when `child_schemas` has been
+     *             enumerated. False when discovery was deferred. Defaults to True
      */
     Schema: {
-      name: string;
       /** @default [] */
-      schemas?: components["schemas"]["Schema"][];
+      child_schemas?: components["schemas"]["Schema"][];
       /** @default true */
-      schemas_resolved?: boolean;
+      child_schemas_resolved?: boolean;
+      name: string;
       tables: components["schemas"]["DataTable"][];
       /** @default true */
       tables_resolved?: boolean;
