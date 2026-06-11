@@ -35,7 +35,7 @@ def _find_schema_by_path(
         if schema.name == head:
             if not rest:
                 return schema
-            return _find_schema_by_path(schema.schemas, rest)
+            return _find_schema_by_path(schema.child_schemas, rest)
     return None
 
 
@@ -104,8 +104,8 @@ def update_schema_list_in_connection(
         )
         if parent is None:
             return
-        parent.schemas = updated_schema_list
-        parent.schemas_resolved = True
+        parent.child_schemas = updated_schema_list
+        parent.child_schemas_resolved = True
         return
     database.schemas = updated_schema_list
     database.schemas_resolved = True

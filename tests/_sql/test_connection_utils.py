@@ -588,15 +588,15 @@ def _create_nested_connection() -> list[DataSourceConnection]:
         name="deep",
         tables=[],
         tables_resolved=False,
-        schemas=[],
-        schemas_resolved=False,
+        child_schemas=[],
+        child_schemas_resolved=False,
     )
     nested = Schema(
         name="nested",
         tables=[create_test_table("table4")],
         tables_resolved=True,
-        schemas=[deep],
-        schemas_resolved=True,
+        child_schemas=[deep],
+        child_schemas_resolved=True,
     )
     top = Database(
         name="top",
@@ -659,8 +659,8 @@ class TestNestedNamespaceUpdates:
             connections[0].databases[0].schemas, ["nested"]
         )
         assert nested is not None
-        assert [s.name for s in nested.schemas] == ["deep"]
-        assert nested.schemas_resolved is True
+        assert [s.name for s in nested.child_schemas] == ["deep"]
+        assert nested.child_schemas_resolved is True
 
     def test_update_table_list_at_nested_path(self) -> None:
         """Resolving tables of a deeply nested namespace targets that schema."""

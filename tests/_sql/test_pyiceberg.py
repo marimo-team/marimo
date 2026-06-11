@@ -272,7 +272,7 @@ def test_pyiceberg_get_databases(memory_catalog: Catalog) -> None:
     assert by_name["default"].dialect == "iceberg"
     assert set(default_schemas) == {NO_SCHEMA_NAME}
     assert len(default_schemas[NO_SCHEMA_NAME].tables) == 2
-    assert default_schemas[NO_SCHEMA_NAME].schemas == []
+    assert default_schemas[NO_SCHEMA_NAME].child_schemas == []
 
     assert {s.name for s in by_name["test_namespace"].schemas} == {
         NO_SCHEMA_NAME
@@ -286,7 +286,7 @@ def test_pyiceberg_get_databases(memory_catalog: Catalog) -> None:
     nested = top_schemas["nested"]
     assert [t.name for t in nested.tables] == ["table4"]
     # "nested" recursively contains "deep", which holds "table5".
-    deep_by_name = {s.name: s for s in nested.schemas}
+    deep_by_name = {s.name: s for s in nested.child_schemas}
     assert set(deep_by_name) == {"deep"}
     assert [t.name for t in deep_by_name["deep"].tables] == ["table5"]
 
@@ -300,9 +300,9 @@ def test_pyiceberg_get_databases(memory_catalog: Catalog) -> None:
     # Sub-namespace is present but its tables/children are deferred.
     assert set(top_schemas) == {NO_SCHEMA_NAME, "nested"}
     assert top_schemas["nested"].tables_resolved is False
-    assert top_schemas["nested"].schemas_resolved is False
+    assert top_schemas["nested"].child_schemas_resolved is False
     assert top_schemas["nested"].tables == []
-    assert top_schemas["nested"].schemas == []
+    assert top_schemas["nested"].child_schemas == []
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
@@ -357,9 +357,9 @@ def test_pyiceberg_connection_is_lazy(memory_catalog: Catalog) -> None:
     assert top_schemas[NO_SCHEMA_NAME].tables_resolved is False
     assert top_schemas[NO_SCHEMA_NAME].tables == []
     assert top_schemas["nested"].tables_resolved is False
-    assert top_schemas["nested"].schemas_resolved is False
+    assert top_schemas["nested"].child_schemas_resolved is False
     assert top_schemas["nested"].tables == []
-    assert top_schemas["nested"].schemas == []
+    assert top_schemas["nested"].child_schemas == []
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
@@ -374,9 +374,9 @@ def test_pyiceberg_get_child_schemas(memory_catalog: Catalog) -> None:
         database="top", schema_path=[], include_tables=False
     )
     assert [s.name for s in children] == ["nested"]
-    assert children[0].schemas_resolved is False
+    assert children[0].child_schemas_resolved is False
     assert children[0].tables_resolved is False
-    assert children[0].schemas == []
+    assert children[0].child_schemas == []
 
     # Immediate child of "top.nested" is "deep".
     children = engine.get_child_schemas(

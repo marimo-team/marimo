@@ -152,8 +152,8 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
                 if include_tables
                 else [],
                 tables_resolved=include_tables,
-                schemas=[],
-                schemas_resolved=True,
+                child_schemas=[],
+                child_schemas_resolved=True,
             )
         ]
         schemas.extend(
@@ -234,8 +234,8 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
             name=namespace[-1],
             tables=tables,
             tables_resolved=include_tables,
-            schemas=child_schemas,
-            schemas_resolved=include_tables,
+            child_schemas=child_schemas,
+            child_schemas_resolved=include_tables,
         )
 
     def get_tables_in_schema(
