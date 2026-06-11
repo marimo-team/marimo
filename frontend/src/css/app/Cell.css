@@ -439,45 +439,108 @@
   }
 }
 
-.cell-row-container--side-by-side {
+/* ----------------------- Side-by-side cell layout ------------------------ */
+
+/*
+ * In side-by-side mode the editor and output live in two columns inside the
+ * cell card, separated by a draggable resizer.
+ */
+.cell-columns {
   display: flex;
   flex-direction: row;
   align-items: stretch;
+  position: relative;
 }
 
-.cell-row-container--side-by-side.cell-row-container--output-left {
+/* Output on the left */
+.cell-columns--reverse {
   flex-direction: row-reverse;
 }
 
-.cell-row-container--side-by-side > .tray {
+.cell-columns > .tray,
+.cell-columns > .cell-output-region {
+  /* Allow either column to shrink below its content size and scroll. */
   flex: 1 1 0;
   min-width: 0;
 }
 
-.cell-row-container--side-by-side > :not(.tray) {
-  flex: 1 1 0;
-  min-width: 0;
+.cell-columns > .cell-output-region {
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--slate-5);
-  margin-left: 0.5rem;
-  padding-left: 0.5rem;
 }
 
-/* When output is on the left, mirror the divider to the right side
-   so it still sits between the two columns. */
-.cell-row-container--output-left > :not(.tray) {
-  border-left: none;
-  margin-left: 0;
-  padding-left: 0;
-  border-right: 1px solid var(--slate-5);
-  margin-right: 0.5rem;
-  padding-right: 0.5rem;
+/* When there is output, the editor takes the shared split width and the output
+   fills the remainder. */
+.cell-columns--resizable > .tray {
+  flex: 0 1 var(--marimo-cell-columns-split, 50%);
 }
 
-.cell-row-container--side-by-side .tray .cm-editor {
+/* Treat the editor as a panel that hugs the cell card's outer corners; its
+   inner edge meets the resizer squarely. Only applies when there are two
+   columns — a cell with no output yet keeps the default full top rounding. */
+.cell-columns--resizable > .tray .cm-editor {
+  border-radius: 0;
+}
+
+.cell-columns--resizable:not(.cell-columns--reverse) > .tray .cm-editor {
+  border-top-left-radius: 9px;
+  border-bottom-left-radius: 9px;
+}
+
+.cell-columns--resizable.cell-columns--reverse > .tray .cm-editor {
+  border-top-right-radius: 9px;
+  border-bottom-right-radius: 9px;
+}
+
+.cell-columns:not(.cell-columns--resizable) > .tray .cm-editor {
   border-bottom-left-radius: 9px;
   border-bottom-right-radius: 9px;
+}
+
+/* Draggable divider between the columns. */
+.cell-columns__resizer {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 1px;
+  margin: 0 0.5rem;
+  background-color: var(--slate-5);
+  cursor: col-resize;
+  position: relative;
+}
+
+/* Widen the grab/hit target without affecting layout. */
+.cell-columns__resizer::before {
+  content: "";
+  position: absolute;
+  inset: 0 -5px;
+}
+
+.cell-columns__resizer:hover,
+.cell-columns__resizer:active,
+.cell-columns__resizer:focus-visible {
+  background-color: var(--primary);
+  outline: none;
+}
+
+/*
+ * The editor's gutter hover-bridges (.tray::before/::after) and the output's
+ * inner pointer-area widen the hover/hit zone into the side gutters. In the
+ * stacked layout those gutters are empty, but in columns the inner-facing ones
+ * cross the divider and steal pointer events from the other column, so drop
+ * them. The outer-facing output bridge is kept so its hover controls stay
+ * reachable.
+ */
+.cell-columns > .tray::before,
+.cell-columns > .tray::after {
+  display: none;
+}
+
+.cell-columns:not(.cell-columns--reverse) .increase-pointer-area-x::before {
+  display: none;
+}
+
+.cell-columns--reverse .increase-pointer-area-x::after {
+  display: none;
 }
 
 :root {

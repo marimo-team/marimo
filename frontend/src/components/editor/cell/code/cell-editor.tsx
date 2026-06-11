@@ -46,6 +46,7 @@ import {
 import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSplitCellCallback } from "../useSplitCell";
 import { LanguageToggles } from "./language-toggle";
+import type { CellOutputPosition } from "../../renderers/types";
 
 export interface CellEditorProps
   extends
@@ -77,7 +78,7 @@ export interface CellEditorProps
   // DOM node where the editorView will be mounted
   editorViewParentRef?: React.RefObject<HTMLDivElement | null>;
   showHiddenCode: (opts?: { focus?: boolean }) => void;
-  outputArea?: "above" | "below" | "left" | "right";
+  outputArea?: CellOutputPosition;
   /**
    * CSS selector for the element that editor tooltips (completions, hover,
    * signature help) are appended to. Useful for fullscreen/dialog containers;
