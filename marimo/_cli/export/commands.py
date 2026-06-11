@@ -791,8 +791,9 @@ def _execute_and_copy_caches(marimo_file: MarimoPath) -> None:
     import json
     import shutil
 
-    from marimo._server.export import run_app_until_completion
     from marimo._server.file_router import AppFileRouter
+
+    from marimo._server.export import run_app_until_completion
     from marimo._server.utils import asyncio_run
     from marimo._utils.paths import notebook_output_dir
 

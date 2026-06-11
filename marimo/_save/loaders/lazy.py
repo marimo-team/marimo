@@ -246,7 +246,7 @@ class LazyStore(WasmExportableStore):
         key = self._sanitize_key(key)
         url = f"{self._base_url()}/{key}"
         try:
-            with urllib.request.urlopen(url) as resp:  # noqa: S310
+            with urllib.request.urlopen(url) as resp:
                 return resp.read() if resp.status == 200 else None
         except Exception:
             return None
