@@ -1,21 +1,23 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Scheduler: per-run cell queue, cancellation, and async-task tracking.
 
-Singular-scheduler invariant
-----------------------------
-At most one `Runner.run_all()` is on the stack per `KernelRuntimeContext`
-at any time. The kernel serializes runs — control requests queue and
-state-update cascades only re-enter after `run_all()` returns. Embedded
-apps push a child `KernelRuntimeContext` (not a nested scheduler on the
-same context). Under this invariant, `KernelRuntimeContext._active_scheduler`
-can be a singular field.
+Active-scheduler stack
+----------------------
+`KernelRuntimeContext._active_scheduler` points at the scheduler whose
+run is currently executing, so the SIGINT handler can route a cancel to
+it. Runs nest as a stack on a single context: a re-entrant `run_all`
+(e.g. code_mode `ctx.run_cell` driving a run from inside a running cell)
+suspends the outer run at its `await`, runs to completion, then restores
+the outer scheduler. `__aenter__` saves the previously-active scheduler
+and `__aexit__` restores it, so the field always names the innermost
+(currently executing) run. The kernel still serializes top-level runs —
+control requests queue and state-update cascades only re-enter after
+`run_all()` returns.
 
 A future non-blocking `AsyncScheduler.submit()` (returning before
-dispatch completes) will break this invariant by allowing concurrent
-schedulers on one context; that PR will need to promote
-`_active_scheduler` to a plural `OrderedDict[int, Scheduler]`.
-`__aenter__` below fails loudly if the invariant is ever silently
-broken.
+dispatch completes) would allow genuinely *concurrent* schedulers on one
+context; that PR will need to promote `_active_scheduler` from a saved
+stack to a plural `OrderedDict[int, Scheduler]`.
 """
 
 from __future__ import annotations
@@ -38,6 +40,7 @@ if TYPE_CHECKING:
         Iterator,
         Sequence,
     )
+    from contextlib import AbstractAsyncContextManager
 
     from typing_extensions import Self
 
@@ -64,7 +67,7 @@ class Scheduler(Protocol):
         self,
         cell_id: CellId_t,
         coro: Coroutine[Any, Any, RunResult],
-    ) -> AsyncIterator[asyncio.Task[RunResult]]: ...
+    ) -> AbstractAsyncContextManager[asyncio.Task[RunResult]]: ...
     def has_active_tasks(self) -> bool: ...
     def cancel_all(self) -> None: ...
 
@@ -85,6 +88,11 @@ class SequentialScheduler:
         self._graph = graph
         self._interrupted = False
         self._active: dict[CellId_t, asyncio.Task[Any]] = {}
+        # Scheduler that was active on the context when this one was
+        # entered. Saved on `__aenter__`, restored on `__aexit__`, so
+        # nested `run_all` calls on the same context compose as a stack
+        # (see module docstring).
+        self._prev_scheduler: Scheduler | None = None
 
     def pending(self) -> bool:
         return not self._interrupted and len(self._cells_to_run) > 0
@@ -204,19 +212,14 @@ class SequentialScheduler:
 
         ctx = safe_get_context()
         if isinstance(ctx, KernelRuntimeContext):
-            if ctx._active_scheduler is not None:
-                # See module docstring: a second `async with scheduler`
-                # on the same context means nested or concurrent runs,
-                # which the singular `_active_scheduler` design does not
-                # support. Fail loudly so the regression surfaces in
-                # tests rather than as a silent SIGINT-routing bug.
-                raise RuntimeError(
-                    "A scheduler is already active on this context; "
-                    "concurrent runs are not supported. This indicates "
-                    "either a re-entrant Runner.run_all or a future "
-                    "non-blocking scheduler that should be promoting "
-                    "_active_scheduler to plural."
-                )
+            # Save any scheduler already active on the context and make
+            # this one active. A re-entrant `run_all` on the same context
+            # (e.g. code_mode `ctx.run_cell` driving a run from inside a
+            # running cell) suspends the outer run at its `await`, runs to
+            # completion here, then restores the outer scheduler on exit —
+            # a clean stack. SIGINT routes to the innermost (currently
+            # executing) scheduler, which is the correct target.
+            self._prev_scheduler = ctx._active_scheduler
             ctx._active_scheduler = self
         return self
 
@@ -230,4 +233,4 @@ class SequentialScheduler:
             isinstance(ctx, KernelRuntimeContext)
             and ctx._active_scheduler is self
         ):
-            ctx._active_scheduler = None
+            ctx._active_scheduler = self._prev_scheduler
