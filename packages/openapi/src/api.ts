@@ -4660,9 +4660,11 @@ export interface components {
      *             function_call_id: ID matching the original request.
      *             return_value: Function return value as JSON.
      *             status: Human-readable success/failure status.
-     *             found: Whether the requested function was found in the registry. When
-     *                 False the function never executed, so the request is safe to
-     *                 retry; when True with a non-ok status the function ran and raised.
+     *             found: Whether the requested function was located in the registry.
+     *                 False signals a transient registry desync, so the request is safe
+     *                 to retry. True means no retry will help: a non-ok status then
+     *                 reflects a failure unrelated to lookup, such as the function
+     *                 raising during execution or not being associated with a cell.
      */
     FunctionCallResultNotification: {
       found: boolean;

@@ -230,8 +230,9 @@ function PluginSlotInternal<T>(
         // of whether the function is idempotent. This recovers from a
         // transient window where the frontend's object-id leads the kernel's
         // registry. The object-id is re-read each attempt so a corrected id
-        // from a re-render is picked up. An execution error (found === true)
-        // is never retried.
+        // from a re-render is picked up. Once the function is found
+        // (found === true) the request is never retried, since the failure
+        // is unrelated to lookup and retrying would not help.
         const parsedArgs = prettyParse(input, args[0]);
         for (let attempt = 0; ; attempt++) {
           const namespace = getUIElementObjectId(hostElement);

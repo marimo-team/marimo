@@ -283,7 +283,7 @@ describe("plugin function: not-found recovery", () => {
     expect(requestMock).toHaveBeenCalledTimes(4);
   });
 
-  test("does not retry an execution error (found:true)", async () => {
+  test("does not retry once the function is found (found:true)", async () => {
     const run = await mountWithFunction();
     requestMock.mockResolvedValue({
       function_call_id:
