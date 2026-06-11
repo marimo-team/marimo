@@ -79,8 +79,9 @@ class EngineCatalog(BaseEngine[CONN], ABC):
     @property
     def supports_nested_schemas(self) -> bool:
         """Engines whose schemas nest (Iceberg, Spark). When True, the handler
-        folds `schema_path` into the database identifier passed to table calls;
-        flat engines keep `database` and `schema` separate."""
+        folds `schema_path` into the database identifier passed to table calls
+        (flat engines keep `database` and `schema` separate), and the engine
+        MUST also override `get_child_schemas`."""
         return False
 
     @property
@@ -128,9 +129,15 @@ class EngineCatalog(BaseEngine[CONN], ABC):
         within `database`.
 
         Only engines with nested schemas (e.g. Iceberg namespaces) override
-        this; the default returns an empty list.
+        this. Engines that set `supports_nested_schemas` MUST override it — the
+        default raises rather than silently dropping nested schemas.
         """
         del database, schema_path, include_tables, include_table_details
+        if self.supports_nested_schemas:
+            raise NotImplementedError(
+                f"{type(self).__name__} sets supports_nested_schemas=True but "
+                "does not implement get_child_schemas"
+            )
         return []
 
     @abstractmethod

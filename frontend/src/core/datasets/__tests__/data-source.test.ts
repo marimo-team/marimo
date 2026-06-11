@@ -717,7 +717,6 @@ describe("nested namespaces", () => {
   });
 
   it("does not change anything for a missing nested path", () => {
-    const before = baseState.connectionsMap.get("ice" as ConnectionName);
     const newState = reducer(baseState, {
       type: "addSchemaList",
       payload: {
@@ -729,9 +728,13 @@ describe("nested namespaces", () => {
         },
       },
     });
-    // nested namespace remains unresolved, schemaless sibling intact.
+    // The result is unchanged: nested namespace stays unresolved and the
+    // database keeps its two schemas (schemaless + nested).
+    const newDb = newState.connectionsMap
+      .get("ice" as ConnectionName)
+      ?.databases.find((d) => d.name === "top");
     expect(findSchema(newState, ["nested"])?.schemas_resolved).toBe(false);
-    expect(before?.databases[0].schemas.length).toBe(2);
+    expect(newDb?.schemas.length).toBe(2);
   });
 });
 
