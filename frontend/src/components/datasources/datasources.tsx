@@ -52,6 +52,7 @@ import { useRequestClient } from "@/core/network/requests";
 import { variablesAtom } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { sortBy } from "@/utils/arrays";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
@@ -79,24 +80,25 @@ import {
 } from "./components";
 import { isSchemaless, sqlCode, tableUniqueId } from "./utils";
 
-// Indentation classes for the datasource tree hierarchy.
+// Left indentation (rem) for each level of the datasource tree.
 const INDENT = {
-  engineEmpty: "pl-3",
-  engine: "pl-3 pr-2",
-  database: "pl-4",
-  schemaEmpty: "pl-8",
-  schema: "pl-7",
-  schemaLoading: "pl-8",
-  tableLoading: "pl-11",
-  tableSchemaless: "pl-8",
-  tableWithSchema: "pl-12",
-  columnLocal: "pl-5",
-  columnSql: "pl-13",
-  columnPreview: "pl-10",
+  engineEmpty: 0.75,
+  engine: 0.75,
+  database: 1,
+  tableLoading: 2.75,
+  tableSchemaless: 2,
+  tableWithSchema: 3,
+  columnLocal: 1.25,
+  columnSql: 3.25,
+  columnPreview: 2.5,
 };
 
-// Indentation (rem) for nested schema levels, by nesting depth. Calibrated
-// so depth 0 matches the fixed pl-7 / pl-12 / pl-13 classes.
+function indentStyle(rem: number): React.CSSProperties {
+  return { paddingLeft: `${rem}rem` };
+}
+
+// Indentation (rem) for nested schema levels, by nesting depth. Calibrated so
+// depth 0 matches the fixed schema (1.75) / table (3) / column (3.25) levels.
 function schemaHeaderIndentRem(depth: number): number {
   return 1.75 + depth;
 }
@@ -105,17 +107,6 @@ function schemaTableIndentRem(depth: number): number {
 }
 function schemaColumnIndentRem(depth: number): number {
   return 3.25 + depth;
-}
-
-// Indent a transient loading/error/empty row: inline padding when nested,
-// else a fixed class.
-function stateIndentProps(
-  rem: number | undefined,
-  fallbackClassName: string,
-): { className: string } | { style: React.CSSProperties } {
-  return rem == null
-    ? { className: fallbackClassName }
-    : { style: { paddingLeft: `${rem}rem` } };
 }
 
 const sortedTablesAtom = atom((get) => {
@@ -386,7 +377,7 @@ export const DataSources: React.FC = () => {
         ))}
 
         {dataConnections.length > 0 && tables.length > 0 && (
-          <DatasourceLabel className={INDENT.engine}>
+          <DatasourceLabel className="pr-2" style={indentStyle(INDENT.engine)}>
             <PythonIcon className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs">Python</span>
           </DatasourceLabel>
@@ -417,7 +408,7 @@ const Engine: React.FC<{
 
   return (
     <>
-      <DatasourceLabel className={INDENT.engine}>
+      <DatasourceLabel className="pr-2" style={indentStyle(INDENT.engine)}>
         <DatabaseLogo
           className="h-4 w-4 text-muted-foreground"
           name={connection.dialect}
@@ -440,7 +431,7 @@ const Engine: React.FC<{
       ) : (
         <EmptyState
           content="No databases available"
-          className={INDENT.engineEmpty}
+          style={indentStyle(INDENT.engineEmpty)}
         />
       )}
     </>
@@ -465,10 +456,8 @@ const DatabaseItem: React.FC<{
   return (
     <>
       <CommandItem
-        className={cn(
-          "text-sm flex flex-row gap-1 items-center cursor-pointer rounded-none",
-          INDENT.database,
-        )}
+        className="text-sm flex flex-row gap-1 items-center cursor-pointer rounded-none"
+        style={indentStyle(INDENT.database)}
         onSelect={() => {
           setIsExpanded(!isExpanded);
           setIsSelected(!isSelected);
@@ -517,7 +506,6 @@ const SchemaList: React.FC<SchemaListProps> = (props) => {
   const {
     schemas,
     schemasResolved,
-    schemaPath,
     depth,
     defaultSchema,
     defaultDatabase,
@@ -528,12 +516,11 @@ const SchemaList: React.FC<SchemaListProps> = (props) => {
     searchValue,
   } = props;
   const { addSchemaList } = useDataSourceActions();
+  const schemaPath = useDeepCompareMemoize(props.schemaPath);
 
   // Custom loading state, we need to wait for the data to propagate once requested
   // useAsyncData's loading state may return false before data has propagated
   const [schemasLoading, setSchemasLoading] = React.useState(false);
-  // Stable, collision-free key for the effect deps (names may contain dots).
-  const schemaPathKey = JSON.stringify(schemaPath);
 
   const { isPending, error } = useAsyncData(async () => {
     if (!schemasResolved && engineName) {
@@ -557,24 +544,20 @@ const SchemaList: React.FC<SchemaListProps> = (props) => {
         setSchemasLoading(false);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schemasResolved, engineName, databaseName, schemaPathKey]);
+  }, [schemasResolved, engineName, databaseName, schemaPath]);
 
-  const stateProps = stateIndentProps(
-    schemaHeaderIndentRem(depth),
-    INDENT.schemaLoading,
-  );
+  const stateStyle = indentStyle(schemaHeaderIndentRem(depth));
 
   if (isPending || schemasLoading) {
-    return <LoadingState message="Loading schemas..." {...stateProps} />;
+    return <LoadingState message="Loading schemas..." style={stateStyle} />;
   }
 
   if (error) {
-    return <ErrorState error={error} {...stateProps} />;
+    return <ErrorState error={error} style={stateStyle} />;
   }
 
   if (schemas.length === 0) {
-    return <EmptyState content="No schemas available" {...stateProps} />;
+    return <EmptyState content="No schemas available" style={stateStyle} />;
   }
 
   const context: SchemaListContext = {
@@ -722,7 +705,7 @@ const TableList: React.FC<{
   // a request is issued on mount (i.e. when the parent is expanded).
   tablesResolved?: boolean;
   // Depth-based indentation (rem) for nested schema tables/columns. When
-  // omitted, the fixed INDENT classes are used (top-level / schemaless tables).
+  // omitted, the fixed INDENT levels are used (top-level / schemaless tables).
   tableIndentRem?: number;
   columnIndentRem?: number;
 }> = ({
@@ -766,18 +749,18 @@ const TableList: React.FC<{
     }
   }, [tablesResolved, sqlTableContext]);
 
-  const stateProps = stateIndentProps(tableIndentRem, INDENT.tableLoading);
+  const stateStyle = indentStyle(tableIndentRem ?? INDENT.tableLoading);
 
   if (isPending || tablesLoading) {
-    return <LoadingState message="Loading tables..." {...stateProps} />;
+    return <LoadingState message="Loading tables..." style={stateStyle} />;
   }
 
   if (error) {
-    return <ErrorState error={error} {...stateProps} />;
+    return <ErrorState error={error} style={stateStyle} />;
   }
 
   if (tables.length === 0) {
-    return <EmptyState content="No tables found" {...stateProps} />;
+    return <EmptyState content="No tables found" style={stateStyle} />;
   }
 
   const filteredTables = tables.filter((table) => {
@@ -910,20 +893,20 @@ const DatasetTableItem: React.FC<{
   };
 
   const renderColumns = () => {
-    const stateProps = stateIndentProps(columnIndentRem, INDENT.tableLoading);
+    const stateStyle = indentStyle(columnIndentRem ?? INDENT.tableLoading);
 
     if (isPending || isFetching) {
-      return <LoadingState message="Loading columns..." {...stateProps} />;
+      return <LoadingState message="Loading columns..." style={stateStyle} />;
     }
 
     if (error) {
-      return <ErrorState error={error} {...stateProps} />;
+      return <ErrorState error={error} style={stateStyle} />;
     }
 
     const columns = table.columns;
 
     if (columns.length === 0) {
-      return <EmptyState content="No columns found" {...stateProps} />;
+      return <EmptyState content="No columns found" style={stateStyle} />;
     }
 
     return columns.map((column) => (
@@ -953,25 +936,22 @@ const DatasetTableItem: React.FC<{
 
   const uniqueId = tableUniqueId(sqlTableContext, table.name);
 
-  // Use depth-based indentation for nested schema tables; otherwise fall
-  // back to the fixed schemaless / with-schema classes.
-  const useInlineIndent = tableIndentRem != null;
+  const tableRem =
+    tableIndentRem ??
+    (sqlTableContext
+      ? isSchemaless(sqlTableContext.schema)
+        ? INDENT.tableSchemaless
+        : INDENT.tableWithSchema
+      : 0);
 
   return (
     <>
       <CommandItem
         className={cn(
           "rounded-none group h-8 cursor-pointer",
-          !useInlineIndent &&
-            sqlTableContext &&
-            (isSchemaless(sqlTableContext.schema)
-              ? INDENT.tableSchemaless
-              : INDENT.tableWithSchema),
           (isExpanded || isSearching) && "font-semibold",
         )}
-        style={
-          useInlineIndent ? { paddingLeft: `${tableIndentRem}rem` } : undefined
-        }
+        style={indentStyle(tableRem)}
         value={uniqueId}
         aria-selected={isExpanded}
         forceMount={true}
@@ -1062,16 +1042,11 @@ const DatasetColumnItem: React.FC<{
         onSelect={() => setIsExpanded(!isExpanded)}
       >
         <div
-          className={cn(
-            "flex flex-row gap-2 items-center flex-1",
-            columnIndentRem == null &&
+          className="flex flex-row gap-2 items-center flex-1"
+          style={indentStyle(
+            columnIndentRem ??
               (sqlTableContext ? INDENT.columnSql : INDENT.columnLocal),
           )}
-          style={
-            columnIndentRem == null
-              ? undefined
-              : { paddingLeft: `${columnIndentRem}rem` }
-          }
         >
           <ColumnName columnName={columnText} dataType={column.type} />
           {isPrimaryKey &&
@@ -1098,10 +1073,8 @@ const DatasetColumnItem: React.FC<{
       </CommandItem>
       {isExpanded && (
         <div
-          className={cn(
-            INDENT.columnPreview,
-            "pr-2 py-2 bg-(--slate-1) shadow-inner border-b",
-          )}
+          className="pr-2 py-2 bg-(--slate-1) shadow-inner border-b"
+          style={indentStyle(INDENT.columnPreview)}
         >
           <ErrorBoundary>
             <DatasetColumnPreview
