@@ -71,6 +71,15 @@ export class CellNotInitializedError extends Error {
   }
 }
 
+export class FunctionNotFoundError extends Error {
+  constructor(
+    message = "This UI element could not reach its function on the kernel. Try re-running the cell.",
+  ) {
+    super(message);
+    this.name = "FunctionNotFoundError";
+  }
+}
+
 export class NoKernelConnectedError extends Error {
   constructor(message = "Not yet connected to a kernel.") {
     super(message);
