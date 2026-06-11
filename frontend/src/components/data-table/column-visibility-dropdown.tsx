@@ -25,6 +25,7 @@ import {
 import { useSelectList } from "@/components/ui/select-core";
 import type { DataType } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
+import { Events } from "@/utils/events";
 import { smartMatchFilter } from "@/utils/smartMatch";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
 import { INDEX_COLUMN_NAME, SELECT_COLUMN_ID } from "./types";
@@ -85,6 +86,7 @@ export const ColumnVisibilityDropdown = <TData,>({
           variant="text"
           size="xs"
           data-testid="column-visibility-trigger"
+          onMouseDown={Events.preventFocus}
           className={cn(
             "print:hidden text-xs gap-1",
             list.open ? "text-primary" : "text-muted-foreground",
@@ -144,7 +146,12 @@ export const ColumnVisibilityDropdown = <TData,>({
                       />
                     )}
                     {!option.disabled && (
-                      <span className="ml-auto text-muted-foreground">
+                      <span
+                        className={cn(
+                          "ml-auto",
+                          hidden ? "text-primary" : "text-muted-foreground",
+                        )}
+                      >
                         {hidden ? (
                           <EyeOffIcon className="w-3 h-3" />
                         ) : (
