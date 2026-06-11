@@ -166,7 +166,7 @@ class SequentialScheduler:
         """
         if self._interrupted:
             coro.close()
-            raise asyncio.CancelledError
+            raise asyncio.CancelledError()
         task = asyncio.ensure_future(coro)
         self._register_task(cell_id, task)
         if self._interrupted:
