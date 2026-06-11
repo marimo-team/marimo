@@ -39,7 +39,9 @@ async def emit(label):
                     ),
                 ]
             )
-            await asyncio.sleep(0.05)
+            task = kernel.globals["task"]
+            assert isinstance(task, asyncio.Task)
+            await asyncio.wait_for(task, timeout=1)
 
         asyncio.run(run_cells())
         return session.stdout.messages, session.stderr.messages
