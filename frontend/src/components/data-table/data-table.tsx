@@ -414,7 +414,6 @@ const DataTableInternal = <TData,>({
               getRowIds={getRowIds}
               showPageSizeSelector={showPageSizeSelector}
               tableLoading={reloading}
-              togglePanel={togglePanel}
             />
           </div>
         </CellSelectionProvider>
