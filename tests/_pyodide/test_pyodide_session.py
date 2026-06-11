@@ -355,7 +355,15 @@ async def test_strip_version_resilience(
         ),
         (
             'dependencies = ["package[extra]>=1.0; sys_platform==\\"linux\\""]',
-            ["package[extra]"],
+            [],
+        ),
+        (
+            'dependencies = ["native>=1.0; sys_platform!=\\"emscripten\\"", "pure-python>=1.0"]',
+            ["pure-python"],
+        ),
+        (
+            'dependencies = ["wasm-only; sys_platform==\\"emscripten\\"", "linux-only; sys_platform==\\"linux\\""]',
+            ["wasm-only"],
         ),
         # URL dependencies - left as-is
         (

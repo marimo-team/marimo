@@ -6,8 +6,12 @@ import pytest
 
 from marimo._runtime.packages.utils import (
     append_version,
+    filter_requirements_for_emscripten,
     is_python_isolated,
+    marker_environment_for_platform,
+    requirement_applies,
     split_packages,
+    strip_requirement_name,
 )
 
 
@@ -119,3 +123,89 @@ def test_split_packages() -> None:
         "foo==1.0; python_version=='3.7.*'",
         "bar==2.0; implementation_name=='cpython'",
     ]
+
+
+def test_strip_requirement_name() -> None:
+    assert strip_requirement_name("package==1.0.0") == "package"
+    assert strip_requirement_name("package[extra]>=1.0") == "package[extra]"
+    assert (
+        strip_requirement_name("package>=1.0; python_version>='3.8'")
+        == "package"
+    )
+    assert (
+        strip_requirement_name("package @ https://github.com/user/repo.git")
+        == "package @ https://github.com/user/repo.git"
+    )
+
+
+def test_requirement_applies_emscripten_markers() -> None:
+    emscripten_env = marker_environment_for_platform("emscripten")
+
+    assert (
+        requirement_applies(
+            "torch>=2.0; sys_platform != 'emscripten'",
+            marker_environment=emscripten_env,
+        )
+        is False
+    )
+    assert (
+        requirement_applies(
+            "pyodide-http; sys_platform == 'emscripten'",
+            marker_environment=emscripten_env,
+        )
+        is True
+    )
+    assert (
+        requirement_applies(
+            "pandas>=2.0; sys_platform == 'linux'",
+            marker_environment=emscripten_env,
+        )
+        is False
+    )
+    assert requirement_applies("pandas>=2.0") is True
+
+
+def test_filter_requirements_for_emscripten() -> None:
+    deps = [
+        "pandas>=2.0",
+        "torch>=2.0; sys_platform != 'emscripten'",
+        "pyodide-http; sys_platform == 'emscripten'",
+        "jax; sys_platform == 'linux'",
+    ]
+    assert filter_requirements_for_emscripten(deps) == [
+        "pandas>=2.0",
+        "pyodide-http; sys_platform == 'emscripten'",
+    ]
+
+
+def test_filter_requirements_for_emscripten_combined_markers() -> None:
+    """Combined PEP 508 markers (and) are evaluated on Emscripten."""
+    deps = [
+        "native; sys_platform != 'emscripten' and python_version >= '3.10'",
+        "wasm-only; sys_platform == 'emscripten' and python_version >= '3.10'",
+    ]
+    assert filter_requirements_for_emscripten(deps) == [
+        "wasm-only; sys_platform == 'emscripten' and python_version >= '3.10'",
+    ]
+
+
+def test_strip_requirement_name_url_and_vcs() -> None:
+    assert (
+        strip_requirement_name(
+            "pkg @ git+https://github.com/user/repo.git@main"
+        )
+        == "pkg @ git+https://github.com/user/repo.git@main"
+    )
+    assert (
+        strip_requirement_name("pkg @ file:///path/to/pkg")
+        == "pkg @ file:///path/to/pkg"
+    )
+    assert (
+        strip_requirement_name("pkg[extra1,extra2]===1.0.0")
+        == "pkg[extra1,extra2]"
+    )
+
+
+def test_marker_environment_for_platform_overrides_sys_platform() -> None:
+    env = marker_environment_for_platform("emscripten")
+    assert env["sys_platform"] == "emscripten"

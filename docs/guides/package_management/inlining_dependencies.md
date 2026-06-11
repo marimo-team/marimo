@@ -181,6 +181,42 @@ In this example:
 
 This approach ensures that specific packages are always fetched from your designated custom index, while other packages continue to be fetched from the default PyPI repository.
 
+### Platform-specific dependencies (PEP 508) { #platform-specific-dependencies-pep-508 }
+
+When a notebook runs both locally and as a [WebAssembly notebook](../wasm.md),
+you can attach [PEP 508](https://peps.python.org/pep-0508/) environment markers
+to individual dependencies. On Pyodide, `sys.platform` is `"emscripten"`.
+
+```python
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "pandas==<version>",
+#     "torch==<version>; sys_platform != 'emscripten'",
+#     "pyodide-http; sys_platform == 'emscripten'",
+# ]
+# ///
+```
+
+- `sys_platform != 'emscripten'` — install locally, skip in the browser.
+- `sys_platform == 'emscripten'` — install only for WebAssembly / Pyodide.
+
+uv evaluates these markers in sandboxes. marimo also respects them when
+pre-installing packages in WASM, when [exporting to WASM
+HTML](../exporting/webassembly_html.md), and in the MW003 lint rule for
+incompatible packages.
+
+Combine markers with `and` when needed:
+
+```python
+# dependencies = [
+#     "pyzmq>=27.1.0; python_version < '3.15' and sys_platform != 'emscripten'",
+# ]
+```
+
+For package authors publishing WASM wheels, see [PEP
+783](https://peps.python.org/pep-0783/) (`pyemscripten_*_wasm32` tags).
+
 ## Configuration
 
 Running marimo in a sandbox environment uses `uv` to create an isolated virtual

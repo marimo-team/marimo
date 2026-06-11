@@ -32,6 +32,24 @@ def test_get_optional_modules_list():
     assert isinstance(get_optional_modules_list(), dict)
 
 
+def test_get_required_modules_list_excludes_psutil_on_emscripten() -> None:
+    with patch(
+        "marimo._utils.health.is_pyodide",
+        return_value=True,
+    ):
+        modules = get_required_modules_list()
+    assert "psutil" not in modules
+
+
+def test_get_optional_modules_list_excludes_loro_on_emscripten() -> None:
+    with patch(
+        "marimo._utils.health.is_pyodide",
+        return_value=True,
+    ):
+        modules = get_optional_modules_list()
+    assert "loro" not in modules
+
+
 def test_get_versions():
     assert isinstance(_get_versions([], False), dict)
 
