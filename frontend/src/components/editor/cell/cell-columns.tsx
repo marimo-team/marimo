@@ -12,8 +12,7 @@ import type { CellOutputPosition } from "../renderers/types";
  * The editor's share of the row is held in a single CSS custom property on the
  * document root, shared by every cell. This keeps the value out of React state,
  * so dragging the resizer re-renders nothing — all cells stay in sync by
- * reading the same variable — and the chosen split is persisted to localStorage
- * so it survives reloads.
+ * reading the same variable. Local storage to persist the user's split preference.
  */
 
 const SPLIT_VAR = "--marimo-cell-columns-split";

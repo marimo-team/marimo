@@ -106,7 +106,7 @@ function cellFocusDetails(cellId: CellId, notebookState: NotebookState) {
   if (!data || !handle) {
     return null;
   }
-  const getEditorView = () => handle.editorViewOrNull;
+  const getEditorView = () => handle.editorView;
 
   return {
     cellId,

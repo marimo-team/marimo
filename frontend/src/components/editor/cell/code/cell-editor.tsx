@@ -438,15 +438,6 @@ const CellEditorInternal = ({
     extensions,
   ]);
 
-  // NOTE: the editor view is intentionally NOT destroyed here. This component
-  // can unmount and remount while the cell is still alive — e.g. when the cell
-  // layout switches between stacked and side-by-side, which reparents this
-  // subtree. Destroying the view on every such unmount tears down CodeMirror
-  // mid-flight (and leaves a dangling, dispatched-to view), which manifests as
-  // a blank editor. The view's lifetime is owned by the parent cell component,
-  // which destroys it when the cell itself is removed; on remount we reuse and
-  // reconfigure the existing view (see the init effect above).
-
   const navigationProps = useCellEditorNavigationProps(cellId, editorViewRef);
 
   let editorClassName = "";

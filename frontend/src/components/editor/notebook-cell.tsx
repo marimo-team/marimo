@@ -30,7 +30,6 @@ import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { useIsPendingCut } from "@/core/cells/pending-cut-service";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { CSSClasses } from "@/core/constants";
 import { canCollapseOutline } from "@/core/dom/outline";
@@ -94,10 +93,6 @@ import {
 import { type OnRefactorWithAI, OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/console/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
-
-// Stateless detector for whether a cell's code is markdown. Used to decide the
-// cell layout synchronously, before the editor mounts and reports its language.
-const markdownLanguageAdapter = new MarkdownLanguageAdapter();
 
 /**
  * Hook for handling cell completion logic
@@ -274,19 +269,22 @@ export interface CellProps {
 }
 
 /**
- * Stacked and side-by-side layouts need the editor in structurally different
- * DOM positions. Switching layout therefore reparents the editor subtree, which unmounts and remounts
- * `CellEditor`. The view is an expensive imperative resource whose DOM is
- * re-attached on remount, so `CellEditor` intentionally does not destroy it.
- * Instead the edit-mode cell owns it: we destroy it only when the cell stops
- * being editable (removed, or switched to read-only / present mode) and null
- * the ref so a fresh view is built if we return to edit mode.
+ * Owns destroying the `EditorView` when the cell unmounts.
+ *
+ * The view is an expensive imperative resource, so its lifetime is tied to the
+ * cell rather than to `CellEditor`. `CellEditor` remounts whenever the layout
+ * toggles between stacked and side-by-side (each needs the editor in a
+ * structurally different DOM position: stacked relies on the cell's `divide-y`
+ * separators, corner rounding, and column resizer keeping editor/output as
+ * direct children, while side-by-side nests them in a flex row), and the view's
+ * DOM is re-attached on each remount. So `CellEditor` deliberately does not
+ * destroy the view; this hook does, once, when the cell itself goes away.
  */
 function useEditorViewLifetime(editorView: React.RefObject<EditorView | null>) {
   useEffect(() => {
+    const view = editorView.current;
     return () => {
-      editorView.current?.destroy();
-      editorView.current = null;
+      view?.destroy();
     };
   }, [editorView]);
 }
@@ -484,22 +482,12 @@ const EditableCellComponent = ({
   const isStaleCell = outputIsStale(cellRuntime, cellData.edited);
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
   const configuredCellOutput = userConfig.display.cell_output;
-  // Detect markdown from the cell's code rather than the editor's language
-  // adapter. LanguageAdapter may be undefined until CodeMirror mounts and reports its language.
-  const isMarkdownByCode = useMemo(
-    // An empty cell is "supported" markdown, but it defaults to Python in the
-    // editor, so don't treat blank cells as markdown here.
-    () =>
-      cellData.code.trim() !== "" &&
-      markdownLanguageAdapter.isSupported(cellData.code),
-    [cellData.code],
-  );
-  const isMarkdownCell = isMarkdown || isMarkdownByCode;
+
   // Side-by-side doesn't make sense for markdown cells: the output is just the
   // rendered source, so a split view is redundant. Fall back to the stacked
   // "below" layout (editor on top, rendered preview underneath).
   const cellOutput =
-    isMarkdownCell &&
+    isMarkdown &&
     (configuredCellOutput === "left" || configuredCellOutput === "right")
       ? "below"
       : configuredCellOutput;
