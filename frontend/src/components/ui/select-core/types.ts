@@ -14,13 +14,12 @@ export interface Option<V = string> {
 
 /**
  * Live state of an option, passed to `renderOption` so custom rows can reflect
- * selection and keyboard focus.
+ * selection. Keyboard highlight is exposed on the row element as
+ * `aria-selected` / `data-selected`, so custom rows style it via CSS.
  */
 export interface OptionState {
   /** Whether the option is currently selected. */
   checked: boolean;
-  /** Whether the option is the keyboard-highlighted row. */
-  active: boolean;
 }
 
 /**

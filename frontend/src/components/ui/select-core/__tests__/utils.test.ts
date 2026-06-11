@@ -187,4 +187,36 @@ describe("getBulkActions", () => {
       }),
     ).toEqual([{ kind: "deselect-matching", items: ["a"].map(opt) }]);
   });
+
+  it("idle: select-all is disabled when only disabled options remain unselected", () => {
+    const options = [opt("a"), { value: "b", label: "b", disabled: true }];
+    expect(
+      getBulkActions({
+        ...bulkBase,
+        options: [...options, opt("c")],
+        value: ["a", "c"],
+        filteredOptions: [...options, opt("c")],
+      }),
+    ).toEqual([
+      { kind: "select-all", enabled: false },
+      { kind: "deselect-all", enabled: true },
+    ]);
+  });
+
+  it("searching: select-matching omits disabled matches", () => {
+    const filteredOptions = [
+      opt("a"),
+      { value: "b", label: "b", disabled: true },
+      opt("c"),
+    ];
+    expect(
+      getBulkActions({
+        ...bulkBase,
+        options: filteredOptions,
+        value: [],
+        searchQuery: "x",
+        filteredOptions,
+      }),
+    ).toEqual([{ kind: "select-matching", items: ["a", "c"].map(opt) }]);
+  });
 });

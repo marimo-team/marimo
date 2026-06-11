@@ -10,6 +10,7 @@ import {
   selectMatching,
 } from "./utils";
 
+/** cmdk-style relevance score for `(label, query)`; any positive score matches. */
 type FilterFn = (label: string, query: string) => number;
 
 interface UseSelectListParams<V> {
@@ -73,7 +74,7 @@ function useSearch<V>({ options, filterFn }: SearchParams<V>): {
     if (!searchQuery) {
       return options;
     }
-    return options.filter((o) => filterFn(o.label, searchQuery) === 1);
+    return options.filter((o) => filterFn(o.label, searchQuery) > 0);
   }, [options, searchQuery, filterFn]);
   return { searchQuery, setSearchQuery, filteredOptions };
 }
@@ -213,7 +214,13 @@ function useBulk<V>({
         case "select-all":
           return {
             ...spec,
-            run: () => onChange(options.map((o) => o.value)),
+            run: () =>
+              onChange(
+                selectMatching(
+                  asArray(value),
+                  options.filter((o) => !o.disabled).map((o) => o.value),
+                ),
+              ),
           };
         case "deselect-all":
           return { ...spec, run: () => onChange([]) };

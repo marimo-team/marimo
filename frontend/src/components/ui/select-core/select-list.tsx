@@ -164,7 +164,6 @@ export function SelectList<V>(props: SelectListProps<V>): React.JSX.Element {
                 <OptionRow
                   option={option}
                   checked={list.isChecked(option.value)}
-                  active={false}
                   renderOption={renderOption}
                 />
               </>
@@ -181,7 +180,6 @@ export function SelectList<V>(props: SelectListProps<V>): React.JSX.Element {
           key={String(option.value)}
           option={option}
           checked={list.isChecked(option.value)}
-          active={false}
           renderOption={renderOption}
         />
       );
@@ -208,25 +206,41 @@ export function SelectList<V>(props: SelectListProps<V>): React.JSX.Element {
     return <CompactChipRow items={items.map(list.labelOf)} max={3} />;
   };
 
-  return (
+  // Props shared by both branches. `multiple`/`value`/`onValueChange` are the
+  // Combobox's discriminant trio, so they're set per-branch below with the
+  // literal `multiple` that matches each value/handler shape.
+  const comboboxProps = {
+    "data-slot": "select-root",
+    "data-testid": props["data-testid"],
+    displayValue: (option: V) => list.labelOf(option),
+    renderValue: compactChipTrigger ? renderTriggerValue : undefined,
+    placeholder,
+    className: cn({ "w-full": fullWidth }, className),
+    shouldFilter: false as const,
+    search: list.searchQuery,
+    onSearchChange: list.setSearchQuery,
+    open: list.open,
+    onOpenChange: list.setOpen,
+    emptyState: renderSlot(renderEmpty),
+    disabled,
+    id,
+  };
+
+  return multiple ? (
     <Combobox<V>
-      data-slot="select-root"
-      displayValue={(option) => list.labelOf(option)}
-      renderValue={compactChipTrigger ? renderTriggerValue : undefined}
-      placeholder={placeholder}
-      multiple={multiple as true}
-      className={cn({ "w-full": fullWidth }, className)}
-      value={value as V[]}
-      onValueChange={(next: V[] | null) => handleComboChange(next)}
-      shouldFilter={false}
-      search={list.searchQuery}
-      onSearchChange={list.setSearchQuery}
-      open={list.open}
-      onOpenChange={list.setOpen}
-      emptyState={renderSlot(renderEmpty)}
-      disabled={disabled}
-      id={id}
-      data-testid={props["data-testid"]}
+      {...comboboxProps}
+      multiple={true}
+      value={value as V[] | null}
+      onValueChange={handleComboChange}
+    >
+      {renderItems()}
+    </Combobox>
+  ) : (
+    <Combobox<V>
+      {...comboboxProps}
+      multiple={false}
+      value={value as V | null}
+      onValueChange={handleComboChange}
     >
       {renderItems()}
     </Combobox>

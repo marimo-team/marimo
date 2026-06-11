@@ -93,9 +93,12 @@ export function getBulkActions<V>(params: {
     const selectedMatches: Array<Option<V>> = [];
     const unselectedMatches: Array<Option<V>> = [];
     for (const option of filteredOptions) {
-      (selected.has(option.value) ? selectedMatches : unselectedMatches).push(
-        option,
-      );
+      if (selected.has(option.value)) {
+        selectedMatches.push(option);
+      } else if (!option.disabled) {
+        // Disabled rows can't be picked individually, so bulk select skips them too.
+        unselectedMatches.push(option);
+      }
     }
     if (!capped && unselectedMatches.length > 0) {
       specs.push({ kind: "select-matching", items: unselectedMatches });
@@ -107,9 +110,10 @@ export function getBulkActions<V>(params: {
   }
 
   if (!capped) {
+    const selected = new Set(value);
     specs.push({
       kind: "select-all",
-      enabled: value.length < options.length,
+      enabled: options.some((o) => !o.disabled && !selected.has(o.value)),
     });
   }
   specs.push({ kind: "deselect-all", enabled: value.length > 0 });

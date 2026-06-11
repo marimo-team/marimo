@@ -70,6 +70,7 @@ export const Multiselect = ({
   return (
     <Labeled label={label} id={id} fullWidth={fullWidth}>
       <SelectList<string>
+        id={id}
         options={items}
         value={value}
         onChange={(next: string[] | string | null) =>

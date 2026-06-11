@@ -6,24 +6,26 @@ import type { Option, OptionState } from "./types";
 interface OptionRowProps<V> {
   option: Option<V>;
   checked: boolean;
-  active: boolean;
   renderOption?: (option: Option<V>, state: OptionState) => React.ReactNode;
 }
 
 function OptionRowImpl<V>({
   option,
   checked,
-  active,
   renderOption,
 }: OptionRowProps<V>): React.JSX.Element {
   return (
     <ComboboxItem
       data-slot="select-option"
       data-checked={checked || undefined}
-      value={option.label}
+      // Selection identity, not the display string: the Combobox tracks
+      // `isSelected`/`onSelect` by this value and echoes it back through
+      // `onValueChange`. The cast bridges the unconstrained option type to
+      // ComboboxItem's stringifiable-value bound.
+      value={option.value as string | number}
       disabled={option.disabled}
     >
-      {renderOption ? renderOption(option, { checked, active }) : option.label}
+      {renderOption ? renderOption(option, { checked }) : option.label}
     </ComboboxItem>
   );
 }

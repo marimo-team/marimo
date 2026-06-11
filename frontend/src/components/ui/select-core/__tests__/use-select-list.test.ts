@@ -35,6 +35,20 @@ describe("useSelectList - search", () => {
     );
     expect(result.current.visibleOptions).toHaveLength(3);
   });
+
+  it("keeps options for any positive filter score, not just 1", () => {
+    const { result } = renderHook(() =>
+      useSelectList({
+        options: opts,
+        value: [],
+        onChange: vi.fn(),
+        multiple: true,
+        filterFn: (label) => (label === "apple" ? 0.5 : 0),
+      }),
+    );
+    act(() => result.current.setSearchQuery("anything"));
+    expect(result.current.visibleOptions.map((o) => o.value)).toEqual(["a"]);
+  });
 });
 
 describe("useSelectList - multi toggle", () => {
@@ -220,6 +234,25 @@ describe("useSelectList - bulk", () => {
     onChange.mockClear();
     act(() => findAction(result.current.bulkActions, "deselect-all")?.run());
     expect(onChange).toHaveBeenCalledWith([]);
+  });
+
+  it("idle: select-all skips disabled options and keeps the existing selection", () => {
+    const onChange = vi.fn();
+    const withDisabled: Array<Option<string>> = [
+      { value: "a", label: "apple" },
+      { value: "b", label: "banana", disabled: true },
+      { value: "c", label: "cherry" },
+    ];
+    const { result } = renderHook(() =>
+      useSelectList({
+        options: withDisabled,
+        value: ["c"],
+        onChange,
+        multiple: true,
+      }),
+    );
+    act(() => findAction(result.current.bulkActions, "select-all")?.run());
+    expect(onChange).toHaveBeenCalledWith(["c", "a"]);
   });
 
   it("searching: select-matching acts only on the matches (additive)", () => {
