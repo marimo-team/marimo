@@ -40,6 +40,100 @@ def _setup_test_sleep():
 # these tests use random filenames for modules because they share
 # the same sys.modules object, and each test needs fresh modules
 @pytest.mark.flaky(reruns=3)
+async def test_reload_enum_across_dependent_modules(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+):
+    """Reloading an Enum module must not break comparisons in dependents.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/9808
+    """
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    enums_name = f"{py_modname}_enums"
+    utils_name = f"{py_modname}_utils"
+    enums_file = tmp_path / f"{enums_name}.py"
+    utils_file = tmp_path / f"{utils_name}.py"
+
+    enums_file.write_text(
+        textwrap.dedent(
+            """
+            from enum import Enum
+
+            class Fruits(Enum):
+                APPLE = "apple"
+                BANANA = "banana"
+                ORANGE = "orange"
+
+            class A:
+                a = "A"
+            """
+        )
+    )
+    utils_file.write_text(
+        textwrap.dedent(
+            f"""
+            from {enums_name} import Fruits
+
+            def is_orange(fruit: Fruits):
+                return fruit == Fruits.ORANGE
+            """
+        )
+    )
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run(
+        [
+            er_1 := exec_req.get(
+                f"from {enums_name} import Fruits; "
+                f"from {utils_name} import is_orange"
+            ),
+            er_2 := exec_req.get("result = is_orange(Fruits.ORANGE)"),
+            er_3 := exec_req.get("pass"),
+        ]
+    )
+    assert k.globals["result"] is True
+
+    update_file(
+        enums_file,
+        """
+        from enum import Enum
+
+        class Fruits(Enum):
+            APPLE = "apple"
+            BANANA = "banana"
+            ORANGE = "orange"
+
+        class A:
+            a = "B"
+        """,
+    )
+
+    retries = 0
+    while retries < 10:
+        await asyncio.sleep(INTERVAL)
+        retries += 1
+        if (
+            k.graph.cells[er_1.cell_id].stale
+            and k.graph.cells[er_2.cell_id].stale
+        ):
+            break
+
+    assert k.graph.cells[er_1.cell_id].stale
+    assert k.graph.cells[er_2.cell_id].stale
+    assert not k.graph.cells[er_3.cell_id].stale
+    await k.run_stale_cells()
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+    assert not k.graph.cells[er_3.cell_id].stale
+    assert k.globals["result"] is True
+
+
+@pytest.mark.flaky(reruns=3)
 async def test_reload_function(
     tmp_path: pathlib.Path,
     py_modname: str,
