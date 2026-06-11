@@ -87,7 +87,11 @@ function updateSchemaAtPath(
     }
     return {
       ...schema,
-      schemas: updateSchemaAtPath(schema.schemas ?? [], rest, update),
+      child_schemas: updateSchemaAtPath(
+        schema.child_schemas ?? [],
+        rest,
+        update,
+      ),
     };
   });
 }
@@ -222,8 +226,8 @@ const {
           ...db,
           schemas: updateSchemaAtPath(db.schemas, schemaPath, (schema) => ({
             ...schema,
-            schemas: schemas,
-            schemas_resolved: true,
+            child_schemas: schemas,
+            child_schemas_resolved: true,
           })),
         };
       }),
@@ -426,7 +430,7 @@ export const allTablesAtom = atom((get) => {
         }
 
         // Recurse into nested child namespaces. Children are always named.
-        for (const child of schema.schemas ?? []) {
+        for (const child of schema.child_schemas ?? []) {
           walkSchema(child, [...segments, child.name]);
         }
       };

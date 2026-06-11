@@ -4554,21 +4554,21 @@ components:
         \ such as Iceberg (`top.nested.deep`).\n\nAttributes:\n    name (str): The\
         \ name of the schema.\n    tables (List[DataTable]): Tables in this schema.\n\
         \    tables_resolved (bool): True when `tables` has been enumerated\n    \
-        \    False when table discovery was deferred. Defaults to True\n    schemas\
-        \ (List[Schema]): Nested child schemas (sub-namespaces).\n    schemas_resolved\
-        \ (bool): True when `schemas` has been enumerated.\n        False when child-schema\
+        \    False when table discovery was deferred. Defaults to True\n    child_schemas\
+        \ (List[Schema]): Nested child schemas (sub-namespaces).\n    child_schemas_resolved\
+        \ (bool): True when `child_schemas` has been\n        enumerated. False when\
         \ discovery was deferred. Defaults to True"
       properties:
-        name:
-          type: string
-        schemas:
+        child_schemas:
           default: []
           items:
             $ref: '#/components/schemas/Schema'
           type: array
-        schemas_resolved:
+        child_schemas_resolved:
           default: true
           type: boolean
+        name:
+          type: string
         tables:
           items:
             $ref: '#/components/schemas/DataTable'
