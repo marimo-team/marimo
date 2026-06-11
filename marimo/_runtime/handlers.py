@@ -33,11 +33,13 @@ def construct_interrupt_handler() -> Callable[[int, Any], None]:
         if not isinstance(ctx, KernelRuntimeContext):
             return
 
-        # `execution_context` is a per-task ContextVar — unreadable from
-        # this thread while user tasks are suspended in `select()`. The
-        # scheduler publication is the authoritative "is a run in flight"
-        # signal; `execution_context` is opportunistic (only used for
-        # the duckdb hook below).
+        # `execution_context` is a plain attribute set only for the
+        # duration of a single cell's body via `with_cell_id` (see
+        # `kernel_context.py`); between cells, and around the scheduler's
+        # own bookkeeping, it is `None`. The scheduler publication is the
+        # authoritative "is a run in flight" signal that spans the whole
+        # run; `execution_context` is opportunistic (only used for the
+        # duckdb hook below).
         sched = ctx.active_scheduler
         exec_ctx = ctx.execution_context
         if sched is None and exec_ctx is None:

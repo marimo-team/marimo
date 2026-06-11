@@ -27,7 +27,6 @@ from collections import deque
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, Protocol
 
-from marimo import _loggers
 from marimo._runtime import dataflow
 from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.runner.hook_context import CancelledCells
@@ -47,8 +46,6 @@ if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runner.result import RunResult
     from marimo._types.ids import CellId_t
-
-LOGGER = _loggers.marimo_logger()
 
 
 class Scheduler(Protocol):

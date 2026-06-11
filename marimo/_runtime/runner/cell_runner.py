@@ -726,15 +726,21 @@ class Runner:
     ) -> None:
         """Filter the queue then run each runnable cell.
 
-        Prescan iterates a snapshot of `_cells_to_run` and *removes*
-        filtered cells (cancelled/disabled) from the queue in place.
-        The live queue therefore always represents "cells still to
-        run" — a SIGINT mid-prescan leaves on_finish_hooks with the
-        correct remaining set (no spurious interrupted for filtered
-        cells, and the cell currently being filtered stays visible).
+        Prescan iterates a snapshot of `_cells_to_run`, classifies each
+        cell, and rebuilds the queue once with only the runnable cells
+        (plus the unprocessed tail if a SIGINT lands mid-prescan). The
+        live queue therefore always represents "cells still to run" — no
+        spurious interrupted entries for filtered cells, and the cell
+        being classified when an interrupt lands stays visible. Rebuilding
+        in a single `requeue()` avoids the O(n^2) cost of removing each
+        filtered cell from the deque one at a time.
         """
-        for cell_id in list(self._scheduler.cells_to_run):
+        snapshot = list(self._scheduler.cells_to_run)
+        runnable: list[CellId_t] = []
+        interrupted_at: int | None = None
+        for index, cell_id in enumerate(snapshot):
             if self._scheduler.interrupted:
+                interrupted_at = index
                 break
             LOGGER.debug("Cell runner processing %s", cell_id)
             cell = self.graph.cells[cell_id]
@@ -772,21 +778,25 @@ class Runner:
                 LOGGER.debug("%s cancelled", cell_id)
                 cell.set_run_result_status("cancelled")
                 cell.set_runtime_state("idle")
-                self._scheduler.cells_to_run.remove(cell_id)
                 continue
             if cell.config.disabled:
                 LOGGER.debug("%s disabled", cell_id)
                 cell.set_run_result_status("disabled")
                 cell.set_runtime_state("idle")
-                self._scheduler.cells_to_run.remove(cell_id)
                 continue
             if self.graph.is_disabled(cell_id):
                 LOGGER.debug("%s disabled transitively", cell_id)
                 cell.set_run_result_status("disabled")
                 cell.set_runtime_state("disabled-transitively")
-                self._scheduler.cells_to_run.remove(cell_id)
                 continue
-            # Runnable: leave in queue for dispatch.
+            runnable.append(cell_id)
+
+        # A SIGINT mid-prescan stops classification; keep the unprocessed
+        # tail (including the cell we were about to classify) so
+        # on_finish_hooks report the correct remaining set.
+        if interrupted_at is not None:
+            runnable.extend(snapshot[interrupted_at:])
+        self._scheduler.requeue(runnable)
 
         for batch in self._scheduler.batch():
             for cell_id in batch:
