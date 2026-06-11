@@ -189,6 +189,34 @@ describe("ColumnVisibilityDropdown", () => {
     );
   });
 
+  it("hides and shows matching columns via bulk actions while searching", () => {
+    renderAndOpen();
+    fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    expect(screen.queryByText(/Show all/)).not.toBeInTheDocument();
+
+    fireEvent.click(getColumnOption("Hide 2 matching"));
+    expect(
+      getColumnOption("customer_name").querySelector(".lucide-eye-off"),
+    ).not.toBeNull();
+    expect(
+      getColumnOption("cust_age").querySelector(".lucide-eye-off"),
+    ).not.toBeNull();
+    expect(screen.queryByText(/Hide \d+ matching/)).not.toBeInTheDocument();
+
+    fireEvent.click(getColumnOption("Show 2 matching"));
+    expect(
+      getColumnOption("customer_name").querySelector(".lucide-eye-off"),
+    ).toBeNull();
+    expect(screen.queryByText(/Show \d+ matching/)).not.toBeInTheDocument();
+  });
+
+  it("offers both bulk actions when matches are mixed", () => {
+    renderAndOpen({ initiallyHidden: ["cust_age"] });
+    fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    expect(screen.getByText(/Hide 1 matching/)).toBeInTheDocument();
+    expect(screen.getByText(/Show 1 matching/)).toBeInTheDocument();
+  });
+
   it("renders non-hideable columns disabled and without an eye toggle", () => {
     renderAndOpen({ nonHideable: ["customer_name"] });
     const option = getColumnOption("customer_name");

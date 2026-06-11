@@ -22,7 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useSelectList } from "@/components/ui/select-core";
+import { type BulkAction, useSelectList } from "@/components/ui/select-core";
 import type { DataType } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
@@ -78,6 +78,17 @@ export const ColumnVisibilityDropdown = <TData,>({
     filterFn: smartMatchFilter,
     pinSelected: true,
   });
+  // With selection modeling hidden columns, select-matching hides the visible
+  // matches and deselect-matching shows the hidden ones.
+  const matchingActions = list.bulkActions.filter(
+    (
+      action,
+    ): action is Extract<
+      BulkAction<string>,
+      { kind: "select-matching" | "deselect-matching" }
+    > =>
+      action.kind === "select-matching" || action.kind === "deselect-matching",
+  );
 
   return (
     <Popover open={list.open} onOpenChange={list.setOpen}>
@@ -105,7 +116,7 @@ export const ColumnVisibilityDropdown = <TData,>({
           />
           <CommandList>
             <CommandEmpty>No results.</CommandEmpty>
-            {list.searchQuery === "" && (
+            {list.searchQuery === "" ? (
               <>
                 <CommandItem
                   value="__show_all__"
@@ -118,6 +129,28 @@ export const ColumnVisibilityDropdown = <TData,>({
                 </CommandItem>
                 <CommandSeparator />
               </>
+            ) : (
+              matchingActions.length > 0 && (
+                <>
+                  {matchingActions.map((action) => (
+                    <CommandItem
+                      key={action.kind}
+                      value={`__bulk_${action.kind}`}
+                      onSelect={action.run}
+                      className="cursor-pointer"
+                    >
+                      {action.kind === "select-matching" ? (
+                        <EyeOffIcon className="w-3 h-3 mr-1.5" />
+                      ) : (
+                        <EyeIcon className="w-3 h-3 mr-1.5" />
+                      )}
+                      {action.kind === "select-matching" ? "Hide" : "Show"}{" "}
+                      {action.items.length} matching
+                    </CommandItem>
+                  ))}
+                  <CommandSeparator />
+                </>
+              )
             )}
             {list.visibleOptions.map((option, index) => {
               const hidden = list.isChecked(option.value);
