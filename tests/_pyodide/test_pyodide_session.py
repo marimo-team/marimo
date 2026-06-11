@@ -5,6 +5,7 @@ import asyncio
 import json
 import unittest.mock
 from textwrap import dedent
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, Mock, patch
 
@@ -179,11 +180,32 @@ async def test_pyodide_kernel_teardown_runs_on_stop(
     """Stopping the kernel task must trigger teardown_kernel via the listen()
     finally block (previously absent for the pyodide path)."""
     fake_kernel = MagicMock()
-    fake_ctx = MagicMock()
+    cleanup_order: list[str] = []
+
+    class FakeLifecycleItem:
+        def dispose(self, context: Any, deletion: bool) -> bool:
+            assert context is fake_ctx
+            assert deletion is True
+            cleanup_order.append("dispose")
+            return True
+
+    lifecycle_item = FakeLifecycleItem()
+    fake_ctx = SimpleNamespace(
+        cell_lifecycle_registry=SimpleNamespace(
+            registry={"cell": {lifecycle_item}}
+        )
+    )
     teardown_calls: list[tuple[Any, Any]] = []
 
     async def block_until_cancelled(*_args: Any, **_kwargs: Any) -> None:
         await asyncio.Event().wait()
+
+    async def wait_for_wasm_runtime_work(*_args: Any, **_kwargs: Any) -> bool:
+        cleanup_order.append("wait")
+        return True
+
+    async def shutdown_wasm_runtime_work(*_args: Any, **_kwargs: Any) -> None:
+        cleanup_order.append("shutdown")
 
     with (
         patch(
@@ -196,7 +218,18 @@ async def test_pyodide_kernel_teardown_runs_on_stop(
         ),
         patch(
             "marimo._runtime.kernel_lifecycle.teardown_kernel",
-            side_effect=lambda k, c: teardown_calls.append((k, c)),
+            side_effect=lambda k, c: (
+                cleanup_order.append("teardown"),
+                teardown_calls.append((k, c)),
+            ),
+        ),
+        patch(
+            "marimo._runtime._wasm.wait_for_wasm_runtime_work_async",
+            side_effect=wait_for_wasm_runtime_work,
+        ),
+        patch(
+            "marimo._runtime._wasm.shutdown_wasm_runtime_work_async",
+            side_effect=shutdown_wasm_runtime_work,
         ),
         patch("marimo._pyodide.pyodide_session.signal"),
         patch("marimo._output.formatters.formatters.register_formatters"),
@@ -232,6 +265,86 @@ async def test_pyodide_kernel_teardown_runs_on_stop(
         except asyncio.CancelledError:
             pass
 
+    assert teardown_calls == [(fake_kernel, fake_ctx)]
+    assert cleanup_order == ["dispose", "wait", "shutdown", "teardown"]
+    assert fake_ctx.cell_lifecycle_registry.registry == {}
+
+
+async def test_pyodide_kernel_teardown_logs_wasm_shutdown_timeout(
+    pyodide_app_file: Path,
+) -> None:
+    fake_kernel = MagicMock()
+    fake_ctx = SimpleNamespace(
+        cell_lifecycle_registry=SimpleNamespace(registry={})
+    )
+    teardown_calls: list[tuple[Any, Any]] = []
+
+    async def block_until_cancelled(*_args: Any, **_kwargs: Any) -> None:
+        await asyncio.Event().wait()
+
+    async def wait_for_wasm_runtime_work(*_args: Any, **_kwargs: Any) -> bool:
+        return False
+
+    async def shutdown_wasm_runtime_work(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("WASM runtime work did not shut down in time")
+
+    with (
+        patch(
+            "marimo._runtime.kernel_lifecycle.create_kernel",
+            return_value=(fake_kernel, fake_ctx),
+        ),
+        patch(
+            "marimo._runtime.kernel_lifecycle.listen_messages",
+            side_effect=block_until_cancelled,
+        ),
+        patch(
+            "marimo._runtime.kernel_lifecycle.teardown_kernel",
+            side_effect=lambda k, c: teardown_calls.append((k, c)),
+        ),
+        patch(
+            "marimo._runtime._wasm.wait_for_wasm_runtime_work_async",
+            side_effect=wait_for_wasm_runtime_work,
+        ),
+        patch(
+            "marimo._runtime._wasm.shutdown_wasm_runtime_work_async",
+            side_effect=shutdown_wasm_runtime_work,
+        ),
+        patch("marimo._pyodide.pyodide_session.LOGGER") as logger,
+        patch("marimo._pyodide.pyodide_session.signal"),
+        patch("marimo._output.formatters.formatters.register_formatters"),
+        patch(
+            "marimo._pyodide.pyodide_session.patches.patch_pyodide_networking"
+        ),
+        patch("marimo._pyodide.pyodide_session.patches.patch_recursion_limit"),
+    ):
+        kernel_task = _launch_pyodide_kernel(
+            control_queue=asyncio.Queue(),
+            set_ui_element_queue=asyncio.Queue(),
+            completion_queue=asyncio.Queue(),
+            input_queue=asyncio.Queue(),
+            on_message=lambda _msg: None,
+            session_mode=SessionMode.EDIT,
+            configs={},
+            app_metadata=AppMetadata(
+                query_params={},
+                cli_args={},
+                app_config=_AppConfig(),
+                filename=str(pyodide_app_file),
+            ),
+            user_config=DEFAULT_CONFIG,
+        )
+        start_task = asyncio.create_task(kernel_task.start())
+        for _ in range(5):
+            await asyncio.sleep(0)
+        kernel_task.stop()
+        try:
+            await start_task
+        except asyncio.CancelledError:
+            pass
+
+    logger.exception.assert_called_with(
+        "Failed to shut down Pyodide WASM runtime work"
+    )
     assert teardown_calls == [(fake_kernel, fake_ctx)]
 
 

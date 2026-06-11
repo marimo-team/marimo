@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import os
 import subprocess
@@ -10,6 +11,8 @@ import threading
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
+
+import pytest
 
 from marimo._runtime._wasm._concurrency._install import (
     install_wasm_concurrency_shims,
@@ -98,6 +101,88 @@ def test_wasm_threading_repairs_preimported_runtime_context_storage() -> None:
         finally:
             unpatch()
             context_types.teardown_context()
+
+
+def test_wasm_threading_repairs_preimported_stream_proxy_locals() -> None:
+    from marimo._messaging.thread_local_streams import ThreadLocalStreamProxy
+    from marimo._runtime._wasm._concurrency._threading import AsyncLocal
+
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+    stdout_proxy = ThreadLocalStreamProxy(original_stdout, "<stdout>")
+    stderr_proxy = ThreadLocalStreamProxy(original_stderr, "<stderr>")
+    stdout_local = stdout_proxy._local
+    stderr_local = stderr_proxy._local
+    stdout_stream = io.StringIO()
+    stderr_stream = io.StringIO()
+    stdout_proxy._set_stream(stdout_stream)
+    stderr_proxy._set_stream(stderr_stream)
+    sys.stdout = stdout_proxy  # type: ignore[assignment]
+    sys.stderr = stderr_proxy  # type: ignore[assignment]
+
+    try:
+        with mock_pyodide():
+            _install_run_sync()
+            unpatch = install_wasm_concurrency_shims()
+            try:
+                assert isinstance(stdout_proxy._local, AsyncLocal)
+                assert isinstance(stderr_proxy._local, AsyncLocal)
+                assert stdout_proxy._get_stream() is stdout_stream
+                assert stderr_proxy._get_stream() is stderr_stream
+
+                thread_stream = io.StringIO()
+
+                def target() -> None:
+                    stdout_proxy._set_stream(thread_stream)
+                    stdout_proxy.write("worker")
+
+                thread = threading.Thread(target=target)
+                thread.start()
+                thread.join(timeout=1)
+
+                assert not thread.is_alive()
+                assert thread_stream.getvalue() == "worker"
+                assert stdout_stream.getvalue() == ""
+            finally:
+                unpatch()
+
+        assert stdout_proxy._local is stdout_local
+        assert stderr_proxy._local is stderr_local
+        assert stdout_proxy._get_stream() is stdout_stream
+        assert stderr_proxy._get_stream() is stderr_stream
+    finally:
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
+
+
+@pytest.mark.asyncio
+async def test_wasm_runtime_shutdown_helper_cancels_live_thread() -> None:
+    from marimo._runtime._wasm import (
+        ensure_wasm_runtime_bootstrapped,
+        shutdown_wasm_runtime_work_async,
+        wait_for_wasm_runtime_work_async,
+    )
+
+    with mock_pyodide():
+        _install_run_sync()
+        unpatch = ensure_wasm_runtime_bootstrapped()
+        started = asyncio.Event()
+
+        async def target() -> None:
+            started.set()
+            await asyncio.Event().wait()
+
+        thread = threading.Thread(target=target)
+        try:
+            thread.start()
+            await asyncio.wait_for(started.wait(), timeout=1)
+
+            assert not await wait_for_wasm_runtime_work_async(timeout=0)
+            await shutdown_wasm_runtime_work_async(timeout=1)
+            assert not thread.is_alive()
+            assert await wait_for_wasm_runtime_work_async(timeout=0)
+        finally:
+            unpatch()
 
 
 def test_top_level_marimo_import_bootstraps_wasm_threading_first() -> None:

@@ -34,10 +34,16 @@ class Stream(abc.ABC):
         """Tear down resources, if any."""
         return
 
+    def copy_for_thread(self) -> Stream:
+        raise RuntimeError("Unsupported stream type " + str(type(self)))
+
 
 class NoopStream(Stream):
     def write(self, data: KernelMessage) -> None:
         pass
+
+    def copy_for_thread(self) -> Stream:
+        return NoopStream()
 
 
 def _ensure_plain_str(s: str) -> str:

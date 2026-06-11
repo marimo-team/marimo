@@ -93,6 +93,7 @@ def install_wasm_concurrency_shims() -> Unpatch:
 
         replace_loop_create_task(patches)
         repair_preimported_runtime_context_storage(patches)
+        repair_preimported_thread_local_stream_proxies(patches)
     except BaseException:
         patches.unpatch_all()()
         if (
@@ -177,6 +178,50 @@ def repair_preimported_runtime_context_storage(
     )
 
 
+def repair_preimported_thread_local_stream_proxies(
+    patches: WasmPatchSet,
+) -> None:
+    """Replace stdout and stderr proxy locals captured before bootstrap."""
+    stream_proxy_module = sys.modules.get(
+        "marimo._messaging.thread_local_streams"
+    )
+    if stream_proxy_module is None:
+        return
+    proxy_type = getattr(stream_proxy_module, "ThreadLocalStreamProxy", None)
+    if not isinstance(proxy_type, type):
+        return
+
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if not isinstance(stream, proxy_type):
+            continue
+        original_local = getattr(stream, "_local", None)
+        if isinstance(original_local, AsyncLocal):
+            continue
+        repaired_local = AsyncLocal()
+        repaired_local.stream = getattr(original_local, "stream", None)
+
+        def _sync_before_restore(
+            original: Any = original_local,
+            repaired: AsyncLocal = repaired_local,
+        ) -> None:
+            if original is not None:
+                original.stream = getattr(repaired, "stream", None)
+
+        def _local_wrapper(
+            _original: Any, local: AsyncLocal = repaired_local
+        ) -> AsyncLocal:
+            del _original
+            return local
+
+        patches.replace(
+            stream,
+            "_local",
+            _local_wrapper,
+            before_restore=_sync_before_restore,
+        )
+
+
 def unpatch_wasm_concurrency_shims() -> None:
     """Remove active Pyodide concurrency patches."""
     unpatch = _state.active_unpatch()
@@ -202,3 +247,18 @@ def install_wasm_process_shims() -> Unpatch:
 def unpatch_wasm_process_shims() -> None:
     """Remove active process-shaped multiprocessing patches."""
     _process_install.unpatch_wasm_process_shims()
+
+
+async def shutdown_live_wasm_concurrency_work_async(
+    timeout: float = 1,
+) -> None:
+    """Request cancellation and wait for live WASM shim work to finish."""
+    _state.request_shutdown()
+    await _state.wait_until_idle(timeout)
+
+
+async def wait_for_live_wasm_concurrency_work_async(
+    timeout: float = 0.05,
+) -> bool:
+    """Give cooperative WASM shim work a bounded chance to finish."""
+    return await _state.wait_until_idle_or_timeout(timeout)

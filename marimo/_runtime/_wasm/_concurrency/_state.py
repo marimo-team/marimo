@@ -13,7 +13,7 @@ import contextvars
 import functools
 import itertools
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -314,6 +314,54 @@ def has_live_core_work() -> bool:
 
 def has_live_process_work() -> bool:
     return bool(live_processes or live_process_tasks)
+
+
+def has_live_wasm_work() -> bool:
+    return has_live_core_work() or has_live_process_work()
+
+
+def request_shutdown() -> None:
+    discard_finished_runtime_records()
+    for process in list(live_processes):
+        try:
+            process.kill()
+        except Exception:
+            continue
+    for thread in list(live_threads):
+        task = getattr(thread, "_task", None)
+        if task is not None and not task.done():
+            cast(Any, thread)._suppress_excepthook_for = (
+                asyncio.CancelledError,
+            )
+            task.cancel()
+    for executor in list(live_executors):
+        shutdown_for_wasm_teardown = getattr(
+            executor, "shutdown_for_wasm_teardown", None
+        )
+        if callable(shutdown_for_wasm_teardown):
+            shutdown_for_wasm_teardown()
+    for task in list(live_executor_tasks):
+        if not task.done():
+            task.cancel()
+    for owner in list(live_process_tasks):
+        cancel_process_tasks(owner)
+
+
+async def wait_until_idle_or_timeout(timeout: float) -> bool:
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + max(timeout, 0)
+    while True:
+        discard_finished_runtime_records()
+        if not has_live_wasm_work():
+            return True
+        if loop.time() >= deadline:
+            return False
+        await asyncio.sleep(0)
+
+
+async def wait_until_idle(timeout: float = 1) -> None:
+    if not await wait_until_idle_or_timeout(timeout):
+        raise RuntimeError("WASM runtime work did not shut down in time")
 
 
 def _executor_is_idle(executor: Any) -> bool:

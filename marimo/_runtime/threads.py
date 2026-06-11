@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import inspect
 import threading
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
-from marimo._messaging.streams import ThreadSafeStream
 from marimo._output.rich_help import mddoc
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.cell_output_list import CellOutputList
@@ -104,37 +104,21 @@ class Thread(threading.Thread):
 
             ctx.globals.setdefault("print", print_override)
 
-            self._marimo_ctx = KernelRuntimeContext(**ctx.__dict__)
+            kernel_ctx = replace(ctx)
             # standard IO is not yet threadsafe
-            self._marimo_ctx.stdout = None
-            self._marimo_ctx.stderr = None
-            if isinstance(ctx.stream, ThreadSafeStream):
-                self._marimo_ctx.stream = type(ctx.stream)(
-                    pipe=ctx.stream.pipe,
-                    # TODO(akshayka): stdin is not threadsafe
-                    input_queue=ctx.stream.input_queue,
-                    cell_id=ctx.stream.cell_id,
-                    redirect_console=False,
-                )
-            else:
-                raise RuntimeError(
-                    "Unsupported stream type " + str(type(ctx.stream))
-                )
-        elif isinstance(self._marimo_ctx, ScriptRuntimeContext):
+            kernel_ctx.stdout = None
+            kernel_ctx.stderr = None
+            kernel_ctx.stream = ctx.stream.copy_for_thread()
+            self._marimo_ctx = kernel_ctx
+        elif isinstance(ctx, ScriptRuntimeContext):
             # Standard streams are not rerouted when running as a script, so no
             # need to set to None
-            self._marimo_ctx = ScriptRuntimeContext(**ctx.__dict__)
-            if isinstance(ctx.stream, ThreadSafeStream):
-                self._marimo_ctx.stream = ThreadSafeStream(
-                    pipe=ctx.stream.pipe,
-                    input_queue=ctx.stream.input_queue,
-                    cell_id=ctx.stream.cell_id,
-                    redirect_console=False,
-                )
-            else:
-                raise RuntimeError(
-                    "Unsupported stream type " + str(type(ctx.stream))
-                )
+            script_ctx = replace(ctx)
+            script_ctx._cli_args = ctx._cli_args
+            script_ctx._argv = ctx._argv
+            script_ctx._query_params = ctx._query_params
+            script_ctx.stream = ctx.stream.copy_for_thread()
+            self._marimo_ctx = script_ctx
 
     @property
     def should_exit(self) -> bool:

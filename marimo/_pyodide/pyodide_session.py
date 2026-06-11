@@ -73,6 +73,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.cell import CellConfig
     from marimo._messaging.types import KernelMessage
+    from marimo._runtime.context.types import RuntimeContext
     from marimo._session.notebook.file_manager import AppFileManager
     from marimo._types.ids import CellId_t
 
@@ -398,6 +399,29 @@ class PyodideBridge:
         return encode_json_str(response)
 
 
+def _dispose_pyodide_lifecycle_items(ctx: RuntimeContext) -> None:
+    registry = ctx.cell_lifecycle_registry
+    for cell_id, lifecycle_items in list(registry.registry.items()):
+        persisted_lifecycle_items = set()
+        for lifecycle_item in list(lifecycle_items):
+            try:
+                should_remove = lifecycle_item.dispose(
+                    context=ctx, deletion=True
+                )
+            except Exception:
+                LOGGER.exception("Failed to dispose Pyodide lifecycle item")
+                persisted_lifecycle_items.add(lifecycle_item)
+                continue
+
+            if not should_remove:
+                persisted_lifecycle_items.add(lifecycle_item)
+
+        if persisted_lifecycle_items:
+            registry.registry[cell_id] = persisted_lifecycle_items
+        else:
+            del registry.registry[cell_id]
+
+
 def _launch_pyodide_kernel(
     control_queue: asyncio.Queue[CommandMessage],
     set_ui_element_queue: asyncio.Queue[BatchableCommand],
@@ -410,6 +434,10 @@ def _launch_pyodide_kernel(
     user_config: MarimoConfig,
 ) -> RestartableTask:
     from marimo._output.formatters.formatters import register_formatters
+    from marimo._runtime._wasm import (
+        shutdown_wasm_runtime_work_async,
+        wait_for_wasm_runtime_work_async,
+    )
     from marimo._runtime.kernel_lifecycle import (
         KernelArgs,
         asyncio_queue_reader,
@@ -474,6 +502,21 @@ def _launch_pyodide_kernel(
                 listen_completion(),
             )
         finally:
-            teardown_kernel(kernel, ctx)
+            try:
+                try:
+                    _dispose_pyodide_lifecycle_items(ctx)
+                except Exception:
+                    LOGGER.exception(
+                        "Failed to dispose Pyodide lifecycle items"
+                    )
+                try:
+                    await wait_for_wasm_runtime_work_async()
+                    await shutdown_wasm_runtime_work_async()
+                except Exception:
+                    LOGGER.exception(
+                        "Failed to shut down Pyodide WASM runtime work"
+                    )
+            finally:
+                teardown_kernel(kernel, ctx)
 
     return RestartableTask(listen)
