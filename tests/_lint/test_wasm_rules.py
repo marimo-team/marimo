@@ -267,3 +267,53 @@ class TestMW003IncompatiblePackages:
         assert len(mw003) == 1
         assert "jaxlib" in mw003[0].message
         assert mw003[0].severity == Severity.WASM
+
+    def test_emscripten_excluded_dep_not_flagged(self, monkeypatch, tmp_path):
+        """PEP 508 markers excluding Emscripten skip MW003 checks for that dep."""
+        from marimo._lint.rules.wasm import incompatible_packages as mod
+
+        monkeypatch.setattr(mod, "_resolve_dep_tree", lambda deps: deps)
+        mod._has_wasm_compatible_wheel.cache_clear()
+
+        notebook, contents = self._write_and_parse(
+            tmp_path,
+            ["jaxlib; sys_platform != 'emscripten'"],
+        )
+        with (
+            patch(
+                "marimo._pyodide.pyodide_constraints.requests.get",
+                return_value=_fake_lockfile_response({}),
+            ),
+            patch(
+                "marimo._lint.rules.wasm.incompatible_packages."
+                "urllib.request.urlopen",
+                side_effect=AssertionError(
+                    "PyPI must not be queried for Emscripten-excluded deps"
+                ),
+            ),
+        ):
+            diagnostics = lint_notebook(
+                notebook, contents, lint_config={"select": ["MW003"]}
+            )
+        assert not any(d.code == "MW003" for d in diagnostics)
+
+    def test_pyemscripten_wheel_tag_compatible(self) -> None:
+        """PEP 783 pyemscripten_*_wasm32 wheels match via the wasm32 suffix."""
+        from marimo._lint.rules.wasm import incompatible_packages as mod
+
+        mod._has_wasm_compatible_wheel.cache_clear()
+        pypi_payload = {
+            "urls": [
+                {
+                    "filename": (
+                        "mypkg-1.0-cp312-cp312-pyemscripten_2026_0_wasm32.whl"
+                    )
+                }
+            ]
+        }
+        with patch(
+            "marimo._lint.rules.wasm.incompatible_packages."
+            "urllib.request.urlopen",
+            return_value=_FakePypiResponse(pypi_payload),
+        ):
+            assert mod._has_wasm_compatible_wheel("mypkg") is True

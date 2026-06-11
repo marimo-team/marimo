@@ -665,6 +665,54 @@ def test_pin_for_wasm_warns_about_non_pyodide_deps(
     assert "numpy" not in err
 
 
+def test_pin_for_wasm_skips_emscripten_excluded_dep_warning(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Deps with sys_platform != emscripten are not warned about for WASM."""
+    import importlib.metadata
+
+    from marimo._utils.inline_script_metadata import (
+        pin_pep723_dependencies_for_wasm,
+    )
+
+    src = """# /// script
+# dependencies = [
+#     "numpy",
+#     "jax; sys_platform != 'emscripten'",
+#     "torch; sys_platform == 'linux'",
+# ]
+# ///
+"""
+    script = tmp_path / "notebook.py"
+    script.write_text(src)
+    from marimo._utils.marimo_path import MarimoPath
+
+    path = MarimoPath(script)
+
+    monkeypatch.setattr(
+        importlib.metadata,
+        "distributions",
+        lambda: [_FakeDist("numpy", "2.0.2")],
+    )
+    import marimo._pyodide.pyodide_constraints as constraints
+
+    monkeypatch.setattr(
+        constraints,
+        "fetch_pyodide_package_versions",
+        lambda: {"numpy": "2.0.2"},
+    )
+
+    pin_pep723_dependencies_for_wasm(src, path)
+    err = capsys.readouterr().err
+    # Emscripten-excluded / linux-only deps should not appear in the advisory.
+    assert "jax" not in err
+    assert "torch" not in err
+    # numpy is in the lockfile and applies on Emscripten.
+    assert "numpy" not in err
+
+
 def test_pin_for_wasm_falls_back_to_installed_on_fetch_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

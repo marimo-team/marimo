@@ -9,6 +9,7 @@ import time
 from typing import TypedDict
 
 from marimo import _loggers
+from marimo._utils.platform import is_pyodide
 
 LOGGER = _loggers.marimo_logger()
 
@@ -109,6 +110,9 @@ def get_required_modules_list() -> dict[str, str]:
         "uvicorn",
         "websockets",
     ]
+    if is_pyodide():
+        # psutil is not installed on Emscripten (see pyproject.toml markers).
+        packages = [p for p in packages if p != "psutil"]
     return _get_versions(packages, include_missing=True)
 
 
@@ -138,6 +142,9 @@ def get_optional_modules_list() -> dict[str, str]:
         "vegafusion",
         "watchdog",
     ]
+    if is_pyodide():
+        # loro is server-only RTC; not a marimo dependency on Emscripten.
+        packages = [p for p in packages if p != "loro"]
     return _get_versions(packages, include_missing=False)
 
 

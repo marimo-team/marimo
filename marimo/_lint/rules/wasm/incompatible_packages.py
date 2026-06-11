@@ -76,10 +76,13 @@ def _get_notebook_deps(ctx: RuleContext) -> set[str] | None:
         return None
 
     try:
+        from marimo._runtime.packages.utils import (
+            filter_requirements_for_emscripten,
+        )
         from marimo._utils.inline_script_metadata import PyProjectReader
 
         reader = PyProjectReader.from_filename(ctx.notebook.filename)
-        deps = reader.dependencies
+        deps = filter_requirements_for_emscripten(reader.dependencies)
         if not deps:
             return None
         names: set[str] = set()

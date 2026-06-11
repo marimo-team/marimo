@@ -367,9 +367,15 @@ def pin_pep723_dependencies_for_wasm(code: str, path: MarimoPath) -> str:
     # which from here, so emit a single advisory.
     if pyodide_names:
         try:
+            from marimo._runtime.packages.utils import (
+                filter_requirements_for_emscripten,
+            )
+
             pyproject = PyProjectReader.from_filename(path.absolute_name)
             top_level: list[str] = []
-            for dep in pyproject.dependencies:
+            for dep in filter_requirements_for_emscripten(
+                pyproject.dependencies
+            ):
                 match = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)", dep.strip())
                 if match is None:
                     continue

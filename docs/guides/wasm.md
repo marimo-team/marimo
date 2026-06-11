@@ -111,6 +111,73 @@ documentation on supported packages.](https://pyodide.org/en/stable/usage/packag
 
 If you want a package to be supported, consider [filing an issue](https://github.com/pyodide/pyodide/issues/new?assignees=&labels=new+package+request&projects=&template=package_request.md&title=).
 
+### Platform-specific dependencies (PEP 508)
+
+Notebooks that run both locally and in the browser can use [PEP
+508](https://peps.python.org/pep-0508/) **environment markers** in PEP 723 script
+metadata to declare different dependencies per platform. On Pyodide,
+`sys.platform` is `"emscripten"` ([PEP 776](https://peps.python.org/pep-0776/)).
+
+**Exclude a package from WebAssembly** (install it locally only):
+
+```python
+# /// script
+# dependencies = [
+#     "pandas>=2.0",
+#     "torch>=2.0; sys_platform != 'emscripten'",
+# ]
+# ///
+```
+
+**Include a package only in WebAssembly:**
+
+```python
+# /// script
+# dependencies = [
+#     "pyodide-http; sys_platform == 'emscripten'",
+# ]
+# ///
+```
+
+marimo respects these markers when pre-installing packages in the browser,
+when exporting to [WebAssembly HTML](exporting/webassembly_html.md), and in
+the MW003 [lint rule](lint_rules/rules/incompatible_package.md) (native-only
+deps marked `sys_platform != 'emscripten'` are not flagged for WASM).
+
+uv and pip evaluate markers when installing with `--sandbox`, so the same
+metadata works for local sandboxes and WASM exports. See also
+[Inlining dependencies](package_management/inlining_dependencies.md#platform-specific-dependencies-pep-508).
+
+### Emscripten wheels on PyPI (PEP 783)
+
+Package authors can publish binary wheels for Pyodide using the
+`pyemscripten_*_wasm32` platform tags defined in [PEP
+783](https://peps.python.org/pep-0783/). micropip can install these alongside
+pure-Python (`py3-none-any`) wheels. Use the trove classifier
+`Environment :: WebAssembly :: Emscripten` when uploading such wheels.
+
+### Avoiding native-only imports
+
+Some packages cannot run in the browser even if they install (for example
+`multiprocessing`, `subprocess`, or native extensions without a WASM wheel).
+In addition to PEP 508 markers in your dependencies, branch your **imports**
+when a package is only needed locally:
+
+```python
+import sys
+
+if sys.platform == "emscripten":
+    # WebAssembly path — use micropip, Pyodide builtins, or skip the feature
+    ...
+else:
+    import multiprocessing
+    ...
+```
+
+marimo's linter flags imports of modules that are unavailable in Pyodide (MW001)
+and packages without WASM-compatible wheels (MW003). Run `marimo check --select
+MW` before exporting to catch issues early.
+
 ## Including data
 
 **For notebooks exported to WASM HTML.**
@@ -144,21 +211,33 @@ all the files in the GitHub repo are made available to your notebook.
 
 ## Detecting WebAssembly
 
-To check if your notebook is running in a WebAssembly environment, use:
+To check if your notebook is running in a WebAssembly environment, use
+`sys.platform`:
 
 ```python
 import sys
 
-if "pyodide" in sys.modules:
-    # Running in WebAssembly
+if sys.platform == "emscripten":
+    # Running in WebAssembly (Pyodide)
     ...
 else:
     # Running locally
     ...
 ```
 
-This is useful for branching logic, such as using `micropip` for package
-installation in WASM while using standard imports locally.
+You can also check whether Pyodide has been imported:
+
+```python
+import sys
+
+if "pyodide" in sys.modules:
+    # Pyodide is loaded (typical in WASM notebooks)
+    ...
+```
+
+Use these checks to branch logic — for example, using `micropip` for package
+installation in WASM while using standard imports locally, or skipping
+native-only features such as multiprocessing.
 
 ## Limitations
 

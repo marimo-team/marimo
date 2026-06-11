@@ -24,7 +24,10 @@ Options:
 - `--include-cloudflare`: Write configuration files necessary for deploying to Cloudflare
 
 Note that WebAssembly notebooks have [limitations](../wasm.md#limitations); in particular,
-[many but not all packages work](../wasm.md#packages).
+[many but not all packages work](../wasm.md#packages). If your notebook runs both
+locally and in the browser, use [PEP 508 environment
+markers](../wasm.md#platform-specific-dependencies-pep-508) in script metadata to
+exclude native-only dependencies from WASM installs.
 
 !!! note "Note"
 

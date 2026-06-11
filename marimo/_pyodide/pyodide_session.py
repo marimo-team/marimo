@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-import re
 import signal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast
@@ -172,46 +171,18 @@ class PyodideSession:
 
         # Prefer dependencies from script metadata
         try:
+            from marimo._runtime.packages.utils import (
+                filter_requirements_for_emscripten,
+                strip_requirement_name,
+            )
+
             reader = PyProjectReader.from_script(code)
-            script_deps = reader.dependencies
-
-            def strip_version(dep: str) -> str:
-                """
-                Strip version specifiers from a dependency string.
-                Handles PEP 440 version specifiers, extras, and URLs.
-                """
-                if not dep or not isinstance(dep, str):
-                    return dep if isinstance(dep, str) else ""
-
-                # Strip whitespace
-                dep = dep.strip()
-                if not dep:
-                    return dep
-
-                # Handle URL dependencies (package @ <url>) - leave as-is
-                # PEP 508 allows various URL schemes: http, https, git+https, git+ssh, file, ftp, etc.
-                if "@" in dep:
-                    _, rhs = dep.split("@", 1)
-                    rhs = rhs.strip()
-                    # Check for URL scheme pattern (e.g., https://, git+https://, file://)
-                    if re.match(r"^[a-zA-Z][a-zA-Z0-9+.\-]*://", rhs):
-                        return dep
-
-                # Handle environment markers (package>=1.0; python_version>='3.8')
-                if ";" in dep:
-                    dep = dep.split(";")[0].strip()
-
-                # Split on PEP 440 version specifiers: ==, !=, <=, >=, <, >, ~=, ===
-                # Must check multi-char operators first to avoid partial matches
-                parts = re.split(
-                    r"\s*(?:===|==|!=|<=|>=|~=|<|>)\s*", dep, maxsplit=1
-                )
-
-                # Return the package name (first part), preserving extras like 'package[extra]'
-                return parts[0].strip() if parts else dep
+            script_deps = filter_requirements_for_emscripten(
+                reader.dependencies
+            )
 
             if len(script_deps) > 0:
-                return [strip_version(dep) for dep in script_deps]
+                return [strip_requirement_name(dep) for dep in script_deps]
         except Exception as e:
             LOGGER.warning("Error parsing script metadata: %s", e)
 
