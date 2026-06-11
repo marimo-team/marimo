@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph
+    from marimo._types.ids import CellId_t
 
 
 class MarimoRuntimeException(BaseException):
@@ -24,6 +25,45 @@ class MarimoMissingRefError(BaseException):
         super().__init__(ref)
         self.ref = ref
         self.name_error = name_error
+
+
+class MarimoCancelCellError(BaseException):
+    """Soft-cancel signal raised by a lifecycle to ask the runner to requeue.
+
+    Used by `ExecutionLifecycle.setup` (e.g. `CachedLifecycle` on an
+    UnhashableStub encounter) to signal "re-run these cells so they produce
+    real values." The Evaluator captures it into the cell's `RunResult`;
+    `Runner.run` propagates it and `Runner.run_all` catches it and calls
+    `Scheduler.requeue_for_rerun(cells_to_rerun)`.
+
+    Subclasses BaseException (not Exception) so user-code `except Exception`
+    blocks don't swallow the control-flow signal.
+    """
+
+    cells_to_rerun: set[CellId_t]
+
+    def __init__(
+        self,
+        *args: object,
+        cells_to_rerun: set[CellId_t] | None = None,
+    ) -> None:
+        super().__init__(*args)
+        self.cells_to_rerun = cells_to_rerun or set()
+
+
+class MarimoUnhashableCacheError(MarimoCancelCellError):
+    """Raised when cell-level caching encounters a value that cannot be
+    hashed/serialized for cache restoration."""
+
+    def __init__(
+        self,
+        cells_to_rerun: set[CellId_t],
+        variables: list[str],
+        error_details: str,
+    ) -> None:
+        super().__init__(error_details, cells_to_rerun=cells_to_rerun)
+        self.variables = variables
+        self.error_details = error_details
 
 
 def unwrap_user_exception(

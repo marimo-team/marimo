@@ -1071,6 +1071,7 @@ def cache_attempt_from_hash(
         hasher.defs,
         hasher.key,
         hasher.stateful_refs,
+        glbls=scope,
     )
 
 
@@ -1159,4 +1160,5 @@ def content_cache_attempt_from_base(
         hasher.defs,
         hasher.key,
         stateful_refs,
+        glbls=scope,
     )

@@ -17,6 +17,8 @@ from marimo._save.stubs.stubs import CustomStub
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from marimo._runtime.exceptions import MarimoUnhashableCacheError
+
 
 class CacheType(Enum):
     CONTEXT_EXECUTION_PATH = "ContextExecutionPath"
@@ -38,6 +40,10 @@ class Item(msgspec.Struct):
     module: str | None = None
     # (code, filename, linenumber)
     function: tuple[str, str, int] | None = None
+    # (code, filename, linenumber, qualname) — cell-defined class source.
+    # Materialized into the cell namespace before pickle blobs deserialize,
+    # so __main__-qualified instances can resolve their type.
+    class_def: tuple[str, str, int, str] | None = None
     hash: str | None = None
     # Fully-qualified class name of the original value — used by format-aware
     # deserializers (e.g. to distinguish pandas from polars Arrow blobs).
@@ -51,6 +57,7 @@ class Item(msgspec.Struct):
                 self.reference,
                 self.module,
                 self.function,
+                self.class_def,
             ]
             if field is not None
         )
@@ -95,6 +102,7 @@ LAZY_STUB_LOOKUP: dict[str, str] = {
     "builtins.bytes": "inline",
     "builtins.NoneType": "inline",
     "marimo._save.stubs.function_stub.FunctionStub": "inline",
+    "marimo._save.stubs.class_stub.ClassStub": "inline",
     "marimo._save.stubs.module_stub.ModuleStub": "inline",
     "marimo._save.stubs.ui_element_stub.UIElementStub": "ui",
     # Optional third-party types — imported lazily only when encountered:
@@ -246,3 +254,92 @@ class ImmediateReferenceStub(CustomStub):
 
     def to_bytes(self) -> bytes:
         return self.reference.to_bytes()
+
+
+class UnhashableStub(CustomStub):
+    """Marker + tripwire for a def that could not be serialized for caching.
+
+    Written to the cache as a placeholder when per-def pickling fails (e.g.
+    a lambda, a closure over an unpicklable object). The marker is placed
+    in scope as-is by `Cache.restore` (no `.load()` call). It is
+    harmless when the consumer cell never touches it; any meaningful access
+    (call) raises `MarimoUnhashableCacheError` carrying
+    `variables=[var_name]` so the runner can identify the defining cell,
+    invalidate its manifest, and re-queue.
+
+    Detection happens at use-site, not at pre-execution. Bodies that don't
+    touch the stub run normally; closure-captured stubs surface through
+    whichever access the user code performs.
+
+    UnhashableStub is created on-demand by the loader and is not
+    registered in CUSTOM_STUBS — `get_type()` raises since no specific
+    value type maps to it.
+    """
+
+    __slots__ = ("error_msg", "type_name", "var_name")
+
+    def __init__(
+        self,
+        _obj: Any = None,
+        var_name: str = "",
+        error_msg: str = "",
+    ) -> None:
+        self.var_name = var_name
+        if _obj is not None:
+            value_type = type(_obj)
+            self.type_name = (
+                f"{getattr(value_type, '__module__', '<unknown>')}."
+                f"{getattr(value_type, '__name__', '<unknown>')}"
+            )
+        else:
+            self.type_name = "<unknown>"
+        self.error_msg = error_msg or "value could not be pickled for cache"
+
+    def _trip(self) -> MarimoUnhashableCacheError:
+        from marimo._runtime.exceptions import MarimoUnhashableCacheError
+
+        return MarimoUnhashableCacheError(
+            cells_to_rerun=set(),
+            variables=[self.var_name] if self.var_name else [],
+            error_details=(
+                f"{self.var_name} ({self.type_name}): {self.error_msg}"
+                if self.var_name
+                else f"({self.type_name}): {self.error_msg}"
+            ),
+        )
+
+    def load(self, glbls: dict[str, Any]) -> Any:
+        del glbls
+        raise self._trip()
+
+    # __call__ is the only tripwire: it covers the canonical user-code
+    # use pattern (`classic(x)`, `foo()` where foo's closure captures
+    # the stub) that produces `'UnhashableStub' object is not callable`.
+    # Other dunders (__getattr__, __getitem__, __iter__, __len__, …)
+    # deliberately fall through to Python defaults so framework probes
+    # (`getattr(value, "_repr_mimebundle_", None)`, isinstance, hasattr,
+    # storage-engine introspection, etc.) stay inert. A body that uses
+    # the stub through a non-call access raises a generic TypeError
+    # instead of the cleaner trip — acceptable trade-off; the alternative
+    # over-trips on framework probes and cancels innocent cells.
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        del args, kwargs
+        raise self._trip()
+
+    def __repr__(self) -> str:
+        return (
+            f"<UnhashableStub var_name={self.var_name!r} "
+            f"type={self.type_name!r}>"
+        )
+
+    @staticmethod
+    def get_type() -> type:
+        # UnhashableStub does not correspond to a specific value type — it's
+        # written on-demand by the loader when pickling fails. Not registered
+        # in CUSTOM_STUBS.
+        raise NotImplementedError(
+            "UnhashableStub is not registered for a specific type"
+        )
+
+    def to_bytes(self) -> bytes:
+        return pickle.dumps(self)

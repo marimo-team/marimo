@@ -6,9 +6,12 @@ import queue
 import threading
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import msgspec
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from marimo import _loggers
 from marimo._save.cache import (
@@ -17,8 +20,10 @@ from marimo._save.cache import (
 )
 from marimo._save.hash import HashKey
 from marimo._save.loaders.loader import BasePersistenceLoader
+from marimo._save.loaders.unpickler import pickle_load_with_namespace
 from marimo._save.stores import FileStore, Store
 from marimo._save.stubs import (
+    ClassStub,
     FunctionStub,
     ModuleStub,
 )
@@ -33,6 +38,7 @@ from marimo._save.stubs.lazy_stub import (
     Item,
     Meta,
     ReferenceStub,
+    UnhashableStub,
 )
 from marimo._save.stubs.stubs import mro_lookup
 
@@ -98,6 +104,8 @@ def to_item(
         return Item(reference=(path / "ui.pickle").as_posix())
     if isinstance(value, FunctionStub):
         return Item(function=value.dump())
+    if isinstance(value, ClassStub):
+        return Item(class_def=value.dump())
     if isinstance(value, ModuleStub):
         return Item(module=value.name)
     if isinstance(value, (int, str, float, bool, bytes, type(None))):
@@ -123,6 +131,8 @@ def from_item(item: Item) -> Any:
         fn_stub = FunctionStub.__new__(FunctionStub)
         fn_stub.code, fn_stub.filename, fn_stub.lineno = item.function
         return fn_stub
+    if item.class_def is not None:
+        return ClassStub.from_dump(item.class_def)
     if item.primitive is not None:
         return item.primitive
     return None
@@ -148,19 +158,44 @@ class LazyLoader(BasePersistenceLoader):
             t.join()
         self._pending.clear()
 
-    def load_cache(self, key: HashKey) -> Cache | None:
+    def load_cache(
+        self,
+        key: HashKey,
+        glbls: dict[str, Any] | None = None,
+    ) -> Cache | None:
         try:
             blob: bytes | None = self.store.get(str(self.build_path(key)))
             if not blob:
                 return None
-            return self.restore_cache(key, blob)
+            return self.restore_cache(key, blob, glbls=glbls)
         except Exception as e:
             LOGGER.warning("Failed to restore lazy cache: %s", e)
             return None
 
-    def restore_cache(self, _key: HashKey, blob: bytes) -> Cache:
+    def restore_cache(
+        self,
+        _key: HashKey,
+        blob: bytes,
+        glbls: dict[str, Any] | None = None,
+    ) -> Cache:
         cache_data = msgspec.json.decode(blob, type=CacheSchema)
         base = Path(self.name) / cache_data.hash
+
+        # PASS 1: materialize inline source-based stubs (ClassStub,
+        # FunctionStub) into `glbls` synchronously, so any pickle blob
+        # loaded below can resolve __main__ refs to the just-materialized
+        # objects via CellNamespaceUnpickler.
+        if glbls is not None:
+            for var_name, item in cache_data.defs.items():
+                if item.class_def is not None:
+                    cls_stub = ClassStub.from_dump(item.class_def)
+                    glbls[var_name] = cls_stub.load(glbls)
+                elif item.function is not None:
+                    fn_stub = FunctionStub.__new__(FunctionStub)
+                    fn_stub.code, fn_stub.filename, fn_stub.lineno = (
+                        item.function
+                    )
+                    glbls[var_name] = fn_stub.load(glbls)
 
         # Collect references to load
         ref_vars: dict[str, str] = {}
@@ -199,13 +234,23 @@ class LazyLoader(BasePersistenceLoader):
                 data = self.store.get(key)
                 if data:
                     ext = Path(key).suffix
-                    deserialize = BLOB_DESERIALIZERS.get(
-                        ext, BLOB_DESERIALIZERS[".pickle"]
-                    )
                     type_hint = ref_type_hints.get(key) or (
                         return_type_hint if key == return_ref else None
                     )
-                    results.put((key, deserialize(data, type_hint)))
+                    # PASS 2: when glbls is available, swap the .pickle
+                    # deserializer for one that resolves __main__ refs
+                    # against glbls (populated by PASS 1 + cells that
+                    # already ran in this kernel).
+                    if ext == ".pickle" and glbls is not None:
+                        value = pickle_load_with_namespace(
+                            data, type_hint, glbls
+                        )
+                    else:
+                        deserialize = BLOB_DESERIALIZERS.get(
+                            ext, BLOB_DESERIALIZERS[".pickle"]
+                        )
+                        value = deserialize(data, type_hint)
+                    results.put((key, value))
                 else:
                     results.put((key, _BlobStatus.MISSING))
             except Exception as e:
@@ -329,6 +374,35 @@ class LazyLoader(BasePersistenceLoader):
         )
         manifest_key = str(self.build_path(cache.key))
 
+        def _put_or_unhashable(
+            key: str,
+            value: Any,
+            serialize: Callable[[Any], bytes],
+            var_name: str = "",
+        ) -> None:
+            """Serialize and store one blob; on failure, write an
+            UnhashableStub pickle to the same path so subsequent loads can
+            surface a clear error rather than finding nothing."""
+            try:
+                store.put(key, serialize(value))
+            except Exception as e:
+                LOGGER.warning(
+                    "Failed to serialize %s for cache; "
+                    "writing UnhashableStub: %s",
+                    var_name or key,
+                    e,
+                )
+                stub = UnhashableStub(
+                    value, var_name=var_name, error_msg=str(e)
+                )
+                try:
+                    store.put(key, pickle.dumps(stub))
+                except Exception:
+                    LOGGER.exception(
+                        "Failed to write UnhashableStub for %s",
+                        var_name or key,
+                    )
+
         def _serialize_and_write() -> None:
             """Serialize and write all blobs + manifest in background."""
             try:
@@ -336,23 +410,29 @@ class LazyLoader(BasePersistenceLoader):
                     serialize = BLOB_SERIALIZERS.get(
                         return_loader, pickle.dumps
                     )
-                    store.put(return_ref, serialize(return_value))
+                    _put_or_unhashable(
+                        return_ref, return_value, serialize, "return"
+                    )
                 if ui_vars:
-                    store.put(
+                    _put_or_unhashable(
                         (path / "ui.pickle").as_posix(),
-                        pickle.dumps(ui_vars),
+                        ui_vars,
+                        pickle.dumps,
+                        "ui",
                     )
                 for loader, vars_dict in format_vars.items():
                     serialize = BLOB_SERIALIZERS.get(loader, pickle.dumps)
                     for var, obj in vars_dict.items():
-                        store.put(
+                        _put_or_unhashable(
                             (path / f"{var}.{loader}").as_posix(),
-                            serialize(obj),
+                            obj,
+                            serialize,
+                            var,
                         )
                 # Manifest last — readers check for it to detect complete writes
                 store.put(manifest_key, manifest)
             except Exception:
-                LOGGER.exception("Failed to write cache blobs for %s", path)
+                LOGGER.exception("Failed to write cache manifest for %s", path)
 
         t = threading.Thread(target=_serialize_and_write, daemon=False)
         t.start()

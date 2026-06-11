@@ -14,6 +14,7 @@ from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.state import SetFunctor
 from marimo._save.stubs import (
     CUSTOM_STUBS,
+    ClassStub,
     CustomStub,
     FunctionStub,
     ModuleStub,
@@ -21,6 +22,7 @@ from marimo._save.stubs import (
     UIElementStub,
     maybe_register_stub,
 )
+from marimo._save.stubs.lazy_stub import UnhashableStub
 
 # Many assertions are for typing and should always pass. This message is a
 # catch all to motive users to report if something does fail.
@@ -223,6 +225,12 @@ class Cache:
             result = value
         elif isinstance(value, ReferenceStub):
             result = value.load(scope)
+        elif isinstance(value, UnhashableStub):
+            # Marker for a def whose value couldn't be serialized. Place it
+            # in scope as-is; the consumer's pre-hook detects markers in
+            # transitive refs and invalidates the producing manifest before
+            # any body would run with the stub bound.
+            result = value
         elif isinstance(value, CustomStub):
             # CustomStub is a placeholder for a custom type, which cannot be
             # restored directly.
@@ -315,8 +323,30 @@ class Cache:
 
         if inspect.ismodule(value):
             result = ModuleStub(value)
-        elif inspect.isfunction(value):
+        elif inspect.isfunction(value) and value.__name__ != "<lambda>":
+            # Lambdas can't round-trip via FunctionStub: inspect.getsource
+            # returns the line *containing* the lambda (e.g.
+            # "return model, lambda inp: model(inp)"), which fails to
+            # compile as a module. Let lambdas fall through to the pickle
+            # path so they get recorded as UnhashableStub on save and
+            # trigger a re-run on load.
             result = FunctionStub(value)
+        elif (
+            inspect.isclass(value)
+            and getattr(value, "__module__", None) == "__main__"
+        ):
+            # Cell-defined classes have `__module__ = '__main__'` but
+            # aren't reachable via `sys.modules['__main__']` after a
+            # kernel restart. Capture their source so the loader can
+            # rebuild them in the cell namespace before pickle blobs
+            # that reference them deserialize. On failure (e.g. a
+            # `type()`-built class with no inspectable source), leave
+            # the value untouched — the save layer's `pickle.dumps`
+            # attempt will wrap it in `UnhashableStub` if needed.
+            try:
+                result = ClassStub(value)
+            except (TypeError, OSError):
+                result = value
         elif isinstance(value, UIElement):
             result = UIElementStub(value)
         elif isinstance(value, tuple):
