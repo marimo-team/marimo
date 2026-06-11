@@ -41,6 +41,9 @@ from marimo._runtime._wasm._concurrency._mp_queue import (
     queue_factory,
     simple_queue_factory,
 )
+from marimo._runtime._wasm._concurrency._process_pool import (
+    AsyncioProcessPoolExecutor,
+)
 from marimo._runtime._wasm._patches import Unpatch, WasmPatchSet
 from marimo._utils.platform import is_pyodide
 
@@ -97,9 +100,16 @@ def install_wasm_process_shims() -> Unpatch:
     import multiprocessing
     import multiprocessing.context as multiprocessing_context
     import multiprocessing.process as multiprocessing_process
+    from concurrent import futures as concurrent_futures
 
     patches = WasmPatchSet()
     try:
+        concurrent_futures_process = _import_or_create_submodule(
+            patches,
+            concurrent_futures,
+            "concurrent.futures.process",
+            "process",
+        )
         multiprocessing_queues = _optional_import(
             "multiprocessing.queues"
         ) or _create_submodule(
@@ -115,6 +125,8 @@ def install_wasm_process_shims() -> Unpatch:
             multiprocessing_process=multiprocessing_process,
             multiprocessing_queues=multiprocessing_queues,
             multiprocessing_pool=multiprocessing_pool,
+            concurrent_futures=concurrent_futures,
+            concurrent_futures_process=concurrent_futures_process,
         )
     except BaseException:
         patches.unpatch_all()()
@@ -155,6 +167,8 @@ def _install_multiprocessing_process(
     multiprocessing_process: Any,
     multiprocessing_queues: ModuleType,
     multiprocessing_pool: ModuleType,
+    concurrent_futures: ModuleType,
+    concurrent_futures_process: ModuleType,
 ) -> None:
     for spec in TOP_LEVEL_FACTORIES:
         patches.replace(
@@ -185,6 +199,11 @@ def _install_multiprocessing_process(
         multiprocessing_process,
         PROCESS_MODULE_HELPERS,
     )
+    _replace_process_pool_executor_factories(
+        patches,
+        concurrent_futures,
+        concurrent_futures_process,
+    )
     _replace_queue_submodule_factories(patches, multiprocessing_queues)
     _replace_pool_submodule_factories(patches, multiprocessing_pool)
     _replace_context_processes(patches, multiprocessing_context)
@@ -194,6 +213,7 @@ def _install_multiprocessing_process(
 def _has_live_pool_work() -> bool:
     return any(
         getattr(executor, "_wasm_process_pool", False)
+        or getattr(executor, "_wasm_process_pool_executor", False)
         for executor in _state.live_executors
     )
 
@@ -370,6 +390,43 @@ def _replace_pool_submodule_factories(
         "ThreadPool",
         unsupported_factory("multiprocessing.pool.ThreadPool"),
     )
+
+
+def _replace_process_pool_executor_factories(
+    patches: WasmPatchSet,
+    futures: ModuleType,
+    futures_process: ModuleType,
+) -> None:
+    _replace_or_add_module_dict_attr(
+        patches,
+        futures,
+        "ProcessPoolExecutor",
+        AsyncioProcessPoolExecutor,
+    )
+    _replace_or_add(
+        patches,
+        futures_process,
+        "ProcessPoolExecutor",
+        AsyncioProcessPoolExecutor,
+    )
+
+
+def _replace_or_add_module_dict_attr(
+    patches: WasmPatchSet,
+    module: ModuleType,
+    attr: str,
+    replacement: Any,
+) -> None:
+    if attr in vars(module):
+        patches.replace(module, attr, lambda _original: replacement)
+        return
+    setattr(module, attr, replacement)
+
+    def _remove() -> None:
+        if vars(module).get(attr, None) is replacement:
+            delattr(module, attr)
+
+    patches.add_cleanup(_remove)
 
 
 def _replace_or_add(
