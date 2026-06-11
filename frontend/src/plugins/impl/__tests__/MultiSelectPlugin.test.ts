@@ -2,7 +2,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
-import { multiselectFilterFn } from "../multiselectFilterFn";
+import { multiselectFilterFn } from "@/components/ui/select-core";
 
 function filterOptions(filter: string, items: string[]) {
   return items.filter((option) => multiselectFilterFn(option, filter));

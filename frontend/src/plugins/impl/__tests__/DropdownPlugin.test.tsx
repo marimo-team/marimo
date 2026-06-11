@@ -225,8 +225,11 @@ describe("DropdownPlugin", () => {
         screen.getByTestId("marimo-plugin-searchable-dropdown").firstChild!,
       );
 
-      // Select none should clear value
-      fireEvent.click(screen.getByText("--"));
+      // Re-picking the current value clears it when allowSelectNone
+      const bananaOption = screen
+        .getAllByRole("option")
+        .find((el) => el.textContent === "Banana");
+      fireEvent.click(bananaOption!);
       expect(setValue).toHaveBeenCalledWith([]);
     });
   });
