@@ -38,7 +38,13 @@ export function catalogNodePath({
   schema: string;
   schemaPath?: string[];
 }): string[] {
-  return schemaPath && schemaPath.length > 0 ? schemaPath : [schema];
+  if (!schemaPath || schemaPath.length === 0) {
+    return [schema];
+  }
+  if (!schema || schemaPath.at(-1) === schema) {
+    return schemaPath;
+  }
+  return [...schemaPath, schema];
 }
 
 export function partitionNamespaceChildren(namespace: DatabaseNamespace): {

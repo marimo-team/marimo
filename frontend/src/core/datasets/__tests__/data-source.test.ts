@@ -628,6 +628,58 @@ describe("nested namespaces", () => {
     ).toBe(true);
   });
 
+  it("sets tables on a schema nested inside a namespace", () => {
+    const tables: DataTable[] = [
+      makeTable("table4", { source: "iceberg", source_type: "catalog" }),
+    ];
+    const withNestedSchema = reducer(baseState, {
+      type: "addSchemaList",
+      payload: {
+        nodes: [makeSchema("deep")],
+        sqlSchemaContext: {
+          engine: "ice",
+          database: "top",
+          schemaPath: ["nested"],
+        },
+      },
+    });
+
+    const newState = reducer(withNestedSchema, {
+      type: "addTableList",
+      payload: {
+        tables,
+        sqlTableContext: {
+          engine: "ice",
+          database: "top",
+          schema: "deep",
+          dialect: "iceberg",
+          schemaPath: ["nested"],
+        },
+      },
+    });
+
+    const deep = findNode(newState, ["nested", "deep"]);
+    expect(isSchemaNode(deep!)).toBe(true);
+    if (isSchemaNode(deep!)) {
+      expect(deep.tables).toEqual(tables);
+    }
+    const nested = findNode(newState, ["nested"]);
+    expect(isNamespaceNode(nested!)).toBe(true);
+    if (isNamespaceNode(nested!)) {
+      expect(nested.children.filter(isDataTableNode)).toHaveLength(0);
+    }
+    const conn = newState.connectionsMap.get("ice" as ConnectionName);
+    expect(conn).toBeDefined();
+    expect(
+      conn!.catalogLoad.tablesLoaded.has(
+        catalogPathKey("top", ["nested", "deep"]),
+      ),
+    ).toBe(true);
+    expect(
+      conn!.catalogLoad.tablesLoaded.has(catalogPathKey("top", ["nested"])),
+    ).toBe(false);
+  });
+
   it("replaces a single table at a nested path", () => {
     const catalogTable = (numRows: number) =>
       makeTable("table4", {

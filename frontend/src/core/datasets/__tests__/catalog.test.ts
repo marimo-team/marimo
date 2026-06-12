@@ -2,11 +2,34 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  catalogNodePath,
   mergeTableAtPath,
   setTablesAtPath,
   walkCatalogNodes,
 } from "../catalog";
 import { databaseWithSchemas, makeTable } from "./catalog-fixtures";
+
+describe("catalogNodePath", () => {
+  it("uses the schema name for top-level schemas", () => {
+    expect(catalogNodePath({ schema: "public" })).toEqual(["public"]);
+  });
+
+  it("appends the schema name to a parent namespace path", () => {
+    expect(catalogNodePath({ schema: "nested", schemaPath: ["top"] })).toEqual([
+      "top",
+      "nested",
+    ]);
+  });
+
+  it("does not duplicate the leaf schema when schemaPath is already complete", () => {
+    expect(
+      catalogNodePath({
+        schema: "nested",
+        schemaPath: ["top", "nested"],
+      }),
+    ).toEqual(["top", "nested"]);
+  });
+});
 
 describe("walkCatalogNodes", () => {
   it("uses container segments for inline data tables in namespaces", () => {
