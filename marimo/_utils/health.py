@@ -110,8 +110,10 @@ def get_required_modules_list() -> dict[str, str]:
         "uvicorn",
         "websockets",
     ]
-    if is_pyodide():
-        # psutil is not installed on Emscripten (see pyproject.toml markers).
+    try:
+        import psutil as _psutil  # noqa: F401
+    except ImportError:
+        # psutil is not available on all platforms (e.g. Emscripten, Android/Termux).
         packages = [p for p in packages if p != "psutil"]
     return _get_versions(packages, include_missing=True)
 
@@ -142,8 +144,8 @@ def get_optional_modules_list() -> dict[str, str]:
         "vegafusion",
         "watchdog",
     ]
-    if is_pyodide():
-        # loro is server-only RTC; not a marimo dependency on Emscripten.
+    if is_pyodide() or sys.platform == "android":
+        # loro is not installable on Emscripten/Android.
         packages = [p for p in packages if p != "loro"]
     return _get_versions(packages, include_missing=False)
 

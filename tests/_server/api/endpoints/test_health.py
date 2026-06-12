@@ -147,3 +147,32 @@ def test_read_code(client: TestClient) -> None:
     response = client.get("/api/status/connections", headers=HEADERS)
     assert response.status_code == 200, response.text
     assert response.json()["active"] == 1
+
+
+def test_usage_without_psutil(client: TestClient) -> None:
+    """psutil may not be available on all platforms (e.g. Android/Termux)."""
+    import sys
+
+    # Simulate psutil being uninstallable by hiding it from the import system.
+    original = sys.modules.get("psutil", None)
+    sys.modules["psutil"] = None  # type: ignore[assignment]
+    try:
+        response = client.get("/api/usage", headers=token_header())
+    finally:
+        if original is None:
+            del sys.modules["psutil"]
+        else:
+            sys.modules["psutil"] = original
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    memory = body["memory"]
+    assert memory["total"] is None
+    assert memory["available"] is None
+    assert memory["used"] is None
+    assert memory["free"] is None
+    assert memory["percent"] is None
+    assert memory["has_cgroup_mem_limit"] is False
+    assert body["cpu"]["percent"] is None
+    assert body["server"]["memory"] is None
+    assert body["kernel"]["memory"] is None
