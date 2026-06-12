@@ -41,6 +41,7 @@ import { Tooltip } from "../ui/tooltip";
 import { CsvViewer } from "./file-tree/renderers";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 import { renderMimeIcon } from "./renderMimeIcon";
+import type { CellOutputPosition } from "./renderers/types";
 
 const METADATA_KEY = "__metadata__";
 
@@ -355,6 +356,7 @@ interface OutputAreaProps {
    */
   forceExpand?: boolean;
   className?: string;
+  outputPosition?: CellOutputPosition;
 }
 
 export const OutputArea = React.memo(
@@ -366,6 +368,7 @@ export const OutputArea = React.memo(
     allowExpand,
     forceExpand,
     className,
+    outputPosition,
   }: OutputAreaProps) => {
     if (output == null) {
       return null;
@@ -387,6 +390,7 @@ export const OutputArea = React.memo(
           title={title}
           cellId={cellId}
           forceExpand={forceExpand}
+          outputPosition={outputPosition}
           id={CellOutputId.create(cellId)}
           className={cn(
             stale && "marimo-output-stale",
@@ -402,11 +406,39 @@ export const OutputArea = React.memo(
 );
 OutputArea.displayName = "OutputArea";
 
-const Div = React.forwardRef<
-  HTMLDivElement,
-  React.ComponentPropsWithoutRef<"div">
->((props, ref) => <div ref={ref} {...props} />);
+interface ContainerProps extends React.HTMLProps<HTMLDivElement> {
+  cellId: CellId;
+  forceExpand?: boolean;
+  outputPosition?: CellOutputPosition;
+}
+
+// Plain container used when the output is not expandable. Drops the
+// expandable-only props so they don't leak onto the DOM node.
+const Div = React.forwardRef<HTMLDivElement, ContainerProps>(
+  ({ cellId: _cellId, forceExpand: _f, outputPosition: _o, ...rest }, ref) => (
+    <div ref={ref} {...rest} />
+  ),
+);
 Div.displayName = "Div";
+
+interface OutputControlsPlacement {
+  className: string;
+  tooltipSide: "left" | "right";
+}
+
+function getOutputControlsPlacement(
+  outputPosition: CellOutputPosition | undefined,
+): OutputControlsPlacement {
+  switch (outputPosition) {
+    case "left":
+      return { className: "-left-13 -top-1.5 z-1", tooltipSide: "right" };
+    case "right":
+      // Lift the controls above the shoulder so they stay clickable
+      return { className: "-right-9 top-7 z-30", tooltipSide: "left" };
+    default:
+      return { className: "-right-9 top-1 z-1", tooltipSide: "left" };
+  }
+}
 
 /**
  * Detects if there is overflow in the output area and adds a button to optionally expand
@@ -416,26 +448,29 @@ const ExpandableOutput = React.memo(
     cellId,
     children,
     forceExpand,
+    outputPosition,
     ...props
-  }: React.HTMLProps<HTMLDivElement> & {
-    cellId: CellId;
-    forceExpand?: boolean;
-  }) => {
+  }: ContainerProps) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
     const isOverflowing = useOverflowDetection(containerRef);
     const { hasFullscreen } = useIframeCapabilities();
 
+    const { className: controlsClassName, tooltipSide } =
+      getOutputControlsPlacement(outputPosition);
+
     return (
       <>
         <div>
           <div className="relative print:hidden">
-            <div className="absolute -right-9 top-1 z-1 flex flex-col gap-1">
+            <div
+              className={cn("absolute flex flex-col gap-1", controlsClassName)}
+            >
               {hasFullscreen && (
-                <Tooltip content="Fullscreen" side="left">
+                <Tooltip content="Fullscreen" side={tooltipSide}>
                   <Button
                     data-testid="fullscreen-output-button"
-                    className="hover-action hover:bg-muted p-1 hover:border-border border border-transparent"
+                    className="hover-action"
                     onClick={async () => {
                       await containerRef.current?.requestFullscreen();
                     }}
@@ -444,7 +479,10 @@ const ExpandableOutput = React.memo(
                     variant="text"
                   >
                     <ExpandIcon
-                      className="size-4 opacity-60 hover:opacity-80"
+                      className={cn(
+                        "size-4 opacity-60 hover:opacity-80",
+                        outputPosition === "right" && "size-3.5",
+                      )}
                       strokeWidth={1.25}
                     />
                   </Button>
@@ -454,7 +492,6 @@ const ExpandableOutput = React.memo(
                 <Button
                   data-testid="expand-output-button"
                   className={cn(
-                    "hover:border-border border border-transparent hover:bg-muted",
                     // Force show button if expanded
                     !isExpanded && "hover-action",
                   )}
@@ -463,11 +500,11 @@ const ExpandableOutput = React.memo(
                   variant="text"
                 >
                   {isExpanded ? (
-                    <Tooltip content="Collapse output" side="left">
+                    <Tooltip content="Collapse output" side={tooltipSide}>
                       <ChevronsDownUpIcon className="h-4 w-4" />
                     </Tooltip>
                   ) : (
-                    <Tooltip content="Expand output" side="left">
+                    <Tooltip content="Expand output" side={tooltipSide}>
                       <ChevronsUpDownIcon className="h-4 w-4 opacity-60" />
                     </Tooltip>
                   )}

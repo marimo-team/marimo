@@ -46,6 +46,7 @@ import {
 } from "./completion-handlers";
 import { addContextCompletion, getAICompletionBody } from "./completion-utils";
 import { stagedAICellsAtom } from "@/core/ai/staged-cells";
+import type { CellOutputPosition } from "../renderers/types";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -60,7 +61,7 @@ interface Props {
   declineChange: () => void;
   acceptChange: (rightHandCode: string) => void;
   runCell: () => void;
-  outputArea?: "above" | "below" | "left" | "right";
+  outputArea?: CellOutputPosition;
   /**
    * Children shown when there is no completion
    */

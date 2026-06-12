@@ -14,6 +14,7 @@ import {
   type KeyboardEvent,
   memo,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -56,6 +57,7 @@ import {
 } from "../../core/cells/utils";
 import type { UserConfig } from "../../core/config/config-schema";
 import { isAppInteractionDisabled } from "../../core/websocket/connection-utils";
+import type { WebSocketState } from "../../core/websocket/types";
 import { useCellRenderCount } from "../../hooks/useCellRenderCount";
 import type { Theme } from "../../theme/useTheme";
 import { Functions } from "../../utils/functions";
@@ -67,6 +69,7 @@ import {
   CellActionsDropdown,
   type CellActionsDropdownHandle,
 } from "./cell/cell-actions";
+import { CellColumns } from "./cell/cell-columns";
 import { CellActionsContextMenu } from "./cell/cell-context-menu";
 import { CellEditor } from "./cell/code/cell-editor";
 import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
@@ -265,6 +268,27 @@ export interface CellProps {
   collapseCount: number;
 }
 
+/**
+ * Owns destroying the `EditorView` when the cell unmounts.
+ *
+ * The view is an expensive imperative resource, so its lifetime is tied to the
+ * cell rather than to `CellEditor`. `CellEditor` remounts whenever the layout
+ * toggles between stacked and side-by-side (each needs the editor in a
+ * structurally different DOM position: stacked relies on the cell's `divide-y`
+ * separators, corner rounding, and column resizer keeping editor/output as
+ * direct children, while side-by-side nests them in a flex row), and the view's
+ * DOM is re-attached on each remount. So `CellEditor` deliberately does not
+ * destroy the view; this hook does, once, when the cell itself goes away.
+ */
+function useEditorViewLifetime(editorView: React.RefObject<EditorView | null>) {
+  useEffect(() => {
+    const view = editorView.current;
+    return () => {
+      view?.destroy();
+    };
+  }, [editorView]);
+}
+
 const CellComponent = (props: CellProps) => {
   const { cellId, mode } = props;
   const ref = useCellHandle(cellId);
@@ -386,6 +410,8 @@ const EditableCellComponent = ({
   const editorViewParentRef = useRef<HTMLDivElement>(null);
   const cellContainerRef = useRef<HTMLDivElement>(null);
 
+  useEditorViewLifetime(editorView);
+
   const actions = useCellActions();
   const connection = useAtomValue(connectionAtom);
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
@@ -456,12 +482,16 @@ const EditableCellComponent = ({
   const isStaleCell = outputIsStale(cellRuntime, cellData.edited);
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
   const configuredCellOutput = userConfig.display.cell_output;
-  const isSideBySide =
-    configuredCellOutput === "right" || configuredCellOutput === "left";
-  // Side-by-side doesn't make sense for markdown with hidden code: the editor
-  // collapses to h-0 and leaves a phantom empty column. Fall back to "below".
+
+  // Side-by-side doesn't make sense for markdown cells: the output is just the
+  // rendered source, so a split view is redundant. Fall back to the stacked
+  // "below" layout (editor on top, rendered preview underneath).
   const cellOutput =
-    isSideBySide && isMarkdownCodeHidden ? "below" : configuredCellOutput;
+    isMarkdown &&
+    (configuredCellOutput === "left" || configuredCellOutput === "right")
+      ? "below"
+      : configuredCellOutput;
+  const isSideBySide = cellOutput === "left" || cellOutput === "right";
 
   const hasOutputAbove = hasOutput && cellOutput === "above";
 
@@ -514,7 +544,10 @@ const EditableCellComponent = ({
     );
 
   const outputArea = hasOutput && !isEmptyMarkdownContent && (
-    <div className="relative" onDoubleClick={showHiddenCodeIfMarkdown}>
+    <div
+      className={cn("relative", "cell-output-region")}
+      onDoubleClick={showHiddenCodeIfMarkdown}
+    >
       <div className="absolute top-5 -left-7 z-20 print:hidden">
         <CollapseToggle
           isCollapsed={isCollapsed}
@@ -538,6 +571,7 @@ const EditableCellComponent = ({
         output={cellRuntime.output}
         stale={isStaleCell}
         loading={outputIsLoading(cellRuntime.status)}
+        outputPosition={cellOutput}
       />
     </div>
   );
@@ -581,6 +615,32 @@ const EditableCellComponent = ({
 
   const isToplevel = cellRuntime.serialization?.toLowerCase() === "valid";
 
+  const rightSideActions = (
+    <CellRightSideActions
+      className={cn(isMarkdownCodeHidden && cellOutput === "below" && "top-14")}
+      edited={cellData.edited}
+      status={cellRuntime.status}
+      isCellStatusInline={isCellStatusInline}
+      uninstantiated={uninstantiated}
+      disabled={cellData.config.disabled}
+      runElapsedTimeMs={cellRuntime.runElapsedTimeMs}
+      runStartTimestamp={cellRuntime.runStartTimestamp}
+      lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
+      staleInputs={cellRuntime.staleInputs}
+      interrupted={cellRuntime.interrupted}
+    />
+  );
+
+  const deleteShoulder = (
+    <CellDeleteShoulder
+      visible={canDelete && isCellCodeShown}
+      status={cellRuntime.status}
+      connectionState={connection.state}
+      disabled={loading}
+      onDelete={() => deleteCell({ cellId })}
+    />
+  );
+
   const trayElement = (
     <div
       className={cn("tray")}
@@ -623,34 +683,8 @@ const EditableCellComponent = ({
         setLanguageAdapter={setLanguageAdapter}
         outputArea={isSideBySide ? "below" : cellOutput}
       />
-      <CellRightSideActions
-        className={cn(
-          isMarkdownCodeHidden && cellOutput === "below" && "top-14",
-        )}
-        edited={cellData.edited}
-        status={cellRuntime.status}
-        isCellStatusInline={isCellStatusInline}
-        uninstantiated={uninstantiated}
-        disabled={cellData.config.disabled}
-        runElapsedTimeMs={cellRuntime.runElapsedTimeMs}
-        runStartTimestamp={cellRuntime.runStartTimestamp}
-        lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
-        staleInputs={cellRuntime.staleInputs}
-        interrupted={cellRuntime.interrupted}
-      />
-      <div className="shoulder-bottom hover-action">
-        {canDelete && isCellCodeShown && (
-          <DeleteButton
-            status={cellRuntime.status}
-            connectionState={connection.state}
-            onClick={() => {
-              if (!loading && !isAppInteractionDisabled(connection.state)) {
-                deleteCell({ cellId });
-              }
-            }}
-          />
-        )}
-      </div>
+      {!isSideBySide && rightSideActions}
+      {!isSideBySide && deleteShoulder}
     </div>
   );
 
@@ -681,15 +715,14 @@ const EditableCellComponent = ({
             <CellLeftSideActions cellId={cellId} actions={actions} />
             {cellOutput === "above" && (outputArea || emptyMarkdownPlaceholder)}
             {cellOutput === "right" || cellOutput === "left" ? (
-              <div
-                className={cn(
-                  "cell-row-container--side-by-side",
-                  cellOutput === "left" && "cell-row-container--output-left",
-                )}
+              <CellColumns
+                outputPosition={cellOutput}
+                codeEditor={trayElement}
+                output={outputArea || emptyMarkdownPlaceholder}
               >
-                {trayElement}
-                {outputArea || emptyMarkdownPlaceholder}
-              </div>
+                {rightSideActions}
+                {deleteShoulder}
+              </CellColumns>
             ) : (
               trayElement
             )}
@@ -850,6 +883,34 @@ const CellRightSideActions = memo(
 
 CellRightSideActions.displayName = "CellRightSideActions";
 
+const CellDeleteShoulder = memo(
+  (props: {
+    visible: boolean;
+    status: RuntimeState;
+    connectionState: WebSocketState;
+    disabled: boolean;
+    onDelete: () => void;
+  }) => {
+    const { visible, status, connectionState, disabled, onDelete } = props;
+    return (
+      <div className="shoulder-bottom hover-action z-20">
+        {visible && (
+          <DeleteButton
+            status={status}
+            connectionState={connectionState}
+            onClick={() => {
+              if (!disabled && !isAppInteractionDisabled(connectionState)) {
+                onDelete();
+              }
+            }}
+          />
+        )}
+      </div>
+    );
+  },
+);
+CellDeleteShoulder.displayName = "CellDeleteShoulder";
+
 const CellLeftSideActions = memo(
   (props: {
     className?: string;
@@ -1001,6 +1062,8 @@ const SetupCellComponent = ({
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
   const connection = useAtomValue(connectionAtom);
+
+  useEditorViewLifetime(editorView);
 
   const actions = useCellActions();
   const requestClient = useRequestClient();
@@ -1172,22 +1235,13 @@ const SetupCellComponent = ({
                 staleInputs={cellRuntime.staleInputs}
                 interrupted={cellRuntime.interrupted}
               />
-              <div className="shoulder-bottom hover-action">
-                {canDelete && (
-                  <DeleteButton
-                    connectionState={connection.state}
-                    status={cellRuntime.status}
-                    onClick={() => {
-                      if (
-                        !loading &&
-                        !isAppInteractionDisabled(connection.state)
-                      ) {
-                        deleteCell({ cellId });
-                      }
-                    }}
-                  />
-                )}
-              </div>
+              <CellDeleteShoulder
+                visible={canDelete}
+                status={cellRuntime.status}
+                connectionState={connection.state}
+                disabled={loading}
+                onDelete={() => deleteCell({ cellId })}
+              />
             </div>
             <div className="py-1 px-2 flex justify-end gap-2 last:rounded-b">
               <span className="text-muted-foreground text-xs font-bold">

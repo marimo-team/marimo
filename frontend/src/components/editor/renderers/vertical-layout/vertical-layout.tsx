@@ -52,7 +52,11 @@ import {
 import { Filenames } from "@/utils/filenames";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { cellDomProps } from "../../common";
-import type { ICellRendererPlugin, ICellRendererProps } from "../types";
+import type {
+  CellOutputPosition,
+  ICellRendererPlugin,
+  ICellRendererProps,
+} from "../types";
 import { useDelayVisibility } from "./useDelayVisibility";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
 
@@ -308,7 +312,7 @@ interface VerticalCellProps extends Pick<
   | "staleInputs"
   | "runStartTimestamp"
 > {
-  cellOutputArea: "above" | "below" | "left" | "right";
+  cellOutputArea: CellOutputPosition;
   cellId: CellId;
   config: CellConfig;
   code: string;

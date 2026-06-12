@@ -75,3 +75,5 @@ export interface ICellRendererPlugin<S, L> {
 
   getInitialLayout: (cells: CellData[]) => L;
 }
+
+export type CellOutputPosition = "above" | "below" | "left" | "right";

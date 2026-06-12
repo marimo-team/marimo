@@ -49,6 +49,7 @@ import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSplitCellCallback } from "../useSplitCell";
 import { CodePlaceholder } from "./code-placeholder";
 import { LanguageToggles } from "./language-toggle";
+import type { CellOutputPosition } from "../../renderers/types";
 
 export interface CellEditorProps
   extends
@@ -80,7 +81,7 @@ export interface CellEditorProps
   // DOM node where the editorView will be mounted
   editorViewParentRef?: React.RefObject<HTMLDivElement | null>;
   showHiddenCode: (opts?: { focus?: boolean }) => void;
-  outputArea?: "above" | "below" | "left" | "right";
+  outputArea?: CellOutputPosition;
   /**
    * CSS selector for the element that editor tooltips (completions, hover,
    * signature help) are appended to. Useful for fullscreen/dialog containers;
@@ -446,14 +447,6 @@ const CellEditorInternal = ({
     }
     handleReconfigureEditor();
   }, [handleReconfigureEditor, extensions, editorViewRef]);
-
-  // Destroy the editor when the component is unmounted
-  useEffect(() => {
-    const ev = editorViewRef.current;
-    return () => {
-      ev?.destroy();
-    };
-  }, [editorViewRef]);
 
   // Prioritize building this cell's editor when it scrolls into view, so the
   // visible region fills in first instead of waiting for the top-to-bottom
