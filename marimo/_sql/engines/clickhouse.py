@@ -7,6 +7,7 @@ from marimo import _loggers
 from marimo._ast.sql_utils import classify_sql_statement
 from marimo._config.config import SqlOutputType
 from marimo._data.models import (
+    CatalogNode,
     Database,
     DataTable,
     DataTableColumn,
@@ -147,7 +148,7 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
         include_tables: bool,
         include_table_details: bool,
         schema_path: list[str] | None = None,
-    ) -> list[Schema]:
+    ) -> list[CatalogNode]:
         """Get all schemas and optionally their tables. Keys are schema names."""
         _, _, _, _ = (
             database,
@@ -297,7 +298,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         include_tables: bool,
         include_table_details: bool,
         schema_path: list[str] | None = None,
-    ) -> list[Schema]:
+    ) -> list[CatalogNode]:
         """Get all schemas and optionally their tables. Keys are schema names."""
         _, _, _, _ = (
             database,
@@ -382,7 +383,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
                     dialect=self.dialect,
                     engine=self._engine_name,
                     # ClickHouse does not have schemas
-                    schemas=[
+                    children=[
                         Schema(
                             name=NO_SCHEMA_NAME,
                             tables=tables,

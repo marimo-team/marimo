@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._data.get_datasets import get_databases_from_duckdb
-from marimo._data.models import Database, DataTable, Schema
+from marimo._data.models import CatalogNode, Database, DataTable
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
@@ -185,7 +185,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
         include_tables: bool,
         include_table_details: bool,
         schema_path: list[str] | None = None,
-    ) -> list[Schema]:
+    ) -> list[CatalogNode]:
         """Get all schemas and optionally their tables. Keys are schema names."""
         _, _, _, _ = (
             database,

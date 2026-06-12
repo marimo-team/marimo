@@ -7,7 +7,7 @@ from unittest import mock
 
 import pytest
 
-from marimo._data.models import DataTable, DataTableColumn
+from marimo._data.models import DataTable, DataTableColumn, Namespace, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.pyiceberg import PyIcebergEngine
 from marimo._sql.engines.types import (
@@ -18,6 +18,21 @@ from marimo._sql.engines.types import (
 from marimo._types.ids import VariableName
 
 HAS_PYICEBERG = DependencyManager.pyiceberg.has()
+
+
+def _schema_nodes(children: list) -> list[Schema]:
+    return [node for node in children if isinstance(node, Schema)]
+
+
+def _namespace_nodes(children: list) -> list[Namespace]:
+    return [node for node in children if isinstance(node, Namespace)]
+
+
+def _table_nodes(node: Schema | Namespace) -> list[DataTable]:
+    if isinstance(node, Schema):
+        return node.tables
+    return [child for child in node.children if isinstance(child, DataTable)]
+
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -267,27 +282,31 @@ def test_pyiceberg_get_databases(memory_catalog: Catalog) -> None:
     assert set(by_name) == {"default", "test_namespace", "top"}
 
     # "default" has its own tables in a schemaless Schema, no sub-namespaces.
-    default_schemas = {s.name: s for s in by_name["default"].schemas}
+    default_schemas = {
+        s.name: s for s in _schema_nodes(by_name["default"].children)
+    }
     assert by_name["default"].dialect == "iceberg"
     assert set(default_schemas) == {NO_SCHEMA_NAME}
     assert len(default_schemas[NO_SCHEMA_NAME].tables) == 2
-    assert default_schemas[NO_SCHEMA_NAME].child_schemas == []
 
-    assert {s.name for s in by_name["test_namespace"].schemas} == {
-        NO_SCHEMA_NAME
-    }
+    assert {
+        s.name for s in _schema_nodes(by_name["test_namespace"].children)
+    } == {NO_SCHEMA_NAME}
 
     # "top" has no tables of its own but contains the "nested" sub-namespace.
-    top_schemas = {s.name: s for s in by_name["top"].schemas}
-    assert set(top_schemas) == {NO_SCHEMA_NAME, "nested"}
+    top_schemas = {s.name: s for s in _schema_nodes(by_name["top"].children)}
+    top_namespaces = {
+        n.name: n for n in _namespace_nodes(by_name["top"].children)
+    }
+    assert set(top_schemas) | set(top_namespaces) == {NO_SCHEMA_NAME, "nested"}
     assert top_schemas[NO_SCHEMA_NAME].tables == []
 
-    nested = top_schemas["nested"]
-    assert [t.name for t in nested.tables] == ["table4"]
+    nested = top_namespaces["nested"]
+    assert [t.name for t in _table_nodes(nested)] == ["table4"]
     # "nested" recursively contains "deep", which holds "table5".
-    deep_by_name = {s.name: s for s in nested.child_schemas}
+    deep_by_name = {n.name: n for n in _namespace_nodes(nested.children)}
     assert set(deep_by_name) == {"deep"}
-    assert [t.name for t in deep_by_name["deep"].tables] == ["table5"]
+    assert [t.name for t in _table_nodes(deep_by_name["deep"])] == ["table5"]
 
     # Test with include_tables=False (schemas listed, tables deferred)
     databases = engine.get_databases(
@@ -295,13 +314,16 @@ def test_pyiceberg_get_databases(memory_catalog: Catalog) -> None:
     )
     by_name = {db.name: db for db in databases}
     assert set(by_name) == {"default", "test_namespace", "top"}
-    top_schemas = {s.name: s for s in by_name["top"].schemas}
+    top_schemas = {s.name: s for s in _schema_nodes(by_name["top"].children)}
+    top_namespaces = {
+        n.name: n for n in _namespace_nodes(by_name["top"].children)
+    }
     # Sub-namespace is present but its tables/children are deferred.
-    assert set(top_schemas) == {NO_SCHEMA_NAME, "nested"}
-    assert top_schemas["nested"].tables_resolved is False
-    assert top_schemas["nested"].child_schemas_resolved is False
-    assert top_schemas["nested"].tables == []
-    assert top_schemas["nested"].child_schemas == []
+    assert set(top_schemas) | set(top_namespaces) == {NO_SCHEMA_NAME, "nested"}
+    nested = top_namespaces["nested"]
+    assert nested.children_resolved is False
+    assert nested.tables_resolved is False
+    assert nested.children == []
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
@@ -322,8 +344,8 @@ def test_pyiceberg_get_databases_lazy_schemas(memory_catalog: Catalog) -> None:
         "top",
     }
     for db in databases:
-        assert db.schemas_resolved is False
-        assert db.schemas == []
+        assert db.children_resolved is False
+        assert db.children == []
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
@@ -346,19 +368,20 @@ def test_pyiceberg_connection_is_lazy(memory_catalog: Catalog) -> None:
     by_name = {db.name: db for db in connection.databases}
     assert set(by_name) == {"default", "test_namespace", "top"}
 
-    # First-level schemas are resolved...
+    # First-level children are resolved...
     top = by_name["top"]
-    assert top.schemas_resolved is True
-    top_schemas = {s.name: s for s in top.schemas}
-    assert set(top_schemas) == {NO_SCHEMA_NAME, "nested"}
+    assert top.children_resolved is True
+    top_schemas = {s.name: s for s in _schema_nodes(top.children)}
+    top_namespaces = {n.name: n for n in _namespace_nodes(top.children)}
+    assert set(top_schemas) | set(top_namespaces) == {NO_SCHEMA_NAME, "nested"}
 
     # ...but their tables and deeper sub-namespaces are deferred.
     assert top_schemas[NO_SCHEMA_NAME].tables_resolved is False
     assert top_schemas[NO_SCHEMA_NAME].tables == []
-    assert top_schemas["nested"].tables_resolved is False
-    assert top_schemas["nested"].child_schemas_resolved is False
-    assert top_schemas["nested"].tables == []
-    assert top_schemas["nested"].child_schemas == []
+    nested = top_namespaces["nested"]
+    assert nested.children_resolved is False
+    assert nested.tables_resolved is False
+    assert nested.children == []
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
@@ -370,26 +393,28 @@ def test_pyiceberg_get_schemas_by_path(memory_catalog: Catalog) -> None:
 
     # Top level: the schemaless entry plus the immediate child "nested"
     # (deferred, not recursed).
-    schemas = engine.get_schemas(
+    nodes = engine.get_schemas(
         database="top",
         include_tables=False,
         include_table_details=False,
         schema_path=[],
     )
-    assert [s.name for s in schemas] == [NO_SCHEMA_NAME, "nested"]
-    nested = schemas[1]
-    assert nested.child_schemas_resolved is False
+    assert [n.name for n in nodes] == [NO_SCHEMA_NAME, "nested"]
+    nested = nodes[1]
+    assert isinstance(nested, Namespace)
+    assert nested.children_resolved is False
     assert nested.tables_resolved is False
-    assert nested.child_schemas == []
+    assert nested.children == []
 
     # Immediate child of "top.nested" is "deep".
-    schemas = engine.get_schemas(
+    nodes = engine.get_schemas(
         database="top",
         include_tables=False,
         include_table_details=False,
         schema_path=["nested"],
     )
-    assert [s.name for s in schemas] == ["deep"]
+    assert [n.name for n in nodes] == ["deep"]
+    assert isinstance(nodes[0], Namespace)
 
     # "top.nested.deep" is a leaf.
     assert (
@@ -482,7 +507,9 @@ def test_pyiceberg_auto_discovery(memory_catalog: Catalog) -> None:
     assert isinstance(databases, list)
     assert len(databases) == 3
     by_name = {db.name: db for db in databases}
-    default_schemas = {s.name: s for s in by_name["default"].schemas}
+    default_schemas = {
+        s.name: s for s in _schema_nodes(by_name["default"].children)
+    }
     assert len(default_schemas[NO_SCHEMA_NAME].tables) == 2
 
     # Test with _is_cheap_discovery mocked to return False
@@ -498,5 +525,5 @@ def test_pyiceberg_auto_discovery(memory_catalog: Catalog) -> None:
         assert isinstance(databases, list)
         assert len(databases) == 3
         for db in databases:
-            assert db.schemas_resolved is False
-            assert db.schemas == []
+            assert db.children_resolved is False
+            assert db.children == []

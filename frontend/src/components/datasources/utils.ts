@@ -2,10 +2,12 @@
 
 import { BigQueryDialect } from "@marimo-team/codemirror-sql/dialects";
 import { isKnownDialect } from "@/core/codemirror/language/languages/sql/utils";
+import { catalogNodePath } from "@/core/datasets/catalog";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import type {
   Database,
+  DatabaseNamespace,
   DatabaseSchema,
   DataTable,
   DataType,
@@ -27,10 +29,9 @@ export function tableUniqueId(
   if (!sqlTableContext) {
     return tableName;
   }
-  const segments = (
-    sqlTableContext.schemaPath?.length
-      ? sqlTableContext.schemaPath
-      : [sqlTableContext.schema]
+  const segments = catalogNodePath(
+    sqlTableContext.schema,
+    sqlTableContext.schemaPath,
   ).filter(Boolean);
   return [sqlTableContext.database, ...segments, tableName].join(".");
 }
@@ -42,14 +43,21 @@ export function isSchemaless(schemaName: string) {
 
 // Lazy discovery: the `*_resolved` flags default to `true` and are only `false`
 // when enumeration was deferred. Helper functions to centralize logic
-export function areSchemasResolved(database: Database): boolean {
-  return database.schemas_resolved !== false;
+export function areChildrenResolved(database: Database): boolean {
+  return database.children_resolved !== false;
 }
 export function areTablesResolved(schema: DatabaseSchema): boolean {
   return schema.tables_resolved !== false;
 }
-export function areChildSchemasResolved(schema: DatabaseSchema): boolean {
-  return schema.child_schemas_resolved !== false;
+export function areNamespaceChildrenResolved(
+  namespace: DatabaseNamespace,
+): boolean {
+  return namespace.children_resolved !== false;
+}
+export function areNamespaceTablesResolved(
+  namespace: DatabaseNamespace,
+): boolean {
+  return namespace.tables_resolved !== false;
 }
 
 interface SqlCodeFormatter {

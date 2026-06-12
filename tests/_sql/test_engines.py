@@ -173,18 +173,18 @@ def test_sqlalchemy_get_databases() -> None:
         include_schemas=True, include_tables=False, include_table_details=False
     )
     assert len(databases_with_schemas) > 0
-    assert len(databases_with_schemas[0].schemas) > 0
+    assert len(databases_with_schemas[0].children) > 0
 
     # Test with tables included
     databases_with_tables = engine.get_databases(
         include_schemas=True, include_tables=True, include_table_details=False
     )
     assert len(databases_with_tables) > 0
-    assert len(databases_with_tables[0].schemas) > 0
+    assert len(databases_with_tables[0].children) > 0
 
     # At least one schema should have tables
     has_tables = False
-    for schema in databases_with_tables[0].schemas:
+    for schema in databases_with_tables[0].children:
         if len(schema.tables) > 0:
             has_tables = True
             break

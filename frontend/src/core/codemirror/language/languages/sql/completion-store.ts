@@ -3,6 +3,12 @@
 import type { SQLConfig, SQLDialect } from "@codemirror/lang-sql";
 import { atom } from "jotai";
 import { isSchemaless } from "@/components/datasources/utils";
+import {
+  collectTablesFromNode,
+  isNamespaceNode,
+  isSchemaNode,
+  walkCatalogNodes,
+} from "@/core/datasets/catalog";
 import { dataConnectionsMapAtom } from "@/core/datasets/data-source-connections";
 import type { ConnectionName } from "@/core/datasets/engines";
 import { datasetTablesAtom } from "@/core/datasets/state";
@@ -52,13 +58,15 @@ class SQLCompletionStore {
 
     const dbToVerify = defaultDb ?? databases[0];
     const isSchemalessDb =
-      dbToVerify?.schemas.some((schema) => isSchemaless(schema.name)) ?? false;
+      dbToVerify?.children.some(
+        (node) => isSchemaNode(node) && isSchemaless(node.name),
+      ) ?? false;
 
     // For schemaless databases, treat databases as schemas
     if (isSchemalessDb) {
       for (const db of databases) {
         const isDefaultDb = db.name === defaultDb?.name;
-        const tables = db.schemas.flatMap((schema) => schema.tables);
+        const tables = db.children.flatMap(collectTablesFromNode);
         builder.addDatabase([db.name], db);
 
         for (const table of tables) {
@@ -79,31 +87,50 @@ class SQLCompletionStore {
       };
     }
 
+    const addCatalogToBuilder = (
+      databaseName: string,
+      isDefaultDb: boolean,
+    ) => {
+      const database = databases.find((db) => db.name === databaseName);
+      if (!database) {
+        return;
+      }
+
+      walkCatalogNodes(
+        database.children,
+        { databaseName: database.name, segments: [] },
+        ({ node, segments }) => {
+          if (isNamespaceNode(node)) {
+            return;
+          }
+          const path = isDefaultDb
+            ? segments
+            : [database.name, ...segments].filter(Boolean);
+
+          if (isSchemaNode(node)) {
+            if (!isSchemaless(node.name)) {
+              builder.addSchema(path, node);
+            }
+            for (const table of node.tables) {
+              builder.addTable(path, table);
+            }
+            return;
+          }
+
+          builder.addTable(path, node);
+        },
+      );
+    };
+
     // For default db, we can use the schema name directly so add them to the top level
     if (defaultDb) {
-      for (const schema of defaultDb.schemas) {
-        builder.addSchema([schema.name], schema);
-
-        for (const table of schema.tables) {
-          builder.addTable([schema.name], table);
-        }
-      }
+      addCatalogToBuilder(defaultDb.name, true);
     }
 
     // Otherwise, we need to use the fully qualified name
     for (const database of databases) {
-      // We still want to add the default database here in case
-      // users want fully qualified names for completions
-
       builder.addDatabase([database.name], database);
-
-      for (const schema of database.schemas) {
-        builder.addSchema([database.name, schema.name], schema);
-
-        for (const table of schema.tables) {
-          builder.addTable([database.name, schema.name], table);
-        }
-      }
+      addCatalogToBuilder(database.name, false);
     }
 
     return {
@@ -167,14 +194,11 @@ function getSingleTable(connection: DataSourceConnection): string | undefined {
     return undefined;
   }
   const database = connection.databases[0];
-  if (database.schemas.length !== 1) {
+  const tables = database.children.flatMap(collectTablesFromNode);
+  if (tables.length !== 1) {
     return undefined;
   }
-  const schema = database.schemas[0];
-  if (schema.tables.length !== 1) {
-    return undefined;
-  }
-  return schema.tables[0].name;
+  return tables[0].name;
 }
 
 export const SCHEMA_CACHE = new SQLCompletionStore();

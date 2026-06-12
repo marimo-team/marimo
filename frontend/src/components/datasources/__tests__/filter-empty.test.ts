@@ -1,8 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
+import type { CatalogNode } from "@/core/datasets/catalog";
 import type {
   Database,
+  DatabaseNamespace,
   DatabaseSchema,
   DataTable,
 } from "@/core/kernel/messages";
@@ -10,6 +12,7 @@ import { filterEmptyDatabases } from "../datasources";
 
 function makeTable(name: string): DataTable {
   return {
+    kind: "data_table",
     name,
     columns: [],
     source: "memory",
@@ -28,28 +31,38 @@ function makeSchema(opts: {
   name: string;
   tables: DataTable[];
   tables_resolved?: boolean;
-  child_schemas?: DatabaseSchema[];
-  child_schemas_resolved?: boolean;
 }): DatabaseSchema {
   return {
+    kind: "schema",
     name: opts.name,
     tables: opts.tables,
     tables_resolved: opts.tables_resolved ?? true,
-    child_schemas: opts.child_schemas ?? [],
-    child_schemas_resolved: opts.child_schemas_resolved ?? true,
+  };
+}
+
+function makeNamespace(opts: {
+  name: string;
+  children?: CatalogNode[];
+  children_resolved?: boolean;
+}): DatabaseNamespace {
+  return {
+    kind: "namespace",
+    name: opts.name,
+    children: opts.children ?? [],
+    children_resolved: opts.children_resolved ?? true,
   };
 }
 
 function makeDatabase(
   name: string,
-  schemas: DatabaseSchema[],
-  schemas_resolved = true,
+  children: CatalogNode[],
+  children_resolved = true,
 ): Database {
   return {
     name,
     dialect: "duckdb",
-    schemas,
-    schemas_resolved,
+    children,
+    children_resolved,
     engine: null,
   };
 }
@@ -70,9 +83,9 @@ describe("filterEmptyDatabases", () => {
     ]);
   });
 
-  it("preserves databases whose schemas have not been resolved yet (lazy state)", () => {
+  it("preserves databases whose children have not been resolved yet (lazy state)", () => {
     const databases = [
-      makeDatabase("not_loaded_yet", [], /* schemas_resolved */ false),
+      makeDatabase("not_loaded_yet", [], /* children_resolved */ false),
     ];
 
     expect(filterEmptyDatabases(databases)).toEqual([
@@ -82,7 +95,7 @@ describe("filterEmptyDatabases", () => {
 
   it("hides databases that have been resolved as empty", () => {
     const databases = [
-      makeDatabase("really_empty", [], /* schemas_resolved */ true),
+      makeDatabase("really_empty", [], /* children_resolved */ true),
       makeDatabase("has_tables", [
         makeSchema({ name: "main", tables: [makeTable("t1")] }),
       ]),
@@ -95,7 +108,7 @@ describe("filterEmptyDatabases", () => {
     ]);
   });
 
-  it("hides databases whose schemas all filtered to empty", () => {
+  it("hides databases whose children all filtered to empty", () => {
     const databases = [
       makeDatabase("only_empty", [
         makeSchema({ name: "a", tables: [] }),
@@ -113,9 +126,9 @@ describe("filterEmptyDatabases", () => {
     ]);
   });
 
-  it("treats missing schemas_resolved as resolved (backward compatible)", () => {
+  it("treats missing children_resolved as resolved (backward compatible)", () => {
     const databases = [
-      { name: "memory", dialect: "duckdb", schemas: [], engine: null },
+      { name: "memory", dialect: "duckdb", children: [], engine: null },
     ] as Database[];
 
     expect(filterEmptyDatabases(databases)).toEqual([]);
@@ -124,8 +137,6 @@ describe("filterEmptyDatabases", () => {
   it("preserves schemas whose tables have not been resolved yet", () => {
     const databases = [
       makeDatabase("snowflake_db", [
-        // include_tables=False was used; the schema is not actually empty,
-        // tables will be fetched lazily on expand.
         makeSchema({ name: "public", tables: [], tables_resolved: false }),
         makeSchema({ name: "audit", tables: [], tables_resolved: false }),
         makeSchema({
@@ -145,18 +156,16 @@ describe("filterEmptyDatabases", () => {
   });
 
   it("treats missing tables_resolved as resolved (backward compatible)", () => {
-    // Older payloads predating the new flag may omit it; default semantics
-    // treat the schema as resolved/authoritative.
     const databases = [
       makeDatabase("memory", [
-        { name: "main", tables: [makeTable("t1")] },
-        { name: "empty_schema", tables: [] },
+        { kind: "schema", name: "main", tables: [makeTable("t1")] },
+        { kind: "schema", name: "empty_schema", tables: [] },
       ] as DatabaseSchema[]),
     ];
 
     expect(filterEmptyDatabases(databases)).toEqual([
       makeDatabase("memory", [
-        { name: "main", tables: [makeTable("t1")] },
+        { kind: "schema", name: "main", tables: [makeTable("t1")] },
       ] as DatabaseSchema[]),
     ]);
   });
@@ -188,11 +197,15 @@ describe("filterEmptyDatabases", () => {
   it("keeps a namespace that has only child namespaces (no own tables)", () => {
     const databases = [
       makeDatabase("iceberg", [
-        makeSchema({
+        makeNamespace({
           name: "top",
-          tables: [],
-          child_schemas: [
-            makeSchema({ name: "nested", tables: [makeTable("t1")] }),
+          children: [
+            makeNamespace({
+              name: "nested",
+              children: [
+                makeSchema({ name: "deep", tables: [makeTable("t1")] }),
+              ],
+            }),
           ],
         }),
       ]),
@@ -201,14 +214,13 @@ describe("filterEmptyDatabases", () => {
     expect(filterEmptyDatabases(databases)).toBe(databases);
   });
 
-  it("preserves a namespace whose child schemas are deferred", () => {
+  it("preserves a namespace whose children are deferred", () => {
     const databases = [
       makeDatabase("iceberg", [
-        makeSchema({
+        makeNamespace({
           name: "top",
-          tables: [],
-          child_schemas: [],
-          child_schemas_resolved: false,
+          children: [],
+          children_resolved: false,
         }),
       ]),
     ];
@@ -219,12 +231,20 @@ describe("filterEmptyDatabases", () => {
   it("hides a nested namespace that is resolved-empty", () => {
     const databases = [
       makeDatabase("iceberg", [
-        makeSchema({
+        makeNamespace({
           name: "top",
-          tables: [makeTable("t1")],
-          child_schemas: [
-            makeSchema({ name: "empty_child", tables: [] }),
-            makeSchema({ name: "full_child", tables: [makeTable("t2")] }),
+          children: [
+            makeSchema({ name: "t1_holder", tables: [makeTable("t1")] }),
+            makeNamespace({
+              name: "empty_child",
+              children: [makeSchema({ name: "empty", tables: [] })],
+            }),
+            makeNamespace({
+              name: "full_child",
+              children: [
+                makeSchema({ name: "full", tables: [makeTable("t2")] }),
+              ],
+            }),
           ],
         }),
       ]),
@@ -232,11 +252,16 @@ describe("filterEmptyDatabases", () => {
 
     expect(filterEmptyDatabases(databases)).toEqual([
       makeDatabase("iceberg", [
-        makeSchema({
+        makeNamespace({
           name: "top",
-          tables: [makeTable("t1")],
-          child_schemas: [
-            makeSchema({ name: "full_child", tables: [makeTable("t2")] }),
+          children: [
+            makeSchema({ name: "t1_holder", tables: [makeTable("t1")] }),
+            makeNamespace({
+              name: "full_child",
+              children: [
+                makeSchema({ name: "full", tables: [makeTable("t2")] }),
+              ],
+            }),
           ],
         }),
       ]),
@@ -246,10 +271,14 @@ describe("filterEmptyDatabases", () => {
   it("hides a parent namespace when all its descendants are empty", () => {
     const databases = [
       makeDatabase("iceberg", [
-        makeSchema({
+        makeNamespace({
           name: "top",
-          tables: [],
-          child_schemas: [makeSchema({ name: "empty_child", tables: [] })],
+          children: [
+            makeNamespace({
+              name: "empty_child",
+              children: [makeSchema({ name: "empty", tables: [] })],
+            }),
+          ],
         }),
         makeSchema({ name: "other", tables: [makeTable("t1")] }),
       ]),

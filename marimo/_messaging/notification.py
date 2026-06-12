@@ -20,11 +20,11 @@ from marimo._data._external_storage.models import (
     StorageNamespace,
 )
 from marimo._data.models import (
+    CatalogNode,
     ColumnStats,
     DataSourceConnection,
     DataTable,
     DataTableSource,
-    Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellOutput
@@ -664,7 +664,7 @@ class SQLSchemaListPreviewNotification(
     name: ClassVar[str] = "sql-schema-list-preview"
     request_id: RequestId
     metadata: SQLDatabaseMetadata
-    schemas: list[Schema] = msgspec.field(default_factory=list)
+    schemas: list[CatalogNode] = msgspec.field(default_factory=list)
     error: str | None = None
 
 

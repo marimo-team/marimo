@@ -9,6 +9,7 @@ from marimo._data.models import (
     DataTable,
     DataTableColumn,
     DataType,
+    Namespace,
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -148,7 +149,7 @@ def _get_empty_databases(
         Database(
             name=database,
             dialect="duckdb",
-            schemas=[],
+            children=[],
             engine=engine_name,
         )
         for database in all_dbs
@@ -310,14 +311,14 @@ def form_databases_from_dict(
     # Convert grouped data into Database objects
     databases: list[Database] = []
     for database, schemas_dict in databases_dict.items():
-        schema_list: list[Schema] = []
+        schema_list: list[Schema | DataTable | Namespace] = []
         for schema_name, tables in schemas_dict.items():
             schema_list.append(Schema(name=schema_name, tables=tables))
         databases.append(
             Database(
                 name=database,
                 dialect="duckdb",
-                schemas=schema_list,
+                children=schema_list,
                 engine=engine_name,
             )
         )
@@ -331,7 +332,7 @@ def form_databases_from_dict(
                     Database(
                         name=database_name,
                         dialect="duckdb",
-                        schemas=[],
+                        children=[],
                         engine=engine_name,
                     )
                 )

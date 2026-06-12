@@ -8,6 +8,7 @@ import { sqlCode, tableUniqueId } from "../utils";
 
 describe("sqlCode", () => {
   const mockTable: DataTable = {
+    kind: "data_table",
     name: "users" as const,
     columns: [],
     source: "local",

@@ -9,7 +9,7 @@ from marimo import _loggers
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
-from marimo._data.models import DataTable
+from marimo._data.models import DataTable, Schema
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import SessionId
 from marimo._utils.fuzzy_match import compile_regex, is_fuzzy_match
@@ -98,7 +98,10 @@ class GetDatabaseTables(
         for connection in data_connectors.connections:
             for database in connection.databases:
                 default_database = connection.default_database == database.name
-                for schema in database.schemas:
+                for node in database.children:
+                    if not isinstance(node, Schema):
+                        continue
+                    schema = node
                     default_schema = connection.default_schema == schema.name
                     # If query is None, match all schemas
                     # If matching, add all tables to the list

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Generic, Literal, TypeVar
 
 from marimo._config.config import SqlOutputType
-from marimo._data.models import Database, DataTable, Schema
+from marimo._data.models import CatalogNode, Database, DataTable
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.parse import (
     format_query_with_globals,
@@ -107,11 +107,11 @@ class EngineCatalog(BaseEngine[CONN], ABC):
         include_tables: bool,
         include_table_details: bool,
         schema_path: list[str] | None = None,
-    ) -> list[Schema]:
-        """Return schemas within a database.
+    ) -> list[CatalogNode]:
+        """Return catalog nodes within a database.
 
-        Empty `schema_path` lists the database's top-level schemas; a non-empty
-        path lists the child schemas at that path. Only nested-namespace engines
+        Empty `schema_path` lists the database's top-level children; a non-empty
+        path lists the child nodes at that path. Only nested-namespace engines
         (e.g. Iceberg) honour a non-empty path; flat engines return `[]` for one.
         """
 

@@ -401,7 +401,7 @@ def test_get_databases() -> None:
         Database(
             name="memory",
             dialect="duckdb",
-            schemas=[
+            children=[
                 Schema(name="main", tables=all_types_tables),
                 Schema(name="s1", tables=s1_tables),
                 Schema(name="s2", tables=s2_tables),
@@ -420,7 +420,7 @@ def test_get_databases_with_no_tables() -> None:
     in_memory_database = Database(
         name="memory",
         dialect="duckdb",
-        schemas=[],
+        children=[],
         engine=None,
     )
 
@@ -469,7 +469,7 @@ def test_get_databases_with_connection() -> None:
         Database(
             name="memory",
             dialect="duckdb",
-            schemas=[
+            children=[
                 Schema(name="main", tables=all_tables),
                 Schema(name="s1", tables=s1),
                 Schema(name="s2", tables=s2),
@@ -565,7 +565,7 @@ def test_get_databases_agg_query() -> None:
         Database(
             name="memory",
             dialect="duckdb",
-            schemas=[
+            children=[
                 Schema(name="main", tables=all_types_tables),
                 Schema(name="s1", tables=s1_tables),
                 Schema(name="s2", tables=s2_tables),
@@ -740,7 +740,7 @@ def test_form_databases_from_dict_backfill() -> None:
     assert len(result) == 2
     assert result[0].name == "memory"
     assert result[1].name == "extra_db"
-    assert result[1].schemas == []
+    assert result[1].children == []
 
 
 @pytest.mark.requires("duckdb")
@@ -811,7 +811,7 @@ class TestGetDatabasesNestedNamespace:
                 Database(
                     name="memory",
                     dialect="duckdb",
-                    schemas=[
+                    children=[
                         Schema(
                             name="nested.namespace",
                             tables=[
@@ -852,7 +852,7 @@ class TestGetDatabasesNestedNamespace:
                 Database(
                     name="memory",
                     dialect="duckdb",
-                    schemas=[
+                    children=[
                         Schema(
                             name="a.b.c.d",
                             tables=[
@@ -907,7 +907,7 @@ class TestGetDatabasesNestedNamespace:
             Database(
                 name="memory",
                 dialect="duckdb",
-                schemas=[
+                children=[
                     Schema(
                         name=schema_name,
                         tables=[

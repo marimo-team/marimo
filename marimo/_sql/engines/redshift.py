@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from marimo import _loggers
 from marimo._data.models import (
+    CatalogNode,
     Database,
     DataTable,
     DataTableColumn,
@@ -196,9 +197,9 @@ class RedshiftEngine(SQLConnection["Connection"]):
                 include_table_details
             )
 
-            schemas: list[Schema] = []
+            children: list[CatalogNode] = []
             if include_schemas:
-                schemas = self.get_schemas(
+                children = self.get_schemas(
                     database=catalog,
                     include_tables=include_tables,
                     include_table_details=include_table_details,
@@ -208,8 +209,8 @@ class RedshiftEngine(SQLConnection["Connection"]):
                 Database(
                     name=catalog,
                     dialect=self.dialect,
-                    schemas=schemas,
-                    schemas_resolved=include_schemas,
+                    children=children,
+                    children_resolved=include_schemas,
                     engine=self._engine_name,
                 )
             )
@@ -223,7 +224,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
         include_tables: bool,
         include_table_details: bool,
         schema_path: list[str] | None = None,
-    ) -> list[Schema]:
+    ) -> list[CatalogNode]:
         """Get schemas from the engine."""
         if schema_path:
             return []  # Redshift schemas don't nest
@@ -235,7 +236,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
             # Early return to avoid passing None or "" as catalog
             return []
 
-        output_schemas: list[Schema] = []
+        output_schemas: list[CatalogNode] = []
         with self._connection.cursor() as cursor:
             # get_schemas returns [["schema_name", "catalog"], ["schema_2", "catalog"]]
             schemas = cursor.get_schemas(catalog=catalog)

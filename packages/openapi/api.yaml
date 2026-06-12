@@ -1145,6 +1145,9 @@ components:
             type: array
           - type: 'null'
           default: null
+        kind:
+          enum:
+          - data_table
         name:
           type: string
         num_columns:
@@ -1180,6 +1183,7 @@ components:
           - $ref: '#/components/schemas/VariableName'
           - type: 'null'
       required:
+      - kind
       - source_type
       - source
       - name
@@ -1219,13 +1223,30 @@ components:
       title: DataTableColumn
       type: object
     Database:
-      description: "Represents a collection of schemas.\n\nAttributes:\n    name (str):\
-        \ The name of the database\n    dialect (str): The dialect of the database\n\
-        \    schemas (List[Schema]): List of schemas in the database.\n    schemas_resolved\
-        \ (bool): True when `schemas` has been enumerated.\n        False when schema\
-        \ discovery was deferred. Defaults to True\n    engine (Optional[VariableName]):\
-        \ Database engine or connection handler, if any."
+      description: "Represents a database and its children.\n\nAttributes:\n    name\
+        \ (str): The name of the database.\n    dialect (str): The dialect of the\
+        \ database.\n    children (List[Schema | DataTable | Namespace]): The children\
+        \ of the database.\n    children_resolved (bool): True when `children` has\
+        \ been enumerated\n        False when child discovery was deferred. Defaults\
+        \ to True\n    engine (Optional[VariableName]): Database engine or connection\
+        \ handler, if any."
       properties:
+        children:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/Schema'
+            - $ref: '#/components/schemas/DataTable'
+            - $ref: '#/components/schemas/Namespace'
+            discriminator:
+              mapping:
+                data_table: '#/components/schemas/DataTable'
+                namespace: '#/components/schemas/Namespace'
+                schema: '#/components/schemas/Schema'
+              propertyName: kind
+          type: array
+        children_resolved:
+          default: true
+          type: boolean
         dialect:
           type: string
         engine:
@@ -1235,17 +1256,10 @@ components:
           default: null
         name:
           type: string
-        schemas:
-          items:
-            $ref: '#/components/schemas/Schema'
-          type: array
-        schemas_resolved:
-          default: true
-          type: boolean
       required:
       - name
       - dialect
-      - schemas
+      - children
       title: Database
       type: object
     DatasetsNotification:
@@ -3706,6 +3720,45 @@ components:
       - cells
       title: MultipleDefinitionError
       type: object
+    Namespace:
+      description: "Represents a namespace and its children.\n\nAttributes:\n    name\
+        \ (str): The name of the namespace.\n    children (List[Schema | DataTable\
+        \ | Namespace]): The children of the namespace.\n    children_resolved (bool):\
+        \ True when sub-namespace children have been enumerated.\n        False when\
+        \ child discovery was deferred. Defaults to True\n    tables_resolved (bool):\
+        \ True when inline `DataTable` children have been enumerated.\n        False\
+        \ when table discovery was deferred. Defaults to True"
+      properties:
+        children:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/Schema'
+            - $ref: '#/components/schemas/DataTable'
+            - $ref: '#/components/schemas/Namespace'
+            discriminator:
+              mapping:
+                data_table: '#/components/schemas/DataTable'
+                namespace: '#/components/schemas/Namespace'
+                schema: '#/components/schemas/Schema'
+              propertyName: kind
+          type: array
+        children_resolved:
+          default: true
+          type: boolean
+        kind:
+          enum:
+          - namespace
+        name:
+          type: string
+        tables_resolved:
+          default: true
+          type: boolean
+      required:
+      - kind
+      - name
+      - children
+      title: Namespace
+      type: object
     NotebookCell:
       description: "A single cell in the document. Mutable \u2014 owned by the document.\n\
         \n    `version` increments on each `SetCode` that actually changes\n    `code`.\
@@ -4411,7 +4464,16 @@ components:
         schemas:
           default: []
           items:
-            $ref: '#/components/schemas/Schema'
+            anyOf:
+            - $ref: '#/components/schemas/Schema'
+            - $ref: '#/components/schemas/DataTable'
+            - $ref: '#/components/schemas/Namespace'
+            discriminator:
+              mapping:
+                data_table: '#/components/schemas/DataTable'
+                namespace: '#/components/schemas/Namespace'
+                schema: '#/components/schemas/Schema'
+              propertyName: kind
           type: array
       required:
       - op
@@ -4549,24 +4611,15 @@ components:
       title: SaveUserConfigurationRequest
       type: object
     Schema:
-      description: "Represents a database schema and its tables.\n\nA schema may itself\
-        \ contain nested child schemas, e.g. for catalogs with\nhierarchical namespaces\
-        \ such as Iceberg (`top.nested.deep`).\n\nAttributes:\n    name (str): The\
-        \ name of the schema.\n    tables (List[DataTable]): Tables in this schema.\n\
-        \    tables_resolved (bool): True when `tables` has been enumerated\n    \
-        \    False when table discovery was deferred. Defaults to True\n    child_schemas\
-        \ (List[Schema]): Nested child schemas (sub-namespaces).\n    child_schemas_resolved\
-        \ (bool): True when `child_schemas` has been\n        enumerated. False when\
-        \ discovery was deferred. Defaults to True"
+      description: "Represents a database schema and its tables.\n\nAttributes:\n\
+        \    name (str): The name of the schema.\n    tables (List[DataTable]): Tables\
+        \ in this schema.\n    tables_resolved (bool): True when `tables` has been\
+        \ enumerated\n        False when table discovery was deferred. Defaults to\
+        \ True"
       properties:
-        child_schemas:
-          default: []
-          items:
-            $ref: '#/components/schemas/Schema'
-          type: array
-        child_schemas_resolved:
-          default: true
-          type: boolean
+        kind:
+          enum:
+          - schema
         name:
           type: string
         tables:
@@ -4577,6 +4630,7 @@ components:
           default: true
           type: boolean
       required:
+      - kind
       - name
       - tables
       title: Schema
