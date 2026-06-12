@@ -431,11 +431,12 @@ function getOutputControlsPlacement(
 ): OutputControlsPlacement {
   switch (outputPosition) {
     case "left":
-      return { className: "-left-13 -top-1.5", tooltipSide: "right" };
+      return { className: "-left-13 -top-1.5 z-1", tooltipSide: "right" };
     case "right":
-      return { className: "-right-1 -top-1", tooltipSide: "left" };
+      // Lift the controls above the shoulder so they stay clickable
+      return { className: "-right-9 top-7 z-30", tooltipSide: "left" };
     default:
-      return { className: "-right-9 top-1", tooltipSide: "left" };
+      return { className: "-right-9 top-1 z-1", tooltipSide: "left" };
   }
 }
 
@@ -463,10 +464,7 @@ const ExpandableOutput = React.memo(
         <div>
           <div className="relative print:hidden">
             <div
-              className={cn(
-                "absolute z-1 flex flex-col gap-1",
-                controlsClassName,
-              )}
+              className={cn("absolute flex flex-col gap-1", controlsClassName)}
             >
               {hasFullscreen && (
                 <Tooltip content="Fullscreen" side={tooltipSide}>
