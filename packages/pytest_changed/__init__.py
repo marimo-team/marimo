@@ -117,7 +117,8 @@ def get_dependency_graph(
                 "uvx",
                 # uv notes `analyze graph` is experimental,
                 # so we fix the ruff version for now
-                "ruff@0.15.9",
+                # Follow project's UV_EXCLUDE_NEWER setting to avoid resolution issues
+                "ruff@0.15.16",
                 "analyze",
                 "graph",
                 "--detect-string-imports",
