@@ -110,11 +110,20 @@ function withNamespaceTables(
   return { ...node, children: [...nonTables, ...tables] };
 }
 
-/** Upsert `table` into a list by name, appending when the list is empty. */
+/** Upsert `table` into a list by name, appending when absent. */
 function upsertTable(tables: DataTable[], table: DataTable): DataTable[] {
-  return tables.length === 0
-    ? [table]
-    : tables.map((t) => (t.name === table.name ? table : t));
+  if (tables.length === 0) {
+    return [table];
+  }
+  let found = false;
+  const updated = tables.map((t) => {
+    if (t.name === table.name) {
+      found = true;
+      return table;
+    }
+    return t;
+  });
+  return found ? updated : [...updated, table];
 }
 
 /** Replace the resolved table list at `path` (schema or namespace node). */
@@ -179,12 +188,13 @@ export function walkCatalogNodes(
   visit: (ctx: CatalogWalkContext & { node: CatalogNode }) => void,
 ): void {
   for (const node of nodes) {
-    const segments = isSchemaless(node.name)
-      ? context.segments
-      : [...context.segments, node.name];
+    const segments =
+      isDataTableNode(node) || isSchemaless(node.name)
+        ? context.segments
+        : [...context.segments, node.name];
     visit({ ...context, segments, node });
 
-    if (isSchemaNode(node)) {
+    if (isSchemaNode(node) || isDataTableNode(node)) {
       continue;
     }
     if (isNamespaceNode(node)) {

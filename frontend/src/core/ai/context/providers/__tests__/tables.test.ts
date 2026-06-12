@@ -22,6 +22,7 @@ const createMockTable = (
   name: string,
   options: Partial<DataTable> = {},
 ): DataTable => ({
+  kind: "data_table",
   name,
   source: "memory",
   source_type: "local",
