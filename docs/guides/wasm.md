@@ -213,8 +213,18 @@ issue](https://github.com/pyodide/pyodide/issues/new?assignees=&labels=new+packa
 
 **PDB.** PDB is not currently supported.
 
-**Threading and multi-processing.** WASM notebooks do not support multithreading
-and multiprocessing. [This may be fixed in the future](https://github.com/pyodide/pyodide/issues/237).
+**Concurrency.** WASM notebooks support cooperative adapters for
+`threading.Thread`, `threading.Event`, `threading.local`,
+`concurrent.futures.ThreadPoolExecutor`, `wait`, `as_completed`, and
+process-shaped `multiprocessing.Process`, `Queue`, `SimpleQueue`, `Pool`, and
+`ProcessPoolExecutor`. These adapters run in the browser's Pyodide interpreter.
+They do not create OS threads, shared-memory processes, or true CPU parallelism.
+`multiprocessing.Pool.terminate()` cancels queued work, but raises
+`UnsupportedWasmConcurrencyError` when a task is already running.
+Native synchronization and process APIs such as `threading.Lock`, `Condition`,
+`Semaphore`, `Barrier`, `Timer`, `multiprocessing.Pipe`, managers, shared
+memory, and non-`spawn` start methods are unsupported. For CPU-bound parallelism
+or process isolation, use a regular marimo notebook.
 
 **Memory.** WASM notebooks have a memory limit of 2GB; this may be increased
 in the future. If memory consumption is an issue, try offloading memory-intensive

@@ -1,80 +1,18 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import ast
 from typing import TYPE_CHECKING
 
 from marimo._ast.parse import ast_parse
 from marimo._lint.diagnostic import Diagnostic, Severity
 from marimo._lint.rules.base import LintRule
+from marimo._lint.rules.wasm._unsafe_call_analysis import (
+    UnsafeCallVisitor,
+    record_import_data_alias,
+)
 
 if TYPE_CHECKING:
     from marimo._lint.context import RuleContext
-
-# Functions that trap at runtime even though their parent module imports fine.
-UNSAFE_ATTR_CALLS: dict[str, set[str]] = {
-    "os": {
-        "system",
-        "popen",
-        "fork",
-        "kill",
-        "killpg",
-        "getuid",
-        "getgid",
-    },
-    "signal": {"signal", "alarm"},
-}
-
-# Prefixes for os.exec*, os.spawn* families.
-UNSAFE_ATTR_PREFIXES: dict[str, tuple[str, ...]] = {
-    "os": ("exec", "spawn"),
-}
-
-UNSAFE_BUILTINS = frozenset({"breakpoint"})
-
-
-class _UnsafeCallVisitor(ast.NodeVisitor):
-    """Collect unsafe calls with their line/column info."""
-
-    def __init__(self) -> None:
-        self.findings: list[tuple[int, int, str]] = []
-
-    def visit_Call(self, node: ast.Call) -> None:
-        # Check module.func() calls like os.system()
-        if isinstance(node.func, ast.Attribute):
-            value = node.func.value
-            if isinstance(value, ast.Name):
-                module = value.id
-                attr = node.func.attr
-
-                # Exact matches
-                exact = UNSAFE_ATTR_CALLS.get(module)
-                if exact and attr in exact:
-                    self.findings.append(
-                        (node.lineno, node.col_offset, f"{module}.{attr}()")
-                    )
-
-                # Prefix matches (os.execl, os.spawnv, etc.)
-                prefixes = UNSAFE_ATTR_PREFIXES.get(module)
-                if prefixes and any(attr.startswith(p) for p in prefixes):
-                    # Avoid double-reporting if also in exact set
-                    if not (exact and attr in exact):
-                        self.findings.append(
-                            (
-                                node.lineno,
-                                node.col_offset,
-                                f"{module}.{attr}()",
-                            )
-                        )
-
-        # Check bare builtins like breakpoint()
-        elif isinstance(node.func, ast.Name):
-            if node.func.id in UNSAFE_BUILTINS:
-                self.findings.append(
-                    (node.lineno, node.col_offset, f"{node.func.id}()")
-                )
-
-        self.generic_visit(node)
 
 
 class UnsafeSystemCallsRule(LintRule):
@@ -87,15 +25,15 @@ class UnsafeSystemCallsRule(LintRule):
     ## What it does
 
     Walks the AST of each cell looking for calls to functions like
-    `os.system()`, `os.fork()`, `signal.signal()`, and
-    `breakpoint()` that have no meaningful implementation in WASM.
+    `os.system()`, `os.fork()`, `signal.signal()`, `multiprocessing.Pipe()`,
+    and `breakpoint()` that have no meaningful implementation in WASM.
 
     ## Why is this bad?
 
     These functions depend on OS features (process spawning, signal
-    handling, debugger attachment) that don't exist in a browser
-    environment. They will raise `OSError`, `NotImplementedError`,
-    or hang silently.
+    handling, debugger attachment, unsupported multiprocessing
+    synchronization, or IPC) that don't exist in a browser environment.
+    They will raise `OSError`, `NotImplementedError`, or hang silently.
 
     ## Examples
 
@@ -109,6 +47,13 @@ class UnsafeSystemCallsRule(LintRule):
     **Problematic:**
     ```python
     breakpoint()
+    ```
+
+    **Problematic:**
+    ```python
+    import multiprocessing
+
+    multiprocessing.Pipe()
     ```
 
     **Solution:**
@@ -126,13 +71,46 @@ class UnsafeSystemCallsRule(LintRule):
     fixable = False
 
     async def check(self, ctx: RuleContext) -> None:
+        module_aliases: dict[str, str] = {}
+        call_aliases: dict[str, str] = {}
+        start_method_aliases: dict[str, str] = {}
+        for cell_impl in ctx.get_graph().cells.values():
+            for import_data in cell_impl.imports:
+                record_import_data_alias(
+                    module_aliases,
+                    call_aliases,
+                    start_method_aliases,
+                    import_data,
+                )
+
+        alias_collector = UnsafeCallVisitor(
+            module_aliases=module_aliases,
+            call_aliases=call_aliases,
+            start_method_aliases=start_method_aliases,
+        )
+        for cell in ctx.notebook.cells:
+            try:
+                tree = ast_parse(cell.code)
+            except SyntaxError:
+                continue
+            alias_collector.visit(tree)
+        module_aliases = alias_collector.module_alias_scopes[0]
+        call_aliases = alias_collector.call_alias_scopes[0]
+        start_method_aliases = alias_collector.start_method_alias_scopes[0]
+        bound_names = alias_collector.bound_scopes[0]
+
         for cell in ctx.notebook.cells:
             try:
                 tree = ast_parse(cell.code)
             except SyntaxError:
                 continue
 
-            visitor = _UnsafeCallVisitor()
+            visitor = UnsafeCallVisitor(
+                module_aliases=module_aliases,
+                call_aliases=call_aliases,
+                start_method_aliases=start_method_aliases,
+                bound_names=bound_names,
+            )
             visitor.visit(tree)
 
             for lineno, col_offset, call_name in visitor.findings:
