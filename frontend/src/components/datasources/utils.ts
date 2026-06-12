@@ -5,13 +5,7 @@ import { isKnownDialect } from "@/core/codemirror/language/languages/sql/utils";
 import { catalogNodePath } from "@/core/datasets/catalog";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
-import type {
-  Database,
-  DatabaseNamespace,
-  DatabaseSchema,
-  DataTable,
-  DataType,
-} from "@/core/kernel/messages";
+import type { DataTable, DataType } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import type { ColumnHeaderStatsKey } from "../data-table/types";
 
@@ -22,42 +16,26 @@ import type { ColumnHeaderStatsKey } from "../data-table/types";
  * when present and fall back to the flat schema name otherwise (avoids
  * duplicating the leaf, e.g. `top.nested.nested.table`).
  */
-export function tableUniqueId(
-  sqlTableContext: SQLTableContext | undefined,
-  tableName: string,
-): string {
+export function tableUniqueId({
+  sqlTableContext,
+  tableName,
+}: {
+  sqlTableContext: SQLTableContext | undefined;
+  tableName: string;
+}): string {
   if (!sqlTableContext) {
     return tableName;
   }
-  const segments = catalogNodePath(
-    sqlTableContext.schema,
-    sqlTableContext.schemaPath,
-  ).filter(Boolean);
+  const segments = catalogNodePath({
+    schema: sqlTableContext.schema,
+    schemaPath: sqlTableContext.schemaPath,
+  }).filter(Boolean);
   return [sqlTableContext.database, ...segments, tableName].join(".");
 }
 
 // Some databases have no schemas, so we don't show it (eg. Clickhouse)
 export function isSchemaless(schemaName: string) {
   return schemaName === "";
-}
-
-// Lazy discovery: the `*_resolved` flags default to `true` and are only `false`
-// when enumeration was deferred. Helper functions to centralize logic
-export function areChildrenResolved(database: Database): boolean {
-  return database.children_resolved !== false;
-}
-export function areTablesResolved(schema: DatabaseSchema): boolean {
-  return schema.tables_resolved !== false;
-}
-export function areNamespaceChildrenResolved(
-  namespace: DatabaseNamespace,
-): boolean {
-  return namespace.children_resolved !== false;
-}
-export function areNamespaceTablesResolved(
-  namespace: DatabaseNamespace,
-): boolean {
-  return namespace.tables_resolved !== false;
 }
 
 interface SqlCodeFormatter {

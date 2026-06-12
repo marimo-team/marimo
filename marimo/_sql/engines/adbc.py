@@ -289,7 +289,6 @@ class AdbcConnectionCatalog:
                         Schema(
                             name=schema_name,
                             tables=tables,
-                            tables_resolved=include_tables_bool,
                         )
                     )
 
@@ -298,7 +297,6 @@ class AdbcConnectionCatalog:
                     name=catalog_name,
                     dialect=self._dialect,
                     children=children,
-                    children_resolved=include_schemas_bool,
                     engine=self._engine_name,
                 )
             )

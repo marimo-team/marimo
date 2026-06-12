@@ -4147,8 +4147,6 @@ export interface components {
      *         name (str): The name of the database.
      *         dialect (str): The dialect of the database.
      *         children (List[Schema | DataTable | Namespace]): The children of the database.
-     *         children_resolved (bool): True when `children` has been enumerated
-     *             False when child discovery was deferred. Defaults to True
      *         engine (Optional[VariableName]): Database engine or connection handler, if any.
      */
     Database: {
@@ -4157,8 +4155,6 @@ export interface components {
         | components["schemas"]["DataTable"]
         | components["schemas"]["Namespace"]
       )[];
-      /** @default true */
-      children_resolved?: boolean;
       dialect: string;
       /** @default null */
       engine?: components["schemas"]["VariableName"] | null;
@@ -5625,10 +5621,6 @@ export interface components {
      *     Attributes:
      *         name (str): The name of the namespace.
      *         children (List[Schema | DataTable | Namespace]): The children of the namespace.
-     *         children_resolved (bool): True when sub-namespace children have been enumerated.
-     *             False when child discovery was deferred. Defaults to True
-     *         tables_resolved (bool): True when inline `DataTable` children have been enumerated.
-     *             False when table discovery was deferred. Defaults to True
      */
     Namespace: {
       children: (
@@ -5636,13 +5628,9 @@ export interface components {
         | components["schemas"]["DataTable"]
         | components["schemas"]["Namespace"]
       )[];
-      /** @default true */
-      children_resolved?: boolean;
       /** @enum {unknown} */
       kind: "namespace";
       name: string;
-      /** @default true */
-      tables_resolved?: boolean;
     };
     /**
      * NotebookCell
@@ -6216,16 +6204,12 @@ export interface components {
      *     Attributes:
      *         name (str): The name of the schema.
      *         tables (List[DataTable]): Tables in this schema.
-     *         tables_resolved (bool): True when `tables` has been enumerated
-     *             False when table discovery was deferred. Defaults to True
      */
     Schema: {
       /** @enum {unknown} */
       kind: "schema";
       name: string;
       tables: components["schemas"]["DataTable"][];
-      /** @default true */
-      tables_resolved?: boolean;
     };
     /** SchemaColumn */
     SchemaColumn: {

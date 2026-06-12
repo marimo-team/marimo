@@ -432,7 +432,6 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                     name=database_name,
                     dialect=self.dialect,
                     children=children,
-                    children_resolved=should_include_schemas,
                     engine=self._engine_name,
                 )
             )
@@ -475,8 +474,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         meta_schemas = self._get_meta_schemas()
         for schema in schema_names:
             # Eager table discovery is skipped for meta schemas.
-            # The user can still expand the schema to lazily fetch them
-            # so we mark `tables_resolved=False` to reflect that no enumeration actually ran.
+            # The user can still expand the schema to lazily fetch them.
             did_resolve_tables = (
                 include_tables and schema.lower() not in meta_schemas
             )
@@ -491,7 +489,6 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                 Schema(
                     name=schema,
                     tables=tables,
-                    tables_resolved=did_resolve_tables,
                 )
             )
 

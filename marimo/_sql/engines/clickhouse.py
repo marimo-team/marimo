@@ -368,14 +368,11 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             is_meta_db = db_name.lower() in self._meta_dbs
             if is_meta_db or not include_tables_bool:
                 tables: list[DataTable] = []
-                tables_resolved = False
             else:
-                tables, tables_resolved = (
-                    self._get_tables_in_schema_with_resolution(
-                        schema=NO_SCHEMA_NAME,
-                        database=db,
-                        include_table_details=include_table_details,
-                    )
+                tables, _ = self._get_tables_in_schema_with_resolution(
+                    schema=NO_SCHEMA_NAME,
+                    database=db,
+                    include_table_details=include_table_details,
                 )
             databases.append(
                 Database(
@@ -387,7 +384,6 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
                         Schema(
                             name=NO_SCHEMA_NAME,
                             tables=tables,
-                            tables_resolved=tables_resolved,
                         )
                     ],
                 )

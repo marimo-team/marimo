@@ -17,7 +17,6 @@ from marimo._data.models import (
 from marimo._messaging.notification import SQLDatabaseMetadata, SQLMetadata
 from marimo._sql.connection_utils import (
     _find_node_by_path,
-    _find_schema_by_path,
     update_schema_list_in_connection,
     update_table_in_connection,
     update_table_list_in_connection,
@@ -470,8 +469,7 @@ class TestPerformance:
         )
 
         print(
-            f"\nBest case (early exit): "
-            f"{avg_time:.4f}ms avg, {total_time:.2f}ms total"
+            f"\nBest case (early exit): {avg_time:.4f}ms avg, {total_time:.2f}ms total"
         )
 
         # Early exit should be very fast
@@ -598,18 +596,16 @@ def _create_nested_connection() -> list[DataSourceConnection]:
     deep = Namespace(
         name="deep",
         children=[],
-        children_resolved=False,
     )
     nested = Namespace(
         name="nested",
         children=[create_test_table("table4"), deep],
-        children_resolved=True,
     )
     top = Database(
         name="top",
         dialect="iceberg",
         children=[
-            Schema(name="", tables=[], tables_resolved=True),
+            Schema(name="", tables=[]),
             nested,
         ],
     )
@@ -639,13 +635,6 @@ class TestFindNodeByPath:
         assert isinstance(found, Namespace)
         assert found.name == "deep"
 
-    def test_find_schema_by_path_returns_schema_only(self) -> None:
-        connections = _create_nested_connection()
-        children = connections[0].databases[0].children
-        assert _find_schema_by_path(children, ["nested"]) is None
-        schemaless = _find_schema_by_path(children, [""])
-        assert isinstance(schemaless, Schema)
-
     def test_missing_path_returns_none(self) -> None:
         connections = _create_nested_connection()
         children = connections[0].databases[0].children
@@ -674,7 +663,6 @@ class TestNestedNamespaceUpdates:
         )
         assert isinstance(nested, Namespace)
         assert [child.name for child in nested.children] == ["deep"]
-        assert nested.children_resolved is True
 
     def test_update_table_list_at_nested_path(self) -> None:
         """Resolving tables of a deeply nested namespace targets that schema."""
@@ -697,7 +685,6 @@ class TestNestedNamespaceUpdates:
             child for child in deep.children if isinstance(child, DataTable)
         ]
         assert [t.name for t in table_children] == ["table5"]
-        assert deep.tables_resolved is True
 
     def test_update_table_at_nested_path(self) -> None:
         """A single-table update descends the namespace path."""

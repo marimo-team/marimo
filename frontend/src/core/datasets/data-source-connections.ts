@@ -12,6 +12,7 @@ import type { VariableName } from "../variables/types";
 import {
   type CatalogNode,
   catalogNodePath,
+  findNodeAtPath,
   isNamespaceNode,
   isSchemaNode,
   mergeTableAtPath,
@@ -19,6 +20,12 @@ import {
   setTablesAtPath,
   walkCatalogNodes,
 } from "./catalog";
+import {
+  type CatalogLoadState,
+  catalogPathKey,
+  emptyCatalogLoadState,
+  hydrateCatalogLoadState,
+} from "./catalog-load-state";
 import {
   type ConnectionName,
   DUCKDB_ENGINE,
@@ -35,16 +42,21 @@ const initialConnections: ConnectionsMap = new Map([
       source: "duckdb",
       display_name: "DuckDB (In-Memory)",
       databases: [],
+      catalogLoad: emptyCatalogLoadState(),
     },
   ],
 ]);
 
 // Extend the backend type but override the name property with the strongly typed ConnectionName
-export interface DataSourceConnection extends Omit<
+export type DataSourceConnectionInput = Omit<
   DataSourceConnectionType,
   "name"
-> {
+> & {
   name: ConnectionName;
+};
+
+export interface DataSourceConnection extends DataSourceConnectionInput {
+  catalogLoad: CatalogLoadState;
 }
 
 export type ConnectionsMap = ReadonlyMap<ConnectionName, DataSourceConnection>;
@@ -80,6 +92,19 @@ function initialState(): DataSourceState {
   };
 }
 
+function mergeCatalogLoadState(
+  existing: CatalogLoadState,
+  incoming: CatalogLoadState,
+): CatalogLoadState {
+  return {
+    childrenLoaded: new Set([
+      ...existing.childrenLoaded,
+      ...incoming.childrenLoaded,
+    ]),
+    tablesLoaded: new Set([...existing.tablesLoaded, ...incoming.tablesLoaded]),
+  };
+}
+
 const {
   reducer,
   createActions,
@@ -88,7 +113,7 @@ const {
 } = createReducerAndAtoms(initialState, {
   addDataSourceConnection: (
     state: DataSourceState,
-    opts: { connections: DataSourceConnection[] },
+    opts: { connections: DataSourceConnectionInput[] },
   ): DataSourceState => {
     if (opts.connections.length === 0) {
       return state;
@@ -101,7 +126,14 @@ const {
     // Backend will dedupe by connection name & keep the latest, so we use this as the key
     const newMap = new Map(connectionsMap);
     for (const conn of opts.connections) {
-      newMap.set(conn.name, conn);
+      const existing = newMap.get(conn.name);
+      newMap.set(conn.name, {
+        ...conn,
+        catalogLoad: mergeCatalogLoadState(
+          existing?.catalogLoad ?? emptyCatalogLoadState(),
+          hydrateCatalogLoadState(conn),
+        ),
+      });
     }
 
     return {
@@ -166,30 +198,54 @@ const {
     const { nodes, sqlSchemaContext } = opts;
     const { connectionsMap, latestEngineSelected } = state;
     const connectionName = sqlSchemaContext.engine as ConnectionName;
+    const databaseName = sqlSchemaContext.database;
+    const schemaPath = sqlSchemaContext.schemaPath ?? [];
     const conn = connectionsMap.get(connectionName);
 
     if (!conn) {
       return state;
     }
 
-    const schemaPath = sqlSchemaContext.schemaPath ?? [];
-    const newMap = new Map(connectionsMap);
+    const database = conn.databases.find((db) => db.name === databaseName);
+    if (!database) {
+      return state;
+    }
+
+    const parentNode = findNodeAtPath({
+      nodes: database.children,
+      path: schemaPath,
+    });
+    if (
+      schemaPath.length > 0 &&
+      (parentNode === undefined || !isNamespaceNode(parentNode))
+    ) {
+      return state;
+    }
+
+    const childrenLoadKey = catalogPathKey(databaseName, schemaPath);
     const newConn: DataSourceConnection = {
       ...conn,
-      databases: conn.databases.map((db) => {
-        if (db.name !== sqlSchemaContext.database) {
-          return db;
-        }
-        const children = setChildNodesAtPath(db.children, schemaPath, nodes);
-        return {
-          ...db,
-          children,
-          children_resolved:
-            schemaPath.length === 0 ? true : db.children_resolved,
-        };
-      }),
+      catalogLoad: {
+        ...conn.catalogLoad,
+        childrenLoaded: new Set([
+          ...conn.catalogLoad.childrenLoaded,
+          childrenLoadKey,
+        ]),
+      },
+      databases: conn.databases.map((db) =>
+        db.name === databaseName
+          ? {
+              ...db,
+              children: setChildNodesAtPath({
+                nodes: db.children,
+                path: schemaPath,
+                children: nodes,
+              }),
+            }
+          : db,
+      ),
     };
-    newMap.set(connectionName, newConn);
+    const newMap = new Map(connectionsMap).set(connectionName, newConn);
 
     return {
       latestEngineSelected: latestEngineSelected,
@@ -214,24 +270,44 @@ const {
       return state;
     }
 
-    const path = catalogNodePath(
-      sqlTableContext.schema,
-      sqlTableContext.schemaPath,
-    );
-    const newMap = new Map(connectionsMap);
+    const path = catalogNodePath({
+      schema: sqlTableContext.schema,
+      schemaPath: sqlTableContext.schemaPath,
+    });
+    const databaseName = sqlTableContext.database;
+    const database = conn.databases.find((db) => db.name === databaseName);
+    if (!database) {
+      return state;
+    }
+
+    const targetNode = findNodeAtPath({ nodes: database.children, path });
+    if (
+      targetNode === undefined ||
+      (!isSchemaNode(targetNode) && !isNamespaceNode(targetNode))
+    ) {
+      return state;
+    }
+
+    const tablesLoadKey = catalogPathKey(sqlTableContext.database, path);
     const newConn: DataSourceConnection = {
       ...conn,
-      databases: conn.databases.map((db) => {
-        if (db.name !== sqlTableContext.database) {
-          return db;
-        }
-        return {
-          ...db,
-          children: setTablesAtPath(db.children, path, tables),
-        };
-      }),
+      catalogLoad: {
+        ...conn.catalogLoad,
+        tablesLoaded: new Set([
+          ...conn.catalogLoad.tablesLoaded,
+          tablesLoadKey,
+        ]),
+      },
+      databases: conn.databases.map((db) =>
+        db.name === databaseName
+          ? {
+              ...db,
+              children: setTablesAtPath({ nodes: db.children, path, tables }),
+            }
+          : db,
+      ),
     };
-    newMap.set(connectionName, newConn);
+    const newMap = new Map(connectionsMap).set(connectionName, newConn);
 
     return {
       latestEngineSelected: latestEngineSelected,
@@ -256,10 +332,10 @@ const {
       return state;
     }
 
-    const path = catalogNodePath(
-      sqlTableContext.schema,
-      sqlTableContext.schemaPath,
-    );
+    const path = catalogNodePath({
+      schema: sqlTableContext.schema,
+      schemaPath: sqlTableContext.schemaPath,
+    });
     const newMap = new Map(connectionsMap);
     const newConn: DataSourceConnection = {
       ...conn,
@@ -269,7 +345,7 @@ const {
         }
         return {
           ...db,
-          children: mergeTableAtPath(db.children, path, table),
+          children: mergeTableAtPath({ nodes: db.children, path, table }),
         };
       }),
     };
@@ -324,10 +400,10 @@ export const allTablesAtom = atom((get) => {
       const isDefaultDb =
         database.name === conn.default_database || conn.databases.length === 1;
 
-      walkCatalogNodes(
-        database.children,
-        { databaseName: database.name, segments: [] },
-        ({ node, segments }) => {
+      walkCatalogNodes({
+        nodes: database.children,
+        context: { databaseName: database.name, segments: [] },
+        visit: ({ node, segments }) => {
           if (isNamespaceNode(node)) {
             return;
           }
@@ -378,7 +454,7 @@ export const allTablesAtom = atom((get) => {
             }
           }
         },
-      );
+      });
     }
   }
 

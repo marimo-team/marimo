@@ -91,13 +91,10 @@ class Schema(BaseStruct, tag="schema", tag_field="kind"):
     Attributes:
         name (str): The name of the schema.
         tables (List[DataTable]): Tables in this schema.
-        tables_resolved (bool): True when `tables` has been enumerated
-            False when table discovery was deferred. Defaults to True
     """
 
     name: str
     tables: list[DataTable]
-    tables_resolved: bool = True
 
 
 class Namespace(BaseStruct, tag="namespace", tag_field="kind"):
@@ -107,16 +104,10 @@ class Namespace(BaseStruct, tag="namespace", tag_field="kind"):
     Attributes:
         name (str): The name of the namespace.
         children (List[Schema | DataTable | Namespace]): The children of the namespace.
-        children_resolved (bool): True when sub-namespace children have been enumerated.
-            False when child discovery was deferred. Defaults to True
-        tables_resolved (bool): True when inline `DataTable` children have been enumerated.
-            False when table discovery was deferred. Defaults to True
     """
 
     name: str
     children: list[Schema | DataTable | Namespace]
-    children_resolved: bool = True
-    tables_resolved: bool = True
 
 
 class Database(BaseStruct):
@@ -127,15 +118,12 @@ class Database(BaseStruct):
         name (str): The name of the database.
         dialect (str): The dialect of the database.
         children (List[Schema | DataTable | Namespace]): The children of the database.
-        children_resolved (bool): True when `children` has been enumerated
-            False when child discovery was deferred. Defaults to True
         engine (Optional[VariableName]): Database engine or connection handler, if any.
     """
 
     name: str
     dialect: str
     children: list[Schema | DataTable | Namespace]
-    children_resolved: bool = True
     engine: VariableName | None = None
 
 

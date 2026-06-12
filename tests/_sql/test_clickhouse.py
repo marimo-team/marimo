@@ -21,9 +21,7 @@ HAS_CLICKHOUSE_CONNECT = DependencyManager.clickhouse_connect.has()
 
 
 @pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
-def test_clickhouse_get_databases_marks_failed_table_loading_unresolved() -> (
-    None
-):
+def test_clickhouse_get_databases_skips_failed_table_loading() -> None:
     import pandas as pd
 
     class Connection:
@@ -47,13 +45,10 @@ def test_clickhouse_get_databases_marks_failed_table_loading_unresolved() -> (
 
     schema = databases[0].children[0]
     assert schema.tables == []
-    assert schema.tables_resolved is False
 
 
 @pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
-def test_clickhouse_get_databases_marks_failed_table_details_unresolved() -> (
-    None
-):
+def test_clickhouse_get_databases_skips_failed_table_details() -> None:
     import pandas as pd
 
     class Connection:
@@ -79,7 +74,6 @@ def test_clickhouse_get_databases_marks_failed_table_details_unresolved() -> (
 
     schema = databases[0].children[0]
     assert schema.tables == []
-    assert schema.tables_resolved is False
 
 
 @pytest.mark.skipif(

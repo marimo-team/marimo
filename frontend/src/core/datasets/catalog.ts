@@ -6,9 +6,13 @@ import type {
   DatabaseSchema,
   DataTable,
 } from "@/core/kernel/messages";
-import { isSchemaless } from "@/components/datasources/utils";
 
 export type CatalogNode = Database["children"][number];
+
+/** Empty schema name marks a schemaless catalog node (e.g. ClickHouse, Iceberg). */
+export function isSchemaless(schemaName: string): boolean {
+  return schemaName === "";
+}
 
 export function isSchemaNode(node: CatalogNode): node is DatabaseSchema {
   return node.kind === "schema";
@@ -27,10 +31,13 @@ export function getSchemaNodes(children: CatalogNode[]): DatabaseSchema[] {
 }
 
 /** Path segment names that locate the node holding tables within a database. */
-export function catalogNodePath(
-  schema: string,
-  schemaPath?: string[],
-): string[] {
+export function catalogNodePath({
+  schema,
+  schemaPath,
+}: {
+  schema: string;
+  schemaPath?: string[];
+}): string[] {
   return schemaPath && schemaPath.length > 0 ? schemaPath : [schema];
 }
 
@@ -54,11 +61,15 @@ export function partitionNamespaceChildren(namespace: DatabaseNamespace): {
  * Immutably descend `path` (node names) into a catalog tree and apply
  * `update` to the matching node. Intermediate segments must be namespaces.
  */
-export function updateNodeAtPath(
-  nodes: CatalogNode[],
-  path: string[],
-  update: (node: CatalogNode) => CatalogNode,
-): CatalogNode[] {
+export function updateNodeAtPath({
+  nodes,
+  path,
+  update,
+}: {
+  nodes: CatalogNode[];
+  path: string[];
+  update: (node: CatalogNode) => CatalogNode;
+}): CatalogNode[] {
   if (path.length === 0) {
     return nodes;
   }
@@ -73,17 +84,24 @@ export function updateNodeAtPath(
     if (isNamespaceNode(node)) {
       return {
         ...node,
-        children: updateNodeAtPath(node.children, rest, update),
+        children: updateNodeAtPath({
+          nodes: node.children,
+          path: rest,
+          update,
+        }),
       };
     }
     return node;
   });
 }
 
-export function findNodeAtPath(
-  nodes: CatalogNode[],
-  path: string[],
-): CatalogNode | undefined {
+export function findNodeAtPath({
+  nodes,
+  path,
+}: {
+  nodes: CatalogNode[];
+  path: string[];
+}): CatalogNode | undefined {
   if (path.length === 0) {
     return undefined;
   }
@@ -96,7 +114,7 @@ export function findNodeAtPath(
     return node;
   }
   if (isNamespaceNode(node)) {
-    return findNodeAtPath(node.children, rest);
+    return findNodeAtPath({ nodes: node.children, path: rest });
   }
   return undefined;
 }
@@ -127,53 +145,77 @@ function upsertTable(tables: DataTable[], table: DataTable): DataTable[] {
 }
 
 /** Replace the resolved table list at `path` (schema or namespace node). */
-export function setTablesAtPath(
-  nodes: CatalogNode[],
-  path: string[],
-  tables: DataTable[],
-): CatalogNode[] {
-  return updateNodeAtPath(nodes, path, (node) => {
-    if (isSchemaNode(node)) {
-      return { ...node, tables, tables_resolved: true };
-    }
-    if (isNamespaceNode(node)) {
-      return { ...withNamespaceTables(node, tables), tables_resolved: true };
-    }
-    return node;
+export function setTablesAtPath({
+  nodes,
+  path,
+  tables,
+}: {
+  nodes: CatalogNode[];
+  path: string[];
+  tables: DataTable[];
+}): CatalogNode[] {
+  return updateNodeAtPath({
+    nodes,
+    path,
+    update: (node) => {
+      if (isSchemaNode(node)) {
+        return { ...node, tables };
+      }
+      if (isNamespaceNode(node)) {
+        return withNamespaceTables(node, tables);
+      }
+      return node;
+    },
   });
 }
 
 /** Upsert a single table (by name) into the node at `path`. */
-export function mergeTableAtPath(
-  nodes: CatalogNode[],
-  path: string[],
-  table: DataTable,
-): CatalogNode[] {
-  return updateNodeAtPath(nodes, path, (node) => {
-    if (isSchemaNode(node)) {
-      return { ...node, tables: upsertTable(node.tables, table) };
-    }
-    if (isNamespaceNode(node)) {
-      const existingTables = node.children.filter(isDataTableNode);
-      return withNamespaceTables(node, upsertTable(existingTables, table));
-    }
-    return node;
+export function mergeTableAtPath({
+  nodes,
+  path,
+  table,
+}: {
+  nodes: CatalogNode[];
+  path: string[];
+  table: DataTable;
+}): CatalogNode[] {
+  return updateNodeAtPath({
+    nodes,
+    path,
+    update: (node) => {
+      if (isSchemaNode(node)) {
+        return { ...node, tables: upsertTable(node.tables, table) };
+      }
+      if (isNamespaceNode(node)) {
+        const existingTables = node.children.filter(isDataTableNode);
+        return withNamespaceTables(node, upsertTable(existingTables, table));
+      }
+      return node;
+    },
   });
 }
 
-export function setChildNodesAtPath(
-  nodes: CatalogNode[],
-  path: string[],
-  children: CatalogNode[],
-): CatalogNode[] {
+export function setChildNodesAtPath({
+  nodes,
+  path,
+  children,
+}: {
+  nodes: CatalogNode[];
+  path: string[];
+  children: CatalogNode[];
+}): CatalogNode[] {
   if (path.length === 0) {
     return children;
   }
-  return updateNodeAtPath(nodes, path, (node) => {
-    if (!isNamespaceNode(node)) {
-      return node;
-    }
-    return { ...node, children, children_resolved: true };
+  return updateNodeAtPath({
+    nodes,
+    path,
+    update: (node) => {
+      if (!isNamespaceNode(node)) {
+        return node;
+      }
+      return { ...node, children };
+    },
   });
 }
 
@@ -182,11 +224,15 @@ export interface CatalogWalkContext {
   segments: string[];
 }
 
-export function walkCatalogNodes(
-  nodes: CatalogNode[],
-  context: CatalogWalkContext,
-  visit: (ctx: CatalogWalkContext & { node: CatalogNode }) => void,
-): void {
+export function walkCatalogNodes({
+  nodes,
+  context,
+  visit,
+}: {
+  nodes: CatalogNode[];
+  context: CatalogWalkContext;
+  visit: (ctx: CatalogWalkContext & { node: CatalogNode }) => void;
+}): void {
   for (const node of nodes) {
     const segments =
       isDataTableNode(node) || isSchemaless(node.name)
@@ -198,7 +244,11 @@ export function walkCatalogNodes(
       continue;
     }
     if (isNamespaceNode(node)) {
-      walkCatalogNodes(node.children, { ...context, segments }, visit);
+      walkCatalogNodes({
+        nodes: node.children,
+        context: { ...context, segments },
+        visit,
+      });
     }
   }
 }

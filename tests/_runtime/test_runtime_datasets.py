@@ -334,8 +334,6 @@ class TestPreviewSQLSchemaList:
             Namespace(
                 name="deep",
                 children=[],
-                children_resolved=False,
-                tables_resolved=False,
             )
         ]
 

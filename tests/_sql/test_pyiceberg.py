@@ -321,8 +321,6 @@ def test_pyiceberg_get_databases(memory_catalog: Catalog) -> None:
     # Sub-namespace is present but its tables/children are deferred.
     assert set(top_schemas) | set(top_namespaces) == {NO_SCHEMA_NAME, "nested"}
     nested = top_namespaces["nested"]
-    assert nested.children_resolved is False
-    assert nested.tables_resolved is False
     assert nested.children == []
 
 
@@ -344,7 +342,6 @@ def test_pyiceberg_get_databases_lazy_schemas(memory_catalog: Catalog) -> None:
         "top",
     }
     for db in databases:
-        assert db.children_resolved is False
         assert db.children == []
 
 
@@ -368,19 +365,15 @@ def test_pyiceberg_connection_is_lazy(memory_catalog: Catalog) -> None:
     by_name = {db.name: db for db in connection.databases}
     assert set(by_name) == {"default", "test_namespace", "top"}
 
-    # First-level children are resolved...
+    # First-level children are present...
     top = by_name["top"]
-    assert top.children_resolved is True
     top_schemas = {s.name: s for s in _schema_nodes(top.children)}
     top_namespaces = {n.name: n for n in _namespace_nodes(top.children)}
     assert set(top_schemas) | set(top_namespaces) == {NO_SCHEMA_NAME, "nested"}
 
     # ...but their tables and deeper sub-namespaces are deferred.
-    assert top_schemas[NO_SCHEMA_NAME].tables_resolved is False
     assert top_schemas[NO_SCHEMA_NAME].tables == []
     nested = top_namespaces["nested"]
-    assert nested.children_resolved is False
-    assert nested.tables_resolved is False
     assert nested.children == []
 
 
@@ -402,8 +395,6 @@ def test_pyiceberg_get_schemas_by_path(memory_catalog: Catalog) -> None:
     assert [n.name for n in nodes] == [NO_SCHEMA_NAME, "nested"]
     nested = nodes[1]
     assert isinstance(nested, Namespace)
-    assert nested.children_resolved is False
-    assert nested.tables_resolved is False
     assert nested.children == []
 
     # Immediate child of "top.nested" is "deep".
@@ -525,5 +516,4 @@ def test_pyiceberg_auto_discovery(memory_catalog: Catalog) -> None:
         assert isinstance(databases, list)
         assert len(databases) == 3
         for db in databases:
-            assert db.children_resolved is False
             assert db.children == []

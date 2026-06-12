@@ -84,7 +84,9 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         """
         from pyiceberg.catalog import Catalog
 
-        children_resolved = self._resolve_should_auto_discover(include_schemas)
+        should_include_schemas = self._resolve_should_auto_discover(
+            include_schemas
+        )
         should_include_tables = self._resolve_should_auto_discover(
             include_tables
         )
@@ -98,7 +100,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
             for namespace in namespaces:
                 database_name = Catalog.namespace_to_string(namespace)
                 children: list[CatalogNode] = []
-                if children_resolved:
+                if should_include_schemas:
                     children = self._database_children(
                         namespace,
                         include_tables=should_include_tables,
@@ -109,7 +111,6 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
                         name=database_name,
                         dialect=self.dialect,
                         children=children,
-                        children_resolved=children_resolved,
                         engine=self._engine_name,
                     )
                 )
@@ -184,7 +185,6 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
                 )
                 if include_tables
                 else [],
-                tables_resolved=include_tables,
             )
         ]
         children.extend(
@@ -254,8 +254,6 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         return Namespace(
             name=namespace[-1],
             children=node_children,
-            children_resolved=include_tables,
-            tables_resolved=include_tables,
         )
 
     @staticmethod

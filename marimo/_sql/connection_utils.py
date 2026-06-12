@@ -29,14 +29,6 @@ def _find_node_by_path(
     return None
 
 
-def _find_schema_by_path(
-    nodes: list[CatalogNode], path: list[str]
-) -> Schema | None:
-    """Like `_find_node_by_path`, but returns only `Schema` nodes."""
-    node = _find_node_by_path(nodes, path)
-    return node if isinstance(node, Schema) else None
-
-
 def _node_path(metadata: SQLMetadata) -> list[str]:
     if metadata.schema_path:
         return list(metadata.schema_path)
@@ -48,13 +40,11 @@ def _set_tables_on_node(
 ) -> None:
     if isinstance(node, Schema):
         node.tables = tables
-        node.tables_resolved = True
         return
     non_tables = [
         child for child in node.children if not isinstance(child, DataTable)
     ]
     node.children = [*non_tables, *tables]
-    node.tables_resolved = True
 
 
 def update_table_in_connection(
@@ -127,10 +117,8 @@ def update_schema_list_in_connection(
                 if not isinstance(parent, Namespace):
                     return
                 parent.children = updated_schema_list
-                parent.children_resolved = True
             else:
                 database.children = updated_schema_list
-                database.children_resolved = True
             return
 
 

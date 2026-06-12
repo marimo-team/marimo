@@ -470,53 +470,72 @@ describe("tableUniqueId", () => {
   });
 
   it("returns just the table name without a context", () => {
-    expect(tableUniqueId(undefined, "t")).toBe("t");
+    expect(tableUniqueId({ sqlTableContext: undefined, tableName: "t" })).toBe(
+      "t",
+    );
   });
 
   it("uses database + schema for flat engines", () => {
-    expect(tableUniqueId(ctx({ database: "db", schema: "public" }), "t")).toBe(
-      "db.public.t",
-    );
+    expect(
+      tableUniqueId({
+        sqlTableContext: ctx({ database: "db", schema: "public" }),
+        tableName: "t",
+      }),
+    ).toBe("db.public.t");
   });
 
   it("does not duplicate the leaf schema for nested namespaces", () => {
     // Regression: previously produced "top.nested.nested.t".
     expect(
-      tableUniqueId(
-        ctx({ database: "top", schema: "nested", schemaPath: ["nested"] }),
-        "t",
-      ),
+      tableUniqueId({
+        sqlTableContext: ctx({
+          database: "top",
+          schema: "nested",
+          schemaPath: ["nested"],
+        }),
+        tableName: "t",
+      }),
     ).toBe("top.nested.t");
   });
 
   it("includes the full schema path for deeply nested namespaces", () => {
     expect(
-      tableUniqueId(
-        ctx({
+      tableUniqueId({
+        sqlTableContext: ctx({
           database: "top",
           schema: "deep",
           schemaPath: ["nested", "deep"],
         }),
-        "t",
-      ),
+        tableName: "t",
+      }),
     ).toBe("top.nested.deep.t");
   });
 
   it("falls back to the flat schema when schemaPath is empty", () => {
     expect(
-      tableUniqueId(
-        ctx({ database: "db", schema: "public", schemaPath: [] }),
-        "t",
-      ),
+      tableUniqueId({
+        sqlTableContext: ctx({
+          database: "db",
+          schema: "public",
+          schemaPath: [],
+        }),
+        tableName: "t",
+      }),
     ).toBe("db.public.t");
   });
 
   it("does not emit a double dot for schemaless tables", () => {
     expect(
-      tableUniqueId(ctx({ database: "db", schema: "", schemaPath: [] }), "t"),
+      tableUniqueId({
+        sqlTableContext: ctx({ database: "db", schema: "", schemaPath: [] }),
+        tableName: "t",
+      }),
     ).toBe("db.t");
-    expect(tableUniqueId(ctx({ database: "db", schema: "" }), "t")).toBe(
-      "db.t",
-    );
+    expect(
+      tableUniqueId({
+        sqlTableContext: ctx({ database: "db", schema: "" }),
+        tableName: "t",
+      }),
+    ).toBe("db.t");
   });
 });

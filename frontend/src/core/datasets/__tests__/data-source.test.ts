@@ -1,7 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it } from "vitest";
 import { variableName } from "@/__tests__/branded";
-import { findNodeAtPath, isNamespaceNode, isSchemaNode } from "../catalog";
+import {
+  findNodeAtPath,
+  isDataTableNode,
+  isNamespaceNode,
+  isSchemaNode,
+} from "../catalog";
+import { catalogPathKey } from "../catalog-load-state";
 import type {
   Database,
   DatabaseNamespace,
@@ -12,7 +18,7 @@ import { store } from "@/core/state/jotai";
 import type { VariableName } from "@/core/variables/types";
 import {
   allTablesAtom,
-  type DataSourceConnection,
+  type DataSourceConnectionInput,
   dataSourceConnectionsAtom,
   type DataSourceState,
   exportedForTesting,
@@ -23,7 +29,7 @@ import { type ConnectionName, INTERNAL_SQL_ENGINES } from "../engines";
 const { reducer, initialState } = exportedForTesting;
 
 function makeSchema(name: string, tables: DataTable[] = []): DatabaseSchema {
-  return { kind: "schema", name, tables, tables_resolved: true };
+  return { kind: "schema", name, tables };
 }
 
 function makeTable(
@@ -56,7 +62,7 @@ function schemaFromChildren(
 
 // Helper function to add connections
 function addConnection(
-  connections: DataSourceConnection[],
+  connections: DataSourceConnectionInput[],
   state: DataSourceState,
 ): DataSourceState {
   return reducer(state, {
@@ -96,9 +102,12 @@ describe("data source connections", () => {
 
     const newState = addConnection(newConnections, state);
     expect(newState.connectionsMap.size).toBe(defaultConnSize + 1);
-    expect(newState.connectionsMap.get("conn1" as ConnectionName)).toEqual(
-      newConnections[0],
-    );
+    expect(
+      newState.connectionsMap.get("conn1" as ConnectionName),
+    ).toMatchObject(newConnections[0]);
+    expect(
+      newState.connectionsMap.get("conn1" as ConnectionName)?.catalogLoad,
+    ).toEqual({ childrenLoaded: new Set(), tablesLoaded: new Set() });
   });
 
   it("updates existing connections", () => {
@@ -119,9 +128,9 @@ describe("data source connections", () => {
     newState = addConnection([updatedConnection], state);
 
     expect(newState.connectionsMap.size).toBe(defaultConnSize + 1);
-    expect(newState.connectionsMap.get("conn1" as ConnectionName)).toEqual(
-      updatedConnection,
-    );
+    expect(
+      newState.connectionsMap.get("conn1" as ConnectionName),
+    ).toMatchObject(updatedConnection);
   });
 
   it("can remove connections", () => {
@@ -251,7 +260,7 @@ describe("filtering data sources", () => {
 });
 
 describe("add schema list", () => {
-  const connections: DataSourceConnection[] = [
+  const connections: DataSourceConnectionInput[] = [
     {
       name: "conn1" as ConnectionName,
       source: "sqlite",
@@ -338,7 +347,7 @@ describe("add schema list", () => {
 });
 
 describe("add table list", () => {
-  const connections: DataSourceConnection[] = [
+  const connections: DataSourceConnectionInput[] = [
     {
       name: "conn1" as ConnectionName,
       source: "sqlite",
@@ -432,7 +441,7 @@ describe("add table list", () => {
 });
 
 describe("add table", () => {
-  const connections: DataSourceConnection[] = [
+  const connections: DataSourceConnectionInput[] = [
     {
       name: "conn1" as ConnectionName,
       source: "sqlite",
@@ -531,11 +540,10 @@ describe("nested namespaces", () => {
     kind: "namespace",
     name,
     children: [],
-    children_resolved: false,
     ...overrides,
   });
 
-  const nestedConnections: DataSourceConnection[] = [
+  const nestedConnections: DataSourceConnectionInput[] = [
     {
       name: "ice" as ConnectionName,
       source: "iceberg",
@@ -545,7 +553,6 @@ describe("nested namespaces", () => {
         {
           name: "top",
           dialect: "iceberg",
-          children_resolved: true,
           children: [makeSchema("", []), nestedNamespace("nested")],
         },
       ],
@@ -561,7 +568,7 @@ describe("nested namespaces", () => {
   const findNode = (state: DataSourceState, path: string[]) => {
     const conn = state.connectionsMap.get("ice" as ConnectionName);
     const db = conn?.databases.find((d) => d.name === "top");
-    return db ? findNodeAtPath(db.children, path) : undefined;
+    return db ? findNodeAtPath({ nodes: db.children, path }) : undefined;
   };
 
   it("sets child namespaces at a nested path", () => {
@@ -581,9 +588,13 @@ describe("nested namespaces", () => {
     const nested = findNode(newState, ["nested"]);
     expect(isNamespaceNode(nested!)).toBe(true);
     if (isNamespaceNode(nested!)) {
-      expect(nested.children_resolved).toBe(true);
       expect(nested.children.map((child) => child.name)).toEqual(["deep"]);
     }
+    const conn = newState.connectionsMap.get("ice" as ConnectionName);
+    expect(conn).toBeDefined();
+    expect(
+      conn!.catalogLoad.childrenLoaded.has(catalogPathKey("top", ["nested"])),
+    ).toBe(true);
     expect(findNode(newState, [""])?.name).toBe("");
   });
 
@@ -609,8 +620,12 @@ describe("nested namespaces", () => {
     expect(isNamespaceNode(nested!)).toBe(true);
     if (isNamespaceNode(nested!)) {
       expect(nested.children.map((child) => child.name)).toEqual(["table4"]);
-      expect(nested.tables_resolved).toBe(true);
     }
+    const conn = newState.connectionsMap.get("ice" as ConnectionName);
+    expect(conn).toBeDefined();
+    expect(
+      conn!.catalogLoad.tablesLoaded.has(catalogPathKey("top", ["nested"])),
+    ).toBe(true);
   });
 
   it("replaces a single table at a nested path", () => {
@@ -639,9 +654,7 @@ describe("nested namespaces", () => {
     const nested = findNode(state, ["nested"]);
     expect(isNamespaceNode(nested!)).toBe(true);
     if (isNamespaceNode(nested!)) {
-      const tableNodes = nested.children.filter(
-        (child) => child.kind === "data_table",
-      );
+      const tableNodes = nested.children.filter(isDataTableNode);
       expect(tableNodes).toHaveLength(1);
       expect(tableNodes[0].num_rows).toBe(42);
     }
@@ -664,9 +677,11 @@ describe("nested namespaces", () => {
       ?.databases.find((d) => d.name === "top");
     const nested = findNode(newState, ["nested"]);
     expect(isNamespaceNode(nested!)).toBe(true);
-    if (isNamespaceNode(nested!)) {
-      expect(nested.children_resolved).toBe(false);
-    }
+    const conn = newState.connectionsMap.get("ice" as ConnectionName);
+    expect(conn).toBeDefined();
+    expect(
+      conn!.catalogLoad.childrenLoaded.has(catalogPathKey("top", ["nested"])),
+    ).toBe(false);
     expect(newDb?.children.length).toBe(2);
   });
 });
@@ -687,19 +702,16 @@ describe("allTablesAtom with nested namespaces", () => {
             {
               name: "top",
               dialect: "iceberg",
-              children_resolved: true,
               children: [
                 makeSchema("", [catalogTable("toptable")]),
                 {
                   kind: "namespace",
                   name: "nested",
-                  children_resolved: true,
                   children: [
                     catalogTable("nestedtable"),
                     {
                       kind: "namespace",
                       name: "deep",
-                      children_resolved: true,
                       children: [
                         makeSchema("leaf", [catalogTable("deeptable")]),
                       ],

@@ -68,9 +68,11 @@ describe("allTablesAtom", () => {
       display_name: "DuckDB In-Memory",
       default_schema: "main",
       databases: [
-        databaseWithSchemas("db1", "duckdb", [
-          { name: "main", tables: [table1, table2] },
-        ]),
+        databaseWithSchemas({
+          name: "db1",
+          dialect: "duckdb",
+          schemas: [{ name: "main", tables: [table1, table2] }],
+        }),
       ],
     };
 
@@ -96,9 +98,11 @@ describe("allTablesAtom", () => {
       source: "duckdb",
       display_name: "DuckDB In-Memory",
       databases: [
-        databaseWithSchemas("db1", "duckdb", [
-          { name: "schema1", tables: [table1] },
-        ]),
+        databaseWithSchemas({
+          name: "db1",
+          dialect: "duckdb",
+          schemas: [{ name: "schema1", tables: [table1] }],
+        }),
       ],
     };
 
@@ -126,10 +130,14 @@ describe("allTablesAtom", () => {
       default_schema: "default_schema",
       databases: [
         {
-          ...databaseWithSchemas("db1", "duckdb", [
-            { name: "default_schema", tables: [table1, table2] },
-            { name: "other_schema", tables: [table3] },
-          ]),
+          ...databaseWithSchemas({
+            name: "db1",
+            dialect: "duckdb",
+            schemas: [
+              { name: "default_schema", tables: [table1, table2] },
+              { name: "other_schema", tables: [table3] },
+            ],
+          }),
         },
       ],
     };
@@ -158,12 +166,16 @@ describe("allTablesAtom", () => {
       source: "duckdb",
       display_name: "DuckDB In-Memory",
       databases: [
-        databaseWithSchemas("db1", "duckdb", [
-          { name: "common_schema", tables: [commonTable] },
-        ]),
-        databaseWithSchemas("db2", "duckdb", [
-          { name: "common_schema", tables: [commonTable] },
-        ]),
+        databaseWithSchemas({
+          name: "db1",
+          dialect: "duckdb",
+          schemas: [{ name: "common_schema", tables: [commonTable] }],
+        }),
+        databaseWithSchemas({
+          name: "db2",
+          dialect: "duckdb",
+          schemas: [{ name: "common_schema", tables: [commonTable] }],
+        }),
       ],
     };
 
@@ -188,12 +200,16 @@ describe("allTablesAtom", () => {
       display_name: "DuckDB In-Memory",
       default_database: "db1",
       databases: [
-        databaseWithSchemas("db1", "duckdb", [
-          { name: "main", tables: [table1] },
-        ]),
-        databaseWithSchemas("db2", "duckdb", [
-          { name: "main", tables: [table1] },
-        ]),
+        databaseWithSchemas({
+          name: "db1",
+          dialect: "duckdb",
+          schemas: [{ name: "main", tables: [table1] }],
+        }),
+        databaseWithSchemas({
+          name: "db2",
+          dialect: "duckdb",
+          schemas: [{ name: "main", tables: [table1] }],
+        }),
       ],
     };
 
@@ -219,8 +235,16 @@ describe("allTablesAtom", () => {
       display_name: "DuckDB In-Memory",
       default_database: "db1",
       databases: [
-        databaseWithSchemas("db1", "duckdb", [{ name: "", tables: [table1] }]),
-        databaseWithSchemas("db2", "duckdb", [{ name: "", tables: [table2] }]),
+        databaseWithSchemas({
+          name: "db1",
+          dialect: "duckdb",
+          schemas: [{ name: "", tables: [table1] }],
+        }),
+        databaseWithSchemas({
+          name: "db2",
+          dialect: "duckdb",
+          schemas: [{ name: "", tables: [table2] }],
+        }),
       ],
     };
 
@@ -248,12 +272,20 @@ describe("allTablesAtom", () => {
       default_database: "db1",
       databases: [
         {
-          ...databaseWithSchemas("db1", "duckdb", [
-            { name: "central", tables: [table1] },
-            { name: "main", tables: [table2] },
-          ]),
+          ...databaseWithSchemas({
+            name: "db1",
+            dialect: "duckdb",
+            schemas: [
+              { name: "central", tables: [table1] },
+              { name: "main", tables: [table2] },
+            ],
+          }),
         },
-        databaseWithSchemas("db2", "duckdb", [{ name: "", tables: [table3] }]),
+        databaseWithSchemas({
+          name: "db2",
+          dialect: "duckdb",
+          schemas: [{ name: "", tables: [table3] }],
+        }),
       ],
     };
 
@@ -278,9 +310,11 @@ describe("allTablesAtom", () => {
       source: "duckdb",
       display_name: "DuckDB In-Memory",
       databases: [
-        databaseWithSchemas("same_db", "duckdb", [
-          { name: "same_schema", tables: [sameTable] },
-        ]),
+        databaseWithSchemas({
+          name: "same_db",
+          dialect: "duckdb",
+          schemas: [{ name: "same_schema", tables: [sameTable] }],
+        }),
       ],
     };
 
@@ -290,9 +324,11 @@ describe("allTablesAtom", () => {
       source: "duckdb",
       display_name: "DuckDB In-Memory",
       databases: [
-        databaseWithSchemas("same_db", "duckdb", [
-          { name: "same_schema", tables: [sameTable] },
-        ]),
+        databaseWithSchemas({
+          name: "same_db",
+          dialect: "duckdb",
+          schemas: [{ name: "same_schema", tables: [sameTable] }],
+        }),
       ],
     };
 
@@ -329,9 +365,11 @@ describe("allTablesAtom", () => {
       default_database: "db1",
       default_schema: "main",
       databases: [
-        databaseWithSchemas("db1", "duckdb", [
-          { name: "main", tables: [connTable1, connTable2] },
-        ]),
+        databaseWithSchemas({
+          name: "db1",
+          dialect: "duckdb",
+          schemas: [{ name: "main", tables: [connTable1, connTable2] }],
+        }),
       ],
     };
 

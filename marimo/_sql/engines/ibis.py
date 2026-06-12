@@ -165,11 +165,13 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             LOGGER.debug("Failed to get databases", exc_info=True)
             return []
 
-        children_resolved = self._resolve_should_auto_discover(include_schemas)
+        should_include_schemas = self._resolve_should_auto_discover(
+            include_schemas
+        )
 
         for database_name in database_names:
             database_name_str = str(database_name)
-            if children_resolved:
+            if should_include_schemas:
                 children = self.get_schemas(
                     database=database_name_str,
                     include_tables=self._resolve_should_auto_discover(
@@ -186,7 +188,6 @@ class IbisEngine(SQLConnection["SQLBackend"]):
                 name=database_name_str,
                 dialect=self.dialect,
                 children=children,
-                children_resolved=children_resolved,
                 engine=self._engine_name,
             )
 
@@ -252,7 +253,6 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             schema = Schema(
                 name=schema_name,
                 tables=tables,
-                tables_resolved=include_tables,
             )
             schemas.append(schema)
 

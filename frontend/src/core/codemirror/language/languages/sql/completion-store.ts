@@ -2,11 +2,11 @@
 
 import type { SQLConfig, SQLDialect } from "@codemirror/lang-sql";
 import { atom } from "jotai";
-import { isSchemaless } from "@/components/datasources/utils";
 import {
   collectTablesFromNode,
   isNamespaceNode,
   isSchemaNode,
+  isSchemaless,
   walkCatalogNodes,
 } from "@/core/datasets/catalog";
 import { dataConnectionsMapAtom } from "@/core/datasets/data-source-connections";
@@ -96,10 +96,10 @@ class SQLCompletionStore {
         return;
       }
 
-      walkCatalogNodes(
-        database.children,
-        { databaseName: database.name, segments: [] },
-        ({ node, segments }) => {
+      walkCatalogNodes({
+        nodes: database.children,
+        context: { databaseName: database.name, segments: [] },
+        visit: ({ node, segments }) => {
           if (isNamespaceNode(node)) {
             return;
           }
@@ -119,7 +119,7 @@ class SQLCompletionStore {
 
           builder.addTable(path, node);
         },
-      );
+      });
     };
 
     // For default db, we can use the schema name directly so add them to the top level
