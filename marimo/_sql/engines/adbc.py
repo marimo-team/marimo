@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
 from marimo import _loggers
 from marimo._data.models import (
+    CatalogNode,
     Database,
     DataTable,
     DataTableColumn,
@@ -238,7 +239,7 @@ class AdbcConnectionCatalog:
                 "" if catalog_name_obj is None else str(catalog_name_obj)
             )
 
-            schemas: list[Schema] = []
+            children: list[CatalogNode] = []
             if include_schemas_bool:
                 schema_rows = catalog_row.get("catalog_db_schemas") or []
                 for schema_row in schema_rows:
@@ -288,7 +289,7 @@ class AdbcConnectionCatalog:
                                     )
                                 )
 
-                    schemas.append(
+                    children.append(
                         Schema(
                             name=schema_name,
                             tables=tables,
@@ -300,8 +301,8 @@ class AdbcConnectionCatalog:
                 Database(
                     name=catalog_name,
                     dialect=self._dialect,
-                    schemas=schemas,
-                    schemas_resolved=include_schemas_bool,
+                    children=children,
+                    children_resolved=include_schemas_bool,
                     engine=self._engine_name,
                 )
             )
@@ -522,7 +523,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         include_tables: bool,
         include_table_details: bool,
         schema_path: list[str] | None = None,
-    ) -> list[Schema]:
+    ) -> list[CatalogNode]:
         """Get all schemas and optionally their tables. Keys are schema names."""
         _, _, _, _ = (
             database,

@@ -12,6 +12,23 @@ import type { DataSourceConnection, DataTable } from "@/core/kernel/messages";
 import { Boosts, Sections } from "../common";
 import { DatasourceContextProvider, getDatasourceContext } from "../datasource";
 
+const mockConnectionTable = (
+  tableName: string,
+  source: string,
+  overrides: Partial<DataTable> = {},
+): DataTable => ({
+  kind: "data_table",
+  name: tableName,
+  source_type: "connection",
+  source,
+  num_rows: 100,
+  num_columns: 3,
+  variable_name: null,
+  columns: [],
+  type: "table",
+  ...overrides,
+});
+
 // Mock data for testing
 const createMockDataSourceConnection = (
   name: string,
@@ -25,42 +42,29 @@ const createMockDataSourceConnection = (
     {
       name: "main",
       dialect: "duckdb",
-      schemas: [
+      children: [
         {
+          kind: "schema",
           name: "public",
           tables: [
-            {
-              name: "users",
-              source_type: "connection",
-              source: name,
+            mockConnectionTable("users", name, {
               num_rows: 100,
               num_columns: 3,
-              variable_name: null,
-              columns: [],
-            },
-            {
-              name: "orders",
-              source_type: "connection",
-              source: name,
+            }),
+            mockConnectionTable("orders", name, {
               num_rows: 50,
               num_columns: 4,
-              variable_name: null,
-              columns: [],
-            },
+            }),
           ],
         },
         {
+          kind: "schema",
           name: "analytics",
           tables: [
-            {
-              name: "events",
-              source_type: "connection",
-              source: name,
+            mockConnectionTable("events", name, {
               num_rows: 200,
               num_columns: 5,
-              variable_name: null,
-              columns: [],
-            },
+            }),
           ],
         },
       ],
@@ -83,6 +87,7 @@ const createMockDataTable = (
   name: string,
   options: Partial<DataTable> = {},
 ): DataTable => ({
+  kind: "data_table",
   name,
   source: "local",
   source_type: "local",
@@ -140,37 +145,23 @@ describe("DatasourceContextProvider", () => {
           {
             name: "production",
             dialect: "postgresql",
-            schemas: [
+            children: [
               {
+                kind: "schema",
                 name: "public",
                 tables: [
-                  {
-                    name: "customers",
-                    source_type: "connection",
-                    source: "postgres",
+                  mockConnectionTable("customers", "postgres", {
                     num_rows: 1000,
                     num_columns: 8,
-                    variable_name: null,
-                    columns: [],
-                  },
-                  {
-                    name: "products",
-                    source_type: "connection",
-                    source: "postgres",
+                  }),
+                  mockConnectionTable("products", "postgres", {
                     num_rows: 500,
                     num_columns: 6,
-                    variable_name: null,
-                    columns: [],
-                  },
-                  {
-                    name: "sales",
-                    source_type: "connection",
-                    source: "postgres",
+                  }),
+                  mockConnectionTable("sales", "postgres", {
                     num_rows: 5000,
                     num_columns: 10,
-                    variable_name: null,
-                    columns: [],
-                  },
+                  }),
                 ],
               },
             ],
@@ -280,7 +271,7 @@ describe("DatasourceContextProvider", () => {
             {
               name: "empty_db",
               dialect: "duckdb",
-              schemas: [],
+              children: [],
             },
           ],
         },
@@ -295,7 +286,7 @@ describe("DatasourceContextProvider", () => {
 
       const items = providerWithEmptySchema.getItems();
       expect(items).toHaveLength(1);
-      expect(items[0].data.connection.databases[0].schemas).toEqual([]);
+      expect(items[0].data.connection.databases[0].children).toEqual([]);
     });
   });
 
@@ -323,8 +314,9 @@ describe("DatasourceContextProvider", () => {
           {
             name: "empty_db",
             dialect: "duckdb",
-            schemas: [
+            children: [
               {
+                kind: "schema",
                 name: "empty_schema",
                 tables: [],
               },
@@ -424,8 +416,9 @@ describe("DatasourceContextProvider", () => {
           {
             name: "empty_db",
             dialect: "duckdb",
-            schemas: [
+            children: [
               {
+                kind: "schema",
                 name: "empty_schema",
                 tables: [],
               },
@@ -456,28 +449,19 @@ describe("DatasourceContextProvider", () => {
           {
             name: "db1",
             dialect: "duckdb",
-            schemas: [
+            children: [
               {
+                kind: "schema",
                 name: "schema1",
                 tables: [
-                  {
-                    name: "table1",
-                    source_type: "connection",
-                    source: "multi",
+                  mockConnectionTable("table1", "multi", {
                     num_rows: 10,
                     num_columns: 2,
-                    variable_name: null,
-                    columns: [],
-                  },
-                  {
-                    name: "table2",
-                    source_type: "connection",
-                    source: "multi",
+                  }),
+                  mockConnectionTable("table2", "multi", {
                     num_rows: 20,
                     num_columns: 3,
-                    variable_name: null,
-                    columns: [],
-                  },
+                  }),
                 ],
               },
             ],
@@ -485,22 +469,19 @@ describe("DatasourceContextProvider", () => {
           {
             name: "db2",
             dialect: "duckdb",
-            schemas: [
+            children: [
               {
+                kind: "schema",
                 name: "schema2",
                 tables: [
-                  {
-                    name: "table3",
-                    source_type: "connection",
-                    source: "multi",
+                  mockConnectionTable("table3", "multi", {
                     num_rows: 15,
                     num_columns: 4,
-                    variable_name: null,
-                    columns: [],
-                  },
+                  }),
                 ],
               },
               {
+                kind: "schema",
                 name: "schema3",
                 tables: [],
               },
@@ -533,22 +514,19 @@ describe("DatasourceContextProvider", () => {
           {
             name: "main",
             dialect: "duckdb",
-            schemas: [
+            children: [
               {
+                kind: "schema",
                 name: "public",
                 tables: [
-                  {
-                    name: "users",
-                    source_type: "connection",
-                    source: "test",
+                  mockConnectionTable("users", "test", {
                     num_rows: 100,
                     num_columns: 3,
-                    variable_name: null,
-                    columns: [],
-                  },
+                  }),
                 ],
               },
               {
+                kind: "schema",
                 name: "analytics",
                 tables: [],
               },
@@ -596,18 +574,16 @@ describe("DatasourceContextProvider", () => {
           {
             name: "large_db",
             dialect: "duckdb",
-            schemas: [
+            children: [
               {
+                kind: "schema",
                 name: "large_schema",
-                tables: Array.from({ length: 100 }, (_, i) => ({
-                  name: `table_${i}`,
-                  source_type: "connection" as const,
-                  source: "large",
-                  num_rows: i + 1,
-                  num_columns: 2,
-                  variable_name: null,
-                  columns: [],
-                })),
+                tables: Array.from({ length: 100 }, (_, i) =>
+                  mockConnectionTable(`table_${i}`, "large", {
+                    num_rows: i + 1,
+                    num_columns: 2,
+                  }),
+                ),
               },
             ],
           },

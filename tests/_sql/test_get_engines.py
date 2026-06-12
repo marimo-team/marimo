@@ -52,7 +52,7 @@ def test_engine_to_data_source_connection() -> None:
     assert connection.default_database == "memory"
     assert connection.default_schema == "main"
     assert connection.databases == [
-        Database(name="memory", dialect="duckdb", schemas=[])
+        Database(name="memory", dialect="duckdb", children=[])
     ]
 
     # Test with ClickhouseEmbedded engine
@@ -360,8 +360,8 @@ def test_get_engines_duckdb_databases() -> None:
     assert len(connection.databases) == 1
     database = connection.databases[0]
     assert database.name == "memory"
-    assert len(database.schemas) == 1
-    schema = database.schemas[0]
+    assert len(database.children) == 1
+    schema = database.children[0]
     assert schema.name == "main"
     assert len(schema.tables) == 1
     table = schema.tables[0]
@@ -404,7 +404,7 @@ def test_get_engines_sqlalchemy_databases() -> None:
         Database(
             name=":memory:",
             dialect="sqlite",
-            schemas=[Schema(name="main", tables=[])],
+            children=[Schema(name="main", tables=[])],
         )
     ]
 
@@ -432,17 +432,17 @@ def test_get_engines_ibis_databases() -> None:
         Database(
             name="memory",
             dialect="duckdb",
-            schemas=[Schema(name="main", tables=[])],
+            children=[Schema(name="main", tables=[])],
         ),
         Database(
             name="system",
             dialect="duckdb",
-            schemas=[Schema(name="main", tables=[])],
+            children=[Schema(name="main", tables=[])],
         ),
         Database(
             name="temp",
             dialect="duckdb",
-            schemas=[Schema(name="main", tables=[])],
+            children=[Schema(name="main", tables=[])],
         ),
     ]
 

@@ -20,6 +20,7 @@ export type DataTableColumn = schemas["DataTableColumn"];
 export type DataTable = schemas["DataTable"];
 export type Database = schemas["Database"];
 export type DatabaseSchema = schemas["Schema"];
+export type DatabaseNamespace = schemas["Namespace"];
 export type DataSourceConnection = schemas["DataSourceConnection"];
 export type OutputChannel = schemas["CellChannel"];
 export type CellOutput = schemas["CellOutput"];

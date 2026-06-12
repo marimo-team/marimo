@@ -93,7 +93,7 @@ expected_databases_with_conn = [
         name="memory",
         dialect="duckdb",
         engine=VariableName("test_duckdb"),
-        schemas=[
+        children=[
             Schema(
                 name="main",
                 tables=[
@@ -153,7 +153,7 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
         include_tables=False,
     )
     assert initial_databases == [
-        Database(name="memory", dialect="duckdb", schemas=[])
+        Database(name="memory", dialect="duckdb", children=[])
     ]
     assert engine.get_default_database() == "memory"
     assert engine.get_default_schema() == "main"
@@ -175,9 +175,9 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
 
     expected_databases = deepcopy(expected_databases_with_conn)
     expected_databases[0].engine = None
-    expected_databases[0].schemas[0].tables[0].engine = None
-    expected_databases[0].schemas[0].tables[0].source_type = "duckdb"
-    expected_databases[0].schemas[0].tables[0].source = "memory"
+    expected_databases[0].children[0].tables[0].engine = None
+    expected_databases[0].children[0].tables[0].source_type = "duckdb"
+    expected_databases[0].children[0].tables[0].source = "memory"
 
     assert databases == expected_databases
 

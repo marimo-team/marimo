@@ -45,7 +45,7 @@ def test_clickhouse_get_databases_marks_failed_table_loading_unresolved() -> (
         include_table_details=False,
     )
 
-    schema = databases[0].schemas[0]
+    schema = databases[0].children[0]
     assert schema.tables == []
     assert schema.tables_resolved is False
 
@@ -77,7 +77,7 @@ def test_clickhouse_get_databases_marks_failed_table_details_unresolved() -> (
         include_table_details=True,
     )
 
-    schema = databases[0].schemas[0]
+    schema = databases[0].children[0]
     assert schema.tables == []
     assert schema.tables_resolved is False
 

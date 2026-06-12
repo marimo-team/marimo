@@ -185,7 +185,7 @@ def test_ibis_empty_engine(empty_ibis_backend: SQLBackend) -> None:
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
-        schemas=[Schema(name="main", tables=[])],
+        children=[Schema(name="main", tables=[])],
         engine=engine_name,
     )
 
@@ -537,7 +537,7 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
-        schemas=[
+        children=[
             get_expected_schema("main", "test"),
             get_expected_schema("my_schema", "test2"),
         ],
@@ -559,7 +559,7 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
-        schemas=[
+        children=[
             Schema(name="main", tables=[tables_main]),
             Schema(name="my_schema", tables=[tables_my_schema]),
         ],
@@ -579,7 +579,7 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
-        schemas=[
+        children=[
             Schema(name="main", tables=[], tables_resolved=False),
             Schema(name="my_schema", tables=[], tables_resolved=False),
         ],
@@ -599,8 +599,8 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
-        schemas=[],
-        schemas_resolved=False,
+        children=[],
+        children_resolved=False,
         engine=var_name,
     )
 
@@ -617,8 +617,8 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
-        schemas=[],
-        schemas_resolved=False,
+        children=[],
+        children_resolved=False,
         engine=var_name,
     )
 
@@ -650,7 +650,7 @@ def test_ibis_engine_get_databases_auto(ibis_backend: SQLBackend) -> None:
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
-        schemas=[
+        children=[
             get_expected_schema("main", "test"),
             get_expected_schema("my_schema", "test2"),
         ],
@@ -678,8 +678,8 @@ def test_ibis_engine_get_databases_auto(ibis_backend: SQLBackend) -> None:
         assert memory_db == Database(
             name="memory",
             dialect="duckdb",
-            schemas=[],
-            schemas_resolved=False,
+            children=[],
+            children_resolved=False,
             engine=var_name,
         )
 
@@ -848,10 +848,12 @@ def test_ibis_get_databases_surfaces_empty_schemas(
     )
 
     memory_db = next(db for db in databases if db.name == "memory")
-    assert memory_db.schemas_resolved is True
+    assert memory_db.children_resolved is True
 
     empty_schema = next(
-        schema for schema in memory_db.schemas if schema.name == "empty_schema"
+        schema
+        for schema in memory_db.children
+        if schema.name == "empty_schema"
     )
     assert empty_schema.tables == []
     assert empty_schema.tables_resolved is True
@@ -876,10 +878,10 @@ def test_ibis_get_databases_marks_deferred_tables(
     )
 
     memory_db = next(db for db in databases if db.name == "memory")
-    assert memory_db.schemas_resolved is True
+    assert memory_db.children_resolved is True
     assert all(
         schema.tables == [] and schema.tables_resolved is False
-        for schema in memory_db.schemas
+        for schema in memory_db.children
     )
 
 
@@ -898,7 +900,7 @@ def test_ibis_get_databases_marks_deferred_schemas(
     )
 
     assert all(
-        db.schemas == [] and db.schemas_resolved is False for db in databases
+        db.children == [] and db.children_resolved is False for db in databases
     )
 
 
@@ -1034,7 +1036,7 @@ def test_ibis_sqlite_catalog_discovery() -> None:
             if databases:
                 total_tables = 0
                 for db in databases:
-                    for schema in db.schemas:
+                    for schema in db.children:
                         total_tables += len(schema.tables)
                 assert total_tables >= 1, (
                     "Should find at least the test_table we created"

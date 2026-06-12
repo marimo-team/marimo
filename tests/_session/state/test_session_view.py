@@ -880,7 +880,7 @@ def test_add_sql_table_previews() -> None:
                             Database(
                                 name="db1",
                                 dialect="duckdb",
-                                schemas=[
+                                children=[
                                     Schema(
                                         name="db1",
                                         tables=[
@@ -905,7 +905,7 @@ def test_add_sql_table_previews() -> None:
     )
 
     session_view_connections = session_view.data_connectors.connections
-    assert session_view_connections[0].databases[0].schemas[0].tables == [
+    assert session_view_connections[0].databases[0].children[0].tables == [
         DataTable(
             source_type="connection",
             source="db1",
@@ -938,7 +938,7 @@ def test_add_sql_table_previews() -> None:
     )
     session_view_connections = session_view.data_connectors.connections
     assert (
-        session_view_connections[0].databases[0].schemas[0].tables[0].num_rows
+        session_view_connections[0].databases[0].children[0].tables[0].num_rows
         == 10
     )
 
@@ -969,7 +969,7 @@ def test_add_sql_table_previews() -> None:
             )
         )
     )
-    assert session_view_connections[0].databases[0].schemas[0].tables == [
+    assert session_view_connections[0].databases[0].children[0].tables == [
         DataTable(
             source_type="connection",
             source="db1",
@@ -1008,7 +1008,7 @@ def test_add_sql_table_previews() -> None:
         )
     )
 
-    assert session_view_connections[0].databases[0].schemas[0].tables == [
+    assert session_view_connections[0].databases[0].children[0].tables == [
         DataTable(
             source_type="connection",
             source="db1",

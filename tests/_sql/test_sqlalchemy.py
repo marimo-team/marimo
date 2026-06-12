@@ -165,7 +165,7 @@ def test_sqlalchemy_empty_engine(empty_sqlite_engine: sa.Engine) -> None:
         Database(
             name=":memory:",
             dialect="sqlite",
-            schemas=[Schema(name="main", tables=[])],
+            children=[Schema(name="main", tables=[])],
             engine=VariableName("sqlite"),
         )
     ]
@@ -399,11 +399,11 @@ def test_sqlalchemy_skip_meta_schemas(
     databases = engine.get_databases(
         include_schemas=True, include_tables=True, include_table_details=True
     )
-    assert len(databases[0].schemas) == 2
-    assert databases[0].schemas[0].name == "main"
-    assert databases[0].schemas[1].name == "information_schema"
+    assert len(databases[0].children) == 2
+    assert databases[0].children[0].name == "main"
+    assert databases[0].children[1].name == "information_schema"
 
-    information_schema = databases[0].schemas[1]
+    information_schema = databases[0].children[1]
     assert information_schema.tables == []
     # Eager discovery was skipped for the meta schema, so the empty table
     # list is not authoritative — `tables_resolved` must be False so the
@@ -480,7 +480,7 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
         Database(
             name=":memory:",
             dialect="sqlite",
-            schemas=[
+            children=[
                 get_expected_schema("main", "test"),
                 get_expected_schema("my_schema", "test2"),
             ],
@@ -499,7 +499,7 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
         Database(
             name=":memory:",
             dialect="sqlite",
-            schemas=[
+            children=[
                 Schema(name="main", tables=[tables_main]),
                 Schema(name="my_schema", tables=[tables_my_schema]),
             ],
@@ -515,7 +515,7 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
         Database(
             name=":memory:",
             dialect="sqlite",
-            schemas=[
+            children=[
                 Schema(name="main", tables=[], tables_resolved=False),
                 Schema(name="my_schema", tables=[], tables_resolved=False),
             ],
@@ -531,8 +531,8 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
         Database(
             name=":memory:",
             dialect="sqlite",
-            schemas=[],
-            schemas_resolved=False,
+            children=[],
+            children_resolved=False,
             engine=VariableName("test_sqlite"),
         )
     ]
@@ -545,8 +545,8 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
         Database(
             name=":memory:",
             dialect="sqlite",
-            schemas=[],
-            schemas_resolved=False,
+            children=[],
+            children_resolved=False,
             engine=VariableName("test_sqlite"),
         )
     ]
@@ -575,7 +575,7 @@ def test_sqlalchemy_get_databases_auto(sqlite_engine: sa.Engine) -> None:
         Database(
             name=":memory:",
             dialect="sqlite",
-            schemas=[
+            children=[
                 get_expected_schema("main", "test"),
                 get_expected_schema("my_schema", "test2"),
             ],
@@ -598,8 +598,8 @@ def test_sqlalchemy_get_databases_auto(sqlite_engine: sa.Engine) -> None:
             Database(
                 name=":memory:",
                 dialect="sqlite",
-                schemas=[],
-                schemas_resolved=False,
+                children=[],
+                children_resolved=False,
                 engine=VariableName("test_sqlite"),
             )
         ]

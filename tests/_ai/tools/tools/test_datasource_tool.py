@@ -69,7 +69,7 @@ def sample_database(sample_schema: Schema) -> Database:
     return Database(
         name="test_db",
         dialect="postgresql",
-        schemas=[sample_schema],
+        children=[sample_schema],
     )
 
 
@@ -138,7 +138,7 @@ def multi_table_session() -> MockSession:
     ]
 
     schema = Schema(name="public", tables=tables)
-    database = Database(name="ecommerce", dialect="mysql", schemas=[schema])
+    database = Database(name="ecommerce", dialect="mysql", children=[schema])
     connection = MockDataSourceConnection(
         name="mysql_conn", dialect="mysql", databases=[database]
     )
@@ -359,8 +359,8 @@ def test_multiple_connections(tool: GetDatabaseTables):
     schema1 = Schema(name="schema1", tables=[table1])
     schema2 = Schema(name="schema2", tables=[table2])
 
-    db1 = Database(name="db1", dialect="postgresql", schemas=[schema1])
-    db2 = Database(name="db2", dialect="mysql", schemas=[schema2])
+    db1 = Database(name="db1", dialect="postgresql", children=[schema1])
+    db2 = Database(name="db2", dialect="mysql", children=[schema2])
 
     conn1 = MockDataSourceConnection(
         name="conn1", dialect="postgresql", databases=[db1]
@@ -430,7 +430,7 @@ def test_query_matches_multiple_levels(tool: GetDatabaseTables):
     database = Database(
         name="testdb",
         dialect="postgresql",
-        schemas=[user_schema, public_schema],
+        children=[user_schema, public_schema],
     )
 
     connection = MockDataSourceConnection(
@@ -514,7 +514,7 @@ def test_query_no_duplicates(tool: GetDatabaseTables):
     database = Database(
         name="test_db",
         dialect="postgresql",
-        schemas=[schema1, schema2],
+        children=[schema1, schema2],
     )
 
     connection = MockDataSourceConnection(

@@ -4097,6 +4097,8 @@ export interface components {
       engine?: components["schemas"]["VariableName"] | null;
       /** @default null */
       indexes?: string[] | null;
+      /** @enum {unknown} */
+      kind: "data_table";
       name: string;
       num_columns: number | null;
       num_rows: number | null;
@@ -4139,24 +4141,28 @@ export interface components {
     };
     /**
      * Database
-     * @description Represents a collection of schemas.
+     * @description Represents a database and its children.
      *
      *     Attributes:
-     *         name (str): The name of the database
-     *         dialect (str): The dialect of the database
-     *         schemas (List[Schema]): List of schemas in the database.
-     *         schemas_resolved (bool): True when `schemas` has been enumerated.
-     *             False when schema discovery was deferred. Defaults to True
+     *         name (str): The name of the database.
+     *         dialect (str): The dialect of the database.
+     *         children (List[Schema | DataTable | Namespace]): The children of the database.
+     *         children_resolved (bool): True when `children` has been enumerated
+     *             False when child discovery was deferred. Defaults to True
      *         engine (Optional[VariableName]): Database engine or connection handler, if any.
      */
     Database: {
+      children: (
+        | components["schemas"]["Schema"]
+        | components["schemas"]["DataTable"]
+        | components["schemas"]["Namespace"]
+      )[];
+      /** @default true */
+      children_resolved?: boolean;
       dialect: string;
       /** @default null */
       engine?: components["schemas"]["VariableName"] | null;
       name: string;
-      schemas: components["schemas"]["Schema"][];
-      /** @default true */
-      schemas_resolved?: boolean;
     };
     /**
      * DatasetsNotification
@@ -5613,6 +5619,32 @@ export interface components {
       type: "multiple-defs";
     };
     /**
+     * Namespace
+     * @description Represents a namespace and its children.
+     *
+     *     Attributes:
+     *         name (str): The name of the namespace.
+     *         children (List[Schema | DataTable | Namespace]): The children of the namespace.
+     *         children_resolved (bool): True when sub-namespace children have been enumerated.
+     *             False when child discovery was deferred. Defaults to True
+     *         tables_resolved (bool): True when inline `DataTable` children have been enumerated.
+     *             False when table discovery was deferred. Defaults to True
+     */
+    Namespace: {
+      children: (
+        | components["schemas"]["Schema"]
+        | components["schemas"]["DataTable"]
+        | components["schemas"]["Namespace"]
+      )[];
+      /** @default true */
+      children_resolved?: boolean;
+      /** @enum {unknown} */
+      kind: "namespace";
+      name: string;
+      /** @default true */
+      tables_resolved?: boolean;
+    };
+    /**
      * NotebookCell
      * @description A single cell in the document. Mutable — owned by the document.
      *
@@ -6096,7 +6128,11 @@ export interface components {
       op: "sql-schema-list-preview";
       request_id: components["schemas"]["RequestId"];
       /** @default [] */
-      schemas?: components["schemas"]["Schema"][];
+      schemas?: (
+        | components["schemas"]["Schema"]
+        | components["schemas"]["DataTable"]
+        | components["schemas"]["Namespace"]
+      )[];
     };
     /**
      * SQLTableListPreviewNotification
@@ -6177,23 +6213,15 @@ export interface components {
      * Schema
      * @description Represents a database schema and its tables.
      *
-     *     A schema may itself contain nested child schemas, e.g. for catalogs with
-     *     hierarchical namespaces such as Iceberg (`top.nested.deep`).
-     *
      *     Attributes:
      *         name (str): The name of the schema.
      *         tables (List[DataTable]): Tables in this schema.
      *         tables_resolved (bool): True when `tables` has been enumerated
      *             False when table discovery was deferred. Defaults to True
-     *         child_schemas (List[Schema]): Nested child schemas (sub-namespaces).
-     *         child_schemas_resolved (bool): True when `child_schemas` has been
-     *             enumerated. False when discovery was deferred. Defaults to True
      */
     Schema: {
-      /** @default [] */
-      child_schemas?: components["schemas"]["Schema"][];
-      /** @default true */
-      child_schemas_resolved?: boolean;
+      /** @enum {unknown} */
+      kind: "schema";
       name: string;
       tables: components["schemas"]["DataTable"][];
       /** @default true */

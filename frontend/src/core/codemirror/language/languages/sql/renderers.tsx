@@ -15,6 +15,7 @@ import {
 } from "@/components/databases/namespace-icons";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Badge } from "@/components/ui/badge";
+import { getSchemaNodes } from "@/core/datasets/catalog";
 import {
   type ConnectionName,
   INTERNAL_SQL_ENGINES,
@@ -357,7 +358,7 @@ export const renderDatabaseInfo = (database: Database): React.ReactNode => {
     </Badge>
   );
 
-  const schemaItems = database.schemas.map((schema) => (
+  const schemaItems = getSchemaNodes(database.children).map((schema) => (
     <div
       key={schema.name}
       className="flex items-center justify-between text-xs rounded hover:bg-[var(--slate-3)]"
@@ -401,18 +402,18 @@ export const renderDatabaseInfo = (database: Database): React.ReactNode => {
       <div className="py-2">
         <StatisticItem
           icon={<SchemaIcon className="w-3 h-3 text-[var(--slate-9)]" />}
-          text={`${database.schemas.length} schema${database.schemas.length === 1 ? "" : "s"}`}
+          text={`${schemaItems.length} schema${schemaItems.length === 1 ? "" : "s"}`}
         />
       </div>
       {/* Empty Info */}
-      {database.schemas.length === 0 && renderEmptyInfo("schema")}
+      {schemaItems.length === 0 && renderEmptyInfo("schema")}
 
       {/* Schema Preview */}
-      {database.schemas.length > 0 && (
+      {schemaItems.length > 0 && (
         <PreviewList
           title="Schemas"
           items={schemaItems}
-          totalCount={database.schemas.length}
+          totalCount={schemaItems.length}
         />
       )}
     </div>
@@ -496,7 +497,7 @@ export const renderDatasourceInfo = (
 ): React.ReactNode => {
   const databaseCount = connection.databases.length;
   const schemasCount = connection.databases.reduce(
-    (count, db) => count + db.schemas.length,
+    (count, db) => count + getSchemaNodes(db.children).length,
     0,
   );
 
@@ -547,7 +548,8 @@ export const renderDatasourceInfo = (
       db.name === connection.default_database ||
       connection.databases.length === 1;
 
-    const schemaItems = db.schemas.map((schema) =>
+    const schemas = getSchemaNodes(db.children);
+    const schemaItems = schemas.map((schema) =>
       renderSchema(schema, isDefaultDb),
     );
 
@@ -559,7 +561,7 @@ export const renderDatasourceInfo = (
           {isDefaultDb && DefaultBadge}
         </div>
         {schemaItems && (
-          <PreviewList items={schemaItems} totalCount={db.schemas.length} />
+          <PreviewList items={schemaItems} totalCount={schemas.length} />
         )}
       </div>
     );

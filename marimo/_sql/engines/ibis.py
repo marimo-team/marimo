@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from marimo import _loggers
 from marimo._data.models import (
+    CatalogNode,
     Database,
     DataTable,
     DataTableColumn,
@@ -164,12 +165,12 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             LOGGER.debug("Failed to get databases", exc_info=True)
             return []
 
-        schemas_resolved = self._resolve_should_auto_discover(include_schemas)
+        children_resolved = self._resolve_should_auto_discover(include_schemas)
 
         for database_name in database_names:
             database_name_str = str(database_name)
-            if schemas_resolved:
-                schemas = self.get_schemas(
+            if children_resolved:
+                children = self.get_schemas(
                     database=database_name_str,
                     include_tables=self._resolve_should_auto_discover(
                         include_tables
@@ -179,13 +180,13 @@ class IbisEngine(SQLConnection["SQLBackend"]):
                     ),
                 )
             else:
-                schemas = []
+                children = []
 
             database: Database = Database(
                 name=database_name_str,
                 dialect=self.dialect,
-                schemas=schemas,
-                schemas_resolved=schemas_resolved,
+                children=children,
+                children_resolved=children_resolved,
                 engine=self._engine_name,
             )
 
@@ -200,13 +201,13 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         include_tables: bool,
         include_table_details: bool,
         schema_path: list[str] | None = None,
-    ) -> list[Schema]:
+    ) -> list[CatalogNode]:
         """Get all schemas and optionally their tables. Keys are schema names."""
         if schema_path:
             return []  # Ibis backends don't expose nested schemas
         meta_schemas = self._get_meta_schemas()
 
-        schemas: list[Schema] = []
+        schemas: list[CatalogNode] = []
 
         try:
             schema_names = self._connection.list_databases(catalog=database)

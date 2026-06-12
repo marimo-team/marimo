@@ -14,11 +14,13 @@ from typing import (
 
 from marimo import _loggers
 from marimo._data.models import (
+    CatalogNode,
     Database,
     DataTable,
     DataTableColumn,
     DataTableType,
     DataType,
+    Namespace,
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -415,21 +417,21 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         databases: list[Database] = []
 
         for database_name in self._get_database_names():
-            schemas = (
-                self.get_schemas(
-                    database=database_name,
-                    include_tables=should_include_tables,
-                    include_table_details=should_include_details,
+            children: list[Schema | DataTable | Namespace] = []
+            if should_include_schemas:
+                children.extend(
+                    self.get_schemas(
+                        database=database_name,
+                        include_tables=should_include_tables,
+                        include_table_details=should_include_details,
+                    )
                 )
-                if should_include_schemas
-                else []
-            )
             databases.append(
                 Database(
                     name=database_name,
                     dialect=self.dialect,
-                    schemas=schemas,
-                    schemas_resolved=should_include_schemas,
+                    children=children,
+                    children_resolved=should_include_schemas,
                     engine=self._engine_name,
                 )
             )
@@ -457,7 +459,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         include_tables: bool,
         include_table_details: bool,
         schema_path: list[str] | None = None,
-    ) -> list[Schema]:
+    ) -> list[CatalogNode]:
         """Get all schemas and optionally their tables. Keys are schema names."""
         if schema_path:
             return []  # SQLAlchemy schemas don't nest
@@ -467,7 +469,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         else:
             schema_names = self._get_schema_names(database)
 
-        schemas: list[Schema] = []
+        schemas: list[CatalogNode] = []
 
         meta_schemas = self._get_meta_schemas()
         for schema in schema_names:

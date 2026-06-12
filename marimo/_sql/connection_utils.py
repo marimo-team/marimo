@@ -2,54 +2,51 @@
 from __future__ import annotations
 
 from marimo._data.models import (
-    Database,
+    CatalogNode,
     DataSourceConnection,
     DataTable,
+    Namespace,
     Schema,
 )
 from marimo._messaging.notification import SQLDatabaseMetadata, SQLMetadata
 
 
-def _find_database(
-    connections: list[DataSourceConnection],
-    connection_name: str,
-    database_name: str,
-) -> Database | None:
-    for connection in connections:
-        if connection.name != connection_name:
-            continue
-        for database in connection.databases:
-            if database.name == database_name:
-                return database
-    return None
-
-
-def _find_schema_by_path(
-    schemas: list[Schema], path: list[str]
-) -> Schema | None:
-    """Descend `path` (segment names) into nested schema lists."""
+def _find_node_by_path(
+    nodes: list[CatalogNode], path: list[str]
+) -> CatalogNode | None:
+    """Descend `path` (segment names) into a catalog tree."""
     if not path:
         return None
     head, *rest = path
-    for schema in schemas:
-        if schema.name == head:
-            if not rest:
-                return schema
-            return _find_schema_by_path(schema.child_schemas, rest)
+    for node in nodes:
+        if node.name != head:
+            continue
+        if not rest:
+            return node
+        if isinstance(node, Namespace):
+            return _find_node_by_path(node.children, rest)
+        return None
     return None
 
 
-def _find_table_schema(
-    database: Database, sql_metadata: SQLMetadata
-) -> Schema | None:
-    """Locate the schema holding a table. For nested schemas it is found by
-    descending `schema_path`; otherwise by schema name."""
-    if sql_metadata.schema_path:
-        return _find_schema_by_path(database.schemas, sql_metadata.schema_path)
-    for schema in database.schemas:
-        if schema.name == sql_metadata.schema:
-            return schema
-    return None
+def _node_path(metadata: SQLMetadata) -> list[str]:
+    if metadata.schema_path:
+        return list(metadata.schema_path)
+    return [metadata.schema]
+
+
+def _set_tables_on_node(
+    node: Schema | Namespace, tables: list[DataTable]
+) -> None:
+    if isinstance(node, Schema):
+        node.tables = tables
+        node.tables_resolved = True
+        return
+    non_tables = [
+        child for child in node.children if not isinstance(child, DataTable)
+    ]
+    node.children = [*non_tables, *tables]
+    node.tables_resolved = True
 
 
 def update_table_in_connection(
@@ -64,51 +61,69 @@ def update_table_in_connection(
         sql_metadata: SQL metadata containing connection, database, schema info
         updated_table: The updated table to replace the existing one
     """
-    database = _find_database(
-        connections, sql_metadata.connection, sql_metadata.database
-    )
-    if database is None:
-        return
-    schema = _find_table_schema(database, sql_metadata)
-    if schema is None:
-        return
-    for i, table in enumerate(schema.tables):
-        if table.name == updated_table.name:
-            schema.tables[i] = updated_table
+    for connection in connections:
+        if connection.name != sql_metadata.connection:
+            continue
+
+        for database in connection.databases:
+            if database.name != sql_metadata.database:
+                continue
+
+            node = _find_node_by_path(
+                database.children, _node_path(sql_metadata)
+            )
+            if isinstance(node, Schema):
+                for i, table in enumerate(node.tables):
+                    if table.name == updated_table.name:
+                        node.tables[i] = updated_table
+                        return
+            elif isinstance(node, Namespace):
+                for i, child in enumerate(node.children):
+                    if (
+                        isinstance(child, DataTable)
+                        and child.name == updated_table.name
+                    ):
+                        node.children[i] = updated_table
+                        return
             return
 
 
 def update_schema_list_in_connection(
     connections: list[DataSourceConnection],
     sql_db_metadata: SQLDatabaseMetadata,
-    updated_schema_list: list[Schema],
+    updated_schema_list: list[CatalogNode],
 ) -> None:
-    """Update a list of schemas in the connection hierarchy, updates in-place.
+    """Update catalog children in the connection hierarchy, updates in-place.
 
-    When `schema_path` is empty the database's top-level schemas are replaced;
-    otherwise the child schemas of the schema at that path are replaced.
+    When `schema_path` is empty the database's top-level `children` are
+    replaced; otherwise the `children` of the `Namespace` at that path are
+    replaced.
 
     Args:
         connections: List of data source connections
         sql_db_metadata: SQL database metadata containing connection, database info
-        updated_schema_list: The updated list of schemas to replace the existing ones
+        updated_schema_list: Nodes to replace the existing children with
     """
-    database = _find_database(
-        connections, sql_db_metadata.connection, sql_db_metadata.database
-    )
-    if database is None:
-        return
-    if sql_db_metadata.schema_path:
-        parent = _find_schema_by_path(
-            database.schemas, sql_db_metadata.schema_path
-        )
-        if parent is None:
+    for connection in connections:
+        if connection.name != sql_db_metadata.connection:
+            continue
+
+        for database in connection.databases:
+            if database.name != sql_db_metadata.database:
+                continue
+
+            if sql_db_metadata.schema_path:
+                parent = _find_node_by_path(
+                    database.children, sql_db_metadata.schema_path
+                )
+                if not isinstance(parent, Namespace):
+                    return
+                parent.children = updated_schema_list
+                parent.children_resolved = True
+            else:
+                database.children = updated_schema_list
+                database.children_resolved = True
             return
-        parent.child_schemas = updated_schema_list
-        parent.child_schemas_resolved = True
-        return
-    database.schemas = updated_schema_list
-    database.schemas_resolved = True
 
 
 def update_table_list_in_connection(
@@ -123,13 +138,17 @@ def update_table_list_in_connection(
         sql_metadata: SQL metadata containing connection, database, schema info
         updated_table_list: The updated list of tables to replace the existing ones
     """
-    database = _find_database(
-        connections, sql_metadata.connection, sql_metadata.database
-    )
-    if database is None:
-        return
-    schema = _find_table_schema(database, sql_metadata)
-    if schema is None:
-        return
-    schema.tables = updated_table_list
-    schema.tables_resolved = True
+    for connection in connections:
+        if connection.name != sql_metadata.connection:
+            continue
+
+        for database in connection.databases:
+            if database.name != sql_metadata.database:
+                continue
+
+            node = _find_node_by_path(
+                database.children, _node_path(sql_metadata)
+            )
+            if isinstance(node, (Schema, Namespace)):
+                _set_tables_on_node(node, updated_table_list)
+            return

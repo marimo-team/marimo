@@ -5,9 +5,11 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from marimo import _loggers
 from marimo._data.models import (
+    CatalogNode,
     Database,
     DataTable,
     DataTableColumn,
+    Namespace,
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -78,35 +80,36 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         """Get all databases from the engine.
 
         Each top-level Iceberg namespace becomes a `Database`. Nested
-        sub-namespaces are exposed as recursive child `Schema`s (see
-        `get_schemas`).
+        sub-namespaces are exposed as `Namespace` nodes in `children`.
         """
         from pyiceberg.catalog import Catalog
 
-        schemas_resolved = self._resolve_should_auto_discover(include_schemas)
+        children_resolved = self._resolve_should_auto_discover(include_schemas)
+        should_include_tables = self._resolve_should_auto_discover(
+            include_tables
+        )
+        should_include_details = self._resolve_should_auto_discover(
+            include_table_details
+        )
         databases: list[Database] = []
         try:
-            # Top-level namespaces only; children are discovered lazily.
+            # Top-level namespaces only; deeper children are discovered lazily.
             namespaces = sorted(self._connection.list_namespaces())
             for namespace in namespaces:
                 database_name = Catalog.namespace_to_string(namespace)
-                schemas: list[Schema] = []
-                if schemas_resolved:
-                    schemas = self.get_schemas(
-                        database=database_name,
-                        include_tables=self._resolve_should_auto_discover(
-                            include_tables
-                        ),
-                        include_table_details=self._resolve_should_auto_discover(
-                            include_table_details
-                        ),
+                children: list[CatalogNode] = []
+                if children_resolved:
+                    children = self._database_children(
+                        namespace,
+                        include_tables=should_include_tables,
+                        include_table_details=should_include_details,
                     )
                 databases.append(
                     Database(
                         name=database_name,
                         dialect=self.dialect,
-                        schemas=schemas,
-                        schemas_resolved=schemas_resolved,
+                        children=children,
+                        children_resolved=children_resolved,
                         engine=self._engine_name,
                     )
                 )
@@ -130,79 +133,100 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         include_tables: bool,
         include_table_details: bool,
         schema_path: list[str] | None = None,
-    ) -> list[Schema]:
-        """Get the schemas within a top-level namespace `database`.
+    ) -> list[CatalogNode]:
+        """Get catalog nodes within a top-level namespace `database`.
 
         Empty `schema_path` returns a schemaless `Schema` (the namespace's own
-        tables) plus one `Schema` per immediate sub-namespace; a non-empty path
-        returns the immediate sub-namespaces at that path.
+        tables) plus one `Namespace` per immediate sub-namespace; a non-empty
+        path returns the immediate child namespaces at that path.
         """
         if database is None:
             raise ValueError("database is required for Iceberg schemas")
 
+        from pyiceberg.catalog import Catalog
+
+        namespace = Catalog.identifier_to_tuple(database)
         if schema_path:
-            return self._child_schemas(
-                (database, *schema_path),
+            namespace = (*namespace, *schema_path)
+            # At a nested path we only list immediate child namespaces. Leaf
+            # namespaces that hold tables directly (no sub-namespaces) return
+            # an empty list here; tables are fetched via get_tables_in_schema.
+            return self._child_namespaces(
+                namespace,
                 include_tables=include_tables,
                 include_table_details=include_table_details,
             )
 
-        # The database's sub-namespaces are siblings of (not nested under) the
-        # schemaless entry, so its own child_schemas are trivially resolved.
-        schemas: list[Schema] = [
-            Schema(
-                name=NO_SCHEMA_NAME,
-                tables=self.get_tables_in_schema(
-                    schema=NO_SCHEMA_NAME,
-                    database=database,
-                    include_table_details=include_table_details,
-                )
-                if include_tables
-                else [],
-                tables_resolved=include_tables,
-                child_schemas=[],
-                child_schemas_resolved=True,
-            )
-        ]
-        schemas.extend(
-            self._child_schemas(
-                (database,),
-                include_tables=include_tables,
-                include_table_details=include_table_details,
-            )
+        return self._database_children(
+            namespace,
+            include_tables=include_tables,
+            include_table_details=include_table_details,
         )
-        return schemas
 
-    def _child_schemas(
+    def _database_children(
         self,
         namespace: tuple[str, ...],
         *,
         include_tables: bool,
         include_table_details: bool,
-    ) -> list[Schema]:
-        """Immediate child namespaces of `namespace` as Schemas."""
+    ) -> list[CatalogNode]:
+        """Top-level children for a database namespace."""
+        from pyiceberg.catalog import Catalog
+
+        database_name = Catalog.namespace_to_string(namespace)
+        children: list[CatalogNode] = [
+            Schema(
+                name=NO_SCHEMA_NAME,
+                tables=self.get_tables_in_schema(
+                    schema=NO_SCHEMA_NAME,
+                    database=database_name,
+                    include_table_details=include_table_details,
+                )
+                if include_tables
+                else [],
+                tables_resolved=include_tables,
+            )
+        ]
+        children.extend(
+            self._child_namespaces(
+                namespace,
+                include_tables=include_tables,
+                include_table_details=include_table_details,
+            )
+        )
+        return children
+
+    def _child_namespaces(
+        self,
+        namespace: tuple[str, ...],
+        *,
+        include_tables: bool,
+        include_table_details: bool,
+    ) -> list[CatalogNode]:
+        """Immediate child namespaces of `namespace` as `Namespace` nodes."""
         try:
             children = sorted(self._connection.list_namespaces(namespace))
         except Exception:
             LOGGER.warning("Failed to list child namespaces", exc_info=True)
             return []
-        return [
-            self._namespace_to_schema(
+        nodes: list[CatalogNode] = [
+            self._namespace_to_node(
                 child,
                 include_tables=include_tables,
                 include_table_details=include_table_details,
             )
             for child in children
         ]
+        return nodes
 
-    def _namespace_to_schema(
+    def _namespace_to_node(
         self,
         namespace: tuple[str, ...],
         *,
         include_tables: bool,
         include_table_details: bool,
-    ) -> Schema:
-        """Convert an absolute namespace tuple into a Schema.
+    ) -> Namespace:
+        """Convert an absolute namespace tuple into a `Namespace`.
 
         `include_tables` also gates sub-namespace recursion: when False, tables
         and children are left deferred and fetched lazily on expand, so a
@@ -210,30 +234,28 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         """
         from pyiceberg.catalog import Catalog
 
-        tables = (
-            self.get_tables_in_schema(
-                schema=NO_SCHEMA_NAME,
-                database=Catalog.namespace_to_string(namespace),
-                include_table_details=include_table_details,
+        namespace_str = Catalog.namespace_to_string(namespace)
+        node_children: list[CatalogNode] = []
+        if include_tables:
+            node_children.extend(
+                self.get_tables_in_schema(
+                    schema=NO_SCHEMA_NAME,
+                    database=namespace_str,
+                    include_table_details=include_table_details,
+                )
             )
-            if include_tables
-            else []
-        )
-        child_schemas = (
-            self._child_schemas(
-                namespace,
-                include_tables=include_tables,
-                include_table_details=include_table_details,
+            node_children.extend(
+                self._child_namespaces(
+                    namespace,
+                    include_tables=include_tables,
+                    include_table_details=include_table_details,
+                )
             )
-            if include_tables
-            else []
-        )
-        return Schema(
+        return Namespace(
             name=namespace[-1],
-            tables=tables,
+            children=node_children,
+            children_resolved=include_tables,
             tables_resolved=include_tables,
-            child_schemas=child_schemas,
-            child_schemas_resolved=include_tables,
         )
 
     @staticmethod
