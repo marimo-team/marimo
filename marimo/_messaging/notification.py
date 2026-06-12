@@ -131,6 +131,11 @@ class FunctionCallResultNotification(Notification, tag="function-call-result"):
         function_call_id: ID matching the original request.
         return_value: Function return value as JSON.
         status: Human-readable success/failure status.
+        found: Whether the requested function was located in the registry.
+            False signals a transient registry desync, so the request is safe
+            to retry. True means no retry will help: a non-ok status then
+            reflects a failure unrelated to lookup, such as the function
+            raising during execution or not being associated with a cell.
     """
 
     name: ClassVar[str] = "function-call-result"
@@ -138,6 +143,7 @@ class FunctionCallResultNotification(Notification, tag="function-call-result"):
     function_call_id: RequestId
     return_value: JSONType
     status: HumanReadableStatus
+    found: bool
 
 
 class RemoveUIElementsNotification(Notification, tag="remove-ui-elements"):

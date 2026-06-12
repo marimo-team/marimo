@@ -695,8 +695,15 @@ components:
       description: "Result of a frontend-initiated function call.\n\n    Attributes:\n\
         \        function_call_id: ID matching the original request.\n        return_value:\
         \ Function return value as JSON.\n        status: Human-readable success/failure\
-        \ status."
+        \ status.\n        found: Whether the requested function was located in the\
+        \ registry.\n            False signals a transient registry desync, so the\
+        \ request is safe\n            to retry. True means no retry will help: a\
+        \ non-ok status then\n            reflects a failure unrelated to lookup,\
+        \ such as the function\n            raising during execution or not being\
+        \ associated with a cell."
       properties:
+        found:
+          type: boolean
         function_call_id:
           type: string
         op:
@@ -710,6 +717,7 @@ components:
       - function_call_id
       - return_value
       - status
+      - found
       title: FunctionCallResultNotification
       type: object
     HumanReadableStatus:

@@ -3,10 +3,19 @@
 import ReactDOM from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { z } from "zod";
+import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
+import type { FunctionCallResultMessage } from "@/core/kernel/messages";
+import { FunctionNotFoundError } from "@/utils/errors";
 import {
   isCustomMarimoElement,
   registerReactComponent,
 } from "../registerReactComponent";
+
+vi.mock("@/core/functions/FunctionRegistry", () => ({
+  FUNCTIONS_REGISTRY: { request: vi.fn() },
+}));
+
+const requestMock = vi.mocked(FUNCTIONS_REGISTRY.request);
 
 // Each custom element name can only be registered once per jsdom window,
 // so we use a counter to generate unique tag names across tests.
@@ -200,5 +209,92 @@ describe("connectedCallback - light DOM nesting detection", () => {
     expect(createRootSpy).toHaveBeenCalledTimes(2);
 
     outer.remove();
+  });
+});
+
+describe("plugin function: not-found recovery", () => {
+  const NOT_FOUND: FunctionCallResultMessage = {
+    function_call_id:
+      "call-id" as FunctionCallResultMessage["function_call_id"],
+    status: { code: "error", message: "Function not found" },
+    found: false,
+    return_value: null,
+  };
+  const OK: FunctionCallResultMessage = {
+    function_call_id:
+      "call-id" as FunctionCallResultMessage["function_call_id"],
+    status: { code: "ok" },
+    found: true,
+    return_value: { ok: true },
+  };
+
+  // Mount a plugin exposing a single callable function and resolve the
+  // function map that PluginSlot hands to render(), so tests can invoke the
+  // request path directly.
+  async function mountWithFunction(): Promise<
+    (args: Record<string, unknown>) => Promise<unknown>
+  > {
+    const tag = uniqueTag("fn");
+    let captured:
+      | ((args: Record<string, unknown>) => Promise<unknown>)
+      | undefined;
+    registerReactComponent({
+      tagName: tag,
+      validator: z.any(),
+      functions: { run: { input: z.any(), output: z.any() } },
+      render: ({ functions }) => {
+        captured = (functions as Record<string, typeof captured>).run;
+        return null as never;
+      },
+    });
+
+    const wrapper = document.createElement("marimo-ui-element");
+    wrapper.setAttribute("object-id", "test-object-id");
+    const el = document.createElement(tag);
+    wrapper.append(el);
+    document.body.append(wrapper);
+
+    await vi.waitFor(() => expect(captured).toBeDefined());
+    return captured as (args: Record<string, unknown>) => Promise<unknown>;
+  }
+
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  test("retries on found:false and resolves once the function appears", async () => {
+    const run = await mountWithFunction();
+    requestMock.mockResolvedValueOnce(NOT_FOUND).mockResolvedValueOnce(OK);
+
+    await expect(run({})).resolves.toEqual({ ok: true });
+    expect(requestMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("throws FunctionNotFoundError after retries are exhausted", async () => {
+    const run = await mountWithFunction();
+    requestMock.mockResolvedValue(NOT_FOUND);
+
+    await expect(run({})).rejects.toBeInstanceOf(FunctionNotFoundError);
+    // Initial attempt plus three retries.
+    expect(requestMock).toHaveBeenCalledTimes(4);
+  });
+
+  test("does not retry once the function is found (found:true)", async () => {
+    const run = await mountWithFunction();
+    requestMock.mockResolvedValue({
+      function_call_id:
+        "call-id" as FunctionCallResultMessage["function_call_id"],
+      status: { code: "error", message: "boom" },
+      found: true,
+      return_value: null,
+    });
+
+    const promise = run({});
+    await expect(promise).rejects.toThrow("boom");
+    expect(requestMock).toHaveBeenCalledTimes(1);
   });
 });
