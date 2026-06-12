@@ -509,4 +509,13 @@ describe("tableUniqueId", () => {
       ),
     ).toBe("db.public.t");
   });
+
+  it("does not emit a double dot for schemaless tables", () => {
+    expect(
+      tableUniqueId(ctx({ database: "db", schema: "", schemaPath: [] }), "t"),
+    ).toBe("db.t");
+    expect(tableUniqueId(ctx({ database: "db", schema: "" }), "t")).toBe(
+      "db.t",
+    );
+  });
 });
