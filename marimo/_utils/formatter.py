@@ -99,7 +99,9 @@ async def ruff(
         except Exception as e:
             LOGGER.error("Failed to format code with ruff")
             LOGGER.debug(e)
-            continue
+            # Fall back to the original code so a transient formatter failure
+            # doesn't drop the cell from the response.
+            formatted_codes[key] = code
 
     return formatted_codes
 
