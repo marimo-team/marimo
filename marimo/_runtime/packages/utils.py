@@ -57,7 +57,7 @@ def marker_environment_for_platform(
     """
     from packaging.markers import default_environment
 
-    env = dict(default_environment())
+    env = {k: str(v) for k, v in default_environment().items()}
     if sys_platform is not None:
         env["sys_platform"] = sys_platform
     return env
@@ -80,7 +80,7 @@ def requirement_applies(
     env = (
         dict(marker_environment)
         if marker_environment is not None
-        else dict(default_environment())
+        else {k: str(v) for k, v in default_environment().items()}
     )
     return Marker(marker_str).evaluate(env)
 
