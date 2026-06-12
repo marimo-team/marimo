@@ -27,9 +27,11 @@ export function tableUniqueId(
   if (!sqlTableContext) {
     return tableName;
   }
-  const segments = sqlTableContext.schemaPath?.length
-    ? sqlTableContext.schemaPath
-    : [sqlTableContext.schema];
+  const segments = (
+    sqlTableContext.schemaPath?.length
+      ? sqlTableContext.schemaPath
+      : [sqlTableContext.schema]
+  ).filter(Boolean);
   return [sqlTableContext.database, ...segments, tableName].join(".");
 }
 
