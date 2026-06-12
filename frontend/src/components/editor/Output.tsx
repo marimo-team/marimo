@@ -431,9 +431,9 @@ function getOutputControlsPlacement(
 ): OutputControlsPlacement {
   switch (outputPosition) {
     case "left":
-      return { className: "-left-12.5 -top-1.5", tooltipSide: "right" };
+      return { className: "-left-13 -top-1.5", tooltipSide: "right" };
     case "right":
-      return { className: "-right-9 top-7", tooltipSide: "left" };
+      return { className: "-right-1 -top-1", tooltipSide: "left" };
     default:
       return { className: "-right-9 top-1", tooltipSide: "left" };
   }
@@ -472,7 +472,7 @@ const ExpandableOutput = React.memo(
                 <Tooltip content="Fullscreen" side={tooltipSide}>
                   <Button
                     data-testid="fullscreen-output-button"
-                    className="hover-action hover:bg-muted p-1 hover:border-border border border-transparent"
+                    className="hover-action"
                     onClick={async () => {
                       await containerRef.current?.requestFullscreen();
                     }}
@@ -481,7 +481,10 @@ const ExpandableOutput = React.memo(
                     variant="text"
                   >
                     <ExpandIcon
-                      className="size-4 opacity-60 hover:opacity-80"
+                      className={cn(
+                        "size-4 opacity-60 hover:opacity-80",
+                        outputPosition === "right" && "size-3.5",
+                      )}
                       strokeWidth={1.25}
                     />
                   </Button>
@@ -491,7 +494,6 @@ const ExpandableOutput = React.memo(
                 <Button
                   data-testid="expand-output-button"
                   className={cn(
-                    "hover:border-border border border-transparent hover:bg-muted",
                     // Force show button if expanded
                     !isExpanded && "hover-action",
                   )}

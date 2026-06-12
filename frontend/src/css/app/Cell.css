@@ -525,18 +525,6 @@
   outline: none;
 }
 
-/*
- * The editor's gutter hover-bridges (.tray::before/::after) and the output's
- * inner pointer-area widen the hover/hit zone into the side gutters. In the
- * stacked layout those gutters are empty, but in columns the inner-facing ones
- * cross the divider and steal pointer events from the other column, so drop
- * them. The outer-facing output bridge is kept so its hover controls stay
- * reachable.
- */
-.cell-columns > .tray::before,
-.cell-columns > .tray::after {
-  display: none;
-}
 
 .cell-columns:not(.cell-columns--reverse) .increase-pointer-area-x::before {
   display: none;
