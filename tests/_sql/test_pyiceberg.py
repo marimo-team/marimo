@@ -166,7 +166,6 @@ def test_pyiceberg_engine_source_and_dialect(memory_catalog: Catalog) -> None:
     engine = PyIcebergEngine(memory_catalog)
     assert engine.source == "iceberg"
     assert engine.dialect == "iceberg"
-    assert engine.supports_nested_schemas is True
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
@@ -363,33 +362,42 @@ def test_pyiceberg_connection_is_lazy(memory_catalog: Catalog) -> None:
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
-def test_pyiceberg_get_child_schemas(memory_catalog: Catalog) -> None:
-    """get_child_schemas lists immediate children one level at a time."""
+def test_pyiceberg_get_schemas_by_path(memory_catalog: Catalog) -> None:
+    """get_schemas lists one level at a time, selected by schema_path."""
     engine = PyIcebergEngine(
         memory_catalog, engine_name=VariableName("my_iceberg")
     )
 
-    # Immediate child of "top" is "nested" (deferred, not recursed).
-    children = engine.get_child_schemas(
-        database="top", schema_path=[], include_tables=False
+    # Top level: the schemaless entry plus the immediate child "nested"
+    # (deferred, not recursed).
+    schemas = engine.get_schemas(
+        database="top",
+        include_tables=False,
+        include_table_details=False,
+        schema_path=[],
     )
-    assert [s.name for s in children] == ["nested"]
-    assert children[0].child_schemas_resolved is False
-    assert children[0].tables_resolved is False
-    assert children[0].child_schemas == []
+    assert [s.name for s in schemas] == [NO_SCHEMA_NAME, "nested"]
+    nested = schemas[1]
+    assert nested.child_schemas_resolved is False
+    assert nested.tables_resolved is False
+    assert nested.child_schemas == []
 
     # Immediate child of "top.nested" is "deep".
-    children = engine.get_child_schemas(
-        database="top", schema_path=["nested"], include_tables=False
+    schemas = engine.get_schemas(
+        database="top",
+        include_tables=False,
+        include_table_details=False,
+        schema_path=["nested"],
     )
-    assert [s.name for s in children] == ["deep"]
+    assert [s.name for s in schemas] == ["deep"]
 
     # "top.nested.deep" is a leaf.
     assert (
-        engine.get_child_schemas(
+        engine.get_schemas(
             database="top",
-            schema_path=["nested", "deep"],
             include_tables=False,
+            include_table_details=False,
+            schema_path=["nested", "deep"],
         )
         == []
     )
@@ -418,6 +426,44 @@ def test_pyiceberg_nested_namespace_tables(memory_catalog: Catalog) -> None:
     assert table is not None
     assert table.name == "table5"
     assert len(table.columns) == 3
+
+
+@pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
+def test_pyiceberg_table_calls_fold_schema_path(
+    memory_catalog: Catalog,
+) -> None:
+    """The handler passes the top-level `database` plus a `schema_path`; the
+    engine folds them into a dotted namespace internally (this replaced the
+    handler-side `_table_database` helper)."""
+    engine = PyIcebergEngine(
+        memory_catalog, engine_name=VariableName("my_iceberg")
+    )
+
+    # database + schema_path is equivalent to the pre-folded dotted database.
+    tables = engine.get_tables_in_schema(
+        schema=NO_SCHEMA_NAME,
+        database="top",
+        schema_path=["nested"],
+        include_table_details=True,
+    )
+    assert [t.name for t in tables] == ["table4"]
+
+    table = engine.get_table_details(
+        table_name="table5",
+        schema_name=NO_SCHEMA_NAME,
+        database_name="top",
+        schema_path=["nested", "deep"],
+    )
+    assert table is not None
+    assert table.name == "table5"
+
+    # Empty / missing schema_path leaves the database untouched.
+    assert PyIcebergEngine._qualified_namespace("top", []) == "top"
+    assert PyIcebergEngine._qualified_namespace("top", None) == "top"
+    assert (
+        PyIcebergEngine._qualified_namespace("top", ["nested", "deep"])
+        == "top.nested.deep"
+    )
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")

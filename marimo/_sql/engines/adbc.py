@@ -305,8 +305,14 @@ class AdbcConnectionCatalog:
         return databases
 
     def get_tables_in_schema(
-        self, *, schema: str, database: str, include_table_details: bool
+        self,
+        *,
+        schema: str,
+        database: str,
+        include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[DataTable]:
+        del schema_path  # ADBC schemas don't nest
         tables: list[DataTable] = []
         objects_pylist = (
             self._adbc_connection.adbc_get_objects(
@@ -358,9 +364,15 @@ class AdbcConnectionCatalog:
         return tables
 
     def get_table_details(
-        self, *, table_name: str, schema_name: str, database_name: str
+        self,
+        *,
+        table_name: str,
+        schema_name: str,
+        database_name: str,
+        schema_path: list[str] | None = None,
     ) -> DataTable | None:
         _ = database_name
+        del schema_path  # ADBC schemas don't nest
         try:
             schema = self._adbc_connection.adbc_get_table_schema(
                 table_name, db_schema_filter=schema_name or None
@@ -509,9 +521,15 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
-        _, _, _ = database, include_tables, include_table_details
+        _, _, _, _ = (
+            database,
+            include_tables,
+            include_table_details,
+            schema_path,
+        )
         return []
 
     def get_databases(
@@ -528,21 +546,33 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         )
 
     def get_tables_in_schema(
-        self, *, schema: str, database: str, include_table_details: bool
+        self,
+        *,
+        schema: str,
+        database: str,
+        include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[DataTable]:
         return self._catalog.get_tables_in_schema(
             schema=schema,
             database=database,
             include_table_details=include_table_details,
+            schema_path=schema_path,
         )
 
     def get_table_details(
-        self, *, table_name: str, schema_name: str, database_name: str
+        self,
+        *,
+        table_name: str,
+        schema_name: str,
+        database_name: str,
+        schema_path: list[str] | None = None,
     ) -> DataTable | None:
         return self._catalog.get_table_details(
             table_name=table_name,
             schema_name=schema_name,
             database_name=database_name,
+            schema_path=schema_path,
         )
 
     def execute(

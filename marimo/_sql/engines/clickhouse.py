@@ -146,9 +146,15 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
-        _, _, _ = database, include_tables, include_table_details
+        _, _, _, _ = (
+            database,
+            include_tables,
+            include_table_details,
+            schema_path,
+        )
         return []
 
     # TODO: Implement the following functionalities
@@ -163,17 +169,27 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
         return []
 
     def get_tables_in_schema(
-        self, *, database: str, schema: str, include_table_details: bool
+        self,
+        *,
+        database: str,
+        schema: str,
+        include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[DataTable]:
         """Return all tables in a schema."""
-        _, _, _ = database, schema, include_table_details
+        _, _, _, _ = database, schema, include_table_details, schema_path
         return []
 
     def get_table_details(
-        self, *, table_name: str, schema_name: str, database_name: str
+        self,
+        *,
+        table_name: str,
+        schema_name: str,
+        database_name: str,
+        schema_path: list[str] | None = None,
     ) -> DataTable | None:
         """Get a single table from the engine."""
-        _, _, _ = table_name, schema_name, database_name
+        _, _, _, _ = table_name, schema_name, database_name, schema_path
         return None
 
     def get_default_database(self) -> str | None:
@@ -280,9 +296,15 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
-        _, _, _ = database, include_tables, include_table_details
+        _, _, _, _ = (
+            database,
+            include_tables,
+            include_table_details,
+            schema_path,
+        )
         return []
 
     def get_databases(
@@ -385,6 +407,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         schema: str,
         database: str,
         include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[DataTable]:
         """
         Return all tables in a given ClickHouse database.
@@ -393,10 +416,12 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             schema: The schema name. (ignored for ClickHouse)
             database: The name of the database.
             include_table_details: Whether to retrieve detailed table metadata.
+            schema_path: Unused; ClickHouse schemas don't nest.
 
         Returns:
             List of DataTable objects.
         """
+        del schema_path
         tables, _ = self._get_tables_in_schema_with_resolution(
             schema=schema,
             database=database,
@@ -470,7 +495,12 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         return tables, len(tables) == len(table_names)
 
     def get_table_details(
-        self, *, table_name: str, schema_name: str, database_name: str
+        self,
+        *,
+        table_name: str,
+        schema_name: str,
+        database_name: str,
+        schema_path: list[str] | None = None,
     ) -> DataTable | None:
         """
         Get detailed metadata for a given table in a database.
@@ -479,12 +509,14 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             database_name: The database name.
             schema_name: The schema name. (ignored for ClickHouse)
             table_name: The table name.
+            schema_path: Unused; ClickHouse schemas don't nest.
 
         Returns:
             A DataTable object with detailed metadata,
             or None if the table cannot be described.
         """
         _ = schema_name
+        del schema_path
         if self._connection is None:
             return None
 
