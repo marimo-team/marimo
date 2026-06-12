@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { JSX, PropsWithChildren } from "react";
 import React from "react";
+import { createPortal } from "react-dom";
 import { z } from "zod";
 import {
   NavigationMenu,
@@ -9,9 +10,11 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
+  NavigationMenuViewport,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { cn } from "@/utils/cn";
 import { appendQueryParams } from "@/utils/urls";
@@ -21,6 +24,7 @@ import type {
 } from "../stateless-plugin";
 import "./navigation-menu.css";
 import { KnownQueryParams } from "@/core/constants";
+import { NavigationMenu as NavigationMenuPrimitive } from "radix-ui";
 
 interface MenuItem {
   label: string;
@@ -44,6 +48,114 @@ interface Data {
    */
   orientation: "horizontal" | "vertical";
 }
+
+interface PortalPosition {
+  left: number;
+  top: number;
+}
+
+interface HorizontalMenuGroupProps {
+  item: MenuItemGroup;
+  preserveQueryParams: (href: string) => string;
+  target: (href: string) => string;
+}
+
+const HorizontalMenuGroup = ({
+  item,
+  preserveQueryParams,
+  target,
+}: HorizontalMenuGroupProps): JSX.Element => {
+  const triggerRef =
+    React.useRef<React.ComponentRef<typeof NavigationMenuTrigger> | null>(null);
+
+  return (
+    <NavigationMenuPrimitive.Root
+      className="relative z-10 max-w-max flex-1 items-center justify-center"
+      orientation="horizontal"
+    >
+      <NavigationMenuList>
+        <NavigationMenuItem>
+          <NavigationMenuTrigger ref={triggerRef}>
+            {renderHTML({ html: item.label })}
+          </NavigationMenuTrigger>
+          <NavigationMenuContent className="w-auto">
+            <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
+              {item.items.map((subItem) => (
+                <ListItem
+                  key={subItem.label}
+                  label={subItem.label}
+                  href={preserveQueryParams(subItem.href)}
+                  target={target(subItem.href)}
+                >
+                  {subItem.description &&
+                    renderHTML({ html: subItem.description })}
+                </ListItem>
+              ))}
+            </ul>
+          </NavigationMenuContent>
+        </NavigationMenuItem>
+      </NavigationMenuList>
+      <NavigationMenuViewportPortal anchorRef={triggerRef}>
+        <NavigationMenuViewport />
+      </NavigationMenuViewportPortal>
+    </NavigationMenuPrimitive.Root>
+  );
+};
+
+const NavigationMenuViewportPortal = ({
+  anchorRef,
+  children,
+}: PropsWithChildren<{
+  anchorRef: React.RefObject<HTMLElement | null>;
+}>): React.ReactElement | null => {
+  const [position, setPosition] = React.useState<PortalPosition | null>(null);
+
+  const updatePosition = React.useCallback(() => {
+    if (!anchorRef.current) {
+      return;
+    }
+
+    const rect = anchorRef.current.getBoundingClientRect();
+    setPosition({
+      left: rect.left,
+      top: rect.bottom,
+    });
+  }, [anchorRef]);
+
+  React.useLayoutEffect(() => {
+    updatePosition();
+  }, [updatePosition]);
+
+  useResizeObserver({
+    ref: anchorRef,
+    onResize: updatePosition,
+  });
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.addEventListener("resize", updatePosition);
+    document.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      document.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [updatePosition]);
+
+  if (!position || typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
+    <div className="fixed z-50" style={{ left: position.left, top: position.top }}>
+      {children}
+    </div>,
+    document.body,
+  );
+};
 
 export class NavigationMenuPlugin implements IStatelessPlugin<Data> {
   tagName = "marimo-nav-menu";
@@ -109,30 +221,12 @@ const NavMenuComponent = ({
   const renderMenuItem = (item: MenuItem | MenuItemGroup) => {
     if ("items" in item) {
       return orientation === "horizontal" ? (
-        <NavigationMenu orientation="horizontal" key={item.label}>
-          <NavigationMenuList>
-            <NavigationMenuItem>
-              <NavigationMenuTrigger>
-                {renderHTML({ html: item.label })}
-              </NavigationMenuTrigger>
-              <NavigationMenuContent>
-                <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
-                  {item.items.map((subItem) => (
-                    <ListItem
-                      key={subItem.label}
-                      label={subItem.label}
-                      href={preserveQueryParams(subItem.href)}
-                      target={target(subItem.href)}
-                    >
-                      {subItem.description &&
-                        renderHTML({ html: subItem.description })}
-                    </ListItem>
-                  ))}
-                </ul>
-              </NavigationMenuContent>
-            </NavigationMenuItem>
-          </NavigationMenuList>
-        </NavigationMenu>
+        <HorizontalMenuGroup
+          key={item.label}
+          item={item}
+          preserveQueryParams={preserveQueryParams}
+          target={target}
+        />
       ) : (
         <NavigationMenuItem key={item.label}>
           <div
@@ -196,32 +290,30 @@ const NavMenuComponent = ({
 };
 
 const ListItem = React.forwardRef<
-  React.ElementRef<"a">,
+  React.ComponentRef<"a">,
   React.ComponentPropsWithoutRef<"a"> & {
     label: string;
   }
 >(({ className, label, children, ...props }, ref) => {
   return (
     <li>
-      <NavigationMenuLink asChild={true}>
-        <a
-          ref={ref}
-          className={cn(
-            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-            className,
-          )}
-          {...props}
-        >
-          <div className="text-base font-medium leading-none">
-            {renderHTML({ html: label })}
-          </div>
-          {children && (
-            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-              {children}
-            </p>
-          )}
-        </a>
-      </NavigationMenuLink>
+      <a
+        ref={ref}
+        className={cn(
+          "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+          className,
+        )}
+        {...props}
+      >
+        <div className="text-base font-medium leading-none">
+          {renderHTML({ html: label })}
+        </div>
+        {children && (
+          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+            {children}
+          </p>
+        )}
+      </a>
     </li>
   );
 });
