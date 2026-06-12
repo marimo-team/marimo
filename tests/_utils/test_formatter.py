@@ -388,9 +388,8 @@ class TestRuffFunction:
         codes: CellCodes = {"cell1": "x=1", "cell2": "invalid syntax"}
         result = await ruff(codes, "format")
 
-        # Successfully formatted cells use ruff's output; failed cells fall back
-        # to their original code rather than being dropped.
-        assert result == {"cell1": "formatted_code", "cell2": "invalid syntax"}
+        # Should only include successfully formatted code
+        assert result == {"cell1": "formatted_code"}
 
     @patch("marimo._utils.formatter.LOGGER")
     @patch("marimo._utils.formatter._run_subprocess_safe")
@@ -408,8 +407,8 @@ class TestRuffFunction:
         codes: CellCodes = {"cell1": "x=1"}
         result = await ruff(codes, "format")
 
-        # Failed cells fall back to their original code.
-        assert result == {"cell1": "x=1"}
+        # Should return empty dict when all cells fail
+        assert result == {}
 
     @patch("marimo._utils.formatter._run_subprocess_safe")
     async def test_ruff_function_strips_whitespace_from_output(
@@ -429,10 +428,10 @@ class TestRuffFunction:
 
     @patch("marimo._utils.formatter.LOGGER")
     @patch("marimo._utils.formatter._run_subprocess_safe")
-    async def test_ruff_function_falls_back_to_original_on_non_zero_exit(
+    async def test_ruff_function_raises_format_error_on_non_zero_exit(
         self, mock_subprocess_safe: MagicMock, mock_logger: MagicMock
     ):
-        """Test ruff function keeps original code when format command fails."""
+        """Test ruff function raises FormatError when format command fails."""
         del mock_logger
         # Mock help command success, then format command that fails
         mock_subprocess_safe.side_effect = [
@@ -443,8 +442,8 @@ class TestRuffFunction:
         codes: CellCodes = {"cell1": "x=1"}
         result = await ruff(codes, "format")
 
-        # Failed cells fall back to their original code.
-        assert result == {"cell1": "x=1"}
+        # Should skip failed cells
+        assert result == {}
 
     @patch("asyncio.to_thread")
     @patch("asyncio.create_subprocess_exec")
