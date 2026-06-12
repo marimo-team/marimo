@@ -65,8 +65,9 @@ const HorizontalMenuGroup = ({
   preserveQueryParams,
   target,
 }: HorizontalMenuGroupProps): JSX.Element => {
-  const triggerRef =
-    React.useRef<React.ComponentRef<typeof NavigationMenuTrigger> | null>(null);
+  const triggerRef = React.useRef<React.ComponentRef<
+    typeof NavigationMenuTrigger
+  > | null>(null);
 
   return (
     <NavigationMenuPrimitive.Root
@@ -150,7 +151,10 @@ const NavigationMenuViewportPortal = ({
   }
 
   return createPortal(
-    <div className="fixed z-50" style={{ left: position.left, top: position.top }}>
+    <div
+      className="fixed z-50"
+      style={{ left: position.left, top: position.top }}
+    >
       {children}
     </div>,
     document.body,
