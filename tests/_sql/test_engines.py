@@ -485,24 +485,20 @@ def test_try_convert_to_polars() -> None:
         assert str(error) == "Test error"
 
 
-def test_get_child_schemas_default_enforces_contract() -> None:
-    """The default get_child_schemas returns [] for flat engines but raises if
-    an engine claims nested schemas without overriding it (so nesting can't be
-    silently dropped)."""
-    from types import SimpleNamespace
+@pytest.mark.requires("sqlalchemy")
+def test_flat_engine_get_schemas_ignores_nested_path() -> None:
+    """Flat engines have no nested schemas, so get_schemas returns [] for a
+    non-empty schema_path. Engines with nested namespaces (e.g. Iceberg) honour
+    it."""
+    import sqlalchemy as sa
 
-    from marimo._sql.engines.types import EngineCatalog
-
-    flat = SimpleNamespace(supports_nested_schemas=False)
+    engine = SQLAlchemyEngine(sa.create_engine("sqlite:///:memory:"))
     assert (
-        EngineCatalog.get_child_schemas(
-            flat, database="d", schema_path=[], include_tables=False
+        engine.get_schemas(
+            database="main",
+            include_tables=False,
+            include_table_details=False,
+            schema_path=["nested"],
         )
         == []
     )
-
-    nested = SimpleNamespace(supports_nested_schemas=True)
-    with pytest.raises(NotImplementedError):
-        EngineCatalog.get_child_schemas(
-            nested, database="d", schema_path=[], include_tables=False
-        )

@@ -38,17 +38,6 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
-def _table_database(
-    engine: EngineCatalog[Any], database: str, schema_path: list[str]
-) -> str:
-    """The database identifier passed to an engine's table calls. Engines with
-    nested schemas (Iceberg, Spark) fold `schema_path` into a dotted name; flat
-    engines keep `database` as-is and locate the schema via the `schema` arg."""
-    if not schema_path or not engine.supports_nested_schemas:
-        return database
-    return ".".join([database, *schema_path])
-
-
 class DatasetCallbacks:
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
@@ -196,9 +185,8 @@ class DatasetCallbacks:
             table = engine.get_table_details(
                 table_name=table_name,
                 schema_name=schema_name,
-                database_name=_table_database(
-                    engine, database_name, schema_path
-                ),
+                database_name=database_name,
+                schema_path=schema_path,
             )
 
             broadcast_notification(
@@ -261,8 +249,9 @@ class DatasetCallbacks:
         try:
             table_list = engine.get_tables_in_schema(
                 schema=schema_name,
-                database=_table_database(engine, database_name, schema_path),
+                database=database_name,
                 include_table_details=False,
+                schema_path=schema_path,
             )
             broadcast_notification(
                 SQLTableListPreviewNotification(
@@ -317,19 +306,12 @@ class DatasetCallbacks:
             return
 
         try:
-            if schema_path:
-                # Expanding a nested schema: list its immediate children.
-                schema_list = engine.get_child_schemas(
-                    database=database_name,
-                    schema_path=schema_path,
-                    include_tables=False,
-                )
-            else:
-                schema_list = engine.get_schemas(
-                    database=database_name,
-                    include_tables=False,
-                    include_table_details=False,
-                )
+            schema_list = engine.get_schemas(
+                database=database_name,
+                include_tables=False,
+                include_table_details=False,
+                schema_path=schema_path,
+            )
             broadcast_notification(
                 SQLSchemaListPreviewNotification(
                     request_id=request.request_id,
