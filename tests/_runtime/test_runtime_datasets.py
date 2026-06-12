@@ -286,8 +286,8 @@ class TestPreviewSQLSchemaList:
         mocked_kernel: MockedKernel,
         connection_requests: list[ExecuteCellCommand],
     ) -> None:
-        """A request with a schema_path routes to get_child_schemas and
-        echoes the path in the response metadata. Catalog engines without
+        """A request with a schema_path lists the child schemas at that path
+        and echoes the path in the response metadata. Catalog engines without
         hierarchical namespaces return an empty list."""
         k = mocked_kernel.k
         stream = mocked_kernel.stream
@@ -744,24 +744,3 @@ class TestSQLValidate:
             validate_result=None,
             error="Engine is required for validating catalog",
         )
-
-
-def test_table_database_folds_only_for_nested_engines() -> None:
-    from types import SimpleNamespace
-    from typing import cast
-
-    from marimo._runtime.callbacks.datasets import _table_database
-    from marimo._sql.engines.types import EngineCatalog
-
-    nested = cast(EngineCatalog, SimpleNamespace(supports_nested_schemas=True))
-    flat = cast(EngineCatalog, SimpleNamespace(supports_nested_schemas=False))
-
-    # Nested engines (Iceberg/Spark) fold schema_path into a dotted database.
-    assert (
-        _table_database(nested, "top", ["nested", "deep"]) == "top.nested.deep"
-    )
-    # Flat engines keep the database unfolded (schema located via `schema`).
-    assert _table_database(flat, "mydb", ["public"]) == "mydb"
-    # Empty path is a no-op for both.
-    assert _table_database(nested, "mydb", []) == "mydb"
-    assert _table_database(flat, "mydb", []) == "mydb"

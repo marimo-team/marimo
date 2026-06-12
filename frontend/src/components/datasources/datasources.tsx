@@ -78,35 +78,42 @@ import {
   LoadingState,
   RotatingChevron,
 } from "./components";
-import { isSchemaless, sqlCode, tableUniqueId } from "./utils";
+import {
+  areChildSchemasResolved,
+  areSchemasResolved,
+  areTablesResolved,
+  isSchemaless,
+  sqlCode,
+  tableUniqueId,
+} from "./utils";
 
-// Left indentation (rem) for each level of the datasource tree.
+const INDENT_STEP = 1; // rem per schema nesting level (depth 0 = top-level)
+
+// Indentation (rem) for a schema and its contents at a given nesting depth.
+// Depth 0 is a top-level schema; schemaless tables/columns reuse depth 0 too.
+function schemaHeaderIndentRem(depth: number): number {
+  return 1.75 + depth * INDENT_STEP;
+}
+function schemaTableIndentRem(depth: number): number {
+  return 3 + depth * INDENT_STEP;
+}
+function schemaColumnIndentRem(depth: number): number {
+  return 3.25 + depth * INDENT_STEP;
+}
+
+// Left indentation (rem) for each fixed (non-nested) level of the tree.
 const INDENT = {
   engineEmpty: 0.75,
   engine: 0.75,
   database: 1,
   tableLoading: 2.75,
   tableSchemaless: 2,
-  tableWithSchema: 3,
   columnLocal: 1.25,
-  columnSql: 3.25,
   columnPreview: 2.5,
 };
 
 function indentStyle(rem: number): React.CSSProperties {
   return { paddingLeft: `${rem}rem` };
-}
-
-// Indentation (rem) for nested schema levels, by nesting depth. Calibrated so
-// depth 0 matches the fixed schema (1.75) / table (3) / column (3.25) levels.
-function schemaHeaderIndentRem(depth: number): number {
-  return 1.75 + depth;
-}
-function schemaTableIndentRem(depth: number): number {
-  return 3 + depth;
-}
-function schemaColumnIndentRem(depth: number): number {
-  return 3.25 + depth;
 }
 
 const sortedTablesAtom = atom((get) => {
@@ -154,10 +161,7 @@ function filterEmptySchemas(schemas: DatabaseSchema[]): DatabaseSchema[] {
   let changed = false;
   const result: DatabaseSchema[] = [];
   for (const schema of schemas) {
-    if (
-      schema.tables_resolved === false ||
-      schema.child_schemas_resolved === false
-    ) {
+    if (!areTablesResolved(schema) || !areChildSchemasResolved(schema)) {
       result.push(schema);
       continue;
     }
@@ -194,7 +198,7 @@ export function filterEmptyDatabases(databases: Database[]): Database[] {
   const result: Database[] = [];
   for (const database of databases) {
     // Known-empty database: schema list was enumerated and is empty.
-    if (database.schemas_resolved !== false && database.schemas.length === 0) {
+    if (areSchemasResolved(database) && database.schemas.length === 0) {
       changed = true;
       continue;
     }
@@ -352,26 +356,13 @@ export const DataSources: React.FC = () => {
             hasChildren={connection.databases.length > 0}
           >
             {connection.databases.map((database) => (
-              <DatabaseItem
+              <DatabaseTree
                 key={database.name}
-                engineName={connection.name}
+                connection={connection}
                 database={database}
                 hasSearch={hasSearch}
-              >
-                <SchemaList
-                  schemas={database.schemas}
-                  schemasResolved={database.schemas_resolved !== false}
-                  schemaPath={[]}
-                  depth={0}
-                  defaultSchema={connection.default_schema}
-                  defaultDatabase={connection.default_database}
-                  engineName={connection.name}
-                  databaseName={database.name}
-                  hasSearch={hasSearch}
-                  searchValue={searchValue}
-                  dialect={connection.dialect}
-                />
-              </DatabaseItem>
+                searchValue={searchValue}
+              />
             ))}
           </Engine>
         ))}
@@ -438,6 +429,89 @@ const Engine: React.FC<{
   );
 };
 
+interface DataSourceTree {
+  defaultSchema?: string | null;
+  defaultDatabase?: string | null;
+  dialect: string;
+  engineName: string;
+  databaseName: string;
+  hasSearch: boolean;
+  searchValue?: string;
+}
+
+const DataSourceTreeContext = React.createContext<DataSourceTree | null>(null);
+
+function useDataSourceTree(): DataSourceTree {
+  const tree = React.useContext(DataSourceTreeContext);
+  if (tree == null) {
+    throw new Error(
+      "useDataSourceTree must be used within a DataSourceTreeContext.Provider",
+    );
+  }
+  return tree;
+}
+
+// Build the table context for a (possibly schemaless) schema
+function buildSqlTableContext(
+  tree: DataSourceTree,
+  { schema, schemaPath }: { schema: string; schemaPath: string[] },
+): SQLTableContext {
+  return {
+    engine: tree.engineName,
+    database: tree.databaseName,
+    schema,
+    schemaPath,
+    defaultSchema: tree.defaultSchema,
+    defaultDatabase: tree.defaultDatabase,
+    dialect: tree.dialect,
+  };
+}
+
+const DatabaseTree: React.FC<{
+  connection: DataSourceConnection;
+  database: Database;
+  hasSearch: boolean;
+  searchValue?: string;
+}> = ({ connection, database, hasSearch, searchValue }) => {
+  const tree = React.useMemo<DataSourceTree>(
+    () => ({
+      engineName: connection.name,
+      databaseName: database.name,
+      dialect: connection.dialect,
+      defaultSchema: connection.default_schema,
+      defaultDatabase: connection.default_database,
+      hasSearch,
+      searchValue,
+    }),
+    [
+      connection.name,
+      connection.dialect,
+      connection.default_schema,
+      connection.default_database,
+      database.name,
+      hasSearch,
+      searchValue,
+    ],
+  );
+
+  return (
+    <DatabaseItem
+      engineName={connection.name}
+      database={database}
+      hasSearch={hasSearch}
+    >
+      <DataSourceTreeContext.Provider value={tree}>
+        <SchemaList
+          schemas={database.schemas}
+          schemasResolved={areSchemasResolved(database)}
+          schemaPath={[]}
+          depth={0}
+        />
+      </DataSourceTreeContext.Provider>
+    </DatabaseItem>
+  );
+};
+
 const DatabaseItem: React.FC<{
   hasSearch: boolean;
   engineName: string;
@@ -482,19 +556,8 @@ const DatabaseItem: React.FC<{
   );
 };
 
-interface SchemaListContext {
-  defaultSchema?: string | null;
-  defaultDatabase?: string | null;
-  dialect: string;
-  engineName: string;
-  databaseName: string;
-  hasSearch: boolean;
-  searchValue?: string;
-}
-
-interface SchemaListProps extends SchemaListContext {
+interface SchemaListProps {
   schemas: DatabaseSchema[];
-  // False when discovery is deferred; a request is then issued on mount.
   schemasResolved: boolean;
   // Parent schema path (relative to the database). Empty at the top level.
   schemaPath: string[];
@@ -503,19 +566,11 @@ interface SchemaListProps extends SchemaListContext {
 }
 
 const SchemaList: React.FC<SchemaListProps> = (props) => {
-  const {
-    schemas,
-    schemasResolved,
-    depth,
-    defaultSchema,
-    defaultDatabase,
-    dialect,
-    engineName,
-    databaseName,
-    hasSearch,
-    searchValue,
-  } = props;
+  const { schemas, schemasResolved, depth } = props;
+  const tree = useDataSourceTree();
+  const { engineName, databaseName, searchValue } = tree;
   const { addSchemaList } = useDataSourceActions();
+  // Stable identity so the useAsyncData below doesn't refire each render.
   const schemaPath = useDeepCompareMemoize(props.schemaPath);
 
   // Custom loading state, we need to wait for the data to propagate once requested
@@ -560,16 +615,6 @@ const SchemaList: React.FC<SchemaListProps> = (props) => {
     return <EmptyState content="No schemas available" style={stateStyle} />;
   }
 
-  const context: SchemaListContext = {
-    defaultSchema,
-    defaultDatabase,
-    dialect,
-    engineName,
-    databaseName,
-    hasSearch,
-    searchValue,
-  };
-
   return (
     <>
       {schemas.map((schema) => {
@@ -580,17 +625,12 @@ const SchemaList: React.FC<SchemaListProps> = (props) => {
             <TableList
               key={schema.name}
               tables={schema.tables}
-              tablesResolved={schema.tables_resolved !== false}
+              tablesResolved={areTablesResolved(schema)}
               searchValue={searchValue}
-              sqlTableContext={{
-                engine: engineName,
-                database: databaseName,
+              sqlTableContext={buildSqlTableContext(tree, {
                 schema: schema.name,
-                schemaPath: schemaPath,
-                defaultSchema: defaultSchema,
-                defaultDatabase: defaultDatabase,
-                dialect: dialect,
-              }}
+                schemaPath,
+              })}
             />
           );
         }
@@ -600,7 +640,6 @@ const SchemaList: React.FC<SchemaListProps> = (props) => {
             schema={schema}
             schemaPath={[...schemaPath, schema.name]}
             depth={depth}
-            {...context}
           />
         );
       })}
@@ -608,7 +647,7 @@ const SchemaList: React.FC<SchemaListProps> = (props) => {
   );
 };
 
-interface SchemaNodeProps extends SchemaListContext {
+interface SchemaNodeProps {
   schema: DatabaseSchema;
   // Path of this schema relative to the database (includes this node).
   schemaPath: string[];
@@ -616,18 +655,9 @@ interface SchemaNodeProps extends SchemaListContext {
 }
 
 const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
-  const {
-    schema,
-    schemaPath,
-    depth,
-    engineName,
-    databaseName,
-    defaultSchema,
-    defaultDatabase,
-    dialect,
-    hasSearch,
-    searchValue,
-  } = props;
+  const { schema, schemaPath, depth } = props;
+  const tree = useDataSourceTree();
+  const { databaseName, hasSearch, searchValue } = tree;
   const [isExpanded, setIsExpanded] = React.useState(hasSearch);
   const [isSelected, setIsSelected] = React.useState(false);
   const uniqueValue = `${databaseName}:${schemaPath.join(".")}`;
@@ -637,7 +667,7 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
     <>
       <CommandItem
         className="text-sm flex flex-row gap-1 items-center cursor-pointer rounded-none"
-        style={{ paddingLeft: `${schemaHeaderIndentRem(depth)}rem` }}
+        style={indentStyle(schemaHeaderIndentRem(depth))}
         onSelect={() => {
           setIsExpanded(!isExpanded);
           setIsSelected(!isSelected);
@@ -658,38 +688,25 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
       {isExpanded && (
         <>
           {/* Nested child schemas */}
-          {(childSchemas.length > 0 ||
-            schema.child_schemas_resolved === false) && (
+          {(childSchemas.length > 0 || !areChildSchemasResolved(schema)) && (
             <SchemaList
               schemas={childSchemas}
-              schemasResolved={schema.child_schemas_resolved !== false}
+              schemasResolved={areChildSchemasResolved(schema)}
               schemaPath={schemaPath}
               depth={depth + 1}
-              engineName={engineName}
-              databaseName={databaseName}
-              defaultSchema={defaultSchema}
-              defaultDatabase={defaultDatabase}
-              dialect={dialect}
-              hasSearch={hasSearch}
-              searchValue={searchValue}
             />
           )}
           {/* Tables that live directly in this schema */}
           <TableList
             tables={schema.tables}
-            tablesResolved={schema.tables_resolved !== false}
+            tablesResolved={areTablesResolved(schema)}
             searchValue={searchValue}
             tableIndentRem={schemaTableIndentRem(depth)}
             columnIndentRem={schemaColumnIndentRem(depth)}
-            sqlTableContext={{
-              engine: engineName,
-              database: databaseName,
+            sqlTableContext={buildSqlTableContext(tree, {
               schema: schema.name,
-              schemaPath: schemaPath,
-              defaultSchema: defaultSchema,
-              defaultDatabase: defaultDatabase,
-              dialect: dialect,
-            }}
+              schemaPath,
+            })}
           />
         </>
       )}
@@ -937,12 +954,7 @@ const DatasetTableItem: React.FC<{
   const uniqueId = tableUniqueId(sqlTableContext, table.name);
 
   const tableRem =
-    tableIndentRem ??
-    (sqlTableContext
-      ? isSchemaless(sqlTableContext.schema)
-        ? INDENT.tableSchemaless
-        : INDENT.tableWithSchema
-      : 0);
+    tableIndentRem ?? (sqlTableContext ? INDENT.tableSchemaless : 0);
 
   return (
     <>
@@ -1045,7 +1057,7 @@ const DatasetColumnItem: React.FC<{
           className="flex flex-row gap-2 items-center flex-1"
           style={indentStyle(
             columnIndentRem ??
-              (sqlTableContext ? INDENT.columnSql : INDENT.columnLocal),
+              (sqlTableContext ? schemaColumnIndentRem(0) : INDENT.columnLocal),
           )}
         >
           <ColumnName columnName={columnText} dataType={column.type} />

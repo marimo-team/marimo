@@ -148,8 +148,6 @@ def test_ibis_engine_source_and_dialect() -> None:
     duckdb_engine = IbisEngine(duckdb_con)
     assert duckdb_engine.source == "ibis"
     assert duckdb_engine.dialect == "duckdb"
-    # Flat backends do not nest schemas (Spark support comes separately).
-    assert duckdb_engine.supports_nested_schemas is False
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
