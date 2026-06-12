@@ -201,8 +201,10 @@ const SliderComponent = ({
 
   const inputProps = stepsConfig
     ? {
+        // Fall back to the first step when `internalValue` is a stale,
+        // out-of-range index (e.g. just after `steps` shrinks).
         value: roundToFractionDigits(
-          valueMap(internalValue),
+          valueMap(internalValue) ?? stepsConfig.steps[0],
           stepsConfig.fractionDigits,
         ),
         minValue: stepsConfig.minValue,
