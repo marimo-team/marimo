@@ -29,6 +29,14 @@ def _find_node_by_path(
     return None
 
 
+def _find_schema_by_path(
+    nodes: list[CatalogNode], path: list[str]
+) -> Schema | None:
+    """Like `_find_node_by_path`, but returns only `Schema` nodes."""
+    node = _find_node_by_path(nodes, path)
+    return node if isinstance(node, Schema) else None
+
+
 def _node_path(metadata: SQLMetadata) -> list[str]:
     if metadata.schema_path:
         return list(metadata.schema_path)

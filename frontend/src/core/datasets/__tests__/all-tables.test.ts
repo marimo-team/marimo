@@ -9,6 +9,7 @@ import {
 import { DUCKDB_ENGINE } from "../engines";
 import { datasetsAtom } from "../state";
 import type { DatasetsState } from "../types";
+import { databaseWithSchemas, makeTable } from "./catalog-fixtures";
 
 describe("allTablesAtom", () => {
   beforeEach(() => {
@@ -30,7 +31,6 @@ describe("allTablesAtom", () => {
   });
 
   it("should return dataset tables when only datasets are present", () => {
-    // Set up test datasets
     const testDatasets = [
       {
         name: "dataset1",
@@ -49,10 +49,8 @@ describe("allTablesAtom", () => {
     ];
     store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
-    // Get tables from the atom
     const tables = store.get(allTablesAtom);
 
-    // Verify results
     expect(tables.size).toBe(2);
     expect(tables.has("dataset1")).toBe(true);
     expect(tables.has("dataset2")).toBe(true);
@@ -61,7 +59,8 @@ describe("allTablesAtom", () => {
   });
 
   it("should return connection tables when only connections are present", () => {
-    // Set up test connections
+    const table1 = makeTable("table1");
+    const table2 = makeTable("table2");
     const testConnection = {
       name: DUCKDB_ENGINE,
       dialect: "duckdb",
@@ -69,18 +68,9 @@ describe("allTablesAtom", () => {
       display_name: "DuckDB In-Memory",
       default_schema: "main",
       databases: [
-        {
-          name: "db1",
-          schemas: [
-            {
-              name: "main",
-              tables: [
-                { name: "table1", columns: [] },
-                { name: "table2", columns: [] },
-              ],
-            },
-          ],
-        },
+        databaseWithSchemas("db1", "duckdb", [
+          { name: "main", tables: [table1, table2] },
+        ]),
       ],
     };
 
@@ -89,33 +79,26 @@ describe("allTablesAtom", () => {
       connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
-    // Get tables from the atom
     const tables = store.get(allTablesAtom);
 
-    // Verify results
     expect(tables.size).toBe(2);
     expect(tables.has("table1")).toBe(true);
     expect(tables.has("table2")).toBe(true);
-    expect(tables.get("table1")).toEqual({ name: "table1", columns: [] });
+    expect(tables.get("table1")).toEqual(table1);
+    expect(tables.get("table2")).toEqual(table2);
   });
 
   it("should use schema name when there is no default schema", () => {
-    // Set up test connection with no default schema
+    const table1 = makeTable("table1");
     const testConnection = {
       name: DUCKDB_ENGINE,
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB In-Memory",
       databases: [
-        {
-          name: "db1",
-          schemas: [
-            {
-              name: "schema1",
-              tables: [{ name: "table1", columns: [] }],
-            },
-          ],
-        },
+        databaseWithSchemas("db1", "duckdb", [
+          { name: "schema1", tables: [table1] },
+        ]),
       ],
     };
 
@@ -124,16 +107,17 @@ describe("allTablesAtom", () => {
       connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
-    // Get tables from the atom
     const tables = store.get(allTablesAtom);
 
-    // Verify results
     expect(tables.size).toBe(1);
     expect(tables.has("schema1.table1")).toBe(true);
+    expect(tables.get("schema1.table1")).toEqual(table1);
   });
 
   it("should use default schema appropriately", () => {
-    // Set up test connection with a default schema
+    const table1 = makeTable("table1");
+    const table2 = makeTable("table2");
+    const table3 = makeTable("table3");
     const testConnection = {
       name: DUCKDB_ENGINE,
       dialect: "duckdb",
@@ -142,20 +126,10 @@ describe("allTablesAtom", () => {
       default_schema: "default_schema",
       databases: [
         {
-          name: "db1",
-          schemas: [
-            {
-              name: "default_schema",
-              tables: [
-                { name: "table1", columns: [] },
-                { name: "table2", columns: [] },
-              ],
-            },
-            {
-              name: "other_schema",
-              tables: [{ name: "table3", columns: [] }],
-            },
-          ],
+          ...databaseWithSchemas("db1", "duckdb", [
+            { name: "default_schema", tables: [table1, table2] },
+            { name: "other_schema", tables: [table3] },
+          ]),
         },
       ],
     };
@@ -165,42 +139,31 @@ describe("allTablesAtom", () => {
       connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
-    // Get tables from the atom
     const tables = store.get(allTablesAtom);
 
-    // Verify results
     expect(tables.size).toBe(3);
-    expect(tables.has("table1")).toBe(true); // Using simple name due to default schema
-    expect(tables.has("table2")).toBe(true); // Using simple name due to default schema
-    expect(tables.has("other_schema.table3")).toBe(true); // Using schema-qualified name
+    expect(tables.has("table1")).toBe(true);
+    expect(tables.has("table2")).toBe(true);
+    expect(tables.has("other_schema.table3")).toBe(true);
+    expect(tables.get("table1")).toEqual(table1);
+    expect(tables.get("table2")).toEqual(table2);
+    expect(tables.get("other_schema.table3")).toEqual(table3);
   });
 
   it("should use fully qualified name when no default_database", () => {
-    // Set up test connections with colliding schema.table names in different databases
+    const commonTable = makeTable("common_table");
     const testConnection = {
       name: DUCKDB_ENGINE,
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB In-Memory",
       databases: [
-        {
-          name: "db1",
-          schemas: [
-            {
-              name: "common_schema",
-              tables: [{ name: "common_table", columns: [] }],
-            },
-          ],
-        },
-        {
-          name: "db2",
-          schemas: [
-            {
-              name: "common_schema",
-              tables: [{ name: "common_table", columns: [] }],
-            },
-          ],
-        },
+        databaseWithSchemas("db1", "duckdb", [
+          { name: "common_schema", tables: [commonTable] },
+        ]),
+        databaseWithSchemas("db2", "duckdb", [
+          { name: "common_schema", tables: [commonTable] },
+        ]),
       ],
     };
 
@@ -217,7 +180,7 @@ describe("allTablesAtom", () => {
   });
 
   it("should handle default database", () => {
-    // Set up test connection with a default database
+    const table1 = makeTable("table1");
     const testConnection = {
       name: DUCKDB_ENGINE,
       dialect: "duckdb",
@@ -225,24 +188,12 @@ describe("allTablesAtom", () => {
       display_name: "DuckDB In-Memory",
       default_database: "db1",
       databases: [
-        {
-          name: "db1",
-          schemas: [
-            {
-              name: "main",
-              tables: [{ name: "table1", columns: [] }],
-            },
-          ],
-        },
-        {
-          name: "db2",
-          schemas: [
-            {
-              name: "main",
-              tables: [{ name: "table1", columns: [] }],
-            },
-          ],
-        },
+        databaseWithSchemas("db1", "duckdb", [
+          { name: "main", tables: [table1] },
+        ]),
+        databaseWithSchemas("db2", "duckdb", [
+          { name: "main", tables: [table1] },
+        ]),
       ],
     };
 
@@ -251,17 +202,16 @@ describe("allTablesAtom", () => {
       connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
-    // Get tables from the atom
     const tables = store.get(allTablesAtom);
 
-    // Verify results
     expect(tables.size).toBe(2);
     expect(tables.has("main.table1")).toBe(true);
     expect(tables.has("db2.main.table1")).toBe(true);
   });
 
   it("should handle schemaless databases", () => {
-    // Set up test connection with a schemaless database
+    const table1 = makeTable("table1");
+    const table2 = makeTable("table2");
     const testConnection = {
       name: DUCKDB_ENGINE,
       dialect: "duckdb",
@@ -269,24 +219,8 @@ describe("allTablesAtom", () => {
       display_name: "DuckDB In-Memory",
       default_database: "db1",
       databases: [
-        {
-          name: "db1",
-          schemas: [
-            {
-              name: "",
-              tables: [{ name: "table1", columns: [] }],
-            },
-          ],
-        },
-        {
-          name: "db2",
-          schemas: [
-            {
-              name: "",
-              tables: [{ name: "table2", columns: [] }],
-            },
-          ],
-        },
+        databaseWithSchemas("db1", "duckdb", [{ name: "", tables: [table1] }]),
+        databaseWithSchemas("db2", "duckdb", [{ name: "", tables: [table2] }]),
       ],
     };
 
@@ -295,16 +229,17 @@ describe("allTablesAtom", () => {
       connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
-    // Get tables from the atom
     const tables = store.get(allTablesAtom);
 
-    // Verify results
     expect(tables.size).toBe(2);
-    expect(tables.get("table1")).toEqual({ name: "table1", columns: [] });
-    expect(tables.get("db2.table2")).toEqual({ name: "table2", columns: [] });
+    expect(tables.get("table1")).toEqual(table1);
+    expect(tables.get("db2.table2")).toEqual(table2);
   });
 
   it("should handle mixed schemaless and schema databases", () => {
+    const table1 = makeTable("table1");
+    const table2 = makeTable("table2");
+    const table3 = makeTable("table3");
     const testConnection = {
       name: DUCKDB_ENGINE,
       dialect: "duckdb",
@@ -313,27 +248,12 @@ describe("allTablesAtom", () => {
       default_database: "db1",
       databases: [
         {
-          name: "db1",
-          schemas: [
-            {
-              name: "central",
-              tables: [{ name: "table1", columns: [] }],
-            },
-            {
-              name: "main",
-              tables: [{ name: "table2", columns: [] }],
-            },
-          ],
+          ...databaseWithSchemas("db1", "duckdb", [
+            { name: "central", tables: [table1] },
+            { name: "main", tables: [table2] },
+          ]),
         },
-        {
-          name: "db2",
-          schemas: [
-            {
-              name: "",
-              tables: [{ name: "table3", columns: [] }],
-            },
-          ],
-        },
+        databaseWithSchemas("db2", "duckdb", [{ name: "", tables: [table3] }]),
       ],
     };
 
@@ -342,35 +262,25 @@ describe("allTablesAtom", () => {
       connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
-    // Get tables from the atom
     const tables = store.get(allTablesAtom);
 
-    // Verify results
     expect(tables.size).toBe(3);
-    expect(tables.get("central.table1")).toEqual({
-      name: "table1",
-      columns: [],
-    });
-    expect(tables.get("main.table2")).toEqual({ name: "table2", columns: [] });
-    expect(tables.get("db2.table3")).toEqual({ name: "table3", columns: [] });
+    expect(tables.get("central.table1")).toEqual(table1);
+    expect(tables.get("main.table2")).toEqual(table2);
+    expect(tables.get("db2.table3")).toEqual(table3);
   });
 
   it("should handle multiple connections with progressive qualified names", () => {
+    const sameTable = makeTable("same_table");
     const defaultConnection = {
       name: DUCKDB_ENGINE,
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB In-Memory",
       databases: [
-        {
-          name: "same_db",
-          schemas: [
-            {
-              name: "same_schema",
-              tables: [{ name: "same_table", columns: [] }],
-            },
-          ],
-        },
+        databaseWithSchemas("same_db", "duckdb", [
+          { name: "same_schema", tables: [sameTable] },
+        ]),
       ],
     };
 
@@ -380,15 +290,9 @@ describe("allTablesAtom", () => {
       source: "duckdb",
       display_name: "DuckDB In-Memory",
       databases: [
-        {
-          name: "same_db",
-          schemas: [
-            {
-              name: "same_schema",
-              tables: [{ name: "same_table", columns: [] }],
-            },
-          ],
-        },
+        databaseWithSchemas("same_db", "duckdb", [
+          { name: "same_schema", tables: [sameTable] },
+        ]),
       ],
     };
 
@@ -399,31 +303,24 @@ describe("allTablesAtom", () => {
         .set("other_engine", otherConnection),
     });
 
-    // Get tables from the atom
     const tables = store.get(allTablesAtom);
 
-    // Verify results
     expect(tables.size).toBe(2);
     expect(tables.has("same_schema.same_table")).toBe(true);
     expect(tables.has("same_db.same_schema.same_table")).toBe(true);
   });
 
   it("should handle both datasets and connection tables", () => {
-    // Set up test datasets
     const testDatasets = [
       { name: "dataset1", columns: [] },
-      { name: "table1", columns: [] }, // Intentional collision with connection table
+      { name: "table1", columns: [] },
     ];
     store.set(datasetsAtom, {
       tables: testDatasets,
     } as unknown as DatasetsState);
 
-    const connectionTables = [
-      { name: "table1", columns: [] }, // Collides with dataset
-      { name: "conn_table", columns: [] },
-    ];
-
-    // Set up test connection
+    const connTable1 = makeTable("table1");
+    const connTable2 = makeTable("conn_table");
     const testConnection = {
       name: DUCKDB_ENGINE,
       dialect: "duckdb",
@@ -432,15 +329,9 @@ describe("allTablesAtom", () => {
       default_database: "db1",
       default_schema: "main",
       databases: [
-        {
-          name: "db1",
-          schemas: [
-            {
-              name: "main",
-              tables: connectionTables,
-            },
-          ],
-        },
+        databaseWithSchemas("db1", "duckdb", [
+          { name: "main", tables: [connTable1, connTable2] },
+        ]),
       ],
     };
 
@@ -449,18 +340,15 @@ describe("allTablesAtom", () => {
       connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
-    // Get tables from the atom
     const tables = store.get(allTablesAtom);
 
-    // Verify results - dataset should take precedence
     expect(tables.size).toBe(4);
     expect(tables.has("dataset1")).toBe(true);
-    expect(tables.has("table1")).toBe(true); // Dataset takes precedence
+    expect(tables.has("table1")).toBe(true);
     expect(tables.get("table1")).toEqual(testDatasets[1]);
-
-    expect(tables.has("main.table1")).toBe(true); // Connection table gets schema-qualified
-    expect(tables.get("main.table1")).toEqual(connectionTables[0]);
+    expect(tables.has("main.table1")).toBe(true);
+    expect(tables.get("main.table1")).toEqual(connTable1);
     expect(tables.has("conn_table")).toBe(true);
-    expect(tables.get("conn_table")).toEqual(connectionTables[1]);
+    expect(tables.get("conn_table")).toEqual(connTable2);
   });
 });

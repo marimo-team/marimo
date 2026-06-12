@@ -166,15 +166,21 @@ describe("getAICompletionBody", () => {
       databases: [
         {
           name: "db1",
-          schemas: [
+          children: [
             {
+              kind: "schema",
               name: "default_schema",
               tables: [
-                { name: "table1", columns: [{ name: "col1", type: "number" }] },
+                {
+                  kind: "data_table",
+                  name: "table1",
+                  columns: [{ name: "col1", type: "number" }],
+                },
                 { name: "table2", columns: [] },
               ],
             },
             {
+              kind: "schema",
               name: "other_schema",
               tables: [{ name: "table3", columns: [] }],
             },

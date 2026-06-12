@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
+from marimo._data.models import Namespace
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import (
     DataSourceConnectionsNotification,
@@ -281,14 +284,12 @@ class TestPreviewSQLSchemaList:
             )
         ]
 
-    async def test_nested_schema_path_echoed(
+    async def test_flat_engine_ignores_schema_path(
         self,
         mocked_kernel: MockedKernel,
         connection_requests: list[ExecuteCellCommand],
     ) -> None:
-        """A request with a schema_path lists the child schemas at that path
-        and echoes the path in the response metadata. Catalog engines without
-        hierarchical namespaces return an empty list."""
+        """Flat catalog engines ignore schema_path and return no child nodes."""
         k = mocked_kernel.k
         stream = mocked_kernel.stream
 
@@ -316,6 +317,63 @@ class TestPreviewSQLSchemaList:
                     connection=DUCKDB_CONN,
                     database="test",
                     schema_path=["sub"],
+                ),
+            )
+        ]
+
+    async def test_nested_schema_path_lists_children(
+        self,
+        mocked_kernel: MockedKernel,
+    ) -> None:
+        """Nested catalog engines receive schema_path and return one level."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        mock_engine = MagicMock()
+        mock_engine.get_schemas.return_value = [
+            Namespace(
+                name="deep",
+                children=[],
+                children_resolved=False,
+                tables_resolved=False,
+            )
+        ]
+
+        preview_sql_schema_list_request = ListSQLSchemasCommand(
+            request_id=RequestId("0"),
+            engine="nested_catalog",
+            database="top",
+            schema_path=["nested"],
+        )
+
+        with patch.object(
+            k.datasets_callbacks,
+            "get_engine_catalog",
+            return_value=(mock_engine, None),
+        ):
+            await k.handle_message(preview_sql_schema_list_request)
+
+        mock_engine.get_schemas.assert_called_once_with(
+            database="top",
+            include_tables=False,
+            include_table_details=False,
+            schema_path=["nested"],
+        )
+
+        results = [
+            op
+            for op in stream.operations
+            if isinstance(op, SQLSchemaListPreviewNotification)
+        ]
+        assert results == [
+            SQLSchemaListPreviewNotification(
+                request_id=RequestId("0"),
+                schemas=mock_engine.get_schemas.return_value,
+                error=None,
+                metadata=SQLDatabaseMetadata(
+                    connection="nested_catalog",
+                    database="top",
+                    schema_path=["nested"],
                 ),
             )
         ]

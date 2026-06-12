@@ -673,11 +673,13 @@ describe("tablesCompletionSource", () => {
         {
           dialect: "duckdb",
           name: "test_db",
-          schemas: [
+          children: [
             {
+              kind: "schema",
               name: "public",
               tables: [
                 {
+                  kind: "data_table",
                   name: "users",
                   source: "duckdb",
                   source_type: "local",
@@ -707,6 +709,7 @@ describe("tablesCompletionSource", () => {
                   ],
                 },
                 {
+                  kind: "data_table",
                   name: "orders",
                   source: "duckdb",
                   source_type: "local",
@@ -892,11 +895,13 @@ describe("tablesCompletionSource", () => {
         {
           name: "db1",
           dialect: "postgres",
-          schemas: [
+          children: [
             {
+              kind: "schema",
               name: "schema1",
               tables: [
                 {
+                  kind: "data_table",
                   name: "table1",
                   source: "postgres",
                   source_type: "local",
@@ -920,11 +925,13 @@ describe("tablesCompletionSource", () => {
         {
           name: "db2",
           dialect: "postgres",
-          schemas: [
+          children: [
             {
+              kind: "schema",
               name: "schema2",
               tables: [
                 {
+                  kind: "data_table",
                   name: "table2",
                   source: "postgres",
                   source_type: "local",
@@ -1045,11 +1052,13 @@ describe("tablesCompletionSource", () => {
         {
           name: "db1",
           dialect: "postgres",
-          schemas: [
+          children: [
             {
+              kind: "schema",
               name: "schema1",
               tables: [
                 {
+                  kind: "data_table",
                   name: "table1",
                   source: "postgres",
                   source_type: "local",
@@ -1069,9 +1078,11 @@ describe("tablesCompletionSource", () => {
               ],
             },
             {
+              kind: "schema",
               name: "schema2",
               tables: [
                 {
+                  kind: "data_table",
                   name: "table2",
                   source: "postgres",
                   source_type: "local",
@@ -1095,11 +1106,13 @@ describe("tablesCompletionSource", () => {
         {
           name: "db2",
           dialect: "postgres",
-          schemas: [
+          children: [
             {
+              kind: "schema",
               name: "schema2",
               tables: [
                 {
+                  kind: "data_table",
                   name: "table2",
                   source: "postgres",
                   source_type: "local",
@@ -1123,11 +1136,13 @@ describe("tablesCompletionSource", () => {
         {
           name: "db3",
           dialect: "postgres",
-          schemas: [
+          children: [
             {
+              kind: "schema",
               name: "schema2",
               tables: [
                 {
+                  kind: "data_table",
                   name: "table2",
                   source: "postgres",
                   source_type: "local",
@@ -1353,11 +1368,13 @@ describe("tablesCompletionSource", () => {
         {
           name: "test_db",
           dialect: "postgres",
-          schemas: [
+          children: [
             {
+              kind: "schema",
               name: "public",
               tables: [
                 {
+                  kind: "data_table",
                   name: "users",
                   source: "postgres",
                   source_type: "local",
@@ -1495,11 +1512,13 @@ describe("tablesCompletionSource", () => {
         {
           name: "test_db",
           dialect: "postgres",
-          schemas: [
+          children: [
             {
+              kind: "schema",
               name: "public",
               tables: [
                 {
+                  kind: "data_table",
                   name: "users",
                   source: "postgres",
                   source_type: "local",
@@ -1537,11 +1556,13 @@ describe("tablesCompletionSource", () => {
         {
           name: "test_db",
           dialect: "postgres",
-          schemas: [
+          children: [
             {
+              kind: "schema",
               name: "", // lack of name indicates schemaless
               tables: [
                 {
+                  kind: "data_table",
                   name: "users",
                   source: "postgres",
                   source_type: "local",
@@ -1565,11 +1586,13 @@ describe("tablesCompletionSource", () => {
         {
           name: "test_db2",
           dialect: "postgres",
-          schemas: [
+          children: [
             {
+              kind: "schema",
               name: "",
               tables: [
                 {
+                  kind: "data_table",
                   name: "orders",
                   source: "postgres",
                   source_type: "local",
@@ -1752,11 +1775,13 @@ describe("tablesCompletionSource", () => {
               {
                 name: "test_db",
                 dialect: "postgres",
-                schemas: [
+                children: [
                   {
+                    kind: "schema",
                     name: "public",
                     tables: [
                       {
+                        kind: "data_table",
                         name: "users",
                         source: "postgres",
                         source_type: "local",
@@ -1945,11 +1970,13 @@ describe("tablesCompletionSource", () => {
         {
           dialect: "duckdb",
           name: "test_db",
-          schemas: [
+          children: [
             {
+              kind: "schema",
               name: "test_schema",
               tables: [
                 {
+                  kind: "data_table",
                   name: "dataset2",
                   source: "duckdb",
                   source_type: "local",
@@ -2349,11 +2376,13 @@ const mockConnection: DataSourceConnection = {
     {
       dialect: "duckdb",
       name: "test_db",
-      schemas: [
+      children: [
         {
+          kind: "schema",
           name: "test_schema",
           tables: [
             {
+              kind: "data_table",
               name: "dataset2",
               source: "duckdb",
               source_type: "local",
