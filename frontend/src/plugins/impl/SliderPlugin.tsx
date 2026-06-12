@@ -4,6 +4,7 @@ import { useLocale } from "react-aria";
 import { z } from "zod";
 import { NumberField } from "@/components/ui/number-field";
 import { cn } from "@/utils/cn";
+import { clamp } from "@/utils/math";
 import {
   maxFractionDigitsForSteps,
   prettyScientificNumber,
@@ -50,8 +51,9 @@ export class SliderPlugin implements IPlugin<T, Data> {
   render(props: IPluginProps<T, Data>): JSX.Element {
     // Create the valueMap function
     const valueMap = (sliderValue: number): number => {
-      if (props.data.steps && props.data.steps.length > 0) {
-        return props.data.steps[sliderValue];
+      const { steps } = props.data;
+      if (steps && steps.length > 0) {
+        return steps[clamp(sliderValue, 0, steps.length - 1)];
       }
       return sliderValue;
     };
@@ -201,10 +203,8 @@ const SliderComponent = ({
 
   const inputProps = stepsConfig
     ? {
-        // Fall back to the first step when `internalValue` is a stale,
-        // out-of-range index (e.g. just after `steps` shrinks).
         value: roundToFractionDigits(
-          valueMap(internalValue) ?? stepsConfig.steps[0],
+          valueMap(internalValue),
           stepsConfig.fractionDigits,
         ),
         minValue: stepsConfig.minValue,
@@ -247,14 +247,14 @@ const SliderComponent = ({
           step={step}
           orientation={orientation}
           // Triggered on all value changes
-          onValueChange={([nextValue]) => {
+          onValueChange={([nextValue]: number[]) => {
             setInternalValue(nextValue);
             if (!debounce) {
               setValue(nextValue);
             }
           }}
           // Triggered on mouse up
-          onValueCommit={([nextValue]) => {
+          onValueCommit={([nextValue]: [number]) => {
             if (debounce) {
               setValue(nextValue);
             }

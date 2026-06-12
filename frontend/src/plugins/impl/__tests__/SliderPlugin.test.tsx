@@ -358,6 +358,40 @@ describe("SliderPlugin", () => {
       expect(setValue).toHaveBeenLastCalledWith(3);
     });
 
+    it("does not crash when steps shrink while the index is temporarily out of range", () => {
+      const plugin = new SliderPlugin();
+      const setValue = vi.fn();
+      // Start at the last index of a 5-element steps array.
+      const props = createStepsProps({
+        steps: [10, 20, 30, 40, 50],
+        valueIndex: 4,
+        setValue,
+      });
+      const { getByRole, rerender } = render(plugin.render(props));
+
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+
+      // Shrink `steps` so the held index (4) is now out of range. The index
+      // syncs in an effect after this render, so the render must not throw on
+      // the stale, out-of-range index.
+      const shrunkProps = createStepsProps({
+        steps: [10, 20],
+        valueIndex: 1,
+        setValue,
+      });
+      expect(() => {
+        act(() => {
+          rerender(plugin.render(shrunkProps));
+          vi.advanceTimersByTime(0);
+        });
+      }).not.toThrow();
+
+      const input = getByRole("textbox") as HTMLInputElement;
+      expect(input.value).toBe("20");
+    });
+
     it("nudges to the adjacent step on non-uniform steps even when the current step is nearest (known caveat)", () => {
       const plugin = new SliderPlugin();
       const setValue = vi.fn();
