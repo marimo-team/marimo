@@ -40,6 +40,10 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+# Object stores commonly cap delimiter listings at 1000 returned entries.
+# https://docs.rs/object_store/latest/object_store/struct.ListResult.html
+LIMIT_ENTRIES = 1000
+
 
 class Obstore(StorageBackend["ObjectStore"]):
     def list_entries(
@@ -94,9 +98,6 @@ class Obstore(StorageBackend["ObjectStore"]):
         result: ListResult[Sequence[ObjectMeta]],
     ) -> bool:
         """Return whether an obstore delimiter listing may be provider-truncated."""
-        # Object stores commonly cap delimiter listings at 1000 returned entries.
-        # https://docs.rs/object_store/latest/object_store/struct.ListResult.html
-        LIMIT_ENTRIES = 1000
         entry_count = len(result["common_prefixes"]) + len(result["objects"])
         return entry_count >= LIMIT_ENTRIES
 
