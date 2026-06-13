@@ -19,6 +19,7 @@ import {
   dataSourceConnectionsAtom,
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
+import { emptyCatalogLoadState } from "@/core/datasets/catalog-load-state";
 import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
@@ -35,6 +36,12 @@ import { languageMetadataField } from "../metadata";
 const adapter = new SQLLanguageAdapter();
 
 const TEST_ENGINE = "test_engine" as ConnectionName;
+
+function testDataSourceConnection(
+  connection: Omit<DataSourceConnection, "catalogLoad">,
+): DataSourceConnection {
+  return { ...connection, catalogLoad: emptyCatalogLoadState() };
+}
 
 const TEST_EXTENSION_ARGS = [
   {} as CellId,
@@ -517,27 +524,36 @@ _df = mo.sql(
       const state = store.get(dataSourceConnectionsAtom);
       const connections = new Map(state.connectionsMap);
       connections
-        .set("postgres_engine" as ConnectionName, {
-          name: "postgres_engine" as ConnectionName,
-          source: "postgres",
-          display_name: "PostgreSQL",
-          dialect: "postgres",
-          databases: [],
-        })
-        .set("mysql_engine" as ConnectionName, {
-          name: "mysql_engine" as ConnectionName,
-          source: "mysql",
-          display_name: "MySQL",
-          dialect: "mysql",
-          databases: [],
-        })
-        .set(DUCKDB_ENGINE, {
-          name: DUCKDB_ENGINE,
-          source: "duckdb",
-          display_name: "DuckDB",
-          dialect: "duckdb",
-          databases: [],
-        });
+        .set(
+          "postgres_engine" as ConnectionName,
+          testDataSourceConnection({
+            name: "postgres_engine" as ConnectionName,
+            source: "postgres",
+            display_name: "PostgreSQL",
+            dialect: "postgres",
+            databases: [],
+          }),
+        )
+        .set(
+          "mysql_engine" as ConnectionName,
+          testDataSourceConnection({
+            name: "mysql_engine" as ConnectionName,
+            source: "mysql",
+            display_name: "MySQL",
+            dialect: "mysql",
+            databases: [],
+          }),
+        )
+        .set(
+          DUCKDB_ENGINE,
+          testDataSourceConnection({
+            name: DUCKDB_ENGINE,
+            source: "duckdb",
+            display_name: "DuckDB",
+            dialect: "duckdb",
+            databases: [],
+          }),
+        );
       store.set(dataSourceConnectionsAtom, {
         ...state,
         connectionsMap: connections,
@@ -664,7 +680,7 @@ describe("tablesCompletionSource", () => {
   });
 
   it("should create schema with schema.table structure", () => {
-    const mockConnection: DataSourceConnection = {
+    const mockConnection = testDataSourceConnection({
       name: TEST_ENGINE,
       dialect: "duckdb",
       display_name: "duckdb",
@@ -743,7 +759,7 @@ describe("tablesCompletionSource", () => {
           ],
         },
       ],
-    };
+    });
 
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map([[TEST_ENGINE, mockConnection]]),
@@ -886,7 +902,7 @@ describe("tablesCompletionSource", () => {
   });
 
   it("should handle multiple databases and schemas", () => {
-    const mockConnection: DataSourceConnection = {
+    const mockConnection = testDataSourceConnection({
       name: "multi_db_engine" as ConnectionName,
       dialect: "postgres",
       display_name: "postgres",
@@ -953,7 +969,7 @@ describe("tablesCompletionSource", () => {
           ],
         },
       ],
-    };
+    });
 
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map([[mockConnection.name, mockConnection]]),
@@ -1041,7 +1057,7 @@ describe("tablesCompletionSource", () => {
   });
 
   it("should handle multiple databases and schemas with default", () => {
-    const mockConnection: DataSourceConnection = {
+    const mockConnection = testDataSourceConnection({
       name: "multi_db_engine" as ConnectionName,
       dialect: "postgres",
       display_name: "postgres",
@@ -1164,7 +1180,7 @@ describe("tablesCompletionSource", () => {
           ],
         },
       ],
-    };
+    });
 
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map([[mockConnection.name, mockConnection]]),
@@ -1357,7 +1373,7 @@ describe("tablesCompletionSource", () => {
   });
 
   it("should handle default schema", () => {
-    const mockConnection: DataSourceConnection = {
+    const mockConnection = testDataSourceConnection({
       name: TEST_ENGINE,
       dialect: "postgres",
       display_name: "postgres",
@@ -1408,7 +1424,7 @@ describe("tablesCompletionSource", () => {
           ],
         },
       ],
-    };
+    });
 
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map([[mockConnection.name, mockConnection]]),
@@ -1503,7 +1519,7 @@ describe("tablesCompletionSource", () => {
   });
 
   it("should create a default table if there is only one table", () => {
-    const mockConnection: DataSourceConnection = {
+    const mockConnection = testDataSourceConnection({
       name: TEST_ENGINE,
       dialect: "postgres",
       display_name: "postgres",
@@ -1533,7 +1549,7 @@ describe("tablesCompletionSource", () => {
           ],
         },
       ],
-    };
+    });
 
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map([[mockConnection.name, mockConnection]]),
@@ -1546,7 +1562,7 @@ describe("tablesCompletionSource", () => {
   });
 
   it("should handle schemaless databases", () => {
-    const mockConnection: DataSourceConnection = {
+    const mockConnection = testDataSourceConnection({
       name: TEST_ENGINE,
       dialect: "postgres",
       display_name: "postgres",
@@ -1614,7 +1630,7 @@ describe("tablesCompletionSource", () => {
           ],
         },
       ],
-    };
+    });
 
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map([[mockConnection.name, mockConnection]]),
@@ -1766,7 +1782,7 @@ describe("tablesCompletionSource", () => {
         });
 
         it("should provide table completions when connection exists", () => {
-          const mockConnection: DataSourceConnection = {
+          const mockConnection = testDataSourceConnection({
             name: TEST_ENGINE,
             dialect: "postgres",
             display_name: "postgres",
@@ -1809,7 +1825,7 @@ describe("tablesCompletionSource", () => {
                 ],
               },
             ],
-          };
+          });
 
           store.set(dataSourceConnectionsAtom, {
             connectionsMap: new Map([[TEST_ENGINE, mockConnection]]),
@@ -1832,13 +1848,13 @@ describe("tablesCompletionSource", () => {
         });
 
         it("should include local datasets in completions", () => {
-          const mockConnection: DataSourceConnection = {
+          const mockConnection = testDataSourceConnection({
             name: TEST_ENGINE,
             dialect: "duckdb",
             display_name: "duckdb",
             source: "duckdb",
             databases: [],
-          };
+          });
 
           store.set(dataSourceConnectionsAtom, {
             connectionsMap: new Map([[TEST_ENGINE, mockConnection]]),
@@ -1867,13 +1883,13 @@ describe("tablesCompletionSource", () => {
 
       describe("customKeywordCompletionSource", () => {
         it("should provide SQL keyword completions", () => {
-          const mockConnection: DataSourceConnection = {
+          const mockConnection = testDataSourceConnection({
             name: TEST_ENGINE,
             dialect: "postgres",
             display_name: "postgres",
             source: "postgres",
             databases: [],
-          };
+          });
 
           store.set(dataSourceConnectionsAtom, {
             connectionsMap: new Map([[TEST_ENGINE, mockConnection]]),
@@ -1898,13 +1914,13 @@ describe("tablesCompletionSource", () => {
         });
 
         it("should not provide keyword completions after dot", () => {
-          const mockConnection: DataSourceConnection = {
+          const mockConnection = testDataSourceConnection({
             name: TEST_ENGINE,
             dialect: "postgres",
             display_name: "postgres",
             source: "postgres",
             databases: [],
-          };
+          });
 
           store.set(dataSourceConnectionsAtom, {
             connectionsMap: new Map([[TEST_ENGINE, mockConnection]]),
@@ -1926,13 +1942,13 @@ describe("tablesCompletionSource", () => {
         });
 
         it("should use correct dialect for different engines", () => {
-          const mysqlConnection: DataSourceConnection = {
+          const mysqlConnection = testDataSourceConnection({
             name: "mysql_engine" as ConnectionName,
             dialect: "mysql",
             display_name: "mysql",
             source: "mysql",
             databases: [],
-          };
+          });
 
           store.set(dataSourceConnectionsAtom, {
             connectionsMap: new Map([[mysqlConnection.name, mysqlConnection]]),
@@ -1959,7 +1975,7 @@ describe("tablesCompletionSource", () => {
     });
     mockStore.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
-    const mockConnection: DataSourceConnection = {
+    const mockConnection = testDataSourceConnection({
       name: TEST_ENGINE,
       dialect: "duckdb",
       display_name: "duckdb",
@@ -1998,7 +2014,7 @@ describe("tablesCompletionSource", () => {
           ],
         },
       ],
-    };
+    });
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map([[TEST_ENGINE, mockConnection]]),
       latestEngineSelected: TEST_ENGINE,
@@ -2365,7 +2381,7 @@ describe("tablesCompletionSource", () => {
   });
 });
 
-const mockConnection: DataSourceConnection = {
+const mockConnection = testDataSourceConnection({
   name: TEST_ENGINE,
   dialect: "duckdb",
   display_name: "duckdb",
@@ -2404,7 +2420,7 @@ const mockConnection: DataSourceConnection = {
       ],
     },
   ],
-};
+});
 
 const testDatasets = [
   {
