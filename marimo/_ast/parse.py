@@ -88,7 +88,9 @@ def fixed_dedent(text: str) -> str:
             return indent + ln
         return ln
 
-    return _smart_dedent("\n".join(refill(i, ln) for i, ln in enumerate(lines)))
+    return _smart_dedent(
+        "\n".join(refill(i, ln) for i, ln in enumerate(lines))
+    )
 
 
 def unwrap_cell_body(formatted: str) -> str:
