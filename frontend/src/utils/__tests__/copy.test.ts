@@ -1,6 +1,67 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { copyImageToClipboard, isSafari } from "../copy";
+import { copyImageToClipboard, copyToClipboard, isSafari } from "../copy";
+
+describe("copyToClipboard", () => {
+  let execCommandMock: ReturnType<typeof vi.fn>;
+  let promptMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    execCommandMock = vi.fn().mockReturnValue(true);
+    document.execCommand = execCommandMock;
+    promptMock = vi.fn();
+    vi.stubGlobal("prompt", promptMock);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("uses navigator.clipboard.writeText when available", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    await copyToClipboard("hello");
+
+    expect(writeText).toHaveBeenCalledWith("hello");
+    expect(execCommandMock).not.toHaveBeenCalled();
+    expect(promptMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to execCommand when writeText rejects (Firefox, #3912)", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("not allowed"));
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    await copyToClipboard("permalink-url");
+
+    expect(writeText).toHaveBeenCalledWith("permalink-url");
+    expect(execCommandMock).toHaveBeenCalledWith("copy");
+    expect(promptMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to execCommand when navigator.clipboard is undefined", async () => {
+    Object.assign(navigator, { clipboard: undefined });
+
+    await copyToClipboard("text");
+
+    expect(execCommandMock).toHaveBeenCalledWith("copy");
+    expect(promptMock).not.toHaveBeenCalled();
+  });
+
+  it("prompts the user when both writeText and execCommand fail", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("not allowed"));
+    Object.assign(navigator, { clipboard: { writeText } });
+    execCommandMock.mockReturnValue(false);
+
+    await copyToClipboard("text");
+
+    expect(promptMock).toHaveBeenCalledWith(
+      "Copy to clipboard: Ctrl+C, Enter",
+      "text",
+    );
+  });
+});
 
 describe("isSafari", () => {
   afterEach(() => {

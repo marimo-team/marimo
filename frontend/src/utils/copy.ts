@@ -8,15 +8,17 @@ import { Logger } from "./Logger";
  *
  * As of 2024-10-29, Safari does not support navigator.clipboard.writeText
  * when running localhost http.
+ *
+ * Falls back to a hidden textarea + `document.execCommand("copy")` when the
+ * async Clipboard API is unavailable or rejects. This happens in Firefox when
+ * the copy follows an awaited async operation, since the transient user
+ * activation required by `navigator.clipboard.writeText` has been consumed by
+ * then (see #3912). `execCommand` has more lenient activation requirements.
  */
 export async function copyToClipboard(text: string, html?: string) {
-  if (navigator.clipboard === undefined) {
-    Logger.warn("navigator.clipboard is not supported");
-    window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
-    return;
-  }
-
-  if (html && navigator.clipboard.write) {
+  // Rich text requires the async Clipboard API; only attempt it when both the
+  // API and an `html` payload are present.
+  if (html && navigator.clipboard?.write) {
     try {
       const item = new ClipboardItem({
         "text/html": new Blob([html], { type: "text/html" }),
@@ -29,10 +31,67 @@ export async function copyToClipboard(text: string, html?: string) {
     }
   }
 
-  await navigator.clipboard.writeText(text).catch(() => {
-    Logger.warn("Failed to copy to clipboard using navigator.clipboard");
-    window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
-  });
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      Logger.warn(
+        "navigator.clipboard.writeText failed, falling back to execCommand",
+      );
+    }
+  }
+
+  if (copyWithExecCommand(text)) {
+    return;
+  }
+
+  // Last resort: let the user copy manually.
+  Logger.warn("Failed to copy to clipboard, prompting user");
+  window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
+}
+
+/**
+ * Synchronously copies `text` using a hidden textarea and the legacy
+ * `document.execCommand("copy")`. Returns whether the copy succeeded.
+ *
+ * The previous selection is preserved and restored so this is invisible to
+ * the user.
+ */
+function copyWithExecCommand(text: string): boolean {
+  if (typeof document === "undefined" || !document.body) {
+    return false;
+  }
+
+  const selection = document.getSelection();
+  const previousRange =
+    selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  // Position off-screen so focusing it doesn't scroll the page.
+  textArea.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0;";
+  document.body.append(textArea);
+  textArea.focus();
+  textArea.select();
+
+  let success = false;
+  try {
+    success = document.execCommand("copy");
+  } catch {
+    success = false;
+  }
+
+  textArea.remove();
+
+  // Restore the user's prior selection, if any.
+  if (selection && previousRange) {
+    selection.removeAllRanges();
+    selection.addRange(previousRange);
+  }
+
+  return success;
 }
 
 /**
