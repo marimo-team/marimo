@@ -81,12 +81,12 @@ def fixed_dedent(text: str) -> str:
     else:
         return _smart_dedent(text)
 
-    def refill(i: int, line: str) -> str:
+    def refill(i: int, ln: str) -> str:
         if protected[i]:
-            return line
-        if not line.startswith(indent):
-            return indent + line
-        return line
+            return ln
+        if not ln.startswith(indent):
+            return indent + ln
+        return ln
 
     return _smart_dedent("\n".join(refill(i, l) for i, l in enumerate(lines)))
 
