@@ -156,9 +156,6 @@ describe("FormPlugin", () => {
     // Simulate Shift+Enter on input
     fireEvent.keyDown(input, { key: "Enter", shiftKey: true });
 
-    // Wait a bit to ensure it wasn't triggered
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
     expect(setValue).not.toHaveBeenCalled();
     expect(validate).not.toHaveBeenCalled();
   });

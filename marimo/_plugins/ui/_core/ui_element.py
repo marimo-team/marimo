@@ -471,8 +471,6 @@ class UIElement(Html, Generic[S, T]):
         self._updating_value = True
         try:
             self._value = self._convert_value(value)
-        except MarimoConvertValueException:
-            raise
         finally:
             if hasattr(self, "_updating_value"):
                 del self._updating_value
