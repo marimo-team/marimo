@@ -133,6 +133,55 @@ describe("data source connections", () => {
     ).toMatchObject(updatedConnection);
   });
 
+  it("resets catalog load state when a connection is refreshed from backend", () => {
+    const connection = {
+      name: "conn1" as ConnectionName,
+      source: "sqlite",
+      display_name: "SQLite DB",
+      dialect: "sqlite",
+      databases: [
+        {
+          name: "db1",
+          dialect: "sqlite",
+          children: [makeSchema("public", [makeTable("t1")])],
+        },
+      ],
+    };
+
+    let newState = addConnection([connection], state);
+    newState = reducer(newState, {
+      type: "addSchemaList",
+      payload: {
+        nodes: [makeSchema("audit")],
+        sqlSchemaContext: { engine: "conn1", database: "db1" },
+      },
+    });
+    expect(
+      newState.connectionsMap
+        .get("conn1" as ConnectionName)!
+        .catalogLoad.childrenLoaded.has(catalogPathKey("db1", [])),
+    ).toBe(true);
+
+    const refreshed = {
+      ...connection,
+      databases: [
+        {
+          name: "db1",
+          dialect: "sqlite",
+          children: [],
+        },
+      ],
+    };
+    newState = addConnection([refreshed], newState);
+
+    const conn = newState.connectionsMap.get("conn1" as ConnectionName);
+    expect(conn?.databases[0]?.children).toEqual([]);
+    expect(conn?.catalogLoad).toEqual({
+      childrenLoaded: new Set(),
+      tablesLoaded: new Set(),
+    });
+  });
+
   it("can remove connections", () => {
     const connections = [
       {

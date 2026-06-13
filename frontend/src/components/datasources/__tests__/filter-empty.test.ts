@@ -238,6 +238,25 @@ describe("filterEmptyDatabases", () => {
     expect(filterLoaded(databases)).toBe(databases);
   });
 
+  it("preserves a namespace whose own tables are deferred", () => {
+    const databases = [
+      makeDatabase("iceberg", [
+        makeNamespace({
+          name: "leaf",
+          children: [],
+        }),
+      ]),
+    ];
+    const load = {
+      ...emptyCatalogLoadState(),
+      childrenLoaded: new Set([catalogPathKey("iceberg", ["leaf"])]),
+    };
+
+    expect(filterEmptyDatabases({ databases, catalogLoad: load })).toEqual(
+      databases,
+    );
+  });
+
   it("preserves a namespace whose children are deferred", () => {
     const databases = [
       makeDatabase("iceberg", [

@@ -242,6 +242,16 @@ function filterEmptyChildren({
         nodePath: namespacePath,
       });
       if (visibleChildren.length === 0) {
+        if (
+          !areTablesLoadedAt({
+            catalogLoad,
+            databaseName,
+            path: namespacePath,
+          })
+        ) {
+          result.push(node);
+          continue;
+        }
         changed = true;
         continue;
       }

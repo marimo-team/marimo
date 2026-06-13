@@ -2,7 +2,7 @@
 
 import { BigQueryDialect } from "@marimo-team/codemirror-sql/dialects";
 import { isKnownDialect } from "@/core/codemirror/language/languages/sql/utils";
-import { catalogNodePath } from "@/core/datasets/catalog";
+import { catalogNodePath, isSchemaless } from "@/core/datasets/catalog";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import type { DataTable, DataType } from "@/core/kernel/messages";
@@ -33,10 +33,7 @@ export function tableUniqueId({
   return [sqlTableContext.database, ...segments, tableName].join(".");
 }
 
-// Some databases have no schemas, so we don't show it (eg. Clickhouse)
-export function isSchemaless(schemaName: string) {
-  return schemaName === "";
-}
+export { isSchemaless };
 
 interface SqlCodeFormatter {
   /**

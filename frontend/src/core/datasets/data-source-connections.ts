@@ -92,19 +92,6 @@ function initialState(): DataSourceState {
   };
 }
 
-function mergeCatalogLoadState(
-  existing: CatalogLoadState,
-  incoming: CatalogLoadState,
-): CatalogLoadState {
-  return {
-    childrenLoaded: new Set([
-      ...existing.childrenLoaded,
-      ...incoming.childrenLoaded,
-    ]),
-    tablesLoaded: new Set([...existing.tablesLoaded, ...incoming.tablesLoaded]),
-  };
-}
-
 const {
   reducer,
   createActions,
@@ -126,13 +113,9 @@ const {
     // Backend will dedupe by connection name & keep the latest, so we use this as the key
     const newMap = new Map(connectionsMap);
     for (const conn of opts.connections) {
-      const existing = newMap.get(conn.name);
       newMap.set(conn.name, {
         ...conn,
-        catalogLoad: mergeCatalogLoadState(
-          existing?.catalogLoad ?? emptyCatalogLoadState(),
-          hydrateCatalogLoadState(conn),
-        ),
+        catalogLoad: hydrateCatalogLoadState(conn),
       });
     }
 
