@@ -6,8 +6,6 @@ import io
 import token as token_types
 import warnings
 from pathlib import Path
-from textwrap import dedent
-from marimo._ast.dedent import smart_dedent as _smart_dedent
 from tokenize import TokenInfo, tokenize
 from typing import (
     TYPE_CHECKING,
@@ -17,6 +15,7 @@ from typing import (
     cast,
 )
 
+from marimo._ast.dedent import smart_dedent as _smart_dedent
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._schemas.serialization import (
     AppInstantiation,
@@ -70,6 +69,7 @@ def fixed_dedent(text: str) -> str:
     # Added robustness for AI generated code with inconsistent indentation,
     # while preserving whitespace inside multiline string literals.
     from marimo._ast.dedent import _get_protected_lines
+
     lines = text.splitlines()
     protected = _get_protected_lines(text)
     for i, line in enumerate(lines):

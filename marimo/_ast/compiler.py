@@ -13,7 +13,6 @@ import textwrap
 import token as token_types
 import warnings
 from tokenize import TokenError, tokenize
-from marimo._ast.dedent import smart_dedent
 from types import CodeType, FrameType
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
@@ -25,6 +24,7 @@ from marimo._ast.cell import (
     ImportWorkspace,
     SourcePosition,
 )
+from marimo._ast.dedent import smart_dedent
 from marimo._ast.names import SETUP_CELL_NAME, TOPLEVEL_CELL_PREFIX
 from marimo._ast.pytest import has_fixture_decorator
 from marimo._ast.transformers import ContainedExtractWithBlock
@@ -44,8 +44,6 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 Cls: TypeAlias = type
-
-
 
 
 def ast_compile(*args: Any, **kwargs: Any) -> CodeType:
@@ -573,9 +571,7 @@ def toplevel_cell_factory(
     try:
         decorator = tree.body[0].decorator_list.pop(0)  # type: ignore
         # NB. We don't unparse from the AST because it strips comments.
-        cell_code = smart_dedent(
-            "".join(code[decorator.end_lineno :])
-        ).strip()
+        cell_code = smart_dedent("".join(code[decorator.end_lineno :])).strip()
     except (IndexError, AttributeError) as e:
         raise ValueError(
             "Unexpected usage (expected decorated function)"
