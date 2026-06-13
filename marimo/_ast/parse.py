@@ -7,6 +7,7 @@ import token as token_types
 import warnings
 from pathlib import Path
 from textwrap import dedent
+from marimo._ast.dedent import smart_dedent as _smart_dedent
 from tokenize import TokenInfo, tokenize
 from typing import (
     TYPE_CHECKING,
@@ -66,22 +67,28 @@ def split_source_lines(text: str) -> list[str]:
 
 def fixed_dedent(text: str) -> str:
     """Manually edited code, can dedent"""
-    # Added robustness for AI generated code
+    # Added robustness for AI generated code with inconsistent indentation,
+    # while preserving whitespace inside multiline string literals.
+    from marimo._ast.dedent import _get_protected_lines
     lines = text.splitlines()
-    for line in lines:
+    protected = _get_protected_lines(text)
+    for i, line in enumerate(lines):
+        if protected[i]:
+            continue
         if content := line.lstrip():
             indent = line[: len(line) - len(content)]
             break
     else:
-        # Quit early, no clear leading spaces
-        return dedent(text)
+        return _smart_dedent(text)
 
-    def refill(line: str) -> str:
+    def refill(i: int, line: str) -> str:
+        if protected[i]:
+            return line
         if not line.startswith(indent):
             return indent + line
         return line
 
-    return dedent("\n".join(map(refill, lines)))
+    return _smart_dedent("\n".join(refill(i, l) for i, l in enumerate(lines)))
 
 
 def unwrap_cell_body(formatted: str) -> str:
