@@ -1,4 +1,5 @@
 """Token-aware dedent that preserves multiline string literal whitespace."""
+
 from __future__ import annotations
 
 import io
@@ -43,8 +44,8 @@ def smart_dedent(code: str) -> str:
             result.append(line)
         else:
             result.append(
-                line[int(min_indent):]
-                if line[:int(min_indent)].strip() == ""
+                line[int(min_indent) :]
+                if line[: int(min_indent)].strip() == ""
                 else line
             )
 
