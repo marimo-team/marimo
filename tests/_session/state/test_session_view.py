@@ -18,6 +18,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import UnknownError
 from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.notification import (
+    CatalogChildrenPreviewNotification,
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
@@ -27,10 +28,8 @@ from marimo._messaging.notification import (
     ModelLifecycleNotification,
     ModelOpen,
     ModelUpdate,
-    SQLDatabaseMetadata,
+    SQLCatalogMetadata,
     SQLMetadata,
-    SQLSchemaListPreviewNotification,
-    SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
     VariableDeclarationNotification,
@@ -942,58 +941,17 @@ def test_add_sql_table_previews() -> None:
         == 10
     )
 
-    # Add sql schema preview list
+    # Add catalog children preview
     session_view.add_raw_notification(
         serialize_kernel_message(
-            SQLSchemaListPreviewNotification(
-                metadata=SQLDatabaseMetadata(
-                    connection="connection1", database="db1"
+            CatalogChildrenPreviewNotification(
+                metadata=SQLCatalogMetadata(
+                    connection="connection1",
+                    database="db1",
+                    catalog_path=["db1"],
                 ),
                 request_id=RequestId("request_id"),
-                schemas=[
-                    Schema(
-                        name="db1",
-                        tables=[
-                            DataTable(
-                                name="table2",
-                                source_type="connection",
-                                source="db1",
-                                num_rows=20,
-                                num_columns=10,
-                                variable_name=VariableName("var"),
-                                columns=[],
-                            )
-                        ],
-                    )
-                ],
-            )
-        )
-    )
-    assert session_view_connections[0].databases[0].children[0].tables == [
-        DataTable(
-            source_type="connection",
-            source="db1",
-            name="table2",
-            num_rows=20,
-            num_columns=10,
-            variable_name=VariableName("var"),
-            columns=[],
-            engine=None,
-            type="table",
-            primary_keys=None,
-            indexes=None,
-        )
-    ]
-
-    # Add sql table preview list
-    session_view.add_raw_notification(
-        serialize_kernel_message(
-            SQLTableListPreviewNotification(
-                metadata=SQLMetadata(
-                    connection="connection1", database="db1", schema="db1"
-                ),
-                request_id=RequestId("request_id"),
-                tables=[
+                children=[
                     DataTable(
                         name="table2",
                         source_type="connection",

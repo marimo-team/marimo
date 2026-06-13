@@ -9,9 +9,8 @@ from marimo import _loggers
 from marimo._server.api.utils import dispatch_control_request
 from marimo._server.models.models import (
     BaseResponse,
+    ListCatalogChildrenRequest,
     ListDataSourceConnectionRequest,
-    ListSQLSchemasRequest,
-    ListSQLTablesRequest,
     PreviewDatasetColumnRequest,
     PreviewSQLTableRequest,
 )
@@ -80,9 +79,9 @@ async def preview_sql_table(request: Request) -> BaseResponse:
     return await dispatch_control_request(request, PreviewSQLTableRequest)
 
 
-@router.post("/preview_sql_table_list")
+@router.post("/preview_catalog_children")
 @requires("edit")
-async def preview_sql_table_list(request: Request) -> BaseResponse:
+async def preview_catalog_children(request: Request) -> BaseResponse:
     """
     parameters:
         - in: header
@@ -94,42 +93,16 @@ async def preview_sql_table_list(request: Request) -> BaseResponse:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/ListSQLTablesRequest"
+                    $ref: "#/components/schemas/ListCatalogChildrenRequest"
     responses:
         200:
-            description: Preview a list of tables in an SQL schema
+            description: Preview catalog children at a database path
             content:
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    return await dispatch_control_request(request, ListSQLTablesRequest)
-
-
-@router.post("/preview_sql_schema_list")
-@requires("edit")
-async def preview_sql_schema_list(request: Request) -> BaseResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    requestBody:
-        content:
-            application/json:
-                schema:
-                    $ref: "#/components/schemas/ListSQLSchemasRequest"
-    responses:
-        200:
-            description: Preview a list of schemas in an SQL database
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-    """
-    return await dispatch_control_request(request, ListSQLSchemasRequest)
+    return await dispatch_control_request(request, ListCatalogChildrenRequest)
 
 
 @router.post("/preview_datasource_connection")

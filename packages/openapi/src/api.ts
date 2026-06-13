@@ -366,6 +366,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/datasources/preview_catalog_children": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ListCatalogChildrenRequest"];
+        };
+      };
+      responses: {
+        /** @description Preview catalog children at a database path */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/datasources/preview_column": {
     parameters: {
       query?: never;
@@ -448,47 +489,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/datasources/preview_sql_schema_list": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ListSQLSchemasRequest"];
-        };
-      };
-      responses: {
-        /** @description Preview a list of schemas in an SQL database */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/datasources/preview_sql_table": {
     parameters: {
       query?: never;
@@ -514,47 +514,6 @@ export interface paths {
       };
       responses: {
         /** @description Preview a SQL table */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/datasources/preview_sql_table_list": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ListSQLTablesRequest"];
-        };
-      };
-      responses: {
-        /** @description Preview a list of tables in an SQL schema */
         200: {
           headers: {
             [name: string]: unknown;
@@ -3616,6 +3575,30 @@ export interface components {
       time: number;
     };
     /**
+     * CatalogChildrenPreviewNotification
+     * @description Immediate catalog children at a database path.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             metadata: Database and catalog path metadata.
+     *             children: Catalog children at the requested path.
+     *             error: Error message if failed.
+     */
+    CatalogChildrenPreviewNotification: {
+      /** @default [] */
+      children?: (
+        | components["schemas"]["Schema"]
+        | components["schemas"]["DataTable"]
+        | components["schemas"]["Namespace"]
+      )[];
+      /** @default null */
+      error?: string | null;
+      metadata: components["schemas"]["SQLCatalogMetadata"];
+      /** @enum {unknown} */
+      op: "catalog-children-preview";
+      request_id: components["schemas"]["RequestId"];
+    };
+    /**
      * CellChannel
      * @description The channel of a cell's output.
      * @enum {unknown}
@@ -5027,8 +5010,7 @@ export interface components {
         | components["schemas"]["UpdateUserConfigCommand"]
         | components["schemas"]["PreviewDatasetColumnCommand"]
         | components["schemas"]["PreviewSQLTableCommand"]
-        | components["schemas"]["ListSQLTablesCommand"]
-        | components["schemas"]["ListSQLSchemasCommand"]
+        | components["schemas"]["ListCatalogChildrenCommand"]
         | components["schemas"]["ValidateSQLCommand"]
         | components["schemas"]["ListDataSourceConnectionCommand"]
         | components["schemas"]["StorageListEntriesCommand"]
@@ -5089,8 +5071,7 @@ export interface components {
         | components["schemas"]["DatasetsNotification"]
         | components["schemas"]["DataColumnPreviewNotification"]
         | components["schemas"]["SQLTablePreviewNotification"]
-        | components["schemas"]["SQLTableListPreviewNotification"]
-        | components["schemas"]["SQLSchemaListPreviewNotification"]
+        | components["schemas"]["CatalogChildrenPreviewNotification"]
         | components["schemas"]["DataSourceConnectionsNotification"]
         | components["schemas"]["ValidateSQLResultNotification"]
         | components["schemas"]["StorageNamespacesNotification"]
@@ -5145,6 +5126,36 @@ export interface components {
       select?: string[];
     };
     /**
+     * ListCatalogChildrenCommand
+     * @description List immediate catalog children at a path within a database.
+     *
+     *         Returns a mixed catalog node list (`Schema`, `Namespace`, and `DataTable`)
+     *         so callers can expand any database/schema/namespace with one request.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
+     *             database: Database to query.
+     *             catalog_path: Path within the database. Empty lists the database root.
+     */
+    ListCatalogChildrenCommand: {
+      /** @default [] */
+      catalogPath?: string[];
+      database: string;
+      engine: string;
+      requestId: components["schemas"]["RequestId"];
+      /** @enum {unknown} */
+      type: "list-catalog-children";
+    };
+    /** ListCatalogChildrenRequest */
+    ListCatalogChildrenRequest: {
+      /** @default [] */
+      catalogPath?: string[];
+      database: string;
+      engine: string;
+      requestId: components["schemas"]["RequestId"];
+    };
+    /**
      * ListDataSourceConnectionCommand
      * @description List data source schemas.
      *
@@ -5165,71 +5176,6 @@ export interface components {
     /** ListPackagesResponse */
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
-    };
-    /**
-     * ListSQLSchemasCommand
-     * @description List schemas in an SQL database.
-     *
-     *         Retrieves names of all schemas in a database. Used by the SQL editor for
-     *         schema selection.
-     *
-     *         Attributes:
-     *             request_id: Unique identifier for this request.
-     *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
-     *             database: Database to query.
-     *             schema_path: Parent schema path whose child schemas to list.
-     *                 Empty lists the database's top-level schemas.
-     */
-    ListSQLSchemasCommand: {
-      database: string;
-      engine: string;
-      requestId: components["schemas"]["RequestId"];
-      /** @default [] */
-      schemaPath?: string[];
-      /** @enum {unknown} */
-      type: "list-sql-schemas";
-    };
-    /** ListSQLSchemasRequest */
-    ListSQLSchemasRequest: {
-      database: string;
-      engine: string;
-      requestId: components["schemas"]["RequestId"];
-      /** @default [] */
-      schemaPath?: string[];
-    };
-    /**
-     * ListSQLTablesCommand
-     * @description List tables in an SQL schema.
-     *
-     *         Retrieves names of all tables and views in a schema. Used by the SQL
-     *         editor for table selection.
-     *
-     *         Attributes:
-     *             request_id: Unique identifier for this request.
-     *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
-     *             database: Database to query.
-     *             schema: Schema to list tables from.
-     *             schema_path: Path of nested schemas (relative to `database`) for
-     *                 catalogs with nested schemas. Empty for the top level.
-     */
-    ListSQLTablesCommand: {
-      database: string;
-      engine: string;
-      requestId: components["schemas"]["RequestId"];
-      schema: string;
-      /** @default [] */
-      schemaPath?: string[];
-      /** @enum {unknown} */
-      type: "list-sql-tables";
-    };
-    /** ListSQLTablesRequest */
-    ListSQLTablesRequest: {
-      database: string;
-      engine: string;
-      requestId: components["schemas"]["RequestId"];
-      schema: string;
-      /** @default [] */
-      schemaPath?: string[];
     };
     /**
      * ListSecretKeysCommand
@@ -6063,20 +6009,20 @@ export interface components {
       watcher_on_save: "autorun" | "lazy";
     };
     /**
-     * SQLDatabaseMetadata
-     * @description SQL database metadata.
+     * SQLCatalogMetadata
+     * @description SQL catalog metadata.
      *
      *         Attributes:
      *             connection: Connection identifier.
      *             database: Database name.
-     *             schema_path: Parent schema path the schemas belong under. Empty for
-     *                 the database's top level.
+     *             catalog_path: Catalog path under the database. Empty for the database
+     *                 root.
      */
-    SQLDatabaseMetadata: {
+    SQLCatalogMetadata: {
+      /** @default [] */
+      catalog_path?: string[];
       connection: string;
       database: string;
-      /** @default [] */
-      schema_path?: string[];
     };
     /**
      * SQLMetadata
@@ -6097,50 +6043,6 @@ export interface components {
       schema_path?: string[];
       /** @enum {unknown} */
       type: "sql-metadata";
-    };
-    /**
-     * SQLSchemaListPreviewNotification
-     * @description List of SQL schemas in a database.
-     *
-     *         Attributes:
-     *             request_id: Request ID this responds to.
-     *             metadata: Database and schema metadata.
-     *             schemas: Schemas in database.
-     *             error: Error message if failed.
-     */
-    SQLSchemaListPreviewNotification: {
-      /** @default null */
-      error?: string | null;
-      metadata: components["schemas"]["SQLDatabaseMetadata"];
-      /** @enum {unknown} */
-      op: "sql-schema-list-preview";
-      request_id: components["schemas"]["RequestId"];
-      /** @default [] */
-      schemas?: (
-        | components["schemas"]["Schema"]
-        | components["schemas"]["DataTable"]
-        | components["schemas"]["Namespace"]
-      )[];
-    };
-    /**
-     * SQLTableListPreviewNotification
-     * @description List of SQL tables in a schema.
-     *
-     *         Attributes:
-     *             request_id: Request ID this responds to.
-     *             metadata: Database and schema metadata.
-     *             tables: Tables in schema.
-     *             error: Error message if failed.
-     */
-    SQLTableListPreviewNotification: {
-      /** @default null */
-      error?: string | null;
-      metadata: components["schemas"]["SQLMetadata"];
-      /** @enum {unknown} */
-      op: "sql-table-list-preview";
-      request_id: components["schemas"]["RequestId"];
-      /** @default [] */
-      tables?: components["schemas"]["DataTable"][];
     };
     /**
      * SQLTablePreviewNotification

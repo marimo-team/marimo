@@ -6,7 +6,13 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._data.get_datasets import get_databases_from_duckdb
-from marimo._data.models import CatalogNode, Database, DataTable
+from marimo._data.models import (
+    CatalogNode,
+    Database,
+    DataTable,
+    Namespace,
+    Schema,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
@@ -92,12 +98,17 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
             return pl.DataFrame(relation)
 
         def to_lazy_polars() -> pl.LazyFrame:
+            import polars as pl
+
             # `lazy=True` requires DuckDB >= 1.4 and pyarrow. Fall back to the
             # Arrow PyCapsule path on older DuckDB or when pyarrow is missing.
             # batch_size of 100k bounds peak memory at ~10x less than DuckDB's
             # 1M default while keeping per-batch overhead negligible.
             try:
-                return relation.pl(batch_size=100_000, lazy=True)
+                return cast(
+                    pl.LazyFrame,
+                    cast(Any, relation).pl(batch_size=100_000, lazy=True),
+                )
             except (TypeError, ImportError, ModuleNotFoundError):
                 return to_polars().lazy()
 
@@ -175,6 +186,51 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
         )
         with self._install_connection(connection):
             return get_databases_from_duckdb(connection, self._engine_name)
+
+    def get_catalog_children(
+        self,
+        *,
+        database: str,
+        catalog_path: list[str],
+        include_table_details: bool,
+    ) -> list[CatalogNode]:
+        """Return DuckDB catalog children from the existing full-tree loader."""
+        del include_table_details
+        databases = self.get_databases(
+            include_schemas=True,
+            include_tables=True,
+            include_table_details=False,
+        )
+        selected_database = next(
+            (db for db in databases if db.name == database), None
+        )
+        if selected_database is None:
+            return []
+        if not catalog_path:
+            return selected_database.children
+
+        nodes = selected_database.children
+        for index, segment in enumerate(catalog_path):
+            node = next(
+                (
+                    candidate
+                    for candidate in nodes
+                    if candidate.name == segment
+                ),
+                None,
+            )
+            if node is None:
+                return []
+            if index == len(catalog_path) - 1:
+                if isinstance(node, Schema):
+                    return [*node.tables]
+                if isinstance(node, Namespace):
+                    return node.children
+                return []
+            if not isinstance(node, Namespace):
+                return []
+            nodes = node.children
+        return []
 
     # TODO: The following methods are currently not implemented.
     # We should consider implementing these in the future for better performance when users don't want to fetch everything.

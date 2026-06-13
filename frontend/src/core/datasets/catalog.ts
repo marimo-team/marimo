@@ -9,11 +9,6 @@ import type {
 
 export type CatalogNode = Database["children"][number];
 
-/** Empty schema name marks a schemaless catalog node (e.g. ClickHouse, Iceberg). */
-export function isSchemaless(schemaName: string): boolean {
-  return schemaName === "";
-}
-
 export function isSchemaNode(node: CatalogNode): node is DatabaseSchema {
   return node.kind === "schema";
 }
@@ -39,7 +34,7 @@ export function catalogNodePath({
   schemaPath?: string[];
 }): string[] {
   if (!schemaPath || schemaPath.length === 0) {
-    return [schema];
+    return schema ? [schema] : [];
   }
   if (!schema || schemaPath.at(-1) === schema) {
     return schemaPath;
@@ -47,13 +42,13 @@ export function catalogNodePath({
   return [...schemaPath, schema];
 }
 
-export function partitionNamespaceChildren(namespace: DatabaseNamespace): {
+export function partitionCatalogChildren(children: CatalogNode[]): {
   childNodes: CatalogNode[];
   tables: DataTable[];
 } {
   const childNodes: CatalogNode[] = [];
   const tables: DataTable[] = [];
-  for (const child of namespace.children) {
+  for (const child of children) {
     if (isDataTableNode(child)) {
       tables.push(child);
     } else {
@@ -150,31 +145,6 @@ function upsertTable(tables: DataTable[], table: DataTable): DataTable[] {
   return found ? updated : [...updated, table];
 }
 
-/** Replace the resolved table list at `path` (schema or namespace node). */
-export function setTablesAtPath({
-  nodes,
-  path,
-  tables,
-}: {
-  nodes: CatalogNode[];
-  path: string[];
-  tables: DataTable[];
-}): CatalogNode[] {
-  return updateNodeAtPath({
-    nodes,
-    path,
-    update: (node) => {
-      if (isSchemaNode(node)) {
-        return { ...node, tables };
-      }
-      if (isNamespaceNode(node)) {
-        return withNamespaceTables(node, tables);
-      }
-      return node;
-    },
-  });
-}
-
 /** Upsert a single table (by name) into the node at `path`. */
 export function mergeTableAtPath({
   nodes,
@@ -185,6 +155,11 @@ export function mergeTableAtPath({
   path: string[];
   table: DataTable;
 }): CatalogNode[] {
+  if (path.length === 0) {
+    const nonTables = nodes.filter((child) => !isDataTableNode(child));
+    const existingTables = nodes.filter(isDataTableNode);
+    return [...nonTables, ...upsertTable(existingTables, table)];
+  }
   return updateNodeAtPath({
     nodes,
     path,
@@ -201,7 +176,8 @@ export function mergeTableAtPath({
   });
 }
 
-export function setChildNodesAtPath({
+/** Replace the immediate catalog children at `path`. */
+export function setCatalogChildrenAtPath({
   nodes,
   path,
   children,
@@ -217,10 +193,13 @@ export function setChildNodesAtPath({
     nodes,
     path,
     update: (node) => {
-      if (!isNamespaceNode(node)) {
-        return node;
+      if (isSchemaNode(node)) {
+        return { ...node, tables: children.filter(isDataTableNode) };
       }
-      return { ...node, children };
+      if (isNamespaceNode(node)) {
+        return { ...node, children };
+      }
+      return node;
     },
   });
 }
@@ -240,10 +219,9 @@ export function walkCatalogNodes({
   visit: (ctx: CatalogWalkContext & { node: CatalogNode }) => void;
 }): void {
   for (const node of nodes) {
-    const segments =
-      isDataTableNode(node) || isSchemaless(node.name)
-        ? context.segments
-        : [...context.segments, node.name];
+    const segments = isDataTableNode(node)
+      ? context.segments
+      : [...context.segments, node.name];
     visit({ ...context, segments, node });
 
     if (isSchemaNode(node) || isDataTableNode(node)) {

@@ -9,19 +9,17 @@ import pytest
 from marimo._data.models import Namespace
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import (
+    CatalogChildrenPreviewNotification,
     DataSourceConnectionsNotification,
-    SQLDatabaseMetadata,
+    SQLCatalogMetadata,
     SQLMetadata,
-    SQLSchemaListPreviewNotification,
-    SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     ValidateSQLResultNotification,
 )
 from marimo._runtime.commands import (
     ExecuteCellCommand,
+    ListCatalogChildrenCommand,
     ListDataSourceConnectionCommand,
-    ListSQLSchemasCommand,
-    ListSQLTablesCommand,
     PreviewSQLTableCommand,
     ValidateSQLCommand,
 )
@@ -189,64 +187,35 @@ class TestPreviewSQLTable:
 
 
 @pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")
-class TestPreviewSQLSchemaList:
+class TestPreviewCatalogChildren:
     async def test_non_existent_engine(
         self, mocked_kernel: MockedKernel
     ) -> None:
         k = mocked_kernel.k
         stream = mocked_kernel.stream
 
-        preview_sql_schema_list_request = ListSQLSchemasCommand(
+        request = ListCatalogChildrenCommand(
             request_id=RequestId("0"),
             engine=DUCKDB_CONN,
             database="test",
+            catalog_path=["nested"],
         )
-        await k.handle_message(preview_sql_schema_list_request)
-        preview_sql_schema_list_results = [
+        await k.handle_message(request)
+
+        results = [
             op
             for op in stream.operations
-            if isinstance(op, SQLSchemaListPreviewNotification)
+            if isinstance(op, CatalogChildrenPreviewNotification)
         ]
-        assert preview_sql_schema_list_results == [
-            SQLSchemaListPreviewNotification(
+        assert results == [
+            CatalogChildrenPreviewNotification(
                 request_id=RequestId("0"),
-                schemas=[],
+                children=[],
                 error="Engine not found",
-                metadata=SQLDatabaseMetadata(
-                    connection=DUCKDB_CONN, database="test"
-                ),
-            )
-        ]
-
-    async def test_catalog_engine(
-        self,
-        mocked_kernel: MockedKernel,
-        connection_requests: list[ExecuteCellCommand],
-    ) -> None:
-        k = mocked_kernel.k
-        stream = mocked_kernel.stream
-
-        await k.run(connection_requests)
-
-        preview_sql_schema_list_request = ListSQLSchemasCommand(
-            request_id=RequestId("0"),
-            engine=DUCKDB_CONN,
-            database="test",
-        )
-        await k.handle_message(preview_sql_schema_list_request)
-
-        preview_sql_schema_list_results = [
-            op
-            for op in stream.operations
-            if isinstance(op, SQLSchemaListPreviewNotification)
-        ]
-        assert preview_sql_schema_list_results == [
-            SQLSchemaListPreviewNotification(
-                request_id=RequestId("0"),
-                schemas=[],
-                error=None,
-                metadata=SQLDatabaseMetadata(
-                    connection=DUCKDB_CONN, database="test"
+                metadata=SQLCatalogMetadata(
+                    connection=DUCKDB_CONN,
+                    database="test",
+                    catalog_path=["nested"],
                 ),
             )
         ]
@@ -261,87 +230,45 @@ class TestPreviewSQLSchemaList:
 
         await k.run(connection_requests)
 
-        preview_sql_schema_list_request = ListSQLSchemasCommand(
+        request = ListCatalogChildrenCommand(
             request_id=RequestId("0"),
             engine=SQLITE_CONN,
             database="test",
         )
-        await k.handle_message(preview_sql_schema_list_request)
+        await k.handle_message(request)
 
-        preview_sql_schema_list_results = [
+        results = [
             op
             for op in stream.operations
-            if isinstance(op, SQLSchemaListPreviewNotification)
+            if isinstance(op, CatalogChildrenPreviewNotification)
         ]
-        assert preview_sql_schema_list_results == [
-            SQLSchemaListPreviewNotification(
+        assert results == [
+            CatalogChildrenPreviewNotification(
                 request_id=RequestId("0"),
-                schemas=[],
+                children=[],
                 error="Connection does not support catalog operations",
-                metadata=SQLDatabaseMetadata(
+                metadata=SQLCatalogMetadata(
                     connection=SQLITE_CONN, database="test"
                 ),
             )
         ]
 
-    async def test_flat_engine_ignores_schema_path(
-        self,
-        mocked_kernel: MockedKernel,
-        connection_requests: list[ExecuteCellCommand],
-    ) -> None:
-        """Flat catalog engines ignore schema_path and return no child nodes."""
-        k = mocked_kernel.k
-        stream = mocked_kernel.stream
-
-        await k.run(connection_requests)
-
-        preview_sql_schema_list_request = ListSQLSchemasCommand(
-            request_id=RequestId("0"),
-            engine=DUCKDB_CONN,
-            database="test",
-            schema_path=["sub"],
-        )
-        await k.handle_message(preview_sql_schema_list_request)
-
-        results = [
-            op
-            for op in stream.operations
-            if isinstance(op, SQLSchemaListPreviewNotification)
-        ]
-        assert results == [
-            SQLSchemaListPreviewNotification(
-                request_id=RequestId("0"),
-                schemas=[],
-                error=None,
-                metadata=SQLDatabaseMetadata(
-                    connection=DUCKDB_CONN,
-                    database="test",
-                    schema_path=["sub"],
-                ),
-            )
-        ]
-
-    async def test_nested_schema_path_lists_children(
+    async def test_catalog_engine_path(
         self,
         mocked_kernel: MockedKernel,
     ) -> None:
-        """Nested catalog engines receive schema_path and return one level."""
         k = mocked_kernel.k
         stream = mocked_kernel.stream
 
         mock_engine = MagicMock()
-        mock_engine.get_schemas.return_value = [
-            Namespace(
-                name="deep",
-                children=[],
-            )
+        mock_engine.get_catalog_children.return_value = [
+            Namespace(name="deep", children=[])
         ]
-
-        preview_sql_schema_list_request = ListSQLSchemasCommand(
+        request = ListCatalogChildrenCommand(
             request_id=RequestId("0"),
             engine="nested_catalog",
             database="top",
-            schema_path=["nested"],
+            catalog_path=["nested"],
         )
 
         with patch.object(
@@ -349,129 +276,27 @@ class TestPreviewSQLSchemaList:
             "get_engine_catalog",
             return_value=(mock_engine, None),
         ):
-            await k.handle_message(preview_sql_schema_list_request)
+            await k.handle_message(request)
 
-        mock_engine.get_schemas.assert_called_once_with(
+        mock_engine.get_catalog_children.assert_called_once_with(
             database="top",
-            include_tables=False,
+            catalog_path=["nested"],
             include_table_details=False,
-            schema_path=["nested"],
         )
-
         results = [
             op
             for op in stream.operations
-            if isinstance(op, SQLSchemaListPreviewNotification)
+            if isinstance(op, CatalogChildrenPreviewNotification)
         ]
         assert results == [
-            SQLSchemaListPreviewNotification(
+            CatalogChildrenPreviewNotification(
                 request_id=RequestId("0"),
-                schemas=mock_engine.get_schemas.return_value,
+                children=mock_engine.get_catalog_children.return_value,
                 error=None,
-                metadata=SQLDatabaseMetadata(
+                metadata=SQLCatalogMetadata(
                     connection="nested_catalog",
                     database="top",
-                    schema_path=["nested"],
-                ),
-            )
-        ]
-
-
-@pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")
-class TestPreviewSQLTableList:
-    async def test_non_existent_engine(
-        self, mocked_kernel: MockedKernel
-    ) -> None:
-        k = mocked_kernel.k
-        stream = mocked_kernel.stream
-
-        preview_sql_table_list_request = ListSQLTablesCommand(
-            request_id=RequestId("0"),
-            engine=DUCKDB_CONN,
-            database="test",
-            schema="test",
-        )
-        await k.handle_message(preview_sql_table_list_request)
-        preview_sql_table_list_results = [
-            op
-            for op in stream.operations
-            if isinstance(op, SQLTableListPreviewNotification)
-        ]
-        assert preview_sql_table_list_results == [
-            SQLTableListPreviewNotification(
-                request_id=RequestId("0"),
-                tables=[],
-                error="Engine not found",
-                metadata=SQLMetadata(
-                    connection=DUCKDB_CONN, database="test", schema="test"
-                ),
-            )
-        ]
-
-    async def test_catalog_engine(
-        self,
-        mocked_kernel: MockedKernel,
-        connection_requests: list[ExecuteCellCommand],
-    ) -> None:
-        k = mocked_kernel.k
-        stream = mocked_kernel.stream
-
-        await k.run(connection_requests)
-
-        preview_sql_table_list_request = ListSQLTablesCommand(
-            request_id=RequestId("0"),
-            engine=DUCKDB_CONN,
-            database="test",
-            schema="test",
-        )
-        await k.handle_message(preview_sql_table_list_request)
-
-        preview_sql_table_list_results = [
-            op
-            for op in stream.operations
-            if isinstance(op, SQLTableListPreviewNotification)
-        ]
-        assert preview_sql_table_list_results == [
-            SQLTableListPreviewNotification(
-                request_id=RequestId("0"),
-                tables=[],
-                error=None,
-                metadata=SQLMetadata(
-                    connection=DUCKDB_CONN, database="test", schema="test"
-                ),
-            )
-        ]
-
-    async def test_query_engine(
-        self,
-        mocked_kernel: MockedKernel,
-        connection_requests: list[ExecuteCellCommand],
-    ) -> None:
-        k = mocked_kernel.k
-        stream = mocked_kernel.stream
-
-        await k.run(connection_requests)
-
-        preview_sql_table_list_request = ListSQLTablesCommand(
-            request_id=RequestId("0"),
-            engine=SQLITE_CONN,
-            database="test",
-            schema="test",
-        )
-        await k.handle_message(preview_sql_table_list_request)
-
-        preview_sql_table_list_results = [
-            op
-            for op in stream.operations
-            if isinstance(op, SQLTableListPreviewNotification)
-        ]
-        assert preview_sql_table_list_results == [
-            SQLTableListPreviewNotification(
-                request_id=RequestId("0"),
-                tables=[],
-                error="Connection does not support catalog operations",
-                metadata=SQLMetadata(
-                    connection=SQLITE_CONN, database="test", schema="test"
+                    catalog_path=["nested"],
                 ),
             )
         ]

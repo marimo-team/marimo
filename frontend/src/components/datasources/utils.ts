@@ -2,7 +2,7 @@
 
 import { BigQueryDialect } from "@marimo-team/codemirror-sql/dialects";
 import { isKnownDialect } from "@/core/codemirror/language/languages/sql/utils";
-import { catalogNodePath, isSchemaless } from "@/core/datasets/catalog";
+import { catalogNodePath } from "@/core/datasets/catalog";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import type { DataTable, DataType } from "@/core/kernel/messages";
@@ -137,7 +137,7 @@ export function sqlCode({
     const tablePath = [table.name];
 
     // Set the fully qualified table name based on schema and database
-    if (isSchemaless(schema)) {
+    if (!schema) {
       if (database !== defaultDatabase) {
         tablePath.unshift(database);
       }

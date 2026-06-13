@@ -18,10 +18,9 @@ from marimo._runtime.commands import (
     HTTPRequest,
     InstallPackagesCommand,
     InvokeFunctionCommand,
+    ListCatalogChildrenCommand,
     ListDataSourceConnectionCommand,
     ListSecretKeysCommand,
-    ListSQLSchemasCommand,
-    ListSQLTablesCommand,
     ModelCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
@@ -96,24 +95,13 @@ class ListDataSourceConnectionRequest(
         return ListDataSourceConnectionCommand(engine=self.engine)
 
 
-class ListSQLTablesRequest(ListSQLTablesCommand, tag=False):
-    def as_command(self) -> ListSQLTablesCommand:
-        return ListSQLTablesCommand(
+class ListCatalogChildrenRequest(ListCatalogChildrenCommand, tag=False):
+    def as_command(self) -> ListCatalogChildrenCommand:
+        return ListCatalogChildrenCommand(
             request_id=self.request_id,
             engine=self.engine,
             database=self.database,
-            schema=self.schema,
-            schema_path=self.schema_path,
-        )
-
-
-class ListSQLSchemasRequest(ListSQLSchemasCommand, tag=False):
-    def as_command(self) -> ListSQLSchemasCommand:
-        return ListSQLSchemasCommand(
-            request_id=self.request_id,
-            engine=self.engine,
-            database=self.database,
-            schema_path=self.schema_path,
+            catalog_path=self.catalog_path,
         )
 
 

@@ -10,14 +10,14 @@ import pytest
 from marimo._data.models import DataTable, DataTableColumn, Namespace, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.pyiceberg import PyIcebergEngine
-from marimo._sql.engines.types import (
-    NO_SCHEMA_NAME,
-    EngineCatalog,
-    QueryEngine,
-)
+from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._types.ids import VariableName
 
 HAS_PYICEBERG = DependencyManager.pyiceberg.has()
+
+
+def _table_nodes_at_root(children: list) -> list[DataTable]:
+    return [node for node in children if isinstance(node, DataTable)]
 
 
 def _schema_nodes(children: list) -> list[Schema]:
@@ -213,7 +213,7 @@ def test_pyiceberg_get_table_details(memory_catalog: Catalog) -> None:
     )
     table = engine.get_table_details(
         table_name="table1",
-        schema_name=NO_SCHEMA_NAME,
+        schema_name="",
         database_name="default",
     )
 
@@ -281,25 +281,20 @@ def test_pyiceberg_get_databases(memory_catalog: Catalog) -> None:
     by_name = {db.name: db for db in databases}
     assert set(by_name) == {"default", "test_namespace", "top"}
 
-    # "default" has its own tables in a schemaless Schema, no sub-namespaces.
-    default_schemas = {
-        s.name: s for s in _schema_nodes(by_name["default"].children)
-    }
+    # "default" has its own tables as direct children, no sub-namespaces.
+    default_tables = _table_nodes_at_root(by_name["default"].children)
     assert by_name["default"].dialect == "iceberg"
-    assert set(default_schemas) == {NO_SCHEMA_NAME}
-    assert len(default_schemas[NO_SCHEMA_NAME].tables) == 2
+    assert len(default_tables) == 2
 
-    assert {
-        s.name for s in _schema_nodes(by_name["test_namespace"].children)
-    } == {NO_SCHEMA_NAME}
+    assert len(_table_nodes_at_root(by_name["test_namespace"].children)) == 1
 
     # "top" has no tables of its own but contains the "nested" sub-namespace.
-    top_schemas = {s.name: s for s in _schema_nodes(by_name["top"].children)}
+    top_tables = _table_nodes_at_root(by_name["top"].children)
     top_namespaces = {
         n.name: n for n in _namespace_nodes(by_name["top"].children)
     }
-    assert set(top_schemas) | set(top_namespaces) == {NO_SCHEMA_NAME, "nested"}
-    assert top_schemas[NO_SCHEMA_NAME].tables == []
+    assert set(top_namespaces) == {"nested"}
+    assert top_tables == []
 
     nested = top_namespaces["nested"]
     assert [t.name for t in _table_nodes(nested)] == ["table4"]
@@ -314,12 +309,11 @@ def test_pyiceberg_get_databases(memory_catalog: Catalog) -> None:
     )
     by_name = {db.name: db for db in databases}
     assert set(by_name) == {"default", "test_namespace", "top"}
-    top_schemas = {s.name: s for s in _schema_nodes(by_name["top"].children)}
     top_namespaces = {
         n.name: n for n in _namespace_nodes(by_name["top"].children)
     }
     # Sub-namespace is present but its tables/children are deferred.
-    assert set(top_schemas) | set(top_namespaces) == {NO_SCHEMA_NAME, "nested"}
+    assert set(top_namespaces) == {"nested"}
     nested = top_namespaces["nested"]
     assert nested.children == []
 
@@ -367,12 +361,11 @@ def test_pyiceberg_connection_is_lazy(memory_catalog: Catalog) -> None:
 
     # First-level children are present...
     top = by_name["top"]
-    top_schemas = {s.name: s for s in _schema_nodes(top.children)}
     top_namespaces = {n.name: n for n in _namespace_nodes(top.children)}
-    assert set(top_schemas) | set(top_namespaces) == {NO_SCHEMA_NAME, "nested"}
+    assert set(top_namespaces) == {"nested"}
 
     # ...but their tables and deeper sub-namespaces are deferred.
-    assert top_schemas[NO_SCHEMA_NAME].tables == []
+    assert _table_nodes_at_root(top.children) == []
     nested = top_namespaces["nested"]
     assert nested.children == []
 
@@ -384,16 +377,15 @@ def test_pyiceberg_get_schemas_by_path(memory_catalog: Catalog) -> None:
         memory_catalog, engine_name=VariableName("my_iceberg")
     )
 
-    # Top level: the schemaless entry plus the immediate child "nested"
-    # (deferred, not recursed).
+    # Top level: immediate child "nested" (deferred, not recursed).
     nodes = engine.get_schemas(
         database="top",
         include_tables=False,
         include_table_details=False,
         schema_path=[],
     )
-    assert [n.name for n in nodes] == [NO_SCHEMA_NAME, "nested"]
-    nested = nodes[1]
+    assert [n.name for n in nodes] == ["nested"]
+    nested = nodes[0]
     assert isinstance(nested, Namespace)
     assert nested.children == []
 
@@ -427,7 +419,7 @@ def test_pyiceberg_nested_namespace_tables(memory_catalog: Catalog) -> None:
     )
 
     tables = engine.get_tables_in_schema(
-        schema=NO_SCHEMA_NAME,
+        schema="",
         database="top.nested",
         include_table_details=True,
     )
@@ -436,7 +428,7 @@ def test_pyiceberg_nested_namespace_tables(memory_catalog: Catalog) -> None:
 
     table = engine.get_table_details(
         table_name="table5",
-        schema_name=NO_SCHEMA_NAME,
+        schema_name="",
         database_name="top.nested.deep",
     )
     assert table is not None
@@ -457,7 +449,7 @@ def test_pyiceberg_table_calls_fold_schema_path(
 
     # database + schema_path is equivalent to the pre-folded dotted database.
     tables = engine.get_tables_in_schema(
-        schema=NO_SCHEMA_NAME,
+        schema="",
         database="top",
         schema_path=["nested"],
         include_table_details=True,
@@ -466,7 +458,7 @@ def test_pyiceberg_table_calls_fold_schema_path(
 
     table = engine.get_table_details(
         table_name="table5",
-        schema_name=NO_SCHEMA_NAME,
+        schema_name="",
         database_name="top",
         schema_path=["nested", "deep"],
     )
@@ -498,10 +490,7 @@ def test_pyiceberg_auto_discovery(memory_catalog: Catalog) -> None:
     assert isinstance(databases, list)
     assert len(databases) == 3
     by_name = {db.name: db for db in databases}
-    default_schemas = {
-        s.name: s for s in _schema_nodes(by_name["default"].children)
-    }
-    assert len(default_schemas[NO_SCHEMA_NAME].tables) == 2
+    assert len(_table_nodes_at_root(by_name["default"].children)) == 2
 
     # Test with _is_cheap_discovery mocked to return False
     with mock.patch.object(

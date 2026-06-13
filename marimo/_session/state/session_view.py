@@ -12,6 +12,7 @@ from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleTuple
 from marimo._messaging.notification import (
+    CatalogChildrenPreviewNotification,
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
@@ -22,8 +23,6 @@ from marimo._messaging.notification import (
     ModelOpen,
     ModelUpdate,
     NotificationMessage,
-    SQLSchemaListPreviewNotification,
-    SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
     StorageNamespacesNotification,
@@ -43,9 +42,8 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
 )
 from marimo._sql.connection_utils import (
-    update_schema_list_in_connection,
+    update_catalog_children_in_connection,
     update_table_in_connection,
-    update_table_list_in_connection,
 )
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, UIElementId, WidgetModelId
@@ -367,25 +365,12 @@ class SessionView:
                     sql_table_preview.table,
                 )
 
-        elif isinstance(notification, SQLSchemaListPreviewNotification):
-            sql_schema_list_preview = notification
-            sql_db_metadata = sql_schema_list_preview.metadata
-            schema_list_connections = self.data_connectors.connections
-            if sql_schema_list_preview.schemas is not None:
-                update_schema_list_in_connection(
-                    schema_list_connections,
-                    sql_db_metadata,
-                    sql_schema_list_preview.schemas,
-                )
-
-        elif isinstance(notification, SQLTableListPreviewNotification):
-            sql_table_list_preview = notification
-            sql_metadata = sql_table_list_preview.metadata
-            table_list_connections = self.data_connectors.connections
-            update_table_list_in_connection(
-                table_list_connections,
-                sql_metadata,
-                sql_table_list_preview.tables,
+        elif isinstance(notification, CatalogChildrenPreviewNotification):
+            catalog_children_preview = notification
+            update_catalog_children_in_connection(
+                self.data_connectors.connections,
+                catalog_children_preview.metadata,
+                catalog_children_preview.children,
             )
 
         elif isinstance(notification, UIElementMessageNotification):

@@ -32,9 +32,8 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import {
-  PreviewSQLSchemaList,
+  PreviewCatalogChildren,
   PreviewSQLTable,
-  PreviewSQLTableList,
 } from "@/core/datasets/request-registry";
 import {
   closeAllColumnsAtom,
@@ -48,8 +47,7 @@ import {
   isDataTableNode,
   isNamespaceNode,
   isSchemaNode,
-  partitionNamespaceChildren,
-  isSchemaless,
+  partitionCatalogChildren,
 } from "@/core/datasets/catalog";
 import {
   type CatalogLoadState,
@@ -97,7 +95,7 @@ import { sqlCode, tableUniqueId } from "./utils";
 const INDENT_STEP = 1; // rem per schema nesting level (depth 0 = top-level)
 
 // Indentation (rem) for a schema and its contents at a given nesting depth.
-// Depth 0 is a top-level schema; schemaless tables/columns reuse depth 0 too.
+// Depth 0 is a top-level schema; inline tables/columns at the database root reuse depth 0 too.
 function schemaHeaderIndentRem(depth: number): number {
   return 1.75 + depth * INDENT_STEP;
 }
@@ -563,7 +561,7 @@ function useDataSourceTree(): DataSourceTree {
   return tree;
 }
 
-// Build the table context for a (possibly schemaless) schema
+// Build the table context for a schema or namespace path
 function buildSqlTableContext(
   tree: DataSourceTree,
   { schema, schemaPath }: { schema: string; schemaPath: string[] },
@@ -679,110 +677,78 @@ interface CatalogNodeListProps {
   nodePath: string[];
   // Nesting depth (0 = top-level).
   depth: number;
+  // Table indentation depth; differs from child-node depth under namespaces.
+  tableDepth?: number;
 }
 
 const CatalogNodeList: React.FC<CatalogNodeListProps> = (props) => {
   const { nodes, childrenResolved, depth } = props;
   const tree = useDataSourceTree();
-  const { engineName, databaseName, searchValue } = tree;
-  const { addSchemaList } = useDataSourceActions();
+  const { engineName, databaseName, searchValue, catalogLoad } = tree;
+  const { addCatalogChildren } = useDataSourceActions();
   // Stable identity so the useAsyncData below doesn't refire each render.
   const nodePath = useDeepCompareMemoize(props.nodePath);
+  const tableDepth = props.tableDepth ?? depth;
+  const { childNodes, tables: inlineTables } = partitionCatalogChildren(nodes);
+  const tablesResolved = catalogLoad.tablesLoaded.has(
+    catalogPathKey(databaseName, nodePath),
+  );
 
   // Custom loading state, we need to wait for the data to propagate once requested
   // useAsyncData's loading state may return false before data has propagated
   const [childrenLoading, setChildrenLoading] = React.useState(false);
 
   const { isPending, error } = useAsyncData(async () => {
-    if (!childrenResolved && engineName) {
+    if ((!childrenResolved || !tablesResolved) && engineName) {
       setChildrenLoading(true);
       try {
-        const previewSchemaList = await PreviewSQLSchemaList.request({
+        const preview = await PreviewCatalogChildren.request({
           engine: engineName,
           database: databaseName,
-          schemaPath: nodePath,
+          catalogPath: nodePath,
         });
 
-        addSchemaList({
-          nodes: previewSchemaList.schemas ?? [],
-          sqlSchemaContext: {
+        addCatalogChildren({
+          nodes: preview.children ?? [],
+          sqlCatalogContext: {
             engine: engineName,
             database: databaseName,
-            schemaPath: nodePath,
+            catalogPath: nodePath,
           },
         });
       } finally {
         setChildrenLoading(false);
       }
     }
-  }, [childrenResolved, engineName, databaseName, nodePath]);
+  }, [childrenResolved, tablesResolved, engineName, databaseName, nodePath]);
 
   const stateStyle = indentStyle(schemaHeaderIndentRem(depth));
 
   if (isPending || childrenLoading) {
-    return <LoadingState message="Loading schemas..." style={stateStyle} />;
+    return <LoadingState message="Loading catalog..." style={stateStyle} />;
   }
 
   if (error) {
     return <ErrorState error={error} style={stateStyle} />;
   }
 
-  // Leaf namespaces (e.g. Iceberg) may have tables but no child namespaces; an
-  // empty resolved list is normal and tables are loaded by a sibling TableList.
-  if (nodes.length === 0) {
-    if (childrenResolved && nodePath.length > 0) {
-      return null;
-    }
-    return <EmptyState content="No schemas available" style={stateStyle} />;
+  if (childNodes.length === 0 && inlineTables.length === 0) {
+    const content =
+      nodePath.length === 0 ? "No schemas available" : "No tables found";
+    return <EmptyState content={content} style={stateStyle} />;
   }
 
-  const hasCatalogStructure = nodes.some(
-    (n) => isNamespaceNode(n) || (isSchemaNode(n) && !isSchemaless(n.name)),
+  const hasCatalogStructure = childNodes.some(
+    (n) => isNamespaceNode(n) || isSchemaNode(n),
   );
-
+  const tableContext = buildSqlTableContext(tree, {
+    schema: nodePath.length > 0 ? (nodePath.at(-1) ?? "") : "",
+    schemaPath: nodePath,
+  });
   return (
     <>
-      {nodes.map((node) => {
-        if (isDataTableNode(node)) {
-          return (
-            <DatasetTableItem
-              key={node.name}
-              table={node}
-              sqlTableContext={buildSqlTableContext(tree, {
-                schema: nodePath[nodePath.length - 1] ?? "",
-                schemaPath: nodePath,
-              })}
-              isSearching={!!searchValue}
-              tableIndentRem={schemaTableIndentRem(depth)}
-              columnIndentRem={schemaColumnIndentRem(depth)}
-            />
-          );
-        }
+      {childNodes.map((node) => {
         if (isSchemaNode(node) || isNamespaceNode(node)) {
-          // Schemaless schemas render their tables directly with no expandable node.
-          if (isSchemaNode(node) && isSchemaless(node.name)) {
-            return (
-              <TableList
-                key={node.name || "__schemaless__"}
-                tables={node.tables}
-                tablesResolved={tree.catalogLoad.tablesLoaded.has(
-                  catalogPathKey(
-                    tree.databaseName,
-                    catalogNodePath({
-                      schema: node.name,
-                      schemaPath: nodePath,
-                    }),
-                  ),
-                )}
-                hideEmpty={hasCatalogStructure}
-                searchValue={searchValue}
-                sqlTableContext={buildSqlTableContext(tree, {
-                  schema: node.name,
-                  schemaPath: nodePath,
-                })}
-              />
-            );
-          }
           return (
             <CatalogTreeNode
               key={node.name}
@@ -794,6 +760,16 @@ const CatalogNodeList: React.FC<CatalogNodeListProps> = (props) => {
         }
         return null;
       })}
+      {inlineTables.length > 0 && (
+        <TableList
+          tables={inlineTables}
+          hideEmpty={hasCatalogStructure}
+          searchValue={searchValue}
+          sqlTableContext={tableContext}
+          tableIndentRem={schemaTableIndentRem(tableDepth)}
+          columnIndentRem={schemaColumnIndentRem(tableDepth)}
+        />
+      )}
     </>
   );
 };
@@ -810,62 +786,28 @@ const CatalogTreeNode: React.FC<CatalogTreeNodeProps> = ({
   depth,
 }) => {
   const tree = useDataSourceTree();
-  const { catalogLoad, databaseName, hasSearch, searchValue } = tree;
+  const { catalogLoad, databaseName, hasSearch } = tree;
   const [isExpanded, setIsExpanded] = React.useState(hasSearch);
   const [isSelected, setIsSelected] = React.useState(false);
   const uniqueValue = `${databaseName}:${nodePath.join(".")}`;
-  const tableContext = buildSqlTableContext(tree, {
-    schema: node.name,
-    schemaPath: nodePath,
-  });
-  const tableListProps = {
-    searchValue,
-    tableIndentRem: schemaTableIndentRem(depth),
-    columnIndentRem: schemaColumnIndentRem(depth),
-    sqlTableContext: tableContext,
-  };
 
   let expandedContent: React.ReactNode = null;
   if (isExpanded) {
-    if (isNamespaceNode(node)) {
-      const { childNodes, tables } = partitionNamespaceChildren(node);
-      const childrenResolved = catalogLoad.childrenLoaded.has(
-        catalogPathKey(databaseName, nodePath),
-      );
-      expandedContent = (
-        <>
-          {(childNodes.length > 0 || !childrenResolved) && (
-            <CatalogNodeList
-              nodes={childNodes}
-              childrenResolved={childrenResolved}
-              nodePath={nodePath}
-              depth={depth + 1}
-            />
-          )}
-          <TableList
-            tables={tables}
-            tablesResolved={catalogLoad.tablesLoaded.has(
-              catalogPathKey(databaseName, nodePath),
-            )}
-            hideEmpty={childNodes.length > 0}
-            {...tableListProps}
-          />
-        </>
-      );
-    } else {
-      expandedContent = (
-        <TableList
-          tables={node.tables}
-          tablesResolved={catalogLoad.tablesLoaded.has(
-            catalogPathKey(
-              databaseName,
-              catalogNodePath({ schema: node.name, schemaPath: nodePath }),
-            ),
-          )}
-          {...tableListProps}
-        />
-      );
-    }
+    const isNamespace = isNamespaceNode(node);
+    const children = isNamespace ? node.children : node.tables;
+    const loadKey = catalogPathKey(databaseName, nodePath);
+    const childrenResolved =
+      catalogLoad.childrenLoaded.has(loadKey) ||
+      (!isNamespace && catalogLoad.tablesLoaded.has(loadKey));
+    expandedContent = (
+      <CatalogNodeList
+        nodes={children}
+        childrenResolved={childrenResolved}
+        nodePath={nodePath}
+        depth={isNamespace ? depth + 1 : depth}
+        tableDepth={depth}
+      />
+    );
   }
 
   return (
@@ -899,67 +841,22 @@ const TableList: React.FC<{
   tables: DataTable[];
   sqlTableContext?: SQLTableContext;
   searchValue?: string;
-  // Whether `tables` has been enumerated; when false, discovery is deferred and
-  // a request is issued on mount (i.e. when the parent is expanded).
-  tablesResolved?: boolean;
   // When true, omit the empty state if this level has no tables but sibling
   // schemas/namespaces exist at the same level.
   hideEmpty?: boolean;
   // Depth-based indentation (rem) for nested schema tables/columns. When
-  // omitted, the fixed INDENT levels are used (top-level / schemaless tables).
+  // omitted, the fixed INDENT levels are used (top-level / inline tables).
   tableIndentRem?: number;
   columnIndentRem?: number;
 }> = ({
   tables,
   sqlTableContext,
   searchValue,
-  tablesResolved = true,
   hideEmpty = false,
   tableIndentRem,
   columnIndentRem,
 }) => {
-  const { addTableList } = useDataSourceActions();
-
-  // Custom loading state, we need to wait for the data to propagate once requested
-  // useAsyncData's loading state may return false before data has propagated
-  const [tablesLoading, setTablesLoading] = React.useState(false);
-
-  // Fetch when discovery is deferred (also re-fetches after a refresh, which
-  // resets tablesResolved to false).
-  const { isPending, error } = useAsyncData(async () => {
-    if (!tablesResolved && sqlTableContext) {
-      setTablesLoading(true);
-
-      const { engine, database, schema, schemaPath } = sqlTableContext;
-      const previewTableList = await PreviewSQLTableList.request({
-        engine: engine,
-        database: database,
-        schema: schema,
-        schemaPath: schemaPath ?? [],
-      });
-
-      if (!previewTableList?.tables) {
-        setTablesLoading(false);
-        throw new Error("No tables available");
-      }
-
-      addTableList({
-        tables: previewTableList.tables,
-        sqlTableContext: sqlTableContext,
-      });
-      setTablesLoading(false);
-    }
-  }, [tablesResolved, sqlTableContext]);
-
   const stateStyle = indentStyle(tableIndentRem ?? INDENT.tableLoading);
-
-  if (isPending || tablesLoading) {
-    return <LoadingState message="Loading tables..." style={stateStyle} />;
-  }
-
-  if (error) {
-    return <ErrorState error={error} style={stateStyle} />;
-  }
 
   if (tables.length === 0) {
     if (hideEmpty) {

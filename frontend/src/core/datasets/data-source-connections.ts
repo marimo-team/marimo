@@ -16,8 +16,7 @@ import {
   isNamespaceNode,
   isSchemaNode,
   mergeTableAtPath,
-  setChildNodesAtPath,
-  setTablesAtPath,
+  setCatalogChildrenAtPath,
   walkCatalogNodes,
 } from "./catalog";
 import {
@@ -66,12 +65,10 @@ export interface DataSourceState {
   connectionsMap: ConnectionsMap;
 }
 
-export interface SQLSchemaContext {
+export interface SQLCatalogContext {
   engine: string;
   database: string;
-  // Parent namespace path (relative to `database`) for nested catalogs.
-  // Empty/undefined for the database's top level.
-  schemaPath?: string[];
+  catalogPath?: string[];
 }
 
 export interface SQLTableContext {
@@ -170,19 +167,19 @@ const {
     };
   },
 
-  // Add schema list to a specific database in a connection
-  addSchemaList: (
+  // Add catalog children to a specific path in a connection
+  addCatalogChildren: (
     state: DataSourceState,
     opts: {
       nodes: CatalogNode[];
-      sqlSchemaContext: SQLSchemaContext;
+      sqlCatalogContext: SQLCatalogContext;
     },
   ): DataSourceState => {
-    const { nodes, sqlSchemaContext } = opts;
+    const { nodes, sqlCatalogContext } = opts;
     const { connectionsMap, latestEngineSelected } = state;
-    const connectionName = sqlSchemaContext.engine as ConnectionName;
-    const databaseName = sqlSchemaContext.database;
-    const schemaPath = sqlSchemaContext.schemaPath ?? [];
+    const connectionName = sqlCatalogContext.engine as ConnectionName;
+    const databaseName = sqlCatalogContext.database;
+    const catalogPath = sqlCatalogContext.catalogPath ?? [];
     const conn = connectionsMap.get(connectionName);
 
     if (!conn) {
@@ -194,98 +191,35 @@ const {
       return state;
     }
 
-    const parentNode = findNodeAtPath({
-      nodes: database.children,
-      path: schemaPath,
-    });
-    if (
-      schemaPath.length > 0 &&
-      (parentNode === undefined || !isNamespaceNode(parentNode))
-    ) {
-      return state;
+    if (catalogPath.length > 0) {
+      const parentNode = findNodeAtPath({
+        nodes: database.children,
+        path: catalogPath,
+      });
+      if (
+        parentNode === undefined ||
+        (!isSchemaNode(parentNode) && !isNamespaceNode(parentNode))
+      ) {
+        return state;
+      }
     }
 
-    const childrenLoadKey = catalogPathKey(databaseName, schemaPath);
+    const loadKey = catalogPathKey(databaseName, catalogPath);
     const newConn: DataSourceConnection = {
       ...conn,
       catalogLoad: {
-        ...conn.catalogLoad,
-        childrenLoaded: new Set([
-          ...conn.catalogLoad.childrenLoaded,
-          childrenLoadKey,
-        ]),
+        childrenLoaded: new Set([...conn.catalogLoad.childrenLoaded, loadKey]),
+        tablesLoaded: new Set([...conn.catalogLoad.tablesLoaded, loadKey]),
       },
       databases: conn.databases.map((db) =>
         db.name === databaseName
           ? {
               ...db,
-              children: setChildNodesAtPath({
+              children: setCatalogChildrenAtPath({
                 nodes: db.children,
-                path: schemaPath,
+                path: catalogPath,
                 children: nodes,
               }),
-            }
-          : db,
-      ),
-    };
-    const newMap = new Map(connectionsMap).set(connectionName, newConn);
-
-    return {
-      latestEngineSelected: latestEngineSelected,
-      connectionsMap: newMap,
-    };
-  },
-
-  // Add table list to a specific schema in a connection
-  addTableList: (
-    state: DataSourceState,
-    opts: {
-      tables: DataTable[];
-      sqlTableContext: SQLTableContext;
-    },
-  ): DataSourceState => {
-    const { tables, sqlTableContext } = opts;
-    const { connectionsMap, latestEngineSelected } = state;
-    const connectionName = sqlTableContext.engine as ConnectionName;
-    const conn = connectionsMap.get(connectionName);
-
-    if (!conn) {
-      return state;
-    }
-
-    const path = catalogNodePath({
-      schema: sqlTableContext.schema,
-      schemaPath: sqlTableContext.schemaPath,
-    });
-    const databaseName = sqlTableContext.database;
-    const database = conn.databases.find((db) => db.name === databaseName);
-    if (!database) {
-      return state;
-    }
-
-    const targetNode = findNodeAtPath({ nodes: database.children, path });
-    if (
-      targetNode === undefined ||
-      (!isSchemaNode(targetNode) && !isNamespaceNode(targetNode))
-    ) {
-      return state;
-    }
-
-    const tablesLoadKey = catalogPathKey(sqlTableContext.database, path);
-    const newConn: DataSourceConnection = {
-      ...conn,
-      catalogLoad: {
-        ...conn.catalogLoad,
-        tablesLoaded: new Set([
-          ...conn.catalogLoad.tablesLoaded,
-          tablesLoadKey,
-        ]),
-      },
-      databases: conn.databases.map((db) =>
-        db.name === databaseName
-          ? {
-              ...db,
-              children: setTablesAtPath({ nodes: db.children, path, tables }),
             }
           : db,
       ),
@@ -391,7 +325,7 @@ export const allTablesAtom = atom((get) => {
             return;
           }
 
-          const schemalessDb = segments.length === 0;
+          const rootLevelTable = segments.length === 0;
           const isDefaultSchema =
             segments.length === 1 && segments[0] === conn.default_schema;
           const schemaQualifier = segments.join(".");
@@ -401,7 +335,7 @@ export const allTablesAtom = atom((get) => {
           for (const table of tables) {
             let nameToSave: string = table.name;
 
-            if (schemalessDb) {
+            if (rootLevelTable) {
               nameToSave = isDefaultDb
                 ? table.name
                 : `${database.name}.${table.name}`;

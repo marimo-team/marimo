@@ -240,17 +240,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    previewSQLTableList: (request) => {
+    previewCatalogChildren: (request) => {
       return getClient()
-        .POST("/api/datasources/preview_sql_table_list", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    previewSQLSchemaList: (request) => {
-      return getClient()
-        .POST("/api/datasources/preview_sql_schema_list", {
+        .POST("/api/datasources/preview_catalog_children", {
           body: request,
           params: getParams(),
         })

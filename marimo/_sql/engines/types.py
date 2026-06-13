@@ -20,8 +20,6 @@ from marimo._sql.utils import (
 )
 from marimo._types.ids import VariableName
 
-NO_SCHEMA_NAME = ""
-
 
 @dataclass
 class InferenceConfig(ABC):
@@ -114,6 +112,42 @@ class EngineCatalog(BaseEngine[CONN], ABC):
         path lists the child nodes at that path. Only nested-namespace engines
         (e.g. Iceberg) honour a non-empty path; flat engines return `[]` for one.
         """
+
+    def get_catalog_children(
+        self,
+        *,
+        database: str,
+        catalog_path: list[str],
+        include_table_details: bool,
+    ) -> list[CatalogNode]:
+        """Return immediate catalog children at `catalog_path`.
+
+        The default implementation supports engines with a traditional schema
+        layer: database roots expand to schemas, and schema paths expand to
+        tables. Engines that expose tables directly on databases/namespaces
+        should override this method.
+        """
+        if not catalog_path:
+            return self.get_schemas(
+                database=database,
+                include_tables=False,
+                include_table_details=False,
+                schema_path=[],
+            )
+
+        child_nodes = self.get_schemas(
+            database=database,
+            include_tables=False,
+            include_table_details=False,
+            schema_path=catalog_path,
+        )
+        tables = self.get_tables_in_schema(
+            schema=catalog_path[-1],
+            database=database,
+            include_table_details=include_table_details,
+            schema_path=catalog_path,
+        )
+        return [*child_nodes, *tables]
 
     @abstractmethod
     def get_tables_in_schema(

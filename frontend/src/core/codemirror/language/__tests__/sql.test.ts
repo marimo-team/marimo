@@ -1561,7 +1561,43 @@ describe("tablesCompletionSource", () => {
     expect(completionSource?.dialect).toBe(PostgreSQL);
   });
 
-  it("should handle schemaless databases", () => {
+  it("should handle databases without a schema layer", () => {
+    const usersTable = {
+      kind: "data_table" as const,
+      name: "users",
+      source: "postgres",
+      source_type: "local" as const,
+      type: "table" as const,
+      num_columns: 0,
+      num_rows: 0,
+      variable_name: null,
+      columns: [
+        {
+          name: "id",
+          external_type: "string",
+          type: "string" as const,
+          sample_values: [],
+        },
+      ],
+    };
+    const ordersTable = {
+      kind: "data_table" as const,
+      name: "orders",
+      source: "postgres",
+      source_type: "local" as const,
+      type: "table" as const,
+      num_columns: 0,
+      num_rows: 0,
+      variable_name: null,
+      columns: [
+        {
+          name: "order_id",
+          external_type: "string",
+          type: "string" as const,
+          sample_values: [],
+        },
+      ],
+    };
     const mockConnection = testDataSourceConnection({
       name: TEST_ENGINE,
       dialect: "postgres",
@@ -1572,62 +1608,12 @@ describe("tablesCompletionSource", () => {
         {
           name: "test_db",
           dialect: "postgres",
-          children: [
-            {
-              kind: "schema",
-              name: "", // lack of name indicates schemaless
-              tables: [
-                {
-                  kind: "data_table",
-                  name: "users",
-                  source: "postgres",
-                  source_type: "local",
-                  type: "table",
-                  num_columns: 0,
-                  num_rows: 0,
-                  variable_name: null,
-                  columns: [
-                    {
-                      name: "id",
-                      external_type: "string",
-                      type: "string",
-                      sample_values: [],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
+          children: [usersTable],
         },
         {
           name: "test_db2",
           dialect: "postgres",
-          children: [
-            {
-              kind: "schema",
-              name: "",
-              tables: [
-                {
-                  kind: "data_table",
-                  name: "orders",
-                  source: "postgres",
-                  source_type: "local",
-                  type: "table",
-                  num_columns: 0,
-                  num_rows: 0,
-                  variable_name: null,
-                  columns: [
-                    {
-                      name: "order_id",
-                      external_type: "string",
-                      type: "string",
-                      sample_values: [],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
+          children: [ordersTable],
         },
       ],
     });

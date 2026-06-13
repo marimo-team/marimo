@@ -4,32 +4,19 @@ from __future__ import annotations
 import msgspec
 
 from marimo._server.models.models import (
-    ListSQLSchemasRequest,
-    ListSQLTablesRequest,
+    ListCatalogChildrenRequest,
     PreviewSQLTableRequest,
 )
 
 
-def test_list_sql_schemas_request_preserves_schema_path() -> None:
-    # Wire format is camelCase (Command uses rename="camel").
+def test_list_catalog_children_request_preserves_catalog_path() -> None:
     body = (
         b'{"requestId":"1","engine":"e","database":"top",'
-        b'"schemaPath":["nested"]}'
+        b'"catalogPath":["nested","deep"]}'
     )
-    request = msgspec.json.decode(body, type=ListSQLSchemasRequest)
-    assert request.schema_path == ["nested"]
-    # as_command must not drop the field.
-    assert request.as_command().schema_path == ["nested"]
-
-
-def test_list_sql_tables_request_preserves_schema_path() -> None:
-    body = (
-        b'{"requestId":"1","engine":"e","database":"top","schema":"deep",'
-        b'"schemaPath":["nested","deep"]}'
-    )
-    request = msgspec.json.decode(body, type=ListSQLTablesRequest)
-    assert request.schema_path == ["nested", "deep"]
-    assert request.as_command().schema_path == ["nested", "deep"]
+    request = msgspec.json.decode(body, type=ListCatalogChildrenRequest)
+    assert request.catalog_path == ["nested", "deep"]
+    assert request.as_command().catalog_path == ["nested", "deep"]
 
 
 def test_preview_sql_table_request_preserves_schema_path() -> None:

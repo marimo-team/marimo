@@ -150,10 +150,10 @@ describe("data source connections", () => {
 
     let newState = addConnection([connection], state);
     newState = reducer(newState, {
-      type: "addSchemaList",
+      type: "addCatalogChildren",
       payload: {
         nodes: [makeSchema("audit")],
-        sqlSchemaContext: { engine: "conn1", database: "db1" },
+        sqlCatalogContext: { engine: "conn1", database: "db1" },
       },
     });
     expect(
@@ -308,187 +308,6 @@ describe("filtering data sources", () => {
   });
 });
 
-describe("add schema list", () => {
-  const connections: DataSourceConnectionInput[] = [
-    {
-      name: "conn1" as ConnectionName,
-      source: "sqlite",
-      display_name: "SQLite DB",
-      dialect: "sqlite",
-      databases: [
-        {
-          name: "db1",
-          children: [],
-          dialect: "sqlite",
-        },
-      ],
-    },
-  ];
-
-  // Helper function to add schema list
-  const addSchemaList = (
-    schemas: DatabaseSchema[],
-    engine: string,
-    database: string,
-  ) => {
-    return reducer(baseState, {
-      type: "addSchemaList",
-      payload: {
-        nodes: schemas,
-        sqlSchemaContext: { engine, database },
-      },
-    });
-  };
-
-  let baseState: DataSourceState;
-
-  beforeEach(() => {
-    baseState = addConnection(connections, baseState);
-    expect(baseState.connectionsMap.size).toBe(defaultConnSize + 1);
-  });
-
-  it("adds schema list to a specific database", () => {
-    const schemaList: DatabaseSchema[] = [
-      makeSchema("public"),
-      makeSchema("analytics"),
-    ];
-    const newState = addSchemaList(schemaList, "conn1", "db1");
-
-    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
-    const db1 = conn1?.databases.find((db) => db.name === "db1");
-    expect(db1?.children).toEqual(schemaList);
-  });
-
-  it("updates schema list for a database", () => {
-    const schemaList: DatabaseSchema[] = [
-      makeSchema("public"),
-      makeSchema("analytics"),
-    ];
-    const newState = addSchemaList(schemaList, "conn1", "db1");
-
-    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
-    const db1 = conn1?.databases.find((db) => db.name === "db1");
-    expect(db1?.children).toEqual(schemaList);
-
-    // update with new schema list
-    const newSchemaList: DatabaseSchema[] = [
-      makeSchema("public"),
-      makeSchema("sales"),
-    ];
-    const updatedState = addSchemaList(newSchemaList, "conn1", "db1");
-
-    const newConn = updatedState.connectionsMap.get("conn1" as ConnectionName);
-    const newDb1 = newConn?.databases.find((db) => db.name === "db1");
-    expect(newDb1?.children).toEqual(newSchemaList);
-  });
-
-  it("does not add schema list if database does not exist", () => {
-    const schemaList: DatabaseSchema[] = [
-      makeSchema("public"),
-      makeSchema("analytics"),
-    ];
-    const newState = addSchemaList(schemaList, "conn1", "non_existent_db");
-
-    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
-    const db1 = conn1?.databases.find((db) => db.name === "db1");
-    expect(db1?.children.length).toBe(0);
-  });
-});
-
-describe("add table list", () => {
-  const connections: DataSourceConnectionInput[] = [
-    {
-      name: "conn1" as ConnectionName,
-      source: "sqlite",
-      display_name: "SQLite DB",
-      dialect: "sqlite",
-      databases: [
-        {
-          name: "db1",
-          children: [makeSchema("public")],
-          dialect: "sqlite",
-        },
-      ],
-    },
-  ];
-
-  // Helper function to add table list
-  const addTableList = (
-    tables: DataTable[],
-    sqlTableContext: SQLTableContext,
-  ) => {
-    return reducer(baseState, {
-      type: "addTableList",
-      payload: {
-        tables: tables,
-        sqlTableContext: sqlTableContext,
-      },
-    });
-  };
-
-  let baseState: DataSourceState;
-
-  beforeEach(() => {
-    baseState = addConnection(connections, baseState);
-    expect(baseState.connectionsMap.size).toBe(defaultConnSize + 1);
-  });
-
-  it("adds table list to a specific connection", () => {
-    const tableList: DataTable[] = [makeTable("table1")];
-    const newState = addTableList(tableList, {
-      engine: "conn1" as ConnectionName,
-      database: "db1",
-      schema: "public",
-      dialect: "sqlite",
-    });
-
-    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
-    const db1 = conn1?.databases.find((db) => db.name === "db1");
-    const schema = schemaFromChildren(db1?.children ?? [], "public");
-    expect(schema?.tables).toEqual(tableList);
-  });
-
-  it("updates table list for a connection", () => {
-    const sqlTableContext = {
-      engine: "conn1" as ConnectionName,
-      database: "db1",
-      schema: "public",
-      dialect: "sqlite",
-    };
-
-    const tableList: DataTable[] = [makeTable("table2")];
-    const newState = addTableList(tableList, sqlTableContext);
-
-    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
-    const db1 = conn1?.databases.find((db) => db.name === "db1");
-    const schema = schemaFromChildren(db1?.children ?? [], "public");
-    expect(schema?.tables).toEqual(tableList);
-
-    // update with new table list
-    const newTableList: DataTable[] = [makeTable("table1")];
-    const updatedState = addTableList(newTableList, sqlTableContext);
-
-    const newConn = updatedState.connectionsMap.get("conn1" as ConnectionName);
-    const newDb1 = newConn?.databases.find((db) => db.name === "db1");
-    const newSchema = schemaFromChildren(newDb1?.children ?? [], "public");
-    expect(newSchema?.tables).toEqual(newTableList);
-  });
-
-  it("does not add table list if schema does not exist", () => {
-    const tableList: DataTable[] = [makeTable("table2")];
-    const newState = addTableList(tableList, {
-      engine: "conn1" as ConnectionName,
-      database: "db1",
-      schema: "non_existent",
-      dialect: "sqlite",
-    });
-
-    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
-    const db1 = conn1?.databases.find((db) => db.name === "db1");
-    expect(db1?.children.length).toBe(1);
-  });
-});
-
 describe("add table", () => {
   const connections: DataSourceConnectionInput[] = [
     {
@@ -623,13 +442,13 @@ describe("nested namespaces", () => {
   it("sets child namespaces at a nested path", () => {
     const children: DatabaseSchema[] = [makeSchema("deep", [])];
     const newState = reducer(baseState, {
-      type: "addSchemaList",
+      type: "addCatalogChildren",
       payload: {
         nodes: children,
-        sqlSchemaContext: {
+        sqlCatalogContext: {
           engine: "ice",
           database: "top",
-          schemaPath: ["nested"],
+          catalogPath: ["nested"],
         },
       },
     });
@@ -652,15 +471,13 @@ describe("nested namespaces", () => {
       makeTable("table4", { source: "iceberg", source_type: "catalog" }),
     ];
     const newState = reducer(baseState, {
-      type: "addTableList",
+      type: "addCatalogChildren",
       payload: {
-        tables,
-        sqlTableContext: {
+        nodes: tables,
+        sqlCatalogContext: {
           engine: "ice",
           database: "top",
-          schema: "nested",
-          dialect: "iceberg",
-          schemaPath: ["nested"],
+          catalogPath: ["nested"],
         },
       },
     });
@@ -677,32 +494,67 @@ describe("nested namespaces", () => {
     ).toBe(true);
   });
 
+  it("sets catalog children and marks children and tables loaded", () => {
+    const table = makeTable("table4", {
+      source: "iceberg",
+      source_type: "catalog",
+    });
+    const deep: DatabaseNamespace = {
+      kind: "namespace",
+      name: "deep",
+      children: [],
+    };
+    const newState = reducer(baseState, {
+      type: "addCatalogChildren",
+      payload: {
+        nodes: [table, deep],
+        sqlCatalogContext: {
+          engine: "ice",
+          database: "top",
+          catalogPath: ["nested"],
+        },
+      },
+    });
+
+    const nested = findNode(newState, ["nested"]);
+    expect(isNamespaceNode(nested!)).toBe(true);
+    if (isNamespaceNode(nested!)) {
+      expect(nested.children.map((child) => child.name)).toEqual([
+        "table4",
+        "deep",
+      ]);
+    }
+    const conn = newState.connectionsMap.get("ice" as ConnectionName);
+    expect(conn).toBeDefined();
+    const key = catalogPathKey("top", ["nested"]);
+    expect(conn!.catalogLoad.childrenLoaded.has(key)).toBe(true);
+    expect(conn!.catalogLoad.tablesLoaded.has(key)).toBe(true);
+  });
+
   it("sets tables on a schema nested inside a namespace", () => {
     const tables: DataTable[] = [
       makeTable("table4", { source: "iceberg", source_type: "catalog" }),
     ];
     const withNestedSchema = reducer(baseState, {
-      type: "addSchemaList",
+      type: "addCatalogChildren",
       payload: {
         nodes: [makeSchema("deep")],
-        sqlSchemaContext: {
+        sqlCatalogContext: {
           engine: "ice",
           database: "top",
-          schemaPath: ["nested"],
+          catalogPath: ["nested"],
         },
       },
     });
 
     const newState = reducer(withNestedSchema, {
-      type: "addTableList",
+      type: "addCatalogChildren",
       payload: {
-        tables,
-        sqlTableContext: {
+        nodes: tables,
+        sqlCatalogContext: {
           engine: "ice",
           database: "top",
-          schema: "deep",
-          dialect: "iceberg",
-          schemaPath: ["nested"],
+          catalogPath: ["nested", "deep"],
         },
       },
     });
@@ -726,7 +578,7 @@ describe("nested namespaces", () => {
     ).toBe(true);
     expect(
       conn!.catalogLoad.tablesLoaded.has(catalogPathKey("top", ["nested"])),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("replaces a single table at a nested path", () => {
@@ -744,8 +596,15 @@ describe("nested namespaces", () => {
       schemaPath: ["nested"],
     };
     let state = reducer(baseState, {
-      type: "addTableList",
-      payload: { tables: [catalogTable(1)], sqlTableContext: context },
+      type: "addCatalogChildren",
+      payload: {
+        nodes: [catalogTable(1)],
+        sqlCatalogContext: {
+          engine: "ice",
+          database: "top",
+          catalogPath: ["nested"],
+        },
+      },
     });
     state = reducer(state, {
       type: "addTable",
@@ -763,13 +622,13 @@ describe("nested namespaces", () => {
 
   it("does not change anything for a missing nested path", () => {
     const newState = reducer(baseState, {
-      type: "addSchemaList",
+      type: "addCatalogChildren",
       payload: {
         nodes: [makeSchema("deep")],
-        sqlSchemaContext: {
+        sqlCatalogContext: {
           engine: "ice",
           database: "top",
-          schemaPath: ["does_not_exist"],
+          catalogPath: ["does_not_exist"],
         },
       },
     });

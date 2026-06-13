@@ -546,19 +546,19 @@ class DatasetsNotification(Notification, tag="datasets"):
     clear_channel: DataTableSource | None = None
 
 
-class SQLDatabaseMetadata(msgspec.Struct):
-    """SQL database metadata.
+class SQLCatalogMetadata(msgspec.Struct):
+    """SQL catalog metadata.
 
     Attributes:
         connection: Connection identifier.
         database: Database name.
-        schema_path: Parent schema path the schemas belong under. Empty for
-            the database's top level.
+        catalog_path: Catalog path under the database. Empty for the database
+            root.
     """
 
     connection: str
     database: str
-    schema_path: list[str] = msgspec.field(default_factory=list)
+    catalog_path: list[str] = msgspec.field(default_factory=list)
 
 
 class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
@@ -592,25 +592,6 @@ class SQLTablePreviewNotification(Notification, tag="sql-table-preview"):
     request_id: RequestId
     metadata: SQLMetadata
     table: DataTable | None
-    error: str | None = None
-
-
-class SQLTableListPreviewNotification(
-    Notification, tag="sql-table-list-preview"
-):
-    """List of SQL tables in a schema.
-
-    Attributes:
-        request_id: Request ID this responds to.
-        metadata: Database and schema metadata.
-        tables: Tables in schema.
-        error: Error message if failed.
-    """
-
-    name: ClassVar[str] = "sql-table-list-preview"
-    request_id: RequestId
-    metadata: SQLMetadata
-    tables: list[DataTable] = msgspec.field(default_factory=list)
     error: str | None = None
 
 
@@ -649,22 +630,22 @@ class DataColumnPreviewNotification(
     column_name: str
 
 
-class SQLSchemaListPreviewNotification(
-    Notification, tag="sql-schema-list-preview"
+class CatalogChildrenPreviewNotification(
+    Notification, tag="catalog-children-preview"
 ):
-    """List of SQL schemas in a database.
+    """Immediate catalog children at a database path.
 
     Attributes:
         request_id: Request ID this responds to.
-        metadata: Database and schema metadata.
-        schemas: Schemas in database.
+        metadata: Database and catalog path metadata.
+        children: Catalog children at the requested path.
         error: Error message if failed.
     """
 
-    name: ClassVar[str] = "sql-schema-list-preview"
+    name: ClassVar[str] = "catalog-children-preview"
     request_id: RequestId
-    metadata: SQLDatabaseMetadata
-    schemas: list[CatalogNode] = msgspec.field(default_factory=list)
+    metadata: SQLCatalogMetadata
+    children: list[CatalogNode] = msgspec.field(default_factory=list)
     error: str | None = None
 
 
@@ -898,8 +879,7 @@ NotificationMessage = (
     | DatasetsNotification
     | DataColumnPreviewNotification
     | SQLTablePreviewNotification
-    | SQLTableListPreviewNotification
-    | SQLSchemaListPreviewNotification
+    | CatalogChildrenPreviewNotification
     | DataSourceConnectionsNotification
     | ValidateSQLResultNotification
     # Storage

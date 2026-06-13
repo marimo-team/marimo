@@ -43,8 +43,7 @@ def test_clickhouse_get_databases_skips_failed_table_loading() -> None:
         include_table_details=False,
     )
 
-    schema = databases[0].children[0]
-    assert schema.tables == []
+    assert databases[0].children == []
 
 
 @pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
@@ -72,8 +71,7 @@ def test_clickhouse_get_databases_skips_failed_table_details() -> None:
         include_table_details=True,
     )
 
-    schema = databases[0].children[0]
-    assert schema.tables == []
+    assert databases[0].children == []
 
 
 @pytest.mark.skipif(

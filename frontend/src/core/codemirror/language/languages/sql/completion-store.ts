@@ -6,7 +6,6 @@ import {
   collectTablesFromNode,
   isNamespaceNode,
   isSchemaNode,
-  isSchemaless,
   walkCatalogNodes,
 } from "@/core/datasets/catalog";
 import { dataConnectionsMapAtom } from "@/core/datasets/data-source-connections";
@@ -30,6 +29,10 @@ const datasetTableCompletionsAtom = atom((get) => {
   }
   return builder.build();
 });
+
+function hasSchemaLayer(database: DataSourceConnection["databases"][number]) {
+  return database.children.some(isSchemaNode);
+}
 
 class SQLCompletionStore {
   private cache: LRUCache<DataSourceConnection, CachedSchema>;
@@ -57,13 +60,10 @@ class SQLCompletionStore {
     );
 
     const dbToVerify = defaultDb ?? databases[0];
-    const isSchemalessDb =
-      dbToVerify?.children.some(
-        (node) => isSchemaNode(node) && isSchemaless(node.name),
-      ) ?? false;
+    const flatCatalog = dbToVerify ? !hasSchemaLayer(dbToVerify) : false;
 
-    // For schemaless databases, treat databases as schemas
-    if (isSchemalessDb) {
+    // Engines without a schema layer (e.g. ClickHouse) expose tables on databases.
+    if (flatCatalog) {
       for (const db of databases) {
         const isDefaultDb = db.name === defaultDb?.name;
         const tables = db.children.flatMap(collectTablesFromNode);
@@ -108,9 +108,7 @@ class SQLCompletionStore {
             : [database.name, ...segments].filter(Boolean);
 
           if (isSchemaNode(node)) {
-            if (!isSchemaless(node.name)) {
-              builder.addSchema(path, node);
-            }
+            builder.addSchema(path, node);
             for (const table of node.tables) {
               builder.addTable(path, table);
             }

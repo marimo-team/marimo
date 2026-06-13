@@ -225,7 +225,7 @@ describe("allTablesAtom", () => {
     expect(tables.has("db2.main.table1")).toBe(true);
   });
 
-  it("should handle schemaless databases", () => {
+  it("should handle databases without a schema layer", () => {
     const table1 = makeTable("table1");
     const table2 = makeTable("table2");
     const testConnection = {
@@ -235,16 +235,16 @@ describe("allTablesAtom", () => {
       display_name: "DuckDB In-Memory",
       default_database: "db1",
       databases: [
-        databaseWithSchemas({
+        {
           name: "db1",
           dialect: "duckdb",
-          schemas: [{ name: "", tables: [table1] }],
-        }),
-        databaseWithSchemas({
+          children: [table1],
+        },
+        {
           name: "db2",
           dialect: "duckdb",
-          schemas: [{ name: "", tables: [table2] }],
-        }),
+          children: [table2],
+        },
       ],
     };
 
@@ -260,7 +260,7 @@ describe("allTablesAtom", () => {
     expect(tables.get("db2.table2")).toEqual(table2);
   });
 
-  it("should handle mixed schemaless and schema databases", () => {
+  it("should handle mixed flat and schema databases", () => {
     const table1 = makeTable("table1");
     const table2 = makeTable("table2");
     const table3 = makeTable("table3");
@@ -281,11 +281,11 @@ describe("allTablesAtom", () => {
             ],
           }),
         },
-        databaseWithSchemas({
+        {
           name: "db2",
           dialect: "duckdb",
-          schemas: [{ name: "", tables: [table3] }],
-        }),
+          children: [table3],
+        },
       ],
     };
 

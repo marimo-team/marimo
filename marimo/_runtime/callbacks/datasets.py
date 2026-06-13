@@ -9,19 +9,17 @@ from marimo._data.preview_column import (
     get_column_preview_for_duckdb,
 )
 from marimo._messaging.notification import (
+    CatalogChildrenPreviewNotification,
     DataColumnPreviewNotification,
     DataSourceConnectionsNotification,
-    SQLDatabaseMetadata,
+    SQLCatalogMetadata,
     SQLMetadata,
-    SQLSchemaListPreviewNotification,
-    SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
 )
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import (
+    ListCatalogChildrenCommand,
     ListDataSourceConnectionCommand,
-    ListSQLSchemasCommand,
-    ListSQLTablesCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
 )
@@ -47,8 +45,9 @@ class DatasetCallbacks:
             PreviewDatasetColumnCommand, self.preview_dataset_column
         )
         router.register(PreviewSQLTableCommand, self.preview_sql_table)
-        router.register(ListSQLTablesCommand, self.preview_sql_table_list)
-        router.register(ListSQLSchemasCommand, self.preview_sql_schema_list)
+        router.register(
+            ListCatalogChildrenCommand, self.preview_catalog_children
+        )
         router.register(
             ListDataSourceConnectionCommand,
             self.preview_datasource_connection,
@@ -211,124 +210,57 @@ class DatasetCallbacks:
                 ),
             )
 
-    @kernel_tracer.start_as_current_span("preview_sql_table_list")
-    async def preview_sql_table_list(
-        self, request: ListSQLTablesCommand
+    @kernel_tracer.start_as_current_span("preview_catalog_children")
+    async def preview_catalog_children(
+        self, request: ListCatalogChildrenCommand
     ) -> None:
-        """Get a list of tables from an SQL schema
-
-        Args:
-            request (ListSQLTablesRequest): The request containing:
-                - engine: Name of the SQL engine / connection
-                - database: Name of the database
-                - schema: Name of the schema
-        """
+        """Get immediate catalog children for a database path."""
         variable_name = cast(VariableName, request.engine)
         database_name = request.database
-        schema_name = request.schema
-        schema_path = request.schema_path
-        sql_metadata = SQLMetadata(
+        catalog_path = request.catalog_path
+        sql_catalog_metadata = SQLCatalogMetadata(
             connection=variable_name,
             database=database_name,
-            schema=schema_name,
-            schema_path=schema_path,
+            catalog_path=catalog_path,
         )
 
         engine, error = self.get_engine_catalog(variable_name)
         if error is not None or engine is None:
             broadcast_notification(
-                SQLTableListPreviewNotification(
+                CatalogChildrenPreviewNotification(
                     request_id=request.request_id,
-                    tables=[],
+                    children=[],
                     error=error,
-                    metadata=sql_metadata,
+                    metadata=sql_catalog_metadata,
                 ),
             )
             return
 
         try:
-            table_list = engine.get_tables_in_schema(
-                schema=schema_name,
+            children = engine.get_catalog_children(
                 database=database_name,
+                catalog_path=catalog_path,
                 include_table_details=False,
-                schema_path=schema_path,
             )
             broadcast_notification(
-                SQLTableListPreviewNotification(
+                CatalogChildrenPreviewNotification(
                     request_id=request.request_id,
-                    tables=table_list,
-                    metadata=sql_metadata,
+                    children=children,
+                    metadata=sql_catalog_metadata,
                 ),
             )
         except Exception as e:
             LOGGER.exception(
-                "Failed to get table list for schema %s", schema_name
+                "Failed to get catalog children for database %s at path %s",
+                database_name,
+                catalog_path,
             )
             broadcast_notification(
-                SQLTableListPreviewNotification(
+                CatalogChildrenPreviewNotification(
                     request_id=request.request_id,
-                    tables=[],
-                    error="Failed to get table list: " + str(e),
-                    metadata=sql_metadata,
-                ),
-            )
-
-    @kernel_tracer.start_as_current_span("preview_sql_schema_list")
-    async def preview_sql_schema_list(
-        self, request: ListSQLSchemasCommand
-    ) -> None:
-        """Get a list of schemas from an SQL database
-
-        Args:
-            request (ListSQLSchemasCommand): The request containing:
-                - engine: Name of the SQL engine / connection
-                - database: Name of the database
-        """
-        variable_name = cast(VariableName, request.engine)
-        database_name = request.database
-        schema_path = request.schema_path
-        sql_db_metadata = SQLDatabaseMetadata(
-            connection=variable_name,
-            database=database_name,
-            schema_path=schema_path,
-        )
-
-        engine, error = self.get_engine_catalog(variable_name)
-        if error is not None or engine is None:
-            broadcast_notification(
-                SQLSchemaListPreviewNotification(
-                    request_id=request.request_id,
-                    schemas=[],
-                    error=error,
-                    metadata=sql_db_metadata,
-                ),
-            )
-            return
-
-        try:
-            schema_list = engine.get_schemas(
-                database=database_name,
-                include_tables=False,
-                include_table_details=False,
-                schema_path=schema_path,
-            )
-            broadcast_notification(
-                SQLSchemaListPreviewNotification(
-                    request_id=request.request_id,
-                    schemas=schema_list,
-                    metadata=sql_db_metadata,
-                ),
-            )
-        except Exception as e:
-            LOGGER.exception(
-                "Failed to get schema list for database %s", database_name
-            )
-            broadcast_notification(
-                SQLSchemaListPreviewNotification(
-                    request_id=request.request_id,
-                    schemas=[],
-                    error="Failed to get schema list: " + str(e),
-                    metadata=sql_db_metadata,
+                    children=[],
+                    error="Failed to get catalog children: " + str(e),
+                    metadata=sql_catalog_metadata,
                 ),
             )
 

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   catalogNodePath,
   mergeTableAtPath,
-  setTablesAtPath,
+  setCatalogChildrenAtPath,
   walkCatalogNodes,
 } from "../catalog";
 import { databaseWithSchemas, makeTable } from "./catalog-fixtures";
@@ -12,6 +12,10 @@ import { databaseWithSchemas, makeTable } from "./catalog-fixtures";
 describe("catalogNodePath", () => {
   it("uses the schema name for top-level schemas", () => {
     expect(catalogNodePath({ schema: "public" })).toEqual(["public"]);
+  });
+
+  it("returns an empty path for database-level tables", () => {
+    expect(catalogNodePath({ schema: "" })).toEqual([]);
   });
 
   it("appends the schema name to a parent namespace path", () => {
@@ -91,8 +95,8 @@ describe("mergeTableAtPath", () => {
   });
 });
 
-describe("setTablesAtPath", () => {
-  it("replaces the full table list at a schema path", () => {
+describe("setCatalogChildrenAtPath", () => {
+  it("replaces table children at a schema path", () => {
     const children = databaseWithSchemas({
       name: "db",
       dialect: "duckdb",
@@ -100,10 +104,10 @@ describe("setTablesAtPath", () => {
     }).children;
     const replacement = [makeTable("new")];
 
-    const updated = setTablesAtPath({
+    const updated = setCatalogChildrenAtPath({
       nodes: children,
       path: ["public"],
-      tables: replacement,
+      children: replacement,
     });
     const schema = updated.find((node) => node.kind === "schema");
     expect(schema?.kind).toBe("schema");

@@ -34,9 +34,9 @@ from marimo._runtime.commands import (
     GetCacheInfoCommand,
     InstallPackagesCommand,
     InvokeFunctionCommand,
+    ListCatalogChildrenCommand,
     ListDataSourceConnectionCommand,
     ListSecretKeysCommand,
-    ListSQLTablesCommand,
     ModelCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
@@ -497,8 +497,8 @@ async def test_pyodide_session_put_input(
             PreviewSQLTableCommand,
         ),
         (
-            '{"type": "list-sql-tables", "requestId": "req-2", "engine": "duckdb", "database": "test.db", "schema": "main"}',
-            ListSQLTablesCommand,
+            '{"type": "list-catalog-children", "requestId": "req-2", "engine": "duckdb", "database": "test.db", "catalogPath": ["main"]}',
+            ListCatalogChildrenCommand,
         ),
         (
             '{"type": "validate-sql", "requestId": "req-3", "query": "SELECT * FROM users", "onlyParse": false}',

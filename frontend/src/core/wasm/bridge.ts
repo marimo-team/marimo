@@ -541,21 +541,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  previewSQLTableList: EditRequests["previewSQLTableList"] = async (
+  previewCatalogChildren: EditRequests["previewCatalogChildren"] = async (
     request,
   ) => {
     await this.putControlRequest({
-      type: "list-sql-tables",
-      ...request,
-    });
-    return null;
-  };
-
-  previewSQLSchemaList: EditRequests["previewSQLSchemaList"] = async (
-    request,
-  ) => {
-    await this.putControlRequest({
-      type: "list-sql-schemas",
+      type: "list-catalog-children",
       ...request,
     });
     return null;
