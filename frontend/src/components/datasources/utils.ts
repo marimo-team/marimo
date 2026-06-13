@@ -33,8 +33,6 @@ export function tableUniqueId({
   return [sqlTableContext.database, ...segments, tableName].join(".");
 }
 
-export { isSchemaless };
-
 interface SqlCodeFormatter {
   /**
    * Format the table path based on dialect-specific rules

@@ -49,6 +49,7 @@ import {
   isNamespaceNode,
   isSchemaNode,
   partitionNamespaceChildren,
+  isSchemaless,
 } from "@/core/datasets/catalog";
 import {
   type CatalogLoadState,
@@ -91,7 +92,7 @@ import {
   LoadingState,
   RotatingChevron,
 } from "./components";
-import { isSchemaless, sqlCode, tableUniqueId } from "./utils";
+import { sqlCode, tableUniqueId } from "./utils";
 
 const INDENT_STEP = 1; // rem per schema nesting level (depth 0 = top-level)
 
