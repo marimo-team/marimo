@@ -8,19 +8,24 @@ import os
 import subprocess
 import sys
 import threading
+from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
+from unittest.mock import patch
 
 import pytest
 
 from marimo._runtime._wasm._concurrency._install import (
     install_wasm_concurrency_shims,
 )
-from tests.conftest import mock_pyodide
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
-def _install_run_sync() -> None:
+@contextmanager
+def _mock_pyodide_with_run_sync() -> Generator[None, None, None]:
     pyodide_module = ModuleType("pyodide")
     ffi_module = ModuleType("pyodide.ffi")
 
@@ -29,8 +34,17 @@ def _install_run_sync() -> None:
 
     cast(Any, ffi_module).run_sync = run_sync
     cast(Any, pyodide_module).ffi = ffi_module
-    sys.modules["pyodide"] = pyodide_module
-    sys.modules["pyodide.ffi"] = ffi_module
+    with (
+        patch.object(sys, "platform", "emscripten"),
+        patch.dict(
+            sys.modules,
+            {
+                "pyodide": pyodide_module,
+                "pyodide.ffi": ffi_module,
+            },
+        ),
+    ):
+        yield
 
 
 def test_wasm_threading_patch_is_inert_outside_pyodide() -> None:
@@ -50,8 +64,7 @@ def test_wasm_threading_redundant_handle_does_not_unpatch_owner() -> None:
     original_thread = threading.Thread
     original_local = threading.local
 
-    with mock_pyodide():
-        _install_run_sync()
+    with _mock_pyodide_with_run_sync():
         owner_unpatch = install_wasm_concurrency_shims()
         redundant_unpatch = install_wasm_concurrency_shims()
         try:
@@ -77,8 +90,7 @@ def test_wasm_threading_repairs_preimported_runtime_context_storage() -> None:
     child_context = object()
     context_types.initialize_context(parent_context)  # type: ignore[arg-type]
 
-    with mock_pyodide():
-        _install_run_sync()
+    with _mock_pyodide_with_run_sync():
         unpatch = install_wasm_concurrency_shims()
         try:
             assert context_types.safe_get_context() is parent_context
@@ -121,8 +133,7 @@ def test_wasm_threading_repairs_preimported_stream_proxy_locals() -> None:
     sys.stderr = stderr_proxy  # type: ignore[assignment]
 
     try:
-        with mock_pyodide():
-            _install_run_sync()
+        with _mock_pyodide_with_run_sync():
             unpatch = install_wasm_concurrency_shims()
             try:
                 assert isinstance(stdout_proxy._local, AsyncLocal)
@@ -163,8 +174,7 @@ async def test_wasm_runtime_shutdown_helper_cancels_live_thread() -> None:
         wait_for_wasm_runtime_work_async,
     )
 
-    with mock_pyodide():
-        _install_run_sync()
+    with _mock_pyodide_with_run_sync():
         unpatch = ensure_wasm_runtime_bootstrapped()
         started = asyncio.Event()
 
