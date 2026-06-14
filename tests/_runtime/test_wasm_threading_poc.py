@@ -194,6 +194,13 @@ import threading
 import asyncio
 
 sys.platform = "emscripten"
+try:
+    import posix
+except ImportError:
+    posix = types.ModuleType("posix")
+    sys.modules["posix"] = posix
+if not hasattr(posix, "_emscripten_log"):
+    posix._emscripten_log = lambda line: None
 pyodide = types.ModuleType("pyodide")
 ffi = types.ModuleType("pyodide.ffi")
 def run_sync(awaitable):
