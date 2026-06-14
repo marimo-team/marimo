@@ -206,7 +206,7 @@ def _install_multiprocessing_process(
     patches.replace(
         multiprocessing,
         "get_context",
-        lambda original: get_context_factory(original),
+        _get_context_factory,
     )
 
     _replace_factories(
@@ -231,6 +231,12 @@ def _has_live_pool_work() -> bool:
         or getattr(executor, "_wasm_process_pool_executor", False)
         for executor in _state.live_executors
     )
+
+
+def _get_context_factory(
+    original: Callable[..., Any],
+) -> Callable[..., Any]:
+    return get_context_factory(original)
 
 
 def _replace_context_processes(

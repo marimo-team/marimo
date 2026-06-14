@@ -615,7 +615,7 @@ def _make_direct_reader_wrapper(
     function_name: str,
     *,
     call_spec: _DirectReaderCallSpec,
-) -> WrapperFactory:
+) -> WrapperFactory[Callable[..., Any], Callable[..., Any]]:
     def _wrap(original: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(original)
         def _wrapper(*args: Any, **kwargs: Any) -> Any:
