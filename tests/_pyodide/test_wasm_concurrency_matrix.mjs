@@ -5,6 +5,20 @@
  * through a marimo Pyodide session, and checks every expected runtime row,
  * including the process-shaped WASM validation phase.
  *
+ * Row tiers describe the browser execution contract being checked:
+ *
+ * - api-compatible: the tested stdlib or marimo API shape matches normal
+ *   Python behavior for that case.
+ * - serialized: work keeps the public API shape, but runs one task at a time
+ *   in the current Pyodide interpreter. It does not provide OS threads,
+ *   separate processes, shared memory, or CPU parallelism.
+ * - cooperative-only: waits, cancellation, or termination can only progress
+ *   when control returns to Pyodide's JSPI-backed asyncio loop. Already-running
+ *   Python code cannot be preempted.
+ * - blocked: the API is intentionally rejected because the browser runtime
+ *   cannot provide the required native process, synchronization, or shared
+ *   memory primitive.
+ *
  * Usage:
  *   node --experimental-wasm-jspi tests/_pyodide/test_wasm_concurrency_matrix.mjs \
  *     "$(ls -t dist/marimo_base-*-py3-none-any.whl | head -n 1)"
