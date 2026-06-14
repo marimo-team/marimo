@@ -82,6 +82,49 @@ def test_wasm_threading_redundant_handle_does_not_unpatch_owner() -> None:
     assert threading.local is original_local
 
 
+def test_wasm_threading_synthetic_ids_skip_real_thread_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real_ident = threading.get_ident()
+    real_native_id = getattr(threading, "get_native_id", threading.get_ident)()
+    expected_ident = max(real_ident, real_native_id) + 1000
+
+    with _mock_pyodide_with_run_sync():
+        from marimo._runtime._wasm._concurrency import _state
+
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            monkeypatch.setattr(
+                _state,
+                "_IDENTS",
+                iter([real_ident, real_native_id, expected_ident]),
+            )
+            thread = threading.Thread(name="synthetic", target=lambda: None)
+            thread.start()
+            thread.join(timeout=1)
+
+            assert thread.ident == expected_ident
+        finally:
+            unpatch()
+
+
+def test_wasm_threading_local_dict_is_read_only() -> None:
+    with _mock_pyodide_with_run_sync():
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            local = threading.local()
+            local.value = 1
+
+            assert local.__dict__ == {"value": 1}
+            with pytest.raises(AttributeError, match="__dict__.*read-only"):
+                local.__dict__ = {}
+            with pytest.raises(AttributeError, match="__dict__.*read-only"):
+                del local.__dict__
+            assert local.__dict__ == {"value": 1}
+        finally:
+            unpatch()
+
+
 def test_wasm_threading_repairs_preimported_runtime_context_storage() -> None:
     from marimo._runtime.context import types as context_types
 

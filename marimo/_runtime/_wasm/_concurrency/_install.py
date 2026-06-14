@@ -54,8 +54,6 @@ def install_wasm_concurrency_shims() -> Unpatch:
                 _threading, "get_native_id", _threading.get_ident
             ),
             original_enumerate=_threading.enumerate,
-            original_active_count=_threading.active_count,
-            original_excepthook=_threading.excepthook,
         )
     )
 

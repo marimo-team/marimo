@@ -141,12 +141,22 @@ class AsyncLocal:
         return None
 
     def __setattr__(self, name: str, value: Any) -> None:
+        if name == "__dict__":
+            raise AttributeError(
+                f"{type(self).__name__!r} object attribute "
+                f"{name!r} is read-only"
+            )
         if name == "_storage" or self._data_descriptor(name) is not None:
             object.__setattr__(self, name, value)
             return
         self._namespace()[name] = value
 
     def __delattr__(self, name: str) -> None:
+        if name == "__dict__":
+            raise AttributeError(
+                f"{type(self).__name__!r} object attribute "
+                f"{name!r} is read-only"
+            )
         if self._data_descriptor(name) is not None:
             object.__delattr__(self, name)
             return

@@ -26,8 +26,6 @@ class PatchState:
     original_get_ident: Callable[[], int]
     original_get_native_id: Callable[[], int]
     original_enumerate: Callable[[], list[Any]]
-    original_active_count: Callable[[], int]
-    original_excepthook: Callable[[Any], object]
 
 
 class ThreadIdentity:
@@ -73,7 +71,36 @@ _IDENTS = itertools.count(10_000)
 
 
 def new_ident() -> int:
-    return next(_IDENTS)
+    while True:
+        ident = next(_IDENTS)
+        if ident not in _reserved_thread_ids():
+            return ident
+
+
+def _reserved_thread_ids() -> set[int]:
+    reserved: set[int] = set()
+    current = current_identity()
+    if current is not None:
+        _add_thread_ids(reserved, current)
+    for thread in live_threads:
+        _add_thread_ids(reserved, thread)
+
+    state = patch_state_value
+    if state is None:
+        return reserved
+
+    reserved.add(state.original_get_ident())
+    reserved.add(state.original_get_native_id())
+    for thread in state.original_enumerate():
+        _add_thread_ids(reserved, thread)
+    return reserved
+
+
+def _add_thread_ids(reserved: set[int], thread: Any) -> None:
+    for attr in ("ident", "native_id"):
+        ident = getattr(thread, attr, None)
+        if ident is not None:
+            reserved.add(ident)
 
 
 def new_thread_name(prefix: str) -> str:
