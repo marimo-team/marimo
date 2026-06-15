@@ -12,8 +12,12 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import InferenceConfig, SQLConnection
-from marimo._sql.utils import CHEAP_DISCOVERY_DATABASES, convert_to_output
+from marimo._sql.engines.types import (
+    InferenceConfig,
+    SQLConnection,
+    default_inference_config,
+)
+from marimo._sql.utils import convert_to_output
 from marimo._types.ids import VariableName
 
 if TYPE_CHECKING:
@@ -84,11 +88,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
     @property
     def inference_config(self) -> InferenceConfig:
-        return InferenceConfig(
-            auto_discover_schemas=True,
-            auto_discover_tables="auto",
-            auto_discover_columns=False,
-        )
+        return default_inference_config()
 
     def get_default_database(self) -> str | None:
         """Get the current database name.
@@ -460,14 +460,3 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             return "string"
         else:
             raise IbisToMarimoConversionError
-
-    def _resolve_should_auto_discover(
-        self,
-        value: bool | Literal["auto"],
-    ) -> bool:
-        if value == "auto":
-            return self._is_cheap_discovery()
-        return value
-
-    def _is_cheap_discovery(self) -> bool:
-        return self.dialect.lower() in CHEAP_DISCOVERY_DATABASES

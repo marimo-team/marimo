@@ -22,9 +22,12 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import InferenceConfig, SQLConnection
+from marimo._sql.engines.types import (
+    InferenceConfig,
+    SQLConnection,
+    default_inference_config,
+)
 from marimo._sql.utils import (
-    CHEAP_DISCOVERY_DATABASES,
     convert_to_output,
     sql_type_to_data_type,
 )
@@ -224,11 +227,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
     @property
     def inference_config(self) -> InferenceConfig:
-        return InferenceConfig(
-            auto_discover_schemas="auto",
-            auto_discover_tables="auto",
-            auto_discover_columns=False,
-        )
+        return default_inference_config()
 
     def get_default_database(self) -> str | None:
         """Get the current database name.
@@ -690,17 +689,6 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
     ) -> DataType | None:
         col_type = engine_type.as_generic()
         return sql_type_to_data_type(str(col_type))
-
-    def _resolve_should_auto_discover(
-        self,
-        value: bool | Literal["auto"],
-    ) -> bool:
-        if value == "auto":
-            return self._is_cheap_discovery()
-        return value
-
-    def _is_cheap_discovery(self) -> bool:
-        return self.dialect.lower() in CHEAP_DISCOVERY_DATABASES
 
     @staticmethod
     def is_cursor_result(result: Any) -> bool:

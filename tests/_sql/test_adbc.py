@@ -13,6 +13,7 @@ from marimo._sql.engines.adbc import (
     _adbc_info_to_dialect,
     _schema_field_to_data_type,
 )
+from marimo._sql.engines.types import default_inference_config
 from marimo._sql.get_engines import get_engines_from_variables
 from marimo._types.ids import VariableName
 
@@ -436,6 +437,18 @@ def test_adbc_is_compatible_does_not_create_cursor() -> None:
     assert conn._cursor.did_execute is False  # type: ignore[attr-defined]
     assert conn._cursor.did_fetch_arrow is False  # type: ignore[attr-defined]
     assert conn._cursor.did_close is True  # type: ignore[attr-defined]
+
+
+def test_adbc_engine_uses_default_inference_config() -> None:
+    """ADBC shares the default discovery config (see #9775)."""
+    conn = FakeAdbcDbApiConnection(
+        cursor=FakeAdbcDbApiCursor(description=None),
+        objects_pylist=[],
+        table_schema=FakeAdbcTableSchema([]),
+    )
+    engine = AdbcDBAPIEngine(conn)
+    assert engine.inference_config == default_inference_config()
+    assert engine.inference_config.auto_discover_schemas == "auto"
 
 
 def test_adbc_catalog_auto_discovery_uses_cheap_dialect_heuristic() -> None:

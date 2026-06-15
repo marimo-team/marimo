@@ -216,13 +216,5 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
             )
             return None
 
-    def _resolve_should_auto_discover(
-        self,
-        value: bool | Literal["auto"],
-    ) -> bool:
-        if value == "auto":
-            return self._is_cheap_discovery()
-        return value
-
     def _is_cheap_discovery(self) -> bool:
         return True  # Iceberg metadata is generally fast to access

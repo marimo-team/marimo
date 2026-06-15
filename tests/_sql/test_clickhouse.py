@@ -99,6 +99,27 @@ def test_clickhouse_server_creation() -> None:
     assert connection.source == "clickhouse"
 
 
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_clickhouse_server_get_databases_auto_skips_tables() -> None:
+    """ClickHouse server is not cheap, so `"auto"` must not scan tables."""
+    import pandas as pd
+
+    connection = mock.MagicMock()
+    connection.query_df.return_value = pd.DataFrame({"name": ["db1", "db2"]})
+
+    engine = ClickhouseServer(connection)
+    with mock.patch.object(engine, "get_tables_in_schema") as mock_get_tables:
+        databases = engine.get_databases(
+            include_schemas="auto",
+            include_tables="auto",
+            include_table_details="auto",
+        )
+
+    mock_get_tables.assert_not_called()
+    assert [db.name for db in databases] == ["db1", "db2"]
+    assert all(db.schemas[0].tables == [] for db in databases)
+
+
 @pytest.mark.skipif(
     not HAS_CHDB and not HAS_POLARS and not HAS_PANDAS,
     reason="chdb, polars, and pandas not installed",

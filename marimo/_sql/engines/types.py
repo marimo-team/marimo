@@ -14,6 +14,7 @@ from marimo._sql.parse import (
 )
 from marimo._sql.utils import (
     get_configured_sql_output_format,
+    is_cheap_dialect,
     is_query_empty,
     strip_explain_from_error_message,
     wrap_query_with_explain,
@@ -28,6 +29,19 @@ class InferenceConfig(ABC):
     auto_discover_schemas: bool | Literal["auto"]
     auto_discover_tables: bool | Literal["auto"]
     auto_discover_columns: bool | Literal["auto"]
+
+
+def default_inference_config() -> InferenceConfig:
+    """Default discovery config shared by general-purpose SQL engines.
+
+    Expensive backends can have a large number of schemas and tables, so we
+    gate discovery behind the `"auto"` heuristic.
+    """
+    return InferenceConfig(
+        auto_discover_schemas="auto",
+        auto_discover_tables="auto",
+        auto_discover_columns=False,
+    )
 
 
 def _validate_sql_output_format(sql_output: SqlOutputType) -> SqlOutputType:
@@ -120,6 +134,23 @@ class EngineCatalog(BaseEngine[CONN], ABC):
         self, *, table_name: str, schema_name: str, database_name: str
     ) -> DataTable | None:
         """Get a single table from the engine."""
+
+    def _resolve_should_auto_discover(
+        self, value: bool | Literal["auto"]
+    ) -> bool:
+        """Resolve a discovery flag, deferring `"auto"` to engine policy."""
+        if value == "auto":
+            return self._is_cheap_discovery()
+        return value
+
+    def _is_cheap_discovery(self) -> bool:
+        """Whether discovery is cheap enough to run when a flag is `"auto"`.
+
+        Defaults to a dialect-based heuristic; engines with different cost
+        profiles (e.g. always-cheap local catalogs, or expensive remote
+        warehouses) should override this.
+        """
+        return is_cheap_dialect(self.dialect)
 
 
 class QueryEngine(BaseEngine[CONN], ABC):

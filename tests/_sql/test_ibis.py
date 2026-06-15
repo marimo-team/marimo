@@ -10,7 +10,11 @@ import pytest
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.ibis import IbisEngine, IbisToMarimoConversionError
-from marimo._sql.engines.types import EngineCatalog, QueryEngine
+from marimo._sql.engines.types import (
+    EngineCatalog,
+    QueryEngine,
+    default_inference_config,
+)
 from marimo._sql.sql import sql
 from marimo._types.ids import VariableName
 
@@ -504,6 +508,16 @@ def test_ibis_engine_get_schemas(ibis_backend: SQLBackend) -> None:
     schema = schemas[1]
     assert schema.name == "my_schema"
     assert len(schema.tables) == 0
+
+
+@pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
+def test_ibis_engine_uses_default_inference_config(
+    ibis_backend: SQLBackend,
+) -> None:
+    """Ibis shares the default discovery config (see #9775)."""
+    engine = IbisEngine(ibis_backend, engine_name=VariableName("my_ibis"))
+    assert engine.inference_config == default_inference_config()
+    assert engine.inference_config.auto_discover_schemas == "auto"
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")

@@ -371,13 +371,9 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             )
         return databases
 
-    def _resolve_should_auto_discover(
-        self, value: bool | Literal["auto"]
-    ) -> bool:
-        if value == "auto":
-            # TODO: Smartly determine if we should auto-discover
-            return False
-        return value
+    def _is_cheap_discovery(self) -> bool:
+        # TODO: Smartly determine if we should auto-discover
+        return False
 
     def get_tables_in_schema(
         self,

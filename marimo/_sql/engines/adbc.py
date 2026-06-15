@@ -13,8 +13,12 @@ from marimo._data.models import (
     DataType,
     Schema,
 )
-from marimo._sql.engines.types import InferenceConfig, SQLConnection
-from marimo._sql.utils import CHEAP_DISCOVERY_DATABASES, convert_to_output
+from marimo._sql.engines.types import (
+    InferenceConfig,
+    SQLConnection,
+    default_inference_config,
+)
+from marimo._sql.utils import convert_to_output, is_cheap_dialect
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
@@ -189,7 +193,7 @@ class AdbcConnectionCatalog:
         self, value: bool | Literal["auto"]
     ) -> bool:
         if value == "auto":
-            return self._dialect.lower() in CHEAP_DISCOVERY_DATABASES
+            return is_cheap_dialect(self._dialect)
         return value
 
     def get_databases(
@@ -489,11 +493,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
 
     @property
     def inference_config(self) -> InferenceConfig:
-        return InferenceConfig(
-            auto_discover_schemas=True,
-            auto_discover_tables="auto",
-            auto_discover_columns=False,
-        )
+        return default_inference_config()
 
     def get_default_database(self) -> str | None:
         return self._catalog.get_default_database()
