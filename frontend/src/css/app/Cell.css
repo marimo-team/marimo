@@ -527,11 +527,18 @@
 }
 
 
-.cell-columns:not(.cell-columns--reverse) .increase-pointer-area-x::before {
+/* The editor's hover-gutter pseudo-elements (`.tray::before/::after`) widen the
+   cell's hover hit-area into the page margin to bridge to its floating buttons.
+   In side-by-side mode the editor's *inner* edge sits flush against the output
+   column instead of empty margin, so its inner gutter reaches across the
+   resizer and covers the output — and because `.tray` has a z-index, it wins
+   hit-testing and swallows pointer events near the divide. Drop only the inner
+   gutter; the outer one (which bridges to the run/shoulder buttons) stays. */
+.cell-columns--resizable:not(.cell-columns--reverse) > .tray::after {
   display: none;
 }
 
-.cell-columns--reverse .increase-pointer-area-x::after {
+.cell-columns--resizable.cell-columns--reverse > .tray::before {
   display: none;
 }
 

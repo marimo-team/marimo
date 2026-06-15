@@ -460,76 +460,71 @@ const ExpandableOutput = React.memo(
       getOutputControlsPlacement(outputPosition);
 
     return (
-      <>
-        <div>
-          <div className="relative print:hidden">
-            <div
-              className={cn("absolute flex flex-col gap-1", controlsClassName)}
-            >
-              {hasFullscreen && (
-                <Tooltip content="Fullscreen" side={tooltipSide}>
-                  <Button
-                    data-testid="fullscreen-output-button"
-                    className="hover-action"
-                    onClick={async () => {
-                      await containerRef.current?.requestFullscreen();
-                    }}
-                    onMouseDown={Events.preventFocus}
-                    size="xs"
-                    variant="text"
-                  >
-                    <ExpandIcon
-                      className={cn(
-                        "size-4 opacity-60 hover:opacity-80",
-                        outputPosition === "right" && "size-3.5",
-                      )}
-                      strokeWidth={1.25}
-                    />
-                  </Button>
-                </Tooltip>
-              )}
-              {(isOverflowing || isExpanded) && !forceExpand && (
+      <div>
+        <div className="relative print:hidden">
+          <div
+            className={cn("absolute flex flex-col gap-1", controlsClassName)}
+          >
+            {hasFullscreen && (
+              <Tooltip content="Fullscreen" side={tooltipSide}>
                 <Button
-                  data-testid="expand-output-button"
-                  className={cn(
-                    // Force show button if expanded
-                    !isExpanded && "hover-action",
-                  )}
-                  onClick={() => setIsExpanded(!isExpanded)}
+                  data-testid="fullscreen-output-button"
+                  className="hover-action"
+                  onClick={async () => {
+                    await containerRef.current?.requestFullscreen();
+                  }}
+                  onMouseDown={Events.preventFocus}
                   size="xs"
                   variant="text"
                 >
-                  {isExpanded ? (
-                    <Tooltip content="Collapse output" side={tooltipSide}>
-                      <ChevronsDownUpIcon className="h-4 w-4" />
-                    </Tooltip>
-                  ) : (
-                    <Tooltip content="Expand output" side={tooltipSide}>
-                      <ChevronsUpDownIcon className="h-4 w-4 opacity-60" />
-                    </Tooltip>
-                  )}
+                  <ExpandIcon
+                    className={cn(
+                      "size-4 opacity-60 hover:opacity-80",
+                      outputPosition === "right" && "size-3.5",
+                    )}
+                    strokeWidth={1.25}
+                  />
                 </Button>
-              )}
-            </div>
-          </div>
-          <div
-            {...props}
-            data-cell-role="output"
-            className={cn(
-              "relative fullscreen:bg-background fullscreen:flex fullscreen:items-center fullscreen:justify-center",
-              "fullscreen:items-center-safe",
-              props.className,
+              </Tooltip>
             )}
-            ref={containerRef}
-            style={
-              isExpanded || forceExpand ? { maxHeight: "none" } : undefined
-            }
-          >
-            {children}
+            {(isOverflowing || isExpanded) && !forceExpand && (
+              <Button
+                data-testid="expand-output-button"
+                className={cn(
+                  // Force show button if expanded
+                  !isExpanded && "hover-action",
+                )}
+                onClick={() => setIsExpanded(!isExpanded)}
+                size="xs"
+                variant="text"
+              >
+                {isExpanded ? (
+                  <Tooltip content="Collapse output" side={tooltipSide}>
+                    <ChevronsDownUpIcon className="h-4 w-4" />
+                  </Tooltip>
+                ) : (
+                  <Tooltip content="Expand output" side={tooltipSide}>
+                    <ChevronsUpDownIcon className="h-4 w-4 opacity-60" />
+                  </Tooltip>
+                )}
+              </Button>
+            )}
           </div>
         </div>
-        <div className="increase-pointer-area-x contents print:hidden" />
-      </>
+        <div
+          {...props}
+          data-cell-role="output"
+          className={cn(
+            "relative fullscreen:bg-background fullscreen:flex fullscreen:items-center fullscreen:justify-center",
+            "fullscreen:items-center-safe",
+            props.className,
+          )}
+          ref={containerRef}
+          style={isExpanded || forceExpand ? { maxHeight: "none" } : undefined}
+        >
+          {children}
+        </div>
+      </div>
     );
   },
 );
