@@ -506,6 +506,7 @@
   background-color: var(--slate-5);
   cursor: col-resize;
   position: relative;
+  z-index: 10;
   /* Stop the browser from claiming the gesture as a scroll/pan on touch input,
      which would otherwise cancel the pointer drag mid-resize. */
   touch-action: none;
