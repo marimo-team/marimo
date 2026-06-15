@@ -52,6 +52,10 @@ class Obstore(StorageBackend["ObjectStore"]):
         return _paginate_entries(storage_entries, offset=offset, limit=limit)
 
     def _list_storage_entries(self, prefix: str | None) -> list[StorageEntry]:
+        # Object stores commonly cap a single delimiter listing at ~1000
+        # entries, and we don't page beyond one listing, so directories with
+        # more entries than that will be silently truncated here.
+        # https://docs.rs/object_store/latest/object_store/struct.ListResult.html
         result = self.store.list_with_delimiter(prefix=prefix)
 
         storage_entries: list[StorageEntry] = []
