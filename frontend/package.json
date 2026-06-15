@@ -103,7 +103,7 @@
     "date-fns": "^4.1.0",
     "dequal": "^2.0.3",
     "dnd-core": "^16.0.1",
-    "dompurify": "^3.3.1",
+    "dompurify": "^3.4.9",
     "htm": "^3.1.1",
     "html-react-parser": "^5.2.14",
     "html-to-image": "1.11.13",
