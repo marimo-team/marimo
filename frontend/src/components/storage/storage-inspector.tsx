@@ -646,15 +646,17 @@ const StorageNamespaceSection: React.FC<{
   const hasSearch = !!searchValue.trim();
   const hasLoadedMatches =
     filtered.length > 0 || filteredRemoteEntries.length > 0;
-  const canSearchMore = canSearchMoreRemoteEntries({
-    hasSearch,
-    hasLoadedMatches,
-    isPending,
-    remoteSearch,
-    searchKey,
-    entriesByPath,
-    pageMetadataByPath,
-  });
+  const canSearchMore =
+    searchPrefix !== "" &&
+    canSearchMoreRemoteEntries({
+      hasSearch,
+      hasLoadedMatches,
+      isPending,
+      remoteSearch,
+      searchKey,
+      entriesByPath,
+      pageMetadataByPath,
+    });
 
   const showRemoteResults = hasSearch && filtered.length === 0;
   const statusRow = (() => {
