@@ -30,8 +30,12 @@ const datasetTableCompletionsAtom = atom((get) => {
   return builder.build();
 });
 
-function hasSchemaLayer(database: DataSourceConnection["databases"][number]) {
-  return database.children.some(isSchemaNode);
+function hasCatalogStructure(
+  database: DataSourceConnection["databases"][number],
+): boolean {
+  return database.children.some(
+    (node) => isNamespaceNode(node) || (isSchemaNode(node) && node.name !== ""),
+  );
 }
 
 class SQLCompletionStore {
@@ -60,9 +64,9 @@ class SQLCompletionStore {
     );
 
     const dbToVerify = defaultDb ?? databases[0];
-    const flatCatalog = dbToVerify ? !hasSchemaLayer(dbToVerify) : false;
+    const flatCatalog = dbToVerify ? !hasCatalogStructure(dbToVerify) : false;
 
-    // Engines without a schema layer (e.g. ClickHouse) expose tables on databases.
+    // Engines without schemas or namespaces (e.g. ClickHouse) expose tables on databases.
     if (flatCatalog) {
       for (const db of databases) {
         const isDefaultDb = db.name === defaultDb?.name;

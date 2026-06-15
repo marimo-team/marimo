@@ -1679,6 +1679,118 @@ describe("tablesCompletionSource", () => {
     `);
   });
 
+  it("should nest namespace catalog tables under their qualified path", () => {
+    const mockConnection = testDataSourceConnection({
+      name: TEST_ENGINE,
+      dialect: "iceberg",
+      display_name: "iceberg",
+      source: "iceberg",
+      databases: [
+        {
+          name: "catalog",
+          dialect: "iceberg",
+          children: [
+            {
+              kind: "namespace",
+              name: "top",
+              children: [
+                {
+                  kind: "namespace",
+                  name: "nested",
+                  children: [
+                    {
+                      kind: "data_table",
+                      name: "orders",
+                      source: "iceberg",
+                      source_type: "catalog",
+                      type: "table",
+                      num_columns: 0,
+                      num_rows: 0,
+                      variable_name: null,
+                      columns: [
+                        {
+                          name: "order_id",
+                          external_type: "string",
+                          type: "string",
+                          sample_values: [],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([[mockConnection.name, mockConnection]]),
+      latestEngineSelected: mockConnection.name,
+    });
+
+    const completionSource = completionStore.getCompletionSource(TEST_ENGINE);
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+      {
+        "catalog": {
+          "children": {
+            "top": {
+              "children": {
+                "nested": {
+                  "children": {
+                    "orders": {
+                      "children": [
+                        {
+                          "info": [Function],
+                          "label": "order_id",
+                          "type": "column",
+                        },
+                      ],
+                      "self": {
+                        "info": [Function],
+                        "label": "orders",
+                        "type": "table",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "self": {
+            "detail": "catalog",
+            "info": [Function],
+            "label": "catalog",
+            "type": "database",
+          },
+        },
+        "top": {
+          "children": {
+            "nested": {
+              "children": {
+                "orders": {
+                  "children": [
+                    {
+                      "info": [Function],
+                      "label": "order_id",
+                      "type": "column",
+                    },
+                  ],
+                  "self": {
+                    "info": [Function],
+                    "label": "orders",
+                    "type": "table",
+                  },
+                },
+              },
+            },
+          },
+        },
+      }
+    `);
+  });
+
   it("should return local tables", () => {
     const testDatasets = [
       {

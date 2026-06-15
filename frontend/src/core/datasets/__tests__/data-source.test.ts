@@ -182,6 +182,58 @@ describe("data source connections", () => {
     });
   });
 
+  it("preserves resolved-empty catalog paths across connection updates", () => {
+    const connection = {
+      name: "conn1" as ConnectionName,
+      source: "iceberg",
+      display_name: "Iceberg",
+      dialect: "iceberg",
+      databases: [
+        {
+          name: "top",
+          dialect: "iceberg",
+          children: [
+            {
+              kind: "namespace" as const,
+              name: "nested",
+              children: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    let newState = addConnection([connection], state);
+    newState = reducer(newState, {
+      type: "addCatalogChildren",
+      payload: {
+        nodes: [],
+        sqlCatalogContext: {
+          engine: "conn1",
+          database: "top",
+          catalogPath: ["nested"],
+        },
+      },
+    });
+
+    const key = catalogPathKey("top", ["nested"]);
+    expect(
+      newState.connectionsMap
+        .get("conn1" as ConnectionName)!
+        .catalogLoad.childrenLoaded.has(key),
+    ).toBe(true);
+    expect(
+      newState.connectionsMap
+        .get("conn1" as ConnectionName)!
+        .catalogLoad.tablesLoaded.has(key),
+    ).toBe(true);
+
+    newState = addConnection([connection], newState);
+    const conn = newState.connectionsMap.get("conn1" as ConnectionName);
+    expect(conn?.catalogLoad.childrenLoaded.has(key)).toBe(true);
+    expect(conn?.catalogLoad.tablesLoaded.has(key)).toBe(true);
+  });
+
   it("can remove connections", () => {
     const connections = [
       {

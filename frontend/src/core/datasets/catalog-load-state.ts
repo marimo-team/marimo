@@ -25,6 +25,45 @@ export function catalogPathKey(database: string, segments: string[]): string {
   return JSON.stringify([database, ...segments.filter(Boolean)]);
 }
 
+function markCatalogPathLoaded({
+  childrenLoaded,
+  tablesLoaded,
+  database,
+  path,
+}: {
+  childrenLoaded: Set<string>;
+  tablesLoaded: Set<string>;
+  database: string;
+  path: string[];
+}): void {
+  const key = catalogPathKey(database, path);
+  childrenLoaded.add(key);
+  tablesLoaded.add(key);
+}
+
+/** Union hydrated load keys with prior frontend state from catalog fetches. */
+export function mergeCatalogLoadState(
+  previous: CatalogLoadState,
+  hydrated: CatalogLoadState,
+): CatalogLoadState {
+  return {
+    childrenLoaded: new Set([
+      ...hydrated.childrenLoaded,
+      ...previous.childrenLoaded,
+    ]),
+    tablesLoaded: new Set([...hydrated.tablesLoaded, ...previous.tablesLoaded]),
+  };
+}
+
+/** True when a backend refresh replaced every database with an empty shell. */
+export function shouldResetCatalogLoadOnRefresh(
+  connection: Pick<BackendDataSourceConnection, "databases">,
+): boolean {
+  return connection.databases.every(
+    (database) => database.children.length === 0,
+  );
+}
+
 export function hydrateCatalogLoadState(
   connection: Pick<BackendDataSourceConnection, "databases">,
 ): CatalogLoadState {
@@ -41,7 +80,12 @@ export function hydrateCatalogLoadState(
     path: string[];
   }): void => {
     if (nodes.length > 0) {
-      childrenLoaded.add(catalogPathKey(database, path));
+      markCatalogPathLoaded({
+        childrenLoaded,
+        tablesLoaded,
+        database,
+        path,
+      });
     }
 
     for (const node of nodes) {
@@ -63,14 +107,13 @@ export function hydrateCatalogLoadState(
 
       if (isNamespaceNode(node)) {
         const namespacePath = [...path, node.name];
-        if (node.children.some(isDataTableNode)) {
-          tablesLoaded.add(catalogPathKey(database, namespacePath));
+        if (node.children.length > 0) {
+          visit({
+            database,
+            nodes: node.children,
+            path: namespacePath,
+          });
         }
-        visit({
-          database,
-          nodes: node.children,
-          path: namespacePath,
-        });
       }
     }
   };

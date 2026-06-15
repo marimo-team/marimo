@@ -34,7 +34,50 @@ describe("hydrateCatalogLoadState", () => {
       ),
     ).toBe(true);
     expect(
+      catalogLoad.childrenLoaded.has(catalogPathKey("catalog", ["top"])),
+    ).toBe(true);
+    expect(
       catalogLoad.tablesLoaded.has(catalogPathKey("catalog", ["top"])),
+    ).toBe(true);
+  });
+
+  it("does not mark deferred database roots with empty children", () => {
+    const catalogLoad = hydrateCatalogLoadState({
+      databases: [{ name: "catalog", dialect: "iceberg", children: [] }],
+    });
+
+    expect(catalogLoad.childrenLoaded.has(catalogPathKey("catalog", []))).toBe(
+      false,
+    );
+    expect(catalogLoad.tablesLoaded.has(catalogPathKey("catalog", []))).toBe(
+      false,
+    );
+  });
+
+  it("does not mark deferred namespace stubs with empty children", () => {
+    const catalogLoad = hydrateCatalogLoadState({
+      databases: [
+        {
+          name: "catalog",
+          dialect: "iceberg",
+          children: [
+            {
+              kind: "namespace",
+              name: "top",
+              children: [{ kind: "namespace", name: "nested", children: [] }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(
+      catalogLoad.childrenLoaded.has(catalogPathKey("catalog", ["top"])),
+    ).toBe(true);
+    expect(
+      catalogLoad.childrenLoaded.has(
+        catalogPathKey("catalog", ["top", "nested"]),
+      ),
     ).toBe(false);
   });
 });

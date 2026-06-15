@@ -24,6 +24,8 @@ import {
   catalogPathKey,
   emptyCatalogLoadState,
   hydrateCatalogLoadState,
+  mergeCatalogLoadState,
+  shouldResetCatalogLoadOnRefresh,
 } from "./catalog-load-state";
 import {
   type ConnectionName,
@@ -110,9 +112,15 @@ const {
     // Backend will dedupe by connection name & keep the latest, so we use this as the key
     const newMap = new Map(connectionsMap);
     for (const conn of opts.connections) {
+      const existing = connectionsMap.get(conn.name);
+      const hydrated = hydrateCatalogLoadState(conn);
+      const catalogLoad =
+        existing && !shouldResetCatalogLoadOnRefresh(conn)
+          ? mergeCatalogLoadState(existing.catalogLoad, hydrated)
+          : hydrated;
       newMap.set(conn.name, {
         ...conn,
-        catalogLoad: hydrateCatalogLoadState(conn),
+        catalogLoad,
       });
     }
 
