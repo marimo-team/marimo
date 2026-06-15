@@ -985,24 +985,25 @@ def test_relative_from_import() -> None:
     ]
 
 
-def test_underscore_imports_never_mangled() -> None:
-    # Imports must never be mangled — the user can't control upstream
-    # package names. Covers `from foo import _bar`, multi-name imports,
-    # plain `import _foo`, and `import x as _y`. Also checks that
-    # underscore-imported names referenced from a nested scope
-    # (decorator) stay unmangled.
+def test_underscore_as_imports_are_cell_local() -> None:
+    # An underscore-prefixed `as` alias is mangled, i.e. it is treated as
+    # a cell-local (private) name. This preserves the documented contract
+    # that underscore-prefixed names are private and may be redefined
+    # across cells: two cells may each `import numpy as _np` without a
+    # MultipleDefinitionError. References to the alias within the cell
+    # (including in a nested decorator/body scope) resolve to the mangled
+    # name.
+    prefix = "_cell_test_"
     cases = [
-        ("from foo import _bar", {"_bar"}),
-        ("from foo import _bar, _baz, _qux", {"_bar", "_baz", "_qux"}),
-        ("import _foo", {"_foo"}),
-        ("import marimo as _mo", {"_mo"}),
-        ("from a.b import _c as _d", {"_d"}),
+        ("import marimo as _mo", {f"{prefix}mo"}),
+        ("import a.b as _c", {f"{prefix}c"}),
+        ("from a.b import _c as _d", {f"{prefix}d"}),
         (
             "import marimo as _private\n"
             "@_private.cache\n"
             "def f(x):\n"
             "    return _private.md('x')\n",
-            {"_private", "f"},
+            {f"{prefix}private", "f"},
         ),
     ]
     for source, expected_defs in cases:
@@ -1011,8 +1012,9 @@ def test_underscore_imports_never_mangled() -> None:
         v.visit(mod)
         assert v.defs == expected_defs, source
         unparsed = ast.unparse(mod)
-        assert "_cell_test_" not in unparsed, (
-            f"import was mangled in {source!r}: {unparsed!r}"
+        # The alias is rewritten to its mangled, cell-local form.
+        assert prefix in unparsed, (
+            f"alias was not mangled in {source!r}: {unparsed!r}"
         )
 
 

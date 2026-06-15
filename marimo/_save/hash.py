@@ -698,10 +698,14 @@ class BlockHasher:
         imports = get_imports(scope)
         for local_ref in sorted(refs):
             ref = if_local_then_mangle(local_ref, self.cell_id)
-            # Imports are never mangled (see `_get_alias_name`), so the
-            # `_private`-style import will appear in `imports` under its
-            # raw name while non-import locals are still keyed by their
-            # mangled form. Accept either.
+            # An underscore import (e.g. `import marimo as _private`) is
+            # mangled in the cell, but a cached function that references
+            # it can surface the raw, unmangled name as a ref (its body
+            # is hashed in the function scope). Depending on the path the
+            # import may therefore appear in `imports` under either the
+            # mangled `ref` or the raw `local_ref`. Accept either so the
+            # module is treated as an import (and not pickled, which
+            # would raise `cannot pickle 'module' object`).
             import_key: Name | None = (
                 ref
                 if ref in imports

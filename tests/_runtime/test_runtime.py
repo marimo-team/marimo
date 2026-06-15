@@ -877,9 +877,7 @@ except NameError:
     async def test_import_module_as_local_var(
         self, any_kernel: Kernel
     ) -> None:
-        # Imports are never mangled (see `_get_alias_name`) and are
-        # exposed as graph defs even when underscore-prefixed, so they
-        # can be referenced across cells.
+        # Tests that imported names are mangled but still usable
         k = any_kernel
         await k.run(
             [
@@ -889,50 +887,59 @@ except NameError:
                 ),
             ]
         )
+        # _sys mangled, should not be in globals
+        assert "_sys" not in k.globals
         assert k.globals["msize"] == sys.maxsize
-        assert "_sys" in k.graph.cells["0"].defs
 
     async def test_underscore_prefixed_import_in_cell(
         self, any_kernel: Kernel
     ) -> None:
-        # An underscore-prefixed `from x import _y` in a single cell
-        # must resolve when used in the same cell.
+        # An underscore-prefixed `as` alias is cell-local (mangled), but
+        # must still resolve when used within the same cell, including in
+        # a nested decorator/body scope.
         k = any_kernel
         await k.run(
             [
                 ExecuteCellCommand(
                     cell_id="0",
                     code=(
-                        "from marimo import _output\nmsg = _output.md.md('hi')"
+                        "import marimo as _mo\n"
+                        "@_mo.cache\n"
+                        "def f(x):\n"
+                        "    return _mo.md(str(x))\n"
+                        "msg = f(1)"
                     ),
                 ),
             ]
         )
         assert not k.errors, k.errors
-        assert "hi" in k.globals["msg"].text
+        # The alias is cell-local, so it never leaks into globals.
+        assert "_mo" not in k.globals
+        assert "1" in k.globals["msg"].text
 
-    async def test_underscore_prefixed_import_across_cells(
+    async def test_underscore_prefixed_import_across_cells_no_conflict(
         self, k: Kernel
     ) -> None:
-        # Cross-cell: one cell does `from x import _y`, another uses
-        # `_y`. The consumer resolves at runtime via shared globals
-        # (the importer ran first). No reactive edge is created — the
-        # consumer is not in the importer's children — so editing the
-        # importer won't automatically re-run the consumer. We accept
-        # that trade-off rather than promoting every undefined
-        # underscore Load to a cross-cell ref.
-        importer = ExecuteCellCommand(
-            cell_id="0",
-            code="from marimo import _output",
+        # Underscore-prefixed `as` aliases are cell-local/private: two
+        # cells may each `import sys as _sys` without triggering a
+        # MultipleDefinitionError. Each cell sees its own mangled binding.
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="import sys as _sys; a = _sys.maxsize",
+                ),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="import sys as _sys; b = _sys.maxsize",
+                ),
+            ]
         )
-        consumer = ExecuteCellCommand(
-            cell_id="1",
-            code="msg = _output.md.md('cross')",
-        )
-        await k.run([importer, consumer])
         assert not k.errors, k.errors
-        assert "cross" in k.globals["msg"].text
-        assert "1" not in k.graph.children.get("0", set())
+        assert k.globals["a"] == sys.maxsize
+        assert k.globals["b"] == sys.maxsize
+        # The private alias is not promoted to a graph def.
+        assert "_sys" not in k.globals
 
     async def test_cell_transitioned_to_error_is_not_stale(
         self, lazy_kernel: Kernel

@@ -270,9 +270,7 @@ class ScopedVisitor(ast.NodeVisitor):
     ) -> str:
         """Get the string name of an imported alias.
 
-        Imports are never mangled. The user can't control upstream
-        package names, and `import x as _y` already gets cell-local
-        semantics via `is_local` -> `temporaries` in `compile_cell`.
+        Mangles the "as" name if it's a local variable.
 
         NB: We disallow `import *` because Python only allows
         star imports at module-level, but we store cells as functions.
@@ -282,6 +280,9 @@ class ScopedVisitor(ast.NodeVisitor):
             #   import [a.b.c] - we define a
             #   from foo import [a] - we define a
             #   from foo import [*] - we don't define anything
+            #
+            # Note:
+            # Don't mangle - user has no control over package name
             basename = node.name.split(".")[0]
             if basename == "*":
                 # Use the ImportFrom node's line number for consistency
@@ -298,7 +299,9 @@ class ScopedVisitor(ast.NodeVisitor):
                     "is not allowed in marimo."
                 )
             return basename
-        return node.asname
+        else:
+            node.asname = self._if_local_then_mangle(node.asname)
+            return node.asname
 
     def _is_defined(self, identifier: str) -> bool:
         """Check if `identifier` is defined in any block."""
@@ -964,14 +967,6 @@ class ScopedVisitor(ast.NodeVisitor):
         ):
             self._add_ref(node, node.id, deleted=True)
         elif self.is_local(node.id):
-            # An unresolved underscore-prefixed Load is intentionally
-            # *not* added to refs. We could promote it so the dataflow
-            # wires it up to e.g. `from foo import _bar` in another
-            # cell, but that would expand the cross-cell reactive
-            # surface to every undefined underscore name. For now we
-            # accept the trade-off: cross-cell underscore imports work
-            # at runtime via the shared globals dict (the importer must
-            # have run), but the reactive graph won't track the edge.
             mangled_name = self._if_local_then_mangle(
                 node.id, ignore_scope=True
             )
@@ -983,12 +978,10 @@ class ScopedVisitor(ast.NodeVisitor):
                     # doesn't define it yet — this handles recursive calls to
                     # underscore-prefixed functions, where the function name
                     # isn't registered in the top-level block until after its
-                    # body is visited. Skip mangling when the *unmangled*
-                    # name is already defined at top level (e.g. by an
-                    # underscore-prefixed import, which is never mangled).
-                    if block.is_defined(mangled_name) or (
-                        len(self.block_stack) > 1
-                        and not block.is_defined(node.id)
+                    # body is visited.
+                    if (
+                        block.is_defined(mangled_name)
+                        or len(self.block_stack) > 1
                     ):
                         node.id = mangled_name
                 elif block.is_defined(node.id):
