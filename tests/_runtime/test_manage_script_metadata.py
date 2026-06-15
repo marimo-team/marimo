@@ -36,8 +36,8 @@ HAS_UV = DependencyManager.which("uv")
 
 
 def _make_stream_install(mock_pm: Mock) -> Any:
-    """Create an async generator ``stream_install`` that delegates to
-    the mock's ``install`` method, matching the base-class default
+    """Create an async generator `stream_install` that delegates to
+    the mock's `install` method, matching the base-class default
     behaviour so the existing test expectations hold."""
 
     async def stream_install(
