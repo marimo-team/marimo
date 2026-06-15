@@ -218,15 +218,19 @@ async def usage(request: Request) -> JSONResponse:
 
     """
 
-    import psutil
+    try:
+        import psutil
+
+        has_psutil = True
+    except ImportError:
+        has_psutil = False
 
     if cgroup_mem_stats := get_cgroup_mem_stats():
         memory_stats = {
             "has_cgroup_mem_limit": True,
             **cgroup_mem_stats,
         }
-    else:
-        # Use host memory stats
+    elif has_psutil:
         memory = psutil.virtual_memory()
         memory_stats = {
             "total": memory.total,
@@ -236,9 +240,18 @@ async def usage(request: Request) -> JSONResponse:
             "free": memory.free,
             "has_cgroup_mem_limit": False,
         }
+    else:
+        memory_stats = {
+            "total": None,
+            "available": None,
+            "percent": None,
+            "used": None,
+            "free": None,
+            "has_cgroup_mem_limit": False,
+        }
 
     cpu = get_cgroup_cpu_percent()
-    if cpu is None:
+    if cpu is None and has_psutil:
         # interval=None is nonblocking; first call returns meaningless value
         # subsequent calls return delta since last call
         cpu = psutil.cpu_percent(interval=None)
@@ -246,33 +259,35 @@ async def usage(request: Request) -> JSONResponse:
     # Collect kernel PIDs first so we can exclude them from server memory
     kernel_memory: int | None = None
     kernel_pids: set[int] = set()
+    server_memory: int | None = None
     session = AppState(request).get_current_session()
-    try:
-        if session and (pid := session.kernel_pid()) is not None:
-            kernel_process = psutil.Process(pid)
-            kernel_pids.add(kernel_process.pid)
-            kernel_memory = kernel_process.memory_info().rss
-            kernel_children = kernel_process.children(recursive=True)
-            for child in kernel_children:
-                kernel_pids.add(child.pid)
-                try:
-                    kernel_memory += child.memory_info().rss
-                except psutil.NoSuchProcess:
-                    pass
-    except psutil.ZombieProcess:
-        LOGGER.warning("Kernel process is a zombie")
-
-    # Server memory (excluding kernel processes to avoid double-counting)
-    main_process = psutil.Process()
-    server_memory = main_process.memory_info().rss
-    children = main_process.children(recursive=True)
-    for child in children:
-        if child.pid in kernel_pids:
-            continue
+    if has_psutil:
         try:
-            server_memory += child.memory_info().rss
-        except psutil.NoSuchProcess:
-            pass
+            if session and (pid := session.kernel_pid()) is not None:
+                kernel_process = psutil.Process(pid)
+                kernel_pids.add(kernel_process.pid)
+                kernel_memory = kernel_process.memory_info().rss
+                kernel_children = kernel_process.children(recursive=True)
+                for child in kernel_children:
+                    kernel_pids.add(child.pid)
+                    try:
+                        kernel_memory += child.memory_info().rss
+                    except psutil.NoSuchProcess:
+                        pass
+        except psutil.ZombieProcess:
+            LOGGER.warning("Kernel process is a zombie")
+
+        # Server memory (excluding kernel processes to avoid double-counting)
+        main_process = psutil.Process()
+        server_memory = main_process.memory_info().rss
+        children = main_process.children(recursive=True)
+        for child in children:
+            if child.pid in kernel_pids:
+                continue
+            try:
+                server_memory += child.memory_info().rss
+            except psutil.NoSuchProcess:
+                pass
 
     # GPU stats
     gpu_stats: list[dict[str, Any]] = []

@@ -32,12 +32,18 @@ def test_get_optional_modules_list():
     assert isinstance(get_optional_modules_list(), dict)
 
 
-def test_get_required_modules_list_excludes_psutil_on_emscripten() -> None:
-    with patch(
-        "marimo._utils.health.is_pyodide",
-        return_value=True,
-    ):
+def test_get_required_modules_list_excludes_psutil_when_unavailable() -> None:
+    import sys
+
+    original = sys.modules.get("psutil", None)
+    sys.modules["psutil"] = None  # type: ignore[assignment]
+    try:
         modules = get_required_modules_list()
+    finally:
+        if original is None:
+            del sys.modules["psutil"]
+        else:
+            sys.modules["psutil"] = original
     assert "psutil" not in modules
 
 
@@ -46,6 +52,13 @@ def test_get_optional_modules_list_excludes_loro_on_emscripten() -> None:
         "marimo._utils.health.is_pyodide",
         return_value=True,
     ):
+        modules = get_optional_modules_list()
+    assert "loro" not in modules
+
+
+def test_get_optional_modules_list_excludes_loro_on_android() -> None:
+    with patch("marimo._utils.health.sys") as mock_sys:
+        mock_sys.platform = "android"
         modules = get_optional_modules_list()
     assert "loro" not in modules
 

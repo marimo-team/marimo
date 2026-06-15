@@ -38,13 +38,13 @@ dependencies = [
     # websockets for use with starlette, and for lsp
     "websockets >= 14.2.0; sys_platform != 'emscripten'",
     # loro for collaborative editing (native extension; server-only)
-    "loro>=1.10.0; sys_platform != 'emscripten'",
+    "loro>=1.10.0; sys_platform != 'emscripten' and sys_platform != 'android'",
     # python <=3.10 compatibility
     "typing_extensions>=4.4.0; python_version < '3.11'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
     "docutils>=0.16.0",
     # to show RAM, CPU usage, other system utilities
-    "psutil>=5.0; sys_platform != 'emscripten'",
+    "psutil>=5.0; sys_platform != 'emscripten' and sys_platform != 'android'",
     # required dependency in Starlette for SessionMiddleware support
     "itsdangerous>=2.0.0",
     # for dataframe support

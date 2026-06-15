@@ -2,12 +2,12 @@ click>=8.0,<9; sys_platform != 'emscripten'
 docutils>=0.16.0
 itsdangerous>=2.0.0
 jedi>=0.18.0,<0.20.0
-loro>=1.10.0; sys_platform != 'emscripten'
+loro>=1.10.0; sys_platform != 'emscripten' and sys_platform != 'android'
 markdown>=3.6,<4
 msgspec>=0.20.0
 narwhals>=2.0.0
 packaging
-psutil>=5.0; sys_platform != 'emscripten'
+psutil>=5.0; sys_platform != 'emscripten' and sys_platform != 'android'
 pygments>=2.19,<3
 pymdown-extensions>=10.21.2,<11
 python-multipart>=0.0.18
