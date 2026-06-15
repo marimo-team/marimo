@@ -60,8 +60,8 @@ export const renderUIMessage = ({
 
     switch (part.type) {
       case "text":
-        // Streamdown sanitizes the HTML which strips out marimo elements
-        // So instead, we render the HTML with our custom renderer.
+        // Streamdown strips marimo elements, so render them with our own HTML
+        // renderer. Other markdown (incl. mo.md HTML) goes through Streamdown.
         if (part.text.includes("<marimo-")) {
           return (
             <React.Fragment key={index}>

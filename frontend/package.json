@@ -141,6 +141,7 @@
     "react-vega": "^8.0.0",
     "react-virtuoso": "^4.18.1",
     "reactflow": "^11.11.4",
+    "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "reveal.js": "^6.0.0",
     "rpc-anywhere": "^1.7.0",
