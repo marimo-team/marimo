@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notification import (
@@ -11,6 +11,16 @@ from marimo._messaging.notification import (
 )
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.mocks import token_header
+
+if TYPE_CHECKING:
+    from starlette.testclient import WebSocketTestSession
+
+
+def receive_until(op: str, websocket: WebSocketTestSession) -> dict[str, Any]:
+    while True:
+        data = websocket.receive_json()
+        if data["op"] == op:
+            return data
 
 
 def create_response(
