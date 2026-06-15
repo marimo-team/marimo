@@ -1,12 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import asyncio
 import subprocess
 import sys
 import textwrap
 
 from marimo import _loggers
+from marimo._ast.parse import Extractor, fixed_dedent
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._types.ids import CellId_t
 
@@ -162,28 +164,21 @@ class RuffFormatter(Formatter):
             stdin_filename=stdin_filename,
         )
 
-        # Unwrap: drop the def _(): line, dedent, strip.
+        # Unwrap: use the AST to extract the function body, mirroring the
+        # parse mechanism in marimo/_ast/parse.py (Extractor + fixed_dedent).
         result: CellCodes = {}
-        fallback_keys = []
         for key, code in codes.items():
             if not code.strip():
                 result[key] = wrapped_result.get(key, code)
             elif key in wrapped_result:
-                lines = wrapped_result[key].split("\n")
-                result[key] = textwrap.dedent("\n".join(lines[1:])).strip()
-            else:
-                # Wrapping caused ruff to reject this cell; retry unwrapped.
-                fallback_keys.append(key)
-
-        if fallback_keys:
-            fallback_result = await ruff(
-                {k: codes[k] for k in fallback_keys},
-                "format",
-                "--line-length",
-                str(self.line_length),
-                stdin_filename=stdin_filename,
-            )
-            result.update(fallback_result)
+                formatted = wrapped_result[key]
+                tree = ast.parse(formatted)
+                fn = tree.body[0]
+                extractor = Extractor(formatted)
+                raw = extractor.extract_from_offsets(
+                    fn.body[0].lineno - 1, 0, fn.end_lineno - 1, fn.end_col_offset
+                )
+                result[key] = fixed_dedent(raw).strip()
 
         return result
 
