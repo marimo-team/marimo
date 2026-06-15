@@ -290,6 +290,110 @@ async def test_url_spec_tracked_correctly(
     assert results == [(spec, True)]
 
 
+async def _make_micropip_manager(monkeypatch: Any) -> Any:
+    """Build a `MicropipPackageManager` outside Pyodide by stubbing the
+    `is_pyodide()` guard that both the constructor path and `stream_install`
+    assert on."""
+    import marimo._runtime.packages.pypi_package_manager as ppm
+
+    monkeypatch.setattr(ppm, "is_pyodide", lambda: True)
+    return ppm.MicropipPackageManager()
+
+
+async def test_manager_stream_install_happy_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The manager wraps the engine, marks attempted packages, and yields
+    each package exactly once."""
+    import marimo._runtime.packages.pypi_package_manager as ppm
+
+    manager = await _make_micropip_manager(monkeypatch)
+
+    async def fake_engine(packages: list[str], **_kwargs: Any) -> Any:
+        for pkg in packages:
+            yield (pkg, True)
+
+    monkeypatch.setattr(ppm, "stream_transaction_install", fake_engine)
+
+    results = await _drain(manager.stream_install(["foo", "bar"]))
+    assert results == [("foo", True), ("bar", True)]
+    assert manager._attempted_packages == {"foo", "bar"}
+    # Each package yielded exactly once.
+    names = [name for name, _ in results]
+    assert sorted(names) == ["bar", "foo"]
+
+
+async def test_manager_stream_install_fallback_no_reinstall(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If the engine raises after yielding some packages, the manager falls
+    back to the sequential base path for the *remaining* packages only —
+    already-yielded packages are not re-installed, and every package is
+    yielded exactly once."""
+    import marimo._runtime.packages.pypi_package_manager as ppm
+
+    manager = await _make_micropip_manager(monkeypatch)
+
+    async def flaky_engine(packages: list[str], **_kwargs: Any) -> Any:
+        del packages
+        # First package resolves, then the private API "shifts".
+        yield ("foo", True)
+        raise AttributeError("Transaction internals moved")
+
+    monkeypatch.setattr(ppm, "stream_transaction_install", flaky_engine)
+
+    # Record which packages the fallback actually tries to install.
+    installed: list[str] = []
+
+    async def fake_install(package: str, *_args: Any, **_kwargs: Any) -> bool:
+        installed.append(package)
+        return True
+
+    monkeypatch.setattr(manager, "_install", fake_install)
+
+    results = await _drain(manager.stream_install(["foo", "bar", "baz"]))
+
+    # `foo` came from the engine; `bar`/`baz` from the fallback.
+    assert results == [("foo", True), ("bar", True), ("baz", True)]
+
+    # The already-yielded `foo` was NOT re-installed by the fallback.
+    assert installed == ["bar", "baz"]
+
+    # Each requested package is yielded exactly once.
+    names = [name for name, _ in results]
+    assert sorted(names) == ["bar", "baz", "foo"]
+    assert len(names) == len(set(names))
+
+
+async def test_manager_stream_install_fallback_before_any_yield(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If the engine raises before yielding anything, the fallback installs
+    the full list."""
+    import marimo._runtime.packages.pypi_package_manager as ppm
+
+    manager = await _make_micropip_manager(monkeypatch)
+
+    async def dead_engine(packages: list[str], **_kwargs: Any) -> Any:
+        del packages
+        raise ImportError("micropip.transaction unavailable")
+        yield  # pragma: no cover - makes this an async generator
+
+    monkeypatch.setattr(ppm, "stream_transaction_install", dead_engine)
+
+    installed: list[str] = []
+
+    async def fake_install(package: str, *_args: Any, **_kwargs: Any) -> bool:
+        installed.append(package)
+        return True
+
+    monkeypatch.setattr(manager, "_install", fake_install)
+
+    results = await _drain(manager.stream_install(["foo", "bar"]))
+    assert results == [("foo", True), ("bar", True)]
+    assert installed == ["foo", "bar"]
+
+
 async def test_loadpackage_failure_yields_false_no_terminate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

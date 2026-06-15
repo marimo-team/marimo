@@ -4,23 +4,33 @@ import { Kbd } from "@/components/ui/kbd";
 import { toast } from "@/components/ui/use-toast";
 
 export const showAddPackageToast = (
-  packageName: string,
+  packageName: string | string[],
   error?: string | null,
 ) => {
+  const packageNames = Array.isArray(packageName) ? packageName : [packageName];
   if (error) {
     toast({
-      title: "Failed to add package",
+      title:
+        packageNames.length > 1
+          ? "Failed to add packages"
+          : "Failed to add package",
       description: error,
       variant: "danger",
     });
   } else {
     toast({
-      title: "Package added",
+      title: packageNames.length > 1 ? "Packages added" : "Package added",
       description: (
         <div>
           <div>
-            The package <Kbd className="inline">{packageName}</Kbd> and its
-            dependencies has been added to your environment.
+            {packageNames.length > 1 ? "The packages " : "The package "}
+            {packageNames.map((name, index) => (
+              <span key={name}>
+                {index > 0 && ", "}
+                <Kbd className="inline">{name}</Kbd>
+              </span>
+            ))}{" "}
+            and their dependencies have been added to your environment.
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             Some Python packages may require a kernel restart to see changes.
