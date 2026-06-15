@@ -1,39 +1,26 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
 import sys
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import anyio
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from tests._server.api.endpoints.ws_helpers import receive_until
 from tests._server.mocks import token_header, with_session
 
 HAS_FORMATTER = DependencyManager.ruff.has() or DependencyManager.black.has()
 
 if TYPE_CHECKING:
-    from starlette.testclient import TestClient, WebSocketTestSession
+    from starlette.testclient import TestClient
 
 SESSION_ID = "session-123"
 HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
 }
-
-
-def _receive_json_with_timeout(
-    websocket: WebSocketTestSession, timeout_seconds: float = 0.5
-) -> dict[str, object]:
-    async def receive() -> dict[str, object]:
-        with anyio.fail_after(timeout_seconds):
-            message = await websocket._send_rx.receive()
-        websocket._raise_on_close(message)
-        return json.loads(message["text"])
-
-    return websocket.portal.call(receive)
 
 
 @with_session(SESSION_ID)
@@ -248,7 +235,7 @@ def test_focus_cell_notifies_same_session_kiosk_consumer(
         )
         assert response.status_code == 200, response.text
 
-        message = _receive_json_with_timeout(websocket)
+        message = receive_until("focus-cell", websocket)
         assert message == {
             "op": "focus-cell",
             "data": {"op": "focus-cell", "cell_id": cell_id},
