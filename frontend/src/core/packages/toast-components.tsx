@@ -30,7 +30,8 @@ export const showAddPackageToast = (
                 <Kbd className="inline">{name}</Kbd>
               </span>
             ))}{" "}
-            and their dependencies have been added to your environment.
+            and {packageNames.length > 1 ? "their" : "its"} dependencies have
+            been added to your environment.
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             Some Python packages may require a kernel restart to see changes.
