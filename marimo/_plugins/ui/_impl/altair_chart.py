@@ -460,6 +460,13 @@ def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
         with alt.data_transformers.enable("default"):
             return spec.to_dict()  # type: ignore
 
+    # Respect a user-configured marimo transformer (e.g. marimo_csv,
+    # marimo_json) — all marimo transformers produce frontend-renderable
+    # output. Non-marimo transformers may not be supported by our frontend,
+    # so we default to marimo_arrow.
+    if alt.data_transformers.active.startswith("marimo"):
+        return spec.to_dict(validate=False)  # type: ignore
+
     with alt.data_transformers.enable("marimo_arrow"):
         return spec.to_dict(validate=False)  # type: ignore
 
