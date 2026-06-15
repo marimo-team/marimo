@@ -497,6 +497,44 @@
   border-bottom-right-radius: 9px;
 }
 
+/* Stretch the editor panel to the full column height so short cells don't
+   leave a bare strip of empty space beside tall outputs. */
+.cell-columns--resizable > .tray {
+  flex-direction: column;
+}
+
+.cell-columns--resizable > .tray > [data-ai-input-open] {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.cell-columns--resizable
+  > .tray
+  [data-ai-input-open]
+  > div:has([data-testid="cell-editor"]) {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cell-columns--resizable
+  > .tray
+  [data-testid="cell-editor"]:not(.h-8):not(.h-0) {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cell-columns--resizable
+  > .tray
+  [data-testid="cell-editor"]:not(.h-8):not(.h-0)
+  .cm-editor {
+  min-height: 100%;
+  height: 100%;
+}
+
 /* Draggable divider between the columns. */
 .cell-columns__resizer {
   flex: 0 0 auto;
