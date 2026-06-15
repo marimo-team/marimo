@@ -12,11 +12,9 @@ from marimo._data.models import (
     DataTable,
     DataTableColumn,
     DataTableType,
-    Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import (
-    NO_SCHEMA_NAME,
     InferenceConfig,
     SQLConnection,
 )
@@ -308,6 +306,24 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         )
         return []
 
+    def get_catalog_children(
+        self,
+        *,
+        database: str,
+        catalog_path: list[str],
+        include_table_details: bool,
+    ) -> list[CatalogNode]:
+        """ClickHouse databases contain tables directly, without schemas."""
+        if catalog_path:
+            return []
+        return [
+            *self.get_tables_in_schema(
+                schema="",
+                database=database,
+                include_table_details=include_table_details,
+            )
+        ]
+
     def get_databases(
         self,
         *,
@@ -367,29 +383,21 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             # Skip introspection for meta tables for performance
             is_meta_db = db_name.lower() in self._meta_dbs
             if is_meta_db or not include_tables_bool:
-                tables: list[DataTable] = []
-                tables_resolved = False
+                children: list[CatalogNode] = []
             else:
-                tables, tables_resolved = (
-                    self._get_tables_in_schema_with_resolution(
-                        schema=NO_SCHEMA_NAME,
-                        database=db,
-                        include_table_details=include_table_details,
-                    )
+                tables, _ = self._get_tables_in_schema_with_resolution(
+                    schema="",
+                    database=db,
+                    include_table_details=include_table_details,
                 )
+                children = [*tables]
             databases.append(
                 Database(
                     name=db,
                     dialect=self.dialect,
                     engine=self._engine_name,
-                    # ClickHouse does not have schemas
-                    children=[
-                        Schema(
-                            name=NO_SCHEMA_NAME,
-                            tables=tables,
-                            tables_resolved=tables_resolved,
-                        )
-                    ],
+                    # ClickHouse does not have schemas; tables are direct children.
+                    children=children,
                 )
             )
         return databases

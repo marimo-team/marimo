@@ -580,8 +580,8 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
         name="memory",
         dialect="duckdb",
         children=[
-            Schema(name="main", tables=[], tables_resolved=False),
-            Schema(name="my_schema", tables=[], tables_resolved=False),
+            Schema(name="main", tables=[]),
+            Schema(name="my_schema", tables=[]),
         ],
         engine=var_name,
     )
@@ -600,7 +600,6 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
         name="memory",
         dialect="duckdb",
         children=[],
-        children_resolved=False,
         engine=var_name,
     )
 
@@ -618,7 +617,6 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
         name="memory",
         dialect="duckdb",
         children=[],
-        children_resolved=False,
         engine=var_name,
     )
 
@@ -679,7 +677,6 @@ def test_ibis_engine_get_databases_auto(ibis_backend: SQLBackend) -> None:
             name="memory",
             dialect="duckdb",
             children=[],
-            children_resolved=False,
             engine=var_name,
         )
 
@@ -826,11 +823,9 @@ def test_ibis_get_databases_multiple_catalogs(
 def test_ibis_get_databases_surfaces_empty_schemas(
     empty_ibis_backend: SQLBackend,
 ) -> None:
-    """Empty schemas are returned and marked as resolved.
+    """Empty schemas are returned.
 
     Regression test for https://github.com/marimo-team/marimo/issues/6807.
-    The frontend uses `tables_resolved` to distinguish a truly empty schema
-    from one whose tables haven't been fetched yet.
     """
     import ibis
 
@@ -848,7 +843,6 @@ def test_ibis_get_databases_surfaces_empty_schemas(
     )
 
     memory_db = next(db for db in databases if db.name == "memory")
-    assert memory_db.children_resolved is True
 
     empty_schema = next(
         schema
@@ -856,19 +850,14 @@ def test_ibis_get_databases_surfaces_empty_schemas(
         if schema.name == "empty_schema"
     )
     assert empty_schema.tables == []
-    assert empty_schema.tables_resolved is True
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-def test_ibis_get_databases_marks_deferred_tables(
+def test_ibis_get_databases_defers_tables(
     empty_ibis_backend: SQLBackend,
 ) -> None:
-    """When tables are not eagerly fetched, schemas report tables_resolved=False.
-
-    The frontend relies on this to keep deferred schemas visible so the
-    user can expand them to trigger a lazy table fetch.
-    """
+    """When tables are not eagerly fetched, schemas have empty table lists."""
     engine = IbisEngine(empty_ibis_backend)
 
     databases = engine.get_databases(
@@ -878,19 +867,15 @@ def test_ibis_get_databases_marks_deferred_tables(
     )
 
     memory_db = next(db for db in databases if db.name == "memory")
-    assert memory_db.children_resolved is True
-    assert all(
-        schema.tables == [] and schema.tables_resolved is False
-        for schema in memory_db.children
-    )
+    assert all(schema.tables == [] for schema in memory_db.children)
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-def test_ibis_get_databases_marks_deferred_schemas(
+def test_ibis_get_databases_defers_schemas(
     empty_ibis_backend: SQLBackend,
 ) -> None:
-    """When schemas are not eagerly fetched, databases report schemas_resolved=False."""
+    """When schemas are not eagerly fetched, databases have empty children."""
     engine = IbisEngine(empty_ibis_backend)
 
     databases = engine.get_databases(
@@ -899,9 +884,7 @@ def test_ibis_get_databases_marks_deferred_schemas(
         include_table_details=False,
     )
 
-    assert all(
-        db.children == [] and db.children_resolved is False for db in databases
-    )
+    assert all(db.children == [] for db in databases)
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")

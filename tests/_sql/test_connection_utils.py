@@ -14,13 +14,11 @@ from marimo._data.models import (
     Namespace,
     Schema,
 )
-from marimo._messaging.notification import SQLDatabaseMetadata, SQLMetadata
+from marimo._messaging.notification import SQLCatalogMetadata, SQLMetadata
 from marimo._sql.connection_utils import (
     _find_node_by_path,
-    _find_schema_by_path,
-    update_schema_list_in_connection,
+    update_catalog_children_in_connection,
     update_table_in_connection,
-    update_table_list_in_connection,
 )
 
 if TYPE_CHECKING:
@@ -215,101 +213,6 @@ class TestUpdateTableInConnection:
         assert schema.tables == original_tables
 
 
-class TestUpdateSchemaListInConnection:
-    """Tests for update_schema_list_in_connection function."""
-
-    def test_update_schema_list(self) -> None:
-        """Test updating a schema list in the hierarchy."""
-        connections = create_test_connections(num_schemas_per_db=3)
-
-        sql_db_metadata = SQLDatabaseMetadata(
-            connection="connection_0",
-            database="database_0",
-        )
-
-        # Create new schema list
-        new_schemas = [
-            Schema(name=f"new_schema_{i}", tables=[]) for i in range(5)
-        ]
-
-        update_schema_list_in_connection(
-            connections, sql_db_metadata, new_schemas
-        )
-
-        # Verify the update
-        target_database = connections[0].databases[0]
-        assert len(target_database.children) == 5
-        assert target_database.children[0].name == "new_schema_0"
-        assert target_database.children[4].name == "new_schema_4"
-
-    def test_update_schema_list_nonexistent_connection(self) -> None:
-        """Test updating a schema list in a non-existent connection."""
-        connections = create_test_connections(num_schemas_per_db=3)
-
-        sql_db_metadata = SQLDatabaseMetadata(
-            connection="nonexistent",
-            database="database_0",
-        )
-
-        new_schemas = [
-            Schema(name=f"new_schema_{i}", tables=[]) for i in range(5)
-        ]
-        original_count = len(connections[0].databases[0].children)
-
-        update_schema_list_in_connection(
-            connections, sql_db_metadata, new_schemas
-        )
-
-        # Verify nothing changed
-        assert len(connections[0].databases[0].children) == original_count
-
-
-class TestUpdateTableListInConnection:
-    """Tests for update_table_list_in_connection function."""
-
-    def test_update_table_list(self) -> None:
-        """Test updating a table list in the hierarchy."""
-        connections = create_test_connections(num_tables_per_schema=3)
-
-        sql_metadata = SQLMetadata(
-            connection="connection_0",
-            database="database_0",
-            schema="schema_0",
-        )
-
-        # Create new table list
-        new_tables = [create_test_table(f"new_table_{i}") for i in range(5)]
-
-        update_table_list_in_connection(connections, sql_metadata, new_tables)
-
-        # Verify the update
-        target_schema = connections[0].databases[0].children[0]
-        assert isinstance(target_schema, Schema)
-        assert len(target_schema.tables) == 5
-        assert target_schema.tables[0].name == "new_table_0"
-        assert target_schema.tables[4].name == "new_table_4"
-
-    def test_update_table_list_nonexistent_connection(self) -> None:
-        """Test updating a table list in a non-existent connection."""
-        connections = create_test_connections(num_tables_per_schema=3)
-
-        sql_metadata = SQLMetadata(
-            connection="nonexistent",
-            database="database_0",
-            schema="schema_0",
-        )
-
-        new_tables = [create_test_table(f"new_table_{i}") for i in range(5)]
-        schema = connections[0].databases[0].children[0]
-        assert isinstance(schema, Schema)
-        original_count = len(schema.tables)
-
-        update_table_list_in_connection(connections, sql_metadata, new_tables)
-
-        # Verify nothing changed
-        assert len(schema.tables) == original_count
-
-
 class TestPerformance:
     """Performance tests for connection utils."""
 
@@ -470,85 +373,11 @@ class TestPerformance:
         )
 
         print(
-            f"\nBest case (early exit): "
-            f"{avg_time:.4f}ms avg, {total_time:.2f}ms total"
+            f"\nBest case (early exit): {avg_time:.4f}ms avg, {total_time:.2f}ms total"
         )
 
         # Early exit should be very fast
         assert avg_time < 0.1, f"Performance too slow: {avg_time:.4f}ms"
-
-    def test_performance_update_schema_list(self) -> None:
-        """Benchmark update_schema_list_in_connection."""
-        connections = create_test_connections(
-            num_connections=5,
-            num_databases_per_conn=5,
-            num_schemas_per_db=10,
-            num_tables_per_schema=50,
-        )
-
-        sql_db_metadata = SQLDatabaseMetadata(
-            connection="connection_4",
-            database="database_4",
-        )
-
-        new_schemas = [
-            Schema(name=f"new_schema_{i}", tables=[]) for i in range(10)
-        ]
-
-        def update_func() -> None:
-            update_schema_list_in_connection(
-                connections, sql_db_metadata, new_schemas
-            )
-
-        avg_time, total_time = self._measure_performance(
-            update_func, iterations=1000
-        )
-
-        print(
-            f"\nUpdate schema list (5x5x10 = 250 schemas): "
-            f"{avg_time:.4f}ms avg, {total_time:.2f}ms total"
-        )
-
-        # Should be fast since we're just replacing a list reference
-        assert avg_time < TIME_THRESHOLD_SECONDS, (
-            f"Performance too slow: {avg_time:.4f}ms"
-        )
-
-    def test_performance_update_table_list(self) -> None:
-        """Benchmark update_table_list_in_connection."""
-        connections = create_test_connections(
-            num_connections=5,
-            num_databases_per_conn=5,
-            num_schemas_per_db=10,
-            num_tables_per_schema=50,
-        )
-
-        sql_metadata = SQLMetadata(
-            connection="connection_4",
-            database="database_4",
-            schema="schema_9",
-        )
-
-        new_tables = [create_test_table(f"new_table_{i}") for i in range(50)]
-
-        def update_func() -> None:
-            update_table_list_in_connection(
-                connections, sql_metadata, new_tables
-            )
-
-        avg_time, total_time = self._measure_performance(
-            update_func, iterations=1000
-        )
-
-        print(
-            f"\nUpdate table list (5x5x10x50 = 12,500 tables): "
-            f"{avg_time:.4f}ms avg, {total_time:.2f}ms total"
-        )
-
-        # Should be fast since we're just replacing a list reference
-        assert avg_time < TIME_THRESHOLD_SECONDS, (
-            f"Performance too slow: {avg_time:.4f}ms"
-        )
 
     @pytest.mark.skip(
         reason="Only run manually for detailed profiling analysis"
@@ -598,20 +427,15 @@ def _create_nested_connection() -> list[DataSourceConnection]:
     deep = Namespace(
         name="deep",
         children=[],
-        children_resolved=False,
     )
     nested = Namespace(
         name="nested",
         children=[create_test_table("table4"), deep],
-        children_resolved=True,
     )
     top = Database(
         name="top",
         dialect="iceberg",
-        children=[
-            Schema(name="", tables=[], tables_resolved=True),
-            nested,
-        ],
+        children=[nested],
     )
     return [
         DataSourceConnection(
@@ -639,13 +463,6 @@ class TestFindNodeByPath:
         assert isinstance(found, Namespace)
         assert found.name == "deep"
 
-    def test_find_schema_by_path_returns_schema_only(self) -> None:
-        connections = _create_nested_connection()
-        children = connections[0].databases[0].children
-        assert _find_schema_by_path(children, ["nested"]) is None
-        schemaless = _find_schema_by_path(children, [""])
-        assert isinstance(schemaless, Schema)
-
     def test_missing_path_returns_none(self) -> None:
         connections = _create_nested_connection()
         children = connections[0].databases[0].children
@@ -654,19 +471,18 @@ class TestFindNodeByPath:
 
 
 class TestNestedNamespaceUpdates:
-    def test_update_child_schema_list_at_path(self) -> None:
-        """Resolving child namespaces of a nested namespace updates the right
-        node in-place."""
+    def test_update_catalog_children_at_namespace_path(self) -> None:
+        """Resolving children of a nested namespace updates the right node."""
         connections = _create_nested_connection()
-        sql_db_metadata = SQLDatabaseMetadata(
+        sql_catalog_metadata = SQLCatalogMetadata(
             connection="my_iceberg",
             database="top",
-            schema_path=["nested"],
+            catalog_path=["nested"],
         )
         new_children = [Schema(name="deep", tables=[])]
 
-        update_schema_list_in_connection(
-            connections, sql_db_metadata, new_children
+        update_catalog_children_in_connection(
+            connections, sql_catalog_metadata, new_children
         )
 
         nested = _find_node_by_path(
@@ -674,20 +490,20 @@ class TestNestedNamespaceUpdates:
         )
         assert isinstance(nested, Namespace)
         assert [child.name for child in nested.children] == ["deep"]
-        assert nested.children_resolved is True
 
-    def test_update_table_list_at_nested_path(self) -> None:
-        """Resolving tables of a deeply nested namespace targets that schema."""
+    def test_update_catalog_tables_at_nested_path(self) -> None:
+        """Resolved table children at a nested namespace replace old children."""
         connections = _create_nested_connection()
-        sql_metadata = SQLMetadata(
+        sql_catalog_metadata = SQLCatalogMetadata(
             connection="my_iceberg",
             database="top",
-            schema="deep",
-            schema_path=["nested", "deep"],
+            catalog_path=["nested", "deep"],
         )
         new_tables = [create_test_table("table5")]
 
-        update_table_list_in_connection(connections, sql_metadata, new_tables)
+        update_catalog_children_in_connection(
+            connections, sql_catalog_metadata, new_tables
+        )
 
         deep = _find_node_by_path(
             connections[0].databases[0].children, ["nested", "deep"]
@@ -697,7 +513,6 @@ class TestNestedNamespaceUpdates:
             child for child in deep.children if isinstance(child, DataTable)
         ]
         assert [t.name for t in table_children] == ["table5"]
-        assert deep.tables_resolved is True
 
     def test_update_table_at_nested_path(self) -> None:
         """A single-table update descends the namespace path."""

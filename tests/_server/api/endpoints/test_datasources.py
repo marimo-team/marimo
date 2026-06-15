@@ -51,31 +51,15 @@ def test_preview_sql_table(client: TestClient) -> None:
 
 
 @with_session(SESSION_ID)
-def test_preview_sql_schema_list(client: TestClient) -> None:
+def test_preview_catalog_children(client: TestClient) -> None:
     response = client.post(
-        "/api/datasources/preview_sql_schema_list",
+        "/api/datasources/preview_catalog_children",
         headers=HEADERS,
         json={
             "requestId": "test_request_id",
             "engine": "test_engine",
             "database": "test_db",
-        },
-    )
-    assert response.status_code == 200, response.text
-    content = response.json()
-    assert content["success"] is True
-
-
-@with_session(SESSION_ID)
-def test_preview_sql_table_list(client: TestClient) -> None:
-    response = client.post(
-        "/api/datasources/preview_sql_table_list",
-        headers=HEADERS,
-        json={
-            "requestId": "test_request_id",
-            "engine": "test_engine",
-            "database": "test_db",
-            "schema": "test_schema",
+            "catalogPath": ["nested"],
         },
     )
     assert response.status_code == 200, response.text
@@ -125,24 +109,13 @@ def test_fails_in_read_mode(client: TestClient) -> None:
     assert response.status_code == 401
 
     response = client.post(
-        "/api/datasources/preview_sql_schema_list",
+        "/api/datasources/preview_catalog_children",
         headers=HEADERS,
         json={
             "requestId": "test_request_id",
             "engine": "test_engine",
             "database": "test_db",
-        },
-    )
-    assert response.status_code == 401
-
-    response = client.post(
-        "/api/datasources/preview_sql_table_list",
-        headers=HEADERS,
-        json={
-            "requestId": "test_request_id",
-            "engine": "test_engine",
-            "database": "test_db",
-            "schema": "test_schema",
+            "catalogPath": ["nested"],
         },
     )
     assert response.status_code == 401

@@ -28,7 +28,7 @@ export function makeSchema(
   name: string,
   tables: DataTable[] = [],
 ): DatabaseSchema {
-  return { kind: "schema", name, tables, tables_resolved: true };
+  return { kind: "schema", name, tables };
 }
 
 interface SchemaFixture {
@@ -37,12 +37,17 @@ interface SchemaFixture {
 }
 
 /** Build a `Database` from simple schema/table fixtures used in tests. */
-export function databaseWithSchemas(
-  name: string,
-  dialect: string,
-  schemas: SchemaFixture[],
-  overrides: Partial<Omit<Database, "name" | "dialect" | "children">> = {},
-): Database {
+export function databaseWithSchemas({
+  name,
+  dialect,
+  schemas,
+  overrides = {},
+}: {
+  name: string;
+  dialect: string;
+  schemas: SchemaFixture[];
+  overrides?: Partial<Omit<Database, "name" | "dialect" | "children">>;
+}): Database {
   return {
     name,
     dialect,

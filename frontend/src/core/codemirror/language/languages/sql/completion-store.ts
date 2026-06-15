@@ -2,7 +2,6 @@
 
 import type { SQLConfig, SQLDialect } from "@codemirror/lang-sql";
 import { atom } from "jotai";
-import { isSchemaless } from "@/components/datasources/utils";
 import {
   collectTablesFromNode,
   isNamespaceNode,
@@ -31,6 +30,10 @@ const datasetTableCompletionsAtom = atom((get) => {
   return builder.build();
 });
 
+function hasSchemaLayer(database: DataSourceConnection["databases"][number]) {
+  return database.children.some(isSchemaNode);
+}
+
 class SQLCompletionStore {
   private cache: LRUCache<DataSourceConnection, CachedSchema>;
 
@@ -57,13 +60,10 @@ class SQLCompletionStore {
     );
 
     const dbToVerify = defaultDb ?? databases[0];
-    const isSchemalessDb =
-      dbToVerify?.children.some(
-        (node) => isSchemaNode(node) && isSchemaless(node.name),
-      ) ?? false;
+    const flatCatalog = dbToVerify ? !hasSchemaLayer(dbToVerify) : false;
 
-    // For schemaless databases, treat databases as schemas
-    if (isSchemalessDb) {
+    // Engines without a schema layer (e.g. ClickHouse) expose tables on databases.
+    if (flatCatalog) {
       for (const db of databases) {
         const isDefaultDb = db.name === defaultDb?.name;
         const tables = db.children.flatMap(collectTablesFromNode);
@@ -96,10 +96,10 @@ class SQLCompletionStore {
         return;
       }
 
-      walkCatalogNodes(
-        database.children,
-        { databaseName: database.name, segments: [] },
-        ({ node, segments }) => {
+      walkCatalogNodes({
+        nodes: database.children,
+        context: { databaseName: database.name, segments: [] },
+        visit: ({ node, segments }) => {
           if (isNamespaceNode(node)) {
             return;
           }
@@ -108,9 +108,7 @@ class SQLCompletionStore {
             : [database.name, ...segments].filter(Boolean);
 
           if (isSchemaNode(node)) {
-            if (!isSchemaless(node.name)) {
-              builder.addSchema(path, node);
-            }
+            builder.addSchema(path, node);
             for (const table of node.tables) {
               builder.addTable(path, table);
             }
@@ -119,7 +117,7 @@ class SQLCompletionStore {
 
           builder.addTable(path, node);
         },
-      );
+      });
     };
 
     // For default db, we can use the schema name directly so add them to the top level

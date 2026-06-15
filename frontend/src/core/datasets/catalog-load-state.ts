@@ -1,0 +1,87 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+import type { DataSourceConnection as BackendDataSourceConnection } from "../kernel/messages";
+import {
+  type CatalogNode,
+  catalogNodePath,
+  isDataTableNode,
+  isNamespaceNode,
+  isSchemaNode,
+} from "./catalog";
+
+export interface CatalogLoadState {
+  childrenLoaded: ReadonlySet<string>;
+  tablesLoaded: ReadonlySet<string>;
+}
+
+export function emptyCatalogLoadState(): CatalogLoadState {
+  return {
+    childrenLoaded: new Set(),
+    tablesLoaded: new Set(),
+  };
+}
+
+export function catalogPathKey(database: string, segments: string[]): string {
+  return JSON.stringify([database, ...segments.filter(Boolean)]);
+}
+
+export function hydrateCatalogLoadState(
+  connection: Pick<BackendDataSourceConnection, "databases">,
+): CatalogLoadState {
+  const childrenLoaded = new Set<string>();
+  const tablesLoaded = new Set<string>();
+
+  const visit = ({
+    database,
+    nodes,
+    path,
+  }: {
+    database: string;
+    nodes: CatalogNode[];
+    path: string[];
+  }): void => {
+    if (nodes.length > 0) {
+      childrenLoaded.add(catalogPathKey(database, path));
+    }
+
+    for (const node of nodes) {
+      if (isDataTableNode(node)) {
+        tablesLoaded.add(catalogPathKey(database, path));
+        continue;
+      }
+
+      if (isSchemaNode(node)) {
+        const tablePath = catalogNodePath({
+          schema: node.name,
+          schemaPath: path,
+        });
+        if (node.tables.length > 0) {
+          tablesLoaded.add(catalogPathKey(database, tablePath));
+        }
+        continue;
+      }
+
+      if (isNamespaceNode(node)) {
+        const namespacePath = [...path, node.name];
+        if (node.children.some(isDataTableNode)) {
+          tablesLoaded.add(catalogPathKey(database, namespacePath));
+        }
+        visit({
+          database,
+          nodes: node.children,
+          path: namespacePath,
+        });
+      }
+    }
+  };
+
+  for (const database of connection.databases) {
+    visit({
+      database: database.name,
+      nodes: database.children,
+      path: [],
+    });
+  }
+
+  return { childrenLoaded, tablesLoaded };
+}

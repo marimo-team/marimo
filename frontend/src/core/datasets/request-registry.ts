@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type {
-  SQLSchemaListPreview,
-  SQLTableListPreview,
+  CatalogChildrenPreview,
   SQLTablePreview,
   ValidateSQLResult,
 } from "../kernel/messages";
@@ -9,8 +8,7 @@ import { CachingRequestRegistry } from "../network/CachingRequestRegistry";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import { getRequestClient } from "../network/requests";
 import type {
-  ListSQLSchemasRequest,
-  ListSQLTablesRequest,
+  ListCatalogChildrenRequest,
   PreviewSQLTableRequest,
   ValidateSQLRequest,
 } from "../network/types";
@@ -30,23 +28,12 @@ export const PreviewSQLTable = new DeferredRequestRegistry<
   });
 });
 
-export const PreviewSQLSchemaList = new DeferredRequestRegistry<
-  Omit<ListSQLSchemasRequest, "requestId">,
-  SQLSchemaListPreview
->("sql-schema-list-preview", async (requestId, req) => {
+export const PreviewCatalogChildren = new DeferredRequestRegistry<
+  Omit<ListCatalogChildrenRequest, "requestId">,
+  CatalogChildrenPreview
+>("catalog-children-preview", async (requestId, req) => {
   const client = getRequestClient();
-  await client.previewSQLSchemaList({
-    requestId: requestId,
-    ...req,
-  });
-});
-
-export const PreviewSQLTableList = new DeferredRequestRegistry<
-  Omit<ListSQLTablesRequest, "requestId">,
-  SQLTableListPreview
->("sql-table-list-preview", async (requestId, req) => {
-  const client = getRequestClient();
-  await client.previewSQLTableList({
+  await client.previewCatalogChildren({
     requestId: requestId,
     ...req,
   });

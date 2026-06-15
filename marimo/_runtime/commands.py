@@ -678,46 +678,23 @@ class PreviewSQLTableCommand(Command):
     schema_path: list[str] = msgspec.field(default_factory=list)
 
 
-class ListSQLTablesCommand(Command):
-    """List tables in an SQL schema.
+class ListCatalogChildrenCommand(Command):
+    """List immediate catalog children at a path within a database.
 
-    Retrieves names of all tables and views in a schema. Used by the SQL
-    editor for table selection.
-
-    Attributes:
-        request_id: Unique identifier for this request.
-        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
-        database: Database to query.
-        schema: Schema to list tables from.
-        schema_path: Path of nested schemas (relative to `database`) for
-            catalogs with nested schemas. Empty for the top level.
-    """
-
-    request_id: RequestId
-    engine: str
-    database: str
-    schema: str
-    schema_path: list[str] = msgspec.field(default_factory=list)
-
-
-class ListSQLSchemasCommand(Command):
-    """List schemas in an SQL database.
-
-    Retrieves names of all schemas in a database. Used by the SQL editor for
-    schema selection.
+    Returns a mixed catalog node list (`Schema`, `Namespace`, and `DataTable`)
+    so callers can expand any database/schema/namespace with one request.
 
     Attributes:
         request_id: Unique identifier for this request.
         engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
         database: Database to query.
-        schema_path: Parent schema path whose child schemas to list.
-            Empty lists the database's top-level schemas.
+        catalog_path: Path within the database. Empty lists the database root.
     """
 
     request_id: RequestId
     engine: str
     database: str
-    schema_path: list[str] = msgspec.field(default_factory=list)
+    catalog_path: list[str] = msgspec.field(default_factory=list)
 
 
 class ListDataSourceConnectionCommand(Command):
@@ -927,8 +904,7 @@ CommandMessage = (
     # Data SQL operations
     | PreviewDatasetColumnCommand
     | PreviewSQLTableCommand
-    | ListSQLTablesCommand
-    | ListSQLSchemasCommand
+    | ListCatalogChildrenCommand
     | ValidateSQLCommand
     | ListDataSourceConnectionCommand
     # Storage operations

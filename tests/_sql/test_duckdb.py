@@ -144,6 +144,32 @@ def test_duckdb_engine_get_databases(
 
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+def test_duckdb_engine_get_catalog_children(
+    duckdb_connection: duckdb.DuckDBPyConnection,
+) -> None:
+    """DuckDB serves lazy catalog expansion from its full-tree loader."""
+    engine = DuckDBEngine(
+        duckdb_connection, engine_name=VariableName("test_duckdb")
+    )
+
+    root_children = engine.get_catalog_children(
+        database="memory",
+        catalog_path=[],
+        include_table_details=False,
+    )
+    schema_children = engine.get_catalog_children(
+        database="memory",
+        catalog_path=["main"],
+        include_table_details=False,
+    )
+    expected_schema = expected_databases_with_conn[0].children[0]
+    assert isinstance(expected_schema, Schema)
+
+    assert root_children == expected_databases_with_conn[0].children
+    assert schema_children == expected_schema.tables
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
 def test_duckdb_engine_get_databases_no_conn() -> None:
     """Test DuckDBEngine get_databases method."""
     engine = DuckDBEngine(None, engine_name=None)

@@ -210,7 +210,6 @@ class RedshiftEngine(SQLConnection["Connection"]):
                     name=catalog,
                     dialect=self.dialect,
                     children=children,
-                    children_resolved=include_schemas,
                     engine=self._engine_name,
                 )
             )
@@ -259,7 +258,6 @@ class RedshiftEngine(SQLConnection["Connection"]):
                     Schema(
                         name=schema_name,
                         tables=tables,
-                        tables_resolved=include_tables,
                     )
                 )
 

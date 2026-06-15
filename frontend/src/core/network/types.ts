@@ -60,8 +60,7 @@ export type CreateSecretRequest = schemas["CreateSecretRequest"];
 export type PreviewDatasetColumnRequest =
   schemas["PreviewDatasetColumnRequest"];
 export type PreviewSQLTableRequest = schemas["PreviewSQLTableRequest"];
-export type ListSQLTablesRequest = schemas["ListSQLTablesRequest"];
-export type ListSQLSchemasRequest = schemas["ListSQLSchemasRequest"];
+export type ListCatalogChildrenRequest = schemas["ListCatalogChildrenRequest"];
 export type ListDataSourceConnectionRequest =
   schemas["ListDataSourceConnectionRequest"];
 export type ValidateSQLRequest = schemas["ValidateSQLRequest"];
@@ -162,8 +161,9 @@ export interface EditRequests {
   readSnippets: () => Promise<Snippets>;
   previewDatasetColumn: (request: PreviewDatasetColumnRequest) => Promise<null>;
   previewSQLTable: (request: PreviewSQLTableRequest) => Promise<null>;
-  previewSQLTableList: (request: ListSQLTablesRequest) => Promise<null>;
-  previewSQLSchemaList: (request: ListSQLSchemasRequest) => Promise<null>;
+  previewCatalogChildren: (
+    request: ListCatalogChildrenRequest,
+  ) => Promise<null>;
   previewDataSourceConnection: (
     request: ListDataSourceConnectionRequest,
   ) => Promise<null>;

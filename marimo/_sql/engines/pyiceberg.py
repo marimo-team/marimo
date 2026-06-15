@@ -10,14 +10,9 @@ from marimo._data.models import (
     DataTable,
     DataTableColumn,
     Namespace,
-    Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import (
-    NO_SCHEMA_NAME,
-    EngineCatalog,
-    InferenceConfig,
-)
+from marimo._sql.engines.types import EngineCatalog, InferenceConfig
 from marimo._sql.utils import sql_type_to_data_type
 from marimo._types.ids import VariableName
 
@@ -84,7 +79,9 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         """
         from pyiceberg.catalog import Catalog
 
-        children_resolved = self._resolve_should_auto_discover(include_schemas)
+        should_include_schemas = self._resolve_should_auto_discover(
+            include_schemas
+        )
         should_include_tables = self._resolve_should_auto_discover(
             include_tables
         )
@@ -98,7 +95,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
             for namespace in namespaces:
                 database_name = Catalog.namespace_to_string(namespace)
                 children: list[CatalogNode] = []
-                if children_resolved:
+                if should_include_schemas:
                     children = self._database_children(
                         namespace,
                         include_tables=should_include_tables,
@@ -109,7 +106,6 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
                         name=database_name,
                         dialect=self.dialect,
                         children=children,
-                        children_resolved=children_resolved,
                         engine=self._engine_name,
                     )
                 )
@@ -136,8 +132,8 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
     ) -> list[CatalogNode]:
         """Get catalog nodes within a top-level namespace `database`.
 
-        Empty `schema_path` returns a schemaless `Schema` (the namespace's own
-        tables) plus one `Namespace` per immediate sub-namespace; a non-empty
+        Empty `schema_path` returns the namespace's own tables (as `DataTable`
+        nodes) plus one `Namespace` per immediate sub-namespace; a non-empty
         path returns the immediate child namespaces at that path.
         """
         if database is None:
@@ -163,6 +159,34 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
             include_table_details=include_table_details,
         )
 
+    def get_catalog_children(
+        self,
+        *,
+        database: str,
+        catalog_path: list[str],
+        include_table_details: bool,
+    ) -> list[CatalogNode]:
+        """Return tables plus immediate child namespaces at `catalog_path`."""
+        from pyiceberg.catalog import Catalog
+
+        namespace = (*Catalog.identifier_to_tuple(database), *catalog_path)
+        children: list[CatalogNode] = [
+            *self.get_tables_in_schema(
+                schema="",
+                database=database,
+                include_table_details=include_table_details,
+                schema_path=catalog_path,
+            )
+        ]
+        children.extend(
+            self._child_namespaces(
+                namespace,
+                include_tables=False,
+                include_table_details=False,
+            )
+        )
+        return children
+
     def _database_children(
         self,
         namespace: tuple[str, ...],
@@ -174,19 +198,15 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         from pyiceberg.catalog import Catalog
 
         database_name = Catalog.namespace_to_string(namespace)
-        children: list[CatalogNode] = [
-            Schema(
-                name=NO_SCHEMA_NAME,
-                tables=self.get_tables_in_schema(
-                    schema=NO_SCHEMA_NAME,
+        children: list[CatalogNode] = []
+        if include_tables:
+            children.extend(
+                self.get_tables_in_schema(
+                    schema="",
                     database=database_name,
                     include_table_details=include_table_details,
                 )
-                if include_tables
-                else [],
-                tables_resolved=include_tables,
             )
-        ]
         children.extend(
             self._child_namespaces(
                 namespace,
@@ -239,7 +259,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         if include_tables:
             node_children.extend(
                 self.get_tables_in_schema(
-                    schema=NO_SCHEMA_NAME,
+                    schema="",
                     database=namespace_str,
                     include_table_details=include_table_details,
                 )
@@ -254,8 +274,6 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         return Namespace(
             name=namespace[-1],
             children=node_children,
-            children_resolved=include_tables,
-            tables_resolved=include_tables,
         )
 
     @staticmethod
@@ -306,7 +324,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
             for table_name in tables:
                 table: DataTable | None = self.get_table_details(
                     table_name=Catalog.table_name_from(table_name),
-                    schema_name=NO_SCHEMA_NAME,
+                    schema_name="",
                     database_name=namespace,
                 )
                 if table is not None:

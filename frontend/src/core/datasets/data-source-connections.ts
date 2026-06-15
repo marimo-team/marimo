@@ -12,13 +12,19 @@ import type { VariableName } from "../variables/types";
 import {
   type CatalogNode,
   catalogNodePath,
+  findNodeAtPath,
   isNamespaceNode,
   isSchemaNode,
   mergeTableAtPath,
-  setChildNodesAtPath,
-  setTablesAtPath,
+  setCatalogChildrenAtPath,
   walkCatalogNodes,
 } from "./catalog";
+import {
+  type CatalogLoadState,
+  catalogPathKey,
+  emptyCatalogLoadState,
+  hydrateCatalogLoadState,
+} from "./catalog-load-state";
 import {
   type ConnectionName,
   DUCKDB_ENGINE,
@@ -35,16 +41,21 @@ const initialConnections: ConnectionsMap = new Map([
       source: "duckdb",
       display_name: "DuckDB (In-Memory)",
       databases: [],
+      catalogLoad: emptyCatalogLoadState(),
     },
   ],
 ]);
 
 // Extend the backend type but override the name property with the strongly typed ConnectionName
-export interface DataSourceConnection extends Omit<
+export type DataSourceConnectionInput = Omit<
   DataSourceConnectionType,
   "name"
-> {
+> & {
   name: ConnectionName;
+};
+
+export interface DataSourceConnection extends DataSourceConnectionInput {
+  catalogLoad: CatalogLoadState;
 }
 
 export type ConnectionsMap = ReadonlyMap<ConnectionName, DataSourceConnection>;
@@ -54,12 +65,10 @@ export interface DataSourceState {
   connectionsMap: ConnectionsMap;
 }
 
-export interface SQLSchemaContext {
+export interface SQLCatalogContext {
   engine: string;
   database: string;
-  // Parent namespace path (relative to `database`) for nested catalogs.
-  // Empty/undefined for the database's top level.
-  schemaPath?: string[];
+  catalogPath?: string[];
 }
 
 export interface SQLTableContext {
@@ -88,7 +97,7 @@ const {
 } = createReducerAndAtoms(initialState, {
   addDataSourceConnection: (
     state: DataSourceState,
-    opts: { connections: DataSourceConnection[] },
+    opts: { connections: DataSourceConnectionInput[] },
   ): DataSourceState => {
     if (opts.connections.length === 0) {
       return state;
@@ -101,7 +110,10 @@ const {
     // Backend will dedupe by connection name & keep the latest, so we use this as the key
     const newMap = new Map(connectionsMap);
     for (const conn of opts.connections) {
-      newMap.set(conn.name, conn);
+      newMap.set(conn.name, {
+        ...conn,
+        catalogLoad: hydrateCatalogLoadState(conn),
+      });
     }
 
     return {
@@ -155,83 +167,64 @@ const {
     };
   },
 
-  // Add schema list to a specific database in a connection
-  addSchemaList: (
+  // Add catalog children to a specific path in a connection
+  addCatalogChildren: (
     state: DataSourceState,
     opts: {
       nodes: CatalogNode[];
-      sqlSchemaContext: SQLSchemaContext;
+      sqlCatalogContext: SQLCatalogContext;
     },
   ): DataSourceState => {
-    const { nodes, sqlSchemaContext } = opts;
+    const { nodes, sqlCatalogContext } = opts;
     const { connectionsMap, latestEngineSelected } = state;
-    const connectionName = sqlSchemaContext.engine as ConnectionName;
+    const connectionName = sqlCatalogContext.engine as ConnectionName;
+    const databaseName = sqlCatalogContext.database;
+    const catalogPath = sqlCatalogContext.catalogPath ?? [];
     const conn = connectionsMap.get(connectionName);
 
     if (!conn) {
       return state;
     }
 
-    const schemaPath = sqlSchemaContext.schemaPath ?? [];
-    const newMap = new Map(connectionsMap);
-    const newConn: DataSourceConnection = {
-      ...conn,
-      databases: conn.databases.map((db) => {
-        if (db.name !== sqlSchemaContext.database) {
-          return db;
-        }
-        const children = setChildNodesAtPath(db.children, schemaPath, nodes);
-        return {
-          ...db,
-          children,
-          children_resolved:
-            schemaPath.length === 0 ? true : db.children_resolved,
-        };
-      }),
-    };
-    newMap.set(connectionName, newConn);
-
-    return {
-      latestEngineSelected: latestEngineSelected,
-      connectionsMap: newMap,
-    };
-  },
-
-  // Add table list to a specific schema in a connection
-  addTableList: (
-    state: DataSourceState,
-    opts: {
-      tables: DataTable[];
-      sqlTableContext: SQLTableContext;
-    },
-  ): DataSourceState => {
-    const { tables, sqlTableContext } = opts;
-    const { connectionsMap, latestEngineSelected } = state;
-    const connectionName = sqlTableContext.engine as ConnectionName;
-    const conn = connectionsMap.get(connectionName);
-
-    if (!conn) {
+    const database = conn.databases.find((db) => db.name === databaseName);
+    if (!database) {
       return state;
     }
 
-    const path = catalogNodePath(
-      sqlTableContext.schema,
-      sqlTableContext.schemaPath,
-    );
-    const newMap = new Map(connectionsMap);
+    if (catalogPath.length > 0) {
+      const parentNode = findNodeAtPath({
+        nodes: database.children,
+        path: catalogPath,
+      });
+      if (
+        parentNode === undefined ||
+        (!isSchemaNode(parentNode) && !isNamespaceNode(parentNode))
+      ) {
+        return state;
+      }
+    }
+
+    const loadKey = catalogPathKey(databaseName, catalogPath);
     const newConn: DataSourceConnection = {
       ...conn,
-      databases: conn.databases.map((db) => {
-        if (db.name !== sqlTableContext.database) {
-          return db;
-        }
-        return {
-          ...db,
-          children: setTablesAtPath(db.children, path, tables),
-        };
-      }),
+      catalogLoad: {
+        childrenLoaded: new Set([...conn.catalogLoad.childrenLoaded, loadKey]),
+        tablesLoaded: new Set([...conn.catalogLoad.tablesLoaded, loadKey]),
+      },
+      databases: conn.databases.map((db) =>
+        db.name === databaseName
+          ? {
+              ...db,
+              children: setCatalogChildrenAtPath({
+                nodes: db.children,
+                path: catalogPath,
+                children: nodes,
+              }),
+            }
+          : db,
+      ),
     };
-    newMap.set(connectionName, newConn);
+    const newMap = new Map(connectionsMap).set(connectionName, newConn);
 
     return {
       latestEngineSelected: latestEngineSelected,
@@ -256,10 +249,10 @@ const {
       return state;
     }
 
-    const path = catalogNodePath(
-      sqlTableContext.schema,
-      sqlTableContext.schemaPath,
-    );
+    const path = catalogNodePath({
+      schema: sqlTableContext.schema,
+      schemaPath: sqlTableContext.schemaPath,
+    });
     const newMap = new Map(connectionsMap);
     const newConn: DataSourceConnection = {
       ...conn,
@@ -269,7 +262,7 @@ const {
         }
         return {
           ...db,
-          children: mergeTableAtPath(db.children, path, table),
+          children: mergeTableAtPath({ nodes: db.children, path, table }),
         };
       }),
     };
@@ -324,15 +317,15 @@ export const allTablesAtom = atom((get) => {
       const isDefaultDb =
         database.name === conn.default_database || conn.databases.length === 1;
 
-      walkCatalogNodes(
-        database.children,
-        { databaseName: database.name, segments: [] },
-        ({ node, segments }) => {
+      walkCatalogNodes({
+        nodes: database.children,
+        context: { databaseName: database.name, segments: [] },
+        visit: ({ node, segments }) => {
           if (isNamespaceNode(node)) {
             return;
           }
 
-          const schemalessDb = segments.length === 0;
+          const rootLevelTable = segments.length === 0;
           const isDefaultSchema =
             segments.length === 1 && segments[0] === conn.default_schema;
           const schemaQualifier = segments.join(".");
@@ -342,7 +335,7 @@ export const allTablesAtom = atom((get) => {
           for (const table of tables) {
             let nameToSave: string = table.name;
 
-            if (schemalessDb) {
+            if (rootLevelTable) {
               nameToSave = isDefaultDb
                 ? table.name
                 : `${database.name}.${table.name}`;
@@ -378,7 +371,7 @@ export const allTablesAtom = atom((get) => {
             }
           }
         },
-      );
+      });
     }
   }
 

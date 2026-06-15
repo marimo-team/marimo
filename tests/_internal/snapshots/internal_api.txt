@@ -15,10 +15,9 @@ commands
   HTTPRequest
   InstallPackagesCommand
   InvokeFunctionCommand
+  ListCatalogChildrenCommand
   ListDataSourceConnectionCommand
   ListOrValue
-  ListSQLSchemasCommand
-  ListSQLTablesCommand
   ListSecretKeysCommand
   ModelCommand
   ModelMessage
@@ -61,6 +60,7 @@ notifications
   BannerNotification
   CacheClearedNotification
   CacheInfoNotification
+  CatalogChildrenPreviewNotification
   CellNotification
   ColumnPreview
   CompletedRunNotification
@@ -88,8 +88,6 @@ notifications
   ReloadNotification
   RemoveUIElementsNotification
   SQLMetadata
-  SQLSchemaListPreviewNotification
-  SQLTableListPreviewNotification
   SQLTablePreviewNotification
   SecretKeysResultNotification
   StartupLogsNotification
