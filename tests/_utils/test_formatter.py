@@ -136,7 +136,9 @@ class TestRuffFormatter:
 
         result = await formatter.format(codes)
 
-        wrapped_codes: CellCodes = {"cell1": "def _():\n" + textwrap.indent("x=1", "    ")}
+        wrapped_codes: CellCodes = {
+            "cell1": "def _():\n" + textwrap.indent("x=1", "    ")
+        }
         mock_ruff.assert_called_once_with(
             wrapped_codes,
             "format",
@@ -161,7 +163,9 @@ class TestRuffFormatter:
             codes, stdin_filename="/tmp/notebook.py"
         )
 
-        wrapped_codes: CellCodes = {"cell1": "def _():\n" + textwrap.indent("x=1", "    ")}
+        wrapped_codes: CellCodes = {
+            "cell1": "def _():\n" + textwrap.indent("x=1", "    ")
+        }
         mock_ruff.assert_called_once_with(
             wrapped_codes,
             "format",
@@ -170,7 +174,6 @@ class TestRuffFormatter:
             stdin_filename="/tmp/notebook.py",
         )
         assert result == {"cell1": "x = 1"}
-
 
     @patch("marimo._utils.formatter.ruff")
     async def test_ruff_formatter_nested_function_single_blank_line(
@@ -181,9 +184,7 @@ class TestRuffFormatter:
         code as a function body, not a module."""
         cell_code = "x = 3\ndef _foo():\n    return x + 1\nprint(_foo())"
         # Ruff formats the wrapped cell with 1 blank line around the nested def
-        wrapped_formatted = (
-            "def _():\n    x = 3\n\n    def _foo():\n        return x + 1\n\n    print(_foo())"
-        )
+        wrapped_formatted = "def _():\n    x = 3\n\n    def _foo():\n        return x + 1\n\n    print(_foo())"
         mock_ruff.return_value = {"cell1": wrapped_formatted}
 
         formatter = RuffFormatter(line_length=88)
@@ -192,7 +193,9 @@ class TestRuffFormatter:
         # Unwrapped result must have exactly 1 blank line before and after _foo,
         # not 2 (which file-scope ruff would produce without the wrap).
         output = result["cell1"]
-        assert output == "x = 3\n\ndef _foo():\n    return x + 1\n\nprint(_foo())"
+        assert (
+            output == "x = 3\n\ndef _foo():\n    return x + 1\n\nprint(_foo())"
+        )
         assert "\n\n\n" not in output
 
     @patch("marimo._utils.formatter.ruff")
