@@ -7,6 +7,11 @@ import { type StorageConnection, StorageConnectionSchema } from "./schemas";
 
 export type StorageLibrary = "obstore" | "fsspec";
 
+export interface StorageCodeOptions {
+  library: StorageLibrary;
+  isEmbedded?: boolean;
+}
+
 export const StorageLibraryDisplayNames: Record<StorageLibrary, string> = {
   obstore: "obstore",
   fsspec: "fsspec",
@@ -161,8 +166,9 @@ function generateCoreWeaveCode(
 
 function generateGDriveCode(
   connection: Extract<StorageConnection, { type: "gdrive" }>,
-  secrets: SecretContainer,
+  options: { secrets: SecretContainer; isEmbedded?: boolean },
 ): { imports: Set<string>; code: string } {
+  const { secrets, isEmbedded = false } = options;
   const imports = new Set(["from gdrive_fsspec import GoogleDriveFileSystem"]);
 
   if (connection.credentials_json) {
@@ -178,15 +184,20 @@ function generateGDriveCode(
     return { imports, code };
   }
 
-  const code = dedent(`
-    fs = GoogleDriveFileSystem(token="browser", use_listings_cache=False)
-  `);
+  const code = isEmbedded
+    ? dedent(`
+        fs = GoogleDriveFileSystem(use_listings_cache=False, auth_kwargs={"use_local_webserver": False})
+        print("Google Drive connected! Important: Run this cell again to clear the console")
+      `)
+    : dedent(`
+        fs = GoogleDriveFileSystem(use_listings_cache=False)
+      `);
   return { imports, code };
 }
 
 export function generateStorageCode(
   connection: StorageConnection,
-  _library: StorageLibrary,
+  options: StorageCodeOptions,
 ): string {
   StorageConnectionSchema.parse(connection);
 
@@ -207,7 +218,10 @@ export function generateStorageCode(
       result = generateCoreWeaveCode(connection, secrets);
       break;
     case "gdrive":
-      result = generateGDriveCode(connection, secrets);
+      result = generateGDriveCode(connection, {
+        secrets,
+        isEmbedded: options.isEmbedded,
+      });
       break;
     default:
       assertNever(connection);
