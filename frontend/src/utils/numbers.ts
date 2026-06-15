@@ -23,6 +23,33 @@ export const maxFractionalDigits = memoizeLastValue((locale: string) => {
   return 0;
 });
 
+/** Decimal places needed to display `n` without float noise. */
+export function countFractionDigits(n: number): number {
+  if (!Number.isFinite(n) || n === 0) {
+    return 0;
+  }
+  const normalized = n.toFixed(12).replace(/\.?0+$/, "");
+  const dot = normalized.indexOf(".");
+  return dot === -1 ? 0 : normalized.length - dot - 1;
+}
+
+/** Max fraction digits to display a set of step values cleanly. */
+export function maxFractionDigitsForSteps(
+  steps: number[],
+  minGap: number,
+): number {
+  let max = countFractionDigits(minGap);
+  for (const step of steps) {
+    max = Math.max(max, countFractionDigits(step));
+  }
+  return max;
+}
+
+/** Round away float noise so step-based inputs stay on a clean decimal grid. */
+export function roundToFractionDigits(n: number, digits: number): number {
+  return Number(n.toFixed(digits));
+}
+
 export function prettyNumber(value: unknown, locale: string): string {
   if (value === undefined || value === null) {
     return "";

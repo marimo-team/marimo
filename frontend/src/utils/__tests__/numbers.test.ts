@@ -1,6 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
 import {
+  countFractionDigits,
+  maxFractionDigitsForSteps,
   prettyEngineeringNumber,
   prettyNumber,
   prettyScientificNumber,
@@ -84,5 +86,23 @@ describe("prettyEngineeringNumber", () => {
     expect(prettyEngineeringNumber(-0.12, locale)).toBe("-120m");
     expect(prettyEngineeringNumber(-0.1234, locale)).toBe("-123m");
     expect(prettyEngineeringNumber(-0.000_123_4, locale)).toBe("-123µ");
+  });
+});
+
+describe("countFractionDigits", () => {
+  it("counts decimal places without float noise", () => {
+    expect(countFractionDigits(1)).toBe(0);
+    expect(countFractionDigits(0.1)).toBe(1);
+    expect(countFractionDigits(0.3)).toBe(1);
+    expect(countFractionDigits(0.000025)).toBe(6);
+    expect(countFractionDigits(3.5)).toBe(1);
+  });
+});
+
+describe("maxFractionDigitsForSteps", () => {
+  it("infers precision from steps and gaps", () => {
+    expect(maxFractionDigitsForSteps([0.1, 0.2, 0.3, 0.4], 0.1)).toBe(1);
+    expect(maxFractionDigitsForSteps([1, 2, 3.5, 4], 0.5)).toBe(1);
+    expect(maxFractionDigitsForSteps([1, 2, 3, 4], 1)).toBe(0);
   });
 });
