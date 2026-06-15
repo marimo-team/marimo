@@ -151,22 +151,6 @@ describe("storage state", () => {
       );
     });
 
-    it("should store may-have-more state keyed by namespace and prefix", () => {
-      const entries = [makeEntry({ path: "a.txt" })];
-
-      actions.setEntries({
-        namespace: "my_s3",
-        prefix: "data/",
-        entries,
-        mayHaveMore: true,
-      });
-
-      expect(state.entriesByPath.get("my_s3::data/")).toEqual(entries);
-      expect(state.pageMetadataByPath.get("my_s3::data/")?.mayHaveMore).toBe(
-        true,
-      );
-    });
-
     it("should append entries when requested", () => {
       const firstPage = [makeEntry({ path: "a.txt" })];
       const secondPage = [makeEntry({ path: "b.txt" })];

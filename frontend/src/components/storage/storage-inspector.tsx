@@ -7,7 +7,6 @@ import {
   FolderIcon,
   HardDriveIcon,
   HelpCircleIcon,
-  InfoIcon,
   LoaderCircle,
   PlusIcon,
   ViewIcon,
@@ -181,27 +180,6 @@ const LoadMoreStorageEntries: React.FC<{
   );
 };
 
-const MayHaveMoreStorageEntries: React.FC<{ depth: number }> = ({ depth }) => {
-  return (
-    <div
-      className="py-1 text-xs text-muted-foreground italic flex items-center"
-      style={indentStyle(depth)}
-    >
-      More files may exist in this folder.
-      <Tooltip
-        content="We only fetch a limited number of entries. Please file a GitHub issue if you need more."
-        delayDuration={100}
-        tabIndex={0}
-      >
-        <InfoIcon
-          className="h-3 w-3 ml-1 text-blue-500"
-          aria-label="More information"
-        />
-      </Tooltip>
-    </div>
-  );
-};
-
 /**
  * Lazily loaded children of a directory entry.
  * Caches fetched entries in the Jotai store so re-expanding doesn't re-fetch.
@@ -233,7 +211,6 @@ const StorageEntryChildren: React.FC<{
     isPending,
     error,
     hasMore,
-    mayHaveMore,
     loadMore,
     isLoadingMore,
     loadMoreError,
@@ -304,7 +281,6 @@ const StorageEntryChildren: React.FC<{
           onLoadMore={loadMore}
         />
       )}
-      {mayHaveMore && <MayHaveMoreStorageEntries depth={depth} />}
     </>
   );
 };
@@ -525,7 +501,6 @@ const StorageNamespaceSection: React.FC<{
     isPending,
     error,
     hasMore,
-    mayHaveMore,
     loadMore,
     isLoadingMore,
     loadMoreError,
@@ -635,7 +610,6 @@ const StorageNamespaceSection: React.FC<{
               onLoadMore={loadMore}
             />
           )}
-          {mayHaveMore && <MayHaveMoreStorageEntries depth={1} />}
         </>
       )}
     </>

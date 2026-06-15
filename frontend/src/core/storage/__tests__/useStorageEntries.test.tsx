@@ -182,7 +182,6 @@ describe("useStorageEntries", () => {
     mockRequest.mockResolvedValue({
       entries,
       next_page_token: "150",
-      may_have_more: true,
     });
 
     renderHook(() => useStorageEntries("ns", "sub/"), { wrapper });
@@ -193,7 +192,6 @@ describe("useStorageEntries", () => {
       expect(state.pageMetadataByPath.get("ns::sub/")?.nextPageToken).toBe(
         "150",
       );
-      expect(state.pageMetadataByPath.get("ns::sub/")?.mayHaveMore).toBe(true);
     });
   });
 
@@ -204,12 +202,10 @@ describe("useStorageEntries", () => {
       .mockResolvedValueOnce({
         entries: firstPage,
         next_page_token: "150",
-        may_have_more: true,
       })
       .mockResolvedValueOnce({
         entries: secondPage,
         next_page_token: null,
-        may_have_more: true,
       });
 
     const { result } = renderHook(() => useStorageEntries("ns", "sub/"), {
@@ -220,7 +216,6 @@ describe("useStorageEntries", () => {
       expect(result.current.entries).toEqual(firstPage);
     });
     expect(result.current.hasMore).toBe(true);
-    expect(result.current.mayHaveMore).toBe(false);
 
     await act(async () => {
       await result.current.loadMore();
@@ -228,7 +223,6 @@ describe("useStorageEntries", () => {
 
     expect(result.current.entries).toEqual([...firstPage, ...secondPage]);
     expect(result.current.hasMore).toBe(false);
-    expect(result.current.mayHaveMore).toBe(true);
     expect(mockRequest).toHaveBeenLastCalledWith({
       namespace: "ns",
       prefix: "sub/",
@@ -244,12 +238,10 @@ describe("useStorageEntries", () => {
       .mockResolvedValueOnce({
         entries: firstPage,
         next_page_token: "",
-        may_have_more: false,
       })
       .mockResolvedValueOnce({
         entries: secondPage,
         next_page_token: null,
-        may_have_more: false,
       });
 
     const { result } = renderHook(() => useStorageEntries("ns", "sub/"), {
@@ -281,12 +273,10 @@ describe("useStorageEntries", () => {
     let resolveLoadMore!: (value: {
       entries: StorageEntry[];
       next_page_token: string | null;
-      may_have_more: boolean;
     }) => void;
     const loadMorePromise = new Promise<{
       entries: StorageEntry[];
       next_page_token: string | null;
-      may_have_more: boolean;
     }>((resolve) => {
       resolveLoadMore = resolve;
     });
@@ -294,7 +284,6 @@ describe("useStorageEntries", () => {
       .mockResolvedValueOnce({
         entries: firstPage,
         next_page_token: "150",
-        may_have_more: true,
       })
       .mockReturnValueOnce(loadMorePromise);
 
@@ -314,7 +303,6 @@ describe("useStorageEntries", () => {
       resolveLoadMore({
         entries: secondPage,
         next_page_token: null,
-        may_have_more: false,
       });
       await Promise.all([firstLoad, secondLoad]);
     });
@@ -330,12 +318,10 @@ describe("useStorageEntries", () => {
       .mockResolvedValueOnce({
         entries: firstPage,
         next_page_token: "150",
-        may_have_more: false,
       })
       .mockResolvedValueOnce({
         entries: secondPage,
         next_page_token: null,
-        may_have_more: false,
       });
 
     const { result } = renderHook(() => useStoragePageFetcher(), {
@@ -373,7 +359,6 @@ describe("useStorageEntries", () => {
     mockRequest.mockResolvedValue({
       entries: [],
       next_page_token: null,
-      may_have_more: false,
     });
 
     const { result } = renderHook(() => useStoragePageFetcher(), {

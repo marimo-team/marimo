@@ -4947,9 +4947,7 @@ components:
         \ the storage backend.\n        prefix: The prefix that was listed (set by\
         \ list_entries).\n        query: The search query that was used (set by search).\n\
         \        next_page_token: Token for fetching the next page of entries.\n \
-        \       may_have_more: Whether the backend may have more entries it cannot\n\
-        \            currently page through.\n        error: Error message if the\
-        \ operation failed."
+        \       error: Error message if the operation failed."
       properties:
         entries:
           items:
@@ -4960,9 +4958,6 @@ components:
           - type: string
           - type: 'null'
           default: null
-        may_have_more:
-          default: false
-          type: boolean
         namespace:
           type: string
         next_page_token:

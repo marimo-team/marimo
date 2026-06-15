@@ -111,7 +111,6 @@ class ExternalStorageCallbacks:
                     namespace=request.namespace,
                     prefix=request.prefix,
                     next_page_token=result.next_page_token,
-                    may_have_more=result.may_have_more,
                 ),
             )
         except Exception as e:

@@ -36,7 +36,6 @@ export interface StorageState {
 
 export interface StoragePageMetadata {
   nextPageToken: string | null;
-  mayHaveMore: boolean;
 }
 
 export function storageUrl(

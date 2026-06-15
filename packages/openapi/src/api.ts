@@ -6434,16 +6434,12 @@ export interface components {
      *             prefix: The prefix that was listed (set by list_entries).
      *             query: The search query that was used (set by search).
      *             next_page_token: Token for fetching the next page of entries.
-     *             may_have_more: Whether the backend may have more entries it cannot
-     *                 currently page through.
      *             error: Error message if the operation failed.
      */
     StorageEntriesNotification: {
       entries: components["schemas"]["StorageEntry"][];
       /** @default null */
       error?: string | null;
-      /** @default false */
-      may_have_more?: boolean;
       namespace: string;
       /** @default null */
       next_page_token?: string | null;

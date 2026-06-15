@@ -54,7 +54,6 @@ const {
       prefix: string | null | undefined;
       entries: StorageEntry[];
       nextPageToken?: string | null;
-      mayHaveMore?: boolean;
       append?: boolean;
     },
   ) => {
@@ -69,7 +68,6 @@ const {
     const pageMetadataByPath = new Map(state.pageMetadataByPath);
     pageMetadataByPath.set(key, {
       nextPageToken: opts.nextPageToken ?? null,
-      mayHaveMore: opts.mayHaveMore ?? false,
     });
     return {
       ...state,
@@ -152,7 +150,6 @@ async function fetchStorageEntriesPage({
     prefix,
     entries: result.entries,
     nextPageToken: result.next_page_token,
-    mayHaveMore: result.may_have_more,
     append,
   });
   return result;
@@ -169,7 +166,6 @@ export function useStorageEntries(namespace: string, prefix?: string) {
   const cached = entriesByPath.get(key);
   const metadata = pageMetadataByPath.get(key);
   const nextPageToken = metadata?.nextPageToken ?? null;
-  const mayHaveMore = metadata?.mayHaveMore ?? false;
   const isLoadingMoreRef = useRef(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<Error | undefined>();
@@ -216,7 +212,6 @@ export function useStorageEntries(namespace: string, prefix?: string) {
     isPending: isPending && !cached,
     error: cached ? undefined : error,
     hasMore: nextPageToken !== null,
-    mayHaveMore: nextPageToken === null && mayHaveMore,
     loadMore,
     isLoadingMore,
     loadMoreError,

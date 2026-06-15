@@ -199,30 +199,6 @@ class TestObstore:
             )
         )
 
-    def test_list_entries_warns_on_provider_boundary(self) -> None:
-        now = datetime.now(tz=timezone.utc)
-        mock_store = MagicMock()
-        mock_store.list_with_delimiter.return_value = {
-            "common_prefixes": [],
-            "objects": [
-                {
-                    "path": f"file{i}.txt",
-                    "size": i,
-                    "last_modified": now,
-                    "e_tag": None,
-                    "version": None,
-                }
-                for i in range(1000)
-            ],
-        }
-
-        backend = self._make_backend(mock_store)
-        result = backend.list_entries(prefix=None, limit=100, page_token="900")
-
-        assert result.next_page_token is None
-        assert result.may_have_more is True
-        assert len(result.entries) == 100
-
     def test_create_storage_entry_missing_fields(self) -> None:
         mock_store = MagicMock()
         backend = self._make_backend(mock_store)

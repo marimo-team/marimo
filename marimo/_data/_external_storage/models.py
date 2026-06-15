@@ -66,7 +66,6 @@ class StorageListResult:
 
     entries: list[StorageEntry]
     next_page_token: str | None = None
-    may_have_more: bool = False
 
 
 @dataclass

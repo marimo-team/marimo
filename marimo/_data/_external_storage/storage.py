@@ -22,12 +22,10 @@ from marimo._utils.assert_never import log_never
 from marimo._utils.dicts import remove_none_values
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from fsspec import (  # type: ignore[import-untyped]
         AbstractFileSystem,  # noqa: F401
     )
-    from obstore import ListResult, ObjectMeta
+    from obstore import ObjectMeta
     from obstore.store import (
         AzureConfig,
         AzureStore,
@@ -40,10 +38,6 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
-# Object stores commonly cap delimiter listings at 1000 returned entries.
-# https://docs.rs/object_store/latest/object_store/struct.ListResult.html
-LIMIT_ENTRIES = 1000
-
 
 class Obstore(StorageBackend["ObjectStore"]):
     def list_entries(
@@ -54,17 +48,10 @@ class Obstore(StorageBackend["ObjectStore"]):
         page_token: str | None = None,
     ) -> StorageListResult:
         offset = _parse_page_offset(page_token)
-        storage_entries, may_have_more = self._list_storage_entries(prefix)
-        return _paginate_entries(
-            storage_entries,
-            offset=offset,
-            limit=limit,
-            may_have_more=may_have_more,
-        )
+        storage_entries = self._list_storage_entries(prefix)
+        return _paginate_entries(storage_entries, offset=offset, limit=limit)
 
-    def _list_storage_entries(
-        self, prefix: str | None
-    ) -> tuple[list[StorageEntry], bool]:
+    def _list_storage_entries(self, prefix: str | None) -> list[StorageEntry]:
         result = self.store.list_with_delimiter(prefix=prefix)
 
         storage_entries: list[StorageEntry] = []
@@ -91,15 +78,7 @@ class Obstore(StorageBackend["ObjectStore"]):
                 continue
             storage_entries.append(self._create_storage_entry(entry))
 
-        return storage_entries, self._result_may_have_more(result)
-
-    def _result_may_have_more(
-        self,
-        result: ListResult[Sequence[ObjectMeta]],
-    ) -> bool:
-        """Return whether an obstore delimiter listing may be provider-truncated."""
-        entry_count = len(result["common_prefixes"]) + len(result["objects"])
-        return entry_count >= LIMIT_ENTRIES
+        return storage_entries
 
     async def get_entry(self, path: str) -> StorageEntry:
         entry = await self.store.head_async(path)
@@ -548,7 +527,6 @@ def _paginate_entries(
     *,
     offset: int,
     limit: int,
-    may_have_more: bool = False,
 ) -> StorageListResult:
     if limit < 1:
         raise ValueError("Storage list limit must be positive")
@@ -568,5 +546,4 @@ def _paginate_entries(
     return StorageListResult(
         entries=entries[offset:end],
         next_page_token=next_page_token,
-        may_have_more=may_have_more,
     )
