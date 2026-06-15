@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import subprocess
 import sys
+import textwrap
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -142,13 +143,49 @@ class RuffFormatter(Formatter):
     async def format(
         self, codes: CellCodes, stdin_filename: str | None = None
     ) -> CellCodes:
-        return await ruff(
-            codes,
+        # Wrap each cell in a dummy function so ruff applies function-scope
+        # blank-line rules (1 blank line around nested defs) instead of
+        # file-scope rules (2 blank lines). Cells with only whitespace are
+        # left unwrapped because an empty function body is invalid Python.
+        wrapped: CellCodes = {}
+        for key, code in codes.items():
+            if code.strip():
+                wrapped[key] = "def _():\n" + textwrap.indent(code, "    ")
+            else:
+                wrapped[key] = code
+
+        wrapped_result = await ruff(
+            wrapped,
             "format",
             "--line-length",
             str(self.line_length),
             stdin_filename=stdin_filename,
         )
+
+        # Unwrap: drop the def _(): line, dedent, strip.
+        result: CellCodes = {}
+        fallback_keys = []
+        for key, code in codes.items():
+            if not code.strip():
+                result[key] = wrapped_result.get(key, code)
+            elif key in wrapped_result:
+                lines = wrapped_result[key].split("\n")
+                result[key] = textwrap.dedent("\n".join(lines[1:])).strip()
+            else:
+                # Wrapping caused ruff to reject this cell; retry unwrapped.
+                fallback_keys.append(key)
+
+        if fallback_keys:
+            fallback_result = await ruff(
+                {k: codes[k] for k in fallback_keys},
+                "format",
+                "--line-length",
+                str(self.line_length),
+                stdin_filename=stdin_filename,
+            )
+            result.update(fallback_result)
+
+        return result
 
 
 class BlackFormatter(Formatter):
