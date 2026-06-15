@@ -1496,6 +1496,17 @@ def _transform_sources(
             source_transform.__name__, source_transform, sources
         )
 
+    # Handle exclamation marks before the comment-preserving transforms.
+    # `!`-command cells are invalid Python, and several of the downstream
+    # transforms (notably `transform_fixup_multiple_definitions`) compile the
+    # whole notebook at once and bail out entirely on a SyntaxError. Rewriting
+    # `!` commands into valid Python first keeps those optimizations enabled
+    # for the rest of the notebook. Handled specially since it returns an
+    # ExclamationMarkResult carrying pip-package/subprocess metadata.
+    exclamation_result = transform_exclamation_mark(sources)
+    sources = exclamation_result.transformed_sources
+    exclamation_metadata = exclamation_result
+
     # Create comment preserver from the simplified sources
     comment_preserver = CommentPreserver(sources)
 
@@ -1503,11 +1514,6 @@ def _transform_sources(
     for base_transform in comment_preserving_transforms:
         transform = comment_preserver(base_transform)
         sources = _run_transform(base_transform.__name__, transform, sources)
-
-    # Handle exclamation_mark specially since it returns ExclamationMarkResult
-    exclamation_result = transform_exclamation_mark(sources)
-    sources = exclamation_result.transformed_sources
-    exclamation_metadata = exclamation_result
 
     cells = bind_cell_metadata(sources, metadata, hide_flags)
 
