@@ -153,6 +153,33 @@ function filterEntries(
   return entries.filter((entry) => entryMatchesSearch(entry, context));
 }
 
+const LoadMoreStorageEntries: React.FC<{
+  depth: number;
+  isLoading: boolean;
+  error?: Error;
+  onLoadMore: () => void;
+}> = ({ depth, isLoading, error, onLoadMore }) => {
+  return (
+    <div className="py-px text-xs" style={indentStyle(depth)}>
+      <Button
+        variant="text"
+        size="xs"
+        className="h-6 px-0 hover:text-blue-600"
+        disabled={isLoading}
+        onClick={onLoadMore}
+      >
+        {isLoading && <LoaderCircle className="h-3 w-3 mr-1 animate-spin" />}
+        {isLoading ? "Loading..." : "Load more"}
+      </Button>
+      {error && (
+        <span className="ml-2 text-destructive">
+          Failed to load: {error.message}
+        </span>
+      )}
+    </div>
+  );
+};
+
 /**
  * Lazily loaded children of a directory entry.
  * Caches fetched entries in the Jotai store so re-expanding doesn't re-fetch.
@@ -183,6 +210,10 @@ const StorageEntryChildren: React.FC<{
     entries: children,
     isPending,
     error,
+    hasMore,
+    loadMore,
+    isLoadingMore,
+    loadMoreError,
   } = useStorageEntries(namespace, prefix);
 
   if (isPending) {
@@ -242,6 +273,14 @@ const StorageEntryChildren: React.FC<{
           />
         );
       })}
+      {hasMore && (
+        <LoadMoreStorageEntries
+          depth={depth}
+          isLoading={isLoadingMore}
+          error={loadMoreError}
+          onLoadMore={loadMore}
+        />
+      )}
     </>
   );
 };
@@ -461,6 +500,10 @@ const StorageNamespaceSection: React.FC<{
     entries: fetchedEntries,
     isPending,
     error,
+    hasMore,
+    loadMore,
+    isLoadingMore,
+    loadMoreError,
     refetch,
   } = useStorageEntries(namespaceName);
 
@@ -559,6 +602,14 @@ const StorageNamespaceSection: React.FC<{
               />
             );
           })}
+          {hasMore && (
+            <LoadMoreStorageEntries
+              depth={1}
+              isLoading={isLoadingMore}
+              error={loadMoreError}
+              onLoadMore={loadMore}
+            />
+          )}
         </>
       )}
     </>

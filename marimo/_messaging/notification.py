@@ -695,6 +695,7 @@ class StorageEntriesNotification(Notification, tag="storage-entries"):
         namespace: Variable name of the storage backend.
         prefix: The prefix that was listed (set by list_entries).
         query: The search query that was used (set by search).
+        next_page_token: Token for fetching the next page of entries.
         error: Error message if the operation failed.
     """
 
@@ -704,6 +705,7 @@ class StorageEntriesNotification(Notification, tag="storage-entries"):
     namespace: str
     prefix: str | None = None
     query: str | None = None
+    next_page_token: str | None = None
     error: str | None = None
 
 
