@@ -25,7 +25,17 @@ export function getSchemaNodes(children: CatalogNode[]): DatabaseSchema[] {
   return children.filter(isSchemaNode);
 }
 
-/** Path segment names that locate the node holding tables within a database. */
+/**
+ * Normalize `schema` and an optional namespace `catalogPath` into the segment
+ * names used to locate the catalog node that owns a table list.
+ *
+ * Flat SQL databases use `schema` alone (e.g. `["public"]`). An empty `schema`
+ * means tables live at the database root (`[]`).
+ *
+ * Nested catalogs pass the namespace segments already resolved while browsing.
+ * When the target is a schema under that path, `schema` is appended unless it
+ * is already the final segment.
+ */
 export function catalogNodePath({
   schema,
   catalogPath,
@@ -42,6 +52,14 @@ export function catalogNodePath({
   return [...catalogPath, schema];
 }
 
+/**
+ * Partition `children` into child nodes and tables.
+ *
+ * @param children - The children of a database or namespace.
+ * @returns An object containing two arrays:
+ * - `childNodes`: The child nodes of the database or namespace.
+ * - `tables`: The tables in the database or namespace.
+ */
 export function partitionCatalogChildren(children: CatalogNode[]): {
   childNodes: CatalogNode[];
   tables: DataTable[];

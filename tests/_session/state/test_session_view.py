@@ -983,6 +983,67 @@ def test_add_sql_table_previews() -> None:
     ]
 
 
+def test_catalog_children_preview_error_preserves_state() -> None:
+    session_view = SessionView()
+
+    initial_table = DataTable(
+        name="table1",
+        source_type="connection",
+        source="db1",
+        columns=[],
+        num_rows=0,
+        num_columns=0,
+        variable_name=None,
+    )
+    session_view.add_raw_notification(
+        serialize_kernel_message(
+            DataSourceConnectionsNotification(
+                connections=[
+                    DataSourceConnection(
+                        source="duckdb",
+                        name="connection1",
+                        dialect="duckdb",
+                        display_name="duckdb (connection1)",
+                        databases=[
+                            Database(
+                                name="db1",
+                                dialect="duckdb",
+                                children=[
+                                    Schema(
+                                        name="db1",
+                                        tables=[initial_table],
+                                    )
+                                ],
+                            )
+                        ],
+                    )
+                ],
+            )
+        )
+    )
+
+    catalog_metadata = SQLCatalogMetadata(
+        connection="connection1",
+        database="db1",
+        catalog_path=["db1"],
+    )
+    session_view.add_raw_notification(
+        serialize_kernel_message(
+            CatalogChildrenPreviewNotification(
+                metadata=catalog_metadata,
+                request_id=RequestId("request_id"),
+                children=[],
+                error="Failed to get catalog children: transient error",
+            )
+        )
+    )
+
+    session_view_connections = session_view.data_connectors.connections
+    assert session_view_connections[0].databases[0].children[0].tables == [
+        initial_table
+    ]
+
+
 def test_add_cell_notification(session_view: SessionView) -> None:
     session_view.add_raw_notification(
         serialize_kernel_message(

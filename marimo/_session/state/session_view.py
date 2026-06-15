@@ -367,11 +367,12 @@ class SessionView:
 
         elif isinstance(notification, CatalogChildrenPreviewNotification):
             catalog_children_preview = notification
-            update_catalog_children_in_connection(
-                self.data_connectors.connections,
-                catalog_children_preview.metadata,
-                catalog_children_preview.children,
-            )
+            if catalog_children_preview.error is None:
+                update_catalog_children_in_connection(
+                    self.data_connectors.connections,
+                    catalog_children_preview.metadata,
+                    catalog_children_preview.children,
+                )
 
         elif isinstance(notification, UIElementMessageNotification):
             # TODO: Consider reducing to a single message per element
