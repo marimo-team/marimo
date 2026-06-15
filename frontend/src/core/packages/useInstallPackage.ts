@@ -26,14 +26,14 @@ export function useInstallPackages(): {
       // The worker splits by space and passes the full list to micropip,
       // which resolves and downloads in parallel internally.
       const response = await addPackage({ package: packages.join(" ") });
+      // The backend resolves the whole list as a single transaction, so the
+      // response only carries an aggregate success/error. Report a single
+      // toast covering all requested packages rather than implying a
+      // per-package outcome we don't actually have.
       if (response.success) {
-        for (const packageName of packages) {
-          showAddPackageToast(packageName);
-        }
+        showAddPackageToast(packages);
       } else {
-        for (const packageName of packages) {
-          showAddPackageToast(packageName, response.error);
-        }
+        showAddPackageToast(packages, response.error);
       }
       onSuccess?.();
     } catch (error) {
