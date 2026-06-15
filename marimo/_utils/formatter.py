@@ -176,7 +176,10 @@ class RuffFormatter(Formatter):
                 fn = tree.body[0]
                 extractor = Extractor(formatted)
                 raw = extractor.extract_from_offsets(
-                    fn.body[0].lineno - 1, 0, fn.end_lineno - 1, fn.end_col_offset
+                    fn.body[0].lineno - 1,
+                    0,
+                    fn.end_lineno - 1,
+                    fn.end_col_offset,
                 )
                 result[key] = fixed_dedent(raw).strip()
 
