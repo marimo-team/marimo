@@ -6,11 +6,11 @@ import concurrent.futures
 import contextvars
 import functools
 import threading
-import time
 from typing import Any, cast
 
 import pytest
 
+from marimo._runtime._wasm._concurrency import _futures as wasm_futures
 from marimo._runtime._wasm._concurrency._futures import AsyncioFuture
 from marimo._runtime._wasm._concurrency._install import (
     install_wasm_concurrency_shims,
@@ -549,19 +549,29 @@ def test_wasm_as_completed_timeout_zero_yields_done_futures() -> None:
             unpatch()
 
 
-def test_wasm_as_completed_deadline_excludes_late_completions() -> None:
+def test_wasm_as_completed_deadline_excludes_late_completions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     with mock_pyodide():
         unpatch = install_wasm_concurrency_shims()
         first: concurrent.futures.Future[str] = AsyncioFuture()
         second: concurrent.futures.Future[str] = AsyncioFuture()
+        timeout = 0.001
+        now = 0.0
+
+        class _FakeTime:
+            def monotonic(self) -> float:
+                return now
+
+        monkeypatch.setattr(wasm_futures, "time", _FakeTime())
         try:
             first.set_result("first")
             iterator = concurrent.futures.as_completed(
-                [first, second], timeout=0.001
+                [first, second], timeout=timeout
             )
 
             assert next(iterator) is first
-            time.sleep(0.01)
+            now = timeout * 2
             second.set_result("late")
 
             with pytest.raises(concurrent.futures.TimeoutError):
