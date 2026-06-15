@@ -269,10 +269,16 @@ class _md(Html):
 
         # markdown.markdown appends a newline, hence strip
         html_text = _render_markdown(text).strip()
-        # replace <p> tags with <span> as HTML doesn't allow nested <div>s in <p>s
-        html_text = html_text.replace(
-            "<p>", '<span class="paragraph">'
-        ).replace("</p>", "</span>")
+        # replace <p> tags with <span> as HTML doesn't allow nested <div>s in
+        # <p>s, including the admonition title's <p> so its </p> stays matched
+        html_text = (
+            html_text.replace(
+                '<p class="admonition-title">',
+                '<span class="admonition-title">',
+            )
+            .replace("<p>", '<span class="paragraph">')
+            .replace("</p>", "</span>")
+        )
 
         if apply_markdown_class:
             classes = ["markdown", "prose", "dark:prose-invert", "contents"]
