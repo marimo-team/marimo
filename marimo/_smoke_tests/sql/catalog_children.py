@@ -80,11 +80,9 @@ def _(dedent, mo):
 
 @app.cell
 def _(Path, tempfile):
-    catalog_smoke_tmp = tempfile.TemporaryDirectory(
-        prefix="marimo-catalog-smoke-"
-    )
+    catalog_smoke_tmp = tempfile.TemporaryDirectory(prefix="marimo-catalog-smoke-")
     catalog_smoke_root = Path(catalog_smoke_tmp.name)
-    return catalog_smoke_root, catalog_smoke_tmp
+    return (catalog_smoke_root,)
 
 
 @app.cell(hide_code=True)
@@ -224,12 +222,10 @@ def _(catalog_smoke_root, duckdb):
 
     _duckdb_tables = duckdb_conn.execute("SHOW ALL TABLES").fetchall()
     assert any(
-        _row[0] == "memory" and _row[1] == "retail"
-        for _row in _duckdb_tables
+        _row[0] == "memory" and _row[1] == "retail" for _row in _duckdb_tables
     )
     assert any(
-        _row[0] == "duck_lake" and _row[1] == "bronze"
-        for _row in _duckdb_tables
+        _row[0] == "duck_lake" and _row[1] == "bronze" for _row in _duckdb_tables
     )
     return (duckdb_conn,)
 
@@ -323,7 +319,7 @@ def _(catalog_smoke_root, sqlite3):
 
 
 @app.cell
-def _(mo, sqlite_conn):
+def _(mo, raw_orders, sqlite_conn):
     _sqlite_preview = mo.sql(
         f"""
         -- Keep this as an f-string so SQL identifiers are not notebook deps: {""}
@@ -358,7 +354,7 @@ def _(dedent, mo):
 @app.cell
 def _(StaticPool, catalog_smoke_root, create_engine):
     sqlalchemy_engine = create_engine(
-        "sqlite://",
+        "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
@@ -425,7 +421,7 @@ def _(StaticPool, catalog_smoke_root, create_engine):
 
 
 @app.cell
-def _(mo, sqlalchemy_engine):
+def _(mo, sqlalchemy_engine, warehouse_items):
     _sqlalchemy_preview = mo.sql(
         f"""
         -- Keep this as an f-string so SQL identifiers are not notebook deps: {""}
@@ -488,9 +484,7 @@ def _(catalog_smoke_root, ibis, pa):
         }
     )
 
-    ibis_conn.create_table(
-        "ibis_root_metrics", obj=_root_metrics, overwrite=True
-    )
+    ibis_conn.create_table("ibis_root_metrics", obj=_root_metrics, overwrite=True)
     ibis_conn.create_table(
         "ibis_orders", obj=_orders, database="analytics", overwrite=True
     )
@@ -504,9 +498,7 @@ def _(catalog_smoke_root, ibis, pa):
     assert "ibis_root_metrics" in ibis_conn.list_tables(
         database=("memory", "main")
     )
-    assert "ibis_orders" in ibis_conn.list_tables(
-        database=("memory", "analytics")
-    )
+    assert "ibis_orders" in ibis_conn.list_tables(database=("memory", "analytics"))
     assert "customer_features" in ibis_conn.list_tables(
         database=("ibis_lake", "mart")
     )
@@ -569,9 +561,7 @@ def _(catalog_smoke_root, date, load_catalog, pa):
     ]:
         iceberg_catalog.create_namespace_if_not_exists(_namespace)
 
-    _root_schema = pa.schema(
-        [("id", pa.int32()), ("label", pa.string())]
-    )
+    _root_schema = pa.schema([("id", pa.int32()), ("label", pa.string())])
     _order_schema = pa.schema(
         [
             ("order_id", pa.int32()),
@@ -636,9 +626,7 @@ def _(catalog_smoke_root, date, load_catalog, pa):
     _rollups_table.overwrite(
         pa.table(
             {
-                "report_date": pa.array(
-                    [date(2026, 6, 13)], type=pa.date32()
-                ),
+                "report_date": pa.array([date(2026, 6, 13)], type=pa.date32()),
                 "order_count": pa.array([2], type=pa.int32()),
                 "gross_sales": [208.5],
             }
@@ -649,17 +637,15 @@ def _(catalog_smoke_root, date, load_catalog, pa):
     assert ("top", "nested", "deep") in iceberg_catalog.list_namespaces(
         "top.nested"
     )
-    assert ("top", "nested", "orders") in iceberg_catalog.list_tables(
-        "top.nested"
-    )
+    assert ("top", "nested", "orders") in iceberg_catalog.list_tables("top.nested")
     return (iceberg_catalog,)
 
 
 @app.cell
 def _(iceberg_catalog, mo):
-    _iceberg_orders = iceberg_catalog.load_table(
-        "top.nested.orders"
-    ).to_pyarrow()
+    _iceberg_orders = (
+        iceberg_catalog.load_table("top.nested.orders").scan().to_arrow()
+    )
     assert _iceberg_orders.num_rows == 2
     mo.md("**PyIceberg table load:** PASS")
     return
