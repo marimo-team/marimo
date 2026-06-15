@@ -24,7 +24,7 @@
     "typescript": "^5.9.3",
     "vitest": "^3.2.4",
     "vscode-ws-jsonrpc": "^3.5.0",
-    "ws": "^8.19.0"
+    "ws": "^8.21.0"
   },
   "packageManager": "pnpm@10.28.2"
 }
