@@ -57,6 +57,19 @@ class TestPyodideStream:
         pyodide_.write(data)
         pyodide_pipe.assert_called_once_with(data)
 
+    def test_copy_for_thread(
+        self,
+        pyodide_: PyodideStream,
+        pyodide_pipe: Mock,
+        pyodide_input_queue: asyncio.Queue[str],
+    ) -> None:
+        copied = pyodide_.copy_for_thread()
+
+        assert copied is not pyodide_
+        assert copied.pipe is pyodide_pipe
+        assert copied.input_queue is pyodide_input_queue
+        assert copied.cell_id == pyodide_.cell_id
+
 
 class TestPyodideStdout:
     def test_writable(self, pyodide_stdout: PyodideStdout) -> None:

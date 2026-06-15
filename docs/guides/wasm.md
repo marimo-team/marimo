@@ -213,8 +213,32 @@ issue](https://github.com/pyodide/pyodide/issues/new?assignees=&labels=new+packa
 
 **PDB.** PDB is not currently supported.
 
-**Threading and multi-processing.** WASM notebooks do not support multithreading
-and multiprocessing. [This may be fixed in the future](https://github.com/pyodide/pyodide/issues/237).
+**Concurrency.** WASM notebooks support cooperative adapters for
+`threading.Thread`, `threading.Event`, `threading.local`,
+`concurrent.futures.ThreadPoolExecutor`, `wait`, `as_completed`, and
+process-shaped `multiprocessing.Process`, `Queue`, `SimpleQueue`, `Pool`, and
+`ProcessPoolExecutor`. These adapters run in the browser's Pyodide interpreter.
+They do not create OS threads, shared-memory processes, or true CPU parallelism.
+Blocking waits are bridged through Pyodide's JSPI-backed asyncio loop.
+
+WASM concurrency support has four levels:
+
+- `api-compatible`: the tested Python API shape and result behavior match the
+  local Python contract for that operation.
+- `serialized`: the API shape is available, but work runs one task at a time in
+  the current Pyodide interpreter.
+- `cooperative-only`: waits, cancellation, and termination progress only when
+  Python yields back to the Pyodide event loop. Running Python code is not
+  preempted.
+- `blocked`: marimo rejects the API because the browser cannot provide the
+  native process, synchronization, or shared-memory primitive it requires.
+
+`multiprocessing.Pool.terminate()` cancels queued work, but raises
+`UnsupportedWasmConcurrencyError` when a task is already running.
+Native synchronization and process APIs such as `threading.Lock`, `Condition`,
+`Semaphore`, `Barrier`, `Timer`, `multiprocessing.Pipe`, managers, shared
+memory, and non-`spawn` start methods are unsupported. For CPU-bound parallelism
+or process isolation, use a regular marimo notebook.
 
 **Memory.** WASM notebooks have a memory limit of 2GB; this may be increased
 in the future. If memory consumption is an issue, try offloading memory-intensive

@@ -6,15 +6,18 @@ MW001: Importing modules unavailable in WASM/Pyodide.
 
 ## What it does
 
-Checks each cell's imports against a blocklist of stdlib modules that
-either don't exist in Pyodide or are stubs that fail at runtime.
+Checks each cell's imports against stdlib modules that don't work in
+Pyodide, plus multiprocessing exports and submodules that require shared
+memory, managers, pipes, or native synchronization.
 
 ## Why is this bad?
 
 WASM notebooks run in the browser via Pyodide, which cannot support
-modules that depend on OS-level process control, terminal I/O, or
-native GUI toolkits. Importing these modules will raise ImportError
-or produce broken stubs.
+modules that depend on OS-level process control, terminal I/O, native
+GUI toolkits, shared memory, pipes, or native synchronization. These
+imports can raise ImportError or fail at runtime. WASM-compatible
+multiprocessing adapters such as `Process`, `Queue`, `SimpleQueue`,
+`Pool`, and `ProcessPoolExecutor` remain allowed.
 
 ## Examples
 
@@ -27,13 +30,12 @@ result = subprocess.run(["ls"])
 
 **Problematic:**
 ```python
-from multiprocessing import Pool
+from multiprocessing import Pipe
 ```
 
 **Solution:**
-Remove or replace the import with a WASM-compatible alternative.
+Remove the import or replace it with a WASM-compatible alternative.
 
 ## References
 
 - https://pyodide.org/en/stable/usage/wasm-constraints.html
-

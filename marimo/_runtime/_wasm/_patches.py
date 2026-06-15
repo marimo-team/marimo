@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from marimo import _loggers
 from marimo._utils.platform import is_pyodide
@@ -19,7 +19,9 @@ LOGGER = _loggers.marimo_logger()
 
 Unpatch = Callable[[], None]
 Fallback = Callable[..., Any]
-WrapperFactory = Callable[[Callable[..., Any]], Callable[..., Any]]
+_OriginalAttribute = TypeVar("_OriginalAttribute")
+_ReplacementAttribute = TypeVar("_ReplacementAttribute")
+WrapperFactory = Callable[[_OriginalAttribute], _ReplacementAttribute]
 
 
 class WasmPatchSet:
@@ -77,9 +79,13 @@ class WasmPatchSet:
         self,
         owner: Any,
         attr: str,
-        wrapper_factory: WrapperFactory,
+        wrapper_factory: WrapperFactory[
+            _OriginalAttribute, _ReplacementAttribute
+        ],
+        *,
+        before_restore: Callable[[], None] | None = None,
     ) -> None:
-        """Replace `owner.attr` with a WASM-only wrapper.
+        """Replace `owner.attr` with a WASM-only replacement.
 
         Unlike `patch`, this does not call the original first. Use this for
         APIs where an original call can have side effects before failing.
@@ -87,7 +93,7 @@ class WasmPatchSet:
         if not self._active:
             return
 
-        original = getattr(owner, attr, None)
+        original: _OriginalAttribute | None = getattr(owner, attr, None)
         if original is None:
             return
 
@@ -97,9 +103,50 @@ class WasmPatchSet:
         def _unpatch() -> None:
             # Only restore if we're still the active wrapper.
             if getattr(owner, attr, None) is wrapper:
-                setattr(owner, attr, original)
+                try:
+                    if before_restore is not None:
+                        before_restore()
+                finally:
+                    setattr(owner, attr, original)
 
         self._unpatches.append(_unpatch)
+
+    def replace_descriptor(
+        self,
+        owner: Any,
+        attr: str,
+        wrapper_factory: WrapperFactory[
+            _OriginalAttribute, _ReplacementAttribute
+        ],
+        *,
+        before_restore: Callable[[], None] | None = None,
+    ) -> None:
+        """Replace `owner.attr` using the raw class descriptor."""
+        if not self._active:
+            return
+
+        missing = object()
+        original: _OriginalAttribute | object = vars(owner).get(attr, missing)
+        if original is missing:
+            return
+
+        typed_original = cast(_OriginalAttribute, original)
+        wrapper = wrapper_factory(typed_original)
+        setattr(owner, attr, wrapper)
+
+        def _unpatch() -> None:
+            if vars(owner).get(attr, missing) is wrapper:
+                try:
+                    if before_restore is not None:
+                        before_restore()
+                finally:
+                    setattr(owner, attr, typed_original)
+
+        self._unpatches.append(_unpatch)
+
+    def add_cleanup(self, cleanup: Unpatch) -> None:
+        if self._active:
+            self._unpatches.append(cleanup)
 
     def unpatch_all(self) -> Unpatch:
         """Return a callable that restores all originals (idempotent)."""

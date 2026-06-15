@@ -145,6 +145,18 @@ class ThreadSafeStream(Stream):
                     e,
                 )
 
+    def copy_for_thread(self) -> ThreadSafeStream:
+        stream = type(self)(
+            pipe=self.pipe,
+            input_queue=self.input_queue,
+            redirect_console=False,
+            cell_id=self.cell_id,
+        )
+        # The parent stream and thread copy write to the same pipe. Share the
+        # transport lock so pipe.send() remains serialized across both views.
+        stream.stream_lock = self.stream_lock
+        return stream
+
     def flush_console(self) -> None:
         """Force the buffered console writer to flush immediately.
 

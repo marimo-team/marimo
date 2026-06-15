@@ -1,10 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
 import threading
-from typing import Any
+from dataclasses import replace
+from typing import TYPE_CHECKING, Any
 
-from marimo._messaging.streams import ThreadSafeStream
 from marimo._output.rich_help import mddoc
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.cell_output_list import CellOutputList
@@ -16,8 +17,13 @@ from marimo._runtime.context.types import (
     get_context,
     initialize_context,
     runtime_context_installed,
+    safe_get_context,
     teardown_context,
 )
+from marimo._utils.platform import is_pyodide
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable
 
 # Set of thread ids for running mo.Threads
 THREADS: set[int] = set()
@@ -34,6 +40,11 @@ class Thread(threading.Thread):
     Threads can append to a cell's output using `mo.output.append`, or to the
     console output area using `print`. The corresponding outputs will be
     forwarded to the frontend.
+
+    In Pyodide, `mo.Thread` keeps the `threading.Thread` call shape but runs on
+    marimo's WASM threading patch. It has a synthetic thread identity, does not
+    create an OS thread, and waits such as `join()` progress through Pyodide
+    JSPI.
 
     Writing directly to sys.stdout or sys.stderr, or to file descriptors 1 and
     2, is not yet supported.
@@ -93,37 +104,21 @@ class Thread(threading.Thread):
 
             ctx.globals.setdefault("print", print_override)
 
-            self._marimo_ctx = KernelRuntimeContext(**ctx.__dict__)
+            kernel_ctx = replace(ctx)
             # standard IO is not yet threadsafe
-            self._marimo_ctx.stdout = None
-            self._marimo_ctx.stderr = None
-            if isinstance(ctx.stream, ThreadSafeStream):
-                self._marimo_ctx.stream = type(ctx.stream)(
-                    pipe=ctx.stream.pipe,
-                    # TODO(akshayka): stdin is not threadsafe
-                    input_queue=ctx.stream.input_queue,
-                    cell_id=ctx.stream.cell_id,
-                    redirect_console=False,
-                )
-            else:
-                raise RuntimeError(
-                    "Unsupported stream type " + str(type(ctx.stream))
-                )
-        elif isinstance(self._marimo_ctx, ScriptRuntimeContext):
+            kernel_ctx.stdout = None
+            kernel_ctx.stderr = None
+            kernel_ctx.stream = ctx.stream.copy_for_thread()
+            self._marimo_ctx = kernel_ctx
+        elif isinstance(ctx, ScriptRuntimeContext):
             # Standard streams are not rerouted when running as a script, so no
             # need to set to None
-            self._marimo_ctx = ScriptRuntimeContext(**ctx.__dict__)
-            if isinstance(ctx.stream, ThreadSafeStream):
-                self._marimo_ctx.stream = ThreadSafeStream(
-                    pipe=ctx.stream.pipe,
-                    input_queue=ctx.stream.input_queue,
-                    cell_id=ctx.stream.cell_id,
-                    redirect_console=False,
-                )
-            else:
-                raise RuntimeError(
-                    "Unsupported stream type " + str(type(ctx.stream))
-                )
+            script_ctx = replace(ctx)
+            script_ctx._cli_args = ctx._cli_args
+            script_ctx._argv = ctx._argv
+            script_ctx._query_params = ctx._query_params
+            script_ctx.stream = ctx.stream.copy_for_thread()
+            self._marimo_ctx = script_ctx
 
     @property
     def should_exit(self) -> bool:
@@ -149,12 +144,34 @@ class Thread(threading.Thread):
         """
         return self._exit_event.is_set()
 
-    def run(self) -> None:
-        if self._marimo_ctx is not None:
+    async def _finish_awaitable_run(
+        self,
+        awaitable: Awaitable[Any],
+        *,
+        context_initialized: bool,
+        thread_id: int,
+    ) -> Any:
+        try:
+            return await awaitable
+        finally:
+            THREADS.discard(thread_id)
+            if context_initialized:
+                teardown_context()
+
+    def run(self) -> Any:
+        context_initialized = False
+        defer_cleanup = False
+        managed_thread = threading.current_thread() is self
+        if managed_thread and self._marimo_ctx is not None:
             try:
                 initialize_context(self._marimo_ctx)
-            except RuntimeError:
-                pass
+                context_initialized = True
+            except RuntimeError as exc:
+                if is_pyodide() and safe_get_context() is not self._marimo_ctx:
+                    raise RuntimeError(
+                        "mo.Thread could not install its copied runtime "
+                        "context under the WASM thread identity."
+                    ) from exc
 
         output = CellOutputList()
         if self._marimo_ctx is not None:
@@ -170,10 +187,24 @@ class Thread(threading.Thread):
                 output=output,
             )
         thread_id = threading.get_ident()
-        THREADS.add(thread_id)
-        super().run()
-        THREADS.remove(thread_id)
-        teardown_context()
+        try:
+            if managed_thread:
+                THREADS.add(thread_id)
+            result = super().run()
+            if is_pyodide() and managed_thread and inspect.isawaitable(result):
+                defer_cleanup = True
+                return self._finish_awaitable_run(
+                    result,
+                    context_initialized=context_initialized,
+                    thread_id=thread_id,
+                )
+            return result
+        finally:
+            if not defer_cleanup:
+                if managed_thread:
+                    THREADS.discard(thread_id)
+                if context_initialized:
+                    teardown_context()
 
 
 def current_thread() -> Thread:
