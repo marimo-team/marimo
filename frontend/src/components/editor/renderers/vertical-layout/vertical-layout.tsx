@@ -13,6 +13,7 @@ import {
 import type React from "react";
 import { memo, useRef, useState } from "react";
 import { z } from "zod";
+import { CellColumns } from "@/components/editor/cell/cell-columns";
 import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
 import { OutputArea } from "@/components/editor/Output";
 import { ConsoleOutput } from "@/components/editor/output/console/ConsoleOutput";
@@ -375,6 +376,16 @@ const VerticalCell = memo(
 
     // Read mode and show code
     if ((mode === "read" && showCode) || kioskFull) {
+      // Side-by-side doesn't make sense for markdown cells (the output is just
+      // the rendered source), so fall back to the stacked "below" layout,
+      // mirroring EditableCellComponent.
+      const cellOutput =
+        isPureMarkdown &&
+        (cellOutputArea === "left" || cellOutputArea === "right")
+          ? "below"
+          : cellOutputArea;
+      const isSideBySide = cellOutput === "left" || cellOutput === "right";
+
       const outputArea = (
         <OutputArea
           allowExpand={true}
@@ -383,11 +394,25 @@ const VerticalCell = memo(
           cellId={cellId}
           stale={outputStale}
           loading={loading}
+          outputPosition={isSideBySide ? cellOutput : undefined}
         />
       );
 
       // Hide the code if it's pure markdown and there's an output, or if the code is empty
       const hideCode = shouldHideCode(code, output);
+
+      const codeEditor = !hideCode && (
+        <div className="tray">
+          <ReadonlyCode
+            initiallyHideCode={config.hide_code || kiosk}
+            code={code}
+          />
+        </div>
+      );
+
+      // Only render columns when there's both code and output to place
+      // side-by-side; otherwise fall back to the stacked layout.
+      const hasOutput = output !== null && !isOutputEmpty(output);
 
       return (
         <div
@@ -396,16 +421,19 @@ const VerticalCell = memo(
           className={className}
           {...cellDomProps(cellId, name)}
         >
-          {cellOutputArea === "above" && outputArea}
-          {!hideCode && (
-            <div className="tray">
-              <ReadonlyCode
-                initiallyHideCode={config.hide_code || kiosk}
-                code={code}
-              />
-            </div>
+          {cellOutput === "above" && outputArea}
+          {isSideBySide && hasOutput && codeEditor ? (
+            <CellColumns
+              outputPosition={cellOutput}
+              codeEditor={codeEditor}
+              output={outputArea}
+            />
+          ) : (
+            <>
+              {codeEditor}
+              {cellOutput !== "above" && outputArea}
+            </>
           )}
-          {cellOutputArea !== "above" && outputArea}
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
             stale={outputStale}
