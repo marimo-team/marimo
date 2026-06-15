@@ -1002,11 +1002,16 @@ export const UserConfigForm: React.FC = () => {
                           disabled={field.disabled || override.isOverridden}
                           className="inline-flex mr-2"
                         >
-                          {["above", "below", "left", "right"].map((option) => (
-                            <option value={option} key={option}>
-                              {option}
-                            </option>
-                          ))}
+                          {(["above", "below", "left", "right"] as const).map(
+                            (option) => (
+                              <option value={option} key={option}>
+                                {option}
+                                {option === "left" || option === "right"
+                                  ? " (experimental)"
+                                  : ""}
+                              </option>
+                            ),
+                          )}
                         </NativeSelect>
                       </FormControl>
                       <FormMessage />

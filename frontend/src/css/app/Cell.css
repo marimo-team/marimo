@@ -431,10 +431,14 @@
   }
 }
 
-/* Hide tray when dragging a cell, to prevent messing up the measurements. */
+/* Hide the hover-bridge gutters when dragging a cell, to prevent messing up the
+   measurements. */
 .marimo-cell.is-moving {
   .tray::before,
-  .tray::after {
+  .tray::after,
+  .cell-columns::before,
+  .cell-columns::after,
+  .cell-output-region::after {
     display: none;
   }
 }
@@ -527,19 +531,54 @@
 }
 
 
-/* The editor's hover-gutter pseudo-elements (`.tray::before/::after`) widen the
-   cell's hover hit-area into the page margin to bridge to its floating buttons.
-   In side-by-side mode the editor's *inner* edge sits flush against the output
-   column instead of empty margin, so its inner gutter reaches across the
-   resizer and covers the output — and because `.tray` has a z-index, it wins
-   hit-testing and swallows pointer events near the divide. Drop only the inner
-   gutter; the outer one (which bridges to the run/shoulder buttons) stays. */
-.cell-columns--resizable:not(.cell-columns--reverse) > .tray::after {
+/* Hover bridge: the floating action rails (run/shoulder buttons, create-cell
+   buttons) sit in the page margin just outside the cell, with an empty gap
+   between them and the cell body. To keep the pointer from leaving the cell's
+   :hover region while crossing that gap, we widen the hover hit-area into the
+   margin with pseudo-element gutters on the cell's full-width element.
+
+   In single-column layout the `.tray` spans the full width, so its
+   `::before/::after` gutters reach both rails. In side-by-side layout the
+   `.tray` is only one column (its inner gutter would land between the columns
+   and cover the output), so the full-width element is the `.cell-columns` row
+   instead — host the gutters there so both outer edges bridge to their rails,
+   regardless of which side the output is on. */
+.cell-columns > .tray::before,
+.cell-columns > .tray::after {
   display: none;
 }
 
-.cell-columns--resizable.cell-columns--reverse > .tray::before {
-  display: none;
+.cell-columns::before,
+.cell-columns::after {
+  content: "";
+  position: absolute;
+  width: var(--gutter-width);
+  max-width: var(--gutter-width);
+  height: 100%;
+}
+
+.cell-columns::before {
+  left: calc(var(--gutter-width) * -1);
+}
+
+.cell-columns::after {
+  right: calc(var(--gutter-width) * -1);
+}
+
+/* In stacked (above/below) layouts the output is full-width and its floating
+   controls (maximize/expand) sit in the right margin at the output's height,
+   which is below the editor tray's hover gutter. Give the output region its own
+   right-edge hover bridge so those controls stay reachable while hovering
+   alongside the output. Side-by-side cells use the `.cell-columns` gutters
+   above, so this is scoped to cells that don't have a `.cell-columns` row. */
+.marimo-cell:not(:has(.cell-columns)) .cell-output-region::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: calc(var(--gutter-width) * -1);
+  width: var(--gutter-width);
+  max-width: var(--gutter-width);
+  height: 100%;
 }
 
 :root {

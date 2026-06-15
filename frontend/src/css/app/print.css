@@ -62,7 +62,10 @@ body.printing #App {
 
   .tray,
   .tray::after,
-  .tray::before {
+  .tray::before,
+  .cell-columns::after,
+  .cell-columns::before,
+  .cell-output-region::after {
     display: none !important;
   }
 
