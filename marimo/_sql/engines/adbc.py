@@ -313,9 +313,9 @@ class AdbcConnectionCatalog:
         schema: str,
         database: str,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[DataTable]:
-        del schema_path  # ADBC schemas don't nest
+        del catalog_path  # ADBC schemas don't nest
         tables: list[DataTable] = []
         objects_pylist = (
             self._adbc_connection.adbc_get_objects(
@@ -372,10 +372,10 @@ class AdbcConnectionCatalog:
         table_name: str,
         schema_name: str,
         database_name: str,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> DataTable | None:
         _ = database_name
-        del schema_path  # ADBC schemas don't nest
+        del catalog_path  # ADBC schemas don't nest
         try:
             schema = self._adbc_connection.adbc_get_table_schema(
                 table_name, db_schema_filter=schema_name or None
@@ -520,14 +520,14 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[CatalogNode]:
         """Get all schemas and optionally their tables. Keys are schema names."""
         _, _, _, _ = (
             database,
             include_tables,
             include_table_details,
-            schema_path,
+            catalog_path,
         )
         return []
 
@@ -550,13 +550,13 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         schema: str,
         database: str,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[DataTable]:
         return self._catalog.get_tables_in_schema(
             schema=schema,
             database=database,
             include_table_details=include_table_details,
-            schema_path=schema_path,
+            catalog_path=catalog_path,
         )
 
     def get_table_details(
@@ -565,13 +565,13 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         table_name: str,
         schema_name: str,
         database_name: str,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> DataTable | None:
         return self._catalog.get_table_details(
             table_name=table_name,
             schema_name=schema_name,
             database_name=database_name,
-            schema_path=schema_path,
+            catalog_path=catalog_path,
         )
 
     def execute(

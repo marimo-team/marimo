@@ -457,10 +457,10 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[CatalogNode]:
         """Get all schemas and optionally their tables. Keys are schema names."""
-        if schema_path:
+        if catalog_path:
             return []  # SQLAlchemy schemas don't nest
 
         if database is None:
@@ -527,10 +527,10 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         schema: str,
         database: str,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[DataTable]:
         """Return all tables in a schema."""
-        del schema_path  # SQLAlchemy schemas don't nest
+        del catalog_path  # SQLAlchemy schemas don't nest
 
         table_names, view_names = self._get_table_names(
             schema=schema, database=database
@@ -631,10 +631,10 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         table_name: str,
         schema_name: str,
         database_name: str,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> DataTable | None:
         """Get a single table from the engine."""
-        del schema_path  # SQLAlchemy schemas don't nest
+        del catalog_path  # SQLAlchemy schemas don't nest
 
         columns = self._get_columns(
             table_name, schema=schema_name, database=database_name

@@ -12,7 +12,7 @@ import type { ColumnHeaderStatsKey } from "../data-table/types";
 /**
  * Stable id for a table node in the datasources tree.
  *
- * schemaPath already includes the leaf schema for nested namespaces, so use it
+ * catalogPath already includes the leaf schema for nested namespaces, so use it
  * when present and fall back to the flat schema name otherwise (avoids
  * duplicating the leaf, e.g. `top.nested.nested.table`).
  */
@@ -28,7 +28,7 @@ export function tableUniqueId({
   }
   const segments = catalogNodePath({
     schema: sqlTableContext.schema,
-    schemaPath: sqlTableContext.schemaPath,
+    catalogPath: sqlTableContext.catalogPath,
   }).filter(Boolean);
   return [sqlTableContext.database, ...segments, tableName].join(".");
 }

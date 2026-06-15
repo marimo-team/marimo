@@ -593,7 +593,7 @@ describe("nested namespaces", () => {
       database: "top",
       schema: "nested",
       dialect: "iceberg",
-      schemaPath: ["nested"],
+      catalogPath: ["nested"],
     };
     let state = reducer(baseState, {
       type: "addCatalogChildren",

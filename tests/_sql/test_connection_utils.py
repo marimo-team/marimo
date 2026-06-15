@@ -521,7 +521,7 @@ class TestNestedNamespaceUpdates:
             connection="my_iceberg",
             database="top",
             schema="nested",
-            schema_path=["nested"],
+            catalog_path=["nested"],
         )
         updated = create_test_table("table4")
         updated.num_rows = 999

@@ -491,7 +491,7 @@ describe("tableUniqueId", () => {
         sqlTableContext: ctx({
           database: "top",
           schema: "nested",
-          schemaPath: ["nested"],
+          catalogPath: ["nested"],
         }),
         tableName: "t",
       }),
@@ -504,20 +504,20 @@ describe("tableUniqueId", () => {
         sqlTableContext: ctx({
           database: "top",
           schema: "deep",
-          schemaPath: ["nested", "deep"],
+          catalogPath: ["nested", "deep"],
         }),
         tableName: "t",
       }),
     ).toBe("top.nested.deep.t");
   });
 
-  it("falls back to the flat schema when schemaPath is empty", () => {
+  it("falls back to the flat schema when catalogPath is empty", () => {
     expect(
       tableUniqueId({
         sqlTableContext: ctx({
           database: "db",
           schema: "public",
-          schemaPath: [],
+          catalogPath: [],
         }),
         tableName: "t",
       }),
@@ -527,7 +527,7 @@ describe("tableUniqueId", () => {
   it("does not emit a double dot for schemaless tables", () => {
     expect(
       tableUniqueId({
-        sqlTableContext: ctx({ database: "db", schema: "", schemaPath: [] }),
+        sqlTableContext: ctx({ database: "db", schema: "", catalogPath: [] }),
         tableName: "t",
       }),
     ).toBe("db.t");

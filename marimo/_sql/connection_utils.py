@@ -30,8 +30,8 @@ def _find_node_by_path(
 
 
 def _node_path(metadata: SQLMetadata) -> list[str]:
-    if metadata.schema_path:
-        return list(metadata.schema_path)
+    if metadata.catalog_path:
+        return list(metadata.catalog_path)
     if metadata.schema:
         return [metadata.schema]
     return []

@@ -84,7 +84,7 @@ function fullyLoaded(databases: Database[]): CatalogLoadState {
         tablesLoaded.add(
           catalogPathKey(
             database,
-            catalogNodePath({ schema: node.name, schemaPath: path }),
+            catalogNodePath({ schema: node.name, catalogPath: path }),
           ),
         );
         continue;

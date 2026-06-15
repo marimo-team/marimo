@@ -222,10 +222,10 @@ class RedshiftEngine(SQLConnection["Connection"]):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[CatalogNode]:
         """Get schemas from the engine."""
-        if schema_path:
+        if catalog_path:
             return []  # Redshift schemas don't nest
 
         # Redshift doesn't use the concept of databases, just catalogs and schemas.
@@ -269,10 +269,10 @@ class RedshiftEngine(SQLConnection["Connection"]):
         schema: str,
         database: str,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[DataTable]:
         """Get tables from the engine. Databases are treated as catalogs."""
-        del schema_path  # Redshift schemas don't nest
+        del catalog_path  # Redshift schemas don't nest
 
         output_tables: list[DataTable] = []
 
@@ -348,10 +348,10 @@ class RedshiftEngine(SQLConnection["Connection"]):
         table_name: str,
         schema_name: str,
         database_name: str,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> DataTable | None:
         """Get detailed metadata for a given table in a database."""
-        del schema_path  # Redshift schemas don't nest
+        del catalog_path  # Redshift schemas don't nest
 
         with self._connection.cursor() as cursor:
             try:

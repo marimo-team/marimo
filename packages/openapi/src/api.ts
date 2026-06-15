@@ -5747,28 +5747,27 @@ export interface components {
      *             database: Database containing the table.
      *             schema: Schema containing the table.
      *             table_name: Table to preview.
-     *             schema_path: Path of nested schemas (relative to `database`) for
-     *                 catalogs with nested schemas. Empty for the top level.
+     *             catalog_path: Catalog path under the database. Empty for the top level.
      */
     PreviewSQLTableCommand: {
+      /** @default [] */
+      catalogPath?: string[];
       database: string;
       engine: string;
       requestId: components["schemas"]["RequestId"];
       schema: string;
-      /** @default [] */
-      schemaPath?: string[];
       tableName: string;
       /** @enum {unknown} */
       type: "preview-sql-table";
     };
     /** PreviewSQLTableRequest */
     PreviewSQLTableRequest: {
+      /** @default [] */
+      catalogPath?: string[];
       database: string;
       engine: string;
       requestId: components["schemas"]["RequestId"];
       schema: string;
-      /** @default [] */
-      schemaPath?: string[];
       tableName: string;
     };
     /**
@@ -6032,15 +6031,14 @@ export interface components {
      *             connection: Connection identifier.
      *             database: Database name.
      *             schema: Schema name.
-     *             schema_path: Path of nested schemas (relative to `database`). Empty
-     *                 for the top level.
+     *             catalog_path: Catalog path under the database. Empty for the top level.
      */
     SQLMetadata: {
+      /** @default [] */
+      catalog_path?: string[];
       connection: string;
       database: string;
       schema: string;
-      /** @default [] */
-      schema_path?: string[];
       /** @enum {unknown} */
       type: "sql-metadata";
     };

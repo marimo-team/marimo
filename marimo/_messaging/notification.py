@@ -568,14 +568,13 @@ class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
         connection: Connection identifier.
         database: Database name.
         schema: Schema name.
-        schema_path: Path of nested schemas (relative to `database`). Empty
-            for the top level.
+        catalog_path: Catalog path under the database. Empty for the top level.
     """
 
     connection: str
     database: str
     schema: str
-    schema_path: list[str] = msgspec.field(default_factory=list)
+    catalog_path: list[str] = msgspec.field(default_factory=list)
 
 
 class SQLTablePreviewNotification(Notification, tag="sql-table-preview"):

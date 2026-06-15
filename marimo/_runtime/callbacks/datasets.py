@@ -160,12 +160,12 @@ class DatasetCallbacks:
         database_name = request.database
         schema_name = request.schema
         table_name = request.table_name
-        schema_path = request.schema_path
+        catalog_path = request.catalog_path
         sql_metadata = SQLMetadata(
             connection=variable_name,
             database=database_name,
             schema=schema_name,
-            schema_path=schema_path,
+            catalog_path=catalog_path,
         )
 
         engine, error = self.get_engine_catalog(variable_name)
@@ -185,7 +185,7 @@ class DatasetCallbacks:
                 table_name=table_name,
                 schema_name=schema_name,
                 database_name=database_name,
-                schema_path=schema_path,
+                catalog_path=catalog_path,
             )
 
             broadcast_notification(

@@ -488,7 +488,7 @@ def test_try_convert_to_polars() -> None:
 @pytest.mark.requires("sqlalchemy")
 def test_flat_engine_get_schemas_ignores_nested_path() -> None:
     """Flat engines have no nested schemas, so get_schemas returns [] for a
-    non-empty schema_path. Engines with nested namespaces (e.g. Iceberg) honour
+    non-empty catalog_path. Engines with nested namespaces (e.g. Iceberg) honour
     it."""
     import sqlalchemy as sa
 
@@ -498,7 +498,7 @@ def test_flat_engine_get_schemas_ignores_nested_path() -> None:
             database="main",
             include_tables=False,
             include_table_details=False,
-            schema_path=["nested"],
+            catalog_path=["nested"],
         )
         == []
     )

@@ -124,7 +124,7 @@ class PreviewSQLTableRequest(PreviewSQLTableCommand, tag=False):
             database=self.database,
             schema=self.schema,
             table_name=self.table_name,
-            schema_path=self.schema_path,
+            catalog_path=self.catalog_path,
         )
 
 

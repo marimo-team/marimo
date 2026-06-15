@@ -187,6 +187,8 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
         with self._install_connection(connection):
             return get_databases_from_duckdb(connection, self._engine_name)
 
+    # TODO: Implement the other get methods instead of implementing this
+    # Then, we do not need to override this method.
     def get_catalog_children(
         self,
         *,
@@ -240,14 +242,14 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[CatalogNode]:
         """Get all schemas and optionally their tables. Keys are schema names."""
         _, _, _, _ = (
             database,
             include_tables,
             include_table_details,
-            schema_path,
+            catalog_path,
         )
         return []
 
@@ -257,10 +259,10 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
         schema: str,
         database: str,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[DataTable]:
         """Return all tables in a schema. This is currently implemented in get_databases_from_duckdb."""
-        _, _, _, _ = database, schema, include_table_details, schema_path
+        _, _, _, _ = database, schema, include_table_details, catalog_path
         return []
 
     def get_table_details(
@@ -269,8 +271,8 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
         table_name: str,
         schema_name: str,
         database_name: str,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> DataTable | None:
         """Get a single table from the engine. This is currently implemented in get_databases_from_duckdb."""
-        _, _, _, _ = table_name, schema_name, database_name, schema_path
+        _, _, _, _ = table_name, schema_name, database_name, catalog_path
         return None

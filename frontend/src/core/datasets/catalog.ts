@@ -28,18 +28,18 @@ export function getSchemaNodes(children: CatalogNode[]): DatabaseSchema[] {
 /** Path segment names that locate the node holding tables within a database. */
 export function catalogNodePath({
   schema,
-  schemaPath,
+  catalogPath,
 }: {
   schema: string;
-  schemaPath?: string[];
+  catalogPath?: string[];
 }): string[] {
-  if (!schemaPath || schemaPath.length === 0) {
+  if (!catalogPath || catalogPath.length === 0) {
     return schema ? [schema] : [];
   }
-  if (!schema || schemaPath.at(-1) === schema) {
-    return schemaPath;
+  if (!schema || catalogPath.at(-1) === schema) {
+    return catalogPath;
   }
-  return [...schemaPath, schema];
+  return [...catalogPath, schema];
 }
 
 export function partitionCatalogChildren(children: CatalogNode[]): {

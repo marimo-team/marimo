@@ -372,7 +372,7 @@ def test_pyiceberg_connection_is_lazy(memory_catalog: Catalog) -> None:
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
 def test_pyiceberg_get_schemas_by_path(memory_catalog: Catalog) -> None:
-    """get_schemas lists one level at a time, selected by schema_path."""
+    """get_schemas lists one level at a time, selected by catalog_path."""
     engine = PyIcebergEngine(
         memory_catalog, engine_name=VariableName("my_iceberg")
     )
@@ -382,7 +382,7 @@ def test_pyiceberg_get_schemas_by_path(memory_catalog: Catalog) -> None:
         database="top",
         include_tables=False,
         include_table_details=False,
-        schema_path=[],
+        catalog_path=[],
     )
     assert [n.name for n in nodes] == ["nested"]
     nested = nodes[0]
@@ -394,7 +394,7 @@ def test_pyiceberg_get_schemas_by_path(memory_catalog: Catalog) -> None:
         database="top",
         include_tables=False,
         include_table_details=False,
-        schema_path=["nested"],
+        catalog_path=["nested"],
     )
     assert [n.name for n in nodes] == ["deep"]
     assert isinstance(nodes[0], Namespace)
@@ -405,7 +405,7 @@ def test_pyiceberg_get_schemas_by_path(memory_catalog: Catalog) -> None:
             database="top",
             include_tables=False,
             include_table_details=False,
-            schema_path=["nested", "deep"],
+            catalog_path=["nested", "deep"],
         )
         == []
     )
@@ -437,21 +437,21 @@ def test_pyiceberg_nested_namespace_tables(memory_catalog: Catalog) -> None:
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
-def test_pyiceberg_table_calls_fold_schema_path(
+def test_pyiceberg_table_calls_fold_catalog_path(
     memory_catalog: Catalog,
 ) -> None:
-    """The handler passes the top-level `database` plus a `schema_path`; the
+    """The handler passes the top-level `database` plus a `catalog_path`; the
     engine folds them into a dotted namespace internally (this replaced the
     handler-side `_table_database` helper)."""
     engine = PyIcebergEngine(
         memory_catalog, engine_name=VariableName("my_iceberg")
     )
 
-    # database + schema_path is equivalent to the pre-folded dotted database.
+    # database + catalog_path is equivalent to the pre-folded dotted database.
     tables = engine.get_tables_in_schema(
         schema="",
         database="top",
-        schema_path=["nested"],
+        catalog_path=["nested"],
         include_table_details=True,
     )
     assert [t.name for t in tables] == ["table4"]
@@ -460,12 +460,12 @@ def test_pyiceberg_table_calls_fold_schema_path(
         table_name="table5",
         schema_name="",
         database_name="top",
-        schema_path=["nested", "deep"],
+        catalog_path=["nested", "deep"],
     )
     assert table is not None
     assert table.name == "table5"
 
-    # Empty / missing schema_path leaves the database untouched.
+    # Empty / missing catalog_path leaves the database untouched.
     assert PyIcebergEngine._qualified_namespace("top", []) == "top"
     assert PyIcebergEngine._qualified_namespace("top", None) == "top"
     assert (

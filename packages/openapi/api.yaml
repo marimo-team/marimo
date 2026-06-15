@@ -3973,10 +3973,14 @@ components:
         \ Attributes:\n        request_id: Unique identifier for this request.\n \
         \       engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n    \
         \    database: Database containing the table.\n        schema: Schema containing\
-        \ the table.\n        table_name: Table to preview.\n        schema_path:\
-        \ Path of nested schemas (relative to `database`) for\n            catalogs\
-        \ with nested schemas. Empty for the top level."
+        \ the table.\n        table_name: Table to preview.\n        catalog_path:\
+        \ Catalog path under the database. Empty for the top level."
       properties:
+        catalogPath:
+          default: []
+          items:
+            type: string
+          type: array
         database:
           type: string
         engine:
@@ -3985,11 +3989,6 @@ components:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
-        schemaPath:
-          default: []
-          items:
-            type: string
-          type: array
         tableName:
           type: string
         type:
@@ -4006,6 +4005,11 @@ components:
       type: object
     PreviewSQLTableRequest:
       properties:
+        catalogPath:
+          default: []
+          items:
+            type: string
+          type: array
         database:
           type: string
         engine:
@@ -4014,11 +4018,6 @@ components:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
-        schemaPath:
-          default: []
-          items:
-            type: string
-          type: array
         tableName:
           type: string
       required:
@@ -4382,20 +4381,20 @@ components:
     SQLMetadata:
       description: "SQL database and schema metadata.\n\n    Attributes:\n       \
         \ connection: Connection identifier.\n        database: Database name.\n \
-        \       schema: Schema name.\n        schema_path: Path of nested schemas\
-        \ (relative to `database`). Empty\n            for the top level."
+        \       schema: Schema name.\n        catalog_path: Catalog path under the\
+        \ database. Empty for the top level."
       properties:
+        catalog_path:
+          default: []
+          items:
+            type: string
+          type: array
         connection:
           type: string
         database:
           type: string
         schema:
           type: string
-        schema_path:
-          default: []
-          items:
-            type: string
-          type: array
         type:
           enum:
           - sql-metadata

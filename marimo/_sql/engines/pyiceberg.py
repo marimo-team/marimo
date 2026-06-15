@@ -128,11 +128,11 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[CatalogNode]:
         """Get catalog nodes within a top-level namespace `database`.
 
-        Empty `schema_path` returns the namespace's own tables (as `DataTable`
+        Empty `catalog_path` returns the namespace's own tables (as `DataTable`
         nodes) plus one `Namespace` per immediate sub-namespace; a non-empty
         path returns the immediate child namespaces at that path.
         """
@@ -142,8 +142,8 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         from pyiceberg.catalog import Catalog
 
         namespace = Catalog.identifier_to_tuple(database)
-        if schema_path:
-            namespace = (*namespace, *schema_path)
+        if catalog_path:
+            namespace = (*namespace, *catalog_path)
             # At a nested path we only list immediate child namespaces. Leaf
             # namespaces that hold tables directly (no sub-namespaces) return
             # an empty list here; tables are fetched via get_tables_in_schema.
@@ -175,7 +175,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
                 schema="",
                 database=database,
                 include_table_details=include_table_details,
-                schema_path=catalog_path,
+                catalog_path=catalog_path,
             )
         ]
         children.extend(
@@ -278,13 +278,13 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
 
     @staticmethod
     def _qualified_namespace(
-        database: str, schema_path: list[str] | None
+        database: str, catalog_path: list[str] | None
     ) -> str:
-        """Fold a `database` + nested `schema_path` into a dotted namespace
+        """Fold a `database` + nested `catalog_path` into a dotted namespace
         string (the form pyiceberg's catalog calls expect)."""
-        if not schema_path:
+        if not catalog_path:
             return database
-        return ".".join([database, *schema_path])
+        return ".".join([database, *catalog_path])
 
     def get_tables_in_schema(
         self,
@@ -292,14 +292,14 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         schema: str,
         database: str,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[DataTable]:
         """Return all tables in a schema."""
         del schema  # Not used since Iceberg doesn't have schemas
 
         from pyiceberg.catalog import Catalog
 
-        namespace = self._qualified_namespace(database, schema_path)
+        namespace = self._qualified_namespace(database, catalog_path)
         try:
             tables = self._connection.list_tables(namespace)
             if not include_table_details:
@@ -341,11 +341,11 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         table_name: str,
         schema_name: str,
         database_name: str,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> DataTable | None:
         """Get a single table from the engine."""
         del schema_name  # Not used since Iceberg doesn't have schemas
-        database_name = self._qualified_namespace(database_name, schema_path)
+        database_name = self._qualified_namespace(database_name, catalog_path)
         try:
             table = self._connection.load_table((database_name, table_name))
             schema = table.schema()

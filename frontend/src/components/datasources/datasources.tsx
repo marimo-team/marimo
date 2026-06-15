@@ -203,7 +203,7 @@ function filterEmptyChildren({
     if (isSchemaNode(node)) {
       const tablePath = catalogNodePath({
         schema: node.name,
-        schemaPath: nodePath,
+        catalogPath: nodePath,
       });
       if (
         !areTablesLoadedAt({
@@ -564,13 +564,13 @@ function useDataSourceTree(): DataSourceTree {
 // Build the table context for a schema or namespace path
 function buildSqlTableContext(
   tree: DataSourceTree,
-  { schema, schemaPath }: { schema: string; schemaPath: string[] },
+  { schema, catalogPath }: { schema: string; catalogPath: string[] },
 ): SQLTableContext {
   return {
     engine: tree.engineName,
     database: tree.databaseName,
     schema,
-    schemaPath,
+    catalogPath,
     defaultSchema: tree.defaultSchema,
     defaultDatabase: tree.defaultDatabase,
     dialect: tree.dialect,
@@ -743,7 +743,7 @@ const CatalogNodeList: React.FC<CatalogNodeListProps> = (props) => {
   );
   const tableContext = buildSqlTableContext(tree, {
     schema: nodePath.length > 0 ? (nodePath.at(-1) ?? "") : "",
-    schemaPath: nodePath,
+    catalogPath: nodePath,
   });
   return (
     <>
@@ -832,7 +832,7 @@ const CatalogTreeNode: React.FC<CatalogTreeNodeProps> = ({
           {node.name}
         </span>
       </CommandItem>
-      {expandedContent}
+      {isExpanded && expandedContent}
     </>
   );
 };
@@ -908,13 +908,13 @@ const DatasetTableItem: React.FC<{
 
   const { isFetching, isPending, error } = useAsyncData(async () => {
     if (isExpanded && !tableDetailsExist && sqlTableContext) {
-      const { engine, database, schema, schemaPath } = sqlTableContext;
+      const { engine, database, schema, catalogPath } = sqlTableContext;
       const previewTable = await PreviewSQLTable.request({
         engine: engine,
         database: database,
         schema: schema,
         tableName: table.name,
-        schemaPath: schemaPath ?? [],
+        catalogPath: catalogPath ?? [],
       });
 
       if (!previewTable?.table) {
@@ -946,7 +946,7 @@ const DatasetTableItem: React.FC<{
         const identifier = sqlTableContext?.database
           ? [
               sqlTableContext.database,
-              ...(sqlTableContext.schemaPath ?? []),
+              ...(sqlTableContext.catalogPath ?? []),
               table.name,
             ].join(".")
           : table.name;

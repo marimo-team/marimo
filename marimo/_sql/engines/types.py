@@ -118,11 +118,11 @@ class EngineCatalog(BaseEngine[CONN], ABC):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[CatalogNode]:
         """Return catalog nodes within a database.
 
-        Empty `schema_path` lists the database's top-level children; a non-empty
+        Empty `catalog_path` lists the database's top-level children; a non-empty
         path lists the child nodes at that path. Only nested-namespace engines
         (e.g. Iceberg) honour a non-empty path; flat engines return `[]` for one.
         """
@@ -146,20 +146,20 @@ class EngineCatalog(BaseEngine[CONN], ABC):
                 database=database,
                 include_tables=False,
                 include_table_details=False,
-                schema_path=[],
+                catalog_path=[],
             )
 
         child_nodes = self.get_schemas(
             database=database,
             include_tables=False,
             include_table_details=False,
-            schema_path=catalog_path,
+            catalog_path=catalog_path,
         )
         tables = self.get_tables_in_schema(
             schema=catalog_path[-1],
             database=database,
             include_table_details=include_table_details,
-            schema_path=catalog_path,
+            catalog_path=catalog_path,
         )
         return [*child_nodes, *tables]
 
@@ -170,12 +170,12 @@ class EngineCatalog(BaseEngine[CONN], ABC):
         schema: str,
         database: str,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[DataTable]:
         """Return all tables in a schema.
 
-        Nested-namespace engines locate the schema via `schema_path` (relative
-        to `database`); flat engines use `schema` and ignore it.
+        Nested-namespace engines locate the container via `catalog_path`
+        (relative to `database`); flat engines use `schema` and ignore it.
         """
 
     @abstractmethod
@@ -185,11 +185,11 @@ class EngineCatalog(BaseEngine[CONN], ABC):
         table_name: str,
         schema_name: str,
         database_name: str,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> DataTable | None:
         """Get a single table from the engine.
 
-        Nested-namespace engines locate the table via `schema_path` (relative to
+        Nested-namespace engines locate the table via `catalog_path` (relative to
         `database_name`); flat engines ignore it.
         """
 

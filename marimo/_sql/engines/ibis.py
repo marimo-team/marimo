@@ -201,10 +201,10 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[CatalogNode]:
         """Get all schemas and optionally their tables. Keys are schema names."""
-        if schema_path:
+        if catalog_path:
             return []  # Ibis backends don't expose nested schemas
         meta_schemas = self._get_meta_schemas()
 
@@ -269,10 +269,10 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         schema: str,
         database: str,
         include_table_details: bool,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> list[DataTable]:
         """Return all tables in a schema."""
-        del schema_path  # Ibis backends don't expose nested schemas
+        del catalog_path  # Ibis backends don't expose nested schemas
         if self._connection is None:
             return []
 
@@ -379,10 +379,10 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         table_name: str,
         schema_name: str,
         database_name: str,
-        schema_path: list[str] | None = None,
+        catalog_path: list[str] | None = None,
     ) -> DataTable | None:
         """Get a single table from the engine."""
-        del schema_path  # Ibis backends don't expose nested schemas
+        del catalog_path  # Ibis backends don't expose nested schemas
         if self._connection is None:
             return None
 

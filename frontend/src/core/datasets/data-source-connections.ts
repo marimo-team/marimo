@@ -79,7 +79,7 @@ export interface SQLTableContext {
   defaultSchema?: string | null;
   defaultDatabase?: string | null;
   // Nested namespace path (relative to `database`). Empty/undefined at top level.
-  schemaPath?: string[];
+  catalogPath?: string[];
 }
 
 function initialState(): DataSourceState {
@@ -251,7 +251,7 @@ const {
 
     const path = catalogNodePath({
       schema: sqlTableContext.schema,
-      schemaPath: sqlTableContext.schemaPath,
+      catalogPath: sqlTableContext.catalogPath,
     });
     const newMap = new Map(connectionsMap);
     const newConn: DataSourceConnection = {

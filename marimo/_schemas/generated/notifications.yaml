@@ -1376,20 +1376,20 @@ components:
     SQLMetadata:
       description: "SQL database and schema metadata.\n\nAttributes:\n    connection:\
         \ Connection identifier.\n    database: Database name.\n    schema: Schema\
-        \ name.\n    schema_path: Path of nested schemas (relative to `database`).\
-        \ Empty\n        for the top level."
+        \ name.\n    catalog_path: Catalog path under the database. Empty for the\
+        \ top level."
       properties:
+        catalog_path:
+          default: []
+          items:
+            type: string
+          type: array
         connection:
           type: string
         database:
           type: string
         schema:
           type: string
-        schema_path:
-          default: []
-          items:
-            type: string
-          type: array
         type:
           enum:
           - sql-metadata

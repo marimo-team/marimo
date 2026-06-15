@@ -53,7 +53,7 @@ export function hydrateCatalogLoadState(
       if (isSchemaNode(node)) {
         const tablePath = catalogNodePath({
           schema: node.name,
-          schemaPath: path,
+          catalogPath: path,
         });
         if (node.tables.length > 0) {
           tablesLoaded.add(catalogPathKey(database, tablePath));

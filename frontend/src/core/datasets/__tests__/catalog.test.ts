@@ -19,17 +19,16 @@ describe("catalogNodePath", () => {
   });
 
   it("appends the schema name to a parent namespace path", () => {
-    expect(catalogNodePath({ schema: "nested", schemaPath: ["top"] })).toEqual([
-      "top",
-      "nested",
-    ]);
+    expect(catalogNodePath({ schema: "nested", catalogPath: ["top"] })).toEqual(
+      ["top", "nested"],
+    );
   });
 
-  it("does not duplicate the leaf schema when schemaPath is already complete", () => {
+  it("does not duplicate the leaf schema when catalogPath is already complete", () => {
     expect(
       catalogNodePath({
         schema: "nested",
-        schemaPath: ["top", "nested"],
+        catalogPath: ["top", "nested"],
       }),
     ).toEqual(["top", "nested"]);
   });

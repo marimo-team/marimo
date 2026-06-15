@@ -19,19 +19,19 @@ def test_list_catalog_children_request_preserves_catalog_path() -> None:
     assert request.as_command().catalog_path == ["nested", "deep"]
 
 
-def test_preview_sql_table_request_preserves_schema_path() -> None:
+def test_preview_sql_table_request_preserves_catalog_path() -> None:
     body = (
         b'{"requestId":"1","engine":"e","database":"top","schema":"deep",'
-        b'"tableName":"t","schemaPath":["nested","deep"]}'
+        b'"tableName":"t","catalogPath":["nested","deep"]}'
     )
     request = msgspec.json.decode(body, type=PreviewSQLTableRequest)
-    assert request.schema_path == ["nested", "deep"]
-    assert request.as_command().schema_path == ["nested", "deep"]
+    assert request.catalog_path == ["nested", "deep"]
+    assert request.as_command().catalog_path == ["nested", "deep"]
 
 
-def test_schema_path_defaults_to_empty() -> None:
+def test_catalog_path_defaults_to_empty() -> None:
     # Older clients omit the field entirely.
     body = b'{"requestId":"1","engine":"e","database":"top","schema":"s","tableName":"t"}'
     request = msgspec.json.decode(body, type=PreviewSQLTableRequest)
-    assert request.schema_path == []
-    assert request.as_command().schema_path == []
+    assert request.catalog_path == []
+    assert request.as_command().catalog_path == []
