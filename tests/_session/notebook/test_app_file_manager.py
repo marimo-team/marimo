@@ -113,7 +113,7 @@ def test_rename_changes_format_py_to_ipynb_and_back(tmp_path: Path) -> None:
     assert ipynb_path.exists()
 
     # Verify the .ipynb content is valid JSON with marimo metadata
-    with open(ipynb_path, "r", encoding="utf-8") as f:
+    with open(ipynb_path, encoding="utf-8") as f:
         ipynb_data = json.load(f)
     assert "cells" in ipynb_data
     assert "metadata" in ipynb_data

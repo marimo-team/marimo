@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
@@ -509,7 +508,12 @@ class TestIsMarimoNotebook:
         """Long docstring must not hide markers (slow-path test)."""
         serializer = PythonNotebookSerializer()
         f = tmp_path / "app.py"
-        f.write_text('"""' + ("x" * 1024) + '"""\n' + "import marimo\napp = marimo.App()\n")
+        f.write_text(
+            '"""'
+            + ("x" * 1024)
+            + '"""\n'
+            + "import marimo\napp = marimo.App()\n"
+        )
         assert serializer.is_marimo_notebook(f) is True
 
     def test_python_non_marimo_long(self, tmp_path: Path) -> None:
@@ -597,7 +601,12 @@ class TestIsMarimoNotebook:
 
         serializer = IpynbNotebookSerializer()
         f = tmp_path / "empty.ipynb"
-        data = {"cells": [], "metadata": {}, "nbformat": 4, "nbformat_minor": 5}
+        data = {
+            "cells": [],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5,
+        }
         f.write_text(json.dumps(data))
         assert serializer.is_marimo_notebook(f) is False
 

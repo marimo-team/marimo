@@ -1531,7 +1531,7 @@ def convert_from_ipynb_to_notebook_ir(
 ) -> NotebookSerializationV1:
     """
     Convert a raw notebook to a NotebookSerializationV1 object.
-    
+
     Args:
         raw_notebook: JSON string of the notebook
         filepath: Optional filepath for the notebook (used for error reporting)

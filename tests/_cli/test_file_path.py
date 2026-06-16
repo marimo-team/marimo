@@ -269,9 +269,7 @@ def test_validate_name_with_invalid_ipynb(tmp_path: Path):
     f = tmp_path / "bad.ipynb"
     f.write_text("not valid json", encoding="utf-8")
     with pytest.raises(click.ClickException) as excinfo:
-        validate_name(
-            str(f), allow_new_file=True, allow_directory=False
-        )
+        validate_name(str(f), allow_new_file=True, allow_directory=False)
     assert "is not a valid Jupyter notebook" in str(excinfo.value)
     assert "Convert" in str(excinfo.value)
 

@@ -215,7 +215,7 @@ class IpynbNotebookSerializer(NotebookSerializer):
         import json
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             metadata = data.get("metadata", {})
             return "marimo" in metadata
