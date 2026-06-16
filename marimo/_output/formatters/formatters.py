@@ -24,6 +24,7 @@ from marimo._output.formatters.df_formatters import (
     PyArrowFormatter,
     PySparkFormatter,
 )
+from marimo._output.formatters.flax_formatters import FlaxFormatter
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatters.holoviews_formatters import HoloViewsFormatter
 from marimo._output.formatters.ipython_formatters import IPythonFormatter
@@ -80,6 +81,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     OpenAIFormatter.package_name(): OpenAIFormatter(),
     TransformersFormatter.package_name(): TransformersFormatter(),
     PyTorchFormatter.package_name(): PyTorchFormatter(),
+    FlaxFormatter.package_name(): FlaxFormatter(),
 }
 
 # Formatters for builtin types and other things that don't require a
