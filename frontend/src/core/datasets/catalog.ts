@@ -240,6 +240,21 @@ export interface CatalogWalkContext {
   segments: string[];
 }
 
+/**
+ * Depth-first walk over catalog nodes.
+ *
+ * Invokes `visit` for each node. `segments` in the context is the
+ * namespace/schema path from the database root to the node's container.
+ * Inline data tables inherit their parent's path (the table name is not
+ * appended). Namespaces are recursed into; schemas and data tables are
+ * leaves — callers read `node.tables` for a schema's table list.
+ *
+ * @param nodes - Catalog children to traverse (e.g. a database's `children`).
+ * @param context - Walk state passed to each `visit` call.
+ * @param context.databaseName - Name of the database being walked.
+ * @param context.segments - Path to the current container, relative to the database.
+ * @param visit - Callback invoked for each node with updated `segments` and the `node`.
+ */
 export function walkCatalogNodes({
   nodes,
   context,
