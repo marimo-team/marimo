@@ -1,35 +1,23 @@
+import {
+  scheduleTask as defaultScheduleTask,
+  type ScheduleTaskFn,
+} from "@/utils/schedule-task";
+
 type BuildFn = () => void;
 
-// Runs a callback as its own macrotask, letting the browser paint in between.
-type ScheduleTaskFn = (callback: () => void) => void;
-
-// A prompt macrotask scheduler: the callback runs as soon as the current task
-// finishes, without waiting for the main thread to go idle (which starves
-// under sustained load) and while still letting the browser paint in between.
-const defaultScheduleTask: ScheduleTaskFn = (() => {
-  if (typeof MessageChannel !== "function") {
-    return (callback) => {
-      setTimeout(callback, 0);
-    };
-  }
-  let scheduled: (() => void) | null = null;
-  const channel = new MessageChannel();
-  channel.port1.onmessage = () => {
-    const callback = scheduled;
-    scheduled = null;
-    callback?.();
-  };
-  return (callback) => {
-    scheduled = callback;
-    channel.port2.postMessage(null);
-  };
-})();
-
 export interface EditorMountScheduler {
+  /** Queue a cell's editor build to run on a future task. */
   request(cellId: string, build: BuildFn): void;
+  /** Build a queued cell's editor synchronously, right now (e.g. on focus). */
   promote(cellId: string): void;
+  /**
+   * Mark a queued cell to build ahead of un-prioritized ones, keeping the
+   * one-build-per-task pacing (e.g. when the cell scrolls into view).
+   */
   prioritize(cellId: string): void;
+  /** Drop a cell's prioritized mark, reverting it to plain FIFO order. */
   deprioritize(cellId: string): void;
+  /** Remove a cell's queued build entirely. */
   cancel(cellId: string): void;
 }
 
