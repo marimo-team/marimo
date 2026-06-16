@@ -103,7 +103,7 @@ Here's some additional context.
 
 #### Admonitions
 
-Highlight text using admonitions:
+Highlight text using *admonitions*:
 
 ```markdown
 /// attention | This is important.
@@ -112,9 +112,15 @@ Pay attention to this text!
 ///
 ```
 
+An admonition, also known as an alert or a callout, is a Markdown extension
+for visually highlighting important information. In marimo, admonitions
+are displayed with special colors to convey significance.
+
 /// marimo-embed-file
     filepath: examples/markdown/admonitions.py
 ///
+
+For a programmatic alternative to admonitions, use [`mo.callout`][marimo.callout].
 
 #### Emoji
 
