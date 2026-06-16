@@ -539,3 +539,94 @@ describe("tableUniqueId", () => {
     ).toBe("db.t");
   });
 });
+
+describe("sqlCode with nested catalog paths", () => {
+  const mockTable: DataTable = {
+    kind: "data_table",
+    name: "orders" as const,
+    columns: [],
+    source: "iceberg",
+    source_type: "connection",
+    type: "table",
+    engine: null,
+    indexes: null,
+    num_columns: null,
+    num_rows: null,
+    variable_name: null,
+    primary_keys: null,
+  };
+
+  it("qualifies a table under a nested namespace with the full path", () => {
+    const sqlTableContext: SQLTableContext = {
+      engine: "my_engine",
+      database: "top",
+      schema: "nested",
+      catalogPath: ["nested"],
+      defaultDatabase: "memory",
+      dialect: "duckdb",
+    };
+
+    // Mirrors `tableUniqueId` (top.nested.orders), not a duplicated leaf.
+    expect(
+      sqlCode({ table: mockTable, columnName: "*", sqlTableContext }),
+    ).toBe(
+      '_df = mo.sql(f"""\nSELECT * FROM "top"."nested"."orders" LIMIT 100\n""", engine=my_engine)',
+    );
+  });
+
+  it("qualifies a deeply nested namespace path", () => {
+    const sqlTableContext: SQLTableContext = {
+      engine: "my_engine",
+      database: "top",
+      schema: "deep",
+      catalogPath: ["nested", "deep"],
+      defaultDatabase: "memory",
+      dialect: "duckdb",
+    };
+
+    expect(
+      sqlCode({ table: mockTable, columnName: "*", sqlTableContext }),
+    ).toBe(
+      '_df = mo.sql(f"""\nSELECT * FROM "top"."nested"."deep"."orders" LIMIT 100\n""", engine=my_engine)',
+    );
+  });
+
+  it("does not apply the default-schema shortcut to nested paths", () => {
+    const sqlTableContext: SQLTableContext = {
+      engine: "my_engine",
+      database: "top",
+      schema: "deep",
+      catalogPath: ["nested", "deep"],
+      // Even if the leaf matches the default schema, nested paths stay fully
+      // qualified so the table can be located unambiguously.
+      defaultSchema: "deep",
+      defaultDatabase: "top",
+      dialect: "duckdb",
+    };
+
+    expect(
+      sqlCode({ table: mockTable, columnName: "*", sqlTableContext }),
+    ).toBe(
+      '_df = mo.sql(f"""\nSELECT * FROM "nested"."deep"."orders" LIMIT 100\n""", engine=my_engine)',
+    );
+  });
+
+  it("falls back to flat schema behavior when catalogPath equals the schema", () => {
+    const sqlTableContext: SQLTableContext = {
+      engine: "my_engine",
+      database: "db",
+      schema: "public",
+      catalogPath: ["public"],
+      defaultSchema: "public",
+      defaultDatabase: "db",
+      dialect: "duckdb",
+    };
+
+    // Single-segment path collapses to just the table (default schema + db).
+    expect(
+      sqlCode({ table: mockTable, columnName: "*", sqlTableContext }),
+    ).toBe(
+      '_df = mo.sql(f"""\nSELECT * FROM "orders" LIMIT 100\n""", engine=my_engine)',
+    );
+  });
+});

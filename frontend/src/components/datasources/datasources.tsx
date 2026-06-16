@@ -48,6 +48,8 @@ import {
   isNamespaceNode,
   isSchemaNode,
   partitionCatalogChildren,
+  shouldExpandCatalogNodeForSearch,
+  shouldExpandDatabaseForSearch,
 } from "@/core/datasets/catalog";
 import type {
   Database,
@@ -86,36 +88,14 @@ import {
   LoadingState,
   RotatingChevron,
 } from "./components";
+import {
+  DATASOURCE_INDENT,
+  indentStyle,
+  schemaColumnIndentRem,
+  schemaHeaderIndentRem,
+  schemaTableIndentRem,
+} from "./indent";
 import { sqlCode, tableUniqueId } from "./utils";
-
-const INDENT_STEP = 1; // rem per schema nesting level (depth 0 = top-level)
-
-// Indentation (rem) for a schema and its contents at a given nesting depth.
-// Depth 0 is a top-level schema; inline tables/columns at the database root reuse depth 0 too.
-function schemaHeaderIndentRem(depth: number): number {
-  return 1.75 + depth * INDENT_STEP;
-}
-function schemaTableIndentRem(depth: number): number {
-  return 3 + depth * INDENT_STEP;
-}
-function schemaColumnIndentRem(depth: number): number {
-  return 3.25 + depth * INDENT_STEP;
-}
-
-// Left indentation (rem) for each fixed (non-nested) level of the tree.
-const INDENT = {
-  engineEmpty: 0.75,
-  engine: 0.75,
-  database: 1,
-  tableLoading: 2.75,
-  tableSchemaless: 2,
-  columnLocal: 1.25,
-  columnPreview: 2.5,
-};
-
-function indentStyle(rem: number): React.CSSProperties {
-  return { paddingLeft: `${rem}rem` };
-}
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -376,7 +356,10 @@ export const DataSources: React.FC = () => {
         ))}
 
         {dataConnections.length > 0 && tables.length > 0 && (
-          <DatasourceLabel className="pr-2" style={indentStyle(INDENT.engine)}>
+          <DatasourceLabel
+            className="pr-2"
+            style={indentStyle(DATASOURCE_INDENT.engine)}
+          >
             <PythonIcon className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs">Python</span>
           </DatasourceLabel>
@@ -407,7 +390,10 @@ const Engine: React.FC<{
 
   return (
     <>
-      <DatasourceLabel className="pr-2" style={indentStyle(INDENT.engine)}>
+      <DatasourceLabel
+        className="pr-2"
+        style={indentStyle(DATASOURCE_INDENT.engine)}
+      >
         <DatabaseLogo
           className="h-4 w-4 text-muted-foreground"
           name={connection.dialect}
@@ -430,7 +416,7 @@ const Engine: React.FC<{
       ) : (
         <EmptyState
           content="No databases available"
-          style={indentStyle(INDENT.engineEmpty)}
+          style={indentStyle(DATASOURCE_INDENT.engine)}
         />
       )}
     </>
@@ -506,7 +492,7 @@ const DatabaseTree: React.FC<{
     <DatabaseItem
       engineName={connection.name}
       database={database}
-      hasSearch={hasSearch}
+      searchValue={searchValue}
     >
       <DataSourceTreeContext.Provider value={tree}>
         <CatalogNodeList nodes={database.children} nodePath={[]} depth={0} />
@@ -516,25 +502,30 @@ const DatabaseTree: React.FC<{
 };
 
 const DatabaseItem: React.FC<{
-  hasSearch: boolean;
+  searchValue?: string;
   engineName: string;
   database: Database;
   children: React.ReactNode;
-}> = ({ hasSearch, engineName, database, children }) => {
+}> = ({ searchValue, engineName, database, children }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isSelected, setIsSelected] = React.useState(false);
-  const [prevHasSearch, setPrevHasSearch] = React.useState(hasSearch);
+  const [prevSearchValue, setPrevSearchValue] = React.useState(searchValue);
 
-  if (prevHasSearch !== hasSearch) {
-    setPrevHasSearch(hasSearch);
-    setIsExpanded(hasSearch);
+  const expandForSearch = shouldExpandDatabaseForSearch(
+    database.children,
+    searchValue,
+  );
+
+  if (prevSearchValue !== searchValue) {
+    setPrevSearchValue(searchValue);
+    setIsExpanded(expandForSearch);
   }
 
   return (
     <>
       <CommandItem
         className="text-sm flex flex-row gap-1 items-center cursor-pointer rounded-none"
-        style={indentStyle(INDENT.database)}
+        style={indentStyle(DATASOURCE_INDENT.database)}
         onSelect={() => {
           setIsExpanded(!isExpanded);
           setIsSelected(!isSelected);
@@ -676,10 +667,17 @@ const CatalogTreeNode: React.FC<CatalogTreeNodeProps> = ({
   depth,
 }) => {
   const tree = useDataSourceTree();
-  const { databaseName, hasSearch } = tree;
-  const [isExpanded, setIsExpanded] = React.useState(hasSearch);
+  const { databaseName, searchValue } = tree;
+  const expandForSearch = shouldExpandCatalogNodeForSearch(node, searchValue);
+  const [isExpanded, setIsExpanded] = React.useState(expandForSearch);
   const [isSelected, setIsSelected] = React.useState(false);
+  const [prevSearchValue, setPrevSearchValue] = React.useState(searchValue);
   const uniqueValue = `${databaseName}:${nodePath.join(".")}`;
+
+  if (prevSearchValue !== searchValue) {
+    setPrevSearchValue(searchValue);
+    setIsExpanded(expandForSearch);
+  }
 
   let expandedContent: React.ReactNode = null;
   if (isExpanded) {
@@ -730,7 +728,7 @@ const TableList: React.FC<{
   // schemas/namespaces exist at the same level.
   hideEmpty?: boolean;
   // Depth-based indentation (rem) for nested schema tables/columns. When
-  // omitted, the fixed INDENT levels are used (top-level / inline tables).
+  // omitted, DATASOURCE_INDENT fallbacks are used (top-level / inline tables).
   tableIndentRem?: number;
   columnIndentRem?: number;
 }> = ({
@@ -741,7 +739,9 @@ const TableList: React.FC<{
   tableIndentRem,
   columnIndentRem,
 }) => {
-  const stateStyle = indentStyle(tableIndentRem ?? INDENT.tableLoading);
+  const stateStyle = indentStyle(
+    tableIndentRem ?? DATASOURCE_INDENT.tableLoading,
+  );
 
   if (tables.length === 0) {
     if (hideEmpty) {
@@ -871,7 +871,10 @@ const DatasetTableItem: React.FC<{
     }
 
     return (
-      <div className="flex flex-row gap-2 items-center pl-6 group-hover:hidden">
+      <div
+        className="flex flex-row gap-2 items-center group-hover:hidden"
+        style={indentStyle(DATASOURCE_INDENT.tableRowStats)}
+      >
         <span className="text-xs text-muted-foreground">
           {label.join(", ")}
         </span>
@@ -880,7 +883,9 @@ const DatasetTableItem: React.FC<{
   };
 
   const renderColumns = () => {
-    const stateStyle = indentStyle(columnIndentRem ?? INDENT.tableLoading);
+    const stateStyle = indentStyle(
+      columnIndentRem ?? DATASOURCE_INDENT.tableLoading,
+    );
 
     if (isPending || isFetching) {
       return <LoadingState message="Loading columns..." style={stateStyle} />;
@@ -927,7 +932,7 @@ const DatasetTableItem: React.FC<{
   });
 
   const tableRem =
-    tableIndentRem ?? (sqlTableContext ? INDENT.tableSchemaless : 0);
+    tableIndentRem ?? (sqlTableContext ? DATASOURCE_INDENT.tableSchemaless : 0);
 
   return (
     <>
@@ -1030,7 +1035,9 @@ const DatasetColumnItem: React.FC<{
           className="flex flex-row gap-2 items-center flex-1"
           style={indentStyle(
             columnIndentRem ??
-              (sqlTableContext ? schemaColumnIndentRem(0) : INDENT.columnLocal),
+              (sqlTableContext
+                ? schemaColumnIndentRem(0)
+                : DATASOURCE_INDENT.columnLocal),
           )}
         >
           <ColumnName columnName={columnText} dataType={column.type} />
@@ -1059,7 +1066,7 @@ const DatasetColumnItem: React.FC<{
       {isExpanded && (
         <div
           className="pr-2 py-2 bg-(--slate-1) shadow-inner border-b"
-          style={indentStyle(INDENT.columnPreview)}
+          style={indentStyle(DATASOURCE_INDENT.columnPreview)}
         >
           <ErrorBoundary>
             <DatasetColumnPreview

@@ -133,24 +133,26 @@ export function sqlCode({
       defaultDatabase,
       database,
       dialect,
+      catalogPath,
     } = sqlTableContext;
     const tablePath = [table.name];
 
-    // Set the fully qualified table name based on schema and database
-    if (!schema) {
-      if (database !== defaultDatabase) {
-        tablePath.unshift(database);
+    // Resolve the namespace/schema segments that qualify the table. For flat
+    // engines this is just `[schema]`; for nested catalogs it is the full
+    // namespace path (e.g. `["top", "nested"]`)
+    const segments = catalogNodePath({ schema, catalogPath });
+    if (segments.length <= 1) {
+      const [schemaName] = segments;
+      if (schemaName && schemaName !== defaultSchema) {
+        tablePath.unshift(schemaName);
       }
     } else {
-      // Include schema if it's not the default schema
-      if (schema !== defaultSchema) {
-        tablePath.unshift(schema);
-      }
+      tablePath.unshift(...segments);
+    }
 
-      // Include database if it's not the default database
-      if (database !== defaultDatabase) {
-        tablePath.unshift(database);
-      }
+    // Include database if it's not the default database
+    if (database !== defaultDatabase) {
+      tablePath.unshift(database);
     }
 
     const formatter = getFormatter(dialect);

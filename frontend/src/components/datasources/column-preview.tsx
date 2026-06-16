@@ -28,6 +28,7 @@ import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { ColumnPreviewContainer } from "./components";
+import { DATASOURCE_INDENT, indentStyle } from "./indent";
 import { InstallPackageButton } from "./install-package-button";
 import { convertStatsName, sqlCode, tableUniqueId } from "./utils";
 
@@ -70,7 +71,10 @@ export const DatasetColumnPreview: React.FC<{
 
   if (table.source_type === "connection") {
     return (
-      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
+      <span
+        className="text-xs text-muted-foreground gap-2 flex items-center justify-between"
+        style={indentStyle(DATASOURCE_INDENT.columnPreviewDetail)}
+      >
         {column.name} ({column.external_type})
         <Button
           variant="outline"
@@ -89,7 +93,10 @@ export const DatasetColumnPreview: React.FC<{
 
   if (table.source_type === "catalog") {
     return (
-      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
+      <span
+        className="text-xs text-muted-foreground gap-2 flex items-center justify-between"
+        style={indentStyle(DATASOURCE_INDENT.columnPreviewDetail)}
+      >
         {column.name} ({column.external_type})
       </span>
     );
