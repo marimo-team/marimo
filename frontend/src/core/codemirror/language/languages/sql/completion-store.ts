@@ -33,7 +33,7 @@ const datasetTableCompletionsAtom = atom((get) => {
 function hasCatalogStructure(
   database: DataSourceConnection["databases"][number],
 ): boolean {
-  return database.children.some(
+  return (database.children ?? []).some(
     (node) => isNamespaceNode(node) || (isSchemaNode(node) && node.name !== ""),
   );
 }
@@ -70,7 +70,7 @@ class SQLCompletionStore {
     if (flatCatalog) {
       for (const db of databases) {
         const isDefaultDb = db.name === defaultDb?.name;
-        const tables = db.children.flatMap(collectTablesFromNode);
+        const tables = (db.children ?? []).flatMap(collectTablesFromNode);
         builder.addDatabase([db.name], db);
 
         for (const table of tables) {
@@ -101,7 +101,7 @@ class SQLCompletionStore {
       }
 
       walkCatalogNodes({
-        nodes: database.children,
+        nodes: database.children ?? [],
         context: { databaseName: database.name, segments: [] },
         visit: ({ node, segments }) => {
           if (isNamespaceNode(node)) {
@@ -113,7 +113,7 @@ class SQLCompletionStore {
 
           if (isSchemaNode(node)) {
             builder.addSchema(path, node);
-            for (const table of node.tables) {
+            for (const table of node.tables ?? []) {
               builder.addTable(path, table);
             }
             return;
@@ -196,7 +196,7 @@ function getSingleTable(connection: DataSourceConnection): string | undefined {
     return undefined;
   }
   const database = connection.databases[0];
-  const tables = database.children.flatMap(collectTablesFromNode);
+  const tables = (database.children ?? []).flatMap(collectTablesFromNode);
   if (tables.length !== 1) {
     return undefined;
   }

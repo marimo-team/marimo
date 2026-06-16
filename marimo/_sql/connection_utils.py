@@ -24,7 +24,7 @@ def _find_node_by_path(
         if not rest:
             return node
         if isinstance(node, Namespace):
-            return _find_node_by_path(node.children, rest)
+            return _find_node_by_path(node.children or [], rest)
         return None
     return None
 
@@ -59,28 +59,28 @@ def update_table_in_connection(
 
             path = _node_path(sql_metadata)
             if not path:
-                for i, child in enumerate(database.children):
+                for i, child in enumerate(database.children or []):
                     if (
                         isinstance(child, DataTable)
                         and child.name == updated_table.name
                     ):
-                        database.children[i] = updated_table
+                        database.children[i] = updated_table  # type: ignore[index]
                         return
                 return
 
-            node = _find_node_by_path(database.children, path)
+            node = _find_node_by_path(database.children or [], path)
             if isinstance(node, Schema):
-                for i, table in enumerate(node.tables):
+                for i, table in enumerate(node.tables or []):
                     if table.name == updated_table.name:
-                        node.tables[i] = updated_table
+                        node.tables[i] = updated_table  # type: ignore[index]
                         return
             elif isinstance(node, Namespace):
-                for i, child in enumerate(node.children):
+                for i, child in enumerate(node.children or []):
                     if (
                         isinstance(child, DataTable)
                         and child.name == updated_table.name
                     ):
-                        node.children[i] = updated_table
+                        node.children[i] = updated_table  # type: ignore[index]
                         return
             return
 
@@ -104,7 +104,7 @@ def update_catalog_children_in_connection(
                 database.children = updated_children
                 return
 
-            node = _find_node_by_path(database.children, path)
+            node = _find_node_by_path(database.children or [], path)
             if isinstance(node, Schema):
                 node.tables = [
                     child
@@ -114,3 +114,53 @@ def update_catalog_children_in_connection(
             elif isinstance(node, Namespace):
                 node.children = updated_children
             return
+
+
+def _merge_node(old: CatalogNode, new: CatalogNode) -> CatalogNode:
+    """Merge `new` onto `old` of the same kind, preserving loaded subtrees."""
+    if isinstance(new, Schema) and isinstance(old, Schema):
+        new.tables = new.tables if new.tables is not None else old.tables
+    elif isinstance(new, Namespace) and isinstance(old, Namespace):
+        new.children = merge_catalog_children(old.children, new.children)
+    return new
+
+
+def merge_catalog_children(
+    prev: list[CatalogNode] | None,
+    new: list[CatalogNode] | None,
+) -> list[CatalogNode] | None:
+    """Merge a freshly introspected child list into the previous one.
+
+    A deferred refresh keeps whatever we already discovered so a shallow
+    re-introspection does not drop lazily loaded subtrees; otherwise nodes are
+    merged by name (recursing into containers) following the new payload's
+    membership and order.
+    """
+    if new is None:
+        return prev
+    if prev is None:
+        return new
+    prev_by_name = {node.name: node for node in prev}
+    merged: list[CatalogNode] = []
+    for node in new:
+        old = prev_by_name.get(node.name)
+        merged.append(_merge_node(old, node) if old is not None else node)
+    return merged
+
+
+def merge_data_source_connection(
+    prev: DataSourceConnection, new: DataSourceConnection
+) -> DataSourceConnection:
+    """Merge a refreshed connection onto the previous one.
+
+    Preserves lazily loaded catalog subtrees across periodic re-introspection
+    (see `merge_catalog_children`). Mutates and returns `new`.
+    """
+    prev_databases = {db.name: db for db in prev.databases}
+    for database in new.databases:
+        old = prev_databases.get(database.name)
+        if old is not None:
+            database.children = merge_catalog_children(
+                old.children, database.children
+            )
+    return new

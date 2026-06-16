@@ -94,7 +94,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
             namespaces = sorted(self._connection.list_namespaces())
             for namespace in namespaces:
                 database_name = Catalog.namespace_to_string(namespace)
-                children: list[CatalogNode] = []
+                children: list[CatalogNode] | None = None
                 if should_include_schemas:
                     children = self._database_children(
                         namespace,
@@ -255,22 +255,20 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         from pyiceberg.catalog import Catalog
 
         namespace_str = Catalog.namespace_to_string(namespace)
-        node_children: list[CatalogNode] = []
+        node_children: list[CatalogNode] | None = None
         if include_tables:
-            node_children.extend(
-                self.get_tables_in_schema(
+            node_children = [
+                *self.get_tables_in_schema(
                     schema="",
                     database=namespace_str,
                     include_table_details=include_table_details,
-                )
-            )
-            node_children.extend(
-                self._child_namespaces(
+                ),
+                *self._child_namespaces(
                     namespace,
                     include_tables=include_tables,
                     include_table_details=include_table_details,
-                )
-            )
+                ),
+            ]
         return Namespace(
             name=namespace[-1],
             children=node_children,

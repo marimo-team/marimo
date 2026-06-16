@@ -420,7 +420,7 @@ def test_get_databases_with_no_tables() -> None:
     in_memory_database = Database(
         name="memory",
         dialect="duckdb",
-        children=[],
+        children=None,
         engine=None,
     )
 
@@ -740,7 +740,7 @@ def test_form_databases_from_dict_backfill() -> None:
     assert len(result) == 2
     assert result[0].name == "memory"
     assert result[1].name == "extra_db"
-    assert result[1].children == []
+    assert result[1].children is None
 
 
 @pytest.mark.requires("duckdb")

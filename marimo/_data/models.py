@@ -90,11 +90,11 @@ class Schema(BaseStruct, tag="schema", tag_field="kind"):
 
     Attributes:
         name (str): The name of the schema.
-        tables (List[DataTable]): Tables in this schema.
+        tables (Optional[List[DataTable]]): Tables in this schema. None if hasn't been discovered yet.
     """
 
     name: str
-    tables: list[DataTable]
+    tables: list[DataTable] | None = None
 
 
 class Namespace(BaseStruct, tag="namespace", tag_field="kind"):
@@ -103,11 +103,12 @@ class Namespace(BaseStruct, tag="namespace", tag_field="kind"):
 
     Attributes:
         name (str): The name of the namespace.
-        children (List[Schema | DataTable | Namespace]): The children of the namespace.
+        children (Optional[List[Schema | DataTable | Namespace]]): The children
+            of the namespace. None if hasn't been discovered yet.
     """
 
     name: str
-    children: list[Schema | DataTable | Namespace]
+    children: list[Schema | DataTable | Namespace] | None = None
 
 
 class Database(BaseStruct):
@@ -117,13 +118,14 @@ class Database(BaseStruct):
     Attributes:
         name (str): The name of the database.
         dialect (str): The dialect of the database.
-        children (List[Schema | DataTable | Namespace]): The children of the database.
+        children (Optional[List[Schema | DataTable | Namespace]]): The children
+            of the database. None if hasn't been discovered yet.
         engine (Optional[VariableName]): Database engine or connection handler, if any.
     """
 
     name: str
     dialect: str
-    children: list[Schema | DataTable | Namespace]
+    children: list[Schema | DataTable | Namespace] | None = None
     engine: VariableName | None = None
 
 

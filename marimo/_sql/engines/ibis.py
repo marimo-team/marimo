@@ -171,18 +171,19 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
         for database_name in database_names:
             database_name_str = str(database_name)
+            children: list[CatalogNode] | None = None
             if should_include_schemas:
-                children = self.get_schemas(
-                    database=database_name_str,
-                    include_tables=self._resolve_should_auto_discover(
-                        include_tables
-                    ),
-                    include_table_details=self._resolve_should_auto_discover(
-                        include_table_details
-                    ),
+                children = list(
+                    self.get_schemas(
+                        database=database_name_str,
+                        include_tables=self._resolve_should_auto_discover(
+                            include_tables
+                        ),
+                        include_table_details=self._resolve_should_auto_discover(
+                            include_table_details
+                        ),
+                    )
                 )
-            else:
-                children = []
 
             database: Database = Database(
                 name=database_name_str,
@@ -242,7 +243,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
                 )
                 continue
 
-            tables: list[DataTable] = []
+            tables: list[DataTable] | None = None
             if include_tables:
                 tables = self.get_tables_in_schema(
                     schema=schema_name,

@@ -109,7 +109,7 @@ def test_clickhouse_server_get_databases_auto_skips_tables() -> None:
 
     mock_get_tables.assert_not_called()
     assert [db.name for db in databases] == ["db1", "db2"]
-    assert all(db.schemas[0].tables == [] for db in databases)
+    assert all(db.children is None for db in databases)
 
 
 @pytest.mark.skipif(

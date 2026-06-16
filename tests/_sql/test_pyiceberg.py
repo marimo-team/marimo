@@ -16,22 +16,26 @@ from marimo._types.ids import VariableName
 HAS_PYICEBERG = DependencyManager.pyiceberg.has()
 
 
-def _table_nodes_at_root(children: list) -> list[DataTable]:
-    return [node for node in children if isinstance(node, DataTable)]
+def _table_nodes_at_root(children: list | None) -> list[DataTable]:
+    return [node for node in (children or []) if isinstance(node, DataTable)]
 
 
-def _schema_nodes(children: list) -> list[Schema]:
-    return [node for node in children if isinstance(node, Schema)]
+def _schema_nodes(children: list | None) -> list[Schema]:
+    return [node for node in (children or []) if isinstance(node, Schema)]
 
 
-def _namespace_nodes(children: list) -> list[Namespace]:
-    return [node for node in children if isinstance(node, Namespace)]
+def _namespace_nodes(children: list | None) -> list[Namespace]:
+    return [node for node in (children or []) if isinstance(node, Namespace)]
 
 
 def _table_nodes(node: Schema | Namespace) -> list[DataTable]:
     if isinstance(node, Schema):
-        return node.tables
-    return [child for child in node.children if isinstance(child, DataTable)]
+        return node.tables or []
+    return [
+        child
+        for child in (node.children or [])
+        if isinstance(child, DataTable)
+    ]
 
 
 if TYPE_CHECKING:
@@ -315,7 +319,7 @@ def test_pyiceberg_get_databases(memory_catalog: Catalog) -> None:
     # Sub-namespace is present but its tables/children are deferred.
     assert set(top_namespaces) == {"nested"}
     nested = top_namespaces["nested"]
-    assert nested.children == []
+    assert nested.children is None
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
@@ -336,7 +340,7 @@ def test_pyiceberg_get_databases_lazy_schemas(memory_catalog: Catalog) -> None:
         "top",
     }
     for db in databases:
-        assert db.children == []
+        assert db.children is None
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
@@ -367,7 +371,7 @@ def test_pyiceberg_connection_is_lazy(memory_catalog: Catalog) -> None:
     # ...but their tables and deeper sub-namespaces are deferred.
     assert _table_nodes_at_root(top.children) == []
     nested = top_namespaces["nested"]
-    assert nested.children == []
+    assert nested.children is None
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
@@ -387,7 +391,7 @@ def test_pyiceberg_get_schemas_by_path(memory_catalog: Catalog) -> None:
     assert [n.name for n in nodes] == ["nested"]
     nested = nodes[0]
     assert isinstance(nested, Namespace)
-    assert nested.children == []
+    assert nested.children is None
 
     # Immediate child of "top.nested" is "deep".
     nodes = engine.get_schemas(
@@ -505,4 +509,4 @@ def test_pyiceberg_auto_discovery(memory_catalog: Catalog) -> None:
         assert isinstance(databases, list)
         assert len(databases) == 3
         for db in databases:
-            assert db.children == []
+            assert db.children is None

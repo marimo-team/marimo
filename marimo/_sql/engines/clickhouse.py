@@ -382,9 +382,8 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             db_name = cast(str, db)
             # Skip introspection for meta tables for performance
             is_meta_db = db_name.lower() in self._meta_dbs
-            if is_meta_db or not include_tables_bool:
-                children: list[CatalogNode] = []
-            else:
+            children: list[CatalogNode] | None = None
+            if not (is_meta_db or not include_tables_bool):
                 tables, _ = self._get_tables_in_schema_with_resolution(
                     schema="",
                     database=db,

@@ -404,7 +404,7 @@ def test_sqlalchemy_skip_meta_schemas(
     assert databases[0].children[1].name == "information_schema"
 
     information_schema = databases[0].children[1]
-    assert information_schema.tables == []
+    assert information_schema.tables is None
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -455,11 +455,11 @@ def test_sqlalchemy_engine_get_schemas(sqlite_engine: sa.Engine) -> None:
 
     schema = schemas[0]
     assert schema.name == "main"
-    assert len(schema.tables) == 0
+    assert schema.tables is None
 
     schema = schemas[1]
     assert schema.name == "my_schema"
-    assert len(schema.tables) == 0
+    assert schema.tables is None
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -512,8 +512,8 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
             name=":memory:",
             dialect="sqlite",
             children=[
-                Schema(name="main", tables=[]),
-                Schema(name="my_schema", tables=[]),
+                Schema(name="main", tables=None),
+                Schema(name="my_schema", tables=None),
             ],
             engine=VariableName("test_sqlite"),
         )
@@ -527,7 +527,7 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
         Database(
             name=":memory:",
             dialect="sqlite",
-            children=[],
+            children=None,
             engine=VariableName("test_sqlite"),
         )
     ]
@@ -540,7 +540,7 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
         Database(
             name=":memory:",
             dialect="sqlite",
-            children=[],
+            children=None,
             engine=VariableName("test_sqlite"),
         )
     ]
@@ -592,7 +592,7 @@ def test_sqlalchemy_get_databases_auto(sqlite_engine: sa.Engine) -> None:
             Database(
                 name=":memory:",
                 dialect="sqlite",
-                children=[],
+                children=None,
                 engine=VariableName("test_sqlite"),
             )
         ]

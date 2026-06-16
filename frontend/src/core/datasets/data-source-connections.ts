@@ -20,14 +20,6 @@ import {
   walkCatalogNodes,
 } from "./catalog";
 import {
-  type CatalogLoadState,
-  catalogPathKey,
-  emptyCatalogLoadState,
-  hydrateCatalogLoadState,
-  mergeCatalogLoadState,
-  shouldResetCatalogLoadOnRefresh,
-} from "./catalog-load-state";
-import {
   type ConnectionName,
   DUCKDB_ENGINE,
   INTERNAL_SQL_ENGINES,
@@ -43,22 +35,18 @@ const initialConnections: ConnectionsMap = new Map([
       source: "duckdb",
       display_name: "DuckDB (In-Memory)",
       databases: [],
-      catalogLoad: emptyCatalogLoadState(),
     },
   ],
 ]);
 
 // Extend the backend type but override the name property with the strongly typed ConnectionName
-export type DataSourceConnectionInput = Omit<
-  DataSourceConnectionType,
-  "name"
-> & {
+export type DataSourceConnection = Omit<DataSourceConnectionType, "name"> & {
   name: ConnectionName;
 };
 
-export interface DataSourceConnection extends DataSourceConnectionInput {
-  catalogLoad: CatalogLoadState;
-}
+// Backwards-compatible alias; the backend connection is now the source of truth
+// for catalog load state (deferred buckets are `null`).
+export type DataSourceConnectionInput = DataSourceConnection;
 
 export type ConnectionsMap = ReadonlyMap<ConnectionName, DataSourceConnection>;
 
@@ -107,21 +95,12 @@ const {
 
     const { latestEngineSelected, connectionsMap } = state;
 
-    // update existing connections with latest values
-    // add new ones if they don't exist
-    // Backend will dedupe by connection name & keep the latest, so we use this as the key
+    // Update existing connections with latest values and add new ones.
+    // The backend is the source of truth for the catalog tree: it deep-merges
+    // lazily loaded subtrees across re-introspection, so we replace wholesale.
     const newMap = new Map(connectionsMap);
     for (const conn of opts.connections) {
-      const existing = connectionsMap.get(conn.name);
-      const hydrated = hydrateCatalogLoadState(conn);
-      const catalogLoad =
-        existing && !shouldResetCatalogLoadOnRefresh(conn)
-          ? mergeCatalogLoadState(existing.catalogLoad, hydrated)
-          : hydrated;
-      newMap.set(conn.name, {
-        ...conn,
-        catalogLoad,
-      });
+      newMap.set(conn.name, conn);
     }
 
     return {
@@ -201,7 +180,7 @@ const {
 
     if (catalogPath.length > 0) {
       const parentNode = findNodeAtPath({
-        nodes: database.children,
+        nodes: database.children ?? [],
         path: catalogPath,
       });
       if (
@@ -212,19 +191,14 @@ const {
       }
     }
 
-    const loadKey = catalogPathKey(databaseName, catalogPath);
     const newConn: DataSourceConnection = {
       ...conn,
-      catalogLoad: {
-        childrenLoaded: new Set([...conn.catalogLoad.childrenLoaded, loadKey]),
-        tablesLoaded: new Set([...conn.catalogLoad.tablesLoaded, loadKey]),
-      },
       databases: conn.databases.map((db) =>
         db.name === databaseName
           ? {
               ...db,
               children: setCatalogChildrenAtPath({
-                nodes: db.children,
+                nodes: db.children ?? [],
                 path: catalogPath,
                 children: nodes,
               }),
@@ -270,7 +244,7 @@ const {
         }
         return {
           ...db,
-          children: mergeTableAtPath({ nodes: db.children, path, table }),
+          children: mergeTableAtPath({ nodes: db.children ?? [], path, table }),
         };
       }),
     };
@@ -326,7 +300,7 @@ export const allTablesAtom = atom((get) => {
         database.name === conn.default_database || conn.databases.length === 1;
 
       walkCatalogNodes({
-        nodes: database.children,
+        nodes: database.children ?? [],
         context: { databaseName: database.name, segments: [] },
         visit: ({ node, segments }) => {
           if (isNamespaceNode(node)) {
@@ -338,7 +312,7 @@ export const allTablesAtom = atom((get) => {
             segments.length === 1 && segments[0] === conn.default_schema;
           const schemaQualifier = segments.join(".");
 
-          const tables = isSchemaNode(node) ? node.tables : [node];
+          const tables = isSchemaNode(node) ? (node.tables ?? []) : [node];
 
           for (const table of tables) {
             let nameToSave: string = table.name;

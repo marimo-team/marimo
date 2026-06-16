@@ -149,7 +149,7 @@ def _get_empty_databases(
         Database(
             name=database,
             dialect="duckdb",
-            children=[],
+            children=None,
             engine=engine_name,
         )
         for database in all_dbs
@@ -332,7 +332,7 @@ def form_databases_from_dict(
                     Database(
                         name=database_name,
                         dialect="duckdb",
-                        children=[],
+                        children=None,
                         engine=engine_name,
                     )
                 )

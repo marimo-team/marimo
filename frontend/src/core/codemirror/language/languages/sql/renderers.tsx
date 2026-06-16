@@ -358,20 +358,23 @@ export const renderDatabaseInfo = (database: Database): React.ReactNode => {
     </Badge>
   );
 
-  const schemaItems = getSchemaNodes(database.children).map((schema) => (
-    <div
-      key={schema.name}
-      className="flex items-center justify-between text-xs rounded hover:bg-[var(--slate-3)]"
-    >
-      <div className="flex items-center gap-2">
-        <SchemaIcon className="w-3 h-3 text-[var(--slate-9)]" />
-        <span>{schema.name}</span>
+  const schemaItems = getSchemaNodes(database.children ?? []).map((schema) => {
+    const tableCount = (schema.tables ?? []).length;
+    return (
+      <div
+        key={schema.name}
+        className="flex items-center justify-between text-xs rounded hover:bg-[var(--slate-3)]"
+      >
+        <div className="flex items-center gap-2">
+          <SchemaIcon className="w-3 h-3 text-[var(--slate-9)]" />
+          <span>{schema.name}</span>
+        </div>
+        <Badge variant="outline" className="text-xs">
+          {tableCount} {tablesText.pluralize(tableCount)}
+        </Badge>
       </div>
-      <Badge variant="outline" className="text-xs">
-        {schema.tables.length} {tablesText.pluralize(schema.tables.length)}
-      </Badge>
-    </div>
-  ));
+    );
+  });
 
   return (
     <div className={CONTAINER_STYLES}>
@@ -430,7 +433,8 @@ export const renderSchemaInfo = (schema: DatabaseSchema): React.ReactNode => {
     </Badge>
   );
 
-  const tableItems = schema.tables.map((table) => (
+  const tables = schema.tables ?? [];
+  const tableItems = tables.map((table) => (
     <div
       key={table.name}
       className="flex items-center justify-between text-xs rounded hover:bg-[var(--slate-3)]"
@@ -468,19 +472,19 @@ export const renderSchemaInfo = (schema: DatabaseSchema): React.ReactNode => {
       <div className="py-2">
         <StatisticItem
           icon={<TableIcon className="w-3 h-3 text-[var(--slate-9)]" />}
-          text={`${schema.tables.length} table${schema.tables.length === 1 ? "" : "s"}`}
+          text={`${tables.length} table${tables.length === 1 ? "" : "s"}`}
         />
       </div>
 
       {/* Empty Info */}
-      {schema.tables.length === 0 && renderEmptyInfo("table")}
+      {tables.length === 0 && renderEmptyInfo("table")}
 
       {/* Table Preview */}
-      {schema.tables.length > 0 && (
+      {tables.length > 0 && (
         <PreviewList
           title="Tables"
           items={tableItems}
-          totalCount={schema.tables.length}
+          totalCount={tables.length}
         />
       )}
     </div>
@@ -497,12 +501,13 @@ export const renderDatasourceInfo = (
 ): React.ReactNode => {
   const databaseCount = connection.databases.length;
   const schemasCount = connection.databases.reduce(
-    (count, db) => count + getSchemaNodes(db.children).length,
+    (count, db) => count + getSchemaNodes(db.children ?? []).length,
     0,
   );
 
   const renderSchema = (schema: DatabaseSchema, isDefaultDb: boolean) => {
-    if (schema.tables.length === 0) {
+    const tables = schema.tables ?? [];
+    if (tables.length === 0) {
       return null;
     }
 
@@ -512,16 +517,14 @@ export const renderDatasourceInfo = (
     let tableItems: React.ReactNode[] = [];
     // Don't display table items if there are many schemas
     if (schemasCount < MAX_SCHEMAS_TO_DISPLAY) {
-      tableItems = schema.tables
-        .slice(0, MAX_TABLES_TO_DISPLAY + 1)
-        .map((table) => {
-          return (
-            <div key={table.name} className="flex items-center gap-2 ml-4">
-              <TableIcon className="w-3 h-3 text-[var(--green-9)]" />
-              <span className="text-xs">{table.name}</span>
-            </div>
-          );
-        });
+      tableItems = tables.slice(0, MAX_TABLES_TO_DISPLAY + 1).map((table) => {
+        return (
+          <div key={table.name} className="flex items-center gap-2 ml-4">
+            <TableIcon className="w-3 h-3 text-[var(--green-9)]" />
+            <span className="text-xs">{table.name}</span>
+          </div>
+        );
+      });
     }
 
     return (
@@ -531,12 +534,12 @@ export const renderDatasourceInfo = (
           <span>{schema.name}</span>
           {isDefaultSchema && DefaultBadge}
           <Badge variant="outline" className="text-xs ml-auto">
-            {schema.tables.length} tables
+            {tables.length} tables
           </Badge>
         </div>
         <PreviewList
           items={tableItems}
-          totalCount={schema.tables.length}
+          totalCount={tables.length}
           limit={MAX_TABLES_TO_DISPLAY}
         />
       </div>
@@ -548,7 +551,7 @@ export const renderDatasourceInfo = (
       db.name === connection.default_database ||
       connection.databases.length === 1;
 
-    const schemas = getSchemaNodes(db.children);
+    const schemas = getSchemaNodes(db.children ?? []);
     const schemaItems = schemas.map((schema) =>
       renderSchema(schema, isDefaultDb),
     );

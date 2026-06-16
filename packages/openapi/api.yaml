@@ -1263,23 +1263,27 @@ components:
     Database:
       description: "Represents a database and its children.\n\nAttributes:\n    name\
         \ (str): The name of the database.\n    dialect (str): The dialect of the\
-        \ database.\n    children (List[Schema | DataTable | Namespace]): The children\
-        \ of the database.\n    engine (Optional[VariableName]): Database engine or\
-        \ connection handler, if any."
+        \ database.\n    children (Optional[List[Schema | DataTable | Namespace]]):\
+        \ The children\n        of the database. None if hasn't been discovered yet.\n\
+        \    engine (Optional[VariableName]): Database engine or connection handler,\
+        \ if any."
       properties:
         children:
-          items:
-            anyOf:
-            - $ref: '#/components/schemas/Schema'
-            - $ref: '#/components/schemas/DataTable'
-            - $ref: '#/components/schemas/Namespace'
-            discriminator:
-              mapping:
-                data_table: '#/components/schemas/DataTable'
-                namespace: '#/components/schemas/Namespace'
-                schema: '#/components/schemas/Schema'
-              propertyName: kind
-          type: array
+          anyOf:
+          - items:
+              anyOf:
+              - $ref: '#/components/schemas/Schema'
+              - $ref: '#/components/schemas/DataTable'
+              - $ref: '#/components/schemas/Namespace'
+              discriminator:
+                mapping:
+                  data_table: '#/components/schemas/DataTable'
+                  namespace: '#/components/schemas/Namespace'
+                  schema: '#/components/schemas/Schema'
+                propertyName: kind
+            type: array
+          - type: 'null'
+          default: null
         dialect:
           type: string
         engine:
@@ -1292,7 +1296,6 @@ components:
       required:
       - name
       - dialect
-      - children
       title: Database
       type: object
     DatasetsNotification:
@@ -3696,22 +3699,26 @@ components:
       type: object
     Namespace:
       description: "Represents a namespace and its children.\n\nAttributes:\n    name\
-        \ (str): The name of the namespace.\n    children (List[Schema | DataTable\
-        \ | Namespace]): The children of the namespace."
+        \ (str): The name of the namespace.\n    children (Optional[List[Schema |\
+        \ DataTable | Namespace]]): The children\n        of the namespace. None if\
+        \ hasn't been discovered yet."
       properties:
         children:
-          items:
-            anyOf:
-            - $ref: '#/components/schemas/Schema'
-            - $ref: '#/components/schemas/DataTable'
-            - $ref: '#/components/schemas/Namespace'
-            discriminator:
-              mapping:
-                data_table: '#/components/schemas/DataTable'
-                namespace: '#/components/schemas/Namespace'
-                schema: '#/components/schemas/Schema'
-              propertyName: kind
-          type: array
+          anyOf:
+          - items:
+              anyOf:
+              - $ref: '#/components/schemas/Schema'
+              - $ref: '#/components/schemas/DataTable'
+              - $ref: '#/components/schemas/Namespace'
+              discriminator:
+                mapping:
+                  data_table: '#/components/schemas/DataTable'
+                  namespace: '#/components/schemas/Namespace'
+                  schema: '#/components/schemas/Schema'
+                propertyName: kind
+            type: array
+          - type: 'null'
+          default: null
         kind:
           enum:
           - namespace
@@ -3720,7 +3727,6 @@ components:
       required:
       - kind
       - name
-      - children
       title: Namespace
       type: object
     NotebookCell:
@@ -4508,8 +4514,8 @@ components:
       type: object
     Schema:
       description: "Represents a database schema and its tables.\n\nAttributes:\n\
-        \    name (str): The name of the schema.\n    tables (List[DataTable]): Tables\
-        \ in this schema."
+        \    name (str): The name of the schema.\n    tables (Optional[List[DataTable]]):\
+        \ Tables in this schema. None if hasn't been discovered yet."
       properties:
         kind:
           enum:
@@ -4517,13 +4523,15 @@ components:
         name:
           type: string
         tables:
-          items:
-            $ref: '#/components/schemas/DataTable'
-          type: array
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DataTable'
+            type: array
+          - type: 'null'
+          default: null
       required:
       - kind
       - name
-      - tables
       title: Schema
       type: object
     SchemaColumn:

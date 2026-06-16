@@ -7,7 +7,7 @@ import type {
   DataTable,
 } from "@/core/kernel/messages";
 
-export type CatalogNode = Database["children"][number];
+export type CatalogNode = NonNullable<Database["children"]>[number];
 
 export function isSchemaNode(node: CatalogNode): node is DatabaseSchema {
   return node.kind === "schema";
@@ -19,6 +19,17 @@ export function isNamespaceNode(node: CatalogNode): node is DatabaseNamespace {
 
 export function isDataTableNode(node: CatalogNode): node is DataTable {
   return node.kind === "data_table";
+}
+
+/**
+ * A `children`/`tables` bucket is deferred when it has not been discovered yet
+ * and should be fetched lazily on expand. An empty array means it was
+ * discovered and is genuinely empty; a non-empty array holds the nodes.
+ */
+export function isDeferred<T>(
+  bucket: T[] | null | undefined,
+): bucket is null | undefined {
+  return bucket == null;
 }
 
 export function getSchemaNodes(children: CatalogNode[]): DatabaseSchema[] {
@@ -104,7 +115,7 @@ export function updateNodeAtPath({
       return {
         ...node,
         children: updateNodeAtPath({
-          nodes: node.children,
+          nodes: node.children ?? [],
           path: rest,
           update,
         }),
@@ -133,7 +144,7 @@ export function findNodeAtPath({
     return node;
   }
   if (isNamespaceNode(node)) {
-    return findNodeAtPath({ nodes: node.children, path: rest });
+    return findNodeAtPath({ nodes: node.children ?? [], path: rest });
   }
   return undefined;
 }
@@ -143,7 +154,9 @@ function withNamespaceTables(
   node: DatabaseNamespace,
   tables: DataTable[],
 ): DatabaseNamespace {
-  const nonTables = node.children.filter((child) => !isDataTableNode(child));
+  const nonTables = (node.children ?? []).filter(
+    (child) => !isDataTableNode(child),
+  );
   return { ...node, children: [...nonTables, ...tables] };
 }
 
@@ -183,10 +196,10 @@ export function mergeTableAtPath({
     path,
     update: (node) => {
       if (isSchemaNode(node)) {
-        return { ...node, tables: upsertTable(node.tables, table) };
+        return { ...node, tables: upsertTable(node.tables ?? [], table) };
       }
       if (isNamespaceNode(node)) {
-        const existingTables = node.children.filter(isDataTableNode);
+        const existingTables = (node.children ?? []).filter(isDataTableNode);
         return withNamespaceTables(node, upsertTable(existingTables, table));
       }
       return node;
@@ -247,7 +260,7 @@ export function walkCatalogNodes({
     }
     if (isNamespaceNode(node)) {
       walkCatalogNodes({
-        nodes: node.children,
+        nodes: node.children ?? [],
         context: { ...context, segments },
         visit,
       });
@@ -257,13 +270,13 @@ export function walkCatalogNodes({
 
 export function collectTablesFromNode(node: CatalogNode): DataTable[] {
   if (isSchemaNode(node)) {
-    return node.tables;
+    return node.tables ?? [];
   }
   if (isDataTableNode(node)) {
     return [node];
   }
   if (isNamespaceNode(node)) {
-    return node.children.flatMap(collectTablesFromNode);
+    return (node.children ?? []).flatMap(collectTablesFromNode);
   }
   return [];
 }

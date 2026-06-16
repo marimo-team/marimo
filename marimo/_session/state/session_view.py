@@ -42,6 +42,7 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
 )
 from marimo._sql.connection_utils import (
+    merge_data_source_connection,
     update_catalog_children_in_connection,
     update_table_in_connection,
 )
@@ -333,12 +334,21 @@ class SessionView:
             self.datasets = DatasetsNotification(tables=list(tables.values()))
 
         elif isinstance(notification, DataSourceConnectionsNotification):
-            # Update data source connections, dedupe by name and keep the latest
-            prev_connections = self.data_connectors.connections
-            connections = {c.name: c for c in prev_connections}
+            # Update data source connections, dedupe by name and keep the
+            # latest. Re-introspection is deep-merged onto the existing catalog
+            # so lazily loaded subtrees survive a shallow refresh.
+            prev_connections = {
+                c.name: c for c in self.data_connectors.connections
+            }
+            connections = dict(prev_connections)
 
             for c in notification.connections:
-                connections[c.name] = c
+                old = prev_connections.get(c.name)
+                connections[c.name] = (
+                    merge_data_source_connection(old, c)
+                    if old is not None
+                    else c
+                )
 
             self.data_connectors = DataSourceConnectionsNotification(
                 connections=list(connections.values())

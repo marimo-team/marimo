@@ -197,7 +197,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
                 include_table_details
             )
 
-            children: list[CatalogNode] = []
+            children: list[CatalogNode] | None = None
             if include_schemas:
                 children = self.get_schemas(
                     database=catalog,
@@ -252,7 +252,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
                         include_table_details=include_table_details,
                     )
                     if include_tables
-                    else []
+                    else None
                 )
                 output_schemas.append(
                     Schema(

@@ -417,9 +417,9 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         databases: list[Database] = []
 
         for database_name in self._get_database_names():
-            children: list[Schema | DataTable | Namespace] = []
+            children: list[Schema | DataTable | Namespace] | None = None
             if should_include_schemas:
-                children.extend(
+                children = list(
                     self.get_schemas(
                         database=database_name,
                         include_tables=should_include_tables,
@@ -477,7 +477,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             did_resolve_tables = (
                 include_tables and schema.lower() not in meta_schemas
             )
-            tables: list[DataTable] = []
+            tables: list[DataTable] | None = None
             if did_resolve_tables:
                 tables = self.get_tables_in_schema(
                     schema=schema,

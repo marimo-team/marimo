@@ -107,6 +107,10 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         )
         require_vercel_ai_sdk_support()
 
+        from pydantic_ai import Agent
+
+        Agent.instrument_all()
+
         self.model = model
         self.config = config
         self.provider = self.create_provider(config)

@@ -4129,15 +4129,19 @@ export interface components {
      *     Attributes:
      *         name (str): The name of the database.
      *         dialect (str): The dialect of the database.
-     *         children (List[Schema | DataTable | Namespace]): The children of the database.
+     *         children (Optional[List[Schema | DataTable | Namespace]]): The children
+     *             of the database. None if hasn't been discovered yet.
      *         engine (Optional[VariableName]): Database engine or connection handler, if any.
      */
     Database: {
-      children: (
-        | components["schemas"]["Schema"]
-        | components["schemas"]["DataTable"]
-        | components["schemas"]["Namespace"]
-      )[];
+      /** @default null */
+      children?:
+        | (
+            | components["schemas"]["Schema"]
+            | components["schemas"]["DataTable"]
+            | components["schemas"]["Namespace"]
+          )[]
+        | null;
       dialect: string;
       /** @default null */
       engine?: components["schemas"]["VariableName"] | null;
@@ -5566,14 +5570,18 @@ export interface components {
      *
      *     Attributes:
      *         name (str): The name of the namespace.
-     *         children (List[Schema | DataTable | Namespace]): The children of the namespace.
+     *         children (Optional[List[Schema | DataTable | Namespace]]): The children
+     *             of the namespace. None if hasn't been discovered yet.
      */
     Namespace: {
-      children: (
-        | components["schemas"]["Schema"]
-        | components["schemas"]["DataTable"]
-        | components["schemas"]["Namespace"]
-      )[];
+      /** @default null */
+      children?:
+        | (
+            | components["schemas"]["Schema"]
+            | components["schemas"]["DataTable"]
+            | components["schemas"]["Namespace"]
+          )[]
+        | null;
       /** @enum {unknown} */
       kind: "namespace";
       name: string;
@@ -6103,13 +6111,14 @@ export interface components {
      *
      *     Attributes:
      *         name (str): The name of the schema.
-     *         tables (List[DataTable]): Tables in this schema.
+     *         tables (Optional[List[DataTable]]): Tables in this schema. None if hasn't been discovered yet.
      */
     Schema: {
       /** @enum {unknown} */
       kind: "schema";
       name: string;
-      tables: components["schemas"]["DataTable"][];
+      /** @default null */
+      tables?: components["schemas"]["DataTable"][] | null;
     };
     /** SchemaColumn */
     SchemaColumn: {

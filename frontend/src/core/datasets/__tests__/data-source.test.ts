@@ -2,14 +2,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { variableName } from "@/__tests__/branded";
 import {
+  type CatalogNode,
   findNodeAtPath,
   isDataTableNode,
   isNamespaceNode,
   isSchemaNode,
 } from "../catalog";
-import { catalogPathKey } from "../catalog-load-state";
 import type {
-  Database,
   DatabaseNamespace,
   DatabaseSchema,
   DataTable,
@@ -51,7 +50,7 @@ function makeTable(
 }
 
 function schemaFromChildren(
-  children: Database["children"],
+  children: CatalogNode[],
   name: string,
 ): DatabaseSchema | undefined {
   const node = children.find(
@@ -105,9 +104,6 @@ describe("data source connections", () => {
     expect(
       newState.connectionsMap.get("conn1" as ConnectionName),
     ).toMatchObject(newConnections[0]);
-    expect(
-      newState.connectionsMap.get("conn1" as ConnectionName)?.catalogLoad,
-    ).toEqual({ childrenLoaded: new Set(), tablesLoaded: new Set() });
   });
 
   it("updates existing connections", () => {
@@ -133,7 +129,7 @@ describe("data source connections", () => {
     ).toMatchObject(updatedConnection);
   });
 
-  it("resets catalog load state when a connection is refreshed from backend", () => {
+  it("applies an explicitly-empty database on refresh", () => {
     const connection = {
       name: "conn1" as ConnectionName,
       source: "sqlite",
@@ -157,81 +153,18 @@ describe("data source connections", () => {
       },
     });
     expect(
-      newState.connectionsMap
-        .get("conn1" as ConnectionName)!
-        .catalogLoad.childrenLoaded.has(catalogPathKey("db1", [])),
-    ).toBe(true);
+      newState.connectionsMap.get("conn1" as ConnectionName)?.databases[0]
+        ?.children,
+    ).toEqual([makeSchema("audit")]);
 
     const refreshed = {
       ...connection,
-      databases: [
-        {
-          name: "db1",
-          dialect: "sqlite",
-          children: [],
-        },
-      ],
+      databases: [{ name: "db1", dialect: "sqlite", children: [] }],
     };
     newState = addConnection([refreshed], newState);
 
     const conn = newState.connectionsMap.get("conn1" as ConnectionName);
     expect(conn?.databases[0]?.children).toEqual([]);
-    expect(conn?.catalogLoad).toEqual({
-      childrenLoaded: new Set(),
-      tablesLoaded: new Set(),
-    });
-  });
-
-  it("preserves resolved-empty catalog paths across connection updates", () => {
-    const connection = {
-      name: "conn1" as ConnectionName,
-      source: "iceberg",
-      display_name: "Iceberg",
-      dialect: "iceberg",
-      databases: [
-        {
-          name: "top",
-          dialect: "iceberg",
-          children: [
-            {
-              kind: "namespace" as const,
-              name: "nested",
-              children: [],
-            },
-          ],
-        },
-      ],
-    };
-
-    let newState = addConnection([connection], state);
-    newState = reducer(newState, {
-      type: "addCatalogChildren",
-      payload: {
-        nodes: [],
-        sqlCatalogContext: {
-          engine: "conn1",
-          database: "top",
-          catalogPath: ["nested"],
-        },
-      },
-    });
-
-    const key = catalogPathKey("top", ["nested"]);
-    expect(
-      newState.connectionsMap
-        .get("conn1" as ConnectionName)!
-        .catalogLoad.childrenLoaded.has(key),
-    ).toBe(true);
-    expect(
-      newState.connectionsMap
-        .get("conn1" as ConnectionName)!
-        .catalogLoad.tablesLoaded.has(key),
-    ).toBe(true);
-
-    newState = addConnection([connection], newState);
-    const conn = newState.connectionsMap.get("conn1" as ConnectionName);
-    expect(conn?.catalogLoad.childrenLoaded.has(key)).toBe(true);
-    expect(conn?.catalogLoad.tablesLoaded.has(key)).toBe(true);
   });
 
   it("can remove connections", () => {
@@ -448,7 +381,7 @@ describe("add table", () => {
 
     const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
     const db1 = conn1?.databases.find((db) => db.name === "db1");
-    expect(db1?.children.length).toBe(1);
+    expect(db1?.children?.length).toBe(1);
   });
 });
 
@@ -459,7 +392,7 @@ describe("nested namespaces", () => {
   ): DatabaseNamespace => ({
     kind: "namespace",
     name,
-    children: [],
+    children: null,
     ...overrides,
   });
 
@@ -488,7 +421,7 @@ describe("nested namespaces", () => {
   const findNode = (state: DataSourceState, path: string[]) => {
     const conn = state.connectionsMap.get("ice" as ConnectionName);
     const db = conn?.databases.find((d) => d.name === "top");
-    return db ? findNodeAtPath({ nodes: db.children, path }) : undefined;
+    return db ? findNodeAtPath({ nodes: db.children ?? [], path }) : undefined;
   };
 
   it("sets child namespaces at a nested path", () => {
@@ -508,13 +441,10 @@ describe("nested namespaces", () => {
     const nested = findNode(newState, ["nested"]);
     expect(isNamespaceNode(nested!)).toBe(true);
     if (isNamespaceNode(nested!)) {
-      expect(nested.children.map((child) => child.name)).toEqual(["deep"]);
+      expect((nested.children ?? []).map((child) => child.name)).toEqual([
+        "deep",
+      ]);
     }
-    const conn = newState.connectionsMap.get("ice" as ConnectionName);
-    expect(conn).toBeDefined();
-    expect(
-      conn!.catalogLoad.childrenLoaded.has(catalogPathKey("top", ["nested"])),
-    ).toBe(true);
     expect(findNode(newState, [""])?.name).toBe("");
   });
 
@@ -537,16 +467,13 @@ describe("nested namespaces", () => {
     const nested = findNode(newState, ["nested"]);
     expect(isNamespaceNode(nested!)).toBe(true);
     if (isNamespaceNode(nested!)) {
-      expect(nested.children.map((child) => child.name)).toEqual(["table4"]);
+      expect((nested.children ?? []).map((child) => child.name)).toEqual([
+        "table4",
+      ]);
     }
-    const conn = newState.connectionsMap.get("ice" as ConnectionName);
-    expect(conn).toBeDefined();
-    expect(
-      conn!.catalogLoad.tablesLoaded.has(catalogPathKey("top", ["nested"])),
-    ).toBe(true);
   });
 
-  it("sets catalog children and marks children and tables loaded", () => {
+  it("sets catalog children at a nested path", () => {
     const table = makeTable("table4", {
       source: "iceberg",
       source_type: "catalog",
@@ -554,7 +481,7 @@ describe("nested namespaces", () => {
     const deep: DatabaseNamespace = {
       kind: "namespace",
       name: "deep",
-      children: [],
+      children: null,
     };
     const newState = reducer(baseState, {
       type: "addCatalogChildren",
@@ -571,16 +498,11 @@ describe("nested namespaces", () => {
     const nested = findNode(newState, ["nested"]);
     expect(isNamespaceNode(nested!)).toBe(true);
     if (isNamespaceNode(nested!)) {
-      expect(nested.children.map((child) => child.name)).toEqual([
+      expect((nested.children ?? []).map((child) => child.name)).toEqual([
         "table4",
         "deep",
       ]);
     }
-    const conn = newState.connectionsMap.get("ice" as ConnectionName);
-    expect(conn).toBeDefined();
-    const key = catalogPathKey("top", ["nested"]);
-    expect(conn!.catalogLoad.childrenLoaded.has(key)).toBe(true);
-    expect(conn!.catalogLoad.tablesLoaded.has(key)).toBe(true);
   });
 
   it("sets tables on a schema nested inside a namespace", () => {
@@ -619,18 +541,8 @@ describe("nested namespaces", () => {
     const nested = findNode(newState, ["nested"]);
     expect(isNamespaceNode(nested!)).toBe(true);
     if (isNamespaceNode(nested!)) {
-      expect(nested.children.filter(isDataTableNode)).toHaveLength(0);
+      expect((nested.children ?? []).filter(isDataTableNode)).toHaveLength(0);
     }
-    const conn = newState.connectionsMap.get("ice" as ConnectionName);
-    expect(conn).toBeDefined();
-    expect(
-      conn!.catalogLoad.tablesLoaded.has(
-        catalogPathKey("top", ["nested", "deep"]),
-      ),
-    ).toBe(true);
-    expect(
-      conn!.catalogLoad.tablesLoaded.has(catalogPathKey("top", ["nested"])),
-    ).toBe(true);
   });
 
   it("replaces a single table at a nested path", () => {
@@ -666,7 +578,7 @@ describe("nested namespaces", () => {
     const nested = findNode(state, ["nested"]);
     expect(isNamespaceNode(nested!)).toBe(true);
     if (isNamespaceNode(nested!)) {
-      const tableNodes = nested.children.filter(isDataTableNode);
+      const tableNodes = (nested.children ?? []).filter(isDataTableNode);
       expect(tableNodes).toHaveLength(1);
       expect(tableNodes[0].num_rows).toBe(42);
     }
@@ -689,12 +601,7 @@ describe("nested namespaces", () => {
       ?.databases.find((d) => d.name === "top");
     const nested = findNode(newState, ["nested"]);
     expect(isNamespaceNode(nested!)).toBe(true);
-    const conn = newState.connectionsMap.get("ice" as ConnectionName);
-    expect(conn).toBeDefined();
-    expect(
-      conn!.catalogLoad.childrenLoaded.has(catalogPathKey("top", ["nested"])),
-    ).toBe(false);
-    expect(newDb?.children.length).toBe(2);
+    expect(newDb?.children?.length).toBe(2);
   });
 });
 

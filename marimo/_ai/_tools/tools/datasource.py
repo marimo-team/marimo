@@ -98,7 +98,7 @@ class GetDatabaseTables(
         for connection in data_connectors.connections:
             for database in connection.databases:
                 default_database = connection.default_database == database.name
-                for node in database.children:
+                for node in database.children or []:
                     if not isinstance(node, Schema):
                         continue
                     schema = node
@@ -108,7 +108,7 @@ class GetDatabaseTables(
                     if query is None or is_fuzzy_match(
                         query, schema.name, compiled_pattern, is_regex
                     ):
-                        for table in schema.tables:
+                        for table in schema.tables or []:
                             sample_query = self._form_sample_query(
                                 database=database.name,
                                 schema=schema.name,
@@ -127,7 +127,7 @@ class GetDatabaseTables(
                                 )
                             )
                         continue
-                    for table in schema.tables:
+                    for table in schema.tables or []:
                         if is_fuzzy_match(
                             query, table.name, compiled_pattern, is_regex
                         ):

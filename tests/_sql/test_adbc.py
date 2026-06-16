@@ -499,7 +499,7 @@ def test_adbc_catalog_get_databases_uses_depth_catalogs_when_no_schemas() -> (
     assert conn.last_get_objects_kwargs is not None
     assert conn.last_get_objects_kwargs["depth"] == "catalogs"
     assert [db.name for db in databases] == ["db1", "db2"]
-    assert [db.children for db in databases] == [[], []]
+    assert [db.children for db in databases] == [None, None]
 
 
 def test_adbc_catalog_get_databases_uses_depth_db_schemas_when_no_tables() -> (
@@ -527,7 +527,7 @@ def test_adbc_catalog_get_databases_uses_depth_db_schemas_when_no_tables() -> (
     assert conn.last_get_objects_kwargs is not None
     assert conn.last_get_objects_kwargs["depth"] == "db_schemas"
     assert [s.name for s in databases[0].children] == ["public", "empty"]
-    assert [s.tables for s in databases[0].children] == [[], []]
+    assert [s.tables for s in databases[0].children] == [None, None]
 
 
 def test_adbc_get_tables_in_schema_passes_filters() -> None:
@@ -707,7 +707,7 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
             include_tables=True,
             include_table_details=True,
         )
-        assert all(db.children == [] for db in dbs)
+        assert all(db.children is None for db in dbs)
 
         # When tables are excluded, we should not return any tables.
         dbs = engine.get_databases(
@@ -716,7 +716,8 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
             include_table_details=True,
         )
         assert all(
-            all(schema.tables == [] for schema in db.children) for db in dbs
+            all(schema.tables is None for schema in db.children or [])
+            for db in dbs
         )
 
         # When table details are excluded, tables should have no columns.

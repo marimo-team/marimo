@@ -239,8 +239,9 @@ class AdbcConnectionCatalog:
                 "" if catalog_name_obj is None else str(catalog_name_obj)
             )
 
-            children: list[CatalogNode] = []
+            children: list[CatalogNode] | None = None
             if include_schemas_bool:
+                children = []
                 schema_rows = catalog_row.get("catalog_db_schemas") or []
                 for schema_row in schema_rows:
                     schema_name_obj = schema_row.get("db_schema_name")
@@ -248,8 +249,9 @@ class AdbcConnectionCatalog:
                         "" if schema_name_obj is None else str(schema_name_obj)
                     )
 
-                    tables: list[DataTable] = []
+                    tables: list[DataTable] | None = None
                     if include_tables_bool:
+                        tables = []
                         table_rows = schema_row.get("db_schema_tables") or []
                         for table_row in table_rows:
                             table_name_obj = table_row.get("table_name")

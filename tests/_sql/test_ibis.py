@@ -503,11 +503,11 @@ def test_ibis_engine_get_schemas(ibis_backend: SQLBackend) -> None:
 
     schema = schemas[0]
     assert schema.name == "main"
-    assert len(schema.tables) == 0
+    assert schema.tables is None
 
     schema = schemas[1]
     assert schema.name == "my_schema"
-    assert len(schema.tables) == 0
+    assert schema.tables is None
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
@@ -580,8 +580,8 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
         name="memory",
         dialect="duckdb",
         children=[
-            Schema(name="main", tables=[]),
-            Schema(name="my_schema", tables=[]),
+            Schema(name="main", tables=None),
+            Schema(name="my_schema", tables=None),
         ],
         engine=var_name,
     )
@@ -599,7 +599,7 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
-        children=[],
+        children=None,
         engine=var_name,
     )
 
@@ -616,7 +616,7 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
-        children=[],
+        children=None,
         engine=var_name,
     )
 
@@ -676,7 +676,7 @@ def test_ibis_engine_get_databases_auto(ibis_backend: SQLBackend) -> None:
         assert memory_db == Database(
             name="memory",
             dialect="duckdb",
-            children=[],
+            children=None,
             engine=var_name,
         )
 
@@ -857,7 +857,7 @@ def test_ibis_get_databases_surfaces_empty_schemas(
 def test_ibis_get_databases_defers_tables(
     empty_ibis_backend: SQLBackend,
 ) -> None:
-    """When tables are not eagerly fetched, schemas have empty table lists."""
+    """When tables are not eagerly fetched, schemas defer them (`None`)."""
     engine = IbisEngine(empty_ibis_backend)
 
     databases = engine.get_databases(
@@ -867,7 +867,8 @@ def test_ibis_get_databases_defers_tables(
     )
 
     memory_db = next(db for db in databases if db.name == "memory")
-    assert all(schema.tables == [] for schema in memory_db.children)
+    assert memory_db.children is not None
+    assert all(schema.tables is None for schema in memory_db.children)
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
@@ -875,7 +876,7 @@ def test_ibis_get_databases_defers_tables(
 def test_ibis_get_databases_defers_schemas(
     empty_ibis_backend: SQLBackend,
 ) -> None:
-    """When schemas are not eagerly fetched, databases have empty children."""
+    """When schemas are not eagerly fetched, databases defer them (`None`)."""
     engine = IbisEngine(empty_ibis_backend)
 
     databases = engine.get_databases(
@@ -884,7 +885,7 @@ def test_ibis_get_databases_defers_schemas(
         include_table_details=False,
     )
 
-    assert all(db.children == [] for db in databases)
+    assert all(db.children is None for db in databases)
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")

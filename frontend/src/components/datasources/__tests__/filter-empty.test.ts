@@ -1,17 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import {
-  type CatalogNode,
-  catalogNodePath,
-  isNamespaceNode,
-  isSchemaNode,
-} from "@/core/datasets/catalog";
-import {
-  type CatalogLoadState,
-  catalogPathKey,
-  emptyCatalogLoadState,
-} from "@/core/datasets/catalog-load-state";
+import type { CatalogNode } from "@/core/datasets/catalog";
 import type {
   Database,
   DatabaseNamespace,
@@ -37,79 +27,35 @@ function makeTable(name: string): DataTable {
   };
 }
 
-function makeSchema(opts: {
+// `tables`/`children` default to `[]` (discovered and empty). Pass `null` to
+// model a deferred bucket that has not been discovered yet.
+function makeSchema({
+  name,
+  tables = [],
+}: {
   name: string;
-  tables: DataTable[];
+  tables?: DataTable[] | null;
 }): DatabaseSchema {
-  return {
-    kind: "schema",
-    name: opts.name,
-    tables: opts.tables,
-  };
+  return { kind: "schema", name, tables };
 }
 
-function makeNamespace(opts: {
+function makeNamespace({
+  name,
+  children = [],
+}: {
   name: string;
-  children?: CatalogNode[];
+  children?: CatalogNode[] | null;
 }): DatabaseNamespace {
-  return {
-    kind: "namespace",
-    name: opts.name,
-    children: opts.children ?? [],
-  };
+  return { kind: "namespace", name, children };
 }
 
-function makeDatabase(name: string, children: CatalogNode[]): Database {
+function makeDatabase(name: string, children: CatalogNode[] | null): Database {
   return {
     name,
     dialect: "duckdb",
     children,
     engine: null,
   };
-}
-
-function fullyLoaded(databases: Database[]): CatalogLoadState {
-  const childrenLoaded = new Set<string>();
-  const tablesLoaded = new Set<string>();
-
-  const visit = (
-    database: string,
-    nodes: CatalogNode[],
-    path: string[],
-  ): void => {
-    childrenLoaded.add(catalogPathKey(database, path));
-
-    for (const node of nodes) {
-      if (isSchemaNode(node)) {
-        tablesLoaded.add(
-          catalogPathKey(
-            database,
-            catalogNodePath({ schema: node.name, catalogPath: path }),
-          ),
-        );
-        continue;
-      }
-      if (isNamespaceNode(node)) {
-        const namespacePath = [...path, node.name];
-        childrenLoaded.add(catalogPathKey(database, namespacePath));
-        tablesLoaded.add(catalogPathKey(database, namespacePath));
-        visit(database, node.children, namespacePath);
-      }
-    }
-  };
-
-  for (const database of databases) {
-    visit(database.name, database.children, []);
-  }
-
-  return { childrenLoaded, tablesLoaded };
-}
-
-function filterLoaded(databases: Database[]): Database[] {
-  return filterEmptyDatabases({
-    databases,
-    catalogLoad: fullyLoaded(databases),
-  });
 }
 
 describe("filterEmptyDatabases", () => {
@@ -121,22 +67,19 @@ describe("filterEmptyDatabases", () => {
       ]),
     ];
 
-    expect(filterLoaded(databases)).toEqual([
+    expect(filterEmptyDatabases(databases)).toEqual([
       makeDatabase("memory", [
         makeSchema({ name: "main", tables: [makeTable("t1")] }),
       ]),
     ]);
   });
 
-  it("preserves databases whose children have not been resolved yet (lazy state)", () => {
-    const databases = [makeDatabase("not_loaded_yet", [])];
+  it("preserves databases whose children have not been resolved yet (deferred)", () => {
+    const databases = [makeDatabase("not_loaded_yet", null)];
 
-    expect(
-      filterEmptyDatabases({
-        databases,
-        catalogLoad: emptyCatalogLoadState(),
-      }),
-    ).toEqual([makeDatabase("not_loaded_yet", [])]);
+    expect(filterEmptyDatabases(databases)).toEqual([
+      makeDatabase("not_loaded_yet", null),
+    ]);
   });
 
   it("hides databases that have been resolved as empty", () => {
@@ -147,7 +90,7 @@ describe("filterEmptyDatabases", () => {
       ]),
     ];
 
-    expect(filterLoaded(databases)).toEqual([
+    expect(filterEmptyDatabases(databases)).toEqual([
       makeDatabase("has_tables", [
         makeSchema({ name: "main", tables: [makeTable("t1")] }),
       ]),
@@ -165,7 +108,7 @@ describe("filterEmptyDatabases", () => {
       ]),
     ];
 
-    expect(filterLoaded(databases)).toEqual([
+    expect(filterEmptyDatabases(databases)).toEqual([
       makeDatabase("has_tables", [
         makeSchema({ name: "main", tables: [makeTable("t1")] }),
       ]),
@@ -175,21 +118,16 @@ describe("filterEmptyDatabases", () => {
   it("preserves schemas whose tables have not been loaded yet", () => {
     const databases = [
       makeDatabase("snowflake_db", [
-        makeSchema({ name: "public", tables: [] }),
-        makeSchema({ name: "audit", tables: [] }),
+        makeSchema({ name: "public", tables: null }),
+        makeSchema({ name: "audit", tables: null }),
         makeSchema({ name: "really_empty", tables: [] }),
       ]),
     ];
-    const load = {
-      ...emptyCatalogLoadState(),
-      childrenLoaded: new Set([catalogPathKey("snowflake_db", [])]),
-      tablesLoaded: new Set([catalogPathKey("snowflake_db", ["really_empty"])]),
-    };
 
-    expect(filterEmptyDatabases({ databases, catalogLoad: load })).toEqual([
+    expect(filterEmptyDatabases(databases)).toEqual([
       makeDatabase("snowflake_db", [
-        makeSchema({ name: "public", tables: [] }),
-        makeSchema({ name: "audit", tables: [] }),
+        makeSchema({ name: "public", tables: null }),
+        makeSchema({ name: "audit", tables: null }),
       ]),
     ]);
   });
@@ -201,7 +139,7 @@ describe("filterEmptyDatabases", () => {
       ]),
     ];
 
-    expect(filterLoaded(databases)).toBe(databases);
+    expect(filterEmptyDatabases(databases)).toBe(databases);
   });
 
   it("does not mutate the input", () => {
@@ -213,7 +151,7 @@ describe("filterEmptyDatabases", () => {
     ];
     const snapshot = JSON.parse(JSON.stringify(databases));
 
-    filterLoaded(databases);
+    filterEmptyDatabases(databases);
 
     expect(databases).toEqual(snapshot);
   });
@@ -235,26 +173,7 @@ describe("filterEmptyDatabases", () => {
       ]),
     ];
 
-    expect(filterLoaded(databases)).toBe(databases);
-  });
-
-  it("preserves a namespace whose own tables are deferred", () => {
-    const databases = [
-      makeDatabase("iceberg", [
-        makeNamespace({
-          name: "leaf",
-          children: [],
-        }),
-      ]),
-    ];
-    const load = {
-      ...emptyCatalogLoadState(),
-      childrenLoaded: new Set([catalogPathKey("iceberg", ["leaf"])]),
-    };
-
-    expect(filterEmptyDatabases({ databases, catalogLoad: load })).toEqual(
-      databases,
-    );
+    expect(filterEmptyDatabases(databases)).toBe(databases);
   });
 
   it("preserves a namespace whose children are deferred", () => {
@@ -262,17 +181,12 @@ describe("filterEmptyDatabases", () => {
       makeDatabase("iceberg", [
         makeNamespace({
           name: "top",
-          children: [],
+          children: null,
         }),
       ]),
     ];
 
-    expect(
-      filterEmptyDatabases({
-        databases,
-        catalogLoad: emptyCatalogLoadState(),
-      }),
-    ).toBe(databases);
+    expect(filterEmptyDatabases(databases)).toBe(databases);
   });
 
   it("hides a nested namespace that is resolved-empty", () => {
@@ -297,7 +211,7 @@ describe("filterEmptyDatabases", () => {
       ]),
     ];
 
-    expect(filterLoaded(databases)).toEqual([
+    expect(filterEmptyDatabases(databases)).toEqual([
       makeDatabase("iceberg", [
         makeNamespace({
           name: "top",
@@ -331,7 +245,7 @@ describe("filterEmptyDatabases", () => {
       ]),
     ];
 
-    expect(filterLoaded(databases)).toEqual([
+    expect(filterEmptyDatabases(databases)).toEqual([
       makeDatabase("iceberg", [
         makeSchema({ name: "other", tables: [makeTable("t1")] }),
       ]),

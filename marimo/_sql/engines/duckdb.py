@@ -209,9 +209,9 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
         if selected_database is None:
             return []
         if not catalog_path:
-            return selected_database.children
+            return selected_database.children or []
 
-        nodes = selected_database.children
+        nodes = selected_database.children or []
         for index, segment in enumerate(catalog_path):
             node = next(
                 (
@@ -225,13 +225,13 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
                 return []
             if index == len(catalog_path) - 1:
                 if isinstance(node, Schema):
-                    return [*node.tables]
+                    return [*(node.tables or [])]
                 if isinstance(node, Namespace):
-                    return node.children
+                    return node.children or []
                 return []
             if not isinstance(node, Namespace):
                 return []
-            nodes = node.children
+            nodes = node.children or []
         return []
 
     # TODO: The following methods are currently not implemented.

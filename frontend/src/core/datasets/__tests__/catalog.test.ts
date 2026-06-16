@@ -81,7 +81,7 @@ describe("mergeTableAtPath", () => {
     }).children;
 
     const updated = mergeTableAtPath({
-      nodes: children,
+      nodes: children ?? [],
       path: ["public"],
       table: incoming,
     });
@@ -90,7 +90,10 @@ describe("mergeTableAtPath", () => {
     if (schema?.kind !== "schema") {
       return;
     }
-    expect(schema.tables.map((table) => table.name)).toEqual(["a", "b"]);
+    expect((schema.tables ?? []).map((table) => table.name)).toEqual([
+      "a",
+      "b",
+    ]);
   });
 });
 
@@ -104,7 +107,7 @@ describe("setCatalogChildrenAtPath", () => {
     const replacement = [makeTable("new")];
 
     const updated = setCatalogChildrenAtPath({
-      nodes: children,
+      nodes: children ?? [],
       path: ["public"],
       children: replacement,
     });
