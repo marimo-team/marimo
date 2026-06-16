@@ -87,6 +87,92 @@ export function partitionCatalogChildren(children: CatalogNode[]): {
   return { childNodes, tables };
 }
 
+function tableNameMatchesSearch(tableName: string, query: string): boolean {
+  return tableName.toLowerCase().includes(query);
+}
+
+/**
+ * Whether a loaded catalog subtree contains a table whose name matches
+ * `searchValue`. Returns false for deferred buckets (not yet fetched).
+ */
+export function catalogSubtreeMatchesSearch(
+  node: CatalogNode,
+  searchValue: string,
+): boolean {
+  const query = searchValue.trim().toLowerCase();
+  if (!query) {
+    return false;
+  }
+
+  if (isDataTableNode(node)) {
+    return tableNameMatchesSearch(node.name, query);
+  }
+
+  if (isSchemaNode(node)) {
+    if (isDeferred(node.tables)) {
+      return false;
+    }
+    return node.tables.some((table) =>
+      tableNameMatchesSearch(table.name, query),
+    );
+  }
+
+  if (isNamespaceNode(node)) {
+    if (isDeferred(node.children)) {
+      return false;
+    }
+    const { childNodes, tables } = partitionCatalogChildren(node.children);
+    if (tables.some((table) => tableNameMatchesSearch(table.name, query))) {
+      return true;
+    }
+    return childNodes.some((child) =>
+      catalogSubtreeMatchesSearch(child, searchValue),
+    );
+  }
+
+  return false;
+}
+
+/** Whether any resolved child under `children` contains a matching table. */
+export function catalogChildrenMatchSearch(
+  children: CatalogNode[],
+  searchValue: string,
+): boolean {
+  const query = searchValue.trim();
+  if (!query) {
+    return false;
+  }
+  return children.some((node) => catalogSubtreeMatchesSearch(node, query));
+}
+
+/** Auto-expand a schema/namespace row during search when its loaded subtree matches. */
+export function shouldExpandCatalogNodeForSearch(
+  node: DatabaseSchema | DatabaseNamespace,
+  searchValue: string | undefined,
+): boolean {
+  const query = searchValue?.trim();
+  if (!query) {
+    return false;
+  }
+  const bucket = isNamespaceNode(node) ? node.children : node.tables;
+  if (isDeferred(bucket)) {
+    return false;
+  }
+  return catalogSubtreeMatchesSearch(node, query);
+}
+
+/** Auto-expand a database row during search when its loaded children match. */
+export function shouldExpandDatabaseForSearch(
+  children: CatalogNode[] | null | undefined,
+  searchValue: string | undefined,
+): boolean {
+  const query = searchValue?.trim();
+  if (!query || isDeferred(children)) {
+    return false;
+  }
+  return catalogChildrenMatchSearch(children ?? [], query);
+}
+
 /**
  * Immutably descend `path` (node names) into a catalog tree and apply
  * `update` to the matching node. Intermediate segments must be namespaces.
