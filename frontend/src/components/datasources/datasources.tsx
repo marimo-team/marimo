@@ -1023,6 +1023,12 @@ const DatasetColumnItem: React.FC<{
     <span className={isExpanded ? "font-semibold" : ""}>{column.name}</span>
   );
 
+  const columnRem =
+    columnIndentRem ??
+    (sqlTableContext
+      ? DATASOURCE_INDENT.schemaColumn
+      : DATASOURCE_INDENT.columnLocal);
+
   return (
     <>
       <CommandItem
@@ -1033,12 +1039,7 @@ const DatasetColumnItem: React.FC<{
       >
         <div
           className="flex flex-row gap-2 items-center flex-1"
-          style={indentStyle(
-            columnIndentRem ??
-              (sqlTableContext
-                ? schemaColumnIndentRem(0)
-                : DATASOURCE_INDENT.columnLocal),
-          )}
+          style={indentStyle(columnRem)}
         >
           <ColumnName columnName={columnText} dataType={column.type} />
           {isPrimaryKey &&
