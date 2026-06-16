@@ -218,10 +218,12 @@ function getSuggestion(
     return;
   }
 
-  // Matches allowed files in marimo/_utils/marimo_path.py
+  // NOTE: If new notebook formats are added to DEFAULT_NOTEBOOK_SERIALIZERS,
+  // add their extension here too. This list must stay in sync with the
+  // server-side serializer registry in marimo/_session/notebook/serializer.py.
   const extensionsToLeave = getFeatureFlag("markdown")
-    ? new Set(["py", "md", "markdown", "qmd"])
-    : new Set(["py"]);
+    ? new Set(["py", "md", "markdown", "qmd", "ipynb"])
+    : new Set(["py", "ipynb"]);
 
   if (extensionsToLeave.has(Paths.extension(search))) {
     // If ends with an allowed extension, leave as is

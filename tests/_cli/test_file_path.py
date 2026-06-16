@@ -247,12 +247,53 @@ def test_validate_name_with_markdown_file_remote() -> None:
     )[0].endswith("markdown_format.md")
 
 
-def test_validate_name_with_jupyter_notebook():
+def test_validate_name_with_jupyter_notebook_not_found():
+    """A non-existing .ipynb with allow_new_file=True should succeed (create new)."""
+    result_path, _ = validate_name(
+        "notebook.ipynb", allow_new_file=True, allow_directory=False
+    )
+    assert result_path.endswith(".ipynb")
+
+
+def test_validate_name_with_jupyter_notebook_not_found_strict():
+    """A non-existing .ipynb with allow_new_file=False should raise."""
     with pytest.raises(click.ClickException) as excinfo:
         validate_name(
-            "notebook.ipynb", allow_new_file=True, allow_directory=False
+            "missing.ipynb", allow_new_file=False, allow_directory=False
         )
-    assert "Convert notebook.ipynb to a marimo notebook" in str(excinfo.value)
+    assert "does not exist" in str(excinfo.value)
+
+
+def test_validate_name_with_invalid_ipynb(tmp_path: Path):
+    """An invalid .ipynb file should prompt the user to convert."""
+    f = tmp_path / "bad.ipynb"
+    f.write_text("not valid json", encoding="utf-8")
+    with pytest.raises(click.ClickException) as excinfo:
+        validate_name(
+            str(f), allow_new_file=True, allow_directory=False
+        )
+    assert "is not a valid Jupyter notebook" in str(excinfo.value)
+    assert "Convert" in str(excinfo.value)
+
+
+def test_validate_name_with_valid_marimo_ipynb(tmp_path: Path):
+    """A valid marimo .ipynb should open successfully."""
+    import json
+
+    content = json.dumps(
+        {
+            "cells": [],
+            "metadata": {"marimo": {"marimo_version": "0.1.0"}},
+            "nbformat": 4,
+            "nbformat_minor": 5,
+        }
+    )
+    f = tmp_path / "notebook.ipynb"
+    f.write_text(content, encoding="utf-8")
+    result_path, _ = validate_name(
+        str(f), allow_new_file=True, allow_directory=False
+    )
+    assert result_path == str(f)
 
 
 def test_generic_url_reader_with_query_params():
