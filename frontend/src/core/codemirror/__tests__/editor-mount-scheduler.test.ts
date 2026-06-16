@@ -114,6 +114,19 @@ describe("createEditorMountScheduler", () => {
     expect(built).toEqual(["a", "b"]);
   });
 
+  it("keeps draining the queue after a build throws", () => {
+    const { schedule, flush } = makeManualSchedule();
+    const built: string[] = [];
+    const s = createEditorMountScheduler(schedule);
+    s.request("a", () => {
+      throw new Error("boom");
+    });
+    s.request("b", () => built.push("b"));
+    expect(() => flush()).toThrow("boom");
+    flush();
+    expect(built).toEqual(["b"]);
+  });
+
   it("cancel removes a prioritized cell", () => {
     const { schedule, flush } = makeManualSchedule();
     const built: string[] = [];

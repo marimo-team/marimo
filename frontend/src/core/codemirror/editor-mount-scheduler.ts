@@ -56,14 +56,17 @@ export function createEditorMountScheduler(
 
   function processNext(): void {
     isProcessingScheduled = false;
-    const cellId = nextCellId();
-    if (cellId !== undefined) {
-      const build = queue.get(cellId);
-      queue.delete(cellId);
-      priority.delete(cellId);
-      build?.();
+    try {
+      const cellId = nextCellId();
+      if (cellId !== undefined) {
+        const build = queue.get(cellId);
+        queue.delete(cellId);
+        priority.delete(cellId);
+        build?.();
+      }
+    } finally {
+      scheduleProcessing();
     }
-    scheduleProcessing();
   }
 
   return {

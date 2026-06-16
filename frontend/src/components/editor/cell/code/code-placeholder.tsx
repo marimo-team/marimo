@@ -21,7 +21,7 @@ function getLineWidthCh(length: number): number {
  * one skeleton bar per code line, so the final render doesn't cause a big jump.
  */
 export const CodePlaceholder = ({ code, className }: CodePlaceholderProps) => {
-  const lines = code.split("\n").slice(0, MAX_LINES);
+  const lines = code.split("\n", MAX_LINES);
   return (
     <div
       className={cn("cm", "mo-code-placeholder", className)}

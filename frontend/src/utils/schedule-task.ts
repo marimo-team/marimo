@@ -19,11 +19,29 @@ export type ScheduleTaskFn = (callback: () => void) => void;
  * The backend is chosen once, at module load, since it cannot change within a
  * session.
  */
+// `scheduler` (the Prioritized Task Scheduling API) is not in this repo's
+// lib.dom typings, so it is feature-detected behind this minimal cast.
+interface PostTaskScheduler {
+  postTask: (
+    callback: () => void,
+    options?: { priority?: "user-blocking" | "user-visible" | "background" },
+  ) => Promise<unknown>;
+}
+
 function createScheduleTask(): ScheduleTaskFn {
-  if (typeof globalThis.scheduler?.postTask === "function") {
+  const scheduler = (globalThis as { scheduler?: PostTaskScheduler }).scheduler;
+  if (typeof scheduler?.postTask === "function") {
     return (cb) => {
-      const { scheduler } = globalThis;
-      void scheduler.postTask(cb, { priority: "user-visible" });
+      // postTask rejects when the callback throws. Rethrow on a fresh task so a
+      // thrown callback surfaces as an uncaught error, matching the
+      // MessageChannel/setTimeout backends, instead of an unhandledrejection.
+      void scheduler
+        .postTask(cb, { priority: "user-visible" })
+        .catch((error) => {
+          setTimeout(() => {
+            throw error;
+          });
+        });
     };
   }
 

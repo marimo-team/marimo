@@ -408,9 +408,6 @@ const CellEditorInternal = ({
     // Clear the serialized state so that we don't re-create the editor next time
     cellActions.clearSerializedEditorState({ cellId });
   });
-
-  // Drives the swap from placeholder to live editor. Restored editors mount
-  // immediately; freshly built ones flip this when the build effect runs.
   const [isEditorMounted, setIsEditorMounted] = useState(
     serializedEditorState !== null,
   );
@@ -419,6 +416,7 @@ const CellEditorInternal = ({
   // large notebooks stay responsive while editors come online progressively.
   useEffect(() => {
     if (editorViewRef.current !== null) {
+      setIsEditorMounted(true);
       return;
     }
     if (serializedEditorState !== null) {
@@ -434,7 +432,6 @@ const CellEditorInternal = ({
       setIsEditorMounted(true);
     });
     return () => editorMountScheduler.cancel(cellId);
-    // Mount-time decision only; rebuilds go through the reconfigure effect.
   }, [
     cellId,
     editorViewRef,
@@ -443,7 +440,6 @@ const CellEditorInternal = ({
     serializedEditorState,
   ]);
 
-  // Reconfigure an already-built editor when its extensions change.
   useEffect(() => {
     if (editorViewRef.current === null) {
       return;
