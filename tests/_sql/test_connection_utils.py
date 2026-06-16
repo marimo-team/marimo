@@ -17,6 +17,8 @@ from marimo._data.models import (
 from marimo._messaging.notification import SQLCatalogMetadata, SQLMetadata
 from marimo._sql.connection_utils import (
     _find_node_by_path,
+    merge_catalog_children,
+    merge_data_source_connection,
     update_catalog_children_in_connection,
     update_table_in_connection,
 )
@@ -536,3 +538,171 @@ class TestNestedNamespaceUpdates:
             child for child in nested.children if isinstance(child, DataTable)
         )
         assert table4.num_rows == 999
+
+
+class TestMergeCatalogChildren:
+    """Tests for the deferred-aware catalog tree merge.
+
+    `None` means deferred (not yet discovered), `[]` means discovered-empty,
+    and a populated list means discovered-with-content.
+    """
+
+    def test_deferred_refresh_preserves_loaded_children(self) -> None:
+        prev = [Schema(name="public", tables=[create_test_table("t1")])]
+
+        merged = merge_catalog_children(prev, None)
+
+        assert merged is prev
+
+    def test_takes_new_when_previous_was_deferred(self) -> None:
+        new = [Schema(name="public", tables=[create_test_table("t1")])]
+
+        merged = merge_catalog_children(None, new)
+
+        assert merged is new
+
+    def test_discovered_empty_replaces_loaded(self) -> None:
+        """An explicit empty refresh (not deferred) clears the old contents."""
+        prev = [Schema(name="public", tables=[create_test_table("t1")])]
+
+        merged = merge_catalog_children(prev, [])
+
+        assert merged == []
+
+    def test_schema_with_deferred_tables_keeps_previous_tables(self) -> None:
+        prev = [Schema(name="public", tables=[create_test_table("t1")])]
+        new = [Schema(name="public", tables=None)]
+
+        merged = merge_catalog_children(prev, new)
+
+        assert merged == [
+            Schema(name="public", tables=[create_test_table("t1")])
+        ]
+
+    def test_schema_with_loaded_tables_replaces_previous_tables(self) -> None:
+        prev = [Schema(name="public", tables=[create_test_table("old")])]
+        new = [Schema(name="public", tables=[create_test_table("new")])]
+
+        merged = merge_catalog_children(prev, new)
+
+        assert merged == [
+            Schema(name="public", tables=[create_test_table("new")])
+        ]
+
+    def test_namespace_children_merge_recursively(self) -> None:
+        prev = [
+            Namespace(
+                name="nested",
+                children=[
+                    Schema(name="deep", tables=[create_test_table("t")])
+                ],
+            )
+        ]
+        # A shallow refresh defers the namespace's children.
+        new = [Namespace(name="nested", children=None)]
+
+        merged = merge_catalog_children(prev, new)
+
+        assert merged == [
+            Namespace(
+                name="nested",
+                children=[
+                    Schema(name="deep", tables=[create_test_table("t")])
+                ],
+            )
+        ]
+
+    def test_membership_follows_new_payload(self) -> None:
+        """Nodes absent from the new payload are dropped; new nodes are added."""
+        prev = [
+            Schema(name="public", tables=[create_test_table("t1")]),
+            Schema(name="dropped", tables=[create_test_table("t2")]),
+        ]
+        new = [
+            Schema(name="public", tables=None),
+            Schema(name="added", tables=[create_test_table("t3")]),
+        ]
+
+        merged = merge_catalog_children(prev, new)
+
+        # `dropped` is gone, `added` is new, `public` keeps its loaded tables.
+        assert merged == [
+            Schema(name="public", tables=[create_test_table("t1")]),
+            Schema(name="added", tables=[create_test_table("t3")]),
+        ]
+
+    def test_resolved_empty_namespace_survives_deferred_refresh(self) -> None:
+        prev = [Namespace(name="nested", children=[])]
+        new = [Namespace(name="nested", children=None)]
+
+        merged = merge_catalog_children(prev, new)
+
+        assert merged == [Namespace(name="nested", children=[])]
+
+
+class TestMergeDataSourceConnection:
+    """Tests for merging a refreshed connection onto the previous one."""
+
+    def _connection(self, databases: list[Database]) -> DataSourceConnection:
+        return DataSourceConnection(
+            source="postgres",
+            dialect="postgresql",
+            name="conn",
+            display_name="PostgreSQL (conn)",
+            databases=databases,
+        )
+
+    def test_preserves_loaded_database_subtree_on_deferred_refresh(
+        self,
+    ) -> None:
+        prev = self._connection(
+            [
+                Database(
+                    name="db1",
+                    dialect="postgresql",
+                    children=[
+                        Schema(
+                            name="public",
+                            tables=[create_test_table("t1")],
+                        )
+                    ],
+                )
+            ]
+        )
+        new = self._connection(
+            [Database(name="db1", dialect="postgresql", children=None)]
+        )
+
+        merged = merge_data_source_connection(prev, new)
+
+        # Mutates and returns `new`.
+        assert merged is new
+        assert merged.databases == [
+            Database(
+                name="db1",
+                dialect="postgresql",
+                children=[
+                    Schema(name="public", tables=[create_test_table("t1")])
+                ],
+            )
+        ]
+
+    def test_new_database_kept_as_is(self) -> None:
+        prev = self._connection(
+            [Database(name="db1", dialect="postgresql", children=[])]
+        )
+        new = self._connection(
+            [
+                Database(name="db1", dialect="postgresql", children=None),
+                Database(name="db2", dialect="postgresql", children=None),
+            ]
+        )
+
+        merged = merge_data_source_connection(prev, new)
+
+        assert merged.databases == [
+            # db1 had a resolved-empty children list which survives the refresh.
+            Database(name="db1", dialect="postgresql", children=[]),
+            # db2 has no previous counterpart, so it stays deferred.
+            Database(name="db2", dialect="postgresql", children=None),
+        ]
