@@ -184,7 +184,7 @@ def _node(name: str, mod: nnx.Module) -> TreeNode:
 
     if children:
         return TreeNode(
-            name=html.escape(name),
+            name=name,
             type_name=type_name,
             category=cat,
             params_note=params_note,
@@ -208,7 +208,7 @@ def _node(name: str, mod: nnx.Module) -> TreeNode:
         )
 
     return TreeNode(
-        name=html.escape(name),
+        name=name,
         type_name=type_name,
         category=cat,
         params_note=params_note,

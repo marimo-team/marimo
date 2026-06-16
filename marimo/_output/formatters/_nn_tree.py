@@ -10,6 +10,7 @@ legend are identical and live here so they are defined once.
 from __future__ import annotations
 
 import dataclasses
+import html
 import re
 import typing
 
@@ -131,12 +132,16 @@ class TreeNode:
 
 
 def _name_html(name: str) -> str:
-    return f'<span class="nn-t-name">{name}</span> ' if name else ""
+    # Names can be arbitrary strings (e.g. torch `add_module`), so escape.
+    return f'<span class="nn-t-name">{html.escape(name)}</span> ' if name else ""
 
 
 def _type_html(type_name: str, category: ModuleCategory | None) -> str:
+    # Class names are arbitrary strings (e.g. via `type()`), so escape.
     cat_attr = f' data-cat="{category}"' if category is not None else ""
-    return f'<span class="nn-t-type"{cat_attr}>{type_name}</span>'
+    return (
+        f'<span class="nn-t-type"{cat_attr}>{html.escape(type_name)}</span>'
+    )
 
 
 def _expand_body_html(body: LeafBody) -> str:
@@ -235,7 +240,7 @@ def render_model(
     """
     header = (
         f'<div class="nn-t-header">'
-        f'<span class="nn-t-root">{root_type}</span>'
+        f'<span class="nn-t-root">{html.escape(root_type)}</span>'
         f'<span class="nn-t-summary">{summary}</span>'
         f"</div>"
     )

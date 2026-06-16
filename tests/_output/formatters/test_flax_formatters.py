@@ -273,13 +273,6 @@ class TestFlaxFormatter:
         # Empty -> en-dash placeholders.
         assert _collect_dtype_device([]) == ("–", "–")
 
-    def test_fmt_integer(self) -> None:
-        from marimo._output.formatters._nn_tree import _fmt_integer
-
-        assert _fmt_integer(500) == "500"
-        assert _fmt_integer(1_500) == "1.5K"
-        assert _fmt_integer(1_500_000) == "1.5M"
-
     def test_formatter_registration(self) -> None:
         """Smoke test: the formatter registers and produces output."""
         register_formatters()

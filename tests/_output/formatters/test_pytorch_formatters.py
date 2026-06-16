@@ -297,3 +297,20 @@ class TestPyTorchFormatter:
         assert mimetype == "text/html"
         assert "nn-t" in data
         assert "Linear" in data
+
+    def test_escapes_html_in_names(self) -> None:
+        """Module/class names are escaped to prevent HTML injection.
+
+        marimo renders this output as HTML in the browser (incl. served
+        apps and exported notebooks), and names can be arbitrary strings
+        (e.g. `add_module` / `type()`), so they must be escaped.
+        """
+        from torch import nn
+
+        from marimo._output.formatters.pytorch_formatters import format
+
+        parent = nn.Module()
+        parent.add_module("<img src=x onerror=alert(1)>", nn.Linear(2, 2))
+        html = format(parent).text
+        assert "<img src=x" not in html
+        assert "&lt;img src=x" in html
