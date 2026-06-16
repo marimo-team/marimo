@@ -95,7 +95,7 @@ def _():
 
 @app.cell
 def _():
-    # Mini Transformer (attention is its own category in the legend)
+    # Mini Transformer (MultiHeadAttention maps to the "weight" category)
     class TransformerBlock(nnx.Module):
         def __init__(self, d_model: int, nhead: int, rngs: nnx.Rngs):
             self.attn = nnx.MultiHeadAttention(

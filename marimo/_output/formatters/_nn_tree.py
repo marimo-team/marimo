@@ -9,8 +9,11 @@ legend are identical and live here so they are defined once.
 
 from __future__ import annotations
 
+import dataclasses
 import re
 import typing
+
+from marimo._output.hypertext import Html
 
 ModuleCategory = typing.Literal["weight", "act", "norm", "reg"]
 
@@ -84,6 +87,176 @@ def _footer_html() -> str:
         f"Frozen / no params</span>"
         f"</span>"
         f"</span>"
+        f"</div>"
+    )
+
+
+@dataclasses.dataclass
+class LeafBody:
+    """Expand-panel content for a leaf row: kwargs and dtype/device.
+
+    `kwargs_inline` is shown (truncated) on the summary line; `kwargs_block`
+    is the multi-line version for the expanded panel. `array_label` is the
+    divider label between the kwargs and the dtype/device section
+    (`"tensor"` for PyTorch, `"array"` for Flax).
+    """
+
+    kwargs_inline: str = ""
+    kwargs_block: str = ""
+    dtype: str | None = None
+    device: str | None = None
+    array_label: str = "array"
+
+    def has_content(self) -> bool:
+        return bool(self.kwargs_block) or self.dtype is not None
+
+
+@dataclasses.dataclass
+class TreeNode:
+    """A framework-agnostic node in the module tree, ready to render.
+
+    Each formatter extracts these fields from its own module objects; the
+    renderer turns them into the shared HTML. A node is a container when
+    `children is not None`, otherwise a leaf.
+    """
+
+    name: str
+    type_name: str
+    category: ModuleCategory | None = None
+    params_note: str = ""
+    is_frozen: bool = False
+    positional: str = ""
+    body: LeafBody | None = None
+    children: list[TreeNode] | None = None
+
+
+def _name_html(name: str) -> str:
+    return f'<span class="nn-t-name">{name}</span> ' if name else ""
+
+
+def _type_html(type_name: str, category: ModuleCategory | None) -> str:
+    cat_attr = f' data-cat="{category}"' if category is not None else ""
+    return f'<span class="nn-t-type"{cat_attr}>{type_name}</span>'
+
+
+def _expand_body_html(body: LeafBody) -> str:
+    """Assemble the expand panel: kwargs block, then dtype/device."""
+    parts: list[str] = []
+    if body.kwargs_block:
+        parts.append(body.kwargs_block)
+    if body.dtype is not None:
+        if parts:
+            parts.append(
+                '<div class="nn-t-expand-sep">'
+                f'<span class="nn-t-expand-sep-label">{body.array_label}</span>'
+                "</div>"
+            )
+        parts.append(
+            f'<span class="nn-t-key">dtype</span> {body.dtype}'
+            f"<br>"
+            f'<span class="nn-t-key">device</span> {body.device}'
+        )
+    return "".join(parts)
+
+
+def render_node(node: TreeNode) -> str:
+    """Recursively render a non-root node (leaf or container) to HTML."""
+    name_html = _name_html(node.name)
+    type_span = _type_html(node.type_name, node.category)
+
+    if node.children is not None:
+        params = (
+            f'<span class="nn-t-params">{node.params_note}</span>'
+            if node.params_note
+            else ""
+        )
+        children_html = "\n".join(render_node(c) for c in node.children)
+        return (
+            f'<details class="nn-t-node"{_frozen_attr(node.is_frozen)}>'
+            f"<summary>"
+            f'<span class="nn-t-arrow">&#9654;</span>'
+            f"{name_html}{type_span}"
+            f"{params}"
+            f"</summary>"
+            f'<div class="nn-t-children">{children_html}</div>'
+            f"</details>"
+        )
+
+    # Leaf row.
+    frozen = _frozen_attr(node.is_frozen)
+    pos = (
+        f' <span class="nn-t-pos">{node.positional}</span>'
+        if node.positional
+        else ""
+    )
+    params = (
+        f'<span class="nn-t-params"{frozen}>{node.params_note}</span>'
+        if node.params_note
+        else ""
+    )
+    if node.body is not None and node.body.has_content():
+        kw_inline = (
+            f' <span class="nn-t-args">{node.body.kwargs_inline}</span>'
+            if node.body.kwargs_inline
+            else ""
+        )
+        return (
+            f'<details class="nn-t-expand"{frozen}>'
+            f"<summary>"
+            f'<span class="nn-t-spacer"></span>'
+            f"{name_html}{type_span}{pos}{kw_inline}"
+            f"{params}"
+            f"</summary>"
+            f'<div class="nn-t-expand-body">'
+            f"{_expand_body_html(node.body)}</div>"
+            f"</details>"
+        )
+    return (
+        f'<div class="nn-t-leaf"{frozen}>'
+        f'<span class="nn-t-spacer"></span>'
+        f"{name_html}{type_span}{pos}"
+        f"{params}"
+        f"</div>"
+    )
+
+
+def render_model(
+    *,
+    root_type: str,
+    summary: str,
+    nodes: list[TreeNode],
+    leaf_fallback: str = "",
+) -> Html:
+    """Assemble the full tree: header, body, footer legend.
+
+    `summary` is the right-aligned header text (e.g. `"36.1K params · …"`).
+    `nodes` are the root's direct children; when empty, the root is itself
+    a leaf and `leaf_fallback` (its inline args) is shown instead.
+    """
+    header = (
+        f'<div class="nn-t-header">'
+        f'<span class="nn-t-root">{root_type}</span>'
+        f'<span class="nn-t-summary">{summary}</span>'
+        f"</div>"
+    )
+    if nodes:
+        body_html = "\n".join(render_node(n) for n in nodes)
+        body = f'<div class="nn-t-body">{body_html}</div>'
+    else:
+        inner = (
+            f'<span class="nn-t-args">{leaf_fallback}</span>'
+            if leaf_fallback
+            else ""
+        )
+        body = (
+            f'<div class="nn-t-body">'
+            f'<div class="nn-t-leaf">{inner}</div>'
+            f"</div>"
+        )
+    divider = '<div class="nn-t-divider"></div>'
+    return Html(
+        f'<div class="nn-t"><style>{_CSS}</style>'
+        f"{header}{divider}{body}{_footer_html()}"
         f"</div>"
     )
 

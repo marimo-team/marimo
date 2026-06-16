@@ -16,11 +16,12 @@ import html
 import typing
 
 from marimo._output.formatters._nn_tree import (
-    _CSS,
+    LeafBody,
     ModuleCategory,
+    TreeNode,
     _comma_to_br,
     _fmt_integer,
-    _footer_html,
+    render_model,
 )
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.hypertext import Html
@@ -173,81 +174,48 @@ def _config_kwargs(mod: nnx.Module) -> str:
     return ", ".join(parts)
 
 
-def _walk(name: str, mod: nnx.Module) -> str:
-    """Recursively build HTML tree for an nnx.Module (non-root nodes)."""
-    children = _child_modules(mod)
+def _node(name: str, mod: nnx.Module) -> TreeNode:
+    """Build a `TreeNode` for an nnx.Module (recursing into children)."""
     type_name = mod.__class__.__name__
     cat = _layer_category(mod)
+    children = _child_modules(mod)
+    param_count, _ = _counts(mod)
+    params_note = _fmt_integer(param_count) if param_count > 0 else ""
 
-    name_html = f'<span class="nn-t-name">{html.escape(name)}</span> '
-    cat_attr = f' data-cat="{cat}"' if cat is not None else ""
-    type_span = f'<span class="nn-t-type"{cat_attr}>{type_name}</span>'
-
-    if not children:
-        param_count, _ = _counts(mod)
-        kwargs = _config_kwargs(mod)
-        note = _fmt_integer(param_count) if param_count > 0 else ""
-        params = f'<span class="nn-t-params">{note}</span>' if note else ""
-
-        # Build expand body: kwargs first, then dtype/device.
-        body_parts: list[str] = []
-        if kwargs:
-            body_parts.append(_comma_to_br(kwargs))
-        param_leaves = _param_leaves(mod)
-        if param_leaves:
-            dtype_s, device_s = _collect_dtype_device(param_leaves)
-            if body_parts:
-                body_parts.append(
-                    '<div class="nn-t-expand-sep">'
-                    '<span class="nn-t-expand-sep-label">array</span>'
-                    "</div>"
-                )
-            body_parts.append(
-                f'<span class="nn-t-key">dtype</span> {dtype_s}'
-                f"<br>"
-                f'<span class="nn-t-key">device</span> {device_s}'
-            )
-
-        if body_parts:
-            kw_inline = (
-                f' <span class="nn-t-args">{kwargs}</span>' if kwargs else ""
-            )
-            return (
-                f'<details class="nn-t-expand">'
-                f"<summary>"
-                f'<span class="nn-t-spacer"></span>'
-                f"{name_html}{type_span}{kw_inline}"
-                f"{params}"
-                f"</summary>"
-                f'<div class="nn-t-expand-body">{"".join(body_parts)}</div>'
-                f"</details>"
-            )
-        return (
-            f'<div class="nn-t-leaf">'
-            f'<span class="nn-t-spacer"></span>'
-            f"{name_html}{type_span}"
-            f"{params}"
-            f"</div>"
+    if children:
+        return TreeNode(
+            name=html.escape(name),
+            type_name=type_name,
+            category=cat,
+            params_note=params_note,
+            children=[_node(n, c) for n, c in children],
         )
 
-    # Container node: aggregate all descendant parameters.
-    param_count, _ = _counts(mod)
-    note = _fmt_integer(param_count) if param_count > 0 else ""
-    total_params = f'<span class="nn-t-params">{note}</span>' if note else ""
+    # Leaf module.
+    kwargs = _config_kwargs(mod)
+    param_leaves = _param_leaves(mod)
+    body: LeafBody | None = None
+    if kwargs or param_leaves:
+        dtype = device = None
+        if param_leaves:
+            dtype, device = _collect_dtype_device(param_leaves)
+        body = LeafBody(
+            kwargs_inline=kwargs,
+            kwargs_block=_comma_to_br(kwargs) if kwargs else "",
+            dtype=dtype,
+            device=device,
+            array_label="array",
+        )
 
-    children_html = "\n".join(
-        _walk(child_name, child_mod) for child_name, child_mod in children
-    )
-
-    return (
-        f'<details class="nn-t-node">'
-        f"<summary>"
-        f'<span class="nn-t-arrow">&#9654;</span>'
-        f"{name_html}{type_span}"
-        f"{total_params}"
-        f"</summary>"
-        f'<div class="nn-t-children">{children_html}</div>'
-        f"</details>"
+    return TreeNode(
+        name=html.escape(name),
+        type_name=type_name,
+        category=cat,
+        params_note=params_note,
+        # NNX has no frozen concept, but -- like PyTorch -- we dim
+        # params-less leaves (e.g. Dropout) to match the legend.
+        is_frozen=param_count == 0,
+        body=body,
     )
 
 
@@ -266,42 +234,16 @@ def format(module: nnx.Module) -> Html:  # noqa: A001
     children = _child_modules(module)
     total_params, total_bytes = _counts(module)
     size_mb = total_bytes / (1024 * 1024)
+    summary = f"{_fmt_integer(total_params)} params · {size_mb:.1f} MB"
 
-    header = (
-        f'<div class="nn-t-header">'
-        f'<span class="nn-t-root">{module.__class__.__name__}</span>'
-        f'<span class="nn-t-summary">'
-        f"{_fmt_integer(total_params)} params"
-        f" · {size_mb:.1f} MB"
-        f"</span>"
-        f"</div>"
+    leaf_fallback = "" if children else _config_kwargs(module)
+
+    return render_model(
+        root_type=module.__class__.__name__,
+        summary=summary,
+        nodes=[_node(n, c) for n, c in children],
+        leaf_fallback=leaf_fallback,
     )
-
-    if children:
-        body_html = "\n".join(
-            _walk(child_name, child_mod) for child_name, child_mod in children
-        )
-        body = f'<div class="nn-t-body">{body_html}</div>'
-    else:
-        kwargs = _config_kwargs(module)
-        extra_html = (
-            f'<span class="nn-t-args">{kwargs}</span>' if kwargs else ""
-        )
-        body = (
-            f'<div class="nn-t-body">'
-            f'<div class="nn-t-leaf">{extra_html}</div>'
-            f"</div>"
-        )
-
-    divider = '<div class="nn-t-divider"></div>'
-    footer = _footer_html()
-
-    html_str = (
-        f'<div class="nn-t"><style>{_CSS}</style>'
-        f"{header}{divider}{body}{footer}"
-        f"</div>"
-    )
-    return Html(html_str)
 
 
 class FlaxFormatter(FormatterFactory):

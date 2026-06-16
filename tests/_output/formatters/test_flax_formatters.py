@@ -116,6 +116,29 @@ class TestFlaxFormatter:
         # Trainable params (BatchNorm scale + bias = 32) are still shown.
         assert "params" in html
 
+    def test_paramless_leaf_is_dimmed(self) -> None:
+        """Params-less leaves (e.g. Dropout) get `data-frozen`, matching the
+        shared "Frozen / no params" legend and the PyTorch formatter."""
+        from flax import nnx
+
+        from marimo._output.formatters.flax_formatters import format
+
+        class Model(nnx.Module):
+            def __init__(self, rngs: nnx.Rngs) -> None:
+                self.linear = nnx.Linear(8, 8, rngs=rngs)
+                self.drop = nnx.Dropout(0.2, rngs=rngs)
+
+        html = format(Model(nnx.Rngs(0))).text
+
+        def row_open_tag(name: str) -> str:
+            """The opening tag of the leaf row containing `name`."""
+            before = html[: html.index(f'nn-t-name">{name}<')]
+            return before[before.rindex("<details") :]
+
+        # Dropout (no params) is dimmed; Linear (has params) is not.
+        assert "data-frozen" in row_open_tag("drop")
+        assert "data-frozen" not in row_open_tag("linear")
+
     def test_category_badges(self) -> None:
         from flax import nnx
 

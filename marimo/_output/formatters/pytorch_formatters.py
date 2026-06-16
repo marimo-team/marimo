@@ -7,12 +7,12 @@ import re
 import typing
 
 from marimo._output.formatters._nn_tree import (
-    _CSS,
+    LeafBody,
     ModuleCategory,
+    TreeNode,
     _comma_to_br,
     _fmt_integer,
-    _footer_html,
-    _frozen_attr,
+    render_model,
 )
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.hypertext import Html
@@ -144,102 +144,55 @@ def _layer_category(module: torch.nn.Module) -> ModuleCategory | None:
     return None
 
 
-def _walk(mod: torch.nn.Module, name: str = "") -> str:
-    """Recursively build HTML tree for an nn.Module (non-root nodes)."""
-    children = list(mod.named_children())
+def _node(mod: torch.nn.Module, name: str = "") -> TreeNode:
+    """Build a `TreeNode` for an nn.Module (recursing into children)."""
     type_name = mod.__class__.__name__
-    extra = _extra_repr_html(mod)
     cat = _layer_category(mod)
+    children = list(mod.named_children())
 
-    name_html = f'<span class="nn-t-name">{name}</span> ' if name else ""
-    cat_attr = f' data-cat="{cat}"' if cat is not None else ""
-    type_span = f'<span class="nn-t-type"{cat_attr}>{type_name}</span>'
-    pos_args = (
-        f' <span class="nn-t-pos">{extra.positional}</span>'
-        if extra.positional
-        else ""
-    )
-
-    if not children:
-        own_params = list(mod.parameters(recurse=False))
-        num_params = sum(p.numel() for p in own_params)
-        num_trainable = sum(p.numel() for p in own_params if p.requires_grad)
-        info = _trainable_info(num_params, num_trainable)
-        frozen = _frozen_attr(info.is_frozen or num_params == 0)
-
-        params = (
-            f'<span class="nn-t-params"{frozen}>'
-            f"{_fmt_integer(num_params)}{info.note}</span>"
-            if num_params > 0
-            else ""
+    if children:
+        all_sub = list(mod.parameters())
+        total = sum(p.numel() for p in all_sub)
+        trainable = sum(p.numel() for p in all_sub if p.requires_grad)
+        info = _trainable_info(total, trainable)
+        return TreeNode(
+            name=name,
+            type_name=type_name,
+            category=cat,
+            params_note=f"{_fmt_integer(total)}{info.note}",
+            is_frozen=info.is_frozen,
+            children=[_node(c, n) for n, c in children],
         )
 
-        # Build expand body: kwargs first, then dtype/device
-        body_parts: list[str] = []
-        if extra.kwargs:
-            body_parts.append(_comma_to_br(extra.kwargs))
-        if own_params:
-            dtype_s, device_s = _collect_dtype_device(own_params)
-            if body_parts:
-                body_parts.append(
-                    '<div class="nn-t-expand-sep">'
-                    '<span class="nn-t-expand-sep-label">tensor</span>'
-                    "</div>"
-                )
-            body_parts.append(
-                f'<span class="nn-t-key">dtype</span> {dtype_s}'
-                f"<br>"
-                f'<span class="nn-t-key">device</span> {device_s}'
-            )
+    # Leaf module.
+    own = list(mod.parameters(recurse=False))
+    num = sum(p.numel() for p in own)
+    trainable = sum(p.numel() for p in own if p.requires_grad)
+    info = _trainable_info(num, trainable)
+    extra = _extra_repr_html(mod)
 
-        if body_parts:
-            kw_inline = (
-                f' <span class="nn-t-args">{extra.kwargs}</span>'
-                if extra.kwargs
-                else ""
-            )
-            return (
-                f'<details class="nn-t-expand"{frozen}>'
-                f"<summary>"
-                f'<span class="nn-t-spacer"></span>'
-                f"{name_html}{type_span}{pos_args}{kw_inline}"
-                f"{params}"
-                f"</summary>"
-                f'<div class="nn-t-expand-body">{"".join(body_parts)}</div>'
-                f"</details>"
-            )
-        return (
-            f'<div class="nn-t-leaf"{frozen}>'
-            f'<span class="nn-t-spacer"></span>'
-            f"{name_html}{type_span}{pos_args}"
-            f"{params}"
-            f"</div>"
+    body: LeafBody | None = None
+    if extra.kwargs or own:
+        dtype = device = None
+        if own:
+            dtype, device = _collect_dtype_device(own)
+        body = LeafBody(
+            kwargs_inline=extra.kwargs,
+            kwargs_block=_comma_to_br(extra.kwargs) if extra.kwargs else "",
+            dtype=dtype,
+            device=device,
+            array_label="tensor",
         )
 
-    # Container node: aggregate all descendant parameters
-    all_sub = list(mod.parameters())
-    total_sub = sum(p.numel() for p in all_sub)
-    total_trainable = sum(p.numel() for p in all_sub if p.requires_grad)
-    info = _trainable_info(total_sub, total_trainable)
-
-    total_params = (
-        f'<span class="nn-t-params">'
-        f"{_fmt_integer(total_sub)}{info.note}</span>"
-    )
-
-    children_html = "\n".join(
-        _walk(child_mod, child_name) for child_name, child_mod in children
-    )
-
-    return (
-        f'<details class="nn-t-node"{_frozen_attr(info.is_frozen)}>'
-        f"<summary>"
-        f'<span class="nn-t-arrow">&#9654;</span>'
-        f"{name_html}{type_span}"
-        f"{total_params}"
-        f"</summary>"
-        f'<div class="nn-t-children">{children_html}</div>'
-        f"</details>"
+    return TreeNode(
+        name=name,
+        type_name=type_name,
+        category=cat,
+        params_note=f"{_fmt_integer(num)}{info.note}" if num > 0 else "",
+        # Dim frozen layers and params-less layers (e.g. activations).
+        is_frozen=info.is_frozen or num == 0,
+        positional=extra.positional,
+        body=body,
     )
 
 
@@ -256,8 +209,6 @@ def format(module: torch.nn.Module) -> Html:  # noqa: A001
         A `marimo.Html` object with the rendered tree.
     """
     all_params = list(module.parameters())
-    children = list(module.named_children())
-
     total_params = sum(p.numel() for p in all_params)
     trainable_params = sum(p.numel() for p in all_params if p.requires_grad)
     size_bytes = sum(p.numel() * p.element_size() for p in all_params)
@@ -268,44 +219,25 @@ def format(module: torch.nn.Module) -> Html:  # noqa: A001
         if trainable_params != total_params
         else ""
     )
-    header = (
-        f'<div class="nn-t-header">'
-        f'<span class="nn-t-root">{module.__class__.__name__}</span>'
-        f'<span class="nn-t-summary">'
+    summary = (
         f"{_fmt_integer(total_params)} params{trainable_note}"
         f" \u00b7 {size_mb:.1f} MB"
-        f"</span>"
-        f"</div>"
     )
 
-    if children:
-        body_html = "\n".join(
-            _walk(child_mod, child_name) for child_name, child_mod in children
-        )
-        body = f'<div class="nn-t-body">{body_html}</div>'
-    else:
+    children = list(module.named_children())
+    leaf_fallback = ""
+    if not children:
         extra = _extra_repr_html(module)
-        combined = ", ".join(
+        leaf_fallback = ", ".join(
             part for part in (extra.positional, extra.kwargs) if part
         )
-        extra_html = (
-            f'<span class="nn-t-args">{combined}</span>' if combined else ""
-        )
-        body = (
-            f'<div class="nn-t-body">'
-            f'<div class="nn-t-leaf">{extra_html}</div>'
-            f"</div>"
-        )
 
-    divider = '<div class="nn-t-divider"></div>'
-    footer = _footer_html()
-
-    html = (
-        f'<div class="nn-t"><style>{_CSS}</style>'
-        f"{header}{divider}{body}{footer}"
-        f"</div>"
+    return render_model(
+        root_type=module.__class__.__name__,
+        summary=summary,
+        nodes=[_node(c, n) for n, c in children],
+        leaf_fallback=leaf_fallback,
     )
-    return Html(html)
 
 
 class PyTorchFormatter(FormatterFactory):
