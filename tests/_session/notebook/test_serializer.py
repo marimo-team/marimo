@@ -578,11 +578,6 @@ class TestRoundTripSerialization:
                 ["x = 42"],
                 None,
                 id="ipynb",
-                marks=pytest.mark.xfail(
-                    strict=True,
-                    reason="serialize() is a stub — "
-                    "PLAN.md Phase 1.1 refactoring needed",
-                ),
             ),
         ],
     )

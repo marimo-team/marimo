@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from nbformat.notebooknode import NotebookNode  # type: ignore
 
     from marimo._ast.app import InternalApp
+    from marimo._schemas.serialization import NotebookSerializationV1
     from marimo._session.state.session_view import SessionView
 
 
@@ -55,6 +56,89 @@ DEFAULT_LANGUAGE_INFO = {
     "nbconvert_exporter": "python",
     "pygments_lexer": "ipython3",
 }
+
+
+def ir_to_ipynb(
+    ir: NotebookSerializationV1,
+    *,
+    session_view: SessionView | None = None,
+) -> str:
+    """Convert a ``NotebookSerializationV1`` (the IR) directly to ipynb.
+
+    Unlike ``convert_from_ir_to_ipynb`` this does **not** require a full
+    ``InternalApp`` object, making it suitable for the serializer interface
+    which only has access to the IR.
+
+    Args:
+        ir: Notebook intermediate representation.
+        session_view: Optional session view to include cell outputs.
+
+    Returns:
+        JSON string of the .ipynb notebook.
+    """
+    from marimo._ast.compiler import ir_cell_factory
+    from marimo._types.ids import CellId_t
+
+    DependencyManager.nbformat.require("to convert marimo notebooks to ipynb")
+    import nbformat  # type: ignore[import-not-found]
+
+    from marimo import __version__
+
+    notebook = nbformat.v4.new_notebook()  # type: ignore[no-untyped-call]
+    notebook["cells"] = []
+
+    # Add marimo-specific notebook metadata
+    marimo_metadata: dict[str, Any] = {
+        "marimo_version": __version__,
+    }
+    if ir.app.options:
+        marimo_metadata["app_config"] = ir.app.options
+    if ir.header and ir.header.value:
+        marimo_metadata["header"] = ir.header.value
+    notebook["metadata"]["marimo"] = marimo_metadata
+
+    # Add standard Jupyter language_info (no kernelspec)
+    notebook["metadata"]["language_info"] = DEFAULT_LANGUAGE_INFO
+
+    # Build cells in document order (top-down)
+    for i, cell_def in enumerate(ir.cells):
+        cell_id = CellId_t(f"auto_{i}")
+
+        # Compile the cell so we can detect markdown cells
+        try:
+            cell = ir_cell_factory(cell_def, cell_id)
+        except SyntaxError:
+            cell = None
+
+        cell_config = CellConfig.from_dict(cell_def.options)
+
+        # Get outputs if session_view is provided
+        outputs: list[NotebookNode] = []
+        if session_view is not None:
+            cell_output = session_view.get_cell_outputs([cell_id]).get(
+                cell_id, None
+            )
+            cell_console_outputs = session_view.get_cell_console_outputs(
+                [cell_id]
+            ).get(cell_id, [])
+            outputs = _convert_marimo_output_to_ipynb(
+                cell_output, cell_console_outputs
+            )
+
+        notebook_cell = _create_ipynb_cell(
+            cell_id=cell_id,
+            code=cell_def.code,
+            name=cell_def.name,
+            config=cell_config,
+            cell=cell,
+            outputs=outputs,
+        )
+        notebook["cells"].append(notebook_cell)
+
+    stream = io.StringIO()
+    nbformat.write(notebook, stream)  # type: ignore[no-untyped-call]
+    stream.seek(0)
+    return stream.read()
 
 
 def convert_from_ir_to_ipynb(

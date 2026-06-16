@@ -123,17 +123,10 @@ class IpynbNotebookSerializer(NotebookSerializer):
     """Handler for Jupyter Notebook (.ipynb) files."""
 
     def serialize(self, notebook: NotebookSerializationV1) -> str:
-        """Serialize notebook to Jupyter ipynb format.
+        """Serialize notebook to Jupyter ipynb format."""
+        from marimo._convert.ipynb.from_ir import ir_to_ipynb
 
-        NOTE: This is currently a stub.  ``convert_from_ir_to_ipynb()``
-        requires an ``InternalApp`` object but the serializer protocol only
-        provides ``NotebookSerializationV1`` (the IR).  The conversion code
-        needs to be refactored into a two-phase process (see Phase 1.1 plan).
-        """
-        raise NotImplementedError(
-            "IpynbNotebookSerializer.serialize is not yet implemented. "
-            "See PLAN.md: Phase 1.1 — IR to ipynb conversion refactoring."
-        )
+        return ir_to_ipynb(notebook, session_view=None)
 
     def deserialize(
         self, content: str, filepath: str | None = None
