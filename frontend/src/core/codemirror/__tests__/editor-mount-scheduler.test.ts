@@ -59,4 +59,71 @@ describe("createEditorMountScheduler", () => {
     flush();
     expect(built).toEqual([]);
   });
+
+  it("builds prioritized cells before earlier-queued ones", () => {
+    const { schedule, flush } = makeManualSchedule();
+    const built: string[] = [];
+    const s = createEditorMountScheduler(schedule);
+    s.request("a", () => built.push("a"));
+    s.request("b", () => built.push("b"));
+    s.request("c", () => built.push("c"));
+    s.prioritize("c");
+    flush();
+    flush();
+    flush();
+    expect(built).toEqual(["c", "a", "b"]);
+  });
+
+  it("builds multiple prioritized cells in prioritization order, then FIFO", () => {
+    const { schedule, flush } = makeManualSchedule();
+    const built: string[] = [];
+    const s = createEditorMountScheduler(schedule);
+    s.request("a", () => built.push("a"));
+    s.request("b", () => built.push("b"));
+    s.request("c", () => built.push("c"));
+    s.request("d", () => built.push("d"));
+    s.prioritize("d");
+    s.prioritize("b");
+    flush();
+    flush();
+    flush();
+    flush();
+    expect(built).toEqual(["d", "b", "a", "c"]);
+  });
+
+  it("ignores prioritize for a cell that is not queued", () => {
+    const { schedule, flush } = makeManualSchedule();
+    const built: string[] = [];
+    const s = createEditorMountScheduler(schedule);
+    s.request("a", () => built.push("a"));
+    s.prioritize("not-queued");
+    flush();
+    expect(built).toEqual(["a"]);
+  });
+
+  it("deprioritize reverts a cell to FIFO order without dropping it", () => {
+    const { schedule, flush } = makeManualSchedule();
+    const built: string[] = [];
+    const s = createEditorMountScheduler(schedule);
+    s.request("a", () => built.push("a"));
+    s.request("b", () => built.push("b"));
+    s.prioritize("b");
+    s.deprioritize("b");
+    flush();
+    flush();
+    expect(built).toEqual(["a", "b"]);
+  });
+
+  it("cancel removes a prioritized cell", () => {
+    const { schedule, flush } = makeManualSchedule();
+    const built: string[] = [];
+    const s = createEditorMountScheduler(schedule);
+    s.request("a", () => built.push("a"));
+    s.request("b", () => built.push("b"));
+    s.prioritize("b");
+    s.cancel("b");
+    flush();
+    flush();
+    expect(built).toEqual(["a"]);
+  });
 });

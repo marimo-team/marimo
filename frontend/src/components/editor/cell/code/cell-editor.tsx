@@ -2,6 +2,7 @@
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
+import { useIntersectionObserver } from "@uidotdev/usehooks";
 import { useAtom, useAtomValue } from "jotai";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
@@ -458,6 +459,23 @@ const CellEditorInternal = ({
     };
   }, [editorViewRef]);
 
+  // Prioritize building this cell's editor when it scrolls into view, so the
+  // visible region fills in first instead of waiting for the top-to-bottom
+  // queue. The margin builds cells just before they reach the viewport.
+  const [intersectionRef, intersection] = useIntersectionObserver({
+    rootMargin: "300px 0px",
+  });
+  useEffect(() => {
+    if (isEditorMounted) {
+      return;
+    }
+    if (intersection?.isIntersecting) {
+      editorMountScheduler.prioritize(cellId);
+    } else {
+      editorMountScheduler.deprioritize(cellId);
+    }
+  }, [isEditorMounted, intersection?.isIntersecting, cellId]);
+
   const navigationProps = useCellEditorNavigationProps(cellId, editorViewRef);
 
   let editorClassName = "";
@@ -502,7 +520,11 @@ const CellEditorInternal = ({
       runCell={handleRunCell}
       outputArea={outputArea}
     >
-      <div className="relative w-full" {...navigationProps}>
+      <div
+        className="relative w-full"
+        ref={intersectionRef}
+        {...navigationProps}
+      >
         {isEditorMounted ? (
           <CellCodeMirrorEditor
             className={editorClassName}
