@@ -29,7 +29,7 @@ import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { ColumnPreviewContainer } from "./components";
 import { InstallPackageButton } from "./install-package-button";
-import { convertStatsName, sqlCode } from "./utils";
+import { convertStatsName, sqlCode, tableUniqueId } from "./utils";
 
 export const DatasetColumnPreview: React.FC<{
   table: DataTable;
@@ -48,9 +48,10 @@ export const DatasetColumnPreview: React.FC<{
       tableName: table.name,
       columnName: column.name,
       sourceType: table.source_type,
-      fullyQualifiedTableName: sqlTableContext
-        ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}`
-        : table.name,
+      fullyQualifiedTableName: tableUniqueId({
+        sqlTableContext,
+        tableName: table.name,
+      }),
     });
   };
 
