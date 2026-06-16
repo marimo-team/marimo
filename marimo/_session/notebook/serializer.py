@@ -119,11 +119,47 @@ class MarkdownNotebookSerializer(NotebookSerializer):
         return yaml.dump(frontmatter, sort_keys=False)
 
 
+class IpynbNotebookSerializer(NotebookSerializer):
+    """Handler for Jupyter Notebook (.ipynb) files."""
+
+    def serialize(self, notebook: NotebookSerializationV1) -> str:
+        """Serialize notebook to Jupyter ipynb format.
+
+        NOTE: This is currently a stub.  ``convert_from_ir_to_ipynb()``
+        requires an ``InternalApp`` object but the serializer protocol only
+        provides ``NotebookSerializationV1`` (the IR).  The conversion code
+        needs to be refactored into a two-phase process (see Phase 1.1 plan).
+        """
+        raise NotImplementedError(
+            "IpynbNotebookSerializer.serialize is not yet implemented. "
+            "See PLAN.md: Phase 1.1 — IR to ipynb conversion refactoring."
+        )
+
+    def deserialize(
+        self, content: str, filepath: str | None = None
+    ) -> NotebookSerializationV1:
+        """Deserialize Jupyter ipynb notebook content to IR."""
+        from marimo._convert.ipynb.to_ir import (
+            convert_from_ipynb_to_notebook_ir,
+        )
+
+        return convert_from_ipynb_to_notebook_ir(content, filepath=filepath)
+
+    def extract_header(self, path: Path) -> str | None:
+        """Extract header/metadata from ipynb file.
+
+        For now, returns None as ipynb metadata is handled differently.
+        The metadata is preserved through the serialize/deserialize cycle.
+        """
+        return None
+
+
 # Default format handlers
 DEFAULT_NOTEBOOK_SERIALIZERS = {
     ".py": PythonNotebookSerializer(),
     ".md": MarkdownNotebookSerializer(),
     ".qmd": MarkdownNotebookSerializer(),
+    ".ipynb": IpynbNotebookSerializer(),
 }
 
 

@@ -141,7 +141,8 @@ async def format_cell(request: Request) -> FormatResponse:
     body = await parse_request(request, cls=FormatCellsRequest)
     formatter = DefaultFormatter(line_length=body.line_length)
     filename = app_state.require_current_session().app_file_manager.path
-    if filename and filename.endswith((".md", ".qmd")):
+    # For non-Python formats (markdown, ipynb, etc.), format code as Python
+    if filename and not filename.endswith(".py"):
         filename = f"{filename}.py"
 
     try:

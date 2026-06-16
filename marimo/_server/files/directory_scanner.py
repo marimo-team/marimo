@@ -142,9 +142,20 @@ class DirectoryScanner:
     @property
     def allowed_extensions(self) -> tuple[str, ...]:
         """Get allowed file extensions based on settings."""
+        from marimo._session.notebook.serializer import (
+            DEFAULT_NOTEBOOK_SERIALIZERS,
+        )
+
+        # Get all supported extensions from the serializer registry
+        all_exts = list(DEFAULT_NOTEBOOK_SERIALIZERS.keys())
+
+        # Filter based on include_markdown setting
+        # Markdown files are .md and .qmd
         if self.include_markdown:
-            return (".py", ".md", ".qmd")
-        return (".py",)
+            return tuple(sorted(all_exts))
+        else:
+            # Only include Python and ipynb formats, not markdown
+            return tuple(e for e in all_exts if e not in (".md", ".qmd"))
 
     def scan(self) -> list[FileInfo]:
         """Scan directory and return file tree.
