@@ -3,7 +3,7 @@ import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { useAtom, useAtomValue } from "jotai";
-import React, { memo, useEffect, useMemo, useRef } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
@@ -14,6 +14,7 @@ import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import { acceptCompletionOnEnterAtom } from "@/core/codemirror/completion/accept-on-enter-atom";
+import { editorMountScheduler } from "@/core/codemirror/editor-mount-scheduler";
 import {
   getInitialLanguageAdapter,
   languageAdapterState,
@@ -45,6 +46,7 @@ import {
 } from "../../navigation/navigation";
 import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSplitCellCallback } from "../useSplitCell";
+import { CodePlaceholder } from "./code-placeholder";
 import { LanguageToggles } from "./language-toggle";
 
 export interface CellEditorProps
@@ -406,36 +408,47 @@ const CellEditorInternal = ({
     cellActions.clearSerializedEditorState({ cellId });
   });
 
-  useEffect(() => {
-    if (serializedEditorState === null) {
-      if (editorViewRef.current === null) {
-        handleInitializeEditor();
-      } else {
-        // If the editor already exists, reconfigure it with the new extensions.
-        handleReconfigureEditor();
-      }
-    } else {
-      handleDeserializeEditor();
-    }
+  // Drives the swap from placeholder to live editor. Restored editors mount
+  // immediately; freshly built ones flip this when the build effect runs.
+  const [isEditorMounted, setIsEditorMounted] = useState(
+    serializedEditorState !== null,
+  );
 
-    if (
-      editorViewRef.current !== null &&
-      editorViewParentRef &&
-      editorViewParentRef.current !== null
-    ) {
-      // Always replace the children in case the editor view was re-created.
-      editorViewParentRef.current.replaceChildren(editorViewRef.current.dom);
+  // Build the editor. Deserialize eagerly; otherwise queue an async build so
+  // large notebooks stay responsive while editors come online progressively.
+  useEffect(() => {
+    if (editorViewRef.current !== null) {
+      return;
     }
+    if (serializedEditorState !== null) {
+      handleDeserializeEditor();
+      setIsEditorMounted(true);
+      return;
+    }
+    editorMountScheduler.request(cellId, () => {
+      if (editorViewRef.current !== null) {
+        return;
+      }
+      handleInitializeEditor();
+      setIsEditorMounted(true);
+    });
+    return () => editorMountScheduler.cancel(cellId);
+    // Mount-time decision only; rebuilds go through the reconfigure effect.
   }, [
-    handleInitializeEditor,
-    handleReconfigureEditor,
-    handleDeserializeEditor,
+    cellId,
     editorViewRef,
-    editorViewParentRef,
+    handleDeserializeEditor,
+    handleInitializeEditor,
     serializedEditorState,
-    // Props to trigger reconfiguration
-    extensions,
   ]);
+
+  // Reconfigure an already-built editor when its extensions change.
+  useEffect(() => {
+    if (editorViewRef.current === null) {
+      return;
+    }
+    handleReconfigureEditor();
+  }, [handleReconfigureEditor, extensions, editorViewRef]);
 
   // Destroy the editor when the component is unmounted
   useEffect(() => {
@@ -490,13 +503,17 @@ const CellEditorInternal = ({
       outputArea={outputArea}
     >
       <div className="relative w-full" {...navigationProps}>
-        <CellCodeMirrorEditor
-          className={editorClassName}
-          editorView={editorViewRef.current}
-          ref={editorViewParentRef}
-          hidden={hidden}
-          showHiddenCode={showHiddenCode}
-        />
+        {isEditorMounted ? (
+          <CellCodeMirrorEditor
+            className={editorClassName}
+            editorView={editorViewRef.current}
+            ref={editorViewParentRef}
+            hidden={hidden}
+            showHiddenCode={showHiddenCode}
+          />
+        ) : (
+          <CodePlaceholder code={code} className={editorClassName} />
+        )}
         {!hidden && showLanguageToggles && (
           <div className="absolute top-1 right-5">
             <LanguageToggles
