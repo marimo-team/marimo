@@ -217,6 +217,28 @@ class TestRuffFormatter:
         assert result == {"cell1": 'def foo():\n    """Something here"""'}
 
     @patch("marimo._utils.formatter.ruff")
+    async def test_ruff_formatter_comment_only_cell(
+        self, mock_ruff: MagicMock
+    ) -> None:
+        """Comment-only cells are left unwrapped (def _(): # comment is a
+        syntax error) and passed through ruff unchanged."""
+        cell_code = "# just a comment"
+        mock_ruff.return_value = {"cell1": cell_code}
+
+        formatter = RuffFormatter(line_length=88)
+        result = await formatter.format({"cell1": cell_code})
+
+        # ruff receives the comment unwrapped, not inside def _():
+        mock_ruff.assert_called_once_with(
+            {"cell1": cell_code},
+            "format",
+            "--line-length",
+            "88",
+            stdin_filename=None,
+        )
+        assert result == {"cell1": cell_code}
+
+    @patch("marimo._utils.formatter.ruff")
     async def test_ruff_formatter_propagates_exceptions(
         self, mock_ruff: MagicMock
     ) -> None:

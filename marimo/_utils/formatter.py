@@ -146,12 +146,23 @@ class RuffFormatter(Formatter):
     ) -> CellCodes:
         # Wrap each cell in a dummy function so ruff applies function-scope
         # blank-line rules (1 blank line around nested defs) instead of
-        # file-scope rules (2 blank lines). Cells with only whitespace are
-        # left unwrapped because an empty function body is invalid Python.
+        # file-scope rules (2 blank lines). Cells with no executable
+        # statements (whitespace-only or comment-only) are left unwrapped
+        # since an empty or comment-only function body is invalid Python.
+        skip_wrap = {
+            key
+            for key, code in codes.items()
+            if all(
+                not line.strip() or line.strip().startswith("#")
+                for line in code.splitlines()
+            )
+        }
         wrapped: CellCodes = {}
         for key, code in codes.items():
-            if code.strip():
-                wrapped[key] = "def _():\n" + textwrap.indent(code, "    ")
+            if key not in skip_wrap:
+                wrapped[key] = "\n".join(
+                    ["def _():", textwrap.indent(code, "    ")]
+                )
             else:
                 wrapped[key] = code
 
@@ -167,7 +178,7 @@ class RuffFormatter(Formatter):
         # parse mechanism in marimo/_ast/parse.py (Extractor + fixed_dedent).
         result: CellCodes = {}
         for key, code in codes.items():
-            if not code.strip():
+            if key in skip_wrap:
                 result[key] = wrapped_result.get(key, code)
             elif key in wrapped_result:
                 result[key] = unwrap_cell_body(wrapped_result[key])

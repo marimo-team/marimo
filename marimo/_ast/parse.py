@@ -83,8 +83,12 @@ def unwrap_cell_body(formatted: str) -> str:
     """
     tree = ast_parse(formatted)
     fn = tree.body[0]
-    assert isinstance(fn, ast.FunctionDef)
-    assert fn.end_lineno is not None
+    if not isinstance(fn, ast.FunctionDef):
+        raise ValueError(
+            f"Expected a FunctionDef node, got {type(fn).__name__}"
+        )
+    if fn.end_lineno is None:
+        raise ValueError("FunctionDef node has no end_lineno")
     extractor = Extractor(formatted)
     raw = extractor.extract_from_offsets(
         fn.body[0].lineno - 1, 0, fn.end_lineno - 1, fn.end_col_offset
