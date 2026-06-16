@@ -198,7 +198,6 @@ class TestRuffFormatter:
         )
         assert "\n\n\n" not in output
 
-
     @patch("marimo._utils.formatter.ruff")
     async def test_ruff_formatter_app_function_cell(
         self, mock_ruff: MagicMock
@@ -207,7 +206,9 @@ class TestRuffFormatter:
         are wrapped before formatting so ruff applies E301 (nested defs get
         1 blank line), not E302 (top-level defs get 2 blank lines)."""
         cell_code = 'def foo():\n    """Something here"""'
-        wrapped_formatted = "def _():\n    def foo():\n        \"\"\"Something here\"\"\""
+        wrapped_formatted = (
+            'def _():\n    def foo():\n        """Something here"""'
+        )
         mock_ruff.return_value = {"cell1": wrapped_formatted}
 
         formatter = RuffFormatter(line_length=88)
