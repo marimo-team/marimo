@@ -488,6 +488,132 @@ x = 1
         assert isinstance(handler, IpynbNotebookSerializer)
 
 
+class TestIsMarimoNotebook:
+    """Tests for the ``is_marimo_notebook`` detection method on each serializer."""
+
+    # --- PythonNotebookSerializer ---
+
+    def test_python_marimo_detected(self, tmp_path: Path) -> None:
+        serializer = PythonNotebookSerializer()
+        f = tmp_path / "app.py"
+        f.write_text("import marimo\napp = marimo.App()\n")
+        assert serializer.is_marimo_notebook(f) is True
+
+    def test_python_non_marimo(self, tmp_path: Path) -> None:
+        serializer = PythonNotebookSerializer()
+        f = tmp_path / "other.py"
+        f.write_text("import sys\nprint('hi')\n")
+        assert serializer.is_marimo_notebook(f) is False
+
+    def test_python_marimo_with_long_docstring(self, tmp_path: Path) -> None:
+        """Long docstring must not hide markers (slow-path test)."""
+        serializer = PythonNotebookSerializer()
+        f = tmp_path / "app.py"
+        f.write_text('"""' + ("x" * 1024) + '"""\n' + "import marimo\napp = marimo.App()\n")
+        assert serializer.is_marimo_notebook(f) is True
+
+    def test_python_non_marimo_long(self, tmp_path: Path) -> None:
+        """Slow-path scan still rejects non-marimo Python files."""
+        serializer = PythonNotebookSerializer()
+        f = tmp_path / "other.py"
+        f.write_text('"""' + ("x" * 1024) + '"""\nimport sys\nprint("hi")\n')
+        assert serializer.is_marimo_notebook(f) is False
+
+    def test_python_missing_file(self, tmp_path: Path) -> None:
+        serializer = PythonNotebookSerializer()
+        f = tmp_path / "nonexistent.py"
+        assert serializer.is_marimo_notebook(f) is False
+
+    # --- MarkdownNotebookSerializer ---
+
+    def test_markdown_marimo_detected(self, tmp_path: Path) -> None:
+        serializer = MarkdownNotebookSerializer()
+        f = tmp_path / "notebook.md"
+        f.write_text("---\nmarimo-version: 0.1.0\n---\n")
+        assert serializer.is_marimo_notebook(f) is True
+
+    def test_markdown_non_marimo(self, tmp_path: Path) -> None:
+        serializer = MarkdownNotebookSerializer()
+        f = tmp_path / "plain.md"
+        f.write_text("# Just markdown\n")
+        assert serializer.is_marimo_notebook(f) is False
+
+    def test_markdown_marimo_long_frontmatter(self, tmp_path: Path) -> None:
+        """Long YAML frontmatter must not hide marimo-version marker."""
+        serializer = MarkdownNotebookSerializer()
+        padding = "\n".join(f"key{i}: value{i}" for i in range(50))
+        content = f"---\n{padding}\nmarimo-version: 0.1.0\n---\n"
+        assert len(content.encode()) > 512  # exercise the slow path
+        f = tmp_path / "notebook.md"
+        f.write_text(content)
+        assert serializer.is_marimo_notebook(f) is True
+
+    def test_markdown_missing_file(self, tmp_path: Path) -> None:
+        serializer = MarkdownNotebookSerializer()
+        f = tmp_path / "nonexistent.md"
+        assert serializer.is_marimo_notebook(f) is False
+
+    # --- IpynbNotebookSerializer ---
+
+    def test_ipynb_marimo_detected(self, tmp_path: Path) -> None:
+        """Ipynb with marimo metadata is detected."""
+        import json
+
+        serializer = IpynbNotebookSerializer()
+        f = tmp_path / "notebook.ipynb"
+        data = {
+            "cells": [],
+            "metadata": {"marimo": {"marimo_version": "0.1.0"}},
+            "nbformat": 4,
+            "nbformat_minor": 5,
+        }
+        f.write_text(json.dumps(data))
+        assert serializer.is_marimo_notebook(f) is True
+
+    def test_ipynb_non_marimo(self, tmp_path: Path) -> None:
+        """Standard Jupyter ipynb without marimo metadata is not detected."""
+        import json
+
+        serializer = IpynbNotebookSerializer()
+        f = tmp_path / "plain.ipynb"
+        data = {
+            "cells": [],
+            "metadata": {
+                "kernelspec": {
+                    "display_name": "Python 3",
+                    "language": "python",
+                    "name": "python3",
+                }
+            },
+            "nbformat": 4,
+            "nbformat_minor": 5,
+        }
+        f.write_text(json.dumps(data))
+        assert serializer.is_marimo_notebook(f) is False
+
+    def test_ipynb_empty_metadata(self, tmp_path: Path) -> None:
+        """Ipynb with empty metadata dict is not a marimo notebook."""
+        import json
+
+        serializer = IpynbNotebookSerializer()
+        f = tmp_path / "empty.ipynb"
+        data = {"cells": [], "metadata": {}, "nbformat": 4, "nbformat_minor": 5}
+        f.write_text(json.dumps(data))
+        assert serializer.is_marimo_notebook(f) is False
+
+    def test_ipynb_invalid_json(self, tmp_path: Path) -> None:
+        """Invalid JSON is handled gracefully."""
+        serializer = IpynbNotebookSerializer()
+        f = tmp_path / "bad.ipynb"
+        f.write_text("not valid json")
+        assert serializer.is_marimo_notebook(f) is False
+
+    def test_ipynb_missing_file(self, tmp_path: Path) -> None:
+        serializer = IpynbNotebookSerializer()
+        f = tmp_path / "nonexistent.ipynb"
+        assert serializer.is_marimo_notebook(f) is False
+
+
 def _check_round_trip(
     serializer: PythonNotebookSerializer
     | MarkdownNotebookSerializer

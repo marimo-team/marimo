@@ -53,6 +53,17 @@ class NotebookSerializer(Protocol):
         """
         ...
 
+    def is_marimo_notebook(self, path: Path) -> bool:
+        """Check if a file is a marimo notebook.
+
+        Args:
+            path: File path to check
+
+        Returns:
+            True if the file is a marimo notebook, False otherwise
+        """
+        ...
+
 
 class PythonNotebookSerializer(NotebookSerializer):
     """Handler for Python (.py) notebook files."""
@@ -82,6 +93,32 @@ class PythonNotebookSerializer(NotebookSerializer):
         from marimo._ast.codegen import get_header_comments
 
         return get_header_comments(path)
+
+    def is_marimo_notebook(self, path: Path) -> bool:
+        """Check if a Python file is a marimo notebook.
+
+        Scans the file for ``import marimo`` and ``marimo.App`` markers.
+        First reads 512 bytes (fast path), and on a miss reads up to 1 MB.
+        """
+        FAST_PATH_BYTES = 512
+        MAX_SCAN_BYTES = 1 * 1024 * 1024  # 1 MB
+
+        markers: tuple[bytes, ...] = (b"import marimo", b"marimo.App")
+
+        def matches(content: bytes) -> bool:
+            return all(m in content for m in markers)
+
+        try:
+            with open(path, "rb") as f:
+                header = f.read(FAST_PATH_BYTES)
+                if matches(header):
+                    return True
+                if len(header) < FAST_PATH_BYTES:
+                    return False
+                rest = f.read(MAX_SCAN_BYTES - FAST_PATH_BYTES)
+                return matches(header + rest)
+        except Exception:
+            return False
 
 
 class MarkdownNotebookSerializer(NotebookSerializer):
@@ -118,6 +155,29 @@ class MarkdownNotebookSerializer(NotebookSerializer):
             return None
         return yaml.dump(frontmatter, sort_keys=False)
 
+    def is_marimo_notebook(self, path: Path) -> bool:
+        """Check if a Markdown file is a marimo notebook.
+
+        Scans the file for the ``marimo-version:`` frontmatter marker.
+        First reads 512 bytes (fast path), and on a miss reads up to 1 MB.
+        """
+        FAST_PATH_BYTES = 512
+        MAX_SCAN_BYTES = 1 * 1024 * 1024  # 1 MB
+
+        marker: bytes = b"marimo-version:"
+
+        try:
+            with open(path, "rb") as f:
+                header = f.read(FAST_PATH_BYTES)
+                if marker in header:
+                    return True
+                if len(header) < FAST_PATH_BYTES:
+                    return False
+                rest = f.read(MAX_SCAN_BYTES - FAST_PATH_BYTES)
+                return marker in (header + rest)
+        except Exception:
+            return False
+
 
 class IpynbNotebookSerializer(NotebookSerializer):
     """Handler for Jupyter Notebook (.ipynb) files."""
@@ -145,6 +205,22 @@ class IpynbNotebookSerializer(NotebookSerializer):
         The metadata is preserved through the serialize/deserialize cycle.
         """
         return None
+
+    def is_marimo_notebook(self, path: Path) -> bool:
+        """Check if an ipynb file is a marimo notebook.
+
+        Checks for the presence of ``metadata.marimo`` key in the notebook
+        JSON structure — marimo-generated ipynb files include this metadata.
+        """
+        import json
+
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            metadata = data.get("metadata", {})
+            return "marimo" in metadata
+        except Exception:
+            return False
 
 
 # Default format handlers
