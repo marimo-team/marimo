@@ -95,14 +95,26 @@ class TestFlaxFormatter:
             "linear_out",
         ]
 
-    def test_state_note(self) -> None:
-        """Non-trainable state (BatchNorm running stats) is surfaced."""
+    def test_non_trainable_state_not_shown(self) -> None:
+        """Only trainable params are counted, matching PyTorch buffers.
+
+        BatchNorm running statistics and a Dropout's PRNG state must not
+        appear in the output, so the count stays consistent with the
+        PyTorch formatter (which ignores buffers).
+        """
         from flax import nnx
 
         from marimo._output.formatters.flax_formatters import format
 
-        html = format(nnx.BatchNorm(16, rngs=nnx.Rngs(0))).text
-        assert "state" in html
+        class Model(nnx.Module):
+            def __init__(self, rngs: nnx.Rngs) -> None:
+                self.bn = nnx.BatchNorm(16, rngs=rngs)
+                self.dropout = nnx.Dropout(0.2, rngs=rngs)
+
+        html = format(Model(nnx.Rngs(0))).text
+        assert "state" not in html
+        # Trainable params (BatchNorm scale + bias = 32) are still shown.
+        assert "params" in html
 
     def test_category_badges(self) -> None:
         from flax import nnx
@@ -171,25 +183,24 @@ class TestFlaxFormatter:
 
         from marimo._output.formatters.flax_formatters import _counts
 
-        # Linear(4, 8): kernel 4*8 + bias 8 = 40 params, no other state.
-        param_count, other_count, param_bytes = _counts(
-            nnx.Linear(4, 8, rngs=nnx.Rngs(0))
-        )
+        # Linear(4, 8): kernel 4*8 + bias 8 = 40 params.
+        param_count, param_bytes = _counts(nnx.Linear(4, 8, rngs=nnx.Rngs(0)))
         assert param_count == 40
-        assert other_count == 0
         assert param_bytes == 40 * 4  # float32
 
-    def test_counts_with_state(self) -> None:
+    def test_counts_ignores_non_trainable_state(self) -> None:
+        """Only trainable params count; buffers/state are not included."""
         from flax import nnx
 
         from marimo._output.formatters.flax_formatters import _counts
 
-        # BatchNorm(8): scale + bias = 16 params; mean + var = 16 state.
-        param_count, other_count, _ = _counts(
-            nnx.BatchNorm(8, rngs=nnx.Rngs(0))
-        )
+        # BatchNorm(8): scale + bias = 16 params; the 16 running-stat
+        # elements (BatchStat) are not counted.
+        param_count, _ = _counts(nnx.BatchNorm(8, rngs=nnx.Rngs(0)))
         assert param_count == 16
-        assert other_count == 16
+
+        # Dropout has no trainable params (only PRNG state) -> 0.
+        assert _counts(nnx.Dropout(0.2, rngs=nnx.Rngs(0))) == (0, 0)
 
     def test_config_kwargs(self) -> None:
         from flax import nnx

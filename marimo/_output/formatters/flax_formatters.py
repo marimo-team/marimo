@@ -5,9 +5,9 @@ Renders an `nnx.Module` as the same collapsible tree as the PyTorch
 formatter (shared presentation lives in `_nn_tree`). NNX is pythonically
 close to PyTorch -- submodules are plain attributes -- but its parameter
 model differs: variables are typed (`nnx.Param`, `nnx.BatchStat`, ...) and
-there is no per-parameter `requires_grad`/frozen concept. We therefore show
-the `nnx.Param` count as the primary number and surface any other state
-(BatchStat, RngState, ...) as a secondary "+N state" note.
+there is no per-parameter `requires_grad`/frozen concept. We count only
+trainable parameters (`nnx.Param`), mirroring the PyTorch formatter's
+handling of parameters vs. buffers, so the two stay consistent.
 """
 
 from __future__ import annotations
@@ -103,22 +103,22 @@ def _sum_size(leaves: typing.Iterable[typing.Any]) -> int:
     return sum(int(getattr(leaf, "size", 0)) for leaf in leaves)
 
 
-def _counts(mod: nnx.Module) -> tuple[int, int, int]:
-    """Return `(param_count, other_state_count, param_bytes)` for a subtree."""
-    import jax  # type: ignore[import-not-found, unused-ignore]
-    from flax import nnx
+def _counts(mod: nnx.Module) -> tuple[int, int]:
+    """Return `(param_count, param_bytes)` for a subtree's trainable params.
 
+    Like the PyTorch formatter, only trainable parameters (`nnx.Param`)
+    are counted. Non-trainable state -- BatchNorm running statistics
+    (`nnx.BatchStat`), PRNG keys (`nnx.RngState`), caches, etc. -- is left
+    out, mirroring PyTorch's handling of buffers and keeping the two
+    formatters consistent.
+    """
     param_leaves = _param_leaves(mod)
     param_count = _sum_size(param_leaves)
     param_bytes = sum(
         int(getattr(leaf, "size", 0)) * int(getattr(leaf, "itemsize", 0))
         for leaf in param_leaves
     )
-    try:
-        total = _sum_size(jax.tree.leaves(nnx.state(mod)))
-    except ValueError:
-        total = param_count
-    return (param_count, max(total - param_count, 0), param_bytes)
+    return (param_count, param_bytes)
 
 
 def _collect_dtype_device(
@@ -173,18 +173,6 @@ def _config_kwargs(mod: nnx.Module) -> str:
     return ", ".join(parts)
 
 
-def _count_note(param_count: int, other_count: int) -> str:
-    """Render the param/state count for a row's right-hand summary."""
-    if param_count > 0:
-        note = _fmt_integer(param_count)
-        if other_count > 0:
-            note += f" +{_fmt_integer(other_count)} state"
-        return note
-    if other_count > 0:
-        return f"{_fmt_integer(other_count)} state"
-    return ""
-
-
 def _walk(name: str, mod: nnx.Module) -> str:
     """Recursively build HTML tree for an nnx.Module (non-root nodes)."""
     children = _child_modules(mod)
@@ -196,9 +184,9 @@ def _walk(name: str, mod: nnx.Module) -> str:
     type_span = f'<span class="nn-t-type"{cat_attr}>{type_name}</span>'
 
     if not children:
-        param_count, other_count, _ = _counts(mod)
+        param_count, _ = _counts(mod)
         kwargs = _config_kwargs(mod)
-        note = _count_note(param_count, other_count)
+        note = _fmt_integer(param_count) if param_count > 0 else ""
         params = f'<span class="nn-t-params">{note}</span>' if note else ""
 
         # Build expand body: kwargs first, then dtype/device.
@@ -242,9 +230,9 @@ def _walk(name: str, mod: nnx.Module) -> str:
             f"</div>"
         )
 
-    # Container node: aggregate all descendant parameters and state.
-    param_count, other_count, _ = _counts(mod)
-    note = _count_note(param_count, other_count)
+    # Container node: aggregate all descendant parameters.
+    param_count, _ = _counts(mod)
+    note = _fmt_integer(param_count) if param_count > 0 else ""
     total_params = f'<span class="nn-t-params">{note}</span>' if note else ""
 
     children_html = "\n".join(
@@ -276,15 +264,14 @@ def format(module: nnx.Module) -> Html:  # noqa: A001
         A `marimo.Html` object with the rendered tree.
     """
     children = _child_modules(module)
-    total_params, total_other, total_bytes = _counts(module)
+    total_params, total_bytes = _counts(module)
     size_mb = total_bytes / (1024 * 1024)
 
-    state_note = f" +{_fmt_integer(total_other)} state" if total_other else ""
     header = (
         f'<div class="nn-t-header">'
         f'<span class="nn-t-root">{module.__class__.__name__}</span>'
         f'<span class="nn-t-summary">'
-        f"{_fmt_integer(total_params)} params{state_note}"
+        f"{_fmt_integer(total_params)} params"
         f" · {size_mb:.1f} MB"
         f"</span>"
         f"</div>"

@@ -36,8 +36,8 @@ def _():
 
 @app.cell
 def _():
-    # CNN for image classification. BatchNorm carries non-trainable state
-    # (running stats), surfaced as a "+N state" note alongside the params.
+    # CNN for image classification. Only trainable params are counted
+    # (BatchNorm running statistics, like PyTorch buffers, are not).
     class SimpleCNN(nnx.Module):
         def __init__(self, rngs: nnx.Rngs):
             self.conv1 = nnx.Conv(3, 32, kernel_size=(3, 3), padding="SAME", rngs=rngs)
@@ -143,8 +143,7 @@ def _():
 @app.cell
 def _():
     # NNX-specific layers: LoRA adapters (weight) and the parametric
-    # PReLU activation (activation), alongside a BatchNorm whose running
-    # statistics show up as "+N state".
+    # PReLU activation (activation), plus a BatchNorm for the norm color.
     class Adapted(nnx.Module):
         def __init__(self, rngs: nnx.Rngs):
             self.lora = nnx.LoRALinear(128, 128, lora_rank=8, rngs=rngs)
