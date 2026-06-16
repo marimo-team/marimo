@@ -74,6 +74,24 @@ def fixed_dedent(text: str) -> str:
     return dedent("\n".join(map(refill, lines)))
 
 
+def unwrap_cell_body(formatted: str) -> str:
+    """Extract the body of a wrapped `def _():` cell after ruff formatting.
+
+    Used by RuffFormatter to unwrap cells that were temporarily wrapped in a
+    dummy function so ruff applies function-scope blank-line rules (E301)
+    instead of file-scope rules (E302).
+    """
+    tree = ast_parse(formatted)
+    fn = tree.body[0]
+    assert isinstance(fn, ast.FunctionDef)
+    assert fn.end_lineno is not None
+    extractor = Extractor(formatted)
+    raw = extractor.extract_from_offsets(
+        fn.body[0].lineno - 1, 0, fn.end_lineno - 1, fn.end_col_offset
+    )
+    return fixed_dedent(raw).strip()
+
+
 def extract_lineno(node: Node) -> int:
     if not isinstance(
         node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef)

@@ -1,14 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import ast
 import asyncio
 import subprocess
 import sys
 import textwrap
 
 from marimo import _loggers
-from marimo._ast.parse import Extractor, fixed_dedent
+from marimo._ast.parse import unwrap_cell_body
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._types.ids import CellId_t
 
@@ -171,17 +170,7 @@ class RuffFormatter(Formatter):
             if not code.strip():
                 result[key] = wrapped_result.get(key, code)
             elif key in wrapped_result:
-                formatted = wrapped_result[key]
-                tree = ast.parse(formatted)
-                fn = tree.body[0]
-                extractor = Extractor(formatted)
-                raw = extractor.extract_from_offsets(
-                    fn.body[0].lineno - 1,
-                    0,
-                    fn.end_lineno - 1,
-                    fn.end_col_offset,
-                )
-                result[key] = fixed_dedent(raw).strip()
+                result[key] = unwrap_cell_body(wrapped_result[key])
 
         return result
 
