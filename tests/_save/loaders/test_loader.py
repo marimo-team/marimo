@@ -256,6 +256,39 @@ class TestLazyLoader(ABCTestLoader):
         assert loaded.defs["y"] == "hello"
         assert loaded.defs["z"] == [1, 2, 3]
 
+    def test_import_reference_stays_inline(self) -> None:
+        """Re-importable references (`from typing import Optional`, an
+        imported function/class) are stored inline in the manifest, not as
+        per-variable blobs, and restore to the original object by identity."""
+        from collections import OrderedDict
+        from typing import Optional
+
+        loader = self.instance()
+        cache = Cache(
+            defs={"Optional": Optional, "OrderedDict": OrderedDict},
+            hash="import_ref_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        cache.update({"Optional": Optional, "OrderedDict": OrderedDict})
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        # No blob files — only the manifest is written.
+        blobs = [
+            p
+            for p in Path(self.store.save_path).rglob("*")
+            if p.is_file() and p.suffix != ".jsonl"
+        ]
+        assert not blobs, f"expected no blobs, found {blobs}"
+
+        loaded = loader.load_cache(key("import_ref_hash", "Pure"))
+        assert loaded is not None
+        assert loaded.defs["Optional"] is Optional
+        assert loaded.defs["OrderedDict"] is OrderedDict
+
     def test_corrupt_cache_returns_none(self) -> None:
         """Corrupt manifest triggers cache miss, not crash."""
         loader = self.instance()

@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import importlib
+import inspect
 import pickle
 import queue
 import threading
@@ -19,6 +21,7 @@ from marimo._save.hash import HashKey
 from marimo._save.loaders.loader import BasePersistenceLoader
 from marimo._save.stores import FileStore, Store
 from marimo._save.stubs import (
+    ClassStub,
     FunctionStub,
     ModuleStub,
 )
@@ -61,6 +64,33 @@ def maybe_update_lazy_stub(value: Any) -> str:
     return loader
 
 
+def _maybe_import_ref(value: Any) -> tuple[str, str] | None:
+    """Return `(module, qualname)` if *value* is re-importable by name,
+    else `None`.
+    """
+    if not (
+        inspect.isclass(value)
+        or inspect.isroutine(value)
+        or type(value).__module__ == "typing"
+    ):
+        return None
+    module = getattr(value, "__module__", None)
+    qualname = (
+        getattr(value, "__qualname__", None)
+        or getattr(value, "__name__", None)
+        or getattr(value, "_name", None)
+    )
+    if not module or module == "__main__" or not qualname:
+        return None
+    try:
+        obj: Any = importlib.import_module(module)
+        for part in qualname.split("."):
+            obj = getattr(obj, part)
+    except (ImportError, AttributeError):
+        return None
+    return (module, qualname) if obj is value else None
+
+
 def to_item(
     path: Path,
     value: Any | None,
@@ -77,6 +107,10 @@ def to_item(
     type_hint = f"{type(value).__module__}.{type(value).__name__}"
 
     if loader == "pickle":
+        # A re-importable reference is stored inline rather than as a blob.
+        ref = _maybe_import_ref(value)
+        if ref is not None:
+            return Item(import_ref=ref)
         return Item(
             reference=(path / f"{var_name}.pickle").as_posix(),
             hash=hash,
@@ -98,6 +132,8 @@ def to_item(
         return Item(reference=(path / "ui.pickle").as_posix())
     if isinstance(value, FunctionStub):
         return Item(function=value.dump())
+    if isinstance(value, ClassStub):
+        return Item(class_def=value.dump())
     if isinstance(value, ModuleStub):
         return Item(module=value.name)
     if isinstance(value, (int, str, float, bool, bytes, type(None))):
@@ -119,10 +155,18 @@ def from_item(item: Item) -> Any:
         mod_stub = ModuleStub.__new__(ModuleStub)
         mod_stub.name = item.module
         return mod_stub
+    if item.import_ref is not None:
+        module, qualname = item.import_ref
+        obj: Any = importlib.import_module(module)
+        for part in qualname.split("."):
+            obj = getattr(obj, part)
+        return obj
     if item.function is not None:
         fn_stub = FunctionStub.__new__(FunctionStub)
         fn_stub.code, fn_stub.filename, fn_stub.lineno = item.function
         return fn_stub
+    if item.class_def is not None:
+        return ClassStub.from_dump(item.class_def)
     if item.primitive is not None:
         return item.primitive
     return None
@@ -148,7 +192,12 @@ class LazyLoader(BasePersistenceLoader):
             t.join()
         self._pending.clear()
 
-    def load_cache(self, key: HashKey) -> Cache | None:
+    def load_cache(
+        self,
+        key: HashKey,
+        glbls: dict[str, Any] | None = None,
+    ) -> Cache | None:
+        del glbls
         try:
             blob: bytes | None = self.store.get(str(self.build_path(key)))
             if not blob:
@@ -291,18 +340,23 @@ class LazyLoader(BasePersistenceLoader):
 
         for var, obj in cache.defs.items():
             loader = maybe_update_lazy_stub(obj)
-            if loader == "ui":
-                ui_vars[var] = obj
-                ui_defs_list.append(var)
-            elif loader not in ("inline",):
-                format_vars.setdefault(loader, {})[var] = obj
-            defs_dict[var] = to_item(
+            item = to_item(
                 path,
                 obj,
                 var_name=var,
                 loader=loader,
                 hash=variable_hashes.get(var, ""),
             )
+            defs_dict[var] = item
+            if item.import_ref is not None:
+                # Re-importable reference: lives inline in the manifest,
+                # no blob to write.
+                continue
+            if loader == "ui":
+                ui_vars[var] = obj
+                ui_defs_list.append(var)
+            elif loader not in ("inline",):
+                format_vars.setdefault(loader, {})[var] = obj
 
         manifest = msgspec.json.encode(
             CacheSchema(

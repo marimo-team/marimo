@@ -14,6 +14,7 @@ from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.state import SetFunctor
 from marimo._save.stubs import (
     CUSTOM_STUBS,
+    ClassStub,
     CustomStub,
     FunctionStub,
     ModuleStub,
@@ -21,6 +22,7 @@ from marimo._save.stubs import (
     UIElementStub,
     maybe_register_stub,
 )
+from marimo._save.stubs.lazy_stub import UnhashableStub
 
 # Many assertions are for typing and should always pass. This message is a
 # catch all to motive users to report if something does fail.
@@ -223,6 +225,16 @@ class Cache:
             result = value
         elif isinstance(value, ReferenceStub):
             result = value.load(scope)
+        elif isinstance(value, ClassStub):
+            # Re-exec the captured source into the cell namespace so the
+            # name rebinds to a live class (not the stub). Must run before
+            # any pickle blob referencing the class deserializes, so the
+            # class is resolvable as `__main__.<name>` in `scope`.
+            result = value.load(scope)
+        elif isinstance(value, UnhashableStub):
+            # Marker for a def whose value couldn't be serialized. Place it
+            # in scope as-is.
+            result = value
         elif isinstance(value, CustomStub):
             # CustomStub is a placeholder for a custom type, which cannot be
             # restored directly.
@@ -315,8 +327,28 @@ class Cache:
 
         if inspect.ismodule(value):
             result = ModuleStub(value)
-        elif inspect.isfunction(value):
+        elif (
+            inspect.isfunction(value)
+            and value.__name__ != "<lambda>"
+            and getattr(value, "__module__", "__main__") == "__main__"
+        ):
+            # NB. Lambdas can't round-trip via FunctionStub: inspect.getsource
+            # returns the line *containing* the lambda (e.g. "return model,
+            # lambda inp: model(inp)"), which fails to compile as a module.
             result = FunctionStub(value)
+        elif (
+            inspect.isclass(value)
+            and getattr(value, "__module__", None) == "__main__"
+        ):
+            # Attempt to capture classes by source so the loader can rebuild
+            # them in the cell namespace before pickle blobs that reference them
+            # deserialize. Pass the executing cell's source filename as a hint
+            # so attribute-only classes (no method code object to read a
+            # filename from) still resolve against `linecache`.
+            try:
+                result = ClassStub(value, filename=self._cell_filename())
+            except (TypeError, OSError):
+                result = value
         elif isinstance(value, UIElement):
             result = UIElementStub(value)
         elif isinstance(value, tuple):
@@ -396,6 +428,20 @@ class Cache:
         memo[obj_id] = result
 
         return result
+
+    @staticmethod
+    def _cell_filename() -> str | None:
+        """Source filename of the executing cell, for sourcing classes that
+        lack a method code object. `None` when there is no runtime context
+        (e.g. script-mode / direct API use)."""
+        try:
+            from marimo._ast.compiler import get_filename
+
+            context = get_context().execution_context
+            assert context is not None
+            return get_filename(context.cell_id)
+        except (ContextNotInitializedError, AssertionError):
+            return None
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""
