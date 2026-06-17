@@ -322,6 +322,17 @@ class TestTracerResource:
         resource = _tracer_resource()
         assert resource.attributes["service.name"] == "from-env"
 
+    def test_explicit_service_name_with_unknown_service_prefix(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "unknown_service_prod")
+        monkeypatch.delenv("OTEL_RESOURCE_ATTRIBUTES", raising=False)
+
+        from marimo._tracer import _tracer_resource
+
+        resource = _tracer_resource()
+        assert resource.attributes["service.name"] == "unknown_service_prod"
+
     def test_file_exporter_applies_resource(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

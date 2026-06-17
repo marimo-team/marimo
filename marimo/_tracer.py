@@ -88,6 +88,14 @@ OTLPProtocol = Literal["grpc", "http/protobuf"]
 _OTEL_DEFAULT_SERVICE_NAME = "unknown_service"
 
 
+def _is_otel_sdk_default_service_name(service_name: str) -> bool:
+    # SDK uses "unknown_service" or "unknown_service:<executable>" only.
+    return (
+        service_name == _OTEL_DEFAULT_SERVICE_NAME
+        or service_name.startswith(f"{_OTEL_DEFAULT_SERVICE_NAME}:")
+    )
+
+
 def _otlp_endpoint_configured() -> bool:
     return bool(
         os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
@@ -126,8 +134,8 @@ def _tracer_resource() -> Resource:
     # Default to marimo when unset.
     resource = Resource.create()
     service_name = resource.attributes.get("service.name")
-    if not isinstance(service_name, str) or service_name.startswith(
-        _OTEL_DEFAULT_SERVICE_NAME
+    if not isinstance(service_name, str) or _is_otel_sdk_default_service_name(
+        service_name
     ):
         resource = resource.merge(Resource({"service.name": "marimo"}))
     return resource
