@@ -14,7 +14,8 @@ def _get_protected_lines(code: str, tokens: list) -> list[bool]:
     Handles both regular triple-quoted strings (STRING token) and f-strings
     (FSTRING_START/FSTRING_MIDDLE/FSTRING_END tokens in Python 3.12+).
     """
-    lines = code.splitlines(keepends=True)
+    lines = code.splitlines()
+    n = len(lines)
     protected = [False] * n
 
     # Token type values for f-string tokens (Python 3.12+)
