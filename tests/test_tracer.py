@@ -264,6 +264,12 @@ class TestSetTracerProvider:
 
 @pytest.mark.requires("opentelemetry")
 class TestTracerResource:
+    def setup_method(self) -> None:
+        _reset_otel()
+
+    def teardown_method(self) -> None:
+        _reset_otel()
+
     def test_default_service_name(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -319,7 +325,6 @@ class TestTracerResource:
     def test_file_exporter_applies_resource(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        _reset_otel()
         monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
         monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
         monkeypatch.setenv("OTEL_SERVICE_NAME", "file-export-marimo")
