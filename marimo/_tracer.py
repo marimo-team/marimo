@@ -213,6 +213,25 @@ def _set_tracer_provider() -> None:
     # Sets the global default tracer provider
     trace.set_tracer_provider(provider)
 
+    _instrument_ai(provider)
+
+
+def _instrument_ai(provider: trace.TracerProvider) -> None:
+    """Current AI integrations use pydantic_ai, so we instrument it globally."""
+
+    if not DependencyManager.pydantic_ai.has():
+        LOGGER.debug("Skipping AI instrumentation (pydantic_ai not installed)")
+        return
+
+    try:
+        from pydantic_ai import Agent
+        from pydantic_ai.models.instrumented import InstrumentationSettings
+
+        Agent.instrument_all(InstrumentationSettings(tracer_provider=provider))
+        LOGGER.debug("Enabled AI instrumentation")
+    except Exception as e:
+        LOGGER.debug("AI instrumentation failed: %s", e)
+
 
 def create_tracer(trace_name: str) -> trace.Tracer:
     """

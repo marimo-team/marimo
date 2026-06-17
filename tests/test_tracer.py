@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -238,6 +239,28 @@ class TestSetTracerProvider:
         provider = trace.get_tracer_provider()
         assert not hasattr(provider, "_active_span_processor")
 
+    def test_instruments_ai_with_built_provider(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Guards against dropping the _instrument_ai() call in
+        # _set_tracer_provider().
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
+
+        from opentelemetry import trace
+
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
+
+        with patch("marimo._tracer._instrument_ai") as mock_instrument:
+            from marimo._tracer import _set_tracer_provider
+
+            _set_tracer_provider()
+
+        mock_instrument.assert_called_once_with(trace.get_tracer_provider())
+
 
 @pytest.mark.requires("opentelemetry")
 class TestCreateTracer:
@@ -262,3 +285,72 @@ class TestCreateTracer:
         monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
         tracer = create_tracer("test.real")
         assert not isinstance(tracer, MockTracer)
+
+
+class TestInstrumentAI:
+    """Tests for _instrument_ai() pydantic_ai instrumentation."""
+
+    def test_skips_when_pydantic_ai_not_installed(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from marimo._dependencies.dependencies import DependencyManager
+        from marimo._tracer import _instrument_ai
+
+        monkeypatch.setattr(
+            DependencyManager.pydantic_ai, "has", lambda *_, **__: False
+        )
+
+        # Inject a fake module so we can prove it's never touched.
+        fake_agent = MagicMock()
+        fake_module = MagicMock()
+        fake_module.Agent = fake_agent
+        monkeypatch.setitem(sys.modules, "pydantic_ai", fake_module)
+
+        _instrument_ai(MagicMock())
+
+        fake_agent.instrument_all.assert_not_called()
+
+    @pytest.mark.requires("pydantic_ai")
+    def test_instruments_when_pydantic_ai_installed(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from marimo._dependencies.dependencies import DependencyManager
+        from marimo._tracer import _instrument_ai
+
+        monkeypatch.setattr(
+            DependencyManager.pydantic_ai, "has", lambda *_, **__: True
+        )
+
+        from pydantic_ai.models.instrumented import InstrumentationSettings
+
+        provider = MagicMock()
+        with patch("pydantic_ai.Agent.instrument_all") as mock_instrument:
+            _instrument_ai(provider)
+
+        mock_instrument.assert_called_once()
+        settings = mock_instrument.call_args.args[0]
+        assert isinstance(settings, InstrumentationSettings)
+        # InstrumentationSettings builds its tracer from the provider rather
+        # than storing the provider itself, so assert the provider was used.
+        assert settings.tracer is provider.get_tracer.return_value
+
+    @pytest.mark.requires("pydantic_ai")
+    def test_swallows_exceptions(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from marimo._dependencies.dependencies import DependencyManager
+        from marimo._tracer import _instrument_ai
+
+        monkeypatch.setattr(
+            DependencyManager.pydantic_ai, "has", lambda *_, **__: True
+        )
+
+        # Should not raise even though instrument_all blows up.
+        with patch(
+            "pydantic_ai.Agent.instrument_all",
+            side_effect=RuntimeError("boom"),
+        ):
+            _instrument_ai(MagicMock())

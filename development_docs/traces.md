@@ -99,3 +99,10 @@ If the notebook exits gracefully (i.e., is shut down manually), profiling
 statistics will be written to the profiles/ directory. You can then use
 standard tools to analyze the dumped statistics. To view flamegraphs,
 we recommend snakeviz or tuna (`uvx snakeviz path_to_profile`)
+
+## AI Tracing
+
+When `MARIMO_TRACING=true` and `pydantic_ai` is installed, marimo automatically calls
+`Agent.instrument_all()` at server startup so editor AI (chat panel,
+completions, inline completion) emits OpenTelemetry spans through the
+same exporter as other server traces.
