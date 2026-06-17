@@ -55,6 +55,7 @@ marimo run notebook.py
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | Trace-specific OTLP endpoint; takes precedence over `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_ |
 | `OTEL_EXPORTER_OTLP_PROTOCOL` | OTLP protocol for all signals: `http/protobuf` or `grpc` | `http/protobuf` |
 | `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` | Trace-specific OTLP protocol; takes precedence over `OTEL_EXPORTER_OTLP_PROTOCOL` | _(unset)_ |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Comma-separated `key=value` auth or routing headers for OTLP export | _(empty)_ |
 | `OTEL_SERVICE_NAME` | `service.name` resource attribute | `marimo` |
 | `OTEL_RESOURCE_ATTRIBUTES` | Comma-separated `key=value` pairs added to the resource | _(empty)_ |
 
@@ -103,6 +104,5 @@ we recommend snakeviz or tuna (`uvx snakeviz path_to_profile`)
 ## AI Tracing
 
 When `MARIMO_TRACING=true` and `pydantic_ai` is installed, marimo automatically calls
-`Agent.instrument_all()` at server startup so editor AI (chat panel,
-completions, inline completion) emits OpenTelemetry spans through the
-same exporter as other server traces.
+`Agent.instrument_all()` at startup so pydantic-ai spans use the same
+`TracerProvider`.
