@@ -15,7 +15,7 @@ from typing import (
     cast,
 )
 
-from marimo._ast.dedent import fixed_dedent, smart_dedent as _smart_dedent
+from marimo._ast.dedent import fixed_dedent
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._schemas.serialization import (
     AppInstantiation,
@@ -54,47 +54,14 @@ def ast_parse(
         return cast(ast.Module, ast.parse(contents, **kwargs))
 
 
-<<<<<<< HEAD
 def split_source_lines(text: str) -> list[str]:
     """Split source into lines the way `ast`/`tokenize` count them.
 
-    Unlike `str.splitlines()`, this only treats `\\n`, `\\r`, and `\\r\\n` as
-    line breaks. `str.splitlines()` additionally splits on `\\f`, `\\v`, the
-    `\\x1c`-`\\x1e` separators, and Unicode line separators.
+    Unlike `str.splitlines()`, this only treats `\n`, `\r`, and `\r\n` as
+    line breaks. `str.splitlines()` additionally splits on `\f`, `\v`, the
+    `\x1c`-`\x1e` separators, and Unicode line separators.
     """
     return text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-
-
-def fixed_dedent(text: str) -> str:
-    """Manually edited code, can dedent"""
-    # Added robustness for AI generated code with inconsistent indentation,
-    # while preserving whitespace inside multiline string literals.
-    from marimo._ast.dedent import _get_protected_lines
-
-    lines = text.splitlines()
-    protected = _get_protected_lines(text)
-    for i, line in enumerate(lines):
-        if protected[i]:
-            continue
-        if content := line.lstrip():
-            indent = line[: len(line) - len(content)]
-            break
-    else:
-        return _smart_dedent(text)
-
-    def refill(i: int, ln: str) -> str:
-        if protected[i]:
-            return ln
-        if not ln.startswith(indent):
-            return indent + ln
-        return ln
-
-    return _smart_dedent(
-        "\n".join(refill(i, ln) for i, ln in enumerate(lines))
-    )
-
-=======
->>>>>>> 1f9da97af (fix: handle f-strings, move fixed_dedent to dedent.py, add tests)
 
 def unwrap_cell_body(formatted: str) -> str:
     """Extract the body of a wrapped `def _():` cell after ruff formatting.
@@ -123,6 +90,8 @@ def unwrap_cell_body(formatted: str) -> str:
     return fixed_dedent(raw).strip()
 
 
+=======
+>>>>>>> 204380c3f ([pre-commit.ci] auto fixes from pre-commit.com hooks)
 def extract_lineno(node: Node) -> int:
     if not isinstance(
         node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef)

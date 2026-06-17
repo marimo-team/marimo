@@ -1,5 +1,7 @@
 """Tests for token-aware smart_dedent and fixed_dedent."""
+
 from __future__ import annotations
+
 from marimo._ast.dedent import fixed_dedent, smart_dedent
 
 
@@ -14,25 +16,28 @@ class TestSmartDedent:
     def test_multiline_string_interior_preserved(self):
         code = '    x = """line0\n  two_spaces\n    four_spaces\n      six_spaces"""\n'
         result = smart_dedent(code)
-        assert result == 'x = """line0\n  two_spaces\n    four_spaces\n      six_spaces"""\n'
+        assert (
+            result
+            == 'x = """line0\n  two_spaces\n    four_spaces\n      six_spaces"""\n'
+        )
 
     def test_fstring_interior_preserved(self):
         code = '    name = "world"\n    x = f"""hello\n  indented line\n    more indented"""\n'
         result = smart_dedent(code)
-        assert '  indented line' in result
-        assert '    more indented' in result
+        assert "  indented line" in result
+        assert "    more indented" in result
         assert result.startswith('name = "world"')
 
     def test_raw_string_interior_preserved(self):
         code = '    x = r"""line0\n  raw content\n    more raw"""\n'
         result = smart_dedent(code)
-        assert '  raw content' in result
-        assert '    more raw' in result
+        assert "  raw content" in result
+        assert "    more raw" in result
 
     def test_docstring_content_at_column_zero(self):
         code = '    def f():\n        """Cell to compute sum\ne.g. a=1; b=2\nfoo\n"""\n        return a + b\n'
         result = smart_dedent(code)
-        assert 'e.g. a=1; b=2' in result
+        assert "e.g. a=1; b=2" in result
         assert result.startswith("def f():")
 
     def test_single_line_string_not_protected(self):
