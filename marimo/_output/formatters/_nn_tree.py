@@ -48,6 +48,8 @@ def _frozen_attr(is_frozen: bool) -> str:
 
 def _fmt_integer(n: int) -> str:
     """Format int into a human readable string."""
+    if n >= 1_000_000_000:
+        return f"{n / 1_000_000_000:.1f}B"
     if n >= 1_000_000:
         return f"{n / 1_000_000:.1f}M"
     if n >= 1_000:
