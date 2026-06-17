@@ -15,6 +15,7 @@ from marimo import _loggers
 from marimo._ai._convert import convert_to_ai_sdk_messages
 from marimo._ai._pydantic_ai_utils import create_simple_prompt
 from marimo._config.config import AiConfig, MarimoConfig
+from marimo._config.secrets import mask_secrets
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -98,6 +99,7 @@ async def safe_stream_wrapper(
 
 def get_ai_config(config: MarimoConfig) -> AiConfig:
     ai_config = config.get("ai", None)
+    LOGGER.debug("ai_config: %s", mask_secrets(config).get("ai"))
     if ai_config is None:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
