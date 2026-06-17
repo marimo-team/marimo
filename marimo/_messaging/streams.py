@@ -208,28 +208,6 @@ class ThreadSafeStream(Stream):
                 self.console_msg_cv.notify()
 
 
-def _forward_os_stream(
-    standard_stream: Stdout | Stderr, fd: int, should_exit: threading.Event
-) -> None:
-    """Watch a file descriptor and forward it to a stream object."""
-
-    # This coarse try/except block silences exceptions; a raised exception
-    # at this point could cause bad errors, such as an infinite stream of data
-    # to be written to the fd/routed through the stream.
-    #
-    # TODO(akshayka): Make this loop bomb-proof, so that exceptions raised are
-    # exceptions we actually want to pay attention to; then store the exception
-    # and print it to the terminal later (outside an execution context).
-    try:
-        while not should_exit.is_set():
-            data = os.read(fd, 1024)
-            if not data:
-                break
-            standard_stream.write(data.decode())
-    except Exception:
-        ...
-
-
 class _NoOpWatcher:
     """A dummy watcher that does nothing, used when fd redirection is off."""
 
@@ -254,16 +232,40 @@ class Watcher:
     ) -> None:
         self.standard_stream = standard_stream
         self.fd = self.standard_stream._original_fd
+        self.read_fd: int | None = None
+        self.write_fd: int | None = None
+        self.thread: threading.Thread | None = None
+        self._should_exit: threading.Event | None = None
+
+    def _forward_os_stream(
+        self, read_fd: int, cell_id: CellId_t | None
+    ) -> None:
+        try:
+            while self._should_exit is not None:
+                data = os.read(read_fd, 1024)
+                if not data:
+                    break
+                if cell_id is None:
+                    self.standard_stream.write(data.decode())
+                    continue
+                old_cell_id = self.standard_stream._stream.cell_id
+                self.standard_stream._stream.cell_id = cell_id
+                try:
+                    self.standard_stream.write(data.decode())
+                finally:
+                    self.standard_stream._stream.cell_id = old_cell_id
+        except Exception:
+            ...
+
+    def start(self) -> None:
         self.read_fd, self.write_fd = os.pipe()
         self._should_exit = threading.Event()
         self.thread = threading.Thread(
-            target=_forward_os_stream,
-            args=(self.standard_stream, self.read_fd, self._should_exit),
+            target=self._forward_os_stream,
+            args=(self.read_fd, self.standard_stream._stream.cell_id),
             daemon=True,
         )
         self.thread.start()
-
-    def start(self) -> None:
         # Save the file for the standard stream by opening a new file
         # descriptor for it
         self.fd_dup = os.dup(self.fd)
@@ -278,11 +280,26 @@ class Watcher:
         os.dup2(self.fd_dup, self.fd)
         os.close(self.fd_dup)
         self.standard_stream._set_fileno(None)
+        if self.write_fd is not None:
+            os.close(self.write_fd)
+            self.write_fd = None
+        if self.thread is not None:
+            self.thread.join(timeout=1)
+            self.thread = None
+        if self.read_fd is not None:
+            os.close(self.read_fd)
+            self.read_fd = None
+        self._should_exit = None
 
     def stop(self) -> None:
-        os.close(self.write_fd)
-        os.close(self.read_fd)
-        self._should_exit.set()
+        if self._should_exit is not None:
+            self._should_exit.set()
+        if self.write_fd is not None:
+            os.close(self.write_fd)
+            self.write_fd = None
+        if self.read_fd is not None:
+            os.close(self.read_fd)
+            self.read_fd = None
 
 
 # NB: Python doesn't provide a standard out class to inherit from, so
