@@ -6,14 +6,11 @@ classes defined inside marimo cells the module is `"__main__"`, but the
 interpreter's `sys.modules["__main__"]` does not actually hold the cell
 namespace — so `pickle.loads` of a cell-defined class (or an instance of
 one) fails with `AttributeError: Can't get attribute 'KAN' on <module
-'__main__' ...>`.
+'__main__' ...>`. ## WHY, seems doable.
 
-`ClassStub` mirrors the role of :class:`FunctionStub` for classes:
-capture the class source at save time, re-exec the source into the cell
-namespace at load time. Once the class is alive in the namespace,
-:class:`~marimo._save.loaders.unpickler.CellNamespaceUnpickler` can
-resolve `__main__.KAN` against that namespace instead of
-`sys.modules["__main__"]`.
+`ClassStub` mirrors the role of `FunctionStub` for classes: capture the
+class source at save time, then re-exec it into the cell namespace at
+load time so the class is bound under its name again.
 """
 
 from __future__ import annotations

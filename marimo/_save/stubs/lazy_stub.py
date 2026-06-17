@@ -147,21 +147,7 @@ def _arrow_load(data: bytes, type_hint: str | None = None) -> Any:
     # type_hint is the fq class name written by to_item() at save time.
     # Using it (rather than schema metadata inspection) is explicit and
     # version-stable across pyarrow/polars/pandas releases.
-    if not DependencyManager.pyarrow.has():
-        from marimo._utils.platform import is_pyodide
-
-        if is_pyodide():
-            import asyncio
-
-            import micropip  # type: ignore[import-not-found]
-
-            asyncio.get_event_loop().run_until_complete(
-                micropip.install("pyarrow")
-            )
-        else:
-            DependencyManager.pyarrow.require(
-                "to load cached Arrow IPC blobs."
-            )
+    DependencyManager.pyarrow.require("to load cached Arrow IPC blobs.")
     import pyarrow as pa
 
     reader = pa.ipc.open_file(io.BytesIO(data))
@@ -244,8 +230,7 @@ def _arrow_dump(obj: Any) -> bytes:
 
 
 def _pt_dump(obj: Any) -> bytes:
-    # A live tensor in scope implies torch is importable; no fallback
-    # needed (unlike _arrow_dump, where pandas can exist without pyarrow).
+    DependencyManager.torch.require("to dump torch tensors.")
     import torch  # type: ignore[import-not-found]
 
     buf = io.BytesIO()
