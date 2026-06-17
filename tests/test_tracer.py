@@ -250,14 +250,14 @@ class TestSetTracerProvider:
 
         from opentelemetry import trace
 
+        # Import while tracing is disabled to avoid import-time instrumentation.
+        import marimo._tracer as tracer_module
         from marimo._config.settings import GLOBAL_SETTINGS
 
         monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
 
-        with patch("marimo._tracer._instrument_ai") as mock_instrument:
-            from marimo._tracer import _set_tracer_provider
-
-            _set_tracer_provider()
+        with patch.object(tracer_module, "_instrument_ai") as mock_instrument:
+            tracer_module._set_tracer_provider()
 
         mock_instrument.assert_called_once_with(trace.get_tracer_provider())
 
