@@ -15,6 +15,33 @@ LOGGER = _loggers.marimo_logger()
 
 
 CellCodes = dict[CellId_t, str]
+_CELL_FORMAT_WRAPPER = "__marimo_format_cell__"
+
+
+def _wrap_cell_code(code: str) -> tuple[str, bool]:
+    body = code.rstrip()
+    has_statement = any(
+        line.strip() and not line.lstrip().startswith("#")
+        for line in body.splitlines()
+    )
+    added_pass = not has_statement
+    if added_pass:
+        body = f"{body}\npass" if body else "pass"
+    return (
+        f"async def {_CELL_FORMAT_WRAPPER}():\n"
+        f"{textwrap.indent(body, '    ')}\n",
+        added_pass,
+    )
+
+
+def _unwrap_cell_code(code: str, *, added_pass: bool) -> str:
+    lines = code.strip().splitlines()
+    if not lines or not lines[0].startswith(f"async def {_CELL_FORMAT_WRAPPER}("):
+        return code.strip()
+    body = [line.removeprefix("    ") for line in lines[1:]]
+    if added_pass and body and body[-1] == "pass":
+        body.pop()
+    return "\n".join(body).strip()
 
 
 async def _run_subprocess_safe(
@@ -62,7 +89,10 @@ async def _run_subprocess_safe(
 
 
 async def ruff(
-    codes: CellCodes, *cmd: str, stdin_filename: str | None = None
+    codes: CellCodes,
+    *cmd: str,
+    stdin_filename: str | None = None,
+    format_as_cell: bool = False,
 ) -> CellCodes:
     # Try with sys.executable first
     ruff_cmd = [sys.executable, "-m", "ruff"]
@@ -84,19 +114,27 @@ async def ruff(
     formatted_codes: CellCodes = {}
     for key, code in codes.items():
         try:
+            input_code = code
+            added_pass = False
+            if format_as_cell:
+                input_code, added_pass = _wrap_cell_code(code)
             command = [*ruff_cmd, *cmd]
             if stdin_filename:
                 command.extend(["--stdin-filename", stdin_filename])
             command.append("-")
 
             stdout, _stderr, returncode = await _run_subprocess_safe(
-                *command, input_data=code.encode()
+                *command, input_data=input_code.encode()
             )
 
             if returncode != 0:
                 raise FormatError("Failed to format code with ruff")
 
             formatted = stdout.decode()
+            if format_as_cell:
+                formatted = _unwrap_cell_code(
+                    formatted, added_pass=added_pass
+                )
             formatted_codes[key] = formatted.strip()
         except Exception as e:
             LOGGER.error("Failed to format code with ruff")
@@ -172,6 +210,7 @@ class RuffFormatter(Formatter):
             "--line-length",
             str(self.line_length),
             stdin_filename=stdin_filename,
+            format_as_cell=True,
         )
 
         # Unwrap: use the AST to extract the function body, mirroring the

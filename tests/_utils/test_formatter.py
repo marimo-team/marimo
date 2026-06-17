@@ -145,6 +145,7 @@ class TestRuffFormatter:
             "--line-length",
             "100",
             stdin_filename=None,
+            format_as_cell=True,
         )
         assert result == {"cell1": "x = 1"}
 
@@ -172,6 +173,7 @@ class TestRuffFormatter:
             "--line-length",
             "100",
             stdin_filename="/tmp/notebook.py",
+            format_as_cell=True,
         )
         assert result == {"cell1": "x = 1"}
 
@@ -235,6 +237,7 @@ class TestRuffFormatter:
             "--line-length",
             "88",
             stdin_filename=None,
+            format_as_cell=True,
         )
         assert result == {"cell1": cell_code}
 
@@ -337,6 +340,26 @@ class TestBlackFormatter:
 
 class TestRuffFunction:
     """Test the ruff async function."""
+
+    async def test_ruff_function_formats_code_as_cell_body(self):
+        codes: CellCodes = {
+            "cell1": "x = 3\n\n\ndef _foo():\n    return x + 1\n\n\nprint(_foo())"
+        }
+
+        result = await ruff(
+            codes,
+            "format",
+            "--line-length",
+            "88",
+            format_as_cell=True,
+        )
+
+        assert result == {
+            "cell1": "x = 3\n\n"
+            "def _foo():\n"
+            "    return x + 1\n\n"
+            "print(_foo())"
+        }
 
     @patch("marimo._utils.formatter._run_subprocess_safe")
     async def test_ruff_function_with_module_ruff_available(
