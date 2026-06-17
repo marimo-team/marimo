@@ -15,7 +15,7 @@ from typing import (
     cast,
 )
 
-from marimo._ast.dedent import smart_dedent as _smart_dedent
+from marimo._ast.dedent import fixed_dedent, smart_dedent as _smart_dedent
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._schemas.serialization import (
     AppInstantiation,
@@ -54,6 +54,7 @@ def ast_parse(
         return cast(ast.Module, ast.parse(contents, **kwargs))
 
 
+<<<<<<< HEAD
 def split_source_lines(text: str) -> list[str]:
     """Split source into lines the way `ast`/`tokenize` count them.
 
@@ -92,6 +93,8 @@ def fixed_dedent(text: str) -> str:
         "\n".join(refill(i, ln) for i, ln in enumerate(lines))
     )
 
+=======
+>>>>>>> 1f9da97af (fix: handle f-strings, move fixed_dedent to dedent.py, add tests)
 
 def unwrap_cell_body(formatted: str) -> str:
     """Extract the body of a wrapped `def _():` cell after ruff formatting.
