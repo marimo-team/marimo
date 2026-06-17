@@ -98,7 +98,6 @@ async def safe_stream_wrapper(
 
 def get_ai_config(config: MarimoConfig) -> AiConfig:
     ai_config = config.get("ai", None)
-    LOGGER.debug(f"ai_config: {ai_config}")
     if ai_config is None:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
