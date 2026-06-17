@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Literal, cast
-from urllib.parse import unquote
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -84,6 +83,9 @@ class MockTracer:
 
 TRACE_FILENAME = os.path.join("traces", "spans.jsonl")
 OTLPProtocol = Literal["grpc", "http/protobuf"]
+# OTEL SDK default when service.name is unset (Resource.create in
+# opentelemetry.sdk.resources). May be suffixed with :<executable>.
+_OTEL_DEFAULT_SERVICE_NAME = "unknown_service"
 
 
 def _otlp_endpoint_configured() -> bool:
@@ -120,25 +122,15 @@ def _tracer_resource() -> Resource:
     """Build the OpenTelemetry resource from standard OTEL env vars."""
     from opentelemetry.sdk.resources import Resource
 
-    attributes: dict[str, str] = {"service.name": "marimo"}
-
-    raw_attrs = os.environ.get("OTEL_RESOURCE_ATTRIBUTES", "").strip()
-    if raw_attrs:
-        for item in raw_attrs.split(","):
-            item = item.strip()
-            if not item or "=" not in item:
-                continue
-            key, value = item.split("=", 1)
-            key = key.strip()
-            if not key:
-                continue
-            attributes[key] = unquote(value.strip())
-
-    service_name = os.environ.get("OTEL_SERVICE_NAME", "").strip()
-    if service_name:
-        attributes["service.name"] = service_name
-
-    return Resource.create(attributes)
+    # Resource.create() reads OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES
+    # Default to marimo when unset.
+    resource = Resource.create()
+    service_name = resource.attributes.get("service.name")
+    if not isinstance(service_name, str) or service_name.startswith(
+        _OTEL_DEFAULT_SERVICE_NAME
+    ):
+        resource = resource.merge(Resource({"service.name": "marimo"}))
+    return resource
 
 
 def _set_tracer_provider() -> None:
