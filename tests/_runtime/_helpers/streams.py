@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo._messaging.notification import (
@@ -45,6 +46,10 @@ class MockStream(ThreadSafeStream):
         self.pipe = cast(Any, pipe)
         self.input_queue = cast(Any, input_queue)
         self.redirect_console = redirect_console
+        self._cell_id_context = ContextVar(
+            "marimo_stream_cell_id",
+            default=cell_id,
+        )
         self.cell_id = cell_id
         self.messages: list[KernelMessage] = []
         import threading

@@ -15,13 +15,14 @@ from __future__ import annotations
 import io
 import sys
 import threading
-from contextvars import ContextVar
+from contextlib import contextmanager
+from contextvars import ContextVar, Token
 from typing import TYPE_CHECKING, TextIO
 
 from marimo._messaging.types import Stderr, Stdout
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Iterator
 
 
 _proxies_installed = False
@@ -53,13 +54,20 @@ class ThreadLocalStreamProxy(io.TextIOBase):
 
     # -- per-thread registration -------------------------------------------
 
-    def _set_stream(self, stream: io.TextIOBase) -> None:
+    def _set_stream(
+        self, stream: io.TextIOBase
+    ) -> Token[io.TextIOBase | TextIO | None]:
         self._local.stream = stream
-        self._context_stream.set(stream)
+        return self._context_stream.set(stream)
 
-    def _clear_stream(self) -> None:
+    def _clear_stream(
+        self, token: Token[io.TextIOBase | TextIO | None] | None = None
+    ) -> None:
         self._local.stream = None
-        self._context_stream.set(None)
+        if token is None:
+            self._context_stream.set(None)
+        else:
+            self._context_stream.reset(token)
 
     def _get_stream(self) -> io.TextIOBase | TextIO:
         stream = self._context_stream.get()
@@ -115,14 +123,6 @@ def install_thread_local_proxies() -> None:
     global _proxies_installed, _original_stdout, _original_stderr
     with _install_lock:
         if _proxies_installed:
-            if not isinstance(sys.stdout, ThreadLocalStreamProxy):
-                sys.stdout = ThreadLocalStreamProxy(  # type: ignore[assignment]
-                    sys.stdout, "<stdout>"
-                )
-            if not isinstance(sys.stderr, ThreadLocalStreamProxy):
-                sys.stderr = ThreadLocalStreamProxy(  # type: ignore[assignment]
-                    sys.stderr, "<stderr>"
-                )
             return
         _original_stdout = sys.stdout
         _original_stderr = sys.stderr
@@ -154,6 +154,25 @@ def set_thread_local_streams(
         sys.stdout._set_stream(stdout)  # type: ignore[union-attr]
     if isinstance(sys.stderr, ThreadLocalStreamProxy) and stderr is not None:
         sys.stderr._set_stream(stderr)  # type: ignore[union-attr]
+
+
+@contextmanager
+def with_thread_local_streams(
+    stdout: Stdout | None, stderr: Stderr | None
+) -> Iterator[None]:
+    stdout_token: Token[io.TextIOBase | TextIO | None] | None = None
+    stderr_token: Token[io.TextIOBase | TextIO | None] | None = None
+    if isinstance(sys.stdout, ThreadLocalStreamProxy) and stdout is not None:
+        stdout_token = sys.stdout._set_stream(stdout)  # type: ignore[union-attr]
+    if isinstance(sys.stderr, ThreadLocalStreamProxy) and stderr is not None:
+        stderr_token = sys.stderr._set_stream(stderr)  # type: ignore[union-attr]
+    try:
+        yield
+    finally:
+        if isinstance(sys.stdout, ThreadLocalStreamProxy):
+            sys.stdout._clear_stream(stdout_token)  # type: ignore[union-attr]
+        if isinstance(sys.stderr, ThreadLocalStreamProxy):
+            sys.stderr._clear_stream(stderr_token)  # type: ignore[union-attr]
 
 
 def clear_thread_local_streams() -> None:

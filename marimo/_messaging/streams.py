@@ -110,7 +110,7 @@ class ThreadSafeStream(Stream):
         self.pipe = pipe
         self._cell_id_context: ContextVar[CellId_t | None] = ContextVar(
             "marimo_stream_cell_id",
-            default=None,
+            default=cell_id,
         )
         self.cell_id = cell_id
         self.redirect_console = redirect_console
