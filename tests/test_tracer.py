@@ -263,6 +263,90 @@ class TestSetTracerProvider:
 
 
 @pytest.mark.requires("opentelemetry")
+class TestTracerResource:
+    def test_default_service_name(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
+        monkeypatch.delenv("OTEL_RESOURCE_ATTRIBUTES", raising=False)
+
+        from marimo._tracer import _tracer_resource
+
+        resource = _tracer_resource()
+        assert resource.attributes["service.name"] == "marimo"
+
+    def test_service_name_from_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "my-marimo")
+        monkeypatch.delenv("OTEL_RESOURCE_ATTRIBUTES", raising=False)
+
+        from marimo._tracer import _tracer_resource
+
+        resource = _tracer_resource()
+        assert resource.attributes["service.name"] == "my-marimo"
+
+    def test_resource_attributes_from_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
+        monkeypatch.setenv(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            "deployment.environment=dev,service.version=1.2.3",
+        )
+
+        from marimo._tracer import _tracer_resource
+
+        resource = _tracer_resource()
+        assert resource.attributes["service.name"] == "marimo"
+        assert resource.attributes["deployment.environment"] == "dev"
+        assert resource.attributes["service.version"] == "1.2.3"
+
+    def test_service_name_overrides_resource_attributes(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "from-env")
+        monkeypatch.setenv(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            "service.name=from-attrs",
+        )
+
+        from marimo._tracer import _tracer_resource
+
+        resource = _tracer_resource()
+        assert resource.attributes["service.name"] == "from-env"
+
+    def test_file_exporter_applies_resource(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _reset_otel()
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "file-export-marimo")
+        monkeypatch.setenv(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            "deployment.environment=test",
+        )
+
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+
+        from marimo._config.settings import GLOBAL_SETTINGS
+        from marimo._tracer import _set_tracer_provider
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
+        _set_tracer_provider()
+
+        provider = trace.get_tracer_provider()
+        assert isinstance(provider, TracerProvider)
+        assert (
+            provider.resource.attributes["service.name"]
+            == "file-export-marimo"
+        )
+        assert provider.resource.attributes["deployment.environment"] == "test"
+
+
+@pytest.mark.requires("opentelemetry")
 class TestCreateTracer:
     def test_returns_mock_when_tracing_disabled(
         self,
