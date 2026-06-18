@@ -39,8 +39,6 @@ from marimo._utils.http import HTTPStatus
 from marimo._utils.typing import override
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, AsyncIterator
-
     from openai import AsyncOpenAI
     from pydantic_ai import Agent, DeferredToolRequests, FunctionToolset
     from pydantic_ai.models import Model
@@ -199,31 +197,6 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         )
         event_stream = adapter.run_stream()
         return adapter.streaming_response(event_stream)
-
-    async def stream_text(
-        self,
-        user_prompt: str,
-        messages: list[ServerUIMessage],
-        system_prompt: str,
-        max_tokens: int | None,
-        additional_tools: list[ToolDefinition],
-    ) -> AsyncGenerator[str]:
-        """Return a stream of text from the given messages."""
-        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
-
-        tools = (self.config.tools or []) + additional_tools
-        agent = self.create_agent(
-            max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
-        )
-
-        async with agent.run_stream(
-            user_prompt=user_prompt,
-            message_history=VercelAIAdapter.load_messages(
-                self.convert_messages(messages)
-            ),
-        ) as result:
-            async for message in result.stream_text(delta=True):
-                yield message
 
     async def completion(
         self,
@@ -967,109 +940,3 @@ def get_completion_provider(
         )
     else:
         return CustomProvider(model_id, config, [DependencyManager.openai])
-
-
-async def merge_backticks(
-    chunks: AsyncIterator[str],
-) -> AsyncGenerator[str, None]:
-    buffer: str | None = None
-
-    def only_whitespace_or_newlines(text: str) -> bool:
-        return all(char.isspace() or char == "\n" for char in text)
-
-    async for chunk in chunks:
-        if buffer is None:
-            buffer = chunk
-            continue
-
-        # Combine whitespace
-        if only_whitespace_or_newlines(buffer):
-            buffer += chunk
-            continue
-
-        # If buffer contains backticks, keep merging until we have no backticks,
-        # encounter a newline, or run out of chunks
-        if "`" in buffer:
-            buffer += chunk
-            # If we've hit a newline or no more backticks, yield the buffer
-            if "\n" in chunk or "`" not in buffer:
-                yield buffer
-                buffer = None
-        else:
-            # No backticks in buffer, yield it separately
-            yield buffer
-            buffer = chunk
-
-    # Return the last chunk if there's anything left
-    if buffer is not None:
-        yield buffer
-
-
-async def without_wrapping_backticks(
-    chunks: AsyncIterator[str],
-) -> AsyncGenerator[str, None]:
-    """
-    Removes the first and last backticks (```) from a stream of text chunks.
-
-    This function removes opening backticks (with optional language identifier)
-    from the start of the stream and closing backticks from the end of the stream.
-    It does not remove backticks that appear in the middle of the content.
-
-    Args:
-        chunks: An async iterator of text chunks
-
-    Yields:
-        Text chunks with the first and last backticks removed if they exist
-    """
-    # First, merge backticks across chunks to avoid split patterns
-    chunks = merge_backticks(chunks)
-
-    # Supported language identifiers
-    langs = ["python", "sql", "markdown"]
-
-    first_chunk = True
-    buffer: str | None = None
-    has_starting_backticks = False
-
-    async for chunk in chunks:
-        # Handle the first chunk
-        if first_chunk:
-            first_chunk = False
-            stripped_chunk = chunk.lstrip()
-            # Check for language-specific fences first
-            for lang in langs:
-                if stripped_chunk.startswith(f"```{lang}"):
-                    has_starting_backticks = True
-                    # Remove the starting backticks with lang
-                    chunk = stripped_chunk[3 + len(lang) :]
-                    # Also remove starting newline if present
-                    chunk = chunk.removeprefix("\n")
-                    break
-            # If no language-specific fence was found, check for plain backticks
-            else:
-                if stripped_chunk.startswith("```"):
-                    has_starting_backticks = True
-                    chunk = stripped_chunk[3:]  # Remove the starting backticks
-                    # Also remove starting newline if present
-                    chunk = chunk.removeprefix("\n")
-
-        # If we have a buffered chunk, yield it now
-        if buffer is not None:
-            yield buffer
-
-        # Store the current chunk as buffer for the next iteration
-        buffer = chunk
-
-    # Handle the last chunk
-    if buffer is not None:
-        # Some models add trailing space to the end of the response, so we strip to check for backticks
-        stripped_buffer = buffer.rstrip()
-        trailing_space = buffer[len(stripped_buffer) :]
-
-        # Remove ending newline if present
-        if has_starting_backticks:
-            if stripped_buffer.endswith("\n```"):
-                buffer = stripped_buffer[:-4] + trailing_space
-            elif stripped_buffer.endswith("```"):
-                buffer = stripped_buffer[:-3] + trailing_space
-        yield buffer

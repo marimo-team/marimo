@@ -12,11 +12,9 @@ from marimo._server.ai.prompts import (
     FIM_PREFIX_TAG,
     FIM_SUFFIX_TAG,
 )
-from marimo._server.ai.providers import (
-    without_wrapping_backticks,
-)
 from marimo._server.ai.tools.types import ToolCallResult
-from marimo._server.api.endpoints.ai import safe_stream_wrapper
+from marimo._server.api.endpoints.ai import resolve_completion_messages
+from marimo._server.models.completion import AiCompletionRequest
 from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
 
@@ -78,6 +76,28 @@ def _create_messages(prompt: str) -> list[dict[str, Any]]:
     ]
 
 
+def _mock_stream_completion_response() -> Any:
+    from starlette.responses import StreamingResponse
+
+    async def mock_stream() -> Any:
+        yield b"import pandas as pd"
+
+    return StreamingResponse(
+        content=mock_stream(),
+        media_type="text/event-stream",
+    )
+
+
+def _assert_completion_prompt_in_messages(
+    mock_stream_completion: Any, prompt: str
+) -> None:
+    mock_stream_completion.assert_called_once()
+    messages = mock_stream_completion.call_args.kwargs["messages"]
+    assert len(messages) == 1
+    assert messages[0]["role"] == "user"
+    assert messages[0]["parts"][0]["text"] == prompt
+
+
 @pytest.mark.requires("openai", "pydantic_ai")
 class TestOpenAiEndpoints:
     @staticmethod
@@ -108,17 +128,15 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.OpenAIProvider.stream_text")
+    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
     def test_completion_without_code(
-        client: TestClient, mock_stream_text: Any
+        client: TestClient, mock_stream_completion: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        # Mock async stream
-        async def mock_stream():
-            yield "import pandas as pd"
-
-        mock_stream_text.return_value = mock_stream()
+        mock_stream_completion.return_value = (
+            _mock_stream_completion_response()
+        )
 
         with patch.object(
             user_config_manager,
@@ -135,25 +153,21 @@ class TestOpenAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Verify stream_text was called
-            mock_stream_text.assert_called_once()
-            # Assert the prompt it was called with
-            call_kwargs = mock_stream_text.call_args.kwargs
-            assert call_kwargs["user_prompt"] == "Help me create a dataframe"
+            _assert_completion_prompt_in_messages(
+                mock_stream_completion, "Help me create a dataframe"
+            )
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.OpenAIProvider.stream_text")
+    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
     def test_completion_with_code(
-        client: TestClient, mock_stream_text: Any
+        client: TestClient, mock_stream_completion: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        # Mock async stream
-        async def mock_stream():
-            yield "import pandas as pd"
-
-        mock_stream_text.return_value = mock_stream()
+        mock_stream_completion.return_value = (
+            _mock_stream_completion_response()
+        )
 
         with patch.object(
             user_config_manager,
@@ -170,25 +184,21 @@ class TestOpenAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Verify stream_text was called
-            mock_stream_text.assert_called_once()
-            # Assert the prompt it was called with
-            call_kwargs = mock_stream_text.call_args.kwargs
-            assert call_kwargs["user_prompt"] == "Help me create a dataframe"
+            _assert_completion_prompt_in_messages(
+                mock_stream_completion, "Help me create a dataframe"
+            )
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.OpenAIProvider.stream_text")
+    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
     def test_completion_with_custom_model(
-        client: TestClient, mock_stream_text: Any
+        client: TestClient, mock_stream_completion: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        # Mock async stream
-        async def mock_stream():
-            yield "import pandas as pd"
-
-        mock_stream_text.return_value = mock_stream()
+        mock_stream_completion.return_value = (
+            _mock_stream_completion_response()
+        )
 
         with patch.object(
             user_config_manager,
@@ -205,22 +215,19 @@ class TestOpenAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Verify stream_text was called
-            mock_stream_text.assert_called_once()
+            mock_stream_completion.assert_called_once()
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.OpenAIProvider.stream_text")
+    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
     def test_completion_with_custom_base_url(
-        client: TestClient, mock_stream_text: Any
+        client: TestClient, mock_stream_completion: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        # Mock async stream
-        async def mock_stream():
-            yield "import pandas as pd"
-
-        mock_stream_text.return_value = mock_stream()
+        mock_stream_completion.return_value = (
+            _mock_stream_completion_response()
+        )
 
         with patch.object(
             user_config_manager,
@@ -237,8 +244,7 @@ class TestOpenAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Verify stream_text was called
-            mock_stream_text.assert_called_once()
+            mock_stream_completion.assert_called_once()
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -362,20 +368,15 @@ class TestAnthropicAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch(
-        "marimo._server.ai.providers.AnthropicProvider.stream_text",
-        return_value=AsyncMock(),
-    )
+    @patch("marimo._server.ai.providers.AnthropicProvider.stream_completion")
     def test_anthropic_completion_with_code(
-        client: TestClient, stream_text_mock: Any
+        client: TestClient, stream_completion_mock: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        # Mock async generator for stream_text
-        async def mock_stream():
-            yield "import pandas as pd"
-
-        stream_text_mock.return_value = mock_stream()
+        stream_completion_mock.return_value = (
+            _mock_stream_completion_response()
+        )
 
         with patch.object(
             user_config_manager, "get_config", return_value=_anthropic_config()
@@ -390,11 +391,9 @@ class TestAnthropicAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Verify that stream_text was called
-            stream_text_mock.assert_called_once()
-            # Check the user_prompt parameter
-            call_kwargs = stream_text_mock.call_args.kwargs
-            assert call_kwargs["user_prompt"] == "Help me create a dataframe"
+            _assert_completion_prompt_in_messages(
+                stream_completion_mock, "Help me create a dataframe"
+            )
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -438,20 +437,15 @@ class TestAnthropicAiEndpoints:
 class TestGoogleAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
-    @patch(
-        "marimo._server.ai.providers.GoogleProvider.stream_text",
-        return_value=AsyncMock(),
-    )
+    @patch("marimo._server.ai.providers.GoogleProvider.stream_completion")
     def test_google_ai_completion_with_code(
-        client: TestClient, stream_text_mock: Any
+        client: TestClient, stream_completion_mock: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        # Mock async generator for stream_text
-        async def mock_stream():
-            yield "import pandas as pd"
-
-        stream_text_mock.return_value = mock_stream()
+        stream_completion_mock.return_value = (
+            _mock_stream_completion_response()
+        )
 
         config = {
             "ai": {
@@ -476,11 +470,9 @@ class TestGoogleAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Verify that stream_text was called
-            stream_text_mock.assert_called_once()
-            # Check the user_prompt parameter
-            call_kwargs = stream_text_mock.call_args.kwargs
-            assert call_kwargs["user_prompt"] == "Help me create a dataframe"
+            _assert_completion_prompt_in_messages(
+                stream_completion_mock, "Help me create a dataframe"
+            )
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -491,12 +483,10 @@ class TestGoogleAiEndpoints:
 
         user_config_manager = get_session_config_manager(client)
 
-        # Mock async generator for stream_text
-        async def mock_stream():
-            yield "import pandas as pd"
-
         mock_provider = MagicMock(spec=PydanticProvider)
-        mock_provider.stream_text.return_value = mock_stream()
+        mock_provider.stream_completion.return_value = (
+            _mock_stream_completion_response()
+        )
 
         config = {
             "ai": {
@@ -525,10 +515,9 @@ class TestGoogleAiEndpoints:
             )
 
         assert response.status_code == 200, response.text
-        # Verify that stream_text was called
-        mock_provider.stream_text.assert_called_once()
-        call_kwargs = mock_provider.stream_text.call_args.kwargs
-        assert call_kwargs["user_prompt"] == "Help me create a dataframe"
+        _assert_completion_prompt_in_messages(
+            mock_provider.stream_completion, "Help me create a dataframe"
+        )
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -736,175 +725,6 @@ def test_chat_with_code(
         assert response.status_code == 200, response.text
         # Verify stream_completion was called
         mock_stream_completion.assert_called_once()
-
-
-@pytest.mark.parametrize(
-    ("chunks", "expected"),
-    [
-        # Basic cases
-        (["Hello", " world", "!"], "Hello world!"),
-        (
-            ["```", "print('hello')", "print('world')"],
-            "print('hello')print('world')",
-        ),
-        (
-            ["print('hello')", "print('world')", "```"],
-            "print('hello')print('world')```",
-        ),
-        (
-            ["```", "print('hello')", "```"],
-            "print('hello')",
-        ),
-        (["Hello", " ``` ", "world"], "Hello ``` world"),
-        (
-            ["``", "`print('hello')", "``", "`"],
-            "print('hello')",
-        ),
-        (
-            ["``", "`", "\n", "print('hello')", "\n", "``", "`"],
-            "print('hello')",
-        ),
-        (
-            ["```\n", "print('hello')", "print('world')", "\n```"],
-            "print('hello')print('world')",
-        ),
-        (
-            ["```\nprint('hello')\n", "print('world')\n```"],
-            "print('hello')\nprint('world')",
-        ),
-        (
-            ["```\n", "def test():\n    ", "return True\n```"],
-            "def test():\n    return True",
-        ),
-        ([], ""),
-        (["```idk```"], "idk"),
-        (["Hello world"], "Hello world"),
-        (
-            ["```python\n", "def hello():\n    ", "print('world')\n```"],
-            "def hello():\n    print('world')",
-        ),
-        (
-            ["```python", "\ndef hello():\n    ", "print('world')\n```"],
-            "def hello():\n    print('world')",
-        ),
-        (
-            ["```sql", "SELECT * FROM table", " WHERE id = 1", "```"],
-            "SELECT * FROM table WHERE id = 1",
-        ),
-        (
-            ["```sql\n", "SELECT * FROM table\n", "WHERE id = 1\n```"],
-            "SELECT * FROM table\nWHERE id = 1",
-        ),
-        # Test trailing whitespace preservation after closing backticks
-        (
-            ["```", "print('hello')", "```  "],
-            "print('hello')  ",
-        ),
-        (
-            ["```python\n", "print('hello')", "\n``` "],
-            "print('hello') ",
-        ),
-        (
-            ["```", "code", "```\t\n"],
-            "code\t\n",
-        ),
-        # Test leading whitespace before opening backticks (whitespace and backticks stripped)
-        (
-            ["  ```", "code", "```"],
-            "code",
-        ),
-        (
-            [" ```python\n", "code", "```"],
-            "code",
-        ),
-        (
-            ["\t```", "code", "```"],
-            "code",
-        ),
-        (
-            ["\n", "\n", "```\n", "code", "\n```\n"],
-            "code\n",
-        ),
-        (
-            ["\n", "\n", "```python\n", "code", "\n```\n"],
-            "code\n",
-        ),
-        (
-            ["\n``", "`python\n", "code", "\n```\n"],
-            "code\n",
-        ),
-        (
-            ["\n`", "`", "`python\n", "code", "\n```\n"],
-            "code\n",
-        ),
-        # Test opening backticks with extra characters after language (language stripped, rest preserved)
-        (
-            ["```python ", "code", "```"],
-            " code",
-        ),
-        (
-            ["```python\t", "code", "```"],
-            "\tcode",
-        ),
-        # Empty code block
-        (["```\n", "```"], ""),
-        (["```python\n", "```"], ""),
-        # Only opening backticks
-        (["```\n", "code"], "code"),
-        (["```python\n", "code"], "code"),
-        # Only closing backticks
-        (["code", "\n```"], "code\n```"),
-        # Multiple consecutive code blocks (keeps middle fences)
-        (
-            ["```\n", "x = 1\n", "```\n", "```\n", "y = 2\n", "```"],
-            "x = 1\n```\n```\ny = 2\n",
-        ),
-        # Code block with inline backticks in content
-        (
-            ["```python\n", "s = 'use `backticks`'\n", "```"],
-            "s = 'use `backticks`'\n",
-        ),
-        # Backticks split across multiple chunks
-        (["``", "`\n", "code\n", "``", "`"], "code\n"),
-        # Language identifier split from backticks
-        (["```", "python\n", "code\n", "```"], "code\n"),
-        # No newline after opening backticks
-        (["```", "code", "```"], "code"),
-        # Text before opening backticks (not at start, so backticks kept)
-        (["prefix ", "```\n", "code\n", "```"], "prefix ```\ncode\n```"),
-        # Text after closing backticks (backticks kept because followed by text)
-        (["```\n", "code\n", "```", " suffix"], "code\n``` suffix"),
-        # Multiple newlines
-        (["```\n\n", "code\n\n", "```"], "\ncode\n\n"),
-        # Whitespace handling (preserved inside code block)
-        (["```\n", "  code  \n", "```"], "  code  \n"),
-        # Tab characters (preserved inside code block)
-        (["```\n", "\tcode\t\n", "```"], "\tcode\t\n"),
-        # Mixed opening styles in same stream (middle ```python\n is kept)
-        (
-            ["```\n", "x\n", "```\n", "```python\n", "y\n", "```"],
-            "x\n```\n```python\ny\n",
-        ),
-        # Unsupported language identifier (should keep it as text)
-        (
-            ["```javascript\n", "console.log()\n", "```"],
-            "javascript\nconsole.log()\n",
-        ),
-        # Markdown language identifier (supported)
-        (["```markdown\n", "# Title\n", "```"], "# Title\n"),
-    ],
-)
-async def test_without_wrapping_backticks(
-    chunks: list[str], expected: str
-) -> None:
-    async def async_iter(items):
-        for item in items:
-            yield item
-
-    result = []
-    async for chunk in without_wrapping_backticks(async_iter(chunks)):
-        result.append(chunk)
-    assert "".join(result) == expected
 
 
 # Tool invocation tests (provider-agnostic)
@@ -1274,18 +1094,26 @@ class TestMCPEndpoints:
         assert data["status"] == "error"
 
 
-async def test_safe_stream_wrapper_handles_errors() -> None:
-    """Test safe_stream_wrapper catches and formats streaming errors."""
+def test_resolve_completion_messages_from_prompt() -> None:
+    body = AiCompletionRequest(
+        prompt="edit this",
+        include_other_code="",
+        code="x = 1",
+    )
+    messages, support_multiple_cells = resolve_completion_messages(body)
+    assert support_multiple_cells is False
+    assert len(messages) == 1
+    assert messages[0]["parts"][0]["text"] == "edit this"
 
-    async def failing_generator():
-        yield "chunk1"
-        raise ValueError("Stream failed")
 
-    chunks = []
-    async for chunk in safe_stream_wrapper(
-        failing_generator(), text_only=True
-    ):
-        chunks.append(chunk)
-
-    assert chunks[0] == "chunk1"
-    assert "Stream failed" in chunks[1]
+def test_resolve_completion_messages_from_ui_messages() -> None:
+    ui_messages = _create_messages("hello")
+    body = AiCompletionRequest(
+        prompt="ignored",
+        include_other_code="",
+        code="",
+        ui_messages=ui_messages,
+    )
+    messages, support_multiple_cells = resolve_completion_messages(body)
+    assert support_multiple_cells is True
+    assert messages == ui_messages
