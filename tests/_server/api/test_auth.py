@@ -104,8 +104,8 @@ def create_connection(app: Starlette) -> HTTPConnection:
         {
             "type": "http",
             "app": app,
-            "headers": {},
-            "query_string": "",
+            "headers": [],
+            "query_string": b"",
             "method": "GET",
             "path": "/",
         }
