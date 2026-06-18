@@ -1071,7 +1071,7 @@ export const StorageInspector: React.FC = () => {
             </Button>
           )}
           <Tooltip
-            content="Filters loaded entries only. Expand directories or press Enter to search more entries from the backend."
+            content="Search by file name within loaded entries, or by prefix (e.g. 'folder/x') for backend search. Press Enter to fetch more results."
             delayDuration={200}
           >
             <HelpCircleIcon className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground hover:text-foreground mr-2" />
