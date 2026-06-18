@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from marimo._ast.variables import is_mangled_local
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
@@ -873,6 +874,17 @@ except NameError:
         assert "y" in k.globals
         assert k.globals["z"] == 1
         assert not k.globals["name_error"]
+
+    async def test_local_variables_deleted_from_globals(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="_x=0"),
+            ]
+        )
+        assert not any(is_mangled_local(name) for name in k.globals)
 
     async def test_import_module_as_local_var(
         self, any_kernel: Kernel
