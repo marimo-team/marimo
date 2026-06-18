@@ -21,6 +21,7 @@ class _AccordionHtml(ContainerHtml):
         self._multiple = multiple
         self._lazy = lazy
 
+        self._tabs: list[Html]
         if self._lazy:
             self._tabs = [lazy_ui(tab) for tab in items.values()]
         else:
