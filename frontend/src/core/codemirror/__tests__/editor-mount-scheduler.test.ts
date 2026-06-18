@@ -1,3 +1,4 @@
+/* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
 import { createEditorMountScheduler } from "../editor-mount-scheduler";
 
