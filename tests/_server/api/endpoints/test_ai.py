@@ -483,7 +483,7 @@ class TestGoogleAiEndpoints:
 
         user_config_manager = get_session_config_manager(client)
 
-        mock_provider = MagicMock(spec=PydanticProvider)
+        mock_provider = AsyncMock(spec=PydanticProvider)
         mock_provider.stream_completion.return_value = (
             _mock_stream_completion_response()
         )
