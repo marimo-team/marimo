@@ -430,7 +430,7 @@ describe("toDocumentChanges", () => {
       const [a] = state.cellIds.inOrderIds;
 
       // Position cursor at end of "line1" (position 5)
-      const view = state.cellHandles[a].current!.editorView;
+      const view = state.cellHandles[a].current!.editorView!;
       view.dispatch({ selection: { anchor: 5 } });
 
       const { changes } = resolve(state, {
@@ -466,7 +466,7 @@ describe("toDocumentChanges", () => {
       const [a] = state.cellIds.inOrderIds;
 
       // Split the cell first
-      const view = state.cellHandles[a].current!.editorView;
+      const view = state.cellHandles[a].current!.editorView!;
       view.dispatch({ selection: { anchor: 5 } });
       const snapshot = view.state.doc.toString();
       state = dispatch(state, {
