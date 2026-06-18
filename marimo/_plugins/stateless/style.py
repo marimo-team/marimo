@@ -5,8 +5,19 @@ from typing import Any
 
 from marimo._output.builder import h
 from marimo._output.formatting import as_dom_node
-from marimo._output.hypertext import Html
+from marimo._output.hypertext import ContainerHtml, Html
 from marimo._output.rich_help import mddoc
+
+
+class _StyledHtml(ContainerHtml):
+    """Html produced by `mo.style()`; keeps a live reference to its child."""
+
+    def __init__(self, child: Html, style_str: str) -> None:
+        self._style_str = style_str
+        super().__init__([child])
+
+    def _build_text(self) -> str:
+        return h.div(children=self._children[0].text, style=self._style_str)
 
 
 @mddoc
@@ -45,4 +56,4 @@ def style(
     style_str = ";".join(
         [f"{key}:{value}" for key, value in combined_style.items()]
     )
-    return Html(h.div(children=as_dom_node(item).text, style=style_str))
+    return _StyledHtml(as_dom_node(item), style_str)
