@@ -458,8 +458,11 @@ const CellEditorInternal = ({
   // Prioritize building this cell's editor when it scrolls into view, so the
   // visible region fills in first instead of waiting for the top-to-bottom
   // queue. The margin builds cells just before they reach the viewport.
+  // uidotdev sets threshold default to 1. Set it 0 so cells are prioritized
+  // at 300px.
   const [intersectionRef, intersection] = useIntersectionObserver({
     rootMargin: "300px 0px",
+    threshold: 0,
   });
   useEffect(() => {
     if (isEditorMounted) {

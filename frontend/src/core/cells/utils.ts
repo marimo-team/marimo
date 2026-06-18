@@ -29,7 +29,7 @@ export function notebookCells(state: NotebookState) {
 export function notebookCellEditorViews({ cellHandles }: NotebookState) {
   const views: Record<CellId, EditorView> = {};
   for (const [cell, ref] of Objects.entries(cellHandles)) {
-    if (!ref.current) {
+    if (!ref.current?.editorView) {
       continue;
     }
     views[cell] = ref.current.editorView;
