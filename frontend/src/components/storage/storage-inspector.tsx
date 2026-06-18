@@ -1040,7 +1040,10 @@ export const StorageInspector: React.FC = () => {
             value={searchValue}
             onValueChange={setSearchValue}
             onKeyDown={(event) => {
-              if (event.key === "Enter" && hasSearch) {
+              if (
+                event.key === "Enter" &&
+                namespaces.some(canContinueRemoteSearch)
+              ) {
                 event.preventDefault();
                 continueRemoteSearches();
               }
