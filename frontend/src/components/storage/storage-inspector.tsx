@@ -187,6 +187,21 @@ function canRetryRemoteSearch(remoteSearch: RemoteSearchState): boolean {
   );
 }
 
+/**
+ * Whether the backend may still have an unfetched page for a prefix: either we
+ * have never listed it, or its last listing returned a next-page token.
+ */
+function hasUnfetchedPrefixPage(
+  searchKey: StoragePathKey,
+  entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>,
+  pageMetadataByPath: ReadonlyMap<StoragePathKey, StoragePageMetadata>,
+): boolean {
+  return (
+    entriesByPath.get(searchKey) === undefined ||
+    pageMetadataByPath.get(searchKey)?.nextPageToken != null
+  );
+}
+
 function canSearchMoreRemoteEntries({
   hasSearch,
   hasLoadedMatches,
@@ -211,10 +226,7 @@ function canSearchMoreRemoteEntries({
     return false;
   }
 
-  return (
-    entriesByPath.get(searchKey) === undefined ||
-    pageMetadataByPath.get(searchKey)?.nextPageToken != null
-  );
+  return hasUnfetchedPrefixPage(searchKey, entriesByPath, pageMetadataByPath);
 }
 
 /**
@@ -635,14 +647,11 @@ const StorageNamespaceSection: React.FC<{
     searchPrefix === "" ? [] : (entriesByPath.get(searchKey) ?? []);
   // The fetched page is the whole parent directory; we still need to filter
   // it by the full search query before showing entries to the user.
-  const filteredRemoteEntries =
-    remoteEntries.length > 0
-      ? filterEntries(remoteEntries, {
-          namespace: namespaceName,
-          searchValue,
-          entriesByPath,
-        })
-      : remoteEntries;
+  const filteredRemoteEntries = filterEntries(remoteEntries, {
+    namespace: namespaceName,
+    searchValue,
+    entriesByPath,
+  });
   const hasSearch = !!searchValue.trim();
   const hasLoadedMatches =
     filtered.length > 0 || filteredRemoteEntries.length > 0;
@@ -702,7 +711,7 @@ const StorageNamespaceSection: React.FC<{
     if (remoteSearch.status === "exhausted" && !hasLoadedMatches) {
       return "No matches";
     }
-    if (!hasSearch && !isPending && entries.length === 0 && !error) {
+    if (!hasSearch && !isPending && entries.length === 0) {
       return "No entries";
     }
     if (canSearchMore) {
@@ -899,10 +908,11 @@ export const StorageInspector: React.FC = () => {
         return false;
       }
 
-      const canFetchPrefix =
-        entriesByPath.get(searchKey) === undefined ||
-        pageMetadataByPath.get(searchKey)?.nextPageToken != null;
-      return canFetchPrefix;
+      return hasUnfetchedPrefixPage(
+        searchKey,
+        entriesByPath,
+        pageMetadataByPath,
+      );
     },
     [currentQuery, entriesByPath, pageMetadataByPath, remoteSearchForNamespace],
   );
