@@ -1,3 +1,4 @@
+/* Copyright 2026 Marimo. All rights reserved. */
 /**
  * Schedules `callback` to run as a fresh task once the current task finishes,
  * letting the browser paint and handle input in between. Used to spread heavy

@@ -1,3 +1,4 @@
+/* Copyright 2026 Marimo. All rights reserved. */
 import "./code-placeholder.css";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/utils/cn";

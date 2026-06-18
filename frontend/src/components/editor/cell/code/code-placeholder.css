@@ -1,3 +1,4 @@
+/* Copyright 2026 Marimo. All rights reserved. */
 .mo-code-placeholder {
   --mo-skeleton-bar: color-mix(in srgb, var(--muted), var(--foreground) 18%);
   cursor: default;
