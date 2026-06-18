@@ -9,8 +9,37 @@ from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._plugins.stateless.lazy import lazy as lazy_ui
 
 
-class _AccordionHtml(ContainerHtml):
-    """Html produced by `mo.accordion()`; keeps live references to its children."""
+@mddoc
+class accordion(ContainerHtml):
+    """Accordion of one or more items.
+
+    Args:
+        items: a dictionary of item names to item content; strings are
+            interpreted as markdown
+        multiple: whether to allow multiple items to be open simultaneously
+        lazy: a boolean, whether to lazily load the accordion content.
+            This is a convenience that wraps each accordion in a `mo.lazy`
+            component.
+
+    Returns:
+        An `Html` object.
+
+    Example:
+        ```python3
+        mo.accordion(
+            {"Tip": "Use accordions to let users reveal and hide content."}
+        )
+        ```
+
+        Accordion content can be lazily loaded:
+
+        ```python3
+        mo.accordion({"View total": expensive_item}, lazy=True)
+        ```
+
+        where `expensive_item` is the item to render, or a callable that
+        returns the item to render.
+    """
 
     def __init__(
         self,
@@ -45,40 +74,3 @@ class _AccordionHtml(ContainerHtml):
                 [f"<div>{tab.text}</div>" for tab in self._tabs]
             ),
         )
-
-
-@mddoc
-def accordion(
-    items: dict[str, object], multiple: bool = False, lazy: bool = False
-) -> Html:
-    """Accordion of one or more items.
-
-    Args:
-        items: a dictionary of item names to item content; strings are
-            interpreted as markdown
-        multiple: whether to allow multiple items to be open simultaneously
-        lazy: a boolean, whether to lazily load the accordion content.
-            This is a convenience that wraps each accordion in a `mo.lazy`
-            component.
-
-    Returns:
-        An `Html` object.
-
-    Example:
-        ```python3
-        mo.accordion(
-            {"Tip": "Use accordions to let users reveal and hide content."}
-        )
-        ```
-
-        Accordion content can be lazily loaded:
-
-        ```python3
-        mo.accordion({"View total": expensive_item}, lazy=True)
-        ```
-
-        where `expensive_item` is the item to render, or a callable that
-        returns the item to render.
-    """
-
-    return _AccordionHtml(items=items, multiple=multiple, lazy=lazy)

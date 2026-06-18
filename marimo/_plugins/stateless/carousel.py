@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from marimo._output.formatting import as_html
-from marimo._output.hypertext import ContainerHtml, Html
+from marimo._output.hypertext import ContainerHtml
 from marimo._output.md import md
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
@@ -13,8 +13,21 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class _CarouselHtml(ContainerHtml):
-    """Html produced by `mo.carousel()`; keeps live references to its items."""
+@mddoc
+class carousel(ContainerHtml):
+    """Create a carousel of items.
+
+    Args:
+        items: A list of items.
+
+    Returns:
+        An `Html` object.
+
+    Example:
+        ```python3
+        mo.carousel([mo.md("..."), mo.ui.text_area()])
+        ```
+    """
 
     def __init__(self, items: Sequence[object]) -> None:
         super().__init__(
@@ -30,23 +43,3 @@ class _CarouselHtml(ContainerHtml):
             args={},
             slotted_html="".join(c.text for c in self._children),
         )
-
-
-@mddoc
-def carousel(
-    items: Sequence[object],
-) -> Html:
-    """Create a carousel of items.
-
-    Args:
-        items: A list of items.
-
-    Returns:
-        An `Html` object.
-
-    Example:
-        ```python3
-        mo.carousel([mo.md("..."), mo.ui.text_area()])
-        ```
-    """
-    return _CarouselHtml(items)
