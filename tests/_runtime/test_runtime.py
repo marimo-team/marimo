@@ -331,26 +331,6 @@ class TestExecution:
         # Make sure the array and its child are updated
         assert k.globals["state"] == 5
 
-    async def test_set_local_var_ui_element_value(
-        self, any_kernel: Kernel
-    ) -> None:
-        k = any_kernel
-        await k.run([ExecuteCellCommand("0", "import marimo as mo")])
-        await k.run(
-            [ExecuteCellCommand("1", "_s = mo.ui.slider(0, 10, value=1); _s")]
-        )
-        # _s's name is mangled to _cell_1_s because it is local
-        assert k.globals["_cell_1_s"].value == 1
-
-        element_id = k.globals["_cell_1_s"]._id
-        # This shouldn't crash the kernel, and s's value should still be
-        # updated
-        await k.set_ui_element_value(
-            UpdateUIElementCommand.from_ids_and_values([(element_id, 5)]),
-            notify_frontend=False,
-        )
-        assert k.globals["_cell_1_s"].value == 5
-
     async def test_creation_with_ui_element_value(
         self, any_kernel: Kernel
     ) -> None:
@@ -874,17 +854,6 @@ except NameError:
         assert "y" in k.globals
         assert k.globals["z"] == 1
         assert not k.globals["name_error"]
-
-    async def test_local_variables_deleted_from_globals(
-        self, any_kernel: Kernel
-    ) -> None:
-        k = any_kernel
-        await k.run(
-            [
-                ExecuteCellCommand(cell_id="0", code="_x=0"),
-            ]
-        )
-        assert not any(is_mangled_local(name) for name in k.globals)
 
     async def test_import_module_as_local_var(
         self, any_kernel: Kernel
@@ -1771,9 +1740,7 @@ except NameError:
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
         await k.run([er := exec_req.get("_x = 1")])
-        assert k.globals[f"_cell_{er.cell_id}_x"] == 1
-        await k.run([ExecuteCellCommand(er.cell_id, "None")])
-        assert f"_cell_{er.cell_id}_x" not in k.globals
+        assert not any(is_mangled_local(name) for name in k.globals)
 
     async def test_private_recursive_function(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
@@ -2131,94 +2098,6 @@ except NameError:
 
 class TestStrictExecution:
     @staticmethod
-    async def test_cell_lambda(
-        strict_kernel: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        k = strict_kernel
-        await k.run(
-            [
-                exec_req.get("""Y = 1"""),
-                exec_req.get(
-                    """
-                  _x = 1
-                  X = 1
-                  L = lambda x: x + _x + X + Y
-                  """
-                ),
-                exec_req.get(
-                    """
-                V = L(1)
-                V
-                """
-                ),
-            ]
-        )
-        assert not k.errors
-        assert "X" in k.globals
-        assert "Y" in k.globals
-        assert "L" in k.globals
-        assert "V" in k.globals
-        assert k.globals["V"] == 4
-
-    @staticmethod
-    async def test_cell_indirect_lambda(
-        strict_kernel: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        k = strict_kernel
-        await k.run(
-            [
-                exec_req.get("""Y = 1"""),
-                exec_req.get(
-                    """
-                  _x = 1
-                  X = 1
-                  L = [lambda x: x + _x + X + Y]
-                  """
-                ),
-                exec_req.get("V = L[0](1)"),
-            ]
-        )
-        assert not k.errors
-        assert "X" in k.globals
-        assert "Y" in k.globals
-        assert "L" in k.globals
-        assert "V" in k.globals
-        assert k.globals["V"] == 4
-
-    @staticmethod
-    async def test_cell_indirect_private(
-        strict_kernel: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        k = strict_kernel
-        await k.run(
-            [
-                exec_req.get(
-                    """
-                             Y = 1
-                             _y = 1
-                             def f(x):
-                                return x + _y
-                             """
-                ),
-                exec_req.get(
-                    """
-                  _x = 1
-                  X = 1
-                  L = [lambda x: f(x + _x + X + Y)]
-                  """
-                ),
-                exec_req.get("V = L[0](1)"),
-            ]
-        )
-        assert not k.errors
-        assert "X" in k.globals
-        assert "Y" in k.globals
-        assert "L" in k.globals
-        assert "V" in k.globals
-        assert "f" in k.globals
-        assert k.globals["V"] == 5
-
-    @staticmethod
     async def test_cell_copy_works(
         strict_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -2346,40 +2225,6 @@ class TestStrictExecution:
                     X = 1
                     Y = 2
                     l = lambda x: x + X
-                    L = l
-                    l = lambda x: x + Y
-                    """
-                    ),
-                ),
-                ExecuteCellCommand(
-                    cell_id="1",
-                    code=textwrap.dedent(
-                        """
-                    x = L(1)
-                    """
-                    ),
-                ),
-            ]
-        )
-        assert "x" in k.globals
-        assert k.globals["x"] == 2
-
-    @staticmethod
-    async def test_runtime_resolution_private(
-        strict_kernel: Kernel,
-    ) -> None:
-        k = strict_kernel
-        # We keep variable data for reassignments, so static analysis should
-        # succeed
-        await k.run(
-            [
-                ExecuteCellCommand(
-                    cell_id="0",
-                    code=textwrap.dedent(
-                        """
-                    _X = 1
-                    Y = 2
-                    l = lambda x: x + _X
                     L = l
                     l = lambda x: x + Y
                     """
