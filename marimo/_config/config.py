@@ -600,6 +600,7 @@ class ExperimentalConfig(TypedDict, total=False):
     wasm_layouts: bool  # Used in playground (community cloud)
     rtc_v2: bool
     isolate_apps: bool
+    debugger: bool  # Live frame-watching debugger (gutter breakpoints + pdb)
 
     # Internal features
     cache: CacheConfig

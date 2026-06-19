@@ -1337,6 +1337,34 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.debugger"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">Debugger</FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="debugger-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.debugger"
+                  />
+                  <FormDescription>
+                    Enable the live debugger: a clickable breakpoint gutter,
+                    current-line highlighting while a cell runs, and dropping
+                    into <Kbd className="inline">pdb</Kbd> at breakpoints. This
+                    change requires a page refresh to take effect.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }

@@ -174,6 +174,7 @@ function handleMessage(
       case "completion-result":
       case "reload":
       case "focus-cell":
+      case "debugger-line":
       case "variables":
       case "variable-values":
       case "data-column-preview":

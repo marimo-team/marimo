@@ -28,6 +28,7 @@ from marimo._runtime.exceptions import (
     unwrap_user_exception,
 )
 from marimo._runtime.executor import (
+    DebuggerLifecycle,
     Evaluator,
     ExecutionLifecycle,
     StrictLifecycle,
@@ -157,6 +158,17 @@ class Runner:
         lifecycles: list[ExecutionLifecycle] = []
         if execution_type == "strict":
             lifecycles.append(StrictLifecycle(self.graph))
+        # Live debugger: frame-watch each cell body when the experimental flag
+        # is on. Gated here so there is zero tracing overhead when disabled.
+        experimental = (
+            self.user_config.get("experimental", {})
+            if self.user_config is not None
+            else {}
+        )
+        if self.debugger is not None and bool(
+            experimental.get("debugger", False)
+        ):
+            lifecycles.append(DebuggerLifecycle(self.debugger))
         self._evaluator = Evaluator(
             executor=resolve_executor(), lifecycles=lifecycles
         )

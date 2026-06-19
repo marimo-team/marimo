@@ -68,6 +68,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendListFiles: throwNotInEditMode,
     sendSearchFiles: throwNotInEditMode,
     sendPdb: throwNotInEditMode,
+    sendSetBreakpoints: throwNotInEditMode,
     sendCreateFileOrFolder: throwNotInEditMode,
     sendDeleteFileOrFolder: throwNotInEditMode,
     sendCopyFileOrFolder: throwNotInEditMode,

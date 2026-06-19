@@ -77,6 +77,11 @@ class MarimoPdb(Pdb):
         self._last_tracebacks: dict[CellId_t, TracebackType] = {}
         self._last_traceback: TracebackType | None = None
 
+        # Live breakpoints, keyed by cell id -> set of 1-based line numbers.
+        # Session-scoped (not persisted to the notebook file); updated by the
+        # `SetBreakpointsCommand` handler and read by the frame watcher.
+        self.breakpoints: dict[CellId_t, set[int]] = {}
+
     def set_trace(
         self, frame: FrameType | None = None, header: str | None = None
     ) -> None:

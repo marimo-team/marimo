@@ -25,6 +25,7 @@ from marimo._runtime.commands import (
     ModelCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
+    SetBreakpointsCommand,
     StorageDownloadCommand,
     StorageListEntriesCommand,
     UpdateCellConfigCommand,
@@ -53,6 +54,13 @@ class GetCacheInfoRequest(GetCacheInfoCommand, tag=False):
 class DebugCellRequest(DebugCellCommand, tag=False):
     def as_command(self) -> DebugCellCommand:
         return DebugCellCommand(cell_id=self.cell_id, request=self.request)
+
+
+class SetBreakpointsRequest(SetBreakpointsCommand, tag=False):
+    def as_command(self) -> SetBreakpointsCommand:
+        return SetBreakpointsCommand(
+            breakpoints=self.breakpoints, request=self.request
+        )
 
 
 class ExecuteScratchpadRequest(ExecuteScratchpadCommand, tag=False):
