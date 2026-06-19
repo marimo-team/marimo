@@ -41,7 +41,10 @@ import {
   YoutubeIcon,
   ZapIcon,
 } from "lucide-react";
-import { settingDialogAtom } from "@/components/app-config/state";
+import {
+  settingDialogAtom,
+  useOpenSettingsToTab,
+} from "@/components/app-config/state";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
 import { MarimoPlusIcon } from "@/components/icons/marimo-icons";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
@@ -129,6 +132,7 @@ export function useNotebookActions() {
   const copyNotebook = useCopyNotebook(filename);
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
   const setSettingsDialogOpen = useSetAtom(settingDialogAtom);
+  const { handleClick: openSettings } = useOpenSettingsToTab();
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
   const {
     exportAsIPYNB,
@@ -354,7 +358,7 @@ export function useNotebookActions() {
     {
       icon: <SparklesIcon size={14} strokeWidth={1.5} />,
       label: "Pair with an agent",
-      hidden: isWasm() || !aiEnabled,
+      hidden: isWasm(),
       handle: async () => {
         openModal(<PairWithAgentModal onClose={closeModal} />);
       },
@@ -411,7 +415,11 @@ export function useNotebookActions() {
       redundant: true,
       handle: NOOP_HANDLER,
       dropdown: PANELS.flatMap((panel) => {
-        if (isPanelHidden({ panel, capabilities, aiEnabled })) {
+        const openAiSettingsWhenDisabled = panel.type === "ai" && !aiEnabled;
+        if (
+          isPanelHidden({ panel, capabilities, aiEnabled }) &&
+          !openAiSettingsWhenDisabled
+        ) {
           return [];
         }
         const { type: id, Icon, additionalKeywords } = panel;
@@ -419,7 +427,13 @@ export function useNotebookActions() {
           label: Strings.startCase(id),
           rightElement: renderCheckboxElement(selectedPanel === id),
           icon: <Icon size={14} strokeWidth={1.5} />,
-          handle: () => toggleApplication(id),
+          handle: () => {
+            if (openAiSettingsWhenDisabled) {
+              openSettings("ai", "ai-features");
+              return;
+            }
+            toggleApplication(id);
+          },
           additionalKeywords,
         };
       }),
