@@ -1782,6 +1782,30 @@ except NameError:
         )
         assert k.globals["foo"]() == 1
 
+    async def test_temporary_last_expression_retained_as_output(
+        self, k: Kernel
+    ) -> None:
+        # A cell whose last expression is a temporary UI element: the temporary
+        # is deleted from globals, but the kernel should hang on to a reference.
+        # This is needed for RPCs in particular.
+        await k.run(
+            [ExecuteCellCommand(cell_id="0", code="import marimo as mo")]
+        )
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="_s = mo.ui.slider(0, 10, value=1); _s",
+                )
+            ]
+        )
+        # The temporary is gone from globals ...
+        assert not any(is_mangled_local(name) for name in k.globals)
+        # ... but the kernel retains it as the cell's output.
+        output = k.graph.cells["1"].output
+        assert isinstance(output, UIElement)
+        assert output.value == 1
+
     async def test_private_recursive_function(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
