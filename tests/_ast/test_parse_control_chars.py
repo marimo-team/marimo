@@ -72,8 +72,7 @@ def test_parse_notebook_never_crashes_on_control_chars(source: str) -> None:
         notebook = parse_notebook(source)
     except (AssertionError, tokenize.TokenError) as e:
         pytest.fail(
-            f"parse_notebook crashed on control chars: "
-            f"{type(e).__name__}: {e}"
+            f"parse_notebook crashed on control chars: {type(e).__name__}: {e}"
         )
     assert notebook is not None
 
@@ -97,8 +96,7 @@ def test_marimo_check_does_not_crash_on_control_chars(
         result = run_check((str(nb),))
     except (AssertionError, tokenize.TokenError) as e:
         pytest.fail(
-            f"`marimo check` crashed on control chars: "
-            f"{type(e).__name__}: {e}"
+            f"`marimo check` crashed on control chars: {type(e).__name__}: {e}"
         )
     assert result is not None
     assert len(result.files) == 1

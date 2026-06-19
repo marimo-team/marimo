@@ -54,6 +54,16 @@ def ast_parse(
         return cast(ast.Module, ast.parse(contents, **kwargs))
 
 
+def split_source_lines(text: str) -> list[str]:
+    """Split source into lines the way `ast`/`tokenize` count them.
+
+    Unlike `str.splitlines()`, this only treats `\\n`, `\\r`, and `\\r\\n` as
+    line breaks. `str.splitlines()` additionally splits on `\\f`, `\\v`, the
+    `\\x1c`-`\\x1e` separators, and Unicode line separators.
+    """
+    return text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+
+
 def fixed_dedent(text: str) -> str:
     """Manually edited code, can dedent"""
     # Added robustness for AI generated code
@@ -105,7 +115,7 @@ class Extractor:
 
     def __init__(self, contents: str):
         self.contents = contents.strip()
-        self.lines = self.contents.splitlines() if self.contents else []
+        self.lines = split_source_lines(self.contents) if self.contents else []
 
     def extract_from_offsets(
         self,
