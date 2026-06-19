@@ -228,7 +228,9 @@ def test_get_variable_preview_dataframe(df: Any) -> None:
 
     mem_diff_mb = (mem_after - mem_before) / (1024 * 1024)
 
-    assert mem_diff_mb < 10, (
+    # Threshold is well under copying the 1M-row frame but loose enough to
+    # absorb allocator noise on macOS arm64 runners (see #9485).
+    assert mem_diff_mb < 15, (
         f"Memory increased by {mem_diff_mb}MB during preview"
     )
     assert "2 columns" in preview
