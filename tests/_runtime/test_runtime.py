@@ -1742,6 +1742,46 @@ except NameError:
         await k.run([er := exec_req.get("_x = 1")])
         assert not any(is_mangled_local(name) for name in k.globals)
 
+    async def test_temporary_closed_over_by_function_not_deleted(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([exec_req.get("_x = 1\ndef fn():\n    return _x")])
+        assert k.globals["fn"]() == 1
+
+    async def test_temporary_closed_over_by_lambda_not_deleted(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([exec_req.get("_x = 1\nlam = lambda: _x")])
+        assert k.globals["lam"]() == 1
+
+    async def test_temporary_closed_over_by_class_not_deleted(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    "_x = 1\nclass C:\n    def m(self):\n        return _x"
+                )
+            ]
+        )
+        assert k.globals["C"]().m() == 1
+
+    async def test_transitive_temporary_closed_over_not_deleted(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # `foo` closes over the private helper `_helper`, which in turn closes
+        # over `_data`; both temporaries must survive for `foo` to be callable.
+        await k.run(
+            [
+                exec_req.get(
+                    "_data = 1\n"
+                    "def _helper():\n    return _data\n"
+                    "def foo():\n    return _helper()"
+                )
+            ]
+        )
+        assert k.globals["foo"]() == 1
+
     async def test_private_recursive_function(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -2098,6 +2138,94 @@ except NameError:
 
 class TestStrictExecution:
     @staticmethod
+    async def test_cell_lambda(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get("""Y = 1"""),
+                exec_req.get(
+                    """
+                  _x = 1
+                  X = 1
+                  L = lambda x: x + _x + X + Y
+                  """
+                ),
+                exec_req.get(
+                    """
+                V = L(1)
+                V
+                """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "Y" in k.globals
+        assert "L" in k.globals
+        assert "V" in k.globals
+        assert k.globals["V"] == 4
+
+    @staticmethod
+    async def test_cell_indirect_lambda(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get("""Y = 1"""),
+                exec_req.get(
+                    """
+                  _x = 1
+                  X = 1
+                  L = [lambda x: x + _x + X + Y]
+                  """
+                ),
+                exec_req.get("V = L[0](1)"),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "Y" in k.globals
+        assert "L" in k.globals
+        assert "V" in k.globals
+        assert k.globals["V"] == 4
+
+    @staticmethod
+    async def test_cell_indirect_private(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                             Y = 1
+                             _y = 1
+                             def f(x):
+                                return x + _y
+                             """
+                ),
+                exec_req.get(
+                    """
+                  _x = 1
+                  X = 1
+                  L = [lambda x: f(x + _x + X + Y)]
+                  """
+                ),
+                exec_req.get("V = L[0](1)"),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "Y" in k.globals
+        assert "L" in k.globals
+        assert "V" in k.globals
+        assert "f" in k.globals
+        assert k.globals["V"] == 5
+
+    @staticmethod
     async def test_cell_copy_works(
         strict_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -2225,6 +2353,40 @@ class TestStrictExecution:
                     X = 1
                     Y = 2
                     l = lambda x: x + X
+                    L = l
+                    l = lambda x: x + Y
+                    """
+                    ),
+                ),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                    x = L(1)
+                    """
+                    ),
+                ),
+            ]
+        )
+        assert "x" in k.globals
+        assert k.globals["x"] == 2
+
+    @staticmethod
+    async def test_runtime_resolution_private(
+        strict_kernel: Kernel,
+    ) -> None:
+        k = strict_kernel
+        # We keep variable data for reassignments, so static analysis should
+        # succeed
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                    _X = 1
+                    Y = 2
+                    l = lambda x: x + _X
                     L = l
                     l = lambda x: x + Y
                     """

@@ -174,6 +174,11 @@ class CellImpl:
     # unique id
     cell_id: CellId_t
 
+    # Subset of `temporaries` that are closed over (transitively) by a
+    # function, lambda, or class defined in this cell, and so must be retained
+    # in the kernel globals for those closures to be callable.
+    closed_over_temporaries: set[Name] = dataclasses.field(default_factory=set)
+
     # Markdown content of the cell if it exists
     markdown: str | None = None
 

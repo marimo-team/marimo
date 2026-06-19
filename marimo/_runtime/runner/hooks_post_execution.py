@@ -513,11 +513,16 @@ def _delete_local_variables(
     ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
-    # We unconditionally remove local variables from the kernel globals. This
-    # means that functions that close over locals will fail with a NameError at
-    # runtime.
+    # Remove temporary (local) variables from the kernel globals to relieve
+    # memory pressure once the cell has finished running.
+    #
+    # To prevent breaking existing notebooks, we make an exception for
+    # temporaries that are closed over by a function, lambda, or class defined
+    # in this cell: deleting those would cause a NameError when the closure is
+    # later invoked, since closures do late-binding. These are precomputed at
+    # compile time as `closed_over_temporaries`.
     del run_result
-    for name in cell.temporaries:
+    for name in cell.temporaries - cell.closed_over_temporaries:
         ctx.glbls.pop(name, None)
 
 
