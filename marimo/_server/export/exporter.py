@@ -735,6 +735,7 @@ class Exporter:
         if not dirpath.exists():
             dirpath.mkdir(parents=True, exist_ok=True)
 
+        import os
         import shutil
 
         shutil.copytree(
@@ -743,6 +744,12 @@ class Exporter:
             dirs_exist_ok=True,
             ignore=(shutil.ignore_patterns("index.html")),
         )
+        # Ensure output is writable (source may be read-only, e.g. nix store)
+        for root, _dirs, files in os.walk(dirpath):
+            os.chmod(root, os.stat(root).st_mode | 0o755)
+            for f in files:
+                fp = os.path.join(root, f)
+                os.chmod(fp, os.stat(fp).st_mode | 0o644)
 
     def export_public_folder(
         self, directory: Path, marimo_file: MarimoPath
