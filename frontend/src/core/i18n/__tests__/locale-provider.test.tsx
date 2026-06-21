@@ -50,7 +50,7 @@ describe("LocaleProvider", () => {
     vi.clearAllMocks();
   });
 
-  it("should render I18nProvider without locale when locale is null", () => {
+  it("should default to en-US when locale is null and navigator.language is unset", () => {
     const store = createStore();
     const config = parseUserConfig({ display: { locale: null } });
     store.set(userConfigAtom, config);
@@ -69,7 +69,7 @@ describe("LocaleProvider", () => {
     expect(i18nProvider).toHaveTextContent("Test content");
   });
 
-  it("should render I18nProvider without locale when locale is undefined", () => {
+  it("should default to en-US when locale is undefined and navigator.language is unset", () => {
     const store = createStore();
     const config = parseUserConfig({ display: { locale: undefined } });
     store.set(userConfigAtom, config);
