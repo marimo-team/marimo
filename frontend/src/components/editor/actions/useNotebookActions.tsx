@@ -90,7 +90,7 @@ import { Strings } from "@/utils/strings";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
 import { useChromeActions, useChromeState } from "../chrome/state";
-import { isPanelHidden, PANELS } from "../chrome/types";
+import { getCommandPalettePanelBehavior, PANELS } from "../chrome/types";
 import { AddConnectionDialogContent } from "../connections/add-connection-dialog";
 import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { commandPaletteAtom } from "../controls/state";
@@ -415,11 +415,12 @@ export function useNotebookActions() {
       redundant: true,
       handle: NOOP_HANDLER,
       dropdown: PANELS.flatMap((panel) => {
-        const openAiSettingsWhenDisabled = panel.type === "ai" && !aiEnabled;
-        if (
-          isPanelHidden({ panel, capabilities, aiEnabled }) &&
-          !openAiSettingsWhenDisabled
-        ) {
+        const behavior = getCommandPalettePanelBehavior({
+          panel,
+          capabilities,
+          aiEnabled,
+        });
+        if (behavior === "hidden") {
           return [];
         }
         const { type: id, Icon, additionalKeywords } = panel;
@@ -428,7 +429,7 @@ export function useNotebookActions() {
           rightElement: renderCheckboxElement(selectedPanel === id),
           icon: <Icon size={14} strokeWidth={1.5} />,
           handle: () => {
-            if (openAiSettingsWhenDisabled) {
+            if (behavior === "open-ai-settings") {
               openSettings("ai", "ai-features");
               return;
             }

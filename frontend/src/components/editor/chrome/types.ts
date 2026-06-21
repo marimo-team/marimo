@@ -223,3 +223,30 @@ export function isPanelHidden({
   }
   return false;
 }
+
+export type CommandPalettePanelBehavior =
+  | "hidden"
+  | "toggle"
+  | "open-ai-settings";
+
+/**
+ * How a helper-panel entry should behave in the command palette.
+ * The AI panel stays listed when disabled; selecting it opens AI settings.
+ */
+export function getCommandPalettePanelBehavior({
+  panel,
+  capabilities,
+  aiEnabled,
+}: {
+  panel: PanelDescriptor;
+  capabilities: Capabilities;
+  aiEnabled: boolean;
+}): CommandPalettePanelBehavior {
+  if (panel.type === "ai" && !aiEnabled) {
+    return "open-ai-settings";
+  }
+  if (isPanelHidden({ panel, capabilities, aiEnabled })) {
+    return "hidden";
+  }
+  return "toggle";
+}
