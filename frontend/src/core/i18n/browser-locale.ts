@@ -1,6 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-const DEFAULT_LOCALE = "en-US";
+/**
+ * Small duplicate of @react-aria/i18n getDefaultLocale logic for call sites
+ * outside I18nProvider (e.g. settings UI). getDefaultLocale is not exported
+ * from react-aria; LocaleProvider delegates to I18nProvider without a locale
+ * prop for the browser-default case.
+ */
+
+export const DEFAULT_LOCALE = "en-US";
 
 /** Matches @react-aria/i18n getDefaultLocale validation. */
 export function isValidLocale(locale: string): boolean {
