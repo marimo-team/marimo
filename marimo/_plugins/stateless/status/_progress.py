@@ -50,6 +50,7 @@ class _Progress(Html):
         self.total = total
         self.current = 0
         self.closed = False
+        self._is_done = False
         # We show a loading spinner if total not known
         self.loading_spinner = total is None
         self.show_rate = show_rate
@@ -116,6 +117,34 @@ class _Progress(Html):
         output.flush()  # Flush one last time before closing
         self.closed = True
 
+    def mark_done(
+        self,
+        title: str | None = None,
+        subtitle: str | None = None,
+    ) -> None:
+        """Mark the progress indicator as done. Thread-safe.
+
+        Transitions the spinner to a completed (checkmark) state.
+        Optionally updates title and subtitle.
+
+        Args:
+            title (str, optional): New title. Defaults to None.
+            subtitle (str, optional): New subtitle. Defaults to None.
+        """
+        with self._lock:
+            if self.closed:
+                raise RuntimeError(
+                    "Progress indicators cannot be updated after exiting "
+                    "the context manager that created them. "
+                )
+            self._is_done = True
+            if title is not None:
+                self.title = title
+            if subtitle is not None:
+                self.subtitle = subtitle
+            self._text = self._get_text()
+        self.debounced_flush()
+
     def _get_text(self) -> str:
         return build_stateless_plugin(
             component_name="marimo-progress",
@@ -129,6 +158,7 @@ class _Progress(Html):
                     "progress": True if self.loading_spinner else self.current,
                     "rate": self._get_rate(),
                     "eta": self._get_eta(),
+                    "done": True if self._is_done else None,
                 }
             ),
         )
@@ -227,6 +257,28 @@ class Spinner(_Progress):
         """
         super().update_progress(increment=1, title=title, subtitle=subtitle)
 
+    def done(
+        self, title: str | None = None, subtitle: str | None = None
+    ) -> None:
+        """Mark the spinner as done, transitioning to a checkmark state.
+
+        After calling ``done()``, the spinner shows a checkmark instead of
+        the loading animation.  Optionally update the title and subtitle
+        to reflect the completed state.
+
+        Examples:
+            ```python
+            with mo.status.spinner("Loading ...") as _spinner:
+                data = expensive_function()
+                _spinner.done(title="Done!")
+            ```
+
+        Args:
+            title (str, optional): New title. Defaults to None.
+            subtitle (str, optional): New subtitle. Defaults to None.
+        """
+        super().mark_done(title=title, subtitle=subtitle)
+
 
 @mddoc
 class spinner:
@@ -275,7 +327,8 @@ class spinner:
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         if self.remove_on_exit:
             self.spinner.clear()
-        # TODO(akshayka): else consider transitioning to a done state
+        else:
+            self.spinner.mark_done()
         self.spinner.close()
 
     def _mime_(self) -> tuple[KnownMimeType, str]:

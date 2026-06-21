@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import humanizeDuration from "humanize-duration";
-import { Loader2Icon } from "lucide-react";
+import { CheckCircle2Icon, Loader2Icon } from "lucide-react";
 import React, { type JSX, type PropsWithChildren } from "react";
 import { z } from "zod";
 import { Progress } from "@/components/ui/progress";
@@ -38,6 +38,10 @@ interface Data {
    * The rate of progress in items per second.
    */
   rate?: number;
+  /**
+   * Whether the progress indicator is done (shows a checkmark).
+   */
+  done?: boolean;
 }
 
 export class ProgressPlugin implements IStatelessPlugin<Data> {
@@ -50,6 +54,7 @@ export class ProgressPlugin implements IStatelessPlugin<Data> {
     total: z.number().optional(),
     eta: z.number().optional(),
     rate: z.number().optional(),
+    done: z.boolean().optional(),
   });
 
   render(props: IStatelessPluginProps<Data>): JSX.Element {
@@ -64,11 +69,19 @@ export const ProgressComponent = ({
   total,
   eta,
   rate,
+  done,
 }: PropsWithChildren<Data>): JSX.Element => {
   const alignment =
     typeof progress === "number" ? "items-start" : "items-center";
 
   const renderProgress = () => {
+    // When done, show a checkmark
+    if (done) {
+      return (
+        <CheckCircle2Icon className="w-12 h-12 text-green-500 mx-auto" />
+      );
+    }
+
     // With a known total, show a progress bar.
     if (typeof progress === "number" && total != null && total > 0) {
       return (

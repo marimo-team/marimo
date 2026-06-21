@@ -8,6 +8,8 @@ from unittest.mock import patch
 import pytest
 
 from marimo._plugins.stateless.status._progress import (
+    ProgressBar,
+    Spinner,
     _Progress,
     progress_bar,
     spinner,
@@ -146,6 +148,56 @@ def test_spinner_without_context():
     with spinner(subtitle="Loading data ...") as _spinner:
         assert spinner
         _spinner.update(subtitle="Crunching numbers ...")
+
+
+@patch("marimo._runtime.output._output.flush")
+def test_spinner_done(mock_flush: Any) -> None:
+    del mock_flush
+    s = Spinner(title="Loading", subtitle="Please wait")
+    assert s._is_done is False
+
+    s.done(title="All done", subtitle="Completed!")
+    assert s._is_done is True
+    assert s.title == "All done"
+    assert s.subtitle == "Completed!"
+
+
+@patch("marimo._runtime.output._output.flush")
+def test_spinner_done_default_title(mock_flush: Any) -> None:
+    del mock_flush
+    s = Spinner(title="Loading", subtitle="Please wait")
+    s.done()
+    assert s._is_done is True
+    assert s.title == "Loading"
+    assert s.subtitle == "Please wait"
+
+
+@patch("marimo._runtime.output._output.flush")
+def test_spinner_done_closed_raises(mock_flush: Any) -> None:
+    del mock_flush
+    s = Spinner(title="Loading", subtitle="Please wait")
+    s.close()
+    with pytest.raises(RuntimeError):
+        s.done()
+
+
+def test_spinner_context_manager_remove_on_exit():
+    assert runtime_context_installed() is False
+
+    with spinner("Test", remove_on_exit=True) as _spinner:
+        _spinner.update(subtitle="Working...")
+    # After exit with remove_on_exit=True, spinner is cleared
+    assert _spinner.closed is True
+
+
+def test_spinner_context_manager_keep_on_exit():
+    assert runtime_context_installed() is False
+
+    with spinner("Test", remove_on_exit=False) as _spinner:
+        _spinner.update(subtitle="Working...")
+    # After exit with remove_on_exit=False, spinner transitions to done state
+    assert _spinner._is_done is True
+    assert _spinner.closed is True
 
 
 def test_progress_without_context():
