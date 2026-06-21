@@ -57,7 +57,11 @@ import {
   useCellActions,
 } from "@/core/cells/cells";
 import { disabledCellIds } from "@/core/cells/utils";
-import { useResolvedMarimoConfig } from "@/core/config/config";
+import {
+  aiEnabledAtom,
+  useResolvedMarimoConfig,
+} from "@/core/config/config";
+import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Constants } from "@/core/constants";
 import {
   updateCellOutputsWithScreenshots,
@@ -86,7 +90,7 @@ import { Strings } from "@/utils/strings";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
 import { useChromeActions, useChromeState } from "../chrome/state";
-import { PANELS } from "../chrome/types";
+import { PANELS, isPanelHidden } from "../chrome/types";
 import { AddConnectionDialogContent } from "../connections/add-connection-dialog";
 import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { commandPaletteAtom } from "../controls/state";
@@ -112,6 +116,8 @@ export function useNotebookActions() {
   const kioskMode = useAtomValue(kioskModeAtom);
   const hideAllMarkdownCode = useHideAllMarkdownCode();
   const [resolvedConfig] = useResolvedMarimoConfig();
+  const aiEnabled = useAtomValue(aiEnabledAtom);
+  const capabilities = useAtomValue(capabilitiesAtom);
 
   const {
     updateCellConfig,
@@ -351,7 +357,7 @@ export function useNotebookActions() {
     {
       icon: <SparklesIcon size={14} strokeWidth={1.5} />,
       label: "Pair with an agent",
-      hidden: isWasm(),
+      hidden: isWasm() || !aiEnabled,
       handle: async () => {
         openModal(<PairWithAgentModal onClose={closeModal} />);
       },
@@ -407,20 +413,20 @@ export function useNotebookActions() {
       label: "Helper panel",
       redundant: true,
       handle: NOOP_HANDLER,
-      dropdown: PANELS.flatMap(
-        ({ type: id, Icon, hidden, additionalKeywords }) => {
-          if (hidden) {
-            return [];
-          }
-          return {
-            label: Strings.startCase(id),
-            rightElement: renderCheckboxElement(selectedPanel === id),
-            icon: <Icon size={14} strokeWidth={1.5} />,
-            handle: () => toggleApplication(id),
-            additionalKeywords,
-          };
-        },
-      ),
+      dropdown: PANELS.flatMap((panel) => {
+        if (
+          isPanelHidden({ panel, capabilities, aiEnabled })
+        ) {
+          return [];
+        }
+        return {
+          label: Strings.startCase(panel.type),
+          rightElement: renderCheckboxElement(selectedPanel === panel.type),
+          icon: <panel.Icon size={14} strokeWidth={1.5} />,
+          handle: () => toggleApplication(panel.type),
+          additionalKeywords: panel.additionalKeywords,
+        };
+      }),
     },
 
     {
