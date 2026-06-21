@@ -8,7 +8,6 @@ from unittest.mock import patch
 import pytest
 
 from marimo._plugins.stateless.status._progress import (
-    ProgressBar,
     Spinner,
     _Progress,
     progress_bar,

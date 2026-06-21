@@ -77,9 +77,7 @@ export const ProgressComponent = ({
   const renderProgress = () => {
     // When done, show a checkmark
     if (done) {
-      return (
-        <CheckCircle2Icon className="w-12 h-12 text-green-500 mx-auto" />
-      );
+      return <CheckCircle2Icon className="w-12 h-12 text-green-500 mx-auto" />;
     }
 
     // With a known total, show a progress bar.
