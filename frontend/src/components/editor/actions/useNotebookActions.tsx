@@ -57,10 +57,7 @@ import {
   useCellActions,
 } from "@/core/cells/cells";
 import { disabledCellIds } from "@/core/cells/utils";
-import {
-  aiEnabledAtom,
-  useResolvedMarimoConfig,
-} from "@/core/config/config";
+import { aiEnabledAtom, useResolvedMarimoConfig } from "@/core/config/config";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Constants } from "@/core/constants";
 import {
@@ -414,9 +411,7 @@ export function useNotebookActions() {
       redundant: true,
       handle: NOOP_HANDLER,
       dropdown: PANELS.flatMap((panel) => {
-        if (
-          isPanelHidden({ panel, capabilities, aiEnabled })
-        ) {
+        if (isPanelHidden({ panel, capabilities, aiEnabled })) {
           return [];
         }
         return {
