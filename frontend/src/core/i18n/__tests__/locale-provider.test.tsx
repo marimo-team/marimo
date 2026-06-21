@@ -65,7 +65,7 @@ describe("LocaleProvider", () => {
 
     const i18nProvider = getByTestId("i18n-provider");
     expect(i18nProvider).toBeInTheDocument();
-    expect(i18nProvider.dataset.locale).toBe(undefined);
+    expect(i18nProvider.dataset.locale).toBe("en-US");
     expect(i18nProvider).toHaveTextContent("Test content");
   });
 
@@ -84,7 +84,7 @@ describe("LocaleProvider", () => {
 
     const i18nProvider = getByTestId("i18n-provider");
     expect(i18nProvider).toBeInTheDocument();
-    expect(i18nProvider.dataset.locale).toBe(undefined);
+    expect(i18nProvider.dataset.locale).toBe("en-US");
     expect(i18nProvider).toHaveTextContent("Test content");
   });
 
@@ -175,5 +175,24 @@ describe("LocaleProvider", () => {
     // When no locale is specified in config, it should use navigator.language
     expect(i18nProvider.dataset.locale).toBe("de-DE");
     expect(i18nProvider).toHaveTextContent("Test content");
+  });
+
+  it("should fall back to en-US when navigator.language is invalid", () => {
+    mockNavigatorLanguage = "en-US@posix";
+
+    const store = createStore();
+    const config = defaultUserConfig();
+    store.set(userConfigAtom, config);
+
+    const { getByTestId } = render(
+      <Provider store={store}>
+        <LocaleProvider>
+          <div>Test content</div>
+        </LocaleProvider>
+      </Provider>,
+    );
+
+    const i18nProvider = getByTestId("i18n-provider");
+    expect(i18nProvider.dataset.locale).toBe("en-US");
   });
 });

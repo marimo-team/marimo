@@ -15,14 +15,21 @@ export const LocaleProvider = ({ children }: LocaleProviderProps) => {
   return <I18nProvider locale={safeLocale(locale)}>{children}</I18nProvider>;
 };
 
+const DEFAULT_LOCALE = "en-US";
+
 function safeLocale(locale: string | null | undefined) {
-  if (!locale) {
-    return navigator.language;
-  }
-  if (isValidLocale(locale)) {
+  if (locale && isValidLocale(locale)) {
     return locale;
   }
-  return navigator.language;
+  return browserLocale();
+}
+
+function browserLocale() {
+  const language = navigator.language;
+  if (language && isValidLocale(language)) {
+    return language;
+  }
+  return DEFAULT_LOCALE;
 }
 
 function isValidLocale(locale: string) {
