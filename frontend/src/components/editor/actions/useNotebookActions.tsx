@@ -90,7 +90,7 @@ import { Strings } from "@/utils/strings";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
 import { useChromeActions, useChromeState } from "../chrome/state";
-import { getCommandPalettePanelBehavior, PANELS } from "../chrome/types";
+import { isPanelHidden, PANELS } from "../chrome/types";
 import { AddConnectionDialogContent } from "../connections/add-connection-dialog";
 import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { commandPaletteAtom } from "../controls/state";
@@ -415,12 +415,13 @@ export function useNotebookActions() {
       redundant: true,
       handle: NOOP_HANDLER,
       dropdown: PANELS.flatMap((panel) => {
-        const behavior = getCommandPalettePanelBehavior({
-          panel,
-          capabilities,
-          aiEnabled,
-        });
-        if (behavior === "hidden") {
+        // Still show the AI panel in the command palette so users can try AI
+        // features. When AI is disabled, open settings instead of the panel.
+        const openAiSettingsWhenDisabled = panel.type === "ai" && !aiEnabled;
+        if (
+          isPanelHidden({ panel, capabilities, aiEnabled }) &&
+          !openAiSettingsWhenDisabled
+        ) {
           return [];
         }
         const { type: id, Icon, additionalKeywords } = panel;
@@ -429,7 +430,7 @@ export function useNotebookActions() {
           rightElement: renderCheckboxElement(selectedPanel === id),
           icon: <Icon size={14} strokeWidth={1.5} />,
           handle: () => {
-            if (behavior === "open-ai-settings") {
+            if (openAiSettingsWhenDisabled) {
               openSettings("ai", "ai-features");
               return;
             }
