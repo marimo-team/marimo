@@ -26,8 +26,15 @@ function safeLocale(locale: string | null | undefined) {
 
 function browserLocale() {
   const language = navigator.language;
-  if (language && isValidLocale(language)) {
+  if (!language) {
+    return DEFAULT_LOCALE;
+  }
+  if (isValidLocale(language)) {
     return language;
+  }
+  const withoutSuffix = language.replace(/@.*$/, "");
+  if (withoutSuffix !== language && isValidLocale(withoutSuffix)) {
+    return withoutSuffix;
   }
   return DEFAULT_LOCALE;
 }

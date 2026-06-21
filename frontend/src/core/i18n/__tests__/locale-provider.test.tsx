@@ -195,4 +195,23 @@ describe("LocaleProvider", () => {
     const i18nProvider = getByTestId("i18n-provider");
     expect(i18nProvider.dataset.locale).toBe("en-US");
   });
+
+  it("should recover locale from posix-style navigator.language suffix", () => {
+    mockNavigatorLanguage = "de-DE@posix";
+
+    const store = createStore();
+    const config = defaultUserConfig();
+    store.set(userConfigAtom, config);
+
+    const { getByTestId } = render(
+      <Provider store={store}>
+        <LocaleProvider>
+          <div>Test content</div>
+        </LocaleProvider>
+      </Provider>,
+    );
+
+    const i18nProvider = getByTestId("i18n-provider");
+    expect(i18nProvider.dataset.locale).toBe("de-DE");
+  });
 });
