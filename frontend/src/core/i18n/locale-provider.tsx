@@ -4,6 +4,7 @@ import { useAtomValue } from "jotai";
 import type { ReactNode } from "react";
 import { I18nProvider } from "react-aria-components";
 import { localeAtom } from "@/core/config/config";
+import { isValidLocale } from "./browser-locale";
 
 interface LocaleProviderProps {
   children: ReactNode;
@@ -12,38 +13,9 @@ interface LocaleProviderProps {
 export const LocaleProvider = ({ children }: LocaleProviderProps) => {
   const locale = useAtomValue(localeAtom);
 
-  return <I18nProvider locale={safeLocale(locale)}>{children}</I18nProvider>;
-};
-
-const DEFAULT_LOCALE = "en-US";
-
-function safeLocale(locale: string | null | undefined) {
   if (locale && isValidLocale(locale)) {
-    return locale;
+    return <I18nProvider locale={locale}>{children}</I18nProvider>;
   }
-  return browserLocale();
-}
 
-function browserLocale() {
-  const language = navigator.language;
-  if (!language) {
-    return DEFAULT_LOCALE;
-  }
-  if (isValidLocale(language)) {
-    return language;
-  }
-  const withoutSuffix = language.replace(/@.*$/, "");
-  if (withoutSuffix !== language && isValidLocale(withoutSuffix)) {
-    return withoutSuffix;
-  }
-  return DEFAULT_LOCALE;
-}
-
-function isValidLocale(locale: string) {
-  try {
-    new Intl.NumberFormat(locale);
-    return true;
-  } catch {
-    return false;
-  }
-}
+  return <I18nProvider>{children}</I18nProvider>;
+};

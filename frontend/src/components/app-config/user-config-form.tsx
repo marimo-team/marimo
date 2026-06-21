@@ -36,6 +36,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { useUserConfig } from "@/core/config/config";
+import { isValidLocale } from "@/core/i18n/browser-locale";
 import {
   PackageManagerNames,
   type UserConfig,
@@ -969,11 +970,13 @@ export const UserConfigForm: React.FC = () => {
                           className="inline-flex mr-2"
                         >
                           <option value={LOCALE_SYSTEM_VALUE}>System</option>
-                          {navigator.languages.map((option) => (
-                            <option value={option} key={option}>
-                              {option}
-                            </option>
-                          ))}
+                          {navigator.languages
+                            .filter(isValidLocale)
+                            .map((option) => (
+                              <option value={option} key={option}>
+                                {option}
+                              </option>
+                            ))}
                         </NativeSelect>
                       </FormControl>
                       <FormMessage />

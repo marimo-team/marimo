@@ -10,6 +10,7 @@ import {
   type Updater,
 } from "@tanstack/react-table";
 import type { DataType } from "@/core/kernel/messages";
+import { getBrowserLocale } from "@/core/i18n/browser-locale";
 import { logNever } from "@/utils/assertNever";
 import {
   prettyEngineeringNumber,
@@ -40,7 +41,7 @@ export const ColumnFormattingFeature: TableFeature = {
     return {
       enableColumnFormatting: true,
       onColumnFormattingChange: makeStateUpdater("columnFormatting", table),
-      locale: navigator.language,
+      locale: getBrowserLocale(),
     } as ColumnFormattingOptions;
   },
 
