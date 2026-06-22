@@ -147,8 +147,7 @@ def clear_console() -> None:
 
     Call `mo.output.clear_console()` to clear the console output area below a
     cell, including text written earlier in the same run (via `print`, logging,
-    or `stdout`/`stderr`). This is useful for hiding sensitive output, such as a
-    one-time auth code printed during a login flow.
+    or `stdout`/`stderr`).
     """
     try:
         ctx = get_context()
