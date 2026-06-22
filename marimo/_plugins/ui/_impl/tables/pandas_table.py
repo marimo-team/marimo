@@ -202,6 +202,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 from pandas.api.types import (
                     is_complex_dtype,
+                    is_extension_array_dtype,
                     is_object_dtype,
                     is_timedelta64_dtype,
                     is_timedelta64_ns_dtype,
@@ -216,6 +217,13 @@ class PandasTableManagerFactory(TableManagerFactory):
                         # We want to preserve the original display
                         if is_complex_dtype(dtype):
                             result[col] = result[col].apply(str)
+                        if is_extension_array_dtype(dtype) and (
+                            self._infer_dtype(col) == "unknown-array"
+                        ):
+                            # Extension arrays with rich Python values (e.g.
+                            # pint-pandas) serialize to nested dicts via
+                            # to_dict; stringify to preserve display.
+                            result[col] = result[col].astype(str)
                         if is_timedelta64_dtype(
                             dtype
                         ) or is_timedelta64_ns_dtype(dtype):

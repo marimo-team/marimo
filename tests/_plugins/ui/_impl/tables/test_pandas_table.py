@@ -2164,6 +2164,23 @@ class TestPandasTableManager(unittest.TestCase):
         # MultiIndex should be preserved with original names
         assert list(result._original_data.index.names) == ["x", "level"]
 
+    def test_to_json_str_pint_pandas_series(self) -> None:
+        """pint-pandas quantities display as readable strings in tables."""
+        pytest.importorskip("pint_pandas")
+        import pandas as pd
+
+        series = pd.Series([1, 2, 3, 4], dtype="pint[meter]")
+        manager = self.factory.create()(series.to_frame(name="value"))
+        json_str = manager.to_json_str()
+        json_data = json.loads(json_str)
+
+        assert json_data == [
+            {"value": "1.0 meter"},
+            {"value": "2.0 meter"},
+            {"value": "3.0 meter"},
+            {"value": "4.0 meter"},
+        ]
+
     def test_to_arrow_ipc_fallback_for_unsupported_extension_dtype(
         self,
     ) -> None:
