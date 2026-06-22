@@ -73,6 +73,26 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _extension_column_needs_stringify(series: pd.Series[Any]) -> bool:
+    """Whether an extension-array column should be cast to str for JSON."""
+    from json import dumps, loads
+
+    from pandas.api.types import is_extension_array_dtype
+
+    from marimo._messaging.msgspec_encoder import enc_hook
+
+    if not is_extension_array_dtype(series.dtype):
+        return False
+
+    non_null = series.dropna()
+    if non_null.empty:
+        return False
+
+    sample = non_null.iloc[0]
+    serialized = loads(dumps(sample, default=enc_hook))
+    return not isinstance(serialized, (str, int, float, bool, type(None)))
+
+
 def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:
     # Convert to pandas dataframe since geopandas will fail on
     # certain operations (like to_json(orient="records"))
@@ -202,7 +222,6 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 from pandas.api.types import (
                     is_complex_dtype,
-                    is_extension_array_dtype,
                     is_object_dtype,
                     is_timedelta64_dtype,
                     is_timedelta64_ns_dtype,
@@ -217,9 +236,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                         # We want to preserve the original display
                         if is_complex_dtype(dtype):
                             result[col] = result[col].apply(str)
-                        if is_extension_array_dtype(dtype) and (
-                            self._infer_dtype(col) == "unknown-array"
-                        ):
+                        if _extension_column_needs_stringify(result[col]):
                             # Extension arrays with rich Python values (e.g.
                             # pint-pandas) serialize to nested dicts via
                             # to_dict; stringify to preserve display.
@@ -234,9 +251,8 @@ class PandasTableManagerFactory(TableManagerFactory):
                             inferred_dtype = self._infer_dtype(col)
                             if inferred_dtype == "date":
                                 result[col] = result[col].apply(str)
-
-                            # Cast bytes to string to avoid overflow error
-                            if self._infer_dtype(col) == "bytes":
+                            elif inferred_dtype == "bytes":
+                                # Cast bytes to string to avoid overflow error
                                 result[col] = result[col].apply(str)
 
                 except Exception as e:

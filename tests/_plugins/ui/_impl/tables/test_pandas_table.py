@@ -2174,12 +2174,24 @@ class TestPandasTableManager(unittest.TestCase):
         json_str = manager.to_json_str()
         json_data = json.loads(json_str)
 
-        assert json_data == [
-            {"value": "1.0 meter"},
-            {"value": "2.0 meter"},
-            {"value": "3.0 meter"},
-            {"value": "4.0 meter"},
-        ]
+        expected = [{"value": value} for value in series.astype(str)]
+        assert json_data == expected
+
+    def test_to_json_str_awkward_pandas_keeps_numeric_values(self) -> None:
+        """awkward-pandas primitives should stay numeric in table JSON."""
+        pytest.importorskip("awkward")
+        pytest.importorskip("awkward_pandas")
+        import awkward as ak
+        import awkward_pandas as akpd
+        import pandas as pd
+
+        series = pd.Series(
+            akpd.AwkwardExtensionArray(ak.Array([1.1, 2.2, 3.3]))
+        )
+        manager = self.factory.create()(series.to_frame(name="value"))
+        json_data = json.loads(manager.to_json_str())
+
+        assert json_data == [{"value": 1.1}, {"value": 2.2}, {"value": 3.3}]
 
     def test_to_arrow_ipc_fallback_for_unsupported_extension_dtype(
         self,
