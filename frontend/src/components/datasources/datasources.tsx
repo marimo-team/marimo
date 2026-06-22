@@ -83,6 +83,8 @@ import {
   areSchemasResolved,
   areTablesResolved,
   isSchemaless,
+  schemaSubtreeMatchesSearch,
+  shouldExpandDatabaseForSearch,
   sqlCode,
   tableUniqueId,
 } from "./utils";
@@ -360,7 +362,6 @@ export const DataSources: React.FC = () => {
                 key={database.name}
                 connection={connection}
                 database={database}
-                hasSearch={hasSearch}
                 searchValue={searchValue}
               />
             ))}
@@ -435,7 +436,6 @@ interface DataSourceTree {
   dialect: string;
   engineName: string;
   databaseName: string;
-  hasSearch: boolean;
   searchValue?: string;
 }
 
@@ -470,9 +470,8 @@ function buildSqlTableContext(
 const DatabaseTree: React.FC<{
   connection: DataSourceConnection;
   database: Database;
-  hasSearch: boolean;
   searchValue?: string;
-}> = ({ connection, database, hasSearch, searchValue }) => {
+}> = ({ connection, database, searchValue }) => {
   const tree = React.useMemo<DataSourceTree>(
     () => ({
       engineName: connection.name,
@@ -480,7 +479,6 @@ const DatabaseTree: React.FC<{
       dialect: connection.dialect,
       defaultSchema: connection.default_schema,
       defaultDatabase: connection.default_database,
-      hasSearch,
       searchValue,
     }),
     [
@@ -489,7 +487,6 @@ const DatabaseTree: React.FC<{
       connection.default_schema,
       connection.default_database,
       database.name,
-      hasSearch,
       searchValue,
     ],
   );
@@ -498,7 +495,7 @@ const DatabaseTree: React.FC<{
     <DatabaseItem
       engineName={connection.name}
       database={database}
-      hasSearch={hasSearch}
+      searchValue={searchValue}
     >
       <DataSourceTreeContext.Provider value={tree}>
         <SchemaList
@@ -513,18 +510,20 @@ const DatabaseTree: React.FC<{
 };
 
 const DatabaseItem: React.FC<{
-  hasSearch: boolean;
+  searchValue?: string;
   engineName: string;
   database: Database;
   children: React.ReactNode;
-}> = ({ hasSearch, engineName, database, children }) => {
+}> = ({ searchValue, engineName, database, children }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isSelected, setIsSelected] = React.useState(false);
-  const [prevHasSearch, setPrevHasSearch] = React.useState(hasSearch);
+  const [prevSearchValue, setPrevSearchValue] = React.useState(searchValue);
 
-  if (prevHasSearch !== hasSearch) {
-    setPrevHasSearch(hasSearch);
-    setIsExpanded(hasSearch);
+  // Re-evaluate auto-expansion whenever the query changes: expand only when a
+  // loaded schema under this database contains a matching table.
+  if (prevSearchValue !== searchValue) {
+    setPrevSearchValue(searchValue);
+    setIsExpanded(shouldExpandDatabaseForSearch(database, searchValue));
   }
 
   return (
@@ -657,11 +656,21 @@ interface SchemaNodeProps {
 const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
   const { schema, schemaPath, depth } = props;
   const tree = useDataSourceTree();
-  const { databaseName, hasSearch, searchValue } = tree;
-  const [isExpanded, setIsExpanded] = React.useState(hasSearch);
+  const { databaseName, searchValue } = tree;
+  const [isExpanded, setIsExpanded] = React.useState(() =>
+    schemaSubtreeMatchesSearch(schema, searchValue),
+  );
   const [isSelected, setIsSelected] = React.useState(false);
+  const [prevSearchValue, setPrevSearchValue] = React.useState(searchValue);
   const uniqueValue = `${databaseName}:${schemaPath.join(".")}`;
   const childSchemas = schema.child_schemas ?? [];
+
+  // Re-evaluate auto-expansion whenever the query changes: expand only when this
+  // schema's loaded subtree contains a matching table.
+  if (prevSearchValue !== searchValue) {
+    setPrevSearchValue(searchValue);
+    setIsExpanded(schemaSubtreeMatchesSearch(schema, searchValue));
+  }
 
   return (
     <>
