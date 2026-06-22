@@ -262,7 +262,7 @@ class Spinner(_Progress):
     ) -> None:
         """Mark the spinner as done, transitioning to a checkmark state.
 
-        After calling ``done()``, the spinner shows a checkmark instead of
+        After calling `done()`, the spinner shows a checkmark instead of
         the loading animation.  Optionally update the title and subtitle
         to reflect the completed state.
 
@@ -325,7 +325,7 @@ class spinner:
         return self.spinner
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
-        if self.remove_on_exit:
+        if self.remove_on_exit or exc_type is not None:
             self.spinner.clear()
         else:
             self.spinner.mark_done()

@@ -199,6 +199,21 @@ def test_spinner_context_manager_keep_on_exit():
     assert _spinner.closed is True
 
 
+@patch("marimo._runtime.output._output.remove")
+def test_spinner_context_manager_exception_does_not_mark_done(
+    mock_remove: Any,
+) -> None:
+    assert runtime_context_installed() is False
+
+    with pytest.raises(ValueError, match="Failed"):
+        with spinner("Test", remove_on_exit=False) as _spinner:
+            raise ValueError("Failed")
+
+    assert _spinner._is_done is False
+    assert _spinner.closed is True
+    mock_remove.assert_called_once_with(_spinner)
+
+
 def test_progress_without_context():
     assert runtime_context_installed() is False
 
