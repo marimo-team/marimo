@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import functools
 import io
+import json
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -11,6 +12,7 @@ import narwhals.stable.v2 as nw
 from marimo import _loggers
 from marimo._data.models import ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.msgspec_encoder import enc_hook
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -75,11 +77,7 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
 
 def _extension_column_needs_stringify(series: pd.Series[Any]) -> bool:
     """Whether an extension-array column should be cast to str for JSON."""
-    from json import dumps, loads
-
     from pandas.api.types import is_extension_array_dtype
-
-    from marimo._messaging.msgspec_encoder import enc_hook
 
     if not is_extension_array_dtype(series.dtype):
         return False
@@ -89,7 +87,7 @@ def _extension_column_needs_stringify(series: pd.Series[Any]) -> bool:
         return False
 
     sample = non_null.iloc[0]
-    serialized = loads(dumps(sample, default=enc_hook))
+    serialized = json.loads(json.dumps(sample, default=enc_hook))
     return not isinstance(serialized, (str, int, float, bool, type(None)))
 
 
