@@ -1101,6 +1101,51 @@ def test_combine_console_outputs(
 
 
 @patch("time.time", return_value=123)
+def test_explicit_empty_console_clears_mid_run(
+    time_mock: Any, session_view: SessionView
+) -> None:
+    """An explicit `console=[]` clears the session view, even while running."""
+    del time_mock
+    session_view.add_notification(
+        CellNotification(
+            cell_id=cell_id,
+            console=CellOutput.stdout("secret"),
+            status="running",
+        )
+    )
+    session_view.add_notification(
+        CellNotification(
+            cell_id=cell_id,
+            console=CellOutput.stdout(" code"),
+            status="running",
+        )
+    )
+    assert session_view.cell_notifications[cell_id].console == [
+        CellOutput.stdout("secret code"),
+    ]
+
+    # Explicit clear mid-run (status stays "running", no queued transition).
+    session_view.add_notification(
+        CellNotification(
+            cell_id=cell_id,
+            console=[],
+            status="running",
+        )
+    )
+    assert session_view.cell_notifications[cell_id].console == []
+
+    # A subsequent status-only update (console unchanged) keeps it cleared.
+    session_view.add_notification(
+        CellNotification(
+            cell_id=cell_id,
+            console=None,
+            status="running",
+        )
+    )
+    assert session_view.cell_notifications[cell_id].console == []
+
+
+@patch("time.time", return_value=123)
 def test_stdin(time_mock: Any, session_view: SessionView) -> None:
     del time_mock
     session_view.add_notification(

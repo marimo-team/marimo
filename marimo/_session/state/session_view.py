@@ -644,8 +644,14 @@ def merge_cell_notification(
     if current.status is None:
         current.status = previous.status
 
-    # If we went from queued to running, clear the console.
-    if current.status == "running" and previous.status == "queued":
+    # Clear the console when the kernel explicitly sends an empty list,
+    # which matches the CellNotification contract. Else, there would be stale console output in the session view.
+    # Also clear on queued -> running,
+    explicit_clear = isinstance(current.console, list) and not current.console
+    queued_to_running = (
+        current.status == "running" and previous.status == "queued"
+    )
+    if explicit_clear or queued_to_running:
         current.console = []
     else:
         combined_console: list[CellOutput] = as_list(previous.console)

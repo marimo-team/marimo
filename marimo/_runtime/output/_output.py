@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.notification_utils import CellNotificationUtils
+from marimo._messaging.notification import CellNotification
+from marimo._messaging.notification_utils import (
+    CellNotificationUtils,
+    broadcast_notification,
+)
 from marimo._messaging.tracebacks import write_traceback
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
@@ -135,3 +139,20 @@ def remove(value: object) -> None:
     output = ctx.execution_context.output
     output.remove(value)
     flush()
+
+
+def clear_console() -> None:
+    """Clear the console output."""
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return
+
+    if ctx.execution_context is None:
+        return
+
+    ctx.stream.flush_console()
+    if ctx.stream.cell_id is not None:
+        broadcast_notification(
+            CellNotification(cell_id=ctx.stream.cell_id, console=[])
+        )
