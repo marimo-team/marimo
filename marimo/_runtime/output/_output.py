@@ -141,8 +141,15 @@ def remove(value: object) -> None:
     flush()
 
 
+@mddoc
 def clear_console() -> None:
-    """Clear the console output."""
+    """Clear a cell's console output.
+
+    Call `mo.output.clear_console()` to clear the console output area below a
+    cell, including text written earlier in the same run (via `print`, logging,
+    or `stdout`/`stderr`). This is useful for hiding sensitive output, such as a
+    one-time auth code printed during a login flow.
+    """
     try:
         ctx = get_context()
     except ContextNotInitializedError:
@@ -154,5 +161,6 @@ def clear_console() -> None:
     ctx.stream.flush_console()
     if ctx.stream.cell_id is not None:
         broadcast_notification(
-            CellNotification(cell_id=ctx.stream.cell_id, console=[])
+            CellNotification(cell_id=ctx.stream.cell_id, console=[]),
+            stream=ctx.stream,
         )
