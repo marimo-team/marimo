@@ -328,12 +328,7 @@ async def run_scratchpad_code(
     auth_token: str,
     timeout: float = EXECUTION_TIMEOUT,
 ) -> CodeExecutionResult:
-    """Drive the kernel scratchpad on behalf of code-mode (AI tool).
-
-    ``server_url`` and ``auth_token`` are stamped onto ``http_req.meta``
-    so ``ctx.screenshot()`` from inside code-mode can authenticate
-    Playwright against this server (see ``marimo/_code_mode/_context.py``).
-    """
+    """Drive the kernel scratchpad on behalf of code-mode"""
     http_req = HTTPRequest.from_request(request)
     http_req.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
     http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
@@ -348,11 +343,13 @@ async def run_scratchpad_code(
 
     with session.scoped(listener):
         async with session.scratchpad_lock:
+            notebook_cells, cell_outputs = snapshot_for_scratchpad(session)
             session.put_control_request(
                 ExecuteScratchpadCommand(
                     code=code,
                     request=http_req,
-                    notebook_cells=tuple(session.document.cells),
+                    notebook_cells=notebook_cells,
+                    cell_outputs=cell_outputs,
                     run_id=run_id,
                 ),
                 from_consumer_id=None,

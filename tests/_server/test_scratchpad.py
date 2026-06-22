@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from starlette.types import Scope
 
     from marimo._session.session import Session
+    from marimo._types.ids import CellId_t
 
 _TEST_RUN_ID = "test-run-id"
 
@@ -118,7 +119,7 @@ def _build_request(
     host: str = "localhost",
     port: int = 1234,
 ):
-    """Build a real Starlette Request so ``HTTPRequest.from_request``
+    """Build a real Starlette Request so `HTTPRequest.from_request`
     can read it without an exhaustive MagicMock setup."""
     from starlette.requests import Request
 
@@ -136,19 +137,21 @@ def _build_request(
 
 
 class _FakeSession:
-    """Minimal duck-typed Session for ``run_scratchpad_code`` tests.
+    """Minimal duck-typed Session for `run_scratchpad_code` tests.
 
     Behaves like a real Session in the ways the runner cares about:
 
-    * ``scoped`` registers a listener for the duration of the context.
-    * ``put_control_request`` routes a ``CompletedRunNotification`` to
-      the active listener so ``listener.wait()`` returns naturally —
+    * `scoped` registers a listener for the duration of the context.
+    * `put_control_request` routes a `CompletedRunNotification` to
+      the active listener so `listener.wait()` returns naturally —
       no need to monkey-patch listener internals.
 
-    Set ``auto_complete=False`` to drive the timeout path (the listener
+    Set `auto_complete=False` to drive the timeout path (the listener
     will never see a completion event).
     """
 
+    cell_outputs: dict[CellId_t, CellOutput]
+    console_outputs: dict[CellId_t, list[CellOutput]]
     document: SimpleNamespace
     session_view: SimpleNamespace
     scratchpad_lock: asyncio.Lock
@@ -162,8 +165,14 @@ class _FakeSession:
     _pre_complete_notifs: list[NotificationMessage]
 
     def __init__(self, *, auto_complete: bool = True) -> None:
-        self.document = SimpleNamespace(cells=())
-        self.session_view = SimpleNamespace(cell_notifications={})
+        self.cell_outputs = {}
+        self.console_outputs = {}
+        self.document = SimpleNamespace(cells=(), cell_ids=())
+        self.session_view = SimpleNamespace(
+            cell_notifications={},
+            get_cell_outputs=lambda _ids: self.cell_outputs,
+            get_cell_console_outputs=lambda _ids: self.console_outputs,
+        )
         self.scratchpad_lock = asyncio.Lock()
         self.control_requests = []
         self.instantiate_calls = []
@@ -173,7 +182,7 @@ class _FakeSession:
         self._pre_complete_notifs = []
 
     def as_session(self) -> Session:
-        """Type-only cast to ``Session`` for the runner's signature."""
+        """Type-only cast to `Session` for the runner's signature."""
         return cast("Session", cast(object, self))
 
     def emit(self, notification: NotificationMessage) -> None:
@@ -438,9 +447,9 @@ class TestFormatConsole:
 
 
 class TestBuildDoneEvent:
-    # ``done`` shape is uniform ``{success, output}``. Failures always
+    # `done` shape is uniform `{success, output}`. Failures always
     # carry an empty output — the actual error detail was streamed via
-    # preceding ``stderr`` events.
+    # preceding `stderr` events.
     _EMPTY = {"mimetype": "text/plain", "data": ""}
 
     def test_no_notification(self) -> None:
@@ -700,8 +709,8 @@ class TestScratchCellListener:
 
 
 class TestRunScratchpadCode:
-    """Regression guards for ``run_scratchpad_code`` — the runner that
-    backs the AI ``execute_code`` tool."""
+    """Regression guards for `run_scratchpad_code` — the runner that
+    backs the AI `execute_code` tool."""
 
     @staticmethod
     def _execute_command(session: _FakeSession) -> ExecuteScratchpadCommand:
@@ -719,9 +728,9 @@ class TestRunScratchpadCode:
     async def test_stamps_screenshot_meta_and_run_id_on_command(
         self,
     ) -> None:
-        """Regression guard: ``run_id`` and screenshot meta must reach
-        the ``ExecuteScratchpadCommand`` unchanged. Without ``run_id``,
-        ``ScratchCellListener`` filters out the completion event and
+        """Regression guard: `run_id` and screenshot meta must reach
+        the `ExecuteScratchpadCommand` unchanged. Without `run_id`,
+        `ScratchCellListener` filters out the completion event and
         every code-mode tool call hangs ~30s before timing out."""
         session = _FakeSession()
 
@@ -743,9 +752,39 @@ class TestRunScratchpadCode:
         assert cmd.request.meta[SCREENSHOT_AUTH_TOKEN_KEY] == "fake-token"
 
     @pytest.mark.asyncio
+    async def test_snapshots_cell_outputs_onto_command(self) -> None:
+        """`run_scratchpad_code` must snapshot existing cell outputs
+        onto the command (via `snapshot_for_scratchpad`), same as the
+        `/execute` endpoint and MCP code server. Without this, code-mode
+        invoked by the AI `execute_code` tool sees every `cell.output`
+        as `None` while the other entry points expose them."""
+        from marimo._types.ids import CellId_t
+
+        session = _FakeSession()
+        output = CellOutput(
+            channel=CellChannel.OUTPUT, mimetype="text/plain", data="42"
+        )
+        console = CellOutput.stdout("hi\n")
+        session.cell_outputs = {CellId_t("a"): output}
+        session.console_outputs = {CellId_t("a"): [console]}
+
+        await run_scratchpad_code(
+            session.as_session(),
+            _build_request(),
+            code="x = 1",
+            server_url="u",
+            auth_token="t",
+        )
+
+        cmd = self._execute_command(session)
+        assert cmd.cell_outputs is not None
+        assert cmd.cell_outputs.output == snapshot({"a": output})
+        assert cmd.cell_outputs.console_outputs == snapshot({"a": [console]})
+
+    @pytest.mark.asyncio
     async def test_instantiates_session_without_auto_run(self) -> None:
         """The runner must seed the dependency graph before executing
-        (so ``_code_mode.run_cell`` can resolve cell IDs) but it must
+        (so `_code_mode.run_cell` can resolve cell IDs) but it must
         NOT auto-run the notebook's cells."""
         session = _FakeSession()
 
@@ -765,7 +804,7 @@ class TestRunScratchpadCode:
     async def test_holds_scratchpad_lock_while_putting_execute_command(
         self,
     ) -> None:
-        """``scratchpad_lock`` must be held while putting the execute
+        """`scratchpad_lock` must be held while putting the execute
         command so two concurrent code-mode calls can't interleave."""
         session = _FakeSession()
         lock_held: list[bool] = []
@@ -793,9 +832,9 @@ class TestRunScratchpadCode:
         self,
     ) -> None:
         """On timeout the kernel is still running the (likely hung)
-        scratchpad code; ``run_scratchpad_code`` must interrupt it so the
-        next code-mode call doesn't block on ``scratchpad_lock`` — and
-        the timeout must be reported in ``errors`` (plural), matching
+        scratchpad code; `run_scratchpad_code` must interrupt it so the
+        next code-mode call doesn't block on `scratchpad_lock` — and
+        the timeout must be reported in `errors` (plural), matching
         the success path's shape."""
         session = _FakeSession(auto_complete=False)
 
@@ -820,8 +859,8 @@ class TestRunScratchpadCode:
     async def test_cancelled_wait_interrupts_kernel(self) -> None:
         """If the caller cancels mid-tool-call (e.g. the chat session
         ends or pydantic_ai aborts the run), the kernel is still
-        processing our ``ExecuteScratchpadCommand``. We must interrupt
-        before releasing ``scratchpad_lock`` so the next code-mode
+        processing our `ExecuteScratchpadCommand`. We must interrupt
+        before releasing `scratchpad_lock` so the next code-mode
         call isn't blocked behind the abandoned code, and we must
         re-raise the cancellation so the caller still observes it."""
         session = _FakeSession(auto_complete=False)
@@ -849,8 +888,8 @@ class TestRunScratchpadCode:
     async def test_timeout_interrupt_happens_while_holding_lock(
         self,
     ) -> None:
-        """Regression guard: ``try_interrupt()`` must run BEFORE releasing
-        ``scratchpad_lock``. Otherwise a concurrent code-mode call could
+        """Regression guard: `try_interrupt()` must run BEFORE releasing
+        `scratchpad_lock`. Otherwise a concurrent code-mode call could
         acquire the lock and start running between timeout detection and
         the interrupt — and get its brand-new execution killed by us."""
         session = _FakeSession(auto_complete=False)
@@ -877,10 +916,10 @@ class TestRunScratchpadCode:
     @pytest.mark.asyncio
     async def test_child_cell_errors_flow_into_result_errors(self) -> None:
         """End-to-end: child-cell errors captured by the listener during
-        execution must surface in ``result.errors`` — otherwise the AI
-        never learns its ``run_cell`` calls failed. This pins down the
-        ``extract_result(session, listener)`` plumbing as well; dropping
-        the ``listener`` arg silently loses every child-cell error."""
+        execution must surface in `result.errors` — otherwise the AI
+        never learns its `run_cell` calls failed. This pins down the
+        `extract_result(session, listener)` plumbing as well; dropping
+        the `listener` arg silently loses every child-cell error."""
         from marimo._types.ids import CellId_t
 
         session = _FakeSession()
