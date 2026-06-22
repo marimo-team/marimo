@@ -263,6 +263,11 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
             "## Limitations\n"
             "- You must always explain to the user why you are using a tool before invoking it.\n"
         )
+    elif mode == "code_mode":
+        return (
+            f"{base_intro}"
+            "You are in code mode - you have access to the notebook's kernel and can execute code."
+        )
 
 
 def _get_session_info(session_id: SessionId) -> str:

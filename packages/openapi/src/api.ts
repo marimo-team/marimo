@@ -3434,7 +3434,7 @@ export interface components {
      *         - `enabled`: if `False`, hide AI actions and panels in the marimo UI
      *         - `rules`: custom rules to include in all AI completion prompts
      *         - `max_tokens`: the maximum number of tokens to use in AI completions
-     *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
+     *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"`, `"manual"`, `"agent"`, or `"code_mode"`
      *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
      *         - `models`: the models to use for AI completions
      *         - `open_ai`: the OpenAI config
@@ -3463,7 +3463,7 @@ export interface components {
       inline_tooltip?: boolean;
       max_tokens?: number;
       /** @enum {unknown} */
-      mode?: "agent" | "ask" | "manual";
+      mode?: "agent" | "ask" | "code_mode" | "manual";
       models?: components["schemas"]["AiModelConfig"];
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];
@@ -6621,7 +6621,7 @@ export interface components {
      */
     ToolDefinition: {
       description: string;
-      mode: ("agent" | "ask" | "manual")[];
+      mode: ("agent" | "ask" | "code_mode" | "manual")[];
       name: string;
       parameters: Record<string, any>;
       /** @enum {unknown} */

@@ -23,6 +23,7 @@ import {
   PlusIcon,
   SparklesIcon,
   SettingsIcon,
+  CodeIcon,
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
@@ -274,18 +275,28 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       },
       {
         value: "agent",
-        label: "Agent (beta)",
+        label: "Agent",
         subtitle: "Use AI with access to read and write tools",
         Icon: HatGlasses,
       },
     ];
 
+    // Code mode is experimental
+    if (import.meta.env.DEV) {
+      modeOptions.push({
+        value: "code_mode",
+        label: "Code Mode (beta)",
+        subtitle: "Use AI with access to the notebook's kernel",
+        Icon: CodeIcon,
+      });
+    }
+
     const isAttachmentSupported =
       PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
 
-    const CurrentModeIcon = modeOptions.find(
-      (o) => o.value === currentMode,
-    )?.Icon;
+    const currentModeOption = modeOptions.find((o) => o.value === currentMode);
+    const CurrentModeIcon = currentModeOption?.Icon || MessageCircleIcon;
+    const currentModeLabel = currentModeOption?.label || currentMode;
 
     return (
       <TooltipProvider>
@@ -294,7 +305,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             <Select value={currentMode} onValueChange={saveModeChange}>
               <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1.5">
                 {CurrentModeIcon && <CurrentModeIcon className="h-3 w-3" />}
-                <span className="capitalize">{currentMode}</span>
+                <span className="capitalize">{currentModeLabel}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>

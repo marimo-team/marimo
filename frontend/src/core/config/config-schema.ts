@@ -45,7 +45,12 @@ export const DEFAULT_AI_MODEL = "openai/gpt-4o";
 const AUTO_DOWNLOAD_FORMATS = ["html", "markdown", "ipynb"] as const;
 
 export type CopilotMode = NonNullable<schemas["AiConfig"]["mode"]>;
-export const COPILOT_MODES: CopilotMode[] = ["manual", "ask", "agent"];
+export const COPILOT_MODES: CopilotMode[] = [
+  "manual",
+  "ask",
+  "agent",
+  "code_mode",
+];
 
 const AiConfigSchema = z
   .object({
