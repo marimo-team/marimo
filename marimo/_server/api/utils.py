@@ -148,18 +148,18 @@ def format_url_host(
     *,
     route_bind_all_to_loopback: bool = False,
 ) -> str:
-    """Normalize ``host`` for use in a URL authority.
+    """Normalize `host` for use in a URL authority.
 
     Transforms (in order):
 
-    1. Strip user-supplied brackets (``[::1]`` -> ``::1``).
-    2. Drop IPv6 zone IDs (``fe80::1%eth0`` -> ``fe80::1``); zone IDs
+    1. Strip user-supplied brackets (`[::1]` -> `::1`).
+    2. Drop IPv6 zone IDs (`fe80::1%eth0` -> `fe80::1`); zone IDs
        are interface-specific and not valid in URLs. (Must happen
        before :func:`pretty_host` — zone IDs can cause getnameinfo
        to hang on Windows/CI.)
-    3. Replace loopback addresses with ``"localhost"``.
-    4. If ``route_bind_all_to_loopback``, replace the bind-all
-       sentinels ``0.0.0.0`` / ``::`` with ``"localhost"`` so internal
+    3. Replace loopback addresses with `"localhost"`.
+    4. If `route_bind_all_to_loopback`, replace the bind-all
+       sentinels `0.0.0.0` / `::` with `"localhost"` so internal
        callback URLs reach a routable target (the bind-all addresses
        are not valid destinations for an HTTP client / Playwright).
        Display URLs leave them alone — the user knows what they
@@ -176,16 +176,16 @@ def format_url_host(
 def get_code_mode_credentials(
     app_state: AppStateBase, request: Request
 ) -> tuple[str, str]:
-    """Return ``(server_url, auth_token)`` for code-mode tools that
-    call back into this marimo server (e.g. ``ctx.screenshot()``
+    """Return `(server_url, auth_token)` for code-mode tools that
+    call back into this marimo server (e.g. `ctx.screenshot()`
     driving Playwright against the running notebook UI).
 
-    The URL is built from the server's configured ``host``/``port``
-    rather than the request's ``Host`` header so a spoofed header
+    The URL is built from the server's configured `host`/`port`
+    rather than the request's `Host` header so a spoofed header
     can't redirect the auth token to an attacker-controlled URL.
-    ``host`` is also normalized for URL safety (IPv6 bracketing, zone-ID
+    `host` is also normalized for URL safety (IPv6 bracketing, zone-ID
     stripping) and for routability (bind-all addresses mapped to
-    ``localhost``) so the callback actually reaches the server.
+    `localhost`) so the callback actually reaches the server.
     """
     auth_token = str(app_state.session_manager.auth_token)
     base_url = app_state.base_url.rstrip("/")

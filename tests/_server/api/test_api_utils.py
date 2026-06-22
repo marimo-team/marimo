@@ -123,7 +123,7 @@ def test_get_code_mode_credentials_uses_configured_host_not_request_host_header(
     """Regression guard for the security property documented on
     get_code_mode_credentials: the server URL must come from the server's
     configured host/port, not from the (spoofable) Host header.
-    Loopback addresses are pretty-printed to ``localhost``."""
+    Loopback addresses are pretty-printed to `localhost`."""
     url, token = get_code_mode_credentials(
         _fake_app_state(host="127.0.0.1", port=2718, auth_token="secret"),
         _fake_request(host_header="evil.example.com:80"),

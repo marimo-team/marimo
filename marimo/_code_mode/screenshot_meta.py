@@ -1,10 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Meta keys for wiring screenshot credentials through ``HTTPRequest.meta``.
+"""Meta keys for wiring screenshot credentials through `HTTPRequest.meta`.
 
 Code-mode tools running in the kernel need to call back into the marimo
-server (e.g. ``ctx.screenshot()`` driving Playwright against the
-kiosk page). The server stamps a trusted ``server_url`` and
-``auth_token`` onto each control request's ``meta`` dict; the runtime
+server (e.g. `ctx.screenshot()` driving Playwright against the
+kiosk page). The server stamps a trusted `server_url` and
+`auth_token` onto each control request's `meta` dict; the runtime
 side reads them when building the screenshot session.
 """
 

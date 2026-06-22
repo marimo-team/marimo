@@ -19,12 +19,12 @@ def build_execute_code_toolset(
     session: Session,
     request: Request,
 ) -> FunctionToolset[None]:
-    """Build a ``FunctionToolset`` exposing one tool: ``execute_code``.
+    """Build a `FunctionToolset` exposing one tool: `execute_code`.
 
     The tool is bound to the caller's *session* and *request*; the model
     never sees or passes a session id. Screenshot credentials are derived
-    per tool call from the request so ``ctx.screenshot()`` can call back
-    into this server (see ``marimo/_code_mode/_context.py``).
+    per tool call from the request so `ctx.screenshot()` can call back
+    into this server (see `marimo/_code_mode/_context.py`).
     """
 
     from pydantic_ai import FunctionToolset
@@ -34,7 +34,7 @@ def build_execute_code_toolset(
     async def execute_code(code: str) -> CodeExecutionResult:
         """Run Python inside the running notebook's kernel scratchpad.
 
-        Use this for all notebook mutations via ``marimo._code_mode``.
+        Use this for all notebook mutations via `marimo._code_mode`.
         """
         server_url, auth_token = get_code_mode_credentials(
             AppState(request), request
