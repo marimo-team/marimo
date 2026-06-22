@@ -82,11 +82,11 @@ def _extension_column_needs_stringify(series: pd.Series[Any]) -> bool:
     if not is_extension_array_dtype(series.dtype):
         return False
 
-    non_null = series.dropna()
-    if non_null.empty:
+    idx = series.first_valid_index()
+    if idx is None:
         return False
 
-    sample = non_null.iloc[0]
+    sample = series.at[idx]
     serialized = json.loads(json.dumps(sample, default=enc_hook))
     return not isinstance(serialized, (str, int, float, bool, type(None)))
 
