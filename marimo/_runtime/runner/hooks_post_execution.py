@@ -507,6 +507,25 @@ def _reset_matplotlib_context(
         exec("__marimo__._output.mpl.close_figures()", ctx.glbls)
 
 
+@kernel_tracer.start_as_current_span("delete_local_variables")
+def _delete_local_variables(
+    cell: CellImpl,
+    ctx: PostExecutionHookContext,
+    run_result: cell_runner.RunResult,
+) -> None:
+    # Remove temporary (local) variables from the kernel globals to relieve
+    # memory pressure once the cell has finished running.
+    #
+    # To prevent breaking existing notebooks, we make an exception for
+    # temporaries that are closed over by a function, lambda, or class defined
+    # in this cell: deleting those would cause a NameError when the closure is
+    # later invoked, since closures do late-binding. These are precomputed at
+    # compile time as `closed_over_temporaries`.
+    del run_result
+    for name in cell.temporaries - cell.closed_over_temporaries:
+        ctx.glbls.pop(name, None)
+
+
 @kernel_tracer.start_as_current_span("flush_console")
 def _flush_console(
     cell: CellImpl,
@@ -540,6 +559,7 @@ POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     _broadcast_duckdb_datasource,
     _broadcast_outputs,
     _reset_matplotlib_context,
+    _delete_local_variables,
     # Flush buffered console output so that stderr/stdout arrives at the
     # frontend before the cell transitions to idle.
     _flush_console,

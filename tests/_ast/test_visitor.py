@@ -1975,3 +1975,38 @@ def test_class_with_backward_reference_to_method() -> None:
     assert v.refs == {"method"}
     # B should have method in unbounded refs (backward reference is invalid)
     assert v.variable_data["B"][0].unbounded_refs == {"method"}
+
+
+def _closure_refs(code: str) -> set[str]:
+    v = visitor.ScopedVisitor("cell_c")
+    v.visit(ast.parse(dedent(code)))
+    return visitor.get_closure_refs(v.variable_data)
+
+
+def test_get_closure_refs_function() -> None:
+    assert "_cell_c_x" in _closure_refs("_x = 1\ndef foo():\n    return _x")
+
+
+def test_get_closure_refs_lambda() -> None:
+    assert "_cell_c_x" in _closure_refs("_x = 1\nlam = lambda: _x")
+
+
+def test_get_closure_refs_class() -> None:
+    code = "_x = 1\nclass C:\n    def m(self):\n        return _x"
+    assert "_cell_c_x" in _closure_refs(code)
+
+
+def test_get_closure_refs_ignores_plain_data_dependency() -> None:
+    # `_x` is only a data dependency of `y`, not closed over, so it is excluded.
+    assert _closure_refs("_x = 1\ny = _x + 1") == set()
+
+
+def test_get_closure_refs_transitive_through_private_helper() -> None:
+    # `foo` closes over `_helper`, which itself closes over `_data`; both must
+    # be reported.
+    code = (
+        "_data = 1\n"
+        "def _helper():\n    return _data\n"
+        "def foo():\n    return _helper()"
+    )
+    assert {"_cell_c_helper", "_cell_c_data"} <= _closure_refs(code)
