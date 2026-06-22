@@ -17,7 +17,7 @@ def mask_secrets_partial(config: PartialMarimoConfig) -> PartialMarimoConfig:
 
 def mask_secrets(config: MarimoConfig) -> MarimoConfig:
     def deep_remove_from_path(path: list[str], obj: dict[str, Any]) -> None:
-        if not path:
+        if not path or not isinstance(obj, dict):
             return
 
         key = path[0]
