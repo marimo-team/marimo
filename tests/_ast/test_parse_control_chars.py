@@ -19,7 +19,7 @@ from marimo._ast.parse import parse_notebook
 NOTEBOOK_FORMFEED_ASSERT = 'import marimo\n__generated_with = "0.17.7"\napp = marimo.App(\n)\n@app.cell\ndef _(mo):\n    mo.md("""\n    P=\x0c    rac{TP}{TP+FP}\n    R=\x0c    rac{TP}{TP+FN}\n    F1 = \x0c    rac{2\times P\times R}{P+R}\n    """)\n    return\n\n@app.cell\ndef _(mo):\n    mo.md("""\n    """)\n    return\n\n@app.cell\ndef _():\n    pass\n    return\nif __name__ == "__main__":\n    app.run()\n'
 
 # Same root cause; parametrized `@app.cell(hide_code=True)` decorators make the
-# mis-extracted fragment untokenizable -> tokenize.TokenError instead.
+# incorrectly extracted fragment untokenizable -> tokenize.TokenError instead.
 NOTEBOOK_FORMFEED_TOKEN = 'import marimo\n__generated_with = "0.17.4"\napp = marimo.App(width="medium", auto_download=["html"])\n@app.cell(hide_code=True)\ndef _(mo):\n    mo.md("""\n    P=\x0c    rac{TP}{TP+FP}\n    R=\x0c    rac{TP}{TP+FN}\n    F1 = \x0c    rac{2\times P\times R}{P+R}\n    """)\n    return\n@app.cell(hide_code=True)\ndef _(mo):\n    mo.md("""\n\n    **Interpret your results**\n    """)\n    return\n@app.cell(hide_code=True)\ndef _(mo):\n    mo.md("""My answer:""")\n    return\nif __name__ == "__main__":\n    app.run()\n'
 
 
