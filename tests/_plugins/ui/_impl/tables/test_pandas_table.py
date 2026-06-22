@@ -2177,19 +2177,55 @@ class TestPandasTableManager(unittest.TestCase):
         expected = [{"value": value} for value in series.astype(str)]
         assert json_data == expected
 
-    def test_to_json_str_awkward_pandas_keeps_numeric_values(self) -> None:
-        """awkward-pandas primitives should stay numeric in table JSON."""
-        pytest.importorskip("awkward")
-        pytest.importorskip("awkward_pandas")
-        import awkward as ak
-        import awkward_pandas as akpd
+    def test_extension_column_needs_stringify_skips_json_primitives(
+        self,
+    ) -> None:
+        """Extension columns with JSON-safe scalars should not be stringified."""
+        from unittest.mock import patch
+
         import pandas as pd
 
-        series = pd.Series(
-            akpd.AwkwardExtensionArray(ak.Array([1.1, 2.2, 3.3]))
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _extension_column_needs_stringify,
         )
-        manager = self.factory.create()(series.to_frame(name="value"))
-        json_data = json.loads(manager.to_json_str())
+
+        series = pd.Series([1.1, 2.2, 3.3])
+        with patch(
+            "pandas.api.types.is_extension_array_dtype", return_value=True
+        ):
+            assert not _extension_column_needs_stringify(series)
+
+    def test_extension_column_needs_stringify_for_rich_extension_values(
+        self,
+    ) -> None:
+        """Extension columns with nested JSON values should be stringified."""
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _extension_column_needs_stringify,
+        )
+
+        series = pd.Series([SimpleNamespace(x=1.1)])
+        with patch(
+            "pandas.api.types.is_extension_array_dtype", return_value=True
+        ):
+            assert _extension_column_needs_stringify(series)
+
+    def test_to_json_str_keeps_numeric_extension_columns(self) -> None:
+        """Numeric extension-array columns stay numeric in table JSON."""
+        from unittest.mock import patch
+
+        import pandas as pd
+
+        df = pd.DataFrame({"value": [1.1, 2.2, 3.3]})
+        manager = self.factory.create()(df)
+        with patch(
+            "pandas.api.types.is_extension_array_dtype", return_value=True
+        ):
+            json_data = json.loads(manager.to_json_str())
 
         assert json_data == [{"value": 1.1}, {"value": 2.2}, {"value": 3.3}]
 
