@@ -49,6 +49,9 @@ export interface DataSourceState {
 export interface SQLSchemaContext {
   engine: string;
   database: string;
+  // Parent schema path (relative to `database`) for nested schemas.
+  // Empty/undefined for the database's top level.
+  schemaPath?: string[];
 }
 
 export interface SQLTableContext {
@@ -58,6 +61,49 @@ export interface SQLTableContext {
   dialect: string;
   defaultSchema?: string | null;
   defaultDatabase?: string | null;
+  // Nested schema path (relative to `database`). Empty/undefined at top level.
+  schemaPath?: string[];
+}
+
+/**
+ * Immutably descend `path` (schema segment names) into a nested schema list
+ * and apply `update` to the matching schema. Unmatched branches are unchanged.
+ */
+function updateSchemaAtPath(
+  schemas: DatabaseSchema[],
+  path: string[],
+  update: (schema: DatabaseSchema) => DatabaseSchema,
+): DatabaseSchema[] {
+  if (path.length === 0) {
+    return schemas;
+  }
+  const [head, ...rest] = path;
+  return schemas.map((schema) => {
+    if (schema.name !== head) {
+      return schema;
+    }
+    if (rest.length === 0) {
+      return update(schema);
+    }
+    return {
+      ...schema,
+      child_schemas: updateSchemaAtPath(
+        schema.child_schemas ?? [],
+        rest,
+        update,
+      ),
+    };
+  });
+}
+
+/**
+ * The path (schema/namespace segment names within a database) that locates the
+ * schema holding a set of tables. For nested namespaces this is the
+ * `schemaPath`; otherwise it is the single (possibly schemaless) schema name.
+ */
+function tableSchemaPath(sqlTableContext: SQLTableContext): string[] {
+  const { schemaPath, schema } = sqlTableContext;
+  return schemaPath && schemaPath.length > 0 ? schemaPath : [schema];
 }
 
 function initialState(): DataSourceState {
@@ -159,6 +205,7 @@ const {
       return state;
     }
 
+    const schemaPath = sqlSchemaContext.schemaPath ?? [];
     const newMap = new Map(connectionsMap);
     const newConn: DataSourceConnection = {
       ...conn,
@@ -166,10 +213,22 @@ const {
         if (db.name !== sqlSchemaContext.database) {
           return db;
         }
+        // Top level: replace the database's schemas.
+        if (schemaPath.length === 0) {
+          return {
+            ...db,
+            schemas: schemas,
+            schemas_resolved: true,
+          };
+        }
+        // Nested namespace: replace the child schemas of the namespace at path.
         return {
           ...db,
-          schemas: schemas,
-          schemas_resolved: true,
+          schemas: updateSchemaAtPath(db.schemas, schemaPath, (schema) => ({
+            ...schema,
+            child_schemas: schemas,
+            child_schemas_resolved: true,
+          })),
         };
       }),
     };
@@ -198,6 +257,7 @@ const {
       return state;
     }
 
+    const path = tableSchemaPath(sqlTableContext);
     const newMap = new Map(connectionsMap);
     const newConn: DataSourceConnection = {
       ...conn,
@@ -207,16 +267,11 @@ const {
         }
         return {
           ...db,
-          schemas: db.schemas.map((schema) => {
-            if (schema.name !== sqlTableContext.schema) {
-              return schema;
-            }
-            return {
-              ...schema,
-              tables: tables,
-              tables_resolved: true,
-            };
-          }),
+          schemas: updateSchemaAtPath(db.schemas, path, (schema) => ({
+            ...schema,
+            tables: tables,
+            tables_resolved: true,
+          })),
         };
       }),
     };
@@ -246,6 +301,7 @@ const {
       return state;
     }
 
+    const path = tableSchemaPath(sqlTableContext);
     const newMap = new Map(connectionsMap);
     const newConn: DataSourceConnection = {
       ...conn,
@@ -253,21 +309,15 @@ const {
         if (db.name !== sqlTableContext.database) {
           return db;
         }
-
         return {
           ...db,
-          schemas: db.schemas.map((schema) => {
-            if (schema.name !== sqlTableContext.schema) {
-              return schema;
-            }
-
+          schemas: updateSchemaAtPath(db.schemas, path, (schema) => {
             // If tables array is empty, add the table
             // Otherwise, replace existing table or keep unchanged tables
             const tables =
               schema.tables.length === 0
                 ? [table]
                 : schema.tables.map((t) => (t.name === tableName ? table : t));
-
             return {
               ...schema,
               tables,
@@ -327,9 +377,14 @@ export const allTablesAtom = atom((get) => {
       const isDefaultDb =
         database.name === conn.default_database || conn.databases.length === 1;
 
-      for (const schema of database.schemas) {
-        const isDefaultSchema = schema.name === conn.default_schema;
-        const schemalessDb = isSchemaless(schema.name);
+      // Walk schemas recursively so nested namespaces (e.g. Iceberg
+      // `top.nested`) are enumerated. `segments` is the path of named
+      // (non-schemaless) namespace segments down to this schema.
+      const walkSchema = (schema: DatabaseSchema, segments: string[]): void => {
+        const schemalessDb = segments.length === 0;
+        const isDefaultSchema =
+          segments.length === 1 && segments[0] === conn.default_schema;
+        const schemaQualifier = segments.join(".");
 
         for (const table of schema.tables) {
           let nameToSave: string;
@@ -358,14 +413,14 @@ export const allTablesAtom = atom((get) => {
             continue;
           }
 
-          nameToSave = `${schema.name}.${table.name}`;
+          nameToSave = `${schemaQualifier}.${table.name}`;
 
           if (isDefaultDb && !tableNames.has(nameToSave)) {
             tableNames.set(nameToSave, table);
             continue;
           }
 
-          nameToSave = `${database.name}.${schema.name}.${table.name}`;
+          nameToSave = `${database.name}.${schemaQualifier}.${table.name}`;
 
           if (tableNames.has(nameToSave)) {
             Logger.warn(`Table name collision for ${nameToSave}. Skipping.`);
@@ -373,6 +428,15 @@ export const allTablesAtom = atom((get) => {
             tableNames.set(nameToSave, table);
           }
         }
+
+        // Recurse into nested child namespaces. Children are always named.
+        for (const child of schema.child_schemas ?? []) {
+          walkSchema(child, [...segments, child.name]);
+        }
+      };
+
+      for (const schema of database.schemas) {
+        walkSchema(schema, isSchemaless(schema.name) ? [] : [schema.name]);
       }
     }
   }

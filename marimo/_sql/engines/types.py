@@ -120,20 +120,44 @@ class EngineCatalog(BaseEngine[CONN], ABC):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[Schema]:
-        """Return the schemas for a database in the engine."""
+        """Return schemas within a database.
+
+        Empty `schema_path` lists the database's top-level schemas; a non-empty
+        path lists the child schemas at that path. Only nested-namespace engines
+        (e.g. Iceberg) honour a non-empty path; flat engines return `[]` for one.
+        """
 
     @abstractmethod
     def get_tables_in_schema(
-        self, *, schema: str, database: str, include_table_details: bool
+        self,
+        *,
+        schema: str,
+        database: str,
+        include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[DataTable]:
-        """Return all tables in a schema."""
+        """Return all tables in a schema.
+
+        Nested-namespace engines locate the schema via `schema_path` (relative
+        to `database`); flat engines use `schema` and ignore it.
+        """
 
     @abstractmethod
     def get_table_details(
-        self, *, table_name: str, schema_name: str, database_name: str
+        self,
+        *,
+        table_name: str,
+        schema_name: str,
+        database_name: str,
+        schema_path: list[str] | None = None,
     ) -> DataTable | None:
-        """Get a single table from the engine."""
+        """Get a single table from the engine.
+
+        Nested-namespace engines locate the table via `schema_path` (relative to
+        `database_name`); flat engines ignore it.
+        """
 
     def _resolve_should_auto_discover(
         self, value: bool | Literal["auto"]

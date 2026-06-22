@@ -4,13 +4,52 @@ import { BigQueryDialect } from "@marimo-team/codemirror-sql/dialects";
 import { isKnownDialect } from "@/core/codemirror/language/languages/sql/utils";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
-import type { DataTable, DataType } from "@/core/kernel/messages";
+import type {
+  Database,
+  DatabaseSchema,
+  DataTable,
+  DataType,
+} from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import type { ColumnHeaderStatsKey } from "../data-table/types";
+
+/**
+ * Stable id for a table node in the datasources tree.
+ *
+ * schemaPath already includes the leaf schema for nested namespaces, so use it
+ * when present and fall back to the flat schema name otherwise (avoids
+ * duplicating the leaf, e.g. `top.nested.nested.table`).
+ */
+export function tableUniqueId(
+  sqlTableContext: SQLTableContext | undefined,
+  tableName: string,
+): string {
+  if (!sqlTableContext) {
+    return tableName;
+  }
+  const segments = (
+    sqlTableContext.schemaPath?.length
+      ? sqlTableContext.schemaPath
+      : [sqlTableContext.schema]
+  ).filter(Boolean);
+  return [sqlTableContext.database, ...segments, tableName].join(".");
+}
 
 // Some databases have no schemas, so we don't show it (eg. Clickhouse)
 export function isSchemaless(schemaName: string) {
   return schemaName === "";
+}
+
+// Lazy discovery: the `*_resolved` flags default to `true` and are only `false`
+// when enumeration was deferred. Helper functions to centralize logic
+export function areSchemasResolved(database: Database): boolean {
+  return database.schemas_resolved !== false;
+}
+export function areTablesResolved(schema: DatabaseSchema): boolean {
+  return schema.tables_resolved !== false;
+}
+export function areChildSchemasResolved(schema: DatabaseSchema): boolean {
+  return schema.child_schemas_resolved !== false;
 }
 
 interface SqlCodeFormatter {
