@@ -515,15 +515,25 @@ const DatabaseItem: React.FC<{
   database: Database;
   children: React.ReactNode;
 }> = ({ searchValue, engineName, database, children }) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  // Auto-expand during search only when a loaded schema under this database
+  // contains a matching table.
+  const expandForSearch = shouldExpandDatabaseForSearch(database, searchValue);
+  const [isExpanded, setIsExpanded] = React.useState(expandForSearch);
   const [isSelected, setIsSelected] = React.useState(false);
   const [prevSearchValue, setPrevSearchValue] = React.useState(searchValue);
+  const [prevExpandForSearch, setPrevExpandForSearch] =
+    React.useState(expandForSearch);
 
-  // Re-evaluate auto-expansion whenever the query changes: expand only when a
-  // loaded schema under this database contains a matching table.
-  if (prevSearchValue !== searchValue) {
+  // Re-sync when the query changes or when newly resolved data turns this
+  // branch into a match under the same query (deferred subtrees resolve
+  // asynchronously, so the decision can flip without the query changing).
+  if (
+    prevSearchValue !== searchValue ||
+    prevExpandForSearch !== expandForSearch
+  ) {
     setPrevSearchValue(searchValue);
-    setIsExpanded(shouldExpandDatabaseForSearch(database, searchValue));
+    setPrevExpandForSearch(expandForSearch);
+    setIsExpanded(expandForSearch);
   }
 
   return (
@@ -657,19 +667,27 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
   const { schema, schemaPath, depth } = props;
   const tree = useDataSourceTree();
   const { databaseName, searchValue } = tree;
-  const [isExpanded, setIsExpanded] = React.useState(() =>
-    schemaSubtreeMatchesSearch(schema, searchValue),
-  );
+  // Auto-expand during search only when this schema's loaded subtree contains a
+  // matching table.
+  const expandForSearch = schemaSubtreeMatchesSearch(schema, searchValue);
+  const [isExpanded, setIsExpanded] = React.useState(expandForSearch);
   const [isSelected, setIsSelected] = React.useState(false);
   const [prevSearchValue, setPrevSearchValue] = React.useState(searchValue);
+  const [prevExpandForSearch, setPrevExpandForSearch] =
+    React.useState(expandForSearch);
   const uniqueValue = `${databaseName}:${schemaPath.join(".")}`;
   const childSchemas = schema.child_schemas ?? [];
 
-  // Re-evaluate auto-expansion whenever the query changes: expand only when this
-  // schema's loaded subtree contains a matching table.
-  if (prevSearchValue !== searchValue) {
+  // Re-sync when the query changes or when newly resolved data turns this
+  // subtree into a match under the same query (deferred tables/child schemas
+  // resolve asynchronously, so the decision can flip without the query changing).
+  if (
+    prevSearchValue !== searchValue ||
+    prevExpandForSearch !== expandForSearch
+  ) {
     setPrevSearchValue(searchValue);
-    setIsExpanded(schemaSubtreeMatchesSearch(schema, searchValue));
+    setPrevExpandForSearch(expandForSearch);
+    setIsExpanded(expandForSearch);
   }
 
   return (
