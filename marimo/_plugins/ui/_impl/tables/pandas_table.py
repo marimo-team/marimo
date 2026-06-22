@@ -79,16 +79,22 @@ def _extension_column_needs_stringify(series: pd.Series[Any]) -> bool:
     """Whether an extension-array column should be cast to str for JSON."""
     from pandas.api.types import is_extension_array_dtype
 
-    if not is_extension_array_dtype(series.dtype):
-        return False
+    try:
+        if not is_extension_array_dtype(series.dtype):
+            return False
 
-    idx = series.first_valid_index()
-    if idx is None:
-        return False
+        notna = series.notna()
+        if not notna.any():
+            return False
 
-    sample = series.at[idx]
-    serialized = json.loads(json.dumps(sample, default=enc_hook))
-    return not isinstance(serialized, (str, int, float, bool, type(None)))
+        # Position-based sample: avoids dropna() copies and .at on
+        # duplicate labels (which can return a Series instead of a scalar).
+        sample = series.iat[int(notna.to_numpy().argmax())]
+        serialized = json.loads(json.dumps(sample, default=enc_hook))
+        return not isinstance(serialized, (str, int, float, bool, type(None)))
+    except Exception:
+        # Conservative fallback: stringify if sampling or serialization fails.
+        return True
 
 
 def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:

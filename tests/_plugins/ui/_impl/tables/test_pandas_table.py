@@ -2214,6 +2214,24 @@ class TestPandasTableManager(unittest.TestCase):
         ):
             assert _extension_column_needs_stringify(series)
 
+    def test_extension_column_needs_stringify_with_duplicate_index(
+        self,
+    ) -> None:
+        """Duplicate labels should not break extension-array sampling."""
+        from unittest.mock import patch
+
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _extension_column_needs_stringify,
+        )
+
+        series = pd.Series([1.1, 2.2], index=[0, 0])
+        with patch(
+            "pandas.api.types.is_extension_array_dtype", return_value=True
+        ):
+            assert not _extension_column_needs_stringify(series)
+
     def test_to_json_str_keeps_numeric_extension_columns(self) -> None:
         """Numeric extension-array columns stay numeric in table JSON."""
         from unittest.mock import patch
