@@ -134,6 +134,7 @@ components:
           enum:
           - agent
           - ask
+          - code_mode
           - manual
         models:
           $ref: '#/components/schemas/AiModelConfig'
@@ -5257,6 +5258,7 @@ components:
             enum:
             - agent
             - ask
+            - code_mode
             - manual
           type: array
         name:

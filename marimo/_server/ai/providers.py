@@ -61,7 +61,10 @@ if TYPE_CHECKING:
     from pydantic_ai.providers.openai import OpenAIProvider as PydanticOpenAI
     from pydantic_ai.settings import ModelSettings, ThinkingLevel
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
+    from starlette.requests import Request
     from starlette.responses import StreamingResponse
+
+    from marimo._session import Session
 
 
 LOGGER = _loggers.marimo_logger()
@@ -219,6 +222,49 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         )
 
         return str(result.output)
+
+    async def stream_completion_harness(
+        self,
+        messages: list[ServerUIMessage],
+        *,
+        system_prompt: str,
+        session: Session,
+        request: Request,
+        max_tokens: int | None,
+        stream_options: StreamOptions | None,
+    ) -> StreamingResponse:
+        """Experimental method to return code-mode streaming responses"""
+        from pydantic_ai import Agent
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+        from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
+
+        from marimo._server.ai.tools.code_mode import (
+            build_execute_code_toolset,
+        )
+
+        model = self.create_model(max_tokens=max_tokens)
+        agent = Agent(
+            model,
+            model_settings=self._build_agent_settings(model),
+            toolsets=[build_execute_code_toolset(session, request)],
+            instructions=system_prompt,
+        )
+
+        run_input = SubmitMessage(
+            id=generate_id("submit-message"),
+            trigger="submit-message",
+            messages=self.convert_messages(messages),
+        )
+
+        stream_options = stream_options or StreamOptions()
+        adapter = VercelAIAdapter(
+            agent=agent,
+            run_input=run_input,
+            accept=stream_options.accept,
+            sdk_version=AI_SDK_VERSION,
+        )
+        event_stream = adapter.run_stream()
+        return adapter.streaming_response(event_stream)
 
     def _get_toolsets_and_output_type(
         self, tools: list[ToolDefinition]

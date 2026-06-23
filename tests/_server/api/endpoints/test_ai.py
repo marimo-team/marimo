@@ -555,7 +555,7 @@ class TestGoogleAiEndpoints:
             )
 
 
-def _openai_config():
+def _openai_config() -> dict[str, Any]:
     return {
         "ai": {
             "open_ai": {
@@ -725,6 +725,66 @@ def test_chat_with_code(
         assert response.status_code == 200, response.text
         # Verify stream_completion was called
         mock_stream_completion.assert_called_once()
+
+
+def _openai_config_code_mode() -> dict[str, Any]:
+    config: dict[str, Any] = _openai_config()
+    config["ai"]["mode"] = "code_mode"
+    return config
+
+
+@pytest.mark.requires("openai", "pydantic_ai")
+@with_session(SESSION_ID)
+@patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+@patch("marimo._server.ai.providers.OpenAIProvider.stream_completion_harness")
+def test_chat_code_mode_routes_to_harness(
+    client: TestClient,
+    mock_harness: MagicMock,
+    mock_stream_completion: MagicMock,
+) -> None:
+    """In code mode the chat endpoint routes to the code-mode harness
+    (which can execute code) instead of the plain completion stream."""
+    user_config_manager = get_session_config_manager(client)
+
+    from starlette.responses import StreamingResponse
+
+    async def mock_stream():
+        yield b"done"
+
+    mock_harness.return_value = StreamingResponse(
+        content=mock_stream(),
+        media_type="text/event-stream",
+    )
+
+    with patch.object(
+        user_config_manager,
+        "get_config",
+        return_value=_openai_config_code_mode(),
+    ):
+        response = client.post(
+            "/api/ai/chat",
+            headers=HEADERS,
+            json={
+                "messages": _create_messages("Add a cell"),
+                "uiMessages": _create_messages("Add a cell"),
+                "model": "gpt-4-turbo",
+                "variables": [],
+                "includeOtherCode": "",
+                "context": {},
+                "id": "123",
+            },
+        )
+
+    assert response.status_code == 200, response.text
+    mock_harness.assert_called_once()
+    mock_stream_completion.assert_not_called()
+
+    # The harness receives the live session and the assembled system prompt
+    # (which embeds the marimo-pair skill; building it also exercises the
+    # skill-loading path).
+    kwargs = mock_harness.call_args.kwargs
+    assert kwargs["session"] is not None
+    assert "how to work with marimo" in kwargs["system_prompt"]
 
 
 # Tool invocation tests (provider-agnostic)

@@ -13,7 +13,7 @@ from starlette.responses import (
 
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import create_simple_prompt, generate_id
-from marimo._config.config import AiConfig, MarimoConfig
+from marimo._config.config import AiConfig, CopilotMode, MarimoConfig
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -183,7 +183,7 @@ async def ai_chat(
                     $ref: "#/components/schemas/ChatRequest"
     """
     app_state = AppState(request)
-    app_state.require_current_session()
+    session = app_state.require_current_session()
     session_id = app_state.require_current_session_id()
     accept = request.headers.get("accept", SSE_CONTENT_TYPE)
     config = app_state.app_config_manager.get_config(hide_secrets=False)
@@ -193,12 +193,12 @@ async def ai_chat(
     ai_config = get_ai_config(config)
     custom_rules = ai_config.get("rules", None)
 
-    # Get the system prompt
+    mode: CopilotMode = ai_config.get("mode", "manual")
     system_prompt = get_chat_system_prompt(
         custom_rules=custom_rules,
         context=body.context,
         include_other_code=body.include_other_code,
-        mode=ai_config.get("mode", "manual"),
+        mode=mode,
         session_id=session_id,
     )
 
@@ -214,6 +214,16 @@ async def ai_chat(
     stream_options = StreamOptions(
         format_stream=True, text_only=False, accept=accept
     )
+
+    if mode == "code_mode":
+        return await provider.stream_completion_harness(
+            messages=body.ui_messages,
+            system_prompt=system_prompt,
+            session=session,
+            request=request,
+            max_tokens=max_tokens,
+            stream_options=stream_options,
+        )
 
     return await provider.stream_completion(
         messages=body.ui_messages,
