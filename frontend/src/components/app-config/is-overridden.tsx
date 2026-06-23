@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { get } from "lodash-es";
+import { get, has } from "lodash-es";
 import { FolderCog2 } from "lucide-react";
 import { useCallback } from "react";
 import type {
@@ -40,7 +40,9 @@ function resolveOverride<T>({
 }): ConfigOverride<T> {
   const userValue = get(userConfig, name);
   const projectValue = get(overrides as UserConfig, name);
-  const isOverridden = projectValue != null && userValue !== projectValue;
+  // A setting is overridden when the project config specifies the path at all
+  // (so it stays locked even if the value equals the user's, or is `null`).
+  const isOverridden = has(overrides, name);
   return {
     isOverridden,
     userValue,

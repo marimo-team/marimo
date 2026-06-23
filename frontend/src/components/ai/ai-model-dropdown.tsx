@@ -133,6 +133,9 @@ export const AIModelDropdown = ({
   };
 
   const handleSelect = (modelId: QualifiedModelId) => {
+    if (disabled) {
+      return;
+    }
     if (onSelect) {
       onSelect(modelId);
     } else {

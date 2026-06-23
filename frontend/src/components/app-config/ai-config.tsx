@@ -541,12 +541,14 @@ export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
   onSubmit,
 }) => {
   const getOverride = useConfigOverride();
-  // Gate the conditional sub-form on the effective provider, so an overridden
+  // Watch (not `getValues`) so the sub-form re-renders when the provider
+  // changes, then resolve the effective value so an overridden
   // `completion.copilot` shows the matching sub-form (not the user's saved one).
-  const { value: copilot } = getOverride(
-    "completion.copilot",
-    form.getValues("completion.copilot"),
-  );
+  const watchedCopilot = useWatch({
+    control: form.control,
+    name: "completion.copilot",
+  });
+  const { value: copilot } = getOverride("completion.copilot", watchedCopilot);
   return (
     <SettingGroup>
       <SettingSubtitle>Code Completion</SettingSubtitle>
