@@ -7,8 +7,9 @@ import re
 import unittest
 import warnings
 from math import isnan, nan
+from types import SimpleNamespace
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import narwhals.stable.v2 as nw
 import pytest
@@ -20,6 +21,7 @@ from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
+    _extension_column_needs_stringify,
 )
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from tests.mocks import snapshotter
@@ -2164,9 +2166,9 @@ class TestPandasTableManager(unittest.TestCase):
         # MultiIndex should be preserved with original names
         assert list(result._original_data.index.names) == ["x", "level"]
 
+    @pytest.mark.requires("pint_pandas")
     def test_to_json_str_pint_pandas_series(self) -> None:
         """pint-pandas quantities display as readable strings in tables."""
-        pytest.importorskip("pint_pandas")
         import pandas as pd
 
         series = pd.Series([1, 2, 3, 4], dtype="pint[meter]")
@@ -2181,13 +2183,7 @@ class TestPandasTableManager(unittest.TestCase):
         self,
     ) -> None:
         """Extension columns with JSON-safe scalars should not be stringified."""
-        from unittest.mock import patch
-
         import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.pandas_table import (
-            _extension_column_needs_stringify,
-        )
 
         series = pd.Series([1.1, 2.2, 3.3])
         with patch(
@@ -2199,14 +2195,7 @@ class TestPandasTableManager(unittest.TestCase):
         self,
     ) -> None:
         """Extension columns with nested JSON values should be stringified."""
-        from types import SimpleNamespace
-        from unittest.mock import patch
-
         import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.pandas_table import (
-            _extension_column_needs_stringify,
-        )
 
         series = pd.Series([SimpleNamespace(x=1.1)])
         with patch(
@@ -2218,13 +2207,7 @@ class TestPandasTableManager(unittest.TestCase):
         self,
     ) -> None:
         """Duplicate labels should not break extension-array sampling."""
-        from unittest.mock import patch
-
         import pandas as pd
-
-        from marimo._plugins.ui._impl.tables.pandas_table import (
-            _extension_column_needs_stringify,
-        )
 
         series = pd.Series([1.1, 2.2], index=[0, 0])
         with patch(
@@ -2234,8 +2217,6 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_to_json_str_keeps_numeric_extension_columns(self) -> None:
         """Numeric extension-array columns stay numeric in table JSON."""
-        from unittest.mock import patch
-
         import pandas as pd
 
         df = pd.DataFrame({"value": [1.1, 2.2, 3.3]})
@@ -2252,8 +2233,6 @@ class TestPandasTableManager(unittest.TestCase):
     ) -> None:
         """to_arrow_ipc falls back when a column has an extension dtype
         that PyArrow cannot convert (e.g. pint-pandas)."""
-        from unittest.mock import patch
-
         import pyarrow as pa
 
         df = pd.DataFrame({"a": [1, 2, 3], "b": [4.0, 5.0, 6.0]})
