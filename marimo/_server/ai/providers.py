@@ -268,6 +268,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             trigger="submit-message",
             messages=self.convert_messages(messages),
         )
+        stream_options.span_info.tool_count = 1
 
         adapter = VercelAIAdapter(
             agent=agent,

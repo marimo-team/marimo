@@ -685,6 +685,9 @@ async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
     streaming_response = MagicMock(name="streaming_response")
     adapter: MagicMock = MagicMock(name="adapter")
     adapter.streaming_response = MagicMock(return_value=streaming_response)
+    stream_options = StreamOptions(
+        span_info=SpanInfo(endpoint="chat", model="openai/gpt-4"),
+    )
 
     with (
         patch.object(provider, "create_model", return_value=MagicMock()),
@@ -706,12 +709,11 @@ async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
             session=session,
             request=request,
             max_tokens=1234,
-            stream_options=StreamOptions(
-                span_info=SpanInfo(endpoint="chat", model="openai/gpt-4"),
-            ),
+            stream_options=stream_options,
         )
 
     assert result is streaming_response
+    assert stream_options.span_info.tool_count == 1
     # The toolset is bound to the caller's session and request.
     mock_build_toolset.assert_called_once_with(session, request)
 
