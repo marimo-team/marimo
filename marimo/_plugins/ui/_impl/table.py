@@ -479,6 +479,9 @@ class table(
         max_height (int, optional): Maximum height of the table body in pixels. When set,
             the table becomes vertically scrollable and the header will be made sticky
             in the UI to remain visible while scrolling. Defaults to None.
+        width (Literal["auto", "full"], optional): Width behavior of the table.
+            "auto" uses minimum width needed for columns (good for few columns with short data).
+            "full" fills the available width (default, good for most cases).
         label (str, optional): A descriptive name for the table. Defaults to "".
     """
 
@@ -581,6 +584,7 @@ class table(
         style_cell: Callable[[str, str, Any], dict[str, Any]] | None = None,
         hover_template: str | Callable[[str, str, Any], str] | None = None,
         max_height: int | None = None,
+        width: Literal["auto", "full"] = "full",
         # The _internal_* arguments are for overriding and unit tests
         # table should take the value unconditionally
         _internal_column_charts_row_limit: int | None = None,
@@ -859,6 +863,7 @@ class table(
                 "max-height": int(max_height)
                 if max_height is not None
                 else None,
+                "width": width,
             },
             on_change=on_change,
             functions=(

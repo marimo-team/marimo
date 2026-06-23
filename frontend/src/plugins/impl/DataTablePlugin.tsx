@@ -179,6 +179,7 @@ interface Data<T> {
   pagination: boolean;
   pageSize: number;
   maxHeight?: number;
+  width?: "auto" | "full";
   selection: DataTableSelection;
   showDownload: boolean;
   showFilters: boolean;
@@ -280,6 +281,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
       hasStableRowId: z.boolean().default(false),
       maxHeight: z.number().optional(),
+      width: z.enum(["auto", "full"]).default("full"),
       cellStyles: z
         .record(z.string(), z.record(z.string(), z.object({}).passthrough()))
         .optional(),
@@ -861,6 +863,7 @@ const DataTableComponent = ({
   getRow,
   cellId,
   maxHeight,
+  width,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -1120,6 +1123,7 @@ const DataTableComponent = ({
             columns={columns}
             className={className}
             maxHeight={maxHeight}
+            width={width}
             sorting={sorting}
             totalRows={totalRows}
             sizeBytes={sizeBytes}

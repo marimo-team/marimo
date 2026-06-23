@@ -75,6 +75,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   wrapperClassName?: string;
   className?: string;
   maxHeight?: number;
+  width?: "auto" | "full";
   columns: ColumnDef<TData>[];
   data: TData[];
   rawData?: TData[]; // raw data for filtering/copying (present only if format_mapping is provided)
@@ -135,6 +136,7 @@ const DataTableInternal = <TData,>({
   wrapperClassName,
   className,
   maxHeight,
+  width = "full",
   columns,
   data,
   rawData,
@@ -386,7 +388,7 @@ const DataTableInternal = <TData,>({
             <Table
               className={cn(
                 "relative",
-                columns.length <= AUTO_WIDTH_MAX_COLUMNS ? "w-auto" : "w-full",
+                width === "auto" ? "w-auto" : "w-full",
               )}
               ref={tableRef}
             >
