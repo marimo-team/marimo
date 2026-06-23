@@ -3,8 +3,18 @@
 import { describe, expect, it } from "vitest";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
-import type { DataTable, DataTableColumn } from "@/core/kernel/messages";
-import { sqlCode, tableUniqueId } from "../utils";
+import type {
+  Database,
+  DatabaseSchema,
+  DataTable,
+  DataTableColumn,
+} from "@/core/kernel/messages";
+import {
+  schemaSubtreeMatchesSearch,
+  shouldExpandDatabaseForSearch,
+  sqlCode,
+  tableUniqueId,
+} from "../utils";
 
 describe("sqlCode", () => {
   const mockTable: DataTable = {
@@ -517,5 +527,120 @@ describe("tableUniqueId", () => {
     expect(tableUniqueId(ctx({ database: "db", schema: "" }), "t")).toBe(
       "db.t",
     );
+  });
+});
+
+function makeTable(name: string): DataTable {
+  return {
+    name,
+    columns: [],
+    source: "memory",
+    source_type: "local",
+    type: "table",
+    engine: null,
+    indexes: null,
+    num_columns: null,
+    num_rows: null,
+    variable_name: null,
+    primary_keys: null,
+  };
+}
+
+function makeSchema(opts: {
+  name: string;
+  tables: DataTable[];
+  tables_resolved?: boolean;
+  child_schemas?: DatabaseSchema[];
+  child_schemas_resolved?: boolean;
+}): DatabaseSchema {
+  return {
+    name: opts.name,
+    tables: opts.tables,
+    tables_resolved: opts.tables_resolved ?? true,
+    child_schemas: opts.child_schemas ?? [],
+    child_schemas_resolved: opts.child_schemas_resolved ?? true,
+  };
+}
+
+function makeDatabase(
+  name: string,
+  schemas: DatabaseSchema[],
+  schemas_resolved = true,
+): Database {
+  return { name, dialect: "duckdb", schemas, schemas_resolved, engine: null };
+}
+
+describe("schemaSubtreeMatchesSearch", () => {
+  it("returns false for an empty query", () => {
+    const schema = makeSchema({ name: "main", tables: [makeTable("users")] });
+    expect(schemaSubtreeMatchesSearch(schema, "")).toBe(false);
+    expect(schemaSubtreeMatchesSearch(schema, "   ")).toBe(false);
+    expect(schemaSubtreeMatchesSearch(schema, undefined)).toBe(false);
+  });
+
+  it("matches a table name case-insensitively", () => {
+    const schema = makeSchema({ name: "main", tables: [makeTable("Users")] });
+    expect(schemaSubtreeMatchesSearch(schema, "user")).toBe(true);
+    expect(schemaSubtreeMatchesSearch(schema, "orders")).toBe(false);
+  });
+
+  it("matches a table in a resolved child schema", () => {
+    const schema = makeSchema({
+      name: "parent",
+      tables: [],
+      child_schemas: [
+        makeSchema({ name: "child", tables: [makeTable("orders")] }),
+      ],
+    });
+    expect(schemaSubtreeMatchesSearch(schema, "orders")).toBe(true);
+  });
+
+  it("ignores deferred tables so search never triggers a fetch", () => {
+    const schema = makeSchema({
+      name: "main",
+      tables: [makeTable("users")],
+      tables_resolved: false,
+    });
+    expect(schemaSubtreeMatchesSearch(schema, "users")).toBe(false);
+  });
+
+  it("ignores deferred child schemas", () => {
+    const schema = makeSchema({
+      name: "parent",
+      tables: [],
+      child_schemas: [
+        makeSchema({ name: "child", tables: [makeTable("orders")] }),
+      ],
+      child_schemas_resolved: false,
+    });
+    expect(schemaSubtreeMatchesSearch(schema, "orders")).toBe(false);
+  });
+});
+
+describe("shouldExpandDatabaseForSearch", () => {
+  it("returns false for an empty query", () => {
+    const db = makeDatabase("memory", [
+      makeSchema({ name: "main", tables: [makeTable("users")] }),
+    ]);
+    expect(shouldExpandDatabaseForSearch(db, "")).toBe(false);
+    expect(shouldExpandDatabaseForSearch(db, undefined)).toBe(false);
+  });
+
+  it("expands when a loaded schema contains a matching table", () => {
+    const db = makeDatabase("memory", [
+      makeSchema({ name: "main", tables: [makeTable("users")] }),
+      makeSchema({ name: "other", tables: [makeTable("orders")] }),
+    ]);
+    expect(shouldExpandDatabaseForSearch(db, "user")).toBe(true);
+    expect(shouldExpandDatabaseForSearch(db, "nomatch")).toBe(false);
+  });
+
+  it("does not expand when the schema list itself is deferred", () => {
+    const db = makeDatabase(
+      "memory",
+      [makeSchema({ name: "main", tables: [makeTable("users")] })],
+      /* schemas_resolved */ false,
+    );
+    expect(shouldExpandDatabaseForSearch(db, "users")).toBe(false);
   });
 });

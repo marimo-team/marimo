@@ -52,6 +52,51 @@ export function areChildSchemasResolved(schema: DatabaseSchema): boolean {
   return schema.child_schemas_resolved !== false;
 }
 
+/**
+ * Whether a loaded schema subtree contains a table whose name matches
+ * `searchValue`. Deferred (not-yet-fetched) tables and child schemas are
+ * treated as non-matching, so searching never triggers a lazy catalog fetch on
+ * large/remote connections.
+ */
+export function schemaSubtreeMatchesSearch(
+  schema: DatabaseSchema,
+  searchValue: string | undefined,
+): boolean {
+  const query = searchValue?.trim().toLowerCase();
+  if (!query) {
+    return false;
+  }
+  if (
+    areTablesResolved(schema) &&
+    schema.tables.some((table) => table.name.toLowerCase().includes(query))
+  ) {
+    return true;
+  }
+  if (areChildSchemasResolved(schema)) {
+    return (schema.child_schemas ?? []).some((child) =>
+      schemaSubtreeMatchesSearch(child, query),
+    );
+  }
+  return false;
+}
+
+/**
+ * Auto-expand a database row during search only when one of its loaded schemas
+ * contains a matching table. Returns false when the schema list itself is
+ * deferred.
+ */
+export function shouldExpandDatabaseForSearch(
+  database: Database,
+  searchValue: string | undefined,
+): boolean {
+  if (!searchValue?.trim() || !areSchemasResolved(database)) {
+    return false;
+  }
+  return database.schemas.some((schema) =>
+    schemaSubtreeMatchesSearch(schema, searchValue),
+  );
+}
+
 interface SqlCodeFormatter {
   /**
    * Format the table path based on dialect-specific rules
