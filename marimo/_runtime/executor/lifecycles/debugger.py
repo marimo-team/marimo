@@ -59,6 +59,10 @@ class FrameWatcher:
         self._thread: threading.Thread | None = None
         # Cache co_filename -> cell_id to avoid re-parsing on every line.
         self._cell_id_cache: dict[str, CellId_t | None] = {}
+        # True once a debug session has started; gates consulting pdb's
+        # `stop_here` so `next`/`step` work (we don't step before the first
+        # breakpoint, when bdb would stop everywhere).
+        self._stepping = False
 
     def install(self) -> None:
         if self._installed:
@@ -74,9 +78,15 @@ class FrameWatcher:
             # can't be used off-thread; fall back to no line streaming.
             self._stream = None
 
+        # marimo owns interrupt handling. Stop pdb from installing its own
+        # SIGINT handler (which would turn an interrupt into a debugger break
+        # instead of actually interrupting the cell).
+        self._debugger.disable_sigint()
+
         self._installed = True
         self._current = None
         self._flushed = None
+        self._stepping = False
         self._stop.clear()
         self._prev_trace = sys.gettrace()
         if self._stream is not None:
@@ -125,13 +135,58 @@ class FrameWatcher:
                 return self._trace
             lineno = frame.f_lineno
             self._current = (cell_id, lineno)
-            if lineno in self._debugger.breakpoints.get(cell_id, ()):
-                # Hand control to pdb at this frame. Returning pdb's dispatch
-                # (rather than our own trace) keeps the frame traced by pdb,
-                # which `set_trace` also installed globally.
-                self._debugger.set_trace(frame)
-                return self._debugger.trace_dispatch
+            # Stop on a gutter breakpoint, or — once a session is underway —
+            # wherever pdb's step/next bookkeeping wants to (`stop_here`).
+            if lineno in self._debugger.breakpoints.get(cell_id, ()) or (
+                self._stepping and self._debugger.stop_here(frame)
+            ):
+                self._enter_debugger(frame)
         return self._trace
+
+    def _enter_debugger(self, frame: FrameType) -> None:
+        """Run the pdb prompt at `frame`, keeping our watcher in control.
+
+        We drive `interaction()` directly rather than `set_trace()` so that
+        pdb never takes ownership of `sys.settrace`. `continue`/`next`/`step`
+        call `sys.settrace(None)` (no pdb breaks are registered), so we re-arm
+        our trace afterward — that is what lets a breakpoint inside a loop
+        fire again on the next iteration.
+
+        `botframe` is pinned to this frame so bdb's `set_continue` produces a
+        `stop_here` that is `False` (plain resume), while `step`/`next` leave a
+        `stop_here` that fires at the right upcoming line — which our `_trace`
+        consults to implement stepping.
+
+        If the user quits (`q`), we stop the cell cleanly with a
+        `MarimoStopError` (the same path as `mo.stop()`) rather than letting
+        execution run on.
+        """
+        debugger = self._debugger
+        debugger.disable_sigint()
+        debugger.reset()
+        debugger.botframe = frame
+        try:
+            debugger.interaction(frame, None)
+        finally:
+            sys.settrace(self._trace)
+            # `set_continue` clears `f_trace` on every live frame up to the
+            # (unset) bottom frame, which would silence our watcher for the
+            # rest of the current frames. Re-arm the cell frames on the stack
+            # so line events keep firing (e.g. the next loop iteration).
+            f: FrameType | None = frame
+            while f is not None:
+                if self._cell_id_for(f.f_code.co_filename) is not None:
+                    f.f_trace = self._trace
+                f = f.f_back
+
+        if getattr(debugger, "quitting", False):
+            from marimo._runtime.control_flow import MarimoStopError
+
+            raise MarimoStopError(None)
+        # The session is live: consult `stop_here` on subsequent lines so a
+        # `step`/`next` lands, while a `continue` simply runs to the next
+        # breakpoint (its `stop_here` is `False`).
+        self._stepping = True
 
     def _heartbeat(self) -> None:
         while not self._stop.wait(self.HEARTBEAT_INTERVAL_S):

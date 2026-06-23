@@ -26,7 +26,6 @@ from marimo._runtime.commands import (
     InvokeFunctionCommand,
     ModelCommand,
     RenameNotebookCommand,
-    SetBreakpointsCommand,
     StopKernelCommand,
     SyncGraphCommand,
     UpdateCellConfigCommand,
@@ -64,9 +63,6 @@ class KernelRequestHandlers:
         router.register(ExecuteStaleCellsCommand, self._handle_execute_stale)
         router.register(InvokeFunctionCommand, self._handle_function_call)
         router.register(DebugCellCommand, self._handle_pdb_request)
-        router.register(
-            SetBreakpointsCommand, self._handle_set_breakpoints
-        )
         router.register(RenameNotebookCommand, self._handle_rename)
         router.register(UpdateCellConfigCommand, k.set_cell_config)
         router.register(
@@ -137,20 +133,6 @@ class KernelRequestHandlers:
 
     async def _handle_pdb_request(self, request: DebugCellCommand) -> None:
         await self._kernel.pdb_request(request.cell_id)
-
-    async def _handle_set_breakpoints(
-        self, request: SetBreakpointsCommand
-    ) -> None:
-        # Session-scoped breakpoint store on the debugger; read by the live
-        # frame watcher. Replaces the full set (frontend sends everything).
-        debugger = self._kernel.debugger
-        if debugger is None:
-            return
-        debugger.breakpoints = {
-            cell_id: set(lines)
-            for cell_id, lines in request.breakpoints.items()
-            if lines
-        }
 
     async def _handle_rename(self, request: RenameNotebookCommand) -> None:
         await self._kernel.rename_file(request.filename)

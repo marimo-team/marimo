@@ -9,13 +9,16 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from marimo._runtime.commands import (
+    CodeCompletionCommand,
     ExecuteCellsCommand,
     ModelCommand,
+    SetBreakpointsCommand,
     StopKernelCommand,
     UpdateUIElementCommand,
 )
 from marimo._runtime.kernel_lifecycle import (
     asyncio_queue_reader,
+    collapse_out_of_band,
     drain_stale,
     listen_messages,
     make_control_enqueuer,
@@ -185,6 +188,45 @@ def test_drain_stale_returns_newest_pending(queue_factory: Any) -> None:
 
     assert drain_stale(q, latest=initial) is newest
     # Drained: nothing else remains.
+    assert q.empty()
+
+
+@pytest.mark.parametrize(
+    "queue_factory",
+    [asyncio.Queue, _queue.Queue],
+    ids=["asyncio", "threading"],
+)
+def test_collapse_out_of_band_returns_first_when_empty(
+    queue_factory: Any,
+) -> None:
+    q = queue_factory()
+    first = CodeCompletionCommand(id="r1", document="x.", cell_id="c1")
+    assert collapse_out_of_band(q, first=first) == [first]
+
+
+@pytest.mark.parametrize(
+    "queue_factory",
+    [asyncio.Queue, _queue.Queue],
+    ids=["asyncio", "threading"],
+)
+def test_collapse_out_of_band_keeps_latest_per_type(
+    queue_factory: Any,
+) -> None:
+    q = queue_factory()
+    completion_old = CodeCompletionCommand(
+        id="r1", document="x.", cell_id="c1"
+    )
+    breakpoints = SetBreakpointsCommand(breakpoints={"c1": [1]})
+    completion_new = CodeCompletionCommand(
+        id="r2", document="y.", cell_id="c1"
+    )
+    q.put_nowait(breakpoints)
+    q.put_nowait(completion_new)
+
+    result = collapse_out_of_band(q, first=completion_old)
+
+    # One command per type, latest wins, in first-seen order.
+    assert result == [completion_new, breakpoints]
     assert q.empty()
 
 

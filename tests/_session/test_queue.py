@@ -7,6 +7,7 @@ from marimo._runtime.commands import (
     CodeCompletionCommand,
     ModelCommand,
     ModelUpdateMessage,
+    SetBreakpointsCommand,
     StopKernelCommand,
     UpdateUIElementCommand,
 )
@@ -20,6 +21,18 @@ class TestRouteControlRequest:
     def test_completion_goes_to_completion_queue_only(self) -> None:
         control, completion, ui_element = self._make_queues()
         cmd = CodeCompletionCommand(id="r1", document="x.", cell_id="c1")
+
+        route_control_request(cmd, control, completion, ui_element)
+
+        completion.put.assert_called_once_with(cmd)
+        control.put.assert_not_called()
+        ui_element.put.assert_not_called()
+
+    def test_breakpoints_go_to_completion_queue_only(self) -> None:
+        # Breakpoints are drained off the main loop so they apply even while a
+        # cell is executing (the control queue is blocked behind it).
+        control, completion, ui_element = self._make_queues()
+        cmd = SetBreakpointsCommand(breakpoints={"c1": [1, 2]})
 
         route_control_request(cmd, control, completion, ui_element)
 

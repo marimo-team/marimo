@@ -90,7 +90,7 @@ class AppHostQueueManager(QueueManagerProto):
         self.set_ui_element_queue: QueueType[commands.BatchableCommand] = (
             _AppHostPushQueue(app_host, session_id, Channel.UI_ELEMENT)
         )
-        self.completion_queue: QueueType[commands.CodeCompletionCommand] = (
+        self.completion_queue: QueueType[commands.OutOfBandCommand] = (
             _AppHostPushQueue(app_host, session_id, Channel.COMPLETION)
         )
         self.input_queue: QueueType[str] = _AppHostPushQueue(

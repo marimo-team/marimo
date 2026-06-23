@@ -52,6 +52,18 @@ function sendBreakpoints(map: ReadonlyMap<CellId, ReadonlySet<number>>): void {
   void getRequestClient().sendSetBreakpoints({ breakpoints });
 }
 
+/** Remove all breakpoints for a cell and sync the full set to the kernel. */
+export function clearCellBreakpoints(cellId: CellId): void {
+  const prev = store.get(breakpointsAtom);
+  if (!prev.has(cellId)) {
+    return;
+  }
+  const next = new Map(prev);
+  next.delete(cellId);
+  store.set(breakpointsAtom, next);
+  sendBreakpoints(next);
+}
+
 /** Toggle a breakpoint at `(cellId, line)` and sync the full set to the kernel. */
 export function toggleBreakpoint(cellId: CellId, line: number): void {
   const prev = store.get(breakpointsAtom);

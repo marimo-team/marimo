@@ -963,3 +963,14 @@ CommandMessage = (
 All commands that can be sent to the kernel.
 
 """
+
+
+OutOfBandCommand = CodeCompletionCommand | SetBreakpointsCommand
+"""Commands processed off the main control loop.
+
+Unlike the rest of `CommandMessage` (which the kernel handles serially, and so
+cannot be delivered while a cell is executing), these are drained by a
+background worker and applied immediately. A command belongs here when it is
+fire-and-forget, cheap to apply, and useful mid-execution. Add a member to this
+union and a branch to `Kernel.dispatch_out_of_band` to introduce a new one.
+"""

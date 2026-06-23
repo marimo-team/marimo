@@ -88,7 +88,7 @@ class IPCQueueManagerImpl(QueueManager):
     @property
     def completion_queue(  # type: ignore[override]
         self,
-    ) -> QueueType[commands.CodeCompletionCommand]:
+    ) -> QueueType[commands.OutOfBandCommand]:
         return self._ipc.completion_queue
 
     @property

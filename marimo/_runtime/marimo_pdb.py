@@ -82,6 +82,14 @@ class MarimoPdb(Pdb):
         # `SetBreakpointsCommand` handler and read by the frame watcher.
         self.breakpoints: dict[CellId_t, set[int]] = {}
 
+    def disable_sigint(self) -> None:
+        """Stop pdb from installing its own SIGINT handler.
+
+        marimo owns interrupt handling; with pdb's handler installed an
+        interrupt becomes a debugger break instead of interrupting the cell.
+        """
+        self.nosigint = True
+
     def set_trace(
         self, frame: FrameType | None = None, header: str | None = None
     ) -> None:

@@ -3,25 +3,50 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from tests._messaging.mocks import MockStream
 
 
 class _FakeDebugger:
     """Minimal stand-in for `MarimoPdb` used by the frame watcher tests.
 
-    Records `set_trace` calls (by line) instead of entering a real pdb
-    session, and exposes `trace_dispatch` so the watcher can hand off.
+    Records `interaction()` calls (by line) instead of entering a real pdb
+    session.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        quit_on_interaction: bool = False,
+        step: bool = False,
+    ) -> None:
         self.breakpoints: dict[Any, set[int]] = {}
-        self.set_trace_lines: list[int] = []
+        self.interaction_lines: list[int] = []
+        self.nosigint = False
+        self.quitting = False
+        self.botframe: Any = None
+        self._quit_on_interaction = quit_on_interaction
+        # `step=True` mimics a `step`/`next` command: pdb wants to stop at
+        # every upcoming line (`stop_here` truthy). Default mimics `continue`.
+        self._step = step
 
-    def set_trace(self, frame: Any) -> None:
-        self.set_trace_lines.append(frame.f_lineno)
+    def disable_sigint(self) -> None:
+        self.nosigint = True
 
-    def trace_dispatch(self, *_args: Any) -> Any:
-        return self.trace_dispatch
+    def reset(self) -> None:
+        self.quitting = False
+
+    def stop_here(self, frame: Any) -> bool:
+        del frame
+        return self._step
+
+    def interaction(self, frame: Any, traceback: Any) -> None:
+        del traceback
+        self.interaction_lines.append(frame.f_lineno)
+        # Mimic pdb's `quit` command setting the bdb quitting flag.
+        if self._quit_on_interaction:
+            self.quitting = True
 
 
 class TestFrameWatcher:
@@ -73,9 +98,77 @@ class TestFrameWatcher:
             exec(code, {})
         finally:
             watcher.uninstall()
-        # `set_trace` is called once, at the breakpoint line, and not for
+        # The pdb prompt opens once, at the breakpoint line, and not for
         # other lines.
-        assert debugger.set_trace_lines == [2]
+        assert debugger.interaction_lines == [2]
+
+    @staticmethod
+    def test_breakpoint_in_loop_rehits_each_iteration() -> None:
+        from marimo._runtime.executor.lifecycles.debugger import FrameWatcher
+
+        debugger = _FakeDebugger()
+        # Line 2 (the loop body) has a breakpoint; it should fire on every
+        # iteration even though `interaction` (continue) returns each time.
+        debugger.breakpoints = {"abc": {2}}
+        watcher = FrameWatcher(debugger)  # type: ignore[arg-type]
+        code = TestFrameWatcher._cell_code(
+            "abc", "for i in range(3):\n    x = i\n"
+        )
+        watcher.install()
+        try:
+            exec(code, {})
+        finally:
+            watcher.uninstall()
+        assert debugger.interaction_lines == [2, 2, 2]
+
+    @staticmethod
+    def test_step_stops_at_each_following_line() -> None:
+        from marimo._runtime.executor.lifecycles.debugger import FrameWatcher
+
+        # Breakpoint at line 1; stepping then stops at every subsequent line
+        # (the watcher consults pdb's `stop_here` once a session is underway).
+        debugger = _FakeDebugger(step=True)
+        debugger.breakpoints = {"abc": {1}}
+        watcher = FrameWatcher(debugger)  # type: ignore[arg-type]
+        code = TestFrameWatcher._cell_code("abc", "a = 1\nb = 2\nc = 3\n")
+        watcher.install()
+        try:
+            exec(code, {})
+        finally:
+            watcher.uninstall()
+        assert debugger.interaction_lines == [1, 2, 3]
+
+    @staticmethod
+    def test_quit_stops_the_cell() -> None:
+        from marimo._runtime.control_flow import MarimoStopError
+        from marimo._runtime.executor.lifecycles.debugger import FrameWatcher
+
+        debugger = _FakeDebugger(quit_on_interaction=True)
+        debugger.breakpoints = {"abc": {2}}
+        watcher = FrameWatcher(debugger)  # type: ignore[arg-type]
+        code = TestFrameWatcher._cell_code("abc", "a = 1\nb = 2\nc = 3\n")
+        watcher.install()
+        try:
+            # Quitting at the breakpoint raises MarimoStopError out of the
+            # cell body (the clean-stop path), so line 3 never runs.
+            with pytest.raises(MarimoStopError):
+                exec(code, {})
+        finally:
+            watcher.uninstall()
+        assert debugger.interaction_lines == [2]
+
+    @staticmethod
+    def test_disables_pdb_sigint_hijack() -> None:
+        from marimo._runtime.executor.lifecycles.debugger import FrameWatcher
+
+        debugger = _FakeDebugger()
+        watcher = FrameWatcher(debugger)  # type: ignore[arg-type]
+        watcher.install()
+        try:
+            # marimo owns SIGINT, so pdb must not install its own handler.
+            assert debugger.nosigint is True
+        finally:
+            watcher.uninstall()
 
     @staticmethod
     def test_uninstall_restores_previous_trace() -> None:
