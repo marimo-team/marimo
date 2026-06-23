@@ -16,10 +16,12 @@ from marimo._server.ai.providers import (
     CustomProvider,
     GoogleProvider,
     OpenAIProvider,
+    StreamOptions,
     _infer_provider_name_from_base_url,
     _normalize_base_url,
     get_completion_provider,
 )
+from marimo._server.ai.tracing import SpanInfo
 
 
 @pytest.mark.parametrize(
@@ -444,6 +446,7 @@ async def test_completion_does_not_pass_redundant_instructions() -> None:
             system_prompt="Test prompt",
             max_tokens=100,
             additional_tools=[],
+            span_info=SpanInfo(endpoint="completion", model="openai/gpt-4"),
         )
 
         mock_request.assert_called_once()
@@ -515,7 +518,7 @@ def test_custom_provider_agent_passes_explicit_max_tokens() -> None:
     with patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm:
         mock_get_tm.return_value = MagicMock()
         agent = provider.create_agent(
-            max_tokens=12345, tools=[], system_prompt="x"
+            name="test", max_tokens=12345, tools=[], system_prompt="x"
         )
     assert dict(agent.model_settings or {}).get("max_tokens") == 12345
 
@@ -528,7 +531,7 @@ def test_custom_provider_agent_omits_max_tokens_when_none() -> None:
     with patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm:
         mock_get_tm.return_value = MagicMock()
         agent = provider.create_agent(
-            max_tokens=None, tools=[], system_prompt="x"
+            name="test", max_tokens=None, tools=[], system_prompt="x"
         )
     assert "max_tokens" not in dict(agent.model_settings or {})
 
@@ -703,7 +706,9 @@ async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
             session=session,
             request=request,
             max_tokens=1234,
-            stream_options=None,
+            stream_options=StreamOptions(
+                span_info=SpanInfo(endpoint="chat", model="openai/gpt-4"),
+            ),
         )
 
     assert result is streaming_response

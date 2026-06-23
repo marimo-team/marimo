@@ -77,10 +77,10 @@ LOGGER = _loggers.marimo_logger()
 
 @dataclass
 class StreamOptions:
+    span_info: SpanInfo
     text_only: bool = False
     format_stream: bool = False
     accept: str | None = None
-    span_info: SpanInfo | None = None
 
 
 ProviderT = TypeVar("ProviderT", bound="Provider", covariant=True)
@@ -123,6 +123,8 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
     def create_agent(
         self,
+        *,
+        name: str,
         max_tokens: int | None,
         tools: list[ToolDefinition],
         system_prompt: str,
@@ -134,6 +136,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         toolset, output_type = self._get_toolsets_and_output_type(tools)
         return Agent(
             model,
+            name=name,
             model_settings=self._build_agent_settings(model),
             toolsets=[toolset] if tools else None,
             instructions=system_prompt,
@@ -171,15 +174,20 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         system_prompt: str,
         max_tokens: int | None,
         additional_tools: list[ToolDefinition],
-        stream_options: StreamOptions | None = None,
+        stream_options: StreamOptions,
     ) -> StreamingResponse:
         """Return a streaming response from the given messages. The response are AI SDK events."""
         from pydantic_ai.ui.vercel_ai import VercelAIAdapter
         from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
 
         tools = (self.config.tools or []) + additional_tools
+        stream_options.span_info.tool_count = len(tools)
+
         agent = self.create_agent(
-            max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
+            name=stream_options.span_info.endpoint,
+            max_tokens=max_tokens,
+            tools=tools,
+            system_prompt=system_prompt,
         )
 
         run_input = SubmitMessage(
@@ -187,11 +195,6 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             trigger="submit-message",
             messages=self.convert_messages(messages),
         )
-
-        # TODO: Text only and format stream are not supported yet
-        stream_options = stream_options or StreamOptions()
-        if stream_options.span_info is not None:
-            stream_options.span_info.tool_count = len(tools)
 
         adapter = VercelAIAdapter(
             agent=agent,
@@ -209,18 +212,22 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         system_prompt: str,
         max_tokens: int,
         additional_tools: list[ToolDefinition],
-        span_info: SpanInfo | None = None,
+        span_info: SpanInfo,
     ) -> str:
         """Return a string response from the given messages."""
 
         from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 
         tools = (self.config.tools or []) + additional_tools
+        span_info.tool_count = len(tools)
+
         agent = self.create_agent(
-            max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
+            name=span_info.endpoint,
+            max_tokens=max_tokens,
+            tools=tools,
+            system_prompt=system_prompt,
         )
-        if span_info is not None:
-            span_info.tool_count = len(tools)
+
         with trace_completion(span_info):
             result = await agent.run(
                 user_prompt=None,
@@ -237,7 +244,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         session: Session,
         request: Request,
         max_tokens: int | None,
-        stream_options: StreamOptions | None,
+        stream_options: StreamOptions,
     ) -> StreamingResponse:
         """Experimental method to return code-mode streaming responses"""
         from pydantic_ai import Agent
@@ -262,7 +269,6 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             messages=self.convert_messages(messages),
         )
 
-        stream_options = stream_options or StreamOptions()
         adapter = VercelAIAdapter(
             agent=agent,
             run_input=run_input,
@@ -789,6 +795,8 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
     @override
     def create_agent(
         self,
+        *,
+        name: str,
         max_tokens: int | None,
         tools: list[ToolDefinition],
         system_prompt: str,
@@ -823,6 +831,7 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         toolset, output_type = self._get_toolsets_and_output_type(tools)
         return Agent(
             model,
+            name=name,
             model_settings=agent_settings,
             toolsets=[toolset] if tools else None,
             instructions=system_prompt,
