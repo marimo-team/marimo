@@ -15,7 +15,7 @@ from typing import (
     cast,
 )
 
-from marimo._ast.dedent import fixed_dedent
+from marimo._ast.dedent import fixed_dedent, split_source_lines
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._schemas.serialization import (
     AppInstantiation,
@@ -91,7 +91,7 @@ def unwrap_cell_body(formatted: str) -> str:
 
 
 =======
->>>>>>> 204380c3f ([pre-commit.ci] auto fixes from pre-commit.com hooks)
+>>>>>>> 9f465b762 (fix: bad merge res)
 def extract_lineno(node: Node) -> int:
     if not isinstance(
         node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef)

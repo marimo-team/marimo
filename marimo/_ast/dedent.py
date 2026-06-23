@@ -3,9 +3,35 @@
 from __future__ import annotations
 
 import io
+import re
 import textwrap
 import tokenize
 from tokenize import TokenError
+
+_NEWLINE_RE = re.compile(r"\r\n|\r|\n")
+
+
+def split_source_lines(text: str, keepends: bool = False) -> list[str]:
+    """Split source into lines the way `ast`/`tokenize` count them.
+
+    Unlike `str.splitlines()`, this only treats `\\n`, `\\r`, and `\\r\\n` as
+    line breaks. `str.splitlines()` additionally splits on `\\f`, `\\v`, the
+    `\\x1c`-`\\x1e` separators, and Unicode line separators.
+
+    When `keepends` is `True`, line terminators are preserved on each line so
+    that `"".join(...)` reconstructs `text` exactly. The element count matches
+    the `keepends=False` result, so the two can be indexed against each other.
+    """
+    if not keepends:
+        return _NEWLINE_RE.sub("\n", text).split("\n")
+
+    lines: list[str] = []
+    start = 0
+    for match in _NEWLINE_RE.finditer(text):
+        lines.append(text[start : match.end()])
+        start = match.end()
+    lines.append(text[start:])
+    return lines
 
 
 def _get_protected_lines(code: str, tokens: list) -> list[bool]:
@@ -14,7 +40,7 @@ def _get_protected_lines(code: str, tokens: list) -> list[bool]:
     Handles both regular triple-quoted strings (STRING token) and f-strings
     (FSTRING_START/FSTRING_MIDDLE/FSTRING_END tokens in Python 3.12+).
     """
-    lines = code.splitlines()
+    lines = split_source_lines(code)
     n = len(lines)
     protected = [False] * n
 
@@ -55,7 +81,7 @@ def smart_dedent(code: str) -> str:
     inside multiline string literals (triple-quoted strings of any prefix:
     regular, f-strings, r-strings, b-strings, etc).
     """
-    lines = code.splitlines(keepends=True)
+    lines = split_source_lines(code, keepends=True)
 
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(code).readline))
@@ -97,7 +123,7 @@ def fixed_dedent(text: str) -> str:
     base indentation level before dedenting, while preserving whitespace
     inside multiline string literals.
     """
-    lines = text.splitlines()
+    lines = split_source_lines(text)
 
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))

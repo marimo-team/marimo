@@ -2,7 +2,36 @@
 
 from __future__ import annotations
 
-from marimo._ast.dedent import fixed_dedent, smart_dedent
+from marimo._ast.dedent import (
+    fixed_dedent,
+    smart_dedent,
+    split_source_lines,
+)
+
+
+class TestSplitSourceLines:
+    def test_default_drops_terminators(self):
+        assert split_source_lines("a\nb\n") == ["a", "b", ""]
+
+    def test_normalizes_carriage_returns(self):
+        assert split_source_lines("a\r\nb\rc") == ["a", "b", "c"]
+
+    def test_keepends_roundtrips(self):
+        for text in ["a\n  b\n", "a\r\nb", "a\rb\n", "x = 1", "", "a\n\nb"]:
+            assert "".join(split_source_lines(text, keepends=True)) == text
+
+    def test_keepends_preserves_terminators(self):
+        assert split_source_lines("a\r\nb\n", keepends=True) == [
+            "a\r\n",
+            "b\n",
+            "",
+        ]
+
+    def test_keepends_element_count_matches_default(self):
+        for text in ["a\nb\n", "a\r\nb", "a\rb\n", "x = 1", "", "a\n\nb"]:
+            assert len(split_source_lines(text, keepends=True)) == len(
+                split_source_lines(text)
+            )
 
 
 class TestSmartDedent:
