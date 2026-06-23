@@ -531,7 +531,10 @@ x = 1\
 """)
 
     # Trailing blank lines
-    assert fixed_dedent("    x = 1\n\n") == snapshot("x = 1\n")
+    assert fixed_dedent("    x = 1\n\n") == snapshot("""\
+x = 1
+
+""")
 
     # Tabs as indentation
     assert fixed_dedent("\tx = 1\n\ty = 2") == snapshot("""\
