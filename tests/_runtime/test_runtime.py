@@ -872,6 +872,56 @@ except NameError:
         assert "_sys" not in k.globals
         assert k.globals["msize"] == sys.maxsize
 
+    async def test_underscore_prefixed_import_in_cell(
+        self, any_kernel: Kernel
+    ) -> None:
+        # An underscore-prefixed `as` alias is cell-local (mangled), but
+        # must still resolve when used within the same cell, including in
+        # a nested decorator/body scope.
+        k = any_kernel
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code=(
+                        "import marimo as _mo\n"
+                        "@_mo.cache\n"
+                        "def f(x):\n"
+                        "    return _mo.md(str(x))\n"
+                        "msg = f(1)"
+                    ),
+                ),
+            ]
+        )
+        assert not k.errors, k.errors
+        # The alias is cell-local, so it never leaks into globals.
+        assert "_mo" not in k.globals
+        assert "1" in k.globals["msg"].text
+
+    async def test_underscore_prefixed_import_across_cells_no_conflict(
+        self, k: Kernel
+    ) -> None:
+        # Underscore-prefixed `as` aliases are cell-local/private: two
+        # cells may each `import sys as _sys` without triggering a
+        # MultipleDefinitionError. Each cell sees its own mangled binding.
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="import sys as _sys; a = _sys.maxsize",
+                ),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="import sys as _sys; b = _sys.maxsize",
+                ),
+            ]
+        )
+        assert not k.errors, k.errors
+        assert k.globals["a"] == sys.maxsize
+        assert k.globals["b"] == sys.maxsize
+        # The private alias is not promoted to a graph def.
+        assert "_sys" not in k.globals
+
     async def test_cell_transitioned_to_error_is_not_stale(
         self, lazy_kernel: Kernel
     ) -> None:

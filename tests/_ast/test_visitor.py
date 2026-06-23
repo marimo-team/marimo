@@ -985,6 +985,39 @@ def test_relative_from_import() -> None:
     ]
 
 
+def test_underscore_as_imports_are_cell_local() -> None:
+    # An underscore-prefixed `as` alias is mangled, i.e. it is treated as
+    # a cell-local (private) name. This preserves the documented contract
+    # that underscore-prefixed names are private and may be redefined
+    # across cells: two cells may each `import numpy as _np` without a
+    # MultipleDefinitionError. References to the alias within the cell
+    # (including in a nested decorator/body scope) resolve to the mangled
+    # name.
+    prefix = "_cell_test_"
+    cases = [
+        ("import marimo as _mo", {f"{prefix}mo"}),
+        ("import a.b as _c", {f"{prefix}c"}),
+        ("from a.b import _c as _d", {f"{prefix}d"}),
+        (
+            "import marimo as _private\n"
+            "@_private.cache\n"
+            "def f(x):\n"
+            "    return _private.md('x')\n",
+            {f"{prefix}private", "f"},
+        ),
+    ]
+    for source, expected_defs in cases:
+        v = visitor.ScopedVisitor(mangle_prefix="cell_test")
+        mod = ast.parse(source)
+        v.visit(mod)
+        assert v.defs == expected_defs, source
+        unparsed = ast.unparse(mod)
+        # The alias is rewritten to its mangled, cell-local form.
+        assert prefix in unparsed, (
+            f"alias was not mangled in {source!r}: {unparsed!r}"
+        )
+
+
 def test_from_import_star() -> None:
     expr = "from a.b.c import *"
     v = visitor.ScopedVisitor()
