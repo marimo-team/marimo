@@ -386,10 +386,7 @@ const DataTableInternal = <TData,>({
               </Banner>
             )}
             <Table
-              className={cn(
-                "relative",
-                width === "auto" ? "w-auto" : "w-full",
-              )}
+              className={cn("relative", width === "auto" ? "w-auto" : "w-full")}
               ref={tableRef}
             >
               {showLoadingBar && (
