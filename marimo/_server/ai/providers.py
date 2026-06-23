@@ -34,6 +34,11 @@ from marimo._server.ai.constants import ANTHROPIC_DEFAULT_MAX_TOKENS
 from marimo._server.ai.ids import AiModelId, AiProviderId
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
+from marimo._server.ai.tracing import (
+    SpanInfo,
+    trace_completion,
+    trace_stream,
+)
 from marimo._server.models.completion import UIMessage as ServerUIMessage
 from marimo._utils.http import HTTPStatus
 from marimo._utils.typing import override
@@ -75,13 +80,7 @@ class StreamOptions:
     text_only: bool = False
     format_stream: bool = False
     accept: str | None = None
-
-
-@dataclass
-class ActiveToolCall:
-    tool_call_id: str
-    tool_call_name: str
-    tool_call_args: str
+    span_info: SpanInfo | None = None
 
 
 ProviderT = TypeVar("ProviderT", bound="Provider", covariant=True)
@@ -191,6 +190,8 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
         # TODO: Text only and format stream are not supported yet
         stream_options = stream_options or StreamOptions()
+        if stream_options.span_info is not None:
+            stream_options.span_info.tool_count = len(tools)
 
         adapter = VercelAIAdapter(
             agent=agent,
@@ -199,6 +200,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             sdk_version=AI_SDK_VERSION,
         )
         event_stream = adapter.run_stream()
+        event_stream = trace_stream(event_stream, stream_options.span_info)
         return adapter.streaming_response(event_stream)
 
     async def completion(
@@ -207,6 +209,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         system_prompt: str,
         max_tokens: int,
         additional_tools: list[ToolDefinition],
+        span_info: SpanInfo | None = None,
     ) -> str:
         """Return a string response from the given messages."""
 
@@ -216,10 +219,13 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         agent = self.create_agent(
             max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
         )
-        result = await agent.run(
-            user_prompt=None,
-            message_history=VercelAIAdapter.load_messages(messages),
-        )
+        if span_info is not None:
+            span_info.tool_count = len(tools)
+        with trace_completion(span_info):
+            result = await agent.run(
+                user_prompt=None,
+                message_history=VercelAIAdapter.load_messages(messages),
+            )
 
         return str(result.output)
 
@@ -264,6 +270,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             sdk_version=AI_SDK_VERSION,
         )
         event_stream = adapter.run_stream()
+        event_stream = trace_stream(event_stream, stream_options.span_info)
         return adapter.streaming_response(event_stream)
 
     def _get_toolsets_and_output_type(
