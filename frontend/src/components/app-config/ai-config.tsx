@@ -103,6 +103,11 @@ interface CustomProviderConfig {
   base_url?: string;
 }
 
+const SUPPORTED_PROVIDERS_UI = new Set(KNOWN_PROVIDERS);
+// We use deepseek as an example of a custom provider in our docs, so we don't show it in the UI.
+// Else, we would need to wire up the UI and config for it. Consider if many users request.
+SUPPORTED_PROVIDERS_UI.delete("deepseek");
+
 export const AiProviderTitle: React.FC<AiProviderTitleProps> = ({
   provider,
   children,
@@ -622,7 +627,7 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
   const normalizedName = newProviderName.toLowerCase().replaceAll(/\s+/g, "_");
   const customProviders = form.watch("ai.custom_providers");
   const isDuplicate =
-    KNOWN_PROVIDERS.includes(normalizedName as KnownProviderId) ||
+    SUPPORTED_PROVIDERS_UI.has(normalizedName as KnownProviderId) ||
     (customProviders && Object.keys(customProviders).includes(normalizedName));
   const hasInvalidChars = normalizedName.includes(".");
 

@@ -432,6 +432,7 @@ class TestInstrumentAI:
         mock_instrument.assert_called_once()
         settings = mock_instrument.call_args.args[0]
         assert isinstance(settings, InstrumentationSettings)
+        assert settings.version == 5
         # InstrumentationSettings builds its tracer from the provider rather
         # than storing the provider itself, so assert the provider was used.
         assert settings.tracer is provider.get_tracer.return_value
