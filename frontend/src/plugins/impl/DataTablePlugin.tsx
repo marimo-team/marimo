@@ -195,6 +195,7 @@ interface Data<T> {
   hiddenColumns?: string[];
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
+  columnWidths?: Record<string, number>;
   headerTooltip?: Record<string, string>;
   totalColumns: number;
   maxColumns: number | "all";
@@ -274,6 +275,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .record(z.string(), z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
+      columnWidths: z.record(z.string(), z.number()).optional(),
       headerTooltip: z.record(z.string(), z.string()).optional(),
       fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
@@ -848,6 +850,7 @@ const DataTableComponent = ({
   hiddenColumns,
   textJustifyColumns,
   wrappedColumns,
+  columnWidths,
   headerTooltip,
   totalColumns,
   get_row_ids,
@@ -935,6 +938,7 @@ const DataTableComponent = ({
   const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
+  const memoizedColumnWidths = useDeepCompareMemoize(columnWidths);
   const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
   const fractionDigitsByColumn = useDeepCompareMemoize(computedFractionDigits);
   const shownColumns = memoizedClampedFieldTypes.length;
@@ -953,6 +957,7 @@ const DataTableComponent = ({
         fieldTypes: memoizedClampedFieldTypes,
         textJustifyColumns: memoizedTextJustifyColumns,
         wrappedColumns: memoizedWrappedColumns,
+        columnWidths: memoizedColumnWidths,
         headerTooltip: headerTooltip,
         // Only show data types if they are explicitly set
         showDataTypes: showDataTypes,
@@ -967,6 +972,7 @@ const DataTableComponent = ({
       memoizedClampedFieldTypes,
       memoizedTextJustifyColumns,
       memoizedWrappedColumns,
+      memoizedColumnWidths,
       headerTooltip,
       calculate_top_k_rows,
       fractionDigitsByColumn,
