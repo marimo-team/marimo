@@ -3269,3 +3269,18 @@ def test_search_raw_data_with_query_and_format_mapping() -> None:
     assert json.loads(result.raw_data) == [
         {"name": "bob", "score": 20},
     ]
+
+
+def test_column_widths_valid():
+    t = ui.table({"a": [1, 2], "b": [3, 4]}, column_widths={"a": 100})
+    assert t._component_args["column-widths"] == {"a": 100}
+
+
+def test_column_widths_unknown_column():
+    with pytest.raises(ValueError, match="not found in table"):
+        ui.table({"a": [1, 2]}, column_widths={"missing": 100})
+
+
+def test_column_widths_non_positive():
+    with pytest.raises(ValueError, match="positive integer"):
+        ui.table({"a": [1, 2]}, column_widths={"a": 0})
