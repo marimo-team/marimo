@@ -56,7 +56,12 @@ class MemoryLoader(Loader):
         path = self.build_path(key)
         return self._maybe_lock(lambda: path in self._cache)
 
-    def load_cache(self, key: HashKey) -> Cache | None:
+    def load_cache(
+        self,
+        key: HashKey,
+        glbls: dict[str, Any] | None = None,
+    ) -> Cache | None:
+        del glbls  # Memory loader doesn't need a cell namespace.
         if not self.cache_hit(key):
             return None
         path = self.build_path(key)
