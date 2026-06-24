@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 from marimo import _loggers
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
-from marimo._server.codes import WebSocketCodes
+from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._server.workspace import MarimoFileKey
 from marimo._types.ids import SessionId
 
@@ -47,7 +47,7 @@ class WebSocketConnectionValidator:
         """
         if self.app_state.enable_auth and not validate_auth(self.websocket):
             await self.websocket.close(
-                WebSocketCodes.UNAUTHORIZED, "MARIMO_UNAUTHORIZED"
+                WebSocketCodes.UNAUTHORIZED, WebSocketCloseReason.UNAUTHORIZED
             )
             return False
         return True
@@ -64,7 +64,7 @@ class WebSocketConnectionValidator:
         raw_session_id = self.app_state.query_params(SESSION_QUERY_PARAM_KEY)
         if raw_session_id is None:
             await self.websocket.close(
-                WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_SESSION_ID"
+                WebSocketCodes.NORMAL_CLOSE, WebSocketCloseReason.NO_SESSION_ID
             )
             return None
 
@@ -78,7 +78,7 @@ class WebSocketConnectionValidator:
 
         if file_key is None:
             await self.websocket.close(
-                WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_FILE_KEY"
+                WebSocketCodes.NORMAL_CLOSE, WebSocketCloseReason.NO_FILE_KEY
             )
             return None
 
@@ -112,7 +112,7 @@ class WebSocketConnectionValidator:
         if file_key is None:
             LOGGER.warning("RTC: Closing websocket - no file key")
             await self.websocket.close(
-                WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_FILE_KEY"
+                WebSocketCodes.NORMAL_CLOSE, WebSocketCloseReason.NO_FILE_KEY
             )
             return None
 
