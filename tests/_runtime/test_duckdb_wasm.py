@@ -238,14 +238,14 @@ def _direct_reader_parity_cases() -> list[DirectReadParityCase]:
             options=(("delimiter", ";"), ("header", False)),
         ),
         DirectReadParityCase(
-            "parquet-file-glob",
+            "parquet-path-or-buffer",
             "read_parquet",
             RemoteFixture(
                 "https://datasets.marimo.app/cars.parquet",
                 ".parquet",
                 _parquet_bytes("SELECT 'ford' AS make"),
             ),
-            source_kwarg="file_glob",
+            source_kwarg="path_or_buffer",
         ),
         DirectReadParityCase(
             "json-path-or-buffer",
