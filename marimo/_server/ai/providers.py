@@ -333,7 +333,7 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
             )
         else:
             # Try default initialization which may work with environment variables
-            provider = PydanticGoogle()
+            provider = PydanticGoogle()  # type: ignore[call-overload]
         return provider
 
     @override
