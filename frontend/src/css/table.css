@@ -29,6 +29,12 @@ table.dataframe {
   scrollbar-width: thin;
 }
 
+/* Block spacing around markdown tables (tables aren't wrapped in .paragraph) */
+.markdown table {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
 .markdown table thead,
 table.dataframe thead {
   vertical-align: bottom;

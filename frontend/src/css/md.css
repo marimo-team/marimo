@@ -23,7 +23,29 @@
 }
 
 .markdown h1 {
+  font-size: 2em;
   text-align: start;
+}
+
+.markdown h2 {
+  font-size: 1.5em;
+}
+
+.markdown h3 {
+  font-size: 1.25em;
+}
+
+.markdown h4 {
+  font-size: 1em;
+}
+
+.markdown h5 {
+  font-size: 0.875em;
+}
+
+.markdown h6 {
+  font-size: 0.85em;
+  color: var(--muted-foreground);
 }
 
 .config-width-full .markdown h1 {
@@ -31,13 +53,17 @@
   text-align: start;
 }
 
+.markdown p,
 .markdown .paragraph {
   /*
   we convert <p> to span.paragraph to support nesting,
-  so we need to apply the same formatting
+  so we need to apply the same formatting.
+  Match GitHub markdown: no top margin, 16px bottom margin.
+  Ref: https://github.com/sindresorhus/github-markdown-css
   */
   display: block;
-  margin-block: 1rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
   margin-inline: 0;
 }
 
