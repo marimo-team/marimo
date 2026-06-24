@@ -27,7 +27,7 @@ class TestClassStubBasics:
                 value = 42
             """
         )
-        stub = ClassStub.from_dump((code, "<Bar>", 1, "Bar"))
+        stub = ClassStub.from_dump((code, "Bar"))
         glbls: dict[str, Any] = {"__name__": "__main__"}
         cls = stub.load(glbls)
         assert cls is not None
@@ -36,9 +36,10 @@ class TestClassStubBasics:
         assert cls.value == 42
 
     @staticmethod
-    def test_load_synthetic_filename_populates_linecache() -> None:
-        """When the filename starts with '<', linecache is seeded so the
-        class is debuggable post-load (tracebacks render the source)."""
+    def test_load_seeds_linecache_for_traceback() -> None:
+        """Outside a kernel context, load compiles under a synthetic
+        per-class filename and seeds linecache so tracebacks render the
+        class source."""
         code = textwrap.dedent(
             """
             class Baz:
@@ -46,41 +47,13 @@ class TestClassStubBasics:
                     return "hi"
             """
         )
-        synth_name = "<Baz_test>"
-        # Clear any prior entry.
+        synth_name = "<Baz>"
         linecache.cache.pop(synth_name, None)
-        stub = ClassStub.from_dump((code, synth_name, 1, "Baz"))
+        stub = ClassStub.from_dump((code, "Baz"))
         glbls: dict[str, Any] = {"__name__": "__main__"}
         stub.load(glbls)
         assert synth_name in linecache.cache
-        # And the class works.
         assert glbls["Baz"]().hello() == "hi"
-
-    @staticmethod
-    def test_load_real_filename_does_not_touch_linecache() -> None:
-        """When the filename is a real path (no '<' prefix), we trust
-        Python's normal linecache lookup and do not overwrite it."""
-        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
-            src = "class Qux:\n    x = 1\n"
-            f.write(src)
-            tmp_path = f.name
-        try:
-            stub = ClassStub.from_dump((src, tmp_path, 1, "Qux"))
-            # Pre-seed linecache with a sentinel to verify we DON'T overwrite.
-            linecache.cache[tmp_path] = (
-                999,
-                None,
-                ["SENTINEL\n"],
-                tmp_path,
-            )
-            glbls: dict[str, Any] = {"__name__": "__main__"}
-            stub.load(glbls)
-            # Sentinel still there — load did not blow it away.
-            assert linecache.cache[tmp_path][2] == ["SENTINEL\n"]
-            assert glbls["Qux"].x == 1
-        finally:
-            linecache.cache.pop(tmp_path, None)
-            Path(tmp_path).unlink(missing_ok=True)
 
 
 class TestClassStubFromLiveClass:
@@ -189,7 +162,7 @@ class TestClassStubSourceResolution:
         filename, glbls = self._seed_cell(src)
         try:
             stub = ClassStub(glbls["OnlyStatic"], filename=filename)
-            assert stub.filename == filename
+            assert "class OnlyStatic" in stub.code
             fresh: dict[str, Any] = {"__name__": "__main__"}
             assert stub.load(fresh).f() == 7
         finally:

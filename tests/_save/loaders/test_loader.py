@@ -373,6 +373,34 @@ class TestLazyLoader(ABCTestLoader):
         np.testing.assert_array_equal(loaded.defs["arr"], arr)
 
     @pytest.mark.skipif(
+        not DependencyManager.has("torch"), reason="torch required"
+    )
+    def test_torch_round_trip(self) -> None:
+        """torch tensors survive save → flush → load via the .pt format —
+        the manifest reference must match the blob extension."""
+        import torch
+
+        loader = self.instance()
+        tensor = torch.tensor([1.0, 2.0, 3.0])
+        cache = Cache(
+            defs={"t": tensor},
+            hash="pt_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        assert list(Path(self.store.save_path).rglob("*.pt")), (
+            "expected .pt blob, got pickle fallback"
+        )
+        loaded = loader.load_cache(key("pt_hash", "Pure"))
+        assert loaded is not None
+        assert torch.equal(loaded.defs["t"], tensor)
+
+    @pytest.mark.skipif(
         not DependencyManager.has("polars"), reason="polars required"
     )
     def test_polars_round_trip(self) -> None:

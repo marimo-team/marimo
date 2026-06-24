@@ -111,20 +111,13 @@ def to_item(
         ref = _maybe_import_ref(value)
         if ref is not None:
             return Item(import_ref=ref)
+    if loader in ("pickle", "npy", "arrow", "pt"):
+        # Blob strategies: the file extension is the loader name, matching
+        # the path `save_cache` writes (`{var}.{loader}`). Listing them
+        # together keeps a new format (e.g. `pt`) from silently falling
+        # through to the `.pickle` fallback and mismatching its blob.
         return Item(
-            reference=(path / f"{var_name}.pickle").as_posix(),
-            hash=hash,
-            type_hint=type_hint,
-        )
-    if loader == "npy":
-        return Item(
-            reference=(path / f"{var_name}.npy").as_posix(),
-            hash=hash,
-            type_hint=type_hint,
-        )
-    if loader == "arrow":
-        return Item(
-            reference=(path / f"{var_name}.arrow").as_posix(),
+            reference=(path / f"{var_name}.{loader}").as_posix(),
             hash=hash,
             type_hint=type_hint,
         )
@@ -215,12 +208,22 @@ class LazyLoader(BasePersistenceLoader):
         ref_vars: dict[str, str] = {}
         ref_type_hints: dict[str, str | None] = {}
         variable_hashes: dict[str, str] = {}
+        # Instances of cell-defined (__main__) classes are deferred: their
+        # class must be re-exec'd into __main__ before the blob can unpickle.
+        # Cache.restore orders these after their class via `requires`.
+        deferred: dict[str, tuple[str, str]] = {}
         for var_name, item in cache_data.defs.items():
             if var_name in cache_data.ui_defs:
                 ref_vars[var_name] = (base / "ui.pickle").as_posix()
             elif item.reference is not None:
-                ref_vars[var_name] = item.reference
-                ref_type_hints[item.reference] = item.type_hint
+                if item.type_hint and item.type_hint.startswith("__main__."):
+                    deferred[var_name] = (
+                        item.reference,
+                        item.type_hint.rsplit(".", 1)[-1],
+                    )
+                else:
+                    ref_vars[var_name] = item.reference
+                    ref_type_hints[item.reference] = item.type_hint
             if item.hash:
                 variable_hashes[var_name] = item.hash
 
@@ -283,7 +286,20 @@ class LazyLoader(BasePersistenceLoader):
         # Distribute to defs
         defs: dict[str, Any] = {}
         for var_name, item in cache_data.defs.items():
-            if var_name in ref_vars:
+            if var_name in deferred:
+                ref, requires = deferred[var_name]
+                # Read the bytes now (via this loader's store); defer only
+                # the unpickle until Cache.restore has materialized the class.
+                raw = self.store.get(ref)
+                if not raw:
+                    raise FileNotFoundError("Incomplete cache: missing blobs")
+                stub = ImmediateReferenceStub(
+                    ReferenceStub(ref, hash_value=item.hash or "", blob=raw)
+                )
+                # Tag the cell class this instance needs materialized first.
+                stub.requires = requires
+                defs[var_name] = stub
+            elif var_name in ref_vars:
                 ref_key = ref_vars[var_name]
                 val = unpickled.get(ref_key)
                 if var_name in cache_data.ui_defs and isinstance(val, dict):

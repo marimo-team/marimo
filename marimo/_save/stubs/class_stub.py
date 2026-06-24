@@ -2,15 +2,8 @@
 """ClassStub — source-based serialization for cell-defined classes.
 
 Pickle stores a class reference as `(__module__, __qualname__)`. For
-classes defined inside marimo cells the module is `"__main__"`, but the
-interpreter's `sys.modules["__main__"]` does not actually hold the cell
-namespace — so `pickle.loads` of a cell-defined class (or an instance of
-one) fails with `AttributeError: Can't get attribute 'KAN' on <module
-'__main__' ...>`. ## WHY, seems doable.
-
-`ClassStub` mirrors the role of `FunctionStub` for classes: capture the
-class source at save time, then re-exec it into the cell namespace at
-load time so the class is bound under its name again.
+classes defined inside marimo cells the module is `"__main__"`, and dynamicall
+patched into the runtime.
 """
 
 from __future__ import annotations
@@ -30,34 +23,19 @@ class ClassStub:
         self.qualname = cls.__qualname__
         # Classes don't have their own `__code__`/`co_filename` like
         # functions do — they rely on `__module__` to find the source
-        # file. For cell-defined classes `__module__` is `'__main__'`
-        # which (in marimo's cell glbls) points at the kernel process
-        # binary, not the cell. Bypass `inspect.getfile` by reading the
-        # filename off any defined method's `__code__.co_filename` —
-        # that's the file (or marimo cell ID) the class was compiled in.
-        #
-        # `filename` is an optional hint supplied by the cache layer (the
-        # executing cell's source filename) so attribute-only / body-only
-        # classes — which have no method code object to read — can still be
-        # sourced from `linecache`.
+        # file.
         method_code = self._find_code(target=cls)
         if method_code is None and filename is None:
-            # Fallback: trust inspect.getsource and hope `__module__`
-            # resolves. Raises if the class is unsourcable.
+            # Fallback: trust inspect.getsource. Raises if unsourcable.
             self.code = textwrap.dedent(inspect.getsource(cls))
-            self.filename = f"<{cls.__name__}>"
-            self.lineno = 1
-            try:
-                self.filename = inspect.getfile(cls)
-                _, self.lineno = inspect.getsourcelines(cls)
-            except (TypeError, OSError):
-                pass
             return
 
         filename = (
             method_code.co_filename if method_code is not None else filename
         )
-        assert filename is not None
+        if filename is None:
+            raise ValueError("No filename, invalid load")
+
         lines = linecache.getlines(filename)
         if not lines:
             raise OSError(
@@ -88,8 +66,6 @@ class ClassStub:
             )
         block = inspect.getblock(lines[lineno - 1 :])
         self.code = textwrap.dedent("".join(block))
-        self.filename = filename
-        self.lineno = lineno
 
     @staticmethod
     def _find_code(target: Any) -> Any:
@@ -112,39 +88,60 @@ class ClassStub:
     def load(self, glbls: dict[str, Any]) -> Any:
         """Reconstruct the class by executing its source in *glbls*.
 
-        For synthetic filenames (`"<ClassName>"`), seed `linecache`
-        so tracebacks render the source. For real filenames, leave
-        `linecache` alone and trust Python's normal lookup.
+        The filename is derived from the loading cell (see
+        `_load_filename`); `linecache` is seeded under that class-specific
+        key so tracebacks render the source without clobbering the cell's
+        own entry.
         """
-        if self.filename.startswith("<"):
-            linecache.cache[self.filename] = (
-                len(self.code),
-                None,
-                [line + "\n" for line in self.code.splitlines()],
-                self.filename,
-            )
-
-        code_obj = compile(self.code, self.filename, "exec")
-        # Exec into glbls directly so the class lands in the cell
-        # namespace under its bare name. (We intentionally do not pass an
-        # lcls dict — top-level class statements must execute against
-        # glbls for cross-cell references to bind correctly.)
-        exec(code_obj, glbls)
-        # Return the class object the source defined. The qualname's
-        # final segment is the class name as bound in glbls.
         bare_name = self.qualname.rsplit(".", 1)[-1]
+        filename = self._load_filename(bare_name)
+        linecache.cache[filename] = (
+            len(self.code),
+            None,
+            [line + "\n" for line in self.code.splitlines()],
+            filename,
+        )
+        # Exec into glbls directly so the class lands in the cell namespace
+        # under its bare name. (No lcls dict — top-level class statements
+        # must execute against glbls for cross-cell references to bind.)
+        #
+        # On a cache hit glbls is the cell namespace, i.e.
+        # `sys.modules["__main__"].__dict__`, so this also registers the
+        # class as `__main__.<name>` — which is exactly what `pickle.loads`
+        # uses to resolve instances of it (no custom unpickler needed).
+        exec(compile(self.code, filename, "exec"), glbls)
         return glbls.get(bare_name)
 
-    def dump(self) -> tuple[str, str, int, str]:
-        """Dump source + metadata for lazy serialization."""
-        return self.code, self.filename, self.lineno, self.qualname
+    @staticmethod
+    def _load_filename(bare_name: str) -> str:
+        """Filename for compiling the class source: the *loading* cell's
+        file when a kernel context exists, else a synthetic name. Suffixed
+        by the class name so seeding `linecache` does not overwrite the
+        cell's own source entry."""
+        try:
+            from marimo._ast.compiler import get_filename
+            from marimo._runtime.context import (
+                ContextNotInitializedError,
+                get_context,
+            )
+
+            ctx = get_context().execution_context
+            if ctx is not None:
+                return get_filename(ctx.cell_id, suffix=bare_name)
+        except (ContextNotInitializedError, AssertionError):
+            pass
+        return f"<{bare_name}>"
+
+    def dump(self) -> tuple[str, str]:
+        """Dump source + qualname for lazy serialization."""
+        return self.code, self.qualname
 
     @classmethod
-    def from_dump(cls, dump: tuple[str, str, int, str]) -> ClassStub:
+    def from_dump(cls, dump: tuple[str, str]) -> ClassStub:
         """Reconstruct a `ClassStub` from a `dump()` tuple.
 
         Skips `__init__` (which requires a live class to introspect).
         """
         stub = cls.__new__(cls)
-        stub.code, stub.filename, stub.lineno, stub.qualname = dump
+        stub.code, stub.qualname = dump
         return stub

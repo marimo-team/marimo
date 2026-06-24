@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import inspect
 import re
+import textwrap
 from collections import namedtuple
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, get_args
@@ -116,6 +117,24 @@ CacheInfo = namedtuple(
 )
 
 
+def _source_refs(code: str) -> set[Name]:
+    """Free references of a captured class/function source block.
+
+    Reuses the cell `ScopedVisitor` so the notion of "what this def needs"
+    matches marimo's dataflow rather than a bespoke parser.
+    """
+    from marimo._ast.parse import ast_parse
+    from marimo._ast.visitor import ScopedVisitor
+
+    try:
+        tree = ast_parse(textwrap.dedent(code))
+    except SyntaxError:
+        return set()
+    visitor = ScopedVisitor("cache_restore")
+    visitor.visit(tree)
+    return set(visitor.refs)
+
+
 # BaseException because "raise _ as e" is utilized.
 class CacheException(BaseException):
     pass
@@ -138,7 +157,7 @@ class Cache:
     def restore(self, scope: dict[str, Any]) -> None:
         """Restores values from cache, into scope."""
         memo: dict[int, Any] = {}  # Track processed objects to handle cycles
-        for var, lookup in self.contextual_defs():
+        for var, lookup in self._restore_order(self.contextual_defs()):
             value = self.defs.get(var, None)
             scope[lookup] = self._restore_from_stub_if_needed(
                 value, scope, memo
@@ -168,6 +187,44 @@ class Cache:
                     "Unexpected stateful reference type "
                     f"({type(ref)}:{ref})."
                 )
+
+    def _restore_deps(self, value: Any) -> set[Name]:
+        """Cross-def names *value* needs before it can be restored.
+
+        - A re-exec'd class/function needs the defs it references at
+          definition time (bases, decorators, class-body calls).
+        - A pickled instance of a cell-defined class needs that class
+          materialized first (tagged via `requires`).
+        """
+        if isinstance(value, (ClassStub, FunctionStub)):
+            return _source_refs(value.code)
+        requires = getattr(value, "requires", "")
+        return {requires} if requires else set()
+
+    def _restore_order(
+        self, contextual_defs: dict[tuple[Name, Name], Any]
+    ) -> list[tuple[Name, Name]]:
+        """Order `(var, lookup)` pairs so each def's cross-def dependencies
+        restore first (depth-first; tolerant of cycles via `seen`)."""
+        lookups = {var: lookup for var, lookup in contextual_defs}
+        deps = {
+            var: self._restore_deps(self.defs.get(var)) & lookups.keys()
+            for var in lookups
+        }
+        order: list[tuple[Name, Name]] = []
+        seen: set[Name] = set()
+
+        def visit(var: Name) -> None:
+            if var in seen:
+                return
+            seen.add(var)
+            for dep in deps[var]:
+                visit(dep)
+            order.append((var, lookups[var]))
+
+        for var in lookups:
+            visit(var)
+        return order
 
     def _restore_from_stub_if_needed(
         self,

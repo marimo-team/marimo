@@ -44,10 +44,10 @@ class Item(msgspec.Struct):
     import_ref: tuple[str, str] | None = None
     # (code, filename, linenumber)
     function: tuple[str, str, int] | None = None
-    # (code, filename, linenumber, qualname) — cell-defined class source.
-    # Materialized into the cell namespace before pickle blobs deserialize,
-    # so __main__-qualified instances can resolve their type.
-    class_def: tuple[str, str, int, str] | None = None
+    # (code, qualname) — cell-defined class source. Materialized into the
+    # cell namespace (and __main__) before pickle blobs deserialize, so
+    # __main__-qualified instances can resolve their type.
+    class_def: tuple[str, str] | None = None
     hash: str | None = None
     # Fully-qualified class name of the original value — used by format-aware
     # deserializers (e.g. to distinguish pandas from polars Arrow blobs).
@@ -254,11 +254,19 @@ class ReferenceStub:
     """Deferred blob reference — loads from store on access."""
 
     def __init__(
-        self, name: str, loader: str | None = None, hash_value: str = ""
+        self,
+        name: str,
+        loader: str | None = None,
+        hash_value: str = "",
+        blob: bytes | None = None,
     ) -> None:
         self.name = name
         self.loader = loader
         self.hash = hash_value
+        # Preloaded bytes — set when the caller has already read the blob
+        # (e.g. the lazy loader, which uses its own store) and only the
+        # deserialization is being deferred.
+        self._blob = blob
 
     def load(self, glbls: dict[str, Any]) -> Any:
         del glbls
@@ -268,6 +276,8 @@ class ReferenceStub:
         return pickle.loads(blob)
 
     def to_bytes(self) -> bytes:
+        if self._blob is not None:
+            return self._blob
         maybe_bytes = get_store().get(self.name)
         return maybe_bytes if maybe_bytes else b""
 
@@ -277,6 +287,10 @@ class ImmediateReferenceStub(CustomStub):
 
     def __init__(self, reference: ReferenceStub) -> None:
         self.reference = reference
+        # Name of a cell-defined class this value's type needs materialized
+        # before it can unpickle; empty when there's no such dependency.
+        # Consumed by `Cache.restore` for dependency ordering.
+        self.requires: str = ""
 
     def load(self, glbls: dict[str, Any]) -> Any:
         return self.reference.load(glbls)
