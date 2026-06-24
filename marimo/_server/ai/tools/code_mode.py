@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 def build_execute_code_toolset(
     session: Session,
     request: Request,
-) -> FunctionToolset[None]:
+) -> FunctionToolset:
     """Build a `FunctionToolset` exposing one tool: `execute_code`.
 
     The tool is bound to the caller's *session* and *request*; the model
@@ -31,7 +31,7 @@ def build_execute_code_toolset(
 
     from pydantic_ai import FunctionToolset
 
-    toolset: FunctionToolset[None] = FunctionToolset()
+    toolset: FunctionToolset = FunctionToolset()
 
     async def execute_code(code: str) -> CodeExecutionResult:
         """Run Python inside the running notebook's kernel scratchpad.

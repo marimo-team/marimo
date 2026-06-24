@@ -35,20 +35,6 @@ class TestGenerateId:
         assert result.startswith("_")
 
 
-def _has_pydantic_function_like() -> bool:
-    """Check if pydantic has the _function_like attribute required by pydantic-ai."""
-    try:
-        from pydantic._internal import _decorators
-
-        return hasattr(_decorators, "_function_like")
-    except ImportError:
-        return False
-
-
-@pytest.mark.skipif(
-    not _has_pydantic_function_like(),
-    reason="pydantic version missing _function_like (required by pydantic-ai)",
-)
 class TestFormToolsets:
     def test_form_toolsets_empty_list(self):
         tool_invoker = AsyncMock()

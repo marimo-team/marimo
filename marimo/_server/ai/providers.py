@@ -27,7 +27,6 @@ from marimo._ai._pydantic_ai_utils import (
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._plugins.ui._impl.chat.chat import (
     AI_SDK_VERSION,
-    require_vercel_ai_sdk_support,
 )
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.constants import ANTHROPIC_DEFAULT_MAX_TOKENS
@@ -107,7 +106,6 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             *(deps or []),
             source="server",
         )
-        require_vercel_ai_sdk_support()
 
         self.model: str = model
         self.config: AnyProviderConfig = config
@@ -128,7 +126,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         max_tokens: int | None,
         tools: list[ToolDefinition],
         system_prompt: str,
-    ) -> Agent[None, DeferredToolRequests | str]:
+    ) -> Agent[object, DeferredToolRequests | str]:
         """Create a Pydantic AI agent"""
         from pydantic_ai import Agent
 
@@ -150,11 +148,13 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         thinking = self._default_thinking(model)
         if thinking is None:
             return None
+
         if not (
-            model.profile.supports_thinking
-            or model.profile.thinking_always_enabled
+            model.profile.get("supports_thinking", False)
+            or model.profile.get("thinking_always_enabled", False)
         ):
             return None
+
         return ModelSettings(thinking=thinking)
 
     def _default_thinking(self, model: Model) -> ThinkingLevel | None:
@@ -804,7 +804,7 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         max_tokens: int | None,
         tools: list[ToolDefinition],
         system_prompt: str,
-    ) -> Agent[None, DeferredToolRequests | str]:
+    ) -> Agent[object, DeferredToolRequests | str]:
         """Create a Pydantic AI agent"""
         from pydantic_ai import Agent, UserError
         from pydantic_ai.models import infer_model
@@ -852,15 +852,6 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
 
 
 class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
-    # Temperature of 0.2 was recommended for coding and data science in these links:
-    # https://community.openai.com/t/cheat-sheet-mastering-temperature-and-top-p-in-chatgpt-api/172683
-    # https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-latency?utm_source=chatgpt.com
-    DEFAULT_TEMPERATURE: float = 0.2
-
-    # Extended thinking requires temperature of 1.
-    # https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
-    DEFAULT_EXTENDED_THINKING_TEMPERATURE: float = 1
-
     @override
     def create_provider(self, config: AnyProviderConfig) -> PydanticAnthropic:
         from pydantic_ai.providers.anthropic import (
@@ -875,32 +866,12 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
             AnthropicModel,
             AnthropicModelSettings,
         )
-        from pydantic_ai.profiles.anthropic import (
-            AnthropicModelProfile,
-            anthropic_model_profile,
-        )
 
         settings: AnthropicModelSettings = {
             "max_tokens": max_tokens
             if max_tokens is not None
             else ANTHROPIC_DEFAULT_MAX_TOKENS
         }
-
-        # Anthropic extended thinking requires temperature=1; non-thinking
-        # models keep our default coding temperature. Some adaptive-only
-        # models (Opus 4.7+) reject sampling settings entirely — skip
-        # `temperature` for them so pydantic-ai doesn't drop it with a warning.
-        profile = AnthropicModelProfile.from_profile(
-            anthropic_model_profile(self.model)
-        )
-        if not getattr(
-            profile, "anthropic_disallows_sampling_settings", False
-        ):
-            settings["temperature"] = (
-                self.DEFAULT_EXTENDED_THINKING_TEMPERATURE
-                if profile.supports_thinking
-                else self.DEFAULT_TEMPERATURE
-            )
 
         return AnthropicModel(
             model_name=self.model,

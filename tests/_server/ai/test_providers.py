@@ -35,7 +35,7 @@ from marimo._server.ai.tracing import SpanInfo
             "bedrock",
             id="bedrock",
         ),
-        pytest.param("openrouter/gpt-4", "openrouter", id="openrouter"),
+        pytest.param("openrouter/openai/gpt-4", "openrouter", id="openrouter"),
     ],
 )
 def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
@@ -89,7 +89,7 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
             id="bedrock",
         ),
         pytest.param(
-            "openrouter/gpt-4", CustomProvider, None, id="openrouter"
+            "openrouter/openai/gpt-4", CustomProvider, None, id="openrouter"
         ),
     ],
 )
@@ -279,25 +279,25 @@ def test_openai_default_thinking(
         ),
         pytest.param(
             "claude-opus-4-6",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024},
             True,
             id="opus_4_6",
         ),
         pytest.param(
             "claude-sonnet-4-6",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024},
             True,
             id="sonnet_4_6",
         ),
         pytest.param(
             "claude-opus-4-5-20251101",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024},
             True,
             id="opus_4_5",
         ),
         pytest.param(
             "claude-3-7-sonnet-20250219",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024},
             True,
             id="sonnet_3_7",
         ),
@@ -309,7 +309,7 @@ def test_openai_default_thinking(
         # corrected upstream, behavior here will follow automatically.
         pytest.param(
             "claude-3-5-sonnet-20241022",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024},
             True,
             id="sonnet_3_5_trusts_profile",
         ),
@@ -325,7 +325,7 @@ def test_anthropic_settings_split(
     expected_model_settings: dict[str, Any],
     expected_agent_thinking: bool,
 ) -> None:
-    """Verify the model-level settings (temperature) and agent-level thinking flag."""
+    """Verify model-level settings and agent-level thinking flag."""
     config = AnyProviderConfig(api_key="test-key", base_url=None)
     provider = AnthropicProvider(model_name, config)
     model = provider.create_model(max_tokens=1024)
@@ -377,8 +377,8 @@ def test_anthropic_thinking_payload_translation(
     model = provider.create_model(max_tokens=1024)
     assert isinstance(model, AnthropicModel)
 
-    # Combine the model-level settings (temperature) with the agent-level
-    # thinking flag the way pydantic-ai does at request time.
+    # Combine model-level settings with the agent-level thinking flag the way
+    # pydantic-ai does at request time.
     merged = dict(model.settings or {})
     merged.update(provider._build_agent_settings(model) or {})
 
@@ -514,7 +514,7 @@ def test_custom_provider_agent_passes_explicit_max_tokens() -> None:
     """The chat path builds the agent (not the model), so the agent's
     model_settings must carry the explicit max_tokens."""
     config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
-    provider = get_completion_provider(config, "openrouter/gpt-4")
+    provider = get_completion_provider(config, "openrouter/openai/gpt-4")
     with patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm:
         mock_get_tm.return_value = MagicMock()
         agent = provider.create_agent(
@@ -527,7 +527,7 @@ def test_custom_provider_agent_passes_explicit_max_tokens() -> None:
 def test_custom_provider_agent_omits_max_tokens_when_none() -> None:
     """The chat path omits max_tokens from agent model_settings when unset."""
     config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
-    provider = get_completion_provider(config, "openrouter/gpt-4")
+    provider = get_completion_provider(config, "openrouter/openai/gpt-4")
     with patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm:
         mock_get_tm.return_value = MagicMock()
         agent = provider.create_agent(
@@ -618,8 +618,6 @@ def test_custom_provider_inherits_profile_from_base_url() -> None:
     """A custom provider whose name we don't recognize, but whose base URL
     points at DeepSeek, inherits DeepSeek's profile so `reasoning_content`
     round-trips. Regression test for #9786."""
-    from pydantic_ai.profiles.openai import OpenAIModelProfile
-
     config = AnyProviderConfig(
         api_key="test-key", base_url="https://api.deepseek.com"
     )
@@ -632,17 +630,15 @@ def test_custom_provider_inherits_profile_from_base_url() -> None:
     assert provider.provider.name == "deepseek"
 
     model = provider.create_model(max_tokens=None)
-    profile = OpenAIModelProfile.from_profile(model.profile)
-    assert profile.openai_chat_thinking_field == "reasoning_content"
-    assert profile.openai_chat_send_back_thinking_parts == "field"
+    profile = model.profile
+    assert profile.get("openai_chat_thinking_field") == "reasoning_content"
+    assert profile.get("openai_chat_send_back_thinking_parts") == "field"
 
 
 @pytest.mark.requires("pydantic_ai")
 def test_custom_provider_unknown_base_url_stays_generic() -> None:
     """An unknown name with an unrecognized base URL falls back to the generic
     OpenAI provider (no thinking field), preserving prior behavior."""
-    from pydantic_ai.profiles.openai import OpenAIModelProfile
-
     config = AnyProviderConfig(
         api_key="test-key", base_url="https://my.internal.llm/v1"
     )
@@ -654,8 +650,8 @@ def test_custom_provider_unknown_base_url_stays_generic() -> None:
     assert provider.provider.name == "openai"
 
     model = provider.create_model(max_tokens=None)
-    profile = OpenAIModelProfile.from_profile(model.profile)
-    assert profile.openai_chat_thinking_field is None
+    profile = model.profile
+    assert profile.get("openai_chat_thinking_field") is None
 
 
 @pytest.mark.requires("pydantic_ai")
