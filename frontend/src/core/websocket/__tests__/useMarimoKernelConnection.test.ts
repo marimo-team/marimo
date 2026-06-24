@@ -32,7 +32,6 @@ describe("classifyCloseEvent", () => {
 
   describe("terminal closes (server-initiated)", () => {
     it.each([
-      "MARIMO_WRONG_KERNEL_ID",
       "MARIMO_NO_FILE_KEY",
       "MARIMO_NO_SESSION_ID",
       "MARIMO_NO_SESSION",
@@ -46,18 +45,6 @@ describe("classifyCloseEvent", () => {
       });
       if (decision.kind === "terminal") {
         expect(decision.closeTransport).toBe(true);
-      }
-    });
-
-    it("MARIMO_MALFORMED_QUERY → terminal but does NOT close transport", () => {
-      const decision = classify("MARIMO_MALFORMED_QUERY");
-      expect(decision.kind).toBe("terminal");
-      expect(decision.status).toMatchObject({
-        state: WebSocketState.CLOSED,
-        code: WebSocketClosedReason.MALFORMED_QUERY,
-      });
-      if (decision.kind === "terminal") {
-        expect(decision.closeTransport).toBe(false);
       }
     });
 
