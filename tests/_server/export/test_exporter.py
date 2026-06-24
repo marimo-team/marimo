@@ -264,6 +264,12 @@ async def test_run_until_completion_with_console_output(
     )
 
 
+# NOTE: the kernel-level "cell caching populates + dumps an export manifest"
+# path is covered once the cache_cells lifecycle (PR #9895) lands. Here the
+# gate (CacheCallbacks) and the dump/bundle mechanics are unit-tested in
+# tests/_save/loaders/test_cache_export.py and tests/_cli/test_export_cache_bundle.py.
+
+
 # WASM export
 
 

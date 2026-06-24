@@ -117,6 +117,14 @@ class Loader(ABC):
         prefix = CACHE_PREFIX.get(key.cache_type, "U_")
         return Path(f"{prefix}{key.hash}")
 
+    def flush(self) -> None:
+        """Drain any pending asynchronous writes so results are durable.
+
+        No-op by default; backends that dispatch writes to background threads
+        (e.g. the lazy loader) override this to join them before shutdown.
+        """
+        return
+
     def cache_attempt(
         self,
         defs: set[Name],

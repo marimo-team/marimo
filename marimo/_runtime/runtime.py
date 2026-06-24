@@ -96,6 +96,8 @@ from marimo._runtime.callbacks import (
     PackagesCallbacks,
     SecretsCallbacks,
     SqlCallbacks,
+    SupportsTeardown,
+    cache_cells_enabled,
 )
 from marimo._runtime.commands import (
     AppMetadata,
@@ -488,7 +490,11 @@ class Kernel:
         self.datasets_callbacks = DatasetCallbacks(self)
         self.packages_callbacks = PackagesCallbacks(self)
         self.sql_callbacks = SqlCallbacks(self)
-        self.cache_callbacks = CacheCallbacks(self)
+        self.cache_callbacks = CacheCallbacks(
+            self,
+            caching_enabled=lambda: cache_cells_enabled(self.user_config),
+            notebook_filename=app_metadata.filename,
+        )
         self.external_storage_callbacks = ExternalStorageCallbacks(self)
         self._callbacks: list[KernelCallback] = [
             self.secrets_callbacks,
@@ -619,6 +625,19 @@ class Kernel:
     @property
     def stdin(self) -> Stdin | None:
         return self._streams.stdin
+
+    def teardown_callbacks(self) -> None:
+        """Let callbacks flush/release resources before the context is gone.
+
+        Runs while the runtime context (and thus cache state) is still alive,
+        so e.g. pending `LazyLoader` writes can be flushed.
+        """
+        for cb in self._callbacks:
+            if isinstance(cb, SupportsTeardown):
+                try:
+                    cb.teardown()
+                except Exception:
+                    LOGGER.warning("Callback teardown failed", exc_info=True)
 
     def teardown(self) -> None:
         """Teardown resources owned by the kernel."""
