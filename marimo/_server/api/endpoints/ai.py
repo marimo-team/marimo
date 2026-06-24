@@ -30,8 +30,12 @@ from marimo._server.ai.prompts import (
     get_inline_system_prompt,
     get_refactor_or_insert_notebook_cell_system_prompt,
 )
-from marimo._server.ai.providers import StreamOptions, get_completion_provider
+from marimo._server.ai.providers import (
+    StreamOptions,
+    get_completion_provider,
+)
 from marimo._server.ai.tools.tool_manager import get_tool_manager
+from marimo._server.ai.tracing import SpanInfo
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.completion import (
@@ -127,6 +131,7 @@ async def ai_completion(
     """
     app_state = AppState(request)
     app_state.require_current_session()
+    session_id = app_state.require_current_session_id()
     config = app_state.app_config_manager.get_config(hide_secrets=False)
     body = await parse_request(
         request, cls=AiCompletionRequest, allow_unknown_keys=True
@@ -158,6 +163,14 @@ async def ai_completion(
         system_prompt=system_prompt,
         max_tokens=get_max_tokens(config),
         additional_tools=[],
+        stream_options=StreamOptions(
+            span_info=SpanInfo(
+                endpoint="completion",
+                model=model,
+                language=body.language,
+                session_id=session_id,
+            )
+        ),
     )
 
 
@@ -212,7 +225,15 @@ async def ai_chat(
     additional_tools = body.tools or []
 
     stream_options = StreamOptions(
-        format_stream=True, text_only=False, accept=accept
+        format_stream=True,
+        text_only=False,
+        accept=accept,
+        span_info=SpanInfo(
+            endpoint="chat",
+            model=model,
+            mode=mode,
+            session_id=session_id,
+        ),
     )
 
     if mode == "code_mode":
@@ -264,6 +285,7 @@ async def ai_inline_completion(
     """
     app_state = AppState(request)
     app_state.require_current_session()
+    session_id = app_state.require_current_session_id()
     config = app_state.app_config_manager.get_config(hide_secrets=False)
     body = await parse_request(
         request, cls=AiInlineCompletionRequest, allow_unknown_keys=True
@@ -291,6 +313,12 @@ async def ai_inline_completion(
             system_prompt=system_prompt,
             max_tokens=INLINE_COMPLETION_MAX_TOKENS,
             additional_tools=[],
+            span_info=SpanInfo(
+                endpoint="inline_completion",
+                model=model,
+                language=body.language,
+                session_id=session_id,
+            ),
         )
     except Exception as e:
         LOGGER.error("Error in AI inline completion: %s", str(e))
