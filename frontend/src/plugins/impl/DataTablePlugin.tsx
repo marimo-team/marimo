@@ -275,7 +275,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .record(z.string(), z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
-      columnWidths: z.record(z.string(), z.number()).optional(),
+      columnWidths: z
+        .record(z.string(), z.number().int().positive())
+        .optional(),
       headerTooltip: z.record(z.string(), z.string()).optional(),
       fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
