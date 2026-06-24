@@ -463,6 +463,9 @@ class table(
         text_justify_columns (Dict[str, Literal["left", "center", "right"]], optional):
             Dictionary of column names to text justification options: left, center, right.
         wrapped_columns (List[str], optional): List of column names to wrap.
+        column_widths (Dict[str, int], optional): Mapping of column name to
+            fixed pixel width. Listed columns render at exactly that width;
+            unlisted columns size to their content.
         header_tooltip (Dict[str, str], optional): Mapping from column names to tooltip text on the column header.
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
@@ -528,6 +531,7 @@ class table(
             freeze_columns_right=None,
             text_justify_columns=None,
             wrapped_columns=None,
+            column_widths=None,
             label="",
             on_change=None,
             style_cell=None,
@@ -561,6 +565,7 @@ class table(
         text_justify_columns: dict[str, Literal["left", "center", "right"]]
         | None = None,
         wrapped_columns: list[str] | None = None,
+        column_widths: dict[str, int] | None = None,
         hidden_columns: Sequence[str] | None = None,
         visible_columns: Sequence[str] | None = None,
         header_tooltip: dict[str, str] | None = None,
@@ -801,6 +806,7 @@ class table(
             _validate_column_formatting(
                 text_justify_columns, wrapped_columns, column_names_set
             )
+            _validate_column_widths(column_widths, column_names_set)
             _validate_header_tooltip(header_tooltip, column_names_set)
 
             field_types = self._manager.get_field_types()
@@ -849,6 +855,7 @@ class table(
                 "hidden-columns": hidden_columns_list,
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
+                "column-widths": column_widths,
                 "header-tooltip": header_tooltip,
                 "has-stable-row-id": self._has_stable_row_id,
                 "cell-styles": search_result_styles,
@@ -1896,6 +1903,26 @@ def _validate_column_formatting(
         if invalid:
             raise ValueError(
                 f"Column '{next(iter(invalid))}' not found in table."
+            )
+
+
+def _validate_column_widths(
+    column_widths: dict[str, int] | None,
+    column_names_set: set[str],
+) -> None:
+    """Validate column width mapping.
+
+    Ensures all specified columns exist in the table and widths are positive integers.
+    """
+    if not column_widths:
+        return
+
+    for column, width in column_widths.items():
+        if column not in column_names_set:
+            raise ValueError(f"Column '{column}' not found in table.")
+        if not isinstance(width, int) or isinstance(width, bool) or width <= 0:
+            raise ValueError(
+                f"Width for column '{column}' must be a positive integer, got {width}."
             )
 
 
