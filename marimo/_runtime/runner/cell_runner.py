@@ -23,6 +23,7 @@ from marimo._runtime import dataflow
 from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.exceptions import (
+    MarimoCancelCellError,
     MarimoMissingRefError,
     MarimoRuntimeException,
     unwrap_user_exception,
@@ -157,6 +158,28 @@ class Runner:
         lifecycles: list[ExecutionLifecycle] = []
         if execution_type == "strict":
             lifecycles.append(StrictLifecycle(self.graph))
+        if user_config is not None and user_config.get("runtime", {}).get(
+            "cache_cells", False
+        ):
+            # Lazy import: pulls in the cache machinery (and its downstream
+            # marimo._save chain), which would create a circular import at
+            # module load.
+            from marimo._runtime.executor.lifecycles.cached import (
+                CachedLifecycle,
+            )
+
+            lifecycles.append(
+                CachedLifecycle(
+                    self.graph,
+                    # Pinning trades staleness protection for key
+                    # portability: a cache exported across environments
+                    # (e.g. into a WASM bundle) only hits when module
+                    # versions are excluded from the key.
+                    pin_modules=bool(
+                        user_config.get("runtime", {}).get("pin_modules", True)
+                    ),
+                )
+            )
         self._evaluator = Evaluator(
             executor=resolve_executor(), lifecycles=lifecycles
         )
@@ -417,6 +440,26 @@ class Runner:
             # rather than escaping to the broad except below.
             return RunResult(output=None, exception=exc)
 
+    @staticmethod
+    def _log_internal_error() -> None:
+        """Defensive: an unexpected escape from the Evaluator or a bug in
+        `_finalize_run_result` would otherwise tear down the runner loop.
+        Log a report and let the caller degrade to an empty RunResult."""
+        LOGGER.error(
+            """marimo encountered an internal error.
+
+            marimo finished executing a cell, but did not produce
+            a run result.
+
+            Please copy this message and paste it in a GitHub issue:
+
+            https://github.com/marimo-team/marimo/issues
+
+            Any additional context of what caused this error, such
+            as sample code to reproduce, will help us debug.
+            """
+        )
+
     async def run(self, cell_id: CellId_t) -> RunResult:
         """Run a cell."""
         if self.debugger is not None:
@@ -430,25 +473,22 @@ class Runner:
         # effects are applied below in `_finalize_run_result`.
         try:
             raw_result = await self.evaluate_interruptible(cell)
+        except BaseException:
+            self._log_internal_error()
+            raw_result = RunResult(output=None, exception=None)
+
+        # Soft-cancel control signal from a lifecycle (e.g. CachedLifecycle
+        # tripping on a stale UnhashableStub ref): propagate to `run_all`
+        # so it can requeue the producing cells. Lifecycle teardown already
+        # ran inside the Evaluator; this is not a cell error, so it is not
+        # classified or recorded here.
+        if isinstance(raw_result.exception, MarimoCancelCellError):
+            raise raw_result.exception
+
+        try:
             run_result = self._finalize_run_result(raw_result, cell_id)
         except BaseException:
-            # Defensive: an unexpected escape from the Evaluator or a bug
-            # in `_finalize_run_result` would otherwise tear down the
-            # runner loop. Degrade gracefully with an empty RunResult.
-            LOGGER.error(
-                """marimo encountered an internal error.
-
-                marimo finished executing a cell, but did not produce
-                a run result.
-
-                Please copy this message and paste it in a GitHub issue:
-
-                https://github.com/marimo-team/marimo/issues
-
-                Any additional context of what caused this error, such
-                as sample code to reproduce, will help us debug.
-                """
-            )
+            self._log_internal_error()
             run_result = RunResult(output=None, exception=None)
 
         # Mark as interrupted if the cell raised a MarimoInterrupt
@@ -807,4 +847,24 @@ class Runner:
                     cell.set_run_result_status("cancelled")
                     cell.set_runtime_state("idle")
                     continue
-                await self._run_one(cell_id, pre_exec_ctx, post_exec_ctx)
+                try:
+                    await self._run_one(cell_id, pre_exec_ctx, post_exec_ctx)
+                except MarimoCancelCellError as e:
+                    # Soft-cancel: a lifecycle (e.g. CachedLifecycle hitting
+                    # a stale UnhashableStub) asked to re-run producer cells
+                    # so they emit real values. Requeue them at the head of
+                    # the queue; this cell retries after they run. Not a
+                    # cell error — don't classify or record it.
+                    LOGGER.debug(
+                        "Soft-cancel for %s; requeuing %s",
+                        cell_id,
+                        e.cells_to_rerun,
+                    )
+                    # The pre-execution hook set this cell's runtime_state to
+                    # "running"; the soft-cancel raised out of `_run_one`
+                    # before the post-execution hook could reset it. Mark
+                    # every requeued cell "queued" so none lingers in
+                    # "running" while its producers re-execute.
+                    for rerun_id in e.cells_to_rerun:
+                        self.graph.cells[rerun_id].set_runtime_state("queued")
+                    self._scheduler.requeue_for_rerun(e.cells_to_rerun)

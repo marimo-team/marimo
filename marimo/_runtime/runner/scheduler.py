@@ -59,6 +59,7 @@ class Scheduler(Protocol):
         self, cell_ids: Iterable[CellId_t] | None = ...
     ) -> Iterator[Iterable[CellId_t]]: ...
     def requeue(self, cell_ids: Iterable[CellId_t]) -> None: ...
+    def requeue_for_rerun(self, cells: set[CellId_t]) -> None: ...
 
     def start_task(
         self,
@@ -116,6 +117,33 @@ class SequentialScheduler:
         """Replace the pending queue with `cell_ids`."""
         self._cells_to_run.clear()
         self._cells_to_run.extend(cell_ids)
+
+    def requeue_for_rerun(self, cells: set[CellId_t]) -> None:
+        """Soft-cancel: put `cells` back at the head of the queue.
+
+        Called when a lifecycle raises
+        `MarimoCancelCellError(cells_to_rerun=...)` — e.g. `CachedLifecycle`
+        signaling that producers need their bodies to actually run.
+        Un-cancels each cell and prepends them in **topological order**
+        (producers before consumers) so the next `batch()` yields the
+        producers first; they emit real values before the consumer that
+        tripped retries. Without the topo order a consumer requeued ahead
+        of its producer would re-trip on the same stale value and loop
+        forever (the cells set has no inherent ordering).
+        """
+        ordered = dataflow.topological_sort(self._graph, cells)
+        # appendleft reverses, so iterate back-to-front to land the
+        # topologically-first cell at the head of the queue.
+        for cid in reversed(ordered):
+            self._cancelled.discard(cid)
+            # Move to the head even when already queued: a cell left at a
+            # later position than its producer would re-trip on the stale
+            # value. A deque has no move op, so drop the stale position
+            # (remove() is a no-op-safe O(n) scan) before prepending — this
+            # also prevents the cell appearing twice in the queue.
+            if cid in self._cells_to_run:
+                self._cells_to_run.remove(cid)
+            self._cells_to_run.appendleft(cid)
 
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell and its descendants as cancelled."""

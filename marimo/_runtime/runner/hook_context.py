@@ -42,6 +42,17 @@ class CancelledCells:
             self._by_raising_cell[raising_cell] = descendants
         self._all.update(descendants)
 
+    def discard(self, cell_id: CellId_t) -> None:
+        """Un-cancel a cell (as both a raiser and a descendant).
+
+        Used by `Scheduler.requeue_for_rerun` to clear cancellation
+        before re-running a cell.
+        """
+        self._all.discard(cell_id)
+        self._by_raising_cell.pop(cell_id, None)
+        for descendants in self._by_raising_cell.values():
+            descendants.discard(cell_id)
+
     def __contains__(self, cell_id: object) -> bool:
         """O(1) check if a cell has been cancelled."""
         return cell_id in self._all
