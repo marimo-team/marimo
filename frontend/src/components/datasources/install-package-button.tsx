@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { useInstallAllowed } from "@/core/mode";
 import { useInstallPackages } from "@/core/packages/useInstallPackage";
 import { cn } from "@/utils/cn";
 
@@ -23,8 +24,9 @@ export const InstallPackageButton: React.FC<InstallPackageButtonProps> = ({
   onInstall,
 }) => {
   const { handleInstallPackages } = useInstallPackages();
+  const installAllowed = useInstallAllowed();
 
-  if (!packages || packages.length === 0) {
+  if (!packages || packages.length === 0 || !installAllowed) {
     return null;
   }
 
