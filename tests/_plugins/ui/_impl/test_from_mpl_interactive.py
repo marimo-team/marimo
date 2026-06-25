@@ -260,7 +260,6 @@ class TestCanvasRebindAfterClose:
 
     def test_pan_works_after_plt_close(self) -> None:
         import matplotlib.pyplot as plt
-        from matplotlib.backend_bases import _Mode
 
         from marimo._plugins.ui._impl.from_mpl_interactive import (
             mpl_interactive,
@@ -278,7 +277,7 @@ class TestCanvasRebindAfterClose:
         plt.close("all")
 
         toolbar = canvas.toolbar
-        toolbar.mode = _Mode.PAN
+        toolbar.pan()
 
         draws = [0]
         original_draw_idle = canvas.draw_idle

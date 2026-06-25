@@ -286,10 +286,13 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
         """
         # matplotlib 3.11 resets `figure.canvas` to a bare FigureCanvasBase
         # when the figure is closed, and marimo closes figures after every
-        # cell run (`close_figures()` -> `plt.close("all")`).
+        # cell run (`close_figures()` -> `plt.close("all")`). Re-bind our
+        # canvas so matplotlib's hit-testing (`Artist.contains` ->
+        # `_different_canvas`) keeps accepting events and pan/zoom survive.
         canvas = self._figure_manager.canvas
-        if canvas.figure.canvas is not canvas:
-            canvas.figure.set_canvas(canvas)
+        root_figure = canvas.figure.figure
+        if root_figure.canvas is not canvas:
+            root_figure.set_canvas(canvas)
 
         content = msg.get("content", {})
         data = content.get("data", {})
