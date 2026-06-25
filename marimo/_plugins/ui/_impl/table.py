@@ -454,6 +454,8 @@ class table(
             Defaults to True.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
+        show_search (bool, optional): Whether to show the search bar.
+            Defaults to True.
         format_mapping (Dict[str, Union[str, Callable[..., Any]]], optional): A mapping from
             column names to formatting strings or functions.
         freeze_columns_left (Sequence[str], optional): List of column names to freeze on the left.
@@ -567,6 +569,7 @@ class table(
         show_download: bool = True,
         max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
         *,
+        show_search: bool = True,
         label: str = "",
         on_change: Callable[
             [
@@ -838,6 +841,7 @@ class table(
                 "show-filters": self._manager.supports_filters(),
                 "show-download": show_download
                 and self._manager.supports_download(),
+                "show-search": show_search,
                 "show-column-summaries": show_column_summaries,
                 "show-data-types": show_data_types,
                 "show-page-size-selector": show_page_size_selector,

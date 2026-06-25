@@ -1423,6 +1423,23 @@ def test_show_download(df: Any) -> None:
     assert table_false._component_args["show-download"] is False
 
 
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": [1, 2, 3], "b": [4, 5, 6]},
+    ),
+)
+def test_show_search(df: Any) -> None:
+    table_default = ui.table(df)
+    assert table_default._component_args["show-search"] is True
+
+    table_true = ui.table(df, show_search=True)
+    assert table_true._component_args["show-search"] is True
+
+    table_false = ui.table(df, show_search=False)
+    assert table_false._component_args["show-search"] is False
+
+
 DOWNLOAD_FORMATS = ["csv", "tsv", "json", "parquet"]
 
 # Parquet export requires pandas+pyarrow or polars (see the `_download_as`
@@ -2431,6 +2448,8 @@ def test_lazy_dataframe(df: Any) -> None:
         assert table._component_args["show-page-size-selector"] is False
         assert table._component_args["show-column-explorer"] is False
         assert table._component_args["show-chart-builder"] is False
+        # Search is pushed down to the lazy backend, so it stays available.
+        assert table._component_args["show-search"] is True
 
         # Verify that search response indicates "too_many" for total_rows
         # but returns the preview rows
