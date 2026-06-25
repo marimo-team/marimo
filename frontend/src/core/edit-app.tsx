@@ -129,16 +129,16 @@ export const EditApp: React.FC<AppProps> = ({
     runAllCells();
   });
   useHotkey("global.showAllCode", () => {
-    setCodeVisibility({ hidden: false });
+    setCodeVisibility(false, "code");
   });
   useHotkey("global.hideAllCode", () => {
-    setCodeVisibility({ hidden: true });
+    setCodeVisibility(true, "code");
   });
   useHotkey("global.showAllMarkdownCode", () => {
-    setCodeVisibility({ hidden: false, markdownOnly: true });
+    setCodeVisibility(false, "markdown");
   });
   useHotkey("global.hideAllMarkdownCode", () => {
-    setCodeVisibility({ hidden: true, markdownOnly: true });
+    setCodeVisibility(true, "markdown");
   });
   useHotkey("global.collapseAllSections", () => {
     collapseAllCells();

@@ -8,38 +8,34 @@ import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { Objects } from "@/utils/objects";
 
-interface SetCodeVisibilityOptions {
-  /** When `true`, hide the code; when `false`, show it. */
-  hidden: boolean;
-  /** Restrict the change to markdown cells. */
-  markdownOnly?: boolean;
-}
+const markdownAdapter = new MarkdownLanguageAdapter();
+
+/** The kind of cell a visibility change applies to. */
+export type CellCodeKind = "code" | "markdown";
+
+const cellCodeKind = (code: string): CellCodeKind =>
+  markdownAdapter.isSupported(code) ? "markdown" : "code";
 
 /**
  * Hook returning a callback that hides or shows the code editor for every
- * cell, optionally restricted to markdown cells.
+ * cell of the given kind.
  */
 export const useSetCodeVisibility = () => {
   const { updateCellConfig } = useCellActions();
   const { saveCellConfig } = useRequestClient();
 
   return useCallback(
-    async ({ hidden, markdownOnly = false }: SetCodeVisibilityOptions) => {
-      const markdownAdapter = new MarkdownLanguageAdapter();
+    async (hidden: boolean, kind: CellCodeKind) => {
       const notebook = getNotebook();
 
       const newConfigs: Record<CellId, Partial<CellConfig>> = {};
 
       for (const cellId of notebook.cellIds.inOrderIds) {
         const cell = notebook.cellData[cellId];
-        if (cell === undefined) {
+        if (cell === undefined || cell.config.hide_code === hidden) {
           continue;
         }
-        const { code, config } = cell;
-        if (config.hide_code === hidden) {
-          continue;
-        }
-        if (markdownOnly && !markdownAdapter.isSupported(code)) {
+        if (cellCodeKind(cell.code) !== kind) {
           continue;
         }
         newConfigs[cellId] = { hide_code: hidden };
