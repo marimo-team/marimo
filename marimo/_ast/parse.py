@@ -63,6 +63,7 @@ def split_source_lines(text: str) -> list[str]:
     """
     return text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
 
+
 def unwrap_cell_body(formatted: str) -> str:
     """Extract the body of a wrapped `def _():` cell after ruff formatting.
 
