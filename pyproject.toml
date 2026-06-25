@@ -386,6 +386,7 @@ ignore = [
     "SIM113", # `enumerate` for loop
     "T100", # Debugger
     "UP045", # Use `X | None` for optional type annotations
+    "D421", # Property docstring should not start with a verb (preview rule)
 ]
 
 extend-select = [
