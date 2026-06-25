@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, get_type_hints
 
 import pytest
 
@@ -9,12 +9,30 @@ from marimo._ast.app_config import _AppConfig
 from marimo._islands._island_generator import (
     MarimoIslandGenerator,
 )
+from marimo._schemas.serialization import (
+    AppInstantiation,
+    CellDef,
+    NotebookSerialization,
+)
 from tests.mocks import snapshotter
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 snapshot = snapshotter(__file__)
+
+
+def _notebook(
+    cells: list[CellDef],
+    *,
+    options: dict[str, object] | None = None,
+    filename: str | None = None,
+) -> NotebookSerialization:
+    return NotebookSerialization(
+        app=AppInstantiation(options=options or {}),
+        cells=cells,
+        filename=filename,
+    )
 
 
 def test_add_code():
@@ -241,6 +259,235 @@ def __(mo):
     )
     # And the path shouldn't accidentally resolve under ``other_dir``.
     assert str(other_dir / "nb.py") not in data
+
+
+async def test_from_ir_builds_notebook_serialization() -> None:
+    notebook = _notebook(
+        [
+            CellDef(code="import marimo as mo"),
+            CellDef(code='mo.md("# Hello, IR!")'),
+        ],
+    )
+
+    generator = MarimoIslandGenerator.from_ir(notebook, app_id="page-a")
+    stubs = generator.stubs
+
+    assert len(stubs) == 2
+    assert stubs[0].code == "import marimo as mo"
+    assert stubs[1].code == 'mo.md("# Hello, IR!")'
+    body_html = generator.render_body(include_init_island=False)
+    assert 'data-app-id="page-a"' in body_html
+    for cell_id in generator._app.cell_manager.cell_ids():
+        assert f'data-cell-id="{cell_id}"' in body_html
+
+    await generator.build()
+
+    stub = generator.stubs[1]
+    assert stub.output is not None
+    assert "Hello, IR!" in stub.output.data
+
+
+def test_stubs_returns_read_only_snapshot() -> None:
+    generator = MarimoIslandGenerator()
+    generator.add_code("x = 1")
+
+    stubs = generator.stubs
+    assert len(stubs) == 1
+    assert stubs[0].code == "x = 1"
+
+    generator.add_code("y = 2")
+    assert len(stubs) == 1
+    assert len(generator.stubs) == 2
+
+
+def test_from_ir_type_hints_resolve() -> None:
+    hints = get_type_hints(MarimoIslandGenerator.from_ir)
+
+    assert hints["notebook"] is NotebookSerialization
+    assert hints["return"] is MarimoIslandGenerator
+
+
+def test_from_ir_applies_display_code_to_stubs() -> None:
+    notebook = _notebook([CellDef(code="x = 1")])
+
+    generator = MarimoIslandGenerator.from_ir(
+        notebook,
+        display_code=True,
+    )
+
+    html = generator.stubs[0].render()
+    assert "<marimo-cell-code hidden>" not in html
+    assert "x = 1" in html
+
+
+def test_from_ir_preserves_app_config() -> None:
+    notebook = _notebook(
+        [],
+        options={"width": "medium", "app_title": "IR App"},
+    )
+
+    generator = MarimoIslandGenerator.from_ir(notebook)
+
+    body_html = generator.render_body()
+    assert 'style="margin: auto; max-width: 1110px;"' in body_html
+
+    html = generator.render_html()
+    assert "<title> IR App </title>" in html
+
+
+def test_from_ir_sanitizes_markdown_app_config() -> None:
+    notebook = _notebook(
+        [],
+        options={"width": "medium", "author": "Marimo"},
+        filename="notebook.md",
+    )
+
+    generator = MarimoIslandGenerator.from_ir(notebook)
+
+    body_html = generator.render_body()
+    assert 'style="margin: auto; max-width: 1110px;"' in body_html
+
+
+async def test_from_ir_propagates_ir_filename_to_cells(tmp_path: Path) -> None:
+    notebook_file = tmp_path / "nb.py"
+    notebook_file.write_text("")
+    notebook = _notebook(
+        [
+            CellDef(code="import marimo as mo"),
+            CellDef(
+                code=('mo.md(f"FILE={__file__} | DIR={mo.notebook_dir()}")')
+            ),
+        ],
+        filename=str(notebook_file),
+    )
+
+    generator = MarimoIslandGenerator.from_ir(notebook)
+    await generator.build()
+
+    captured = generator.stubs[1].output
+    assert captured is not None
+    data = captured.data
+    assert str(notebook_file) in data, (
+        f"expected __file__ to resolve to {notebook_file}, got: {data}"
+    )
+    assert str(notebook_file.parent) in data, (
+        f"expected notebook_dir() to resolve to {notebook_file.parent}, "
+        f"got: {data}"
+    )
+
+
+async def test_from_ir_resolves_relative_path_at_capture_time(
+    tmp_path: Path,
+) -> None:
+    import os
+
+    notebook_dir = tmp_path / "notebooks"
+    notebook_dir.mkdir()
+    notebook_file = notebook_dir / "nb.py"
+    notebook_file.write_text("")
+    notebook = _notebook(
+        [
+            CellDef(code="import marimo as mo"),
+            CellDef(code='mo.md(f"FILE={__file__}")'),
+        ],
+    )
+    other_dir = tmp_path / "elsewhere"
+    other_dir.mkdir()
+
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(notebook_dir)
+        generator = MarimoIslandGenerator.from_ir(notebook, filepath="nb.py")
+        os.chdir(other_dir)
+        await generator.build()
+    finally:
+        os.chdir(original_cwd)
+
+    captured = generator.stubs[1].output
+    assert captured is not None
+    data = captured.data
+    assert str(notebook_file) in data, (
+        f"expected __file__ to resolve to {notebook_file}, got: {data}"
+    )
+    assert str(other_dir / "nb.py") not in data
+
+
+async def test_from_ir_filepath_overrides_ir_filename(
+    tmp_path: Path,
+) -> None:
+    ir_file = tmp_path / "ir.py"
+    source_file = tmp_path / "source.ipynb"
+    ir_file.write_text("")
+    source_file.write_text("")
+    notebook = _notebook(
+        [
+            CellDef(code="import marimo as mo"),
+            CellDef(
+                code=('mo.md(f"FILE={__file__} | DIR={mo.notebook_dir()}")')
+            ),
+        ],
+        filename=str(ir_file),
+    )
+
+    generator = MarimoIslandGenerator.from_ir(
+        notebook, filepath=str(source_file)
+    )
+    await generator.build()
+
+    captured = generator.stubs[1].output
+    assert captured is not None
+    data = captured.data
+    assert str(source_file) in data, (
+        f"expected __file__ to resolve to {source_file}, got: {data}"
+    )
+    assert str(source_file.parent) in data, (
+        f"expected notebook_dir() to resolve to {source_file.parent}, "
+        f"got: {data}"
+    )
+    assert str(ir_file) not in data
+
+
+async def test_from_ir_preserves_disabled_cell_config() -> None:
+    notebook = _notebook(
+        [
+            CellDef(code="'disabled output'", options={"disabled": True}),
+            CellDef(code="'active output'"),
+        ],
+    )
+
+    generator = MarimoIslandGenerator.from_ir(notebook)
+
+    body_html = generator.render_body(include_init_island=False)
+    assert 'data-reactive="false"' in body_html
+    assert 'data-reactive="true"' in body_html
+
+    await generator.build()
+
+    disabled_stub = generator.stubs[0]
+    active_stub = generator.stubs[1]
+    assert disabled_stub.output is None
+    assert active_stub.output is not None
+    assert "active output" in active_stub.output.data
+
+
+async def test_from_ir_marks_transitively_disabled_cells_static() -> None:
+    notebook = _notebook(
+        [
+            CellDef(code="x = 1", options={"disabled": True}),
+            CellDef(code="x + 1"),
+        ],
+    )
+
+    generator = MarimoIslandGenerator.from_ir(notebook)
+
+    rendered = [stub.render() for stub in generator.stubs]
+    assert all('data-reactive="false"' in html for html in rendered)
+    assert "x%20%2B%201" not in rendered[1]
+
+    await generator.build()
+
+    assert generator.stubs[0].output is None
+    assert generator.stubs[1].output is None
 
 
 def test_render_head():

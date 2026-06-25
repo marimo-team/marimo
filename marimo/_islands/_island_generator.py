@@ -13,19 +13,24 @@ from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
+from marimo._ast.load import load_notebook_ir
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
+from marimo._schemas.serialization import NotebookSerialization
 from marimo._session.notebook import AppFileManager, load_notebook
 from marimo._types.ids import CellId_t
+from marimo._utils.marimo_path import MarimoPath
 from marimo._version import __version__
 
 if sys.platform == "win32":  # handling for windows
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 if TYPE_CHECKING:
+    from marimo._ast.models import CellData
     from marimo._session.state.session_view import SessionView
 
 LOGGER = _loggers.marimo_logger()
+IN_MEMORY_FILENAME = "<marimo>.py"
 
 
 class MarimoIslandStub:
@@ -255,6 +260,11 @@ class MarimoIslandGenerator:
         # resolve to the notebook rather than to the host process.
         self._source_filename: str | None = None
 
+    @property
+    def stubs(self) -> tuple[MarimoIslandStub, ...]:
+        """Return a snapshot of the generated per-cell island renderers."""
+        return tuple(self._stubs)
+
     @staticmethod
     def from_file(
         filename: str,
@@ -287,6 +297,49 @@ class MarimoIslandGenerator:
 
         generator._stubs = stubs
         generator._config = file_manager.app.config
+
+        return generator
+
+    @staticmethod
+    def from_ir(
+        notebook: NotebookSerialization,
+        *,
+        app_id: str = "main",
+        filepath: str | None = None,
+        display_code: bool = False,
+    ) -> MarimoIslandGenerator:
+        """Create a generator from serialized marimo notebook data.
+
+        Args:
+            notebook: Serialized notebook IR.
+            app_id: App identifier written to rendered island DOM.
+            filepath: Source path used for `__file__` and `mo.notebook_dir()`.
+            display_code: Whether generated stubs render code by default.
+        """
+        ir_filepath = filepath if filepath is not None else notebook.filename
+        source_filename = _source_filename(ir_filepath)
+        app = load_notebook_ir(
+            notebook,
+            filepath=_load_filepath(source_filename or ir_filepath),
+        )
+
+        generator = MarimoIslandGenerator(app_id=app_id)
+        generator._source_filename = source_filename
+        internal_app = InternalApp(app)
+        generator._app = internal_app
+        generator._config = internal_app.config
+        cells = list(generator._app.cell_manager.cell_data())
+        disabled_cell_ids = _disabled_cell_ids(cells)
+        generator._stubs = [
+            MarimoIslandStub(
+                cell_id=data.cell_id,
+                app_id=generator._app_id,
+                code=data.code,
+                display_code=display_code,
+                is_reactive=data.cell_id not in disabled_cell_ids,
+            )
+            for data in cells
+        ]
 
         return generator
 
@@ -597,3 +650,36 @@ class MarimoIslandGenerator:
 
 def remove_empty_lines(text: str) -> str:
     return "\n".join([line for line in text.split("\n") if line.strip() != ""])
+
+
+def _source_filename(filename: str | None) -> str | None:
+    if filename is None or filename == IN_MEMORY_FILENAME:
+        return None
+    return os.path.abspath(filename)
+
+
+def _load_filepath(filename: str | None) -> str:
+    if filename and MarimoPath.is_valid_path(filename):
+        return filename
+    return IN_MEMORY_FILENAME
+
+
+def _disabled_cell_ids(cell_data: list[CellData]) -> set[CellId_t]:
+    from marimo._runtime.dataflow.graph import DirectedGraph
+
+    disabled_cell_ids = {
+        data.cell_id for data in cell_data if data.cell is None
+    }
+    graph = DirectedGraph()
+
+    for data in cell_data:
+        cell = data.cell
+        if cell is not None:
+            graph.register_cell(data.cell_id, cell._cell)
+
+    for data in cell_data:
+        cell = data.cell
+        if cell is not None and graph.is_disabled(data.cell_id):
+            disabled_cell_ids.add(data.cell_id)
+
+    return disabled_cell_ids
