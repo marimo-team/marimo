@@ -310,7 +310,9 @@ class TestCanvasRebindAfterClose:
 
         before = ax.get_xlim()
         x0 = int(ax.bbox.x0 + ax.bbox.width / 2)
-        y0 = int(canvas.get_renderer().height - (ax.bbox.y0 + ax.bbox.height / 2))
+        y0 = int(
+            canvas.get_renderer().height - (ax.bbox.y0 + ax.bbox.height / 2)
+        )
         element._handle_comm_msg(press(x0, y0, 1))
         # press_pan must have registered a pan; otherwise drag is a no-op.
         assert toolbar._pan_info is not None
