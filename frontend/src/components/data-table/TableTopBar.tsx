@@ -27,7 +27,7 @@ const NOOP_ON_SEARCH = () => {
 
 interface TableTopBarProps<TData> extends Partial<ExportActionProps> {
   table: Table<TData>;
-  enableSearch: boolean;
+  showSearch: boolean;
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
   reloading?: boolean;
@@ -43,7 +43,7 @@ interface TableTopBarProps<TData> extends Partial<ExportActionProps> {
 
 export const TableTopBar = <TData,>({
   table,
-  enableSearch,
+  showSearch,
   searchQuery,
   onSearchQueryChange,
   reloading,
@@ -68,7 +68,7 @@ export const TableTopBar = <TData,>({
 
   return (
     <div className="flex items-center h-10 px-2 border-b gap-2">
-      {onSearchQueryChange && enableSearch && (
+      {onSearchQueryChange && showSearch && (
         <div className="flex flex-1 items-center gap-1 px-2 rounded-sm focus-within:ring-1 focus-within:ring-border transition-shadow">
           <SearchIcon className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
@@ -99,7 +99,7 @@ export const TableTopBar = <TData,>({
         </div>
       )}
 
-      <div className="flex items-center shrink-0">
+      <div className="flex items-center shrink-0 ml-auto">
         <ColumnVisibilityDropdown table={table} />
         {showChartBuilder && (
           <Button
