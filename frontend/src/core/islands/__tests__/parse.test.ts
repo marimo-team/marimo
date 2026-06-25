@@ -629,7 +629,10 @@ describe("parseMarimoIslandApps", () => {
   });
 
   it("should parse Python-generated island payload snapshots", () => {
-    const html = readFileSync("../tests/_islands/snapshots/html.txt", "utf8");
+    const html = readFileSync(
+      "../tests/_islands/snapshots/html-payload.txt",
+      "utf8",
+    );
     container.innerHTML = html;
 
     const result = parseMarimoIslandApps(container);

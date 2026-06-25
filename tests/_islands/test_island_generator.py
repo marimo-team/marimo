@@ -712,6 +712,12 @@ async def test_render_html():
     assert "<body>" in html
     assert "Hello%2C%20HTML!" in html
     snapshot("html.txt", html.replace(__version__, "0.0.0"))
+    snapshot(
+        "html-payload.txt",
+        generator.render_html(include_payload=True).replace(
+            __version__, "0.0.0"
+        ),
+    )
 
 
 def test_app_config():
