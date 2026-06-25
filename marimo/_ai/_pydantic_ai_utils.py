@@ -138,11 +138,10 @@ def _prepare_parts(raw_parts: list[Any]) -> list[Any]:
 
 
 def _expand_marimo_context_part(part: Any) -> Any:
-    """Lower a `data-marimo-context` part into a text part.
+    """Resolve a `data-marimo-context` part into a text part.
 
     The @-context is shipped inside the user message as a data part because
-    pydantic-ai's VercelAIAdapter drops DataUIPart entirely (it never reaches
-    the model); this is the marimo equivalent of the AI SDK's `convertDataPart`.
+    pydantic-ai's VercelAIAdapter drops DataUIPart entirely.
 
     Returns the part unchanged when it isn't a context part, a text part when
     it carries non-empty context, or `None` to drop empty context parts.
