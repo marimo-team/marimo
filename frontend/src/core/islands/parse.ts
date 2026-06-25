@@ -84,7 +84,7 @@ export function parseMarimoIslandApps(
     ...root.querySelectorAll<HTMLElement>(ISLAND_TAG_NAMES.ISLAND),
   ];
   const payloads = parseMarimoIslandPayloads(root);
-  if (embeds.length === 0 && payloads.length === 0) {
+  if (embeds.length === 0) {
     Logger.warn("No embedded marimo apps found.");
     return [];
   }

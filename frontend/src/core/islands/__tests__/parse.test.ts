@@ -1,11 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { readFileSync } from "node:fs";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ISLAND_DATA_ATTRIBUTES,
   ISLAND_TAG_NAMES,
   ISLANDS_JSON_SCRIPT_TYPE,
 } from "@/core/islands/constants";
+import { Logger } from "@/utils/Logger";
 import {
   createMarimoFile,
   extractIslandCodeFromEmbed,
@@ -519,6 +520,7 @@ describe("parseMarimoIslandApps", () => {
 
   afterEach(() => {
     document.body.removeChild(container);
+    vi.restoreAllMocks();
   });
 
   it("should parse islands from document", () => {
@@ -630,7 +632,10 @@ describe("parseMarimoIslandApps", () => {
 
   it("should parse Python-generated island payload snapshots", () => {
     const html = readFileSync(
-      "../tests/_islands/snapshots/html-payload.txt",
+      new URL(
+        "../../../../../tests/_islands/snapshots/html-payload.txt",
+        import.meta.url,
+      ).pathname.replace(/^\/@fs/, ""),
       "utf8",
     );
     container.innerHTML = html;
@@ -904,6 +909,7 @@ describe("parseMarimoIslandApps", () => {
   });
 
   it("should ignore payloads without matching islands", () => {
+    const warn = vi.spyOn(Logger, "warn").mockImplementation(() => undefined);
     appendPayload(container, {
       schemaVersion: 1,
       appId: "app1",
@@ -913,6 +919,7 @@ describe("parseMarimoIslandApps", () => {
     const result = parseMarimoIslandApps(container);
 
     expect(result).toEqual([]);
+    expect(warn).toHaveBeenCalledWith("No embedded marimo apps found.");
   });
 
   it("should still parse DOM-only apps when another app has payload", () => {
