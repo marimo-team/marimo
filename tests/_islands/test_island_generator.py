@@ -183,11 +183,20 @@ def test_render_payload_script_escapes_output_html():
     assert payload["cells"][0]["outputHtml"] == "</script><div>&"
 
 
-def test_render_body_includes_payload_by_default():
+def test_render_body_omits_payload_by_default():
     generator = MarimoIslandGenerator()
     generator.add_code("import marimo as mo")
 
     body = generator.render_body()
+
+    assert ISLANDS_JSON_SCRIPT_TYPE not in body
+
+
+def test_render_body_can_include_payload():
+    generator = MarimoIslandGenerator()
+    generator.add_code("import marimo as mo")
+
+    body = generator.render_body(include_payload=True)
 
     assert f'<script type="{ISLANDS_JSON_SCRIPT_TYPE}">' in body
     assert '"schemaVersion":1' in body
