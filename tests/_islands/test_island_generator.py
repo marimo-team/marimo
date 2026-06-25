@@ -12,6 +12,7 @@ from marimo._islands._island_generator import (
     MarimoIslandGenerator,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.errors import MarimoExceptionRaisedError
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
@@ -122,6 +123,7 @@ async def test_render_payload():
         "cellId": str(generator._stubs[0]._cell_id),
         "code": "import marimo as mo",
         "outputHtml": "<span></span>",
+        "outputMimetype": "text/plain",
         "reactive": True,
         "displayCode": False,
         "displayOutput": True,
@@ -129,7 +131,29 @@ async def test_render_payload():
     assert payload["cells"][1]["cellId"] == str(generator._stubs[1]._cell_id)
     assert payload["cells"][1]["code"] == "mo.md('Payload output')"
     assert "Payload output" in payload["cells"][1]["outputHtml"]
+    assert payload["cells"][1]["outputMimetype"] == "text/markdown"
     assert payload["cells"][1]["reactive"] is True
+
+
+def test_render_payload_preserves_error_output_mimetype():
+    generator = MarimoIslandGenerator()
+    stub = generator.add_code("0 / 0")
+    stub._output = CellOutput.errors(
+        [
+            MarimoExceptionRaisedError(
+                msg="division by zero",
+                exception_type="ZeroDivisionError",
+                raising_cell=None,
+            )
+        ]
+    )
+
+    payload = generator.render_payload()
+
+    assert (
+        payload["cells"][0]["outputMimetype"] == "application/vnd.marimo+error"
+    )
+    assert "application/vnd.marimo+error" in payload["cells"][0]["outputHtml"]
 
 
 def test_render_payload_script_escapes_json():
@@ -200,6 +224,7 @@ def test_render_payload_uses_configured_reactive_option():
         "cellId": str(stub._cell_id),
         "code": "",
         "outputHtml": "",
+        "outputMimetype": "text/plain",
         "reactive": False,
         "displayCode": False,
         "displayOutput": True,

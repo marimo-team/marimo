@@ -22,6 +22,7 @@ function createPayloadCell(
     cellId: string;
     code: string;
     outputHtml: string;
+    outputMimetype: string;
     reactive: boolean;
     displayCode: boolean;
     displayOutput: boolean;
@@ -31,6 +32,7 @@ function createPayloadCell(
     cellId: "cell-1",
     code: 'print("payload")',
     outputHtml: "<div>payload</div>",
+    outputMimetype: "text/html",
     reactive: true,
     displayCode: false,
     displayOutput: true,

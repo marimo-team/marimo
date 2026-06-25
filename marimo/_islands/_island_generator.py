@@ -40,6 +40,7 @@ class MarimoIslandCellPayload(TypedDict):
     cellId: str
     code: str
     outputHtml: str
+    outputMimetype: str
     reactive: bool
     displayCode: bool
     displayOutput: bool
@@ -208,11 +209,15 @@ class MarimoIslandStub:
             display_output=display_output,
             is_reactive=is_reactive,
         )
+        output = self.output
         output_html = self._output_html()
         return {
             "cellId": str(self._cell_id),
             "code": self.code if is_reactive or display_code else "",
             "outputHtml": output_html if display_output else "",
+            "outputMimetype": (
+                output.mimetype if output is not None else "text/plain"
+            ),
             "reactive": is_reactive,
             "displayCode": display_code,
             "displayOutput": display_output,

@@ -67,6 +67,7 @@ interface MarimoIslandPayloadCell {
   cellId: string;
   code: string;
   outputHtml: string;
+  outputMimetype: string;
   reactive: boolean;
   displayCode: boolean;
   displayOutput: boolean;
@@ -473,6 +474,7 @@ function isMarimoIslandPayloadCell(
     typeof cell.cellId === "string" &&
     typeof cell.code === "string" &&
     typeof cell.outputHtml === "string" &&
+    typeof cell.outputMimetype === "string" &&
     typeof cell.reactive === "boolean" &&
     typeof cell.displayCode === "boolean" &&
     typeof cell.displayOutput === "boolean"
