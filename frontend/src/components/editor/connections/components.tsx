@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtomValue } from "jotai";
 import React from "react";
 import { type DefaultValues, type FieldValues, useForm } from "react-hook-form";
 import type { z } from "zod";
@@ -16,8 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
+import { autoInstantiateAtom } from "@/core/config/config";
 import { ENV_RENDERER, SecretsProvider } from "./form-renderers";
 
 const RENDERERS: FormRenderer[] = [ENV_RENDERER];
@@ -106,8 +109,18 @@ export const ConnectionFormFooter = <L extends string>({
 export function useInsertCode() {
   const { createNewCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
+  const autoInstantiate = useAtomValue(autoInstantiateAtom);
 
   return (code: string) => {
+    // Ensure `mo` is importable when the generated code references it
+    if (/\bmo\./.test(code)) {
+      maybeAddMarimoImport({
+        autoInstantiate,
+        createNewCell,
+        fromCellId: lastFocusedCellId,
+      });
+    }
+
     createNewCell({
       code,
       before: false,

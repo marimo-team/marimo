@@ -14,25 +14,31 @@ export const RotatingChevron: React.FC<{ isExpanded: boolean }> = ({
 export const DatasourceLabel: React.FC<{
   children: React.ReactNode;
   className?: string;
-}> = ({ children, className }) => {
+  style?: CSSProperties;
+}> = ({ children, className, style }) => {
   return (
     <div
       className={cn(
         "flex gap-1.5 items-center font-bold py-1.5 text-muted-foreground bg-(--slate-2) text-sm",
         className,
       )}
+      style={style}
     >
       {children}
     </div>
   );
 };
 
-export const EmptyState: React.FC<{ content: string; className?: string }> = ({
-  content,
-  className,
-}) => {
+export const EmptyState: React.FC<{
+  content: string;
+  className?: string;
+  style?: CSSProperties;
+}> = ({ content, className, style }) => {
   return (
-    <div className={cn("text-sm text-muted-foreground py-1", className)}>
+    <div
+      className={cn("text-sm text-muted-foreground py-1", className)}
+      style={style}
+    >
       {content}
     </div>
   );
@@ -61,13 +67,15 @@ export const ErrorState: React.FC<{
 export const LoadingState: React.FC<{
   message: string;
   className?: string;
-}> = ({ message, className }) => {
+  style?: CSSProperties;
+}> = ({ message, className, style }) => {
   return (
     <div
       className={cn(
         "text-sm bg-blue-50 dark:bg-(--accent) text-blue-500 dark:text-blue-50 flex items-center gap-2 p-2 h-8",
         className,
       )}
+      style={style}
     >
       <LoaderCircle className="h-4 w-4 animate-spin" />
       {message}

@@ -90,6 +90,33 @@ async def test_nested_output(
     assert outputs[0] == "['hi', [...], [...], [...], [...], [...]]"
 
 
+async def test_clear_console(
+    mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+) -> None:
+    await mocked_kernel.k.run(
+        [
+            exec_req.get(
+                """
+                import marimo as mo
+
+                print("secret")
+                mo.output.clear_console()
+                """
+            )
+        ]
+    )
+
+    # `clear_console()` broadcasts an explicit console clear (empty list) with
+    # no status transition; the running-status clear instead carries
+    # status="running", so filtering on status=None isolates our emission.
+    clears = [
+        msg
+        for msg in mocked_kernel.stream.cell_notifications
+        if msg.console == [] and msg.status is None
+    ]
+    assert len(clears) == 1
+
+
 def test_without_context():
     from marimo._runtime.context import get_context
     from marimo._runtime.context.types import ContextNotInitializedError
@@ -104,4 +131,5 @@ def test_without_context():
     output.replace_at_index("test", 0)
     output.append("test")
     output.clear()
+    output.clear_console()
     assert True  # No exceptions should be raised

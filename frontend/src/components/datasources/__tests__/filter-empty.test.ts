@@ -28,11 +28,15 @@ function makeSchema(opts: {
   name: string;
   tables: DataTable[];
   tables_resolved?: boolean;
+  child_schemas?: DatabaseSchema[];
+  child_schemas_resolved?: boolean;
 }): DatabaseSchema {
   return {
     name: opts.name,
     tables: opts.tables,
     tables_resolved: opts.tables_resolved ?? true,
+    child_schemas: opts.child_schemas ?? [],
+    child_schemas_resolved: opts.child_schemas_resolved ?? true,
   };
 }
 
@@ -179,5 +183,82 @@ describe("filterEmptyDatabases", () => {
     filterEmptyDatabases(databases);
 
     expect(databases).toEqual(snapshot);
+  });
+
+  it("keeps a namespace that has only child namespaces (no own tables)", () => {
+    const databases = [
+      makeDatabase("iceberg", [
+        makeSchema({
+          name: "top",
+          tables: [],
+          child_schemas: [
+            makeSchema({ name: "nested", tables: [makeTable("t1")] }),
+          ],
+        }),
+      ]),
+    ];
+
+    expect(filterEmptyDatabases(databases)).toBe(databases);
+  });
+
+  it("preserves a namespace whose child schemas are deferred", () => {
+    const databases = [
+      makeDatabase("iceberg", [
+        makeSchema({
+          name: "top",
+          tables: [],
+          child_schemas: [],
+          child_schemas_resolved: false,
+        }),
+      ]),
+    ];
+
+    expect(filterEmptyDatabases(databases)).toBe(databases);
+  });
+
+  it("hides a nested namespace that is resolved-empty", () => {
+    const databases = [
+      makeDatabase("iceberg", [
+        makeSchema({
+          name: "top",
+          tables: [makeTable("t1")],
+          child_schemas: [
+            makeSchema({ name: "empty_child", tables: [] }),
+            makeSchema({ name: "full_child", tables: [makeTable("t2")] }),
+          ],
+        }),
+      ]),
+    ];
+
+    expect(filterEmptyDatabases(databases)).toEqual([
+      makeDatabase("iceberg", [
+        makeSchema({
+          name: "top",
+          tables: [makeTable("t1")],
+          child_schemas: [
+            makeSchema({ name: "full_child", tables: [makeTable("t2")] }),
+          ],
+        }),
+      ]),
+    ]);
+  });
+
+  it("hides a parent namespace when all its descendants are empty", () => {
+    const databases = [
+      makeDatabase("iceberg", [
+        makeSchema({
+          name: "top",
+          tables: [],
+          child_schemas: [makeSchema({ name: "empty_child", tables: [] })],
+        }),
+        makeSchema({ name: "other", tables: [makeTable("t1")] }),
+      ]),
+    ];
+
+    expect(filterEmptyDatabases(databases)).toEqual([
+      makeDatabase("iceberg", [
+        makeSchema({ name: "other", tables: [makeTable("t1")] }),
+      ]),
+    ]);
   });
 });

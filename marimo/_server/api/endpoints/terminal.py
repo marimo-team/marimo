@@ -16,7 +16,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from marimo import _loggers
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
-from marimo._server.codes import WebSocketCodes
+from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._server.router import APIRouter
 from marimo._session.model import SessionMode
 from marimo._utils.asyncio_utils import cancel_and_wait
@@ -354,7 +354,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
     if app_state.enable_auth and not validate_auth(websocket):
         await websocket.close(
-            WebSocketCodes.UNAUTHORIZED, "MARIMO_UNAUTHORIZED"
+            WebSocketCodes.UNAUTHORIZED, WebSocketCloseReason.UNAUTHORIZED
         )
         return
 

@@ -256,6 +256,39 @@ class TestLazyLoader(ABCTestLoader):
         assert loaded.defs["y"] == "hello"
         assert loaded.defs["z"] == [1, 2, 3]
 
+    def test_import_reference_stays_inline(self) -> None:
+        """Re-importable references (`from typing import Optional`, an
+        imported function/class) are stored inline in the manifest, not as
+        per-variable blobs, and restore to the original object by identity."""
+        from collections import OrderedDict
+        from typing import Optional
+
+        loader = self.instance()
+        cache = Cache(
+            defs={"Optional": Optional, "OrderedDict": OrderedDict},
+            hash="import_ref_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        cache.update({"Optional": Optional, "OrderedDict": OrderedDict})
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        # No blob files — only the manifest is written.
+        blobs = [
+            p
+            for p in Path(self.store.save_path).rglob("*")
+            if p.is_file() and p.suffix != ".jsonl"
+        ]
+        assert not blobs, f"expected no blobs, found {blobs}"
+
+        loaded = loader.load_cache(key("import_ref_hash", "Pure"))
+        assert loaded is not None
+        assert loaded.defs["Optional"] is Optional
+        assert loaded.defs["OrderedDict"] is OrderedDict
+
     def test_corrupt_cache_returns_none(self) -> None:
         """Corrupt manifest triggers cache miss, not crash."""
         loader = self.instance()
@@ -338,6 +371,34 @@ class TestLazyLoader(ABCTestLoader):
         loaded = loader.load_cache(key("np_hash", "Pure"))
         assert loaded is not None
         np.testing.assert_array_equal(loaded.defs["arr"], arr)
+
+    @pytest.mark.skipif(
+        not DependencyManager.has("torch"), reason="torch required"
+    )
+    def test_torch_round_trip(self) -> None:
+        """torch tensors survive save → flush → load via the .pt format —
+        the manifest reference must match the blob extension."""
+        import torch
+
+        loader = self.instance()
+        tensor = torch.tensor([1.0, 2.0, 3.0])
+        cache = Cache(
+            defs={"t": tensor},
+            hash="pt_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        assert list(Path(self.store.save_path).rglob("*.pt")), (
+            "expected .pt blob, got pickle fallback"
+        )
+        loaded = loader.load_cache(key("pt_hash", "Pure"))
+        assert loaded is not None
+        assert torch.equal(loaded.defs["t"], tensor)
 
     @pytest.mark.skipif(
         not DependencyManager.has("polars"), reason="polars required"

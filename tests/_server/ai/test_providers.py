@@ -16,10 +16,12 @@ from marimo._server.ai.providers import (
     CustomProvider,
     GoogleProvider,
     OpenAIProvider,
+    StreamOptions,
     _infer_provider_name_from_base_url,
     _normalize_base_url,
     get_completion_provider,
 )
+from marimo._server.ai.tracing import SpanInfo
 
 
 @pytest.mark.parametrize(
@@ -444,6 +446,7 @@ async def test_completion_does_not_pass_redundant_instructions() -> None:
             system_prompt="Test prompt",
             max_tokens=100,
             additional_tools=[],
+            span_info=SpanInfo(endpoint="completion", model="openai/gpt-4"),
         )
 
         mock_request.assert_called_once()
@@ -515,7 +518,7 @@ def test_custom_provider_agent_passes_explicit_max_tokens() -> None:
     with patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm:
         mock_get_tm.return_value = MagicMock()
         agent = provider.create_agent(
-            max_tokens=12345, tools=[], system_prompt="x"
+            name="test", max_tokens=12345, tools=[], system_prompt="x"
         )
     assert dict(agent.model_settings or {}).get("max_tokens") == 12345
 
@@ -528,7 +531,7 @@ def test_custom_provider_agent_omits_max_tokens_when_none() -> None:
     with patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm:
         mock_get_tm.return_value = MagicMock()
         agent = provider.create_agent(
-            max_tokens=None, tools=[], system_prompt="x"
+            name="test", max_tokens=None, tools=[], system_prompt="x"
         )
     assert "max_tokens" not in dict(agent.model_settings or {})
 
@@ -666,3 +669,56 @@ def test_custom_provider_known_name_not_overridden_by_base_url() -> None:
         AiModelId.from_model("openrouter/some-model"), config
     )
     assert provider._provider_name == "openrouter"
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
+    """The code-mode harness builds an agent with the execute_code toolset,
+    passes the system prompt as instructions, and returns the adapter's
+    streaming response."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+
+    session = MagicMock(name="session")
+    request = MagicMock(name="request")
+    toolset = MagicMock(name="toolset")
+    streaming_response = MagicMock(name="streaming_response")
+    adapter: MagicMock = MagicMock(name="adapter")
+    adapter.streaming_response = MagicMock(return_value=streaming_response)
+    stream_options = StreamOptions(
+        span_info=SpanInfo(endpoint="chat", model="openai/gpt-4"),
+    )
+
+    with (
+        patch.object(provider, "create_model", return_value=MagicMock()),
+        patch.object(provider, "_build_agent_settings", return_value={}),
+        patch.object(provider, "convert_messages", return_value=[]),
+        patch(
+            "marimo._server.ai.tools.code_mode.build_execute_code_toolset",
+            return_value=toolset,
+        ) as mock_build_toolset,
+        patch("pydantic_ai.Agent") as mock_agent,
+        patch(
+            "pydantic_ai.ui.vercel_ai.VercelAIAdapter",
+            return_value=adapter,
+        ),
+    ):
+        result = await provider.stream_completion_harness(
+            messages=[],
+            system_prompt="SYSTEM PROMPT WITH SKILL",
+            session=session,
+            request=request,
+            max_tokens=1234,
+            stream_options=stream_options,
+        )
+
+    assert result is streaming_response
+    assert stream_options.span_info.tool_count == 1
+    # The toolset is bound to the caller's session and request.
+    mock_build_toolset.assert_called_once_with(session, request)
+
+    # The agent is constructed with that toolset and the system prompt as
+    # instructions (which now carries the marimo-pair skill).
+    agent_kwargs = mock_agent.call_args.kwargs
+    assert agent_kwargs["toolsets"] == [toolset]
+    assert agent_kwargs["instructions"] == "SYSTEM PROMPT WITH SKILL"

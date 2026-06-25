@@ -23,6 +23,7 @@ import {
   PlusIcon,
   SparklesIcon,
   SettingsIcon,
+  CodeIcon,
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
@@ -268,24 +269,32 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       {
         value: "ask",
         label: "Ask",
-        subtitle:
-          "Use AI with access to read-only tools like documentation search",
+        subtitle: "AI with access to read-only tools like documentation search",
         Icon: NotebookText,
       },
       {
         value: "agent",
-        label: "Agent (beta)",
-        subtitle: "Use AI with access to read and write tools",
+        label: "Agent",
+        subtitle: "AI with access to read and write tools",
         Icon: HatGlasses,
       },
     ];
 
+    if (import.meta.env.DEV) {
+      modeOptions.push({
+        value: "code_mode",
+        label: "Code Mode (experimental)",
+        subtitle: "AI with access to the notebook's kernel. Use with caution.",
+        Icon: CodeIcon,
+      });
+    }
+
     const isAttachmentSupported =
       PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
 
-    const CurrentModeIcon = modeOptions.find(
-      (o) => o.value === currentMode,
-    )?.Icon;
+    const currentModeOption = modeOptions.find((o) => o.value === currentMode);
+    const CurrentModeIcon = currentModeOption?.Icon;
+    const CurrentModeLabel = currentModeOption?.label;
 
     return (
       <TooltipProvider>
@@ -294,7 +303,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             <Select value={currentMode} onValueChange={saveModeChange}>
               <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1.5">
                 {CurrentModeIcon && <CurrentModeIcon className="h-3 w-3" />}
-                <span className="capitalize">{currentMode}</span>
+                <span>{CurrentModeLabel}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>

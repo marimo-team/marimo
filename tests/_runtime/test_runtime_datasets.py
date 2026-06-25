@@ -281,6 +281,45 @@ class TestPreviewSQLSchemaList:
             )
         ]
 
+    async def test_nested_schema_path_echoed(
+        self,
+        mocked_kernel: MockedKernel,
+        connection_requests: list[ExecuteCellCommand],
+    ) -> None:
+        """A request with a schema_path lists the child schemas at that path
+        and echoes the path in the response metadata. Catalog engines without
+        hierarchical namespaces return an empty list."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(connection_requests)
+
+        preview_sql_schema_list_request = ListSQLSchemasCommand(
+            request_id=RequestId("0"),
+            engine=DUCKDB_CONN,
+            database="test",
+            schema_path=["sub"],
+        )
+        await k.handle_message(preview_sql_schema_list_request)
+
+        results = [
+            op
+            for op in stream.operations
+            if isinstance(op, SQLSchemaListPreviewNotification)
+        ]
+        assert results == [
+            SQLSchemaListPreviewNotification(
+                request_id=RequestId("0"),
+                schemas=[],
+                error=None,
+                metadata=SQLDatabaseMetadata(
+                    connection=DUCKDB_CONN,
+                    database="test",
+                    schema_path=["sub"],
+                ),
+            )
+        ]
+
 
 @pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")
 class TestPreviewSQLTableList:

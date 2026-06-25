@@ -2,6 +2,7 @@
 
 import { waitForConnectionOpen } from "@/core/network/connection";
 import type { AiCompletionRequest } from "@/core/network/types";
+import { streamCompletionText } from "@/core/ai/stream-completion-text";
 import { getRuntimeManager } from "@/core/runtime/config";
 import type { LanguageAdapterType } from "../language/types";
 
@@ -47,20 +48,7 @@ ${opts.codeAfter}
 
   const firstLineIndent = opts.selection.match(/^\s*/)?.[0] || "";
 
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error("Failed to get response reader");
-  }
-
-  let result = "";
-  // oxlint-disable-next-line no-constant-condition
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-    result += new TextDecoder().decode(value);
-  }
+  let result = await streamCompletionText(response);
 
   // Add back the indent if it was stripped, which can happen with
   // LLM responses

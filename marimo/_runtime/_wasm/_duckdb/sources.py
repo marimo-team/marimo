@@ -130,17 +130,17 @@ def _read_function_source(
     if not args:
         return None
     source_expr = args[0]
-    if isinstance(source_expr, exp.Literal) and source_expr.is_string:
-        return str(source_expr.this)
+    source = _string_literal_value(source_expr)
+    if source is not None:
+        return source
 
     if isinstance(source_expr, exp.Array) and source_expr.expressions:
         urls: list[str] = []
         for item_expr in source_expr.expressions:
-            if not (
-                isinstance(item_expr, exp.Literal) and item_expr.is_string
-            ):
+            item = _string_literal_value(item_expr)
+            if item is None:
                 return None
-            urls.append(str(item_expr.this))
+            urls.append(item)
         return tuple(urls)
 
     return None
@@ -191,10 +191,29 @@ def _literal_value(value_expr: exp.Expression) -> Any:
     """Convert sqlglot literals while preserving falsy values via _MISSING."""
     import sqlglot.expressions as exp
 
+    value = _string_literal_value(value_expr)
+    if value is not None:
+        return value
     if isinstance(value_expr, exp.Boolean):
         return value_expr.this
     if isinstance(value_expr, exp.Literal):
-        if value_expr.is_string:
-            return value_expr.this
         return value_expr.to_py()
     return _MISSING
+
+
+def _string_literal_value(value_expr: exp.Expression) -> str | None:
+    """Return SQL string literals, including DuckDB double-quoted strings."""
+    import sqlglot.expressions as exp
+
+    if isinstance(value_expr, exp.Literal) and value_expr.is_string:
+        return str(value_expr.this)
+    if isinstance(value_expr, exp.Identifier):
+        return str(value_expr.this) if value_expr.args.get("quoted") else None
+    if isinstance(value_expr, exp.Column) and all(
+        value_expr.args.get(part) is None
+        for part in ("table", "db", "catalog")
+    ):
+        identifier = value_expr.this
+        if isinstance(identifier, exp.Identifier):
+            return _string_literal_value(identifier)
+    return None

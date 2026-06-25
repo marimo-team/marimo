@@ -141,6 +141,7 @@ export const DataTableBody = <TData,>({
   const renderCells = (cells: Cell<TData, unknown>[]) => {
     return cells.map((cell) => {
       const { className, style: pinningstyle } = getPinningStyles(cell.column);
+      const fixedWidth = cell.column.columnDef.meta?.width;
       const style = Object.assign(
         {},
         cell.getUserStyling?.() || {},
@@ -153,7 +154,8 @@ export const DataTableBody = <TData,>({
           {...getCellDomProps(cell.id)}
           key={cell.id}
           className={cn(
-            "whitespace-pre truncate max-w-[300px] outline-hidden border-r border-r-border/75",
+            "whitespace-pre truncate outline-hidden border-r border-r-border/75",
+            !fixedWidth && "max-w-[300px]",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping?.() === "wrap" &&
               COLUMN_WRAPPING_STYLES,
@@ -297,6 +299,7 @@ function getPinningStyles<TData>(
     isPinned === "left" && column.getIsLastColumn("left");
   const isFirstRightPinnedColumn =
     isPinned === "right" && column.getIsFirstColumn("right");
+  const fixedWidth = column.columnDef.meta?.width;
 
   return {
     className: cn(isPinned && "bg-inherit", "shadow-r z-10"),
@@ -313,6 +316,7 @@ function getPinningStyles<TData>(
       position: isPinned ? "sticky" : "relative",
       zIndex: isPinned ? 1 : 0,
       width: column.getSize(),
+      ...(fixedWidth ? { minWidth: fixedWidth, maxWidth: fixedWidth } : {}),
     },
   };
 }

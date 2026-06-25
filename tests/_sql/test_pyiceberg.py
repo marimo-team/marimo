@@ -44,9 +44,11 @@ def memory_catalog() -> Generator[Catalog, None, None]:
     # Create mock catalog
     catalog = InMemoryCatalog("test_catalog")
 
-    # Create namespaces
+    # Create namespaces, including nested ones
     catalog.create_namespace("default")
     catalog.create_namespace("test_namespace")
+    catalog.create_namespace(("top", "nested"))
+    catalog.create_namespace(("top", "nested", "deep"))
 
     # Create actual schema object with real fields
     schema = IcebergSchema(
@@ -69,15 +71,21 @@ def memory_catalog() -> Generator[Catalog, None, None]:
     catalog.create_table(("default", "table1"), schema)
     catalog.create_table(("default", "table2"), schema)
     catalog.create_table(("test_namespace", "table3"), schema)
+    catalog.create_table(("top", "nested", "table4"), schema)
+    catalog.create_table(("top", "nested", "deep", "table5"), schema)
 
     assert len(catalog.list_tables("default")) == 2
     assert len(catalog.list_tables("test_namespace")) == 1
+    assert len(catalog.list_tables(("top", "nested"))) == 1
+    assert len(catalog.list_tables(("top", "nested", "deep"))) == 1
 
     yield catalog
 
     catalog.drop_table(("default", "table1"))
     catalog.drop_table(("default", "table2"))
     catalog.drop_table(("test_namespace", "table3"))
+    catalog.drop_table(("top", "nested", "table4"))
+    catalog.drop_table(("top", "nested", "deep", "table5"))
 
 
 def get_expected_table(
@@ -243,44 +251,219 @@ def test_pyiceberg_get_tables_in_schema(memory_catalog: Catalog) -> None:
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
 def test_pyiceberg_get_databases(memory_catalog: Catalog) -> None:
-    """Test PyIcebergEngine get_databases method."""
+    """Each top-level namespace is a Database; sub-namespaces are recursive
+    child Schemas."""
     engine_name = VariableName("my_iceberg")
     engine = PyIcebergEngine(memory_catalog, engine_name=engine_name)
 
-    # Test with all parameters True
+    # Test with all parameters True (eager)
     databases = engine.get_databases(
         include_schemas=True, include_tables=True, include_table_details=True
     )
 
     assert isinstance(databases, list)
-    assert len(databases) == 2
-    assert databases[0].name == "default"
-    assert databases[0].dialect == "iceberg"
-    assert len(databases[0].schemas) == 1
-    assert databases[0].schemas[0].name == NO_SCHEMA_NAME
-    assert len(databases[0].schemas[0].tables) == 2
+    # Only top-level namespaces become Databases.
+    by_name = {db.name: db for db in databases}
+    assert set(by_name) == {"default", "test_namespace", "top"}
 
-    assert databases[1].name == "test_namespace"
-    assert len(databases[1].schemas) == 1
-    assert databases[1].schemas[0].name == NO_SCHEMA_NAME
-    assert len(databases[1].schemas[0].tables) == 1
+    # "default" has its own tables in a schemaless Schema, no sub-namespaces.
+    default_schemas = {s.name: s for s in by_name["default"].schemas}
+    assert by_name["default"].dialect == "iceberg"
+    assert set(default_schemas) == {NO_SCHEMA_NAME}
+    assert len(default_schemas[NO_SCHEMA_NAME].tables) == 2
+    assert default_schemas[NO_SCHEMA_NAME].child_schemas == []
 
-    # Test with include_tables=False
+    assert {s.name for s in by_name["test_namespace"].schemas} == {
+        NO_SCHEMA_NAME
+    }
+
+    # "top" has no tables of its own but contains the "nested" sub-namespace.
+    top_schemas = {s.name: s for s in by_name["top"].schemas}
+    assert set(top_schemas) == {NO_SCHEMA_NAME, "nested"}
+    assert top_schemas[NO_SCHEMA_NAME].tables == []
+
+    nested = top_schemas["nested"]
+    assert [t.name for t in nested.tables] == ["table4"]
+    # "nested" recursively contains "deep", which holds "table5".
+    deep_by_name = {s.name: s for s in nested.child_schemas}
+    assert set(deep_by_name) == {"deep"}
+    assert [t.name for t in deep_by_name["deep"].tables] == ["table5"]
+
+    # Test with include_tables=False (schemas listed, tables deferred)
     databases = engine.get_databases(
         include_schemas=True, include_tables=False, include_table_details=True
     )
+    by_name = {db.name: db for db in databases}
+    assert set(by_name) == {"default", "test_namespace", "top"}
+    top_schemas = {s.name: s for s in by_name["top"].schemas}
+    # Sub-namespace is present but its tables/children are deferred.
+    assert set(top_schemas) == {NO_SCHEMA_NAME, "nested"}
+    assert top_schemas["nested"].tables_resolved is False
+    assert top_schemas["nested"].child_schemas_resolved is False
+    assert top_schemas["nested"].tables == []
+    assert top_schemas["nested"].child_schemas == []
 
-    assert isinstance(databases, list)
-    assert len(databases) == 2
-    assert databases[0].name == "default"
-    assert len(databases[0].schemas) == 1
-    assert databases[0].schemas[0].name == NO_SCHEMA_NAME
-    assert len(databases[0].schemas[0].tables) == 0
 
-    assert databases[1].name == "test_namespace"
-    assert len(databases[1].schemas) == 1
-    assert databases[1].schemas[0].name == NO_SCHEMA_NAME
-    assert len(databases[1].schemas[0].tables) == 0
+@pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
+def test_pyiceberg_get_databases_lazy_schemas(memory_catalog: Catalog) -> None:
+    """With include_schemas=False, databases defer schema discovery."""
+    engine = PyIcebergEngine(
+        memory_catalog, engine_name=VariableName("my_iceberg")
+    )
+
+    databases = engine.get_databases(
+        include_schemas=False,
+        include_tables=False,
+        include_table_details=False,
+    )
+    assert {db.name for db in databases} == {
+        "default",
+        "test_namespace",
+        "top",
+    }
+    for db in databases:
+        assert db.schemas_resolved is False
+        assert db.schemas == []
+
+
+@pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
+def test_pyiceberg_connection_is_lazy(memory_catalog: Catalog) -> None:
+    """The initial connection lists top-level namespaces and the first level of
+    sub-namespaces, but defers their tables and deeper namespaces until expand."""
+    from marimo._sql.get_engines import engine_to_data_source_connection
+
+    engine = PyIcebergEngine(
+        memory_catalog, engine_name=VariableName("my_iceberg")
+    )
+    # The first level of schemas is eager; tables/columns are deferred.
+    assert engine.inference_config.auto_discover_schemas is True
+    assert engine.inference_config.auto_discover_tables is False
+    assert engine.inference_config.auto_discover_columns is False
+
+    connection = engine_to_data_source_connection(
+        VariableName("my_iceberg"), engine
+    )
+    by_name = {db.name: db for db in connection.databases}
+    assert set(by_name) == {"default", "test_namespace", "top"}
+
+    # First-level schemas are resolved...
+    top = by_name["top"]
+    assert top.schemas_resolved is True
+    top_schemas = {s.name: s for s in top.schemas}
+    assert set(top_schemas) == {NO_SCHEMA_NAME, "nested"}
+
+    # ...but their tables and deeper sub-namespaces are deferred.
+    assert top_schemas[NO_SCHEMA_NAME].tables_resolved is False
+    assert top_schemas[NO_SCHEMA_NAME].tables == []
+    assert top_schemas["nested"].tables_resolved is False
+    assert top_schemas["nested"].child_schemas_resolved is False
+    assert top_schemas["nested"].tables == []
+    assert top_schemas["nested"].child_schemas == []
+
+
+@pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
+def test_pyiceberg_get_schemas_by_path(memory_catalog: Catalog) -> None:
+    """get_schemas lists one level at a time, selected by schema_path."""
+    engine = PyIcebergEngine(
+        memory_catalog, engine_name=VariableName("my_iceberg")
+    )
+
+    # Top level: the schemaless entry plus the immediate child "nested"
+    # (deferred, not recursed).
+    schemas = engine.get_schemas(
+        database="top",
+        include_tables=False,
+        include_table_details=False,
+        schema_path=[],
+    )
+    assert [s.name for s in schemas] == [NO_SCHEMA_NAME, "nested"]
+    nested = schemas[1]
+    assert nested.child_schemas_resolved is False
+    assert nested.tables_resolved is False
+    assert nested.child_schemas == []
+
+    # Immediate child of "top.nested" is "deep".
+    schemas = engine.get_schemas(
+        database="top",
+        include_tables=False,
+        include_table_details=False,
+        schema_path=["nested"],
+    )
+    assert [s.name for s in schemas] == ["deep"]
+
+    # "top.nested.deep" is a leaf.
+    assert (
+        engine.get_schemas(
+            database="top",
+            include_tables=False,
+            include_table_details=False,
+            schema_path=["nested", "deep"],
+        )
+        == []
+    )
+
+
+@pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
+def test_pyiceberg_nested_namespace_tables(memory_catalog: Catalog) -> None:
+    """Tables of a nested namespace are reachable via its dotted name."""
+    engine = PyIcebergEngine(
+        memory_catalog, engine_name=VariableName("my_iceberg")
+    )
+
+    tables = engine.get_tables_in_schema(
+        schema=NO_SCHEMA_NAME,
+        database="top.nested",
+        include_table_details=True,
+    )
+    assert [t.name for t in tables] == ["table4"]
+    assert tables[0].num_columns == 3
+
+    table = engine.get_table_details(
+        table_name="table5",
+        schema_name=NO_SCHEMA_NAME,
+        database_name="top.nested.deep",
+    )
+    assert table is not None
+    assert table.name == "table5"
+    assert len(table.columns) == 3
+
+
+@pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
+def test_pyiceberg_table_calls_fold_schema_path(
+    memory_catalog: Catalog,
+) -> None:
+    """The handler passes the top-level `database` plus a `schema_path`; the
+    engine folds them into a dotted namespace internally (this replaced the
+    handler-side `_table_database` helper)."""
+    engine = PyIcebergEngine(
+        memory_catalog, engine_name=VariableName("my_iceberg")
+    )
+
+    # database + schema_path is equivalent to the pre-folded dotted database.
+    tables = engine.get_tables_in_schema(
+        schema=NO_SCHEMA_NAME,
+        database="top",
+        schema_path=["nested"],
+        include_table_details=True,
+    )
+    assert [t.name for t in tables] == ["table4"]
+
+    table = engine.get_table_details(
+        table_name="table5",
+        schema_name=NO_SCHEMA_NAME,
+        database_name="top",
+        schema_path=["nested", "deep"],
+    )
+    assert table is not None
+    assert table.name == "table5"
+
+    # Empty / missing schema_path leaves the database untouched.
+    assert PyIcebergEngine._qualified_namespace("top", []) == "top"
+    assert PyIcebergEngine._qualified_namespace("top", None) == "top"
+    assert (
+        PyIcebergEngine._qualified_namespace("top", ["nested", "deep"])
+        == "top.nested.deep"
+    )
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
@@ -297,9 +480,10 @@ def test_pyiceberg_auto_discovery(memory_catalog: Catalog) -> None:
     )
 
     assert isinstance(databases, list)
-    assert len(databases) == 2
-    assert databases[0].schemas[0].name == NO_SCHEMA_NAME
-    assert len(databases[0].schemas[0].tables) == 2
+    assert len(databases) == 3
+    by_name = {db.name: db for db in databases}
+    default_schemas = {s.name: s for s in by_name["default"].schemas}
+    assert len(default_schemas[NO_SCHEMA_NAME].tables) == 2
 
     # Test with _is_cheap_discovery mocked to return False
     with mock.patch.object(
@@ -312,5 +496,7 @@ def test_pyiceberg_auto_discovery(memory_catalog: Catalog) -> None:
         )
 
         assert isinstance(databases, list)
-        assert len(databases) == 2
-        assert len(databases[0].schemas[0].tables) == 0
+        assert len(databases) == 3
+        for db in databases:
+            assert db.schemas_resolved is False
+            assert db.schemas == []

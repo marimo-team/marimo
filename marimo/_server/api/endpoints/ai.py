@@ -12,9 +12,8 @@ from starlette.responses import (
 )
 
 from marimo import _loggers
-from marimo._ai._convert import convert_to_ai_sdk_messages
-from marimo._ai._pydantic_ai_utils import create_simple_prompt
-from marimo._config.config import AiConfig, MarimoConfig
+from marimo._ai._pydantic_ai_utils import create_simple_prompt, generate_id
+from marimo._config.config import AiConfig, CopilotMode, MarimoConfig
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -34,15 +33,16 @@ from marimo._server.ai.prompts import (
 from marimo._server.ai.providers import (
     StreamOptions,
     get_completion_provider,
-    without_wrapping_backticks,
 )
 from marimo._server.ai.tools.tool_manager import get_tool_manager
+from marimo._server.ai.tracing import SpanInfo
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.completion import (
     AiCompletionRequest,
     AiInlineCompletionRequest,
     ChatRequest,
+    UIMessage,
 )
 from marimo._server.models.models import (
     InvokeAiToolRequest,
@@ -55,8 +55,6 @@ from marimo._server.router import APIRouter
 from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator
-
     from starlette.requests import Request
 
 # Taken from pydantic_ai.ui import SSE_CONTENT_TYPE
@@ -69,36 +67,31 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 
-async def safe_stream_wrapper(
-    stream_generator: AsyncGenerator[str, None],
-    text_only: bool,
-) -> AsyncGenerator[str, None]:
-    """
-    Wraps a streaming generator to catch and handle errors gracefully.
+def resolve_completion_messages(
+    body: AiCompletionRequest,
+) -> tuple[list[UIMessage], bool]:
+    """Resolve UI messages for completion, synthesizing from prompt if needed.
 
-    Args:
-        stream_generator: The original streaming generator
-        text_only: Whether to return text only or the full AI SDK stream protocol format
-
-    Yields:
-        Stream chunks or error messages in AI SDK stream protocol format
+    Returns:
+        A tuple of (messages, support_multiple_cells).
     """
-    try:
-        async for chunk in stream_generator:
-            yield chunk
-    except Exception as e:
-        LOGGER.error("Error in AI streaming response: %s", str(e))
-        # Send an error message using AI SDK stream protocol format
-        # Error Part format: 3:string\n
-        if text_only:
-            yield str(e)
-        else:
-            yield convert_to_ai_sdk_messages(str(e), "error")
+    if body.ui_messages:
+        return body.ui_messages, True
+
+    messages: list[UIMessage] = []
+    if body.prompt:
+        messages.append(
+            {
+                "id": generate_id("message"),
+                "role": "user",
+                "parts": [{"type": "text", "text": body.prompt}],
+            }
+        )
+    return messages, False
 
 
 def get_ai_config(config: MarimoConfig) -> AiConfig:
     ai_config = config.get("ai", None)
-    LOGGER.debug(f"ai_config: {ai_config}")
     if ai_config is None:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -138,6 +131,7 @@ async def ai_completion(
     """
     app_state = AppState(request)
     app_state.require_current_session()
+    session_id = app_state.require_current_session_id()
     config = app_state.app_config_manager.get_config(hide_secrets=False)
     body = await parse_request(
         request, cls=AiCompletionRequest, allow_unknown_keys=True
@@ -145,19 +139,18 @@ async def ai_completion(
     ai_config = get_ai_config(config)
 
     custom_rules = ai_config.get("rules", None)
-    use_ui_messages = len(body.ui_messages) >= 1
+    messages, support_multiple_cells = resolve_completion_messages(body)
 
     system_prompt = get_refactor_or_insert_notebook_cell_system_prompt(
         language=body.language,
         is_insert=False,
-        support_multiple_cells=use_ui_messages,
+        support_multiple_cells=support_multiple_cells,
         custom_rules=custom_rules,
         cell_code=body.code,
         selected_text=body.selected_text,
         other_cell_codes=body.include_other_code,
         context=body.context,
     )
-    prompt = body.prompt
 
     model = get_edit_model(ai_config)
     provider = get_completion_provider(
@@ -165,28 +158,19 @@ async def ai_completion(
         model=model,
     )
 
-    # Currently, only useChat (use_ui_messages=True) supports UI messages
-    # So, we can stream back the UI messages here. Else, we stream back the text.
-    if use_ui_messages:
-        return await provider.stream_completion(
-            messages=body.ui_messages,
-            system_prompt=system_prompt,
-            max_tokens=get_max_tokens(config),
-            additional_tools=[],
-        )
-    response = provider.stream_text(
-        user_prompt=prompt,
-        messages=body.ui_messages,
+    return await provider.stream_completion(
+        messages=messages,
         system_prompt=system_prompt,
         max_tokens=get_max_tokens(config),
         additional_tools=[],
-    )
-    safe_content = safe_stream_wrapper(response, text_only=False)
-    content_without_wrapping = without_wrapping_backticks(safe_content)
-    return StreamingResponse(
-        content=content_without_wrapping,
-        media_type="application/json",
-        headers={"x-vercel-ai-data-stream": "v1"},
+        stream_options=StreamOptions(
+            span_info=SpanInfo(
+                endpoint="completion",
+                model=model,
+                language=body.language,
+                session_id=session_id,
+            )
+        ),
     )
 
 
@@ -212,7 +196,7 @@ async def ai_chat(
                     $ref: "#/components/schemas/ChatRequest"
     """
     app_state = AppState(request)
-    app_state.require_current_session()
+    session = app_state.require_current_session()
     session_id = app_state.require_current_session_id()
     accept = request.headers.get("accept", SSE_CONTENT_TYPE)
     config = app_state.app_config_manager.get_config(hide_secrets=False)
@@ -222,12 +206,12 @@ async def ai_chat(
     ai_config = get_ai_config(config)
     custom_rules = ai_config.get("rules", None)
 
-    # Get the system prompt
+    mode: CopilotMode = ai_config.get("mode", "manual")
     system_prompt = get_chat_system_prompt(
         custom_rules=custom_rules,
         context=body.context,
         include_other_code=body.include_other_code,
-        mode=ai_config.get("mode", "manual"),
+        mode=mode,
         session_id=session_id,
     )
 
@@ -241,8 +225,26 @@ async def ai_chat(
     additional_tools = body.tools or []
 
     stream_options = StreamOptions(
-        format_stream=True, text_only=False, accept=accept
+        format_stream=True,
+        text_only=False,
+        accept=accept,
+        span_info=SpanInfo(
+            endpoint="chat",
+            model=model,
+            mode=mode,
+            session_id=session_id,
+        ),
     )
+
+    if mode == "code_mode":
+        return await provider.stream_completion_harness(
+            messages=body.ui_messages,
+            system_prompt=system_prompt,
+            session=session,
+            request=request,
+            max_tokens=max_tokens,
+            stream_options=stream_options,
+        )
 
     return await provider.stream_completion(
         messages=body.ui_messages,
@@ -283,6 +285,7 @@ async def ai_inline_completion(
     """
     app_state = AppState(request)
     app_state.require_current_session()
+    session_id = app_state.require_current_session_id()
     config = app_state.app_config_manager.get_config(hide_secrets=False)
     body = await parse_request(
         request, cls=AiInlineCompletionRequest, allow_unknown_keys=True
@@ -310,6 +313,12 @@ async def ai_inline_completion(
             system_prompt=system_prompt,
             max_tokens=INLINE_COMPLETION_MAX_TOKENS,
             additional_tools=[],
+            span_info=SpanInfo(
+                endpoint="inline_completion",
+                model=model,
+                language=body.language,
+                session_id=session_id,
+            ),
         )
     except Exception as e:
         LOGGER.error("Error in AI inline completion: %s", str(e))

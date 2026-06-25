@@ -121,7 +121,7 @@ This hook will run every time an `Edit` or a `Write` tool is called. You can poi
 that will check if the current edit is taking place on a marimo notebook.
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Hook to check marimo notebooks after Write/Edit operations
 # Reads JSON from stdin containing tool result information

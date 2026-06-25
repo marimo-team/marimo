@@ -22,9 +22,8 @@ export const StatusOverlay: React.FC<{
   const { mode } = useAtomValue(viewStateAtom);
   const isClosed = connection.state === WebSocketState.CLOSED;
   const isOpen = connection.state === WebSocketState.OPEN;
-  // Only KERNEL_DISCONNECTED is recoverable by a retry. Other terminal
-  // reasons (MALFORMED_QUERY, KERNEL_STARTUP_ERROR) would deterministically
-  // fail the same way.
+  // Only KERNEL_DISCONNECTED is recoverable by a retry. KERNEL_STARTUP_ERROR
+  // would deterministically fail the same way.
   const canReconnect =
     isClosed && connection.code === WebSocketClosedReason.KERNEL_DISCONNECTED;
 

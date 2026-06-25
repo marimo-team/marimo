@@ -3463,7 +3463,7 @@ export interface components {
       inline_tooltip?: boolean;
       max_tokens?: number;
       /** @enum {unknown} */
-      mode?: "agent" | "ask" | "manual";
+      mode?: "agent" | "ask" | "code_mode" | "manual";
       models?: components["schemas"]["AiModelConfig"];
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];
@@ -5175,11 +5175,15 @@ export interface components {
      *             request_id: Unique identifier for this request.
      *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
      *             database: Database to query.
+     *             schema_path: Parent schema path whose child schemas to list.
+     *                 Empty lists the database's top-level schemas.
      */
     ListSQLSchemasCommand: {
       database: string;
       engine: string;
       requestId: components["schemas"]["RequestId"];
+      /** @default [] */
+      schemaPath?: string[];
       /** @enum {unknown} */
       type: "list-sql-schemas";
     };
@@ -5188,6 +5192,8 @@ export interface components {
       database: string;
       engine: string;
       requestId: components["schemas"]["RequestId"];
+      /** @default [] */
+      schemaPath?: string[];
     };
     /**
      * ListSQLTablesCommand
@@ -5201,12 +5207,16 @@ export interface components {
      *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
      *             database: Database to query.
      *             schema: Schema to list tables from.
+     *             schema_path: Path of nested schemas (relative to `database`) for
+     *                 catalogs with nested schemas. Empty for the top level.
      */
     ListSQLTablesCommand: {
       database: string;
       engine: string;
       requestId: components["schemas"]["RequestId"];
       schema: string;
+      /** @default [] */
+      schemaPath?: string[];
       /** @enum {unknown} */
       type: "list-sql-tables";
     };
@@ -5216,6 +5226,8 @@ export interface components {
       engine: string;
       requestId: components["schemas"]["RequestId"];
       schema: string;
+      /** @default [] */
+      schemaPath?: string[];
     };
     /**
      * ListSecretKeysCommand
@@ -5769,12 +5781,16 @@ export interface components {
      *             database: Database containing the table.
      *             schema: Schema containing the table.
      *             table_name: Table to preview.
+     *             schema_path: Path of nested schemas (relative to `database`) for
+     *                 catalogs with nested schemas. Empty for the top level.
      */
     PreviewSQLTableCommand: {
       database: string;
       engine: string;
       requestId: components["schemas"]["RequestId"];
       schema: string;
+      /** @default [] */
+      schemaPath?: string[];
       tableName: string;
       /** @enum {unknown} */
       type: "preview-sql-table";
@@ -5785,6 +5801,8 @@ export interface components {
       engine: string;
       requestId: components["schemas"]["RequestId"];
       schema: string;
+      /** @default [] */
+      schemaPath?: string[];
       tableName: string;
     };
     /**
@@ -6031,10 +6049,14 @@ export interface components {
      *         Attributes:
      *             connection: Connection identifier.
      *             database: Database name.
+     *             schema_path: Parent schema path the schemas belong under. Empty for
+     *                 the database's top level.
      */
     SQLDatabaseMetadata: {
       connection: string;
       database: string;
+      /** @default [] */
+      schema_path?: string[];
     };
     /**
      * SQLMetadata
@@ -6044,11 +6066,15 @@ export interface components {
      *             connection: Connection identifier.
      *             database: Database name.
      *             schema: Schema name.
+     *             schema_path: Path of nested schemas (relative to `database`). Empty
+     *                 for the top level.
      */
     SQLMetadata: {
       connection: string;
       database: string;
       schema: string;
+      /** @default [] */
+      schema_path?: string[];
       /** @enum {unknown} */
       type: "sql-metadata";
     };
@@ -6151,13 +6177,23 @@ export interface components {
      * Schema
      * @description Represents a database schema and its tables.
      *
+     *     A schema may itself contain nested child schemas, e.g. for catalogs with
+     *     hierarchical namespaces such as Iceberg (`top.nested.deep`).
+     *
      *     Attributes:
      *         name (str): The name of the schema.
      *         tables (List[DataTable]): Tables in this schema.
      *         tables_resolved (bool): True when `tables` has been enumerated
      *             False when table discovery was deferred. Defaults to True
+     *         child_schemas (List[Schema]): Nested child schemas (sub-namespaces).
+     *         child_schemas_resolved (bool): True when `child_schemas` has been
+     *             enumerated. False when discovery was deferred. Defaults to True
      */
     Schema: {
+      /** @default [] */
+      child_schemas?: components["schemas"]["Schema"][];
+      /** @default true */
+      child_schemas_resolved?: boolean;
       name: string;
       tables: components["schemas"]["DataTable"][];
       /** @default true */
@@ -6585,7 +6621,7 @@ export interface components {
      */
     ToolDefinition: {
       description: string;
-      mode: ("agent" | "ask" | "manual")[];
+      mode: ("agent" | "ask" | "code_mode" | "manual")[];
       name: string;
       parameters: Record<string, any>;
       /** @enum {unknown} */

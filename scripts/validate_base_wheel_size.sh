@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Check if marimo/_static/index.html exists
 if [ ! -f "marimo/_static/index.html" ]; then

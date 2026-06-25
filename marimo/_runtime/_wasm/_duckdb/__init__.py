@@ -127,6 +127,7 @@ _DIRECT_READER_SPECS: dict[str, _DirectReaderSpec] = {
     ),
     "read_parquet": _DirectReaderSpec(
         source_keyword_names=(
+            "path_or_buffer",
             "file_glob",
             "file_globs",
             "source",

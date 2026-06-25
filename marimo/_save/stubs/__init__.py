@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from marimo._save.stubs.class_stub import ClassStub
 from marimo._save.stubs.function_stub import FunctionStub
 from marimo._save.stubs.lazy_stub import LAZY_STUB_LOOKUP, ReferenceStub
 from marimo._save.stubs.module_stub import ModuleStub
@@ -77,6 +78,7 @@ def maybe_get_custom_stub(value: Any) -> CustomStub | None:
 __all__ = [
     "CUSTOM_STUBS",
     "LAZY_STUB_LOOKUP",
+    "ClassStub",
     "CustomStub",
     "FunctionStub",
     "ModuleStub",
