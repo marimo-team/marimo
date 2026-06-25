@@ -67,6 +67,8 @@ import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import {
   addContextCompletion,
   CONTEXT_TRIGGER,
+  isContextAttachment,
+  resolveChatContext,
 } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
@@ -83,7 +85,6 @@ import {
 import { renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
 import {
-  buildCompletionRequestBody,
   convertToFileUIPart,
   generateChatTitle,
   handleToolCall,
@@ -92,6 +93,7 @@ import {
   PROVIDERS_THAT_SUPPORT_ATTACHMENTS,
   useFileState,
 } from "./chat-utils";
+import { getCodes } from "@/core/codemirror/copilot/getCodes";
 
 // Default mode for the AI
 const DEFAULT_MODE = "manual";
@@ -532,9 +534,10 @@ const ChatPanelBody = () => {
           );
         }
 
-        const completionBody = await buildCompletionRequestBody(
-          options.messages,
-        );
+        const completionBody = {
+          uiMessages: options.messages,
+          includeOtherCode: getCodes(""),
+        };
 
         // Call this here to ensure the value is not stale
         const chatMode = store.get(aiAtom)?.mode || DEFAULT_MODE;
@@ -623,6 +626,8 @@ const ChatPanelBody = () => {
       initialAttachments && initialAttachments.length > 0
         ? await convertToFileUIPart(initialAttachments)
         : undefined;
+    const { contextPart, attachments } =
+      await resolveChatContext(initialMessage);
 
     // Trigger AI conversation with append
     sendMessage({
@@ -632,7 +637,9 @@ const ChatPanelBody = () => {
           type: "text" as const,
           text: initialMessage,
         },
+        ...(contextPart ? [contextPart] : []),
         ...(fileParts ?? []),
+        ...attachments,
       ],
     });
     clearFiles();
@@ -650,17 +657,31 @@ const ChatPanelBody = () => {
     openModal(<PairWithAgentModal onClose={closeModal} />);
   });
 
-  const handleMessageEdit = useEvent((index: number, newValue: string) => {
-    const editedMessage = messages[index];
-    const fileParts = editedMessage.parts?.filter((p) => p.type === "file");
+  const handleMessageEdit = useEvent(
+    async (index: number, newValue: string) => {
+      const editedMessage = messages[index];
+      // Keep the user's own uploaded files, but drop the previous @-context
+      // snapshot (data part + its attachments) so we can re-resolve a fresh,
+      // point-in-time snapshot from the edited text below.
+      const userFileParts =
+        editedMessage.parts?.filter(
+          (p) => p.type === "file" && !isContextAttachment(p),
+        ) ?? [];
+      const { contextPart, attachments } = await resolveChatContext(newValue);
 
-    const messageId = editedMessage.id;
-    sendMessage({
-      messageId: messageId, // replace the message
-      role: "user",
-      parts: [{ type: "text", text: newValue }, ...fileParts],
-    });
-  });
+      const messageId = editedMessage.id;
+      sendMessage({
+        messageId: messageId, // replace the message
+        role: "user",
+        parts: [
+          { type: "text", text: newValue },
+          ...(contextPart ? [contextPart] : []),
+          ...userFileParts,
+          ...attachments,
+        ],
+      });
+    },
+  );
 
   const handleChatInputSubmit = useEvent(
     async (e: KeyboardEvent | undefined, newValue: string): Promise<void> => {
@@ -671,11 +692,17 @@ const ChatPanelBody = () => {
         storePrompt(newMessageInputRef.current.view);
       }
       const fileParts = files ? await convertToFileUIPart(files) : undefined;
+      const { contextPart, attachments } = await resolveChatContext(newValue);
 
       e?.preventDefault();
       sendMessage({
-        text: newValue,
-        files: fileParts,
+        role: "user",
+        parts: [
+          { type: "text", text: newValue },
+          ...(contextPart ? [contextPart] : []),
+          ...(fileParts ?? []),
+          ...attachments,
+        ],
       });
       setInput("");
       clearFiles();

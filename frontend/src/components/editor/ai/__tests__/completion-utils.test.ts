@@ -8,7 +8,14 @@ import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
-import { codeToCells, getAICompletionBody } from "../completion-utils";
+import type { UIMessage } from "ai";
+import {
+  codeToCells,
+  getAICompletionBody,
+  isContextAttachment,
+  MARIMO_CONTEXT_PART_TYPE,
+  resolveChatContext,
+} from "../completion-utils";
 
 // Mock getCodes function
 vi.mock("@/core/codemirror/copilot/getCodes", () => ({
@@ -347,6 +354,89 @@ describe("getAICompletionBody", () => {
         "includeOtherCode": "// Some other code",
       }
     `);
+  });
+});
+
+describe("resolveChatContext", () => {
+  beforeEach(() => {
+    store.set(datasetsAtom, {
+      tables: [],
+    } as unknown as DatasetsState);
+    store.set(dataSourceConnectionsAtom, {
+      latestEngineSelected: DUCKDB_ENGINE,
+      connectionsMap: new Map(),
+    });
+    store.set(variablesAtom, {});
+  });
+
+  it("returns no context when the input has no @-mentions", async () => {
+    const result = await resolveChatContext("just a plain question");
+    expect(result).toEqual({ contextPart: null, attachments: [] });
+  });
+
+  it("returns no context part when @-mentions resolve to nothing", async () => {
+    const result = await resolveChatContext("look at @variable://ghost");
+    expect(result.contextPart).toBeNull();
+    expect(result.attachments).toEqual([]);
+  });
+
+  it("captures resolved @-context into a data part", async () => {
+    store.set(variablesAtom, {
+      [variableName("var1")]: {
+        name: variableName("var1"),
+        value: "string value",
+        dataType: "string",
+        declaredBy: [],
+        usedBy: [],
+      },
+    });
+
+    const result = await resolveChatContext("inspect @variable://var1");
+
+    expect(result.contextPart?.type).toBe(MARIMO_CONTEXT_PART_TYPE);
+    expect(result.contextPart?.data.contextIds).toEqual(["variable://var1"]);
+    expect(result.contextPart?.data.plainText).toMatchInlineSnapshot(
+      `"<variable name="var1" dataType="string">"string value"</variable>"`,
+    );
+  });
+});
+
+describe("isContextAttachment", () => {
+  type Part = UIMessage["parts"][number];
+
+  it("is true for a file part tagged as context", () => {
+    const part = {
+      type: "file",
+      mediaType: "image/png",
+      url: "data:image/png;base64,abc",
+      providerMetadata: { marimo: { source: "context" } },
+    } as Part;
+    expect(isContextAttachment(part)).toBe(true);
+  });
+
+  it("is false for a user-uploaded file part (no marker)", () => {
+    const part = {
+      type: "file",
+      mediaType: "image/png",
+      url: "data:image/png;base64,abc",
+    } as Part;
+    expect(isContextAttachment(part)).toBe(false);
+  });
+
+  it("is false for a file part with unrelated provider metadata", () => {
+    const part = {
+      type: "file",
+      mediaType: "image/png",
+      url: "data:image/png;base64,abc",
+      providerMetadata: { openai: { foo: "bar" } },
+    } as Part;
+    expect(isContextAttachment(part)).toBe(false);
+  });
+
+  it("is false for non-file parts", () => {
+    expect(isContextAttachment({ type: "text", text: "hi" } as Part)).toBe(
+      false,
+    );
   });
 });
 

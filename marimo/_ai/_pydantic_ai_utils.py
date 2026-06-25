@@ -23,6 +23,15 @@ def generate_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex}"
 
 
+# Wire `type` of the @-context data part emitted by the frontend
+MARIMO_CONTEXT_PART_TYPE = "data-marimo-context"
+
+
+def format_inline_context(plain_text: str) -> str:
+    """Render @-context as a user-message text block."""
+    return f"<context>\n{plain_text.strip()}\n</context>"
+
+
 def form_toolsets(
     tools: list[ToolDefinition],
     tool_invoker: Callable[[str, dict[str, Any]], Any],
@@ -98,7 +107,7 @@ def convert_to_pydantic_messages(
             or generate_id("message")
         )
         role = message.get("role", "assistant")
-        parts = [sanitize_part(part) for part in message.get("parts", [])]
+        parts = _prepare_parts(message.get("parts", []))
         metadata = message.get("metadata")
 
         ui_message = UIMessage(
@@ -115,6 +124,40 @@ def convert_to_pydantic_messages(
         pydantic_messages.append(ui_message)
 
     return pydantic_messages
+
+
+def _prepare_parts(raw_parts: list[Any]) -> list[Any]:
+    """Normalize a message's raw parts for pydantic-ai validation."""
+    parts: list[Any] = []
+    for part in raw_parts:
+        lowered = _expand_marimo_context_part(part)
+        if lowered is None:
+            continue  # empty context part, drop it
+        parts.append(sanitize_part(lowered))
+    return parts
+
+
+def _expand_marimo_context_part(part: Any) -> Any:
+    """Resolve a `data-marimo-context` part into a text part.
+
+    The @-context is shipped inside the user message as a data part because
+    pydantic-ai's VercelAIAdapter drops DataUIPart entirely.
+
+    Returns the part unchanged when it isn't a context part, a text part when
+    it carries non-empty context, or `None` to drop empty context parts.
+    """
+    if (
+        not isinstance(part, dict)
+        or part.get("type") != MARIMO_CONTEXT_PART_TYPE
+    ):
+        return part
+    data = part.get("data")
+    if not isinstance(data, dict):
+        return None
+    plain_text = (data.get("plainText") or "").strip()
+    if not plain_text:
+        return None
+    return {"type": "text", "text": format_inline_context(plain_text)}
 
 
 def create_simple_prompt(text: str) -> UIMessage:
