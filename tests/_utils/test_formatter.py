@@ -355,10 +355,7 @@ class TestRuffFunction:
         )
 
         assert result == {
-            "cell1": "x = 3\n\n"
-            "def _foo():\n"
-            "    return x + 1\n\n"
-            "print(_foo())"
+            "cell1": "x = 3\n\ndef _foo():\n    return x + 1\n\nprint(_foo())"
         }
 
     @patch("marimo._utils.formatter._run_subprocess_safe")

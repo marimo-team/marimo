@@ -36,7 +36,9 @@ def _wrap_cell_code(code: str) -> tuple[str, bool]:
 
 def _unwrap_cell_code(code: str, *, added_pass: bool) -> str:
     lines = code.strip().splitlines()
-    if not lines or not lines[0].startswith(f"async def {_CELL_FORMAT_WRAPPER}("):
+    if not lines or not lines[0].startswith(
+        f"async def {_CELL_FORMAT_WRAPPER}("
+    ):
         return code.strip()
     body = [line.removeprefix("    ") for line in lines[1:]]
     if added_pass and body and body[-1] == "pass":
@@ -132,9 +134,7 @@ async def ruff(
 
             formatted = stdout.decode()
             if format_as_cell:
-                formatted = _unwrap_cell_code(
-                    formatted, added_pass=added_pass
-                )
+                formatted = _unwrap_cell_code(formatted, added_pass=added_pass)
             formatted_codes[key] = formatted.strip()
         except Exception as e:
             LOGGER.error("Failed to format code with ruff")
