@@ -284,6 +284,13 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
         The actual mpl event (with "type" key) is at
           msg["content"]["data"]["content"].
         """
+        # matplotlib 3.11 resets `figure.canvas` to a bare FigureCanvasBase
+        # when the figure is closed, and marimo closes figures after every
+        # cell run (`close_figures()` -> `plt.close("all")`).
+        canvas = self._figure_manager.canvas
+        if canvas.figure.canvas is not canvas:
+            canvas.figure.set_canvas(canvas)
+
         content = msg.get("content", {})
         data = content.get("data", {})
         # For custom messages, the actual payload is nested under "content"

@@ -243,6 +243,102 @@ class TestDpiPreservationOnRerun:
 
 
 @pytest.mark.requires("matplotlib")
+class TestCanvasRebindAfterClose:
+    """Interaction (pan/zoom/hover hit-testing) must survive `plt.close()`.
+
+    marimo creates a WebAgg canvas on the user's pyplot-managed figure, then
+    runs `plt.close("all")` after every cell (`close_figures()`). matplotlib
+    3.11 changed figure teardown to reset `figure.canvas` to a bare
+    `FigureCanvasBase`, detaching marimo's WebAgg canvas (matplotlib < 3.11
+    left it attached). matplotlib's hit-testing (`Artist.contains` ->
+    `_different_canvas`) then rejects every mouse event whose canvas no longer
+    matches `figure.canvas`, so `press_pan` finds no axes, never sets
+    `_pan_info`, and click-drag silently stops panning even though events are
+    delivered. `_handle_comm_msg` re-binds the canvas defensively before
+    dispatching, so interaction works regardless of matplotlib version.
+    """
+
+    def test_pan_works_after_plt_close(self) -> None:
+        import matplotlib.pyplot as plt
+        from matplotlib.backend_bases import _Mode
+
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            mpl_interactive,
+        )
+
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3])
+
+        with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
+            element = mpl_interactive(fig)
+
+        canvas = element._figure_manager.canvas
+        # Reproduce marimo's post-cell teardown. On matplotlib 3.11 this
+        # detaches our WebAgg canvas from the figure.
+        plt.close("all")
+
+        toolbar = canvas.toolbar
+        toolbar.mode = _Mode.PAN
+
+        draws = [0]
+        original_draw_idle = canvas.draw_idle
+
+        def counting_draw_idle(*args: Any, **kwargs: Any) -> Any:
+            draws[0] += 1
+            return original_draw_idle(*args, **kwargs)
+
+        canvas.draw_idle = counting_draw_idle  # type: ignore[method-assign]
+
+        def press(x: int, y: int, buttons: int) -> dict[str, Any]:
+            return {
+                "content": {
+                    "data": {
+                        "method": "custom",
+                        "content": {
+                            "type": "button_press"
+                            if buttons
+                            else "button_release",
+                            "x": x,
+                            "y": y,
+                            "button": 0,
+                            "buttons": buttons,
+                            "modifiers": [],
+                        },
+                    }
+                }
+            }
+
+        before = ax.get_xlim()
+        x0 = int(ax.bbox.x0 + ax.bbox.width / 2)
+        y0 = int(canvas.get_renderer().height - (ax.bbox.y0 + ax.bbox.height / 2))
+        element._handle_comm_msg(press(x0, y0, 1))
+        # press_pan must have registered a pan; otherwise drag is a no-op.
+        assert toolbar._pan_info is not None
+        element._handle_comm_msg(
+            {
+                "content": {
+                    "data": {
+                        "method": "custom",
+                        "content": {
+                            "type": "motion_notify",
+                            "x": x0 - 80,
+                            "y": y0 - 40,
+                            "button": 0,
+                            "buttons": 1,
+                            "modifiers": [],
+                        },
+                    }
+                }
+            }
+        )
+        element._handle_comm_msg(press(x0 - 80, y0 - 40, 0))
+
+        # Dragging in pan mode must have moved the view and redrawn.
+        assert draws[0] > 0
+        assert ax.get_xlim() != before
+
+
+@pytest.mark.requires("matplotlib")
 class TestMplCleanupHandle:
     """Test that _MplCleanupHandle properly closes the comm."""
 
