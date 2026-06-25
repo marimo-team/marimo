@@ -90,8 +90,6 @@ def unwrap_cell_body(formatted: str) -> str:
     return fixed_dedent(raw).strip()
 
 
-=======
->>>>>>> 9f465b762 (fix: bad merge res)
 def extract_lineno(node: Node) -> int:
     if not isinstance(
         node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef)
