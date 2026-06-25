@@ -143,6 +143,7 @@ interface ChatMessageProps {
   onEdit: (index: number, newValue: string) => void;
   isStreamingReasoning: boolean;
   isLast: boolean;
+  isActive: boolean;
   addToolApprovalResponse?: ChatAddToolApproveResponseFunction;
 }
 
@@ -153,6 +154,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
     onEdit,
     isStreamingReasoning,
     isLast,
+    isActive,
     addToolApprovalResponse,
   }) => {
     const renderUserMessage = (message: UIMessage) => {
@@ -205,6 +207,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
             message,
             isStreamingReasoning,
             isLast,
+            isActive,
             addToolApprovalResponse,
           })}
         </div>
@@ -780,6 +783,7 @@ const ChatPanelBody = () => {
             onEdit={handleMessageEdit}
             isStreamingReasoning={isStreamingReasoning}
             isLast={idx === messages.length - 1}
+            isActive={isLoading}
             addToolApprovalResponse={addToolApprovalResponse}
           />
         ))}

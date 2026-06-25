@@ -24,6 +24,7 @@ interface ToolCallViewProps {
    * (the user has moved on).
    */
   isLive?: boolean;
+  isActive?: boolean;
 }
 
 export const ToolCallView: React.FC<ToolCallViewProps> = ({
@@ -37,6 +38,7 @@ export const ToolCallView: React.FC<ToolCallViewProps> = ({
   index,
   className,
   isLive = true,
+  isActive = true,
 }) => {
   switch (state) {
     case "approval-requested":
@@ -61,6 +63,7 @@ export const ToolCallView: React.FC<ToolCallViewProps> = ({
           input={input}
           index={index}
           className={className}
+          isActive={isActive}
         />
       );
 
@@ -89,6 +92,7 @@ export const ToolCallView: React.FC<ToolCallViewProps> = ({
           approval={approval}
           index={index}
           className={className}
+          isActive={isActive}
         />
       );
 

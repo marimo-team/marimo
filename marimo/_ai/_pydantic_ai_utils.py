@@ -105,6 +105,10 @@ def convert_to_pydantic_messages(
             id=message_id, role=role, parts=parts, metadata=metadata
         )
 
+        ui_message.parts = [
+            repair_incomplete_tool_call(part) for part in ui_message.parts
+        ]
+
         # Process parts after casting so the processor will work on typed parts
         if ui_message.parts and part_processor:
             new_parts = [
@@ -145,6 +149,55 @@ def _tool_part_allowed_fields() -> dict[tuple[bool, str], frozenset[str]]:
         )
         result[(is_dynamic, state)] = aliases
     return result
+
+
+_INTERRUPTED_TOOL_MESSAGE = "Tool call was interrupted and did not complete."
+
+
+def repair_incomplete_tool_call(part: UIMessagePart) -> UIMessagePart:
+    """Give an interrupted tool call a terminal `output-error` result.
+
+    A tool part left in `input-streaming`/`input-available` is a tool call with no result.
+    Some providers like Anthropic expect a tool result, so stopping a stream mid-call would break the conversation.
+    We rewrite the part to the matching `output-error` model so the conversion to pydantic-ai produces a tool result.
+
+    A deferred call (approval-requested/approval-responded) is left alone.
+    """
+    from pydantic_ai.ui.vercel_ai.request_types import (
+        DynamicToolInputAvailablePart,
+        DynamicToolInputStreamingPart,
+        DynamicToolOutputErrorPart,
+        ToolInputAvailablePart,
+        ToolInputStreamingPart,
+        ToolOutputErrorPart,
+    )
+
+    if isinstance(part, (ToolInputStreamingPart, ToolInputAvailablePart)):
+        return ToolOutputErrorPart(
+            type=part.type,
+            tool_call_id=part.tool_call_id,
+            title=part.title,
+            input=part.input,
+            error_text=_INTERRUPTED_TOOL_MESSAGE,
+            provider_executed=part.provider_executed,
+            call_provider_metadata=part.call_provider_metadata,
+            approval=part.approval,
+        )
+    if isinstance(
+        part,
+        (DynamicToolInputStreamingPart, DynamicToolInputAvailablePart),
+    ):
+        return DynamicToolOutputErrorPart(
+            tool_name=part.tool_name,
+            tool_call_id=part.tool_call_id,
+            title=part.title,
+            input=part.input,
+            error_text=_INTERRUPTED_TOOL_MESSAGE,
+            provider_executed=part.provider_executed,
+            call_provider_metadata=part.call_provider_metadata,
+            approval=part.approval,
+        )
+    return part
 
 
 def sanitize_part(part: Any) -> Any:
