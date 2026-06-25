@@ -7,7 +7,7 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import type { FileUIPart } from "ai";
+import type { DataUIPart, FileUIPart } from "ai";
 import { getAIContextRegistry } from "@/core/ai/context/context";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
@@ -48,6 +48,64 @@ export function getAICompletionBody({
       variables: [],
     },
   };
+}
+
+export interface MarimoContextData {
+  plainText: string;
+  contextIds: string[];
+}
+
+export type MarimoContextUIPart = DataUIPart<{
+  "marimo-context": MarimoContextData;
+}>;
+
+/**
+ * Wire `type` of the @-context data part. Must match
+ * `MARIMO_CONTEXT_PART_TYPE` on the backend.
+ */
+export const MARIMO_CONTEXT_PART_TYPE =
+  "data-marimo-context" as const satisfies MarimoContextUIPart["type"];
+
+export interface ResolvedChatContext {
+  contextPart: MarimoContextUIPart | null;
+  attachments: FileUIPart[];
+}
+
+/**
+ * Resolve @-context for messages. They represent referenced
+ * datasets, variables, or other context from the user's prompt.
+ */
+export async function resolveChatContext(
+  input: string,
+): Promise<ResolvedChatContext> {
+  if (!input.includes(CONTEXT_TRIGGER)) {
+    return { contextPart: null, attachments: [] };
+  }
+
+  const registry = getAIContextRegistry(store);
+  const contextIds = registry.parseAllContextIds(input);
+  if (contextIds.length === 0) {
+    return { contextPart: null, attachments: [] };
+  }
+
+  const plainText = registry.formatContextForAI(contextIds);
+
+  let attachments: FileUIPart[] = [];
+  try {
+    attachments = await registry.getAttachmentsForContext(contextIds);
+  } catch (error) {
+    Logger.error("Error getting attachments:", error);
+  }
+
+  let contextPart: MarimoContextUIPart | null = null;
+  if (plainText.trim()) {
+    contextPart = {
+      type: MARIMO_CONTEXT_PART_TYPE,
+      data: { plainText, contextIds: contextIds.map(String) },
+    };
+  }
+
+  return { contextPart, attachments };
 }
 
 /**

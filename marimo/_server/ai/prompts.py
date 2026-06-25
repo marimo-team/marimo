@@ -312,7 +312,6 @@ def _common_chat_sections(
     *,
     custom_rules: str | None,
     include_other_code: str | None,
-    context: AiCompletionContext | None,
 ) -> str:
     """Trailing sections shared by every chat mode."""
     out = ""
@@ -320,8 +319,6 @@ def _common_chat_sections(
         out += f"\n\n## Additional rules:\n{custom_rules}"
     if include_other_code:
         out += "\n\n" + _tag("code_from_other_cells", include_other_code)
-    if context:
-        out += format_context(context)
     return out
 
 
@@ -447,7 +444,6 @@ chart
 def get_chat_system_prompt(
     *,
     custom_rules: str | None,
-    context: AiCompletionContext | None,
     include_other_code: str,
     mode: CopilotMode,
     session_id: SessionId,
@@ -465,7 +461,6 @@ def get_chat_system_prompt(
         system_prompt += _common_chat_sections(
             custom_rules=custom_rules,
             include_other_code=None,  # code mode can inspect code
-            context=context,
         )
         system_prompt += "\nIf you are not aware of the current notebook code, inspect it first before answering any questions."
         return system_prompt
@@ -488,7 +483,6 @@ def get_chat_system_prompt(
     return system_prompt + _common_chat_sections(
         custom_rules=custom_rules,
         include_other_code=include_other_code,
-        context=context,
     )
 
 

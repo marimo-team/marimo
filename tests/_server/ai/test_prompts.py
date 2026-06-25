@@ -226,7 +226,6 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
-        context=None,
         mode="manual",
         session_id=SessionId("s_test"),  # stable fake session id for snapshot
     )
@@ -235,76 +234,6 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules="Always be polite.",
         include_other_code="",
-        context=None,
-        mode="manual",
-        session_id=SessionId("s_test"),
-    )
-
-    result += _header("with variables")
-    result += get_chat_system_prompt(
-        custom_rules=None,
-        include_other_code="",
-        context=AiCompletionContext(
-            variables=["var1", "var2"],
-        ),
-        mode="manual",
-        session_id=SessionId("s_test"),
-    )
-
-    result += _header("with VariableContext objects")
-    result += get_chat_system_prompt(
-        custom_rules=None,
-        include_other_code="",
-        context=AiCompletionContext(
-            variables=[
-                VariableContext(
-                    name="df",
-                    value_type="DataFrame",
-                    preview_value="<DataFrame with 100 rows and 5 columns>",
-                ),
-                VariableContext(
-                    name="model",
-                    value_type="Model",
-                    preview_value="<Model object>",
-                ),
-            ]
-        ),
-        mode="manual",
-        session_id=SessionId("s_test"),
-    )
-
-    result += _header("with context")
-    result += get_chat_system_prompt(
-        custom_rules=None,
-        include_other_code="",
-        context=AiCompletionContext(
-            schema=[
-                SchemaTable(
-                    name="df_1",
-                    columns=[
-                        SchemaColumn(
-                            "age", "int", sample_values=["1", "2", "3"]
-                        ),
-                        SchemaColumn(
-                            "name",
-                            "str",
-                            sample_values=["Alice", "Bob", "Charlie"],
-                        ),
-                    ],
-                ),
-                SchemaTable(
-                    name="d2_2",
-                    columns=[
-                        SchemaColumn(
-                            "a", "int", sample_values=["1", "2", "3"]
-                        ),
-                        SchemaColumn(
-                            "b", "int", sample_values=["4", "5", "6"]
-                        ),
-                    ],
-                ),
-            ],
-        ),
         mode="manual",
         session_id=SessionId("s_test"),
     )
@@ -313,7 +242,6 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules=None,
         include_other_code="import pandas as pd\nimport numpy as np\n",
-        context=None,
         mode="manual",
         session_id=SessionId("s_test"),
     )
@@ -322,7 +250,6 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
-        context=None,
         mode="agent",
         session_id=SessionId("s_test"),
     )
@@ -331,24 +258,6 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules="Always be polite.",
         include_other_code="import pandas as pd\nimport numpy as np\n",
-        context=AiCompletionContext(
-            variables=["var1", "var2"],
-            schema=[
-                SchemaTable(
-                    name="df_1",
-                    columns=[
-                        SchemaColumn(
-                            "age", "int", sample_values=["1", "2", "3"]
-                        ),
-                        SchemaColumn(
-                            "name",
-                            "str",
-                            sample_values=["Alice", "Bob", "Charlie"],
-                        ),
-                    ],
-                ),
-            ],
-        ),
         mode="manual",
         session_id=SessionId("s_test"),
     )
@@ -381,7 +290,6 @@ def test_markdown_rules_include_latex():
     chat_prompt = get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
-        context=None,
         mode="manual",
         session_id=SessionId("test"),
     )
@@ -483,17 +391,11 @@ def test_mode_intro_messages_share_base(mode: CopilotMode):
 
 def test_common_chat_sections_empty():
     assert (
-        _common_chat_sections(
-            custom_rules=None, include_other_code="", context=None
-        )
-        == ""
+        _common_chat_sections(custom_rules=None, include_other_code="") == ""
     )
     # Whitespace-only custom rules are treated as empty.
     assert (
-        _common_chat_sections(
-            custom_rules="   ", include_other_code="", context=None
-        )
-        == ""
+        _common_chat_sections(custom_rules="   ", include_other_code="") == ""
     )
 
 
@@ -501,19 +403,16 @@ def test_common_chat_sections_full():
     result = _common_chat_sections(
         custom_rules="Be concise.",
         include_other_code="import polars as pl",
-        context=AiCompletionContext(variables=["var1"]),
     )
     assert "## Additional rules:\nBe concise." in result
     assert "<code_from_other_cells>" in result
     assert "import polars as pl" in result
-    assert "## Available variables from other cells:" in result
 
 
 def test_chat_system_prompt_code_mode():
     prompt = get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
-        context=None,
         mode="code_mode",
         session_id=SessionId("s_test"),
     )
@@ -530,14 +429,13 @@ def test_chat_system_prompt_code_mode_includes_extras():
     prompt = get_chat_system_prompt(
         custom_rules="Always be polite.",
         include_other_code="import pandas as pd\n",
-        context=AiCompletionContext(variables=["var1", "var2"]),
         mode="code_mode",
         session_id=SessionId("s_test"),
     )
     assert "## Additional rules:\nAlways be polite." in prompt
+    # Code mode inspects code via tools, so other-cell code is not inlined.
     assert "<code_from_other_cells>" not in prompt
     assert "import pandas as pd" not in prompt
-    assert "## Available variables from other cells:" in prompt
 
 
 def test_chat_system_prompt_non_code_mode_includes_session_info():
@@ -545,7 +443,6 @@ def test_chat_system_prompt_non_code_mode_includes_session_info():
         prompt = get_chat_system_prompt(
             custom_rules=None,
             include_other_code="",
-            context=None,
             mode=cast(CopilotMode, mode),
             session_id=SessionId("s_abc"),
         )
@@ -559,14 +456,12 @@ def test_chat_system_prompt_agent_mode_inserts_cell_rules():
     agent_prompt = get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
-        context=None,
         mode="agent",
         session_id=SessionId("s_test"),
     )
     manual_prompt = get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
-        context=None,
         mode="manual",
         session_id=SessionId("s_test"),
     )

@@ -8,7 +8,12 @@ import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
-import { codeToCells, getAICompletionBody } from "../completion-utils";
+import {
+  codeToCells,
+  getAICompletionBody,
+  MARIMO_CONTEXT_PART_TYPE,
+  resolveChatContext,
+} from "../completion-utils";
 
 // Mock getCodes function
 vi.mock("@/core/codemirror/copilot/getCodes", () => ({
@@ -347,6 +352,50 @@ describe("getAICompletionBody", () => {
         "includeOtherCode": "// Some other code",
       }
     `);
+  });
+});
+
+describe("resolveChatContext", () => {
+  beforeEach(() => {
+    store.set(datasetsAtom, {
+      tables: [],
+    } as unknown as DatasetsState);
+    store.set(dataSourceConnectionsAtom, {
+      latestEngineSelected: DUCKDB_ENGINE,
+      connectionsMap: new Map(),
+    });
+    store.set(variablesAtom, {});
+  });
+
+  it("returns no context when the input has no @-mentions", async () => {
+    const result = await resolveChatContext("just a plain question");
+    expect(result).toEqual({ contextPart: null, attachments: [] });
+  });
+
+  it("returns no context part when @-mentions resolve to nothing", async () => {
+    const result = await resolveChatContext("look at @variable://ghost");
+    expect(result.contextPart).toBeNull();
+    expect(result.attachments).toEqual([]);
+  });
+
+  it("captures resolved @-context into a data part", async () => {
+    store.set(variablesAtom, {
+      [variableName("var1")]: {
+        name: variableName("var1"),
+        value: "string value",
+        dataType: "string",
+        declaredBy: [],
+        usedBy: [],
+      },
+    });
+
+    const result = await resolveChatContext("inspect @variable://var1");
+
+    expect(result.contextPart?.type).toBe(MARIMO_CONTEXT_PART_TYPE);
+    expect(result.contextPart?.data.contextIds).toEqual(["variable://var1"]);
+    expect(result.contextPart?.data.plainText).toMatchInlineSnapshot(
+      `"<variable name="var1" dataType="string">"string value"</variable>"`,
+    );
   });
 });
 
