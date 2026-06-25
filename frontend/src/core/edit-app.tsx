@@ -20,6 +20,7 @@ import {
   useRunAllCells,
   useRunStaleCells,
 } from "../components/editor/cell/useRunCells";
+import { useSetCodeVisibility } from "../components/editor/actions/useSetCodeVisibility";
 import { CellArray } from "../components/editor/renderers/cell-array";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useHotkey } from "../hooks/useHotkey";
@@ -112,6 +113,7 @@ export const EditApp: React.FC<AppProps> = ({
   const runStaleCells = useRunStaleCells();
   const runAllCells = useRunAllCells();
   const togglePresenting = useTogglePresenting();
+  const setCodeVisibility = useSetCodeVisibility();
 
   // HOTKEYS
   useHotkey("global.runStale", () => {
@@ -125,6 +127,18 @@ export const EditApp: React.FC<AppProps> = ({
   });
   useHotkey("global.runAll", () => {
     runAllCells();
+  });
+  useHotkey("global.showAllCode", () => {
+    setCodeVisibility({ hidden: false });
+  });
+  useHotkey("global.hideAllCode", () => {
+    setCodeVisibility({ hidden: true });
+  });
+  useHotkey("global.showAllMarkdownCode", () => {
+    setCodeVisibility({ hidden: false, markdownOnly: true });
+  });
+  useHotkey("global.hideAllMarkdownCode", () => {
+    setCodeVisibility({ hidden: true, markdownOnly: true });
   });
   useHotkey("global.collapseAllSections", () => {
     collapseAllCells();
