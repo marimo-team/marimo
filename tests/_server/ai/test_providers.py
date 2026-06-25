@@ -713,7 +713,7 @@ async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
         )
 
     assert result is streaming_response
-    assert stream_options.span_info.tool_count == 1
+    assert stream_options.span_info.tool_count == 4
     # The toolset is bound to the caller's session and request.
     mock_build_toolset.assert_called_once_with(session, request)
 
@@ -722,3 +722,11 @@ async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
     agent_kwargs = mock_agent.call_args.kwargs
     assert agent_kwargs["toolsets"] == [toolset]
     assert agent_kwargs["instructions"] == "SYSTEM PROMPT WITH SKILL"
+    capabilities = agent_kwargs["capabilities"]
+    assert len(capabilities) == 3
+    assert {capability.id for capability in capabilities} == {
+        "gotchas",
+        "notebook-improvements",
+        "rich-representations",
+    }
+    assert all(capability.defer_loading for capability in capabilities)

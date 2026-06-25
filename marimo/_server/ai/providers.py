@@ -253,14 +253,17 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
         from marimo._server.ai.tools.code_mode import (
             build_execute_code_toolset,
+            references_capability,
         )
 
         model = self.create_model(max_tokens=max_tokens)
+        capabilities = references_capability()
         agent = Agent(
             model,
             model_settings=self._build_agent_settings(model),
             toolsets=[build_execute_code_toolset(session, request)],
             instructions=system_prompt,
+            capabilities=capabilities,
         )
 
         run_input = SubmitMessage(
@@ -268,7 +271,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             trigger="submit-message",
             messages=self.convert_messages(messages),
         )
-        stream_options.span_info.tool_count = 1
+        stream_options.span_info.tool_count = 1 + len(capabilities)
 
         adapter = VercelAIAdapter(
             agent=agent,

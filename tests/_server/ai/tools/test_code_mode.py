@@ -62,3 +62,27 @@ async def test_execute_code_tool_routes_to_scratchpad_with_credentials() -> (
         server_url="http://localhost:2718",
         auth_token="secret-token",
     )
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_references_capability_exposes_deferred_reference_bundles() -> None:
+    from marimo._server.ai.skills.utils import load_reference
+    from marimo._server.ai.tools.code_mode import references_capability
+
+    capabilities = references_capability()
+    by_id = {capability.id: capability for capability in capabilities}
+
+    assert set(by_id) == {
+        "gotchas",
+        "notebook-improvements",
+        "rich-representations",
+    }
+    for capability in capabilities:
+        assert capability.defer_loading is True
+        assert capability.get_instructions() == [load_reference(capability.id)]
+
+    assert "Name redefinition" in by_id["gotchas"].description
+    assert (
+        "Improving, optimizing" in by_id["notebook-improvements"].description
+    )
+    assert "Custom widgets" in by_id["rich-representations"].description

@@ -311,7 +311,7 @@ def _multi_cell_language_rules() -> str:
 def _common_chat_sections(
     *,
     custom_rules: str | None,
-    include_other_code: str,
+    include_other_code: str | None,
     context: AiCompletionContext | None,
 ) -> str:
     """Trailing sections shared by every chat mode."""
@@ -462,12 +462,13 @@ def get_chat_system_prompt(
             f"notebooks:\n\n{skill_md}"
         )
         system_prompt = f"{intro}\n\n{skill_section}"
-        system_prompt += _single_cell_language_rules()
-        return system_prompt + _common_chat_sections(
+        system_prompt += _common_chat_sections(
             custom_rules=custom_rules,
-            include_other_code=include_other_code,
+            include_other_code=None,  # code mode can inspect code
             context=context,
         )
+        system_prompt += "\nIf you are not aware of the current notebook code, inspect it first before answering any questions."
+        return system_prompt
 
     system_prompt = (
         f"\n{_get_mode_intro_message(mode)}\n{_get_session_info(session_id)}"

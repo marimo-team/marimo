@@ -278,16 +278,13 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
         subtitle: "AI with access to read and write tools",
         Icon: HatGlasses,
       },
-    ];
-
-    if (import.meta.env.DEV) {
-      modeOptions.push({
+      {
         value: "code_mode",
         label: "Code Mode (experimental)",
         subtitle: "AI with access to the notebook's kernel. Use with caution.",
         Icon: CodeIcon,
-      });
-    }
+      },
+    ];
 
     const isAttachmentSupported =
       PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);

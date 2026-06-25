@@ -521,8 +521,9 @@ def test_chat_system_prompt_code_mode():
     assert _get_mode_intro_message("code_mode") in prompt
     assert "how to work with marimo" in prompt
     assert load_skill("marimo-pair") in prompt
-    # Code mode includes single-cell language rules.
-    assert "## Rules for python:" in prompt
+    assert "load_capability" in prompt
+    assert "`gotchas`" in prompt
+    assert "references/gotchas.md" not in prompt
 
 
 def test_chat_system_prompt_code_mode_includes_extras():
@@ -534,8 +535,8 @@ def test_chat_system_prompt_code_mode_includes_extras():
         session_id=SessionId("s_test"),
     )
     assert "## Additional rules:\nAlways be polite." in prompt
-    assert "<code_from_other_cells>" in prompt
-    assert "import pandas as pd" in prompt
+    assert "<code_from_other_cells>" not in prompt
+    assert "import pandas as pd" not in prompt
     assert "## Available variables from other cells:" in prompt
 
 
