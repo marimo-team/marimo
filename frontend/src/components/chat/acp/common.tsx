@@ -45,7 +45,7 @@ export const SimpleAccordion: React.FC<SimpleAccordionProps> = ({
       case "error":
         return <XCircleIcon className="h-3 w-3 text-destructive" />;
       case "success":
-        return <CheckCircleIcon className="h-3 w-3 text-[var(--blue-9)]" />;
+        return <CheckCircleIcon className="h-3 w-3 text-(--blue-9)" />;
       default:
         return defaultIcon;
     }
@@ -63,7 +63,7 @@ export const SimpleAccordion: React.FC<SimpleAccordionProps> = ({
           className={cn(
             "py-1 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 px-2 gap-1 rounded-sm [&[data-state=open]>svg]:rotate-180",
             status === "error" && "text-destructive/80",
-            status === "success" && "text-[var(--blue-8)]",
+            status === "success" && "text-(--blue-8)",
           )}
         >
           <span className="flex items-center gap-1">
@@ -106,7 +106,7 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = memo(
             label: "Connected",
             variant: "default" as const,
             className:
-              "bg-[var(--blue-3)] text-[var(--blue-11)] border-[var(--blue-5)]",
+              "bg-(--blue-3) text-(--blue-11) border-(--blue-5)",
           };
         case "connecting":
           return {
@@ -114,7 +114,7 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = memo(
             label: "Connecting",
             variant: "secondary" as const,
             className:
-              "bg-[var(--yellow-3)] text-[var(--yellow-11)] border-[var(--yellow-5)]",
+              "bg-(--yellow-3) text-(--yellow-11) border-(--yellow-5)",
           };
         case "disconnected":
           return {
@@ -122,7 +122,7 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = memo(
             label: "Disconnected",
             variant: "outline" as const,
             className:
-              "bg-[var(--red-3)] text-[var(--red-11)] border-[var(--red-5)]",
+              "bg-(--red-3) text-(--red-11) border-(--red-5)",
           };
         default:
           return {
@@ -130,7 +130,7 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = memo(
             label: status || "Unknown",
             variant: "outline" as const,
             className:
-              "bg-[var(--gray-3)] text-[var(--gray-11)] border-[var(--gray-5)]",
+              "bg-(--gray-3) text-(--gray-11) border-(--gray-5)",
           };
       }
     };
@@ -158,14 +158,14 @@ interface PermissionRequestProps {
 export const PermissionRequest: React.FC<PermissionRequestProps> = memo(
   ({ permission, onResolve }) => {
     return (
-      <div className="border border-[var(--amber-8)] bg-[var(--amber-2)] rounded-lg p-2">
+      <div className="border border-(--amber-8) bg-(--amber-2) rounded-lg p-2">
         <div className="flex items-center gap-2 mb-3">
-          <ShieldCheckIcon className="h-4 w-4 text-[var(--amber-11)]" />
-          <h3 className="text-sm font-medium text-[var(--amber-11)]">
+          <ShieldCheckIcon className="h-4 w-4 text-(--amber-11)" />
+          <h3 className="text-sm font-medium text-(--amber-11)">
             Permission Request
           </h3>
         </div>
-        <p className="text-sm text-[var(--amber-11)] mb-3">
+        <p className="text-sm text-(--amber-11) mb-3">
           The AI agent is requesting permission to proceed:
         </p>
         <ToolBodyBlock data={permission.toolCall} />
@@ -177,8 +177,8 @@ export const PermissionRequest: React.FC<PermissionRequestProps> = memo(
               variant="text"
               className={
                 option.kind.startsWith("allow")
-                  ? "text-[var(--blue-10)]"
-                  : "text-[var(--red-10)]"
+                  ? "text-(--blue-10)"
+                  : "text-(--red-10)"
               }
               onClick={() =>
                 onResolve({

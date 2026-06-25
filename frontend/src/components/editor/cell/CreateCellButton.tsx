@@ -142,7 +142,7 @@ export const CreateCellButton = ({
       <DropdownMenuTrigger asChild={true}>
         <Button
           className={cn(
-            "border-none hover-action shadow-none! bg-transparent! focus-visible:outline-none",
+            "border-none hover-action shadow-none! bg-transparent! focus-visible:outline-hidden",
             isAppInteractionDisabled(connectionState) && " inactive-button",
           )}
           onPointerDownCapture={handlePointerDownCapture}

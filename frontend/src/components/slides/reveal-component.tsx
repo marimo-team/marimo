@@ -684,7 +684,7 @@ const RevealSlidesComponent = ({
       <div className="group relative" style={{ width, height }}>
         <Deck
           deckRef={deckRef}
-          className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides focus:outline-none focus-visible:outline-none"
+          className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides focus:outline-hidden focus-visible:outline-hidden"
           config={revealConfig}
           onReady={handleDeckReady}
           onSlideChange={handleSlideChange}
