@@ -14,6 +14,7 @@ import {
   DownloadIcon,
   EditIcon,
   ExternalLinkIcon,
+  EyeIcon,
   EyeOffIcon,
   FastForwardIcon,
   FileIcon,
@@ -99,8 +100,8 @@ import { LAYOUT_TYPES } from "../renderers/types";
 import { runServerSidePDFDownload } from "./pdf-export";
 import type { ActionButton } from "./types";
 import { useCopyNotebook } from "./useCopyNotebook";
-import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
 import { useRestartKernel } from "./useRestartKernel";
+import { useSetCodeVisibility } from "./useSetCodeVisibility";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -114,7 +115,7 @@ export function useNotebookActions() {
   const { selectedPanel } = useChromeState();
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
-  const hideAllMarkdownCode = useHideAllMarkdownCode();
+  const setCodeVisibility = useSetCodeVisibility();
   const [resolvedConfig] = useResolvedMarimoConfig();
   const capabilities = useAtomValue(capabilitiesAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
@@ -579,10 +580,32 @@ export function useNotebookActions() {
       },
     },
     {
+      icon: <EyeIcon size={14} strokeWidth={1.5} />,
+      label: "Show all code",
+      hotkey: "global.showAllCode",
+      handle: () => setCodeVisibility(false, "code"),
+      redundant: true,
+    },
+    {
+      icon: <EyeOffIcon size={14} strokeWidth={1.5} />,
+      label: "Hide all code",
+      hotkey: "global.hideAllCode",
+      handle: () => setCodeVisibility(true, "code"),
+      redundant: true,
+    },
+    {
+      icon: <EyeIcon size={14} strokeWidth={1.5} />,
+      label: "Show all markdown code",
+      hotkey: "global.showAllMarkdownCode",
+      handle: () => setCodeVisibility(false, "markdown"),
+      redundant: true,
+    },
+    {
       icon: <EyeOffIcon size={14} strokeWidth={1.5} />,
       label: "Hide all markdown code",
-      handle: hideAllMarkdownCode,
-      redundant: true, // hidden by default
+      hotkey: "global.hideAllMarkdownCode",
+      handle: () => setCodeVisibility(true, "markdown"),
+      redundant: true,
     },
     {
       icon: <ChevronRightCircleIcon size={14} strokeWidth={1.5} />,
