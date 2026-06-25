@@ -67,6 +67,7 @@ import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import {
   addContextCompletion,
   CONTEXT_TRIGGER,
+  isContextAttachment,
   resolveChatContext,
 } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
@@ -659,7 +660,13 @@ const ChatPanelBody = () => {
   const handleMessageEdit = useEvent(
     async (index: number, newValue: string) => {
       const editedMessage = messages[index];
-      const fileParts = editedMessage.parts?.filter((p) => p.type === "file");
+      // Keep the user's own uploaded files, but drop the previous @-context
+      // snapshot (data part + its attachments) so we can re-resolve a fresh,
+      // point-in-time snapshot from the edited text below.
+      const userFileParts =
+        editedMessage.parts?.filter(
+          (p) => p.type === "file" && !isContextAttachment(p),
+        ) ?? [];
       const { contextPart, attachments } = await resolveChatContext(newValue);
 
       const messageId = editedMessage.id;
@@ -669,7 +676,7 @@ const ChatPanelBody = () => {
         parts: [
           { type: "text", text: newValue },
           ...(contextPart ? [contextPart] : []),
-          ...fileParts,
+          ...userFileParts,
           ...attachments,
         ],
       });

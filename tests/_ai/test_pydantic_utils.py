@@ -352,6 +352,23 @@ class TestConvertToPydanticMessages:
         result = convert_to_pydantic_messages(messages)
         assert result[0].parts == [TextUIPart(type="text", text="Hello")]
 
+    def test_convert_drops_malformed_marimo_context_part(self):
+        from pydantic_ai.ui.vercel_ai.request_types import TextUIPart
+
+        # A malformed `data` payload (not an object) must not crash.
+        messages = [
+            {
+                "id": "msg_ctx",
+                "role": "user",
+                "parts": [
+                    {"type": "text", "text": "Hello"},
+                    {"type": "data-marimo-context", "data": "oops"},
+                ],
+            }
+        ]
+        result = convert_to_pydantic_messages(messages)
+        assert result[0].parts == [TextUIPart(type="text", text="Hello")]
+
     def test_convert_multiple_messages(self):
         messages = [
             {

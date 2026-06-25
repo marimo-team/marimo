@@ -151,7 +151,9 @@ def _expand_marimo_context_part(part: Any) -> Any:
         or part.get("type") != MARIMO_CONTEXT_PART_TYPE
     ):
         return part
-    data = part.get("data") or {}
+    data = part.get("data")
+    if not isinstance(data, dict):
+        return None
     plain_text = (data.get("plainText") or "").strip()
     if not plain_text:
         return None

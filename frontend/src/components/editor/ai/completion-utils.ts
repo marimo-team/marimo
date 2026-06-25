@@ -7,7 +7,7 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import type { DataUIPart, FileUIPart } from "ai";
+import type { DataUIPart, FileUIPart, UIMessage } from "ai";
 import { getAIContextRegistry } from "@/core/ai/context/context";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
@@ -72,6 +72,23 @@ export interface ResolvedChatContext {
 }
 
 /**
+ * Marker stamped onto attachments derived from @-context (as opposed to files
+ * the user uploaded directly).
+ */
+const CONTEXT_ATTACHMENT_METADATA = {
+  marimo: { source: "context" },
+} as const;
+
+/** Whether a part is an attachment that was derived from @-context. */
+export function isContextAttachment(part: UIMessage["parts"][number]): boolean {
+  return (
+    part.type === "file" &&
+    part.providerMetadata?.marimo?.source ===
+      CONTEXT_ATTACHMENT_METADATA.marimo.source
+  );
+}
+
+/**
  * Resolve @-context for messages. They represent referenced
  * datasets, variables, or other context from the user's prompt.
  */
@@ -92,7 +109,14 @@ export async function resolveChatContext(
 
   let attachments: FileUIPart[] = [];
   try {
-    attachments = await registry.getAttachmentsForContext(contextIds);
+    const resolved = await registry.getAttachmentsForContext(contextIds);
+    attachments = resolved.map((attachment) => ({
+      ...attachment,
+      providerMetadata: {
+        ...attachment.providerMetadata,
+        ...CONTEXT_ATTACHMENT_METADATA,
+      },
+    }));
   } catch (error) {
     Logger.error("Error getting attachments:", error);
   }

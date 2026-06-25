@@ -8,9 +8,11 @@ import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
+import type { UIMessage } from "ai";
 import {
   codeToCells,
   getAICompletionBody,
+  isContextAttachment,
   MARIMO_CONTEXT_PART_TYPE,
   resolveChatContext,
 } from "../completion-utils";
@@ -395,6 +397,45 @@ describe("resolveChatContext", () => {
     expect(result.contextPart?.data.contextIds).toEqual(["variable://var1"]);
     expect(result.contextPart?.data.plainText).toMatchInlineSnapshot(
       `"<variable name="var1" dataType="string">"string value"</variable>"`,
+    );
+  });
+});
+
+describe("isContextAttachment", () => {
+  type Part = UIMessage["parts"][number];
+
+  it("is true for a file part tagged as context", () => {
+    const part = {
+      type: "file",
+      mediaType: "image/png",
+      url: "data:image/png;base64,abc",
+      providerMetadata: { marimo: { source: "context" } },
+    } as Part;
+    expect(isContextAttachment(part)).toBe(true);
+  });
+
+  it("is false for a user-uploaded file part (no marker)", () => {
+    const part = {
+      type: "file",
+      mediaType: "image/png",
+      url: "data:image/png;base64,abc",
+    } as Part;
+    expect(isContextAttachment(part)).toBe(false);
+  });
+
+  it("is false for a file part with unrelated provider metadata", () => {
+    const part = {
+      type: "file",
+      mediaType: "image/png",
+      url: "data:image/png;base64,abc",
+      providerMetadata: { openai: { foo: "bar" } },
+    } as Part;
+    expect(isContextAttachment(part)).toBe(false);
+  });
+
+  it("is false for non-file parts", () => {
+    expect(isContextAttachment({ type: "text", text: "hi" } as Part)).toBe(
+      false,
     );
   });
 });
