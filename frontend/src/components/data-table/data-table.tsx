@@ -104,7 +104,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   getRowIds?: GetRowIds;
   // Search
-  enableSearch?: boolean;
+  showSearch?: boolean;
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
   showFilters?: boolean;
@@ -159,7 +159,7 @@ const DataTableInternal = <TData,>({
   onRowSelectionChange,
   onCellSelectionChange,
   getRowIds,
-  enableSearch = false,
+  showSearch = false,
   searchQuery,
   onSearchQueryChange,
   showFilters = false,
@@ -357,7 +357,7 @@ const DataTableInternal = <TData,>({
           >
             <TableTopBar
               table={table}
-              enableSearch={enableSearch}
+              showSearch={showSearch}
               searchQuery={searchQuery}
               onSearchQueryChange={onSearchQueryChange}
               reloading={reloading}

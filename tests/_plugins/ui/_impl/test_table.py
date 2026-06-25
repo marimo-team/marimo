@@ -1423,6 +1423,45 @@ def test_show_download(df: Any) -> None:
     assert table_false._component_args["show-download"] is False
 
 
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": [1, 2, 3], "b": [4, 5, 6]},
+    ),
+)
+def test_show_search(df: Any) -> None:
+    table_default = ui.table(df)
+    assert table_default._component_args["show-search"] is True
+
+    table_true = ui.table(df, show_search=True)
+    assert table_true._component_args["show-search"] is True
+
+    table_false = ui.table(df, show_search=False)
+    assert table_false._component_args["show-search"] is False
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": [1, 2, 3], "b": [4, 5, 6]},
+    ),
+)
+def test_display_config_unpacks(df: Any) -> None:
+    cfg = ui.table.Display(show_search=False, show_download=False)
+    assert cfg == {"show_search": False, "show_download": False}
+
+    t = ui.table(df, **cfg)
+    assert t._component_args["show-search"] is False
+    assert t._component_args["show-download"] is False
+
+    # Deriving a variant leaves the original untouched
+    variant = {**cfg, "show_column_summaries": False}
+    assert "show_column_summaries" not in cfg
+    t2 = ui.table(df, **variant)
+    assert t2._component_args["show-search"] is False
+    assert t2._component_args["show-column-summaries"] is False
+
+
 DOWNLOAD_FORMATS = ["csv", "tsv", "json", "parquet"]
 
 # Parquet export requires pandas+pyarrow or polars (see the `_download_as`
@@ -2431,6 +2470,8 @@ def test_lazy_dataframe(df: Any) -> None:
         assert table._component_args["show-page-size-selector"] is False
         assert table._component_args["show-column-explorer"] is False
         assert table._component_args["show-chart-builder"] is False
+        # Search is pushed down to the lazy backend, so it stays available.
+        assert table._component_args["show-search"] is True
 
         # Verify that search response indicates "too_many" for total_rows
         # but returns the preview rows

@@ -8,6 +8,7 @@ from typing import (
     Any,
     Final,
     Literal,
+    TypedDict,
     Union,
     cast,
 )
@@ -124,6 +125,37 @@ class ColumnSummaries:
 
 
 ShowColumnSummaries = bool | Literal["stats", "chart"]
+
+
+class TableDisplay(TypedDict, total=False):
+    """Visibility options for `mo.ui.table` UI elements.
+
+    All fields are optional; omitted fields fall back to the table's
+    defaults. Build one and unpack it into one or more tables:
+
+    ```python
+    cfg = mo.ui.table.Display(show_search=False, show_download=False)
+    mo.ui.table(data, **cfg)
+
+    # Derive a variant; the original is unchanged
+    mo.ui.table(other, **{**cfg, "show_column_summaries": False})
+    ```
+
+    Args:
+        show_search (bool, optional): Whether to show the search bar.
+        show_download (bool, optional): Whether to show the download button.
+        show_column_summaries (bool | Literal["stats", "chart"], optional):
+            Whether to show column summaries.
+        show_data_types (bool, optional): Whether to show data type
+            indicators in column headers.
+    """
+
+    show_search: bool
+    show_download: bool
+    show_column_summaries: ShowColumnSummaries
+    show_data_types: bool
+
+
 CHART_MAX_ROWS_STRING_VALUE_COUNTS = 20_000
 
 DEFAULT_MAX_COLUMNS = 50
@@ -454,6 +486,8 @@ class table(
             Defaults to True.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
+        show_search (bool, optional): Whether to show the search bar.
+            Defaults to True.
         format_mapping (Dict[str, Union[str, Callable[..., Any]]], optional): A mapping from
             column names to formatting strings or functions.
         freeze_columns_left (Sequence[str], optional): List of column names to freeze on the left.
@@ -484,6 +518,8 @@ class table(
             in the UI to remain visible while scrolling. Defaults to None.
         label (str, optional): A descriptive name for the table. Defaults to "".
     """
+
+    Display = TableDisplay
 
     _name: Final[str] = "marimo-table"
 
@@ -572,6 +608,7 @@ class table(
         show_download: bool = True,
         max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
         *,
+        show_search: bool = True,
         label: str = "",
         on_change: Callable[
             [
@@ -844,6 +881,7 @@ class table(
                 "show-filters": self._manager.supports_filters(),
                 "show-download": show_download
                 and self._manager.supports_download(),
+                "show-search": show_search,
                 "show-column-summaries": show_column_summaries,
                 "show-data-types": show_data_types,
                 "show-page-size-selector": show_page_size_selector,

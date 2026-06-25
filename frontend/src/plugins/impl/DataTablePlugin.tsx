@@ -181,6 +181,7 @@ interface Data<T> {
   maxHeight?: number;
   selection: DataTableSelection;
   showDownload: boolean;
+  showSearch: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean | "stats" | "chart";
   showDataTypes: boolean;
@@ -267,6 +268,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showColumnExplorer: z.boolean().default(true),
       showRowExplorer: z.boolean().default(true),
       showChartBuilder: z.boolean().default(true),
+      showSearch: z.boolean().default(true),
       rowHeaders: columnToFieldTypesSchema,
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
@@ -385,7 +387,6 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             {...props.data}
             {...props.functions}
             host={props.host}
-            enableSearch={true}
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
@@ -470,8 +471,6 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   // Selection
   value: S;
   setValue: (value: S) => void;
-  // Search
-  enableSearch: boolean;
   // Filters
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
@@ -841,7 +840,7 @@ const DataTableComponent = ({
   setValue,
   sorting,
   setSorting,
-  enableSearch,
+  showSearch,
   searchQuery,
   setSearchQuery,
   filters,
@@ -1146,7 +1145,7 @@ const DataTableComponent = ({
             hoverTemplate={hoverTemplate}
             cellHoverTexts={cellHoverTexts}
             downloadAs={showDownload ? downloadAs : undefined}
-            enableSearch={enableSearch}
+            showSearch={showSearch}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
             showFilters={showFilters}

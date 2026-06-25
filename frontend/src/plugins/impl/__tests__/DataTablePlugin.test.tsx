@@ -94,7 +94,7 @@ describe("LoadingDataTableComponent", () => {
       hasStableRowId: false,
       lazy: false,
       host,
-      enableSearch: true,
+      showSearch: true,
       value: [] as (number | string | { rowId: string; columnName?: string })[],
       setValue,
       download_as: vi.fn() as DownloadAsArgs,
