@@ -114,7 +114,10 @@ export async function resolveChatContext(
       ...attachment,
       providerMetadata: {
         ...attachment.providerMetadata,
-        ...CONTEXT_ATTACHMENT_METADATA,
+        marimo: {
+          ...attachment.providerMetadata?.marimo,
+          ...CONTEXT_ATTACHMENT_METADATA.marimo,
+        },
       },
     }));
   } catch (error) {
