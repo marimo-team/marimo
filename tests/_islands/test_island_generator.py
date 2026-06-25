@@ -269,7 +269,7 @@ async def test_from_ir_builds_notebook_serialization() -> None:
         ],
     )
 
-    generator = MarimoIslandGenerator.from_ir(notebook, app_id="page-a")
+    generator = MarimoIslandGenerator._from_ir(notebook, app_id="page-a")
     stubs = generator.stubs
 
     assert len(stubs) == 2
@@ -301,7 +301,7 @@ def test_stubs_returns_read_only_snapshot() -> None:
 
 
 def test_from_ir_type_hints_resolve() -> None:
-    hints = get_type_hints(MarimoIslandGenerator.from_ir)
+    hints = get_type_hints(MarimoIslandGenerator._from_ir)
 
     assert hints["notebook"] is NotebookSerialization
     assert hints["return"] is MarimoIslandGenerator
@@ -310,7 +310,7 @@ def test_from_ir_type_hints_resolve() -> None:
 def test_from_ir_applies_display_code_to_stubs() -> None:
     notebook = _notebook([CellDef(code="x = 1")])
 
-    generator = MarimoIslandGenerator.from_ir(
+    generator = MarimoIslandGenerator._from_ir(
         notebook,
         display_code=True,
     )
@@ -326,7 +326,7 @@ def test_from_ir_preserves_app_config() -> None:
         options={"width": "medium", "app_title": "IR App"},
     )
 
-    generator = MarimoIslandGenerator.from_ir(notebook)
+    generator = MarimoIslandGenerator._from_ir(notebook)
 
     body_html = generator.render_body()
     assert 'style="margin: auto; max-width: 1110px;"' in body_html
@@ -342,7 +342,7 @@ def test_from_ir_sanitizes_markdown_app_config() -> None:
         filename="notebook.md",
     )
 
-    generator = MarimoIslandGenerator.from_ir(notebook)
+    generator = MarimoIslandGenerator._from_ir(notebook)
 
     body_html = generator.render_body()
     assert 'style="margin: auto; max-width: 1110px;"' in body_html
@@ -361,7 +361,7 @@ async def test_from_ir_propagates_ir_filename_to_cells(tmp_path: Path) -> None:
         filename=str(notebook_file),
     )
 
-    generator = MarimoIslandGenerator.from_ir(notebook)
+    generator = MarimoIslandGenerator._from_ir(notebook)
     await generator.build()
 
     captured = generator.stubs[1].output
@@ -397,7 +397,7 @@ async def test_from_ir_resolves_relative_path_at_capture_time(
     original_cwd = os.getcwd()
     try:
         os.chdir(notebook_dir)
-        generator = MarimoIslandGenerator.from_ir(notebook, filepath="nb.py")
+        generator = MarimoIslandGenerator._from_ir(notebook, filepath="nb.py")
         os.chdir(other_dir)
         await generator.build()
     finally:
@@ -429,7 +429,7 @@ async def test_from_ir_filepath_overrides_ir_filename(
         filename=str(ir_file),
     )
 
-    generator = MarimoIslandGenerator.from_ir(
+    generator = MarimoIslandGenerator._from_ir(
         notebook, filepath=str(source_file)
     )
     await generator.build()
@@ -455,7 +455,7 @@ async def test_from_ir_preserves_disabled_cell_config() -> None:
         ],
     )
 
-    generator = MarimoIslandGenerator.from_ir(notebook)
+    generator = MarimoIslandGenerator._from_ir(notebook)
 
     body_html = generator.render_body(include_init_island=False)
     assert 'data-reactive="false"' in body_html
@@ -478,7 +478,7 @@ async def test_from_ir_marks_transitively_disabled_cells_static() -> None:
         ],
     )
 
-    generator = MarimoIslandGenerator.from_ir(notebook)
+    generator = MarimoIslandGenerator._from_ir(notebook)
 
     rendered = [stub.render() for stub in generator.stubs]
     assert all('data-reactive="false"' in html for html in rendered)

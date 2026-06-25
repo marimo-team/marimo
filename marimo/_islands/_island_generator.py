@@ -301,7 +301,7 @@ class MarimoIslandGenerator:
         return generator
 
     @staticmethod
-    def from_ir(
+    def _from_ir(
         notebook: NotebookSerialization,
         *,
         app_id: str = "main",
