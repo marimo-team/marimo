@@ -126,7 +126,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         max_tokens: int | None,
         tools: list[ToolDefinition],
         system_prompt: str,
-    ) -> Agent[object, DeferredToolRequests | str]:
+    ) -> Agent[None, DeferredToolRequests | str]:
         """Create a Pydantic AI agent"""
         from pydantic_ai import Agent
 
@@ -804,7 +804,7 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         max_tokens: int | None,
         tools: list[ToolDefinition],
         system_prompt: str,
-    ) -> Agent[object, DeferredToolRequests | str]:
+    ) -> Agent[None, DeferredToolRequests | str]:
         """Create a Pydantic AI agent"""
         from pydantic_ai import Agent, UserError
         from pydantic_ai.models import infer_model
