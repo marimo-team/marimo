@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { type LucideIcon, CornerLeftUp } from "lucide-react";
-import { type JSX, useEffect, useState } from "react";
+import { type JSX, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import {
   FILE_ICON as FILE_TYPE_ICONS,
@@ -202,6 +202,8 @@ export const FileBrowser = ({
   const [path, setPath] = useInternalStateWithSync(initialPath);
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
 
   // HACK: use the random-id of the host element to force a re-render
   // when the random-id changes, this means the cell was re-rendered
@@ -227,6 +229,10 @@ export const FileBrowser = ({
       window.clearTimeout(timeout);
     };
   }, [isPending]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [path]);
 
   const files = data?.files ?? [];
   const selectedPaths = new Set(value.map((x) => x.path));
@@ -487,13 +493,18 @@ export const FileBrowser = ({
           aria-multiselectable={multiple}
         >
           <TableBody>
-            {rowModels.map((row) => (
+            {rowModels.map((row, index) => (
               <TableRow
                 key={row.key}
                 role="row"
-                className={cn("hover:bg-accent group select-none", {
-                  "bg-primary/25 hover:bg-primary/35": row.isSelected,
-                })}
+                ref={(el) => {
+                  rowRefs.current[index] = el;
+                }}
+                tabIndex={index === activeIndex ? 0 : -1}
+                className={cn(
+                  "hover:bg-accent group select-none focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
+                  { "bg-primary/25 hover:bg-primary/35": row.isSelected },
+                )}
                 aria-selected={row.canSelect ? row.isSelected : undefined}
                 onClick={row.onPrimary}
               >

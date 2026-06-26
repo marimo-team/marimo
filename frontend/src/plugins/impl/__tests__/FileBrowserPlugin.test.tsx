@@ -109,4 +109,25 @@ describe("FileBrowserPlugin keyboard accessibility", () => {
       screen.getByRole("checkbox", { name: "Select a.txt" }),
     ).toHaveAttribute("tabindex", "-1");
   });
+
+  it("places exactly one row in the tab order", async () => {
+    renderBrowser();
+    await screen.findByText("docs");
+    const rows = screen.getAllByRole("row");
+    const tabbable = rows.filter((r) => r.getAttribute("tabindex") === "0");
+    expect(tabbable).toHaveLength(1);
+    // the parent row is first and starts active
+    expect(rows[0]).toHaveAttribute("tabindex", "0");
+  });
+
+  it("resets the active row to the parent row after navigating", async () => {
+    renderBrowser({ selectionMode: "all" });
+    const docs = await screen.findByText("docs");
+    const docsRow = docs.closest('[role="row"]')!;
+    fireEvent.keyDown(docsRow, { key: "ArrowDown" }); // move active off the parent
+    fireEvent.click(docs); // navigate into "docs"
+    await screen.findByText("docs"); // listing reloads (mock returns same files)
+    const rows = screen.getAllByRole("row");
+    expect(rows[0]).toHaveAttribute("tabindex", "0");
+  });
 });
