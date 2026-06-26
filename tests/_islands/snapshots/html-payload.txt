@@ -75,7 +75,7 @@
     </marimo-cell-output>
     <marimo-cell-code hidden>mo.md('Hello%2C%20HTML!')</marimo-cell-code>
 </marimo-island>
-<script type="application/vnd.marimo.islands+json">{"schemaVersion":1,"appId":"main","cells":[{"cellId":"Hbol","code":"import marimo as mo","outputHtml":"","outputMimetype":"text/plain","reactive":true,"displayCode":false,"displayOutput":true},{"cellId":"MJUe","code":"mo.md('Hello, HTML!')","outputHtml":"","outputMimetype":"text/plain","reactive":true,"displayCode":false,"displayOutput":true}]}</script>
+<script type="application/vnd.marimo.islands+json">{"appId": "main", "cells": [{"cellId": "Hbol", "code": "import marimo as mo", "displayCode": false, "displayOutput": true, "outputHtml": "", "outputMimetype": "text/plain", "reactive": true}, {"cellId": "MJUe", "code": "mo.md('Hello, HTML!')", "displayCode": false, "displayOutput": true, "outputHtml": "", "outputMimetype": "text/plain", "reactive": true}], "schemaVersion": 1}</script>
                 </div>
                     </body>
                 </html>

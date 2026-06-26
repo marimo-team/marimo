@@ -47,6 +47,14 @@ def _parse_payload_script(script: str) -> dict[str, object]:
     return json.loads(script[len(prefix) : -len(suffix)])
 
 
+def _parse_payload_from_body(body: str) -> dict[str, object]:
+    prefix = f'<script type="{ISLANDS_JSON_SCRIPT_TYPE}">'
+    suffix = "</script>"
+    start = body.index(prefix)
+    end = body.index(suffix, start) + len(suffix)
+    return _parse_payload_script(body[start:end])
+
+
 def test_add_code():
     generator = MarimoIslandGenerator()
     generator.add_code("print('Hello, World!')")
@@ -197,11 +205,12 @@ def test_render_body_can_include_payload():
     generator.add_code("import marimo as mo")
 
     body = generator.render_body(include_payload=True)
+    payload = _parse_payload_from_body(body)
 
     assert f'<script type="{ISLANDS_JSON_SCRIPT_TYPE}">' in body
-    assert '"schemaVersion":1' in body
-    assert '"appId":"main"' in body
-    assert "import marimo as mo" in body
+    assert payload["schemaVersion"] == 1
+    assert payload["appId"] == "main"
+    assert payload["cells"][0]["code"] == "import marimo as mo"
 
 
 def test_render_body_can_omit_payload():

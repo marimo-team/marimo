@@ -6,7 +6,7 @@ import json
 import os
 import sys
 from textwrap import dedent
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
 from marimo._ast.app import App, InternalApp
@@ -16,7 +16,14 @@ from marimo._ast.compiler import compile_cell
 from marimo._ast.load import load_notebook_ir
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
+from marimo._schemas.islands import (
+    ISLANDS_JSON_SCHEMA_VERSION,
+    ISLANDS_JSON_SCRIPT_TYPE,
+    MarimoIslandCellPayload,
+    MarimoIslandPayload,
+)
 from marimo._schemas.serialization import NotebookSerialization
+from marimo._server.templates.templates import json_script
 from marimo._session.notebook import AppFileManager, load_notebook
 from marimo._types.ids import CellId_t
 from marimo._utils.marimo_path import MarimoPath
@@ -31,25 +38,6 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 IN_MEMORY_FILENAME = "<marimo>.py"
-
-ISLANDS_JSON_SCRIPT_TYPE = "application/vnd.marimo.islands+json"
-ISLANDS_JSON_SCHEMA_VERSION = 1
-
-
-class MarimoIslandCellPayload(TypedDict):
-    cellId: str
-    code: str
-    outputHtml: str
-    outputMimetype: str
-    reactive: bool
-    displayCode: bool
-    displayOutput: bool
-
-
-class MarimoIslandPayload(TypedDict):
-    schemaVersion: int
-    appId: str
-    cells: list[MarimoIslandCellPayload]
 
 
 class MarimoIslandStub:
@@ -735,8 +723,8 @@ class MarimoIslandGenerator:
         }
 
     def render_payload_script(self) -> str:
-        """Render the island app payload as an inert JSON script tag."""
-        payload = _json_script_content(self.render_payload())
+        """Render the island app payload in a JSON script tag."""
+        payload = json_script(self.render_payload())
         return f'<script type="{ISLANDS_JSON_SCRIPT_TYPE}">{payload}</script>'
 
 
@@ -775,12 +763,3 @@ def _disabled_cell_ids(cell_data: list[CellData]) -> set[CellId_t]:
             disabled_cell_ids.add(data.cell_id)
 
     return disabled_cell_ids
-
-
-def _json_script_content(payload: object) -> str:
-    return (
-        json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-        .replace("&", "\\u0026")
-        .replace("<", "\\u003c")
-        .replace(">", "\\u003e")
-    )
