@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { type LucideIcon, CornerLeftUp } from "lucide-react";
-import { type JSX, useEffect, useRef, useState } from "react";
+import { type JSX, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { z } from "zod";
 import {
   FILE_ICON as FILE_TYPE_ICONS,
@@ -204,6 +204,11 @@ export const FileBrowser = ({
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
+  const gridRef = useRef<HTMLTableElement | null>(null);
+  // Set when navigation is triggered from within the grid, so focus can follow
+  // to the parent row after the new listing renders instead of falling to the
+  // body when the previously focused row unmounts.
+  const refocusParentRef = useRef(false);
 
   // HACK: use the random-id of the host element to force a re-render
   // when the random-id changes, this means the cell was re-rendered
@@ -230,9 +235,21 @@ export const FileBrowser = ({
     };
   }, [isPending]);
 
-  useEffect(() => {
+  // Reset the roving tabindex whenever the listing reloads (a new path or a
+  // same-path refresh) so activeIndex never points past the current rows.
+  const listingKey = `${path}::${randomId}`;
+  const [prevListingKey, setPrevListingKey] = useState(listingKey);
+  if (prevListingKey !== listingKey) {
+    setPrevListingKey(listingKey);
     setActiveIndex(0);
-  }, [path]);
+  }
+
+  useLayoutEffect(() => {
+    if (refocusParentRef.current) {
+      refocusParentRef.current = false;
+      rowRefs.current[0]?.focus();
+    }
+  }, [listingKey]);
 
   const files = data?.files ?? [];
   const selectedPaths = new Set(value.map((x) => x.path));
@@ -293,6 +310,8 @@ export const FileBrowser = ({
       return;
     }
 
+    refocusParentRef.current =
+      gridRef.current?.contains(document.activeElement) ?? false;
     setPath(newPath);
     setIsUpdatingPath(false);
   }
@@ -527,8 +546,10 @@ export const FileBrowser = ({
           </div>
         )}
         <Table
+          ref={gridRef}
           className="cursor-pointer table-fixed"
           role="grid"
+          aria-label="File browser"
           aria-multiselectable={multiple}
         >
           <TableBody>
@@ -540,6 +561,7 @@ export const FileBrowser = ({
                   rowRefs.current[index] = el;
                 }}
                 tabIndex={index === activeIndex ? 0 : -1}
+                onFocus={() => setActiveIndex(index)}
                 onKeyDown={(e) => handleRowKeyDown(e, index)}
                 className={cn(
                   "hover:bg-accent group select-none focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
