@@ -21,6 +21,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { useLocale } from "react-aria";
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
@@ -75,6 +76,7 @@ import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
 import { Arrays } from "@/utils/arrays";
 import { Functions } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
+import { prettyNumber } from "@/utils/numbers";
 import {
   generateColumns,
   inferFieldTypes,
@@ -699,7 +701,9 @@ export const LoadingDataTableComponent = memo(
     >(async () => {
       // TODO: props.get_column_summaries is always true,
       // so we are unable to detect if the function is registered
-      if (props.totalRows === 0 || !props.showColumnSummaries) {
+      // Column summaries come from a kernel RPC, absent in static exports.
+      const isStatic = isStaticNotebook();
+      if (props.totalRows === 0 || !props.showColumnSummaries || isStatic) {
         return {
           data: null,
           stats: {},
@@ -875,9 +879,12 @@ const DataTableComponent = ({
     sizeBytesIsLoading?: boolean;
   }): JSX.Element => {
   const id = useId();
+  const { locale } = useLocale();
   const [viewedRowIdx, setViewedRowIdx] = useState(0);
   const { isPanelOpen, isAnyPanelOpen, togglePanel, panelType, setPanelType } =
     usePanelOwnership(id, cellId);
+
+  const isStatic = isStaticNotebook();
 
   const chartSpecModel = useMemo(() => {
     if (!columnSummaries) {
@@ -947,6 +954,11 @@ const DataTableComponent = ({
   // If the field types are not set, we don't show them
   if (!fieldTypes) {
     showDataTypes = false;
+  }
+
+  // Row/cell selection writes back to the kernel, absent in static exports.
+  if (isStatic) {
+    selection = null;
   }
 
   const columns = useMemo(
@@ -1107,6 +1119,13 @@ const DataTableComponent = ({
       {shownColumns < totalColumns && shownColumns > 0 && (
         <Banner className="mb-1 rounded">
           Result clipped. Showing {shownColumns} of {totalColumns} columns.
+        </Banner>
+      )}
+      {isStatic && typeof totalRows === "number" && data.length < totalRows && (
+        <Banner className="mb-1 rounded">
+          Showing the first <strong>{prettyNumber(data.length, locale)}</strong>{" "}
+          of <strong>{prettyNumber(totalRows, locale)}</strong> rows. Increase
+          the table's <code>page_size</code> to embed more in the static export.
         </Banner>
       )}
       {columnSummaries?.is_disabled && (
