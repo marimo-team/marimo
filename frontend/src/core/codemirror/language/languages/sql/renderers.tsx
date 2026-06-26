@@ -109,9 +109,7 @@ const PreviewList: React.FC<{
   return (
     <div className="py-2">
       {title && (
-        <h4 className="text-xs font-medium text-(--slate-11) mb-2">
-          {title}:
-        </h4>
+        <h4 className="text-xs font-medium text-(--slate-11) mb-2">{title}:</h4>
       )}
       <div className="flex flex-col gap-1 overflow-y-auto">
         {visibleItems}
@@ -303,10 +301,7 @@ export const renderColumnInfo = (column: DataTableColumn): React.ReactNode => {
 
   const sampleItems =
     column.sample_values?.map((value, index) => (
-      <div
-        key={index}
-        className="text-xs bg-(--slate-3) rounded font-mono"
-      >
+      <div key={index} className="text-xs bg-(--slate-3) rounded font-mono">
         {value === null || value === undefined ? "null" : String(value)}
       </div>
     )) || [];
@@ -349,10 +344,7 @@ export const renderColumnInfo = (column: DataTableColumn): React.ReactNode => {
 
 export const renderDatabaseInfo = (database: Database): React.ReactNode => {
   const dialectBadge = (
-    <Badge
-      variant="outline"
-      className="text-xs bg-(--blue-4) text-(--blue-11)"
-    >
+    <Badge variant="outline" className="text-xs bg-(--blue-4) text-(--blue-11)">
       {database.dialect}
     </Badge>
   );

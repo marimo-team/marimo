@@ -105,32 +105,28 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = memo(
             icon: <WifiIcon className="h-3 w-3" />,
             label: "Connected",
             variant: "default" as const,
-            className:
-              "bg-(--blue-3) text-(--blue-11) border-(--blue-5)",
+            className: "bg-(--blue-3) text-(--blue-11) border-(--blue-5)",
           };
         case "connecting":
           return {
             icon: <PlugIcon className="h-3 w-3 animate-pulse" />,
             label: "Connecting",
             variant: "secondary" as const,
-            className:
-              "bg-(--yellow-3) text-(--yellow-11) border-(--yellow-5)",
+            className: "bg-(--yellow-3) text-(--yellow-11) border-(--yellow-5)",
           };
         case "disconnected":
           return {
             icon: <WifiOffIcon className="h-3 w-3" />,
             label: "Disconnected",
             variant: "outline" as const,
-            className:
-              "bg-(--red-3) text-(--red-11) border-(--red-5)",
+            className: "bg-(--red-3) text-(--red-11) border-(--red-5)",
           };
         default:
           return {
             icon: <WifiOffIcon className="h-3 w-3" />,
             label: status || "Unknown",
             variant: "outline" as const,
-            className:
-              "bg-(--gray-3) text-(--gray-11) border-(--gray-5)",
+            className: "bg-(--gray-3) text-(--gray-11) border-(--gray-5)",
           };
       }
     };

@@ -128,9 +128,7 @@ export const ErrorBlock = (props: {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
-            <h4 className="text-sm font-medium text-(--red-11)">
-              Agent Error
-            </h4>
+            <h4 className="text-sm font-medium text-(--red-11)">Agent Error</h4>
           </div>
           <div className="text-sm text-(--red-11) leading-relaxed mb-3">
             {message}
