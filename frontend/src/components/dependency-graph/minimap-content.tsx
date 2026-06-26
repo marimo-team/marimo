@@ -107,7 +107,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       <svg
         className={cn(
           "absolute overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)+31px)] pointer-events-none",
-          isSelected ? "z-[1]" : "z-0",
+          isSelected ? "z-1" : "z-0",
           getTextColor({ cell, selectedCell }),
         )}
         width="1"

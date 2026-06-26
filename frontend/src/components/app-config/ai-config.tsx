@@ -488,11 +488,11 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
     <TreeItem
       id={qualifiedId}
       textValue={model.name}
-      className="pl-6 outline-none data-focused:bg-muted/50 hover:bg-muted/50"
+      className="pl-6 outline-hidden data-focused:bg-muted/50 hover:bg-muted/50"
       onAction={handleToggle}
     >
       <TreeItemContent>
-        <div className="flex items-center justify-between px-3 py-2.5 border-b last:border-b-0 cursor-pointer outline-none">
+        <div className="flex items-center justify-between px-3 py-2.5 border-b last:border-b-0 cursor-pointer outline-hidden">
           <ModelInfoCard model={model} />
           {model.custom && (
             <Button
@@ -1465,10 +1465,10 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
       id={providerId}
       hasChildItems={true}
       textValue={providerId}
-      className="outline-none data-focused:bg-muted/50 group"
+      className="outline-hidden data-focused:bg-muted/50 group"
     >
       <TreeItemContent>
-        <div className="flex items-center gap-3 px-2 py-3 hover:bg-muted/50 cursor-pointer outline-none focus-visible:outline-none border-b group-data-expanded:border-b-0 rounded-sm">
+        <div className="flex items-center gap-3 px-2 py-3 hover:bg-muted/50 cursor-pointer outline-hidden focus-visible:outline-hidden border-b group-data-expanded:border-b-0 rounded-sm">
           <Checkbox
             checked={checkboxState}
             onCheckedChange={handleProviderToggle}
@@ -1600,7 +1600,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
       <div className="bg-background">
         <Tree
           aria-label="AI Models by Provider"
-          className="flex-1 overflow-auto outline-none focus-visible:outline-none"
+          className="flex-1 overflow-auto outline-hidden focus-visible:outline-hidden"
           selectionMode="none"
         >
           {listModelsByProvider.map(([providerId, models]) => (

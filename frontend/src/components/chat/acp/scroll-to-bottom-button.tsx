@@ -35,7 +35,7 @@ const ScrollToBottomButton = memo<ScrollToBottomButtonProps>(
             "shadow-md shadow-black/10",
             "hover:bg-background hover:shadow-black/15",
             "transition-all duration-200",
-            "focus:outline-none focus:ring-2 focus:ring-primary/50",
+            "focus:outline-hidden focus:ring-2 focus:ring-primary/50",
           )}
         >
           <ArrowDownIcon className="h-4 w-4" />

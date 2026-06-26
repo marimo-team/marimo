@@ -107,7 +107,7 @@ export const ChatHistoryPopover: React.FC<ChatHistoryPopoverProps> = ({
                       <div className="flex-1 min-w-0">
                         <div className="text-sm truncate">{chat.title}</div>
                       </div>
-                      <div className="text-xs text-muted-foreground/60 ml-2 flex-shrink-0">
+                      <div className="text-xs text-muted-foreground/60 ml-2 shrink-0">
                         {timeAgo(chat.updatedAt, locale)}
                       </div>
                     </button>

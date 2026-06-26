@@ -722,7 +722,7 @@ export const MarimoErrorOutput = ({
     <Alert
       variant={alertVariant}
       className={cn(
-        "border-none font-code text-sm text-[0.84375rem] p-0 text-muted-foreground normal [&:has(svg)]:pl-0 space-y-2",
+        "border-none font-code text-sm text-[0.84375rem] p-0 text-muted-foreground normal has-[svg]:pl-0 space-y-2",
         className,
       )}
     >

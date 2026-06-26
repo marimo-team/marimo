@@ -222,7 +222,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         showInputPrompt={showInputPrompt}
         setShowInputPrompt={setShowInputPrompt}
         runCell={runCell}
-        className="mt-4 mb-3 w-128"
+        className="mt-4 mb-3 w-lg"
       />
     </div>
   );

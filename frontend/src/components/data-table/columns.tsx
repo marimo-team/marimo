@@ -503,7 +503,7 @@ function getCellStyleClass({
     isNumeric && "tabular-nums",
     justify === "center" && "text-center",
     justify === "right" && "text-right",
-    wrapped && `${COLUMN_WRAPPING_STYLES} break-words`,
+    wrapped && `${COLUMN_WRAPPING_STYLES} wrap-break-word`,
   );
 }
 
@@ -651,7 +651,7 @@ export function renderCellValue<TData, TValue>({
         selectCell={selectCell}
         rawStringValue={stringValue}
         edges={{ leading, trailing }}
-        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm w-96"
+        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap wrap-break-word text-sm w-96"
         buttonText="X"
         wrapped={isWrapped}
       >
