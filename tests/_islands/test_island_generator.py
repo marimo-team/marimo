@@ -7,12 +7,10 @@ import pytest
 
 from marimo import __version__
 from marimo._ast.app_config import _AppConfig
-from marimo._islands._island_generator import (
-    ISLANDS_JSON_SCRIPT_TYPE,
-    MarimoIslandGenerator,
-)
+from marimo._islands._island_generator import MarimoIslandGenerator
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError
+from marimo._schemas.islands import ISLANDS_JSON_SCRIPT_TYPE
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
