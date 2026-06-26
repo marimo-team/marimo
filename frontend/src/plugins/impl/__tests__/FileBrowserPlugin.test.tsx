@@ -130,4 +130,72 @@ describe("FileBrowserPlugin keyboard accessibility", () => {
     const rows = screen.getAllByRole("row");
     expect(rows[0]).toHaveAttribute("tabindex", "0");
   });
+
+  it("moves focus with arrows and clamps at the ends", async () => {
+    renderBrowser();
+    await screen.findByText("docs");
+    const rows = screen.getAllByRole("row"); // [.., docs, a.txt, b.txt]
+
+    fireEvent.keyDown(rows[0], { key: "ArrowDown" });
+    expect(rows[1]).toHaveFocus();
+    expect(rows[1]).toHaveAttribute("tabindex", "0");
+
+    fireEvent.keyDown(rows[1], { key: "ArrowUp" });
+    expect(rows[0]).toHaveFocus();
+
+    fireEvent.keyDown(rows[0], { key: "ArrowUp" }); // clamp at top
+    expect(rows[0]).toHaveFocus();
+
+    fireEvent.keyDown(rows[0], { key: "End" });
+    expect(rows[3]).toHaveFocus();
+
+    fireEvent.keyDown(rows[3], { key: "ArrowDown" }); // clamp at bottom
+    expect(rows[3]).toHaveFocus();
+
+    fireEvent.keyDown(rows[3], { key: "Home" });
+    expect(rows[0]).toHaveFocus();
+  });
+
+  it("Enter navigates into a directory", async () => {
+    const setValue = vi.fn();
+    renderBrowser({ selectionMode: "all", setValue });
+    await screen.findByText("docs");
+    fireEvent.keyDown(rowFor("docs"), { key: "Enter" });
+    // navigation does not mutate value
+    expect(setValue).not.toHaveBeenCalled();
+  });
+
+  it("Enter toggles selection on a selectable file", async () => {
+    const setValue = vi.fn();
+    renderBrowser({ selectionMode: "all", multiple: true, setValue });
+    await screen.findByText("a.txt");
+    fireEvent.keyDown(rowFor("a.txt"), { key: "Enter" });
+    expect(setValue).toHaveBeenCalledWith([
+      expect.objectContaining({ path: "/home/user/a.txt" }),
+    ]);
+  });
+
+  it("Space toggles selection and never navigates", async () => {
+    const setValue = vi.fn();
+    renderBrowser({ selectionMode: "all", multiple: true, setValue });
+    await screen.findByText("docs");
+    // Space on a selectable directory selects it (does not navigate)
+    fireEvent.keyDown(rowFor("docs"), { key: " " });
+    expect(setValue).toHaveBeenCalledWith([
+      expect.objectContaining({ path: "/home/user/docs" }),
+    ]);
+  });
+
+  it("Space on the parent row is a no-op", async () => {
+    const setValue = vi.fn();
+    renderBrowser({ selectionMode: "all", setValue });
+    await screen.findByText("docs");
+    const parentRow = screen.getAllByRole("row")[0];
+    fireEvent.keyDown(parentRow, { key: " " });
+    expect(setValue).not.toHaveBeenCalled();
+  });
 });
+
+function rowFor(name: string): HTMLElement {
+  return screen.getByText(name).closest('[role="row"]') as HTMLElement;
+}

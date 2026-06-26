@@ -404,6 +404,45 @@ export const FileBrowser = ({
     }),
   ];
 
+  function focusRow(index: number) {
+    setActiveIndex(index);
+    rowRefs.current[index]?.focus();
+  }
+
+  function handleRowKeyDown(
+    e: React.KeyboardEvent<HTMLTableRowElement>,
+    index: number,
+  ) {
+    const lastIndex = rowModels.length - 1;
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        focusRow(Math.min(index + 1, lastIndex));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        focusRow(Math.max(index - 1, 0));
+        break;
+      case "Home":
+        e.preventDefault();
+        focusRow(0);
+        break;
+      case "End":
+        e.preventDefault();
+        focusRow(lastIndex);
+        break;
+      case "Enter":
+        e.preventDefault();
+        rowModels[index].onPrimary();
+        break;
+      // Space is select-only; preventDefault stops the list from scrolling.
+      case " ":
+        e.preventDefault();
+        rowModels[index].onToggleSelect?.();
+        break;
+    }
+  }
+
   // Get list of parent directories.
   //
   // Assumes that path contains at least one delimiter, which is true
@@ -501,6 +540,7 @@ export const FileBrowser = ({
                   rowRefs.current[index] = el;
                 }}
                 tabIndex={index === activeIndex ? 0 : -1}
+                onKeyDown={(e) => handleRowKeyDown(e, index)}
                 className={cn(
                   "hover:bg-accent group select-none focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
                   { "bg-primary/25 hover:bg-primary/35": row.isSelected },
