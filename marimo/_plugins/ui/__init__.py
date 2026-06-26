@@ -37,6 +37,7 @@ __all__ = [
     "refresh",
     "run_button",
     "slider",
+    "spreadsheet",
     "switch",
     "table",
     "tabs",
@@ -84,6 +85,7 @@ from marimo._plugins.ui._impl.mpl import matplotlib
 from marimo._plugins.ui._impl.plotly import plotly
 from marimo._plugins.ui._impl.refresh import refresh
 from marimo._plugins.ui._impl.run_button import run_button
+from marimo._plugins.ui._impl.spreadsheet import spreadsheet
 from marimo._plugins.ui._impl.switch import switch
 from marimo._plugins.ui._impl.table import table
 from marimo._plugins.ui._impl.tabs import tabs
