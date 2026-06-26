@@ -160,7 +160,7 @@ export function useSaveNotebook() {
       isNamedPersistentFile(filename) &&
       connection.state === WebSocketState.OPEN
     ) {
-      saveNotebook(filename, userInitiated);
+      return saveNotebook(filename, userInitiated);
     }
   });
 
