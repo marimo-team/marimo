@@ -30,7 +30,7 @@ const CHAT_HISTORY_WARNING_THRESHOLD = 50;
 
 interface ChatHistoryPopoverProps {
   activeChatId: ChatId | undefined;
-  setActiveChat: (id: ChatId | null) => void;
+  setActiveChat: (chatId: ChatId | null) => void;
   onDeleteChats: (id: ChatId | null) => void;
   isLoading: boolean;
 }

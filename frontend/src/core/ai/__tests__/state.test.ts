@@ -41,6 +41,7 @@ describe("chat history storage", () => {
       JSON.stringify({
         chats: [[chatId, chat]],
         activeChatId: chatId,
+        openChatIds: [chatId],
       }),
     );
   });
@@ -57,6 +58,7 @@ describe("chat history storage", () => {
     expect(loadStore().get(chatStateAtom)).toEqual({
       chats: new Map([[chatId, chat]]),
       activeChatId: chatId,
+      openChatIds: [chatId],
     });
   });
 
@@ -69,6 +71,7 @@ describe("chat history storage", () => {
       store.set(chatStateAtom, {
         chats: new Map([[chatId, updatedChat]]),
         activeChatId: chatId,
+        openChatIds: [chatId],
       }),
     ).not.toThrow();
 
@@ -87,13 +90,18 @@ describe("chat history storage", () => {
     window.localStorage.setItem("unrelated-setting", "keep");
     const store = loadStore();
     fillStorage();
-    store.set(chatStateAtom, { chats: new Map(), activeChatId: null });
+    store.set(chatStateAtom, {
+      chats: new Map(),
+      activeChatId: null,
+      openChatIds: [],
+    });
 
     expect(window.localStorage.getItem(KEY)).toBeNull();
     expect(window.localStorage.getItem("unrelated-setting")).toBe("keep");
     expect(loadStore().get(chatStateAtom)).toEqual({
       chats: new Map(),
       activeChatId: null,
+      openChatIds: [],
     });
     expect(toast).not.toHaveBeenCalled();
   });
@@ -104,6 +112,7 @@ describe("chat history storage", () => {
     const state = {
       chats: new Map([[chatId, emptyChat]]),
       activeChatId: chatId,
+      openChatIds: [chatId],
     };
     fillStorage();
 
@@ -114,6 +123,7 @@ describe("chat history storage", () => {
     expect(loadStore().get(chatStateAtom)).toEqual({
       chats: new Map(),
       activeChatId: null,
+      openChatIds: [],
     });
     expect(toast).not.toHaveBeenCalled();
   });

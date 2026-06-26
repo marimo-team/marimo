@@ -53,6 +53,7 @@ function setup(isLoading = false) {
         [olderId, chat(olderId)],
       ]),
       activeChatId: activeId,
+      openChatIds: [activeId],
     }),
   );
 
@@ -132,7 +133,9 @@ describe("chat history management", () => {
         return [id, chat(id)];
       }),
     );
-    act(() => store.set(chatStateAtom, { chats, activeChatId: null }));
+    act(() =>
+      store.set(chatStateAtom, { chats, activeChatId: null, openChatIds: [] }),
+    );
     const warning = screen.getByText(
       /Delete old chats to free up browser storage/,
     );

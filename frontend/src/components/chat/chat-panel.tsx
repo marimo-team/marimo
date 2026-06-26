@@ -28,6 +28,7 @@ import { AiModelId } from "@/core/ai/ids/ids";
 import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import {
   activeChatAtom,
+  addChatAndOpenTab,
   type Chat,
   type ChatId,
   chatOptionsAtom,
@@ -80,6 +81,7 @@ import { renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
 import { CapabilitiesPopover } from "./capabilities-popover";
 import { NotebookAccessSelector } from "./notebook-access-selector";
+import { ChatTabs } from "./chat-tabs";
 import {
   type ChatMessagePart,
   convertToFileUIPart,
@@ -133,7 +135,7 @@ QueuedMessageDisplay.displayName = "QueuedMessageDisplay";
 interface ChatHeaderProps {
   onNewChat: () => void;
   activeChatId: ChatId | undefined;
-  setActiveChat: (id: ChatId | null) => void;
+  setActiveChat: (chatId: ChatId | null) => void;
   onDeleteChats: (id: ChatId | null) => void;
   isLoading: boolean;
 }
@@ -708,15 +710,8 @@ const ChatPanelBody = () => {
       updatedAt: now,
     };
 
-    setChatState((prev) => {
-      const newChats = new Map(prev.chats);
-      newChats.set(newChat.id, newChat);
-      return {
-        ...prev,
-        chats: newChats,
-        activeChatId: newChat.id,
-      };
-    });
+    // Create new chat, open it as a tab, and set as active
+    setChatState((prev) => addChatAndOpenTab(prev, newChat));
   });
 
   const createNewThread = useEvent(
@@ -770,6 +765,7 @@ const ChatPanelBody = () => {
           prev.activeChatId && chats.has(prev.activeChatId)
             ? prev.activeChatId
             : null,
+        openChatIds: prev.openChatIds.filter((chatId) => chats.has(chatId)),
       };
     });
   });
@@ -938,6 +934,7 @@ const ChatPanelBody = () => {
           onDeleteChats={handleDeleteChats}
           isLoading={isLoading}
         />
+        <ChatTabs />
       </TooltipProvider>
 
       <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
