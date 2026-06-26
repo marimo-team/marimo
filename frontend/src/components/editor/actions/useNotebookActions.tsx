@@ -21,7 +21,6 @@ import {
   Files,
   FileTextIcon,
   FolderDownIcon,
-  GithubIcon,
   GlobeIcon,
   HardDrive,
   Home,
@@ -39,7 +38,6 @@ import {
   SparklesIcon,
   Undo2Icon,
   XCircleIcon,
-  YoutubeIcon,
   ZapIcon,
 } from "lucide-react";
 import {
@@ -47,7 +45,9 @@ import {
   useOpenSettingsToTab,
 } from "@/components/app-config/state";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
+import { GitHubIcon } from "@/components/icons/github";
 import { MarimoPlusIcon } from "@/components/icons/marimo-icons";
+import { YouTubeIcon } from "@/components/icons/youtube";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { PairWithAgentModal } from "@/components/editor/actions/pair-with-agent-modal";
@@ -655,7 +655,7 @@ export function useNotebookActions() {
           },
         },
         {
-          icon: <GithubIcon size={14} strokeWidth={1.5} />,
+          icon: <GitHubIcon className="h-3.5 w-3.5" />,
           label: "GitHub",
           handle: () => {
             window.open(Constants.githubPage, "_blank");
@@ -669,7 +669,7 @@ export function useNotebookActions() {
           },
         },
         {
-          icon: <YoutubeIcon size={14} strokeWidth={1.5} />,
+          icon: <YouTubeIcon className="h-3.5 w-3.5" />,
           label: "YouTube",
           handle: () => {
             window.open(Constants.youtube, "_blank");
