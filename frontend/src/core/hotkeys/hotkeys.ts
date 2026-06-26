@@ -374,6 +374,7 @@ const DEFAULT_HOT_KEY = {
     name: "Show all code",
     group: "Editing",
     key: NOT_SET,
+    additionalKeywords: ["unhide", "hide", "reveal", "show source"],
   },
   "global.hideAllCode": {
     name: "Hide all code",
