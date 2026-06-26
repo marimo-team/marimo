@@ -90,4 +90,23 @@ describe("FileBrowserPlugin keyboard accessibility", () => {
     fireEvent.click(fileCell.closest('[role="row"]')!);
     expect(setValue).not.toHaveBeenCalled();
   });
+
+  it("labels each selectable checkbox with the file name", async () => {
+    renderBrowser({ selectionMode: "all" });
+    await screen.findByText("docs");
+    expect(
+      screen.getByRole("checkbox", { name: "Select a.txt" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: "Select docs" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps checkboxes out of the tab order", async () => {
+    renderBrowser({ selectionMode: "all" });
+    await screen.findByText("docs");
+    expect(
+      screen.getByRole("checkbox", { name: "Select a.txt" }),
+    ).toHaveAttribute("tabindex", "-1");
+  });
 });

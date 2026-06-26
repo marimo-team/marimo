@@ -129,6 +129,7 @@ interface FileBrowserProps extends Data, PluginFunctions {
 }
 
 interface CheckboxOrIconProps {
+  name: string;
   isSelected: boolean;
   canSelect: boolean;
   Icon: LucideIcon;
@@ -136,6 +137,7 @@ interface CheckboxOrIconProps {
 }
 
 function CheckboxOrIcon({
+  name,
   isSelected,
   canSelect,
   Icon,
@@ -146,17 +148,21 @@ function CheckboxOrIcon({
       <>
         <Checkbox
           checked={isSelected}
+          aria-label={`Select ${name}`}
+          tabIndex={-1}
           onClick={(e) => {
             onSelect();
             e.stopPropagation();
           }}
-          className={cn({ "hidden group-hover:flex": !isSelected })}
+          className={cn({
+            "hidden group-hover:flex group-focus:flex": !isSelected,
+          })}
         />
         <Icon
           size={16}
           className={cn("mr-2", {
             hidden: isSelected,
-            "group-hover:hidden": !isSelected,
+            "group-hover:hidden group-focus:hidden": !isSelected,
           })}
         />
       </>
@@ -493,6 +499,7 @@ export const FileBrowser = ({
               >
                 <TableCell role="gridcell" className="w-[50px] pl-4">
                   <CheckboxOrIcon
+                    name={row.name}
                     isSelected={row.isSelected}
                     canSelect={row.canSelect}
                     Icon={row.Icon}
