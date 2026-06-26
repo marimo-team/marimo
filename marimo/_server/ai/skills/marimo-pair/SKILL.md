@@ -222,8 +222,8 @@ Submit the code that belongs in the cell.
   same-cell intermediates.
 - **Define each public name once** - a public name has one owning cell.
   Reassigning it in another cell fails with `Multiply-defined names`; edit the
-  owning cell or give the result a new name. See
-  [gotchas.md](references/gotchas.md).
+  owning cell or give the result a new name. Load the `gotchas` capability for
+  more traps.
 - **Run cells deliberately** - `create_cell` and `edit_cell` change structure
   only. Queue `ctx.run_cell(...)` when the cell should execute.
 
@@ -253,11 +253,14 @@ different paths.
 - **Set anywidget traitlets directly** - synced traitlets are Python
   attributes, for example `widget.value = 5`.
 
-For designing custom visual or interactive output, see
-[rich-representations.md](references/rich-representations.md).
+For designing custom visual or interactive output, load the
+`rich-representations` capability.
 
-## References
+## On-demand references
 
-- [gotchas.md](references/gotchas.md) — name redefinition, cached module proxies, and notebook traps
-- [rich-representations.md](references/rich-representations.md) — custom widgets and visualizations
-- [notebook-improvements.md](references/notebook-improvements.md) — improving existing notebooks
+Load these with the `load_capability` tool when you need deeper guidance. Do
+not read reference files from disk.
+
+- **`gotchas`** — name redefinition, cached module proxies, and notebook traps
+- **`rich-representations`** — custom widgets and visualizations
+- **`notebook-improvements`** — improving existing notebooks

@@ -209,7 +209,6 @@ async def ai_chat(
     mode: CopilotMode = ai_config.get("mode", "manual")
     system_prompt = get_chat_system_prompt(
         custom_rules=custom_rules,
-        context=body.context,
         include_other_code=body.include_other_code,
         mode=mode,
         session_id=session_id,
