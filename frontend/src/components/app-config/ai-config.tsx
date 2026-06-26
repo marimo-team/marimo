@@ -1048,6 +1048,36 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         </AccordionFormItem>
 
         <AccordionFormItem
+          title="Requesty"
+          provider="requesty"
+          isConfigured={hasValue("ai.requesty.api_key")}
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.requesty.api_key"
+            placeholder="sk-..."
+            testId="ai-requesty-api-key-input"
+            description={
+              <>
+                Your Requesty API key from {""}
+                <ExternalLink href="https://app.requesty.ai/api-keys">
+                  app.requesty.ai
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.requesty.base_url"
+            placeholder="https://router.requesty.ai/v1/"
+            testId="ai-requesty-base-url-input"
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem
           title="Weights & Biases"
           provider="wandb"
           isConfigured={hasValue("ai.wandb.api_key")}

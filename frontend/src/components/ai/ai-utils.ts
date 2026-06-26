@@ -19,6 +19,7 @@ const CREDENTIAL_CHECKERS: Record<KnownProviderId, CredentialChecker> = {
   google: (ai) => Boolean(ai?.google?.api_key),
   github: (ai) => Boolean(ai?.github?.api_key),
   openrouter: (ai) => Boolean(ai?.openrouter?.api_key),
+  requesty: (ai) => Boolean(ai?.requesty?.api_key),
   azure: (ai) => Boolean(ai?.azure?.api_key && ai?.azure?.base_url),
   wandb: (ai) => Boolean(ai?.wandb?.api_key),
   "opencode-go": (ai) => Boolean(ai?.opencode_go?.api_key),

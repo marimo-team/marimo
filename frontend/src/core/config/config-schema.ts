@@ -173,6 +173,7 @@ export const UserConfigSchema = z
         google: AiConfigSchema.optional(),
         ollama: AiConfigSchema.optional(),
         openrouter: AiConfigSchema.optional(),
+        requesty: AiConfigSchema.optional(),
         wandb: AiConfigSchema.optional(),
         opencode_go: AiConfigSchema.optional(),
         open_ai_compatible: AiConfigSchema.optional(),

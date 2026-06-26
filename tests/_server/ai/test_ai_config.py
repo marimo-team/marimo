@@ -280,6 +280,33 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-openrouter-key"
         assert provider_config.base_url == "https://openrouter.ai/api/v1/"
 
+    def test_for_requesty(self):
+        """Test Requesty configuration."""
+        config: AiConfig = {
+            "requesty": {
+                "api_key": "test-requesty-key",
+                "base_url": "https://router.requesty.ai/v1/",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_requesty(config)
+
+        assert provider_config.api_key == "test-requesty-key"
+        assert provider_config.base_url == "https://router.requesty.ai/v1/"
+
+    def test_for_requesty_with_fallback_base_url(self):
+        """Test Requesty configuration uses fallback base URL when not specified."""
+        config: AiConfig = {
+            "requesty": {
+                "api_key": "test-requesty-key",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_requesty(config)
+
+        assert provider_config.api_key == "test-requesty-key"
+        assert provider_config.base_url == "https://router.requesty.ai/v1/"
+
     def test_for_wandb(self):
         """Test Weights & Biases configuration."""
         config: AiConfig = {

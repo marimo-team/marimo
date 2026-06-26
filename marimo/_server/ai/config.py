@@ -150,6 +150,19 @@ class AnyProviderConfig:
         )
 
     @classmethod
+    def for_requesty(cls, config: AiConfig) -> AnyProviderConfig:
+        fallback_key = cls.os_key("REQUESTY_API_KEY")
+        return cls._for_openai_like(
+            config,
+            "requesty",
+            "Requesty",
+            fallback_key=fallback_key,
+            # Default base URL for Requesty
+            fallback_base_url="https://router.requesty.ai/v1/",
+            require_key=True,
+        )
+
+    @classmethod
     def for_wandb(cls, config: AiConfig) -> AnyProviderConfig:
         fallback_key = cls.os_key("WANDB_API_KEY")
         return cls._for_openai_like(
@@ -274,6 +287,8 @@ class AnyProviderConfig:
             return cls.for_github(config)
         elif model_id.provider == "openrouter":
             return cls.for_openrouter(config)
+        elif model_id.provider == "requesty":
+            return cls.for_requesty(config)
         elif model_id.provider == "wandb":
             return cls.for_wandb(config)
         elif model_id.provider == "opencode-go":

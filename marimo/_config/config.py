@@ -312,6 +312,7 @@ class AiConfig(TypedDict, total=False):
     - `ollama`: the Ollama config
     - `github`: the GitHub config
     - `openrouter`: the OpenRouter config
+    - `requesty`: the Requesty config
     - `wandb`: the Weights & Biases config
     - `opencode_go`: the OpenCode Go config
     - `custom_providers`: a dict of custom OpenAI-compatible providers
@@ -334,6 +335,7 @@ class AiConfig(TypedDict, total=False):
     ollama: OpenAiConfig
     github: GitHubConfig
     openrouter: OpenAiConfig
+    requesty: OpenAiConfig
     wandb: OpenAiConfig
     opencode_go: OpenAiConfig
     custom_providers: NotRequired[dict[str, OpenAiConfig]]

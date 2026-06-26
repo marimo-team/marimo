@@ -10,6 +10,8 @@ export const ExternalLink = ({
     | `https://github.com/${string}`
     | `https://docs.github.com/${string}`
     | `https://openrouter.ai/${string}`
+    | `https://requesty.ai/${string}`
+    | `https://app.requesty.ai/${string}`
     | `https://docs.marimo.io/${string}`
     | `https://docs.python.org/${string}`
     | `https://marimo.io/${string}`

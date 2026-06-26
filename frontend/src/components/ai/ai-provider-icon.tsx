@@ -11,6 +11,7 @@ import OllamaIcon from "@marimo-team/llm-info/icons/ollama.svg?inline";
 import OpenAIIcon from "@marimo-team/llm-info/icons/openai.svg?inline";
 import OpencodeIcon from "@marimo-team/llm-info/icons/opencode-logo-light.svg?inline";
 import OpenRouterIcon from "@marimo-team/llm-info/icons/openrouter.svg?inline";
+import RequestyIcon from "@marimo-team/llm-info/icons/requesty.svg?inline";
 import WandbIcon from "@marimo-team/llm-info/icons/weightsandbiases.svg?inline";
 import { BotIcon } from "lucide-react";
 import * as React from "react";
@@ -32,6 +33,7 @@ const icons: Record<ProviderId | ExternalAgentId, string> = {
   deepseek: DeepseekIcon,
   github: GitHubIcon,
   openrouter: OpenRouterIcon,
+  requesty: RequestyIcon,
   wandb: WandbIcon,
   "opencode-go": OpencodeIcon,
   marimo: marimoIcon,

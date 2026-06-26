@@ -12,6 +12,7 @@ export const KNOWN_PROVIDERS = [
   "azure",
   "github",
   "openrouter",
+  "requesty",
   "wandb",
   "opencode-go",
   "marimo",
