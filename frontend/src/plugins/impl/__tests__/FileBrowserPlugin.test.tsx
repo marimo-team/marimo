@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import { initialModeAtom } from "@/core/mode";
@@ -74,5 +74,20 @@ describe("FileBrowserPlugin keyboard accessibility", () => {
     expect(await screen.findByText("docs")).toBeInTheDocument();
     // parent "..", docs, a.txt, b.txt
     expect(screen.getAllByRole("row")).toHaveLength(4);
+  });
+
+  it("marks the list as a multiselectable grid", async () => {
+    renderBrowser({ multiple: true });
+    await screen.findByText("docs");
+    const grid = screen.getByRole("grid");
+    expect(grid).toHaveAttribute("aria-multiselectable", "true");
+  });
+
+  it("does not select a non-selectable file on click (mode=directory)", async () => {
+    const setValue = vi.fn();
+    renderBrowser({ selectionMode: "directory", setValue });
+    const fileCell = await screen.findByText("a.txt");
+    fireEvent.click(fileCell.closest('[role="row"]')!);
+    expect(setValue).not.toHaveBeenCalled();
   });
 });

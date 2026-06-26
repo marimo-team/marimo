@@ -165,6 +165,18 @@ function CheckboxOrIcon({
   return <Icon size={16} className="mr-2" />;
 }
 
+interface RowModel {
+  key: string;
+  name: string;
+  Icon: LucideIcon;
+  isSelected: boolean;
+  canSelect: boolean;
+  /** Enter and mouse-click action. */
+  onPrimary: () => void;
+  /** Space action; null when the row has nothing to toggle. */
+  onToggleSelect: (() => void) | null;
+}
+
 /**
  * File browser component.
  *
@@ -333,79 +345,52 @@ export const FileBrowser = ({
     setValue([...value, ...filesInView]);
   }
 
-  // Create rows for directories and files
-  const fileRows: React.ReactNode[] = [];
+  const rowModels: RowModel[] = [
+    {
+      key: "parent",
+      name: PARENT_DIRECTORY,
+      Icon: CornerLeftUp,
+      isSelected: false,
+      canSelect: false,
+      onPrimary: () => setNewPath(PARENT_DIRECTORY),
+      onToggleSelect: null,
+    },
+    ...files.map((file): RowModel => {
+      let filePath = file.path;
+      if (filePath.startsWith("//")) {
+        filePath = filePath.slice(1) as FilePath;
+      }
 
-  // Parent directory ".." row button
-  fileRows.push(
-    <TableRow
-      className="hover:bg-accent select-none"
-      key={"Parent directory"}
-      onClick={() => setNewPath(PARENT_DIRECTORY)}
-    >
-      <TableCell className="w-[50px] pl-4">
-        <CornerLeftUp size={16} />
-      </TableCell>
-      <TableCell>{PARENT_DIRECTORY}</TableCell>
-    </TableRow>,
-  );
+      const canSelect =
+        (canSelectDirectories && file.is_directory) ||
+        (canSelectFiles && !file.is_directory);
+      const isSelected = selectedPaths.has(filePath);
+      const fileType: FileType = file.is_directory
+        ? "directory"
+        : guessFileType(file.name);
 
-  for (const file of files) {
-    let filePath = file.path;
+      const toggle = () =>
+        handleSelection({
+          path: filePath,
+          name: file.name,
+          isDirectory: file.is_directory,
+        });
 
-    if (filePath.startsWith("//")) {
-      filePath = filePath.slice(1) as FilePath;
-    }
-
-    // Click handler
-    const handleClick = file.is_directory
-      ? ({ path }: { path: string }) => setNewPath(path)
-      : handleSelection;
-
-    // Icon
-    const fileType: FileType = file.is_directory
-      ? "directory"
-      : guessFileType(file.name);
-
-    const Icon = FILE_TYPE_ICONS[fileType];
-
-    const isSelected = selectedPaths.has(filePath);
-
-    fileRows.push(
-      <TableRow
-        key={file.id}
-        className={cn("hover:bg-accent group select-none", {
-          "bg-primary/25 hover:bg-primary/35": isSelected,
-        })}
-        onClick={() =>
-          handleClick({
-            path: filePath,
-            name: file.name,
-            isDirectory: file.is_directory,
-          })
-        }
-      >
-        <TableCell className="w-[50px] pl-4">
-          <CheckboxOrIcon
-            isSelected={isSelected}
-            canSelect={
-              (canSelectDirectories && file.is_directory) ||
-              (canSelectFiles && !file.is_directory)
-            }
-            Icon={Icon}
-            onSelect={() =>
-              handleSelection({
-                path: filePath,
-                name: file.name,
-                isDirectory: file.is_directory,
-              })
-            }
-          />
-        </TableCell>
-        <TableCell>{file.name}</TableCell>
-      </TableRow>,
-    );
-  }
+      return {
+        key: file.id,
+        name: file.name,
+        Icon: FILE_TYPE_ICONS[fileType],
+        isSelected,
+        canSelect,
+        onPrimary: file.is_directory
+          ? () => setNewPath(filePath)
+          : canSelect
+            ? toggle
+            : () => {},
+        onToggleSelect: canSelect ? toggle : null,
+      };
+    }),
+  ];
 
   // Get list of parent directories.
   //
@@ -490,8 +475,34 @@ export const FileBrowser = ({
             <span>Listing files...</span>
           </div>
         )}
-        <Table className="cursor-pointer table-fixed">
-          <TableBody>{fileRows}</TableBody>
+        <Table
+          className="cursor-pointer table-fixed"
+          role="grid"
+          aria-multiselectable={multiple}
+        >
+          <TableBody>
+            {rowModels.map((row) => (
+              <TableRow
+                key={row.key}
+                role="row"
+                className={cn("hover:bg-accent group select-none", {
+                  "bg-primary/25 hover:bg-primary/35": row.isSelected,
+                })}
+                aria-selected={row.canSelect ? row.isSelected : undefined}
+                onClick={row.onPrimary}
+              >
+                <TableCell role="gridcell" className="w-[50px] pl-4">
+                  <CheckboxOrIcon
+                    isSelected={row.isSelected}
+                    canSelect={row.canSelect}
+                    Icon={row.Icon}
+                    onSelect={() => row.onToggleSelect?.()}
+                  />
+                </TableCell>
+                <TableCell role="gridcell">{row.name}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
         </Table>
       </div>
       <div className="mt-4">
