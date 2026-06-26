@@ -225,13 +225,14 @@ class TestDpiPreservationOnRerun:
 
             # Simulate cell teardown — the cleanup handle is what marimo
             # registers via cell_lifecycle_registry; running it directly
-            # avoids needing a live runtime context in the test.
+            # avoids needing a live runtime context in the test. Passing the
+            # figure drives the refcount to zero so the shared manager is
+            # destroyed and the next iteration builds a fresh one.
             cleanup = _MplCleanupHandle(
                 comm=element._comm,
+                figure=fig,
                 figure_manager=element._figure_manager,
                 sync_ws=element._sync_ws,
-                original_dpi=element._original_dpi,
-                original_size_inches=element._original_size_inches,
             )
             cleanup.dispose(context=MagicMock(), deletion=False)
 
@@ -467,24 +468,174 @@ class TestToolbarCallbackCleanup:
         assert self._count_toolbar_handlers(fig, "button_release_event") == 1
 
         # Simulate cell teardown: marimo's runtime invokes dispose on the
-        # lifecycle handle when the cell re-runs or is deleted.
+        # lifecycle handle when the cell re-runs or is deleted. Passing the
+        # figure drives the refcount to zero, which destroys the shared
+        # manager and disconnects its toolbar from the registry.
         cleanup = _MplCleanupHandle(
             comm=elem1._comm,
+            figure=fig,
             figure_manager=elem1._figure_manager,
             sync_ws=elem1._sync_ws,
-            original_dpi=elem1._original_dpi,
-            original_size_inches=elem1._original_size_inches,
         )
         cleanup.dispose(context=MagicMock(), deletion=False)
+        assert self._count_toolbar_handlers(fig, "button_press_event") == 0
+        assert self._count_toolbar_handlers(fig, "button_release_event") == 0
 
-        # Simulate the cell re-running: a new mpl_interactive on the same
-        # figure object. After dispose, only the new toolbar's callbacks
-        # should be live on the shared registry.
+        # Re-running the cell builds a fresh manager (the cache entry was
+        # dropped at zero), so exactly one toolbar's callbacks are live —
+        # never stacked.
         with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
             _elem2 = mpl_interactive(fig)
 
         assert self._count_toolbar_handlers(fig, "button_press_event") == 1
         assert self._count_toolbar_handlers(fig, "button_release_event") == 1
+
+        plt.close(fig)
+
+
+@pytest.mark.requires("matplotlib")
+class TestFigureManagerReuse:
+    """A figure's manager is shared across reruns and cells, and destroyed
+    only when its last consumer is disposed.
+
+    matplotlib assumes one canvas/manager per figure for the figure's
+    lifetime, so wrapping the same figure again must reuse the existing
+    manager (preserving toolbar state) rather than building a new one.
+    """
+
+    @staticmethod
+    def _new_element(fig: Any) -> Any:
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            mpl_interactive,
+        )
+
+        with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
+            return mpl_interactive(fig)
+
+    @staticmethod
+    def _cleanup_handle(element: Any, fig: Any) -> Any:
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            _MplCleanupHandle,
+        )
+
+        return _MplCleanupHandle(
+            comm=element._comm,
+            figure=fig,
+            figure_manager=element._figure_manager,
+            sync_ws=element._sync_ws,
+        )
+
+    @staticmethod
+    def _toolbar_handler_count(fig: Any, signal: str) -> int:
+        handlers = fig.canvas.callbacks.callbacks.get(signal, {})
+        count = 0
+        for ref in handlers.values():
+            fn = ref() if callable(ref) else ref
+            if type(getattr(fn, "__self__", None)).__name__ == (
+                "NavigationToolbar2WebAgg"
+            ):
+                count += 1
+        return count
+
+    def test_reuse_shares_manager_and_preserves_toolbar(self) -> None:
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3])
+
+        elem1 = self._new_element(fig)
+        manager = elem1._figure_manager
+
+        # A toolbar mode set on the first wrapper must survive the second.
+        elem1._figure_manager.canvas.toolbar.pan()
+        mode = str(elem1._figure_manager.canvas.toolbar.mode)
+
+        elem2 = self._new_element(fig)
+
+        assert elem2._figure_manager is manager
+        assert str(elem2._figure_manager.canvas.toolbar.mode) == mode
+
+        plt.close(fig)
+
+    def test_different_figure_gets_new_manager(self) -> None:
+        import matplotlib.pyplot as plt
+
+        fig1, ax1 = plt.subplots()
+        ax1.plot([1, 2, 3])
+        fig2, ax2 = plt.subplots()
+        ax2.plot([3, 2, 1])
+
+        elem1 = self._new_element(fig1)
+        elem2 = self._new_element(fig2)
+
+        assert elem1._figure_manager is not elem2._figure_manager
+
+        plt.close(fig1)
+        plt.close(fig2)
+
+    def test_manager_destroyed_when_last_consumer_disposes(self) -> None:
+        import matplotlib.pyplot as plt
+
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            _FIGURE_MANAGERS,
+        )
+
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3])
+
+        elem = self._new_element(fig)
+        assert _FIGURE_MANAGERS._managers.get(id(fig)) is elem._figure_manager
+        assert self._toolbar_handler_count(fig, "button_press_event") == 1
+
+        self._cleanup_handle(elem, fig).dispose(
+            context=MagicMock(), deletion=False
+        )
+
+        assert _FIGURE_MANAGERS._managers.get(id(fig)) is None
+        assert fig not in _FIGURE_MANAGERS._refcounts
+        assert self._toolbar_handler_count(fig, "button_press_event") == 0
+
+        plt.close(fig)
+
+    def test_two_cells_share_manager_independent_dispose(self) -> None:
+        import matplotlib.pyplot as plt
+
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            _FIGURE_MANAGERS,
+        )
+
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3])
+
+        elem1 = self._new_element(fig)
+        elem2 = self._new_element(fig)
+        manager = elem1._figure_manager
+
+        assert elem2._figure_manager is manager
+        assert _FIGURE_MANAGERS._refcounts[fig] == 2
+        assert elem1._sync_ws in manager.web_sockets
+        assert elem2._sync_ws in manager.web_sockets
+
+        # Disposing one consumer leaves the manager alive for the other.
+        self._cleanup_handle(elem1, fig).dispose(
+            context=MagicMock(), deletion=False
+        )
+
+        assert _FIGURE_MANAGERS._managers.get(id(fig)) is manager
+        assert _FIGURE_MANAGERS._refcounts[fig] == 1
+        assert elem1._sync_ws not in manager.web_sockets
+        assert elem2._sync_ws in manager.web_sockets
+        # The shared toolbar's callbacks stay connected until the last consumer.
+        assert self._toolbar_handler_count(fig, "button_press_event") == 1
+
+        # Disposing the second fully tears down.
+        self._cleanup_handle(elem2, fig).dispose(
+            context=MagicMock(), deletion=False
+        )
+
+        assert _FIGURE_MANAGERS._managers.get(id(fig)) is None
+        assert fig not in _FIGURE_MANAGERS._refcounts
+        assert self._toolbar_handler_count(fig, "button_press_event") == 0
 
         plt.close(fig)
 
