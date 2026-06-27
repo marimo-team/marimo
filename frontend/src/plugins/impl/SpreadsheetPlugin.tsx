@@ -25,13 +25,14 @@ export type PluginFunctions = {
   run_custom_function: (req: { name: string; args: any[] }) => Promise<any>;
 };
 
-const LazyWorkbook = React.lazy(
-  () => import("./spreadsheet/workbook-wrapper"),
-);
+const LazyWorkbook = React.lazy(() => import("./spreadsheet/workbook-wrapper"));
 
-export const SpreadsheetPlugin = createPlugin<Record<string, any>[] | null>("marimo-spreadsheet", {
-  cssStyles: [fortuneCss],
-})
+export const SpreadsheetPlugin = createPlugin<Record<string, any>[] | null>(
+  "marimo-spreadsheet",
+  {
+    cssStyles: [fortuneCss],
+  },
+)
   .withData(
     z.object({
       label: z.string().nullable().optional(),
@@ -44,7 +45,10 @@ export const SpreadsheetPlugin = createPlugin<Record<string, any>[] | null>("mar
           ]),
         )
         .nullish(),
-      customFunctions: z.array(z.string()).nullish().transform((val) => val ?? []),
+      customFunctions: z
+        .array(z.string())
+        .nullish()
+        .transform((val) => val ?? []),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -121,8 +125,8 @@ const LoadingSpreadsheet = (props: LoadingSpreadsheetProps) => {
     );
   }
 
-
-  const initialData = (props.value && props.value.length > 0) ? props.value : data;
+  const initialData =
+    props.value && props.value.length > 0 ? props.value : data;
   const columnNames = [...columnFields.keys()];
 
   return (

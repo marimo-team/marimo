@@ -8,7 +8,9 @@ const formulaCache = new Map<string, any>();
 const pendingCalls = new Set<string>();
 
 // Global ref to keep track of the current RPC runner
-let runCustomFunctionRPC: ((req: { name: string; args: any[] }) => Promise<any>) | null = null;
+let runCustomFunctionRPC:
+  | ((req: { name: string; args: any[] }) => Promise<any>)
+  | null = null;
 let triggerRerender: (() => void) | null = null;
 
 // Wrap Parser.prototype.parse to inject our custom functions
@@ -27,7 +29,9 @@ if (originalParse) {
         console.log(`Custom function ${upperName} called with params:`, params);
         // params is a single array of values passed by formula-parser
         const args = Array.isArray(params)
-          ? params.map((p) => (p && typeof p === "object" && "value" in p ? p.value : p))
+          ? params.map((p) =>
+              p && typeof p === "object" && "value" in p ? p.value : p,
+            )
           : [];
 
         const cacheKey = `${upperName}-${JSON.stringify(args)}`;
@@ -171,10 +175,14 @@ export default function WorkbookWrapper({
 
   const handleChange = (sheets: any[]) => {
     const sheet = sheets[0];
-    if (!sheet || !sheet.data) {return;}
+    if (!sheet || !sheet.data) {
+      return;
+    }
 
     const headerRow = sheet.data[0];
-    if (!headerRow) {return;}
+    if (!headerRow) {
+      return;
+    }
 
     const currentColumns: string[] = [];
     headerRow.forEach((cell: any, c: number) => {
@@ -187,7 +195,9 @@ export default function WorkbookWrapper({
       }
     });
 
-    if (currentColumns.length === 0) {return;}
+    if (currentColumns.length === 0) {
+      return;
+    }
 
     // Find the last row with any non-empty cell
     let lastNonEmptyRowIdx = 0;
