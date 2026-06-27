@@ -131,7 +131,8 @@ export default function WorkbookWrapper({
           if (!parsed) continue;
 
           const { name, args } = parsed;
-          if (customFunctions.map((f) => f.toLowerCase()).includes(name.toLowerCase())) {
+          const functionsList = Array.isArray(customFunctions) ? customFunctions : [];
+          if (functionsList.map((f) => f.toLowerCase()).includes(name.toLowerCase())) {
             const resolvedArgs = args.map((arg) => resolveCellRef(arg, sheetData));
             const callKey = `${r}-${c}-${JSON.stringify(resolvedArgs)}`;
 

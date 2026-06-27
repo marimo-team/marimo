@@ -44,7 +44,7 @@ export const SpreadsheetPlugin = createPlugin<Record<string, any>[] | null>("mar
           ]),
         )
         .nullish(),
-      customFunctions: z.array(z.string()).default([]),
+      customFunctions: z.array(z.string()).nullish().transform((val) => val ?? []),
     }),
   )
   .withFunctions<PluginFunctions>({
