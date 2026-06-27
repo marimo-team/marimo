@@ -23,12 +23,12 @@ if (originalParse) {
     const customFuncNames = (window as any).__marimoCustomFunctions || [];
     customFuncNames.forEach((name: string) => {
       const upperName = name.toUpperCase();
-      this.functions[upperName] = (...params: any[]) => {
+      this.functions[upperName] = (params: any[]) => {
         console.log(`Custom function ${upperName} called with params:`, params);
-        // Flatten params to get raw values
-        const args = params.map((p) =>
-          p && typeof p === "object" && "value" in p ? p.value : p
-        );
+        // params is a single array of values passed by formula-parser
+        const args = Array.isArray(params)
+          ? params.map((p) => (p && typeof p === "object" && "value" in p ? p.value : p))
+          : [];
 
         const cacheKey = `${upperName}-${JSON.stringify(args)}`;
 
