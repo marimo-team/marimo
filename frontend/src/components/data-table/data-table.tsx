@@ -25,6 +25,7 @@ import { useLocale } from "react-aria";
 
 import { Button } from "@/components/ui/button";
 import { Table } from "@/components/ui/table";
+import { isStaticNotebook } from "@/core/static/static-state";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import type {
   CalculateTopKRows,
@@ -182,6 +183,11 @@ const DataTableInternal = <TData,>({
   onViewedRowChange,
   renderTableExplorerPanel,
 }: DataTableProps<TData>) => {
+  // The top bar's controls (search, filters, column explorer, chart builder)
+  // all require a live kernel, which static exports don't have.
+  const isStatic = isStaticNotebook();
+  const showTableTopBar = !isStatic;
+
   const [showLoadingBar, setShowLoadingBar] = React.useState<boolean>(false);
   const { locale } = useLocale();
 
@@ -267,11 +273,12 @@ const DataTableInternal = <TData,>({
         }
       : {}),
     manualSorting: manualSorting,
+    enableSorting: !isStatic,
     enableMultiSort: true,
     getSortedRowModel: getSortedRowModel(),
     // filtering
     manualFiltering: true,
-    enableColumnFilters: showFilters,
+    enableColumnFilters: showFilters && !isStatic,
     getFilteredRowModel: getFilteredRowModel(),
     onColumnFiltersChange: onFiltersChange,
     // selection
@@ -355,22 +362,24 @@ const DataTableInternal = <TData,>({
             part="table-wrapper"
             className={cn(className || "rounded-md border overflow-hidden")}
           >
-            <TableTopBar
-              table={table}
-              showSearch={showSearch}
-              searchQuery={searchQuery}
-              onSearchQueryChange={onSearchQueryChange}
-              reloading={reloading}
-              showChartBuilder={showChartBuilder}
-              isChartBuilderOpen={isChartBuilderOpen}
-              toggleDisplayHeader={toggleDisplayHeader}
-              showTableExplorer={showTableExplorer}
-              togglePanel={togglePanel}
-              isAnyPanelOpen={isAnyPanelOpen}
-              downloadAs={downloadAs}
-              sizeBytes={sizeBytes}
-              sizeBytesIsLoading={sizeBytesIsLoading}
-            />
+            {showTableTopBar && (
+              <TableTopBar
+                table={table}
+                showSearch={showSearch}
+                searchQuery={searchQuery}
+                onSearchQueryChange={onSearchQueryChange}
+                reloading={reloading}
+                showChartBuilder={showChartBuilder}
+                isChartBuilderOpen={isChartBuilderOpen}
+                toggleDisplayHeader={toggleDisplayHeader}
+                showTableExplorer={showTableExplorer}
+                togglePanel={togglePanel}
+                isAnyPanelOpen={isAnyPanelOpen}
+                downloadAs={downloadAs}
+                sizeBytes={sizeBytes}
+                sizeBytesIsLoading={sizeBytesIsLoading}
+              />
+            )}
             {allUserColumnsHidden && (
               <Banner className="mb-1 mx-2 rounded flex items-center justify-between">
                 <span>All columns are hidden.</span>
