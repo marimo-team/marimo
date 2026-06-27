@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, get_type_hints
 
 import pytest
 
 from marimo import __version__
 from marimo._ast.app_config import _AppConfig
-from marimo._islands._island_generator import (
-    MarimoIslandGenerator,
-)
+from marimo._islands._island_generator import MarimoIslandGenerator
+from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.errors import MarimoExceptionRaisedError
+from marimo._schemas.islands import ISLANDS_JSON_SCRIPT_TYPE
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
@@ -33,6 +35,22 @@ def _notebook(
         cells=cells,
         filename=filename,
     )
+
+
+def _parse_payload_script(script: str) -> dict[str, object]:
+    prefix = f'<script type="{ISLANDS_JSON_SCRIPT_TYPE}">'
+    suffix = "</script>"
+    assert script.startswith(prefix)
+    assert script.endswith(suffix)
+    return json.loads(script[len(prefix) : -len(suffix)])
+
+
+def _parse_payload_from_body(body: str) -> dict[str, object]:
+    prefix = f'<script type="{ISLANDS_JSON_SCRIPT_TYPE}">'
+    suffix = "</script>"
+    start = body.index(prefix)
+    end = body.index(suffix, start) + len(suffix)
+    return _parse_payload_script(body[start:end])
 
 
 def test_add_code():
@@ -93,6 +111,158 @@ async def test_render():
             ]
         ),
     )
+
+
+async def test_render_payload():
+    generator = MarimoIslandGenerator()
+    generator.add_code("import marimo as mo")
+    generator.add_code("mo.md('Payload output')")
+
+    await generator.build()
+
+    payload = generator.render_payload()
+
+    assert payload["schemaVersion"] == 1
+    assert payload["appId"] == "main"
+    assert len(payload["cells"]) == 2
+    assert payload["cells"][0] == {
+        "cellId": str(generator._stubs[0]._cell_id),
+        "code": "import marimo as mo",
+        "outputHtml": "<span></span>",
+        "outputMimetype": "text/plain",
+        "reactive": True,
+        "displayCode": False,
+        "displayOutput": True,
+    }
+    assert payload["cells"][1]["cellId"] == str(generator._stubs[1]._cell_id)
+    assert payload["cells"][1]["code"] == "mo.md('Payload output')"
+    assert "Payload output" in payload["cells"][1]["outputHtml"]
+    assert payload["cells"][1]["outputMimetype"] == "text/markdown"
+    assert payload["cells"][1]["reactive"] is True
+
+
+def test_render_payload_preserves_error_output_mimetype():
+    generator = MarimoIslandGenerator()
+    stub = generator.add_code("0 / 0")
+    stub._output = CellOutput.errors(
+        [
+            MarimoExceptionRaisedError(
+                msg="division by zero",
+                exception_type="ZeroDivisionError",
+                raising_cell=None,
+            )
+        ]
+    )
+
+    payload = generator.render_payload()
+
+    assert (
+        payload["cells"][0]["outputMimetype"] == "application/vnd.marimo+error"
+    )
+    assert "application/vnd.marimo+error" in payload["cells"][0]["outputHtml"]
+
+
+def test_render_payload_script_escapes_json():
+    generator = MarimoIslandGenerator()
+    generator.add_code('value = "</script><div>&"')
+
+    script = generator.render_payload_script()
+    payload = _parse_payload_script(script)
+
+    assert "</script><div>" not in script
+    assert payload["cells"][0]["code"] == 'value = "</script><div>&"'
+
+
+def test_render_payload_script_escapes_output_html():
+    generator = MarimoIslandGenerator()
+    stub = generator.add_code("x = 1")
+    stub._output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="text/html",
+        data="</script><div>&",
+    )
+
+    script = generator.render_payload_script()
+    payload = _parse_payload_script(script)
+
+    assert "</script><div>" not in script
+    assert payload["cells"][0]["outputHtml"] == "</script><div>&"
+
+
+def test_render_body_omits_payload_by_default():
+    generator = MarimoIslandGenerator()
+    generator.add_code("import marimo as mo")
+
+    body = generator.render_body()
+
+    assert ISLANDS_JSON_SCRIPT_TYPE not in body
+
+
+def test_render_body_can_include_payload():
+    generator = MarimoIslandGenerator()
+    generator.add_code("import marimo as mo")
+
+    body = generator.render_body(include_payload=True)
+    payload = _parse_payload_from_body(body)
+
+    assert f'<script type="{ISLANDS_JSON_SCRIPT_TYPE}">' in body
+    assert payload["schemaVersion"] == 1
+    assert payload["appId"] == "main"
+    assert payload["cells"][0]["code"] == "import marimo as mo"
+
+
+def test_render_body_can_omit_payload():
+    generator = MarimoIslandGenerator()
+    generator.add_code("import marimo as mo")
+
+    body = generator.render_body(include_payload=False)
+
+    assert ISLANDS_JSON_SCRIPT_TYPE not in body
+
+
+def test_render_html_can_omit_payload():
+    generator = MarimoIslandGenerator()
+    generator.add_code("import marimo as mo")
+
+    html = generator.render_html(include_payload=False)
+
+    assert ISLANDS_JSON_SCRIPT_TYPE not in html
+
+
+def test_render_payload_uses_configured_reactive_option():
+    generator = MarimoIslandGenerator()
+    stub = generator.add_code("x = 1", is_reactive=False)
+
+    stub.render(is_reactive=True)
+
+    payload = generator.render_payload()
+    assert payload["cells"][0] == {
+        "cellId": str(stub._cell_id),
+        "code": "",
+        "outputHtml": "",
+        "outputMimetype": "text/plain",
+        "reactive": False,
+        "displayCode": False,
+        "displayOutput": True,
+    }
+
+
+async def test_render_payload_uses_configured_display_option():
+    generator = MarimoIslandGenerator()
+    stub = generator.add_code(
+        """
+        import marimo as mo
+        mo.md("Hidden output")
+        """,
+        display_output=False,
+    )
+    await generator.build()
+
+    stub.render(display_output=True)
+
+    payload = generator.render_payload()
+    assert payload["cells"][0]["outputHtml"] == ""
+    assert payload["cells"][0]["displayOutput"] is False
 
 
 async def test_render_multiline_markdown():
@@ -549,6 +719,12 @@ async def test_render_html():
     assert "<body>" in html
     assert "Hello%2C%20HTML!" in html
     snapshot("html.txt", html.replace(__version__, "0.0.0"))
+    snapshot(
+        "html-payload.txt",
+        generator.render_html(include_payload=True).replace(
+            __version__, "0.0.0"
+        ),
+    )
 
 
 def test_app_config():
