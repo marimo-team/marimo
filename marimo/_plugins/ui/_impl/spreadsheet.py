@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -17,6 +18,14 @@ from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
+from marimo._runtime.functions import Function
+
+
+@dataclass
+class CustomFunctionArgs:
+    name: str
+    args: list[Any]
+
 
 LOGGER = _loggers.marimo_logger()
 
@@ -116,6 +125,7 @@ class spreadsheet(
         data: RowOrientedData | ColumnOrientedData | IntoDataFrame,
         *,
         label: str = "",
+        custom_functions: dict[str, Callable[..., Any]] | None = None,
         on_change: Callable[
             [RowOrientedData | ColumnOrientedData | IntoDataFrame], None
         ]
@@ -123,11 +133,18 @@ class spreadsheet(
     ) -> None:
         table_manager = get_table_manager(data)
         self._data = data
+        self._custom_functions = custom_functions or {}
 
         field_types = table_manager.get_field_types()
         self._field_types_dict: dict[str, str] = {
             col: str(field_type[0]) for col, field_type in field_types
         }
+
+        run_custom_function_rpc = Function(
+            name="run_custom_function",
+            arg_cls=CustomFunctionArgs,
+            function=self._run_custom_function,
+        )
 
         super().__init__(
             component_name=spreadsheet._name,
@@ -136,9 +153,22 @@ class spreadsheet(
             args={
                 "data": mo_data.csv(table_manager.to_csv()).url,
                 "field-types": field_types or None,
+                "custom-functions": list(self._custom_functions.keys()),
             },
+            functions=(run_custom_function_rpc,),
             on_change=on_change,
         )
+
+    def _run_custom_function(self, args: CustomFunctionArgs) -> Any:
+        func_name = args.name
+        if func_name not in self._custom_functions:
+            raise ValueError(f"Function '{func_name}' is not registered.")
+        func = self._custom_functions[func_name]
+        try:
+            return func(*args.args)
+        except Exception as e:
+            LOGGER.error(f"Error executing custom function {func_name}: {e}")
+            return f"Error: {e}"
 
     @property
     def data(

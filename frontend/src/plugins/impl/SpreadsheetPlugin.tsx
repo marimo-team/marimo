@@ -11,6 +11,7 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { createPlugin } from "../core/builder";
+import { rpc } from "../core/rpc";
 import type { Setter } from "../types";
 import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
@@ -19,6 +20,10 @@ type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
 
 type FieldTypesProps = any;
+
+export type PluginFunctions = {
+  run_custom_function: (req: { name: string; args: any[] }) => Promise<any>;
+};
 
 const LazyWorkbook = React.lazy(
   () => import("./spreadsheet/workbook-wrapper"),
@@ -39,14 +44,21 @@ export const SpreadsheetPlugin = createPlugin<Record<string, any>[] | null>("mar
           ]),
         )
         .nullish(),
+      customFunctions: z.array(z.string()).default([]),
     }),
   )
-  .withFunctions({})
+  .withFunctions<PluginFunctions>({
+    run_custom_function: rpc
+      .input(z.object({ name: z.string(), args: z.array(z.any()) }))
+      .output(z.any()),
+  })
   .renderer((props) => {
     return (
       <LoadingSpreadsheet
         data={props.data.data}
         fieldTypes={props.data.fieldTypes}
+        customFunctions={props.data.customFunctions}
+        run_custom_function={props.functions.run_custom_function}
         value={props.value}
         onChange={props.setValue}
       />
@@ -56,6 +68,8 @@ export const SpreadsheetPlugin = createPlugin<Record<string, any>[] | null>("mar
 interface LoadingSpreadsheetProps {
   data: TableData<object>;
   fieldTypes: FieldTypesProps | null | undefined;
+  customFunctions: string[];
+  run_custom_function: PluginFunctions["run_custom_function"];
   value: Record<string, any>[] | null;
   onChange: Setter<Record<string, any>[] | null>;
 }
@@ -115,6 +129,8 @@ const LoadingSpreadsheet = (props: LoadingSpreadsheetProps) => {
       <LazyWorkbook
         initialData={initialData}
         columnNames={columnNames}
+        customFunctions={props.customFunctions}
+        run_custom_function={props.run_custom_function}
         onChange={props.onChange}
       />
     </React.Suspense>

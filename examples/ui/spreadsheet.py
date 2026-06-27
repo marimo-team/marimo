@@ -35,7 +35,7 @@ def _(pd):
     initial_df = pd.DataFrame({
         "Product": ["Laptop", "Mouse", "Keyboard", "Monitor"],
         "Category": ["Electronics", "Accessories", "Accessories", "Electronics"],
-        "Price": [999.99, 25.50, 79.99, 299.99],
+        "Price": [1000.00, 25.00, 80.00, 300.00],
         "Quantity": [5, 20, 15, 8],
     })
     return (initial_df,)
@@ -49,11 +49,50 @@ def _(initial_df, mo):
 
 
 @app.cell
-def _(get_data, mo):
-    # Instantiate the spreadsheet bound to the state variable
-    sheet = mo.ui.spreadsheet(get_data(), label="Inventory Spreadsheet")
+def _(mo):
+    # Define custom Python functions that will be registered in the spreadsheet
+    def add_tax(val):
+        try:
+            return round(float(val) * 1.20, 2)
+        except Exception:
+            return 0.0
+
+    def multiply(x, y):
+        try:
+            return round(float(x) * float(y), 2)
+        except Exception:
+            return 0.0
+
+    return add_tax, multiply
+
+
+@app.cell
+def _(add_tax, get_data, mo, multiply):
+    # Instantiate the spreadsheet with custom Python functions registered
+    sheet = mo.ui.spreadsheet(
+        get_data(),
+        custom_functions={
+            "add_tax": add_tax,
+            "multiply": multiply,
+        },
+        label="Inventory Spreadsheet"
+    )
     sheet
     return (sheet,)
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ### 🚀 Call Python Functions Directly Inside Spreadsheet Cells!
+        We registered the Python functions `add_tax` and `multiply` to the spreadsheet. You can type them as formulas in any cell:
+        
+        *   Double-click a cell in a new column and type: **`=add_tax(C2)`** to compute price with 20% tax using Python!
+        *   Type: **`=multiply(C2, D2)`** to compute the subtotal in Python!
+        """
+    )
+    return
 
 
 @app.cell

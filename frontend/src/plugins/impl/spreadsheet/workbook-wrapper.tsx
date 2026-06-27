@@ -1,14 +1,22 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Workbook } from "@fortune-sheet/react";
 
 interface Props {
   initialData: Record<string, any>[];
   columnNames: string[];
+  customFunctions: string[];
+  run_custom_function: (req: { name: string; args: any[] }) => Promise<any>;
   onChange: (data: Record<string, any>[]) => void;
 }
 
-export default function WorkbookWrapper({ initialData, columnNames, onChange }: Props) {
+export default function WorkbookWrapper({
+  initialData,
+  columnNames,
+  customFunctions,
+  run_custom_function,
+  onChange,
+}: Props) {
   const sheetData = useMemo(() => {
     const celldata: any[] = [];
 
@@ -77,9 +85,86 @@ export default function WorkbookWrapper({ initialData, columnNames, onChange }: 
     ] as any;
   }, [initialData, columnNames]);
 
+  const workbookRef = useRef<any>(null);
+  const pendingCalls = useRef<Set<string>>(new Set());
+  const evaluatedCache = useRef<Map<string, any>>(new Map());
+
+  const parseFormula = (formula: string) => {
+    const match = formula.match(/^=([a-zA-Z0-9_]+)\((.*)\)$/);
+    if (!match) return null;
+    const name = match[1];
+    const argsStr = match[2];
+    const args = argsStr ? argsStr.split(",").map((t) => t.trim()) : [];
+    return { name, args };
+  };
+
+  const resolveCellRef = (ref: string, data: any[][]) => {
+    const match = ref.match(/^([a-zA-Z]+)([0-9]+)$/);
+    if (!match) {
+      const num = Number(ref);
+      return isNaN(num) ? ref.replace(/^["']|["']$/g, "") : num;
+    }
+    const colStr = match[1].toUpperCase();
+    const rowNum = parseInt(match[2], 10);
+
+    let colIdx = 0;
+    for (let i = 0; i < colStr.length; i++) {
+      colIdx = colIdx * 26 + (colStr.charCodeAt(i) - 64);
+    }
+    colIdx = colIdx - 1;
+
+    const rowIdx = rowNum;
+    const cell = data[rowIdx] ? data[rowIdx][colIdx] : null;
+    return cell && cell.v !== undefined && cell.v !== null ? cell.v : null;
+  };
+
+  const evaluateCustomFormulas = async (sheetData: any[][]) => {
+    if (!sheetData) return;
+
+    for (let r = 0; r < sheetData.length; r++) {
+      const row = sheetData[r];
+      if (!row) continue;
+      for (let c = 0; c < row.length; c++) {
+        const cell = row[c];
+        if (cell && cell.f && typeof cell.f === "string" && cell.f.startsWith("=")) {
+          const parsed = parseFormula(cell.f);
+          if (!parsed) continue;
+
+          const { name, args } = parsed;
+          if (customFunctions.map((f) => f.toLowerCase()).includes(name.toLowerCase())) {
+            const resolvedArgs = args.map((arg) => resolveCellRef(arg, sheetData));
+            const callKey = `${r}-${c}-${JSON.stringify(resolvedArgs)}`;
+
+            if (pendingCalls.current.has(callKey)) continue;
+            const lastVal = evaluatedCache.current.get(callKey);
+            if (lastVal !== undefined && cell.v === lastVal) {
+              continue;
+            }
+
+            pendingCalls.current.add(callKey);
+            try {
+              const result = await run_custom_function({ name, args: resolvedArgs });
+              evaluatedCache.current.set(callKey, result);
+              if (cell.v !== result) {
+                workbookRef.current?.setCellValue(r, c, result);
+              }
+            } catch (err) {
+              console.error(`Failed to execute custom function ${name}:`, err);
+            } finally {
+              pendingCalls.current.delete(callKey);
+            }
+          }
+        }
+      }
+    }
+  };
+
   const handleChange = (sheets: any[]) => {
     const sheet = sheets[0];
     if (!sheet || !sheet.data) {return;}
+
+    // Evaluate custom formula cells
+    evaluateCustomFormulas(sheet.data);
 
     const headerRow = sheet.data[0];
     if (!headerRow) {return;}
@@ -133,7 +218,7 @@ export default function WorkbookWrapper({ initialData, columnNames, onChange }: 
 
   return (
     <div className="w-full h-[500px] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden relative">
-      <Workbook data={sheetData} onChange={handleChange} />
+      <Workbook ref={workbookRef} data={sheetData} onChange={handleChange} />
     </div>
   );
 }
