@@ -53,6 +53,7 @@ export const SpreadsheetPlugin = createPlugin<Record<string, any>[] | null>("mar
       .output(z.any()),
   })
   .renderer((props) => {
+    console.log("SpreadsheetPlugin received data:", props.data);
     return (
       <LoadingSpreadsheet
         data={props.data.data}

@@ -15,6 +15,7 @@ let triggerRerender: (() => void) | null = null;
 const originalParse = Parser.prototype.parse;
 if (originalParse) {
   Parser.prototype.parse = function (expression: any, context: any) {
+    console.log("Parser.prototype.parse called with expression:", expression);
     if (!this.functions) {
       (this as any).functions = Object.create(null);
     }
@@ -23,6 +24,7 @@ if (originalParse) {
     customFuncNames.forEach((name: string) => {
       const upperName = name.toUpperCase();
       this.functions[upperName] = (...params: any[]) => {
+        console.log(`Custom function ${upperName} called with params:`, params);
         // Flatten params to get raw values
         const args = params.map((p) =>
           p && typeof p === "object" && "value" in p ? p.value : p
