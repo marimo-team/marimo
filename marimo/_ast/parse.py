@@ -57,9 +57,9 @@ def ast_parse(
 def split_source_lines(text: str) -> list[str]:
     """Split source into lines the way `ast`/`tokenize` count them.
 
-    Unlike `str.splitlines()`, this only treats `\n`, `\r`, and `\r\n` as
-    line breaks. `str.splitlines()` additionally splits on `\f`, `\v`, the
-    `\x1c`-`\x1e` separators, and Unicode line separators.
+    Unlike `str.splitlines()`, this only treats ``\\n``, ``\\r``, and ``\\r\\n`` as
+    line breaks. `str.splitlines()` additionally splits on ``\\f``, ``\\v``, the
+    ``\\x1c``-``\\x1e`` separators, and Unicode line separators.
     """
     return text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
 
