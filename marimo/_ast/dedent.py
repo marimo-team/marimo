@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import io
-import re
 import textwrap
 import tokenize
 from tokenize import TokenError
-
 
 
 def split_source_lines(text: str, keepends: bool = False) -> list[str]:
