@@ -8,7 +8,6 @@ import textwrap
 import tokenize
 from tokenize import TokenError
 
-_NEWLINE_RE = re.compile(r"\r\n|\r|\n")
 
 
 def split_source_lines(text: str, keepends: bool = False) -> list[str]:
@@ -52,7 +51,7 @@ def _get_protected_lines(code: str, tokens: list) -> list[bool]:
 
     for tok_type, tok_string, tok_start, tok_end, _ in tokens:
         # Regular triple-quoted strings: single STRING token spanning lines
-        if tok_type == tokenize.STRING and "\n" in tok_string:
+        if tok_type == tokenize.STRING and _NEWLINE_RE.search(tok_string):
             start_line = tok_start[0] - 1
             end_line = tok_end[0] - 1
             for i in range(start_line + 1, end_line + 1):
@@ -94,9 +93,9 @@ def smart_dedent(code: str) -> str:
     for i, line in enumerate(lines):
         if protected[i]:
             continue
-        stripped = line.lstrip()
-        if not stripped:
+        if not line.strip():
             continue
+        stripped = line.lstrip()
         min_indent = min(min_indent, len(line) - len(stripped))
 
     if min_indent in (0, float("inf")):
