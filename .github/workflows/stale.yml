@@ -36,8 +36,8 @@ jobs:
             This pull request has been automatically closed due to inactivity.
             Feel free to reopen it if you'd like to continue working on it.
           close-pr-label: "closed-stale"
-          # Exempt draft PRs — many are maintainer WIP/experiments
-          exempt-draft-pr: true
+          # Include draft PRs in stale processing
+          exempt-draft-pr: false
           # Don't touch issues with this workflow
           days-before-issue-stale: -1
           days-before-issue-close: -1
