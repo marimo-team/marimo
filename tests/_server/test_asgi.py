@@ -875,6 +875,102 @@ class TestDynamicDirectoryMiddleware(unittest.TestCase):
         assert response.headers["x-custom-middleware"] == "applied"
 
 
+class TestDynamicDirectoryMiddlewareSymlink(unittest.TestCase):
+    """Symlinked-directory behavior for DynamicDirectoryMiddleware (#10012)."""
+
+    def setUp(self) -> None:
+        self.temp_dir = Path(tempfile.mkdtemp())
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def _build_client(self, directory: Path) -> TestClient:
+        base_app = Starlette()
+
+        async def catch_all(request: Request) -> Response:
+            del request
+            return PlainTextResponse("Not Found", status_code=404)
+
+        base_app.add_route("/{path:path}", catch_all)
+
+        def app_builder(base_url: str, file_path: str) -> Starlette:
+            del base_url
+            app = Starlette()
+
+            async def handle(request: Request) -> Response:
+                del request
+                return PlainTextResponse(f"App from {Path(file_path).stem}")
+
+            app.add_route("/{path:path}", handle)
+            return app
+
+        middleware = DynamicDirectoryMiddleware(
+            app=base_app,
+            base_path="/apps",
+            directory=str(directory),
+            app_builder=app_builder,
+        )
+        return TestClient(middleware)
+
+    def test_symlink_swap_continues_serving(self) -> None:
+        """Notebooks keep serving after the directory symlink is swapped."""
+        releases = self.temp_dir / "releases"
+        (releases / "v1").mkdir(parents=True)
+        (releases / "v2").mkdir(parents=True)
+        (releases / "v1" / "nb.py").write_text(contents)
+        (releases / "v2" / "nb.py").write_text(contents)
+
+        served = self.temp_dir / "notebooks"
+        try:
+            os.symlink(releases / "v1", served, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("Symlinks not supported on this platform")
+
+        client = self._build_client(served)
+
+        response = client.get("/apps/nb/")
+        assert response.status_code == 200
+        assert response.text == "App from nb"
+
+        # Atomically re-point the symlink at a new release.
+        new_link = self.temp_dir / "notebooks.new"
+        os.symlink(releases / "v2", new_link, target_is_directory=True)
+        os.replace(new_link, served)
+
+        # Still served (regressed to 404 before the fix).
+        response = client.get("/apps/nb/")
+        assert response.status_code == 200
+        assert response.text == "App from nb"
+
+    def test_symlink_escape_is_blocked(self) -> None:
+        """A symlink that escapes the served directory is still rejected."""
+        served = self.temp_dir / "served"
+        served.mkdir()
+        (served / "ok.py").write_text(contents)
+
+        secret_dir = self.temp_dir / "secret"
+        secret_dir.mkdir()
+        (secret_dir / "secret.py").write_text(contents)
+
+        try:
+            os.symlink(secret_dir, served / "escape", target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("Symlinks not supported on this platform")
+
+        client = self._build_client(served)
+
+        # In-tree notebook serves; the escaping one does not, even though it
+        # exists through the symlink.
+        response = client.get("/apps/ok/")
+        assert response.status_code == 200
+        assert response.text == "App from ok"
+
+        assert (served / "escape" / "secret.py").exists()
+        response = client.get("/apps/escape/secret/")
+        assert response.status_code == 404
+        assert response.text == "Not Found"
+
+
 class TestDynamicDirectoryMiddlewareSubMount(unittest.TestCase):
     """Test DynamicDirectoryMiddleware when mounted at a sub-path.
 
