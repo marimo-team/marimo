@@ -272,6 +272,25 @@ describe("Model", () => {
     });
   });
 
+  describe("reemitState", () => {
+    it("should emit change events for current values without state changes", async () => {
+      const onFoo = vi.fn();
+      const onBar = vi.fn();
+      const onAny = vi.fn();
+
+      model.on("change:foo", onFoo);
+      model.on("change:bar", onBar);
+      model.on("change", onAny);
+
+      getMarimoInternal(model).reemitState();
+      await TestUtils.nextTick();
+
+      expect(onFoo).toHaveBeenCalledWith("test");
+      expect(onBar).toHaveBeenCalledWith(123);
+      expect(onAny).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("emitCustomMessage", () => {
     it("should handle custom messages", () => {
       const callback = vi.fn();
