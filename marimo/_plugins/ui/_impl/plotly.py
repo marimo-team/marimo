@@ -1817,7 +1817,7 @@ def _extract_bars_numpy(
         selected_indices = np.where(pos_mask)[0]
 
         # Iterate only over selected indices
-        for i in selected_indices:
+        for i in selected_indices.tolist():
             if not _bar_value_in_selection_range(
                 trace, i, value_data[i], value_min, value_max
             ):
@@ -3564,10 +3564,10 @@ def _extract_funnel_stages_numpy(
         val_mask = val_arr >= val_min
 
         mask = cat_mask & val_mask
-        for i in np.where(mask)[0]:
+        for i in np.where(mask)[0].tolist():
             selected.append(
                 _build_funnel_stage_point(
-                    trace, trace_idx, int(i), x_data, y_data
+                    trace, trace_idx, i, x_data, y_data
                 )
             )
 
