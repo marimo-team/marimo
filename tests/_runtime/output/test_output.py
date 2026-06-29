@@ -67,6 +67,30 @@ async def test_mutating_appended_outputs(
     assert "after" in outputs[1]
 
 
+async def test_replace_formats_output_once(
+    mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+) -> None:
+    await mocked_kernel.k.run(
+        [
+            exec_req.get(
+                """
+                import marimo as mo
+
+                class Probe:
+                    count = 0
+
+                    def _repr_html_(self):
+                        Probe.count += 1
+                        return f"<div>formatted {Probe.count}</div>"
+
+                mo.output.replace(Probe())
+                assert Probe.count == 1
+                """
+            )
+        ]
+    )
+
+
 async def test_nested_output(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:

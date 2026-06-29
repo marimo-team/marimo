@@ -49,8 +49,11 @@ def replace(value: object) -> None:
     output = ctx.execution_context.output
     output.clear()
     if value is not None:
-        output.append(formatting.as_html(value))
-    write_internal(cell_id=ctx.execution_context.cell_id, value=value)
+        html = formatting.as_html(value)
+        output.append(html)
+        write_internal(cell_id=ctx.execution_context.cell_id, value=html)
+    else:
+        write_internal(cell_id=ctx.execution_context.cell_id, value=value)
 
 
 @mddoc
