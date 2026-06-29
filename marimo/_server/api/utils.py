@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from starlette.datastructures import UploadFile
     from starlette.requests import Request
 
-    from marimo._server.api.deps import AppStateBase
+    from marimo._server.api.deps import AppState, AppStateBase
     from marimo._session.session import Session
 
 
@@ -91,6 +91,34 @@ class RequestAsCommand(Protocol):
     def as_command(self) -> CommandMessage: ...
 
 
+def enforce_consumer_capability(
+    app_state: AppState, command: CommandMessage
+) -> None:
+    """Raise 403 if the calling consumer lacks the command's capability.
+
+    Advisory mirror of the control-request chokepoint: gives HTTP clients an
+    honest refusal. The chokepoint remains the authority.
+    """
+    from starlette.exceptions import HTTPException
+
+    from marimo._messaging.notification import ConsumerCapabilities
+    from marimo._session.capabilities import consumer_can
+
+    session = app_state.require_current_session()
+    consumer_id = ConsumerId(app_state.require_current_session_id())
+    consumer = session.room.get_consumer(consumer_id)
+    capabilities = (
+        session.room.get_capabilities(consumer)
+        if consumer is not None
+        else ConsumerCapabilities(edit=False, interact=False)
+    )
+    if not consumer_can(capabilities, type(command)):
+        raise HTTPException(
+            status_code=403,
+            detail="This connection is read-only for this action.",
+        )
+
+
 async def dispatch_control_request(
     request: Request,
     cls: type[CommandMessage] | CommandMessage,
@@ -107,6 +135,7 @@ async def dispatch_control_request(
         body = cls
     if isinstance(body, RequestAsCommand):
         body = body.as_command()
+    enforce_consumer_capability(app_state, body)
     app_state.require_current_session().put_control_request(
         body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
