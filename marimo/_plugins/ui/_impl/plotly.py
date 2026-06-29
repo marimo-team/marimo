@@ -3566,9 +3566,7 @@ def _extract_funnel_stages_numpy(
         mask = cat_mask & val_mask
         for i in np.where(mask)[0].tolist():
             selected.append(
-                _build_funnel_stage_point(
-                    trace, trace_idx, i, x_data, y_data
-                )
+                _build_funnel_stage_point(trace, trace_idx, i, x_data, y_data)
             )
 
     return selected
