@@ -5,13 +5,18 @@ import json
 import sys
 import time
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import pytest
+from starlette.exceptions import HTTPException
 
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
+from marimo._messaging.notification import ConsumerCapabilities
+from marimo._runtime.commands import ExecuteCellsCommand
+from marimo._server.api.utils import enforce_consumer_capability
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.lists import first
 from tests._server.api.endpoints.ws_helpers import (
@@ -649,3 +654,30 @@ def test_takeover_transfers_edit_without_disconnect(
                 "edit": True,
                 "interact": True,
             }
+
+
+def _app_state_for_consumer(caps: ConsumerCapabilities) -> object:
+    app_state = MagicMock()
+    app_state.require_current_session_id.return_value = "consumer-1"
+    session = app_state.require_current_session.return_value
+    session.room.get_consumer.return_value = object()
+    session.room.get_capabilities.return_value = caps
+    return app_state
+
+
+def test_enforce_consumer_capability_blocks_viewer() -> None:
+    app_state = _app_state_for_consumer(
+        ConsumerCapabilities(edit=False, interact=False)
+    )
+    command = ExecuteCellsCommand(cell_ids=[], codes=[])
+    with pytest.raises(HTTPException) as exc_info:
+        enforce_consumer_capability(app_state, command)  # type: ignore[arg-type]
+    assert exc_info.value.status_code == 403
+
+
+def test_enforce_consumer_capability_allows_editor() -> None:
+    app_state = _app_state_for_consumer(
+        ConsumerCapabilities(edit=True, interact=True)
+    )
+    command = ExecuteCellsCommand(cell_ids=[], codes=[])
+    enforce_consumer_capability(app_state, command)  # type: ignore[arg-type]
