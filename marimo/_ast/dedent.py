@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import re
 import textwrap
 import tokenize
 from tokenize import TokenError
