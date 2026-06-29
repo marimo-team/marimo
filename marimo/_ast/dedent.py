@@ -9,6 +9,7 @@ from tokenize import TokenError
 
 _NEWLINE_RE = re.compile(r"\r\n|\r|\n")
 
+
 def split_source_lines(text: str, keepends: bool = False) -> list[str]:
     """Split source into lines the way `ast`/`tokenize` count them.
 
