@@ -932,10 +932,15 @@ class TestDynamicDirectoryMiddlewareSymlink(unittest.TestCase):
         assert response.status_code == 200
         assert response.text == "App from nb"
 
-        # Atomically re-point the symlink at a new release.
-        new_link = self.temp_dir / "notebooks.new"
-        os.symlink(releases / "v2", new_link, target_is_directory=True)
-        os.replace(new_link, served)
+        # Re-point the symlink at a new release. Remove + recreate rather
+        # than os.replace, which can't overwrite an existing directory
+        # symlink on Windows. A directory symlink is removed with rmdir on
+        # Windows and unlink on POSIX.
+        if sys.platform == "win32":
+            os.rmdir(served)
+        else:
+            served.unlink()
+        os.symlink(releases / "v2", served, target_is_directory=True)
 
         # Still served (regressed to 404 before the fix).
         response = client.get("/apps/nb/")
