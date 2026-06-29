@@ -5,7 +5,7 @@ import { useAtomValue } from "jotai";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
-import { NoKernelConnectedError, prettyError } from "@/utils/errors";
+import { HTTPError, NoKernelConnectedError, prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 import { useConnectToRuntime } from "../runtime/config";
 import { store } from "../state/jotai";
@@ -106,6 +106,14 @@ export function createErrorToastingRequests(
           });
           Logger.error(`Failed to handle request: ${key}`, error);
           // Rethrow the error so that the caller can handle it
+          throw error;
+        }
+
+        // A capability 403: the connection is read-only for this action. The
+        // live capability notification already moved the UI to viewer state,
+        // so don't alarm the user with an error toast.
+        if (error instanceof HTTPError && error.status === 403) {
+          Logger.warn(`Request refused, connection is read-only: ${key}`);
           throw error;
         }
 
