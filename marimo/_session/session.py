@@ -17,6 +17,7 @@ from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
+    ConsumerCapabilities,
     NotificationMessage,
 )
 from marimo._messaging.serde import serialize_kernel_message
@@ -29,6 +30,7 @@ from marimo._runtime.commands import (
     HTTPRequest,
     UpdateUIElementCommand,
 )
+from marimo._session.capabilities import consumer_can, required_capability
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
 from marimo._session.extensions.extensions import (
@@ -344,8 +346,36 @@ class SessionImpl(Session):
         request: commands.CommandMessage,
         from_consumer_id: ConsumerId | None,
     ) -> None:
-        """Put a control request in the control queue."""
+        """Put a control request in the control queue.
+
+        Drops requests from consumers that lack the capability the command
+        requires. `from_consumer_id is None` denotes a system-originated
+        request and is always allowed.
+        """
+        if not self._consumer_may_issue(request, from_consumer_id):
+            LOGGER.warning(
+                "Dropping %s from consumer %s: command requires %s capability",
+                type(request).__name__,
+                from_consumer_id,
+                required_capability(type(request)).value,
+            )
+            return
         self._event_bus.emit_received_command(self, request, from_consumer_id)
+
+    def _consumer_may_issue(
+        self,
+        request: commands.CommandMessage,
+        from_consumer_id: ConsumerId | None,
+    ) -> bool:
+        if from_consumer_id is None:
+            return True
+        consumer = self.room.get_consumer(from_consumer_id)
+        capabilities = (
+            self.room.get_capabilities(consumer)
+            if consumer is not None
+            else ConsumerCapabilities(edit=False, interact=False)
+        )
+        return consumer_can(capabilities, type(request))
 
     def put_input(self, text: str) -> None:
         """Put an input() request in the input queue."""
