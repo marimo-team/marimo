@@ -70,6 +70,7 @@ You can configure the following providers:
 * DeepSeek
 * xAI
 * LM Studio
+* Atomic Chat
 * Mistral
 * Ollama
 * OpenAI
@@ -390,6 +391,36 @@ autocomplete_model = "ollama/codellama" # or another model from `ollama ls`
     ```bash
     curl http://127.0.0.1:11434/v1/models
     ```
+
+### Atomic Chat
+
+Connect to a local model served by [Atomic Chat](https://github.com/AtomicBot-ai/Atomic-Chat)'s OpenAI-compatible API.
+
+**Requirements**
+
+* Install [Atomic Chat](https://atomic.chat/) and load a model in the app
+* `pip install openai` or `uv add openai`
+
+**Configuration**
+
+```toml title="marimo.toml"
+[ai.models]
+chat_model = "atomic_chat/your-model-name"  # use the model ID shown in Atomic Chat
+
+[ai.custom_providers.atomic_chat]
+base_url = "http://127.0.0.1:1337/v1"
+api_key = "atomic"  # optional placeholder when local auth is not enforced
+```
+
+Add the model to the dropdown if needed:
+
+```toml title="marimo.toml"
+[ai.models]
+custom_models = ["atomic_chat/your-model-name"]
+```
+
+??? tip "Docker"
+    If marimo runs in Docker and Atomic Chat runs on the host, use `http://host.docker.internal:1337/v1` as the `base_url`.
 
 ## Custom providers
 
