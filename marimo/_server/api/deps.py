@@ -162,9 +162,9 @@ class AppState(AppStateBase):
             LOGGER.warning(
                 "Valid consumers ids: %s",
                 [
-                    list(session.consumers.values())
+                    list(session.room.consumers)
                     for session in self.session_manager.sessions.values()
-                    if session.consumers
+                    if session.room.consumers
                 ],
             )
             raise ValueError(f"Invalid session id: {session_id}")

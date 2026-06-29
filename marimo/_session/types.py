@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     import asyncio
     import threading
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Iterator
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._messaging.notebook.document import NotebookDocument
@@ -139,11 +139,6 @@ class Session(Protocol):
     @property
     def document(self) -> NotebookDocument:
         """The notebook document this session reflects."""
-        ...
-
-    @property
-    def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
-        """Get the consumers in the session."""
         ...
 
     def kernel_state(self) -> KernelState:

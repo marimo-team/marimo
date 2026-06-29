@@ -65,7 +65,7 @@ from marimo._types.ids import ConsumerId
 from marimo._utils.repr import format_repr
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Iterator
 
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._server.models.models import InstantiateNotebookRequest
@@ -307,11 +307,6 @@ class SessionImpl(Session):
             if extension in self.extensions:
                 self.extensions.remove(extension)
 
-    @property
-    def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
-        """Get the consumers in the session."""
-        return self.room.consumers
-
     async def rename_path(self, new_path: str) -> None:
         """Rename the path of the session."""
         old_path = self.app_file_manager.path
@@ -385,11 +380,7 @@ class SessionImpl(Session):
         # Consumers are also extensions, so we want to attach them to the session
         self.extensions.add(session_consumer)
         session_consumer.on_attach(self, self._event_bus)
-        self.room.add_consumer(
-            session_consumer,
-            consumer_id=session_consumer.consumer_id,
-            main=main,
-        )
+        self.room.add_consumer(session_consumer, main=main)
 
     def get_current_state(self) -> SessionView:
         """Return the current state of the session."""
