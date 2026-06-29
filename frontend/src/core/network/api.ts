@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { createMarimoClient } from "@marimo-team/marimo-api";
+import { HTTPError } from "../../utils/errors";
 import { Logger } from "../../utils/Logger";
 import { Strings } from "../../utils/strings";
 import { getRuntimeManager } from "../runtime/config";
@@ -50,7 +51,7 @@ export const API = {
           const errorBody = isJson
             ? await response.json()
             : await response.text();
-          throw new Error(response.statusText, { cause: errorBody });
+          throw new HTTPError(response.status, response.statusText, errorBody);
         }
         if (isJson) {
           return response.json() as RESP;
@@ -83,7 +84,7 @@ export const API = {
     })
       .then((response) => {
         if (!response.ok) {
-          throw new Error(response.statusText);
+          throw new HTTPError(response.status, response.statusText);
         }
         if (
           response.headers.get("Content-Type")?.startsWith("application/json")
@@ -108,8 +109,13 @@ export const API = {
     response: Response;
   }): Promise<T> => {
     if (response.error) {
-      // oxlint-disable-next-line typescript/prefer-promise-reject-errors
-      return Promise.reject(response.error);
+      return Promise.reject(
+        new HTTPError(
+          response.response.status,
+          response.response.statusText,
+          response.error,
+        ),
+      );
     }
     return Promise.resolve(response.data as T);
   },
@@ -118,8 +124,13 @@ export const API = {
     response: Response;
   }): Promise<null> => {
     if (response.error) {
-      // oxlint-disable-next-line typescript/prefer-promise-reject-errors
-      return Promise.reject(response.error);
+      return Promise.reject(
+        new HTTPError(
+          response.response.status,
+          response.response.statusText,
+          response.error,
+        ),
+      );
     }
     return Promise.resolve(null);
   },
