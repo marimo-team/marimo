@@ -464,6 +464,19 @@ class UpdateUIElementCommand(Command):
         return list(zip(self.object_ids, self.values, strict=False))
 
 
+class UpdateQueryParamsCommand(Command):
+    """Update query parameters from browser navigation.
+
+    Triggered when user navigates using browser back/forward buttons.
+    Updates query params state and re-executes dependent cells.
+
+    Attributes:
+        query_params: New query parameter values from URL.
+    """
+
+    query_params: SerializedQueryParams
+
+
 class InvokeFunctionCommand(Command):
     """Invoke a function from a UI element.
 
@@ -922,6 +935,7 @@ CommandMessage = (
     | InstallPackagesCommand
     # UI element and widget model operations
     | UpdateUIElementCommand
+    | UpdateQueryParamsCommand
     | ModelCommand
     | InvokeFunctionCommand
     # User/configuration operations

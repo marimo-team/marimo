@@ -29,6 +29,7 @@ from marimo._runtime.commands import (
     StopKernelCommand,
     SyncGraphCommand,
     UpdateCellConfigCommand,
+    UpdateQueryParamsCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
 )
@@ -67,6 +68,9 @@ class KernelRequestHandlers:
         router.register(UpdateCellConfigCommand, k.set_cell_config)
         router.register(
             UpdateUIElementCommand, self._handle_set_ui_element_value
+        )
+        router.register(
+            UpdateQueryParamsCommand, self._handle_update_query_params
         )
         router.register(ModelCommand, self._handle_receive_model_message)
         router.register(UpdateUserConfigCommand, self._handle_set_user_config)
@@ -129,6 +133,17 @@ class KernelRequestHandlers:
             await self._kernel.set_ui_element_value(
                 request, notify_frontend=False
             )
+        broadcast_notification(CompletedRunNotification())
+
+    async def _handle_update_query_params(
+        self, request: UpdateQueryParamsCommand
+    ) -> None:
+        k = self._kernel
+        k.query_params._params.clear()
+        k.query_params._params.update(request.query_params)
+        k.query_params._set_value(k.query_params._params)
+        if k.state_updates:
+            await k._run_cells(set())
         broadcast_notification(CompletedRunNotification())
 
     async def _handle_pdb_request(self, request: DebugCellCommand) -> None:

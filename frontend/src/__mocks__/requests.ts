@@ -33,6 +33,7 @@ export const MockRequestClient = {
       saveAppConfig: vi.fn().mockResolvedValue({}),
       saveCellConfig: vi.fn().mockResolvedValue({}),
       sendFunctionRequest: vi.fn().mockResolvedValue({}),
+      sendUpdateQueryParams: vi.fn().mockResolvedValue(null),
       sendInstallMissingPackages: vi.fn().mockResolvedValue({}),
       readCode: vi.fn().mockResolvedValue({ contents: "" }),
       readSnippets: vi.fn().mockResolvedValue({ snippets: [] }),

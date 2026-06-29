@@ -28,6 +28,7 @@ from marimo._runtime.commands import (
     StorageDownloadCommand,
     StorageListEntriesCommand,
     UpdateCellConfigCommand,
+    UpdateQueryParamsCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
     ValidateSQLCommand,
@@ -77,6 +78,13 @@ class UpdateUIElementRequest(UpdateUIElementCommand, tag=False):
             values=self.values,
             request=self.request,
             token=self.token,
+        )
+
+
+class UpdateQueryParamsRequest(UpdateQueryParamsCommand, tag=False):
+    def as_command(self) -> UpdateQueryParamsCommand:
+        return UpdateQueryParamsCommand(
+            query_params=self.query_params,
         )
 
 

@@ -55,6 +55,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    sendUpdateQueryParams: (request) => {
+      return getClient()
+        .POST("/api/kernel/update_query_params", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     sendRestart: () => {
       return getClient()
         .POST("/api/kernel/restart_session", {
