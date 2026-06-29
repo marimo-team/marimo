@@ -10,7 +10,7 @@ from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._save.stores.file import FileStore
 from marimo._save.stores.redis import RedisStore
 from marimo._save.stores.rest import RestStore
-from marimo._save.stores.store import Store, StoreType, WasmExportableStore
+from marimo._save.stores.store import Store, StoreType
 from marimo._save.stores.tiered import TieredStore
 
 LOGGER = _loggers.marimo_logger()
@@ -88,6 +88,5 @@ __all__ = [
     "StoreKey",
     "StoreType",
     "TieredStore",
-    "WasmExportableStore",
     "get_store",
 ]

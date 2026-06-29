@@ -19,7 +19,7 @@ from marimo._save.loaders.lazy import (
 )
 from marimo._save.stores.dict_store import DictStore
 from marimo._save.stores.file import FileStore
-from marimo._save.stores.store import Store, WasmExportableStore
+from marimo._save.stores.store import Store
 from marimo._save.stubs.lazy_stub import (
     Cache as CacheSchema,
     CacheType,
@@ -45,13 +45,27 @@ class TestDictStore:
         assert not store.hit("k")
         assert not store.clear("k")  # already gone
 
+    def test_get_batch_default_sequential(self) -> None:
+        # DictStore inherits the base Store sequential get_batch.
+        store = DictStore()
+        store.put("a", b"1")
+        assert dict(store.get_batch(["a", "missing"])) == {
+            "a": b"1",
+            "missing": None,
+        }
+
+    def test_export_keys_defaults_empty(self) -> None:
+        # Non-tracking stores inherit the inert base Store default.
+        store = DictStore()
+        store.put("a", b"1")
+        assert store.export_keys() == []
+
 
 class TestLazyStoreNative:
     """Test LazyStore in native (non-Pyodide) mode."""
 
-    def test_isinstance_wasm_exportable(self) -> None:
+    def test_is_store(self) -> None:
         store = LazyStore(inner=DictStore())
-        assert isinstance(store, WasmExportableStore)
         assert isinstance(store, Store)
 
     def test_delegates_to_inner(self) -> None:
@@ -91,19 +105,19 @@ class TestLazyStoreNative:
         assert results["a.bin"] == b"aa"
         assert results["missing"] is None
 
-    def test_export_manifest_tracks_puts(self) -> None:
+    def test_export_keys_tracks_puts(self) -> None:
         store = LazyStore(inner=DictStore())
-        assert store.export_manifest() == []
+        assert store.export_keys() == []
 
         store.put("x.bin", b"x")
         store.put("y.bin", b"y")
-        assert store.export_manifest() == ["x.bin", "y.bin"]
+        assert store.export_keys() == ["x.bin", "y.bin"]
 
-    def test_export_manifest_clear_removes(self) -> None:
+    def test_export_keys_clear_removes(self) -> None:
         store = LazyStore(inner=DictStore())
         store.put("x.bin", b"x")
         store.clear("x.bin")
-        assert store.export_manifest() == []
+        assert store.export_keys() == []
 
     def test_default_inner_is_filestore(self) -> None:
         """Without Pyodide, default inner store is FileStore."""
@@ -159,6 +173,10 @@ class TestLazyStoreWasm:
 
         assert result == b"from_http"
         mock_urlopen.assert_called_once()
+        # Successful fetch is cached in-session and recorded for export,
+        # so repeat reads stay local and the bundle ships it.
+        assert store._inner.get("some/blob.bin") == b"from_http"
+        assert "some/blob.bin" in store.export_keys()
 
     def test_wasm_http_error_returns_none(self) -> None:
         store = WasmLazyStore(inner=DictStore())
@@ -196,7 +214,7 @@ class TestKeySanitization:
 
 
 class TestLazyLoaderBatchPath:
-    """Test that LazyLoader uses get_batch when store is WasmExportableStore."""
+    """Test that LazyLoader uses get_batch via the store.get_batch path."""
 
     def test_restore_uses_batch_path(self) -> None:
         inner = DictStore()
@@ -248,7 +266,7 @@ class TestLazyLoaderBatchPath:
         assert loader.save_cache(cache)
 
         # Verify blobs were written to the DictStore
-        assert store.export_manifest()  # something was written
+        assert store.export_keys()  # something was written
 
         # Load back in native mode (so we don't need js module).
         # The data is in the DictStore inner, and get_batch uses

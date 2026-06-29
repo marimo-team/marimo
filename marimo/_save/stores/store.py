@@ -26,29 +26,25 @@ class Store(ABC):
         del key
         return False
 
-
-class WasmExportableStore(Store):
-    """Interface for stores that support WASM export.
-
-    Provides concurrent multi-key fetch (for WASM blob loading)
-    and export manifest tracking (for --execute bundling).
-    """
-
-    @abstractmethod
     def get_batch(
         self, keys: Iterable[str]
     ) -> Iterator[tuple[str, bytes | None]]:
-        """Yield (key, data) pairs, potentially fetching concurrently."""
-        ...
+        """Yield `(key, data)` pairs for `keys`.
 
-    @abstractmethod
-    def export_manifest(self) -> list[str]:
-        """Return all store keys this session wrote or read.
-
-        Used by --execute export to know exactly which files to copy
-        to public/cache/ for WASM bundling.
+        Defaults to a sequential `get` per key. Stores that can fetch
+        concurrently (e.g. the WASM HTTP store) override this.
         """
-        ...
+        for key in keys:
+            yield key, self.get(key)
+
+    def export_keys(self) -> list[str]:
+        """Return the keys this session wrote or read that should be
+        bundled on `--execute` export.
+
+        Defaults to none; stores that track usage (e.g. `LazyStore`)
+        override this. Returning `[]` keeps non-tracking stores inert.
+        """
+        return []
 
 
 StoreType = type[Store]

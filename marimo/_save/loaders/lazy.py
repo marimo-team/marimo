@@ -20,7 +20,6 @@ from marimo._save.cache import (
 from marimo._save.hash import HashKey
 from marimo._save.loaders.loader import BasePersistenceLoader
 from marimo._save.stores import FileStore, Store
-from marimo._save.stores.store import WasmExportableStore
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator
@@ -43,9 +42,6 @@ from marimo._save.stubs.lazy_stub import (
     UnhashableStub,
 )
 from marimo._save.stubs.stubs import mro_lookup
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -199,7 +195,7 @@ def _get_wasm_dict_store() -> Store:
 _POISONED_KEYS: set[str] = set()
 
 
-class LazyStore(WasmExportableStore):
+class LazyStore(Store):
     """Native store for `LazyLoader`.
 
     Delegates to an inner store (default `FileStore` at `__marimo__/cache/`)
@@ -237,13 +233,7 @@ class LazyStore(WasmExportableStore):
         self._touched_keys.discard(key)
         return self._inner.clear(key)
 
-    def get_batch(
-        self, keys: Iterable[str]
-    ) -> Iterator[tuple[str, bytes | None]]:
-        for k in keys:
-            yield k, self.get(k)
-
-    def export_manifest(self) -> list[str]:
+    def export_keys(self) -> list[str]:
         return sorted(self._written_keys | self._touched_keys)
 
 
@@ -296,23 +286,36 @@ class WasmLazyStore(LazyStore):
 
     @staticmethod
     def _sanitize_key(key: str) -> str:
-        """Prevent path traversal in HTTP fetch keys."""
+        """Validate a fetch key against path traversal.
+
+        Returns `key` unchanged so it still matches the stored key;
+        only rejects `..` segments and absolute paths (normalizing the
+        string here could desync requested and stored keys).
+        """
         clean = PurePosixPath(key)
         if ".." in clean.parts or clean.is_absolute():
             raise ValueError(f"Invalid cache key: {key}")
-        return str(clean)
+        return key
 
     def _http_get(self, key: str) -> bytes | None:
-        """Single sync fetch via pyodide_http-patched urllib."""
+        """Single sync fetch via pyodide_http-patched urllib.
+
+        A successful response is written back to the inner store and
+        marked touched, so repeat reads stay local and the export
+        manifest covers HTTP-fetched blobs.
+        """
         import urllib.request
 
-        key = self._sanitize_key(key)
-        url = f"{self._base_url()}/{key}"
+        url = f"{self._base_url()}/{self._sanitize_key(key)}"
         try:
             with urllib.request.urlopen(url) as resp:
-                return resp.read() if resp.status == 200 else None
+                data = resp.read() if resp.status == 200 else None
         except Exception:
             return None
+        if data is not None:
+            self._inner.put(key, data)
+            self._touched_keys.add(key)
+        return data
 
     def _http_get_batch(
         self, keys: Iterable[str]
@@ -344,7 +347,14 @@ class WasmLazyStore(LazyStore):
             # back to sequential synchronous XHR via the pyodide_http-patched
             # urllib — legal in a worker.
             results = [(k, self._http_get(k)) for k in keys_list]
-        yield from results
+        # Cache successful fetches in-session (idempotent for the fallback
+        # path, which already wrote via `_http_get`) so repeat reads stay
+        # local and the export manifest covers HTTP-fetched blobs.
+        for key, data in results:
+            if data is not None:
+                self._inner.put(key, data)
+                self._touched_keys.add(key)
+            yield key, data
 
 
 # Registry of active loaders by name, so a recreated loader reuses the same
@@ -777,10 +787,10 @@ class WasmLazyLoader(LazyLoader):
     ) -> dict[str, Any]:
         unpickled: dict[str, Any] = {}
         # The store handles concurrency (HTTP batch fetch in WASM). The WASM
-        # variant always pairs with a WasmExportableStore (see `_store_cls`).
-        store = self.store
-        assert isinstance(store, WasmExportableStore)
-        for key, data in store.get_batch(unique_keys):
+        # variant pairs with a `WasmLazyStore` (see `_store_cls`), whose
+        # `get_batch` fetches concurrently; `get_batch` is defined on every
+        # `Store` so no narrowing is needed.
+        for key, data in self.store.get_batch(unique_keys):
             if not data:
                 raise FileNotFoundError("Incomplete cache: missing blobs")
             unpickled[key] = self._deserialize_blob(
