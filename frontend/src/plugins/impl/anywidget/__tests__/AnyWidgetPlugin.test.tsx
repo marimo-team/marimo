@@ -193,6 +193,17 @@ describe("getInvalidAnyWidgetModuleError", () => {
     expect(error.message).toContain("not `export function initialize`");
   });
 
+  it("should avoid nested backticks for multi-hook named exports", () => {
+    const error = getInvalidAnyWidgetModuleError(
+      { render: () => undefined, initialize: () => undefined },
+      jsUrl,
+    );
+    expect(error.message).toContain(
+      "`export default { render, initialize }` (not `named export function ...`).",
+    );
+    expect(error.message).not.toContain("`named `export");
+  });
+
   it("should explain a missing default export", () => {
     expect(getInvalidAnyWidgetModuleError({}, jsUrl).message).toContain(
       "missing a default export",

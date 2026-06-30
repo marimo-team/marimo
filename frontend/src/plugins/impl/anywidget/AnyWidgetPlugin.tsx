@@ -221,7 +221,7 @@ function getInvalidAnyWidgetModuleError(mod: unknown, jsUrl: string): Error {
     const namedExportExample =
       lifecycleHooks.length === 1
         ? `export function ${lifecycleHooks[0]}`
-        : "named `export function ...`";
+        : "named export function ...";
     return new Error(
       `Anywidget module at ${jsUrl} uses named exports (${namedExports}). ` +
         "Per the AFM spec, use a default export instead: " +
