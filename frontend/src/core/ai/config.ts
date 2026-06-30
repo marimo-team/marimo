@@ -71,7 +71,7 @@ export const useModelChange = () => {
       },
     };
 
-    saveConfig(newConfig);
+    await saveConfig(newConfig);
   };
 
   return { saveModelChange, saveModeChange };
