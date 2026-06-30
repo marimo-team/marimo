@@ -69,7 +69,7 @@ export function useOpenAiAssistant() {
       setAiPanelTab(opts.panel);
     }
     // Persist the mode before queueing so an auto-submitted prompt uses the
-    // requested mode/tools (e.g. `code_mode`) rather than the stale chat mode.
+    // requested mode/tools rather than the stale chat mode.
     if (tab === "chat" && opts.mode) {
       await saveModeChange(opts.mode);
     }

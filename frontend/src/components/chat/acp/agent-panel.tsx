@@ -976,9 +976,6 @@ const AgentPanel: React.FC = () => {
   );
 
   // Consume a prompt queued by another part of the app (e.g. error auto-fix).
-  // Wait until the agent can actually accept it (active session, connected,
-  // not busy) so a submitted prompt is never dropped by `handlePromptSubmit`'s
-  // early return.
   useEffect(() => {
     if (!activeSessionId || !agent || isLoading || !pendingPrompt) {
       return;
