@@ -16,10 +16,7 @@ from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notebook.document import NotebookDocument
-from marimo._messaging.notification import (
-    ConsumerCapabilities,
-    NotificationMessage,
-)
+from marimo._messaging.notification import NotificationMessage
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
@@ -370,12 +367,14 @@ class SessionImpl(Session):
         if from_consumer_id is None:
             return True
         consumer = self.room.get_consumer(from_consumer_id)
-        capabilities = (
-            self.room.get_capabilities(consumer)
-            if consumer is not None
-            else ConsumerCapabilities(edit=False, interact=False)
+        if consumer is None:
+            # A stale or forged consumer id is not in the room: drop it rather
+            # than fall back to read-tier, which `consumer_can` grants
+            # unconditionally.
+            return False
+        return consumer_can(
+            self.room.get_capabilities(consumer), type(request)
         )
-        return consumer_can(capabilities, type(request))
 
     def put_input(self, text: str) -> None:
         """Put an input() request in the input queue."""

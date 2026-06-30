@@ -76,10 +76,18 @@ class Room:
             self.main_consumer = consumer
 
     def remove_consumer(self, consumer: SessionConsumer) -> None:
-        if consumer.consumer_id not in self.consumers:
+        state = self.consumers.get(consumer.consumer_id)
+        if state is None:
             LOGGER.debug(
                 "Attempted to remove a consumer that was not in room."
             )
+            return
+
+        if state.consumer is not consumer:
+            # A newer consumer re-registered under this id (reconnect or
+            # takeover race). Tear down the stale socket but leave the live
+            # registration intact.
+            consumer.on_detach()
             return
 
         if consumer == self.main_consumer:
@@ -90,8 +98,9 @@ class Room:
     def promote_consumer_to_main(self, consumer: SessionConsumer) -> None:
         """Promote a consumer to be the main consumer of the room.
 
-        Demotes the current main consumer (editor) to a regular consumer (reader).
-        Emits a targeted notification to each targeted consumer to inform capability change.
+        Demotes the current main consumer (editor) to an interactor
+        (`edit=False, interact=True`). Notifies each affected consumer of its
+        capability change.
         """
 
         assert consumer.consumer_id in self.consumers, (

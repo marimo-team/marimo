@@ -11,7 +11,10 @@ from starlette.responses import PlainTextResponse
 from marimo import _loggers
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_request
+from marimo._server.api.utils import (
+    enforce_consumer_capability,
+    parse_request,
+)
 from marimo._server.files.path_validator import PathValidator
 from marimo._server.models.models import (
     BaseResponse,
@@ -125,8 +128,10 @@ async def rename_file(
             Path(directory), Path(filename)
         )
 
+    command = RenameNotebookCommand(filename=filename)
+    enforce_consumer_capability(app_state, command)
     app_state.require_current_session().put_control_request(
-        RenameNotebookCommand(filename=filename),
+        command,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 

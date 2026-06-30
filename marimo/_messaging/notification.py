@@ -302,8 +302,8 @@ class ConsumerCapabilities(msgspec.Struct, frozen=True):
     The server enforces these: control requests are gated against the issuing
     consumer's stored capabilities at the control-request chokepoint (the
     authority) and mirrored as an advisory HTTP 403 at the request handlers.
-    `read`-tier actions (completions, non-mutating function calls, previews)
-    are always permitted.
+    Commands classified as `read` in `marimo._session.capabilities` (such as
+    completions and previews) are always permitted.
     """
 
     edit: bool
