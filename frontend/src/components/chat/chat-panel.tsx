@@ -96,7 +96,7 @@ import {
   useFileState,
 } from "./chat-utils";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
-import { focusEditorAtEnd } from "@/core/codemirror/utils";
+import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 
 // Default mode for the AI
 const DEFAULT_MODE = "manual";
@@ -764,10 +764,10 @@ const ChatPanelBody = () => {
       void submitPendingPrompt(prompt);
     } else if (isNewThread) {
       setNewThreadInput(prompt);
-      focusEditorAtEnd(newThreadInputRef);
+      focusInputAndMoveToEnd(newThreadInputRef);
     } else {
       setInput(prompt);
-      focusEditorAtEnd(newMessageInputRef);
+      focusInputAndMoveToEnd(newMessageInputRef);
     }
   }, [pendingPrompt, setPendingPrompt, isNewThread, submitPendingPrompt]);
 

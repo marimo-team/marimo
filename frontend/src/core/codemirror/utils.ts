@@ -3,7 +3,6 @@ import type { EditorState, Transaction } from "@codemirror/state";
 import type { EditorView, ViewUpdate } from "@codemirror/view";
 import { getCM } from "@replit/codemirror-vim";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import type React from "react";
 
 export function isAtStartOfEditor(ev: { state: EditorState }) {
   const main = ev.state.selection.main;
@@ -39,13 +38,7 @@ export function moveToEndOfEditor(ev: EditorView | undefined) {
   });
 }
 
-/**
- * Focus a `@uiw/react-codemirror` editor and place the cursor at the end.
- *
- * Deferred a frame so it runs after React has committed any pending value
- * change (e.g. a programmatically prefilled input).
- */
-export function focusEditorAtEnd(
+export function focusInputAndMoveToEnd(
   ref: React.RefObject<ReactCodeMirrorRef | null>,
 ) {
   requestAnimationFrame(() => {
