@@ -33,13 +33,16 @@ import { type FixMode, useFixMode } from "./fix-mode";
 export function buildFixPromptFromText(
   errorText: string,
   cellId?: CellId,
+  {
+    includeDatasourceContext = false,
+  }: { includeDatasourceContext?: boolean } = {},
 ): string {
   const header =
     cellId != null
       ? `My cell (id: ${cellId}) produced the following error. Please fix it:`
       : "My code gives the following error. Please fix it:";
   let prompt = `${header}\n\n${errorText}`;
-  if (cellId != null) {
+  if (cellId != null && includeDatasourceContext) {
     const datasourceContext = getDatasourceContext(cellId);
     if (datasourceContext) {
       prompt += `\n\nDatabase schema: ${datasourceContext}`;
@@ -52,7 +55,12 @@ export function buildFixPrompt(errors: MarimoError[], cellId: CellId): string {
   const errorText = errors
     .map((error) => ("msg" in error && error.msg ? error.msg : error.type))
     .join("\n");
-  return buildFixPromptFromText(errorText, cellId);
+  const includeDatasourceContext = errors.some(
+    (error) => error.type === "sql-error",
+  );
+  return buildFixPromptFromText(errorText, cellId, {
+    includeDatasourceContext,
+  });
 }
 
 export const AutoFixButton = ({

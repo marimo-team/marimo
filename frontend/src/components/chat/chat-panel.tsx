@@ -605,26 +605,30 @@ const ChatPanelBody = () => {
     requestAnimationFrame(scrollToBottom);
   }, [activeChatId]);
 
+  const startNewChatState = useEvent((initialMessage: string) => {
+    const now = Date.now();
+    const newChat: Chat = {
+      id: chatId as ChatId,
+      title: generateChatTitle(initialMessage),
+      messages: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    setChatState((prev) => {
+      const newChats = new Map(prev.chats);
+      newChats.set(newChat.id, newChat);
+      return {
+        ...prev,
+        chats: newChats,
+        activeChatId: newChat.id,
+      };
+    });
+  });
+
   const createNewThread = useEvent(
     async (initialMessage: string, initialAttachments?: File[]) => {
-      const now = Date.now();
-      const newChat: Chat = {
-        id: chatId as ChatId,
-        title: generateChatTitle(initialMessage),
-        messages: [],
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      setChatState((prev) => {
-        const newChats = new Map(prev.chats);
-        newChats.set(newChat.id, newChat);
-        return {
-          ...prev,
-          chats: newChats,
-          activeChatId: newChat.id,
-        };
-      });
+      startNewChatState(initialMessage);
 
       const fileParts =
         initialAttachments && initialAttachments.length > 0
@@ -726,6 +730,23 @@ const ChatPanelBody = () => {
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
 
+  // Submit a queued prompt without reading or clearing the user's draft
+  // input/attachments (unlike the visible chat input submit path).
+  const submitPendingPrompt = useEvent(async (prompt: string) => {
+    if (activeChatId == null) {
+      startNewChatState(prompt);
+    }
+    const { contextPart, attachments } = await resolveChatContext(prompt);
+    sendMessage({
+      role: "user",
+      parts: [
+        { type: "text", text: prompt },
+        ...(contextPart ? [contextPart] : []),
+        ...attachments,
+      ],
+    });
+  });
+
   // Deliver a prompt queued elsewhere (e.g. error auto-fix) to the chat,
   // appending to the active thread or starting one if none exists.
   useEffect(() => {
@@ -734,24 +755,14 @@ const ChatPanelBody = () => {
     }
     setPendingPrompt(null);
     const { prompt, submit } = pendingPrompt;
-    if (!submit) {
-      if (activeChatId == null) {
-        setNewThreadInput(prompt);
-      } else {
-        setInput(prompt);
-      }
+    if (submit) {
+      void submitPendingPrompt(prompt);
     } else if (activeChatId == null) {
-      void createNewThread(prompt);
+      setNewThreadInput(prompt);
     } else {
-      void handleChatInputSubmit(undefined, prompt);
+      setInput(prompt);
     }
-  }, [
-    pendingPrompt,
-    setPendingPrompt,
-    activeChatId,
-    createNewThread,
-    handleChatInputSubmit,
-  ]);
+  }, [pendingPrompt, setPendingPrompt, activeChatId, submitPendingPrompt]);
 
   const isNewThread = messages.length === 0;
 

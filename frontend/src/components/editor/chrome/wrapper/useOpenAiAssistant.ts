@@ -44,7 +44,7 @@ export function useOpenAiAssistant() {
   const setPendingPrompt = useSetAtom(pendingAiPromptAtom);
   const store = useStore();
 
-  return useEvent((opts: OpenAiAssistantOptions) => {
+  return useEvent(async (opts: OpenAiAssistantOptions) => {
     const tab = resolveAiPanelTab(opts.panel, store.get(aiPanelTabAtom));
 
     const chatPanelReady = store.get(aiModelConfiguredAtom);
@@ -68,8 +68,10 @@ export function useOpenAiAssistant() {
     if (opts.panel) {
       setAiPanelTab(opts.panel);
     }
+    // Persist the mode before queueing so an auto-submitted prompt uses the
+    // requested mode/tools (e.g. `code_mode`) rather than the stale chat mode.
     if (tab === "chat" && opts.mode) {
-      void saveModeChange(opts.mode);
+      await saveModeChange(opts.mode);
     }
 
     setPendingPrompt({
