@@ -9,19 +9,16 @@ import { pendingAiPromptAtom } from "@/core/ai/state";
 import type { CopilotMode } from "@/core/ai/tools/registry";
 import { aiModelConfiguredAtom } from "@/core/config/config";
 import { getFeatureFlag } from "@/core/config/feature-flag";
-import { Logger } from "@/utils/Logger";
 import { useChromeActions } from "../state";
 import { type AiPanelTab, aiPanelTabAtom, useAiPanelTab } from "./useAiPanel";
-
-// Error fixes work best with kernel access, so we default the chat panel to
-// code mode. The agents panel manages its own mode, so this is chat-only.
-const FIX_CHAT_MODE: CopilotMode = "code_mode";
 
 export interface OpenAiAssistantOptions {
   prompt: string;
   submit?: boolean;
   /** Override the user's AI sidebar tab. When omitted, the stored tab is used. */
   panel?: AiPanelTab;
+  /** Chat copilot mode. Only applied when the chat panel is the target. */
+  mode?: CopilotMode;
 }
 
 // Resolve which AI panel to open.
@@ -47,7 +44,7 @@ export function useOpenAiAssistant() {
   const setPendingPrompt = useSetAtom(pendingAiPromptAtom);
   const store = useStore();
 
-  return useEvent(async (opts: OpenAiAssistantOptions) => {
+  return useEvent((opts: OpenAiAssistantOptions) => {
     const tab = resolveAiPanelTab(opts.panel, store.get(aiPanelTabAtom));
 
     const chatPanelReady = store.get(aiModelConfiguredAtom);
@@ -71,11 +68,8 @@ export function useOpenAiAssistant() {
     if (opts.panel) {
       setAiPanelTab(opts.panel);
     }
-
-    if (tab === "chat") {
-      await saveModeChange(FIX_CHAT_MODE).catch(() =>
-        Logger.error("Failed to save mode change"),
-      );
+    if (tab === "chat" && opts.mode) {
+      void saveModeChange(opts.mode);
     }
 
     setPendingPrompt({

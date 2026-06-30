@@ -46,6 +46,7 @@ import {
   type ChatId,
   chatStateAtom,
   pendingAiPromptAtom,
+  pendingAiPromptAtom,
 } from "@/core/ai/state";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import {
@@ -604,30 +605,26 @@ const ChatPanelBody = () => {
     requestAnimationFrame(scrollToBottom);
   }, [activeChatId]);
 
-  const startNewChatState = useEvent((initialMessage: string) => {
-    const now = Date.now();
-    const newChat: Chat = {
-      id: chatId as ChatId,
-      title: generateChatTitle(initialMessage),
-      messages: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    setChatState((prev) => {
-      const newChats = new Map(prev.chats);
-      newChats.set(newChat.id, newChat);
-      return {
-        ...prev,
-        chats: newChats,
-        activeChatId: newChat.id,
-      };
-    });
-  });
-
   const createNewThread = useEvent(
     async (initialMessage: string, initialAttachments?: File[]) => {
-      startNewChatState(initialMessage);
+      const now = Date.now();
+      const newChat: Chat = {
+        id: chatId as ChatId,
+        title: generateChatTitle(initialMessage),
+        messages: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      setChatState((prev) => {
+        const newChats = new Map(prev.chats);
+        newChats.set(newChat.id, newChat);
+        return {
+          ...prev,
+          chats: newChats,
+          activeChatId: newChat.id,
+        };
+      });
 
       const fileParts =
         initialAttachments && initialAttachments.length > 0
@@ -729,23 +726,32 @@ const ChatPanelBody = () => {
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
 
-  const submitPendingPrompt = useEvent(async (prompt: string) => {
-    if (activeChatId == null) {
-      startNewChatState(prompt);
-      // Starting a chat swaps the new-thread input for the regular input;
-      // carry over any draft the user had typed so it isn't lost.
-      setInput(newThreadInput);
+  // Deliver a prompt queued elsewhere (e.g. error auto-fix) to the chat,
+  // appending to the active thread or starting one if none exists.
+  useEffect(() => {
+    if (!pendingPrompt) {
+      return;
     }
-    const { contextPart, attachments } = await resolveChatContext(prompt);
-    sendMessage({
-      role: "user",
-      parts: [
-        { type: "text", text: prompt },
-        ...(contextPart ? [contextPart] : []),
-        ...attachments,
-      ],
-    });
-  });
+    setPendingPrompt(null);
+    const { prompt, submit } = pendingPrompt;
+    if (!submit) {
+      if (activeChatId == null) {
+        setNewThreadInput(prompt);
+      } else {
+        setInput(prompt);
+      }
+    } else if (activeChatId == null) {
+      void createNewThread(prompt);
+    } else {
+      void handleChatInputSubmit(undefined, prompt);
+    }
+  }, [
+    pendingPrompt,
+    setPendingPrompt,
+    activeChatId,
+    createNewThread,
+    handleChatInputSubmit,
+  ]);
 
   const isNewThread = messages.length === 0;
 

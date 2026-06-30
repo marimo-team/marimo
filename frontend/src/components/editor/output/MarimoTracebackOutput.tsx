@@ -43,6 +43,8 @@ import {
 } from "@/utils/traceback";
 import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
 import { AIFixButton, buildFixPromptFromText } from "../errors/auto-fix";
+import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
+import { AIFixButton, buildFixPromptFromText } from "../errors/auto-fix";
 import { MangledSegments } from "../errors/mangled-local-chip";
 import { CellLinkTraceback } from "../links/cell-link";
 import type { OnRefactorWithAI } from "../Output";
@@ -102,6 +104,8 @@ export const MarimoTracebackOutput = ({
   const openAISidebar = () => {
     openAiAssistant({
       prompt: buildFixPromptFromText(lastTracebackLine, cellId),
+      submit: true,
+      mode: "code_mode",
     });
   };
 
