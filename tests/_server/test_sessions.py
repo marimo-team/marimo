@@ -415,7 +415,7 @@ def test_session_with_kiosk_consumers() -> None:
 
     # Assert startup of kiosk consumer
     assert session.room.main_consumer != kiosk_consumer
-    assert kiosk_consumer in session.room.consumers
+    assert kiosk_consumer.consumer_id in session.room.consumers
     kiosk_consumer.on_attach.assert_called_once()
     assert kiosk_consumer.on_detach.call_count == 0
     assert session.connection_state() == ConnectionState.OPEN
