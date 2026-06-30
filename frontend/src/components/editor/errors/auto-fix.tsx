@@ -115,7 +115,6 @@ export const AutoFixButton = ({
   const openAISidebar = () => {
     openAiAssistant({
       prompt: buildFixPrompt(errors, cellId),
-      submit: false,
       mode: "code_mode",
     });
   };

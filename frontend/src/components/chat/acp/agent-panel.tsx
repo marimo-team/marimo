@@ -980,7 +980,13 @@ const AgentPanel: React.FC = () => {
 
   // Consume a prompt queued by another part of the app (e.g. error auto-fix).
   useEffect(() => {
-    if (!activeSessionId || !agent || isLoading || !pendingPrompt) {
+    if (
+      !activeSessionId ||
+      !agent ||
+      isLoading ||
+      connectionState.status !== "connected" ||
+      !pendingPrompt
+    ) {
       return;
     }
     setPendingPrompt(null);
@@ -993,6 +999,7 @@ const AgentPanel: React.FC = () => {
     activeSessionId,
     agent,
     isLoading,
+    connectionState.status,
     pendingPrompt,
     setPendingPrompt,
     handlePromptSubmit,
