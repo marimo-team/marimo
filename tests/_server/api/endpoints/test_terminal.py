@@ -325,6 +325,50 @@ class TestCreateProcessCleanupHandler:
 
             mock_close.assert_any_call(mock_fd)
 
+    def test_cleanup_closes_master_before_blocking_waitpid(self) -> None:
+        """Regression: the pty master fd must be closed BEFORE the blocking
+        ``os.waitpid(pid, 0)``.
+
+        The child shell is the pty's session leader. If it is killed while the
+        server still holds the master open and a foreground child keeps the
+        slave open (e.g. a long-lived REPL or coding agent), the kernel cannot
+        revoke the controlling terminal, the shell never becomes a reapable
+        zombie, and the blocking ``os.waitpid`` deadlocks the asyncio event
+        loop forever (frozen server, ``Ctrl-C`` ignored, recoverable only with
+        ``kill -9``). Closing the master first lets the shell be reaped, so this
+        call ordering is load-bearing.
+        """
+        child_pid, fd = 4321, 7
+        calls: list = []
+
+        cleanup = _create_process_cleanup_handler(child_pid, fd)
+        with (
+            patch(
+                "os.kill",
+                side_effect=lambda p, s: calls.append(("kill", p, s)),
+            ),
+            patch(
+                "os.waitpid",
+                side_effect=lambda p, f: (
+                    calls.append(("waitpid", p, f)) or (0, 0)
+                ),
+            ),
+            patch(
+                "os.close",
+                side_effect=lambda d: calls.append(("close", d)),
+            ),
+        ):
+            cleanup()
+
+        close_idx = next(i for i, c in enumerate(calls) if c == ("close", fd))
+        blocking_wait_idx = next(
+            i for i, c in enumerate(calls) if c == ("waitpid", child_pid, 0)
+        )
+        assert close_idx < blocking_wait_idx, (
+            "os.close(fd) must run before the blocking os.waitpid(pid, 0) to "
+            f"avoid the terminal-cleanup deadlock; call order was {calls}"
+        )
+
 
 class TestSetupChildProcess:
     @patch("os.chdir")
