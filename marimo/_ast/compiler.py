@@ -361,7 +361,15 @@ def compile_cell(
         expr, filename, mode="eval", dont_inherit=True, flags=flags
     )
 
-    nonlocals = {name for name in v.defs if not is_local(name)}
+    nonlocals = {
+        name
+        for name in v.defs
+        if not is_local(name)
+        or (
+            name in v.variable_data
+            and any(d.kind == "import" for d in v.variable_data[name])
+        )
+    }
     temporaries = v.defs - nonlocals
     variable_data = {
         name: v.variable_data[name]
@@ -398,6 +406,7 @@ def compile_cell(
         defs=nonlocals,
         refs=v.refs,
         sql_refs=v.sql_refs,
+        import_refs=v.unresolved_locals,
         temporaries=temporaries,
         closed_over_temporaries=closed_over_temporaries,
         variable_data=variable_data,
