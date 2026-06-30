@@ -140,7 +140,7 @@ dev = [
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
     # For linting
-    "ruff>=0.15.16",
+    "ruff>=0.15.18",
     # For AI
     "pydantic-ai-slim[openai]>=1.107.0,<2.0.0",
 ]
@@ -263,7 +263,7 @@ typecheck = [
 
 docs = [
     "marimo_docs",
-    "ruff>=0.15.16",
+    "ruff>=0.15.18",
     "mkdocs>=1.6.1",
     # Live reloading broken in >= 9.6.21: https://github.com/squidfunk/mkdocs-material/issues/8478
     "mkdocs-material==9.6.20",
