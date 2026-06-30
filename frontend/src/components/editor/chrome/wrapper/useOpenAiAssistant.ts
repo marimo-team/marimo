@@ -6,6 +6,7 @@ import { agentSessionStateAtom } from "@/components/chat/acp/state";
 import { toast } from "@/components/ui/use-toast";
 import { useModelChange } from "@/core/ai/config";
 import { pendingAiPromptAtom } from "@/core/ai/state";
+import type { CopilotMode } from "@/core/ai/tools/registry";
 import { aiModelConfiguredAtom } from "@/core/config/config";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { Logger } from "@/utils/Logger";
@@ -14,7 +15,7 @@ import { type AiPanelTab, aiPanelTabAtom, useAiPanelTab } from "./useAiPanel";
 
 // Error fixes work best with kernel access, so we default the chat panel to
 // code mode. The agents panel manages its own mode, so this is chat-only.
-const FIX_CHAT_MODE = "code_mode";
+const FIX_CHAT_MODE: CopilotMode = "code_mode";
 
 export interface OpenAiAssistantOptions {
   prompt: string;
