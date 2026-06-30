@@ -1,6 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  vi,
+} from "vitest";
 import { variableName } from "@/__tests__/branded";
+import * as aiContext from "@/core/ai/context/context";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { dataSourceConnectionsAtom } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
@@ -8,10 +17,11 @@ import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
-import type { UIMessage } from "ai";
+import type { FileUIPart, UIMessage } from "ai";
 import {
   codeToCells,
   getAICompletionBody,
+  getAICompletionBodyWithAttachments,
   isContextAttachment,
   MARIMO_CONTEXT_PART_TYPE,
   resolveChatContext,
@@ -437,6 +447,42 @@ describe("isContextAttachment", () => {
     expect(isContextAttachment({ type: "text", text: "hi" } as Part)).toBe(
       false,
     );
+  });
+});
+
+describe("context attachment stamping", () => {
+  const rawAttachment: FileUIPart = {
+    type: "file",
+    mediaType: "image/png",
+    url: "data:image/png;base64,abc",
+  };
+
+  beforeEach(() => {
+    vi.spyOn(aiContext, "getAIContextRegistry").mockReturnValue({
+      parseAllContextIds: () => ["data://t1"],
+      formatContextForAI: () => '<data name="t1" />',
+      getAttachmentsForContext: async () => [rawAttachment],
+    } as unknown as ReturnType<typeof aiContext.getAIContextRegistry>);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("stamps chat attachments as context-derived", async () => {
+    const { attachments } = await resolveChatContext("see @data://t1");
+    expect(attachments).toHaveLength(1);
+    expect(isContextAttachment(attachments[0])).toBe(true);
+    // The original attachment is left untouched (we return a stamped copy).
+    expect(rawAttachment.providerMetadata).toBeUndefined();
+  });
+
+  it("stamps completion attachments the same way as chat", async () => {
+    const { attachments } = await getAICompletionBodyWithAttachments({
+      input: "see @data://t1",
+    });
+    expect(attachments).toHaveLength(1);
+    expect(isContextAttachment(attachments[0])).toBe(true);
   });
 });
 
