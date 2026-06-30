@@ -74,7 +74,7 @@ import {
   SendButton,
 } from "../chat-components";
 import { useFileState } from "../chat-utils";
-import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
+import { focusEditorAtEnd } from "@/core/codemirror/utils";
 import { ReadyToChatBlock } from "./blocks";
 import {
   convertFilesToResourceLinks,
@@ -664,6 +664,7 @@ const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | string | null>(null);
   const [promptValue, setPromptValue] = useState("");
+  const promptInputRef = useRef<ReactCodeMirrorRef | null>(null);
   const [pendingPrompt, setPendingPrompt] = useAtom(pendingAiPromptAtom);
   const { files, addFiles, clearFiles, removeFile } = useFileState();
   const [sessionModels, setSessionModels] = useState<SessionModelState | null>(
@@ -994,6 +995,7 @@ const AgentPanel: React.FC = () => {
       void handlePromptSubmit(undefined, pendingPrompt.prompt);
     } else {
       setPromptValue(pendingPrompt.prompt);
+      focusEditorAtEnd(promptInputRef);
     }
   }, [
     activeSessionId,
