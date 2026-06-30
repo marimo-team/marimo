@@ -73,6 +73,7 @@ import {
   SendButton,
 } from "../chat-components";
 import { useFileState } from "../chat-utils";
+import { focusEditorAtEnd } from "@/core/codemirror/utils";
 import { ReadyToChatBlock } from "./blocks";
 import {
   convertFilesToResourceLinks,
@@ -306,6 +307,7 @@ interface PromptAreaProps {
   onModeChange?: (mode: string) => void;
   sessionModels?: SessionModelState | null;
   onModelChange?: (modelId: string) => void;
+  inputRef: React.RefObject<ReactCodeMirrorRef | null>;
 }
 
 const PromptArea = memo<PromptAreaProps>(
@@ -323,8 +325,8 @@ const PromptArea = memo<PromptAreaProps>(
     onModeChange,
     sessionModels,
     onModelChange,
+    inputRef,
   }) => {
-    const inputRef = useRef<ReactCodeMirrorRef | null>(null);
     const promptCompletions: AdditionalCompletions | undefined = useMemo(() => {
       if (!commands) {
         return undefined;
@@ -661,6 +663,7 @@ const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | string | null>(null);
   const [promptValue, setPromptValue] = useState("");
+  const promptInputRef = useRef<ReactCodeMirrorRef | null>(null);
   const [pendingPrompt, setPendingPrompt] = useAtom(pendingAiPromptAtom);
   const { files, addFiles, clearFiles, removeFile } = useFileState();
   const [sessionModels, setSessionModels] = useState<SessionModelState | null>(
@@ -991,6 +994,7 @@ const AgentPanel: React.FC = () => {
       void handlePromptSubmit(undefined, pendingPrompt.prompt);
     } else {
       setPromptValue(pendingPrompt.prompt);
+      focusEditorAtEnd(promptInputRef);
     }
   }, [
     activeSessionId,
@@ -1216,6 +1220,7 @@ const AgentPanel: React.FC = () => {
           onModeChange={handleModeChange}
           sessionModels={sessionModels}
           onModelChange={handleModelChange}
+          inputRef={promptInputRef}
         />
       </>
     );
