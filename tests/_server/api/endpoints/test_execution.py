@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from starlette.exceptions import HTTPException
 
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
@@ -18,6 +17,7 @@ from marimo._messaging.notification import ConsumerCapabilities
 from marimo._runtime.commands import ExecuteCellsCommand
 from marimo._server.api.utils import enforce_consumer_capability
 from marimo._types.ids import CellId_t, SessionId
+from marimo._utils.http import HTTPException
 from marimo._utils.lists import first
 from tests._server.api.endpoints.ws_helpers import (
     HEADERS as WS_HEADERS,

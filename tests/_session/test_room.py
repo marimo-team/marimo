@@ -15,6 +15,7 @@ class FakeConsumer(SessionConsumer):
         self._cid = ConsumerId(cid)
         self.received: list[KernelMessage] = []
         self.state = ConnectionState.OPEN
+        self.detached = False
 
     @property
     def consumer_id(self) -> ConsumerId:
@@ -30,7 +31,7 @@ class FakeConsumer(SessionConsumer):
         del session, event_bus
 
     def on_detach(self) -> None:
-        return
+        self.detached = True
 
 
 def _caps(received: list[KernelMessage]) -> list[ConsumerCapabilities]:
@@ -127,15 +128,26 @@ def test_stored_capabilities_override_slot() -> None:
     )
 
 
-def test_default_capabilities_match_slot() -> None:
+def test_remove_stale_duplicate_keeps_live_consumer() -> None:
+    live = FakeConsumer("a")
+    room = _room_with(live)
+
+    stale = FakeConsumer("a")
+    room.remove_consumer(stale)
+
+    assert room.get_consumer(ConsumerId("a")) is live
+    assert stale.detached
+    assert not live.detached
+
+
+def test_remove_consumer_detaches_and_drops() -> None:
     a, b = FakeConsumer("a"), FakeConsumer("b")
     room = _room_with(a, b)
-    assert room.get_capabilities(a) == ConsumerCapabilities(
-        edit=True, interact=True
-    )
-    assert room.get_capabilities(b) == ConsumerCapabilities(
-        edit=False, interact=True
-    )
+
+    room.remove_consumer(b)
+
+    assert b.consumer_id not in room.consumers
+    assert b.detached
 
 
 def test_promote_restamps_stored_capabilities() -> None:

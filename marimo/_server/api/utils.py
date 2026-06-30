@@ -98,11 +98,14 @@ def enforce_consumer_capability(
 
     Advisory mirror of the control-request chokepoint: gives HTTP clients an
     honest refusal. The chokepoint remains the authority.
-    """
-    from starlette.exceptions import HTTPException
 
+    Raises marimo's `HTTPException` rather than Starlette's so the status
+    survives the global error handler, which rewrites Starlette 403s to 401s
+    to prompt for authentication. A capability refusal is not an auth failure.
+    """
     from marimo._messaging.notification import ConsumerCapabilities
     from marimo._session.capabilities import consumer_can
+    from marimo._utils.http import HTTPException
 
     session = app_state.require_current_session()
     consumer_id = ConsumerId(app_state.require_current_session_id())
