@@ -280,7 +280,6 @@ class WasmLazyStore(LazyStore):
         if http_keys:
             yield from self._http_get_batch(http_keys)
 
-
     def _base_url(self) -> str:
         from marimo._runtime.runtime import notebook_location
 
@@ -728,8 +727,7 @@ class LazyLoader(BasePersistenceLoader):
         return True
 
     def _dispatch_write(self, write_fn: Callable[[], None]) -> None:
-        """Run the blob+manifest write on a background thread (native).
-        """
+        """Run the blob+manifest write on a background thread (native)."""
         t = threading.Thread(target=write_fn, daemon=False)
         t.start()
         self._pending.append(t)
