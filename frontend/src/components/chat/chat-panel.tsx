@@ -728,8 +728,6 @@ const ChatPanelBody = () => {
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
 
-  // Submit a queued prompt without reading or clearing the user's draft
-  // input/attachments (unlike the visible chat input submit path).
   const submitPendingPrompt = useEvent(async (prompt: string) => {
     if (activeChatId == null) {
       startNewChatState(prompt);
