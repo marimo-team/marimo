@@ -48,7 +48,7 @@ export const AppContainer: React.FC<PropsWithChildren<Props>> = ({
               "bg-background w-full h-full text-textColor",
               "flex flex-col overflow-y-auto",
               width === "full" && "config-width-full",
-              width === "columns" ? "overflow-x-auto" : "overflow-x-hidden",
+              width === "columns" ? "overflow-x-auto" : "overflow-x-auto sm:overflow-x-hidden",
               "print:height-fit",
             )}
           >
