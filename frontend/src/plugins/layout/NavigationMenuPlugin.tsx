@@ -138,11 +138,11 @@ const NavigationMenuViewportPortal = ({
     }
 
     window.addEventListener("resize", updatePosition);
-    document.addEventListener("scroll", updatePosition, true);
+    document.addEventListener("scroll", updatePosition, { capture: true });
 
     return () => {
       window.removeEventListener("resize", updatePosition);
-      document.removeEventListener("scroll", updatePosition, true);
+      document.removeEventListener("scroll", updatePosition, { capture: true });
     };
   }, [updatePosition]);
 
