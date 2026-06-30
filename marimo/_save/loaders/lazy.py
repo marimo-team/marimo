@@ -13,13 +13,15 @@ from typing import TYPE_CHECKING, Any
 import msgspec
 
 from marimo import _loggers
+from marimo._runtime.context import safe_get_context
 from marimo._save.cache import (
     MARIMO_CACHE_VERSION,
     Cache,
+    CacheState,
 )
 from marimo._save.hash import HashKey
 from marimo._save.loaders.loader import BasePersistenceLoader
-from marimo._save.stores import FileStore, Store
+from marimo._save.stores import DEFAULT_STORE, FileStore, Store
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator
@@ -175,24 +177,36 @@ def from_item(item: Item, var_name: str = "") -> Any:
     return None
 
 
-# Module-level singleton DictStore for WASM. Shared across all LazyStore
-# instances so cached data survives loader recreation (State GC, partial
-# reconstruction, etc.).
-_WASM_DICT_STORE: Store | None = None
+# Fallback to a process-local CacheState.
+_FALLBACK_CACHE_STATE: CacheState | None = None
+
+
+def _cache_state() -> CacheState:
+    """Cache state for the current session, scoped to the root context.
+
+    Embedded apps run in child contexts (`create_kernel_context(parent=...)`);
+    walk to the root so the loader registry, poison set, and WASM store are
+    shared across the session rather than per child.
+    """
+    ctx = safe_get_context()
+    if ctx is not None:
+        while ctx.parent is not None:
+            ctx = ctx.parent
+        return ctx.cache
+    global _FALLBACK_CACHE_STATE
+    if _FALLBACK_CACHE_STATE is None:
+        _FALLBACK_CACHE_STATE = CacheState(store=DEFAULT_STORE())
+    return _FALLBACK_CACHE_STATE
 
 
 def _get_wasm_dict_store() -> Store:
-    global _WASM_DICT_STORE
-    if _WASM_DICT_STORE is None:
+    """The session's shared in-memory WASM store, created on first use."""
+    cache_state = _cache_state()
+    if cache_state.wasm_dict_store is None:
         from marimo._save.stores.dict_store import DictStore
 
-        _WASM_DICT_STORE = DictStore()
-    return _WASM_DICT_STORE
-
-
-# Keys whose deserialization failed — never re-fetched over HTTP. Survives
-# across LazyStore instances.
-_POISONED_KEYS: set[str] = set()
+        cache_state.wasm_dict_store = DictStore()
+    return cache_state.wasm_dict_store
 
 
 class LazyStore(Store):
@@ -254,7 +268,7 @@ class WasmLazyStore(LazyStore):
         result = super().get(key)
         if result is not None:
             return result
-        if key not in _POISONED_KEYS:
+        if key not in _cache_state().poisoned_keys:
             return self._http_get(key)
         return None
 
@@ -263,13 +277,14 @@ class WasmLazyStore(LazyStore):
     ) -> Iterator[tuple[str, bytes | None]]:
         # Inner store first; HTTP-fetch only the (unpoisoned) misses, fired
         # concurrently.
+        poisoned = _cache_state().poisoned_keys
         http_keys: list[str] = []
         for k in keys:
             data = self._inner.get(k)
             if data is not None:
                 self._touched_keys.add(k)
                 yield k, data
-            elif k not in _POISONED_KEYS:
+            elif k not in poisoned:
                 http_keys.append(k)
             else:
                 yield k, None
@@ -357,11 +372,6 @@ class WasmLazyStore(LazyStore):
             yield key, data
 
 
-# Registry of active loaders by name, so a recreated loader reuses the same
-# store (and so `flush_all`/export can reach every session loader).
-_ACTIVE_LAZY_LOADERS: dict[str, LazyLoader] = {}
-
-
 class LazyLoader(BasePersistenceLoader):
     # Default store class, overridden by the WASM variant. The single
     # native/WASM decision is made once in the dual-loader registry, not here.
@@ -372,14 +382,15 @@ class LazyLoader(BasePersistenceLoader):
         name: str,
         store: Store | None = None,
     ) -> None:
+        loaders = _cache_state().active_lazy_loaders
         if store is None:
-            # Reuse the same store across recreations of a named loader
-            # (State GC, partial reconstruction) so cached data survives.
-            prev = _ACTIVE_LAZY_LOADERS.get(name)
+            # Reuse the store across recreations of a named loader (State GC,
+            # partial reconstruction) so cached data survives.
+            prev = loaders.get(name)
             store = prev.store if prev is not None else self._store_cls()
         super().__init__(name, "jsonl", store)
         self._pending: list[threading.Thread] = []
-        _ACTIVE_LAZY_LOADERS[name] = self
+        loaders[name] = self
 
     def flush(self) -> None:
         """Wait for all pending background writes to complete."""
@@ -390,8 +401,13 @@ class LazyLoader(BasePersistenceLoader):
     @classmethod
     def flush_all(cls) -> None:
         """Flush all active LazyLoader instances."""
-        for loader in list(_ACTIVE_LAZY_LOADERS.values()):
+        for loader in cls.active_loaders():
             loader.flush()
+
+    @classmethod
+    def active_loaders(cls) -> list[LazyLoader]:
+        """Loaders the current session has created (for flush/export)."""
+        return list(_cache_state().active_lazy_loaders.values())
 
     def load_cache(
         self,
@@ -820,8 +836,9 @@ class WasmLazyLoader(LazyLoader):
                     blob_keys.append(ref)
             except Exception:
                 pass
+        poisoned = _cache_state().poisoned_keys
         self.store.clear(manifest_path)
-        _POISONED_KEYS.add(manifest_path)
+        poisoned.add(manifest_path)
         for blob_key in blob_keys:
             self.store.clear(blob_key)
-            _POISONED_KEYS.add(blob_key)
+            poisoned.add(blob_key)

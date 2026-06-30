@@ -17,12 +17,11 @@ if TYPE_CHECKING:
 
 from marimo._save.cache import MARIMO_CACHE_VERSION, Cache
 from marimo._save.loaders.lazy import (
-    _ACTIVE_LAZY_LOADERS,
-    _POISONED_KEYS,
     LazyLoader,
     LazyStore,
     WasmLazyLoader,
     WasmLazyStore,
+    _cache_state,
 )
 from marimo._save.stores.dict_store import DictStore
 from marimo._save.stores.file import FileStore
@@ -295,8 +294,9 @@ class TestFlushAll:
         loader1 = LazyLoader("flush_a", store=store1)
         loader2 = LazyLoader("flush_b", store=store2)
 
-        assert _ACTIVE_LAZY_LOADERS.get("flush_a") is loader1
-        assert _ACTIVE_LAZY_LOADERS.get("flush_b") is loader2
+        loaders = _cache_state().active_lazy_loaders
+        assert loaders.get("flush_a") is loader1
+        assert loaders.get("flush_b") is loader2
 
         # flush_all should not raise
         LazyLoader.flush_all()
@@ -304,7 +304,7 @@ class TestFlushAll:
     def test_loaders_tracked_by_name(self) -> None:
         """Loaders are tracked in the active dict by name."""
         loader = LazyLoader("track_test", store=LazyStore(inner=DictStore()))
-        assert _ACTIVE_LAZY_LOADERS["track_test"] is loader
+        assert _cache_state().active_lazy_loaders["track_test"] is loader
 
     def test_store_reused_across_recreations(self) -> None:
         """When a loader is recreated with the same name, it reuses the
@@ -319,6 +319,25 @@ class TestFlushAll:
         assert loader2.store.get("key1") == b"data1"
 
 
+class TestCacheStateResolution:
+    def test_resolves_to_root_context(self) -> None:
+        """Child contexts (embedded apps) share the root's cache state."""
+        from types import SimpleNamespace
+
+        from marimo._save.cache import CacheState
+
+        root_cache = CacheState(store=DictStore())
+        root = SimpleNamespace(parent=None, cache=root_cache)
+        child = SimpleNamespace(
+            parent=root, cache=CacheState(store=DictStore())
+        )
+
+        with mock.patch(
+            "marimo._save.loaders.lazy.safe_get_context", return_value=child
+        ):
+            assert _cache_state() is root_cache
+
+
 class TestOnRestoreFailure:
     """`WasmLazyLoader._on_restore_failure`: on a corrupt restore, evict the
     manifest and its referenced blobs from the store and poison their keys so
@@ -326,17 +345,15 @@ class TestOnRestoreFailure:
 
     @pytest.fixture(autouse=True)
     def _isolate_poisoned_keys(self) -> Iterator[None]:
-        # _POISONED_KEYS is a module global; snapshot/restore so these tests
-        # neither leak into nor depend on others.
-        snapshot = set(_POISONED_KEYS)
+        # Snapshot/restore so poison doesn't leak across tests.
+        poisoned = _cache_state().poisoned_keys
+        snapshot = set(poisoned)
         yield
-        _POISONED_KEYS.clear()
-        _POISONED_KEYS.update(snapshot)
+        poisoned.clear()
+        poisoned.update(snapshot)
 
     @staticmethod
-    def _manifest(
-        refs: list[str], return_ref: str | None = None
-    ) -> bytes:
+    def _manifest(refs: list[str], return_ref: str | None = None) -> bytes:
         meta = Meta(version=MARIMO_CACHE_VERSION)
         if return_ref is not None:
             meta = Meta(
@@ -347,9 +364,7 @@ class TestOnRestoreFailure:
             CacheSchema(
                 hash="h",
                 cache_type=CacheType("Pure"),
-                defs={
-                    f"v{i}": Item(reference=r) for i, r in enumerate(refs)
-                },
+                defs={f"v{i}": Item(reference=r) for i, r in enumerate(refs)},
                 stateful_refs=[],
                 meta=meta,
             )
@@ -375,19 +390,17 @@ class TestOnRestoreFailure:
 
         for k in (manifest_path, blob_a, blob_b):
             assert not store.hit(k), f"{k} not evicted"
-            assert k in _POISONED_KEYS, f"{k} not poisoned"
+            assert k in _cache_state().poisoned_keys, f"{k} not poisoned"
 
     def test_poisons_return_value_reference(self) -> None:
         store, loader, key = self._loader_and_key()
         ret_ref = "h/return.pickle"
         store.put(ret_ref, b"x")
 
-        loader._on_restore_failure(
-            key, self._manifest([], return_ref=ret_ref)
-        )
+        loader._on_restore_failure(key, self._manifest([], return_ref=ret_ref))
 
         assert not store.hit(ret_ref)
-        assert ret_ref in _POISONED_KEYS
+        assert ret_ref in _cache_state().poisoned_keys
 
     def test_none_manifest_poisons_only_manifest_path(self) -> None:
         store, loader, key = self._loader_and_key()
@@ -395,9 +408,9 @@ class TestOnRestoreFailure:
 
         loader._on_restore_failure(key, None)
 
-        assert manifest_path in _POISONED_KEYS
+        assert manifest_path in _cache_state().poisoned_keys
         # No blob keys to discover, so nothing else is poisoned.
-        assert _POISONED_KEYS == {manifest_path}
+        assert _cache_state().poisoned_keys == {manifest_path}
 
     def test_undecodable_manifest_poisons_only_manifest_path(self) -> None:
         store, loader, key = self._loader_and_key()
@@ -406,8 +419,8 @@ class TestOnRestoreFailure:
         # Garbage bytes must not raise; manifest path is still poisoned.
         loader._on_restore_failure(key, b"not valid msgpack/json")
 
-        assert manifest_path in _POISONED_KEYS
-        assert _POISONED_KEYS == {manifest_path}
+        assert manifest_path in _cache_state().poisoned_keys
+        assert _cache_state().poisoned_keys == {manifest_path}
 
     def test_corrupt_restore_via_load_cache_poisons_keys(self) -> None:
         # End-to-end: a manifest referencing a missing blob makes restore
@@ -426,5 +439,5 @@ class TestOnRestoreFailure:
         ):
             assert loader.load_cache(key) is None
 
-        assert manifest_path in _POISONED_KEYS
-        assert missing_ref in _POISONED_KEYS
+        assert manifest_path in _cache_state().poisoned_keys
+        assert missing_ref in _cache_state().poisoned_keys
