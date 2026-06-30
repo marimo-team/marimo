@@ -104,7 +104,6 @@ export const MarimoTracebackOutput = ({
   const openAISidebar = () => {
     openAiAssistant({
       prompt: buildFixPromptFromText(lastTracebackLine, cellId),
-      mode: "code_mode",
     });
   };
 

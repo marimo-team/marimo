@@ -4,22 +4,17 @@ import { useSetAtom, useStore } from "jotai";
 import useEvent from "react-use-event-hook";
 import { agentSessionStateAtom } from "@/components/chat/acp/state";
 import { toast } from "@/components/ui/use-toast";
-import { useModelChange } from "@/core/ai/config";
 import { pendingAiPromptAtom } from "@/core/ai/state";
-import type { CopilotMode } from "@/core/ai/tools/registry";
 import { aiModelConfiguredAtom } from "@/core/config/config";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { useChromeActions } from "../state";
 import { type AiPanelTab, aiPanelTabAtom, useAiPanelTab } from "./useAiPanel";
-import { Logger } from "@/utils/Logger";
 
 export interface OpenAiAssistantOptions {
   prompt: string;
   submit?: boolean;
   /** Override the user's AI sidebar tab. When omitted, the stored tab is used. */
   panel?: AiPanelTab;
-  /** Chat copilot mode. Only applied when the chat panel is the target. */
-  mode?: CopilotMode;
 }
 
 // Resolve which AI panel to open.
@@ -41,11 +36,10 @@ export function resolveAiPanelTab(
 export function useOpenAiAssistant() {
   const { openApplication } = useChromeActions();
   const { setAiPanelTab } = useAiPanelTab();
-  const { saveModeChange } = useModelChange();
   const setPendingPrompt = useSetAtom(pendingAiPromptAtom);
   const store = useStore();
 
-  return useEvent(async (opts: OpenAiAssistantOptions) => {
+  return useEvent((opts: OpenAiAssistantOptions) => {
     const tab = resolveAiPanelTab(opts.panel, store.get(aiPanelTabAtom));
 
     const chatPanelReady = store.get(aiModelConfiguredAtom);
@@ -68,13 +62,6 @@ export function useOpenAiAssistant() {
 
     if (opts.panel) {
       setAiPanelTab(opts.panel);
-    }
-    // Persist the mode before queueing so an auto-submitted prompt uses the
-    // requested mode/tools rather than the stale chat mode.
-    if (tab === "chat" && opts.mode) {
-      await saveModeChange(opts.mode).catch(() =>
-        Logger.error("Failed to save mode change"),
-      );
     }
 
     setPendingPrompt({

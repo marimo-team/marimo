@@ -750,23 +750,6 @@ const ChatPanelBody = () => {
     });
   });
 
-  // Deliver a prompt queued elsewhere (e.g. error auto-fix) to the chat,
-  // appending to the active thread or starting one if none exists.
-  useEffect(() => {
-    if (!pendingPrompt) {
-      return;
-    }
-    setPendingPrompt(null);
-    const { prompt, submit } = pendingPrompt;
-    if (submit) {
-      void submitPendingPrompt(prompt);
-    } else if (activeChatId == null) {
-      setNewThreadInput(prompt);
-    } else {
-      setInput(prompt);
-    }
-  }, [pendingPrompt, setPendingPrompt, activeChatId, submitPendingPrompt]);
-
   const isNewThread = messages.length === 0;
 
   // Deliver a prompt queued elsewhere (e.g. error auto-fix) to the chat,
@@ -781,13 +764,10 @@ const ChatPanelBody = () => {
       void submitPendingPrompt(prompt);
     } else if (isNewThread) {
       setNewThreadInput(prompt);
-      focusInputAndMoveToEnd(newThreadInputRef);
     } else {
       setInput(prompt);
-      focusInputAndMoveToEnd(newMessageInputRef);
     }
   }, [pendingPrompt, setPendingPrompt, isNewThread, submitPendingPrompt]);
-
   const chatInput = isNewThread ? (
     <ChatInput
       key="new-thread-input"
