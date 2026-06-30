@@ -265,7 +265,8 @@ with app.setup(hide_code=True):
     from numpy.linalg import eigh
 `;
     expect(extractMarimoApp(input)).toEqual({
-      setup: "import marimo as mo\nimport numpy as np\nfrom numpy.linalg import eigh",
+      setup:
+        "import marimo as mo\nimport numpy as np\nfrom numpy.linalg import eigh",
       cells: [],
     });
     // The convenience wrapper excludes the setup block.
