@@ -38,6 +38,7 @@ export function moveToEndOfEditor(ev: EditorView | undefined) {
   });
 }
 
+/** We delay the focus and move to end of the editor until React has rendered the prefilled value. */
 export function focusInputAndMoveToEnd(
   ref: React.RefObject<ReactCodeMirrorRef | null>,
 ) {
