@@ -32,29 +32,16 @@ describe("buildFixPromptFromText", () => {
     );
   });
 
-  it("appends datasource context when explicitly requested for the cell", () => {
+  it("appends datasource context when available for the cell", () => {
     getDatasourceContext.mockReturnValue("@datasource://my_db");
-    const prompt = buildFixPromptFromText("boom", cellId("cell-1"), {
-      includeDatasourceContext: true,
-    });
+    const prompt = buildFixPromptFromText("boom", cellId("cell-1"));
     expect(prompt).toBe(
       "My cell (id: cell-1) produced the following error. Please fix it:\n\nboom\n\nDatabase schema: @datasource://my_db",
     );
   });
 
-  it("does not append datasource context by default", () => {
-    getDatasourceContext.mockReturnValue("@datasource://my_db");
-    const prompt = buildFixPromptFromText("boom", cellId("cell-1"));
-    expect(prompt).toBe(
-      "My cell (id: cell-1) produced the following error. Please fix it:\n\nboom",
-    );
-    expect(getDatasourceContext).not.toHaveBeenCalled();
-  });
-
   it("does not look up datasource context without a cell id", () => {
-    buildFixPromptFromText("boom", undefined, {
-      includeDatasourceContext: true,
-    });
+    buildFixPromptFromText("boom");
     expect(getDatasourceContext).not.toHaveBeenCalled();
   });
 });
@@ -96,24 +83,5 @@ describe("buildFixPrompt", () => {
     expect(buildFixPrompt(errors, cellId("cell-1"))).toBe(
       "My cell (id: cell-1) produced the following error. Please fix it:\n\nmultiple-defs",
     );
-  });
-
-  it("appends datasource context for SQL errors", () => {
-    getDatasourceContext.mockReturnValue("@datasource://my_db");
-    const errors: MarimoError[] = [
-      { type: "sql-error", msg: "syntax error", sql_statement: "SELECT" },
-    ];
-    expect(buildFixPrompt(errors, cellId("cell-1"))).toBe(
-      "My cell (id: cell-1) produced the following error. Please fix it:\n\nsyntax error\n\nDatabase schema: @datasource://my_db",
-    );
-  });
-
-  it("does not append datasource context for non-SQL errors", () => {
-    getDatasourceContext.mockReturnValue("@datasource://my_db");
-    const errors: MarimoError[] = [{ type: "syntax", msg: "bad syntax" }];
-    expect(buildFixPrompt(errors, cellId("cell-1"))).toBe(
-      "My cell (id: cell-1) produced the following error. Please fix it:\n\nbad syntax",
-    );
-    expect(getDatasourceContext).not.toHaveBeenCalled();
   });
 });
