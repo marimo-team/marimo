@@ -11,6 +11,7 @@ import { aiModelConfiguredAtom } from "@/core/config/config";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { useChromeActions } from "../state";
 import { type AiPanelTab, aiPanelTabAtom, useAiPanelTab } from "./useAiPanel";
+import { Logger } from "@/utils/Logger";
 
 export interface OpenAiAssistantOptions {
   prompt: string;
@@ -71,7 +72,9 @@ export function useOpenAiAssistant() {
     // Persist the mode before queueing so an auto-submitted prompt uses the
     // requested mode/tools rather than the stale chat mode.
     if (tab === "chat" && opts.mode) {
-      await saveModeChange(opts.mode);
+      await saveModeChange(opts.mode).catch(() =>
+        Logger.error("Failed to save mode change"),
+      );
     }
 
     setPendingPrompt({
