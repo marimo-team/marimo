@@ -52,6 +52,11 @@ class Item(msgspec.Struct):
     # Fully-qualified class name of the original value — used by format-aware
     # deserializers (e.g. to distinguish pandas from polars Arrow blobs).
     type_hint: str | None = None
+    # Fully-qualified class name of a def whose value could not be serialized.
+    # No blob is written for it; the loader reconstructs an `UnhashableStub`
+    # tripwire from this marker (see `from_item`), so a missing-blob load never
+    # masquerades as a clean cache hit.
+    unserializable_type: str | None = None
 
     def __post_init__(self) -> None:
         fields_set = sum(
@@ -63,6 +68,7 @@ class Item(msgspec.Struct):
                 self.import_ref,
                 self.function,
                 self.class_def,
+                self.unserializable_type,
             ]
             if field is not None
         )
@@ -306,13 +312,15 @@ class ImmediateReferenceStub(CustomStub):
 class UnhashableStub(CustomStub):
     """Marker + tripwire for a def that could not be serialized for caching.
 
-    Written to the cache as a placeholder when per-def pickling fails (e.g.
-    a lambda, a closure over an unpicklable object). The marker is placed
-    in scope as-is by `Cache.restore` (no `.load()` call). It is
-    harmless when the consumer cell never touches it; any meaningful access
-    (call) raises `MarimoUnhashableCacheError` carrying
-    `variables=[var_name]` so the runner can identify the defining cell,
-    invalidate its manifest, and re-queue.
+    When per-def serialization fails (e.g. a lambda, a closure over an
+    unpicklable object), no blob is written; instead the manifest `Item`
+    records `unserializable_type`, and the loader reconstructs this stub
+    in-memory from that marker (see `from_item`). The marker is placed in
+    scope as-is by `Cache.restore` (no `.load()` call). It is harmless when
+    the consumer cell never touches it; any meaningful access (call) raises
+    `MarimoUnhashableCacheError` carrying `variables=[var_name]` so the
+    runner can identify the defining cell, invalidate its manifest, and
+    re-queue.
 
     Detection happens at use-site, not at pre-execution. Bodies that don't
     touch the stub run normally; closure-captured stubs surface through
@@ -337,9 +345,14 @@ class UnhashableStub(CustomStub):
         _obj: Any = None,
         var_name: str = "",
         error_msg: str = "",
+        type_name: str | None = None,
     ) -> None:
         self.var_name = var_name
-        if _obj is not None:
+        if type_name is not None:
+            # Explicit fq name — used when rebuilding from a manifest marker,
+            # where the original value object is no longer available.
+            self.type_name = type_name
+        elif _obj is not None:
             value_type = type(_obj)
             self.type_name = (
                 f"{getattr(value_type, '__module__', '<unknown>')}."

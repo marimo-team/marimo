@@ -62,6 +62,7 @@ from marimo._save.loaders import (
     LoaderPartial,
     LoaderType,
     MemoryLoader,
+    resolve_loader,
 )
 from marimo._save.stores.file import FileStore
 from marimo._save.toplevel import get_cell_id_from_scope, graph_from_scope
@@ -1327,7 +1328,8 @@ def persistent_cache(  # type: ignore[misc]
             "provide one or the other."
         )
 
-    # Providing a save_path forces the store to be a FileStore
+    # Providing a save_path forces the store to be a FileStore (works in
+    # Pyodide too, via its in-memory MEMFS, for in-session caching).
     if save_path is not None:
         store = FileStore(save_path)
 
@@ -1335,7 +1337,7 @@ def persistent_cache(  # type: ignore[misc]
     if store is not None:
         partial_args["store"] = store
 
-    loader = PERSISTENT_LOADERS[method].partial(**partial_args)
+    loader = resolve_loader(PERSISTENT_LOADERS[method]).partial(**partial_args)
     # Injection hook for testing
     if "_loader" in kwargs:
         loader = kwargs.pop("_loader")

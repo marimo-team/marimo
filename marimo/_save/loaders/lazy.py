@@ -7,19 +7,24 @@ import pickle
 import queue
 import threading
 from enum import Enum, auto
-from pathlib import Path
-from typing import Any
+from pathlib import Path, PurePosixPath
+from typing import TYPE_CHECKING, Any
 
 import msgspec
 
 from marimo import _loggers
+from marimo._runtime.context import safe_get_context
 from marimo._save.cache import (
     MARIMO_CACHE_VERSION,
     Cache,
+    CacheState,
 )
 from marimo._save.hash import HashKey
 from marimo._save.loaders.loader import BasePersistenceLoader
-from marimo._save.stores import FileStore, Store
+from marimo._save.stores import DEFAULT_STORE, FileStore, Store
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Iterator
 from marimo._save.stubs import (
     ClassStub,
     FunctionStub,
@@ -36,6 +41,7 @@ from marimo._save.stubs.lazy_stub import (
     Item,
     Meta,
     ReferenceStub,
+    UnhashableStub,
 )
 from marimo._save.stubs.stubs import mro_lookup
 
@@ -52,7 +58,7 @@ def maybe_update_lazy_stub(value: Any) -> str:
     """Return the loader strategy string for *value*, caching the result.
 
     Walks the MRO of `type(value)` against `LAZY_STUB_LOOKUP` (a
-    fq-class-name → loader-string registry).  Falls back to `"pickle"`
+    fq-class-name -> loader-string registry).  Falls back to `"pickle"`
     when no match is found.
     """
     value_type = type(value)
@@ -139,7 +145,13 @@ def to_item(
     )
 
 
-def from_item(item: Item) -> Any:
+def from_item(item: Item, var_name: str = "") -> Any:
+    if item.unserializable_type is not None:
+        # No blob was written for this def — rebuild the tripwire in-memory
+        # from the manifest marker.
+        return UnhashableStub(
+            var_name=var_name, type_name=item.unserializable_type
+        )
     if item.reference is not None:
         return ImmediateReferenceStub(
             ReferenceStub(item.reference, hash_value=item.hash or "")
@@ -165,19 +177,195 @@ def from_item(item: Item) -> Any:
     return None
 
 
-class LazyStore(FileStore): ...
+# Fallback to a process-local CacheState.
+_FALLBACK_CACHE_STATE: CacheState | None = None
+
+
+def _cache_state() -> CacheState:
+    """Cache state for the current session, scoped to the root context."""
+    ctx = safe_get_context()
+    if ctx is not None:
+        while ctx.parent is not None:
+            ctx = ctx.parent
+        return ctx.cache
+    global _FALLBACK_CACHE_STATE
+    if _FALLBACK_CACHE_STATE is None:
+        _FALLBACK_CACHE_STATE = CacheState(store=DEFAULT_STORE())
+    return _FALLBACK_CACHE_STATE
+
+
+def _get_wasm_dict_store() -> Store:
+    """The session's shared in-memory WASM store, created on first use."""
+    cache_state = _cache_state()
+    if cache_state.wasm_dict_store is None:
+        from marimo._save.stores.dict_store import DictStore
+
+        cache_state.wasm_dict_store = DictStore()
+    return cache_state.wasm_dict_store
+
+
+class LazyStore(Store):
+    """Native store for `LazyLoader`.
+
+    Delegates to an inner store (default `FileStore` at `__marimo__/cache/`)
+    and tracks which keys were written or read."""
+
+    def __init__(self, inner: Store | None = None) -> None:
+        self._inner = inner if inner is not None else FileStore()
+        self._written_keys: set[str] = set()
+        # Keys read this session. A warm re-export hits the cache rather
+        # than re-writing it, so the export manifest must cover reads too
+        # or the bundle ships incomplete.
+        self._touched_keys: set[str] = set()
+
+    def get(self, key: str) -> bytes | None:
+        result = self._inner.get(key)
+        if result is not None:
+            self._touched_keys.add(key)
+        return result
+
+    def put(self, key: str, value: bytes) -> bool:
+        self._written_keys.add(key)
+        return self._inner.put(key, value)
+
+    def hit(self, key: str) -> bool:
+        result = self._inner.hit(key)
+        if result:
+            self._touched_keys.add(key)
+        return result
+
+    def clear(self, key: str) -> bool:
+        self._written_keys.discard(key)
+        self._touched_keys.discard(key)
+        return self._inner.clear(key)
+
+    def export_keys(self) -> list[str]:
+        return sorted(self._written_keys | self._touched_keys)
+
+
+class WasmLazyStore(LazyStore):
+    """WASM store: writes to a shared in-session `DictStore`; reads fall
+    through to HTTP fetch from `notebook_location()/public/cache/`.
+    """
+
+    def __init__(self, inner: Store | None = None) -> None:
+        super().__init__(
+            inner if inner is not None else _get_wasm_dict_store()
+        )
+
+    def get(self, key: str) -> bytes | None:
+        result = super().get(key)
+        if result is not None:
+            return result
+        if key not in _cache_state().poisoned_keys:
+            return self._http_get(key)
+        return None
+
+    def get_batch(
+        self, keys: Iterable[str]
+    ) -> Iterator[tuple[str, bytes | None]]:
+        # Inner store first; HTTP-fetch only the (unpoisoned) misses, fired
+        # concurrently.
+        poisoned = _cache_state().poisoned_keys
+        http_keys: list[str] = []
+        for k in keys:
+            data = self._inner.get(k)
+            if data is not None:
+                self._touched_keys.add(k)
+                yield k, data
+            elif k not in poisoned:
+                http_keys.append(k)
+            else:
+                yield k, None
+        if http_keys:
+            yield from self._http_get_batch(http_keys)
+
+    def _base_url(self) -> str:
+        from marimo._runtime.runtime import notebook_location
+
+        loc = notebook_location()
+        return f"{loc}/public/cache" if loc else "public/cache"
+
+    @staticmethod
+    def _sanitize_key(key: str) -> str:
+        """Validate a fetch key against path traversal."""
+        clean = PurePosixPath(key)
+        if ".." in clean.parts or clean.is_absolute():
+            raise ValueError(f"Invalid cache key: {key}")
+        return key
+
+    def _http_get(self, key: str) -> bytes | None:
+        """Single sync fetch via pyodide_http-patched urllib."""
+        import urllib.request
+
+        url = f"{self._base_url()}/{self._sanitize_key(key)}"
+        try:
+            with urllib.request.urlopen(url) as resp:
+                data = resp.read() if resp.status == 200 else None
+        except Exception:
+            return None
+        if data is not None:
+            self._inner.put(key, data)
+            self._touched_keys.add(key)
+        return data
+
+    def _http_get_batch(
+        self, keys: Iterable[str]
+    ) -> Iterator[tuple[str, bytes | None]]:
+        """Fire all fetches concurrently via JS fetch + asyncio.gather."""
+        import asyncio
+
+        from js import fetch  # type: ignore
+
+        base = self._base_url()
+        keys_list = [self._sanitize_key(k) for k in keys]
+        loop = asyncio.get_event_loop()
+
+        async def _fetch_one(key: str) -> tuple[str, bytes | None]:
+            resp = await fetch(f"{base}/{key}")
+            if resp.ok:
+                buf = await resp.arrayBuffer()
+                return key, buf.to_bytes()
+            return key, None
+
+        async def _fetch_all() -> list[tuple[str, bytes | None]]:
+            return await asyncio.gather(*(_fetch_one(k) for k in keys_list))
+
+        try:
+            results = loop.run_until_complete(_fetch_all())
+        except Exception:
+            # run_until_complete on the live pyodide loop requires JSPI
+            # (WebAssembly stack switching), which e.g. Firefox lacks. Fall
+            # back to sequential synchronous XHR via the pyodide_http-patched
+            # urllib — legal in a worker.
+            results = [(k, self._http_get(k)) for k in keys_list]
+        # Cache successful fetches in-session (idempotent for the fallback
+        # path, which already wrote via `_http_get`) so repeat reads stay
+        # local and the export manifest covers HTTP-fetched blobs.
+        for key, data in results:
+            if data is not None:
+                self._inner.put(key, data)
+                self._touched_keys.add(key)
+            yield key, data
 
 
 class LazyLoader(BasePersistenceLoader):
+    _store_cls: type[Store] = LazyStore
+
     def __init__(
         self,
         name: str,
         store: Store | None = None,
     ) -> None:
+        loaders = _cache_state().active_lazy_loaders
         if store is None:
-            store = LazyStore()
+            # Reuse the store across recreations of a named loader (State GC,
+            # partial reconstruction) so cached data survives.
+            prev = loaders.get(name)
+            store = prev.store if prev is not None else self._store_cls()
         super().__init__(name, "jsonl", store)
         self._pending: list[threading.Thread] = []
+        loaders[name] = self
 
     def flush(self) -> None:
         """Wait for all pending background writes to complete."""
@@ -185,20 +373,39 @@ class LazyLoader(BasePersistenceLoader):
             t.join()
         self._pending.clear()
 
+    @classmethod
+    def flush_all(cls) -> None:
+        """Flush all active LazyLoader instances."""
+        for loader in cls.active_loaders():
+            loader.flush()
+
+    @classmethod
+    def active_loaders(cls) -> list[LazyLoader]:
+        """Loaders the current session has created (for flush/export)."""
+        return list(_cache_state().active_lazy_loaders.values())
+
     def load_cache(
         self,
         key: HashKey,
         glbls: dict[str, Any] | None = None,
     ) -> Cache | None:
         del glbls
+        blob: bytes | None = None
         try:
-            blob: bytes | None = self.store.get(str(self.build_path(key)))
+            blob = self.store.get(str(self.build_path(key)))
             if not blob:
                 return None
             return self.restore_cache(key, blob)
         except Exception as e:
             LOGGER.warning("Failed to restore lazy cache: %s", e)
+            self._on_restore_failure(key, blob)
             return None
+
+    def _on_restore_failure(
+        self, key: HashKey, manifest_blob: bytes | None
+    ) -> None:
+        """Hook after a failed restore. No-op natively; the WASM variant
+        evicts and poisons the bad keys so HTTP won't re-fetch them."""
 
     def restore_cache(self, _key: HashKey, blob: bytes) -> Cache:
         cache_data = msgspec.json.decode(blob, type=CacheSchema)
@@ -210,7 +417,6 @@ class LazyLoader(BasePersistenceLoader):
         variable_hashes: dict[str, str] = {}
         # Instances of cell-defined (__main__) classes are deferred: their
         # class must be re-exec'd into __main__ before the blob can unpickle.
-        # Cache.restore orders these after their class via `requires`.
         deferred: dict[str, tuple[str, str]] = {}
         for var_name, item in cache_data.defs.items():
             if var_name in cache_data.ui_defs:
@@ -237,51 +443,12 @@ class LazyLoader(BasePersistenceLoader):
             return_ref = cache_data.meta.return_value.reference
             return_type_hint = cache_data.meta.return_value.type_hint
 
-        # Read + deserialize in parallel, stream results via queue.
-        # Every thread unconditionally puts exactly one item — either the
-        # deserialized value or _BlobStatus.MISSING — so queue.get() needs
-        # no timeout.
-        results: queue.Queue[tuple[str, Any]] = queue.Queue()
         unique_keys = set(ref_vars.values())
         if return_ref:
             unique_keys.add(return_ref)
-
-        def _load_blob(key: str) -> None:
-            try:
-                data = self.store.get(key)
-                if data:
-                    ext = Path(key).suffix
-                    deserialize = BLOB_DESERIALIZERS.get(
-                        ext, BLOB_DESERIALIZERS[".pickle"]
-                    )
-                    type_hint = ref_type_hints.get(key) or (
-                        return_type_hint if key == return_ref else None
-                    )
-                    results.put((key, deserialize(data, type_hint)))
-                else:
-                    results.put((key, _BlobStatus.MISSING))
-            except Exception as e:
-                LOGGER.warning("Failed to deserialize blob %s: %s", key, e)
-                results.put((key, _BlobStatus.MISSING))
-
-        threads = [
-            threading.Thread(target=_load_blob, args=(key,))
-            for key in unique_keys
-        ]
-        for t in threads:
-            t.start()
-
-        # N threads → N results guaranteed; no timeout needed.
-        unpickled: dict[str, Any] = {}
-        try:
-            for _ in unique_keys:
-                key, val = results.get()
-                if val is _BlobStatus.MISSING:
-                    raise FileNotFoundError("Incomplete cache: missing blobs")
-                unpickled[key] = val
-        finally:
-            for t in threads:
-                t.join()
+        unpickled = self._read_blobs(
+            unique_keys, ref_type_hints, return_ref, return_type_hint
+        )
 
         # Distribute to defs
         defs: dict[str, Any] = {}
@@ -307,12 +474,12 @@ class LazyLoader(BasePersistenceLoader):
                 else:
                     defs[var_name] = val
             else:
-                defs[var_name] = from_item(item)
+                defs[var_name] = from_item(item, var_name)
 
         if return_ref and return_ref in unpickled:
             return_item = unpickled[return_ref]
         elif cache_data.meta.return_value:
-            return_item = from_item(cache_data.meta.return_value)
+            return_item = from_item(cache_data.meta.return_value, "return")
         else:
             return_item = None
 
@@ -328,6 +495,73 @@ class LazyLoader(BasePersistenceLoader):
             },
             hit=True,
         )
+
+    def _deserialize_blob(
+        self,
+        key: str,
+        data: bytes,
+        ref_type_hints: dict[str, str | None],
+        return_ref: str | None,
+        return_type_hint: str | None,
+    ) -> Any:
+        ext = Path(key).suffix
+        deserialize = BLOB_DESERIALIZERS.get(
+            ext, BLOB_DESERIALIZERS[".pickle"]
+        )
+        type_hint = ref_type_hints.get(key) or (
+            return_type_hint if key == return_ref else None
+        )
+        return deserialize(data, type_hint)
+
+    def _read_blobs(
+        self,
+        unique_keys: set[str],
+        ref_type_hints: dict[str, str | None],
+        return_ref: str | None,
+        return_type_hint: str | None,
+    ) -> dict[str, Any]:
+        """Read + deserialize blobs in parallel via threads."""
+        results: queue.Queue[tuple[str, Any]] = queue.Queue()
+
+        def _load_blob(key: str) -> None:
+            try:
+                data = self.store.get(key)
+                if data:
+                    results.put(
+                        (
+                            key,
+                            self._deserialize_blob(
+                                key,
+                                data,
+                                ref_type_hints,
+                                return_ref,
+                                return_type_hint,
+                            ),
+                        )
+                    )
+                else:
+                    results.put((key, _BlobStatus.MISSING))
+            except Exception as e:
+                LOGGER.warning("Failed to deserialize blob %s: %s", key, e)
+                results.put((key, _BlobStatus.MISSING))
+
+        threads = [
+            threading.Thread(target=_load_blob, args=(key,))
+            for key in unique_keys
+        ]
+        for t in threads:
+            t.start()
+        unpickled: dict[str, Any] = {}
+        try:
+            for _ in unique_keys:
+                key, val = results.get()
+                if val is _BlobStatus.MISSING:
+                    raise FileNotFoundError("Incomplete cache: missing blobs")
+                unpickled[key] = val
+        finally:
+            for t in threads:
+                t.join()
+        return unpickled
 
     def save_cache(self, cache: Cache) -> bool:
         # Reap completed threads
@@ -374,19 +608,24 @@ class LazyLoader(BasePersistenceLoader):
             elif loader not in ("inline",):
                 format_vars.setdefault(loader, {})[var] = obj
 
-        manifest = msgspec.json.encode(
-            CacheSchema(
-                hash=cache.hash,
-                cache_type=cache_type_enum,
-                stateful_refs=list(cache.stateful_refs),
-                defs=defs_dict,
-                meta=Meta(
-                    version=cache.meta.get("version", MARIMO_CACHE_VERSION),
-                    return_value=return_item,
-                ),
-                ui_defs=ui_defs_list,
+        version = cache.meta.get("version", MARIMO_CACHE_VERSION)
+
+        def _encode_manifest() -> bytes:
+            # Encoded after the blobs so any `unserializable_type` marks set
+            # by `_put_or_mark_unserializable` are reflected in the manifest.
+            return msgspec.json.encode(
+                CacheSchema(
+                    hash=cache.hash,
+                    cache_type=cache_type_enum,
+                    stateful_refs=list(cache.stateful_refs),
+                    defs=defs_dict,
+                    meta=Meta(
+                        version=version,
+                        return_value=return_item,
+                    ),
+                    ui_defs=ui_defs_list,
+                )
             )
-        )
 
         # Capture values for the background thread
         store = self.store
@@ -399,6 +638,38 @@ class LazyLoader(BasePersistenceLoader):
         )
         manifest_key = str(self.build_path(cache.key))
 
+        def _put_or_mark_unserializable(
+            key: str,
+            value: Any,
+            serialize: Callable[[Any], bytes],
+            items: list[Item],
+            var_name: str = "",
+        ) -> bool:
+            """Store one blob; on serialization failure write no blob and
+            instead mark each manifest `Item` with `unserializable_type`.
+
+            Returns `True` when the blob was stored, `False` when it was
+            marked unserializable.
+            """
+            try:
+                store.put(key, serialize(value))
+            except Exception as e:
+                LOGGER.warning(
+                    "Failed to serialize %s for cache; marking "
+                    "unserializable: %s",
+                    var_name or key,
+                    e,
+                )
+                fallback = f"{type(value).__module__}.{type(value).__name__}"
+                for item in items:
+                    type_name = item.type_hint or fallback
+                    item.reference = None
+                    item.hash = None
+                    item.type_hint = None
+                    item.unserializable_type = type_name
+                return False
+            return True
+
         def _serialize_and_write() -> None:
             """Serialize and write all blobs + manifest in background."""
             try:
@@ -406,30 +677,118 @@ class LazyLoader(BasePersistenceLoader):
                     serialize = BLOB_SERIALIZERS.get(
                         return_loader, pickle.dumps
                     )
-                    store.put(return_ref, serialize(return_value))
-                if ui_vars:
-                    store.put(
-                        (path / "ui.pickle").as_posix(),
-                        pickle.dumps(ui_vars),
+                    _put_or_mark_unserializable(
+                        return_ref,
+                        return_value,
+                        serialize,
+                        [return_item],
+                        "return",
                     )
+                if ui_vars:
+                    ui_key = (path / "ui.pickle").as_posix()
+                    ui_ok = _put_or_mark_unserializable(
+                        ui_key,
+                        ui_vars,
+                        pickle.dumps,
+                        [defs_dict[v] for v in ui_defs_list],
+                        "ui",
+                    )
+                    if not ui_ok:
+                        # UI defs restore via `ui_defs` → `ui.pickle`,
+                        # bypassing the per-Item marks. Drop them from
+                        # `ui_defs` so restore routes through the now-marked
+                        # Items instead, and clear any stale blob lingering
+                        # from a prior run at this same hash path (which would
+                        # otherwise load as a phantom hit).
+                        ui_defs_list.clear()
+                        try:
+                            store.clear(ui_key)
+                        except Exception:
+                            LOGGER.warning(
+                                "Failed to clear stale ui blob %s", ui_key
+                            )
                 for loader, vars_dict in format_vars.items():
                     serialize = BLOB_SERIALIZERS.get(loader, pickle.dumps)
                     for var, obj in vars_dict.items():
-                        store.put(
+                        _put_or_mark_unserializable(
                             (path / f"{var}.{loader}").as_posix(),
-                            serialize(obj),
+                            obj,
+                            serialize,
+                            [defs_dict[var]],
+                            var,
                         )
-                # Manifest last — readers check for it to detect complete writes
-                store.put(manifest_key, manifest)
+                # Manifest last — readers check for it to detect complete
+                # writes, and it now carries any unserializable marks set above.
+                store.put(manifest_key, _encode_manifest())
             except Exception:
                 LOGGER.exception("Failed to write cache blobs for %s", path)
 
-        t = threading.Thread(target=_serialize_and_write, daemon=False)
+        self._dispatch_write(_serialize_and_write)
+        return True
+
+    def _dispatch_write(self, write_fn: Callable[[], None]) -> None:
+        """Run the blob+manifest write on a background thread (native)."""
+        t = threading.Thread(target=write_fn, daemon=False)
         t.start()
         self._pending.append(t)
-        return True
 
     def to_blob(self, cache: Cache) -> bytes | None:
         # Not used — save_cache is overridden. Kept for interface compliance.
         del cache
         return None
+
+
+class WasmLazyLoader(LazyLoader):
+    """WASM variant of `LazyLoader`, selected once via the dual-loader
+    registry (so the environment is never re-checked below)."""
+
+    _store_cls = WasmLazyStore
+
+    def _read_blobs(
+        self,
+        unique_keys: set[str],
+        ref_type_hints: dict[str, str | None],
+        return_ref: str | None,
+        return_type_hint: str | None,
+    ) -> dict[str, Any]:
+        unpickled: dict[str, Any] = {}
+        # The store handles concurrency (HTTP batch fetch in WASM). The WASM
+        # variant pairs with a `WasmLazyStore` (see `_store_cls`), whose
+        # `get_batch` fetches concurrently; `get_batch` is defined on every
+        # `Store` so no narrowing is needed.
+        for key, data in self.store.get_batch(unique_keys):
+            if not data:
+                raise FileNotFoundError("Incomplete cache: missing blobs")
+            unpickled[key] = self._deserialize_blob(
+                key, data, ref_type_hints, return_ref, return_type_hint
+            )
+        return unpickled
+
+    def _dispatch_write(self, write_fn: Callable[[], None]) -> None:
+        write_fn()  # synchronous — no threads in Pyodide
+
+    def _on_restore_failure(
+        self, key: HashKey, manifest_blob: bytes | None
+    ) -> None:
+        manifest_path = str(self.build_path(key))
+        blob_keys: list[str] = []
+        if manifest_blob:
+            try:
+                cache_data = msgspec.json.decode(
+                    manifest_blob, type=CacheSchema
+                )
+                for item in cache_data.defs.values():
+                    if item.reference:
+                        blob_keys.append(item.reference)
+                if cache_data.meta.return_value and (
+                    ref := cache_data.meta.return_value.reference
+                ):
+                    blob_keys.append(ref)
+            except Exception:
+                pass
+        poisoned = _cache_state().poisoned_keys
+        self.store.clear(manifest_path)
+        poisoned.add(manifest_path)
+        for blob_key in blob_keys:
+            self.store.clear(blob_key)
+            poisoned.add(blob_key)
