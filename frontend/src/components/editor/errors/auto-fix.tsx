@@ -113,7 +113,6 @@ export const AutoFixButton = ({
   const openAISidebar = () => {
     openAiAssistant({
       prompt: buildFixPrompt(errors, cellId),
-      mode: "code_mode",
     });
   };
 
