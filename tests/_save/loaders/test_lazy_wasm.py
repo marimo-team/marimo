@@ -4,14 +4,21 @@ from __future__ import annotations
 import pickle
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import msgspec
 import pytest
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from marimo._save.hash import HashKey
+
 from marimo._save.cache import MARIMO_CACHE_VERSION, Cache
 from marimo._save.loaders.lazy import (
     _ACTIVE_LAZY_LOADERS,
+    _POISONED_KEYS,
     LazyLoader,
     LazyStore,
     WasmLazyLoader,
@@ -310,3 +317,114 @@ class TestFlushAll:
         loader2 = LazyLoader("reuse_test")
         assert loader2.store is store1
         assert loader2.store.get("key1") == b"data1"
+
+
+class TestOnRestoreFailure:
+    """`WasmLazyLoader._on_restore_failure`: on a corrupt restore, evict the
+    manifest and its referenced blobs from the store and poison their keys so
+    the HTTP fallback never re-fetches the same broken data."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_poisoned_keys(self) -> Iterator[None]:
+        # _POISONED_KEYS is a module global; snapshot/restore so these tests
+        # neither leak into nor depend on others.
+        snapshot = set(_POISONED_KEYS)
+        yield
+        _POISONED_KEYS.clear()
+        _POISONED_KEYS.update(snapshot)
+
+    @staticmethod
+    def _manifest(
+        refs: list[str], return_ref: str | None = None
+    ) -> bytes:
+        meta = Meta(version=MARIMO_CACHE_VERSION)
+        if return_ref is not None:
+            meta = Meta(
+                version=MARIMO_CACHE_VERSION,
+                return_value=Item(reference=return_ref),
+            )
+        return msgspec.json.encode(
+            CacheSchema(
+                hash="h",
+                cache_type=CacheType("Pure"),
+                defs={
+                    f"v{i}": Item(reference=r) for i, r in enumerate(refs)
+                },
+                stateful_refs=[],
+                meta=meta,
+            )
+        )
+
+    def _loader_and_key(
+        self,
+    ) -> tuple[WasmLazyStore, WasmLazyLoader, HashKey]:
+        from marimo._save.hash import HashKey
+
+        store = WasmLazyStore(inner=DictStore())
+        loader = WasmLazyLoader("restore_fail", store=store)
+        return store, loader, HashKey(hash="h", cache_type="Pure")
+
+    def test_evicts_and_poisons_manifest_and_blobs(self) -> None:
+        store, loader, key = self._loader_and_key()
+        manifest_path = str(loader.build_path(key))
+        blob_a, blob_b = "h/a.pickle", "h/b.pickle"
+        for k in (manifest_path, blob_a, blob_b):
+            store.put(k, b"x")
+
+        loader._on_restore_failure(key, self._manifest([blob_a, blob_b]))
+
+        for k in (manifest_path, blob_a, blob_b):
+            assert not store.hit(k), f"{k} not evicted"
+            assert k in _POISONED_KEYS, f"{k} not poisoned"
+
+    def test_poisons_return_value_reference(self) -> None:
+        store, loader, key = self._loader_and_key()
+        ret_ref = "h/return.pickle"
+        store.put(ret_ref, b"x")
+
+        loader._on_restore_failure(
+            key, self._manifest([], return_ref=ret_ref)
+        )
+
+        assert not store.hit(ret_ref)
+        assert ret_ref in _POISONED_KEYS
+
+    def test_none_manifest_poisons_only_manifest_path(self) -> None:
+        store, loader, key = self._loader_and_key()
+        manifest_path = str(loader.build_path(key))
+
+        loader._on_restore_failure(key, None)
+
+        assert manifest_path in _POISONED_KEYS
+        # No blob keys to discover, so nothing else is poisoned.
+        assert _POISONED_KEYS == {manifest_path}
+
+    def test_undecodable_manifest_poisons_only_manifest_path(self) -> None:
+        store, loader, key = self._loader_and_key()
+        manifest_path = str(loader.build_path(key))
+
+        # Garbage bytes must not raise; manifest path is still poisoned.
+        loader._on_restore_failure(key, b"not valid msgpack/json")
+
+        assert manifest_path in _POISONED_KEYS
+        assert _POISONED_KEYS == {manifest_path}
+
+    def test_corrupt_restore_via_load_cache_poisons_keys(self) -> None:
+        # End-to-end: a manifest referencing a missing blob makes restore
+        # raise; load_cache swallows it and invokes _on_restore_failure.
+        store, loader, key = self._loader_and_key()
+        manifest_path = str(loader.build_path(key))
+        missing_ref = "h/missing.pickle"
+        store._inner.put(manifest_path, self._manifest([missing_ref]))
+
+        # The missing blob would otherwise be fetched over HTTP; stub it to
+        # a miss so the restore fails deterministically without network.
+        with mock.patch.object(
+            store,
+            "_http_get_batch",
+            return_value=iter([(missing_ref, None)]),
+        ):
+            assert loader.load_cache(key) is None
+
+        assert manifest_path in _POISONED_KEYS
+        assert missing_ref in _POISONED_KEYS
