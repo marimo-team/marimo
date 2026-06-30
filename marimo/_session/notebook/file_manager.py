@@ -246,7 +246,7 @@ class AppFileManager:
             if persist:
                 self.storage.write(path, contents)
                 # Record the last saved content to avoid reloading our own writes
-                self._last_saved_content = contents.strip()
+                self._mark_content_as_last_save(contents)
 
             # If this is a new unnamed notebook, update the filename
             if self._is_unnamed():
@@ -594,6 +594,9 @@ class AppFileManager:
                 detail="Cannot read code from an unnamed notebook",
             )
         return self.storage.read(self._filename)
+
+    def _mark_content_as_last_save(self, content: str) -> None:
+        self._last_saved_content = content.strip()
 
     def content_matches_last_save(self, content: str) -> bool:
         """Check if the given content matches the last save.
