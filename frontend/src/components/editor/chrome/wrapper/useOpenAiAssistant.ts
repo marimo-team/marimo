@@ -4,11 +4,17 @@ import { useSetAtom, useStore } from "jotai";
 import useEvent from "react-use-event-hook";
 import { agentSessionStateAtom } from "@/components/chat/acp/state";
 import { toast } from "@/components/ui/use-toast";
+import { useModelChange } from "@/core/ai/config";
 import { pendingAiPromptAtom } from "@/core/ai/state";
 import { aiModelConfiguredAtom } from "@/core/config/config";
 import { getFeatureFlag } from "@/core/config/feature-flag";
+import { Logger } from "@/utils/Logger";
 import { useChromeActions } from "../state";
 import { type AiPanelTab, aiPanelTabAtom, useAiPanelTab } from "./useAiPanel";
+
+// Error fixes work best with kernel access, so we default the chat panel to
+// code mode. The agents panel manages its own mode, so this is chat-only.
+const FIX_CHAT_MODE = "code_mode";
 
 export interface OpenAiAssistantOptions {
   prompt: string;
@@ -36,10 +42,11 @@ export function resolveAiPanelTab(
 export function useOpenAiAssistant() {
   const { openApplication } = useChromeActions();
   const { setAiPanelTab } = useAiPanelTab();
+  const { saveModeChange } = useModelChange();
   const setPendingPrompt = useSetAtom(pendingAiPromptAtom);
   const store = useStore();
 
-  return useEvent((opts: OpenAiAssistantOptions) => {
+  return useEvent(async (opts: OpenAiAssistantOptions) => {
     const tab = resolveAiPanelTab(opts.panel, store.get(aiPanelTabAtom));
 
     const chatPanelReady = store.get(aiModelConfiguredAtom);
@@ -62,6 +69,12 @@ export function useOpenAiAssistant() {
 
     if (opts.panel) {
       setAiPanelTab(opts.panel);
+    }
+
+    if (tab === "chat") {
+      await saveModeChange(FIX_CHAT_MODE).catch(() =>
+        Logger.error("Failed to save mode change"),
+      );
     }
 
     setPendingPrompt({
