@@ -207,16 +207,25 @@ function getInvalidAnyWidgetModuleError(mod: unknown, jsUrl: string): Error {
     isRecord(mod) && hasFunctionProperty(mod, "initialize");
 
   if (hasNamedRender || hasNamedInitialize) {
-    const exports = [
+    const namedExports = [
       hasNamedRender ? "`render`" : null,
       hasNamedInitialize ? "`initialize`" : null,
     ]
       .filter(Boolean)
       .join(" and ");
+    const lifecycleHooks = [
+      hasNamedRender ? "render" : null,
+      hasNamedInitialize ? "initialize" : null,
+    ].filter((hook): hook is string => hook !== null);
+    const defaultExportExample = `export default { ${lifecycleHooks.join(", ")} }`;
+    const namedExportExample =
+      lifecycleHooks.length === 1
+        ? `export function ${lifecycleHooks[0]}`
+        : "named `export function ...`";
     return new Error(
-      `Anywidget module at ${jsUrl} uses named exports (${exports}). ` +
+      `Anywidget module at ${jsUrl} uses named exports (${namedExports}). ` +
         "Per the AFM spec, use a default export instead: " +
-        "`export default { render }` (not `export function render`). " +
+        `\`${defaultExportExample}\` (not \`${namedExportExample}\`). ` +
         `See ${afmDocs}`,
     );
   }

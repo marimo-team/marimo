@@ -179,8 +179,18 @@ describe("getInvalidAnyWidgetModuleError", () => {
       jsUrl,
     );
     expect(error.message).toContain("named exports (`render`)");
-    expect(error.message).toContain("export default { render }");
+    expect(error.message).toContain("`export default { render }`");
     expect(error.message).toContain("not `export function render`");
+  });
+
+  it("should explain legacy named initialize exports", () => {
+    const error = getInvalidAnyWidgetModuleError(
+      { initialize: () => undefined },
+      jsUrl,
+    );
+    expect(error.message).toContain("named exports (`initialize`)");
+    expect(error.message).toContain("`export default { initialize }`");
+    expect(error.message).toContain("not `export function initialize`");
   });
 
   it("should explain a missing default export", () => {
