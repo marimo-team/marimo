@@ -140,10 +140,9 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
   }
 
   if (!isAnyWidgetModule(jsModule)) {
-    const error = new Error(
-      `Module at ${jsUrl} does not appear to be a valid anywidget`,
+    return (
+      <ErrorBanner error={getInvalidAnyWidgetModuleError(jsModule, jsUrl)} />
     );
-    return <ErrorBanner error={error} />;
   }
 
   return (
@@ -200,6 +199,54 @@ function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasFunctionProperty(
+  record: Record<string, unknown>,
+  key: string,
+): boolean {
+  return typeof record[key] === "function";
+}
+
+function getInvalidAnyWidgetModuleError(mod: unknown, jsUrl: string): Error {
+  const afmDocs = "https://anywidget.dev/en/afm/";
+  const hasNamedRender = isRecord(mod) && hasFunctionProperty(mod, "render");
+  const hasNamedInitialize =
+    isRecord(mod) && hasFunctionProperty(mod, "initialize");
+
+  if (hasNamedRender || hasNamedInitialize) {
+    const exports = [
+      hasNamedRender ? "`render`" : null,
+      hasNamedInitialize ? "`initialize`" : null,
+    ]
+      .filter(Boolean)
+      .join(" and ");
+    return new Error(
+      `Anywidget module at ${jsUrl} uses named exports (${exports}). ` +
+        "Per the AFM spec, use a default export instead: " +
+        "`export default { render }` (not `export function render`). " +
+        `See ${afmDocs}`,
+    );
+  }
+
+  if (!isRecord(mod) || mod.default === undefined) {
+    return new Error(
+      `Anywidget module at ${jsUrl} is missing a default export. ` +
+        "Per the AFM spec, use `export default { render }` or " +
+        "`export default async () => ({ render })`. " +
+        `See ${afmDocs}`,
+    );
+  }
+
+  return new Error(
+    `Anywidget module at ${jsUrl} has an invalid default export. ` +
+      "Expected a factory function or an object with `render` or `initialize`. " +
+      `See ${afmDocs}`,
+  );
+}
+
 interface Props<T extends AnyWidgetState> {
   widget: AnyWidget<T>;
   modelId: WidgetModelId;
@@ -250,4 +297,5 @@ export const visibleForTesting = {
   LoadedSlot,
   runAnyWidgetModule,
   isAnyWidgetModule,
+  getInvalidAnyWidgetModuleError,
 };
