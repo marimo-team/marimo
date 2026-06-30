@@ -640,6 +640,60 @@ def run(polars):
     `);
   });
 
+  test("set comprehension target shadows outer global", () => {
+    // Regression: SCOPE_CREATING_NODES used "SetComprehension" instead of the
+    // grammar's "SetComprehensionExpression", so set comprehensions never
+    // created a scope and their for-target was treated as reactive.
+    expect(runHighlight(["x"], "result = {x for x in range(5)}"))
+      .toMatchInlineSnapshot(`
+      "
+      result = {x for x in range(5)}
+      "
+    `);
+  });
+
+  test("from-import module path stays reactive", () => {
+    // Regression: ImportStatement collected every VariableName child, so the
+    // module name in `from m import y` was wrongly treated as a local binding.
+    expect(
+      runHighlight(
+        ["math"],
+        `
+def f():
+    from math import sin as my_sin
+    return math + my_sin(1)`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def f():
+          from math import sin as my_sin
+          return math + my_sin(1)
+                 ^^^^
+      "
+    `);
+  });
+
+  test("from-import: aliased imported name is not a binding", () => {
+    // Regression: `sin` in `from math import sin as my_sin` was incorrectly
+    // registered as a local binding, hiding genuine reactive uses of `sin`.
+    expect(
+      runHighlight(
+        ["sin"],
+        `
+def f():
+    from math import sin as my_sin
+    return sin + my_sin(1)`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def f():
+          from math import sin as my_sin
+          return sin + my_sin(1)
+                 ^^^
+      "
+    `);
+  });
+
   test("lambda inside function with outer global", () => {
     expect(
       runHighlight(
