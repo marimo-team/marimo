@@ -58,7 +58,7 @@ def maybe_update_lazy_stub(value: Any) -> str:
     """Return the loader strategy string for *value*, caching the result.
 
     Walks the MRO of `type(value)` against `LAZY_STUB_LOOKUP` (a
-    fq-class-name → loader-string registry).  Falls back to `"pickle"`
+    fq-class-name -> loader-string registry).  Falls back to `"pickle"`
     when no match is found.
     """
     value_type = type(value)
@@ -182,12 +182,7 @@ _FALLBACK_CACHE_STATE: CacheState | None = None
 
 
 def _cache_state() -> CacheState:
-    """Cache state for the current session, scoped to the root context.
-
-    Embedded apps run in child contexts (`create_kernel_context(parent=...)`);
-    walk to the root so the loader registry, poison set, and WASM store are
-    shared across the session rather than per child.
-    """
+    """Cache state for the current session, scoped to the root context."""
     ctx = safe_get_context()
     if ctx is not None:
         while ctx.parent is not None:
@@ -213,10 +208,7 @@ class LazyStore(Store):
     """Native store for `LazyLoader`.
 
     Delegates to an inner store (default `FileStore` at `__marimo__/cache/`)
-    and tracks which keys were written or read so `--execute` export knows
-    exactly which blobs to bundle. Does no environment checks; the WASM
-    variant (`WasmLazyStore`) adds HTTP-backed reads.
-    """
+    and tracks which keys were written or read."""
 
     def __init__(self, inner: Store | None = None) -> None:
         self._inner = inner if inner is not None else FileStore()
@@ -254,9 +246,6 @@ class LazyStore(Store):
 class WasmLazyStore(LazyStore):
     """WASM store: writes to a shared in-session `DictStore`; reads fall
     through to HTTP fetch from `notebook_location()/public/cache/`.
-
-    Instantiated only by `WasmLazyLoader` (selected once via the dual-loader
-    registry), so it never needs to re-check the environment.
     """
 
     def __init__(self, inner: Store | None = None) -> None:
@@ -291,7 +280,6 @@ class WasmLazyStore(LazyStore):
         if http_keys:
             yield from self._http_get_batch(http_keys)
 
-    # -- HTTP internals --
 
     def _base_url(self) -> str:
         from marimo._runtime.runtime import notebook_location
@@ -301,24 +289,14 @@ class WasmLazyStore(LazyStore):
 
     @staticmethod
     def _sanitize_key(key: str) -> str:
-        """Validate a fetch key against path traversal.
-
-        Returns `key` unchanged so it still matches the stored key;
-        only rejects `..` segments and absolute paths (normalizing the
-        string here could desync requested and stored keys).
-        """
+        """Validate a fetch key against path traversal."""
         clean = PurePosixPath(key)
         if ".." in clean.parts or clean.is_absolute():
             raise ValueError(f"Invalid cache key: {key}")
         return key
 
     def _http_get(self, key: str) -> bytes | None:
-        """Single sync fetch via pyodide_http-patched urllib.
-
-        A successful response is written back to the inner store and
-        marked touched, so repeat reads stay local and the export
-        manifest covers HTTP-fetched blobs.
-        """
+        """Single sync fetch via pyodide_http-patched urllib."""
         import urllib.request
 
         url = f"{self._base_url()}/{self._sanitize_key(key)}"
@@ -373,8 +351,6 @@ class WasmLazyStore(LazyStore):
 
 
 class LazyLoader(BasePersistenceLoader):
-    # Default store class, overridden by the WASM variant. The single
-    # native/WASM decision is made once in the dual-loader registry, not here.
     _store_cls: type[Store] = LazyStore
 
     def __init__(
@@ -442,7 +418,6 @@ class LazyLoader(BasePersistenceLoader):
         variable_hashes: dict[str, str] = {}
         # Instances of cell-defined (__main__) classes are deferred: their
         # class must be re-exec'd into __main__ before the blob can unpickle.
-        # Cache.restore orders these after their class via `requires`.
         deferred: dict[str, tuple[str, str]] = {}
         for var_name, item in cache_data.defs.items():
             if var_name in cache_data.ui_defs:
@@ -472,9 +447,6 @@ class LazyLoader(BasePersistenceLoader):
         unique_keys = set(ref_vars.values())
         if return_ref:
             unique_keys.add(return_ref)
-        # Read + deserialize the blobs. The native loader parallelizes via
-        # threads; the WASM loader overrides this to fetch via the store's
-        # concurrent get_batch (threads are unavailable in Pyodide).
         unpickled = self._read_blobs(
             unique_keys, ref_type_hints, return_ref, return_type_hint
         )
@@ -549,12 +521,7 @@ class LazyLoader(BasePersistenceLoader):
         return_ref: str | None,
         return_type_hint: str | None,
     ) -> dict[str, Any]:
-        """Read + deserialize blobs in parallel via threads.
-
-        Every thread puts exactly one item — value or `_BlobStatus.MISSING`
-        — so `queue.get()` needs no timeout. `WasmLazyLoader` overrides this
-        to use the store's concurrent `get_batch` (no threads in Pyodide).
-        """
+        """Read + deserialize blobs in parallel via threads."""
         results: queue.Queue[tuple[str, Any]] = queue.Queue()
 
         def _load_blob(key: str) -> None:
@@ -682,11 +649,6 @@ class LazyLoader(BasePersistenceLoader):
             """Store one blob; on serialization failure write no blob and
             instead mark each manifest `Item` with `unserializable_type`.
 
-            A later load reconstructs an `UnhashableStub` tripwire from the
-            marker (see `from_item`) rather than reading a placeholder blob
-            off disk — so unserializable values never get dumped to disk and
-            the cached-execution pre-flight still re-runs the producing cell.
-
             Returns `True` when the blob was stored, `False` when it was
             marked unserializable.
             """
@@ -767,9 +729,6 @@ class LazyLoader(BasePersistenceLoader):
 
     def _dispatch_write(self, write_fn: Callable[[], None]) -> None:
         """Run the blob+manifest write on a background thread (native).
-
-        `WasmLazyLoader` overrides this to run synchronously, since threads
-        are unavailable in Pyodide.
         """
         t = threading.Thread(target=write_fn, daemon=False)
         t.start()
@@ -783,14 +742,7 @@ class LazyLoader(BasePersistenceLoader):
 
 class WasmLazyLoader(LazyLoader):
     """WASM variant of `LazyLoader`, selected once via the dual-loader
-    registry (so the environment is never re-checked below).
-
-    - reads blobs through the store's concurrent `get_batch` (HTTP fetch in
-      Pyodide) since threads are unavailable;
-    - writes synchronously for the same reason;
-    - on a corrupt restore, evicts the blobs and poisons their keys so the
-      store won't HTTP-re-fetch the same broken data.
-    """
+    registry (so the environment is never re-checked below)."""
 
     _store_cls = WasmLazyStore
 

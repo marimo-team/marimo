@@ -5,12 +5,7 @@ from marimo._save.stores.store import Store
 
 
 class DictStore(Store):
-    """A minimal dict-backed store for in-session caching.
-
-    Used as the inner store for LazyStore in WASM (Pyodide), where
-    the filesystem is unavailable. Writes persist for the lifetime
-    of the session; reads fall through to HTTP in the outer LazyStore.
-    """
+    """A minimal dict-backed store for in-session caching."""
 
     def __init__(self) -> None:
         self._data: dict[str, bytes] = {}

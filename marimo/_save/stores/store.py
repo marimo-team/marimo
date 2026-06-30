@@ -41,8 +41,8 @@ class Store(ABC):
         """Return the keys this session wrote or read that should be
         bundled on `--execute` export.
 
-        Defaults to none; stores that track usage (e.g. `LazyStore`)
-        override this. Returning `[]` keeps non-tracking stores inert.
+        Defaults to none; stores that track usage override this. Returning `[]`
+        keeps non-tracking stores inert.
         """
         return []
 
