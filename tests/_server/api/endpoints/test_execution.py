@@ -632,7 +632,7 @@ def test_takeover_transfers_edit_without_disconnect(
                         "resumed": True,
                         "consumer_capabilities": {
                             "edit": False,
-                            "interact": False,
+                            "interact": True,
                         },
                     }
                 ),
@@ -648,7 +648,7 @@ def test_takeover_transfers_edit_without_disconnect(
             vw = receive_until("consumer-capabilities", viewer)
             assert ed["data"]["consumer_capabilities"] == {
                 "edit": False,
-                "interact": False,
+                "interact": True,
             }
             assert vw["data"]["consumer_capabilities"] == {
                 "edit": True,
@@ -666,8 +666,10 @@ def _app_state_for_consumer(caps: ConsumerCapabilities) -> object:
 
 
 def test_enforce_consumer_capability_blocks_viewer() -> None:
+    # A default viewer is an interactor (edit=False); an edit-tier command is
+    # still refused.
     app_state = _app_state_for_consumer(
-        ConsumerCapabilities(edit=False, interact=False)
+        ConsumerCapabilities(edit=False, interact=True)
     )
     command = ExecuteCellsCommand(cell_ids=[], codes=[])
     with pytest.raises(HTTPException) as exc_info:

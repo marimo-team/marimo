@@ -64,7 +64,7 @@ def test_get_capabilities_editor_vs_viewer() -> None:
         edit=True, interact=True
     )
     assert room.get_capabilities(b) == ConsumerCapabilities(
-        edit=False, interact=False
+        edit=False, interact=True
     )
 
 
@@ -78,9 +78,9 @@ def test_promote_demotes_old_grants_new_no_disconnect() -> None:
     # both still members; no disconnect
     assert a.consumer_id in room.consumers
     assert b.consumer_id in room.consumers
-    # old editor -> viewer caps; new editor -> editor caps
+    # old editor -> interactor caps; new editor -> editor caps
     assert _caps(a.received) == [
-        ConsumerCapabilities(edit=False, interact=False)
+        ConsumerCapabilities(edit=False, interact=True)
     ]
     assert _caps(b.received) == [
         ConsumerCapabilities(edit=True, interact=True)
@@ -134,7 +134,7 @@ def test_default_capabilities_match_slot() -> None:
         edit=True, interact=True
     )
     assert room.get_capabilities(b) == ConsumerCapabilities(
-        edit=False, interact=False
+        edit=False, interact=True
     )
 
 
@@ -146,5 +146,5 @@ def test_promote_restamps_stored_capabilities() -> None:
         edit=True, interact=True
     )
     assert room.get_capabilities(a) == ConsumerCapabilities(
-        edit=False, interact=False
+        edit=False, interact=True
     )

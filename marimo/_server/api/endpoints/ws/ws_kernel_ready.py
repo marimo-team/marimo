@@ -87,7 +87,7 @@ def build_kernel_ready(
         app_config=session.app_file_manager.app.config,
         kiosk=kiosk,
         consumer_capabilities=ConsumerCapabilities(
-            edit=not kiosk, interact=not kiosk
+            edit=not kiosk, interact=True
         ),
         capabilities=KernelCapabilitiesNotification(),
         auto_instantiated=auto_instantiated,
