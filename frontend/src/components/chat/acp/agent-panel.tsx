@@ -49,6 +49,7 @@ import {
   addContextCompletion,
   CONTEXT_TRIGGER,
 } from "@/components/editor/ai/completion-utils";
+import { pendingAiPromptAtom } from "@/core/ai/state";
 import {
   Select,
   SelectContent,
@@ -660,6 +661,7 @@ const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | string | null>(null);
   const [promptValue, setPromptValue] = useState("");
+  const [pendingPrompt, setPendingPrompt] = useAtom(pendingAiPromptAtom);
   const { files, addFiles, clearFiles, removeFile } = useFileState();
   const [sessionModels, setSessionModels] = useState<SessionModelState | null>(
     null,
@@ -972,6 +974,20 @@ const AgentPanel: React.FC = () => {
       }
     },
   );
+
+  // Consume a prompt queued by another part of the app (e.g. error auto-fix).
+  // Wait for an active session so the prompt is actually delivered.
+  useEffect(() => {
+    if (!activeSessionId || !pendingPrompt) {
+      return;
+    }
+    setPendingPrompt(null);
+    if (pendingPrompt.submit) {
+      void handlePromptSubmit(undefined, pendingPrompt.prompt);
+    } else {
+      setPromptValue(pendingPrompt.prompt);
+    }
+  }, [activeSessionId, pendingPrompt, setPendingPrompt, handlePromptSubmit]);
 
   // Handler for stopping the current operation
   const handleStop = useEvent(async () => {

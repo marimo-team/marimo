@@ -45,6 +45,7 @@ import {
   type Chat,
   type ChatId,
   chatStateAtom,
+  pendingAiPromptAtom,
 } from "@/core/ai/state";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import {
@@ -481,6 +482,7 @@ const ChatPanel = () => {
 const ChatPanelBody = () => {
   const setChatState = useSetAtom(chatStateAtom);
   const [activeChat, setActiveChat] = useAtom(activeChatAtom);
+  const [pendingPrompt, setPendingPrompt] = useAtom(pendingAiPromptAtom);
   const [input, setInput] = useState("");
   const [newThreadInput, setNewThreadInput] = useState("");
   const { files, addFiles, clearFiles, removeFile } = useFileState();
@@ -600,54 +602,47 @@ const ChatPanelBody = () => {
     requestAnimationFrame(scrollToBottom);
   }, [activeChatId]);
 
-  const createNewThread = async (
-    initialMessage: string,
-    initialAttachments?: File[],
-  ) => {
-    const now = Date.now();
-    const newChat: Chat = {
-      id: chatId as ChatId,
-      title: generateChatTitle(initialMessage),
-      messages: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    // Create new chat and set as active
-    setChatState((prev) => {
-      const newChats = new Map(prev.chats);
-      newChats.set(newChat.id, newChat);
-      const newState = {
-        ...prev,
-        chats: newChats,
-        activeChatId: newChat.id,
+  const createNewThread = useEvent(
+    async (initialMessage: string, initialAttachments?: File[]) => {
+      const now = Date.now();
+      const newChat: Chat = {
+        id: chatId as ChatId,
+        title: generateChatTitle(initialMessage),
+        messages: [],
+        createdAt: now,
+        updatedAt: now,
       };
-      return newState;
-    });
 
-    const fileParts =
-      initialAttachments && initialAttachments.length > 0
-        ? await convertToFileUIPart(initialAttachments)
-        : undefined;
-    const { contextPart, attachments } =
-      await resolveChatContext(initialMessage);
+      setChatState((prev) => {
+        const newChats = new Map(prev.chats);
+        newChats.set(newChat.id, newChat);
+        return {
+          ...prev,
+          chats: newChats,
+          activeChatId: newChat.id,
+        };
+      });
 
-    // Trigger AI conversation with append
-    sendMessage({
-      role: "user",
-      parts: [
-        {
-          type: "text" as const,
-          text: initialMessage,
-        },
-        ...(contextPart ? [contextPart] : []),
-        ...(fileParts ?? []),
-        ...attachments,
-      ],
-    });
-    clearFiles();
-    setInput("");
-  };
+      const fileParts =
+        initialAttachments && initialAttachments.length > 0
+          ? await convertToFileUIPart(initialAttachments)
+          : undefined;
+      const { contextPart, attachments } =
+        await resolveChatContext(initialMessage);
+
+      sendMessage({
+        role: "user",
+        parts: [
+          { type: "text" as const, text: initialMessage },
+          ...(contextPart ? [contextPart] : []),
+          ...(fileParts ?? []),
+          ...attachments,
+        ],
+      });
+      clearFiles();
+      setInput("");
+    },
+  );
 
   const handleNewChat = useEvent(() => {
     setActiveChat(null);
@@ -727,6 +722,33 @@ const ChatPanelBody = () => {
   });
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
+
+  // Deliver a prompt queued elsewhere (e.g. error auto-fix) to the chat,
+  // appending to the active thread or starting one if none exists.
+  useEffect(() => {
+    if (!pendingPrompt) {
+      return;
+    }
+    setPendingPrompt(null);
+    const { prompt, submit } = pendingPrompt;
+    if (!submit) {
+      if (activeChatId == null) {
+        setNewThreadInput(prompt);
+      } else {
+        setInput(prompt);
+      }
+    } else if (activeChatId == null) {
+      void createNewThread(prompt);
+    } else {
+      void handleChatInputSubmit(undefined, prompt);
+    }
+  }, [
+    pendingPrompt,
+    setPendingPrompt,
+    activeChatId,
+    createNewThread,
+    handleChatInputSubmit,
+  ]);
 
   const isNewThread = messages.length === 0;
   const chatInput = isNewThread ? (
