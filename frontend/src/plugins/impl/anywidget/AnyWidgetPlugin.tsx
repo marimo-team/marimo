@@ -10,6 +10,7 @@ import { createPlugin } from "@/plugins/core/builder";
 import type { IPluginProps } from "@/plugins/types";
 import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
+import { hasFunctionProperty, isRecord } from "@/utils/records";
 import { ErrorBanner } from "../common/error-banner";
 import { getMarimoInternal, MODEL_MANAGER, type Model } from "./model";
 import type { ModelState, WidgetModelId } from "./types";
@@ -197,17 +198,6 @@ function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
     typeof mod.default?.render === "function" ||
     typeof mod.default?.initialize === "function"
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function hasFunctionProperty(
-  record: Record<string, unknown>,
-  key: string,
-): boolean {
-  return typeof record[key] === "function";
 }
 
 function getInvalidAnyWidgetModuleError(mod: unknown, jsUrl: string): Error {

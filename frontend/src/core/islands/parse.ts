@@ -6,6 +6,7 @@ import {
   ISLANDS_JSON_SCRIPT_TYPE,
 } from "@/core/islands/constants";
 import { Logger } from "@/utils/Logger";
+import { isRecord } from "@/utils/records";
 
 /**
  * DOM elements look like this:
@@ -479,8 +480,4 @@ function isMarimoIslandPayloadCell(
     typeof cell.displayCode === "boolean" &&
     typeof cell.displayOutput === "boolean"
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
