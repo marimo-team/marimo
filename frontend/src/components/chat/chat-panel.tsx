@@ -732,6 +732,9 @@ const ChatPanelBody = () => {
   const submitPendingPrompt = useEvent(async (prompt: string) => {
     if (activeChatId == null) {
       startNewChatState(prompt);
+      // Starting a chat swaps the new-thread input for the regular input;
+      // carry over any draft the user had typed so it isn't lost.
+      setInput(newThreadInput);
     }
     const { contextPart, attachments } = await resolveChatContext(prompt);
     sendMessage({
