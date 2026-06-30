@@ -73,7 +73,7 @@ import {
   SendButton,
 } from "../chat-components";
 import { useFileState } from "../chat-utils";
-import { focusEditorAtEnd } from "@/core/codemirror/utils";
+import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 import { ReadyToChatBlock } from "./blocks";
 import {
   convertFilesToResourceLinks,
@@ -994,7 +994,7 @@ const AgentPanel: React.FC = () => {
       void handlePromptSubmit(undefined, pendingPrompt.prompt);
     } else {
       setPromptValue(pendingPrompt.prompt);
-      focusEditorAtEnd(promptInputRef);
+      focusInputAndMoveToEnd(promptInputRef);
     }
   }, [
     activeSessionId,
