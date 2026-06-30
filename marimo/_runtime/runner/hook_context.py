@@ -43,11 +43,9 @@ class CancelledCells:
         self._all.update(descendants)
 
     def discard(self, cell_id: CellId_t) -> None:
-        """Un-cancel a cell (as both a raiser and a descendant).
+        """Un-cancel a cell
 
-        Used by `Scheduler.requeue_for_rerun` to clear cancellation
-        before re-running a cell.
-        """
+        That is remove it from the cancelled set and any descendant sets."""
         self._all.discard(cell_id)
         self._by_raising_cell.pop(cell_id, None)
         for descendants in self._by_raising_cell.values():
