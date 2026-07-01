@@ -1370,3 +1370,93 @@ class TestFilterParameter:
         dir_names = {f["name"] for f in response.files if f["is_directory"]}
         assert "matched" in dir_names
         assert "unmatched" not in dir_names
+
+
+class TestInitialSelection:
+    """Tests for the `initial_selection` constructor argument (#7468)."""
+
+    def test_preselects_files(self, tmp_path: Path) -> None:
+        file_a = tmp_path / "a.txt"
+        file_b = tmp_path / "b.txt"
+        file_a.touch()
+        file_b.touch()
+
+        fb = file_browser(
+            initial_path=tmp_path,
+            initial_selection=[file_a, file_b],
+        )
+
+        assert len(fb.value) == 2
+        selected_paths = {str(info.path) for info in fb.value}
+        assert selected_paths == {
+            str(normalize_path(file_a)),
+            str(normalize_path(file_b)),
+        }
+        assert fb.path(0) == normalize_path(file_a)
+        assert fb.name(0) == "a.txt"
+
+    def test_accepts_single_path(self, tmp_path: Path) -> None:
+        file_a = tmp_path / "a.txt"
+        file_a.touch()
+
+        fb = file_browser(initial_path=tmp_path, initial_selection=file_a)
+
+        assert len(fb.value) == 1
+        assert fb.path(0) == normalize_path(file_a)
+
+    def test_accepts_string_path(self, tmp_path: Path) -> None:
+        file_a = tmp_path / "a.txt"
+        file_a.touch()
+
+        # A bare string must be treated as one path, not exploded per-char.
+        fb = file_browser(initial_path=tmp_path, initial_selection=str(file_a))
+
+        assert len(fb.value) == 1
+        assert fb.path(0) == normalize_path(file_a)
+
+    def test_preselection_matches_listing_paths(self, tmp_path: Path) -> None:
+        # The pre-selected entry's path must byte-for-byte match what
+        # _list_directory emits, otherwise the frontend won't highlight it.
+        file_a = tmp_path / "a.txt"
+        file_a.touch()
+
+        fb = file_browser(initial_path=tmp_path, initial_selection=[file_a])
+        listing = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+        listed_paths = {f["path"] for f in listing.files}
+        (selected,) = fb.value
+        assert str(selected.path) in listed_paths
+
+    def test_directory_requires_selection_mode(self, tmp_path: Path) -> None:
+        subdir = tmp_path / "sub"
+        subdir.mkdir()
+
+        # Default selection_mode is "file"; a directory must be rejected.
+        with pytest.raises(ValueError, match="directory"):
+            file_browser(initial_path=tmp_path, initial_selection=[subdir])
+
+        # Allowed with selection_mode="all".
+        fb = file_browser(
+            initial_path=tmp_path,
+            initial_selection=[subdir],
+            selection_mode="all",
+        )
+        assert len(fb.value) == 1
+        assert fb.value[0].is_directory is True
+
+    def test_multiple_false_rejects_many(self, tmp_path: Path) -> None:
+        file_a = tmp_path / "a.txt"
+        file_b = tmp_path / "b.txt"
+        file_a.touch()
+        file_b.touch()
+
+        with pytest.raises(ValueError, match="multiple=False"):
+            file_browser(
+                initial_path=tmp_path,
+                initial_selection=[file_a, file_b],
+                multiple=False,
+            )
+
+    def test_none_is_empty_selection(self, tmp_path: Path) -> None:
+        fb = file_browser(initial_path=tmp_path)
+        assert list(fb.value) == []

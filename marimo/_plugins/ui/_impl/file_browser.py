@@ -10,6 +10,7 @@ from typing import (
     Final,
     Literal,
     TypedDict,
+    cast,
 )
 
 from marimo import _loggers
@@ -178,6 +179,14 @@ class file_browser(
             the user can select. Accepts one of "file" (default), "directory",
             "all", or a list/tuple containing "file" and/or "directory".
             "all" is equivalent to ["file", "directory"]. Defaults to "file".
+        initial_selection (Sequence[str | Path] | str | Path, optional): File(s)
+            and/or director(ies) to pre-select when the element is first
+            rendered. Accepts a single path or a sequence of paths (str, Path,
+            or CloudPath), normalized the same way as `initial_path`. Each
+            entry must be consistent with `selection_mode` (e.g. a directory
+            requires `selection_mode="directory"` or `"all"`), and at most one
+            entry may be given when `multiple=False`. Defaults to None (nothing
+            selected).
         multiple (bool, optional): If True, allow the user to select multiple
             files. Defaults to True.
         restrict_navigation (bool, optional): If True, prevent the user from
@@ -207,6 +216,7 @@ class file_browser(
         multiple: bool = True,
         restrict_navigation: bool = False,
         *,
+        initial_selection: Sequence[str | Path] | str | Path | None = None,
         filter: str | re.Pattern[str] | Callable[[Path], bool] | None = None,  # noqa: A002
         limit: int | None = None,
         label: str = "",
@@ -283,9 +293,13 @@ class file_browser(
         else:
             (wire_selection_mode,) = self._selection_mode
 
+        initial_value = self._normalize_initial_selection(
+            initial_selection, multiple=multiple
+        )
+
         super().__init__(
             component_name=file_browser._name,
-            initial_value=[],
+            initial_value=initial_value,
             label=label,
             args={
                 "initial-path": str(self._initial_path),
@@ -303,6 +317,66 @@ class file_browser(
             ),
             on_change=on_change,
         )
+
+    def _normalize_initial_selection(
+        self,
+        initial_selection: Sequence[str | Path] | str | Path | None,
+        *,
+        multiple: bool,
+    ) -> list[TypedFileBrowserFileInfo]:
+        """Build the initial selection value from user-provided paths.
+
+        Each entry is normalized the same way as `initial_path` (via
+        `normalize_path` and `_create_path`) so that its `path` string matches
+        what `_list_directory` emits, ensuring the entry renders as
+        pre-selected when its containing directory is browsed.
+        """
+        if initial_selection is None:
+            return []
+
+        raw_items: list[str | Path]
+        if isinstance(initial_selection, (list, tuple)):
+            raw_items = list(initial_selection)
+        else:
+            # A single path: str, Path, or CloudPath (which duck-types as a
+            # path but is not a Path subclass, so it isn't in the annotation).
+            raw_items = [cast("str | Path", initial_selection)]
+
+        if not multiple and len(raw_items) > 1:
+            raise ValueError(
+                "initial_selection may contain at most one entry when "
+                "multiple=False."
+            )
+
+        selection: list[TypedFileBrowserFileInfo] = []
+        for item in raw_items:
+            raw_path: Path = Path(item) if isinstance(item, str) else item
+            selected_path = self._create_path(normalize_path(raw_path))
+            is_directory = selected_path.is_dir()
+
+            if is_directory and "directory" not in self._selection_mode:
+                raise ValueError(
+                    f"initial_selection entry {str(selected_path)!r} is a "
+                    f"directory, but selection_mode does not allow selecting "
+                    f"directories. Use selection_mode='directory' or 'all'."
+                )
+            if not is_directory and "file" not in self._selection_mode:
+                raise ValueError(
+                    f"initial_selection entry {str(selected_path)!r} is not a "
+                    f"directory, but selection_mode does not allow selecting "
+                    f"files. Use selection_mode='file' or 'all'."
+                )
+
+            path_str = str(selected_path)
+            selection.append(
+                TypedFileBrowserFileInfo(
+                    id=path_str,
+                    path=path_str,
+                    name=selected_path.name,
+                    is_directory=is_directory,
+                )
+            )
+        return selection
 
     def _create_path(self, path_str: str | Path) -> Path:
         """Create a path object with the same class and client as the initial path."""
