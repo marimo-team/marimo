@@ -1330,6 +1330,29 @@ components:
       - cellId
       title: DebugCellRequest
       type: object
+    DebuggerLineNotification:
+      description: "Reports the line a cell's frame watcher is currently executing.\n\
+        \n    Emitted on a timed heartbeat while a cell runs (only when the line\n\
+        \    changed), so the editor can highlight the live line. A `None` line\n\
+        \    clears the highlight (e.g. when the cell finishes).\n\n    Attributes:\n\
+        \        cell_id: Cell whose frame is being watched.\n        line: 1-based\
+        \ line within the cell, or `None` to clear."
+      properties:
+        cell_id:
+          $ref: '#/components/schemas/CellId'
+        line:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        op:
+          enum:
+          - debugger-line
+      required:
+      - op
+      - cell_id
+      title: DebuggerLineNotification
+      type: object
     DeleteCell:
       description: Remove a cell from the notebook.
       properties:
@@ -2634,6 +2657,7 @@ components:
           - $ref: '#/components/schemas/ExecuteScratchpadCommand'
           - $ref: '#/components/schemas/ExecuteStaleCellsCommand'
           - $ref: '#/components/schemas/DebugCellCommand'
+          - $ref: '#/components/schemas/SetBreakpointsCommand'
           - $ref: '#/components/schemas/DeleteCellCommand'
           - $ref: '#/components/schemas/SyncGraphCommand'
           - $ref: '#/components/schemas/UpdateCellConfigCommand'
@@ -2677,6 +2701,7 @@ components:
               preview-sql-table: '#/components/schemas/PreviewSQLTableCommand'
               refresh-secrets: '#/components/schemas/RefreshSecretsCommand'
               rename-notebook: '#/components/schemas/RenameNotebookCommand'
+              set-breakpoints: '#/components/schemas/SetBreakpointsCommand'
               stop-kernel: '#/components/schemas/StopKernelCommand'
               storage-download: '#/components/schemas/StorageDownloadCommand'
               storage-list-entries: '#/components/schemas/StorageListEntriesCommand'
@@ -2766,6 +2791,7 @@ components:
           - $ref: '#/components/schemas/CacheClearedNotification'
           - $ref: '#/components/schemas/CacheInfoNotification'
           - $ref: '#/components/schemas/FocusCellNotification'
+          - $ref: '#/components/schemas/DebuggerLineNotification'
           - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
           - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
           discriminator:
@@ -2781,6 +2807,7 @@ components:
               data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
               data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
               datasets: '#/components/schemas/DatasetsNotification'
+              debugger-line: '#/components/schemas/DebuggerLineNotification'
               focus-cell: '#/components/schemas/FocusCellNotification'
               function-call-result: '#/components/schemas/FunctionCallResultNotification'
               installing-package-alert: '#/components/schemas/InstallingPackageAlertNotification'
@@ -4669,6 +4696,50 @@ components:
     SessionId:
       format: session-id
       type: string
+    SetBreakpointsCommand:
+      description: "Set the live debugger's breakpoints (session-scoped, not persisted).\n\
+        \n    Replaces the full breakpoint set: the frontend always sends the complete\n\
+        \    map of cell id -> 1-based line numbers. Only meaningful when the\n  \
+        \  `debugger` experimental feature is enabled.\n\n    Attributes:\n      \
+        \  breakpoints: Map of cell id to lines that have a breakpoint.\n        request:\
+        \ HTTP request context if available."
+      properties:
+        breakpoints:
+          additionalProperties:
+            items:
+              type: integer
+            type: array
+          type: object
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        type:
+          enum:
+          - set-breakpoints
+      required:
+      - type
+      - breakpoints
+      title: SetBreakpointsCommand
+      type: object
+    SetBreakpointsRequest:
+      properties:
+        breakpoints:
+          additionalProperties:
+            items:
+              type: integer
+            type: array
+          type: object
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+      required:
+      - breakpoints
+      title: SetBreakpointsRequest
+      type: object
     SetCode:
       description: Replace a cell's source code.
       properties:
@@ -6665,6 +6736,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Interrupt the kernel's execution
+  /api/kernel/pdb/breakpoints:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetBreakpointsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Set the live debugger's breakpoints for the session.
   /api/kernel/pdb/pm:
     post:
       parameters:

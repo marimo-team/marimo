@@ -1989,6 +1989,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/pdb/breakpoints": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["SetBreakpointsRequest"];
+        };
+      };
+      responses: {
+        /** @description Set the live debugger's breakpoints for the session. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/kernel/pdb/pm": {
     parameters: {
       query?: never;
@@ -4211,6 +4252,25 @@ export interface components {
       request?: components["schemas"]["HTTPRequest"] | null;
     };
     /**
+     * DebuggerLineNotification
+     * @description Reports the line a cell's frame watcher is currently executing.
+     *
+     *         Emitted on a timed heartbeat while a cell runs (only when the line
+     *         changed), so the editor can highlight the live line. A `None` line
+     *         clears the highlight (e.g. when the cell finishes).
+     *
+     *         Attributes:
+     *             cell_id: Cell whose frame is being watched.
+     *             line: 1-based line within the cell, or `None` to clear.
+     */
+    DebuggerLineNotification: {
+      cell_id: components["schemas"]["CellId"];
+      /** @default null */
+      line?: number | null;
+      /** @enum {unknown} */
+      op: "debugger-line";
+    };
+    /**
      * DeleteCell
      * @description Remove a cell from the notebook.
      */
@@ -5014,6 +5074,7 @@ export interface components {
         | components["schemas"]["ExecuteScratchpadCommand"]
         | components["schemas"]["ExecuteStaleCellsCommand"]
         | components["schemas"]["DebugCellCommand"]
+        | components["schemas"]["SetBreakpointsCommand"]
         | components["schemas"]["DeleteCellCommand"]
         | components["schemas"]["SyncGraphCommand"]
         | components["schemas"]["UpdateCellConfigCommand"]
@@ -5097,6 +5158,7 @@ export interface components {
         | components["schemas"]["CacheClearedNotification"]
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
+        | components["schemas"]["DebuggerLineNotification"]
         | components["schemas"]["NotebookDocumentTransactionNotification"]
         | components["schemas"]["ConsumerCapabilitiesNotification"];
     };
@@ -6250,6 +6312,35 @@ export interface components {
     };
     /** Format: session-id */
     SessionId: TypedString<"SessionId">;
+    /**
+     * SetBreakpointsCommand
+     * @description Set the live debugger's breakpoints (session-scoped, not persisted).
+     *
+     *         Replaces the full breakpoint set: the frontend always sends the complete
+     *         map of cell id -> 1-based line numbers. Only meaningful when the
+     *         `debugger` experimental feature is enabled.
+     *
+     *         Attributes:
+     *             breakpoints: Map of cell id to lines that have a breakpoint.
+     *             request: HTTP request context if available.
+     */
+    SetBreakpointsCommand: {
+      breakpoints: {
+        [key: string]: number[];
+      };
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      /** @enum {unknown} */
+      type: "set-breakpoints";
+    };
+    /** SetBreakpointsRequest */
+    SetBreakpointsRequest: {
+      breakpoints: {
+        [key: string]: number[];
+      };
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+    };
     /**
      * SetCode
      * @description Replace a cell's source code.

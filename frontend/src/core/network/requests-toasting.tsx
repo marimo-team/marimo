@@ -49,6 +49,7 @@ export function createErrorToastingRequests(
     sendListFiles: "Failed to list files",
     sendSearchFiles: "Failed to search files",
     sendPdb: "Failed to start debug session",
+    sendSetBreakpoints: "", // No toast
     sendCreateFileOrFolder: "Failed to create file or folder",
     sendDeleteFileOrFolder: "Failed to delete file or folder",
     sendCopyFileOrFolder: "Failed to duplicate file or folder",

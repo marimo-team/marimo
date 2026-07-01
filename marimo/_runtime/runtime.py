@@ -107,6 +107,8 @@ from marimo._runtime.commands import (
     ExecuteCellCommand,
     ExecuteStaleCellsCommand,
     InvokeFunctionCommand,
+    OutOfBandCommand,
+    SetBreakpointsCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
@@ -515,7 +517,7 @@ class Kernel:
 
         self._globals_lock = threading.RLock()
         self._state_lock = threading.RLock()
-        self._completion_worker_started = False
+        self._out_of_band_worker_started = False
 
         self.debugger = debugger_override
         if self.debugger is not None:
@@ -663,30 +665,62 @@ class Kernel:
 
     @contextlib.contextmanager
     def lock_globals(self) -> Iterator[None]:
-        # The only other thread accessing globals is the completion worker. If
-        # we haven't started a completion worker, there's no need to lock
-        # globals.
-        if self._completion_worker_started:
+        # The only other thread accessing globals is the out-of-band worker.
+        # If we haven't started one, there's no need to lock globals.
+        if self._out_of_band_worker_started:
             with self._globals_lock:
                 yield
         else:
             yield
 
-    def start_completion_worker(
-        self, completion_queue: QueueType[CodeCompletionCommand]
+    def start_out_of_band_worker(
+        self, out_of_band_queue: QueueType[OutOfBandCommand]
     ) -> None:
-        """Must be called after context is initialized"""
-        from marimo._runtime.kernel_lifecycle import drain_stale
+        """Start the background worker for out-of-band commands.
+
+        Drains the queue on its own thread so these commands apply even while
+        a cell is executing (the control queue is blocked behind the running
+        cell). Must be called after the context is initialized.
+        """
+        from marimo._runtime.kernel_lifecycle import collapse_out_of_band
 
         def _worker() -> None:
             while True:
-                request = drain_stale(
-                    completion_queue, latest=completion_queue.get()
-                )
-                self.code_completion(request, docstrings_limit=80)
+                # Block for the next command, then drain and dispatch whatever
+                # else is queued in one pass (latest of each type wins).
+                for command in collapse_out_of_band(
+                    out_of_band_queue, first=out_of_band_queue.get()
+                ):
+                    self.dispatch_out_of_band(command, docstrings_limit=80)
 
         threading.Thread(target=_worker, daemon=True).start()
-        self._completion_worker_started = True
+        self._out_of_band_worker_started = True
+
+    def dispatch_out_of_band(
+        self, command: OutOfBandCommand, *, docstrings_limit: int
+    ) -> None:
+        """Apply a single out-of-band command.
+
+        The one place that maps an `OutOfBandCommand` to its handler; extend
+        with a new branch when adding a member to the union.
+        """
+        if isinstance(command, SetBreakpointsCommand):
+            self.set_breakpoints(command)
+        elif isinstance(command, CodeCompletionCommand):
+            self.code_completion(command, docstrings_limit=docstrings_limit)
+
+    def set_breakpoints(self, request: SetBreakpointsCommand) -> None:
+        """Update the live debugger's breakpoints (session-scoped).
+
+        Replaces the full set; read by the frame watcher (`DebuggerLifecycle`).
+        """
+        if self.debugger is None:
+            return
+        self.debugger.breakpoints = {
+            cell_id: set(lines)
+            for cell_id, lines in request.breakpoints.items()
+            if lines
+        }
 
     @kernel_tracer.start_as_current_span("code_completion")
     def code_completion(
@@ -2502,7 +2536,7 @@ def _install_subprocess_handlers(
 def launch_kernel(
     control_queue: QueueType[CommandMessage],
     set_ui_element_queue: QueueType[BatchableCommand],
-    completion_queue: QueueType[CodeCompletionCommand],
+    completion_queue: QueueType[OutOfBandCommand],
     input_queue: QueueType[str],
     stream_queue: QueueType[KernelMessage] | None,
     socket_addr: tuple[str, int] | None,
@@ -2560,8 +2594,8 @@ def launch_kernel(
             )
         ) as (kernel, ctx):
             if is_edit_mode:
-                # completions only provided in edit mode
-                kernel.start_completion_worker(completion_queue)
+                # out-of-band commands are only processed in edit mode
+                kernel.start_out_of_band_worker(completion_queue)
 
             if is_subprocess:
                 # Read theme from kernel.user_config — create_kernel may have
