@@ -622,21 +622,51 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
-  - name: GLM-5.1
+  - name: DeepSeek V4-Flash
+    model: deepseek-ai/DeepSeek-V4-Flash
+    description: "DeepSeek V4-Flash is an MoE model with 1M context length great for coding, reasoning, and agentic workloads"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-04-24
+    cost: {input: 0.14, output: 0.28}
+
+  - name: DeepSeek V4-Pro
+    model: deepseek-ai/DeepSeek-V4-Pro
+    description: "DeepSeek V4-Pro is a 1.6T-parameter MoE model with 49B active parameters excelling at advanced reasoning, coding, and complex agentic workloads"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-04-24
+    cost: {input: 1.74, output: 3.46}
+
+  - name: Z.AI GLM 5.2
+    model: zai-org/GLM-5.2
+    description: "GLM-5.2 is a Mixture-of-Experts language model featuring 40 billion activated parameters and a total of 744 billion parameters"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-06-13
+    cost: {input: 1.39, output: 4.4}
+
+  - name: Z.AI GLM-5.1
     model: zai-org/GLM-5.1
     description: "GLM-5.1 delivers a major leap in coding capability, with particularly significant gains in handling long-horizon tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
-    release_date: 2026-03-27
+    release_date: 2026-04-07
     cost: {input: 1.4, output: 4.4}
 
   - name: NVIDIA Nemotron 3 Super 120B
     model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8
     description: "120B-parameter open hybrid MoE model, activating just 12B parameters for maximum compute efficiency and accuracy in complex multi-agent applications"
     roles: [chat, edit]
-    capabilities: [tool_calling]
+    capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
     release_date: 2026-03-11
@@ -646,81 +676,81 @@ wandb:
     model: MiniMaxAI/MiniMax-M2.5
     description: "SOTA large language model designed for real-world productivity"
     roles: [chat, edit]
-    capabilities: [tool_calling]
+    capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
     release_date: 2026-02-12
     cost: {input: 0.3, output: 1.2}
 
-  - name: GLM 5
-    model: zai-org/GLM-5-FP8
-    description: "Z.ai's flagship open-source foundation model engineered for complex systems design and long-horizon agent workflows"
+  - name: Moonshot AI Kimi K2.7 Code
+    model: moonshotai/Kimi-K2.7-Code
+    description: "Kimi K2.7 Code is a 1T-parameter MoE model with 32B active parameters purpose-built for long-horizon agentic coding and software engineering"
     roles: [chat, edit]
-    capabilities: [tool_calling]
+    capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
-    release_date: 2026-02-11
-    cost: {input: 1, output: 3.2}
+    release_date: 2026-06-12
+    cost: {input: 0.94, output: 4}
 
-  - name: Kimi K2.5
-    model: moonshotai/Kimi-K2.5
-    description: "Moonshot AI's native multimodal model, delivering state-of-the-art visual coding capability and a self-directed agent swarm paradigm"
+  - name: Moonshot AI Kimi K2.6
+    model: moonshotai/Kimi-K2.6
+    description: "Kimi K2.6 is a multimodal Mixture-of-Experts language model featuring 32 billion activated parameters and a total of 1 trillion parameters"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
     output_types: [text]
-    release_date: 2026-01-27
-    cost: {input: 0.5, output: 2.85}
-
-  - name: DeepSeek V3.1
-    model: deepseek-ai/DeepSeek-V3.1
-    description: "Large hybrid reasoning model (671B parameters, 37B active) that supports both thinking and non-thinking modes via prompt templates"
-    roles: [chat, edit]
-    capabilities: [tool_calling]
-    input_types: [text]
-    output_types: [text]
-    release_date: 2025-08-21
-    cost: {input: 0.55, output: 1.65}
+    release_date: 2026-04-20
+    cost: {input: 0.95, output: 4}
 
   - name: gpt-oss-120b
     model: openai/gpt-oss-120b
     description: "Open-weight, 117B-parameter Mixture-of-Experts (MoE) language model from OpenAI designed for high-reasoning, agentic, and general-purpose production use cases"
     roles: [chat, edit]
-    capabilities: [tool_calling]
+    capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
     release_date: 2025-08-05
-    cost: {input: 0.15, output: 0.6}
+    cost: {input: 0.04, output: 0.14}
 
   - name: gpt-oss-20b
     model: openai/gpt-oss-20b
     description: "Open-weight 21B parameter model released by OpenAI under the Apache 2.0 license"
     roles: [chat, edit]
-    capabilities: [tool_calling]
+    capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
     release_date: 2025-08-05
-    cost: {input: 0.05, output: 0.2}
+    cost: {input: 0.03, output: 0.13}
 
-  - name: Qwen3 30B A3B Instruct 2507
-    model: Qwen/Qwen3-30B-A3B-Instruct-2507
-    description: "30.5B-parameter mixture-of-experts language model from Qwen, with 3.3B active parameters per inference"
+  - name: Qwen3.6 35B A3B
+    model: Qwen/Qwen3.6-35B-A3B
+    description: "Qwen3.6-35B-A3B is an MoE multimodal model with 262K context optimized for agentic coding workflows"
     roles: [chat, edit]
-    capabilities: [tool_calling]
-    input_types: [text]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
     output_types: [text]
-    release_date: 2025-07-29
-    cost: {input: 0.1, output: 0.3}
+    release_date: 2026-04-16
+    cost: {input: 0.25, output: 1.25}
 
-  - name: Qwen3-235B-A22B-Thinking-2507
-    model: Qwen/Qwen3-235B-A22B-Thinking-2507
-    description: "High-performance, open-weight Mixture-of-Experts (MoE) language model optimized for complex reasoning tasks"
+  - name: Qwen3.6 27B
+    model: Qwen/Qwen3.6-27B
+    description: "Qwen3.6-27B is a 27B dense multimodal model with 262K context built for flagship-level agentic coding"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-04-22
+    cost: {input: 0.6, output: 3.6}
+
+  - name: JetBrains Mellum2 12B A2.5B
+    model: JetBrains/Mellum2-12B-A2.5B-Instruct
+    description: "Mellum2-12B-A2.5B-Instruct is a fast MoE model with 131K context built for coding, tool use, and low-latency AI workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
-    release_date: 2025-07-25
-    cost: {input: 0.1, output: 0.1}
+    release_date: 2026-06-01
+    cost: {input: 0.05, output: 0.1}
 
 opencode-go:
   - name: DeepSeek V4 Flash
