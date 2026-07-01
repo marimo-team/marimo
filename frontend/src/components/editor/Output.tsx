@@ -14,11 +14,6 @@ import { VideoOutput } from "./output/VideoOutput";
 
 import "./output/Outputs.css";
 import { useAtomValue } from "jotai";
-import {
-  ChevronsDownUpIcon,
-  ChevronsUpDownIcon,
-  ExpandIcon,
-} from "lucide-react";
 import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
 import { viewStateAtom } from "@/core/mode";
@@ -29,19 +24,21 @@ import { Banner } from "@/plugins/impl/common/error-banner";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { getContainerWidth } from "@/plugins/impl/vega/utils";
 import { useTheme } from "@/theme/useTheme";
-import { Events } from "@/utils/events";
 import { invariant } from "@/utils/invariant";
 import { processMimeBundle } from "@/utils/mime-types";
 import { Objects } from "@/utils/objects";
 import { LazyVegaEmbed } from "../charts/lazy";
 import { ChartLoadingState } from "../data-table/charts/components/chart-states";
-import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
 import { CsvViewer } from "./file-tree/renderers";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 import { renderMimeIcon } from "./renderMimeIcon";
 import type { CellOutputPosition } from "./renderers/types";
+import {
+  type OutputCollapseChrome,
+  OutputChrome,
+} from "./cell/chrome/output-chrome";
 
 const METADATA_KEY = "__metadata__";
 
@@ -357,6 +354,7 @@ interface OutputAreaProps {
   forceExpand?: boolean;
   className?: string;
   outputPosition?: CellOutputPosition;
+  collapse?: OutputCollapseChrome;
 }
 
 export const OutputArea = React.memo(
@@ -369,6 +367,7 @@ export const OutputArea = React.memo(
     forceExpand,
     className,
     outputPosition,
+    collapse,
   }: OutputAreaProps) => {
     if (output == null) {
       return null;
@@ -391,6 +390,7 @@ export const OutputArea = React.memo(
           cellId={cellId}
           forceExpand={forceExpand}
           outputPosition={outputPosition}
+          collapse={collapse}
           id={CellOutputId.create(cellId)}
           className={cn(
             stale && "marimo-output-stale",
@@ -410,35 +410,24 @@ interface ContainerProps extends React.HTMLProps<HTMLDivElement> {
   cellId: CellId;
   forceExpand?: boolean;
   outputPosition?: CellOutputPosition;
+  collapse?: OutputCollapseChrome;
 }
 
 // Plain container used when the output is not expandable. Drops the
 // expandable-only props so they don't leak onto the DOM node.
 const Div = React.forwardRef<HTMLDivElement, ContainerProps>(
-  ({ cellId: _cellId, forceExpand: _f, outputPosition: _o, ...rest }, ref) => (
-    <div ref={ref} {...rest} />
-  ),
+  (
+    {
+      cellId: _cellId,
+      forceExpand: _f,
+      outputPosition: _o,
+      collapse: _c,
+      ...rest
+    },
+    ref,
+  ) => <div ref={ref} {...rest} />,
 );
 Div.displayName = "Div";
-
-interface OutputControlsPlacement {
-  className: string;
-  tooltipSide: "left" | "right";
-}
-
-function getOutputControlsPlacement(
-  outputPosition: CellOutputPosition | undefined,
-): OutputControlsPlacement {
-  switch (outputPosition) {
-    case "left":
-      return { className: "-left-13 -top-1.5 z-1", tooltipSide: "right" };
-    case "right":
-      // Lift the controls above the shoulder so they stay clickable
-      return { className: "-right-9 top-7 z-30", tooltipSide: "left" };
-    default:
-      return { className: "-right-9 top-1 z-1", tooltipSide: "left" };
-  }
-}
 
 /**
  * Detects if there is overflow in the output area and adds a button to optionally expand
@@ -449,6 +438,7 @@ const ExpandableOutput = React.memo(
     children,
     forceExpand,
     outputPosition,
+    collapse,
     ...props
   }: ContainerProps) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -456,60 +446,25 @@ const ExpandableOutput = React.memo(
     const isOverflowing = useOverflowDetection(containerRef);
     const { hasFullscreen } = useIframeCapabilities();
 
-    const { className: controlsClassName, tooltipSide } =
-      getOutputControlsPlacement(outputPosition);
-
     return (
       <div>
         <div className="relative print:hidden">
-          <div
-            className={cn("absolute flex flex-col gap-1", controlsClassName)}
-          >
-            {hasFullscreen && (
-              <Tooltip content="Fullscreen" side={tooltipSide}>
-                <Button
-                  data-testid="fullscreen-output-button"
-                  className="hover-action"
-                  onClick={async () => {
-                    await containerRef.current?.requestFullscreen();
-                  }}
-                  onMouseDown={Events.preventFocus}
-                  size="xs"
-                  variant="text"
-                >
-                  <ExpandIcon
-                    className={cn(
-                      "size-4 opacity-60 hover:opacity-80",
-                      outputPosition === "right" && "size-3.5",
-                    )}
-                    strokeWidth={1.25}
-                  />
-                </Button>
-              </Tooltip>
-            )}
-            {(isOverflowing || isExpanded) && !forceExpand && (
-              <Button
-                data-testid="expand-output-button"
-                className={cn(
-                  // Force show button if expanded
-                  !isExpanded && "hover-action",
-                )}
-                onClick={() => setIsExpanded(!isExpanded)}
-                size="xs"
-                variant="text"
-              >
-                {isExpanded ? (
-                  <Tooltip content="Collapse output" side={tooltipSide}>
-                    <ChevronsDownUpIcon className="h-4 w-4" />
-                  </Tooltip>
-                ) : (
-                  <Tooltip content="Expand output" side={tooltipSide}>
-                    <ChevronsUpDownIcon className="h-4 w-4 opacity-60" />
-                  </Tooltip>
-                )}
-              </Button>
-            )}
-          </div>
+          <OutputChrome
+            outputPosition={outputPosition}
+            collapse={collapse}
+            expand={{
+              forceExpand,
+              isOverflowing,
+              isExpanded,
+              onToggle: () => setIsExpanded(!isExpanded),
+            }}
+            fullscreen={{
+              enabled: hasFullscreen,
+              onClick: async () => {
+                await containerRef.current?.requestFullscreen();
+              },
+            }}
+          />
         </div>
         <div
           {...props}

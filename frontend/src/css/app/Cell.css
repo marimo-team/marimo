@@ -446,8 +446,8 @@
 /* ----------------------- Side-by-side cell layout ------------------------ */
 
 /*
- * In side-by-side mode the editor and output live in two columns inside the
- * cell card, separated by a draggable resizer.
+ * In side-by-side mode the editor and output live in two equal columns inside
+ * the cell card.
  */
 .cell-columns {
   display: flex;
@@ -473,61 +473,35 @@
   flex-direction: column;
 }
 
-/* When there is output, the editor takes the shared split width and the output
-   fills the remainder. */
-.cell-columns--resizable > .tray {
-  flex: 0 1 var(--marimo-cell-columns-split, 50%);
-}
-
-/* Treat the editor as a panel that hugs the cell card's outer corners; its
-   inner edge meets the resizer squarely. Only applies when there are two
-   columns — a cell with no output yet keeps the default full top rounding. */
-.cell-columns--resizable > .tray .cm-editor {
+/* Treat the editor as a panel that hugs the cell card's outer corners. Only
+   applies when there are two columns — a cell with no output yet keeps the
+   default full top rounding. */
+.cell-columns--with-output > .tray .cm-editor {
   border-radius: 0;
 }
 
-.cell-columns--resizable:not(.cell-columns--reverse) > .tray .cm-editor {
+.cell-columns--with-output:not(.cell-columns--reverse) > .tray .cm-editor {
   border-top-left-radius: 9px;
   border-bottom-left-radius: 9px;
 }
 
-.cell-columns--resizable.cell-columns--reverse > .tray .cm-editor {
+.cell-columns--with-output.cell-columns--reverse > .tray .cm-editor {
   border-top-right-radius: 9px;
   border-bottom-right-radius: 9px;
 }
 
-.cell-columns:not(.cell-columns--resizable) > .tray .cm-editor {
+.cell-columns:not(.cell-columns--with-output) > .tray .cm-editor {
   border-bottom-left-radius: 9px;
   border-bottom-right-radius: 9px;
 }
 
-/* Draggable divider between the columns. */
-.cell-columns__resizer {
+/* Static divider between the editor and output columns. */
+.cell-columns__divider {
   flex: 0 0 auto;
   align-self: stretch;
   width: 1px;
   margin: 0 0.5rem;
   background-color: var(--slate-5);
-  cursor: col-resize;
-  position: relative;
-  z-index: 10;
-  /* Stop the browser from claiming the gesture as a scroll/pan on touch input,
-     which would otherwise cancel the pointer drag mid-resize. */
-  touch-action: none;
-}
-
-/* Widen the grab/hit target without affecting layout. */
-.cell-columns__resizer::before {
-  content: "";
-  position: absolute;
-  inset: 0 -5px;
-}
-
-.cell-columns__resizer:hover,
-.cell-columns__resizer:active,
-.cell-columns__resizer:focus-visible {
-  background-color: var(--primary);
-  outline: none;
 }
 
 

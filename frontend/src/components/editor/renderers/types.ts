@@ -77,3 +77,25 @@ export interface ICellRendererPlugin<S, L> {
 }
 
 export type CellOutputPosition = "above" | "below" | "left" | "right";
+
+export function isSideBySideCellOutput(
+  position: CellOutputPosition,
+): position is Extract<CellOutputPosition, "left" | "right"> {
+  return position === "left" || position === "right";
+}
+
+/**
+ * Resolve the effective cell output position.
+ *
+ * Side-by-side doesn't make sense for markdown cells: the output is just the
+ * rendered source, so fall back to the stacked "below" layout.
+ */
+export function resolveCellOutputPosition(
+  configured: CellOutputPosition,
+  isMarkdown: boolean,
+): CellOutputPosition {
+  if (isMarkdown && isSideBySideCellOutput(configured)) {
+    return "below";
+  }
+  return configured;
+}

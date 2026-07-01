@@ -72,7 +72,9 @@ import {
 import { CellColumns } from "./cell/cell-columns";
 import { CellActionsContextMenu } from "./cell/cell-context-menu";
 import { CellEditor } from "./cell/code/cell-editor";
-import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
+import { CollapsedCellBanner } from "./cell/collapse";
+import { CellChromeRail } from "./cell/chrome/cell-chrome-rail";
+import { cellLeftRailPlacement } from "./cell/chrome/chrome-placement";
 import { DeleteButton } from "./cell/DeleteButton";
 import { PendingDeleteConfirmation } from "./cell/PendingDeleteConfirmation";
 import { RunButton } from "./cell/RunButton";
@@ -90,6 +92,10 @@ import {
   useTemporarilyShownCodeActions,
 } from "./navigation/state";
 import { type OnRefactorWithAI, OutputArea } from "./Output";
+import {
+  isSideBySideCellOutput,
+  resolveCellOutputPosition,
+} from "./renderers/types";
 import { ConsoleOutput } from "./output/console/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
 
@@ -482,16 +488,11 @@ const EditableCellComponent = ({
   const isStaleCell = outputIsStale(cellRuntime, cellData.edited);
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
   const configuredCellOutput = userConfig.display.cell_output;
-
-  // Side-by-side doesn't make sense for markdown cells: the output is just the
-  // rendered source, so a split view is redundant. Fall back to the stacked
-  // "below" layout (editor on top, rendered preview underneath).
-  const cellOutput =
-    isMarkdown &&
-    (configuredCellOutput === "left" || configuredCellOutput === "right")
-      ? "below"
-      : configuredCellOutput;
-  const isSideBySide = cellOutput === "left" || cellOutput === "right";
+  const cellOutput = resolveCellOutputPosition(
+    configuredCellOutput,
+    isMarkdown,
+  );
+  const isSideBySide = isSideBySideCellOutput(cellOutput);
 
   const hasOutputAbove = hasOutput && cellOutput === "above";
 
@@ -548,19 +549,6 @@ const EditableCellComponent = ({
       className={cn("relative", "cell-output-region")}
       onDoubleClick={showHiddenCodeIfMarkdown}
     >
-      <div className="absolute top-5 -left-7 z-20 print:hidden">
-        <CollapseToggle
-          isCollapsed={isCollapsed}
-          onClick={() => {
-            if (isCollapsed) {
-              actions.expandCell({ cellId });
-            } else {
-              actions.collapseCell({ cellId });
-            }
-          }}
-          canCollapse={canCollapse}
-        />
-      </div>
       <OutputArea
         // Only allow expanding in edit mode
         allowExpand={true}
@@ -572,6 +560,17 @@ const EditableCellComponent = ({
         stale={isStaleCell}
         loading={outputIsLoading(cellRuntime.status)}
         outputPosition={cellOutput}
+        collapse={{
+          canCollapse,
+          isCollapsed,
+          onToggle: () => {
+            if (isCollapsed) {
+              actions.expandCell({ cellId });
+            } else {
+              actions.collapseCell({ cellId });
+            }
+          },
+        }}
       />
     </div>
   );
@@ -614,6 +613,7 @@ const EditableCellComponent = ({
   };
 
   const isToplevel = cellRuntime.serialization?.toLowerCase() === "valid";
+  const onDelete = useEvent(() => deleteCell({ cellId }));
 
   const rightSideActions = (
     <CellRightSideActions
@@ -637,7 +637,7 @@ const EditableCellComponent = ({
       status={cellRuntime.status}
       connectionState={connection.state}
       disabled={loading}
-      onDelete={() => deleteCell({ cellId })}
+      onDelete={onDelete}
     />
   );
 
@@ -932,31 +932,23 @@ const CellLeftSideActions = memo(
     const oneClickShortcut = "mod";
 
     return (
-      <div
-        className={cn(
-          "absolute flex flex-col justify-center h-full left-[-26px] z-20 border-b-0!",
-          className,
-        )}
+      <CellChromeRail
+        placement={cellLeftRailPlacement}
+        className={cn("border-b-0!", className)}
       >
-        <div className="-mt-1 min-h-7">
-          <CreateCellButton
-            tooltipContent={renderShortcut("cell.createAbove")}
-            connectionState={connection.state}
-            onClick={createAbove}
-            oneClickShortcut={oneClickShortcut}
-          />
-        </div>
-        <div className="flex-1 pointer-events-none w-3" />
-        {/* <div className="flex-1 pointer-events-none bg-border w-px mx-auto hover-action opacity-70" /> */}
-        <div className="-mb-2 min-h-7">
-          <CreateCellButton
-            tooltipContent={renderShortcut("cell.createBelow")}
-            connectionState={connection.state}
-            onClick={createBelow}
-            oneClickShortcut={oneClickShortcut}
-          />
-        </div>
-      </div>
+        <CreateCellButton
+          tooltipContent={renderShortcut("cell.createAbove")}
+          connectionState={connection.state}
+          onClick={createAbove}
+          oneClickShortcut={oneClickShortcut}
+        />
+        <CreateCellButton
+          tooltipContent={renderShortcut("cell.createBelow")}
+          connectionState={connection.state}
+          onClick={createBelow}
+          oneClickShortcut={oneClickShortcut}
+        />
+      </CellChromeRail>
     );
   },
 );

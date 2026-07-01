@@ -53,10 +53,12 @@ import {
 import { Filenames } from "@/utils/filenames";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { cellDomProps } from "../../common";
-import type {
-  CellOutputPosition,
-  ICellRendererPlugin,
-  ICellRendererProps,
+import {
+  type CellOutputPosition,
+  type ICellRendererPlugin,
+  type ICellRendererProps,
+  isSideBySideCellOutput,
+  resolveCellOutputPosition,
 } from "../types";
 import { useDelayVisibility } from "./useDelayVisibility";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
@@ -376,15 +378,11 @@ const VerticalCell = memo(
 
     // Read mode and show code
     if ((mode === "read" && showCode) || kioskFull) {
-      // Side-by-side doesn't make sense for markdown cells (the output is just
-      // the rendered source), so fall back to the stacked "below" layout,
-      // mirroring EditableCellComponent.
-      const cellOutput =
-        isPureMarkdown &&
-        (cellOutputArea === "left" || cellOutputArea === "right")
-          ? "below"
-          : cellOutputArea;
-      const isSideBySide = cellOutput === "left" || cellOutput === "right";
+      const cellOutput = resolveCellOutputPosition(
+        cellOutputArea,
+        isPureMarkdown,
+      );
+      const isSideBySide = isSideBySideCellOutput(cellOutput);
 
       const outputArea = (
         <OutputArea
