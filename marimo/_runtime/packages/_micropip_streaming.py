@@ -25,8 +25,12 @@ def _append_version(pkg_name: str, version: str | None) -> str:
 def _split_packages(package: str) -> list[str]:
     """Split a whitespace-joined package spec into individual requirements.
 
-    Handles editable installs (`-e <path>`), direct URLs (`pkg @ url`),
-    and PEP 508 environment markers (`pkg==1.0; python_version>'3.6'`).
+    Each individual requirement follows PEP 508 dependency-specification
+    grammar (https://peps.python.org/pep-0508/) — version specifiers, direct
+    URL references (`pkg @ url`), and environment markers
+    (`pkg==1.0; python_version>'3.6'`). The whitespace-joined list and the
+    `-e`/`--editable` prefix mirror pip's requirement-specifier syntax
+    (https://pip.pypa.io/en/stable/reference/requirement-specifiers/).
     """
     packages: list[str] = []
     current: list[str] = []
@@ -122,12 +126,14 @@ async def stream_transaction_install(
 
     await transaction.gather_requirements(flat_requirements)
 
-    # Map normalized base-package-name -> original spec as the caller spelled
-    # it. The caller's strings may include version specifiers, URL specs, or
-    # markers (`foo==1.0`, `foo @ git+…@ref`, `foo; python_version>'3.10'`),
-    # so parse out the base name before canonicalizing — otherwise the wheel
-    # name micropip yields back ("foo") will fail to match the spec string.
-    requested: dict[str, str] = {}
+    # Map normalized base-package-name -> (original spec, base name). The
+    # caller's strings may include version specifiers, URL specs, or markers
+    # (`foo==1.0`, `foo @ git+…@ref`, `foo; python_version>'3.10'`), so parse
+    # out the base name before canonicalizing — otherwise the wheel name
+    # micropip yields back ("foo") will fail to match the spec string. We keep
+    # both: `original` is what we report back to the caller (their spelling),
+    # `base_name` is the bare distribution name for `importlib.metadata`.
+    requested: dict[str, tuple[str, str]] = {}
     for spec in packages:
         try:
             base_name = Requirement(spec).name
@@ -136,11 +142,11 @@ async def stream_transaction_install(
             # fall back to canonicalizing the whole string. Worst case it
             # gets reconciled by the importlib.metadata pass at the end.
             base_name = spec
-        requested[canonicalize_name(base_name)] = spec
+        requested[canonicalize_name(base_name)] = (spec, base_name)
 
     for failed_name in transaction.failed:
         normalized = canonicalize_name(failed_name)
-        original = requested.pop(normalized, failed_name)
+        original, _ = requested.pop(normalized, (failed_name, failed_name))
         yield (original, False)
 
     async def _install_wheel(wheel: Any) -> tuple[str, Exception | None]:
@@ -158,7 +164,7 @@ async def stream_transaction_install(
             name, exc = await future
             normalized = canonicalize_name(name)
             if normalized in requested:
-                original = requested.pop(normalized)
+                original, _ = requested.pop(normalized)
                 yield (original, exc is None)
 
     if transaction.pyodide_packages:
@@ -172,17 +178,19 @@ async def stream_transaction_install(
         for name in names:
             normalized = canonicalize_name(name)
             if normalized in requested:
-                original = requested.pop(normalized)
+                original, _ = requested.pop(normalized)
                 yield (original, load_succeeded)
 
     importlib.invalidate_caches()
 
     # Anything still in `requested` may have been pulled in transitively under
     # a different name (e.g. caller asked for `foo`, micropip installed `foo-impl`).
-    # If it's importable now, treat it as installed.
-    for _normalized, original in list(requested.items()):
+    # If it's importable now, treat it as installed. Look up the bare base name,
+    # not the caller's spec — `importlib.metadata.version` expects a
+    # distribution name and would raise on `foo==1.0`, `foo @ git+…`, or markers.
+    for _normalized, (original, base_name) in list(requested.items()):
         try:
-            importlib.metadata.version(original)
+            importlib.metadata.version(base_name)
             yield (original, True)
         except importlib.metadata.PackageNotFoundError:
             yield (original, False)

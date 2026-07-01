@@ -68,6 +68,33 @@ describe("useInstallPackages", () => {
     );
   });
 
+  it("collapses a partial (mixed) failure into one aggregate error toast", async () => {
+    // The backend resolves the batch as a single transaction and reports an
+    // aggregate outcome, so even when only some packages fail we surface a
+    // single error toast covering the whole batch — never a per-package
+    // success/failure split the response can't actually represent.
+    addPackage.mockResolvedValue({
+      success: false,
+      error: "pandas failed to install",
+    });
+    const { result } = renderHook(() => useInstallPackages());
+
+    await act(async () => {
+      await result.current.handleInstallPackages(["numpy", "pandas"]);
+    });
+
+    expect(addPackage).toHaveBeenCalledTimes(1);
+    expect(addPackage).toHaveBeenCalledWith({ package: "numpy pandas" });
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Failed to add packages",
+        description: "pandas failed to install",
+        variant: "danger",
+      }),
+    );
+  });
+
   it("uses singular wording for a single package", async () => {
     addPackage.mockResolvedValue({ success: true, error: null });
     const { result } = renderHook(() => useInstallPackages());
