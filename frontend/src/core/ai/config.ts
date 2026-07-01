@@ -60,7 +60,7 @@ export const useModelChange = () => {
       },
     };
 
-    saveConfig(newConfig);
+    await saveConfig(newConfig);
   };
 
   const saveModeChange = async (newMode: CopilotMode) => {

@@ -409,6 +409,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
       <div className="relative shrink-0 min-h-[80px] flex flex-col border-t">
         <div className={cn("px-2 py-3 flex-1", inputClassName)}>
           <PromptInput
+            className="max-h-[400px]"
             inputRef={inputRef}
             value={input}
             onChange={setInput}
