@@ -2229,3 +2229,38 @@ class TestPDFExport:
                 sys.modules["playwright.async_api"] = orig_playwright
             else:
                 sys.modules.pop("playwright.async_api", None)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Unix permission bits not supported on Windows",
+)
+def test_export_assets_preserves_write_permission(
+    tmp_path: Path,
+) -> None:
+    """Test export_assets keeps output writable when source is read-only."""
+    import stat
+
+    src = tmp_path / "nix-store" / "_static"
+    src.mkdir(parents=True)
+    (src / "file.txt").write_text("hello")
+    sub = src / "assets"
+    sub.mkdir()
+    (sub / "nested.txt").write_text("marimo")
+
+    # 555 simulates /nix/store permissions
+    src.chmod(0o555)
+    sub.chmod(0o555)
+
+    dest = tmp_path / "output"
+    dest.mkdir()
+
+    with patch("marimo._server.export.exporter.ROOT", src):
+        Exporter().export_assets(dest)
+
+    assert dest.stat().st_mode & stat.S_IWUSR, (
+        "export_assets made the output directory read-only"
+    )
+    assert (dest / "assets").stat().st_mode & stat.S_IWUSR, (
+        "export_assets made the assets subdirectory read-only"
+    )
