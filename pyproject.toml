@@ -216,7 +216,9 @@ test-optional = [
     "sympy>=1.13.3",
     "jupytext>=1.17.2",
     # For standard scientific computing/ ML
-    "jax>=0.4.0; python_version == '3.12'",
+    # flax 0.10 requires jax>=0.4.27, so keep the floors compatible.
+    "jax>=0.4.27; python_version == '3.12'",
+    "flax>=0.10.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
     "mcp>=1.0.0",

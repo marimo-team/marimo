@@ -255,6 +255,7 @@ class DependencyManager:
     pydantic = Dependency("pydantic")
     zmq = Dependency("zmq")  # pyzmq for sandbox IPC kernels
     torch = Dependency("torch")
+    flax = Dependency("flax")
     weave = Dependency("weave")
     # Storage
     obstore = Dependency("obstore")
