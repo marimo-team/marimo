@@ -11,6 +11,7 @@ import { CheckboxPlugin } from "./impl/CheckboxPlugin";
 import { CodeEditorPlugin } from "./impl/CodeEditorPlugin";
 import { ChatPlugin } from "./impl/chat/ChatPlugin";
 import { DataEditorPlugin } from "./impl/DataEditorPlugin";
+import { SpreadsheetPlugin } from "./impl/SpreadsheetPlugin";
 import { DataTablePlugin } from "./impl/DataTablePlugin";
 import { DatePickerPlugin } from "./impl/DatePickerPlugin";
 import { DateRangePickerPlugin } from "./impl/DateRangePlugin";
@@ -92,6 +93,7 @@ export const UI_PLUGINS: IPlugin<any, unknown>[] = [
   DownloadPlugin,
   AnyWidgetPlugin,
   DataEditorPlugin,
+  SpreadsheetPlugin,
   PanelPlugin,
   MplInteractivePlugin,
 ];

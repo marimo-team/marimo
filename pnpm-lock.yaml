@@ -109,6 +109,12 @@ importers:
       '@emotion/react':
         specifier: ^11.14.0
         version: 11.14.0(@types/react@19.2.10)(react@19.2.4)
+      '@fortune-sheet/formula-parser':
+        specifier: ^0.2.13
+        version: 0.2.13
+      '@fortune-sheet/react':
+        specifier: ^1.0.4
+        version: 1.0.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@glideapps/glide-data-grid':
         specifier: 6.0.4-alpha9
         version: 6.0.4-alpha9(lodash@4.17.21)(marked@15.0.12)(react-dom@19.2.4(react@19.2.4))(react-responsive-carousel@3.2.23)(react@19.2.4)
@@ -201,7 +207,7 @@ importers:
         version: 3.13.23(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@textea/json-viewer':
         specifier: ^4.0.1
-        version: 4.0.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react@19.2.4))(@mui/material@6.5.0(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 4.0.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react@19.2.4))(@mui/material@6.5.0(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@types/humanize-duration':
         specifier: ^3.27.4
         version: 3.27.4
@@ -396,7 +402,7 @@ importers:
         version: 4.18.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       reactflow:
         specifier: ^11.11.4
-        version: 11.11.4(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 11.11.4(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       rehype-sanitize:
         specifier: ^6.0.0
         version: 6.0.0
@@ -438,7 +444,7 @@ importers:
         version: 1.1.1
       use-acp:
         specifier: 0.2.6
-        version: 0.2.6(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
+        version: 0.2.6(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
       use-resize-observer:
         specifier: ^9.1.0
         version: 9.1.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1431,6 +1437,22 @@ packages:
 
   '@formatjs/intl-localematcher@0.6.1':
     resolution: {integrity: sha512-ePEgLgVCqi2BBFnTMWPfIghu6FkbZnnBVhO2sSxvLfrdFw7wCHAHiDoM2h4NRgjbaY7+B7HgOLZGkK187pZTZg==}
+
+  '@formulajs/formulajs@2.9.3':
+    resolution: {integrity: sha512-WpgiuJaBl/Hcda9Ti8a7mlnw/vUZkJrtjABvojz6P6mo6d8EscudyA7iAt/kTLsgi0c8zfmzQd/Yjb4ASFkw+g==}
+    hasBin: true
+
+  '@fortune-sheet/core@1.0.4':
+    resolution: {integrity: sha512-CDnUVebfvtT++CymNRw0qnY4sz6zYO3KZazlH+nG6otkRkZ05Bvt7NXqVhmKKSSxIvJR4R6h50abu/dVGBpjpw==}
+
+  '@fortune-sheet/formula-parser@0.2.13':
+    resolution: {integrity: sha512-za2ZVQ5ZfMSPCtL8MdqhCthPip7AoeU4MPyd5UDo4RCl9/arrv1Jz0y755mACVVi4suSZxrzWoJGDkLmofoSmw==}
+
+  '@fortune-sheet/react@1.0.4':
+    resolution: {integrity: sha512-v+BU5mmp2hhUe4gRF+vOJ3j8zZkzHU0kzhTZzp+Nn00wA/RArMr+CO+SAluKlCPAsTZgPwmgOEK685WPqJ5XNw==}
+    peerDependencies:
+      react: ^19.2.4
+      react-dom: ^19.2.4
 
   '@github/copilot-language-server-darwin-arm64@1.418.0':
     resolution: {integrity: sha512-ORJ6Rb8CL55lz0m/1gsOdt3qoo/bGrKv6MjWn1EQSlTh7qCiUwgdIcrMrzWEMA41giyHXY7e3T8dTO3TDSD5iw==}
@@ -4420,6 +4442,9 @@ packages:
   '@types/react@19.2.10':
     resolution: {integrity: sha512-WPigyYuGhgZ/cTPRXB2EwUw+XvsRA3GqHlsP4qteqrnnjDrApbS7MxcGr/hke5iUoeB7E/gQtrs9I37zAJ0Vjw==}
 
+  '@types/regenerator-runtime@0.13.8':
+    resolution: {integrity: sha512-jjKoBekfYDH331060tZhosdJVDnXIXx+T8Iw2h2T4HEds6Ddb2lr0JxD15+XPKlXwRHRNgZoY+4Fb2ykoqzHBg==}
+
   '@types/resolve@1.20.6':
     resolution: {integrity: sha512-A4STmOXPhMUtHH+S6ymgE2GiBSMqf4oTvcQZMcHzokuTLVYzXTB8ttjcgxOVaAp2lGwEdzZ0J+cRbbeevQj1UQ==}
 
@@ -4885,6 +4910,10 @@ packages:
 
   before-after-hook@2.2.3:
     resolution: {integrity: sha512-NzUnlZexiaH/46WDhANlyR2bXRopNg4F/zuSA3OpZnllCUgRaOF2znDioDWrmbNVsuZk6l9pMquQB38cfBZwkQ==}
+
+  bessel@1.0.2:
+    resolution: {integrity: sha512-Al3nHGQGqDYqqinXhQzmwmcRToe/3WyBv4N8aZc5Pef8xw2neZlR9VPi84Sa23JtgWcucu18HxVZrnI0fn2etw==}
+    engines: {node: '>=0.8'}
 
   big-integer@1.6.52:
     resolution: {integrity: sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg==}
@@ -6501,6 +6530,9 @@ packages:
   img-comparison-slider@8.0.6:
     resolution: {integrity: sha512-ej4de7mWyjcXZvDgHq8K2a/dG8Vv+qYTdUjZa3cVILf316rLtDrHyGbh9fPvixmAFgbs30zTLfmaRDa7abjtzw==}
 
+  immer@9.0.21:
+    resolution: {integrity: sha512-bc4NBHqOqSfRW7POMkHd51LvClaeMXpm8dx0e8oE2GORbq5aRK7Bxl4FyzVLdGtLmvLKL7BTDBG5ACQm4HWjTA==}
+
   import-fresh@3.3.1:
     resolution: {integrity: sha512-TR3KfrTZTYLPB6jUjfx6MF9WcWrHL9su5TObK4ZkYgBdWKPOFoSoQIdEuTuR82pmtxH2spWG9h6etwfr1pLBqQ==}
     engines: {node: '>=6'}
@@ -6826,6 +6858,9 @@ packages:
   jsprim@1.4.2:
     resolution: {integrity: sha512-P2bSOMAc/ciLz6DzgjVlGJP9+BrJWu5UDGK70C2iweC5QBIeFf0ZXRvGjEj2uYgrY2MkAAhsSWHDWlFtEroZWw==}
     engines: {node: '>=0.6.0'}
+
+  jstat@1.9.6:
+    resolution: {integrity: sha512-rPBkJbK2TnA8pzs93QcDDPlKcrtZWuuCo2dVR0TFLOJSxhqfWOVCSp8aV3/oSbn+4uY4yw1URtLpHQedtmXfug==}
 
   katex@0.16.28:
     resolution: {integrity: sha512-YHzO7721WbmAL6Ov1uzN/l5mY5WWWhJBSW+jq4tkfZfsxmo1hu6frS0EOswvjBUnWE6NtjEs48SFn5CQESRLZg==}
@@ -7430,6 +7465,9 @@ packages:
   number-is-nan@1.0.1:
     resolution: {integrity: sha512-4jbtZXNAsfZbAHiiqjLPBiCl16dES1zI4Hpzzxw61Tk+loF+sBDBKx1ICKKKwIqQ7M0mFn1TmkN7euSncWgHiQ==}
     engines: {node: '>=0.10.0'}
+
+  numeral@2.0.6:
+    resolution: {integrity: sha512-qaKRmtYPZ5qdw4jWJD6bxEf1FJEqllJrwxCLIm0sQU/A7v2/czigzOb+C2uSiFsa9lBUzeH7M1oK+Q+OLxL3kA==}
 
   nwsapi@2.2.20:
     resolution: {integrity: sha512-/ieB+mDe4MrrKMT8z+mQL8klXydZWGR5Dowt4RAGKbJ3kIGEx3X4ljUo+6V73IXtUPWgfOlU5B9MlGxFO5T+cA==}
@@ -8324,6 +8362,9 @@ packages:
   redux@5.0.1:
     resolution: {integrity: sha512-M9/ELqF6fy8FwmkpnF0S3YKOqMyoWJ4+CS5Efg2ct3oY9daQvd/Pc71FpGZsVsbl3Cpb+IIcjBDUnnyBdQbq4w==}
 
+  regenerator-runtime@0.14.1:
+    resolution: {integrity: sha512-dYnhHh0nJoMfnkZs6GmmhFknAGRrLznOu5nc9ML+EJxGvrx6H7teuevqVqCuPcPK//3eDrrjQhehXVx9cnkGdw==}
+
   regl-error2d@2.0.12:
     resolution: {integrity: sha512-r7BUprZoPO9AbyqM5qlJesrSRkl+hZnVKWKsVp7YhOl/3RIpi4UDGASGJY0puQ96u5fBYw/OlqV24IGcgJ0McA==}
 
@@ -8967,6 +9008,9 @@ packages:
     resolution: {integrity: sha512-U7ttxEdKWqHYJ96OGoJJR5gU8Nwkl3tlY0n7Jr4vcpLD2RkVZLE1Ph9k8ZRrZ7LYX9QCtd3M9OUaR9P8Z37QNg==}
     engines: {node: '>=12'}
 
+  tiny-emitter@2.1.0:
+    resolution: {integrity: sha512-NB6Dk1A9xgQPMoGqC5CVXn123gWyte215ONT5Pp5a0yt4nlEoO1ZWeCwpncaekPHXO60i47ihFnZPiRPjRMq4Q==}
+
   tiny-invariant@1.3.3:
     resolution: {integrity: sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==}
 
@@ -9339,6 +9383,11 @@ packages:
 
   uuid@3.4.0:
     resolution: {integrity: sha512-HjSDRw6gZE5JMggctHBcjVak08+KEVhSIiDzFnT9S9aegmp85S/bReBVTb4QTFaRNptJ9kuYaNhnbNEOkbKb/A==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+    hasBin: true
+
+  uuid@8.3.2:
+    resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
     deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
@@ -10829,6 +10878,35 @@ snapshots:
   '@formatjs/intl-localematcher@0.6.1':
     dependencies:
       tslib: 2.8.1
+
+  '@formulajs/formulajs@2.9.3':
+    dependencies:
+      bessel: 1.0.2
+      jstat: 1.9.6
+
+  '@fortune-sheet/core@1.0.4':
+    dependencies:
+      '@fortune-sheet/formula-parser': 0.2.13
+      dayjs: 1.11.19
+      immer: 9.0.21
+      lodash: 4.17.21
+      numeral: 2.0.6
+      uuid: 8.3.2
+
+  '@fortune-sheet/formula-parser@0.2.13':
+    dependencies:
+      '@formulajs/formulajs': 2.9.3
+      tiny-emitter: 2.1.0
+
+  '@fortune-sheet/react@1.0.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@fortune-sheet/core': 1.0.4
+      '@types/regenerator-runtime': 0.13.8
+      immer: 9.0.21
+      lodash: 4.17.21
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      regenerator-runtime: 0.14.1
 
   '@github/copilot-language-server-darwin-arm64@1.418.0':
     optional: true
@@ -13473,29 +13551,29 @@ snapshots:
       '@react-types/shared': 3.33.1(react@19.2.4)
       react: 19.2.4
 
-  '@reactflow/background@11.3.14(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@reactflow/background@11.3.14(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
-      '@reactflow/core': 11.11.4(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@reactflow/core': 11.11.4(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       classcat: 5.0.5
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-      zustand: 4.5.7(@types/react@19.2.10)(react@19.2.4)
+      zustand: 4.5.7(@types/react@19.2.10)(immer@9.0.21)(react@19.2.4)
     transitivePeerDependencies:
       - '@types/react'
       - immer
 
-  '@reactflow/controls@11.2.14(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@reactflow/controls@11.2.14(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
-      '@reactflow/core': 11.11.4(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@reactflow/core': 11.11.4(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       classcat: 5.0.5
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-      zustand: 4.5.7(@types/react@19.2.10)(react@19.2.4)
+      zustand: 4.5.7(@types/react@19.2.10)(immer@9.0.21)(react@19.2.4)
     transitivePeerDependencies:
       - '@types/react'
       - immer
 
-  '@reactflow/core@11.11.4(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@reactflow/core@11.11.4(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@types/d3': 7.4.3
       '@types/d3-drag': 3.0.7
@@ -13507,14 +13585,14 @@ snapshots:
       d3-zoom: 3.0.0
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-      zustand: 4.5.7(@types/react@19.2.10)(react@19.2.4)
+      zustand: 4.5.7(@types/react@19.2.10)(immer@9.0.21)(react@19.2.4)
     transitivePeerDependencies:
       - '@types/react'
       - immer
 
-  '@reactflow/minimap@11.7.14(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@reactflow/minimap@11.7.14(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
-      '@reactflow/core': 11.11.4(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@reactflow/core': 11.11.4(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@types/d3-selection': 3.0.11
       '@types/d3-zoom': 3.0.8
       classcat: 5.0.5
@@ -13522,31 +13600,31 @@ snapshots:
       d3-zoom: 3.0.0
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-      zustand: 4.5.7(@types/react@19.2.10)(react@19.2.4)
+      zustand: 4.5.7(@types/react@19.2.10)(immer@9.0.21)(react@19.2.4)
     transitivePeerDependencies:
       - '@types/react'
       - immer
 
-  '@reactflow/node-resizer@2.2.14(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@reactflow/node-resizer@2.2.14(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
-      '@reactflow/core': 11.11.4(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@reactflow/core': 11.11.4(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       classcat: 5.0.5
       d3-drag: 3.0.0
       d3-selection: 3.0.0
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-      zustand: 4.5.7(@types/react@19.2.10)(react@19.2.4)
+      zustand: 4.5.7(@types/react@19.2.10)(immer@9.0.21)(react@19.2.4)
     transitivePeerDependencies:
       - '@types/react'
       - immer
 
-  '@reactflow/node-toolbar@1.3.14(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@reactflow/node-toolbar@1.3.14(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
-      '@reactflow/core': 11.11.4(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@reactflow/core': 11.11.4(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       classcat: 5.0.5
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-      zustand: 4.5.7(@types/react@19.2.10)(react@19.2.4)
+      zustand: 4.5.7(@types/react@19.2.10)(immer@9.0.21)(react@19.2.4)
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -14035,7 +14113,7 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.0
 
-  '@textea/json-viewer@4.0.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react@19.2.4))(@mui/material@6.5.0(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@textea/json-viewer@4.0.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react@19.2.4))(@mui/material@6.5.0(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@emotion/react': 11.14.0(@types/react@19.2.10)(react@19.2.4)
       '@emotion/styled': 11.14.1(@emotion/react@11.14.0(@types/react@19.2.10)(react@19.2.4))(@types/react@19.2.10)(react@19.2.4)
@@ -14044,7 +14122,7 @@ snapshots:
       copy-to-clipboard: 3.3.3
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-      zustand: 4.5.7(@types/react@19.2.10)(react@19.2.4)
+      zustand: 4.5.7(@types/react@19.2.10)(immer@9.0.21)(react@19.2.4)
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -14358,6 +14436,8 @@ snapshots:
   '@types/react@19.2.10':
     dependencies:
       csstype: 3.2.3
+
+  '@types/regenerator-runtime@0.13.8': {}
 
   '@types/resolve@1.20.6': {}
 
@@ -14873,6 +14953,8 @@ snapshots:
       tweetnacl: 0.14.5
 
   before-after-hook@2.2.3: {}
+
+  bessel@1.0.2: {}
 
   big-integer@1.6.52: {}
 
@@ -16732,6 +16814,8 @@ snapshots:
 
   img-comparison-slider@8.0.6: {}
 
+  immer@9.0.21: {}
+
   import-fresh@3.3.1:
     dependencies:
       parent-module: 1.0.1
@@ -17001,6 +17085,8 @@ snapshots:
       extsprintf: 1.3.0
       json-schema: 0.4.0
       verror: 1.10.0
+
+  jstat@1.9.6: {}
 
   katex@0.16.28:
     dependencies:
@@ -17873,6 +17959,8 @@ snapshots:
       is-finite: 1.1.0
 
   number-is-nan@1.0.1: {}
+
+  numeral@2.0.6: {}
 
   nwsapi@2.2.20: {}
 
@@ -18943,14 +19031,14 @@ snapshots:
 
   react@19.2.4: {}
 
-  reactflow@11.11.4(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+  reactflow@11.11.4(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
-      '@reactflow/background': 11.3.14(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@reactflow/controls': 11.2.14(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@reactflow/core': 11.11.4(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@reactflow/minimap': 11.7.14(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@reactflow/node-resizer': 2.2.14(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@reactflow/node-toolbar': 1.3.14(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@reactflow/background': 11.3.14(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@reactflow/controls': 11.2.14(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@reactflow/core': 11.11.4(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@reactflow/minimap': 11.7.14(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@reactflow/node-resizer': 2.2.14(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@reactflow/node-toolbar': 1.3.14(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
     transitivePeerDependencies:
@@ -19010,6 +19098,8 @@ snapshots:
       '@babel/runtime': 7.27.6
 
   redux@5.0.1: {}
+
+  regenerator-runtime@0.14.1: {}
 
   regl-error2d@2.0.12:
     dependencies:
@@ -19892,6 +19982,8 @@ snapshots:
 
   timestring@7.0.0: {}
 
+  tiny-emitter@2.1.0: {}
+
   tiny-invariant@1.3.3: {}
 
   tinybench@2.9.0: {}
@@ -20200,12 +20292,12 @@ snapshots:
       querystringify: 2.2.0
       requires-port: 1.0.0
 
-  use-acp@0.2.6(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)):
+  use-acp@0.2.6(@types/react@19.2.10)(immer@9.0.21)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)):
     dependencies:
       '@agentclientprotocol/sdk': 0.4.9
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-      zustand: 5.0.8(@types/react@19.2.10)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
+      zustand: 5.0.8(@types/react@19.2.10)(immer@9.0.21)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -20243,6 +20335,8 @@ snapshots:
   uuid@11.1.0: {}
 
   uuid@3.4.0: {}
+
+  uuid@8.3.2: {}
 
   validate-npm-package-license@3.0.4:
     dependencies:
@@ -21010,16 +21104,18 @@ snapshots:
 
   zod@4.3.6: {}
 
-  zustand@4.5.7(@types/react@19.2.10)(react@19.2.4):
+  zustand@4.5.7(@types/react@19.2.10)(immer@9.0.21)(react@19.2.4):
     dependencies:
       use-sync-external-store: 1.6.0(react@19.2.4)
     optionalDependencies:
       '@types/react': 19.2.10
+      immer: 9.0.21
       react: 19.2.4
 
-  zustand@5.0.8(@types/react@19.2.10)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)):
+  zustand@5.0.8(@types/react@19.2.10)(immer@9.0.21)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)):
     optionalDependencies:
       '@types/react': 19.2.10
+      immer: 9.0.21
       react: 19.2.4
       use-sync-external-store: 1.6.0(react@19.2.4)
 

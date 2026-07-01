@@ -45,6 +45,8 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
+    "@fortune-sheet/formula-parser": "^0.2.13",
+    "@fortune-sheet/react": "^1.0.4",
     "@glideapps/glide-data-grid": "6.0.4-alpha9",
     "@hookform/resolvers": "^5.2.2",
     "@img-comparison-slider/react": "^8.0.2",
