@@ -99,9 +99,19 @@ def unwrap_cell_body(formatted: str) -> str:
         )
     if fn.end_lineno is None:
         raise ValueError("FunctionDef node has no end_lineno")
+    first = fn.body[0]
+    start_lineno = first.lineno - 1
+    # AST statement line numbers point at `def`/`class`, not decorators.
+    # Start at the first decorator to preserve decorated top-level cells.
+    if isinstance(
+        first, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef)
+    ):
+        if first.decorator_list:
+            start_lineno = first.decorator_list[0].lineno - 1
+
     extractor = Extractor(formatted)
     raw = extractor.extract_from_offsets(
-        fn.body[0].lineno - 1, 0, fn.end_lineno - 1, fn.end_col_offset
+        start_lineno, 0, fn.end_lineno - 1, fn.end_col_offset
     )
     return fixed_dedent(raw).strip()
 
