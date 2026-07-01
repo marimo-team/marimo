@@ -42,6 +42,7 @@ import { AiModelId } from "@/core/ai/ids/ids";
 import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import {
   activeChatAtom,
+  addChatAndOpenTab,
   type Chat,
   type ChatId,
   chatStateAtom,
@@ -84,6 +85,7 @@ import {
 } from "./chat-components";
 import { renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
+import { ChatTabs } from "./chat-tabs";
 import {
   convertToFileUIPart,
   generateChatTitle,
@@ -101,7 +103,7 @@ const DEFAULT_MODE = "manual";
 interface ChatHeaderProps {
   onNewChat: () => void;
   activeChatId: ChatId | undefined;
-  setActiveChat: (id: ChatId | null) => void;
+  setActiveChat: (chatId: ChatId | null) => void;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -613,17 +615,8 @@ const ChatPanelBody = () => {
       updatedAt: now,
     };
 
-    // Create new chat and set as active
-    setChatState((prev) => {
-      const newChats = new Map(prev.chats);
-      newChats.set(newChat.id, newChat);
-      const newState = {
-        ...prev,
-        chats: newChats,
-        activeChatId: newChat.id,
-      };
-      return newState;
-    });
+    // Create new chat, open it as a tab, and set as active
+    setChatState((prev) => addChatAndOpenTab(prev, newChat));
 
     const fileParts =
       initialAttachments && initialAttachments.length > 0
@@ -783,6 +776,7 @@ const ChatPanelBody = () => {
           activeChatId={activeChat?.id}
           setActiveChat={setActiveChat}
         />
+        <ChatTabs />
       </TooltipProvider>
 
       <div

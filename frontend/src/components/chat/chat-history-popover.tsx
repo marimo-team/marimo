@@ -21,7 +21,7 @@ import { groupChatsByDate } from "./chat-history-utils";
 
 interface ChatHistoryPopoverProps {
   activeChatId: ChatId | undefined;
-  setActiveChat: (id: ChatId | null) => void;
+  setActiveChat: (chatId: ChatId | null) => void;
 }
 
 export const ChatHistoryPopover: React.FC<ChatHistoryPopoverProps> = ({
