@@ -10,7 +10,22 @@ from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.models.completion import UIMessage as ServerUIMessage
 
+if TYPE_CHECKING:
+    from pydantic_ai import ModelProfile
+
 LOGGER = _loggers.marimo_logger()
+
+
+def profile_get(profile: ModelProfile, key: str, default: Any) -> Any:
+    """Read a field from a pydantic-ai `ModelProfile`.
+
+    pydantic-ai v1 exposes profiles as dataclasses (attribute access); v2
+    exposes them as TypedDicts (dict access).
+    """
+    if isinstance(profile, dict):
+        return profile.get(key, default)
+    return getattr(profile, key, default)
+
 
 if TYPE_CHECKING:
     from collections.abc import Callable

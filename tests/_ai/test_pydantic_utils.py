@@ -13,10 +13,27 @@ from marimo._ai._pydantic_ai_utils import (
     create_simple_prompt,
     form_toolsets,
     generate_id,
+    profile_get,
     repair_incomplete_tool_call,
     sanitize_part,
 )
 from marimo._server.ai.tools.types import ToolDefinition
+
+
+class TestProfileGet:
+    @dataclass
+    class _Profile:
+        supports_thinking: bool = True
+
+    def test_reads_dataclass_profile(self) -> None:
+        profile = self._Profile()
+        assert profile_get(profile, "supports_thinking", False) is True
+        assert profile_get(profile, "absent", False) is False
+
+    def test_reads_dict_profile(self) -> None:
+        profile = {"supports_thinking": True}
+        assert profile_get(profile, "supports_thinking", False) is True
+        assert profile_get(profile, "missing_field", False) is False
 
 
 class TestGenerateId:

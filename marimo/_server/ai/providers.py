@@ -23,6 +23,7 @@ from marimo._ai._pydantic_ai_utils import (
     convert_to_pydantic_messages,
     form_toolsets,
     generate_id,
+    profile_get,
 )
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._plugins.ui._impl.chat.chat import (
@@ -150,8 +151,8 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             return None
 
         if not (
-            model.profile.get("supports_thinking", False)
-            or model.profile.get("thinking_always_enabled", False)
+            profile_get(model.profile, "supports_thinking", False)
+            or profile_get(model.profile, "thinking_always_enabled", False)
         ):
             return None
 

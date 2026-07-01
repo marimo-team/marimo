@@ -631,8 +631,12 @@ def test_custom_provider_inherits_profile_from_base_url() -> None:
 
     model = provider.create_model(max_tokens=None)
     profile = model.profile
-    assert profile.get("openai_chat_thinking_field") == "reasoning_content"
-    assert profile.get("openai_chat_send_back_thinking_parts") == "field"
+    if isinstance(profile, dict):
+        assert profile.get("openai_chat_thinking_field") == "reasoning_content"
+        assert profile.get("openai_chat_send_back_thinking_parts") == "field"
+    else:
+        assert profile.openai_chat_thinking_field == "reasoning_content"
+        assert profile.openai_chat_send_back_thinking_parts == "field"
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -651,7 +655,10 @@ def test_custom_provider_unknown_base_url_stays_generic() -> None:
 
     model = provider.create_model(max_tokens=None)
     profile = model.profile
-    assert profile.get("openai_chat_thinking_field") is None
+    if isinstance(profile, dict):
+        assert profile.get("openai_chat_thinking_field") is None
+    else:
+        assert profile.openai_chat_thinking_field is None
 
 
 @pytest.mark.requires("pydantic_ai")
