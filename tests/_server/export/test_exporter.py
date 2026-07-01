@@ -2261,3 +2261,6 @@ def test_export_assets_preserves_write_permission(
     assert dest.stat().st_mode & stat.S_IWUSR, (
         "export_assets made the output directory read-only"
     )
+    assert (dest / "assets").stat().st_mode & stat.S_IWUSR, (
+        "export_assets made the assets subdirectory read-only"
+    )
