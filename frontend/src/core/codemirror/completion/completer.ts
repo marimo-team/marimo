@@ -57,7 +57,9 @@ export const pythonCompletionSource: CompletionSource = async (
   // its own signature help), and clear any stale hint when we instead have a
   // real completion list.
   context.view?.dispatch({
-    effects: setSignatureHintEffect.of(tooltip ? asSignatureHint(tooltip) : null),
+    effects: setSignatureHintEffect.of(
+      tooltip ? asSignatureHint(tooltip) : null,
+    ),
   });
   if (tooltip) {
     return null;
