@@ -629,6 +629,7 @@ wandb:
     capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
+    release_date: 2026-04-24
 
   - name: DeepSeek V4-Pro
     model: deepseek-ai/DeepSeek-V4-Pro
@@ -637,6 +638,7 @@ wandb:
     capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
+    release_date: 2026-04-24
 
   - name: Z.AI GLM 5.2
     model: zai-org/GLM-5.2
@@ -645,6 +647,7 @@ wandb:
     capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
+    release_date: 2026-06-13
 
   - name: Z.AI GLM-5.1
     model: zai-org/GLM-5.1
@@ -683,6 +686,7 @@ wandb:
     capabilities: [tool_calling]
     input_types: [text]
     output_types: [text]
+    release_date: 2026-06-12
 
   - name: Moonshot AI Kimi K2.6
     model: moonshotai/Kimi-K2.6
@@ -691,6 +695,7 @@ wandb:
     capabilities: [tool_calling]
     input_types: [text, image]
     output_types: [text]
+    release_date: 2026-04-20
 
   - name: gpt-oss-120b
     model: openai/gpt-oss-120b
@@ -719,6 +724,7 @@ wandb:
     capabilities: [tool_calling]
     input_types: [text, image]
     output_types: [text]
+    release_date: 2026-04-16
 
   - name: Qwen3.6 27B
     model: Qwen/Qwen3.6-27B
@@ -727,6 +733,7 @@ wandb:
     capabilities: [tool_calling]
     input_types: [text, image]
     output_types: [text]
+    release_date: 2026-04-22
 
   - name: JetBrains Mellum2 12B A2.5B
     model: JetBrains/Mellum2-12B-A2.5B-Instruct
@@ -735,6 +742,7 @@ wandb:
     capabilities: [tool_calling]
     input_types: [text]
     output_types: [text]
+    release_date: 2026-06-01
 
 opencode-go:
   - name: DeepSeek V4 Flash
