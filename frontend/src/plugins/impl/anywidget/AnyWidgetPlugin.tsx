@@ -10,6 +10,7 @@ import { createPlugin } from "@/plugins/core/builder";
 import type { IPluginProps } from "@/plugins/types";
 import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
+import { hasFunctionProperty, isRecord } from "@/utils/records";
 import { ErrorBanner } from "../common/error-banner";
 import { getMarimoInternal, MODEL_MANAGER, type Model } from "./model";
 import type { ModelState, WidgetModelId } from "./types";
@@ -140,10 +141,9 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
   }
 
   if (!isAnyWidgetModule(jsModule)) {
-    const error = new Error(
-      `Module at ${jsUrl} does not appear to be a valid anywidget`,
+    return (
+      <ErrorBanner error={getInvalidAnyWidgetModuleError(jsModule, jsUrl)} />
     );
-    return <ErrorBanner error={error} />;
   }
 
   return (
@@ -200,6 +200,52 @@ function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
   );
 }
 
+function getInvalidAnyWidgetModuleError(mod: unknown, jsUrl: string): Error {
+  const afmDocs = "https://anywidget.dev/en/afm/";
+  const hasNamedRender = isRecord(mod) && hasFunctionProperty(mod, "render");
+  const hasNamedInitialize =
+    isRecord(mod) && hasFunctionProperty(mod, "initialize");
+
+  if (hasNamedRender || hasNamedInitialize) {
+    const namedExports = [
+      hasNamedRender ? "`render`" : null,
+      hasNamedInitialize ? "`initialize`" : null,
+    ]
+      .filter(Boolean)
+      .join(" and ");
+    const lifecycleHooks = [
+      hasNamedRender ? "render" : null,
+      hasNamedInitialize ? "initialize" : null,
+    ].filter((hook): hook is string => hook !== null);
+    const defaultExportExample = `export default { ${lifecycleHooks.join(", ")} }`;
+    const namedExportExample =
+      lifecycleHooks.length === 1
+        ? `export function ${lifecycleHooks[0]}`
+        : "named export function ...";
+    return new Error(
+      `Anywidget module at ${jsUrl} uses named exports (${namedExports}). ` +
+        "Per the AFM spec, use a default export instead: " +
+        `\`${defaultExportExample}\` (not \`${namedExportExample}\`). ` +
+        `See ${afmDocs}`,
+    );
+  }
+
+  if (!isRecord(mod) || mod.default === undefined) {
+    return new Error(
+      `Anywidget module at ${jsUrl} is missing a default export. ` +
+        "Per the AFM spec, use `export default { render }` or " +
+        "`export default async () => ({ render })`. " +
+        `See ${afmDocs}`,
+    );
+  }
+
+  return new Error(
+    `Anywidget module at ${jsUrl} has an invalid default export. ` +
+      "Expected a factory function or an object with `render` or `initialize`. " +
+      `See ${afmDocs}`,
+  );
+}
+
 interface Props<T extends AnyWidgetState> {
   widget: AnyWidget<T>;
   modelId: WidgetModelId;
@@ -250,4 +296,5 @@ export const visibleForTesting = {
   LoadedSlot,
   runAnyWidgetModule,
   isAnyWidgetModule,
+  getInvalidAnyWidgetModuleError,
 };

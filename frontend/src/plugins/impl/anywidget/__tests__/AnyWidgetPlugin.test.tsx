@@ -9,7 +9,8 @@ import { MODEL_MANAGER, Model } from "../model";
 import type { WidgetModelId } from "../types";
 import { BINDING_MANAGER } from "../widget-binding";
 
-const { LoadedSlot } = visibleForTesting;
+const { LoadedSlot, isAnyWidgetModule, getInvalidAnyWidgetModuleError } =
+  visibleForTesting;
 
 // Helper to create typed model IDs for tests
 const asModelId = (id: string): WidgetModelId => id as WidgetModelId;
@@ -148,5 +149,73 @@ describe("LoadedSlot", () => {
       expect(lateListenerWidget.render).toHaveBeenCalled();
       expect(container.textContent).toContain("count is 8");
     });
+  });
+});
+
+describe("isAnyWidgetModule", () => {
+  it("should accept a default object with render", () => {
+    expect(isAnyWidgetModule({ default: { render: () => undefined } })).toBe(
+      true,
+    );
+  });
+
+  it("should accept a default factory function", () => {
+    expect(
+      isAnyWidgetModule({ default: async () => ({ render: () => {} }) }),
+    ).toBe(true);
+  });
+
+  it("should reject legacy named render exports", () => {
+    expect(isAnyWidgetModule({ render: () => undefined })).toBe(false);
+  });
+});
+
+describe("getInvalidAnyWidgetModuleError", () => {
+  const jsUrl = "./@file/widget.js";
+
+  it("should explain legacy named render exports", () => {
+    const error = getInvalidAnyWidgetModuleError(
+      { render: () => undefined },
+      jsUrl,
+    );
+    expect(error.message).toContain("named exports (`render`)");
+    expect(error.message).toContain("`export default { render }`");
+    expect(error.message).toContain("not `export function render`");
+  });
+
+  it("should explain legacy named initialize exports", () => {
+    const error = getInvalidAnyWidgetModuleError(
+      { initialize: () => undefined },
+      jsUrl,
+    );
+    expect(error.message).toContain("named exports (`initialize`)");
+    expect(error.message).toContain("`export default { initialize }`");
+    expect(error.message).toContain("not `export function initialize`");
+  });
+
+  it("should avoid nested backticks for multi-hook named exports", () => {
+    const error = getInvalidAnyWidgetModuleError(
+      { render: () => undefined, initialize: () => undefined },
+      jsUrl,
+    );
+    expect(error.message).toContain(
+      "`export default { render, initialize }` (not `named export function ...`).",
+    );
+    expect(error.message).not.toContain("`named `export");
+  });
+
+  it("should explain a missing default export", () => {
+    expect(getInvalidAnyWidgetModuleError({}, jsUrl).message).toContain(
+      "missing a default export",
+    );
+    expect(getInvalidAnyWidgetModuleError(null, jsUrl).message).toContain(
+      "missing a default export",
+    );
+  });
+
+  it("should explain an invalid default export", () => {
+    const error = getInvalidAnyWidgetModuleError({ default: {} }, jsUrl);
+    expect(error.message).toContain("invalid default export");
+    expect(error.message).toContain("https://anywidget.dev/en/afm/");
   });
 });
