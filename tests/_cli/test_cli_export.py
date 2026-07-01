@@ -703,6 +703,78 @@ class TestExportMarkdown:
         snapshot(_get_snapshot_path("md", "broken"), p.output)
 
     @staticmethod
+    def test_export_markdown_with_flavor(temp_marimo_file: str) -> None:
+        p = _run_export("md", temp_marimo_file, "--flavor", "qmd")
+        _assert_success(p)
+        assert "```{marimo .python" in p.output
+
+    @staticmethod
+    def test_export_markdown_infers_qmd_from_output(
+        temp_marimo_file: str, tmp_path: Path
+    ) -> None:
+        output = tmp_path / "output-target.qmd"
+
+        p = _run_export("md", temp_marimo_file, "--output", str(output))
+
+        _assert_success(p)
+        contents = output.read_text()
+        assert "title: Notebook" in contents
+        assert "title: Output Target" not in contents
+        assert "```{marimo .python" in contents
+
+    @staticmethod
+    def test_export_markdown_infers_mystmd_from_output(
+        temp_marimo_file: str, tmp_path: Path
+    ) -> None:
+        output = tmp_path / "notebook.myst.md"
+
+        p = _run_export("md", temp_marimo_file, "--output", str(output))
+
+        _assert_success(p)
+        assert "```{marimo} python" in output.read_text()
+
+    @staticmethod
+    def test_export_markdown_stdout_uses_default_flavor(
+        temp_marimo_file: str,
+    ) -> None:
+        p = _run_export("md", temp_marimo_file)
+
+        _assert_success(p)
+        assert "```{marimo .python" not in p.output
+        assert "```{marimo} python" not in p.output
+        assert (
+            "```python {.marimo" in p.output
+            or "```{.python.marimo" in p.output
+        )
+
+    @staticmethod
+    def test_export_markdown_help_documents_stdout_inference() -> None:
+        p = _runner.invoke(main, ["export", "md", "--help"])
+
+        _assert_success(p)
+        assert "shell redirection is not inspected" in " ".join(
+            p.output.split()
+        )
+
+    @staticmethod
+    def test_export_markdown_explicit_flavor_overrides_output(
+        temp_marimo_file: str, tmp_path: Path
+    ) -> None:
+        output = tmp_path / "notebook.qmd"
+
+        p = _run_export(
+            "md",
+            temp_marimo_file,
+            "--output",
+            str(output),
+            "--flavor",
+            "pymdown",
+        )
+
+        _assert_success(p)
+        assert "```{marimo .python" not in output.read_text()
+
+    @staticmethod
     def test_export_markdown_with_errors(
         temp_marimo_file_with_errors: str,
     ) -> None:

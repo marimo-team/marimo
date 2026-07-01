@@ -3,15 +3,22 @@ from __future__ import annotations
 
 from typing import cast
 
+import pytest
+
 from marimo._ast.visitor import Language
+from marimo._config.config import CopilotMode
 from marimo._server.ai.prompts import (
     FIM_SUFFIX_TAG,
+    _common_chat_sections,
     _format_plain_text,
+    _format_schema_info,
     _format_variables,
+    _get_mode_intro_message,
     get_chat_system_prompt,
     get_inline_system_prompt,
     get_refactor_or_insert_notebook_cell_system_prompt,
 )
+from marimo._server.ai.skills.utils import load_skill
 from marimo._server.models.completion import (
     AiCompletionContext,
     SchemaColumn,
@@ -219,7 +226,6 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
-        context=None,
         mode="manual",
         session_id=SessionId("s_test"),  # stable fake session id for snapshot
     )
@@ -228,76 +234,6 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules="Always be polite.",
         include_other_code="",
-        context=None,
-        mode="manual",
-        session_id=SessionId("s_test"),
-    )
-
-    result += _header("with variables")
-    result += get_chat_system_prompt(
-        custom_rules=None,
-        include_other_code="",
-        context=AiCompletionContext(
-            variables=["var1", "var2"],
-        ),
-        mode="manual",
-        session_id=SessionId("s_test"),
-    )
-
-    result += _header("with VariableContext objects")
-    result += get_chat_system_prompt(
-        custom_rules=None,
-        include_other_code="",
-        context=AiCompletionContext(
-            variables=[
-                VariableContext(
-                    name="df",
-                    value_type="DataFrame",
-                    preview_value="<DataFrame with 100 rows and 5 columns>",
-                ),
-                VariableContext(
-                    name="model",
-                    value_type="Model",
-                    preview_value="<Model object>",
-                ),
-            ]
-        ),
-        mode="manual",
-        session_id=SessionId("s_test"),
-    )
-
-    result += _header("with context")
-    result += get_chat_system_prompt(
-        custom_rules=None,
-        include_other_code="",
-        context=AiCompletionContext(
-            schema=[
-                SchemaTable(
-                    name="df_1",
-                    columns=[
-                        SchemaColumn(
-                            "age", "int", sample_values=["1", "2", "3"]
-                        ),
-                        SchemaColumn(
-                            "name",
-                            "str",
-                            sample_values=["Alice", "Bob", "Charlie"],
-                        ),
-                    ],
-                ),
-                SchemaTable(
-                    name="d2_2",
-                    columns=[
-                        SchemaColumn(
-                            "a", "int", sample_values=["1", "2", "3"]
-                        ),
-                        SchemaColumn(
-                            "b", "int", sample_values=["4", "5", "6"]
-                        ),
-                    ],
-                ),
-            ],
-        ),
         mode="manual",
         session_id=SessionId("s_test"),
     )
@@ -306,7 +242,6 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules=None,
         include_other_code="import pandas as pd\nimport numpy as np\n",
-        context=None,
         mode="manual",
         session_id=SessionId("s_test"),
     )
@@ -315,7 +250,6 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
-        context=None,
         mode="agent",
         session_id=SessionId("s_test"),
     )
@@ -324,24 +258,6 @@ def test_chat_system_prompts():
     result += get_chat_system_prompt(
         custom_rules="Always be polite.",
         include_other_code="import pandas as pd\nimport numpy as np\n",
-        context=AiCompletionContext(
-            variables=["var1", "var2"],
-            schema=[
-                SchemaTable(
-                    name="df_1",
-                    columns=[
-                        SchemaColumn(
-                            "age", "int", sample_values=["1", "2", "3"]
-                        ),
-                        SchemaColumn(
-                            "name",
-                            "str",
-                            sample_values=["Alice", "Bob", "Charlie"],
-                        ),
-                    ],
-                ),
-            ],
-        ),
         mode="manual",
         session_id=SessionId("s_test"),
     )
@@ -374,7 +290,6 @@ def test_markdown_rules_include_latex():
     chat_prompt = get_chat_system_prompt(
         custom_rules=None,
         include_other_code="",
-        context=None,
         mode="manual",
         session_id=SessionId("test"),
     )
@@ -440,3 +355,117 @@ def test_format_plain_text():
         _format_plain_text("Hello, world!")
         == "If the prompt mentions @kind://name, use the following context to help you answer the question:\n\nHello, world!"
     )
+
+
+def test_format_schema_info():
+    assert _format_schema_info(None) == ""
+    assert _format_schema_info([]) == ""
+
+    result = _format_schema_info(
+        [
+            SchemaTable(
+                name="df_1",
+                columns=[
+                    SchemaColumn("age", "int", sample_values=["1", "2"]),
+                    SchemaColumn("name", "str", sample_values=[]),
+                ],
+            )
+        ]
+    )
+    assert "## Available schema:" in result
+    assert "- Table: df_1" in result
+    assert "- Column: age" in result
+    assert "- Type: int" in result
+    assert "- Sample values: 1, 2" in result
+    # Column without sample values omits the sample line
+    assert "- Column: name" in result
+    assert "Sample values: \n" not in result
+
+
+@pytest.mark.parametrize("mode", ["manual", "ask", "agent", "code_mode"])
+def test_mode_intro_messages_share_base(mode: CopilotMode):
+    message = _get_mode_intro_message(mode)
+    assert "You are Marimo Copilot" in message
+    assert "reactive programming model" in message
+
+
+def test_common_chat_sections_empty():
+    assert (
+        _common_chat_sections(custom_rules=None, include_other_code="") == ""
+    )
+    # Whitespace-only custom rules are treated as empty.
+    assert (
+        _common_chat_sections(custom_rules="   ", include_other_code="") == ""
+    )
+
+
+def test_common_chat_sections_full():
+    result = _common_chat_sections(
+        custom_rules="Be concise.",
+        include_other_code="import polars as pl",
+    )
+    assert "## Additional rules:\nBe concise." in result
+    assert "<code_from_other_cells>" in result
+    assert "import polars as pl" in result
+
+
+def test_chat_system_prompt_code_mode():
+    prompt = get_chat_system_prompt(
+        custom_rules=None,
+        include_other_code="",
+        mode="code_mode",
+        session_id=SessionId("s_test"),
+    )
+    # Code mode uses its own intro and embeds the marimo-pair skill.
+    assert _get_mode_intro_message("code_mode") in prompt
+    assert "how to work with marimo" in prompt
+    assert load_skill("marimo-pair") in prompt
+    assert "load_capability" in prompt
+    assert "`gotchas`" in prompt
+    assert "references/gotchas.md" not in prompt
+
+
+def test_chat_system_prompt_code_mode_includes_extras():
+    prompt = get_chat_system_prompt(
+        custom_rules="Always be polite.",
+        include_other_code="import pandas as pd\n",
+        mode="code_mode",
+        session_id=SessionId("s_test"),
+    )
+    assert "## Additional rules:\nAlways be polite." in prompt
+    # Code mode inspects code via tools, so other-cell code is not inlined.
+    assert "<code_from_other_cells>" not in prompt
+    assert "import pandas as pd" not in prompt
+
+
+def test_chat_system_prompt_non_code_mode_includes_session_info():
+    for mode in ("manual", "ask", "agent"):
+        prompt = get_chat_system_prompt(
+            custom_rules=None,
+            include_other_code="",
+            mode=cast(CopilotMode, mode),
+            session_id=SessionId("s_abc"),
+        )
+        assert "Current notebook session ID: s_abc" in prompt
+        assert "Your goal is to do one of the following two things" in prompt
+        # The marimo-pair skill is only embedded in code mode.
+        assert "how to work with marimo notebooks" not in prompt
+
+
+def test_chat_system_prompt_agent_mode_inserts_cell_rules():
+    agent_prompt = get_chat_system_prompt(
+        custom_rules=None,
+        include_other_code="",
+        mode="agent",
+        session_id=SessionId("s_test"),
+    )
+    manual_prompt = get_chat_system_prompt(
+        custom_rules=None,
+        include_other_code="",
+        mode="manual",
+        session_id=SessionId("s_test"),
+    )
+    # Agent mode adds guidance for inserting cells; manual mode does not.
+    assert "## Rules for inserting cells:" in agent_prompt
+    assert 'mo.md(f"""{content}""")' in agent_prompt
+    assert "## Rules for inserting cells:" not in manual_prompt

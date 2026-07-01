@@ -77,7 +77,7 @@ jobs:
         id: existing_pr
         if: steps.changes.outputs.has_changes == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           number="$(gh pr list --state open --head "$BRANCH_NAME" --json number --jq '.[0].number // ""')"
           echo "number=$number" >> "$GITHUB_OUTPUT"
@@ -102,7 +102,7 @@ jobs:
       - name: 📝 Create update PR
         if: steps.changes.outputs.has_changes == 'true' && steps.existing_pr.outputs.number == ''
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr create \
             --draft \

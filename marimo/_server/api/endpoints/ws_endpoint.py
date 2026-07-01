@@ -42,7 +42,7 @@ from marimo._server.api.endpoints.ws.ws_session_connector import (
     SessionConnector,
     is_viewer_connection,
 )
-from marimo._server.codes import WebSocketCodes
+from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._server.router import APIRouter
 from marimo._server.rtc.doc import LoroDocManager
 from marimo._server.session_manager import SessionManager
@@ -124,7 +124,8 @@ async def ws_sync(
         else:
             LOGGER.warning("RTC: Loro is not installed, closing websocket")
         await websocket.close(
-            WebSocketCodes.NORMAL_CLOSE, "MARIMO_LORO_NOT_INSTALLED"
+            WebSocketCodes.NORMAL_CLOSE,
+            WebSocketCloseReason.LORO_NOT_INSTALLED,
         )
         return
 
@@ -140,7 +141,9 @@ async def ws_sync(
         LOGGER.warning(
             f"RTC: Closing websocket - no session found for file key {file_key}"
         )
-        await websocket.close(WebSocketCodes.FORBIDDEN, "MARIMO_NOT_ALLOWED")
+        await websocket.close(
+            WebSocketCodes.FORBIDDEN, WebSocketCloseReason.NOT_ALLOWED
+        )
         return
 
     # Handle RTC connection
@@ -461,7 +464,7 @@ class WebSocketHandler(SessionConsumer):
             # Then close with simple reason
             await self._safe_close(
                 WebSocketCodes.UNEXPECTED_ERROR,
-                "MARIMO_KERNEL_STARTUP_ERROR",
+                WebSocketCloseReason.KERNEL_STARTUP_ERROR,
             )
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
@@ -478,7 +481,7 @@ class WebSocketHandler(SessionConsumer):
         if is_connected:
             task = asyncio.create_task(
                 self._safe_close(
-                    WebSocketCodes.NORMAL_CLOSE, "MARIMO_SHUTDOWN"
+                    WebSocketCodes.NORMAL_CLOSE, WebSocketCloseReason.SHUTDOWN
                 )
             )
             _background_tasks.add(task)

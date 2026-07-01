@@ -7,8 +7,9 @@ import re
 import unittest
 import warnings
 from math import isnan, nan
+from types import SimpleNamespace
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import narwhals.stable.v2 as nw
 import pytest
@@ -20,6 +21,7 @@ from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
+    _extension_column_needs_stringify,
 )
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from tests.mocks import snapshotter
@@ -2164,13 +2166,73 @@ class TestPandasTableManager(unittest.TestCase):
         # MultiIndex should be preserved with original names
         assert list(result._original_data.index.names) == ["x", "level"]
 
+    @pytest.mark.requires("pint_pandas")
+    def test_to_json_str_pint_pandas_series(self) -> None:
+        """pint-pandas quantities display as readable strings in tables."""
+        import pandas as pd
+
+        series = pd.Series([1, 2, 3, 4], dtype="pint[meter]")
+        manager = self.factory.create()(series.to_frame(name="value"))
+        json_str = manager.to_json_str()
+        json_data = json.loads(json_str)
+
+        expected = [{"value": value} for value in series.astype(str)]
+        assert json_data == expected
+
+    def test_extension_column_needs_stringify_skips_json_primitives(
+        self,
+    ) -> None:
+        """Extension columns with JSON-safe scalars should not be stringified."""
+        import pandas as pd
+
+        series = pd.Series([1.1, 2.2, 3.3])
+        with patch(
+            "pandas.api.types.is_extension_array_dtype", return_value=True
+        ):
+            assert not _extension_column_needs_stringify(series)
+
+    def test_extension_column_needs_stringify_for_rich_extension_values(
+        self,
+    ) -> None:
+        """Extension columns with nested JSON values should be stringified."""
+        import pandas as pd
+
+        series = pd.Series([SimpleNamespace(x=1.1)])
+        with patch(
+            "pandas.api.types.is_extension_array_dtype", return_value=True
+        ):
+            assert _extension_column_needs_stringify(series)
+
+    def test_extension_column_needs_stringify_with_duplicate_index(
+        self,
+    ) -> None:
+        """Duplicate labels should not break extension-array sampling."""
+        import pandas as pd
+
+        series = pd.Series([1.1, 2.2], index=[0, 0])
+        with patch(
+            "pandas.api.types.is_extension_array_dtype", return_value=True
+        ):
+            assert not _extension_column_needs_stringify(series)
+
+    def test_to_json_str_keeps_numeric_extension_columns(self) -> None:
+        """Numeric extension-array columns stay numeric in table JSON."""
+        import pandas as pd
+
+        df = pd.DataFrame({"value": [1.1, 2.2, 3.3]})
+        manager = self.factory.create()(df)
+        with patch(
+            "pandas.api.types.is_extension_array_dtype", return_value=True
+        ):
+            json_data = json.loads(manager.to_json_str())
+
+        assert json_data == [{"value": 1.1}, {"value": 2.2}, {"value": 3.3}]
+
     def test_to_arrow_ipc_fallback_for_unsupported_extension_dtype(
         self,
     ) -> None:
         """to_arrow_ipc falls back when a column has an extension dtype
         that PyArrow cannot convert (e.g. pint-pandas)."""
-        from unittest.mock import patch
-
         import pyarrow as pa
 
         df = pd.DataFrame({"a": [1, 2, 3], "b": [4.0, 5.0, 6.0]})

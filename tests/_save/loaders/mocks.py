@@ -31,7 +31,8 @@ class MockLoader(Loader):
     def cache_hit(self, _) -> bool:
         return self._cache_hit
 
-    def load_cache(self, key) -> Cache | None:
+    def load_cache(self, key, glbls=None) -> Cache | None:
+        del glbls
         if not self._cache_hit:
             return None
         self._loaded = True

@@ -54,6 +54,16 @@ def ast_parse(
         return cast(ast.Module, ast.parse(contents, **kwargs))
 
 
+def split_source_lines(text: str) -> list[str]:
+    """Split source into lines the way `ast`/`tokenize` count them.
+
+    Unlike `str.splitlines()`, this only treats `\\n`, `\\r`, and `\\r\\n` as
+    line breaks. `str.splitlines()` additionally splits on `\\f`, `\\v`, the
+    `\\x1c`-`\\x1e` separators, and Unicode line separators.
+    """
+    return text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+
+
 def fixed_dedent(text: str) -> str:
     """Manually edited code, can dedent"""
     # Added robustness for AI generated code
@@ -72,6 +82,38 @@ def fixed_dedent(text: str) -> str:
         return line
 
     return dedent("\n".join(map(refill, lines)))
+
+
+def unwrap_cell_body(formatted: str) -> str:
+    """Extract the body of a wrapped `def _():` cell after ruff formatting.
+
+    Used by RuffFormatter to unwrap cells that were temporarily wrapped in a
+    dummy function so ruff applies function-scope blank-line rules (E301)
+    instead of file-scope rules (E302).
+    """
+    tree = ast_parse(formatted)
+    fn = tree.body[0]
+    if not isinstance(fn, ast.FunctionDef):
+        raise ValueError(
+            f"Expected a FunctionDef node, got {type(fn).__name__}"
+        )
+    if fn.end_lineno is None:
+        raise ValueError("FunctionDef node has no end_lineno")
+    first = fn.body[0]
+    start_lineno = first.lineno - 1
+    # AST statement line numbers point at `def`/`class`, not decorators.
+    # Start at the first decorator to preserve decorated top-level cells.
+    if isinstance(
+        first, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef)
+    ):
+        if first.decorator_list:
+            start_lineno = first.decorator_list[0].lineno - 1
+
+    extractor = Extractor(formatted)
+    raw = extractor.extract_from_offsets(
+        start_lineno, 0, fn.end_lineno - 1, fn.end_col_offset
+    )
+    return fixed_dedent(raw).strip()
 
 
 def extract_lineno(node: Node) -> int:
@@ -105,7 +147,7 @@ class Extractor:
 
     def __init__(self, contents: str):
         self.contents = contents.strip()
-        self.lines = self.contents.splitlines() if self.contents else []
+        self.lines = split_source_lines(self.contents) if self.contents else []
 
     def extract_from_offsets(
         self,

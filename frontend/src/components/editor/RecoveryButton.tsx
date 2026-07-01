@@ -76,7 +76,7 @@ const RecoveryModal = (props: {
           Download unsaved changes?
         </DialogTitle>
         <DialogDescription
-          className="markdown break-words"
+          className="markdown wrap-break-word"
           style={{ wordBreak: "break-word" }}
         >
           <div className="prose dark:prose-invert">

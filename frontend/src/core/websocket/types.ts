@@ -14,7 +14,6 @@ export type WebSocketState =
 
 export const WebSocketClosedReason = {
   KERNEL_DISCONNECTED: "KERNEL_DISCONNECTED",
-  MALFORMED_QUERY: "MALFORMED_QUERY",
   KERNEL_STARTUP_ERROR: "KERNEL_STARTUP_ERROR",
 } as const;
 

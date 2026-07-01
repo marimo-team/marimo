@@ -456,8 +456,11 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
+        if schema_path:
+            return []  # SQLAlchemy schemas don't nest
 
         if database is None:
             schema_names: list[str] = []
@@ -520,9 +523,15 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             ), inspector.get_view_names(schema=schema)
 
     def get_tables_in_schema(
-        self, *, schema: str, database: str, include_table_details: bool
+        self,
+        *,
+        schema: str,
+        database: str,
+        include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[DataTable]:
         """Return all tables in a schema."""
+        del schema_path  # SQLAlchemy schemas don't nest
 
         table_names, view_names = self._get_table_names(
             schema=schema, database=database
@@ -618,9 +627,15 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         return index_columns
 
     def get_table_details(
-        self, *, table_name: str, schema_name: str, database_name: str
+        self,
+        *,
+        table_name: str,
+        schema_name: str,
+        database_name: str,
+        schema_path: list[str] | None = None,
     ) -> DataTable | None:
         """Get a single table from the engine."""
+        del schema_path  # SQLAlchemy schemas don't nest
 
         columns = self._get_columns(
             table_name, schema=schema_name, database=database_name

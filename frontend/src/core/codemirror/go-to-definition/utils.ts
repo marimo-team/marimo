@@ -82,7 +82,6 @@ export function goToDefinition(
       view,
       variableName,
       usagePosition,
-      false,
     );
     if (foundLocally) {
       return true;

@@ -18,7 +18,7 @@ export const TextOutput = ({ text, channel, wrapText }: Props): JSX.Element => {
     return (
       <span
         className={
-          wrapText ? "whitespace-pre-wrap break-words" : "whitespace-pre"
+          wrapText ? "whitespace-pre-wrap wrap-break-word" : "whitespace-pre"
         }
       >
         <RenderTextWithLinks text={text} />
@@ -30,7 +30,7 @@ export const TextOutput = ({ text, channel, wrapText }: Props): JSX.Element => {
     <span
       className={cn(
         !shouldRenderAnsi &&
-          (wrapText ? "whitespace-pre-wrap break-words" : "whitespace-pre"),
+          (wrapText ? "whitespace-pre-wrap wrap-break-word" : "whitespace-pre"),
         channel === "output" && "font-prose",
         channel,
       )}

@@ -22,6 +22,16 @@ export class MplCommWebSocket {
   }
 
   /**
+   * Re-point outbound sends at a new backend comm without recreating the
+   * socket. The figure manager is reused across cell reruns, so the same
+   * socket instance stays bound to mpl.js (which wires `onopen`/`onmessage`
+   * onto it at construction); only the comm behind it changes.
+   */
+  setSendHandler(sendFn: (msg: unknown) => void): void {
+    this.sendFn = sendFn;
+  }
+
+  /**
    * Called by mpl.js to send a message to the backend.
    * mpl.js always sends JSON strings.
    */

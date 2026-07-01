@@ -46,6 +46,8 @@ as an app. If you do want them to appear in apps, marimo provides utility
 functions for capturing console outputs and redirecting them to cell outputs.
 ///
 
+::: marimo.output.clear_console
+
 ::: marimo.redirect_stdout
 
 ::: marimo.redirect_stderr

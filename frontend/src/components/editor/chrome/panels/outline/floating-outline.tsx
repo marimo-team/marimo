@@ -38,7 +38,7 @@ export const FloatingOutline: React.FC = () => {
       <OutlineList
         className={cn(
           "-top-4 max-h-[70vh] bg-background rounded-lg shadow-lg absolute overflow-auto transition-all duration-300 w-[300px] border",
-          isHovered ? "-left-[280px] opacity-100" : "left-[300px] opacity-0",
+          isHovered ? "left-[-280px] opacity-100" : "left-[300px] opacity-0",
         )}
         items={items}
         activeHeaderId={activeHeaderId}

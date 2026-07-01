@@ -2,24 +2,32 @@
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
+import { useIntersectionObserver } from "@uidotdev/usehooks";
 import { useAtom, useAtomValue } from "jotai";
-import React, { memo, useEffect, useMemo, useRef } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { useCellActions } from "@/core/cells/cells";
+import { getNotebook, useCellActions } from "@/core/cells/cells";
+import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import { notebookCellEditorViews } from "@/core/cells/utils";
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import { acceptCompletionOnEnterAtom } from "@/core/codemirror/completion/accept-on-enter-atom";
+import { editorMountScheduler } from "@/core/codemirror/editor-mount-scheduler";
 import {
   getInitialLanguageAdapter,
   languageAdapterState,
   reconfigureLanguageEffect,
   switchLanguage,
 } from "@/core/codemirror/language/extension";
+import {
+  getEditorCodeAsPython,
+  updateEditorCodeFromPython,
+} from "@/core/codemirror/language/utils";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import {
@@ -45,6 +53,7 @@ import {
 } from "../../navigation/navigation";
 import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSplitCellCallback } from "../useSplitCell";
+import { CodePlaceholder } from "./code-placeholder";
 import { LanguageToggles } from "./language-toggle";
 
 export interface CellEditorProps
@@ -210,6 +219,32 @@ const CellEditorInternal = ({
               skipIfCodeExists: true,
             });
           }
+        },
+        addOrAppendSetupCell: (code) => {
+          const notebook = getNotebook();
+          // No setup cell yet: create one with this code at the top.
+          if (!notebook.cellIds.setupCellExists()) {
+            cellActions.addSetupCellIfDoesntExist({ code });
+            return;
+          }
+          // Setup cell exists: append the pasted code to it. Prefer updating
+          // the mounted editor (keeps the view and state in sync, like
+          // formatting does); fall back to a plain state update otherwise.
+          const view = notebookCellEditorViews(notebook)[SETUP_CELL_ID];
+          const existing = view
+            ? getEditorCodeAsPython(view)
+            : notebook.cellData[SETUP_CELL_ID].code;
+          const merged = existing.trim()
+            ? `${existing.trimEnd()}\n\n${code}`
+            : code;
+          if (view) {
+            updateEditorCodeFromPython(view, merged);
+          }
+          cellActions.updateCellCode({
+            cellId: SETUP_CELL_ID,
+            code: merged,
+            formattingChange: false,
+          });
         },
         splitCell,
         toggleHideCode,
@@ -405,37 +440,44 @@ const CellEditorInternal = ({
     // Clear the serialized state so that we don't re-create the editor next time
     cellActions.clearSerializedEditorState({ cellId });
   });
+  const [isEditorMounted, setIsEditorMounted] = useState(
+    serializedEditorState !== null,
+  );
+
+  // Build the editor. Deserialize eagerly; otherwise queue an async build so
+  // large notebooks stay responsive while editors come online progressively.
+  useEffect(() => {
+    if (editorViewRef.current !== null) {
+      setIsEditorMounted(true);
+      return;
+    }
+    if (serializedEditorState !== null) {
+      handleDeserializeEditor();
+      setIsEditorMounted(true);
+      return;
+    }
+    editorMountScheduler.request(cellId, () => {
+      if (editorViewRef.current !== null) {
+        return;
+      }
+      handleInitializeEditor();
+      setIsEditorMounted(true);
+    });
+    return () => editorMountScheduler.cancel(cellId);
+  }, [
+    cellId,
+    editorViewRef,
+    handleDeserializeEditor,
+    handleInitializeEditor,
+    serializedEditorState,
+  ]);
 
   useEffect(() => {
-    if (serializedEditorState === null) {
-      if (editorViewRef.current === null) {
-        handleInitializeEditor();
-      } else {
-        // If the editor already exists, reconfigure it with the new extensions.
-        handleReconfigureEditor();
-      }
-    } else {
-      handleDeserializeEditor();
+    if (editorViewRef.current === null) {
+      return;
     }
-
-    if (
-      editorViewRef.current !== null &&
-      editorViewParentRef &&
-      editorViewParentRef.current !== null
-    ) {
-      // Always replace the children in case the editor view was re-created.
-      editorViewParentRef.current.replaceChildren(editorViewRef.current.dom);
-    }
-  }, [
-    handleInitializeEditor,
-    handleReconfigureEditor,
-    handleDeserializeEditor,
-    editorViewRef,
-    editorViewParentRef,
-    serializedEditorState,
-    // Props to trigger reconfiguration
-    extensions,
-  ]);
+    handleReconfigureEditor();
+  }, [handleReconfigureEditor, extensions, editorViewRef]);
 
   // Destroy the editor when the component is unmounted
   useEffect(() => {
@@ -444,6 +486,26 @@ const CellEditorInternal = ({
       ev?.destroy();
     };
   }, [editorViewRef]);
+
+  // Prioritize building this cell's editor when it scrolls into view, so the
+  // visible region fills in first instead of waiting for the top-to-bottom
+  // queue. The margin builds cells just before they reach the viewport.
+  // uidotdev sets threshold default to 1. Set it 0 so cells are prioritized
+  // at 300px.
+  const [intersectionRef, intersection] = useIntersectionObserver({
+    rootMargin: "300px 0px",
+    threshold: 0,
+  });
+  useEffect(() => {
+    if (isEditorMounted) {
+      return;
+    }
+    if (intersection?.isIntersecting) {
+      editorMountScheduler.prioritize(cellId);
+    } else {
+      editorMountScheduler.deprioritize(cellId);
+    }
+  }, [isEditorMounted, intersection?.isIntersecting, cellId]);
 
   const navigationProps = useCellEditorNavigationProps(cellId, editorViewRef);
 
@@ -489,14 +551,22 @@ const CellEditorInternal = ({
       runCell={handleRunCell}
       outputArea={outputArea}
     >
-      <div className="relative w-full" {...navigationProps}>
-        <CellCodeMirrorEditor
-          className={editorClassName}
-          editorView={editorViewRef.current}
-          ref={editorViewParentRef}
-          hidden={hidden}
-          showHiddenCode={showHiddenCode}
-        />
+      <div
+        className="relative w-full"
+        ref={intersectionRef}
+        {...navigationProps}
+      >
+        {isEditorMounted ? (
+          <CellCodeMirrorEditor
+            className={editorClassName}
+            editorView={editorViewRef.current}
+            ref={editorViewParentRef}
+            hidden={hidden}
+            showHiddenCode={showHiddenCode}
+          />
+        ) : (
+          <CodePlaceholder code={code} className={editorClassName} />
+        )}
         {!hidden && showLanguageToggles && (
           <div className="absolute top-1 right-5">
             <LanguageToggles

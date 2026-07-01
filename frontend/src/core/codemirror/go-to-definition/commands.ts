@@ -307,33 +307,52 @@ function collectMatchingDeclarations(
       break;
     }
     case "ImportStatement": {
+      // The grammar emits one ImportStatement for both `import x [as y]` and
+      // `from m import x [as y], ...`. Direct children include the keywords
+      // (`from`/`import`/`as`), commas, dots, and every VariableName from the
+      // module path AND the import list. We only want the names that actually
+      // bind in the current scope: the post-`as` alias if present, otherwise
+      // the imported name itself. Names before `import` (the from-path) and
+      // the original name when an alias follows it are NOT bindings.
       const subCursor = node.cursor();
       subCursor.firstChild();
-      do {
-        if (
-          subCursor.name === "VariableName" &&
-          state.doc.sliceString(subCursor.from, subCursor.to) === variableName
-        ) {
-          addDeclaration(declarations, currentScope, subCursor.from);
+      let pastImport = false;
+      // Buffer the most recent post-`import` VariableName so we can defer
+      // committing it until we know whether `as` follows.
+      let pending: { from: number; matches: boolean } | null = null;
+      const commit = () => {
+        if (pending?.matches) {
+          addDeclaration(declarations, currentScope, pending.from);
         }
-      } while (subCursor.nextSibling());
-      break;
-    }
-    case "ImportFromStatement": {
-      const subCursor = node.cursor();
-      subCursor.firstChild();
-      let foundImport = false;
+        pending = null;
+      };
       do {
         if (subCursor.name === "import") {
-          foundImport = true;
-        } else if (
-          foundImport &&
-          subCursor.name === "VariableName" &&
-          state.doc.sliceString(subCursor.from, subCursor.to) === variableName
-        ) {
-          addDeclaration(declarations, currentScope, subCursor.from);
+          pastImport = true;
+          continue;
+        }
+        if (!pastImport) {
+          continue;
+        }
+        if (subCursor.name === "as") {
+          // Next VariableName is the alias and replaces `pending`.
+          pending = null;
+          continue;
+        }
+        if (subCursor.name === "VariableName") {
+          // Flush any previous pending name (no `as` followed it).
+          commit();
+          pending = {
+            from: subCursor.from,
+            matches:
+              state.doc.sliceString(subCursor.from, subCursor.to) ===
+              variableName,
+          };
+        } else if (subCursor.name === ",") {
+          commit();
         }
       } while (subCursor.nextSibling());
+      commit();
       break;
     }
     case "TryStatement":
@@ -410,23 +429,21 @@ function findScopedDefinitionPosition(
  * @param view The editor view which contains the variable name.
  * @param variableName The name of the variable to select, if found in the editor.
  * @param usagePosition The position of the variable usage, if available.
- * @param fallbackToFirstMatch Whether to fall back to the first matching
- * variable name when no scoped definition is found. Defaults to true.
  */
 export function goToVariableDefinition(
   view: EditorView,
   variableName: string,
   usagePosition?: number,
-  fallbackToFirstMatch = true,
 ): boolean {
   const { state } = view;
-  let from: number | null = null;
-  if (usagePosition !== undefined) {
-    from = findScopedDefinitionPosition(state, variableName, usagePosition);
-  }
-  if (from === null && fallbackToFirstMatch) {
-    from = findFirstMatchingVariable(state, variableName);
-  }
+  // When the caller knows the usage position, trust the scoped lookup. Falling
+  // back to first-match would defeat the local-vs-cross-cell decision in
+  // goToDefinition: if the symbol only appears as a module path in an import,
+  // scoped resolution returns null and we want the caller to try other cells.
+  const from =
+    usagePosition !== undefined
+      ? findScopedDefinitionPosition(state, variableName, usagePosition)
+      : findFirstMatchingVariable(state, variableName);
 
   if (from === null) {
     return false;

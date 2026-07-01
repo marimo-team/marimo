@@ -263,7 +263,7 @@ const LoadingIndicator = memo<LoadingIndicatorProps>(
     }
 
     return (
-      <div className="px-3 py-2 border-t bg-muted/30 flex-shrink-0">
+      <div className="px-3 py-2 border-t bg-muted/30 shrink-0">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <Spinner size="small" className="text-primary" />
@@ -352,7 +352,7 @@ const PromptArea = memo<PromptAreaProps>(
     });
 
     return (
-      <div className="border-t bg-background flex-shrink-0">
+      <div className="border-t bg-background shrink-0">
         <div
           className={cn(
             "px-3 py-2 min-h-[80px]",
@@ -583,7 +583,7 @@ const ChatContent = memo<ChatContentProps>(
     };
 
     return (
-      <div className="flex-1 flex flex-col overflow-hidden flex-shrink-0 relative">
+      <div className="flex-1 flex flex-col overflow-hidden shrink-0 relative">
         {pendingPermission && (
           <div className="p-3 border-b">
             <PermissionRequest

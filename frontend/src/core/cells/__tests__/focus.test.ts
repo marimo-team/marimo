@@ -1,11 +1,17 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { EditorView } from "@codemirror/view";
+import { createStore } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
+import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
+import type { CellHandle } from "@/components/editor/notebook-cell";
+import { notebookAtom } from "../cells";
 import type { CellFocusState } from "../focus";
-import { exportedForTesting } from "../focus";
+import { exportedForTesting, lastFocusedCellAtom } from "../focus";
 
-const { initialState, reducer, createActions } = exportedForTesting;
+const { initialState, reducer, createActions, cellFocusAtom } =
+  exportedForTesting;
 
 const CellIds = {
   a: cellId("a"),
@@ -268,5 +274,42 @@ describe("cell focus reducer", () => {
       expect(state.focusedCellId).toBe(null);
       expect(state.lastFocusedCellId).toBe(CellIds.c);
     });
+  });
+});
+
+describe("lastFocusedCellAtom", () => {
+  it("returns null getEditorView when CodeMirror is not mounted", () => {
+    const store = createStore();
+    const markdownCellId = cellId("markdown");
+
+    const unmountedEditorHandle: CellHandle = {
+      get editorView(): EditorView {
+        throw new ReferenceError("Attempting to dereference null object.");
+      },
+      editorViewOrNull: null,
+    };
+
+    const notebook = MockNotebook.notebookState({
+      cellData: {
+        [markdownCellId]: {
+          config: { hide_code: true },
+        },
+      },
+    });
+    notebook.cellHandles[markdownCellId] = {
+      current: unmountedEditorHandle,
+    };
+
+    store.set(notebookAtom, notebook);
+    store.set(cellFocusAtom, {
+      focusedCellId: markdownCellId,
+      lastFocusedCellId: markdownCellId,
+    });
+
+    const lastFocusedCell = store.get(lastFocusedCellAtom);
+
+    expect(lastFocusedCell).not.toBeNull();
+    expect(lastFocusedCell?.cellId).toBe(markdownCellId);
+    expect(lastFocusedCell?.getEditorView()).toBeNull();
   });
 });

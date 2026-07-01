@@ -23,12 +23,14 @@ import type { WorkerFactory } from "@/core/islands/worker-factory";
 export function createMockIslandElement(options: {
   appId?: string;
   cellIdx?: string;
+  cellId?: string;
   code?: string;
   innerHTML?: string;
 }): HTMLElement {
   const {
     appId = "test-app",
     cellIdx = "0",
+    cellId,
     code = "import marimo as mo",
     innerHTML = "",
   } = options;
@@ -36,6 +38,9 @@ export function createMockIslandElement(options: {
   const element = document.createElement(ISLAND_TAG_NAMES.ISLAND);
   element.setAttribute(ISLAND_DATA_ATTRIBUTES.APP_ID, appId);
   element.setAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX, cellIdx);
+  if (cellId) {
+    element.setAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID, cellId);
+  }
 
   if (code) {
     const codeElement = document.createElement(ISLAND_TAG_NAMES.CELL_CODE);
@@ -146,6 +151,7 @@ export async function waitForNoError<T>(
 
 export interface IslandSpec {
   appId?: string;
+  cellId?: string;
   reactive?: boolean;
   code?: string;
   output?: string;
@@ -160,6 +166,9 @@ export function buildIslandHTML(islands: IslandSpec[]): string {
   return islands
     .map((spec) => {
       const appId = spec.appId ?? "test-app";
+      const cellId = spec.cellId
+        ? ` ${ISLAND_DATA_ATTRIBUTES.CELL_ID}="${spec.cellId}"`
+        : "";
       const reactive = spec.reactive ?? true;
       const output = spec.output ?? "<div>output</div>";
       const code = spec.code ?? 'print("hello")';
@@ -169,7 +178,7 @@ export function buildIslandHTML(islands: IslandSpec[]): string {
         : "";
       const outputTag = `<${ISLAND_TAG_NAMES.CELL_OUTPUT}>${output}</${ISLAND_TAG_NAMES.CELL_OUTPUT}>`;
 
-      return `<${ISLAND_TAG_NAMES.ISLAND} ${ISLAND_DATA_ATTRIBUTES.APP_ID}="${appId}" ${ISLAND_DATA_ATTRIBUTES.REACTIVE}="${reactive}">${outputTag}${codeTag}</${ISLAND_TAG_NAMES.ISLAND}>`;
+      return `<${ISLAND_TAG_NAMES.ISLAND} ${ISLAND_DATA_ATTRIBUTES.APP_ID}="${appId}"${cellId} ${ISLAND_DATA_ATTRIBUTES.REACTIVE}="${reactive}">${outputTag}${codeTag}</${ISLAND_TAG_NAMES.ISLAND}>`;
     })
     .join("\n");
 }

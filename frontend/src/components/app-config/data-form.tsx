@@ -5,7 +5,6 @@ import type { FieldPath, UseFormReturn } from "react-hook-form";
 import {
   FormControl,
   FormDescription,
-  FormField,
   FormItem,
   FormLabel,
   FormMessage,
@@ -19,25 +18,23 @@ import {
   SettingGroup,
   SQL_OUTPUT_SELECT_OPTIONS,
 } from "./common";
-import { IsOverridden } from "./is-overridden";
+import { IsOverridden, OverriddenFormField } from "./is-overridden";
 
 const DISCOVERY_OPTIONS = ["auto", "true", "false"];
 
 export const DataForm = ({
   form,
-  config,
   onSubmit,
 }: {
   form: UseFormReturn<UserConfig>;
-  config: UserConfig;
   onSubmit: (values: UserConfig) => void;
 }) => {
   const renderDiscoveryForm = (name: FieldPath<UserConfig>, label: string) => {
     return (
-      <FormField
+      <OverriddenFormField
         control={form.control}
         name={name}
-        render={({ field }) => {
+        render={({ field, override }) => {
           const onChange = (e: ChangeEvent<HTMLSelectElement>) => {
             const value = e.target.value;
             field.onChange(
@@ -54,9 +51,11 @@ export const DataForm = ({
                   data-testid="auto-discover-schemas-select"
                   onChange={onChange}
                   value={
-                    field.value === undefined ? "auto" : field.value.toString()
+                    override.value === undefined
+                      ? "auto"
+                      : override.value.toString()
                   }
-                  disabled={field.disabled}
+                  disabled={field.disabled || override.isOverridden}
                   className="w-[100px]"
                 >
                   {DISCOVERY_OPTIONS.map((option) => (
@@ -66,7 +65,7 @@ export const DataForm = ({
                   ))}
                 </NativeSelect>
               </FormControl>
-              <IsOverridden userConfig={config} name={name} />
+              <IsOverridden override={override} />
             </FormItem>
           );
         }}
@@ -76,10 +75,10 @@ export const DataForm = ({
 
   return (
     <>
-      <FormField
+      <OverriddenFormField
         control={form.control}
         name="display.dataframes"
-        render={({ field }) => (
+        render={({ field, override }) => (
           <div className="flex flex-col space-y-1">
             <FormItem className={formItemClasses}>
               <FormLabel>Dataframe viewer</FormLabel>
@@ -87,8 +86,8 @@ export const DataForm = ({
                 <NativeSelect
                   data-testid="display-dataframes-select"
                   onChange={(e) => field.onChange(e.target.value)}
-                  value={field.value}
-                  disabled={field.disabled}
+                  value={override.value}
+                  disabled={field.disabled || override.isOverridden}
                   className="inline-flex mr-2"
                 >
                   {["rich", "plain"].map((option) => (
@@ -99,7 +98,7 @@ export const DataForm = ({
                 </NativeSelect>
               </FormControl>
               <FormMessage />
-              <IsOverridden userConfig={config} name="display.dataframes" />
+              <IsOverridden override={override} />
             </FormItem>
 
             <FormDescription>
@@ -109,10 +108,10 @@ export const DataForm = ({
           </div>
         )}
       />
-      <FormField
+      <OverriddenFormField
         control={form.control}
         name="display.default_table_page_size"
-        render={({ field }) => (
+        render={({ field, override }) => (
           <div className="flex flex-col space-y-1">
             <FormItem className={formItemClasses}>
               <FormLabel>Default table page size</FormLabel>
@@ -122,7 +121,8 @@ export const DataForm = ({
                   data-testid="default-table-page-size-input"
                   className="m-0 w-24"
                   {...field}
-                  value={field.value}
+                  value={override.value}
+                  isDisabled={override.isOverridden}
                   minValue={1}
                   step={1}
                   onChange={(value) => {
@@ -134,10 +134,7 @@ export const DataForm = ({
                 />
               </FormControl>
               <FormMessage />
-              <IsOverridden
-                userConfig={config}
-                name="display.default_table_page_size"
-              />
+              <IsOverridden override={override} />
             </FormItem>
             <FormDescription>
               The default number of rows displayed in dataframes and SQL
@@ -146,10 +143,10 @@ export const DataForm = ({
           </div>
         )}
       />
-      <FormField
+      <OverriddenFormField
         control={form.control}
         name="display.default_table_max_columns"
-        render={({ field }) => (
+        render={({ field, override }) => (
           <div className="flex flex-col space-y-1">
             <FormItem className={formItemClasses}>
               <FormLabel>Default table max columns</FormLabel>
@@ -159,7 +156,8 @@ export const DataForm = ({
                   data-testid="default-table-max-columns-input"
                   className="m-0 w-24"
                   {...field}
-                  value={field.value}
+                  value={override.value}
+                  isDisabled={override.isOverridden}
                   minValue={1}
                   step={1}
                   onChange={(value) => {
@@ -171,10 +169,7 @@ export const DataForm = ({
                 />
               </FormControl>
               <FormMessage />
-              <IsOverridden
-                userConfig={config}
-                name="display.default_table_max_columns"
-              />
+              <IsOverridden override={override} />
             </FormItem>
             <FormDescription>
               The default maximum number of columns displayed in dataframes and
@@ -213,25 +208,23 @@ export const DataForm = ({
           {renderDiscoveryForm("datasources.auto_discover_columns", "Columns")}
         </div>
 
-        <FormField
+        <OverriddenFormField
           control={form.control}
           name="diagnostics.sql_linter"
-          render={({ field }) => (
+          render={({ field, override }) => (
             <div className="flex flex-col space-y-1">
               <FormItem className={formItemClasses}>
                 <FormLabel>SQL Linter</FormLabel>
                 <FormControl>
                   <Checkbox
                     data-testid="sql-linter-checkbox"
-                    checked={field.value}
+                    checked={override.value}
+                    disabled={override.isOverridden}
                     onCheckedChange={field.onChange}
                   />
                 </FormControl>
                 <FormMessage />
-                <IsOverridden
-                  userConfig={config}
-                  name="diagnostics.sql_linter"
-                />
+                <IsOverridden override={override} />
               </FormItem>
               <FormDescription>
                 Better linting and autocompletions for SQL cells.
@@ -240,10 +233,10 @@ export const DataForm = ({
           )}
         />
 
-        <FormField
+        <OverriddenFormField
           control={form.control}
           name="runtime.default_sql_output"
-          render={({ field }) => (
+          render={({ field, override }) => (
             <div className="flex flex-col space-y-1">
               <FormItem className={formItemClasses}>
                 <FormLabel>Default SQL output</FormLabel>
@@ -251,8 +244,8 @@ export const DataForm = ({
                   <NativeSelect
                     data-testid="user-config-sql-output-select"
                     onChange={(e) => field.onChange(e.target.value)}
-                    value={field.value}
-                    disabled={field.disabled}
+                    value={override.value}
+                    disabled={field.disabled || override.isOverridden}
                     className="inline-flex mr-2"
                   >
                     {SQL_OUTPUT_SELECT_OPTIONS.map((option) => (
@@ -263,10 +256,7 @@ export const DataForm = ({
                   </NativeSelect>
                 </FormControl>
                 <FormMessage />
-                <IsOverridden
-                  userConfig={config}
-                  name="runtime.default_sql_output"
-                />
+                <IsOverridden override={override} />
               </FormItem>
 
               <FormDescription>

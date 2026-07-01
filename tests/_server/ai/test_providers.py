@@ -16,10 +16,12 @@ from marimo._server.ai.providers import (
     CustomProvider,
     GoogleProvider,
     OpenAIProvider,
+    StreamOptions,
     _infer_provider_name_from_base_url,
     _normalize_base_url,
     get_completion_provider,
 )
+from marimo._server.ai.tracing import SpanInfo
 
 
 @pytest.mark.parametrize(
@@ -33,7 +35,7 @@ from marimo._server.ai.providers import (
             "bedrock",
             id="bedrock",
         ),
-        pytest.param("openrouter/gpt-4", "openrouter", id="openrouter"),
+        pytest.param("openrouter/openai/gpt-4", "openrouter", id="openrouter"),
     ],
 )
 def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
@@ -87,7 +89,7 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
             id="bedrock",
         ),
         pytest.param(
-            "openrouter/gpt-4", CustomProvider, None, id="openrouter"
+            "openrouter/openai/gpt-4", CustomProvider, None, id="openrouter"
         ),
     ],
 )
@@ -277,25 +279,25 @@ def test_openai_default_thinking(
         ),
         pytest.param(
             "claude-opus-4-6",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024},
             True,
             id="opus_4_6",
         ),
         pytest.param(
             "claude-sonnet-4-6",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024},
             True,
             id="sonnet_4_6",
         ),
         pytest.param(
             "claude-opus-4-5-20251101",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024},
             True,
             id="opus_4_5",
         ),
         pytest.param(
             "claude-3-7-sonnet-20250219",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024},
             True,
             id="sonnet_3_7",
         ),
@@ -307,7 +309,7 @@ def test_openai_default_thinking(
         # corrected upstream, behavior here will follow automatically.
         pytest.param(
             "claude-3-5-sonnet-20241022",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024},
             True,
             id="sonnet_3_5_trusts_profile",
         ),
@@ -323,7 +325,7 @@ def test_anthropic_settings_split(
     expected_model_settings: dict[str, Any],
     expected_agent_thinking: bool,
 ) -> None:
-    """Verify the model-level settings (temperature) and agent-level thinking flag."""
+    """Verify model-level settings and agent-level thinking flag."""
     config = AnyProviderConfig(api_key="test-key", base_url=None)
     provider = AnthropicProvider(model_name, config)
     model = provider.create_model(max_tokens=1024)
@@ -375,8 +377,8 @@ def test_anthropic_thinking_payload_translation(
     model = provider.create_model(max_tokens=1024)
     assert isinstance(model, AnthropicModel)
 
-    # Combine the model-level settings (temperature) with the agent-level
-    # thinking flag the way pydantic-ai does at request time.
+    # Combine model-level settings with the agent-level thinking flag the way
+    # pydantic-ai does at request time.
     merged = dict(model.settings or {})
     merged.update(provider._build_agent_settings(model) or {})
 
@@ -444,6 +446,7 @@ async def test_completion_does_not_pass_redundant_instructions() -> None:
             system_prompt="Test prompt",
             max_tokens=100,
             additional_tools=[],
+            span_info=SpanInfo(endpoint="completion", model="openai/gpt-4"),
         )
 
         mock_request.assert_called_once()
@@ -511,11 +514,11 @@ def test_custom_provider_agent_passes_explicit_max_tokens() -> None:
     """The chat path builds the agent (not the model), so the agent's
     model_settings must carry the explicit max_tokens."""
     config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
-    provider = get_completion_provider(config, "openrouter/gpt-4")
+    provider = get_completion_provider(config, "openrouter/openai/gpt-4")
     with patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm:
         mock_get_tm.return_value = MagicMock()
         agent = provider.create_agent(
-            max_tokens=12345, tools=[], system_prompt="x"
+            name="test", max_tokens=12345, tools=[], system_prompt="x"
         )
     assert dict(agent.model_settings or {}).get("max_tokens") == 12345
 
@@ -524,11 +527,11 @@ def test_custom_provider_agent_passes_explicit_max_tokens() -> None:
 def test_custom_provider_agent_omits_max_tokens_when_none() -> None:
     """The chat path omits max_tokens from agent model_settings when unset."""
     config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
-    provider = get_completion_provider(config, "openrouter/gpt-4")
+    provider = get_completion_provider(config, "openrouter/openai/gpt-4")
     with patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm:
         mock_get_tm.return_value = MagicMock()
         agent = provider.create_agent(
-            max_tokens=None, tools=[], system_prompt="x"
+            name="test", max_tokens=None, tools=[], system_prompt="x"
         )
     assert "max_tokens" not in dict(agent.model_settings or {})
 
@@ -615,8 +618,6 @@ def test_custom_provider_inherits_profile_from_base_url() -> None:
     """A custom provider whose name we don't recognize, but whose base URL
     points at DeepSeek, inherits DeepSeek's profile so `reasoning_content`
     round-trips. Regression test for #9786."""
-    from pydantic_ai.profiles.openai import OpenAIModelProfile
-
     config = AnyProviderConfig(
         api_key="test-key", base_url="https://api.deepseek.com"
     )
@@ -629,17 +630,19 @@ def test_custom_provider_inherits_profile_from_base_url() -> None:
     assert provider.provider.name == "deepseek"
 
     model = provider.create_model(max_tokens=None)
-    profile = OpenAIModelProfile.from_profile(model.profile)
-    assert profile.openai_chat_thinking_field == "reasoning_content"
-    assert profile.openai_chat_send_back_thinking_parts == "field"
+    profile = model.profile
+    if isinstance(profile, dict):
+        assert profile.get("openai_chat_thinking_field") == "reasoning_content"
+        assert profile.get("openai_chat_send_back_thinking_parts") == "field"
+    else:
+        assert profile.openai_chat_thinking_field == "reasoning_content"
+        assert profile.openai_chat_send_back_thinking_parts == "field"
 
 
 @pytest.mark.requires("pydantic_ai")
 def test_custom_provider_unknown_base_url_stays_generic() -> None:
     """An unknown name with an unrecognized base URL falls back to the generic
     OpenAI provider (no thinking field), preserving prior behavior."""
-    from pydantic_ai.profiles.openai import OpenAIModelProfile
-
     config = AnyProviderConfig(
         api_key="test-key", base_url="https://my.internal.llm/v1"
     )
@@ -651,8 +654,11 @@ def test_custom_provider_unknown_base_url_stays_generic() -> None:
     assert provider.provider.name == "openai"
 
     model = provider.create_model(max_tokens=None)
-    profile = OpenAIModelProfile.from_profile(model.profile)
-    assert profile.openai_chat_thinking_field is None
+    profile = model.profile
+    if isinstance(profile, dict):
+        assert profile.get("openai_chat_thinking_field") is None
+    else:
+        assert profile.openai_chat_thinking_field is None
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -666,3 +672,64 @@ def test_custom_provider_known_name_not_overridden_by_base_url() -> None:
         AiModelId.from_model("openrouter/some-model"), config
     )
     assert provider._provider_name == "openrouter"
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
+    """The code-mode harness builds an agent with the execute_code toolset,
+    passes the system prompt as instructions, and returns the adapter's
+    streaming response."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+
+    session = MagicMock(name="session")
+    request = MagicMock(name="request")
+    toolset = MagicMock(name="toolset")
+    streaming_response = MagicMock(name="streaming_response")
+    adapter: MagicMock = MagicMock(name="adapter")
+    adapter.streaming_response = MagicMock(return_value=streaming_response)
+    stream_options = StreamOptions(
+        span_info=SpanInfo(endpoint="chat", model="openai/gpt-4"),
+    )
+
+    with (
+        patch.object(provider, "create_model", return_value=MagicMock()),
+        patch.object(provider, "_build_agent_settings", return_value={}),
+        patch.object(provider, "convert_messages", return_value=[]),
+        patch(
+            "marimo._server.ai.tools.code_mode.build_execute_code_toolset",
+            return_value=toolset,
+        ) as mock_build_toolset,
+        patch("pydantic_ai.Agent") as mock_agent,
+        patch(
+            "pydantic_ai.ui.vercel_ai.VercelAIAdapter",
+            return_value=adapter,
+        ),
+    ):
+        result = await provider.stream_completion_harness(
+            messages=[],
+            system_prompt="SYSTEM PROMPT WITH SKILL",
+            session=session,
+            request=request,
+            max_tokens=1234,
+            stream_options=stream_options,
+        )
+
+    assert result is streaming_response
+    assert stream_options.span_info.tool_count == 4
+    # The toolset is bound to the caller's session and request.
+    mock_build_toolset.assert_called_once_with(session, request)
+
+    # The agent is constructed with that toolset and the system prompt as
+    # instructions (which now carries the marimo-pair skill).
+    agent_kwargs = mock_agent.call_args.kwargs
+    assert agent_kwargs["toolsets"] == [toolset]
+    assert agent_kwargs["instructions"] == "SYSTEM PROMPT WITH SKILL"
+    capabilities = agent_kwargs["capabilities"]
+    assert len(capabilities) == 3
+    assert {capability.id for capability in capabilities} == {
+        "gotchas",
+        "notebook-improvements",
+        "rich-representations",
+    }
+    assert all(capability.defer_loading for capability in capabilities)

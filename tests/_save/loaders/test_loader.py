@@ -30,6 +30,7 @@ from marimo._save.stubs.lazy_stub import (
     CacheType,
     Item,
     Meta,
+    UnhashableStub,
 )
 from tests._save.loaders.mocks import MockLoader
 
@@ -256,6 +257,127 @@ class TestLazyLoader(ABCTestLoader):
         assert loaded.defs["y"] == "hello"
         assert loaded.defs["z"] == [1, 2, 3]
 
+    def test_import_reference_stays_inline(self) -> None:
+        """Re-importable references (`from typing import Optional`, an
+        imported function/class) are stored inline in the manifest, not as
+        per-variable blobs, and restore to the original object by identity."""
+        from collections import OrderedDict
+        from typing import Optional
+
+        loader = self.instance()
+        cache = Cache(
+            defs={"Optional": Optional, "OrderedDict": OrderedDict},
+            hash="import_ref_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        cache.update({"Optional": Optional, "OrderedDict": OrderedDict})
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        # No blob files — only the manifest is written.
+        blobs = [
+            p
+            for p in Path(self.store.save_path).rglob("*")
+            if p.is_file() and p.suffix != ".jsonl"
+        ]
+        assert not blobs, f"expected no blobs, found {blobs}"
+
+        loaded = loader.load_cache(key("import_ref_hash", "Pure"))
+        assert loaded is not None
+        assert loaded.defs["Optional"] is Optional
+        assert loaded.defs["OrderedDict"] is OrderedDict
+
+    def test_unserializable_def_marks_manifest_no_blob(self) -> None:
+        """A def that can't be serialized (a lambda) writes no blob; the
+        manifest `Item` carries `unserializable_type`, and load reconstructs
+        an `UnhashableStub` tripwire in-memory."""
+        loader = self.instance()
+        cache = Cache(
+            # `ok` is a list (pickle-blob path); `f` is a lambda (unpicklable).
+            defs={"ok": [1, 2, 3], "f": lambda x: x + 1},
+            hash="unserializable_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        # No blob written for the lambda — only the serializable `ok` blob
+        # and the manifest exist.
+        blob_names = sorted(
+            p.name
+            for p in Path(self.store.save_path).rglob("*")
+            if p.is_file() and p.suffix != ".jsonl"
+        )
+        assert blob_names == ["ok.pickle"], blob_names
+
+        # Manifest marks the lambda's Item, with no dangling reference.
+        cache_path = loader.build_path(key("unserializable_hash", "Pure"))
+        manifest = self.store.get(str(cache_path))
+        decoded = msgspec.json.decode(manifest, type=CacheSchema)
+        f_item = decoded.defs["f"]
+        assert f_item.reference is None
+        assert f_item.unserializable_type is not None
+        assert "function" in f_item.unserializable_type.lower()
+
+        # Load: `ok` restores; `f` becomes an in-memory tripwire.
+        loaded = loader.load_cache(key("unserializable_hash", "Pure"))
+        assert loaded is not None
+        assert loaded.defs["ok"] == [1, 2, 3]
+        assert isinstance(loaded.defs["f"], UnhashableStub)
+        assert loaded.defs["f"].var_name == "f"
+
+    def test_unserializable_ui_clears_ui_defs_and_stale_blob(self) -> None:
+        """A UI def that can't be pickled must not leave `ui_defs` pointing
+        at `ui.pickle`: restore loads UI defs via `ui_defs`, bypassing the
+        per-Item marks, so a stale `ui.pickle` from a prior run would load as
+        a phantom hit. On failure `ui_defs` is cleared, each UI Item is
+        marked, and the stale blob is removed."""
+        from marimo._save.stubs.ui_element_stub import UIElementStub
+
+        loader = self.instance()
+        # A UIElementStub instance routes to the "ui" loader by type; give it
+        # an unpicklable attribute so the shared ui.pickle write fails.
+        ui_stub = UIElementStub.__new__(UIElementStub)
+        ui_stub.data = {"bad": lambda: 1}  # type: ignore[attr-defined]
+
+        # Pre-seed a stale ui.pickle at the hash path from a "prior run".
+        base = Path("test") / "ui_fail_hash"
+        ui_key = (base / "ui.pickle").as_posix()
+        self.store.put(ui_key, pickle.dumps({"u": "stale"}))
+
+        cache = Cache(
+            defs={"ok": [1, 2, 3], "u": ui_stub},
+            hash="ui_fail_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        # Stale ui.pickle removed; the serializable `ok` blob remains.
+        assert self.store.get(ui_key) is None
+        cache_path = loader.build_path(key("ui_fail_hash", "Pure"))
+        decoded = msgspec.json.decode(
+            self.store.get(str(cache_path)), type=CacheSchema
+        )
+        assert decoded.ui_defs == []
+        assert decoded.defs["u"].reference is None
+        assert decoded.defs["u"].unserializable_type is not None
+
+        # Load: `u` is an in-memory tripwire, not the stale value.
+        loaded = loader.load_cache(key("ui_fail_hash", "Pure"))
+        assert loaded is not None
+        assert loaded.defs["ok"] == [1, 2, 3]
+        assert isinstance(loaded.defs["u"], UnhashableStub)
+
     def test_corrupt_cache_returns_none(self) -> None:
         """Corrupt manifest triggers cache miss, not crash."""
         loader = self.instance()
@@ -338,6 +460,34 @@ class TestLazyLoader(ABCTestLoader):
         loaded = loader.load_cache(key("np_hash", "Pure"))
         assert loaded is not None
         np.testing.assert_array_equal(loaded.defs["arr"], arr)
+
+    @pytest.mark.skipif(
+        not DependencyManager.has("torch"), reason="torch required"
+    )
+    def test_torch_round_trip(self) -> None:
+        """torch tensors survive save → flush → load via the .pt format —
+        the manifest reference must match the blob extension."""
+        import torch
+
+        loader = self.instance()
+        tensor = torch.tensor([1.0, 2.0, 3.0])
+        cache = Cache(
+            defs={"t": tensor},
+            hash="pt_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        assert list(Path(self.store.save_path).rglob("*.pt")), (
+            "expected .pt blob, got pickle fallback"
+        )
+        loaded = loader.load_cache(key("pt_hash", "Pure"))
+        assert loaded is not None
+        assert torch.equal(loaded.defs["t"], tensor)
 
     @pytest.mark.skipif(
         not DependencyManager.has("polars"), reason="polars required"

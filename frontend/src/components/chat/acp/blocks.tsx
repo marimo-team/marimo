@@ -119,20 +119,18 @@ export const ErrorBlock = (props: {
 
   return (
     <div
-      className="border border-[var(--red-6)] bg-[var(--red-2)] rounded-lg p-4 my-2"
+      className="border border-(--red-6) bg-(--red-2) rounded-lg p-4 my-2"
       data-block-type="error"
     >
       <div className="flex items-start gap-3">
-        <div className="flex-shrink-0">
-          <XCircleIcon className="h-5 w-5 text-[var(--red-11)]" />
+        <div className="shrink-0">
+          <XCircleIcon className="h-5 w-5 text-(--red-11)" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
-            <h4 className="text-sm font-medium text-[var(--red-11)]">
-              Agent Error
-            </h4>
+            <h4 className="text-sm font-medium text-(--red-11)">Agent Error</h4>
           </div>
-          <div className="text-sm text-[var(--red-11)] leading-relaxed mb-3">
+          <div className="text-sm text-(--red-11) leading-relaxed mb-3">
             {message}
           </div>
           <div className="flex items-center gap-2">
@@ -141,7 +139,7 @@ export const ErrorBlock = (props: {
                 size="xs"
                 variant="outline"
                 onClick={props.onRetry}
-                className="text-[var(--red-11)] border-[var(--red-6)] hover:bg-[var(--red-3)]"
+                className="text-(--red-11) border-(--red-6) hover:bg-(--red-3)"
               >
                 <RotateCcwIcon className="h-3 w-3 mr-1" />
                 Retry
@@ -152,7 +150,7 @@ export const ErrorBlock = (props: {
                 size="xs"
                 variant="ghost"
                 onClick={props.onDismiss}
-                className="text-[var(--red-10)] hover:bg-[var(--red-3)]"
+                className="text-(--red-10) hover:bg-(--red-3)"
               >
                 <XIcon className="h-3 w-3 mr-1" />
                 Dismiss
@@ -169,8 +167,8 @@ export const ReadyToChatBlock = () => {
   return (
     <div className="flex-1 flex items-center justify-center h-full min-h-[200px] flex-col">
       <div className="text-center space-y-3">
-        <div className="w-12 h-12 mx-auto rounded-full bg-[var(--blue-3)] flex items-center justify-center">
-          <BotMessageSquareIcon className="h-6 w-6 text-[var(--blue-10)]" />
+        <div className="w-12 h-12 mx-auto rounded-full bg-(--blue-3) flex items-center justify-center">
+          <BotMessageSquareIcon className="h-6 w-6 text-(--blue-10)" />
         </div>
         <div>
           <h3 className="text-lg font-medium text-foreground mb-1">
@@ -205,50 +203,50 @@ export const ConnectionChangeBlock = (props: {
           icon: <WifiIcon className="h-4 w-4" />,
           title: "Connected to Agent",
           message: "Successfully established connection with the AI agent",
-          bgColor: "bg-[var(--blue-2)]",
-          borderColor: "border-[var(--blue-6)]",
-          textColor: "text-[var(--blue-11)]",
-          iconColor: "text-[var(--blue-10)]",
+          bgColor: "bg-(--blue-2)",
+          borderColor: "border-(--blue-6)",
+          textColor: "text-(--blue-11)",
+          iconColor: "text-(--blue-10)",
         };
       case "disconnected":
         return {
           icon: <WifiOffIcon className="h-4 w-4" />,
           title: "Disconnected from Agent",
           message: "Connection to the AI agent has been lost",
-          bgColor: "bg-[var(--amber-2)]",
-          borderColor: "border-[var(--amber-6)]",
-          textColor: "text-[var(--amber-11)]",
-          iconColor: "text-[var(--amber-10)]",
+          bgColor: "bg-(--amber-2)",
+          borderColor: "border-(--amber-6)",
+          textColor: "text-(--amber-11)",
+          iconColor: "text-(--amber-10)",
         };
       case "connecting":
         return {
           icon: <WifiIcon className="h-4 w-4 animate-pulse" />,
           title: "Connecting to Agent",
           message: "Establishing connection with the AI agent...",
-          bgColor: "bg-[var(--gray-2)]",
-          borderColor: "border-[var(--gray-6)]",
-          textColor: "text-[var(--gray-11)]",
-          iconColor: "text-[var(--gray-10)]",
+          bgColor: "bg-(--gray-2)",
+          borderColor: "border-(--gray-6)",
+          textColor: "text-(--gray-11)",
+          iconColor: "text-(--gray-10)",
         };
       case "error":
         return {
           icon: <WifiOffIcon className="h-4 w-4" />,
           title: "Connection Error",
           message: "Failed to connect to the AI agent",
-          bgColor: "bg-[var(--red-2)]",
-          borderColor: "border-[var(--red-6)]",
-          textColor: "text-[var(--red-11)]",
-          iconColor: "text-[var(--red-10)]",
+          bgColor: "bg-(--red-2)",
+          borderColor: "border-(--red-6)",
+          textColor: "text-(--red-11)",
+          iconColor: "text-(--red-10)",
         };
       default:
         return {
           icon: <WifiOffIcon className="h-4 w-4" />,
           title: "Connection Status Changed",
           message: `Agent connection status: ${status}`,
-          bgColor: "bg-[var(--gray-2)]",
-          borderColor: "border-[var(--gray-6)]",
-          textColor: "text-[var(--gray-11)]",
-          iconColor: "text-[var(--gray-10)]",
+          bgColor: "bg-(--gray-2)",
+          borderColor: "border-(--gray-6)",
+          textColor: "text-(--gray-11)",
+          iconColor: "text-(--gray-10)",
         };
     }
   };
@@ -263,7 +261,7 @@ export const ConnectionChangeBlock = (props: {
       data-status={status}
     >
       <div className="flex items-start gap-3">
-        <div className={`flex-shrink-0 ${config.iconColor}`}>{config.icon}</div>
+        <div className={`shrink-0 ${config.iconColor}`}>{config.icon}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h4 className={`text-sm font-medium ${config.textColor}`}>
@@ -362,7 +360,7 @@ export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
 
 export const UserMessagesBlock = (props: { data: UserNotificationEvent[] }) => {
   return (
-    <div className="flex flex-col gap-2 text-muted-foreground border p-2 bg-background rounded break-words overflow-x-hidden">
+    <div className="flex flex-col gap-2 text-muted-foreground border p-2 bg-background rounded wrap-break-word overflow-x-hidden">
       <ContentBlocks data={props.data.map((item) => item.content)} />
     </div>
   );
@@ -454,7 +452,7 @@ export const ResourceBlock = (props: { data: ContentBlockOf<"resource"> }) => {
             Formatted for agents, not humans.
           </span>
           {props.data.resource.mimeType === "text/plain" ? (
-            <pre className="text-xs whitespace-pre-wrap p-2 bg-muted rounded-md break-words">
+            <pre className="text-xs whitespace-pre-wrap p-2 bg-muted rounded-md wrap-break-word">
               {props.data.resource.text}
             </pre>
           ) : (
@@ -514,7 +512,7 @@ export const ResourceLinkBlock = (props: {
 };
 
 export const MimeIcon = (props: { mimeType: string }) => {
-  const classNames = "h-2 w-2 flex-shrink-0";
+  const classNames = "h-2 w-2 shrink-0";
   if (props.mimeType.startsWith("image/")) {
     return <FileImageIcon className={classNames} />;
   }
@@ -647,10 +645,10 @@ export const DiffBlocks = (props: {
         return (
           <div
             key={item.path}
-            className="border rounded-md overflow-hidden bg-[var(--gray-2)] overflow-y-auto scrollbar-thin max-h-64"
+            className="border rounded-md overflow-hidden bg-(--gray-2) overflow-y-auto scrollbar-thin max-h-64"
           >
             {/* File path header */}
-            <div className="px-2 py-1 bg-[var(--gray-2)] border-b text-xs font-medium text-[var(--gray-11)]">
+            <div className="px-2 py-1 bg-(--gray-2) border-b text-xs font-medium text-(--gray-11)">
               {item.path}
             </div>
             <ReadonlyDiff
@@ -737,7 +735,7 @@ export const ToolBodyBlock = (props: {
     }
     // Show rawInput
     return (
-      <pre className="bg-[var(--slate-2)] p-1 text-muted-foreground border border-[var(--slate-4)] rounded text-xs overflow-auto scrollbar-thin max-h-64">
+      <pre className="bg-(--slate-2) p-1 text-muted-foreground border border-(--slate-4) rounded text-xs overflow-auto scrollbar-thin max-h-64">
         <JsonOutput data={rawInput} format="tree" />
       </pre>
     );

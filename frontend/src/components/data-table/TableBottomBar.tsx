@@ -3,6 +3,7 @@
 
 import type { RowSelectionState, Table } from "@tanstack/react-table";
 import { useLocale } from "react-aria";
+import { isStaticNotebook } from "@/core/static/static-state";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
@@ -40,6 +41,8 @@ export const TableBottomBar = <TData,>({
   className,
 }: TableBottomBarProps<TData>) => {
   const { locale } = useLocale();
+  // Pagination fetches each page via a kernel RPC, absent in static exports.
+  const isStatic = isStaticNotebook();
   const handleSelectAllRows = (value: boolean) => {
     if (!onRowSelectionChange) {
       return;
@@ -171,7 +174,7 @@ export const TableBottomBar = <TData,>({
         <CellSelectionStats table={table} className="lg:hidden" />
       </div>
       <div className="ml-auto lg:ml-0 lg:justify-self-center flex items-center shrink-0">
-        {pagination && (
+        {pagination && !isStatic && (
           <DataTablePagination
             table={table}
             tableLoading={tableLoading}

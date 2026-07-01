@@ -7,6 +7,7 @@ import {
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import { retryWithTimeout } from "@/utils/timeout";
 import { Logger } from "../../utils/Logger";
+import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
 import { scrollActiveLineIntoView } from "../codemirror/extensions";
 import { goToVariableDefinition } from "../codemirror/go-to-definition/commands";
 import { getCellEditorView } from "./cells";
@@ -48,6 +49,9 @@ export function focusAndScrollCellIntoView({
     // https://github.com/marimo-team/marimo/issues/2940
     tryFocus(element);
   } else {
+    // Build this cell's editor now if it is still queued, so focus can land in
+    // it instead of the placeholder.
+    editorMountScheduler.promote(cellId);
     const editor = cell.current?.editorView;
     if (!editor) {
       Logger.warn("scrollCellIntoView: editor not found", cellId);

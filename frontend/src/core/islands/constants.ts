@@ -10,6 +10,8 @@ export const ISLAND_TAG_NAMES = {
   CODE_EDITOR: "marimo-code-editor",
 } as const;
 
+export const ISLANDS_JSON_SCRIPT_TYPE = "application/vnd.marimo.islands+json";
+
 /**
  * Data attributes for islands
  */

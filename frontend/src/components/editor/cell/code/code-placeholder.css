@@ -1,0 +1,18 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+.mo-code-placeholder {
+  --mo-skeleton-bar: color-mix(in srgb, var(--muted), var(--foreground) 18%);
+  cursor: default;
+  padding: 4px 10px;
+  font-size: var(--cm-font-size, 0.875rem);
+}
+
+.mo-code-placeholder-line {
+  display: flex;
+  align-items: center;
+  height: 1.5em;
+}
+
+.mo-code-placeholder-bar {
+  height: 0.7em;
+  background-color: var(--mo-skeleton-bar);
+}

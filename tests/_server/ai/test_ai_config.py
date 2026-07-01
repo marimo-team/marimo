@@ -443,7 +443,7 @@ class TestAnyProviderConfig:
         config: AiConfig = {"openrouter": {"api_key": "test-openrouter-key"}}
 
         provider_config = AnyProviderConfig.for_model(
-            "openrouter/gpt-4", config
+            "openrouter/openai/gpt-4", config
         )
 
         assert provider_config.api_key == "test-openrouter-key"
