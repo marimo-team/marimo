@@ -217,6 +217,27 @@ class TestRuffFormatter:
         assert result == {"cell1": 'def foo():\n    """Something here"""'}
 
     @patch("marimo._utils.formatter.ruff")
+    async def test_ruff_formatter_preserves_class_decorator(
+        self, mock_ruff: MagicMock
+    ) -> None:
+        cell_code = (
+            "@dataclasses.dataclass\nclass Test:\n    name: str\n    age: int"
+        )
+        wrapped_formatted = (
+            "def _():\n"
+            "    @dataclasses.dataclass\n"
+            "    class Test:\n"
+            "        name: str\n"
+            "        age: int"
+        )
+        mock_ruff.return_value = {"cell1": wrapped_formatted}
+
+        formatter = RuffFormatter(line_length=88)
+        result = await formatter.format({"cell1": cell_code})
+
+        assert result == {"cell1": cell_code}
+
+    @patch("marimo._utils.formatter.ruff")
     async def test_ruff_formatter_comment_only_cell(
         self, mock_ruff: MagicMock
     ) -> None:
