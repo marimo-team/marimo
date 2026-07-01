@@ -1,5 +1,4 @@
 anthropic:
-
   - name: Claude Opus 4.8
     model: claude-opus-4-8
     description: "Modest but tangible improvement over Claude Opus 4.7"
@@ -8,7 +7,7 @@ anthropic:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-05-28
-    cost: {input: 5, output: 25}
+    cost: { input: 5, output: 25 }
 
   - name: Claude Opus 4.7
     model: claude-opus-4-7
@@ -18,7 +17,7 @@ anthropic:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-04-16
-    cost: {input: 5, output: 25}
+    cost: { input: 5, output: 25 }
 
   - name: Claude Sonnet 4.6
     model: claude-sonnet-4-6
@@ -28,7 +27,7 @@ anthropic:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-02-17
-    cost: {input: 3, output: 15}
+    cost: { input: 3, output: 15 }
 
   - name: Claude Opus 4.6
     model: claude-opus-4-6
@@ -38,7 +37,7 @@ anthropic:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-02-05
-    cost: {input: 5, output: 25}
+    cost: { input: 5, output: 25 }
 
   - name: Claude Opus 4.5
     model: claude-opus-4-5
@@ -48,7 +47,7 @@ anthropic:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2025-11-24
-    cost: {input: 5, output: 25}
+    cost: { input: 5, output: 25 }
 
   - name: Claude Haiku 4.5
     model: claude-haiku-4-5
@@ -58,7 +57,7 @@ anthropic:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2025-10-15
-    cost: {input: 1, output: 5}
+    cost: { input: 1, output: 5 }
 
   - name: Claude Sonnet 4.5
     model: claude-sonnet-4-5
@@ -68,7 +67,7 @@ anthropic:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2025-09-29
-    cost: {input: 3, output: 15}
+    cost: { input: 3, output: 15 }
 
 openai:
   - name: GPT-5.5
@@ -79,7 +78,7 @@ openai:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-04-23
-    cost: {input: 5, output: 30}
+    cost: { input: 5, output: 30 }
 
   - name: GPT-5.4 mini
     model: gpt-5.4-mini
@@ -89,7 +88,7 @@ openai:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-03-17
-    cost: {input: 0.75, output: 4.5}
+    cost: { input: 0.75, output: 4.5 }
 
   - name: GPT-5.4 nano
     model: gpt-5.4-nano
@@ -99,7 +98,7 @@ openai:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-03-17
-    cost: {input: 0.2, output: 1.25}
+    cost: { input: 0.2, output: 1.25 }
 
   - name: GPT-5.4
     model: gpt-5.4
@@ -109,7 +108,7 @@ openai:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-03-05
-    cost: {input: 2.5, output: 15}
+    cost: { input: 2.5, output: 15 }
 
   - name: GPT-5.3 Chat
     model: gpt-5.3-chat-latest
@@ -119,7 +118,7 @@ openai:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-03-03
-    cost: {input: 1.75, output: 14}
+    cost: { input: 1.75, output: 14 }
 
   - name: GPT-5.3 Codex
     model: gpt-5.3-codex
@@ -129,7 +128,7 @@ openai:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-02-05
-    cost: {input: 1.75, output: 14}
+    cost: { input: 1.75, output: 14 }
 
   - name: ChatGPT Image
     model: chatgpt-image-latest
@@ -149,7 +148,7 @@ google:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-05-19
-    cost: {input: 1.5, output: 9}
+    cost: { input: 1.5, output: 9 }
 
   - name: Gemini 3.1 Flash Lite
     model: gemini-3.1-flash-lite
@@ -159,7 +158,7 @@ google:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-05-07
-    cost: {input: 0.25, output: 1.5}
+    cost: { input: 0.25, output: 1.5 }
 
   - name: Gemma 4 26B A4B IT
     model: gemma-4-26b-a4b-it
@@ -187,7 +186,7 @@ google:
     input_types: [text, image, pdf]
     output_types: [text, image]
     release_date: 2026-02-26
-    cost: {input: 0.5, output: 60}
+    cost: { input: 0.5, output: 60 }
 
   - name: Gemini 3.1 Pro Preview
     model: gemini-3.1-pro-preview
@@ -197,7 +196,7 @@ google:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-02-19
-    cost: {input: 2, output: 12}
+    cost: { input: 2, output: 12 }
 
   - name: Gemini 3.1 Pro Preview Custom Tools
     model: gemini-3.1-pro-preview-customtools
@@ -207,7 +206,7 @@ google:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-02-19
-    cost: {input: 2, output: 12}
+    cost: { input: 2, output: 12 }
 
 bedrock:
   - name: Claude Opus 4.8 (Global)
@@ -218,7 +217,7 @@ bedrock:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-05-28
-    cost: {input: 5, output: 25}
+    cost: { input: 5, output: 25 }
 
   - name: Claude Opus 4.7
     model: anthropic.claude-opus-4-7
@@ -228,7 +227,7 @@ bedrock:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-04-16
-    cost: {input: 5, output: 25}
+    cost: { input: 5, output: 25 }
 
   - name: Claude Opus 4.7 (Global)
     model: global.anthropic.claude-opus-4-7
@@ -238,7 +237,7 @@ bedrock:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-04-16
-    cost: {input: 5, output: 25}
+    cost: { input: 5, output: 25 }
 
   - name: MiniMax M2.5
     model: minimax.minimax-m2.5
@@ -248,7 +247,7 @@ bedrock:
     input_types: [text]
     output_types: [text]
     release_date: 2026-03-18
-    cost: {input: 0.3, output: 1.2}
+    cost: { input: 0.3, output: 1.2 }
 
   - name: GLM-5
     model: zai.glm-5
@@ -258,7 +257,7 @@ bedrock:
     input_types: [text]
     output_types: [text]
     release_date: 2026-03-18
-    cost: {input: 1, output: 3.2}
+    cost: { input: 1, output: 3.2 }
 
   - name: NVIDIA Nemotron 3 Super 120B A12B
     model: nvidia.nemotron-super-3-120b
@@ -268,7 +267,7 @@ bedrock:
     input_types: [text]
     output_types: [text]
     release_date: 2026-03-11
-    cost: {input: 0.15, output: 0.65}
+    cost: { input: 0.15, output: 0.65 }
 
   - name: Claude Sonnet 4.6
     model: anthropic.claude-sonnet-4-6
@@ -278,7 +277,7 @@ bedrock:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-02-17
-    cost: {input: 3, output: 15}
+    cost: { input: 3, output: 15 }
 
 azure:
   - name: GPT-5.5
@@ -289,7 +288,7 @@ azure:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-04-24
-    cost: {input: 5, output: 30}
+    cost: { input: 5, output: 30 }
 
   - name: Kimi K2.6
     model: kimi-k2.6
@@ -299,7 +298,7 @@ azure:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-04-22
-    cost: {input: 0.95, output: 4}
+    cost: { input: 0.95, output: 4 }
 
   - name: Grok 4.20 (Non-Reasoning)
     model: grok-4-20-non-reasoning
@@ -309,7 +308,7 @@ azure:
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-08
-    cost: {input: 2, output: 6}
+    cost: { input: 2, output: 6 }
 
   - name: Grok 4.20 (Reasoning)
     model: grok-4-20-reasoning
@@ -319,7 +318,7 @@ azure:
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-08
-    cost: {input: 2, output: 6}
+    cost: { input: 2, output: 6 }
 
   - name: GPT-5.4 Mini
     model: gpt-5.4-mini
@@ -329,7 +328,7 @@ azure:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-03-17
-    cost: {input: 0.75, output: 4.5}
+    cost: { input: 0.75, output: 4.5 }
 
   - name: GPT-5.4 Nano
     model: gpt-5.4-nano
@@ -339,7 +338,7 @@ azure:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-03-17
-    cost: {input: 0.2, output: 1.25}
+    cost: { input: 0.2, output: 1.25 }
 
   - name: GPT-5.4
     model: gpt-5.4
@@ -349,7 +348,7 @@ azure:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-03-05
-    cost: {input: 2.5, output: 15}
+    cost: { input: 2.5, output: 15 }
 
   - name: GPT-5.3 Chat
     model: gpt-5.3-chat
@@ -359,7 +358,7 @@ azure:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-03-03
-    cost: {input: 1.75, output: 14}
+    cost: { input: 1.75, output: 14 }
 
   - name: GPT-5.3 Codex
     model: gpt-5.3-codex
@@ -369,7 +368,7 @@ azure:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-02-24
-    cost: {input: 1.75, output: 14}
+    cost: { input: 1.75, output: 14 }
 
   - name: Claude Opus 4.8
     model: claude-opus-4-8
@@ -379,7 +378,7 @@ azure:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-05-28
-    cost: {input: 5, output: 25}
+    cost: { input: 5, output: 25 }
 
   - name: Claude Sonnet 4.6
     model: claude-sonnet-4-6
@@ -389,7 +388,7 @@ azure:
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-02-17
-    cost: {input: 3, output: 15}
+    cost: { input: 3, output: 15 }
 
   - name: DeepSeek-V4-Flash
     model: deepseek-v4-flash
@@ -399,7 +398,7 @@ azure:
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-24
-    cost: {input: 0.19, output: 0.51}
+    cost: { input: 0.19, output: 0.51 }
 
   - name: DeepSeek-V4-Pro
     model: deepseek-v4-pro
@@ -409,7 +408,7 @@ azure:
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-24
-    cost: {input: 1.74, output: 3.48}
+    cost: { input: 1.74, output: 3.48 }
 
 github:
   - name: DeepSeek-R1-0528
@@ -420,7 +419,7 @@ github:
     input_types: [text]
     output_types: [text]
     release_date: 2025-05-28
-    cost: {input: 0, output: 0}
+    cost: { input: 0, output: 0 }
 
   - name: Mistral Medium 3 (25.05)
     model: mistral-ai/mistral-medium-2505
@@ -430,7 +429,7 @@ github:
     input_types: [text, image]
     output_types: [text]
     release_date: 2025-05-01
-    cost: {input: 0, output: 0}
+    cost: { input: 0, output: 0 }
 
   - name: GPT-4.1
     model: openai/gpt-4.1
@@ -440,7 +439,7 @@ github:
     input_types: [text, image]
     output_types: [text]
     release_date: 2025-04-14
-    cost: {input: 0, output: 0}
+    cost: { input: 0, output: 0 }
 
   - name: GPT-4.1-mini
     model: openai/gpt-4.1-mini
@@ -450,7 +449,7 @@ github:
     input_types: [text, image]
     output_types: [text]
     release_date: 2025-04-14
-    cost: {input: 0, output: 0}
+    cost: { input: 0, output: 0 }
 
   - name: GPT-4.1-nano
     model: openai/gpt-4.1-nano
@@ -460,7 +459,7 @@ github:
     input_types: [text, image]
     output_types: [text]
     release_date: 2025-04-14
-    cost: {input: 0, output: 0}
+    cost: { input: 0, output: 0 }
 
   - name: DeepSeek-V3-0324
     model: deepseek/deepseek-v3-0324
@@ -470,7 +469,7 @@ github:
     input_types: [text]
     output_types: [text]
     release_date: 2025-03-24
-    cost: {input: 0, output: 0}
+    cost: { input: 0, output: 0 }
 
   - name: Mistral Small 3.1
     model: mistral-ai/mistral-small-2503
@@ -480,7 +479,7 @@ github:
     input_types: [text, image]
     output_types: [text]
     release_date: 2025-03-01
-    cost: {input: 0, output: 0}
+    cost: { input: 0, output: 0 }
 
   - name: Llama 4 Maverick 17B 128E Instruct FP8
     model: meta/llama-4-maverick-17b-128e-instruct-fp8
@@ -490,7 +489,7 @@ github:
     input_types: [text, image]
     output_types: [text]
     release_date: 2025-01-31
-    cost: {input: 0, output: 0}
+    cost: { input: 0, output: 0 }
 
   - name: Llama 4 Scout 17B 16E Instruct
     model: meta/llama-4-scout-17b-16e-instruct
@@ -500,7 +499,7 @@ github:
     input_types: [text, image]
     output_types: [text]
     release_date: 2025-01-31
-    cost: {input: 0, output: 0}
+    cost: { input: 0, output: 0 }
 
   - name: OpenAI o3
     model: openai/o3
@@ -510,7 +509,7 @@ github:
     input_types: [text, image]
     output_types: [text]
     release_date: 2025-01-31
-    cost: {input: 0, output: 0}
+    cost: { input: 0, output: 0 }
 
 ollama:
   - name: DeepSeek V4 Flash
@@ -622,6 +621,30 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
+  - name: DeepSeek V4-Flash
+    model: deepseek-ai/DeepSeek-V4-Flash
+    description: "DeepSeek V4-Flash is an MoE model with 1M context length great for coding, reasoning, and agentic workloads"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+
+  - name: DeepSeek V4-Pro
+    model: deepseek-ai/DeepSeek-V4-Pro
+    description: "DeepSeek V4-Pro is a 1.6T-parameter MoE model with 49B active parameters excelling at advanced reasoning, coding, and complex agentic workloads"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+
+  - name: Z.AI GLM 5.2
+    model: zai-org/GLM-5.2
+    description: "GLM-5.2 is a Mixture-of-Experts language model featuring 40 billion activated parameters and a total of 744 billion parameters"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+
   - name: GLM-5.1
     model: zai-org/GLM-5.1
     description: "GLM-5.1 delivers a major leap in coding capability, with particularly significant gains in handling long-horizon tasks"
@@ -630,7 +653,7 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2026-03-27
-    cost: {input: 1.4, output: 4.4}
+    cost: { input: 1.4, output: 4.4 }
 
   - name: NVIDIA Nemotron 3 Super 120B
     model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8
@@ -640,7 +663,7 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2026-03-11
-    cost: {input: 0.2, output: 0.8}
+    cost: { input: 0.2, output: 0.8 }
 
   - name: MiniMax M2.5
     model: MiniMaxAI/MiniMax-M2.5
@@ -650,37 +673,23 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2026-02-12
-    cost: {input: 0.3, output: 1.2}
+    cost: { input: 0.3, output: 1.2 }
 
-  - name: GLM 5
-    model: zai-org/GLM-5-FP8
-    description: "Z.ai's flagship open-source foundation model engineered for complex systems design and long-horizon agent workflows"
+  - name: Moonshot AI Kimi K2.7 Code
+    model: moonshotai/Kimi-K2.7-Code
+    description: "Kimi K2.7 Code is a 1T-parameter MoE model with 32B active parameters purpose-built for long-horizon agentic coding and software engineering"
     roles: [chat, edit]
     capabilities: [tool_calling]
     input_types: [text]
     output_types: [text]
-    release_date: 2026-02-11
-    cost: {input: 1, output: 3.2}
 
-  - name: Kimi K2.5
-    model: moonshotai/Kimi-K2.5
-    description: "Moonshot AI's native multimodal model, delivering state-of-the-art visual coding capability and a self-directed agent swarm paradigm"
+  - name: Moonshot AI Kimi K2.6
+    model: moonshotai/Kimi-K2.6
+    description: "Kimi K2.6 is a multimodal Mixture-of-Experts language model featuring 32 billion activated parameters and a total of 1 trillion parameters"
     roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
+    capabilities: [tool_calling]
     input_types: [text, image]
     output_types: [text]
-    release_date: 2026-01-27
-    cost: {input: 0.5, output: 2.85}
-
-  - name: DeepSeek V3.1
-    model: deepseek-ai/DeepSeek-V3.1
-    description: "Large hybrid reasoning model (671B parameters, 37B active) that supports both thinking and non-thinking modes via prompt templates"
-    roles: [chat, edit]
-    capabilities: [tool_calling]
-    input_types: [text]
-    output_types: [text]
-    release_date: 2025-08-21
-    cost: {input: 0.55, output: 1.65}
 
   - name: gpt-oss-120b
     model: openai/gpt-oss-120b
@@ -690,7 +699,7 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2025-08-05
-    cost: {input: 0.15, output: 0.6}
+    cost: { input: 0.15, output: 0.6 }
 
   - name: gpt-oss-20b
     model: openai/gpt-oss-20b
@@ -700,27 +709,31 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2025-08-05
-    cost: {input: 0.05, output: 0.2}
+    cost: { input: 0.05, output: 0.2 }
 
-  - name: Qwen3 30B A3B Instruct 2507
-    model: Qwen/Qwen3-30B-A3B-Instruct-2507
-    description: "30.5B-parameter mixture-of-experts language model from Qwen, with 3.3B active parameters per inference"
+  - name: Qwen3.6 35B A3B
+    model: Qwen/Qwen3.6-35B-A3B
+    description: "Qwen3.6-35B-A3B is an MoE multimodal model with 262K context optimized for agentic coding workflows"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+
+  - name: Qwen3.6 27B
+    model: Qwen/Qwen3.6-27B
+    description: "Qwen3.6-27B is a 27B dense multimodal model with 262K context built for flagship-level agentic coding"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+
+  - name: JetBrains Mellum2 12B A2.5B
+    model: JetBrains/Mellum2-12B-A2.5B-Instruct
+    description: "Mellum2-12B-A2.5B-Instruct is a fast MoE model with 131K context built for coding, tool use, and low-latency AI workflows"
     roles: [chat, edit]
     capabilities: [tool_calling]
     input_types: [text]
     output_types: [text]
-    release_date: 2025-07-29
-    cost: {input: 0.1, output: 0.3}
-
-  - name: Qwen3-235B-A22B-Thinking-2507
-    model: Qwen/Qwen3-235B-A22B-Thinking-2507
-    description: "High-performance, open-weight Mixture-of-Experts (MoE) language model optimized for complex reasoning tasks"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text]
-    output_types: [text]
-    release_date: 2025-07-25
-    cost: {input: 0.1, output: 0.1}
 
 opencode-go:
   - name: DeepSeek V4 Flash
@@ -731,7 +744,7 @@ opencode-go:
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-24
-    cost: {input: 0.14, output: 0.28}
+    cost: { input: 0.14, output: 0.28 }
 
   - name: DeepSeek V4 Pro
     model: deepseek-v4-pro
@@ -741,7 +754,7 @@ opencode-go:
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-24
-    cost: {input: 1.74, output: 3.48}
+    cost: { input: 1.74, output: 3.48 }
 
   - name: Kimi K2.7 Code
     model: kimi-k2.7-code
@@ -751,7 +764,7 @@ opencode-go:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-06-12
-    cost: {input: 0.95, output: 4}
+    cost: { input: 0.95, output: 4 }
 
   - name: Kimi K2.6
     model: kimi-k2.6
@@ -761,7 +774,7 @@ opencode-go:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-04-21
-    cost: {input: 0.95, output: 4}
+    cost: { input: 0.95, output: 4 }
 
   - name: GLM 5.2
     model: glm-5.2
@@ -771,7 +784,7 @@ opencode-go:
     input_types: [text]
     output_types: [text]
     release_date: 2026-06-13
-    cost: {input: 1.4, output: 4.4}
+    cost: { input: 1.4, output: 4.4 }
 
   - name: GLM-5.1
     model: glm-5.1
@@ -781,7 +794,7 @@ opencode-go:
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-07
-    cost: {input: 1.4, output: 4.4}
+    cost: { input: 1.4, output: 4.4 }
 
   - name: Qwen3.7 Plus
     model: qwen3.7-plus
@@ -791,7 +804,7 @@ opencode-go:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-06-02
-    cost: {input: 0.4, output: 1.6}
+    cost: { input: 0.4, output: 1.6 }
 
   - name: Qwen3.7 Max
     model: qwen3.7-max
@@ -801,7 +814,7 @@ opencode-go:
     input_types: [text]
     output_types: [text]
     release_date: 2026-05-21
-    cost: {input: 2.5, output: 7.5}
+    cost: { input: 2.5, output: 7.5 }
 
   - name: Qwen3.6 Plus
     model: qwen3.6-plus
@@ -811,7 +824,7 @@ opencode-go:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-04-02
-    cost: {input: 0.5, output: 3}
+    cost: { input: 0.5, output: 3 }
 
   - name: MiniMax M3 (3x usage)
     model: minimax-m3
@@ -821,7 +834,7 @@ opencode-go:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-05-31
-    cost: {input: 0.1, output: 0.4}
+    cost: { input: 0.1, output: 0.4 }
 
   - name: MiniMax M2.7
     model: minimax-m2.7
@@ -831,7 +844,7 @@ opencode-go:
     input_types: [text]
     output_types: [text]
     release_date: 2026-03-18
-    cost: {input: 0.3, output: 1.2}
+    cost: { input: 0.3, output: 1.2 }
 
   - name: MiMo V2.5
     model: mimo-v2.5
@@ -841,7 +854,7 @@ opencode-go:
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-04-22
-    cost: {input: 0.4, output: 2}
+    cost: { input: 0.4, output: 2 }
 
   - name: MiMo V2.5 Pro
     model: mimo-v2.5-pro
@@ -851,4 +864,4 @@ opencode-go:
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-22
-    cost: {input: 1, output: 3}
+    cost: { input: 1, output: 3 }
