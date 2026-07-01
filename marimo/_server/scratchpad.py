@@ -341,8 +341,16 @@ async def run_scratchpad_code(
     run_id = str(uuid4())
     listener = ScratchCellListener(run_id=run_id)
 
-    with session.scoped(listener):
-        async with session.scratchpad_lock:
+    # Register the listener *inside* the scratchpad lock — same reasoning as
+    # the `/api/kernel/execute` endpoint. Every scoped listener receives
+    # every cell notification, and scratch console output is not tagged with
+    # our `run_id` (it rides on `CellNotification`s whose `run_id` is None),
+    # so it can't be filtered per-run. Scoping before the lock would let a
+    # concurrent scratch execution waiting on the lock accumulate this run's
+    # console output and replay it. Taking the lock first keeps only the
+    # running execute's listener live.
+    async with session.scratchpad_lock:
+        with session.scoped(listener):
             notebook_cells, cell_outputs = snapshot_for_scratchpad(session)
             session.put_control_request(
                 ExecuteScratchpadCommand(

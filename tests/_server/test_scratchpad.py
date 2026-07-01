@@ -965,3 +965,212 @@ class TestRunScratchpadCode:
 
         assert result.success is False
         assert result.errors == ["cell 'child-cell' raised ZeroDivisionError"]
+
+
+class _BroadcastingFakeSession:
+    """Fake `Session` modelling two overlapping scratch executes on ONE
+    session.
+
+    Unlike `_FakeSession`, this mirrors the production `Session` where
+    `extensions` (an `ExtensionRegistry`) delivers *every* notification to
+    *every* attached listener. It uses a real `scratchpad_lock` so two concurrent
+    `run_scratchpad_code` calls serialize exactly as in production, and it
+    lets the test drive each run's notifications explicitly via
+    `emit_child_error` / `complete`.
+    """
+
+    def __init__(self) -> None:
+        self.scratchpad_lock = asyncio.Lock()
+        self.scoped_listeners: set[ScratchCellListener] = set()
+        self.put_run_ids: list[str] = []
+        self.interrupt_count = 0
+        self.document = SimpleNamespace(cells=(), cell_ids=())
+        self.session_view = SimpleNamespace(
+            cell_notifications={},
+            get_cell_outputs=lambda _ids: {},
+            get_cell_console_outputs=lambda _ids: {},
+        )
+
+    def as_session(self) -> Session:
+        return cast("Session", cast(object, self))
+
+    def instantiate(
+        self,
+        request: InstantiateNotebookRequest,
+        *,
+        http_request: HTTPRequest | None,
+    ) -> None:
+        del request, http_request
+
+    @contextmanager
+    def scoped(
+        self, listener: ScratchCellListener
+    ) -> Iterator[ScratchCellListener]:
+        self.scoped_listeners.add(listener)
+        try:
+            yield listener
+        finally:
+            self.scoped_listeners.discard(listener)
+
+    def put_control_request(
+        self,
+        req: CommandMessage,
+        from_consumer_id: object = None,
+    ) -> None:
+        del from_consumer_id
+        if isinstance(req, ExecuteScratchpadCommand):
+            self.put_run_ids.append(req.run_id)
+
+    def try_interrupt(self) -> None:
+        self.interrupt_count += 1
+
+    # -- test drivers: broadcast to ALL currently-scoped listeners --------
+
+    def _broadcast(self, notif: NotificationMessage) -> None:
+        session = self.as_session()
+        msg = serialize_kernel_message(notif)
+        for listener in list(self.scoped_listeners):
+            listener.on_notification_sent(session, msg)
+
+    def emit_child_error(self, cell_id: str) -> None:
+        self._broadcast(
+            CellNotification(
+                cell_id=cast("CellId_t", cell_id),
+                output=CellOutput.errors(
+                    [
+                        MarimoExceptionRaisedError(
+                            msg="boom",
+                            exception_type="RuntimeError",
+                            raising_cell=None,
+                        )
+                    ]
+                ),
+                console=None,
+                status="idle",
+            )
+        )
+
+    def complete(self, run_id: str) -> None:
+        self._broadcast(CompletedRunNotification(run_id=run_id))
+
+
+class TestConcurrentScratchpadIsolation:
+    """Two overlapping scratch executes on one session must not
+    cross-deliver console / child-cell errors (follow-up to #9350,
+    which scoped only the completion sentinel by `run_id`).
+
+    Scratch executions share one `SCRATCH_CELL_ID` and their
+    `CellNotification`s are NOT tagged with the requesting run's
+    `run_id` (it is `None`), so the listener cannot filter them per run.
+    Isolation instead relies on registering the listener only while the
+    `scratchpad_lock` is held — a second execute waiting on the lock must
+    not have a live listener accumulating the running execute's output.
+    """
+
+    @staticmethod
+    async def _advance(times: int = 20) -> None:
+        for _ in range(times):
+            await asyncio.sleep(0)
+
+    @pytest.mark.asyncio
+    async def test_waiting_execute_is_not_scoped_and_stays_isolated(
+        self,
+    ) -> None:
+        session = _BroadcastingFakeSession()
+        # extract_result short-circuits unless the scratch cell has a
+        # notification; give it an empty idle output (shared cell id).
+        session.session_view.cell_notifications[SCRATCH_CELL_ID] = (
+            CellNotification(
+                cell_id=SCRATCH_CELL_ID,
+                output=CellOutput(
+                    channel=CellChannel.OUTPUT,
+                    mimetype="text/plain",
+                    data="",
+                ),
+                console=None,
+                status="idle",
+            )
+        )
+
+        # Run A starts and holds the lock mid-execution.
+        task_a = asyncio.create_task(
+            run_scratchpad_code(
+                session.as_session(),
+                _build_request(),
+                code="A",
+                server_url="u",
+                auth_token="t",
+            )
+        )
+        await self._advance()
+        assert len(session.put_run_ids) == 1  # A put its command
+        assert len(session.scoped_listeners) == 1  # ...and is scoped
+        run_a = session.put_run_ids[0]
+
+        # Run B starts while A is still running.
+        task_b = asyncio.create_task(
+            run_scratchpad_code(
+                session.as_session(),
+                _build_request(),
+                code="B",
+                server_url="u",
+                auth_token="t",
+            )
+        )
+        await self._advance()
+
+        # The fix: B must NOT be scoped while it waits on the lock, so it
+        # can't accumulate A's output. Before the fix, B scoped its
+        # listener before acquiring the lock, so this would be 2 and B
+        # would receive A's child error below.
+        assert len(session.scoped_listeners) == 1
+        assert session.put_run_ids == [run_a]  # B hasn't put its command
+
+        # A emits a child-cell error, then completes.
+        session.emit_child_error("child-of-A")
+        session.complete(run_a)
+        result_a = await task_a
+
+        # B now acquires the lock, runs cleanly, and completes.
+        await self._advance()
+        assert len(session.put_run_ids) == 2
+        run_b = session.put_run_ids[1]
+        session.complete(run_b)
+        result_b = await task_b
+
+        # A saw its own child error; B saw nothing of A's.
+        assert result_a.success is False
+        assert result_a.errors == ["cell 'child-of-A' raised RuntimeError"]
+        assert result_b.success is True
+        assert result_b.errors == []
+
+    @pytest.mark.asyncio
+    async def test_run_id_none_console_is_not_dropped(self) -> None:
+        """The fix relies on listener-registration ordering, NOT on
+        filtering by `run_id`: scratch console rides on
+        `CellNotification`s whose `run_id` is `None`, so it must always
+        reach the (single, lock-scoped) listener. This guards against a
+        regression where a naive `run_id` filter silently drops it."""
+        listener = ScratchCellListener(run_id=_TEST_RUN_ID)
+        event_bus = MagicMock()
+        session = MagicMock()
+        listener.on_attach(session, event_bus)
+
+        console = CellNotification(
+            cell_id=SCRATCH_CELL_ID,
+            console=CellOutput.stdout("untraced\n"),
+        )
+        assert console.run_id is None  # idle/untraced op carries no run_id
+
+        listener.on_notification_sent(
+            session, serialize_kernel_message(console)
+        )
+        listener.on_notification_sent(
+            session, serialize_kernel_message(_completed_run())
+        )
+
+        events = [event async for event in listener.stream()]
+        assert len(events) == 1
+        name, payload = _parse_sse(events[0])
+        assert name == "stdout"
+        assert payload["data"] == "untraced\n"
