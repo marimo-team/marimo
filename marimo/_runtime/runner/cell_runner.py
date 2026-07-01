@@ -462,7 +462,7 @@ class Runner:
         try:
             raw_result = await self.evaluate_interruptible(cell)
         except BaseException:
-            LOGGER.error(UNKNOWN_ERROR)
+            LOGGER.exception(UNKNOWN_ERROR)
             raw_result = RunResult(output=None, exception=None)
 
         # Soft-cancel control signal from a lifecycle.
@@ -472,7 +472,7 @@ class Runner:
         try:
             run_result = self._finalize_run_result(raw_result, cell_id)
         except BaseException:
-            LOGGER.error(UNKNOWN_ERROR)
+            LOGGER.exception(UNKNOWN_ERROR)
             run_result = RunResult(output=None, exception=None)
 
         # Mark as interrupted if the cell raised a MarimoInterrupt

@@ -225,7 +225,7 @@ class TestCachedLifecycleIntegration:
             ld for ld in tracked_loaders if ld not in loaders_before_second
         ]
         assert new_loaders, "Expected a fresh LazyLoader for the second run"
-        assert any(ld._hits > 0 for ld in new_loaders), (
+        assert any(ld.hits > 0 for ld in new_loaders), (
             "Expected the second run's LazyLoader to record a cache hit"
         )
 
@@ -261,7 +261,7 @@ class TestCachedLifecycleIntegration:
 
         # Body skipped — `f` in scope is the UnhashableStub marker.
         assert isinstance(k.globals.get("f"), UnhashableStub)
-        assert any(ld._hits > 0 for ld in new_loaders)
+        assert any(ld.hits > 0 for ld in new_loaders)
 
     async def test_failed_run_not_cached(
         self,
@@ -284,7 +284,7 @@ class TestCachedLifecycleIntegration:
             ld for ld in tracked_loaders if ld not in loaders_before_second
         ]
         assert new_loaders
-        assert all(ld._hits == 0 for ld in new_loaders)
+        assert all(ld.hits == 0 for ld in new_loaders)
 
     @requires_stub_loader
     async def test_consumer_calling_lambda_recovers(

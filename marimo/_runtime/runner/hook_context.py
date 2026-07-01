@@ -46,10 +46,21 @@ class CancelledCells:
         """Un-cancel a cell
 
         That is remove it from the cancelled set and any descendant sets."""
-        self._all.discard(cell_id)
         self._by_raising_cell.pop(cell_id, None)
-        for descendants in self._by_raising_cell.values():
+        for raising_cell in list(self._by_raising_cell):
+            descendants = self._by_raising_cell[raising_cell]
             descendants.discard(cell_id)
+            # A raiser with no cancelled descendants left is no longer a
+            # cancellation record; drop it so iteration and __bool__ stay honest.
+            if not descendants:
+                del self._by_raising_cell[raising_cell]
+        # Rebuild the flat view from what remains; otherwise popping a raiser
+        # above strands its descendants in _all, breaking the union invariant.
+        self._all = (
+            set().union(*self._by_raising_cell.values())
+            if self._by_raising_cell
+            else set()
+        )
 
     def __contains__(self, cell_id: object) -> bool:
         """O(1) check if a cell has been cancelled."""

@@ -142,7 +142,7 @@ class CachedLifecycle:
         if run_result.exception is not None:
             return
 
-        runtime = time.time() - (exec_start if exec_start else time.time())
+        runtime = (time.time() - exec_start) if exec_start else 0.0
         try:
             attempt.update(
                 {**glbls},
