@@ -49,7 +49,7 @@ import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSplitCellCallback } from "../useSplitCell";
 import { CodePlaceholder } from "./code-placeholder";
 import { LanguageToggles } from "./language-toggle";
-import type { CellOutputPosition } from "../../renderers/types";
+import type { CellOutputPosition } from "@/core/config/config-schema";
 
 export interface CellEditorProps
   extends

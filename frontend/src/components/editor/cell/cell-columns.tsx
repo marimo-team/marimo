@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type React from "react";
 import { cn } from "@/utils/cn";
-import type { CellOutputPosition } from "../renderers/types";
+import type { CellOutputPosition } from "@/core/config/config-schema";
 
 /**
  * Side-by-side cell layout: the code editor and the cell output sit in two

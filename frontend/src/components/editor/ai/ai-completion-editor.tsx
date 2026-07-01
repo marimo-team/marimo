@@ -46,7 +46,7 @@ import {
 } from "./completion-handlers";
 import { addContextCompletion, getAICompletionBody } from "./completion-utils";
 import { stagedAICellsAtom } from "@/core/ai/staged-cells";
-import type { CellOutputPosition } from "../renderers/types";
+import type { CellOutputPosition } from "@/core/config/config-schema";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;

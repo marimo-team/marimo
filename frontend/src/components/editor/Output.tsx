@@ -34,7 +34,7 @@ import { Tooltip } from "../ui/tooltip";
 import { CsvViewer } from "./file-tree/renderers";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 import { renderMimeIcon } from "./renderMimeIcon";
-import type { CellOutputPosition } from "./renderers/types";
+import type { CellOutputPosition } from "@/core/config/config-schema";
 import {
   type OutputCollapseChrome,
   OutputChrome,

@@ -54,7 +54,6 @@ import { Filenames } from "@/utils/filenames";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { cellDomProps } from "../../common";
 import {
-  type CellOutputPosition,
   type ICellRendererPlugin,
   type ICellRendererProps,
   isSideBySideCellOutput,
@@ -62,6 +61,7 @@ import {
 } from "../types";
 import { useDelayVisibility } from "./useDelayVisibility";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
+import type { CellOutputPosition } from "@/core/config/config-schema";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;

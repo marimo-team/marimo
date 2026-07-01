@@ -11,7 +11,7 @@ import type React from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
-import type { CellOutputPosition } from "../../renderers/types";
+import type { CellOutputPosition } from "@/core/config/config-schema";
 import { CellChromeItem, CellChromeRail } from "./cell-chrome-rail";
 import {
   CELL_CHROME_ICON_CLASS,

@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { CellOutputPosition } from "../../renderers/types";
+import type { CellOutputPosition } from "@/core/config/config-schema";
 
 export const CELL_CHROME_VERTICAL_GAP = "gap-0.5";
 export const CELL_CHROME_ICON_CLASS = "size-4 opacity-60 hover:opacity-80";
