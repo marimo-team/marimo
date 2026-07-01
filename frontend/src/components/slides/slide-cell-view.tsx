@@ -96,6 +96,9 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
       cellId={cell.id}
       status={cell.status}
       output={cell.output}
+      interrupted={cell.interrupted}
+      staleInputs={cell.staleInputs}
+      runStartTimestamp={cell.runStartTimestamp}
     />
   );
 
@@ -198,6 +201,9 @@ export const SlideCellReadOnlyView = ({ cell }: { cell: RuntimeCell }) => {
       cellId={cell.id}
       status={cell.status}
       output={cell.output}
+      interrupted={cell.interrupted}
+      staleInputs={cell.staleInputs}
+      runStartTimestamp={cell.runStartTimestamp}
     />
   );
 

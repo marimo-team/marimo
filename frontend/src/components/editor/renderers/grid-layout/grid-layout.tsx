@@ -35,7 +35,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";
 import { Switch } from "@/components/ui/switch";
-import { outputIsLoading } from "@/core/cells/cell";
+import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
 import type { AppMode } from "@/core/mode";
 import { useIsDragging } from "@/hooks/useIsDragging";
@@ -222,6 +222,9 @@ export const GridLayoutRenderer: React.FC<Props> = ({
               cellId={cell.id}
               output={cell.output}
               status={cell.status}
+              interrupted={cell.interrupted}
+              staleInputs={cell.staleInputs}
+              runStartTimestamp={cell.runStartTimestamp}
               isScrollable={isScrollable}
               side={side}
               hidden={cell.errored || cell.interrupted || cell.stopped}
@@ -288,6 +291,9 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 cellId={cell.id}
                 output={cell.output}
                 status={cell.status}
+                interrupted={cell.interrupted}
+                staleInputs={cell.staleInputs}
+                runStartTimestamp={cell.runStartTimestamp}
                 isScrollable={false}
                 hidden={false}
               />
@@ -358,6 +364,9 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 output={cell.output}
                 isScrollable={false}
                 status={cell.status}
+                interrupted={cell.interrupted}
+                staleInputs={cell.staleInputs}
+                runStartTimestamp={cell.runStartTimestamp}
                 hidden={false}
               />
             </div>
@@ -368,7 +377,10 @@ export const GridLayoutRenderer: React.FC<Props> = ({
   );
 };
 
-interface GridCellProps extends Pick<CellRuntimeState, "output" | "status"> {
+interface GridCellProps extends Pick<
+  CellRuntimeState,
+  "output" | "status" | "interrupted" | "staleInputs" | "runStartTimestamp"
+> {
   className?: string;
   code: string;
   cellId: CellId;
@@ -383,6 +395,9 @@ const GridCell = memo(
     output,
     cellId,
     status,
+    interrupted,
+    staleInputs,
+    runStartTimestamp,
     mode,
     code,
     hidden,
@@ -391,6 +406,14 @@ const GridCell = memo(
     className,
   }: GridCellProps) => {
     const loading = outputIsLoading(status);
+    // Don't grey out the output while it is actively streaming (e.g. a
+    // spinner via mo.status.spinner); use outputIsStale so the
+    // "output received while running" exemption applies, matching the
+    // vertical layout. See issue #1587.
+    const stale = outputIsStale(
+      { status, output, interrupted, runStartTimestamp, staleInputs },
+      false,
+    );
 
     const isOutputEmpty = output == null || output.data === "";
     // If not reading, show code when there is no output
@@ -415,7 +438,7 @@ const GridCell = memo(
           allowExpand={false}
           output={output}
           cellId={cellId}
-          stale={loading}
+          stale={stale}
           loading={loading}
         />
       </div>

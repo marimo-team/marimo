@@ -670,7 +670,14 @@ const SlideThumbnailCard = ({
           {isNoOutput ? (
             <MiniCodePreview code={cell.code} />
           ) : (
-            <Slide cellId={cell.id} status={cell.status} output={cell.output} />
+            <Slide
+              cellId={cell.id}
+              status={cell.status}
+              output={cell.output}
+              interrupted={cell.interrupted}
+              staleInputs={cell.staleInputs}
+              runStartTimestamp={cell.runStartTimestamp}
+            />
           )}
         </div>
       )}

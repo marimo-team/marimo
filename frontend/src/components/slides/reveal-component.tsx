@@ -333,6 +333,9 @@ const SubslideView = ({
                     cellId={cell.id}
                     status={cell.status}
                     output={cell.output}
+                    interrupted={cell.interrupted}
+                    staleInputs={cell.staleInputs}
+                    runStartTimestamp={cell.runStartTimestamp}
                   />
                 );
               }
@@ -397,6 +400,9 @@ const ParkedPreviewContent = ({
       cellId={cell.id}
       status={cell.status}
       output={cell.output}
+      interrupted={cell.interrupted}
+      staleInputs={cell.staleInputs}
+      runStartTimestamp={cell.runStartTimestamp}
     />
   );
 };
