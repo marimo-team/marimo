@@ -4994,9 +4994,12 @@ export interface components {
      *         - `overrides`: a dict of keymap actions to their keymap override
      *         - `vimrc`: path to a vimrc file to load keymaps from
      *         - `destructive_delete`: if `True`, allows deleting cells with content.
+     *         - `enter_command_mode_on_escape`: if `True`, pressing Escape in the editor
+     *           will enter command mode. Set to `False` to disable this behavior.
      */
     KeymapConfig: {
       destructive_delete?: boolean;
+      enter_command_mode_on_escape?: boolean;
       overrides?: {
         [key: string]: string;
       };
