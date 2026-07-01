@@ -736,6 +736,7 @@ class Exporter:
             dirpath.mkdir(parents=True, exist_ok=True)
 
         import shutil
+        import stat
 
         shutil.copytree(
             ROOT,
@@ -743,6 +744,9 @@ class Exporter:
             dirs_exist_ok=True,
             ignore=(shutil.ignore_patterns("index.html")),
         )
+        # copytree calls copystat() which may copy read-only permissions from the source (e.g., /nix/store) to the output directory.
+        # Restore the write bit so marimo can create additional files.
+        dirpath.chmod(dirpath.stat().st_mode | stat.S_IWUSR)
 
     def export_public_folder(
         self, directory: Path, marimo_file: MarimoPath
