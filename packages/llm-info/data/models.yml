@@ -646,7 +646,7 @@ wandb:
     input_types: [text]
     output_types: [text]
 
-  - name: GLM-5.1
+  - name: Z.AI GLM-5.1
     model: zai-org/GLM-5.1
     description: "GLM-5.1 delivers a major leap in coding capability, with particularly significant gains in handling long-horizon tasks"
     roles: [chat, edit]
