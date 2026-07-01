@@ -140,7 +140,8 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
     return null;
   }
 
-  if (!isAnyWidgetModule(jsModule)) {
+  const widget = resolveAnyWidget(jsModule, jsUrl);
+  if (!widget) {
     return (
       <ErrorBanner error={getInvalidAnyWidgetModuleError(jsModule, jsUrl)} />
     );
@@ -150,7 +151,7 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
     <LoadedSlot
       // Force remount when the widget module or model changes (cell re-run).
       key={`${jsHash}:${modelId}`}
-      widget={jsModule.default}
+      widget={widget}
       modelId={modelId}
       host={host}
     />
@@ -198,6 +199,45 @@ function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
     typeof mod.default?.render === "function" ||
     typeof mod.default?.initialize === "function"
   );
+}
+
+const warnedLegacyNamedExportUrls = new Set<string>();
+
+/**
+ * Resolve the {@link AnyWidget} from a loaded ES module.
+ *
+ * Prefers the AFM-spec default export. Falls back to legacy top-level named
+ * `render`/`initialize` exports — which anywidget's own runtime still supports
+ * (with a deprecation warning) — by synthesizing a widget object, so widgets
+ * that render in Jupyter/Colab also render in marimo instead of being rejected.
+ *
+ * Returns `null` if the module is not a valid anywidget.
+ */
+function resolveAnyWidget(mod: any, jsUrl: string): AnyWidget | null {
+  if (isAnyWidgetModule(mod)) {
+    return mod.default;
+  }
+
+  // Legacy (pre-AFM): top-level named `render`/`initialize` exports.
+  const hasNamedRender = typeof mod?.render === "function";
+  const hasNamedInitialize = typeof mod?.initialize === "function";
+  if (hasNamedRender || hasNamedInitialize) {
+    if (!warnedLegacyNamedExportUrls.has(jsUrl)) {
+      warnedLegacyNamedExportUrls.add(jsUrl);
+      Logger.warn(
+        `Anywidget module at ${jsUrl} uses deprecated top-level named ` +
+          "exports (`render`/`initialize`). Per the AFM spec, use a default " +
+          "export instead: `export default { render }`. " +
+          "See https://anywidget.dev/en/afm/",
+      );
+    }
+    return {
+      render: mod.render,
+      initialize: mod.initialize,
+    };
+  }
+
+  return null;
 }
 
 function getInvalidAnyWidgetModuleError(mod: unknown, jsUrl: string): Error {
@@ -296,5 +336,6 @@ export const visibleForTesting = {
   LoadedSlot,
   runAnyWidgetModule,
   isAnyWidgetModule,
+  resolveAnyWidget,
   getInvalidAnyWidgetModuleError,
 };
