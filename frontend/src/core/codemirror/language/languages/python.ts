@@ -31,6 +31,7 @@ import { Logger } from "@/utils/Logger";
 import { once } from "@/utils/once";
 import { cellActionsState } from "../../cells/state";
 import { pythonCompletionSource } from "../../completion/completer";
+import { signatureHintField } from "../../completion/signature-hint";
 import type { PlaceholderType } from "../../config/types";
 import { FederatedLanguageServerClient } from "../../lsp/federated-lsp";
 import { createLspMarkdownRenderer } from "../../lsp/markdown-renderer";
@@ -376,10 +377,15 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
         ];
       }
 
-      return autocompletion({
-        ...autocompleteOptions,
-        override: [pythonCompletionSource],
-      });
+      return [
+        autocompletion({
+          ...autocompleteOptions,
+          override: [pythonCompletionSource],
+        }),
+        // The Jedi path has no built-in signature help; show a floating hint
+        // fed by `pythonCompletionSource` (the LSP path handles this itself).
+        signatureHintField,
+      ];
     };
 
     return [
