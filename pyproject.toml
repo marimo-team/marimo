@@ -314,7 +314,7 @@ exclude = [
     "frontend",
     "marimo/_smoke_tests",
     "marimo/_snippets/data",
-    "marimo/_static/files/wasm-intro.py",
+    "marimo/_static/export_demos/wasm-intro.py",
     "marimo/_test_utils/_tutorials",
     "marimo/_test_utils/codegen_data",
     "marimo/_tutorials",
