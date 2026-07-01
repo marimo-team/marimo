@@ -411,6 +411,58 @@ describe("AIContextRegistry", () => {
     });
   });
 
+  describe("resolveItems", () => {
+    let mockGetItems: ReturnType<typeof vi.spyOn>;
+    let fileGetItems: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      registry.register(mockProvider);
+      registry.register(fileProvider);
+      mockGetItems = vi.spyOn(mockProvider, "getItems");
+      fileGetItems = vi.spyOn(fileProvider, "getItems");
+    });
+
+    it("should resolve valid IDs from the matching providers only", () => {
+      const resolved = registry.resolveItems([
+        "mock://item1",
+        "file://config.py",
+      ] as ContextLocatorId[]);
+
+      expect(resolved).toHaveLength(2);
+      expect(resolved.map((item) => item.uri)).toEqual([
+        "mock://item1",
+        "file://config.py",
+      ]);
+      expect(mockGetItems).toHaveBeenCalledTimes(1);
+      expect(fileGetItems).toHaveBeenCalledTimes(1);
+    });
+
+    it("should not call unrelated providers", () => {
+      registry.resolveItems(["mock://item1"] as ContextLocatorId[]);
+
+      expect(mockGetItems).toHaveBeenCalledTimes(1);
+      expect(fileGetItems).not.toHaveBeenCalled();
+    });
+
+    it("should ignore unknown or invalid URIs", () => {
+      const resolved = registry.resolveItems([
+        "mock://nonexistent",
+        "unknown://item",
+        "malformed" as ContextLocatorId,
+      ] as ContextLocatorId[]);
+
+      expect(resolved).toEqual([]);
+      expect(mockGetItems).toHaveBeenCalledTimes(1);
+      expect(fileGetItems).not.toHaveBeenCalled();
+    });
+
+    it("should return empty array for empty input", () => {
+      expect(registry.resolveItems([])).toEqual([]);
+      expect(mockGetItems).not.toHaveBeenCalled();
+      expect(fileGetItems).not.toHaveBeenCalled();
+    });
+  });
+
   describe("getContextInfo", () => {
     beforeEach(() => {
       registry.register(mockProvider);
@@ -621,7 +673,7 @@ describe("AIContextRegistry", () => {
       expect(provider).toBe(errorProvider);
 
       const items = registry.getAllItems();
-      expect(items).toHaveLength(1);
+      expect(items).toHaveLength(3);
       expect(items[0].type).toBe("error");
       expect(items[0].name).toBe("Errors");
     });
@@ -654,7 +706,7 @@ describe("AIContextRegistry", () => {
       expect(provider).toBeDefined();
 
       const items = provider!.getItems();
-      expect(items).toHaveLength(1);
+      expect(items).toHaveLength(3);
 
       const completion = provider!.formatCompletion(items[0]);
       expect(completion.label).toBe("@Errors");
@@ -690,7 +742,7 @@ describe("AIContextRegistry", () => {
       const errorItems = items.filter((item) => item.type === "error");
       const mockItems = items.filter((item) => item.type === "mock");
 
-      expect(errorItems).toHaveLength(1);
+      expect(errorItems).toHaveLength(3);
       expect(mockItems).toHaveLength(3);
     });
 

@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
+import { createStore } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
 import { cellId, variableName } from "@/__tests__/branded";
 import type {
@@ -634,7 +635,8 @@ describe("DatasourceContextProvider", () => {
 
 describe("getDatasourceContext", () => {
   it("should return null if no cell ID is found", () => {
-    const context = getDatasourceContext(cellId("1"));
+    const store = createStore();
+    const context = getDatasourceContext(cellId("1"), store);
     expect(context).toBeNull();
   });
 });
