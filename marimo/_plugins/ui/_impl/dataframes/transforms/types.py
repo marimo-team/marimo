@@ -207,7 +207,15 @@ class SortColumnTransform:
 class FilterRowsTransform:
     type: Literal[TransformType.FILTER_ROWS]
     operation: Literal["keep_rows", "remove_rows"]
-    where: FilterGroup
+    # Accept the legacy flat list-of-conditions shape in addition to a
+    # FilterGroup. The DataFramePlugin frontend can still emit a bare list of
+    # conditions (e.g. on `.form()` submit before the value is normalized),
+    # which would otherwise fail to parse and silently drop the filter.
+    where: Union[FilterGroup, list[FilterCondition]]
+
+    def __post_init__(self) -> None:
+        if isinstance(self.where, list):
+            self.where = conditions_to_filter_group(self.where)
 
 
 @dataclass

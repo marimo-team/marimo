@@ -463,6 +463,46 @@ class TestDataframes:
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
+    def test_dataframe_filter_rows_accepts_legacy_where_list() -> None:
+        # Regression test for #7433: a filter_rows transform whose `where` is a
+        # bare list of conditions (the legacy, pre-FilterGroup wire shape the
+        # DataFramePlugin can still emit on `.form()` submit) must filter the
+        # data rather than fail to parse and silently return the original df.
+        df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [25, 30, 35],
+            }
+        )
+        subject = ui.dataframe(df)
+
+        result = subject._convert_value(
+            {
+                "transforms": [
+                    {
+                        "type": "filter_rows",
+                        "operation": "keep_rows",
+                        "where": [
+                            {
+                                "type": "condition",
+                                "column_id": "age",
+                                "operator": ">",
+                                "value": 27,
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+
+        assert subject._error is None
+        assert type(result) is type(df)
+        assert sorted(result["name"].tolist()) == ["Bob", "Charlie"]
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
     def test_dataframe_download_empty() -> None:
         df = pd.DataFrame({"A": [], "B": []})
         subject = ui.dataframe(df)
