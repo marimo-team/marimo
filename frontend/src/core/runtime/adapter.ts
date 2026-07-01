@@ -27,6 +27,14 @@ export interface RuntimeCapabilities {
   supportsLsp: boolean;
 }
 
+/** Runtimes with no server-side kernel to manage (wasm, static, islands). */
+const NO_CAPABILITIES: RuntimeCapabilities = {
+  canHealthCheck: false,
+  canShutdown: false,
+  canRestart: false,
+  supportsLsp: false,
+};
+
 /**
  * One adapter per runtime so consumers don't branch on `isWasm()` /
  * `isStaticNotebook()` / `isIslands()` at the call site.
@@ -59,12 +67,7 @@ const wasmStateAtom = atom<AdapterState>((get) => {
 export const wasmAdapter: RuntimeAdapter = {
   kind: "wasm",
   label: "Pyodide",
-  capabilities: {
-    canHealthCheck: false,
-    canShutdown: false,
-    canRestart: false,
-    supportsLsp: false,
-  },
+  capabilities: NO_CAPABILITIES,
   state: wasmStateAtom,
 };
 
@@ -113,12 +116,7 @@ const staticStateAtom = atom<AdapterState>({ kind: "ready" });
 export const staticAdapter: RuntimeAdapter = {
   kind: "static",
   label: "Static",
-  capabilities: {
-    canHealthCheck: false,
-    canShutdown: false,
-    canRestart: false,
-    supportsLsp: false,
-  },
+  capabilities: NO_CAPABILITIES,
   state: staticStateAtom,
 };
 
@@ -144,12 +142,7 @@ const islandsStateAtom = atom<AdapterState>((get) => {
 export const islandsAdapter: RuntimeAdapter = {
   kind: "islands",
   label: "Islands",
-  capabilities: {
-    canHealthCheck: false,
-    canShutdown: false,
-    canRestart: false,
-    supportsLsp: false,
-  },
+  capabilities: NO_CAPABILITIES,
   state: islandsStateAtom,
 };
 

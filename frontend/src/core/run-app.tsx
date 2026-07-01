@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtomValue } from "jotai";
+import { atom, useAtomValue } from "jotai";
 import { ArrowLeftIcon } from "lucide-react";
 import { useEffect } from "react";
 import { AppContainer } from "@/components/editor/app-container";
@@ -18,12 +18,24 @@ import {
 import type { AppConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
+import { connectionAtom } from "./network/connection";
 import { useRequestClient } from "./network/requests";
+import { isAppConnecting } from "./websocket/connection-utils";
 import { useMarimoKernelConnection } from "./websocket/useMarimoKernelConnection";
 
 interface AppProps {
   appConfig: AppConfig;
 }
+
+/**
+ * Paint the (possibly empty) app once we have cells, or as soon as we are no
+ * longer actively connecting. Without the connection check, a connected or
+ * disconnected notebook with no cells would sit on a misleading "Connecting…"
+ * spinner instead of rendering the empty app.
+ */
+const canPaintRunAppAtom = atom(
+  (get) => get(hasCellsAtom) || !isAppConnecting(get(connectionAtom).state),
+);
 
 export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
   const { setCells } = useCellActions();
@@ -83,7 +95,7 @@ export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
         )}
       </AppHeader>
       <ProgressiveBoundary
-        requires={hasCellsAtom}
+        requires={canPaintRunAppAtom}
         delay={2000}
         fallback={
           <>

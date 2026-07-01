@@ -104,6 +104,29 @@ describe("ProgressiveBoundary", () => {
     expect(screen.getByText("wait")).toBeInTheDocument();
   });
 
+  it("re-arms the delay when the gate closes again", () => {
+    const capability = atom(true);
+    render(
+      <ProgressiveBoundary
+        requires={capability}
+        delay={2000}
+        fallback={<span>wait</span>}
+      >
+        <span>content</span>
+      </ProgressiveBoundary>,
+      { wrapper },
+    );
+    expect(screen.getByText("content")).toBeInTheDocument();
+
+    // Gate closes: fallback should stay suppressed until the delay re-elapses.
+    act(() => store.set(capability, false));
+    expect(screen.queryByText("wait")).not.toBeInTheDocument();
+    expect(screen.queryByText("content")).not.toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(2000));
+    expect(screen.getByText("wait")).toBeInTheDocument();
+  });
+
   it("skips the fallback entirely if the gate opens before the delay", () => {
     const capability = atom(false);
     render(

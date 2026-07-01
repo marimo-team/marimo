@@ -27,7 +27,10 @@ export const ProgressiveBoundary: React.FC<PropsWithChildren<Props>> = ({
   children,
 }) => {
   const ready = useAtomValue(requires);
-  const delayElapsed = useDelayElapsed(delay);
+  // Key the delay off `ready` so the suppression window re-arms whenever the
+  // gate closes again — otherwise a `true → false` flip would show the
+  // fallback immediately and reintroduce the flash `delay` is meant to avoid.
+  const delayElapsed = useDelayElapsed(ready ? 0 : delay);
 
   if (ready) {
     return children;
