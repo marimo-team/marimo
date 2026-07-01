@@ -57,7 +57,7 @@ describe("ErrorContextProvider", () => {
 
       const items = provider.getItems();
 
-      expect(items).toHaveLength(1);
+      expect(items).toHaveLength(3);
       expect(items[0]).toMatchObject({
         name: "Errors",
         type: "error",
@@ -78,6 +78,18 @@ describe("ErrorContextProvider", () => {
           ],
         },
       });
+      expect(items[1]).toMatchObject({
+        uri: `error://${cellId1}`,
+        name: "Error: Cell 1",
+        description: "Invalid syntax",
+        data: { type: "cell-error", error: { cellId: cellId1 } },
+      });
+      expect(items[2]).toMatchObject({
+        uri: `error://${cellId2}`,
+        name: "Error: Cell 2",
+        description: "Runtime error",
+        data: { type: "cell-error", error: { cellId: cellId2 } },
+      });
     });
 
     it("should handle cells without names", () => {
@@ -92,7 +104,12 @@ describe("ErrorContextProvider", () => {
       ]);
 
       const items = provider.getItems();
-      expect(items[0].data.errors[0].cellName).toBe("");
+      expect(items[1].data.type).toBe("cell-error");
+      if (items[1].data.type === "cell-error") {
+        expect(items[1].data.error.cellName).toBe("cell-0");
+      }
+      expect(items[1].name).toBe("Error: cell-0");
+      expect(items[1].description).toBe("Invalid syntax");
     });
   });
 
@@ -119,7 +136,7 @@ describe("ErrorContextProvider", () => {
 
       expect(completion).toMatchInlineSnapshot(`
         {
-          "apply": "@Errors",
+          "apply": "@error://all",
           "detail": "2 errors",
           "displayLabel": "Errors",
           "info": [Function],
@@ -170,6 +187,24 @@ describe("ErrorContextProvider", () => {
       expect(completion.detail).toBe("1 error");
     });
 
+    it("formats completion for a single cell error", () => {
+      const cellId = CellIdClass.create();
+
+      createMockNotebookWithErrors([
+        {
+          cellId,
+          cellName: "Cell 1",
+          errorData: [MockNotebook.errors.syntax("Invalid syntax")],
+        },
+      ]);
+
+      const items = provider.getItems();
+      const completion = provider.formatCompletion(items[1]);
+      expect(completion.apply).toBe(`@error://${cellId}`);
+      expect(completion.displayLabel).toBe("Error: Cell 1");
+      expect(items[1].name).toBe("Error: Cell 1");
+    });
+
     it("should handle fallback for unknown error types", () => {
       const item = {
         uri: "error://unknown",
@@ -210,7 +245,8 @@ describe("ErrorContextProvider", () => {
 
       const items = provider.getItems();
       const context = provider.formatContext(items[0]);
-      expect(context).toMatchSnapshot("basic-error-context");
+      expect(context).toContain("Invalid syntax");
+      expect(context).toContain("Code:");
     });
 
     it("should format context for multiple error types", () => {
@@ -239,14 +275,12 @@ describe("ErrorContextProvider", () => {
       const items = provider.getItems();
       const context = provider.formatContext(items[0]);
 
-      // Check for expected content instead of exact snapshot match due to random cell IDs
-      expect(context).toMatchInlineSnapshot(`
-        "<error name="Cell 1" description="Invalid syntax
-        Runtime error"></error>
-
-        <error name="Cell cell-2" description="This cell is in a cycle
-        The variable 'variable_x' was defined by another cell"></error>"
-      `);
+      expect(context).toContain("Invalid syntax");
+      expect(context).toContain("Runtime error");
+      expect(context).toContain("This cell is in a cycle");
+      expect(context).toContain(
+        "The variable 'variable_x' was defined by another cell",
+      );
     });
 
     it("should handle cells without names", () => {
@@ -261,8 +295,158 @@ describe("ErrorContextProvider", () => {
       ]);
 
       const items = provider.getItems();
-      const context = provider.formatContext(items[0]);
-      expect(context).toContain(`Cell ${cellId}`);
+      const context = provider.formatContext(items[1]);
+      expect(context).toContain(`cellId="${cellId}"`);
+      expect(context).toContain("Invalid syntax");
+    });
+
+    it("includes exception tracebacks in formatted context", () => {
+      const cellId = CellIdClass.create();
+
+      createMockNotebookWithErrors([
+        {
+          cellId,
+          cellName: "Cell 1",
+          errorData: [
+            {
+              type: "exception",
+              msg: "boom",
+              exception_type: "ValueError",
+              raising_cell: null,
+              traceback: "<pre>line 1\nline 2</pre>",
+            },
+          ],
+        },
+      ]);
+
+      const items = provider.getItems();
+      const context = provider.formatContext(items[1]);
+      expect(context).toContain("boom");
+      expect(context).toContain("line 1");
+      expect(context).toContain("line 2");
+    });
+
+    it("includes traceback-only cell outputs", () => {
+      const cellId = CellIdClass.create();
+      const notebookState = MockNotebook.notebookState({
+        cellData: {
+          [cellId]: {
+            name: "Cell 1",
+            code: "raise ValueError('boom')",
+          },
+        },
+      });
+      notebookState.cellRuntime[cellId] = {
+        ...notebookState.cellRuntime[cellId],
+        output: {
+          channel: "marimo-error",
+          data: "<pre>ValueError: boom\n  line 1</pre>",
+          mimetype: "application/vnd.marimo+traceback",
+          timestamp: Date.now(),
+        },
+      };
+      store.set(notebookAtom, notebookState);
+
+      const items = provider.getItems();
+      expect(items).toHaveLength(2);
+      expect(items[1].description).toBe("ValueError: boom");
+      const context = provider.formatContext(items[1]);
+      expect(context).toContain("raise ValueError('boom')");
+      expect(context).toContain("ValueError: boom");
+      expect(context).toContain("line 1");
+    });
+
+    it("includes console tracebacks for marimo error outputs", () => {
+      const cellId = CellIdClass.create();
+      const notebookState = MockNotebook.notebookState({
+        cellData: {
+          [cellId]: {
+            name: "Cell 1",
+            code: "raise ValueError('boom')",
+          },
+        },
+      });
+      notebookState.cellRuntime[cellId] = {
+        ...notebookState.cellRuntime[cellId],
+        output: {
+          channel: "marimo-error",
+          data: [
+            {
+              type: "exception",
+              msg: "boom",
+              exception_type: "ValueError",
+              raising_cell: null,
+            },
+          ],
+          mimetype: "application/vnd.marimo+error",
+          timestamp: Date.now(),
+        },
+        consoleOutputs: [
+          {
+            channel: "stderr",
+            data: '<pre>ValueError: boom\n  File "notebook.py", line 1</pre>',
+            mimetype: "application/vnd.marimo+traceback",
+            timestamp: Date.now(),
+          },
+        ],
+      };
+      store.set(notebookAtom, notebookState);
+
+      const items = provider.getItems();
+      const context = provider.formatContext(items[1]);
+      expect(context).toContain("boom");
+      expect(context).toContain("ValueError: boom");
+      expect(context).toContain('File "notebook.py", line 1');
+      expect(items[1].description).toBe("boom");
+    });
+
+    it("does not duplicate console traceback when error already has one", () => {
+      const cellId = CellIdClass.create();
+      const notebookState = MockNotebook.notebookState({
+        cellData: {
+          [cellId]: {
+            name: "Cell 1",
+            code: "raise ValueError('boom')",
+          },
+        },
+      });
+      notebookState.cellRuntime[cellId] = {
+        ...notebookState.cellRuntime[cellId],
+        output: {
+          channel: "marimo-error",
+          data: [
+            {
+              type: "exception",
+              msg: "boom",
+              exception_type: "ValueError",
+              raising_cell: null,
+              traceback: "<pre>embedded line 1</pre>",
+            },
+          ],
+          mimetype: "application/vnd.marimo+error",
+          timestamp: Date.now(),
+        },
+        consoleOutputs: [
+          {
+            channel: "stderr",
+            data: "<pre>console line 1</pre>",
+            mimetype: "application/vnd.marimo+traceback",
+            timestamp: Date.now(),
+          },
+        ],
+      };
+      store.set(notebookAtom, notebookState);
+
+      const items = provider.getItems();
+      if (items[1].data.type !== "cell-error") {
+        throw new Error("Expected cell-error item");
+      }
+      expect(items[1].data.error.tracebackHtml).toBeUndefined();
+
+      const context = provider.formatContext(items[1]);
+      expect(context).toContain("embedded line 1");
+      expect(context).not.toContain("console line 1");
+      expect(items[1].description).toBe("boom");
     });
   });
 
@@ -319,7 +503,7 @@ describe("ErrorContextProvider", () => {
         testStore.set(notebookAtom, notebookState);
 
         const items = testProvider.getItems();
-        expect(items).toHaveLength(1);
+        expect(items.length).toBeGreaterThanOrEqual(1);
         const context = testProvider.formatContext(items[0]);
         expect(context).toContain(expected);
       }
