@@ -290,6 +290,39 @@ async def test_url_spec_tracked_correctly(
     assert results == [(spec, True)]
 
 
+async def test_reconciliation_uses_base_name_for_metadata_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A versioned spec that resolves transitively (no wheel/failed/pyodide
+    entry of its own) is reconciled via `importlib.metadata`. The lookup must
+    use the bare distribution name — `importlib.metadata.version("foo==1.0")`
+    would always raise `PackageNotFoundError` and falsely report a failure."""
+    import importlib.metadata as importlib_metadata
+
+    from marimo._runtime.packages._micropip_streaming import (
+        stream_transaction_install,
+    )
+
+    # Empty transaction: nothing failed, no wheels, no pyodide packages, so the
+    # spec falls through to the final importlib.metadata reconciliation pass.
+    tx = _FakeTransaction()
+    _install_fake_micropip(monkeypatch, tx)
+
+    seen: list[str] = []
+
+    def fake_version(name: str) -> str:
+        seen.append(name)
+        return "1.0"
+
+    monkeypatch.setattr(importlib_metadata, "version", fake_version)
+
+    results = await _drain(stream_transaction_install(["foo==1.0"]))
+    # Reported back with the caller's original spelling, marked installed.
+    assert results == [("foo==1.0", True)]
+    # But looked up by the bare distribution name.
+    assert seen == ["foo"]
+
+
 async def _make_micropip_manager(monkeypatch: Any) -> Any:
     """Build a `MicropipPackageManager` outside Pyodide by stubbing the
     `is_pyodide()` guard that both the constructor path and `stream_install`
