@@ -24,6 +24,7 @@ from marimo._ast.cell import (
     ImportWorkspace,
     SourcePosition,
 )
+from marimo._ast.dedent import smart_dedent
 from marimo._ast.names import SETUP_CELL_NAME, TOPLEVEL_CELL_PREFIX
 from marimo._ast.pytest import has_fixture_decorator
 from marimo._ast.transformers import ContainedExtractWithBlock
@@ -528,7 +529,7 @@ def context_cell_factory(
     end_line = end_node.end_lineno
     if start_node == end_node and lines[end_line - 1].strip() == "pass":
         end_line -= 1
-    cell_code = textwrap.dedent("\n".join(lines[entry_line:end_line])).rstrip()
+    cell_code = smart_dedent("\n".join(lines[entry_line:end_line])).rstrip()
 
     source_position = None
     if not anonymous_file:
@@ -561,7 +562,7 @@ def toplevel_cell_factory(
     definition. As such, signature and return type are important.
     """
     code, lnum = inspect.getsourcelines(obj)
-    function_code = textwrap.dedent("".join(code))
+    function_code = smart_dedent("".join(code))
 
     # We need to scrub through the initial decorator. Since we don't care about
     # indentation etc, easiest just to use AST.
@@ -570,9 +571,7 @@ def toplevel_cell_factory(
     try:
         decorator = tree.body[0].decorator_list.pop(0)  # type: ignore
         # NB. We don't unparse from the AST because it strips comments.
-        cell_code = textwrap.dedent(
-            "".join(code[decorator.end_lineno :])
-        ).strip()
+        cell_code = smart_dedent("".join(code[decorator.end_lineno :])).strip()
     except (IndexError, AttributeError) as e:
         raise ValueError(
             "Unexpected usage (expected decorated function)"
@@ -645,7 +644,7 @@ def cell_factory(
     signature, marimo will autofix them on save.
     """
     code, lnum = inspect.getsourcelines(f)
-    function_code = textwrap.dedent("".join(code))
+    function_code = smart_dedent("".join(code))
 
     extractor = parse.Extractor(contents=function_code)
     func_ast = parse.ast_parse(function_code).body[0]

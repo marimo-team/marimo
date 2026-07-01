@@ -514,7 +514,7 @@ y = 2\
     assert fixed_dedent("") == snapshot("")
 
     # Only whitespace
-    assert fixed_dedent("    ") == snapshot("")
+    assert fixed_dedent("    ") == snapshot("    ")
 
     # Blank lines in middle
     assert fixed_dedent("    x = 1\n\n    y = 2") == snapshot("""\
@@ -531,7 +531,10 @@ x = 1\
 """)
 
     # Trailing blank lines
-    assert fixed_dedent("    x = 1\n\n") == snapshot("x = 1\n")
+    assert fixed_dedent("    x = 1\n\n") == snapshot("""\
+x = 1
+
+""")
 
     # Tabs as indentation
     assert fixed_dedent("\tx = 1\n\ty = 2") == snapshot("""\
@@ -557,7 +560,7 @@ def foo():
     # Multiline string preserved
     assert fixed_dedent('    x = """hello\n    world"""') == snapshot('''\
 x = """hello
-world"""\
+    world"""\
 ''')
 
     # Code with comments
@@ -591,9 +594,9 @@ y = 2\
     ) == snapshot('''\
 """This is a docstring.
 
-Args:
-    x: something
-"""\
+    Args:
+        x: something
+    """\
 ''')
 
     # Single line with indentation
