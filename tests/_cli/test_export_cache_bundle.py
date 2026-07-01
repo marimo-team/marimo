@@ -34,7 +34,9 @@ def _cache_dir(tmp_path: Path) -> Path:
     return cache
 
 
-def _write_manifest(cache: Path, notebook: MarimoPath, keys: list[str]) -> None:
+def _write_manifest(
+    cache: Path, notebook: MarimoPath, keys: list[str]
+) -> None:
     name = export_manifest_name(notebook.absolute_name)
     (cache / name).write_text(json.dumps(keys))
 
