@@ -35,13 +35,14 @@ export const RuntimeStatusBadge: React.FC = () => {
       }
       data-testid="footer-runtime-status"
     >
-      <div
+      <button
+        type="button"
         className="p-1 hover:bg-accent rounded flex items-center gap-1.5 text-xs text-muted-foreground"
         data-testid="runtime-status-footer"
       >
         {icon}
         <span>{adapter.label}</span>
-      </div>
+      </button>
     </Tooltip>
   );
 };

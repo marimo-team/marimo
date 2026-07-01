@@ -46,9 +46,10 @@ describe("useDelayElapsed", () => {
   });
 
   it("clears the timer on unmount", () => {
-    const { result, unmount } = renderHook(() => useDelayElapsed(1000));
+    const { unmount } = renderHook(() => useDelayElapsed(1000));
+    expect(vi.getTimerCount()).toBe(1);
     unmount();
-    act(() => vi.advanceTimersByTime(1000));
-    expect(result.current).toBe(false);
+    // The pending timeout must be cleared, not left dangling.
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

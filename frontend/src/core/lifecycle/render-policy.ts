@@ -73,20 +73,39 @@ function computeRenderPolicy(input: {
   return { showCode, showCachedOutputs, canPaint };
 }
 
-const hasCachedOutputsAtom = atom<boolean>((get) => {
-  const runtimeStates = Object.values(get(notebookAtom).cellRuntime);
-  return runtimeStates.some((runtime) => !isOutputEmpty(runtime.output));
+/**
+ * Both cell-runtime facts the render policy needs, computed in a single pass
+ * over `cellRuntime`:
+ * - `hasCachedOutputs`: any cell has a non-empty output.
+ * - `allCellsIdle`: every cell's status is idle — nothing queued or running.
+ *   Vacuously true for an empty notebook, so `canPaint` still gates on
+ *   `hasCells`.
+ *
+ * Fan out to two boolean selector atoms below so `renderPolicyAtom` only
+ * recomputes when one of the booleans actually flips, not on every notebook
+ * update.
+ */
+const cellRuntimeSummaryAtom = atom((get) => {
+  let hasCachedOutputs = false;
+  let allCellsIdle = true;
+  for (const runtime of Object.values(get(notebookAtom).cellRuntime)) {
+    if (!isOutputEmpty(runtime.output)) {
+      hasCachedOutputs = true;
+    }
+    if (runtime.status !== "idle") {
+      allCellsIdle = false;
+    }
+  }
+  return { hasCachedOutputs, allCellsIdle };
 });
 
-/**
- * True when every cell's runtime status is idle — i.e. nothing is queued or
- * running. Vacuously true for an empty notebook, so `canPaint` still gates on
- * `hasCells`.
- */
-const allCellsIdleAtom = atom<boolean>((get) => {
-  const runtimeStates = Object.values(get(notebookAtom).cellRuntime);
-  return runtimeStates.every((runtime) => runtime.status === "idle");
-});
+const hasCachedOutputsAtom = atom(
+  (get) => get(cellRuntimeSummaryAtom).hasCachedOutputs,
+);
+
+const allCellsIdleAtom = atom(
+  (get) => get(cellRuntimeSummaryAtom).allCellsIdle,
+);
 
 export const renderPolicyAtom = atom<RenderPolicy>((get) =>
   computeRenderPolicy({
