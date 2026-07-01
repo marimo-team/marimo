@@ -138,3 +138,22 @@
   display: inline-block;
   padding: 2px;
 }
+
+/* -- Rename symbol popup (F2) -- */
+/* The popup comes from @marimo-team/codemirror-languageserver, which hardcodes
+  `background: white` and sets no text/background color on the input as inline
+  styles. That is unreadable in dark mode (light text on white). Override with
+  theme tokens so it works in both themes. `!important` is required because the
+  upstream styles are inline. The popup is appended to `document.body`, so it is
+  intentionally not scoped under `#root`. */
+.cm-rename-popup {
+  background: var(--popover) !important;
+  border-color: var(--border) !important;
+  color: var(--popover-foreground) !important;
+}
+
+.cm-rename-popup input {
+  background: var(--background) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
+}
