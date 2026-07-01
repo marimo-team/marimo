@@ -159,7 +159,7 @@ function selectAdapter(): RuntimeAdapter {
   return remoteAdapter;
 }
 
-/** Picked once at mount; the choice doesn't change after page load. */
+/** Picked once at module load; the choice doesn't change after page load. */
 export const runtimeAdapterAtom = atom<RuntimeAdapter>(selectAdapter());
 
 /**
