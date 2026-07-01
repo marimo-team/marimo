@@ -18,10 +18,7 @@ import {
   getAIContextRegistry,
   getFileContextProvider,
 } from "@/core/ai/context/context";
-import type {
-  AIContextItem,
-  ContextLocatorId,
-} from "@/core/ai/context/registry";
+import type { AIContextItem } from "@/core/ai/context/registry";
 import type { JotaiStore } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
 import { contextCallbacks } from "./state";
@@ -100,11 +97,7 @@ export function resourceExtension(opts: {
     resourceDecorations,
     resourceInputFilter,
     // Resolve @-mention chips for programmatic prefills.
-    resourceSync(getResources, {
-      logger: Logger,
-      resolve: (uris) =>
-        getAIContextRegistry(store).resolveItems(uris as ContextLocatorId[]),
-    }),
+    resourceSync(getResources, { logger: Logger }),
     resourcesField.init(() => {
       const resources = getRegistryResources(store);
       return new Map(resources.map((resource) => [resource.uri, resource]));
