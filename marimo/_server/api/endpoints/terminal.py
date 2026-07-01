@@ -114,6 +114,21 @@ def _create_process_cleanup_handler(
     """Create a cleanup handler for the child process and file descriptor."""
 
     def cleanup() -> None:
+        # Close the pty master *first*.
+        #
+        # child_pid is the session leader of the pty. If it is killed while the
+        # server still holds the master fd open -- and a foreground child (e.g.
+        # a coding agent or REPL) still holds the slave -- the kernel cannot
+        # finish revoking the shell's controlling terminal, so the shell never
+        # becomes a reapable zombie. The blocking os.waitpid() below would then
+        # hang the asyncio event loop forever (frozen server, Ctrl-C ignored).
+        # Closing the master is the hangup that lets the teardown complete, so
+        # the child reaps promptly.
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
         try:
             # Try graceful termination first
             os.kill(child_pid, signal.SIGTERM)
@@ -130,12 +145,6 @@ def _create_process_cleanup_handler(
                 pass
         except Exception as e:
             LOGGER.debug(f"Error during cleanup: {e}")
-
-        # Close the pty file descriptor
-        try:
-            os.close(fd)
-        except OSError:
-            pass
 
     return cleanup
 
