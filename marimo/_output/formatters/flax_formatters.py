@@ -174,26 +174,27 @@ def _config_kwargs(mod: nnx.Module) -> str:
     return ", ".join(parts)
 
 
-def _node(name: str, mod: nnx.Module) -> TreeNode:
+def _node(mod: nnx.Module, name: str = "") -> TreeNode:
     """Build a `TreeNode` for an nnx.Module (recursing into children)."""
     type_name = mod.__class__.__name__
     cat = _layer_category(mod)
     children = _child_modules(mod)
-    param_count, _ = _counts(mod)
-    params_note = _fmt_integer(param_count) if param_count > 0 else ""
 
     if children:
+        param_count, _ = _counts(mod)
         return TreeNode(
             name=name,
             type_name=type_name,
             category=cat,
-            params_note=params_note,
-            children=[_node(n, c) for n, c in children],
+            params_note=_fmt_integer(param_count) if param_count > 0 else "",
+            children=[_node(c, n) for n, c in children],
         )
 
-    # Leaf module.
-    kwargs = _config_kwargs(mod)
+    # Leaf module: compute the Param leaves once and derive the count from
+    # them, rather than calling `_counts` (which would walk the state again).
     param_leaves = _param_leaves(mod)
+    param_count = _sum_size(param_leaves)
+    kwargs = _config_kwargs(mod)
     body: LeafBody | None = None
     if kwargs or param_leaves:
         dtype = device = None
@@ -211,7 +212,7 @@ def _node(name: str, mod: nnx.Module) -> TreeNode:
         name=name,
         type_name=type_name,
         category=cat,
-        params_note=params_note,
+        params_note=_fmt_integer(param_count) if param_count > 0 else "",
         # NNX has no frozen concept, but -- like PyTorch -- we dim
         # params-less leaves (e.g. Dropout) to match the legend.
         is_frozen=param_count == 0,
@@ -241,7 +242,7 @@ def format(module: nnx.Module) -> Html:  # noqa: A001
     return render_model(
         root_type=module.__class__.__name__,
         summary=summary,
-        nodes=[_node(n, c) for n, c in children],
+        nodes=[_node(c, n) for n, c in children],
         leaf_fallback=leaf_fallback,
     )
 
