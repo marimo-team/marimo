@@ -2,7 +2,10 @@
 
 import type { ZodType } from "zod";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
-import type { AppConfig } from "@/core/config/config-schema";
+import type {
+  AppConfig,
+  CellOutputPosition,
+} from "@/core/config/config-schema";
 import type { AppMode } from "@/core/mode";
 
 /**
@@ -75,8 +78,6 @@ export interface ICellRendererPlugin<S, L> {
 
   getInitialLayout: (cells: CellData[]) => L;
 }
-
-export type CellOutputPosition = "above" | "below" | "left" | "right";
 
 export function isSideBySideCellOutput(
   position: CellOutputPosition,

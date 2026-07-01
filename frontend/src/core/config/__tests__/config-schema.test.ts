@@ -9,6 +9,7 @@ import {
 } from "../config";
 import {
   AppConfigSchema,
+  CELL_OUTPUT_POSITIONS,
   defaultUserConfig,
   type UserConfig,
   UserConfigSchema,
@@ -297,13 +298,10 @@ test("resolvedMarimoConfigAtom overrides correctly and does not mutate the origi
   });
 });
 
-test.each(["above", "below", "left", "right"] as const)(
-  "display.cell_output accepts %s",
-  (value) => {
-    const config = UserConfigSchema.parse({ display: { cell_output: value } });
-    expect(config.display?.cell_output).toBe(value);
-  },
-);
+test.each(CELL_OUTPUT_POSITIONS)("display.cell_output accepts %s", (value) => {
+  const config = UserConfigSchema.parse({ display: { cell_output: value } });
+  expect(config.display?.cell_output).toBe(value);
+});
 
 test("display.cell_output rejects unknown values", () => {
   expect(() =>
