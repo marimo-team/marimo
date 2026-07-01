@@ -1673,8 +1673,8 @@ class TestPydanticAI:
     async def test_stream_response_emits_tool_approval_request(self):
         """Tools with `requires_approval=True` should surface an
         approval-request chunk so the frontend can render an Approve/Deny
-        card. This is the v6-only behavior unlocked by passing
-        `sdk_version=AI_SDK_VERSION` to the adapter.
+        approval. This behavior requires passing `sdk_version=AI_SDK_VERSION`
+        to the adapter.
         """
         from pydantic_ai import Agent, DeferredToolRequests
         from pydantic_ai.models.function import (
@@ -1725,8 +1725,7 @@ class TestPydanticAI:
             for chunk in chunks
             if chunk.get("type") == "tool-approval-request"
         ]
-        # Older pydantic-ai generates a UUID approvalId; newer versions reuse
-        # toolCallId. Either is fine — assert the shape, not the exact value.
+        # pydantic-ai may reuse toolCallId as approvalId; assert the shape.
         assert len(approval_chunks) == 1
         chunk = approval_chunks[0]
         assert chunk["type"] == "tool-approval-request"
@@ -1738,10 +1737,8 @@ class TestPydanticAI:
 class MockBaseChunkWithError:
     """Mock BaseChunk that raises on serialization."""
 
-    def model_dump(
-        self, mode: str, by_alias: bool, exclude_none: bool
-    ) -> dict[str, Any]:
-        del mode, by_alias, exclude_none
+    def encode(self, *, sdk_version: int) -> str:
+        del sdk_version
         raise ValueError("Serialization error")
 
 
