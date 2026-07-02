@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import functools
 import importlib
 import inspect
 import pickle
@@ -54,16 +53,12 @@ class _BlobStatus(Enum):
     MISSING = auto()
 
 
-@functools.cache
-def _maybe_update_lazy_stub_by_type(value_type: type) -> str:
-    """Return the loader strategy string for *value*, caching the result."""
+def maybe_update_lazy_stub(value: Any) -> str:
+    value_type = type(value)
+    # MRO not that expensive, type hashable for functools lookup.
     result = mro_lookup(value_type, LAZY_STUB_LOOKUP)
     loader = result[1] if result else "pickle"
     return loader
-
-
-def maybe_update_lazy_stub(value: Any) -> str:
-    return _maybe_update_lazy_stub_by_type(type(value))
 
 
 def _maybe_import_ref(value: Any) -> tuple[str, str] | None:
