@@ -472,6 +472,16 @@ class UIElement(Html, Generic[S, T]):
         if self._on_change is not None:
             self._on_change(self._value)
 
+    def _update_value(self, value: S) -> None:
+        """Update value, given a value from the frontend without calling on_change."""
+        self._value_frontend = value
+        self._updating_value = True
+        try:
+            self._value = self._convert_value(value)
+        finally:
+            if hasattr(self, "_updating_value"):
+                del self._updating_value
+
     def _on_update_completion(self) -> bool:
         """Callback to run after the kernel has processed a value update.
 
