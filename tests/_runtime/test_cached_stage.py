@@ -127,8 +127,9 @@ class TestCachedLifecyclePreflight:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """When a consumer's transitive ref resolves to an UnhashableStub
-        in scope, pre-flight invalidates the producer's recorded manifest
-        and raises MarimoCancelCellError with cells_to_rerun populated, so
+        in scope, pre-flight marks the producer's manifest stale (so it
+        re-runs live rather than re-hitting the same unusable value) and
+        raises MarimoCancelCellError with cells_to_rerun populated, so
         run_all can requeue the producer (plus this cell).
         """
         from unittest.mock import MagicMock
@@ -140,13 +141,19 @@ class TestCachedLifecyclePreflight:
         producer_manifest = "lazy/E_producer.jsonl"
         life._manifest_keys["producer"] = producer_manifest
 
+        # Invalidation both clears the store entry (for on-disk/in-memory
+        # stores) and marks it stale (so the lazy WASM store can't re-fetch
+        # and re-hit the same value over HTTP).
+        stale_calls: list[str] = []
         clear_calls: list[str] = []
-
-        def _spy_clear(key: str) -> bool:
-            clear_calls.append(key)
-            return True
-
-        monkeypatch.setattr(life._loader.store, "clear", _spy_clear)
+        monkeypatch.setattr(
+            life._loader, "mark_stale", lambda key: stale_calls.append(key)
+        )
+        monkeypatch.setattr(
+            life._loader.store,
+            "clear",
+            lambda key: bool(clear_calls.append(key)),
+        )
 
         cell = _FakeCell("consumer", refs={"f"})
         glbls = {"f": _MarkerStub("f")}
@@ -154,8 +161,69 @@ class TestCachedLifecyclePreflight:
         with pytest.raises(MarimoCancelCellError) as ei:
             life._preflight_refs(cell, glbls)  # type: ignore[arg-type]
 
+        assert stale_calls == [producer_manifest]
         assert clear_calls == [producer_manifest]
         assert {"producer", "consumer"} <= ei.value.cells_to_rerun
+
+    def test_persistent_stub_producer_not_requeued_twice(self) -> None:
+        """A producer already invalidated once that still hands back a stub
+        is not requeued again: pre-flight returns cleanly so the body runs
+        and the tripwire raises on access, rather than looping forever.
+        """
+        from unittest.mock import MagicMock
+
+        graph = MagicMock()
+        graph.get_defining_cells.return_value = {"producer"}
+
+        life = CachedLifecycle(graph)
+        # Producer already had its rerun and still yields a stub.
+        life._invalidated.add("producer")
+
+        cell = _FakeCell("consumer", refs={"f"})
+        glbls = {"f": _MarkerStub("f")}
+        # No MarimoCancelCellError — falls through to run the body.
+        life._preflight_refs(cell, glbls)  # type: ignore[arg-type]
+
+    def test_invalidated_guard_resets_on_clean_rerun(self) -> None:
+        """A producer guarded after invalidation is released once it runs
+        cleanly, so a later pre-flight can requeue it again. Only a cell that
+        keeps erroring stays guarded — that is the loop the bound stops.
+        """
+        from unittest.mock import MagicMock
+
+        from marimo._runtime.runner.result import RunResult
+
+        life = CachedLifecycle(MagicMock())
+        producer = _FakeCell("producer")
+        producer.defs = {"g"}
+
+        # A clean run that replaced the stub releases the guard.
+        life._invalidated.add("producer")
+        life.teardown(
+            producer,  # type: ignore[arg-type]
+            {"g": 123},
+            RunResult(output=None, exception=None),
+        )
+        assert "producer" not in life._invalidated
+
+        # A clean run that still PROPAGATES a stub stays guarded (e.g. `g = f`
+        # where f is a stub) — otherwise the consumer requeues it forever.
+        life._invalidated.add("producer")
+        life.teardown(
+            producer,  # type: ignore[arg-type]
+            {"g": _MarkerStub("g")},
+            RunResult(output=None, exception=None),
+        )
+        assert "producer" in life._invalidated
+
+        # An erroring run keeps it guarded (so it can't loop).
+        life._invalidated.add("producer")
+        life.teardown(
+            producer,  # type: ignore[arg-type]
+            {},
+            RunResult(output=None, exception=ValueError("boom")),
+        )
+        assert "producer" in life._invalidated
 
     def test_no_stub_refs_is_noop(self) -> None:
         """Pre-flight returns cleanly when no ref is an UnhashableStub."""

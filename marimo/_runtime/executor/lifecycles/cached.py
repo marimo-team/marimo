@@ -73,6 +73,14 @@ class CachedLifecycle:
         # Per-cell manifest path, recorded on hit/save. Consumed when
         # this cell's pre-flight invalidates an upstream producer.
         self._manifest_keys: dict[CellId_t, str] = {}
+        # Producers already invalidated for re-execution during THIS run. A
+        # `CachedLifecycle` lives for one `Runner` (one `run_all`), so this
+        # set resets every reactive round — a later round self-heals once an
+        # upstream value recovers. Within a round, a producer that still
+        # yields a stub after its rerun is not requeued again, so a stub that
+        # can't be recomputed falls through to a tripwire raise instead of
+        # looping forever.
+        self._invalidated: set[CellId_t] = set()
 
     def setup(self, cell: CellImpl, glbls: MutableGlobals) -> Skip | None:
         cell_id = cell.cell_id
@@ -132,6 +140,14 @@ class CachedLifecycle:
         run_result: RunResult,
     ) -> None:
         cell_id = cell.cell_id
+        # Release the requeue guard only once the rerun actually replaced the
+        # stubbed value. A run can finish without raising yet still propagate
+        # a stub (e.g. `g = f` where `f` is a stub), which must stay guarded
+        # or the consumer requeues this producer forever.
+        if run_result.exception is None and not self._defines_stub(
+            cell, glbls
+        ):
+            self._invalidated.discard(cell_id)
         attempt = self._attempts.pop(cell_id, None)
         exec_start = self._exec_starts.pop(cell_id, None)
 
@@ -163,6 +179,11 @@ class CachedLifecycle:
             LOGGER.warning("Cache save failed for %s: %s", cell_id, e)
 
     @staticmethod
+    def _defines_stub(cell: CellImpl, glbls: MutableGlobals) -> bool:
+        """True if any name the cell defines is still an UnhashableStub."""
+        return any(_is_unhashable_stub(glbls.get(name)) for name in cell.defs)
+
+    @staticmethod
     def _restored_ui_defs(attempt: Cache, glbls: MutableGlobals) -> bool:
         """True if any def restored from the cache is a live UIElement."""
         from marimo._plugins.ui._core.ui_element import UIElement
@@ -191,14 +212,30 @@ class CachedLifecycle:
         if not stub_vars:
             return
 
-        cells_to_rerun: set[CellId_t] = {cell_id}
+        producers: set[CellId_t] = set()
         for var_name in stub_vars:
             try:
-                cells_to_rerun.update(self._graph.get_defining_cells(var_name))
+                producers.update(self._graph.get_defining_cells(var_name))
             except KeyError:
                 pass
+        producers.discard(cell_id)
 
-        for producer_id in cells_to_rerun - {cell_id}:
+        # Only requeue producers that haven't already been re-run once. A
+        # producer we already invalidated that still hands back a stub can't
+        # recompute the value here (e.g. it needs an absent dependency), so
+        # requeuing again would loop. In that case let the body run: touching
+        # the stub raises a clear tripwire error instead of hanging.
+        fresh = {p for p in producers if p not in self._invalidated}
+        if not fresh:
+            LOGGER.warning(
+                "Pre-flight for %s: stub refs %s persist after producer "
+                "rerun; not requeuing (tripwire raises on access)",
+                cell_id,
+                stub_vars,
+            )
+            return
+
+        for producer_id in fresh:
             self._invalidate(producer_id)
 
         # Drop our own attempt — body is being skipped this turn, so
@@ -210,16 +247,24 @@ class CachedLifecycle:
             "Pre-flight requeue for %s: stub refs %s; producers %s",
             cell_id,
             stub_vars,
-            cells_to_rerun - {cell_id},
+            fresh,
         )
-        raise MarimoCancelCellError(cells_to_rerun=cells_to_rerun)
+        raise MarimoCancelCellError(cells_to_rerun={cell_id} | fresh)
 
     def _invalidate(self, cell_id: CellId_t) -> None:
-        """Delete the recorded manifest for `cell_id` (if any)."""
+        """Invalidate `cell_id`'s manifest so it re-runs live.
+
+        Clears the store entry (the invalidation that on-disk / in-memory
+        stores need) and marks it stale: the lazy WASM store would otherwise
+        just re-fetch the cleared key over HTTP and re-hit it, so the stale
+        mark is what forces a miss there. Together they cover every loader.
+        """
         key = self._manifest_keys.pop(cell_id, None)
+        self._invalidated.add(cell_id)
         if key is None:
             return
         try:
             self._loader.store.clear(key)
+            self._loader.mark_stale(key)
         except Exception as e:
-            LOGGER.warning("Manifest clear failed for %s: %s", key, e)
+            LOGGER.warning("Manifest invalidate failed for %s: %s", key, e)
