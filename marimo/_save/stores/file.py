@@ -8,6 +8,23 @@ from marimo._save.stores.store import Store
 from marimo._utils.paths import notebook_output_dir
 
 
+def export_manifest_name(notebook_filename: str | None) -> str:
+    """Filename of the export manifest for a notebook, derived from its path.
+
+    An executed export reads this file (written next to the cached blobs) to
+    learn which cache entries to bundle. Derived per-notebook — rather than a
+    single shared name — so notebooks sharing a cache dir, or concurrent
+    exports of different notebooks, don't clobber each other's manifest. Both
+    the executing kernel and the exporter derive it identically from the
+    notebook path. A dotfile so it can't collide with a cache key.
+    """
+    import re
+
+    stem = Path(notebook_filename).stem if notebook_filename else "notebook"
+    slug = re.sub(r"[^0-9A-Za-z._-]+", "-", stem).strip("-") or "notebook"
+    return f".{slug}-export.json"
+
+
 def _valid_path(path: Path) -> bool:
     return path.exists() and path.stat().st_size > 0
 

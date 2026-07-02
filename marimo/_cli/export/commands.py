@@ -1004,6 +1004,7 @@ def html_wasm(
                     show_code=show_code,
                     cli_args=cli_args,
                     argv=list(args),
+                    cache_export_dir=out_dir,
                 )
             )
 
@@ -1042,9 +1043,9 @@ def html_wasm(
         create_cloudflare_files(parse_title(name), out_dir)
 
     outfile = out_dir / filename
-    return watch_and_export(
-        MarimoPath(name), outfile, watch, export_callback, force
-    )
+    # When `execute` is set, `export_callback` bundles the session's caches
+    # into `out_dir/public/cache/` (see `run_app_then_export_as_wasm`).
+    watch_and_export(MarimoPath(name), outfile, watch, export_callback, force)
 
 
 export.add_command(html)

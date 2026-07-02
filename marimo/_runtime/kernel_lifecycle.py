@@ -245,5 +245,8 @@ def teardown_kernel(kernel: Kernel, ctx: KernelRuntimeContext) -> None:
     # destruction from cleaning them up.
     ctx.virtual_file_registry.shutdown()
     ctx.app_kernel_runner_registry.shutdown()
+    # Flush callback-owned resources (e.g. pending cache writes) while the
+    # context is still active; teardown_context() unsets it below.
+    kernel.teardown_callbacks()
     teardown_context()
     kernel.teardown()

@@ -204,6 +204,57 @@ def _get_wasm_dict_store() -> Store:
     return cache_state.wasm_dict_store
 
 
+def flush_active_caches() -> None:
+    """Drain pending writes for every active loader (durability on exit)."""
+    LazyLoader.flush_all()
+
+
+def dump_cache_manifests(manifest_name: str) -> None:
+    """Record the keys this session produced into each file-backed cache dir.
+
+    An out-of-process exporter (`html-wasm --execute`) reads `manifest_name`
+    from the cache dir to discover exactly what to bundle — no control-channel
+    round-trip. The full key set (merged across loaders) is written to every
+    distinct file-backed cache dir; in-memory stores (the WASM `DictStore`)
+    have nothing on disk and are skipped. A single loader/dir is the norm — the
+    loop only matters for notebooks that name more than one cache block.
+    """
+    loaders = LazyLoader.active_loaders()
+    keys = LazyLoader.export_keys()
+    seen: set[Path] = set()
+    for loader in loaders:
+        store = loader.store
+        inner = store._inner if isinstance(store, LazyStore) else None
+        if not isinstance(inner, FileStore):
+            continue
+        cache_dir = inner.save_path
+        if cache_dir in seen:
+            continue
+        seen.add(cache_dir)
+        _write_export_manifest(cache_dir, manifest_name, keys)
+
+
+def _write_export_manifest(
+    cache_dir: Path, manifest_name: str, keys: list[str]
+) -> None:
+    """Atomically (re)write the export manifest in `cache_dir`.
+
+    Written via a temp file + `os.replace` so a reader (or a concurrent
+    export) never observes a half-written manifest, and so a hard kill mid-
+    write leaves the previous manifest intact rather than a truncated one.
+    """
+    import json
+    import os
+
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        tmp = cache_dir / f"{manifest_name}.{os.getpid()}.tmp"
+        tmp.write_text(json.dumps(keys))
+        os.replace(tmp, cache_dir / manifest_name)
+    except OSError as e:
+        LOGGER.warning("Failed to write cache export manifest: %s", e)
+
+
 class LazyStore(Store):
     """Native store for `LazyLoader`.
 
@@ -375,9 +426,25 @@ class LazyLoader(BasePersistenceLoader):
 
     @classmethod
     def flush_all(cls) -> None:
-        """Flush all active LazyLoader instances."""
+        """Drain pending background writes for every active loader."""
         for loader in cls.active_loaders():
             loader.flush()
+
+    @classmethod
+    def export_keys(cls) -> list[str]:
+        """Keys this session produced, across every active loader.
+
+        Usually a single loader, but a notebook may name more than one cache
+        block; merge so an export bundles all of them. Flush first if you need
+        the result to reflect pending background writes.
+        """
+        return sorted(
+            {
+                key
+                for loader in cls.active_loaders()
+                for key in loader.store.export_keys()
+            }
+        )
 
     @classmethod
     def active_loaders(cls) -> list[LazyLoader]:
