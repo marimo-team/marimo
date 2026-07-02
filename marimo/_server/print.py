@@ -216,6 +216,20 @@ def print_mcp_server(mcp_url: str, server_token: str | None) -> None:
     print_()
 
 
+def print_pair_http_startup(mcp_url: str) -> None:
+    """Print connection instructions for marimo pair --transport http."""
+    print_()
+    print_tabbed(f"{green('marimo pair', bold=True)} {_utf8('🤝')}")
+    print_()
+    print_tabbed(f"{_utf8('➜')}  {green('Add to Claude Code')}:")
+    print_tabbed(f"      claude mcp add --transport http marimo {mcp_url}")
+    print_()
+    print_tabbed(
+        f'{_utf8("💡")} To start pairing: claude -p "/marimo-pair on this notebook"'
+    )
+    print_()
+
+
 def print_mcp_client(config: MCPConfig) -> None:
     keys = set(config.get("mcpServers", {}).keys()) | set(
         config.get("presets", [])
