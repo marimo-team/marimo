@@ -260,6 +260,21 @@ class TestRuffFormatter:
         assert result == {"cell1": cell_code}
 
     @patch("marimo._utils.formatter.ruff")
+    async def test_ruff_formatter_preserves_leading_comments(
+        self, mock_ruff: MagicMock
+    ) -> None:
+        """Regression test for #10054: leading comments in executable cells
+        must survive wrapping and unwrapping around ruff formatting."""
+        cell_code = "# important comment\nx = 0"
+        wrapped_formatted = "def _():\n    # important comment\n    x = 0"
+        mock_ruff.return_value = {"cell1": wrapped_formatted}
+
+        formatter = RuffFormatter(line_length=88)
+        result = await formatter.format({"cell1": cell_code})
+
+        assert result == {"cell1": cell_code}
+
+    @patch("marimo._utils.formatter.ruff")
     async def test_ruff_formatter_propagates_exceptions(
         self, mock_ruff: MagicMock
     ) -> None:

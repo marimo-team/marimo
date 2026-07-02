@@ -109,6 +109,12 @@ def unwrap_cell_body(formatted: str) -> str:
         if first.decorator_list:
             start_lineno = first.decorator_list[0].lineno - 1
 
+    lines = split_source_lines(formatted.strip())
+    for lineno in range(fn.lineno, start_lineno):
+        if lines[lineno].lstrip().startswith("#"):
+            start_lineno = lineno
+            break
+
     extractor = Extractor(formatted)
     raw = extractor.extract_from_offsets(
         start_lineno, 0, fn.end_lineno - 1, fn.end_col_offset
