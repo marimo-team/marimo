@@ -1,5 +1,25 @@
 anthropic:
 
+  - name: Claude Fable 5
+    model: claude-fable-5
+    description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-09
+    cost: {input: 10, output: 50}
+
+  - name: Claude Sonnet 5
+    model: claude-sonnet-5
+    description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-30
+    cost: {input: 2, output: 10}
+
   - name: Claude Opus 4.8
     model: claude-opus-4-8
     description: "Modest but tangible improvement over Claude Opus 4.7"
@@ -210,6 +230,26 @@ google:
     cost: {input: 2, output: 12}
 
 bedrock:
+  - name: Claude Fable 5 (Global)
+    model: global.anthropic.claude-fable-5
+    description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-09
+    cost: {input: 10, output: 50}
+
+  - name: Claude Sonnet 5
+    model: anthropic.claude-sonnet-5
+    description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-30
+    cost: {input: 2, output: 10}
+
   - name: Claude Opus 4.8 (Global)
     model: global.anthropic.claude-opus-4-8
     description: "Modest but tangible improvement over Claude Opus 4.7"
@@ -281,6 +321,26 @@ bedrock:
     cost: {input: 3, output: 15}
 
 azure:
+  - name: Claude Fable 5
+    model: claude-fable-5
+    description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-09
+    cost: {input: 10, output: 50}
+
+  - name: Claude Sonnet 5
+    model: claude-sonnet-5
+    description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-30
+    cost: {input: 2, output: 10}
+
   - name: GPT-5.5
     model: gpt-5.5
     description: "OpenAI's frontier model designed for complex professional workloads, building on GPT-5.4 with stronger reasoning, higher reliability, and improved token efficiency on hard tasks"
