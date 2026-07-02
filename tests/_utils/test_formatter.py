@@ -242,12 +242,13 @@ class TestRuffFormatter:
         assert result == {"cell1": cell_code}
 
     @pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
-    async def test_ruff_formatter_preserves_leading_comment(self) -> None:
-        """Regression test for #10054/#10057: a comment before the first
-        statement should survive the real wrap -> ruff -> unwrap round-trip.
-        Comments are not AST nodes, so a leading comment sits before the
-        first body statement's lineno and was previously dropped."""
-        cell_code = "# leading comment\nx=1\ny = 2  # trailing comment\n# interior comment\nz = 3"
+    async def test_ruff_formatter_preserves_comments(self) -> None:
+        """Regression test for #10054/#10057: comments must survive the real
+        wrap -> ruff -> unwrap round-trip. Comments are not AST nodes, so a
+        leading comment sits before the first body statement's lineno and a
+        trailing comment sits after the last statement's end_lineno; both were
+        previously dropped."""
+        cell_code = "# leading comment\nx=1\ny = 2  # inline comment\n# interior comment\nz = 3  # last-line comment\n# trailing comment"
 
         result = await RuffFormatter(line_length=88).format({"c": cell_code})
 
@@ -255,9 +256,10 @@ class TestRuffFormatter:
             """\
 # leading comment
 x = 1
-y = 2  # trailing comment
+y = 2  # inline comment
 # interior comment
-z = 3"""
+z = 3  # last-line comment
+# trailing comment"""
         )
 
     @patch("marimo._utils.formatter.ruff")
