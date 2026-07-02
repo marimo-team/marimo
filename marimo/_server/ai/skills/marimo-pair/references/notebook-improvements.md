@@ -1,7 +1,6 @@
 # Notebook Improvements
 
 Loaded on demand via the `notebook-improvements` capability (`load_capability`).
-Do not read this file from disk.
 
 When the user asks to improve, optimize, or clean up their notebook, scan the
 current cells for these opportunities. Use your judgment — don't over-apply,
