@@ -272,7 +272,9 @@ class panel(UIElement[T, T]):
         import panel as pn
 
         # Panel values are reactive just in its own cell, but not across cells.
-        pn_slider = pn.widgets.IntSlider(name="Panel", start=0, end=10, value=5)
+        pn_slider = pn.widgets.IntSlider(
+            name="Panel", start=0, end=10, value=5
+        )
         mo.ui.panel(pn.Column(pn_slider, pn_slider.rx() * "★"))
 
         # In another cell, access its value
