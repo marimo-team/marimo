@@ -89,7 +89,7 @@ pip install "pydantic-ai-slim[duckduckgo,web-fetch]"
 When local packages are not installed, marimo enables native tools only if your model supports them. For example:
 
 - **Anthropic** and **OpenAI Responses** models can use native web search and web fetch
-- **xAI** models (e.g. `xai/grok-2-latest`) can use native web search, web fetch, and X search
+- **xAI** models (e.g. `xai/grok-2-latest`) can use native web search and X search
 
 Configure xAI in your `marimo.toml` or through the notebook settings — see the [xAI provider guide](../configuration/llm_providers.md#xai).
 
