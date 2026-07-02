@@ -16,7 +16,10 @@ from marimo._runtime.commands import UpdateUserConfigCommand
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._server.ai.mcp.config import is_mcp_config_empty
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_request
+from marimo._server.api.utils import (
+    enforce_consumer_capability,
+    parse_request,
+)
 from marimo._server.lsp import any_lsp_server_running
 from marimo._server.models.models import (
     SaveUserConfigurationRequest,
@@ -117,8 +120,10 @@ async def save_user_config(
     # Update the kernel's view of the config
     # Session could be None if the user is on the home page
     if session is not None:
+        command = UpdateUserConfigCommand(config)
+        enforce_consumer_capability(app_state, command)
         session.put_control_request(
-            UpdateUserConfigCommand(config),
+            command,
             from_consumer_id=ConsumerId(
                 app_state.require_current_session_id()
             ),

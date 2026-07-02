@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { HTTPError } from "@/utils/errors";
 import { API } from "../api";
 
 // Mock fetch globally
@@ -76,5 +77,21 @@ describe("API", () => {
       "http://example.com/e/api/foo",
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+  it("openapi-client error rejects with HTTPError carrying the status", async () => {
+    const body = { detail: "This connection is read-only for this action." };
+    await expect(
+      API.handleResponseReturnNull({
+        error: body,
+        response: { status: 403, statusText: "Forbidden" } as Response,
+      }),
+    ).rejects.toMatchObject({ status: 403, cause: body });
+    await expect(
+      API.handleResponseReturnNull({
+        error: body,
+        response: { status: 403, statusText: "Forbidden" } as Response,
+      }),
+    ).rejects.toBeInstanceOf(HTTPError);
   });
 });

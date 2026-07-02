@@ -21,6 +21,7 @@ from marimo._server.api.endpoints.ws.ws_connection_validator import (
 from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._server.api.utils import (
     dispatch_control_request,
+    enforce_consumer_capability,
     get_code_mode_credentials,
     parse_request,
 )
@@ -86,13 +87,15 @@ async def set_ui_element_values(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateUIElementValuesRequest)
+    command = UpdateUIElementCommand(
+        object_ids=body.object_ids,
+        values=body.values,
+        token=str(uuid4()),
+        request=HTTPRequest.from_request(request),
+    )
+    enforce_consumer_capability(app_state, command)
     app_state.require_current_session().put_control_request(
-        UpdateUIElementCommand(
-            object_ids=body.object_ids,
-            values=body.values,
-            token=str(uuid4()),
-            request=HTTPRequest.from_request(request),
-        ),
+        command,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
@@ -250,8 +253,10 @@ async def run_cell(
     app_state = AppState(request)
     body = await parse_request(request, cls=ExecuteCellsRequest)
     body.request = HTTPRequest.from_request(request)
+    command = body.as_command()
+    enforce_consumer_capability(app_state, command)
     app_state.require_current_session().put_control_request(
-        body.as_command(),
+        command,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
