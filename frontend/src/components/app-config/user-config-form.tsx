@@ -37,6 +37,7 @@ import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { useUserConfig } from "@/core/config/config";
 import {
+  CELL_OUTPUT_POSITIONS,
   PackageManagerNames,
   type UserConfig,
   UserConfigSchema,
@@ -1002,9 +1003,12 @@ export const UserConfigForm: React.FC = () => {
                           disabled={field.disabled || override.isOverridden}
                           className="inline-flex mr-2"
                         >
-                          {["above", "below"].map((option) => (
+                          {CELL_OUTPUT_POSITIONS.map((option) => (
                             <option value={option} key={option}>
                               {option}
+                              {option === "left" || option === "right"
+                                ? " (experimental)"
+                                : ""}
                             </option>
                           ))}
                         </NativeSelect>

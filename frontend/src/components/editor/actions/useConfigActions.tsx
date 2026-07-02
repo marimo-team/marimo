@@ -1,7 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
-import type { AppConfig, UserConfig } from "@/core/config/config-schema";
+import {
+  type AppConfig,
+  CELL_OUTPUT_POSITIONS,
+  type UserConfig,
+} from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
 import { useRequestClient } from "@/core/network/requests";
 import type { ActionButton } from "./types";
@@ -141,30 +145,18 @@ export function useConfigActions() {
         });
       },
     },
-    {
-      label: "Config > Set cell output area: above",
-      hidden: config.display.cell_output === "above",
+    ...CELL_OUTPUT_POSITIONS.map((cellOutput) => ({
+      label: `Config > Set cell output area: ${cellOutput}`,
+      hidden: config.display.cell_output === cellOutput,
       handle: () => {
         handleUserConfig({
           display: {
             ...config.display,
-            cell_output: "above",
+            cell_output: cellOutput,
           },
         });
       },
-    },
-    {
-      label: "Config > Set cell output area: below",
-      hidden: config.display.cell_output === "below",
-      handle: () => {
-        handleUserConfig({
-          display: {
-            ...config.display,
-            cell_output: "below",
-          },
-        });
-      },
-    },
+    })),
   ];
 
   return actions.filter((a) => !a.hidden);

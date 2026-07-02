@@ -1433,11 +1433,11 @@ components:
     DisplayConfig:
       description: "Configuration for display.\n\n    **Keys.**\n\n    - `theme`:\
         \ `\"light\"`, `\"dark\"`, or `\"system\"`\n    - `code_editor_font_size`:\
-        \ font size for the code editor\n    - `cell_output`: `\"above\"` or `\"below\"\
-        `\n    - `dataframes`: `\"rich\"` or `\"plain\"`\n    - `custom_css`: list\
-        \ of paths to custom CSS files\n    - `default_table_page_size`: default number\
-        \ of rows to display in tables\n    - `default_table_max_columns`: default\
-        \ maximum number of columns to display in tables\n    - `reference_highlighting`:\
+        \ font size for the code editor\n    - `cell_output`: `\"above\"`, `\"below\"\
+        `, `\"left\"`, or `\"right\"`\n    - `dataframes`: `\"rich\"` or `\"plain\"\
+        `\n    - `custom_css`: list of paths to custom CSS files\n    - `default_table_page_size`:\
+        \ default number of rows to display in tables\n    - `default_table_max_columns`:\
+        \ default maximum number of columns to display in tables\n    - `reference_highlighting`:\
         \ if `True`, highlight reactive variable references\n    - `locale`: locale\
         \ for date formatting and internationalization (e.g., \"en-US\", \"en-GB\"\
         , \"de-DE\")"
@@ -1446,6 +1446,8 @@ components:
           enum:
           - above
           - below
+          - left
+          - right
         code_editor_font_size:
           type: integer
         custom_css:

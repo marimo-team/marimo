@@ -2,7 +2,10 @@
 
 import type { ZodType } from "zod";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
-import type { AppConfig } from "@/core/config/config-schema";
+import type {
+  AppConfig,
+  CellOutputPosition,
+} from "@/core/config/config-schema";
 import type { AppMode } from "@/core/mode";
 
 /**
@@ -74,4 +77,26 @@ export interface ICellRendererPlugin<S, L> {
   Component: React.FC<ICellRendererProps<L>>;
 
   getInitialLayout: (cells: CellData[]) => L;
+}
+
+export function isSideBySideCellOutput(
+  position: CellOutputPosition,
+): position is Extract<CellOutputPosition, "left" | "right"> {
+  return position === "left" || position === "right";
+}
+
+/**
+ * Resolve the effective cell output position.
+ *
+ * Side-by-side doesn't make sense for markdown cells: the output is just the
+ * rendered source, so fall back to the stacked "below" layout.
+ */
+export function resolveCellOutputPosition(
+  configured: CellOutputPosition,
+  isMarkdown: boolean,
+): CellOutputPosition {
+  if (isMarkdown && isSideBySideCellOutput(configured)) {
+    return "below";
+  }
+  return configured;
 }
