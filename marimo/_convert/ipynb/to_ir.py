@@ -1527,9 +1527,14 @@ def _transform_sources(
 
 def convert_from_ipynb_to_notebook_ir(
     raw_notebook: str,
+    filepath: str | None = None,
 ) -> NotebookSerializationV1:
     """
     Convert a raw notebook to a NotebookSerializationV1 object.
+
+    Args:
+        raw_notebook: JSON string of the notebook
+        filepath: Optional filepath for the notebook (used for error reporting)
     """
     notebook = json.loads(raw_notebook)
 
@@ -1589,4 +1594,5 @@ def convert_from_ipynb_to_notebook_ir(
             )
             for cell in transformed_cells
         ],
+        filename=filepath,
     )

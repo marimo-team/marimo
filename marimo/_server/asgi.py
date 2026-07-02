@@ -181,6 +181,8 @@ class DynamicDirectoryMiddleware:
 
             # Try as a Python file
             potential_path = self.directory.joinpath(*prefix)
+            # TODO: When .ipynb notebook formats are cached, also try
+            # .ipynb suffix here (or check all registered serializers).
             cache_key = str(potential_path.with_suffix(".py"))
             if (
                 cache_key in self._app_cache
@@ -305,6 +307,8 @@ class DynamicDirectoryMiddleware:
                 relative_notebook = marimo_file.relative_to(
                     self.directory
                 ).as_posix()
+                # TODO: Handle .ipynb (and other registered serializer
+                # extensions) here when routing URLs for notebooks.
                 if relative_notebook.endswith(".py"):
                     relative_notebook = relative_notebook.removesuffix(".py")
                 # Compute the URL prefix for this notebook. When

@@ -189,3 +189,101 @@ class TestDirectoryScanner:
         for f in scanner.partial_results:
             assert not f.is_directory
             assert f.is_marimo_file
+
+
+# --- ipynb detection and discovery tests ---
+
+MARIMO_IPYNB = """\
+{
+ "cells": [],
+ "metadata": {"marimo": {"marimo_version": "0.1.0"}},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}"""
+
+PLAIN_IPYNB = """\
+{
+ "cells": [{"cell_type": "code","source": ["x=1"],"metadata": {}}],
+ "metadata": {"kernelspec": {"display_name":"Python 3","language":"python","name":"python3"}},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}"""
+
+
+def test_ipynb_marimo_app_detected(tmp_path: Path):
+    f = _write(tmp_path / "notebook.ipynb", MARIMO_IPYNB)
+    assert is_marimo_app(str(f)) is True
+
+
+def test_ipynb_non_marimo_app(tmp_path: Path):
+    f = _write(tmp_path / "plain.ipynb", PLAIN_IPYNB)
+    assert is_marimo_app(str(f)) is False
+
+
+def test_ipynb_app_detected_os_filesystem(tmp_path: Path):
+    """os_file_system._is_marimo_file also delegates to is_marimo_app."""
+    from marimo._server.files.os_file_system import OSFileSystem
+
+    fs = OSFileSystem()
+    f = _write(tmp_path / "marimo.ipynb", MARIMO_IPYNB)
+    info = fs._get_file_info(str(f))
+    assert info.is_marimo_file is True
+
+
+def test_ipynb_non_app_os_filesystem(tmp_path: Path):
+    """Non-marimo ipynb files are not flagged by os_file_system."""
+    from marimo._server.files.os_file_system import OSFileSystem
+
+    fs = OSFileSystem()
+    f = _write(tmp_path / "plain.ipynb", PLAIN_IPYNB)
+    info = fs._get_file_info(str(f))
+    assert info.is_marimo_file is False
+
+
+@pytest.fixture
+def test_dir_with_ipynb(tmp_path: Path) -> Path:
+    """Fixture dir with python apps, markdown notebook, and ipynb notebooks."""
+    _write(tmp_path / "app1.py", MARIMO_APP)
+    _write(tmp_path / "app2.py", MARIMO_APP)
+    _write(tmp_path / "notebook.md", MARIMO_MD)
+    _write(tmp_path / "marimo.ipynb", MARIMO_IPYNB)
+    _write(tmp_path / "plain.ipynb", PLAIN_IPYNB)  # should NOT be discovered
+    nested = tmp_path / "nested"
+    nested.mkdir()
+    _write(nested / "nested_app.py", MARIMO_APP)
+    return tmp_path
+
+
+class TestDirectoryScannerIpynb:
+    def test_ipynb_discovered_in_default_scan(self, test_dir_with_ipynb: Path):
+        """ipynb files are found by default (without include_markdown)."""
+        files = DirectoryScanner(str(test_dir_with_ipynb)).scan()
+        names = _file_names(files)
+        assert "marimo.ipynb" in names
+        assert "app1.py" in names
+        assert "app2.py" in names
+        # Plain ipynb (no marimo metadata) should NOT be discovered
+        assert "plain.ipynb" not in names
+
+    def test_ipynb_not_in_markdown_mode(self, test_dir_with_ipynb: Path):
+        """include_markdown=True should not exclude ipynb files."""
+        files = DirectoryScanner(
+            str(test_dir_with_ipynb), include_markdown=True
+        ).scan()
+        names = _file_names(files)
+        assert "marimo.ipynb" in names
+        assert "notebook.md" in names
+        assert "app1.py" in names
+        assert "app2.py" in names
+
+    def test_ipynb_in_nested_directory(self, test_dir_with_ipynb: Path):
+        """Nested ipynb files should be discovered."""
+        nested_ipynb = test_dir_with_ipynb / "nested" / "deep.ipynb"
+        _write(nested_ipynb, MARIMO_IPYNB)
+        files = DirectoryScanner(str(test_dir_with_ipynb)).scan()
+        nested = next(
+            f for f in files if f.is_directory and f.name == "nested"
+        )
+        assert nested.children is not None
+        names = [c.name for c in nested.children]
+        assert "deep.ipynb" in names
