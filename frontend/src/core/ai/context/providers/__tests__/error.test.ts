@@ -503,7 +503,8 @@ describe("ErrorContextProvider", () => {
         testStore.set(notebookAtom, notebookState);
 
         const items = testProvider.getItems();
-        expect(items.length).toBeGreaterThanOrEqual(1);
+        // One "all-errors" item plus one per-cell error item.
+        expect(items).toHaveLength(2);
         const context = testProvider.formatContext(items[0]);
         expect(context).toContain(expected);
       }

@@ -101,7 +101,7 @@ export function getCellErrorEntries(store: JotaiStore): CellErrorEntry[] {
   const { cellIds, cellRuntime, cellData } = store.get(notebookAtom);
   const entries: CellErrorEntry[] = [];
 
-  for (const cellId of cellIds.inOrderIds) {
+  for (const [cellIndex, cellId] of cellIds.inOrderIds.entries()) {
     const cell = cellRuntime[cellId];
     const output = cell.output;
     if (!output || !isErrorMime(output.mimetype)) {
@@ -113,9 +113,10 @@ export function getCellErrorEntries(store: JotaiStore): CellErrorEntry[] {
       continue;
     }
 
-    const cellIndex = cellIds.inOrderIds.indexOf(cellId);
     const cellName = displayCellName(cellData[cellId].name, cellIndex);
-    const cellCode = cellData[cellId].code;
+    // Prefer the code from the last execution: runtime errors correspond to
+    // the previous run, while `code` may already contain unsaved edits.
+    const cellCode = cellData[cellId].lastCodeRun ?? cellData[cellId].code;
 
     entries.push({
       cellId,

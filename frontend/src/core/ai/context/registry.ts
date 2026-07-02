@@ -166,7 +166,7 @@ export class AIContextRegistry<T extends AIContextItem> {
       }
     }
 
-    const results: T[] = [];
+    const itemsById = new Map<ContextLocatorId, T>();
     for (const [type, ids] of idsByType.entries()) {
       const provider = this.getProvider(type);
       if (!provider) {
@@ -180,8 +180,18 @@ export class AIContextRegistry<T extends AIContextItem> {
       for (const id of ids) {
         const item = itemsByUri.get(id);
         if (item) {
-          results.push(item);
+          itemsById.set(id, item);
         }
+      }
+    }
+
+    // Preserve the order in which the ids were requested, so formatted context
+    // matches the order the user mentioned them in the prompt.
+    const results: T[] = [];
+    for (const contextId of contextIds) {
+      const item = itemsById.get(contextId);
+      if (item) {
+        results.push(item);
       }
     }
     return results;

@@ -461,6 +461,25 @@ describe("AIContextRegistry", () => {
       expect(mockGetItems).not.toHaveBeenCalled();
       expect(fileGetItems).not.toHaveBeenCalled();
     });
+
+    it("should preserve requested order when providers are interleaved", () => {
+      const resolved = registry.resolveItems([
+        "mock://item1",
+        "file://config.py",
+        "mock://item2",
+        "file://utils/helpers.py",
+      ] as ContextLocatorId[]);
+
+      expect(resolved.map((item) => item.uri)).toEqual([
+        "mock://item1",
+        "file://config.py",
+        "mock://item2",
+        "file://utils/helpers.py",
+      ]);
+      // Each provider is still queried only once, regardless of interleaving.
+      expect(mockGetItems).toHaveBeenCalledTimes(1);
+      expect(fileGetItems).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("getContextInfo", () => {
