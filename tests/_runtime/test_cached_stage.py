@@ -126,11 +126,11 @@ class TestCachedLifecyclePreflight:
     def test_stub_ref_invalidates_producer_and_raises(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """When a consumer's transitive ref resolves to an UnhashableStub
-        in scope, pre-flight marks the producer's manifest stale (so it
-        re-runs live rather than re-hitting the same unusable value) and
-        raises MarimoRescheduleError with cells_to_rerun populated, so
-        run_all can requeue the producer (plus this cell).
+        """When a consumer's transitive ref resolves to an UnhashableStub in
+        scope, pre-flight marks the producers as stale (so it re-runs live
+        rather than re-hitting the same unusable value) and raises
+        MarimoRescheduleError with cells_to_rerun populated, so run_all can
+        requeue the producer (plus this cell).
         """
         from unittest.mock import MagicMock
 
@@ -139,7 +139,7 @@ class TestCachedLifecyclePreflight:
 
         life = CachedLifecycle(graph)
         producer_manifest = "lazy/E_producer.jsonl"
-        life._manifest_keys["producer"] = producer_manifest
+        life._restored_keys["producer"] = producer_manifest
 
         # Invalidation both clears the store entry (for on-disk/in-memory
         # stores) and marks it stale (so the lazy WASM store can't re-fetch
