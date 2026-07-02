@@ -233,9 +233,8 @@ class BasePersistenceLoader(Loader):
     def mark_stale(self, manifest_key: str) -> None:
         """Force a manifest to miss for the rest of the session.
 
-        No-op by default; loaders with a session-scoped store (e.g. the lazy
-        WASM loader, where a cleared key is otherwise re-fetched over HTTP)
-        override this to record the key as stale.
+        No-op by default; loaders with a session-scoped store override this to
+        record the key as stale.
         """
 
     def save_cache(self, cache: Cache) -> bool:

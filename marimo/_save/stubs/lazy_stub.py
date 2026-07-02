@@ -57,10 +57,7 @@ class Item(msgspec.Struct):
     # tripwire from this marker (see `from_item`), so a missing-blob load never
     # masquerades as a clean cache hit.
     unserializable_type: str | None = None
-    # Pinned version of a `module` def, captured at cache time. A module
-    # restored where it is absent becomes a `MissingModule` placeholder; the
-    # version is replayed onto it so a version-pinned content hash reproduces
-    # instead of collapsing to an empty version and missing.
+    # Pinned version of a `module` def, captured at cache time.
     module_version: str | None = None
 
     def __post_init__(self) -> None:
@@ -137,13 +134,6 @@ LAZY_STUB_LOOKUP: dict[str, str] = {
     # walk in maybe_update_lazy_stub; torch.save round-trips them intact.
     "torch.Tensor": "pt",
 }
-
-# Runtime cache: type → loader string, populated by maybe_update_lazy_stub().
-_LAZY_STUB_CACHE: dict[type, str] = {}
-
-# ---------------------------------------------------------------------------
-# Deserializers — keyed by file extension
-# ---------------------------------------------------------------------------
 
 
 def _npy_load(data: bytes, type_hint: str | None = None) -> Any:

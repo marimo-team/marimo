@@ -3,16 +3,15 @@
 
 On setup: hash the cell + consult the store.
 
-  - HIT  → restore defs into globals, return `Skip` with the cached
-           return value so the Evaluator short-circuits the body.
-  - MISS → pre-flight `cell.refs`: if any ref in `glbls` is an
-           `UnhashableStub` (a stale placeholder left over from an
-           upstream cached producer whose value resisted serialization),
-           invalidate the producer's manifest and raise
-           `MarimoCancelCellError(cells_to_rerun=producers | self)`.
-           `Runner.run_all` catches the signal and hands it to
-           `Scheduler.requeue_for_rerun`; the body never runs this turn.
-           Otherwise, fall through and let the body run.
+  - HIT:  restore defs into globals, return `Skip` with the cached
+          return value so the Evaluator short-circuits the body.
+  - MISS: pre-flight `cell.refs`: if any ref in `glbls` is an
+          `UnhashableStub` invalidate the producer's manifest and raise
+          `MarimoCancelCellError(cells_to_rerun=producers | self)`.
+          `Runner.run_all` catches the signal and hands it to
+          `Scheduler.requeue_for_rerun`.
+
+          Otherwise, fall through and let the body run.
 
 On teardown: backfill on successful miss; drop the attempt on a raised
 body.
@@ -73,13 +72,8 @@ class CachedLifecycle:
         # Per-cell manifest path, recorded on hit/save. Consumed when
         # this cell's pre-flight invalidates an upstream producer.
         self._manifest_keys: dict[CellId_t, str] = {}
-        # Producers already invalidated for re-execution during THIS run. A
-        # `CachedLifecycle` lives for one `Runner` (one `run_all`), so this
-        # set resets every reactive round — a later round self-heals once an
-        # upstream value recovers. Within a round, a producer that still
-        # yields a stub after its rerun is not requeued again, so a stub that
-        # can't be recomputed falls through to a tripwire raise instead of
-        # looping forever.
+        # Cells that failed to rehydrate on pre-flight, so we don't requeue
+        # them again and again.
         self._invalidated: set[CellId_t] = set()
 
     def setup(self, cell: CellImpl, glbls: MutableGlobals) -> Skip | None:
@@ -140,10 +134,7 @@ class CachedLifecycle:
         run_result: RunResult,
     ) -> None:
         cell_id = cell.cell_id
-        # Release the requeue guard only once the rerun actually replaced the
-        # stubbed value. A run can finish without raising yet still propagate
-        # a stub (e.g. `g = f` where `f` is a stub), which must stay guarded
-        # or the consumer requeues this producer forever.
+        # Release the requeue guard.
         if run_result.exception is None and not self._defines_stub(
             cell, glbls
         ):
@@ -196,11 +187,10 @@ class CachedLifecycle:
         """Detect UnhashableStub residues in refs; requeue producers.
 
         Walks `cell.refs` and checks each name in `glbls` for an
-        `UnhashableStub` instance — a placeholder left behind by an
-        upstream cached cell whose def couldn't be serialized. If any
-        are found, invalidates each producer's recorded manifest, drops
-        this cell's attempt so teardown won't try to backfill, and
-        raises `MarimoCancelCellError` with `cells_to_rerun` populated.
+        `UnhashableStub` instance. If any are found, invalidates each producer's
+        recorded manifest, drops this cell's attempt so teardown won't try to
+        backfill, and raises `MarimoCancelCellError` with `cells_to_rerun`
+        populated.
         """
         cell_id = cell.cell_id
         stub_vars: list[str] = []
@@ -220,11 +210,6 @@ class CachedLifecycle:
                 pass
         producers.discard(cell_id)
 
-        # Only requeue producers that haven't already been re-run once. A
-        # producer we already invalidated that still hands back a stub can't
-        # recompute the value here (e.g. it needs an absent dependency), so
-        # requeuing again would loop. In that case let the body run: touching
-        # the stub raises a clear tripwire error instead of hanging.
         fresh = {p for p in producers if p not in self._invalidated}
         if not fresh:
             LOGGER.warning(
@@ -254,10 +239,7 @@ class CachedLifecycle:
     def _invalidate(self, cell_id: CellId_t) -> None:
         """Invalidate `cell_id`'s manifest so it re-runs live.
 
-        Clears the store entry (the invalidation that on-disk / in-memory
-        stores need) and marks it stale: the lazy WASM store would otherwise
-        just re-fetch the cleared key over HTTP and re-hit it, so the stale
-        mark is what forces a miss there. Together they cover every loader.
+        Cells marked invalidated are skipped in future pre-flight check.
         """
         key = self._manifest_keys.pop(cell_id, None)
         self._invalidated.add(cell_id)

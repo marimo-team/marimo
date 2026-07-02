@@ -31,7 +31,6 @@ from marimo._save.stubs import (
     ModuleStub,
 )
 from marimo._save.stubs.lazy_stub import (
-    _LAZY_STUB_CACHE,
     BLOB_DESERIALIZERS,
     BLOB_SERIALIZERS,
     LAZY_STUB_LOOKUP,
@@ -46,6 +45,10 @@ from marimo._save.stubs.lazy_stub import (
 from marimo._save.stubs.stubs import mro_lookup
 
 LOGGER = _loggers.marimo_logger()
+
+
+# Runtime cache: type → loader string, populated by maybe_update_lazy_stub().
+_LAZY_STUB_CACHE: dict[type, str] = {}
 
 
 class _BlobStatus(Enum):
@@ -136,7 +139,7 @@ def to_item(
     if isinstance(value, ModuleStub):
         return Item(
             module=value.name,
-            module_version=getattr(value, "version", "") or None,
+            module_version=value.version or None,
         )
     if isinstance(value, (int, str, float, bool, bytes, type(None))):
         return Item(primitive=value)
@@ -389,13 +392,7 @@ class LazyLoader(BasePersistenceLoader):
         return list(_cache_state().active_lazy_loaders.values())
 
     def mark_stale(self, manifest_key: str) -> None:
-        """Force this manifest to miss for the rest of the session.
-
-        Used when a restored def must be recomputed live (e.g. a value that
-        resisted serialization): a stale manifest is neither served nor
-        re-fetched, so the producing cell re-runs instead of restoring the
-        same unusable value again.
-        """
+        """Force this manifest to miss for the rest of the session."""
         _cache_state().stale_keys.add(manifest_key)
 
     def load_cache(
@@ -405,9 +402,7 @@ class LazyLoader(BasePersistenceLoader):
     ) -> Cache | None:
         del glbls
         manifest_key = str(self.build_path(key))
-        # Invalidated for re-execution this session — miss without serving or
-        # re-fetching, so the producer re-runs rather than restoring the same
-        # value that triggered the invalidation.
+        # Invalidated for re-execution this session.
         if manifest_key in _cache_state().stale_keys:
             return None
         blob: bytes | None = None
@@ -492,11 +487,7 @@ class LazyLoader(BasePersistenceLoader):
                 if var_name in cache_data.ui_defs and isinstance(val, dict):
                     defs[var_name] = val[var_name]
                 elif isinstance(val, UnhashableStub):
-                    # A blob that failed to deserialize for an absent
-                    # dependency (see `_deserialize_blob`) is shared by every
-                    # def referencing it — e.g. all UI vars share `ui.pickle`.
-                    # Give each def its own tripwire so a real access names the
-                    # def that was actually touched, not an arbitrary sibling.
+                    # Fall through stub.
                     defs[var_name] = UnhashableStub(
                         var_name=var_name,
                         type_name=val.type_name,
@@ -545,18 +536,9 @@ class LazyLoader(BasePersistenceLoader):
         try:
             return deserialize(data, type_hint)
         except ModuleNotFoundError as e:
-            # A cached def whose codec needs an absent package (e.g. a torch
-            # tensor restored where torch is not installed) binds as a
-            # use-site tripwire rather than aborting the whole restore: it is
-            # inert until touched, and any real access raises a clear
-            # unhydratable error naming the def. The return value is excluded
-            # — on a hit it becomes the cell's output object, so a stubbed
-            # return is instead let through as a restore failure (miss).
+            # Raise if we need something for return, otherwise defer to a stub.
             if key == return_ref:
                 raise
-            # `var_name` is assigned per-def at distribution: one blob may back
-            # several defs (all UI vars share `ui.pickle`), so it's left empty
-            # here and the shared stub is re-labeled for each def it lands on.
             return UnhashableStub(error_msg=str(e), type_name=type_hint)
 
     def _read_blobs(
@@ -613,10 +595,7 @@ class LazyLoader(BasePersistenceLoader):
         # Reap completed threads
         self._pending = [t for t in self._pending if t.is_alive()]
 
-        # A fresh manifest supersedes any stale mark on this key: the value
-        # has just been recomputed, so future loads should evaluate the new
-        # manifest instead of being forced to miss. (`stale_keys` is
-        # session-scoped, so without this it would suppress hits all session.)
+        # Fresh load, so invalidate the "stale" marker.
         _cache_state().stale_keys.discard(str(self.build_path(cache.key)))
 
         path = Path(self.name) / cache.hash

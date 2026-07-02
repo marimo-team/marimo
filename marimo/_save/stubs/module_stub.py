@@ -69,5 +69,5 @@ class ModuleStub:
                 or missing == self.name
                 or self.name.startswith(f"{missing}.")
             ):
-                return MissingModule(self.name, getattr(self, "version", ""))
+                return MissingModule(self.name, self.version)
             raise
