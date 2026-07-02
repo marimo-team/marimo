@@ -133,7 +133,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
     @abstractmethod
     def create_model(self) -> Model:
-        """Create a Pydantic AI model for the given max tokens."""
+        """Create a Pydantic AI model."""
 
     def create_agent(
         self,
@@ -331,7 +331,9 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         )
 
         supported = profile_get(model.profile, "supported_native_tools", [])
-        LOGGER.debug(f"Supported native tools: {supported} for model: {model}")
+        LOGGER.debug(
+            "Supported native tools: %s for model: %s", supported, self.model
+        )
         capabilities: list[AbstractCapability[None]] = []
 
         if DependencyManager.duckduckgo_search.has():
@@ -347,7 +349,9 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         if XSearchTool in supported:
             capabilities.append(XSearch())
 
-        LOGGER.debug(f"Capabilities: {capabilities} for model: {model}")
+        LOGGER.debug(
+            "Capabilities: %s for model: %s", capabilities, self.model
+        )
         return capabilities
 
     def _resolve_agent_toolsets(
@@ -809,14 +813,19 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         """Instantiate a non-OpenAI-compatible pydantic-ai provider."""
 
         provider_name = provider_class.__name__
-        LOGGER.debug(f"Creating custom provider: {provider_name}")
+        LOGGER.debug("Creating custom provider: %s", provider_name)
 
-        params = inspect.signature(provider_class).parameters
         kwargs: dict[str, str] = {}
-        if "api_key" in params and config.api_key:
-            kwargs["api_key"] = config.api_key
-        if "base_url" in params and config.base_url:
-            kwargs["base_url"] = config.base_url
+        try:
+            params = inspect.signature(provider_class).parameters
+            if "api_key" in params and config.api_key:
+                kwargs["api_key"] = config.api_key
+            if "base_url" in params and config.base_url:
+                kwargs["base_url"] = config.base_url
+        except (TypeError, ValueError):
+            LOGGER.debug(
+                "Could not inspect signature for provider %s", provider_name
+            )
 
         try:
             return provider_class(**kwargs)
@@ -916,7 +925,10 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
         # Anthropic provider needs to set the max tokens to 32768
         # https://github.com/marimo-team/marimo/pull/9703
         values = self._base_model_settings(
-            model, max_tokens or ANTHROPIC_DEFAULT_MAX_TOKENS
+            model,
+            max_tokens
+            if max_tokens is not None
+            else ANTHROPIC_DEFAULT_MAX_TOKENS,
         )
         settings: AnthropicModelSettings = {"anthropic_cache": True}
         if values.max_tokens is not None:
