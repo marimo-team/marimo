@@ -41,7 +41,8 @@ import {
   extractAllTracebackInfo,
   getTracebackInfo,
 } from "@/utils/traceback";
-import { AIFixButton } from "../errors/auto-fix";
+import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
+import { AIFixButton, buildFixInChatPrompt } from "../errors/auto-fix";
 import { MangledSegments } from "../errors/mangled-local-chip";
 import { CellLinkTraceback } from "../links/cell-link";
 import type { OnRefactorWithAI } from "../Output";
@@ -71,6 +72,7 @@ export const MarimoTracebackOutput = ({
 
   const lastTracebackLine = lastLine(traceback);
   const aiFeaturesEnabled = useAtomValue(aiFeaturesEnabledAtom);
+  const openAiAssistant = useOpenAiAssistant();
 
   // Get last traceback info
   const tracebackInfo = extractAllTracebackInfo(traceback)?.at(0);
@@ -94,6 +96,15 @@ export const MarimoTracebackOutput = ({
     onRefactorWithAI?.({
       prompt: `My code gives the following error:\n\n${lastTracebackLine}`,
       triggerImmediately,
+    });
+  };
+
+  const openAISidebar = () => {
+    if (cellId == null) {
+      return;
+    }
+    openAiAssistant({
+      prompt: buildFixInChatPrompt(cellId),
     });
   };
 
@@ -126,6 +137,7 @@ export const MarimoTracebackOutput = ({
             tooltip="Fix with AI"
             openPrompt={() => handleRefactorWithAI(false)}
             applyAutofix={() => handleRefactorWithAI(true)}
+            openChat={openAISidebar}
           />
         )}
         {showDebugger && (

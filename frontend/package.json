@@ -56,7 +56,7 @@
     "@lezer/python": "^1.1.18",
     "@marimo-team/codemirror-ai": "^0.3.7",
     "@marimo-team/codemirror-languageserver": "^1.16.12",
-    "@marimo-team/codemirror-mcp": "^0.1.5",
+    "@marimo-team/codemirror-mcp": "^0.1.7",
     "@marimo-team/codemirror-sql": "^0.2.8",
     "@marimo-team/llm-info": "workspace:*",
     "@marimo-team/marimo-api": "workspace:*",
