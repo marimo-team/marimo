@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
+import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { useRequestClient } from "@/core/network/requests";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useTheme } from "@/theme/useTheme";
@@ -33,6 +34,20 @@ import { ContributeSnippetButton } from "../components/contribute-snippet-button
 import { usePanelOrientation, usePanelSection } from "./panel-context";
 
 const extensions = [EditorView.lineWrapping];
+
+// SQL cells are stored as python `mo.sql(...)`. Show the query itself
+// highlighted as SQL instead of as a python string, matching how the cell
+// renders once the snippet is inserted.
+export function getSnippetDisplay(code: string): {
+  language: string;
+  value: string;
+} {
+  if (LanguageAdapters.sql.isSupported(code)) {
+    const [query] = LanguageAdapters.sql.transformIn(code);
+    return { language: "sql", value: query };
+  }
+  return { language: "python", value: code };
+}
 
 const SnippetsPanel: React.FC = () => {
   const { readSnippets } = useRequestClient();
@@ -187,6 +202,8 @@ const SnippetViewer: React.FC<{ snippet: Snippet; onClose: () => void }> = ({
             return null;
           }
 
+          const { language, value } = getSnippetDisplay(code);
+
           return (
             <div
               className="relative hover-actions-parent pr-2"
@@ -210,10 +227,10 @@ const SnippetViewer: React.FC<{ snippet: Snippet; onClose: () => void }> = ({
                 <LazyAnyLanguageCodeMirror
                   key={`${snippet.title}-${id}`}
                   theme={theme === "dark" ? "dark" : "light"}
-                  language="python"
+                  language={language}
                   className="cm border rounded overflow-hidden"
                   extensions={extensions}
-                  value={code}
+                  value={value}
                   readOnly={true}
                 />
               </Suspense>
