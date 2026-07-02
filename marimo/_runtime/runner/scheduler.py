@@ -119,7 +119,7 @@ class SequentialScheduler:
         self._cells_to_run.extend(cell_ids)
 
     def requeue_for_rerun(self, cells: set[CellId_t]) -> None:
-        """Soft-cancel by putting `cells` back at the head of the queue.
+        """Reschedules by putting `cells` back at the head of the queue.
 
         Un-cancels each cell and prepends them in **topological order**
         so the next `batch()` yields producers first.
