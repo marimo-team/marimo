@@ -23,7 +23,7 @@ from marimo._runtime import dataflow
 from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.exceptions import (
-    MarimoCancelCellError,
+    MarimoRescheduleError,
     MarimoMissingRefError,
     MarimoRuntimeException,
     unwrap_user_exception,
@@ -453,7 +453,7 @@ class Runner:
             unexpected_failure = exc
             raw_result = RunResult(output=None, exception=None)
 
-        if isinstance(raw_result.exception, MarimoCancelCellError):
+        if isinstance(raw_result.exception, MarimoRescheduleError):
             raise raw_result.exception
 
         try:
@@ -837,13 +837,13 @@ class Runner:
                     continue
                 try:
                     await self._run_one(cell_id, pre_exec_ctx, post_exec_ctx)
-                except MarimoCancelCellError as e:
+                except MarimoRescheduleError as e:
                     LOGGER.debug(
-                        "Soft-cancel for %s; requeuing %s",
+                        "Reschedule for %s; requeuing %s",
                         cell_id,
                         e.cells_to_rerun,
                     )
-                    # Soft-cancel control signal from a lifecycle.
+                    # Reschedule control signal from a lifecycle.
                     # Move the cell back to queued state, and reschedule for
                     # rerun after the relevant cells have been run.
                     for rerun_id in e.cells_to_rerun:

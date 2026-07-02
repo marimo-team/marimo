@@ -16,7 +16,7 @@ There are 4 potential outcomes from attempted restoration:
 2. Stale cache
    In this case, a "UnhashableStub" requirement or cache mechanism failure
    indicates that the cell must rerun live, and may have ancestors that require
-   a re-run as well. In this case, the cell raises a MarimoCancelCellError with
+   a re-run as well. In this case, the cell raises a MarimoRescheduleError with
    the set of cells to requeue.
 3. Cache miss
    Cache was not found, ancestors do not require re-run, so the cell can run as
@@ -89,7 +89,7 @@ import time
 from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
-from marimo._runtime.exceptions import MarimoCancelCellError
+from marimo._runtime.exceptions import MarimoRescheduleError
 from marimo._runtime.executor.lifecycles import Skip
 from marimo._runtime.runner.result import RunResult
 from marimo._save.cache import Cache, CacheException
@@ -187,7 +187,7 @@ class CachedLifecycle:
             self._attempts.pop(cell_id, None)
             # Fall through to miss-path execution.
 
-        # Raises MarimoCancelCellError if any ref requires rehydration.
+        # Raises MarimoRescheduleError if any ref requires rehydration.
         self._preflight_refs(cell, glbls)
 
         self._exec_starts[cell_id] = time.time()
@@ -257,7 +257,7 @@ class CachedLifecycle:
         Walks `cell.refs` and checks each name in `glbls` for an
         `UnhashableStub` instance. If any are found, invalidates each producer's
         recorded manifest, drops this cell's attempt so teardown will no-op, and
-        raises `MarimoCancelCellError` with `cells_to_rerun` populated.
+        raises `MarimoRescheduleError` with `cells_to_rerun` populated.
         """
         cell_id = cell.cell_id
         stub_vars: list[str] = []
@@ -297,12 +297,12 @@ class CachedLifecycle:
         self._exec_starts.pop(cell_id, None)
 
         LOGGER.info(
-            "Rescheudling for %s: stub refs %s; Cell Ids %s",
+            "Rescheduling for %s: stub refs %s; Cell Ids %s",
             cell_id,
             stub_vars,
             fresh,
         )
-        raise MarimoCancelCellError(cells_to_rerun={cell_id} | fresh)
+        raise MarimoRescheduleError(cells_to_rerun={cell_id} | fresh)
 
     def _invalidate(self, cell_id: CellId_t) -> None:
         """Invalidate `cell_id`'s manifest so it re-runs live.

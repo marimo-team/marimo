@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from marimo._runtime.exceptions import (
-    MarimoCancelCellError,
+    MarimoRescheduleError,
 )
 from marimo._runtime.executor.lifecycles.cached import CachedLifecycle
 from marimo._save.loaders.lazy import LazyLoader
@@ -129,7 +129,7 @@ class TestCachedLifecyclePreflight:
         """When a consumer's transitive ref resolves to an UnhashableStub
         in scope, pre-flight marks the producer's manifest stale (so it
         re-runs live rather than re-hitting the same unusable value) and
-        raises MarimoCancelCellError with cells_to_rerun populated, so
+        raises MarimoRescheduleError with cells_to_rerun populated, so
         run_all can requeue the producer (plus this cell).
         """
         from unittest.mock import MagicMock
@@ -158,7 +158,7 @@ class TestCachedLifecyclePreflight:
         cell = _FakeCell("consumer", refs={"f"})
         glbls = {"f": _MarkerStub("f")}
 
-        with pytest.raises(MarimoCancelCellError) as ei:
+        with pytest.raises(MarimoRescheduleError) as ei:
             life._preflight_refs(cell, glbls)  # type: ignore[arg-type]
 
         assert stale_calls == [producer_manifest]
@@ -181,7 +181,7 @@ class TestCachedLifecyclePreflight:
 
         cell = _FakeCell("consumer", refs={"f"})
         glbls = {"f": _MarkerStub("f")}
-        # No MarimoCancelCellError — falls through to run the body.
+        # No MarimoRescheduleError — falls through to run the body.
         life._preflight_refs(cell, glbls)  # type: ignore[arg-type]
 
     def test_invalidated_guard_resets_on_clean_rerun(self) -> None:
