@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 import importlib
 import inspect
 import pickle
@@ -47,30 +48,23 @@ from marimo._save.stubs.stubs import mro_lookup
 LOGGER = _loggers.marimo_logger()
 
 
-# Runtime cache: type → loader string, populated by maybe_update_lazy_stub().
-_LAZY_STUB_CACHE: dict[type, str] = {}
-
-
 class _BlobStatus(Enum):
     """Sentinel placed in the results queue when a blob is missing."""
 
     MISSING = auto()
 
 
-def maybe_update_lazy_stub(value: Any) -> str:
-    """Return the loader strategy string for *value*, caching the result.
-
-    Walks the MRO of `type(value)` against `LAZY_STUB_LOOKUP` (a
-    fq-class-name -> loader-string registry).  Falls back to `"pickle"`
-    when no match is found.
-    """
+@functools.cache
+def _maybe_update_lazy_stub_by_type(value: Any) -> str:
+    """Return the loader strategy string for *value*, caching the result."""
     value_type = type(value)
-    if value_type in _LAZY_STUB_CACHE:
-        return _LAZY_STUB_CACHE[value_type]
     result = mro_lookup(value_type, LAZY_STUB_LOOKUP)
     loader = result[1] if result else "pickle"
-    _LAZY_STUB_CACHE[value_type] = loader
     return loader
+
+
+def maybe_update_lazy_stub(value: Any) -> str:
+    return _maybe_update_lazy_stub_by_type(type(value))
 
 
 def _maybe_import_ref(value: Any) -> tuple[str, str] | None:

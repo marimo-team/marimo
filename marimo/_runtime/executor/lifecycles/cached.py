@@ -1,20 +1,86 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""CachedLifecycle — cell-level caching as setup/teardown.
+"""CachedLifecycle for cell-level caching.
 
-On setup: hash the cell + consult the store.
+Cached Execution is a lifecycle that attempts to skip and stub cell execution
+if results have already been computed.
 
-  - HIT:  restore defs into globals, return `Skip` with the cached
-          return value so the Evaluator short-circuits the body.
-  - MISS: pre-flight `cell.refs`: if any ref in `glbls` is an
-          `UnhashableStub` invalidate the producer's manifest and raise
-          `MarimoCancelCellError(cells_to_rerun=producers | self)`.
-          `Runner.run_all` catches the signal and hands it to
-          `Scheduler.requeue_for_rerun`.
+In the "setup" of a cached execution, a cell hash and look up is attempted.
+The "teardown" of a cached execution records timing and results to the cache if
+the cell ran live.
+There are 4 potential outcomes from attempted restoration:
 
-          Otherwise, fall through and let the body run.
+1. Cache hit
+   In this case, cache can be successfully loaded from disk, allowing the body
+   to skip execution. Resortation populate defs into globals and returns the
+   associated value.
+2. Stale cache
+   In this case, a "UnhashableStub" requirement or cache mechanism failure
+   indicates that the cell must rerun live, and may have ancestors that require
+   a re-run as well. In this case, the cell raises a MarimoCancelCellError with
+   the set of cells to requeue.
+3. Cache miss
+   Cache was not found, ancestors do not require re-run, so the cell can run as
+   normal with its results saved to cache on teardown.
+4. Non-cache related exception
+   During a "Cache Miss" execution, the cell body may raise an exception. In
+   this case, the exception is propagated to the caller, and the cache is not
+   saved.
 
-On teardown: backfill on successful miss; drop the attempt on a raised
-body.
+At the moment, a special carve out for UI elements is made, since UI hydration
+requires consistent ID lookup.
+
+The full flow from mermaid ascii demonstrated this below:
+
++---------------+
+|  cell enters  |
+|   lifecycle   |
++---------------+
+        |
+        v
++---------------+
+|   hash cell   |
++---------------+
+        |
+        v
++---------------+
+|   cache hit?  |----miss----+
++---------------+            |
+        |                    |
+       hit                   |
+        v                    v
++---------------+       +----------------+
+|  restore defs |       |   refs have    |
+|   to globals  |-fail->|     stub?      |------+
++---------------+       +----------------+      |
+        |                    ^                  |
+       ok         +------->stub                 |
+        v         |          v                  v
++---------------+ | +--------------+     +-------------+
+|    defs are   | | |  are cells   |     |  body runs  |
+|    live UI?   |-+ |  stale?      |-no->|             |
++---------------+   +--------------+     +-------------+
+        |                    |                  |
+       no                   yes                 |
+        v                    v                  v
++---------------+   +----------------+   +-------------+
+|   skip body,  |   |                |   |             |
+|   record key  |   |  raise Cancel  |   |   raised?   |---yes-----+
++---------------+   +----------------+   +-------------+           |
+        |                    |                  |                  |
+        |                    |                 no                  |
+        v                    |                  v                  v
++---------------+    +--------------+    +-------------+   +--------------+
+|   teardown:   |    |  teardown:   |    |  teardown:  |   |  teardown:   |
+|     no-op     |    |    no-op     |    | save defs + |   | drop attempt |
+|               |    |              |    |    return   |   |              |
++---------------+    +--------------+    +-------------+   +--------------+
+        |                    |                  |                  |
+        v                    v                  v                  v
++---------------+   +----------------+   +-------------+   +--------------+
+| 1.  return    |   | 2. scheduler   |   | 3. return   |   | 4. propagate |
+|   cached val  |   |     handles    |   |   real val  |   |   exception  |
+|               |   |    requeues    |   |             |   |              |
++---------------+   +----------------+   +-------------+   +--------------+
 """
 
 from __future__ import annotations
@@ -49,7 +115,7 @@ def _is_unhashable_stub(value: object) -> bool:
 
 
 class CachedLifecycle:
-    """Skip cell exec on cache hit; backfill cell results on miss success."""
+    """Skip cell exec on cache hit, populates definitions on cache hit."""
 
     name = "cached"
 
@@ -69,9 +135,8 @@ class CachedLifecycle:
         # Per-cell state — populated in setup, consumed in teardown.
         self._attempts: dict[CellId_t, Cache] = {}
         self._exec_starts: dict[CellId_t, float] = {}
-        # Per-cell manifest path, recorded on hit/save. Consumed when
-        # this cell's pre-flight invalidates an upstream producer.
-        self._manifest_keys: dict[CellId_t, str] = {}
+        # Per-cell keylookup path, recorded on hit/save.
+        self._restored_keys: dict[CellId_t, str] = {}
         # Cells that failed to rehydrate on pre-flight, so we don't requeue
         # them again and again.
         self._invalidated: set[CellId_t] = set()
@@ -101,8 +166,11 @@ class CachedLifecycle:
 
         if restored:
             # Defer loading if restored and not a UI element.
+            # TODO(dmadisetti): Attempt to restore UI elements as well.
+            # Currently the UIElement class has UIDs that are session-specific.
+            # For now, UI construction is cheap and inherently session state.
             if not self._restored_ui_defs(attempt, glbls):
-                self._manifest_keys[cell_id] = str(
+                self._restored_keys[cell_id] = str(
                     self._loader.build_path(attempt.key)
                 )
                 return Skip(
@@ -111,8 +179,6 @@ class CachedLifecycle:
                     )
                 )
 
-            # UI construction is cheap and inherently
-            # session state.
             LOGGER.debug(
                 "Cache hit for %s defines UI elements; running "
                 "live to register them with this session",
@@ -134,7 +200,10 @@ class CachedLifecycle:
         run_result: RunResult,
     ) -> None:
         cell_id = cell.cell_id
-        # Release the requeue guard.
+        # A cell that does have an exception, nor a stub defined in its globals,
+        # is considered a successful run and can be totally cached.
+        # As a result, it is also removed from the "invalid" set, which can
+        # potentially be triggered in a re-run of its ancestors.
         if run_result.exception is None and not self._defines_stub(
             cell, glbls
         ):
@@ -142,11 +211,10 @@ class CachedLifecycle:
         attempt = self._attempts.pop(cell_id, None)
         exec_start = self._exec_starts.pop(cell_id, None)
 
-        if attempt is None:
+        # Teardown is a no-op a exception or cache hit occurs.
+        if attempt is None or run_result.exception is not None:
             return
         if attempt.hit:
-            return
-        if run_result.exception is not None:
             return
 
         runtime = (time.time() - exec_start) if exec_start else 0.0
@@ -161,7 +229,7 @@ class CachedLifecycle:
             )
             saved = self._loader.save_cache(attempt)
             if saved:
-                self._manifest_keys[cell_id] = str(
+                self._restored_keys[cell_id] = str(
                     self._loader.build_path(attempt.key)
                 )
         except BaseException as e:
@@ -184,13 +252,12 @@ class CachedLifecycle:
         )
 
     def _preflight_refs(self, cell: CellImpl, glbls: MutableGlobals) -> None:
-        """Detect UnhashableStub residues in refs; requeue producers.
+        """Detect UnhashableStub residues in refs and requeue producers.
 
         Walks `cell.refs` and checks each name in `glbls` for an
         `UnhashableStub` instance. If any are found, invalidates each producer's
-        recorded manifest, drops this cell's attempt so teardown won't try to
-        backfill, and raises `MarimoCancelCellError` with `cells_to_rerun`
-        populated.
+        recorded manifest, drops this cell's attempt so teardown will no-op, and
+        raises `MarimoCancelCellError` with `cells_to_rerun` populated.
         """
         cell_id = cell.cell_id
         stub_vars: list[str] = []
@@ -210,11 +277,12 @@ class CachedLifecycle:
                 pass
         producers.discard(cell_id)
 
+        # Get the cells we have not previously marked as invalidated.
         fresh = {p for p in producers if p not in self._invalidated}
         if not fresh:
             LOGGER.warning(
-                "Pre-flight for %s: stub refs %s persist after producer "
-                "rerun; not requeuing (tripwire raises on access)",
+                "Unsatisfiable reschedule for %s: stub refs %s persist after "
+                "rerun; not requeuing",
                 cell_id,
                 stub_vars,
             )
@@ -224,12 +292,12 @@ class CachedLifecycle:
             self._invalidate(producer_id)
 
         # Drop our own attempt — body is being skipped this turn, so
-        # teardown must not backfill against the partially-restored scope.
+        # teardown must not restore defs from the partial scope.
         self._attempts.pop(cell_id, None)
         self._exec_starts.pop(cell_id, None)
 
         LOGGER.info(
-            "Pre-flight requeue for %s: stub refs %s; producers %s",
+            "Rescheudling for %s: stub refs %s; Cell Ids %s",
             cell_id,
             stub_vars,
             fresh,
@@ -239,9 +307,10 @@ class CachedLifecycle:
     def _invalidate(self, cell_id: CellId_t) -> None:
         """Invalidate `cell_id`'s manifest so it re-runs live.
 
-        Cells marked invalidated are skipped in future pre-flight check.
+        Cells marked invalidated are skipped in future pre-flight check
+        to force reruns and prevent recursive deadlocks.
         """
-        key = self._manifest_keys.pop(cell_id, None)
+        key = self._restored_keys.pop(cell_id, None)
         self._invalidated.add(cell_id)
         if key is None:
             return

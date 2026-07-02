@@ -87,19 +87,6 @@ def cell_filename(cell_id: CellId_t) -> str:
 __all__ = ["RunResult", "Runner", "cell_filename", "should_show_traceback"]
 
 
-UNKNOWN_ERROR = """marimo encountered an internal error.
-marimo finished executing a cell, but did not produce
-a run result.
-
-Please copy this message and paste it in a GitHub issue:
-
-https://github.com/marimo-team/marimo/issues
-
-Any additional context of what caused this error, such
-as sample code to reproduce, will help us debug.
-"""
-
-
 def should_show_traceback(
     exception: ExceptionOrError | None,
 ) -> bool:
@@ -459,21 +446,38 @@ class Runner:
         # The Evaluator captures all body/lifecycle exceptions into the
         # returned RunResult; cell_id-specific classification + side
         # effects are applied below in `_finalize_run_result`.
+        unexpected_failure: BaseException | None = None
         try:
             raw_result = await self.evaluate_interruptible(cell)
-        except BaseException:
-            LOGGER.exception(UNKNOWN_ERROR)
+        except BaseException as exc:
+            unexpected_failure = exc
             raw_result = RunResult(output=None, exception=None)
 
-        # Soft-cancel control signal from a lifecycle.
         if isinstance(raw_result.exception, MarimoCancelCellError):
             raise raw_result.exception
 
         try:
             run_result = self._finalize_run_result(raw_result, cell_id)
-        except BaseException:
-            LOGGER.exception(UNKNOWN_ERROR)
+        except BaseException as exc:
+            unexpected_failure = exc
             run_result = RunResult(output=None, exception=None)
+
+        if unexpected_failure is not None:
+            LOGGER.error(
+                """marimo encountered an internal error.
+            marimo finished executing a cell, but did not produce
+            a run result.
+
+            Please copy this message and paste it in a GitHub issue:
+
+            https://github.com/marimo-team/marimo/issues
+
+            Any additional context of what caused this error, such
+            as sample code to reproduce, will help us debug.
+            %s
+            """,
+                str(unexpected_failure),
+            )
 
         # Mark as interrupted if the cell raised a MarimoInterrupt
         # Set here since failed async can also trigger an Interrupt.
