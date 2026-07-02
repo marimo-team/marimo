@@ -9,7 +9,11 @@ import { store } from "../../state/jotai";
 import { variablesAtom } from "../../variables/state";
 import type { VariableName, Variables } from "../../variables/types";
 import { getPositionAtWordBounds } from "../completion/hints";
-import { goToLine, goToVariableDefinition } from "./commands";
+import {
+  findVariableDefinitionPosition,
+  goToLine,
+  goToPosition,
+} from "./commands";
 
 /**
  * Get the word under the cursor.
@@ -27,6 +31,17 @@ function getWordUnderCursor(state: EditorState) {
   return {
     position: from,
     word: state.doc.sliceString(from, to),
+  };
+}
+
+/**
+ * Get the word at the given document position.
+ */
+function getWordAtPosition(state: EditorState, pos: number) {
+  const { startToken, endToken } = getPositionAtWordBounds(state.doc, pos);
+  return {
+    position: startToken,
+    word: state.doc.sliceString(startToken, endToken),
   };
 }
 
@@ -56,8 +71,51 @@ function isPrivateVariable(variableName: string) {
  * @param view The editor view at which the command was invoked.
  */
 export function goToDefinitionAtCursorPosition(view: EditorView): boolean {
-  const { state } = view;
-  const { position, word } = getWordUnderCursor(state);
+  const { position, word } = getWordUnderCursor(view.state);
+  return goToWord(view, word, position);
+}
+
+/**
+ * Go to the definition of the variable at the given document position.
+ *
+ * Unlike {@link goToDefinitionAtCursorPosition}, this resolves the word at an
+ * explicit position (e.g. where the user right-clicked) rather than the
+ * current text cursor.
+ * @param view The editor view at which the command was invoked.
+ * @param pos The document position to resolve the word from.
+ */
+export function goToDefinitionAtPosition(
+  view: EditorView,
+  pos: number,
+): boolean {
+  const { position, word } = getWordAtPosition(view.state, pos);
+  return goToWord(view, word, position);
+}
+
+/**
+ * Whether the word at the given document position has a definition to jump to.
+ * Used to decide whether to offer "Go to Definition" (e.g. in the cell context
+ * menu): strings, keywords, and other tokens that resolve to neither a local
+ * nor a notebook variable have no definition and should not surface the action.
+ * @param view The editor view at which the command was invoked.
+ * @param pos The document position to resolve the word from.
+ */
+export function hasDefinitionAtPosition(
+  view: EditorView,
+  pos: number,
+): boolean {
+  const { position, word } = getWordAtPosition(view.state, pos);
+  if (!word) {
+    return false;
+  }
+  return resolveDefinition(view, word, position) != null;
+}
+
+/**
+ * Close open popovers and navigate to the definition of the given word.
+ * Returns `false` (a no-op) when there is no word.
+ */
+function goToWord(view: EditorView, word: string, position: number): boolean {
   if (!word) {
     return false;
   }
@@ -69,6 +127,43 @@ export function goToDefinitionAtCursorPosition(view: EditorView): boolean {
 }
 
 /**
+ * Resolve where a variable is defined, without navigating. Prefers a local
+ * (in-cell, scope-aware) definition at the usage position, then falls back to
+ * the cell that declares it as a reactive notebook variable. Returns the target
+ * editor and position, or null when nothing resolves.
+ */
+function resolveDefinition(
+  view: EditorView,
+  variableName: string,
+  usagePosition?: number,
+): { view: EditorView; from: number } | null {
+  if (usagePosition !== undefined) {
+    const from = findVariableDefinitionPosition(
+      view.state,
+      variableName,
+      usagePosition,
+    );
+    if (from !== null) {
+      return { view, from };
+    }
+  }
+
+  // The variable may exist in another cell
+  const editorWithVariable = getEditorForVariable(view, variableName);
+  if (!editorWithVariable) {
+    return null;
+  }
+  const from = findVariableDefinitionPosition(
+    editorWithVariable.state,
+    variableName,
+  );
+  if (from === null) {
+    return null;
+  }
+  return { view: editorWithVariable, from };
+}
+
+/**
  * Go to the definition of the variable under the cursor.
  * @param view The editor view at which the command was invoked.
  */
@@ -77,23 +172,12 @@ export function goToDefinition(
   variableName: string,
   usagePosition?: number,
 ): boolean {
-  if (usagePosition !== undefined) {
-    const foundLocally = goToVariableDefinition(
-      view,
-      variableName,
-      usagePosition,
-    );
-    if (foundLocally) {
-      return true;
-    }
-  }
-
-  // The variable may exist in another cell
-  const editorWithVariable = getEditorForVariable(view, variableName);
-  if (!editorWithVariable) {
+  const location = resolveDefinition(view, variableName, usagePosition);
+  if (!location) {
     return false;
   }
-  return goToVariableDefinition(editorWithVariable, variableName);
+  goToPosition(location.view, location.from);
+  return true;
 }
 
 /**

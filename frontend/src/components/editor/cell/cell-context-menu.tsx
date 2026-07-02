@@ -23,7 +23,10 @@ import { toast } from "@/components/ui/use-toast";
 import { useCellData, useCellRuntime } from "@/core/cells/cells";
 import { CellOutputId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
-import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definition/utils";
+import {
+  goToDefinitionAtPosition,
+  hasDefinitionAtPosition,
+} from "@/core/codemirror/go-to-definition/utils";
 import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
 import { copyImageToClipboard, copyToClipboard } from "@/utils/copy";
 import { getImageExtension } from "@/utils/filenames";
@@ -61,6 +64,11 @@ export const CellActionsContextMenu = ({
   });
   const [imageRightClicked, setImageRightClicked] =
     React.useState<HTMLImageElement>();
+  // The document position of the variable under the right-click, or null when
+  // the click was not over one (e.g. output, a string, a keyword).
+  const [goToDefinitionPos, setGoToDefinitionPos] = React.useState<
+    number | null
+  >(null);
   const suppressCloseAutoFocus = React.useRef(false);
 
   const DEFAULT_CONTEXT_MENU_ITEMS: ActionButton[] = [
@@ -164,13 +172,17 @@ export const CellActionsContextMenu = ({
     {
       label: "Go to Definition",
       icon: <SearchIcon size={13} strokeWidth={1.5} />,
+      // Only offered when the right-click landed on an identifier.
+      hidden: goToDefinitionPos == null,
       handle: () => {
         const editorView = getEditorView();
-        if (editorView) {
+        if (editorView && goToDefinitionPos != null) {
           // Only suppress focus restoration when we actually navigated;
           // otherwise let Radix return focus to the trigger cell.
-          suppressCloseAutoFocus.current =
-            goToDefinitionAtCursorPosition(editorView);
+          suppressCloseAutoFocus.current = goToDefinitionAtPosition(
+            editorView,
+            goToDefinitionPos,
+          );
         }
       },
     },
@@ -193,6 +205,26 @@ export const CellActionsContextMenu = ({
           } else {
             setImageRightClicked(undefined);
           }
+
+          // Resolve the identifier at the click position so "Go to Definition"
+          // targets what the user actually clicked on, and only offer it when
+          // that word resolves to a definition.
+          //
+          // Require the click to land inside the editor's content DOM.
+          const editorView = getEditorView();
+          const target = evt.target;
+          const inEditor =
+            editorView != null &&
+            target instanceof Node &&
+            editorView.contentDOM.contains(target);
+          const pos = inEditor
+            ? editorView.posAtCoords({ x: evt.clientX, y: evt.clientY })
+            : null;
+          setGoToDefinitionPos(
+            editorView && pos != null && hasDefinitionAtPosition(editorView, pos)
+              ? pos
+              : null,
+          );
         }}
         asChild={true}
       >
