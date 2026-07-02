@@ -694,7 +694,7 @@ export function useNotebookActions() {
       hidden: !location.search.includes("file"),
       handle: () => {
         const withoutSearch = document.baseURI.split("?")[0];
-        window.open(withoutSearch, "_blank");
+        window.open(withoutSearch, "_blank", "noopener");
       },
     },
 
