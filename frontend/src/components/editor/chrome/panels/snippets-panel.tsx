@@ -39,8 +39,7 @@ const sqlParser = new SQLParser();
 
 // SQL cells are stored as python `mo.sql(...)`. Show the query itself
 // highlighted as SQL instead of as a python string, matching how the cell
-// renders once the snippet is inserted. Uses the side-effect-free parser
-// from smart-cells rather than the editor LanguageAdapters.
+// renders once the snippet is inserted.
 export function getSnippetDisplay(code: string): {
   language: "python" | "sql";
   value: string;
