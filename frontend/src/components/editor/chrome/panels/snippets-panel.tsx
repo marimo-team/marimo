@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { SQLParser } from "@marimo-team/smart-cells";
 import { CommandList } from "cmdk";
 import { BetweenHorizontalStartIcon, PlusIcon, XIcon } from "lucide-react";
 import React from "react";
@@ -32,24 +31,9 @@ import { cn } from "@/utils/cn";
 import { HideInKioskMode } from "../../kiosk-mode";
 import { ContributeSnippetButton } from "../components/contribute-snippet-button";
 import { usePanelOrientation, usePanelSection } from "./panel-context";
+import { getSnippetDisplay } from "./snippet-display";
 
 const extensions = [EditorView.lineWrapping];
-
-const sqlParser = new SQLParser();
-
-// SQL cells are stored as python `mo.sql(...)`. Show the query itself
-// highlighted as SQL instead of as a python string, matching how the cell
-// renders once the snippet is inserted.
-export function getSnippetDisplay(code: string): {
-  language: "python" | "sql";
-  value: string;
-} {
-  if (sqlParser.isSupported(code)) {
-    const { code: query } = sqlParser.transformIn(code);
-    return { language: "sql", value: query };
-  }
-  return { language: "python", value: code };
-}
 
 const SnippetsPanel: React.FC = () => {
   const { readSnippets } = useRequestClient();

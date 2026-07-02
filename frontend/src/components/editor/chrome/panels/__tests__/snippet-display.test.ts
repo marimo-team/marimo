@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import { getSnippetDisplay } from "../snippets-panel";
+import { getSnippetDisplay } from "../snippet-display";
 
 describe("getSnippetDisplay", () => {
   it("shows sql cells as the sql query", () => {
