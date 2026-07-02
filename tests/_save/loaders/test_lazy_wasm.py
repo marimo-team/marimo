@@ -327,7 +327,9 @@ class TestRestoreTripwire:
                 raise ModuleNotFoundError("No module named 'torch'")
             return real(data, type_hint)
 
-        monkeypatch.setitem(lazy_mod.BLOB_DESERIALIZERS, ".pickle", _maybe_boom)
+        monkeypatch.setitem(
+            lazy_mod.BLOB_DESERIALIZERS, ".pickle", _maybe_boom
+        )
 
     @staticmethod
     def _seed(
@@ -519,7 +521,9 @@ class TestRestoreTripwire:
         from marimo._save.hash import HashKey
         from marimo._save.loaders import lazy as lazy_mod
 
-        def _import_error(_data: bytes, _type_hint: str | None = None) -> object:
+        def _import_error(
+            _data: bytes, _type_hint: str | None = None
+        ) -> object:
             raise ImportError("cannot import name 'X'")
 
         monkeypatch.setitem(
