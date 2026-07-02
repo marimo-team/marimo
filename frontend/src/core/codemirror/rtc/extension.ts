@@ -24,6 +24,7 @@ import {
   switchLanguage,
 } from "../language/extension";
 import {
+  type LanguageMetadata,
   languageMetadataField,
   setLanguageMetadata,
   updateLanguageMetadata,
@@ -330,19 +331,25 @@ function languageListenerExtension(cellId: CellId) {
     .getMap("language_metadata")
     .getOrCreateContainer(cellId, new LoroMap());
 
-  return EditorView.updateListener.of((update) => {
-    const isInitialized = currentLang.toString() !== "";
+  let initializing = false;
 
-    // Skip if the doc hasn't changed and the language is already set
-    if (!update.docChanged && isInitialized) {
-      return;
+  const setLanguageMetadataInDoc = (metadata: LanguageMetadata) => {
+    currentLanguageMetadata.clear();
+    for (const key of Object.keys(metadata)) {
+      currentLanguageMetadata.set(key, metadata[key]);
+    }
+  };
+
+  const initializeLanguageIfNeeded = (view: EditorView): boolean => {
+    const isInitialized = currentLang.toString() !== "";
+    if (isInitialized || initializing) {
+      return false;
     }
 
-    // If the language is not set, set it to the current language
-    // and update the LoroDoc
-    if (!isInitialized) {
-      const language = getInitialLanguageAdapter(update.state).type;
-      switchLanguage(update.view, { language });
+    initializing = true;
+    try {
+      const language = getInitialLanguageAdapter(view.state).type;
+      switchLanguage(view, { language });
       logger.debug("no initial language, setting default to", language);
 
       // Sync the language to the LoroDoc
@@ -350,67 +357,91 @@ function languageListenerExtension(cellId: CellId) {
       currentLang.insert(0, language);
 
       // Sync the language metadata to the LoroDoc
+      const metadata = view.state.field(languageMetadataField);
       logger.debug(
         "no initial language metadata, setting default to",
-        update.state.field(languageMetadataField),
+        metadata,
       );
-      const metadata = update.state.field(languageMetadataField);
-      for (const key of Object.keys(metadata)) {
-        currentLanguageMetadata.set(key, metadata[key]);
-      }
+      setLanguageMetadataInDoc(metadata);
 
       // Commit the changes
       doc.commit();
-
-      return;
+    } finally {
+      initializing = false;
     }
 
-    let hasChanges = false;
+    return true;
+  };
 
-    for (const tr of update.transactions) {
-      const isSyncOperation = tr.annotation(loroSyncAnnotation);
-      if (isSyncOperation) {
-        continue;
+  return [
+    ViewPlugin.define((view) => {
+      Promise.resolve().then(() => {
+        initializeLanguageIfNeeded(view);
+      });
+      return {};
+    }),
+    EditorView.updateListener.of((update) => {
+      const isInitialized = currentLang.toString() !== "";
+
+      // Skip if the doc hasn't changed and the language is already set
+      if (!update.docChanged && isInitialized) {
+        return;
       }
 
-      for (const e of tr.effects) {
-        // Language type
-        if (
-          e.is(setLanguageAdapter) &&
-          currentLang.toString() !== e.value.type
-        ) {
-          logger.debug(
-            `[outgoing] language change: ${currentLang} -> ${e.value.type}`,
-          );
-          currentLang.delete(0, currentLang.length);
-          currentLang.insert(0, e.value.type);
-          hasChanges = true;
+      // If the language is not set, set it to the current language
+      // and update the LoroDoc.
+      if (!isInitialized) {
+        initializeLanguageIfNeeded(update.view);
+        return;
+      }
+
+      let hasChanges = false;
+
+      for (const tr of update.transactions) {
+        const isSyncOperation = tr.annotation(loroSyncAnnotation);
+        if (isSyncOperation) {
+          continue;
         }
 
-        // Language metadata
-        if (e.is(updateLanguageMetadata) || e.is(setLanguageMetadata)) {
-          const metadata = e.value;
-
-          // If it is set, we should clear the metadata first
-          if (e.is(setLanguageMetadata)) {
-            logger.debug("[outgoing] setting language metadata: ", metadata);
-            currentLanguageMetadata.clear();
-          } else {
-            logger.debug("[outgoing] updating language metadata: ", metadata);
+        for (const e of tr.effects) {
+          // Language type
+          if (
+            e.is(setLanguageAdapter) &&
+            currentLang.toString() !== e.value.type
+          ) {
+            logger.debug(
+              `[outgoing] language change: ${currentLang} -> ${e.value.type}`,
+            );
+            currentLang.delete(0, currentLang.length);
+            currentLang.insert(0, e.value.type);
+            hasChanges = true;
           }
 
-          for (const key of Object.keys(metadata)) {
-            currentLanguageMetadata.set(key, metadata[key]);
+          // Language metadata
+          if (e.is(updateLanguageMetadata) || e.is(setLanguageMetadata)) {
+            const metadata = e.value;
+
+            // If it is set, we should clear the metadata first
+            if (e.is(setLanguageMetadata)) {
+              logger.debug("[outgoing] setting language metadata: ", metadata);
+              currentLanguageMetadata.clear();
+            } else {
+              logger.debug("[outgoing] updating language metadata: ", metadata);
+            }
+
+            for (const key of Object.keys(metadata)) {
+              currentLanguageMetadata.set(key, metadata[key]);
+            }
+            hasChanges = true;
           }
-          hasChanges = true;
         }
       }
-    }
 
-    if (hasChanges) {
-      doc.commit();
-    }
-  });
+      if (hasChanges) {
+        doc.commit();
+      }
+    }),
+  ];
 }
 
 /**
