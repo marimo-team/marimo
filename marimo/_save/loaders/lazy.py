@@ -55,7 +55,7 @@ class _BlobStatus(Enum):
 
 
 @functools.cache
-def _maybe_update_lazy_stub_by_type(value_type: str) -> str:
+def _maybe_update_lazy_stub_by_type(value_type: type) -> str:
     """Return the loader strategy string for *value*, caching the result."""
     result = mro_lookup(value_type, LAZY_STUB_LOOKUP)
     loader = result[1] if result else "pickle"
