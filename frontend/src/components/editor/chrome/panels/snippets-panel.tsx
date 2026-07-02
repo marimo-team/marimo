@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { SQLParser } from "@marimo-team/smart-cells";
 import { CommandList } from "cmdk";
 import { BetweenHorizontalStartIcon, PlusIcon, XIcon } from "lucide-react";
 import React from "react";
@@ -24,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
-import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { useRequestClient } from "@/core/network/requests";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useTheme } from "@/theme/useTheme";
@@ -35,15 +35,18 @@ import { usePanelOrientation, usePanelSection } from "./panel-context";
 
 const extensions = [EditorView.lineWrapping];
 
+const sqlParser = new SQLParser();
+
 // SQL cells are stored as python `mo.sql(...)`. Show the query itself
 // highlighted as SQL instead of as a python string, matching how the cell
-// renders once the snippet is inserted.
+// renders once the snippet is inserted. Uses the side-effect-free parser
+// from smart-cells rather than the editor LanguageAdapters.
 export function getSnippetDisplay(code: string): {
-  language: string;
+  language: "python" | "sql";
   value: string;
 } {
-  if (LanguageAdapters.sql.isSupported(code)) {
-    const [query] = LanguageAdapters.sql.transformIn(code);
+  if (sqlParser.isSupported(code)) {
+    const { code: query } = sqlParser.transformIn(code);
     return { language: "sql", value: query };
   }
   return { language: "python", value: code };
