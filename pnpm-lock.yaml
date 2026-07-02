@@ -143,8 +143,8 @@ importers:
         specifier: ^1.16.12
         version: 1.16.12(@codemirror/state@6.6.0)(@codemirror/view@6.41.0)
       '@marimo-team/codemirror-mcp':
-        specifier: ^0.1.5
-        version: 0.1.5(@codemirror/autocomplete@6.20.1)(@codemirror/state@6.6.0)(@codemirror/view@6.41.0)(@modelcontextprotocol/sdk@1.17.2)
+        specifier: ^0.1.7
+        version: 0.1.7(@codemirror/autocomplete@6.20.1)(@codemirror/state@6.6.0)(@codemirror/view@6.41.0)(@modelcontextprotocol/sdk@1.17.2)
       '@marimo-team/codemirror-sql':
         specifier: ^0.2.8
         version: 0.2.8(@codemirror/autocomplete@6.20.1)(@codemirror/lint@6.9.5)(@codemirror/state@6.6.0)(@codemirror/view@6.41.0)
@@ -1705,8 +1705,8 @@ packages:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
 
-  '@marimo-team/codemirror-mcp@0.1.5':
-    resolution: {integrity: sha512-Gt4DGeQO0YIE7mvgNmYfRS1UggnfuZTROHmze80huglUTnZVqIe+2MllZAm/e4jEkI3J9iFYtxzpNLcVlkM8Nw==}
+  '@marimo-team/codemirror-mcp@0.1.7':
+    resolution: {integrity: sha512-1NhP6leKyIfG5KCAhzLXcMS6QSlS1Ls81M/SPAb9WwTjSNVDTTLu+4RByobB9Wps4NezNmYTKlvb2GbTjkRlZg==}
     peerDependencies:
       '@codemirror/autocomplete': ^6
       '@codemirror/state': ^6
@@ -11225,7 +11225,7 @@ snapshots:
       - encoding
       - utf-8-validate
 
-  '@marimo-team/codemirror-mcp@0.1.5(@codemirror/autocomplete@6.20.1)(@codemirror/state@6.6.0)(@codemirror/view@6.41.0)(@modelcontextprotocol/sdk@1.17.2)':
+  '@marimo-team/codemirror-mcp@0.1.7(@codemirror/autocomplete@6.20.1)(@codemirror/state@6.6.0)(@codemirror/view@6.41.0)(@modelcontextprotocol/sdk@1.17.2)':
     dependencies:
       '@codemirror/autocomplete': 6.20.1
       '@codemirror/state': 6.6.0
