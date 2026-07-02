@@ -51,7 +51,7 @@ class CancelledCells:
             descendants = self._by_raising_cell[raising_cell]
             descendants.discard(cell_id)
             # A raiser with no cancelled descendants left is no longer a
-            # cancellation record; drop it so iteration and __bool__ stay honest.
+            # cancellation record.
             if not descendants:
                 del self._by_raising_cell[raising_cell]
         # Rebuild the flat view from what remains; otherwise popping a raiser

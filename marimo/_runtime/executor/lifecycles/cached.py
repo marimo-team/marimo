@@ -29,7 +29,7 @@ There are 4 potential outcomes from attempted restoration:
 At the moment, a special carve out for UI elements is made, since UI hydration
 requires consistent ID lookup.
 
-The full flow from mermaid ascii demonstrated this below:
+The full flow from mermaid ascii demonstrated below:
 
 +---------------+
 |  cell enters  |
@@ -168,7 +168,6 @@ class CachedLifecycle:
             # Defer loading if restored and not a UI element.
             # TODO(dmadisetti): Attempt to restore UI elements as well.
             # Currently the UIElement class has UIDs that are session-specific.
-            # For now, UI construction is cheap and inherently session state.
             if not self._restored_ui_defs(attempt, glbls):
                 self._restored_keys[cell_id] = str(
                     self._loader.build_path(attempt.key)
