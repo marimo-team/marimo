@@ -221,7 +221,9 @@ export const CellActionsContextMenu = ({
             ? editorView.posAtCoords({ x: evt.clientX, y: evt.clientY })
             : null;
           setGoToDefinitionPos(
-            editorView && pos != null && hasDefinitionAtPosition(editorView, pos)
+            editorView &&
+              pos != null &&
+              hasDefinitionAtPosition(editorView, pos)
               ? pos
               : null,
           );

@@ -217,10 +217,7 @@ describe("goToDefinitionAtPosition", () => {
       },
     });
 
-    const result = goToDefinitionAtPosition(
-      usageView,
-      usageCode.indexOf("a"),
-    );
+    const result = goToDefinitionAtPosition(usageView, usageCode.indexOf("a"));
 
     expect(result).toBe(true);
     await tick();
@@ -290,9 +287,9 @@ def f():
     const view = createEditor(code, 0);
     views.push(view);
 
-    expect(
-      hasDefinitionAtPosition(view, code.lastIndexOf("local_var")),
-    ).toBe(true);
+    expect(hasDefinitionAtPosition(view, code.lastIndexOf("local_var"))).toBe(
+      true,
+    );
   });
 
   test("is false for a word that is not a variable", () => {
