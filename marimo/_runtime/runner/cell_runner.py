@@ -23,8 +23,8 @@ from marimo._runtime import dataflow
 from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.exceptions import (
-    MarimoRescheduleError,
     MarimoMissingRefError,
+    MarimoRescheduleError,
     MarimoRuntimeException,
     unwrap_user_exception,
 )
