@@ -80,6 +80,11 @@ class CacheState:
     # Lazy-store session state; see `loaders/lazy.py:_cache_state`.
     active_lazy_loaders: dict[str, LazyLoader] = field(default_factory=dict)
     poisoned_keys: set[str] = field(default_factory=set)
+    # Manifest keys invalidated this session for re-execution (e.g. a cached
+    # producer whose def resisted serialization and must be recomputed live).
+    # A stale key misses without being served or re-fetched, so the producer
+    # re-runs instead of restoring the same unusable value in a loop.
+    stale_keys: set[str] = field(default_factory=set)
     wasm_dict_store: Store | None = None
 
     def is_memoizable(self, value: Any) -> bool:
@@ -301,6 +306,11 @@ class Cache:
             # CustomStub is a placeholder for a custom type, which cannot be
             # restored directly.
             result = value.load(scope)
+            # An ImmediateReferenceStub loads its blob to whatever was pickled,
+            # which for a blob-backed def is itself a registered CustomStub;
+            # keep resolving until we reach the real object.
+            if isinstance(result, CustomStub) and result is not value:
+                result = self._restore_from_stub_if_needed(result, scope, memo)
         else:
             result = value
 

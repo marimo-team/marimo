@@ -705,12 +705,18 @@ class BlockHasher:
                 version = ""
                 module = None
                 if self.pin_modules:
-                    # `.get`: a cached module def restored as a missing-
-                    # module placeholder is in scope but not sys.modules.
-                    module = sys.modules.get(imports[ref].module)
+                    # A cached module def restored where the module is absent
+                    # is an in-scope `MissingModule` placeholder but not in
+                    # sys.modules; fall back to the in-scope value so its
+                    # replayed `__version__` reproduces the pinned hash.
+                    module = sys.modules.get(imports[ref].module) or scope.get(
+                        local_ref
+                    )
                     version = getattr(module, "__version__", "") or ""
                     if not version:
-                        module = sys.modules.get(imports[ref].namespace)
+                        module = sys.modules.get(
+                            imports[ref].namespace
+                        ) or scope.get(imports[ref].namespace)
                         version = getattr(module, "__version__", "") or ""
 
                 content_serialization[ref] = type_sign(
