@@ -286,6 +286,379 @@ class TestLazyLoaderBatchPath:
         assert loaded.defs["y"] == "hello"
 
 
+class TestRestoreTripwire:
+    """A cached def whose codec needs an absent package binds as a use-site
+    tripwire instead of aborting the whole restore. The return value is
+    excluded so a stubbed return never becomes the cell's output."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_poisoned_keys(self) -> Iterator[None]:
+        # A restore failure (e.g. the WASM return-value test) poisons keys on
+        # the shared process-local CacheState; snapshot/restore so it doesn't
+        # leak into other classes' exact-poison-set assertions.
+        poisoned = _cache_state().poisoned_keys
+        snapshot = set(poisoned)
+        yield
+        poisoned.clear()
+        poisoned.update(snapshot)
+
+    @staticmethod
+    def _patch_failing_codec(monkeypatch: pytest.MonkeyPatch) -> None:
+        # A `.faildep` codec that always raises ModuleNotFoundError, standing
+        # in for e.g. a torch tensor restored where torch is not installed.
+        from marimo._save.loaders import lazy as lazy_mod
+
+        def _boom(_data: bytes, _type_hint: str | None = None) -> object:
+            raise ModuleNotFoundError("No module named 'torch'")
+
+        monkeypatch.setitem(lazy_mod.BLOB_DESERIALIZERS, ".faildep", _boom)
+
+    @staticmethod
+    def _patch_failing_pickle(monkeypatch: pytest.MonkeyPatch) -> None:
+        # Fail `.pickle` deserialization only for a sentinel payload, so a
+        # single blob (e.g. shared `ui.pickle`) can be made undeserializable
+        # while other pickled blobs still load normally.
+        from marimo._save.loaders import lazy as lazy_mod
+
+        real = lazy_mod.BLOB_DESERIALIZERS[".pickle"]
+
+        def _maybe_boom(data: bytes, type_hint: str | None = None) -> object:
+            if data == b"__FAIL__":
+                raise ModuleNotFoundError("No module named 'torch'")
+            return real(data, type_hint)
+
+        monkeypatch.setitem(
+            lazy_mod.BLOB_DESERIALIZERS, ".pickle", _maybe_boom
+        )
+
+    @staticmethod
+    def _seed(
+        store: Store,
+        loader: LazyLoader,
+        defs: dict,
+        meta: Meta,
+        ui_defs: list[str] | None = None,
+    ) -> None:
+        from marimo._save.hash import HashKey
+
+        manifest = msgspec.json.encode(
+            CacheSchema(
+                hash="h",
+                cache_type=CacheType("Pure"),
+                defs=defs,
+                stateful_refs=[],
+                meta=meta,
+                ui_defs=ui_defs or [],
+            )
+        )
+        key = HashKey(hash="h", cache_type="Pure")
+        store.put(str(loader.build_path(key)), manifest)
+
+    def _assert_tripwire(self, loader: LazyLoader) -> None:
+        from marimo._runtime.exceptions import MarimoUnhashableCacheError
+        from marimo._save.hash import HashKey
+
+        loaded = loader.load_cache(HashKey(hash="h", cache_type="Pure"))
+        assert loaded is not None
+        assert loaded.hit is True
+        # The healthy def restored normally.
+        assert loaded.defs["good"] == "ok"
+        # The missing-dep def is a use-site tripwire naming itself.
+        stub = loaded.defs["bad"]
+        assert getattr(type(stub), "__marimo_unhashable__", False) is True
+        assert stub.var_name == "bad"
+        assert stub.type_name == "torch.Tensor"
+        # Inert until touched; a real access raises a clear unhydratable error.
+        with pytest.raises(MarimoUnhashableCacheError):
+            stub()
+
+    def test_def_blob_missing_dep_binds_tripwire_native(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._patch_failing_codec(monkeypatch)
+        store = LazyStore(inner=DictStore())
+        loader = LazyLoader("trip_native", store=store)
+
+        base = Path("trip_native") / "h"
+        good_ref = (base / "good.pickle").as_posix()
+        bad_ref = (base / "bad.faildep").as_posix()
+        store.put(good_ref, pickle.dumps("ok"))
+        store.put(bad_ref, b"unused")
+        self._seed(
+            store,
+            loader,
+            {
+                "good": Item(reference=good_ref),
+                "bad": Item(reference=bad_ref, type_hint="torch.Tensor"),
+            },
+            Meta(version=MARIMO_CACHE_VERSION),
+        )
+        self._assert_tripwire(loader)
+
+    def test_def_blob_missing_dep_binds_tripwire_wasm(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Exercises the WASM `_read_blobs` variant (get_batch, no threads).
+        self._patch_failing_codec(monkeypatch)
+        store = WasmLazyStore(inner=DictStore())
+        loader = WasmLazyLoader("trip_wasm", store=store)
+
+        base = Path("trip_wasm") / "h"
+        good_ref = (base / "good.pickle").as_posix()
+        bad_ref = (base / "bad.faildep").as_posix()
+        store.put(good_ref, pickle.dumps("ok"))
+        store.put(bad_ref, b"unused")
+        self._seed(
+            store,
+            loader,
+            {
+                "good": Item(reference=good_ref),
+                "bad": Item(reference=bad_ref, type_hint="torch.Tensor"),
+            },
+            Meta(version=MARIMO_CACHE_VERSION),
+        )
+        self._assert_tripwire(loader)
+
+    def test_return_blob_missing_dep_is_not_stubbed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A return value that can't deserialize must NOT become a stubbed
+        # output; the restore fails cleanly (miss) instead.
+        self._patch_failing_codec(monkeypatch)
+        from marimo._save.hash import HashKey
+
+        store = LazyStore(inner=DictStore())
+        loader = LazyLoader("trip_return", store=store)
+
+        base = Path("trip_return") / "h"
+        good_ref = (base / "good.pickle").as_posix()
+        ret_ref = (base / "return.faildep").as_posix()
+        store.put(good_ref, pickle.dumps("ok"))
+        store.put(ret_ref, b"unused")
+        self._seed(
+            store,
+            loader,
+            {"good": Item(reference=good_ref)},
+            Meta(
+                version=MARIMO_CACHE_VERSION,
+                return_value=Item(reference=ret_ref, type_hint="torch.Tensor"),
+            ),
+        )
+        # Clean miss — no stub leaks out as the cell output.
+        assert loader.load_cache(HashKey(hash="h", cache_type="Pure")) is None
+
+    def test_return_blob_missing_dep_is_not_stubbed_wasm(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Same exclusion on the WASM restore path (get_batch): the re-raised
+        # ModuleNotFoundError bubbles to load_cache, which returns None.
+        self._patch_failing_codec(monkeypatch)
+        from marimo._save.hash import HashKey
+
+        store = WasmLazyStore(inner=DictStore())
+        loader = WasmLazyLoader("trip_return_wasm", store=store)
+
+        base = Path("trip_return_wasm") / "h"
+        good_ref = (base / "good.pickle").as_posix()
+        ret_ref = (base / "return.faildep").as_posix()
+        store.put(good_ref, pickle.dumps("ok"))
+        store.put(ret_ref, b"unused")
+        self._seed(
+            store,
+            loader,
+            {"good": Item(reference=good_ref)},
+            Meta(
+                version=MARIMO_CACHE_VERSION,
+                return_value=Item(reference=ret_ref, type_hint="torch.Tensor"),
+            ),
+        )
+        assert loader.load_cache(HashKey(hash="h", cache_type="Pure")) is None
+
+    def test_shared_ui_blob_labels_each_def(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # All UI vars share one `ui.pickle` blob. When it can't deserialize,
+        # each UI def must become its OWN tripwire naming itself — not one
+        # shared stub reporting an arbitrary sibling's name.
+        self._patch_failing_pickle(monkeypatch)
+        from marimo._runtime.exceptions import MarimoUnhashableCacheError
+        from marimo._save.hash import HashKey
+
+        store = LazyStore(inner=DictStore())
+        loader = LazyLoader("trip_ui", store=store)
+
+        ui_ref = (Path("trip_ui") / "h" / "ui.pickle").as_posix()
+        store.put(ui_ref, b"__FAIL__")
+        self._seed(
+            store,
+            loader,
+            {
+                "ui_a": Item(reference=ui_ref),
+                "ui_b": Item(reference=ui_ref),
+            },
+            Meta(version=MARIMO_CACHE_VERSION),
+            ui_defs=["ui_a", "ui_b"],
+        )
+
+        loaded = loader.load_cache(HashKey(hash="h", cache_type="Pure"))
+        assert loaded is not None
+        assert loaded.hit is True
+        stub_a, stub_b = loaded.defs["ui_a"], loaded.defs["ui_b"]
+        # Distinct stubs, each naming the def it backs.
+        assert stub_a is not stub_b
+        assert stub_a.var_name == "ui_a"
+        assert stub_b.var_name == "ui_b"
+        for stub in (stub_a, stub_b):
+            with pytest.raises(MarimoUnhashableCacheError):
+                stub()
+
+    def test_import_error_is_not_downgraded(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The catch is narrow: only ModuleNotFoundError becomes a tripwire.
+        # A plain ImportError is a genuine failure — it must abort the restore
+        # (clean miss), not silently bind a stub.
+        from marimo._save.hash import HashKey
+        from marimo._save.loaders import lazy as lazy_mod
+
+        def _import_error(
+            _data: bytes, _type_hint: str | None = None
+        ) -> object:
+            raise ImportError("cannot import name 'X'")
+
+        monkeypatch.setitem(
+            lazy_mod.BLOB_DESERIALIZERS, ".faildep", _import_error
+        )
+
+        store = LazyStore(inner=DictStore())
+        loader = LazyLoader("trip_import", store=store)
+        bad_ref = (Path("trip_import") / "h" / "bad.faildep").as_posix()
+        store.put(bad_ref, b"unused")
+        self._seed(
+            store,
+            loader,
+            {"bad": Item(reference=bad_ref)},
+            Meta(version=MARIMO_CACHE_VERSION),
+        )
+        assert loader.load_cache(HashKey(hash="h", cache_type="Pure")) is None
+
+
+class TestModuleVersionPin:
+    """A module def restored where the module is absent must replay its
+    pinned version onto the `MissingModule` placeholder, so a version-pinned
+    content hash reproduces instead of collapsing to an empty version (which
+    would miss against a natively-exported cache)."""
+
+    def test_module_version_round_trips_through_manifest(self) -> None:
+        from types import ModuleType
+
+        from marimo._save.loaders.lazy import from_item, to_item
+        from marimo._save.stubs.module_stub import MissingModule, ModuleStub
+
+        fake = ModuleType("torch")
+        fake.__version__ = "2.9.1"
+
+        # Capture at cache time.
+        stub = ModuleStub(fake)
+        assert stub.version == "2.9.1"
+
+        # Persist through the manifest.
+        item = to_item(Path("base"), stub, var_name="torch", loader="inline")
+        assert item.module == "torch"
+        assert item.module_version == "2.9.1"
+
+        # Restore the stub with its version intact.
+        restored = from_item(item, "torch")
+        assert isinstance(restored, ModuleStub)
+        assert restored.version == "2.9.1"
+
+        # With the real module absent, load() yields a MissingModule that
+        # still reports the pinned version, so `getattr(mod, "__version__")`
+        # reproduces the pinned hash rather than an empty string.
+        restored.name = "definitely_not_a_real_module_xyz"
+        missing = restored.load()
+        assert isinstance(missing, MissingModule)
+        assert missing.__version__ == "2.9.1"
+
+    def test_missing_module_absent_version_is_empty(self) -> None:
+        # No pinned version (e.g. a submodule with no __version__) degrades to
+        # an empty string, not an error, mirroring the pre-existing behavior.
+        from marimo._save.stubs.module_stub import MissingModule
+
+        missing = MissingModule("torch.nn")
+        assert missing.__version__ == ""
+
+
+class TestStaleKeys:
+    """A manifest marked stale misses without being served or re-fetched, so
+    the producing cell re-runs live instead of restoring the same value."""
+
+    def test_mark_stale_forces_miss_without_fetch(self) -> None:
+        from marimo._save.hash import HashKey
+        from marimo._save.loaders.lazy import _cache_state
+
+        store = LazyStore(inner=DictStore())
+        loader = LazyLoader("stale_test", store=store)
+
+        base = Path("stale_test") / "h"
+        var_ref = (base / "v.pickle").as_posix()
+        store.put(var_ref, pickle.dumps("value"))
+        manifest = msgspec.json.encode(
+            CacheSchema(
+                hash="h",
+                cache_type=CacheType("Pure"),
+                defs={"v": Item(reference=var_ref)},
+                stateful_refs=[],
+                meta=Meta(version=MARIMO_CACHE_VERSION),
+            )
+        )
+        key = HashKey(hash="h", cache_type="Pure")
+        manifest_key = str(loader.build_path(key))
+        store.put(manifest_key, manifest)
+
+        # Hits before marking stale.
+        assert loader.load_cache(key) is not None
+
+        # Marking stale forces a miss even though the manifest is present.
+        stale = _cache_state().stale_keys
+        try:
+            loader.mark_stale(manifest_key)
+            assert loader.load_cache(key) is None
+        finally:
+            stale.discard(manifest_key)
+
+    def test_save_cache_clears_stale_mark(self) -> None:
+        # stale_keys is session-scoped, so a recovered cell must un-stale its
+        # own manifest on save or it would re-run live every round forever.
+        from marimo._save.hash import HashKey
+        from marimo._save.loaders.lazy import _cache_state
+
+        store = LazyStore(inner=DictStore())
+        loader = LazyLoader("stale_save", store=store)
+        key = HashKey(hash="h", cache_type="Pure")
+        manifest_key = str(loader.build_path(key))
+
+        stale = _cache_state().stale_keys
+        try:
+            loader.mark_stale(manifest_key)
+            assert manifest_key in stale
+            # Saving a fresh manifest for that key clears the stale mark.
+            loader.save_cache(
+                Cache(
+                    defs={"v": 1},
+                    hash="h",
+                    cache_type="Pure",
+                    stateful_refs=set(),
+                    hit=False,
+                    meta={"version": MARIMO_CACHE_VERSION},
+                )
+            )
+            assert manifest_key not in stale
+        finally:
+            stale.discard(manifest_key)
+            loader.flush()
+
+
 class TestFlushAll:
     def test_flush_all_flushes_active_loaders(self) -> None:
         inner = DictStore()

@@ -27,8 +27,11 @@ class MarimoMissingRefError(BaseException):
         self.name_error = name_error
 
 
-class MarimoCancelCellError(BaseException):
-    """Soft-cancel signal raised by a lifecycle.
+class MarimoRescheduleError(BaseException):
+    """Reschedule signal raised by a lifecycle.
+
+    Cancels the current cell's execution and requeues the cells in
+    `cells_to_rerun` so the cell can run again once they have.
 
     Subclasses BaseException (not Exception) so user-code `except Exception`
     blocks don't swallow the control-flow signal.
@@ -45,7 +48,7 @@ class MarimoCancelCellError(BaseException):
         self.cells_to_rerun = cells_to_rerun or set()
 
 
-class MarimoUnhashableCacheError(MarimoCancelCellError):
+class MarimoUnhashableCacheError(MarimoRescheduleError):
     """Raised when cell-level caching encounters a value that cannot be
     hashed/serialized for cache restoration."""
 
