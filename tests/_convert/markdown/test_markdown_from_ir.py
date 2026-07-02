@@ -1,7 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import pytest
+
 from marimo._ast.app import App, InternalApp
+from marimo._convert.markdown.flavor import (
+    markdown_output_filename,
+)
 from marimo._convert.markdown.from_ir import (
     _format_filename_title,
     _get_sql_options_from_cell,
@@ -16,6 +21,7 @@ def test_format_filename_title():
     assert _format_filename_title("/path/to/my_notebook.py") == "My Notebook"
     assert _format_filename_title("simple.py") == "Simple"
     assert _format_filename_title("my-cool_notebook.md") == "My Cool Notebook"
+    assert _format_filename_title("notebook.myst.md") == "Notebook"
 
 
 def test_get_sql_options_from_cell_basic():
@@ -305,13 +311,98 @@ def test_convert_from_ir_to_markdown_qmd_format():
         notebook, filename="notebook.qmd"
     )
     assert "```{marimo .python" in markdown_qmd
-    assert "filters:" in markdown_qmd  # qmd should have marimo filter
+
+    markdown_mystmd = convert_from_ir_to_markdown(
+        notebook, filename="notebook.myst.md"
+    )
+    assert "```{marimo} python" in markdown_mystmd
 
     # Test .md filename produces standard format
     markdown_md = convert_from_ir_to_markdown(notebook, filename="notebook.md")
-    assert "```{marimo .python" not in markdown_md
     # Should use either superfences or fallback format
     assert (
         "```python {.marimo" in markdown_md
         or "```{.python.marimo" in markdown_md
     )
+
+
+def test_convert_from_ir_to_markdown_explicit_flavor():
+    """Test that explicit flavors override filename inference."""
+    app = App()
+
+    @app.cell()
+    def test_cell():
+        x = 1
+        return (x,)
+
+    internal_app = InternalApp(app)
+    notebook = internal_app.to_ir()
+
+    markdown_qmd = convert_from_ir_to_markdown(
+        notebook, filename="notebook.md", flavor="qmd"
+    )
+    assert "```{marimo .python" in markdown_qmd
+
+    markdown_md = convert_from_ir_to_markdown(
+        notebook, filename="notebook.qmd", flavor="pymdown"
+    )
+    assert (
+        "```python {.marimo" in markdown_md
+        or "```{.python.marimo" in markdown_md
+    )
+
+
+@pytest.mark.parametrize(
+    ("filename", "flavor", "expected"),
+    [
+        ("source.py", "pymdown", "source.md"),
+        ("source.py", "qmd", "source.qmd"),
+        ("source.py", "mystmd", "source.myst.md"),
+        ("source.qmd", "pymdown", "source.md"),
+        ("source.myst.md", "pymdown", "source.md"),
+        ("source.myst.md", "mystmd", "source.myst.md"),
+        (None, "qmd", "notebook.qmd"),
+    ],
+)
+def test_markdown_output_filename(filename, flavor, expected):
+    assert markdown_output_filename(filename, flavor) == expected
+
+
+@pytest.mark.parametrize(
+    ("filename", "flavor", "expected_head"),
+    [
+        ("notebook.md", "pymdown", "```python"),
+        ("notebook.qmd", "qmd", "```{marimo .python"),
+    ],
+)
+def test_convert_from_ir_to_markdown_escapes_code_cell_attributes(
+    filename: str,
+    flavor: str,
+    expected_head: str,
+) -> None:
+    from marimo._schemas.serialization import (
+        AppInstantiation,
+        CellDef,
+        NotebookSerializationV1,
+    )
+
+    notebook = NotebookSerializationV1(
+        app=AppInstantiation(options={}),
+        cells=[
+            CellDef(
+                name='a"b & <c>',
+                code="x = 1",
+                options={},
+            )
+        ],
+        violations=[],
+        valid=True,
+        filename="notebook.py",
+    )
+
+    markdown = convert_from_ir_to_markdown(
+        notebook, filename=filename, flavor=flavor
+    )
+
+    assert expected_head in markdown
+    assert 'name="a&quot;b &amp; &lt;c&gt;"' in markdown

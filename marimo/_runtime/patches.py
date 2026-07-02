@@ -119,7 +119,7 @@ def _warn_uninstalled(prefix=""):
 async def install(
     requirements, keep_going=False, deps=True,
     credentials=None, pre=False, index_urls=None, *,
-    verbose=False
+    constraints=None, reinstall=False, verbose=False
 ):
     _warn_uninstalled(prefix=f'{requirements} was not installed: ')
 

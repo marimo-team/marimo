@@ -5,6 +5,7 @@ import type { FieldValues } from "react-hook-form";
 import type { z } from "zod";
 import { ProtocolIcon } from "@/components/storage/components";
 import type { KnownStorageProtocol } from "@/core/storage/types";
+import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
 import { ConnectionForm, SelectorButton, SelectorGrid } from "../components";
 import {
   generateStorageCode,
@@ -108,6 +109,7 @@ export const AddStorageForm: React.FC<{
   onSubmit: () => void;
   header?: React.ReactNode;
 }> = ({ onSubmit, header }) => {
+  const { isEmbedded } = useIframeCapabilities();
   const [selectedSchema, setSelectedSchema] = useState<z.ZodType<
     StorageConnection,
     FieldValues
@@ -134,7 +136,9 @@ export const AddStorageForm: React.FC<{
       preferredLibrary={libs?.preferred ?? "obstore"}
       displayNames={StorageLibraryDisplayNames}
       libraryLabel="Preferred storage library"
-      generateCode={(values, library) => generateStorageCode(values, library)}
+      generateCode={(values, library) =>
+        generateStorageCode(values, { library, isEmbedded })
+      }
       onSubmit={onSubmit}
       onBack={() => setSelectedSchema(null)}
     />

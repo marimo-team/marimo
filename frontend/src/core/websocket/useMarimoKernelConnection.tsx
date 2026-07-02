@@ -82,12 +82,10 @@ const SUPPORTS_LAZY_KERNELS = true;
 // (marimo/_server/api/endpoints/ws_endpoint.py and ws/*.py). Keep in sync with
 // the backend literals.
 export type CloseReason =
-  | "MARIMO_WRONG_KERNEL_ID"
   | "MARIMO_NO_FILE_KEY"
   | "MARIMO_NO_SESSION_ID"
   | "MARIMO_NO_SESSION"
   | "MARIMO_SHUTDOWN"
-  | "MARIMO_MALFORMED_QUERY"
   | "MARIMO_KERNEL_STARTUP_ERROR"
   | typeof TRANSPORT_EXHAUSTED_REASON;
 
@@ -107,7 +105,6 @@ export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
           reason: "kernel not found",
         },
       };
-    case "MARIMO_WRONG_KERNEL_ID":
     case "MARIMO_NO_FILE_KEY":
     case "MARIMO_NO_SESSION_ID":
     case "MARIMO_NO_SESSION":
@@ -120,17 +117,6 @@ export function classifyCloseEvent(event: { reason?: string }): CloseDecision {
           reason: "kernel not found",
         },
         closeTransport: true,
-      };
-    case "MARIMO_MALFORMED_QUERY":
-      return {
-        kind: "terminal",
-        status: {
-          state: WebSocketState.CLOSED,
-          code: WebSocketClosedReason.MALFORMED_QUERY,
-          reason:
-            "the kernel did not recognize a request; please file a bug with marimo",
-        },
-        closeTransport: false,
       };
     case "MARIMO_KERNEL_STARTUP_ERROR":
       return {

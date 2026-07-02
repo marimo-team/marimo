@@ -61,6 +61,14 @@ DEFAULT_FETCH_LIMIT = 100
 
 
 @dataclass
+class StorageListResult:
+    """Result of listing entries from a storage backend."""
+
+    entries: list[StorageEntry]
+    next_page_token: str | None = None
+
+
+@dataclass
 class DownloadResult:
     """Result of downloading a file from external storage.
 
@@ -90,9 +98,11 @@ class StorageBackend(abc.ABC, Generic[Backend]):
         prefix: str | None,
         *,
         limit: int = DEFAULT_FETCH_LIMIT,
-    ) -> list[StorageEntry]:
+        page_token: str | None = None,
+    ) -> StorageListResult:
         """
-        List the entries at the given prefix. If no prefix is provided, list the root entries.
+        List one page of entries at the given prefix. If no prefix is provided,
+        list the root entries.
         """
 
     @abc.abstractmethod

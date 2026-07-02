@@ -1,0 +1,380 @@
+# Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
+import asyncio
+import io
+import json
+import os
+import subprocess
+import sys
+import threading
+from contextlib import contextmanager
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
+from typing import TYPE_CHECKING, Any, cast
+from unittest.mock import patch
+
+import pytest
+
+from marimo._runtime._wasm._concurrency._install import (
+    install_wasm_concurrency_shims,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+
+@contextmanager
+def _mock_pyodide_with_run_sync() -> Generator[None, None, None]:
+    pyodide_module = ModuleType("pyodide")
+    ffi_module = ModuleType("pyodide.ffi")
+
+    def run_sync(awaitable: object) -> object:
+        return asyncio.run(cast(Any, awaitable))
+
+    cast(Any, ffi_module).run_sync = run_sync
+    cast(Any, pyodide_module).ffi = ffi_module
+    with (
+        patch.object(sys, "platform", "emscripten"),
+        patch.dict(
+            sys.modules,
+            {
+                "pyodide": pyodide_module,
+                "pyodide.ffi": ffi_module,
+            },
+        ),
+    ):
+        yield
+
+
+def test_wasm_threading_patch_is_inert_outside_pyodide() -> None:
+    original_thread = threading.Thread
+    original_local = threading.local
+    original_event = threading.Event
+
+    unpatch = install_wasm_concurrency_shims()
+    unpatch()
+
+    assert threading.Thread is original_thread
+    assert threading.local is original_local
+    assert threading.Event is original_event
+
+
+def test_wasm_threading_redundant_handle_does_not_unpatch_owner() -> None:
+    original_thread = threading.Thread
+    original_local = threading.local
+
+    with _mock_pyodide_with_run_sync():
+        owner_unpatch = install_wasm_concurrency_shims()
+        redundant_unpatch = install_wasm_concurrency_shims()
+        try:
+            assert threading.Thread is not original_thread
+            assert threading.local is not original_local
+
+            redundant_unpatch()
+
+            assert threading.Thread is not original_thread
+            assert threading.local is not original_local
+        finally:
+            owner_unpatch()
+
+    assert threading.Thread is original_thread
+    assert threading.local is original_local
+
+
+def _stdlib_thread_ids(patch_state: Any) -> set[int]:
+    ids = {
+        patch_state.original_get_ident(),
+        patch_state.original_get_native_id(),
+    }
+    for thread in patch_state.original_enumerate():
+        for attr in ("ident", "native_id"):
+            ident = getattr(thread, attr, None)
+            if ident is not None:
+                ids.add(ident)
+    return ids
+
+
+def _mock_stdlib_thread_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> set[int]:
+    current_thread = threading.current_thread()
+    thread_ids = {101, 202, 303, 404}
+    monkeypatch.setattr(threading, "get_ident", lambda: 101)
+    monkeypatch.setattr(threading, "get_native_id", lambda: 202)
+    monkeypatch.setattr(threading, "current_thread", lambda: current_thread)
+    monkeypatch.setattr(
+        threading,
+        "enumerate",
+        lambda: [SimpleNamespace(ident=303, native_id=404)],
+    )
+    return thread_ids
+
+
+def test_wasm_threading_synthetic_ids_skip_real_thread_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stdlib_thread_ids = _mock_stdlib_thread_ids(monkeypatch)
+
+    with _mock_pyodide_with_run_sync():
+        from marimo._runtime._wasm._concurrency import _state
+
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            real_thread_ids = _stdlib_thread_ids(_state.patch_state())
+            assert real_thread_ids == stdlib_thread_ids
+            expected_ident = max(real_thread_ids) + 1000
+            monkeypatch.setattr(
+                _state,
+                "_IDENTS",
+                iter([*real_thread_ids, expected_ident]),
+            )
+            thread = threading.Thread(name="synthetic", target=lambda: None)
+            thread.start()
+            thread.join(timeout=1)
+
+            assert thread.ident == expected_ident
+        finally:
+            unpatch()
+
+
+def test_wasm_threading_synthetic_ids_ignore_finished_thread_records(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stdlib_thread_ids = _mock_stdlib_thread_ids(monkeypatch)
+
+    with _mock_pyodide_with_run_sync():
+        from marimo._runtime._wasm._concurrency import _state
+
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            real_thread_ids = _stdlib_thread_ids(_state.patch_state())
+            assert real_thread_ids == stdlib_thread_ids
+            expected_ident = max(real_thread_ids) + 1000
+            stale_thread = _state.ThreadIdentity()
+            stale_thread._ident = expected_ident
+            stale_thread._native_id = expected_ident
+            _state.live_threads.add(stale_thread)
+            monkeypatch.setattr(
+                _state,
+                "_IDENTS",
+                iter([*real_thread_ids, expected_ident]),
+            )
+
+            thread = threading.Thread(name="synthetic", target=lambda: None)
+            thread.start()
+            thread.join(timeout=1)
+
+            assert thread.ident == expected_ident
+            assert stale_thread not in _state.live_threads
+        finally:
+            unpatch()
+
+
+def test_wasm_threading_local_dict_is_read_only() -> None:
+    with _mock_pyodide_with_run_sync():
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            local = threading.local()
+            local.value = 1
+
+            assert local.__dict__ == {"value": 1}
+            with pytest.raises(AttributeError, match="__dict__.*read-only"):
+                local.__dict__ = {}
+            with pytest.raises(AttributeError, match="__dict__.*read-only"):
+                del local.__dict__
+            assert local.__dict__ == {"value": 1}
+        finally:
+            unpatch()
+
+
+def test_wasm_threading_repairs_preimported_runtime_context_storage() -> None:
+    from marimo._runtime.context import types as context_types
+
+    context_types.teardown_context()
+    parent_context = object()
+    child_context = object()
+    context_types.initialize_context(parent_context)  # type: ignore[arg-type]
+
+    with _mock_pyodide_with_run_sync():
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            assert context_types.safe_get_context() is parent_context
+            observed: list[object | None] = []
+
+            def target() -> None:
+                observed.append(context_types.safe_get_context())
+                context_types.initialize_context(child_context)  # type: ignore[arg-type]
+                observed.append(context_types.safe_get_context())
+                context_types.teardown_context()
+                observed.append(context_types.safe_get_context())
+
+            thread = threading.Thread(target=target)
+            thread.start()
+            thread.join(timeout=1)
+
+            assert not thread.is_alive()
+            assert observed == [None, child_context, None]
+            assert context_types.safe_get_context() is parent_context
+        finally:
+            unpatch()
+            context_types.teardown_context()
+
+
+def test_wasm_threading_repairs_preimported_stream_proxy_locals() -> None:
+    from marimo._messaging.thread_local_streams import ThreadLocalStreamProxy
+    from marimo._runtime._wasm._concurrency._threading import AsyncLocal
+
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+    stdout_proxy = ThreadLocalStreamProxy(original_stdout, "<stdout>")
+    stderr_proxy = ThreadLocalStreamProxy(original_stderr, "<stderr>")
+    stdout_local = stdout_proxy._local
+    stderr_local = stderr_proxy._local
+    stdout_stream = io.StringIO()
+    stderr_stream = io.StringIO()
+    stdout_proxy._set_stream(stdout_stream)
+    stderr_proxy._set_stream(stderr_stream)
+    sys.stdout = stdout_proxy  # type: ignore[assignment]
+    sys.stderr = stderr_proxy  # type: ignore[assignment]
+
+    try:
+        with _mock_pyodide_with_run_sync():
+            unpatch = install_wasm_concurrency_shims()
+            try:
+                assert isinstance(stdout_proxy._local, AsyncLocal)
+                assert isinstance(stderr_proxy._local, AsyncLocal)
+                assert stdout_proxy._get_stream() is stdout_stream
+                assert stderr_proxy._get_stream() is stderr_stream
+
+                thread_stream = io.StringIO()
+
+                def target() -> None:
+                    stdout_proxy._set_stream(thread_stream)
+                    stdout_proxy.write("worker")
+
+                thread = threading.Thread(target=target)
+                thread.start()
+                thread.join(timeout=1)
+
+                assert not thread.is_alive()
+                assert thread_stream.getvalue() == "worker"
+                assert stdout_stream.getvalue() == ""
+            finally:
+                unpatch()
+
+        assert stdout_proxy._local is stdout_local
+        assert stderr_proxy._local is stderr_local
+        assert stdout_proxy._get_stream() is stdout_stream
+        assert stderr_proxy._get_stream() is stderr_stream
+    finally:
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
+
+
+@pytest.mark.asyncio
+async def test_wasm_runtime_shutdown_helper_cancels_live_thread() -> None:
+    from marimo._runtime._wasm import (
+        ensure_wasm_runtime_bootstrapped,
+        shutdown_wasm_runtime_work_async,
+        wait_for_wasm_runtime_work_async,
+    )
+
+    with _mock_pyodide_with_run_sync():
+        unpatch = ensure_wasm_runtime_bootstrapped()
+        started = asyncio.Event()
+
+        async def target() -> None:
+            started.set()
+            await asyncio.Event().wait()
+
+        thread = threading.Thread(target=target)
+        try:
+            thread.start()
+            await asyncio.wait_for(started.wait(), timeout=1)
+
+            assert not await wait_for_wasm_runtime_work_async(timeout=0)
+            await shutdown_wasm_runtime_work_async(timeout=1)
+            assert not thread.is_alive()
+            assert await wait_for_wasm_runtime_work_async(timeout=0)
+        finally:
+            unpatch()
+
+
+def test_top_level_marimo_import_bootstraps_wasm_threading_first() -> None:
+    code = """
+import json
+import sys
+import types
+import threading
+import asyncio
+
+sys.platform = "emscripten"
+try:
+    import posix
+except ImportError:
+    posix = types.ModuleType("posix")
+    sys.modules["posix"] = posix
+if not hasattr(posix, "_emscripten_log"):
+    posix._emscripten_log = lambda line: None
+pyodide = types.ModuleType("pyodide")
+ffi = types.ModuleType("pyodide.ffi")
+def run_sync(awaitable):
+    return asyncio.run(awaitable)
+ffi.run_sync = run_sync
+pyodide.ffi = ffi
+sys.modules["pyodide"] = pyodide
+sys.modules["pyodide.ffi"] = ffi
+
+original_thread = threading.Thread
+original_local = threading.local
+
+import marimo
+from marimo._runtime.context import types as context_types
+from marimo._runtime._wasm._concurrency._threading import AsyncLocal
+
+events = []
+async def target():
+    events.append("start")
+    await asyncio.sleep(0)
+    events.append("done")
+
+thread = marimo.Thread(target=target)
+thread.start()
+thread.join(timeout=1)
+
+print(json.dumps({
+    "thread_patched": threading.Thread is not original_thread,
+    "local_patched": threading.local is not original_local,
+    "public_thread_uses_patched_base": issubclass(
+        marimo.Thread,
+        threading.Thread,
+    ),
+    "runtime_context_uses_patched_local": isinstance(
+        context_types._THREAD_LOCAL_CONTEXT,
+        AsyncLocal,
+    ),
+    "async_thread_events": events,
+    "async_thread_alive": thread.is_alive(),
+}))
+"""
+    repo_root = Path(__file__).parents[2]
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(repo_root)
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        check=True,
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert json.loads(result.stdout) == {
+        "thread_patched": True,
+        "local_patched": True,
+        "public_thread_uses_patched_base": True,
+        "runtime_context_uses_patched_local": True,
+        "async_thread_events": ["start", "done"],
+        "async_thread_alive": False,
+    }

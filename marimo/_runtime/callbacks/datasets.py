@@ -161,10 +161,12 @@ class DatasetCallbacks:
         database_name = request.database
         schema_name = request.schema
         table_name = request.table_name
+        schema_path = request.schema_path
         sql_metadata = SQLMetadata(
             connection=variable_name,
             database=database_name,
             schema=schema_name,
+            schema_path=schema_path,
         )
 
         engine, error = self.get_engine_catalog(variable_name)
@@ -184,6 +186,7 @@ class DatasetCallbacks:
                 table_name=table_name,
                 schema_name=schema_name,
                 database_name=database_name,
+                schema_path=schema_path,
             )
 
             broadcast_notification(
@@ -223,10 +226,12 @@ class DatasetCallbacks:
         variable_name = cast(VariableName, request.engine)
         database_name = request.database
         schema_name = request.schema
+        schema_path = request.schema_path
         sql_metadata = SQLMetadata(
             connection=variable_name,
             database=database_name,
             schema=schema_name,
+            schema_path=schema_path,
         )
 
         engine, error = self.get_engine_catalog(variable_name)
@@ -246,6 +251,7 @@ class DatasetCallbacks:
                 schema=schema_name,
                 database=database_name,
                 include_table_details=False,
+                schema_path=schema_path,
             )
             broadcast_notification(
                 SQLTableListPreviewNotification(
@@ -280,9 +286,11 @@ class DatasetCallbacks:
         """
         variable_name = cast(VariableName, request.engine)
         database_name = request.database
+        schema_path = request.schema_path
         sql_db_metadata = SQLDatabaseMetadata(
             connection=variable_name,
             database=database_name,
+            schema_path=schema_path,
         )
 
         engine, error = self.get_engine_catalog(variable_name)
@@ -302,6 +310,7 @@ class DatasetCallbacks:
                 database=database_name,
                 include_tables=False,
                 include_table_details=False,
+                schema_path=schema_path,
             )
             broadcast_notification(
                 SQLSchemaListPreviewNotification(

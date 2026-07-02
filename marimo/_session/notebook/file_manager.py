@@ -12,13 +12,6 @@ from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import overloads_from_env
 from marimo._ast.cell import CellConfig
 from marimo._messaging.notebook.changes import (
-    CreateCell,
-    DeleteCell,
-    DocumentChange,
-    ReorderCells,
-    SetCode,
-    SetConfig,
-    SetName,
     Transaction,
 )
 from marimo._runtime.layout.layout import (
@@ -43,7 +36,6 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from marimo._ast.cell_manager import CellManager
     from marimo._messaging.notebook.document import NotebookCell
     from marimo._server.models.models import (
         CopyNotebookRequest,
@@ -151,21 +143,8 @@ class AppFileManager:
         new_app = self._load_app(self.path)
         new_app.cell_manager.sort_cell_ids_by_similarity(current_cell_manager)
 
-        transaction, changed_cell_ids = _build_transaction(
-            prev=current_cell_manager, new=new_app.cell_manager
-        )
-        transaction = current_cell_manager.document.apply(transaction)
-
-        # Carry over CellManager state that NotebookDocument doesn't track.
-        # clear()+update() preserves dict identity, matching the invariant
-        # established by CellManager._replace_state_from.
-        current_cell_manager._compiled_cells.clear()
-        current_cell_manager._compiled_cells.update(
-            new_app.cell_manager._compiled_cells
-        )
-        current_cell_manager.unparsable = new_app.cell_manager.unparsable
-        current_cell_manager._cell_id_generator.seen_ids |= (
-            new_app.cell_manager._cell_id_generator.seen_ids
+        transaction, changed_cell_ids = current_cell_manager.apply_diff_from(
+            new_app.cell_manager, source="file-watch"
         )
 
         # Splice the preserved cell_manager into new_app, then swap the
@@ -718,62 +697,3 @@ def _maybe_path(path: str | Path | None) -> Path | None:
     if isinstance(path, Path):
         return path
     return Path(path)
-
-
-def _build_transaction(
-    *, prev: CellManager, new: CellManager
-) -> tuple[Transaction, set[CellId_t]]:
-    """Diff two CellManagers, returning `(transaction, changed_cell_ids)`.
-
-    The transaction is unstamped; the caller applies it to the document
-    (which assigns `version`). `changed_cell_ids` covers code, name,
-    or config changes plus all creates and deletes — reorder-only cells
-    are excluded.
-    """
-    prev_data = {cd.cell_id: cd for cd in prev.cell_data()}
-    prev_cell_ids = list(prev.cell_ids())
-    new_cell_ids = list(new.cell_ids())
-    deleted = set(prev_data) - set(new_cell_ids)
-
-    changes: list[DocumentChange] = []
-    changed_cell_ids: set[CellId_t] = set(deleted)
-    for cid in deleted:
-        changes.append(DeleteCell(cell_id=cid))
-
-    for cd in new.cell_data():
-        prev_cd = prev_data.get(cd.cell_id)
-        if prev_cd is None:
-            changes.append(
-                CreateCell(
-                    cell_id=cd.cell_id,
-                    code=cd.code,
-                    name=cd.name,
-                    config=cd.config,
-                )
-            )
-            changed_cell_ids.add(cd.cell_id)
-            continue
-        if cd.code != prev_cd.code:
-            changes.append(SetCode(cell_id=cd.cell_id, code=cd.code))
-            changed_cell_ids.add(cd.cell_id)
-        if cd.name != prev_cd.name:
-            changes.append(SetName(cell_id=cd.cell_id, name=cd.name))
-            changed_cell_ids.add(cd.cell_id)
-        if cd.config != prev_cd.config:
-            changes.append(
-                SetConfig(
-                    cell_id=cd.cell_id,
-                    column=cd.config.column,
-                    disabled=cd.config.disabled,
-                    hide_code=cd.config.hide_code,
-                )
-            )
-            changed_cell_ids.add(cd.cell_id)
-
-    if tuple(new_cell_ids) != tuple(prev_cell_ids):
-        changes.append(ReorderCells(cell_ids=tuple(new_cell_ids)))
-
-    return (
-        Transaction(changes=tuple(changes), source="file-watch"),
-        changed_cell_ids,
-    )

@@ -16,6 +16,41 @@ jobs:
   stale:
     runs-on: ubuntu-latest
     steps:
+      # actions/stale can't filter by author, so we translate "team member's
+      # draft" into a label that exempt-pr-labels understands. External drafts
+      # are left unlabeled and therefore processed like any other PR.
+      - name: Exempt team-member draft PRs
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          script: |
+            const TEAM = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+            const LABEL = "team-draft";
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+            for (const pr of prs) {
+              const shouldExempt = pr.draft && TEAM.has(pr.author_association);
+              const hasLabel = pr.labels.some((l) => l.name === LABEL);
+              if (shouldExempt && !hasLabel) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  labels: [LABEL],
+                });
+              } else if (!shouldExempt && hasLabel) {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  name: LABEL,
+                });
+              }
+            }
+
       - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9
         with:
           # --- General ---
@@ -36,13 +71,14 @@ jobs:
             This pull request has been automatically closed due to inactivity.
             Feel free to reopen it if you'd like to continue working on it.
           close-pr-label: "closed-stale"
-          # Exempt draft PRs — many are maintainer WIP/experiments
-          exempt-draft-pr: true
+          # Process external drafts; team drafts are exempted via the
+          # "team-draft" label applied in the step above.
+          exempt-draft-pr: false
           # Don't touch issues with this workflow
           days-before-issue-stale: -1
           days-before-issue-close: -1
           # Exempt PRs with these labels
-          exempt-pr-labels: "do-not-close,work-in-progress,pinned"
+          exempt-pr-labels: "do-not-close,work-in-progress,pinned,team-draft"
           # Remove stale label when PR is updated
           remove-stale-when-updated: true
 

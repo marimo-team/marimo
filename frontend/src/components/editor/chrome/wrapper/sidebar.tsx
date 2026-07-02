@@ -22,6 +22,7 @@ import {
   PANELS,
   type PanelDescriptor,
 } from "../types";
+import { PANEL_PRELOADERS } from "./lazy-panels";
 
 export const Sidebar: React.FC = () => {
   const { selectedPanel, selectedDeveloperPanelTab, isSidebarOpen } =
@@ -141,6 +142,7 @@ export const Sidebar: React.FC = () => {
         className="flex flex-col gap-0"
         minItems={0}
         onAction={(panel) => toggleApplication(panel.type)}
+        onItemPreloadHint={(panel) => PANEL_PRELOADERS[panel.type]?.()}
         renderItem={(panel) => (
           <SidebarItem
             tooltip={panel.tooltip}

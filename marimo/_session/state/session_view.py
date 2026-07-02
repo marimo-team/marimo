@@ -5,6 +5,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
+import msgspec
+
 from marimo import _loggers
 from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -642,8 +644,14 @@ def merge_cell_notification(
     if current.status is None:
         current.status = previous.status
 
-    # If we went from queued to running, clear the console.
-    if current.status == "running" and previous.status == "queued":
+    # Reset the console on an explicit empty list (the `[]` clears contract,
+    # e.g. mo.output.clear_console()) or on queued -> running. Otherwise stale
+    # console output would persist in the session view.
+    explicit_clear = isinstance(current.console, list) and not current.console
+    queued_to_running = (
+        current.status == "running" and previous.status == "queued"
+    )
+    if explicit_clear or queued_to_running:
         current.console = []
     else:
         combined_console: list[CellOutput] = as_list(previous.console)
@@ -656,5 +664,11 @@ def merge_cell_notification(
 
     if current.output is None:
         current.output = previous.output
+
+    # UNSET means "unchanged" — inherit the previously broadcast hint so a
+    # reconnect snapshot keeps the reusability badge. None (explicit clear) and
+    # concrete values are left as-is.
+    if current.serialization is msgspec.UNSET:
+        current.serialization = previous.serialization
 
     return current

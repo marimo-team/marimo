@@ -292,7 +292,7 @@ export class MatplotlibRenderer {
     // Configure container
     container.tabIndex = -1;
     container.role = "application";
-    container.className = "relative inline-block select-none outline-none";
+    container.className = "relative inline-block select-none outline-hidden";
 
     // Create canvas
     const canvas = document.createElement("canvas");

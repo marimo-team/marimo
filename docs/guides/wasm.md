@@ -111,6 +111,43 @@ documentation on supported packages.](https://pyodide.org/en/stable/usage/packag
 
 If you want a package to be supported, consider [filing an issue](https://github.com/pyodide/pyodide/issues/new?assignees=&labels=new+package+request&projects=&template=package_request.md&title=).
 
+### Platform-specific dependencies (PEP 508)
+
+Notebooks that run both locally and in the browser can use [PEP
+508](https://peps.python.org/pep-0508/) **environment markers** in PEP 723 script
+metadata to declare different dependencies per platform. On Pyodide,
+`sys.platform` is `"emscripten"` ([PEP 776](https://peps.python.org/pep-0776/)).
+
+**Exclude a package from WebAssembly** (install it locally only):
+
+```python
+# /// script
+# dependencies = [
+#     "pandas>=2.0",
+#     "torch>=2.0; sys_platform != 'emscripten'",
+# ]
+# ///
+```
+
+**Include a package only in WebAssembly:**
+
+```python
+# /// script
+# dependencies = [
+#     "pyodide-http; sys_platform == 'emscripten'",
+# ]
+# ///
+```
+
+marimo respects these markers when pre-installing packages in the browser,
+when exporting to [WebAssembly HTML](exporting/webassembly_html.md), and in
+the MW003 [lint rule](lint_rules/rules/incompatible_package.md) (native-only
+deps marked `sys_platform != 'emscripten'` are not flagged for WASM).
+
+uv and pip evaluate markers when installing with `--sandbox`, so the same
+metadata works for local sandboxes and WASM exports. See also
+[Inlining dependencies](package_management/inlining_dependencies.md#platform-specific-dependencies-pep-508).
+
 ## Including data
 
 **For notebooks exported to WASM HTML.**
@@ -149,8 +186,8 @@ To check if your notebook is running in a WebAssembly environment, use:
 ```python
 import sys
 
-if "pyodide" in sys.modules:
-    # Running in WebAssembly
+if sys.platform == "emscripten":
+    # Running in WebAssembly (Pyodide)
     ...
 else:
     # Running locally
@@ -176,8 +213,32 @@ issue](https://github.com/pyodide/pyodide/issues/new?assignees=&labels=new+packa
 
 **PDB.** PDB is not currently supported.
 
-**Threading and multi-processing.** WASM notebooks do not support multithreading
-and multiprocessing. [This may be fixed in the future](https://github.com/pyodide/pyodide/issues/237).
+**Concurrency.** WASM notebooks support cooperative adapters for
+`threading.Thread`, `threading.Event`, `threading.local`,
+`concurrent.futures.ThreadPoolExecutor`, `wait`, `as_completed`, and
+process-shaped `multiprocessing.Process`, `Queue`, `SimpleQueue`, `Pool`, and
+`ProcessPoolExecutor`. These adapters run in the browser's Pyodide interpreter.
+They do not create OS threads, shared-memory processes, or true CPU parallelism.
+Blocking waits are bridged through Pyodide's JSPI-backed asyncio loop.
+
+WASM concurrency support has four levels:
+
+- `api-compatible`: the tested Python API shape and result behavior match the
+  local Python contract for that operation.
+- `serialized`: the API shape is available, but work runs one task at a time in
+  the current Pyodide interpreter.
+- `cooperative-only`: waits, cancellation, and termination progress only when
+  Python yields back to the Pyodide event loop. Running Python code is not
+  preempted.
+- `blocked`: marimo rejects the API because the browser cannot provide the
+  native process, synchronization, or shared-memory primitive it requires.
+
+`multiprocessing.Pool.terminate()` cancels queued work, but raises
+`UnsupportedWasmConcurrencyError` when a task is already running.
+Native synchronization and process APIs such as `threading.Lock`, `Condition`,
+`Semaphore`, `Barrier`, `Timer`, `multiprocessing.Pipe`, managers, shared
+memory, and non-`spawn` start methods are unsupported. For CPU-bound parallelism
+or process isolation, use a regular marimo notebook.
 
 **Memory.** WASM notebooks have a memory limit of 2GB; this may be increased
 in the future. If memory consumption is an issue, try offloading memory-intensive

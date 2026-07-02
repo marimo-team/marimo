@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-import re
 import signal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast
@@ -74,6 +73,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.cell import CellConfig
     from marimo._messaging.types import KernelMessage
+    from marimo._runtime.context.types import RuntimeContext
     from marimo._session.notebook.file_manager import AppFileManager
     from marimo._types.ids import CellId_t
 
@@ -172,46 +172,18 @@ class PyodideSession:
 
         # Prefer dependencies from script metadata
         try:
+            from marimo._runtime.packages.utils import (
+                filter_requirements_for_emscripten,
+                strip_requirement_name,
+            )
+
             reader = PyProjectReader.from_script(code)
-            script_deps = reader.dependencies
-
-            def strip_version(dep: str) -> str:
-                """
-                Strip version specifiers from a dependency string.
-                Handles PEP 440 version specifiers, extras, and URLs.
-                """
-                if not dep or not isinstance(dep, str):
-                    return dep if isinstance(dep, str) else ""
-
-                # Strip whitespace
-                dep = dep.strip()
-                if not dep:
-                    return dep
-
-                # Handle URL dependencies (package @ <url>) - leave as-is
-                # PEP 508 allows various URL schemes: http, https, git+https, git+ssh, file, ftp, etc.
-                if "@" in dep:
-                    _, rhs = dep.split("@", 1)
-                    rhs = rhs.strip()
-                    # Check for URL scheme pattern (e.g., https://, git+https://, file://)
-                    if re.match(r"^[a-zA-Z][a-zA-Z0-9+.\-]*://", rhs):
-                        return dep
-
-                # Handle environment markers (package>=1.0; python_version>='3.8')
-                if ";" in dep:
-                    dep = dep.split(";")[0].strip()
-
-                # Split on PEP 440 version specifiers: ==, !=, <=, >=, <, >, ~=, ===
-                # Must check multi-char operators first to avoid partial matches
-                parts = re.split(
-                    r"\s*(?:===|==|!=|<=|>=|~=|<|>)\s*", dep, maxsplit=1
-                )
-
-                # Return the package name (first part), preserving extras like 'package[extra]'
-                return parts[0].strip() if parts else dep
+            script_deps = filter_requirements_for_emscripten(
+                reader.dependencies
+            )
 
             if len(script_deps) > 0:
-                return [strip_version(dep) for dep in script_deps]
+                return [strip_requirement_name(dep) for dep in script_deps]
         except Exception as e:
             LOGGER.warning("Error parsing script metadata: %s", e)
 
@@ -427,6 +399,29 @@ class PyodideBridge:
         return encode_json_str(response)
 
 
+def _dispose_pyodide_lifecycle_items(ctx: RuntimeContext) -> None:
+    registry = ctx.cell_lifecycle_registry
+    for cell_id, lifecycle_items in list(registry.registry.items()):
+        persisted_lifecycle_items = set()
+        for lifecycle_item in list(lifecycle_items):
+            try:
+                should_remove = lifecycle_item.dispose(
+                    context=ctx, deletion=True
+                )
+            except Exception:
+                LOGGER.exception("Failed to dispose Pyodide lifecycle item")
+                persisted_lifecycle_items.add(lifecycle_item)
+                continue
+
+            if not should_remove:
+                persisted_lifecycle_items.add(lifecycle_item)
+
+        if persisted_lifecycle_items:
+            registry.registry[cell_id] = persisted_lifecycle_items
+        else:
+            del registry.registry[cell_id]
+
+
 def _launch_pyodide_kernel(
     control_queue: asyncio.Queue[CommandMessage],
     set_ui_element_queue: asyncio.Queue[BatchableCommand],
@@ -439,6 +434,10 @@ def _launch_pyodide_kernel(
     user_config: MarimoConfig,
 ) -> RestartableTask:
     from marimo._output.formatters.formatters import register_formatters
+    from marimo._runtime._wasm import (
+        shutdown_wasm_runtime_work_async,
+        wait_for_wasm_runtime_work_async,
+    )
     from marimo._runtime.kernel_lifecycle import (
         KernelArgs,
         asyncio_queue_reader,
@@ -482,7 +481,7 @@ def _launch_pyodide_kernel(
     )
 
     if is_edit_mode:
-        signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
+        signal.signal(signal.SIGINT, handlers.construct_interrupt_handler())
 
     async def listen_completion() -> None:
         while True:
@@ -503,6 +502,21 @@ def _launch_pyodide_kernel(
                 listen_completion(),
             )
         finally:
-            teardown_kernel(kernel, ctx)
+            try:
+                try:
+                    _dispose_pyodide_lifecycle_items(ctx)
+                except Exception:
+                    LOGGER.exception(
+                        "Failed to dispose Pyodide lifecycle items"
+                    )
+                try:
+                    await wait_for_wasm_runtime_work_async()
+                    await shutdown_wasm_runtime_work_async()
+                except Exception:
+                    LOGGER.exception(
+                        "Failed to shut down Pyodide WASM runtime work"
+                    )
+            finally:
+                teardown_kernel(kernel, ctx)
 
     return RestartableTask(listen)

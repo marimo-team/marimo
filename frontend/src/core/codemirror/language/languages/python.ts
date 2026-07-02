@@ -31,8 +31,10 @@ import { Logger } from "@/utils/Logger";
 import { once } from "@/utils/once";
 import { cellActionsState } from "../../cells/state";
 import { pythonCompletionSource } from "../../completion/completer";
+import { signatureHintField } from "../../completion/signature-hint";
 import type { PlaceholderType } from "../../config/types";
 import { FederatedLanguageServerClient } from "../../lsp/federated-lsp";
+import { createLspMarkdownRenderer } from "../../lsp/markdown-renderer";
 import { NotebookLanguageServerClient } from "../../lsp/notebook-lsp";
 import { createTransport } from "../../lsp/transports";
 import { CellDocumentUri, type ILanguageServerClient } from "../../lsp/types";
@@ -342,6 +344,7 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
             client: client as unknown as LanguageServerClient,
             languageId: "python",
             allowHTMLContent: true,
+            markdownRenderer: createLspMarkdownRenderer(),
             useSnippetOnCompletion: true,
             hoverConfig: hoverOptions,
             completionConfig: autocompleteOptions,
@@ -374,10 +377,15 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
         ];
       }
 
-      return autocompletion({
-        ...autocompleteOptions,
-        override: [pythonCompletionSource],
-      });
+      return [
+        autocompletion({
+          ...autocompleteOptions,
+          override: [pythonCompletionSource],
+        }),
+        // The Jedi path has no built-in signature help; show a floating hint
+        // fed by `pythonCompletionSource` (the LSP path handles this itself).
+        signatureHintField,
+      ];
     };
 
     return [

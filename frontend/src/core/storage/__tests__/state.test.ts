@@ -48,6 +48,7 @@ describe("storage state", () => {
       expect(state).toEqual({
         namespaces: [],
         entriesByPath: new Map(),
+        pageMetadataByPath: new Map(),
       });
     });
   });
@@ -132,6 +133,49 @@ describe("storage state", () => {
       });
 
       expect(state.entriesByPath.get("my_s3::data/")).toEqual(entries);
+    });
+
+    it("should store next page tokens keyed by namespace and prefix", () => {
+      const entries = [makeEntry({ path: "a.txt" })];
+
+      actions.setEntries({
+        namespace: "my_s3",
+        prefix: "data/",
+        entries,
+        nextPageToken: "150",
+      });
+
+      expect(state.entriesByPath.get("my_s3::data/")).toEqual(entries);
+      expect(state.pageMetadataByPath.get("my_s3::data/")?.nextPageToken).toBe(
+        "150",
+      );
+    });
+
+    it("should append entries when requested", () => {
+      const firstPage = [makeEntry({ path: "a.txt" })];
+      const secondPage = [makeEntry({ path: "b.txt" })];
+
+      actions.setEntries({
+        namespace: "my_s3",
+        prefix: "data/",
+        entries: firstPage,
+        nextPageToken: "150",
+      });
+      actions.setEntries({
+        namespace: "my_s3",
+        prefix: "data/",
+        entries: secondPage,
+        nextPageToken: null,
+        append: true,
+      });
+
+      expect(state.entriesByPath.get("my_s3::data/")).toEqual([
+        ...firstPage,
+        ...secondPage,
+      ]);
+      expect(
+        state.pageMetadataByPath.get("my_s3::data/")?.nextPageToken,
+      ).toBeNull();
     });
 
     it("should use empty string for null prefix", () => {
@@ -251,6 +295,11 @@ describe("storage state", () => {
       expect(state.entriesByPath.get("my_s3::")).toBeUndefined();
       expect(state.entriesByPath.get("my_s3::data/")).toBeUndefined();
       expect(state.entriesByPath.get("my_s3::data/nested/")).toBeUndefined();
+      expect(state.pageMetadataByPath.get("my_s3::")).toBeUndefined();
+      expect(state.pageMetadataByPath.get("my_s3::data/")).toBeUndefined();
+      expect(
+        state.pageMetadataByPath.get("my_s3::data/nested/"),
+      ).toBeUndefined();
     });
 
     it("should not affect entries from other namespaces", () => {

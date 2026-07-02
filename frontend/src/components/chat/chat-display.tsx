@@ -20,11 +20,14 @@ export const renderUIMessage = ({
   message,
   isStreamingReasoning,
   isLast,
+  isActive,
   addToolApprovalResponse,
 }: {
   message: UIMessage;
   isStreamingReasoning: boolean;
   isLast: boolean;
+  /** Whether the chat is currently streaming/submitting a response. */
+  isActive: boolean;
   addToolApprovalResponse?: ChatAddToolApproveResponseFunction;
 }) => {
   return (
@@ -49,6 +52,7 @@ export const renderUIMessage = ({
           approval={part.approval}
           onApprove={addToolApprovalResponse}
           isLive={isLast}
+          isActive={isActive}
         />
       );
     }
@@ -60,8 +64,8 @@ export const renderUIMessage = ({
 
     switch (part.type) {
       case "text":
-        // Streamdown sanitizes the HTML which strips out marimo elements
-        // So instead, we render the HTML with our custom renderer.
+        // Streamdown strips marimo elements, so render them with our own HTML
+        // renderer. Other markdown (incl. mo.md HTML) goes through Streamdown.
         if (part.text.includes("<marimo-")) {
           return (
             <React.Fragment key={index}>
@@ -102,6 +106,7 @@ export const renderUIMessage = ({
             approval={part.approval}
             onApprove={addToolApprovalResponse}
             isLive={isLast}
+            isActive={isActive}
           />
         );
       case "source-document":

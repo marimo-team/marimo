@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 "use no memo";
 
+import type { Table } from "@tanstack/react-table";
 import { useDebounce } from "@uidotdev/usehooks";
 import {
   ChartSplineIcon,
@@ -17,14 +18,16 @@ import {
 } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
+import { ColumnVisibilityDropdown } from "./column-visibility-dropdown";
 import { type ExportActionProps, ExportMenu } from "./export-actions";
 
 const NOOP_ON_SEARCH = () => {
   /** no-op*/
 };
 
-interface TableTopBarProps extends Partial<ExportActionProps> {
-  enableSearch: boolean;
+interface TableTopBarProps<TData> extends Partial<ExportActionProps> {
+  table: Table<TData>;
+  showSearch: boolean;
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
   reloading?: boolean;
@@ -38,8 +41,9 @@ interface TableTopBarProps extends Partial<ExportActionProps> {
   sizeBytesIsLoading?: boolean;
 }
 
-export const TableTopBar: React.FC<TableTopBarProps> = ({
-  enableSearch,
+export const TableTopBar = <TData,>({
+  table,
+  showSearch,
   searchQuery,
   onSearchQueryChange,
   reloading,
@@ -52,7 +56,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
   downloadAs,
   sizeBytes,
   sizeBytesIsLoading,
-}) => {
+}: TableTopBarProps<TData>) => {
   const [internalValue, setInternalValue] = useState(searchQuery || "");
   const debouncedSearch = useDebounce(internalValue, 500);
   const onSearch = useEvent(onSearchQueryChange ?? NOOP_ON_SEARCH);
@@ -62,19 +66,9 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
     onSearch(debouncedSearch);
   }, [debouncedSearch, onSearch]);
 
-  const hasAnyAction =
-    (enableSearch && onSearchQueryChange) ||
-    showChartBuilder ||
-    showTableExplorer ||
-    downloadAs;
-
-  if (!hasAnyAction) {
-    return null;
-  }
-
   return (
     <div className="flex items-center h-10 px-2 border-b gap-2">
-      {onSearchQueryChange && enableSearch && (
+      {onSearchQueryChange && showSearch && (
         <div className="flex flex-1 items-center gap-1 px-2 rounded-sm focus-within:ring-1 focus-within:ring-border transition-shadow">
           <SearchIcon className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
@@ -105,7 +99,8 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
         </div>
       )}
 
-      <div className="flex items-center shrink-0">
+      <div className="flex items-center shrink-0 ml-auto">
+        <ColumnVisibilityDropdown table={table} />
         {showChartBuilder && (
           <Button
             variant="text"

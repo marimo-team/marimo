@@ -7,7 +7,8 @@
       },
       {
         "type": "slide",
-        "speakerNotes": "We first introduce slides in marimo, and how awesome they are!"
+        "speakerNotes": "We first introduce slides in marimo, and how awesome they are!",
+        "showCode": false
       },
       {
         "type": "fragment",
@@ -23,7 +24,8 @@
       },
       {
         "type": "slide",
-        "speakerNotes": "Section A onboard :>"
+        "speakerNotes": "Section A onboard :>",
+        "showCode": true
       },
       {
         "type": "sub-slide",

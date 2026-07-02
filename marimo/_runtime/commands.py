@@ -666,6 +666,8 @@ class PreviewSQLTableCommand(Command):
         database: Database containing the table.
         schema: Schema containing the table.
         table_name: Table to preview.
+        schema_path: Path of nested schemas (relative to `database`) for
+            catalogs with nested schemas. Empty for the top level.
     """
 
     request_id: RequestId
@@ -673,6 +675,7 @@ class PreviewSQLTableCommand(Command):
     database: str
     schema: str
     table_name: str
+    schema_path: list[str] = msgspec.field(default_factory=list)
 
 
 class ListSQLTablesCommand(Command):
@@ -686,12 +689,15 @@ class ListSQLTablesCommand(Command):
         engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
         database: Database to query.
         schema: Schema to list tables from.
+        schema_path: Path of nested schemas (relative to `database`) for
+            catalogs with nested schemas. Empty for the top level.
     """
 
     request_id: RequestId
     engine: str
     database: str
     schema: str
+    schema_path: list[str] = msgspec.field(default_factory=list)
 
 
 class ListSQLSchemasCommand(Command):
@@ -704,11 +710,14 @@ class ListSQLSchemasCommand(Command):
         request_id: Unique identifier for this request.
         engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
         database: Database to query.
+        schema_path: Parent schema path whose child schemas to list.
+            Empty lists the database's top-level schemas.
     """
 
     request_id: RequestId
     engine: str
     database: str
+    schema_path: list[str] = msgspec.field(default_factory=list)
 
 
 class ListDataSourceConnectionCommand(Command):
@@ -757,12 +766,14 @@ class StorageListEntriesCommand(Command):
         namespace: Variable name identifying the storage backend.
         limit: Max entries to return.
         prefix: Path prefix to list (None = root).
+        page_token: Token for the next page of entries.
     """
 
     request_id: RequestId
     namespace: str
     limit: int
     prefix: str | None = None
+    page_token: str | None = None
 
 
 class StorageDownloadCommand(Command):

@@ -21,7 +21,7 @@ import { AddFilterButton } from "./add-filter-button";
 import { FilterPillEditor } from "./filter-pill-editor";
 import { type ColumnFilterValue, formatValue, type Snapshot } from "./filters";
 import { extractTimezone } from "./types";
-import { ChipWithComma, CompactChipRow } from "./value-chips";
+import { ChipWithComma, CompactChipRow } from "@/components/ui/value-chips";
 
 interface Props<TData> {
   filters: ColumnFiltersState | undefined;

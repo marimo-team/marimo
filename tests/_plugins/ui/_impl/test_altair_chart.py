@@ -842,6 +842,61 @@ def test_parse_spec_polars() -> None:
     snapshot("parse_spec_polars.txt", json.dumps(spec, indent=2))
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    ("transformer", "expected_format"),
+    [
+        ("marimo_csv", "csv"),
+        ("marimo_json", "json"),
+        ("marimo_arrow", "arrow"),
+        ("marimo", "csv"),
+    ],
+)
+def test_parse_spec_respects_active_marimo_transformer(
+    transformer: str, expected_format: str
+) -> None:
+    import altair as alt
+    import pandas as pd
+
+    from marimo._plugins.ui._impl.charts.altair_transformer import (
+        register_transformers,
+    )
+
+    register_transformers()
+    previous = alt.data_transformers.active
+    try:
+        alt.data_transformers.enable(transformer)
+        data = pd.DataFrame({"values": [1, 2, 3]})
+        chart = alt.Chart(data).mark_point().encode(x="values:Q")
+        spec = _parse_spec(chart)
+        assert spec["data"]["format"]["type"] == expected_format
+    finally:
+        alt.data_transformers.enable(previous)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_parse_spec_defaults_to_arrow() -> None:
+    import altair as alt
+    import pandas as pd
+
+    from marimo._plugins.ui._impl.charts.altair_transformer import (
+        register_transformers,
+    )
+
+    register_transformers()
+    previous = alt.data_transformers.active
+    try:
+        # A non-marimo transformer should not be respected; we default to
+        # marimo_arrow so the frontend can render the chart.
+        alt.data_transformers.enable("default")
+        data = pd.DataFrame({"values": [1, 2, 3]})
+        chart = alt.Chart(data).mark_point().encode(x="values:Q")
+        spec = _parse_spec(chart)
+        assert spec["data"]["format"]["type"] == "arrow"
+    finally:
+        alt.data_transformers.enable(previous)
+
+
 @pytest.mark.skipif(
     not HAS_DEPS or not DependencyManager.duckdb.has(),
     reason="optional dependencies not installed",

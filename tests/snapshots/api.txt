@@ -57,6 +57,7 @@ outline
 output
   append
   clear
+  clear_console
   replace
   replace_at_index
 pdf

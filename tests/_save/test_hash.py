@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import subprocess
+import sys
+import textwrap
 from typing import Any
 
 import pytest
@@ -2570,6 +2574,91 @@ class TestRemoveReturnsBytecode:
             return lambda: 2
 
         assert _hash_fn(fn_a) != _hash_fn(fn_b)
+
+
+class TestSetLiteralDeterminism:
+    """Set literals are constant-folded into frozensets in co_consts, whose
+    str()/iteration order is PYTHONHASHSEED-dependent (issue #9829)."""
+
+    def test_set_literal_changes_hash(self) -> None:
+        """Changing set members must still change the hash."""
+
+        def fn_a(x: object) -> bool:
+            return x in {"A", "B", "C"}
+
+        def fn_b(x: object) -> bool:
+            return x in {"A", "B", "D"}
+
+        assert _hash_fn(fn_a) != _hash_fn(fn_b)
+
+    def test_hash_deterministic_across_hashseed(self) -> None:
+        """A set-literal function must hash identically across PYTHONHASHSEED.
+
+        The set literal is constant-folded into a frozenset in the function's
+        co_consts; `hash_module` is what previously serialized it with a
+        seed-dependent `str()`.
+        """
+        program = textwrap.dedent(
+            """
+            from marimo._save.hash import hash_module
+
+            def fn(x):
+                return x in {"A", "B", "C", "D", "E", 1, 2.0, None}
+
+            print(hash_module(fn.__code__).hex())
+            """
+        )
+        digests = set()
+        for seed in ("0", "1", "2", "42", "12345"):
+            env = {**os.environ, "PYTHONHASHSEED": seed}
+            result = subprocess.run(
+                [sys.executable, "-c", program],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            assert result.returncode == 0, result.stderr
+            digests.add(result.stdout.strip())
+        assert len(digests) == 1, f"non-deterministic across seeds: {digests}"
+
+    def test_singleton_set_unchanged(self) -> None:
+        """A singleton set literal stays on the str() path (len > 1 guard).
+
+        `str(frozenset({'A'}))` has only one possible order, so it was never
+        broken; its hash must equal the plain str()-based serialization so we
+        don't invalidate caches that already worked.
+        """
+        import hashlib
+
+        from marimo._save.hash import hash_module
+
+        def fn(x: object) -> bool:
+            return x in {"A"}
+
+        code = fn.__code__
+        singleton = next(c for c in code.co_consts if isinstance(c, frozenset))
+        assert len(singleton) == 1
+
+        expected = hashlib.new("sha256", usedforsecurity=False)
+        for const in code.co_consts:
+            expected.update(str(const).encode("utf8"))
+        expected.update(bytes("|".join(code.co_names), "utf8"))
+        expected.update(code.co_code)
+
+        assert hash_module(code) == expected.digest()
+
+    def test_exotic_const_types_dont_crash(self) -> None:
+        """Set literals can hold complex/bytes/bool/tuple — none may crash.
+
+        repr-based serialization handles these; the byte serializers
+        (primitive_to_bytes / common_container_to_bytes) reject complex.
+        """
+        from marimo._save.hash import hash_module
+
+        def fn(x: object) -> bool:
+            return x in {1j, 2j, b"x", True, (1, 2), "s"}
+
+        assert isinstance(hash_module(fn.__code__), bytes)
 
 
 def test_decorator_params_affect_hash() -> None:

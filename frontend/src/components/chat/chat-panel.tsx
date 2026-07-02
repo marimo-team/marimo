@@ -23,6 +23,7 @@ import {
   PlusIcon,
   SparklesIcon,
   SettingsIcon,
+  CodeIcon,
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
@@ -44,6 +45,7 @@ import {
   type Chat,
   type ChatId,
   chatStateAtom,
+  pendingAiPromptAtom,
 } from "@/core/ai/state";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import {
@@ -66,6 +68,8 @@ import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import {
   addContextCompletion,
   CONTEXT_TRIGGER,
+  isContextAttachment,
+  resolveChatContext,
 } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
@@ -82,7 +86,6 @@ import {
 import { renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
 import {
-  buildCompletionRequestBody,
   convertToFileUIPart,
   generateChatTitle,
   handleToolCall,
@@ -91,6 +94,8 @@ import {
   PROVIDERS_THAT_SUPPORT_ATTACHMENTS,
   useFileState,
 } from "./chat-utils";
+import { getCodes } from "@/core/codemirror/copilot/getCodes";
+import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 
 // Default mode for the AI
 const DEFAULT_MODE = "manual";
@@ -142,6 +147,7 @@ interface ChatMessageProps {
   onEdit: (index: number, newValue: string) => void;
   isStreamingReasoning: boolean;
   isLast: boolean;
+  isActive: boolean;
   addToolApprovalResponse?: ChatAddToolApproveResponseFunction;
 }
 
@@ -152,6 +158,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
     onEdit,
     isStreamingReasoning,
     isLast,
+    isActive,
     addToolApprovalResponse,
   }) => {
     const renderUserMessage = (message: UIMessage) => {
@@ -204,6 +211,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
             message,
             isStreamingReasoning,
             isLast,
+            isActive,
             addToolApprovalResponse,
           })}
         </div>
@@ -268,24 +276,29 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       {
         value: "ask",
         label: "Ask",
-        subtitle:
-          "Use AI with access to read-only tools like documentation search",
+        subtitle: "AI with access to read-only tools like documentation search",
         Icon: NotebookText,
       },
       {
         value: "agent",
-        label: "Agent (beta)",
-        subtitle: "Use AI with access to read and write tools",
+        label: "Agent",
+        subtitle: "AI with access to read and write tools",
         Icon: HatGlasses,
+      },
+      {
+        value: "code_mode",
+        label: "Code Mode (experimental)",
+        subtitle: "AI with access to the notebook's kernel. Use with caution.",
+        Icon: CodeIcon,
       },
     ];
 
     const isAttachmentSupported =
       PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
 
-    const CurrentModeIcon = modeOptions.find(
-      (o) => o.value === currentMode,
-    )?.Icon;
+    const currentModeOption = modeOptions.find((o) => o.value === currentMode);
+    const CurrentModeIcon = currentModeOption?.Icon;
+    const CurrentModeLabel = currentModeOption?.label;
 
     return (
       <TooltipProvider>
@@ -294,7 +307,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             <Select value={currentMode} onValueChange={saveModeChange}>
               <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1.5">
                 {CurrentModeIcon && <CurrentModeIcon className="h-3 w-3" />}
-                <span className="capitalize">{currentMode}</span>
+                <span>{CurrentModeLabel}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -396,6 +409,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
       <div className="relative shrink-0 min-h-[80px] flex flex-col border-t">
         <div className={cn("px-2 py-3 flex-1", inputClassName)}>
           <PromptInput
+            className="max-h-[400px]"
             inputRef={inputRef}
             value={input}
             onChange={setInput}
@@ -470,6 +484,7 @@ const ChatPanel = () => {
 const ChatPanelBody = () => {
   const setChatState = useSetAtom(chatStateAtom);
   const [activeChat, setActiveChat] = useAtom(activeChatAtom);
+  const [pendingPrompt, setPendingPrompt] = useAtom(pendingAiPromptAtom);
   const [input, setInput] = useState("");
   const [newThreadInput, setNewThreadInput] = useState("");
   const { files, addFiles, clearFiles, removeFile } = useFileState();
@@ -526,9 +541,10 @@ const ChatPanelBody = () => {
           );
         }
 
-        const completionBody = await buildCompletionRequestBody(
-          options.messages,
-        );
+        const completionBody = {
+          uiMessages: options.messages,
+          includeOtherCode: getCodes(""),
+        };
 
         // Call this here to ensure the value is not stale
         const chatMode = store.get(aiAtom)?.mode || DEFAULT_MODE;
@@ -588,10 +604,7 @@ const ChatPanelBody = () => {
     requestAnimationFrame(scrollToBottom);
   }, [activeChatId]);
 
-  const createNewThread = async (
-    initialMessage: string,
-    initialAttachments?: File[],
-  ) => {
+  const startNewChatState = useEvent((initialMessage: string) => {
     const now = Date.now();
     const newChat: Chat = {
       id: chatId as ChatId,
@@ -601,37 +614,41 @@ const ChatPanelBody = () => {
       updatedAt: now,
     };
 
-    // Create new chat and set as active
     setChatState((prev) => {
       const newChats = new Map(prev.chats);
       newChats.set(newChat.id, newChat);
-      const newState = {
+      return {
         ...prev,
         chats: newChats,
         activeChatId: newChat.id,
       };
-      return newState;
     });
+  });
 
-    const fileParts =
-      initialAttachments && initialAttachments.length > 0
-        ? await convertToFileUIPart(initialAttachments)
-        : undefined;
+  const createNewThread = useEvent(
+    async (initialMessage: string, initialAttachments?: File[]) => {
+      startNewChatState(initialMessage);
 
-    // Trigger AI conversation with append
-    sendMessage({
-      role: "user",
-      parts: [
-        {
-          type: "text" as const,
-          text: initialMessage,
-        },
-        ...(fileParts ?? []),
-      ],
-    });
-    clearFiles();
-    setInput("");
-  };
+      const fileParts =
+        initialAttachments && initialAttachments.length > 0
+          ? await convertToFileUIPart(initialAttachments)
+          : undefined;
+      const { contextPart, attachments } =
+        await resolveChatContext(initialMessage);
+
+      sendMessage({
+        role: "user",
+        parts: [
+          { type: "text" as const, text: initialMessage },
+          ...(contextPart ? [contextPart] : []),
+          ...(fileParts ?? []),
+          ...attachments,
+        ],
+      });
+      clearFiles();
+      setInput("");
+    },
+  );
 
   const handleNewChat = useEvent(() => {
     setActiveChat(null);
@@ -644,17 +661,31 @@ const ChatPanelBody = () => {
     openModal(<PairWithAgentModal onClose={closeModal} />);
   });
 
-  const handleMessageEdit = useEvent((index: number, newValue: string) => {
-    const editedMessage = messages[index];
-    const fileParts = editedMessage.parts?.filter((p) => p.type === "file");
+  const handleMessageEdit = useEvent(
+    async (index: number, newValue: string) => {
+      const editedMessage = messages[index];
+      // Keep the user's own uploaded files, but drop the previous @-context
+      // snapshot (data part + its attachments) so we can re-resolve a fresh,
+      // point-in-time snapshot from the edited text below.
+      const userFileParts =
+        editedMessage.parts?.filter(
+          (p) => p.type === "file" && !isContextAttachment(p),
+        ) ?? [];
+      const { contextPart, attachments } = await resolveChatContext(newValue);
 
-    const messageId = editedMessage.id;
-    sendMessage({
-      messageId: messageId, // replace the message
-      role: "user",
-      parts: [{ type: "text", text: newValue }, ...fileParts],
-    });
-  });
+      const messageId = editedMessage.id;
+      sendMessage({
+        messageId: messageId, // replace the message
+        role: "user",
+        parts: [
+          { type: "text", text: newValue },
+          ...(contextPart ? [contextPart] : []),
+          ...userFileParts,
+          ...attachments,
+        ],
+      });
+    },
+  );
 
   const handleChatInputSubmit = useEvent(
     async (e: KeyboardEvent | undefined, newValue: string): Promise<void> => {
@@ -665,11 +696,17 @@ const ChatPanelBody = () => {
         storePrompt(newMessageInputRef.current.view);
       }
       const fileParts = files ? await convertToFileUIPart(files) : undefined;
+      const { contextPart, attachments } = await resolveChatContext(newValue);
 
       e?.preventDefault();
       sendMessage({
-        text: newValue,
-        files: fileParts,
+        role: "user",
+        parts: [
+          { type: "text", text: newValue },
+          ...(contextPart ? [contextPart] : []),
+          ...(fileParts ?? []),
+          ...attachments,
+        ],
       });
       setInput("");
       clearFiles();
@@ -692,7 +729,45 @@ const ChatPanelBody = () => {
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
 
+  const submitPendingPrompt = useEvent(async (prompt: string) => {
+    if (activeChatId == null) {
+      startNewChatState(prompt);
+      // Starting a chat swaps the new-thread input for the regular input;
+      // carry over any draft the user had typed so it isn't lost.
+      setInput(newThreadInput);
+    }
+    const { contextPart, attachments } = await resolveChatContext(prompt);
+    sendMessage({
+      role: "user",
+      parts: [
+        { type: "text", text: prompt },
+        ...(contextPart ? [contextPart] : []),
+        ...attachments,
+      ],
+    });
+  });
+
   const isNewThread = messages.length === 0;
+
+  // Deliver a prompt queued elsewhere (e.g. error auto-fix) to the chat,
+  // appending to the active thread or starting one if none exists.
+  useEffect(() => {
+    if (!pendingPrompt) {
+      return;
+    }
+    setPendingPrompt(null);
+    const { prompt, submit } = pendingPrompt;
+    if (submit) {
+      void submitPendingPrompt(prompt);
+    } else if (isNewThread) {
+      setNewThreadInput(prompt);
+      focusInputAndMoveToEnd(newThreadInputRef);
+    } else {
+      setInput(prompt);
+      focusInputAndMoveToEnd(newMessageInputRef);
+    }
+  }, [pendingPrompt, setPendingPrompt, isNewThread, submitPendingPrompt]);
+
   const chatInput = isNewThread ? (
     <ChatInput
       key="new-thread-input"
@@ -771,6 +846,7 @@ const ChatPanelBody = () => {
             onEdit={handleMessageEdit}
             isStreamingReasoning={isStreamingReasoning}
             isLast={idx === messages.length - 1}
+            isActive={isLoading}
             addToolApprovalResponse={addToolApprovalResponse}
           />
         ))}

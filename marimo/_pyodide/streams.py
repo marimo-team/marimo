@@ -42,6 +42,13 @@ class PyodideStream(Stream):
     def write(self, data: KernelMessage) -> None:
         self.pipe(data)
 
+    def copy_for_thread(self) -> PyodideStream:
+        return PyodideStream(
+            pipe=self.pipe,
+            input_queue=self.input_queue,
+            cell_id=self.cell_id,
+        )
+
 
 class PyodideStdout(Stdout):
     encoding = sys.stdout.encoding

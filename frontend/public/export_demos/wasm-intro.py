@@ -1,5 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 
+# ruff: noqa: ANN202, B018
 import marimo
 
 __generated_with = "0.2.6"
@@ -11,7 +12,7 @@ def __():
     import marimo as mo
 
     mo.md("# Welcome to [marimo](https://github.com/marimo-team/marimo)! 🌊🍃")
-    return mo,
+    return (mo,)
 
 
 @app.cell(hide_code=True)
@@ -41,8 +42,10 @@ def __(mo):
             and models, doing lightweight data analysis, authoring blog
             posts, tutorials, and educational articles, and even building internal
             tools. They are not well-suited for notebooks that do heavy
-            computation, and they don't support multi-threading nor
-            multiprocessing; for these cases, use a regular marimo notebook.
+            computation or need true CPU parallelism. WASM notebooks support a
+            limited cooperative concurrency surface, but not OS threads,
+            shared-memory multiprocessing, or process isolation. For those
+            cases, use a regular marimo notebook.
             """
         }
     )
@@ -75,7 +78,7 @@ def __(mo):
 @app.cell
 def __(mo):
     slider = mo.ui.slider(1, 22)
-    return slider,
+    return (slider,)
 
 
 @app.cell
@@ -145,7 +148,7 @@ def __(changed, mo):
 @app.cell
 def __():
     changed = False
-    return changed,
+    return (changed,)
 
 
 @app.cell(hide_code=True)
@@ -234,13 +237,13 @@ def __(mo):
 @app.cell
 def __(mo):
     icon = mo.ui.dropdown(["🍃", "🌊", "✨"], value="🍃")
-    return icon,
+    return (icon,)
 
 
 @app.cell
 def __(icon, mo):
     repetitions = mo.ui.slider(1, 16, label=f"number of {icon.value}: ")
-    return repetitions,
+    return (repetitions,)
 
 
 @app.cell
@@ -486,7 +489,7 @@ def __():
            """
         ),
     }
-    return tips,
+    return (tips,)
 
 
 if __name__ == "__main__":

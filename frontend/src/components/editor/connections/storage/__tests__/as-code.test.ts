@@ -43,7 +43,9 @@ describe("generateStorageCode", () => {
 
   describe("S3", () => {
     it("basic connection with all fields", () => {
-      expect(generateStorageCode(baseS3, "obstore")).toMatchSnapshot();
+      expect(
+        generateStorageCode(baseS3, { library: "obstore" }),
+      ).toMatchSnapshot();
     });
 
     it("minimal connection (bucket only)", () => {
@@ -51,7 +53,9 @@ describe("generateStorageCode", () => {
         type: "s3",
         bucket: "my-bucket",
       };
-      expect(generateStorageCode(conn, "obstore")).toMatchSnapshot();
+      expect(
+        generateStorageCode(conn, { library: "obstore" }),
+      ).toMatchSnapshot();
     });
 
     it("with custom endpoint", () => {
@@ -59,7 +63,9 @@ describe("generateStorageCode", () => {
         ...baseS3,
         endpoint_url: "https://minio.example.com:9000",
       };
-      expect(generateStorageCode(conn, "obstore")).toMatchSnapshot();
+      expect(
+        generateStorageCode(conn, { library: "obstore" }),
+      ).toMatchSnapshot();
     });
 
     it("with secrets", () => {
@@ -70,13 +76,17 @@ describe("generateStorageCode", () => {
         access_key_id: prefixSecret("AWS_ACCESS_KEY_ID"),
         secret_access_key: prefixSecret("AWS_SECRET_ACCESS_KEY"),
       };
-      expect(generateStorageCode(conn, "obstore")).toMatchSnapshot();
+      expect(
+        generateStorageCode(conn, { library: "obstore" }),
+      ).toMatchSnapshot();
     });
   });
 
   describe("GCS", () => {
     it("with service account key", () => {
-      expect(generateStorageCode(baseGCS, "obstore")).toMatchSnapshot();
+      expect(
+        generateStorageCode(baseGCS, { library: "obstore" }),
+      ).toMatchSnapshot();
     });
 
     it("without service account key (default credentials)", () => {
@@ -84,13 +94,17 @@ describe("generateStorageCode", () => {
         type: "gcs",
         bucket: "my-bucket",
       };
-      expect(generateStorageCode(conn, "obstore")).toMatchSnapshot();
+      expect(
+        generateStorageCode(conn, { library: "obstore" }),
+      ).toMatchSnapshot();
     });
   });
 
   describe("Azure", () => {
     it("basic connection with account key", () => {
-      expect(generateStorageCode(baseAzure, "obstore")).toMatchSnapshot();
+      expect(
+        generateStorageCode(baseAzure, { library: "obstore" }),
+      ).toMatchSnapshot();
     });
 
     it("without account key", () => {
@@ -99,7 +113,9 @@ describe("generateStorageCode", () => {
         container: "my-container",
         account_name: "storageaccount",
       };
-      expect(generateStorageCode(conn, "obstore")).toMatchSnapshot();
+      expect(
+        generateStorageCode(conn, { library: "obstore" }),
+      ).toMatchSnapshot();
     });
 
     it("with secrets", () => {
@@ -109,13 +125,17 @@ describe("generateStorageCode", () => {
         account_name: prefixSecret("AZURE_ACCOUNT"),
         account_key: prefixSecret("AZURE_KEY"),
       };
-      expect(generateStorageCode(conn, "obstore")).toMatchSnapshot();
+      expect(
+        generateStorageCode(conn, { library: "obstore" }),
+      ).toMatchSnapshot();
     });
   });
 
   describe("CoreWeave", () => {
     it("basic connection with all fields", () => {
-      expect(generateStorageCode(baseCoreWeave, "obstore")).toMatchSnapshot();
+      expect(
+        generateStorageCode(baseCoreWeave, { library: "obstore" }),
+      ).toMatchSnapshot();
     });
 
     it("minimal connection (bucket and region only)", () => {
@@ -124,7 +144,9 @@ describe("generateStorageCode", () => {
         bucket: "operator-bucket",
         region: "US-EAST-04A",
       };
-      expect(generateStorageCode(conn, "obstore")).toMatchSnapshot();
+      expect(
+        generateStorageCode(conn, { library: "obstore" }),
+      ).toMatchSnapshot();
     });
 
     it("with secrets", () => {
@@ -135,39 +157,52 @@ describe("generateStorageCode", () => {
         access_key_id: prefixSecret("COREWEAVE_OBJECT_STORAGE_KEY"),
         secret_access_key: prefixSecret("COREWEAVE_OBJECT_STORAGE_SECRET"),
       };
-      expect(generateStorageCode(conn, "obstore")).toMatchSnapshot();
+      expect(
+        generateStorageCode(conn, { library: "obstore" }),
+      ).toMatchSnapshot();
     });
   });
 
   describe("Google Drive", () => {
     it("with service account credentials", () => {
-      expect(generateStorageCode(baseGDrive, "fsspec")).toMatchSnapshot();
+      expect(
+        generateStorageCode(baseGDrive, { library: "fsspec" }),
+      ).toMatchSnapshot();
     });
 
-    it("with browser auth (no credentials)", () => {
+    it("with default auth (no credentials)", () => {
       const conn: StorageConnection = {
         type: "gdrive",
       };
-      expect(generateStorageCode(conn, "fsspec")).toMatchSnapshot();
+      expect(
+        generateStorageCode(conn, { library: "fsspec" }),
+      ).toMatchSnapshot();
+    });
+
+    it("with embedded auth (no credentials)", () => {
+      const conn: StorageConnection = {
+        type: "gdrive",
+      };
+      expect(
+        generateStorageCode(conn, { library: "fsspec", isEmbedded: true }),
+      ).toMatchSnapshot();
     });
   });
 
   describe("invalid cases", () => {
     it("throws for empty S3 bucket", () => {
       expect(() =>
-        generateStorageCode(
-          { type: "s3", bucket: "" } as StorageConnection,
-          "obstore",
-        ),
+        generateStorageCode({ type: "s3", bucket: "" } as StorageConnection, {
+          library: "obstore",
+        }),
       ).toThrow();
     });
 
     it("throws for empty GCS bucket", () => {
       expect(() =>
-        generateStorageCode(
-          { type: "gcs", bucket: "" } as StorageConnection,
-          "obstore",
-        ),
+        generateStorageCode({ type: "gcs", bucket: "" } as StorageConnection, {
+          library: "obstore",
+        }),
       ).toThrow();
     });
 
@@ -179,7 +214,7 @@ describe("generateStorageCode", () => {
             container: "",
             account_name: "acct",
           } as StorageConnection,
-          "obstore",
+          { library: "obstore" },
         ),
       ).toThrow();
     });
@@ -192,7 +227,7 @@ describe("generateStorageCode", () => {
             container: "my-container",
             account_name: "",
           } as StorageConnection,
-          "obstore",
+          { library: "obstore" },
         ),
       ).toThrow();
     });
@@ -205,7 +240,7 @@ describe("generateStorageCode", () => {
             bucket: "",
             region: "US-EAST-04A",
           } as StorageConnection,
-          "obstore",
+          { library: "obstore" },
         ),
       ).toThrow();
     });
@@ -218,7 +253,7 @@ describe("generateStorageCode", () => {
             bucket: "operator-bucket",
             region: "",
           } as StorageConnection,
-          "obstore",
+          { library: "obstore" },
         ),
       ).toThrow();
     });

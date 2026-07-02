@@ -1,35 +1,129 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { get } from "lodash-es";
+import { get, has } from "lodash-es";
 import { FolderCog2 } from "lucide-react";
-import type { FieldPath } from "react-hook-form";
+import { useCallback } from "react";
+import type {
+  Control,
+  ControllerRenderProps,
+  FieldPath,
+  FieldPathValue,
+} from "react-hook-form";
+import { FormField } from "@/components/ui/form";
 import { Tooltip } from "@/components/ui/tooltip";
 import { configOverridesAtom, useUserConfig } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import { Kbd } from "../ui/kbd";
 
-/**
- * Hook to determine if a user config value is overridden by project config.
- * Returns { isOverridden, currentValue, overriddenValue }
- */
-function useIsConfigOverridden(
-  userConfig: UserConfig,
-  name: FieldPath<UserConfig>,
-): {
+export interface ConfigOverride<T> {
   isOverridden: boolean;
-  currentValue: unknown;
-  overriddenValue: unknown;
-} {
-  const currentValue = get(userConfig, name);
-  const overrides = useAtomValue(configOverridesAtom);
-  const overriddenValue = get(overrides as UserConfig, name);
-
-  const isOverridden =
-    overriddenValue != null && currentValue !== overriddenValue;
-
-  return { isOverridden, currentValue, overriddenValue };
+  /**
+   * The effective value: the project config value when overridden, otherwise
+   * the user's own value.
+   */
+  value: T;
+  userValue: unknown;
+  projectValue: unknown;
 }
+
+function resolveOverride<T>({
+  userConfig,
+  overrides,
+  name,
+  value,
+}: {
+  userConfig: UserConfig;
+  overrides: unknown;
+  name: FieldPath<UserConfig>;
+  value: T;
+}): ConfigOverride<T> {
+  const userValue = get(userConfig, name);
+  const projectValue = get(overrides as UserConfig, name);
+  // A setting is overridden when the project config specifies the path at all
+  // (so it stays locked even if the value equals the user's, or is `null`).
+  const isOverridden = has(overrides, name);
+  return {
+    isOverridden,
+    userValue,
+    projectValue,
+    value: isOverridden ? (projectValue as T) : value,
+  };
+}
+
+/**
+ * Returns a function that resolves a form field against the project config
+ * overrides (e.g. `pyproject.toml`).
+ *
+ * The returned function is a plain callback (not a hook), so it's safe to call
+ * inside `FormField` render callbacks and loops.
+ */
+export function useConfigOverride(): <T>(
+  name: FieldPath<UserConfig>,
+  value: T,
+) => ConfigOverride<T> {
+  const [userConfig] = useUserConfig();
+  const overrides = useAtomValue(configOverridesAtom);
+  return useCallback(
+    <T,>(name: FieldPath<UserConfig>, value: T): ConfigOverride<T> =>
+      resolveOverride({ userConfig, overrides, name, value }),
+    [userConfig, overrides],
+  );
+}
+
+/**
+ * A `FormField` that resolves the field against the project config overrides.
+ */
+export function OverriddenFormField<TName extends FieldPath<UserConfig>>({
+  control,
+  name,
+  disabled,
+  render,
+}: {
+  control: Control<UserConfig>;
+  name: TName;
+  disabled?: boolean;
+  render: (args: {
+    field: ControllerRenderProps<UserConfig, TName>;
+    override: ConfigOverride<FieldPathValue<UserConfig, TName>>;
+  }) => React.ReactElement;
+}) {
+  const getOverride = useConfigOverride();
+  return (
+    <FormField
+      control={control}
+      name={name}
+      disabled={disabled}
+      render={({ field }) =>
+        render({
+          field,
+          // `field.value` is `FieldPathValue<UserConfig, TName>`, but the deep
+          // conditional type doesn't reduce for the compiler, so we narrow it.
+          override: getOverride(name, field.value) as ConfigOverride<
+            FieldPathValue<UserConfig, TName>
+          >,
+        })
+      }
+    />
+  );
+}
+
+/**
+ * Shared explanation shown in override tooltips, so the wording stays
+ * consistent across the badge and the disabled-wrapper.
+ */
+const OverriddenExplanation = () => (
+  <>
+    <p>
+      This setting is overridden by the{" "}
+      <Kbd className="inline mx-px">pyproject.toml</Kbd> config.
+    </p>
+    <p>
+      To change it, edit the project config{" "}
+      <Kbd className="inline mx-px">pyproject.toml</Kbd> directly.
+    </p>
+  </>
+);
 
 /**
  * Wraps a component and shows a tooltip if the user config is overridden by the
@@ -42,22 +136,13 @@ export const DisableIfOverridden = ({
   name: FieldPath<UserConfig>;
   children: React.ReactNode;
 }) => {
-  const [userConfig] = useUserConfig();
-  const { isOverridden } = useIsConfigOverridden(userConfig, name);
+  const { isOverridden } = useConfigOverride()(name, undefined);
   return isOverridden ? (
     <Tooltip
       delayDuration={200}
       content={
         <div className="flex flex-col gap-2">
-          <p>
-            This setting is overridden by the{" "}
-            <Kbd className="inline mx-px">pyproject.toml</Kbd> config.
-          </p>
-          <p>
-            To change it, edit the project config{" "}
-            <Kbd className="inline mx-px">pyproject.toml</Kbd>
-            directly.
-          </p>
+          <OverriddenExplanation />
         </div>
       }
     >
@@ -71,48 +156,30 @@ export const DisableIfOverridden = ({
 };
 
 export const IsOverridden = ({
-  userConfig,
-  name,
+  override,
 }: {
-  userConfig: UserConfig;
-  name: FieldPath<UserConfig>;
+  override: ConfigOverride<unknown>;
 }) => {
-  const { isOverridden, currentValue, overriddenValue } = useIsConfigOverridden(
-    userConfig,
-    name,
-  );
-
-  if (!isOverridden) {
+  if (!override.isOverridden) {
     return null;
   }
 
   return (
     <Tooltip
       content={
-        <>
-          <span>
-            This setting is overridden by{" "}
-            <Kbd className="inline">pyproject.toml</Kbd>.
-          </span>
-          <br />
-          <span>
-            Edit the <Kbd className="inline">pyproject.toml</Kbd> file directly
-            to change this setting.
-          </span>
-          <br />
-          <span>
-            User value: <strong>{String(currentValue)}</strong>
-          </span>
-          <br />
-          <span>
-            Project value: <strong>{String(overriddenValue)}</strong>
-          </span>
-        </>
+        <div className="flex flex-col gap-2">
+          <OverriddenExplanation />
+          <p>
+            User value: <strong>{String(override.userValue)}</strong>
+            <br />
+            Project value: <strong>{String(override.projectValue)}</strong>
+          </p>
+        </div>
       }
     >
       <span className="text-(--amber-12) text-xs flex items-center gap-1 border rounded px-2 py-1 bg-(--amber-2) border-(--amber-6) ml-1">
         <FolderCog2 className="w-3 h-3" />
-        Overridden by pyproject.toml [{String(overriddenValue)}]
+        Overridden by pyproject.toml
       </span>
     </Tooltip>
   );

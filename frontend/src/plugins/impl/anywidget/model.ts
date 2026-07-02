@@ -113,6 +113,10 @@ interface MarimoInternalApi<T extends ModelState> {
    */
   updateAndEmitDiffs: (value: T) => void;
   /**
+   * Re-emit current state as change events.
+   */
+  reemitState: () => void;
+  /**
    * Emit a custom message to listeners.
    */
   emitCustomMessage: (
@@ -160,6 +164,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
    */
   [marimoSymbol]: MarimoInternalApi<T> = {
     updateAndEmitDiffs: (value: T) => this.#updateAndEmitDiffs(value),
+    reemitState: () => this.#reemitState(),
     emitCustomMessage: (
       message: Extract<AnyWidgetMessage, { method: "custom" }>,
       buffers?: readonly DataView[],
@@ -267,6 +272,16 @@ export class Model<T extends ModelState> implements AnyModel<T> {
         this.set(k, value[k]);
       }
     });
+  }
+
+  #reemitState() {
+    for (const [key, value] of Object.entries(this.#data) as [
+      keyof T & string,
+      T[keyof T],
+    ][]) {
+      this.#emit(`change:${key}`, value);
+    }
+    this.#emitAnyChange();
   }
 
   /**

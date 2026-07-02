@@ -278,6 +278,45 @@ def test_md_nested_list_preserves_multi_paragraph() -> None:
     )
 
 
+def test_md_admonition_paragraph_tags_balanced() -> None:
+    # Regression for https://github.com/marimo-team/marimo/issues/9847
+    input_text = """/// error
+Nope!
+///"""
+
+    result = _md(input_text, apply_markdown_class=False).text
+    assert result == snapshot(
+        """\
+<div class="admonition error">
+<span class="admonition-title">Error</span>
+<span class="paragraph">Nope!</span>
+</div>\
+"""
+    )
+    assert '<p class="admonition-title"' not in result
+    assert "<p>" not in result
+    assert "</p>" not in result
+
+
+@pytest.mark.parametrize(
+    "kind", ["note", "warning", "danger", "tip", "error", "caution"]
+)
+def test_md_admonition_well_formed(kind: str) -> None:
+    result = _md(f"/// {kind}\nBody text\n///").text
+    assert f'<div class="admonition {kind}">' in result
+    assert '<span class="admonition-title">' in result
+    assert '<span class="paragraph">Body text</span>' in result
+    assert "<p>" not in result
+    assert "</p>" not in result
+
+
+def test_md_admonition_custom_title_well_formed() -> None:
+    result = _md("/// note | My Title\nbody here\n///").text
+    assert '<span class="admonition-title">My Title</span>' in result
+    assert "<p>" not in result
+    assert "</p>" not in result
+
+
 def test_md_nested_list_with_inline_elements() -> None:
     # Inline elements like bold/italic/code should survive p-unwrapping
     input_text = """- **Bold item**

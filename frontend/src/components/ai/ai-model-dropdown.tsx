@@ -45,6 +45,7 @@ interface AIModelDropdownProps {
   showAddCustomModelDocs?: boolean;
   displayIconOnly?: boolean;
   forRole: SupportedRole;
+  disabled?: boolean;
 }
 
 export const AIModelDropdown = ({
@@ -57,6 +58,7 @@ export const AIModelDropdown = ({
   showAddCustomModelDocs = false,
   forRole,
   displayIconOnly = false,
+  disabled = false,
 }: AIModelDropdownProps) => {
   const [isOpen, setIsOpen] = React.useState(false);
 
@@ -131,6 +133,9 @@ export const AIModelDropdown = ({
   };
 
   const handleSelect = (modelId: QualifiedModelId) => {
+    if (disabled) {
+      return;
+    }
     if (onSelect) {
       onSelect(modelId);
     } else {
@@ -142,6 +147,7 @@ export const AIModelDropdown = ({
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger
+        disabled={disabled}
         className={`flex items-center justify-between px-2 py-0.5 border rounded-md
             hover:bg-accent hover:text-accent-foreground ${triggerClassName}`}
       >

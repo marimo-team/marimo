@@ -61,8 +61,10 @@ class Notification(msgspec.Struct, tag_field="op"):
 class CellNotification(Notification, tag="cell-op"):
     """Updates a cell's state in the frontend.
 
-    Only fields that are set (not None) will update the cell state.
-    Omitting a field leaves that aspect unchanged.
+    This is a partial update: each field carries its own "unchanged" semantics,
+    documented per field below. Most fields treat None as "unchanged"; fields
+    that need to distinguish "unchanged" from "clear" use msgspec.UNSET for the
+    former and None for the latter.
 
     Attributes:
         cell_id: Unique identifier of the cell being updated.
@@ -71,7 +73,7 @@ class CellNotification(Notification, tag="cell-op"):
         status: Execution status (idle/running/stale/queued/disabled-transitively).
         stale_inputs: Whether cell has stale inputs from changed dependencies.
         run_id: Execution run ID for tracing. Auto-set from context.
-        serialization: Serialization status (TopLevelHints).
+        serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
         timestamp: Creation timestamp, auto-set.
     """
 
@@ -82,7 +84,10 @@ class CellNotification(Notification, tag="cell-op"):
     status: RuntimeStateType | None = None
     stale_inputs: bool | None = None
     run_id: RunId_t | None = None
-    serialization: str | None = None
+    # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's
+    # serialization hint unchanged; None explicitly clears it (cell is no
+    # longer a top-level definition); a string sets it.
+    serialization: str | None | msgspec.UnsetType = msgspec.UNSET
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
@@ -126,6 +131,11 @@ class FunctionCallResultNotification(Notification, tag="function-call-result"):
         function_call_id: ID matching the original request.
         return_value: Function return value as JSON.
         status: Human-readable success/failure status.
+        found: Whether the requested function was located in the registry.
+            False signals a transient registry desync, so the request is safe
+            to retry. True means no retry will help: a non-ok status then
+            reflects a failure unrelated to lookup, such as the function
+            raising during execution or not being associated with a cell.
     """
 
     name: ClassVar[str] = "function-call-result"
@@ -133,6 +143,7 @@ class FunctionCallResultNotification(Notification, tag="function-call-result"):
     function_call_id: RequestId
     return_value: JSONType
     status: HumanReadableStatus
+    found: bool
 
 
 class RemoveUIElementsNotification(Notification, tag="remove-ui-elements"):
@@ -541,10 +552,13 @@ class SQLDatabaseMetadata(msgspec.Struct):
     Attributes:
         connection: Connection identifier.
         database: Database name.
+        schema_path: Parent schema path the schemas belong under. Empty for
+            the database's top level.
     """
 
     connection: str
     database: str
+    schema_path: list[str] = msgspec.field(default_factory=list)
 
 
 class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
@@ -554,11 +568,14 @@ class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
         connection: Connection identifier.
         database: Database name.
         schema: Schema name.
+        schema_path: Path of nested schemas (relative to `database`). Empty
+            for the top level.
     """
 
     connection: str
     database: str
     schema: str
+    schema_path: list[str] = msgspec.field(default_factory=list)
 
 
 class SQLTablePreviewNotification(Notification, tag="sql-table-preview"):
@@ -684,6 +701,7 @@ class StorageEntriesNotification(Notification, tag="storage-entries"):
         namespace: Variable name of the storage backend.
         prefix: The prefix that was listed (set by list_entries).
         query: The search query that was used (set by search).
+        next_page_token: Token for fetching the next page of entries.
         error: Error message if the operation failed.
     """
 
@@ -693,6 +711,7 @@ class StorageEntriesNotification(Notification, tag="storage-entries"):
     namespace: str
     prefix: str | None = None
     query: str | None = None
+    next_page_token: str | None = None
     error: str | None = None
 
 

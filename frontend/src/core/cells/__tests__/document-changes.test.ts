@@ -16,14 +16,32 @@
 import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { cellId } from "@/__tests__/branded";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { requestClientAtom } from "@/core/network/requests";
+import type { EditRequests, RunRequests } from "@/core/network/types";
+import { store } from "@/core/state/jotai";
 import { MultiColumn } from "@/utils/id-tree";
 import { exportedForTesting, type NotebookState } from "../cells";
-import { type CellAction, toDocumentChanges } from "../document-changes";
+import {
+  type CellAction,
+  coalesceChanges,
+  type DocumentChange,
+  exportedForTesting as middlewareExports,
+  toDocumentChanges,
+} from "../document-changes";
 import { CellId } from "../ids";
 
 const { initialNotebookState, reducer } = exportedForTesting;
@@ -412,7 +430,7 @@ describe("toDocumentChanges", () => {
       const [a] = state.cellIds.inOrderIds;
 
       // Position cursor at end of "line1" (position 5)
-      const view = state.cellHandles[a].current!.editorView;
+      const view = state.cellHandles[a].current!.editorView!;
       view.dispatch({ selection: { anchor: 5 } });
 
       const { changes } = resolve(state, {
@@ -448,7 +466,7 @@ describe("toDocumentChanges", () => {
       const [a] = state.cellIds.inOrderIds;
 
       // Split the cell first
-      const view = state.cellHandles[a].current!.editorView;
+      const view = state.cellHandles[a].current!.editorView!;
       view.dispatch({ selection: { anchor: 5 } });
       const snapshot = view.state.doc.toString();
       state = dispatch(state, {
@@ -582,5 +600,186 @@ describe("toDocumentChanges", () => {
       });
       expect(changes).toHaveLength(0);
     });
+  });
+});
+
+describe("coalesceChanges", () => {
+  const X = cellId("X");
+  const Y = cellId("Y");
+  const A = cellId("A");
+  const config = { column: null, disabled: false, hide_code: false };
+
+  it("drops set-code that precedes a delete of the same cell", () => {
+    const changes: DocumentChange[] = [
+      { type: "set-code", cellId: X, code: "x = 2" },
+      { type: "delete-cell", cellId: X },
+    ];
+    expect(coalesceChanges(changes)).toEqual([
+      { type: "delete-cell", cellId: X },
+    ]);
+  });
+
+  it("keeps create+delete for a created-then-deleted cell, dropping the edit", () => {
+    const changes: DocumentChange[] = [
+      { type: "create-cell", cellId: X, code: "", name: "_", config },
+      { type: "set-code", cellId: X, code: "x = 1" },
+      { type: "delete-cell", cellId: X },
+    ];
+    expect(coalesceChanges(changes)).toEqual([
+      { type: "create-cell", cellId: X, code: "", name: "_", config },
+      { type: "delete-cell", cellId: X },
+    ]);
+  });
+
+  it("drops set-code, set-name, set-config, and move-cell for a deleted cell", () => {
+    const changes: DocumentChange[] = [
+      { type: "create-cell", cellId: X, code: "", name: "_", config },
+      { type: "set-code", cellId: X, code: "x = 1" },
+      { type: "set-name", cellId: X, name: "foo" },
+      {
+        type: "set-config",
+        cellId: X,
+        column: null,
+        disabled: true,
+        hideCode: false,
+      },
+      { type: "move-cell", cellId: X, after: A },
+      { type: "delete-cell", cellId: X },
+    ];
+    expect(coalesceChanges(changes)).toEqual([
+      { type: "create-cell", cellId: X, code: "", name: "_", config },
+      { type: "delete-cell", cellId: X },
+    ]);
+  });
+
+  it("leaves a plain delete of an unedited cell unchanged", () => {
+    const changes: DocumentChange[] = [{ type: "delete-cell", cellId: X }];
+    expect(coalesceChanges(changes)).toEqual([
+      { type: "delete-cell", cellId: X },
+    ]);
+  });
+
+  it("does not touch set-* for cells that are not deleted, preserving order", () => {
+    const changes: DocumentChange[] = [
+      { type: "set-code", cellId: A, code: "a = 1" },
+      { type: "set-code", cellId: Y, code: "y = 1" },
+      { type: "delete-cell", cellId: X },
+    ];
+    expect(coalesceChanges(changes)).toEqual([
+      { type: "set-code", cellId: A, code: "a = 1" },
+      { type: "set-code", cellId: Y, code: "y = 1" },
+      { type: "delete-cell", cellId: X },
+    ]);
+  });
+
+  it("collapses repeated set-code for a surviving cell to the last value", () => {
+    const changes: DocumentChange[] = [
+      { type: "set-code", cellId: X, code: "x = 1" },
+      { type: "set-name", cellId: X, name: "foo" },
+      { type: "set-code", cellId: X, code: "x = 2" },
+    ];
+    expect(coalesceChanges(changes)).toEqual([
+      { type: "set-name", cellId: X, name: "foo" },
+      { type: "set-code", cellId: X, code: "x = 2" },
+    ]);
+  });
+
+  it("keeps both creates so a downstream anchor stays resolvable", () => {
+    const changes: DocumentChange[] = [
+      { type: "create-cell", cellId: X, code: "", name: "_", config, after: A },
+      { type: "create-cell", cellId: Y, code: "", name: "_", config, after: X },
+      { type: "delete-cell", cellId: X },
+    ];
+    expect(coalesceChanges(changes)).toEqual([
+      { type: "create-cell", cellId: X, code: "", name: "_", config, after: A },
+      { type: "create-cell", cellId: Y, code: "", name: "_", config, after: X },
+      { type: "delete-cell", cellId: X },
+    ]);
+  });
+});
+
+/**
+ * End-to-end of the debounced flush path: dispatch through the real middleware
+ * reducer, let the debounce fire, and inspect the batch that reaches
+ * sendDocumentTransaction. Coalescing only matters once edits actually share a
+ * debounce window, which drainChanges-based tests can't observe.
+ */
+describe("flush path coalescing", () => {
+  let sent: DocumentChange[][];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sent = [];
+    middlewareExports.cancelPendingChanges();
+    const captureClient: Pick<
+      EditRequests & RunRequests,
+      "sendDocumentTransaction"
+    > = {
+      sendDocumentTransaction: async ({ changes }) => {
+        sent.push(changes);
+        return null;
+      },
+    };
+    store.set(
+      requestClientAtom,
+      captureClient as unknown as EditRequests & RunRequests,
+    );
+  });
+
+  afterEach(() => {
+    middlewareExports.cancelPendingChanges();
+    store.set(requestClientAtom, null);
+    vi.useRealTimers();
+  });
+
+  it("coalesces edit + delete of the same cell within one debounce window", () => {
+    setup("x = 1");
+    const [x] = state.cellIds.inOrderIds;
+    // Discard the create-cell from setup; it would flush as its own batch.
+    middlewareExports.cancelPendingChanges();
+
+    // Same window: edit the cell, then delete it, with no timer advance.
+    state = dispatch(state, {
+      type: "updateCellCode",
+      payload: { cellId: x, code: "x = 2", formattingChange: false },
+    });
+    state = dispatch(state, {
+      type: "deleteCell",
+      payload: { cellId: x },
+    });
+
+    // Debounced: nothing on the wire yet.
+    expect(sent).toEqual([]);
+
+    vi.advanceTimersByTime(400);
+
+    // One transaction, and it is just the delete — the conflicting set-code
+    // has been dropped, so the server never sees edit+delete of one cell.
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toEqual([{ type: "delete-cell", cellId: x }]);
+  });
+
+  it("sends edit and delete as separate clean transactions across windows", () => {
+    setup("x = 1");
+    const [x] = state.cellIds.inOrderIds;
+    middlewareExports.cancelPendingChanges();
+
+    state = dispatch(state, {
+      type: "updateCellCode",
+      payload: { cellId: x, code: "x = 2", formattingChange: false },
+    });
+    vi.advanceTimersByTime(400);
+
+    state = dispatch(state, {
+      type: "deleteCell",
+      payload: { cellId: x },
+    });
+    vi.advanceTimersByTime(400);
+
+    // Two separate, individually-valid transactions: neither conflicts, which
+    // is why the bug only ever surfaced when both landed in the same window.
+    expect(sent).toHaveLength(2);
+    expect(sent[0]).toEqual([{ type: "set-code", cellId: x, code: "x = 2" }]);
+    expect(sent[1]).toEqual([{ type: "delete-cell", cellId: x }]);
   });
 });

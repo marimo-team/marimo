@@ -58,6 +58,10 @@ interface State {
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
+// Keys of toasts requested with `once: true`, suppressed after first show
+// for the lifetime of the page (i.e. one static-preview session).
+const shownOnceKeys = new Set<string>();
+
 const addToRemoveQueue = (toastId: string) => {
   if (toastTimeouts.has(toastId)) {
     return;
@@ -159,8 +163,17 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">;
 
-function toast({ id, ...props }: Toast & { id?: string }) {
+function toast({
+  id,
+  once,
+  ...props
+}: Toast & { id?: string; once?: boolean }) {
   const toastId = id || genId();
+
+  // `once` dedupe requires a caller-provided stable `id`. A generated id is
+  // unique per call, so it could never match (and would grow the set without
+  // bound); gate on `id` so `once` without one is simply a no-op.
+  const dedupeOnce = once === true && id !== undefined;
 
   const update = (props: Toast) =>
     dispatch({
@@ -183,19 +196,26 @@ function toast({ id, ...props }: Toast & { id?: string }) {
       },
     });
 
-  dispatch({
-    type: "ADD_TOAST",
-    toast: {
-      ...props,
-      id: toastId,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) {
-          dismiss();
-        }
+  const suppressed = dedupeOnce && shownOnceKeys.has(toastId);
+  if (dedupeOnce) {
+    shownOnceKeys.add(toastId);
+  }
+
+  if (!suppressed) {
+    dispatch({
+      type: "ADD_TOAST",
+      toast: {
+        ...props,
+        id: toastId,
+        open: true,
+        onOpenChange: (open) => {
+          if (!open) {
+            dismiss();
+          }
+        },
       },
-    },
-  });
+    });
+  }
 
   return {
     id: toastId,

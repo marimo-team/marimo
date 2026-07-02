@@ -326,6 +326,7 @@ class App:
                             refs=cell_impl.refs,
                             sql_refs=cell_impl.sql_refs,
                             temporaries=cell_impl.temporaries,
+                            closed_over_temporaries=cell_impl.closed_over_temporaries,
                             variable_data=cell_impl.variable_data,
                             deleted_refs=cell_impl.deleted_refs,
                             body=cell_impl.body,
@@ -1052,7 +1053,8 @@ class InternalApp:
                 config=config,
                 cell=prev_compiled.get(cell_id),
             )
-        cm._replace_state_from(rebuilt)
+
+        cm.apply_diff_from(rebuilt, source="cell-manager")
         return self
 
     async def run_cell_async(

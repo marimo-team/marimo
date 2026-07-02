@@ -3463,7 +3463,7 @@ export interface components {
       inline_tooltip?: boolean;
       max_tokens?: number;
       /** @enum {unknown} */
-      mode?: "agent" | "ask" | "manual";
+      mode?: "agent" | "ask" | "code_mode" | "manual";
       models?: components["schemas"]["AiModelConfig"];
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];
@@ -3647,8 +3647,10 @@ export interface components {
      * CellNotification
      * @description Updates a cell's state in the frontend.
      *
-     *         Only fields that are set (not None) will update the cell state.
-     *         Omitting a field leaves that aspect unchanged.
+     *         This is a partial update: each field carries its own "unchanged" semantics,
+     *         documented per field below. Most fields treat None as "unchanged"; fields
+     *         that need to distinguish "unchanged" from "clear" use msgspec.UNSET for the
+     *         former and None for the latter.
      *
      *         Attributes:
      *             cell_id: Unique identifier of the cell being updated.
@@ -3657,7 +3659,7 @@ export interface components {
      *             status: Execution status (idle/running/stale/queued/disabled-transitively).
      *             stale_inputs: Whether cell has stale inputs from changed dependencies.
      *             run_id: Execution run ID for tracing. Auto-set from context.
-     *             serialization: Serialization status (TopLevelHints).
+     *             serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
      *             timestamp: Creation timestamp, auto-set.
      */
     CellNotification: {
@@ -3673,7 +3675,6 @@ export interface components {
       output?: null | components["schemas"]["CellOutput"];
       /** @default null */
       run_id?: string | null;
-      /** @default null */
       serialization?: string | null;
       /** @default null */
       stale_inputs?: boolean | null;
@@ -3779,7 +3780,6 @@ export interface components {
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
      */
     ChatRequest: {
-      context: components["schemas"]["AiCompletionContext"];
       includeOtherCode: string;
       /** @default null */
       model?: string | null;
@@ -4143,7 +4143,9 @@ export interface components {
      *     Attributes:
      *         name (str): The name of the database
      *         dialect (str): The dialect of the database
-     *         schemas (List[Schema]): List of schemas in the database
+     *         schemas (List[Schema]): List of schemas in the database.
+     *         schemas_resolved (bool): True when `schemas` has been enumerated.
+     *             False when schema discovery was deferred. Defaults to True
      *         engine (Optional[VariableName]): Database engine or connection handler, if any.
      */
     Database: {
@@ -4152,6 +4154,8 @@ export interface components {
       engine?: components["schemas"]["VariableName"] | null;
       name: string;
       schemas: components["schemas"]["Schema"][];
+      /** @default true */
+      schemas_resolved?: boolean;
     };
     /**
      * DatasetsNotification
@@ -4655,8 +4659,14 @@ export interface components {
      *             function_call_id: ID matching the original request.
      *             return_value: Function return value as JSON.
      *             status: Human-readable success/failure status.
+     *             found: Whether the requested function was located in the registry.
+     *                 False signals a transient registry desync, so the request is safe
+     *                 to retry. True means no retry will help: a non-ok status then
+     *                 reflects a failure unrelated to lookup, such as the function
+     *                 raising during execution or not being associated with a cell.
      */
     FunctionCallResultNotification: {
+      found: boolean;
       function_call_id: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       op: "function-call-result";
@@ -5164,11 +5174,15 @@ export interface components {
      *             request_id: Unique identifier for this request.
      *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
      *             database: Database to query.
+     *             schema_path: Parent schema path whose child schemas to list.
+     *                 Empty lists the database's top-level schemas.
      */
     ListSQLSchemasCommand: {
       database: string;
       engine: string;
       requestId: components["schemas"]["RequestId"];
+      /** @default [] */
+      schemaPath?: string[];
       /** @enum {unknown} */
       type: "list-sql-schemas";
     };
@@ -5177,6 +5191,8 @@ export interface components {
       database: string;
       engine: string;
       requestId: components["schemas"]["RequestId"];
+      /** @default [] */
+      schemaPath?: string[];
     };
     /**
      * ListSQLTablesCommand
@@ -5190,12 +5206,16 @@ export interface components {
      *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
      *             database: Database to query.
      *             schema: Schema to list tables from.
+     *             schema_path: Path of nested schemas (relative to `database`) for
+     *                 catalogs with nested schemas. Empty for the top level.
      */
     ListSQLTablesCommand: {
       database: string;
       engine: string;
       requestId: components["schemas"]["RequestId"];
       schema: string;
+      /** @default [] */
+      schemaPath?: string[];
       /** @enum {unknown} */
       type: "list-sql-tables";
     };
@@ -5205,6 +5225,8 @@ export interface components {
       engine: string;
       requestId: components["schemas"]["RequestId"];
       schema: string;
+      /** @default [] */
+      schemaPath?: string[];
     };
     /**
      * ListSecretKeysCommand
@@ -5758,12 +5780,16 @@ export interface components {
      *             database: Database containing the table.
      *             schema: Schema containing the table.
      *             table_name: Table to preview.
+     *             schema_path: Path of nested schemas (relative to `database`) for
+     *                 catalogs with nested schemas. Empty for the top level.
      */
     PreviewSQLTableCommand: {
       database: string;
       engine: string;
       requestId: components["schemas"]["RequestId"];
       schema: string;
+      /** @default [] */
+      schemaPath?: string[];
       tableName: string;
       /** @enum {unknown} */
       type: "preview-sql-table";
@@ -5774,6 +5800,8 @@ export interface components {
       engine: string;
       requestId: components["schemas"]["RequestId"];
       schema: string;
+      /** @default [] */
+      schemaPath?: string[];
       tableName: string;
     };
     /**
@@ -6020,10 +6048,14 @@ export interface components {
      *         Attributes:
      *             connection: Connection identifier.
      *             database: Database name.
+     *             schema_path: Parent schema path the schemas belong under. Empty for
+     *                 the database's top level.
      */
     SQLDatabaseMetadata: {
       connection: string;
       database: string;
+      /** @default [] */
+      schema_path?: string[];
     };
     /**
      * SQLMetadata
@@ -6033,11 +6065,15 @@ export interface components {
      *             connection: Connection identifier.
      *             database: Database name.
      *             schema: Schema name.
+     *             schema_path: Path of nested schemas (relative to `database`). Empty
+     *                 for the top level.
      */
     SQLMetadata: {
       connection: string;
       database: string;
       schema: string;
+      /** @default [] */
+      schema_path?: string[];
       /** @enum {unknown} */
       type: "sql-metadata";
     };
@@ -6136,10 +6172,31 @@ export interface components {
     SaveUserConfigurationRequest: {
       config: Record<string, any>;
     };
-    /** Schema */
+    /**
+     * Schema
+     * @description Represents a database schema and its tables.
+     *
+     *     A schema may itself contain nested child schemas, e.g. for catalogs with
+     *     hierarchical namespaces such as Iceberg (`top.nested.deep`).
+     *
+     *     Attributes:
+     *         name (str): The name of the schema.
+     *         tables (List[DataTable]): Tables in this schema.
+     *         tables_resolved (bool): True when `tables` has been enumerated
+     *             False when table discovery was deferred. Defaults to True
+     *         child_schemas (List[Schema]): Nested child schemas (sub-namespaces).
+     *         child_schemas_resolved (bool): True when `child_schemas` has been
+     *             enumerated. False when discovery was deferred. Defaults to True
+     */
     Schema: {
+      /** @default [] */
+      child_schemas?: components["schemas"]["Schema"][];
+      /** @default true */
+      child_schemas_resolved?: boolean;
       name: string;
       tables: components["schemas"]["DataTable"][];
+      /** @default true */
+      tables_resolved?: boolean;
     };
     /** SchemaColumn */
     SchemaColumn: {
@@ -6411,6 +6468,7 @@ export interface components {
      *             namespace: Variable name of the storage backend.
      *             prefix: The prefix that was listed (set by list_entries).
      *             query: The search query that was used (set by search).
+     *             next_page_token: Token for fetching the next page of entries.
      *             error: Error message if the operation failed.
      */
     StorageEntriesNotification: {
@@ -6418,6 +6476,8 @@ export interface components {
       /** @default null */
       error?: string | null;
       namespace: string;
+      /** @default null */
+      next_page_token?: string | null;
       /** @enum {unknown} */
       op: "storage-entries";
       /** @default null */
@@ -6461,10 +6521,13 @@ export interface components {
      *             namespace: Variable name identifying the storage backend.
      *             limit: Max entries to return.
      *             prefix: Path prefix to list (None = root).
+     *             page_token: Token for the next page of entries.
      */
     StorageListEntriesCommand: {
       limit: number;
       namespace: string;
+      /** @default null */
+      pageToken?: string | null;
       /** @default null */
       prefix?: string | null;
       requestId: string;
@@ -6475,6 +6538,8 @@ export interface components {
     StorageListEntriesRequest: {
       limit: number;
       namespace: string;
+      /** @default null */
+      pageToken?: string | null;
       /** @default null */
       prefix?: string | null;
       requestId: components["schemas"]["RequestId"];
@@ -6555,7 +6620,7 @@ export interface components {
      */
     ToolDefinition: {
       description: string;
-      mode: ("agent" | "ask" | "manual")[];
+      mode: ("agent" | "ask" | "code_mode" | "manual")[];
       name: string;
       parameters: Record<string, any>;
       /** @enum {unknown} */

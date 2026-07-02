@@ -9,6 +9,7 @@ import time
 from typing import TypedDict
 
 from marimo import _loggers
+from marimo._utils.platform import is_pyodide
 
 LOGGER = _loggers.marimo_logger()
 
@@ -109,6 +110,11 @@ def get_required_modules_list() -> dict[str, str]:
         "uvicorn",
         "websockets",
     ]
+    try:
+        import psutil as _psutil  # noqa: F401
+    except ImportError:
+        # psutil is not available on all platforms (e.g. Emscripten, Android/Termux).
+        packages = [p for p in packages if p != "psutil"]
     return _get_versions(packages, include_missing=True)
 
 
@@ -138,6 +144,9 @@ def get_optional_modules_list() -> dict[str, str]:
         "vegafusion",
         "watchdog",
     ]
+    if is_pyodide() or sys.platform == "android":
+        # loro is not installable on Emscripten/Android.
+        packages = [p for p in packages if p != "loro"]
     return _get_versions(packages, include_missing=False)
 
 

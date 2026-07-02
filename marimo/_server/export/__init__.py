@@ -19,6 +19,10 @@ from marimo._config.manager import (
 )
 from marimo._convert.common.filename import get_download_filename
 from marimo._convert.converters import MarimoConvert
+from marimo._convert.markdown.flavor import (
+    markdown_output_filename,
+    normalize_markdown_flavor,
+)
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import Error, is_unexpected_error
 from marimo._messaging.notification import (
@@ -104,9 +108,13 @@ def export_as_script(path: MarimoPath) -> ExportResult:
 
 def export_as_md(path: MarimoPath) -> ExportResult:
     ir = _as_ir(path)
+    filename = ir.filename or path.short_name
+    markdown_flavor = normalize_markdown_flavor(None, filename=filename)
     return ExportResult(
-        contents=MarimoConvert.from_ir(ir).to_markdown(),
-        download_filename=get_download_filename(path.short_name, "md"),
+        contents=MarimoConvert.from_ir(ir).to_markdown(
+            filename=filename, flavor=markdown_flavor
+        ),
+        download_filename=markdown_output_filename(filename, markdown_flavor),
         did_error=False,
     )
 

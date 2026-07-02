@@ -103,6 +103,7 @@ class ListSQLTablesRequest(ListSQLTablesCommand, tag=False):
             engine=self.engine,
             database=self.database,
             schema=self.schema,
+            schema_path=self.schema_path,
         )
 
 
@@ -112,6 +113,7 @@ class ListSQLSchemasRequest(ListSQLSchemasCommand, tag=False):
             request_id=self.request_id,
             engine=self.engine,
             database=self.database,
+            schema_path=self.schema_path,
         )
 
 
@@ -134,6 +136,7 @@ class PreviewSQLTableRequest(PreviewSQLTableCommand, tag=False):
             database=self.database,
             schema=self.schema,
             table_name=self.table_name,
+            schema_path=self.schema_path,
         )
 
 
@@ -155,6 +158,7 @@ class StorageListEntriesRequest(StorageListEntriesCommand, tag=False):
             namespace=self.namespace,
             limit=self.limit,
             prefix=self.prefix,
+            page_token=self.page_token,
         )
 
 

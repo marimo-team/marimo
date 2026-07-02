@@ -20,6 +20,68 @@ HAS_PANDAS = DependencyManager.pandas.has()
 HAS_CLICKHOUSE_CONNECT = DependencyManager.clickhouse_connect.has()
 
 
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+def test_clickhouse_get_databases_marks_failed_table_loading_unresolved() -> (
+    None
+):
+    import pandas as pd
+
+    class Connection:
+        def query_df(
+            self, query: str, parameters: dict[str, str] | None = None
+        ) -> Any:
+            del parameters
+            if query == "SHOW DATABASES":
+                return pd.DataFrame({"name": ["default"]})
+            if query.startswith("SHOW TABLES"):
+                raise RuntimeError("failed to list tables")
+            raise AssertionError(f"Unexpected query: {query}")
+
+    engine = ClickhouseServer(Connection())  # type: ignore[arg-type]
+
+    databases = engine.get_databases(
+        include_schemas=True,
+        include_tables=True,
+        include_table_details=False,
+    )
+
+    schema = databases[0].schemas[0]
+    assert schema.tables == []
+    assert schema.tables_resolved is False
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+def test_clickhouse_get_databases_marks_failed_table_details_unresolved() -> (
+    None
+):
+    import pandas as pd
+
+    class Connection:
+        def query_df(
+            self, query: str, parameters: dict[str, str] | None = None
+        ) -> Any:
+            del parameters
+            if query == "SHOW DATABASES":
+                return pd.DataFrame({"name": ["default"]})
+            if query.startswith("SHOW TABLES"):
+                return pd.DataFrame({"name": ["my_table"]})
+            if "system.tables" in query or query.startswith("DESCRIBE TABLE"):
+                raise RuntimeError("failed to load table details")
+            raise AssertionError(f"Unexpected query: {query}")
+
+    engine = ClickhouseServer(Connection())  # type: ignore[arg-type]
+
+    databases = engine.get_databases(
+        include_schemas=True,
+        include_tables=True,
+        include_table_details=True,
+    )
+
+    schema = databases[0].schemas[0]
+    assert schema.tables == []
+    assert schema.tables_resolved is False
+
+
 @pytest.mark.skipif(
     not HAS_CLICKHOUSE_CONNECT, reason="Clickhouse connect not installed"
 )
@@ -35,6 +97,27 @@ def test_clickhouse_server_creation() -> None:
     assert connection.dialect == "clickhouse"
     assert connection.name == "clickhouse"
     assert connection.source == "clickhouse"
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_clickhouse_server_get_databases_auto_skips_tables() -> None:
+    """ClickHouse server is not cheap, so `"auto"` must not scan tables."""
+    import pandas as pd
+
+    connection = mock.MagicMock()
+    connection.query_df.return_value = pd.DataFrame({"name": ["db1", "db2"]})
+
+    engine = ClickhouseServer(connection)
+    with mock.patch.object(engine, "get_tables_in_schema") as mock_get_tables:
+        databases = engine.get_databases(
+            include_schemas="auto",
+            include_tables="auto",
+            include_table_details="auto",
+        )
+
+    mock_get_tables.assert_not_called()
+    assert [db.name for db in databases] == ["db1", "db2"]
+    assert all(db.schemas[0].tables == [] for db in databases)
 
 
 @pytest.mark.skipif(

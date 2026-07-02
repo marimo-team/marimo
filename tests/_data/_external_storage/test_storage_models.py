@@ -10,7 +10,11 @@ import pytest
 from dirty_equals import IsDatetime, IsPositiveFloat
 from inline_snapshot import snapshot
 
-from marimo._data._external_storage.models import DownloadResult, StorageEntry
+from marimo._data._external_storage.models import (
+    DownloadResult,
+    StorageEntry,
+    StorageListResult,
+)
 from marimo._data._external_storage.storage import (
     FsspecFilesystem,
     Obstore,
@@ -58,7 +62,7 @@ class TestObstore:
         mock_store.list_with_delimiter.assert_called_once_with(
             prefix="some/prefix",
         )
-        assert result == snapshot(
+        assert result.entries == snapshot(
             [
                 StorageEntry(
                     path="subdir/",
@@ -113,7 +117,7 @@ class TestObstore:
         backend = self._make_backend(mock_store)
         result = backend.list_entries(prefix="folder")
 
-        assert result == [
+        assert result.entries == [
             StorageEntry(
                 path="folder/order_details.csv",
                 kind="object",
@@ -133,7 +137,67 @@ class TestObstore:
 
         backend = self._make_backend(mock_store)
         result = backend.list_entries(prefix=None)
-        assert result == []
+        assert result.entries == []
+
+    def test_list_entries_returns_next_page_token(self) -> None:
+        now = datetime.now(tz=timezone.utc)
+        mock_store = MagicMock()
+        mock_store.list_with_delimiter.return_value = {
+            "common_prefixes": ["a/", "b/"],
+            "objects": [
+                {
+                    "path": "c.txt",
+                    "size": 1,
+                    "last_modified": now,
+                    "e_tag": None,
+                    "version": None,
+                },
+            ],
+        }
+
+        backend = self._make_backend(mock_store)
+
+        assert backend.list_entries(prefix=None, limit=2) == snapshot(
+            StorageListResult(
+                entries=[
+                    StorageEntry(
+                        path="a/",
+                        kind="directory",
+                        size=0,
+                        last_modified=None,
+                        metadata={},
+                        mime_type=None,
+                    ),
+                    StorageEntry(
+                        path="b/",
+                        kind="directory",
+                        size=0,
+                        last_modified=None,
+                        metadata={},
+                        mime_type=None,
+                    ),
+                ],
+                next_page_token="2",
+            )
+        )
+
+        assert backend.list_entries(
+            prefix=None, limit=2, page_token="2"
+        ) == snapshot(
+            StorageListResult(
+                entries=[
+                    StorageEntry(
+                        path="c.txt",
+                        kind="object",
+                        size=1,
+                        last_modified=now.timestamp(),
+                        metadata={},
+                        mime_type="text/plain",
+                    ),
+                ],
+                next_page_token=None,
+            )
+        )
 
     def test_create_storage_entry_missing_fields(self) -> None:
         mock_store = MagicMock()
@@ -586,7 +650,7 @@ class TestFsspecFilesystem:
         result = backend.list_entries(prefix="some/path")
 
         mock_store.ls.assert_called_once_with(path="some/path", detail=True)
-        assert result == snapshot(
+        assert result.entries == snapshot(
             [
                 StorageEntry(
                     path="file1.txt",
@@ -646,7 +710,7 @@ class TestFsspecFilesystem:
         assert mock_store.ls.call_count == 2
         assert "" not in mock_store.dircache
         assert "folder" not in mock_store.dircache
-        assert result == snapshot(
+        assert result.entries == snapshot(
             [
                 StorageEntry(
                     path="folder/file.txt",
@@ -690,7 +754,7 @@ class TestFsspecFilesystem:
         result = backend.list_entries(prefix="folder")
 
         mock_store.ls.assert_called_once_with(path="folder", detail=True)
-        assert result == snapshot(
+        assert result.entries == snapshot(
             [
                 StorageEntry(
                     path="folder",
@@ -735,7 +799,7 @@ class TestFsspecFilesystem:
         backend = self._make_backend(mock_store)
         result = backend.list_entries(prefix="", limit=3)
 
-        assert result == snapshot(
+        assert result.entries == snapshot(
             [
                 StorageEntry(
                     path="file0.txt",
@@ -764,6 +828,63 @@ class TestFsspecFilesystem:
             ]
         )
 
+    def test_list_entries_returns_next_page_token(self) -> None:
+        mock_store = MagicMock()
+        files = [
+            {
+                "name": f"file{i}.txt",
+                "size": i,
+                "type": "file",
+                "mtime": None,
+            }
+            for i in range(3)
+        ]
+        mock_store.ls.return_value = files
+
+        backend = self._make_backend(mock_store)
+
+        assert backend.list_entries(prefix="", limit=2) == snapshot(
+            StorageListResult(
+                entries=[
+                    StorageEntry(
+                        path="file0.txt",
+                        kind="file",
+                        size=0,
+                        last_modified=None,
+                        metadata={},
+                        mime_type="text/plain",
+                    ),
+                    StorageEntry(
+                        path="file1.txt",
+                        kind="file",
+                        size=1,
+                        last_modified=None,
+                        metadata={},
+                        mime_type="text/plain",
+                    ),
+                ],
+                next_page_token="2",
+            )
+        )
+
+        assert backend.list_entries(
+            prefix="", limit=2, page_token="2"
+        ) == snapshot(
+            StorageListResult(
+                entries=[
+                    StorageEntry(
+                        path="file2.txt",
+                        kind="file",
+                        size=2,
+                        last_modified=None,
+                        metadata={},
+                        mime_type="text/plain",
+                    ),
+                ],
+                next_page_token=None,
+            )
+        )
+
     def test_list_entries_raises_on_non_list(self) -> None:
         mock_store = MagicMock()
         mock_store.ls.return_value = "not_a_list"
@@ -783,7 +904,7 @@ class TestFsspecFilesystem:
         backend = self._make_backend(mock_store)
         result = backend.list_entries(prefix="")
 
-        assert result == snapshot(
+        assert result.entries == snapshot(
             [
                 StorageEntry(
                     path="good.txt",
@@ -849,6 +970,31 @@ class TestFsspecFilesystem:
                     "created": 1699000000.0,
                 },
                 mime_type="text/csv",
+            )
+        )
+
+    def test_create_storage_entry_includes_id(self) -> None:
+        # Backends such as Google Drive allow duplicate paths, so the stable
+        # id must flow through to disambiguate entries on the client.
+        mock_store = MagicMock()
+        backend = self._make_backend(mock_store)
+
+        entry = backend._create_storage_entry(
+            {
+                "name": "File.pdf",
+                "size": 1024,
+                "type": "file",
+                "id": "drive-file-id-123",
+            }
+        )
+        assert entry == snapshot(
+            StorageEntry(
+                path="File.pdf",
+                kind="file",
+                size=1024,
+                last_modified=None,
+                metadata={"id": "drive-file-id-123"},
+                mime_type="application/pdf",
             )
         )
 
@@ -1104,7 +1250,7 @@ class TestFsspecFilesystemIntegration:
         backend = FsspecFilesystem(fs, VariableName("mem_fs"))
         entries = backend.list_entries(prefix="/test")
 
-        assert entries == snapshot(
+        assert entries.entries == snapshot(
             [
                 StorageEntry(
                     path="/test/hello.txt",
@@ -1228,7 +1374,7 @@ class TestObstoreIntegration:
 
         backend = Obstore(store, VariableName("mem_store"))
         entries = backend.list_entries(prefix="test/")
-        assert entries == snapshot(
+        assert entries.entries == snapshot(
             [
                 StorageEntry(
                     path="test/file1.txt",

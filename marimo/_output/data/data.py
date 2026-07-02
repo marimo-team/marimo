@@ -58,6 +58,21 @@ def audio(data: bytes, ext: str = "wav") -> VirtualFile:
     return item.virtual_file
 
 
+def video(data: bytes, ext: str = "mp4") -> VirtualFile:
+    """Create a virtual file from a video.
+
+    Args:
+        data (bytes): Video data in bytes
+        ext (str): File extension
+
+    Returns:
+        A `VirtualFile` object.
+    """
+    item = VirtualFileLifecycleItem(ext=ext, buffer=data)
+    item.add_to_cell_lifecycle_registry()
+    return item.virtual_file
+
+
 def csv(data: str | bytes | io.BytesIO) -> VirtualFile:
     """Create a virtual file for CSV data.
 

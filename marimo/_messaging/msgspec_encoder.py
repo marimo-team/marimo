@@ -109,14 +109,15 @@ def enc_hook(obj: Any) -> Any:
         if isinstance(obj, pd.Index):
             return obj.to_list()
 
-        # Catch-all for other pandas objects
-        try:
-            if isinstance(obj, pd.core.base.PandasObject):  # type: ignore
+        # Catch-all for other pandas objects. Only some PandasObject
+        # subclasses (Series/DataFrame, handled above) define `to_json`, so
+        # guard the lookup instead of relying on AttributeError.
+        if isinstance(obj, pd.core.base.PandasObject):  # type: ignore[attr-defined]
+            to_json = getattr(obj, "to_json", None)
+            if callable(to_json):
                 import json
 
-                return json.loads(obj.to_json(date_format="iso"))
-        except AttributeError:
-            pass
+                return json.loads(to_json(date_format="iso"))
 
     # Handle shapely geometry objects from geopandas
     if DependencyManager.geopandas.imported():

@@ -12,8 +12,12 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import InferenceConfig, SQLConnection
-from marimo._sql.utils import CHEAP_DISCOVERY_DATABASES, convert_to_output
+from marimo._sql.engines.types import (
+    InferenceConfig,
+    SQLConnection,
+    default_inference_config,
+)
+from marimo._sql.utils import convert_to_output
 from marimo._types.ids import VariableName
 
 if TYPE_CHECKING:
@@ -84,11 +88,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
     @property
     def inference_config(self) -> InferenceConfig:
-        return InferenceConfig(
-            auto_discover_schemas=True,
-            auto_discover_tables="auto",
-            auto_discover_columns=False,
-        )
+        return default_inference_config()
 
     def get_default_database(self) -> str | None:
         """Get the current database name.
@@ -164,9 +164,11 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             LOGGER.debug("Failed to get databases", exc_info=True)
             return []
 
+        schemas_resolved = self._resolve_should_auto_discover(include_schemas)
+
         for database_name in database_names:
             database_name_str = str(database_name)
-            if self._resolve_should_auto_discover(include_schemas):
+            if schemas_resolved:
                 schemas = self.get_schemas(
                     database=database_name_str,
                     include_tables=self._resolve_should_auto_discover(
@@ -183,6 +185,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
                 name=database_name_str,
                 dialect=self.dialect,
                 schemas=schemas,
+                schemas_resolved=schemas_resolved,
                 engine=self._engine_name,
             )
 
@@ -196,8 +199,11 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
+        if schema_path:
+            return []  # Ibis backends don't expose nested schemas
         meta_schemas = self._get_meta_schemas()
 
         schemas: list[Schema] = []
@@ -242,13 +248,11 @@ class IbisEngine(SQLConnection["SQLBackend"]):
                     include_table_details=include_table_details,
                 )
 
-                # ignore schemas with 0 tables
-                if len(tables) == 0:
-                    LOGGER.debug(
-                        f"No table found for schema `{schema_name}`. Not displaying schema."
-                    )
-
-            schema = Schema(name=schema_name, tables=tables)
+            schema = Schema(
+                name=schema_name,
+                tables=tables,
+                tables_resolved=include_tables,
+            )
             schemas.append(schema)
 
         return schemas
@@ -259,9 +263,15 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         return ["information_schema", "pg_catalog"]
 
     def get_tables_in_schema(
-        self, *, schema: str, database: str, include_table_details: bool
+        self,
+        *,
+        schema: str,
+        database: str,
+        include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[DataTable]:
         """Return all tables in a schema."""
+        del schema_path  # Ibis backends don't expose nested schemas
         if self._connection is None:
             return []
 
@@ -363,9 +373,15 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             return list(set(table_names))
 
     def get_table_details(
-        self, *, table_name: str, schema_name: str, database_name: str
+        self,
+        *,
+        table_name: str,
+        schema_name: str,
+        database_name: str,
+        schema_path: list[str] | None = None,
     ) -> DataTable | None:
         """Get a single table from the engine."""
+        del schema_path  # Ibis backends don't expose nested schemas
         if self._connection is None:
             return None
 
@@ -459,14 +475,3 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             return "string"
         else:
             raise IbisToMarimoConversionError
-
-    def _resolve_should_auto_discover(
-        self,
-        value: bool | Literal["auto"],
-    ) -> bool:
-        if value == "auto":
-            return self._is_cheap_discovery()
-        return value
-
-    def _is_cheap_discovery(self) -> bool:
-        return self.dialect.lower() in CHEAP_DISCOVERY_DATABASES

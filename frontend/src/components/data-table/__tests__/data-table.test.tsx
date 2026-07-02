@@ -5,8 +5,8 @@ import type {
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataTable } from "../data-table";
 
@@ -16,6 +16,12 @@ interface TestData {
 }
 
 describe("DataTable", () => {
+  // Restore real timers unconditionally so a failed assertion in a
+  // fake-timer test can't leak fake timers into later tests.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("should maintain selection state when remounted", () => {
     const mockOnRowSelectionChange = vi.fn();
     const testData: TestData[] = [
@@ -63,17 +69,43 @@ describe("DataTable", () => {
     expect(commonProps.rowSelection).toEqual(initialRowSelection);
   });
 
-  it("applies hoverTemplate to the row title using row values", () => {
+  it("hides the search bar when showSearch is false", () => {
+    const columns: ColumnDef<TestData>[] = [
+      { accessorKey: "name", header: "Name" },
+    ];
+    const commonProps = {
+      data: [{ id: 1, name: "Test 1" }] as TestData[],
+      columns,
+      totalRows: 1,
+      totalColumns: 1,
+      pagination: false,
+      onSearchQueryChange: () => {},
+    };
+
+    const { rerender } = render(
+      <TooltipProvider>
+        <DataTable {...commonProps} showSearch={true} />
+      </TooltipProvider>,
+    );
+    expect(screen.queryByPlaceholderText("Search...")).not.toBeNull();
+
+    rerender(
+      <TooltipProvider>
+        <DataTable {...commonProps} showSearch={false} />
+      </TooltipProvider>,
+    );
+    expect(screen.queryByPlaceholderText("Search...")).toBeNull();
+  });
+
+  it("shows the hoverTemplate text as a styled tooltip on hover", async () => {
+    vi.useFakeTimers();
     interface RowData {
       id: number;
       first: string;
       last: string;
     }
 
-    const testData: RowData[] = [
-      { id: 1, first: "Michael", last: "Scott" },
-      { id: 2, first: "Jim", last: "Halpert" },
-    ];
+    const testData: RowData[] = [{ id: 1, first: "Michael", last: "Scott" }];
 
     const columns: ColumnDef<RowData>[] = [
       { accessorKey: "first", header: "First" },
@@ -86,7 +118,7 @@ describe("DataTable", () => {
           data={testData}
           columns={columns}
           selection={null}
-          totalRows={2}
+          totalRows={1}
           totalColumns={2}
           pagination={false}
           hoverTemplate={"{{first}} {{last}}"}
@@ -94,11 +126,149 @@ describe("DataTable", () => {
       </TooltipProvider>,
     );
 
-    // Grab all rows and assert title attribute computed from template
     const rows = screen.getAllByRole("row");
-    // The first row is header; subsequent rows correspond to data
-    expect(rows[1]).toHaveAttribute("title", "Michael Scott");
-    expect(rows[2]).toHaveAttribute("title", "Jim Halpert");
+    // Native title is gone; hover text now comes from the styled tooltip.
+    expect(rows[1]).not.toHaveAttribute("title");
+
+    const cell = within(rows[1]).getAllByRole("cell")[0];
+    fireEvent.mouseOver(cell, { buttons: 0 });
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    // Radix renders the content twice (visible + a11y-hidden), so match all.
+    expect(screen.getAllByText("Michael Scott").length).toBeGreaterThan(0);
+  });
+
+  it("shows per-cell hover text from cellHoverTexts on hover", () => {
+    vi.useFakeTimers();
+    const testData: TestData[] = [{ id: 1, name: "Test 1" }];
+    const columns: ColumnDef<TestData>[] = [
+      { id: "name", accessorKey: "name", header: "Name" },
+    ];
+
+    render(
+      <TooltipProvider>
+        <DataTable
+          data={testData}
+          columns={columns}
+          selection={null}
+          totalRows={1}
+          totalColumns={1}
+          pagination={false}
+          cellHoverTexts={{ "0": { name: "per-cell tip" } }}
+        />
+      </TooltipProvider>,
+    );
+
+    const cell = within(screen.getAllByRole("row")[1]).getByRole("cell");
+    fireEvent.mouseOver(cell, { buttons: 0 });
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(screen.getAllByText("per-cell tip").length).toBeGreaterThan(0);
+  });
+
+  it("links the focused cell to the tooltip content for assistive tech", () => {
+    const testData: TestData[] = [{ id: 1, name: "Test 1" }];
+    const columns: ColumnDef<TestData>[] = [
+      { id: "name", accessorKey: "name", header: "Name" },
+    ];
+
+    render(
+      <TooltipProvider>
+        <DataTable
+          data={testData}
+          columns={columns}
+          selection={null}
+          totalRows={1}
+          totalColumns={1}
+          pagination={false}
+          cellHoverTexts={{ "0": { name: "focus tip" } }}
+        />
+      </TooltipProvider>,
+    );
+
+    const cell = within(screen.getAllByRole("row")[1]).getByRole("cell");
+    fireEvent.focus(cell);
+
+    const describedBy = cell.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy as string)).toHaveTextContent(
+      "focus tip",
+    );
+
+    fireEvent.blur(cell);
+    expect(cell).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("does not show a tooltip on pointer-induced focus", () => {
+    const testData: TestData[] = [{ id: 1, name: "Test 1" }];
+    const columns: ColumnDef<TestData>[] = [
+      { id: "name", accessorKey: "name", header: "Name" },
+    ];
+
+    render(
+      <TooltipProvider>
+        <DataTable
+          data={testData}
+          columns={columns}
+          selection={null}
+          totalRows={1}
+          totalColumns={1}
+          pagination={false}
+          cellHoverTexts={{ "0": { name: "click tip" } }}
+        />
+      </TooltipProvider>,
+    );
+
+    const cell = within(screen.getAllByRole("row")[1]).getByRole("cell");
+    // A click focuses the cell; the resulting focus must not show a tooltip.
+    fireEvent.mouseDown(cell);
+    fireEvent.focus(cell);
+
+    expect(cell).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText("click tip")).toBeNull();
+  });
+
+  it("does not let a pending hover timer overwrite a focus tooltip", () => {
+    vi.useFakeTimers();
+    interface RowData {
+      id: number;
+      a: string;
+      b: string;
+    }
+    const testData: RowData[] = [{ id: 1, a: "a", b: "b" }];
+    const columns: ColumnDef<RowData>[] = [
+      { id: "a", accessorKey: "a", header: "A" },
+      { id: "b", accessorKey: "b", header: "B" },
+    ];
+
+    render(
+      <TooltipProvider>
+        <DataTable
+          data={testData}
+          columns={columns}
+          selection={null}
+          totalRows={1}
+          totalColumns={2}
+          pagination={false}
+          cellHoverTexts={{ "0": { a: "hover A", b: "focus B" } }}
+        />
+      </TooltipProvider>,
+    );
+
+    const cells = within(screen.getAllByRole("row")[1]).getAllByRole("cell");
+    // Start a pending hover-show on cell A, then focus cell B before it fires.
+    fireEvent.mouseOver(cells[0], { buttons: 0 });
+    fireEvent.focus(cells[1]);
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(screen.getAllByText("focus B").length).toBeGreaterThan(0);
+    expect(screen.queryByText("hover A")).toBeNull();
   });
 
   it("does not virtualize small datasets without pagination", () => {

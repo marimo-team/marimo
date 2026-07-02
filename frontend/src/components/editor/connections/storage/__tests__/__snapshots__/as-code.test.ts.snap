@@ -82,10 +82,17 @@ exports[`generateStorageCode > GCS > without service account key (default creden
 store = GCSStore("my-bucket")"
 `;
 
-exports[`generateStorageCode > Google Drive > with browser auth (no credentials) 1`] = `
+exports[`generateStorageCode > Google Drive > with default auth (no credentials) 1`] = `
 "from gdrive_fsspec import GoogleDriveFileSystem
 
-fs = GoogleDriveFileSystem(token="browser", use_listings_cache=False)"
+fs = GoogleDriveFileSystem(use_listings_cache=False, skip_instance_cache=True)"
+`;
+
+exports[`generateStorageCode > Google Drive > with embedded auth (no credentials) 1`] = `
+"from gdrive_fsspec import GoogleDriveFileSystem
+
+fs = GoogleDriveFileSystem(use_listings_cache=False, skip_instance_cache=True, auth_kwargs={"use_local_webserver": False})
+mo.output.clear_console()"
 `;
 
 exports[`generateStorageCode > Google Drive > with service account credentials 1`] = `
@@ -93,7 +100,7 @@ exports[`generateStorageCode > Google Drive > with service account credentials 1
 import json
 
 _creds = json.loads("""{"type": "service_account", "client_email": "test@test.iam.gserviceaccount.com"}""")
-fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False)"
+fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False, skip_instance_cache=True)"
 `;
 
 exports[`generateStorageCode > S3 > basic connection with all fields 1`] = `

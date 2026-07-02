@@ -43,10 +43,12 @@ import {
   useStorage,
   useStorageActions,
   useStorageEntries,
+  useStoragePageFetcher,
 } from "@/core/storage/state";
 import type {
   StorageEntry,
   StorageNamespace,
+  StoragePageMetadata,
   StoragePathKey,
 } from "@/core/storage/types";
 import { storagePathKey } from "@/core/storage/types";
@@ -94,28 +96,52 @@ function displayName(path: string): string {
   return parts[parts.length - 1] || trimmed;
 }
 
+function directoryPrefix(path: string): string {
+  return path.endsWith("/") ? path : `${path}/`;
+}
+
+/**
+ * Stable, unique identity for an entry row. Prefer the
+ * backend's stable id when present and fall back to the list index
+ */
+export function storageEntryKey(entry: StorageEntry, index: number): string {
+  const id = entry.metadata?.id;
+  if (typeof id === "string" && id.length > 0) {
+    return id;
+  }
+  return `${entry.path}::${index}`;
+}
+
+interface SearchContext {
+  namespace: string;
+  searchValue: string;
+  entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>;
+}
+
 /**
  * Recursively check whether an entry (or any of its loaded descendants)
  * matches the search query.
  */
 function entryMatchesSearch(
   entry: StorageEntry,
-  namespace: string,
-  searchValue: string,
-  entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>,
+  { namespace, searchValue, entriesByPath }: SearchContext,
 ): boolean {
-  const query = searchValue.toLowerCase();
+  const query = searchValue.trim().toLowerCase();
+  const path = entry.path.toLowerCase();
+  const name = displayName(entry.path).toLowerCase();
 
-  if (displayName(entry.path).toLowerCase().includes(query)) {
+  if (name.includes(query) || path.includes(query)) {
     return true;
   }
 
   // For directories, check loaded children recursively
   if (entry.kind === "directory") {
-    const children = entriesByPath.get(storagePathKey(namespace, entry.path));
+    const children = entriesByPath.get(
+      storagePathKey(namespace, directoryPrefix(entry.path)),
+    );
     if (children) {
       return children.some((child) =>
-        entryMatchesSearch(child, namespace, searchValue, entriesByPath),
+        entryMatchesSearch(child, { namespace, searchValue, entriesByPath }),
       );
     }
   }
@@ -127,19 +153,141 @@ function entryMatchesSearch(
  * Filter entries to those matching the search (or having loaded descendants
  * that match). Returns all entries when there is no active search.
  */
-function filterEntries(
+export function filterEntries(
   entries: StorageEntry[],
-  namespace: string,
-  searchValue: string,
-  entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>,
+  context: SearchContext,
 ): StorageEntry[] {
-  if (!searchValue.trim()) {
+  if (!context.searchValue.trim()) {
     return entries;
   }
-  return entries.filter((entry) =>
-    entryMatchesSearch(entry, namespace, searchValue, entriesByPath),
+  return entries.filter((entry) => entryMatchesSearch(entry, context));
+}
+
+const MAX_REMOTE_SEARCH_PAGES = 5;
+
+type RemoteSearchState =
+  | { query: string; status: "idle" }
+  | { query: string; status: "searching" }
+  | { query: string; status: "found" }
+  | { query: string; status: "exhausted" }
+  | { query: string; status: "capped" }
+  | { query: string; status: "error"; error: Error };
+
+type RemoteSearchByNamespace = Record<string, RemoteSearchState>;
+
+function idleRemoteSearch(query: string): RemoteSearchState {
+  return { query, status: "idle" };
+}
+
+function canRetryRemoteSearch(remoteSearch: RemoteSearchState): boolean {
+  return (
+    remoteSearch.status === "idle" ||
+    remoteSearch.status === "error" ||
+    remoteSearch.status === "capped"
   );
 }
+
+/**
+ * Whether the backend may still have an unfetched page for a prefix: either we
+ * have never listed it, or its last listing returned a next-page token.
+ */
+function hasUnfetchedPrefixPage(
+  searchKey: StoragePathKey,
+  entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>,
+  pageMetadataByPath: ReadonlyMap<StoragePathKey, StoragePageMetadata>,
+): boolean {
+  return (
+    entriesByPath.get(searchKey) === undefined ||
+    pageMetadataByPath.get(searchKey)?.nextPageToken != null
+  );
+}
+
+function canSearchMoreRemoteEntries({
+  hasSearch,
+  hasLoadedMatches,
+  isPending,
+  remoteSearch,
+  searchKey,
+  entriesByPath,
+  pageMetadataByPath,
+}: {
+  hasSearch: boolean;
+  hasLoadedMatches: boolean;
+  isPending: boolean;
+  remoteSearch: RemoteSearchState;
+  searchKey: StoragePathKey;
+  entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>;
+  pageMetadataByPath: ReadonlyMap<StoragePathKey, StoragePageMetadata>;
+}): boolean {
+  if (!hasSearch || hasLoadedMatches || isPending) {
+    return false;
+  }
+  if (!canRetryRemoteSearch(remoteSearch)) {
+    return false;
+  }
+
+  return hasUnfetchedPrefixPage(searchKey, entriesByPath, pageMetadataByPath);
+}
+
+/**
+ * Returns the directory prefix to query the backend with for a given search.
+ *
+ * Object stores like obstore evaluate prefixes on a path-segment basis
+ * (`folder/x` would only match `folder/x/...`, never `folder/xsomething`), so
+ * for substring searches we list the parent directory and filter on the
+ * client. Returns `""` when the search has no directory component.
+ */
+export function remoteSearchPrefix(searchValue: string): string {
+  const trimmed = searchValue.trim();
+  const lastSlash = trimmed.lastIndexOf("/");
+  return lastSlash === -1 ? "" : trimmed.slice(0, lastSlash + 1);
+}
+
+/**
+ * Shallow check (no recursion into loaded children) used inside the
+ * remote-search pagination loop to decide whether a fetched page has
+ * any candidates worth surfacing to the user.
+ */
+function entryMatchesQueryShallow(
+  entry: StorageEntry,
+  searchValue: string,
+): boolean {
+  const query = searchValue.trim().toLowerCase();
+  if (!query) {
+    return true;
+  }
+  return (
+    entry.path.toLowerCase().includes(query) ||
+    displayName(entry.path).toLowerCase().includes(query)
+  );
+}
+
+const LoadMoreStorageEntries: React.FC<{
+  depth: number;
+  isLoading: boolean;
+  error?: Error;
+  onLoadMore: () => void;
+}> = ({ depth, isLoading, error, onLoadMore }) => {
+  return (
+    <div className="py-px text-xs" style={indentStyle(depth)}>
+      <Button
+        variant="text"
+        size="xs"
+        className="h-6 px-0 hover:text-blue-600"
+        disabled={isLoading}
+        onClick={onLoadMore}
+      >
+        {isLoading && <LoaderCircle className="h-3 w-3 mr-1 animate-spin" />}
+        {isLoading ? "Loading..." : "Load more"}
+      </Button>
+      {error && (
+        <span className="ml-2 text-destructive">
+          Failed to load: {error.message}
+        </span>
+      )}
+    </div>
+  );
+};
 
 /**
  * Lazily loaded children of a directory entry.
@@ -171,6 +319,10 @@ const StorageEntryChildren: React.FC<{
     entries: children,
     isPending,
     error,
+    hasMore,
+    loadMore,
+    isLoadingMore,
+    loadMoreError,
   } = useStorageEntries(namespace, prefix);
 
   if (isPending) {
@@ -204,35 +356,47 @@ const StorageEntryChildren: React.FC<{
     );
   }
 
-  const filtered = filterEntries(
-    children,
+  const filtered = filterEntries(children, {
     namespace,
     searchValue,
     entriesByPath,
-  );
+  });
 
   return (
     <>
-      {filtered.map((child) => (
-        <StorageEntryRow
-          key={child.path}
-          entry={child}
-          namespace={namespace}
-          protocol={protocol}
-          rootPath={rootPath}
-          backendType={backendType}
+      {filtered.map((child) => {
+        const rowKey = storageEntryKey(child, children.indexOf(child));
+        return (
+          <StorageEntryRow
+            key={rowKey}
+            rowKey={rowKey}
+            entry={child}
+            namespace={namespace}
+            protocol={protocol}
+            rootPath={rootPath}
+            backendType={backendType}
+            depth={depth}
+            locale={locale}
+            searchValue={searchValue}
+            onOpenFile={onOpenFile}
+          />
+        );
+      })}
+      {hasMore && (
+        <LoadMoreStorageEntries
           depth={depth}
-          locale={locale}
-          searchValue={searchValue}
-          onOpenFile={onOpenFile}
+          isLoading={isLoadingMore}
+          error={loadMoreError}
+          onLoadMore={loadMore}
         />
-      ))}
+      )}
     </>
   );
 };
 
 const StorageEntryRow: React.FC<{
   entry: StorageEntry;
+  rowKey: string;
   namespace: string;
   protocol: string;
   rootPath: string;
@@ -243,6 +407,7 @@ const StorageEntryRow: React.FC<{
   onOpenFile: (info: OpenFileInfo) => void;
 }> = ({
   entry,
+  rowKey,
   namespace,
   protocol,
   rootPath,
@@ -269,9 +434,9 @@ const StorageEntryRow: React.FC<{
     isDir &&
     hasSearch &&
     !!entriesByPath
-      .get(storagePathKey(namespace, entry.path))
+      .get(storagePathKey(namespace, directoryPrefix(entry.path)))
       ?.some((child) =>
-        entryMatchesSearch(child, namespace, searchValue, entriesByPath),
+        entryMatchesSearch(child, { namespace, searchValue, entriesByPath }),
       );
 
   // Folder is shown expanded by manual toggle OR by search auto-expand
@@ -312,7 +477,7 @@ const StorageEntryRow: React.FC<{
           isDir && "font-medium",
         )}
         style={indentStyle(depth)}
-        value={`${namespace}:${entry.path}`}
+        value={`${namespace}:${rowKey}`}
         onSelect={() => {
           if (isDir) {
             setIsExpanded(!effectiveExpanded);
@@ -418,7 +583,7 @@ const StorageEntryRow: React.FC<{
           protocol={protocol}
           rootPath={rootPath}
           backendType={backendType}
-          prefix={entry.path}
+          prefix={directoryPrefix(entry.path)}
           depth={depth + 1}
           locale={locale}
           searchValue={selfMatches ? "" : searchValue} // When a parent directory matches the search, we don't need to filter the children.
@@ -433,10 +598,19 @@ const StorageNamespaceSection: React.FC<{
   namespace: StorageNamespace;
   locale: string;
   searchValue: string;
+  remoteSearch: RemoteSearchState;
+  onContinueRemoteSearch: () => void;
   onOpenFile: (info: OpenFileInfo) => void;
-}> = ({ namespace, locale, searchValue, onOpenFile }) => {
+}> = ({
+  namespace,
+  locale,
+  searchValue,
+  remoteSearch,
+  onContinueRemoteSearch,
+  onOpenFile,
+}) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const { entriesByPath } = useStorage();
+  const { entriesByPath, pageMetadataByPath } = useStorage();
   const { clearNamespaceCache } = useStorageActions();
   const namespaceName = namespace.name ?? namespace.displayName;
 
@@ -444,6 +618,10 @@ const StorageNamespaceSection: React.FC<{
     entries: fetchedEntries,
     isPending,
     error,
+    hasMore,
+    loadMore,
+    isLoadingMore,
+    loadMoreError,
     refetch,
   } = useStorageEntries(namespaceName);
 
@@ -458,12 +636,105 @@ const StorageNamespaceSection: React.FC<{
 
   // While loading, fall back to initial entries from the namespace notification
   const entries = isPending ? namespace.storageEntries : fetchedEntries;
-  const filtered = filterEntries(
-    entries,
-    namespaceName,
+  const filtered = filterEntries(entries, {
+    namespace: namespaceName,
     searchValue,
     entriesByPath,
-  );
+  });
+  const searchPrefix = remoteSearchPrefix(searchValue);
+  const searchKey = storagePathKey(namespaceName, searchPrefix);
+  const remoteEntries =
+    searchPrefix === "" ? [] : (entriesByPath.get(searchKey) ?? []);
+  // The fetched page is the whole parent directory; we still need to filter
+  // it by the full search query before showing entries to the user.
+  const filteredRemoteEntries = filterEntries(remoteEntries, {
+    namespace: namespaceName,
+    searchValue,
+    entriesByPath,
+  });
+  const hasSearch = !!searchValue.trim();
+  const hasLoadedMatches =
+    filtered.length > 0 || filteredRemoteEntries.length > 0;
+  const canSearchMore =
+    searchPrefix !== "" &&
+    canSearchMoreRemoteEntries({
+      hasSearch,
+      hasLoadedMatches,
+      isPending,
+      remoteSearch,
+      searchKey,
+      entriesByPath,
+      pageMetadataByPath,
+    });
+
+  const showRemoteResults = hasSearch && filtered.length === 0;
+  const statusRow = (() => {
+    if (isPending && entries.length === 0) {
+      return (
+        <span className="flex items-center gap-1.5">
+          <LoaderCircle className="h-3 w-3 animate-spin" />
+          Loading...
+        </span>
+      );
+    }
+    if (remoteSearch.status === "searching") {
+      return (
+        <span className="flex items-center gap-1.5">
+          <LoaderCircle className="h-3 w-3 animate-spin" />
+          Searching more entries...
+        </span>
+      );
+    }
+    if (remoteSearch.status === "error") {
+      return (
+        <span className="text-destructive">
+          Search failed: {remoteSearch.error.message}
+        </span>
+      );
+    }
+    if (remoteSearch.status === "capped") {
+      return (
+        <span className="flex items-center gap-1.5">
+          Searched more entries.
+          <Button
+            variant="text"
+            size="xs"
+            className="h-5 px-0 text-xs hover:text-blue-600"
+            onClick={onContinueRemoteSearch}
+          >
+            Continue searching
+          </Button>
+          <span className="text-[10px]">(or press Enter)</span>
+        </span>
+      );
+    }
+    if (remoteSearch.status === "exhausted" && !hasLoadedMatches) {
+      return "No matches";
+    }
+    if (!hasSearch && !isPending && entries.length === 0) {
+      return "No entries";
+    }
+    if (canSearchMore) {
+      return (
+        <span className="flex items-center gap-1.5">
+          No loaded matches.
+          <Button
+            variant="text"
+            size="xs"
+            className="h-5 px-0 text-xs hover:text-blue-600"
+            onClick={onContinueRemoteSearch}
+          >
+            Search more entries
+          </Button>
+          <span className="text-[10px]">(or press Enter)</span>
+        </span>
+      );
+    }
+    if (hasSearch && !hasLoadedMatches && entries.length > 0) {
+      return "No matches";
+    }
+    return null;
+  })();
 
   return (
     <>
@@ -492,15 +763,6 @@ const StorageNamespaceSection: React.FC<{
       </CommandItem>
       {isExpanded && (
         <>
-          {isPending && entries.length === 0 && (
-            <div
-              className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground"
-              style={indentStyle(1)}
-            >
-              <LoaderCircle className="h-3 w-3 animate-spin" />
-              Loading...
-            </div>
-          )}
           {error && entries.length === 0 && (
             <ErrorState
               error={error}
@@ -509,36 +771,62 @@ const StorageNamespaceSection: React.FC<{
               showIcon={false}
             />
           )}
-          {!isPending && entries.length === 0 && !error && (
+          {!error && statusRow && (
             <div
               className="py-1 text-xs text-muted-foreground italic"
               style={indentStyle(1)}
             >
-              No entries
+              {statusRow}
             </div>
           )}
-          {searchValue && filtered.length === 0 && entries.length > 0 && (
-            <div
-              className="py-1 text-xs text-muted-foreground italic"
-              style={indentStyle(1)}
-            >
-              No matches
-            </div>
-          )}
-          {filtered.map((entry) => (
-            <StorageEntryRow
-              key={entry.path}
-              entry={entry}
-              namespace={namespaceName}
-              protocol={namespace.protocol}
-              rootPath={namespace.rootPath}
-              backendType={namespace.backendType}
+          {filtered.map((entry) => {
+            const rowKey = storageEntryKey(entry, entries.indexOf(entry));
+            return (
+              <StorageEntryRow
+                key={rowKey}
+                rowKey={rowKey}
+                entry={entry}
+                namespace={namespaceName}
+                protocol={namespace.protocol}
+                rootPath={namespace.rootPath}
+                backendType={namespace.backendType}
+                depth={1}
+                locale={locale}
+                searchValue={searchValue}
+                onOpenFile={onOpenFile}
+              />
+            );
+          })}
+          {showRemoteResults &&
+            filteredRemoteEntries.map((entry) => {
+              const rowKey = storageEntryKey(
+                entry,
+                remoteEntries.indexOf(entry),
+              );
+              return (
+                <StorageEntryRow
+                  key={`remote-search:${rowKey}`}
+                  rowKey={`remote-search:${rowKey}`}
+                  entry={entry}
+                  namespace={namespaceName}
+                  protocol={namespace.protocol}
+                  rootPath={namespace.rootPath}
+                  backendType={namespace.backendType}
+                  depth={1}
+                  locale={locale}
+                  searchValue={searchValue}
+                  onOpenFile={onOpenFile}
+                />
+              );
+            })}
+          {hasMore && !canSearchMore && (
+            <LoadMoreStorageEntries
               depth={1}
-              locale={locale}
-              searchValue={searchValue}
-              onOpenFile={onOpenFile}
+              isLoading={isLoadingMore}
+              error={loadMoreError}
+              onLoadMore={loadMore}
             />
-          ))}
+          )}
         </>
       )}
     </>
@@ -546,11 +834,163 @@ const StorageNamespaceSection: React.FC<{
 };
 
 export const StorageInspector: React.FC = () => {
-  const { namespaces } = useStorage();
+  const { namespaces, entriesByPath, pageMetadataByPath } = useStorage();
   const { locale } = useLocale();
   const [searchValue, setSearchValue] = useState("");
+  const [remoteSearchByNamespace, setRemoteSearchByNamespace] =
+    useState<RemoteSearchByNamespace>({});
   const [openFile, setOpenFile] = useState<OpenFileInfo | null>(null);
+  const fetchStoragePage = useStoragePageFetcher();
   const hasSearch = !!searchValue.trim();
+  const currentQuery = searchValue.trim();
+
+  const remoteSearchForNamespace = useCallback(
+    (namespaceName: string): RemoteSearchState => {
+      const remoteSearch = remoteSearchByNamespace[namespaceName];
+      if (remoteSearch?.query === currentQuery) {
+        return remoteSearch;
+      }
+      return idleRemoteSearch(currentQuery);
+    },
+    [currentQuery, remoteSearchByNamespace],
+  );
+
+  const setRemoteSearch = useCallback(
+    (namespaceName: string, remoteSearch: RemoteSearchState) => {
+      setRemoteSearchByNamespace((state) => ({
+        ...state,
+        [namespaceName]: remoteSearch,
+      }));
+    },
+    [],
+  );
+
+  const canContinueRemoteSearch = useCallback(
+    (namespace: StorageNamespace): boolean => {
+      if (!currentQuery) {
+        return false;
+      }
+
+      const namespaceName = namespace.name ?? namespace.displayName;
+      const searchPrefix = remoteSearchPrefix(currentQuery);
+      // No directory component in the query - the user is doing a fuzzy
+      // search and the backend can't help; rely on local filtering instead.
+      if (searchPrefix === "") {
+        return false;
+      }
+
+      const remoteSearch = remoteSearchForNamespace(namespaceName);
+      if (!canRetryRemoteSearch(remoteSearch)) {
+        return false;
+      }
+
+      // Already surfacing matches from loaded entries?
+      const rootEntries =
+        entriesByPath.get(storagePathKey(namespaceName, "")) ??
+        namespace.storageEntries;
+      const rootMatches = filterEntries(rootEntries, {
+        namespace: namespaceName,
+        searchValue: currentQuery,
+        entriesByPath,
+      });
+      if (rootMatches.length > 0) {
+        return false;
+      }
+
+      const searchKey = storagePathKey(namespaceName, searchPrefix);
+      const prefixEntries = entriesByPath.get(searchKey) ?? [];
+      const prefixMatches = filterEntries(prefixEntries, {
+        namespace: namespaceName,
+        searchValue: currentQuery,
+        entriesByPath,
+      });
+      if (prefixMatches.length > 0) {
+        return false;
+      }
+
+      return hasUnfetchedPrefixPage(
+        searchKey,
+        entriesByPath,
+        pageMetadataByPath,
+      );
+    },
+    [currentQuery, entriesByPath, pageMetadataByPath, remoteSearchForNamespace],
+  );
+
+  const continueRemoteSearch = useCallback(
+    async (namespace: StorageNamespace) => {
+      if (!canContinueRemoteSearch(namespace)) {
+        return;
+      }
+
+      const query = currentQuery;
+      const namespaceName = namespace.name ?? namespace.displayName;
+      const prefix = remoteSearchPrefix(query);
+      const key = storagePathKey(namespaceName, prefix);
+      const cachedEntries = entriesByPath.get(key);
+      let nextPageToken = pageMetadataByPath.get(key)?.nextPageToken ?? null;
+      let hasFetchedAny = cachedEntries !== undefined;
+
+      setRemoteSearch(namespaceName, { query, status: "searching" });
+      try {
+        for (let page = 0; page < MAX_REMOTE_SEARCH_PAGES; page++) {
+          // First iteration with a stale cache hit needs no fetch; just check
+          // the cached page before paginating.
+          const shouldFetch = !hasFetchedAny || nextPageToken !== null;
+          let newEntries: StorageEntry[] = [];
+          if (shouldFetch) {
+            const result = await fetchStoragePage({
+              namespace: namespaceName,
+              prefix,
+              pageToken: nextPageToken,
+              append: hasFetchedAny,
+            });
+            newEntries = result.entries;
+            nextPageToken = result.next_page_token ?? null;
+            hasFetchedAny = true;
+          }
+
+          const entriesToCheck = shouldFetch
+            ? newEntries
+            : (cachedEntries ?? []);
+          const hasMatches = entriesToCheck.some((entry) =>
+            entryMatchesQueryShallow(entry, query),
+          );
+          if (hasMatches) {
+            setRemoteSearch(namespaceName, { query, status: "found" });
+            return;
+          }
+
+          if (nextPageToken === null) {
+            setRemoteSearch(namespaceName, { query, status: "exhausted" });
+            return;
+          }
+        }
+        setRemoteSearch(namespaceName, { query, status: "capped" });
+      } catch (error) {
+        setRemoteSearch(namespaceName, {
+          query,
+          status: "error",
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    },
+    [
+      canContinueRemoteSearch,
+      currentQuery,
+      entriesByPath,
+      fetchStoragePage,
+      pageMetadataByPath,
+      setRemoteSearch,
+    ],
+  );
+
+  const continueRemoteSearches = useCallback(() => {
+    const searchableNamespaces = namespaces.filter(canContinueRemoteSearch);
+    for (const namespace of searchableNamespaces) {
+      void continueRemoteSearch(namespace);
+    }
+  }, [canContinueRemoteSearch, continueRemoteSearch, namespaces]);
 
   if (namespaces.length === 0) {
     return (
@@ -609,6 +1049,15 @@ export const StorageInspector: React.FC = () => {
             className="h-6 m-1"
             value={searchValue}
             onValueChange={setSearchValue}
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" &&
+                namespaces.some(canContinueRemoteSearch)
+              ) {
+                event.preventDefault();
+                continueRemoteSearches();
+              }
+            }}
             rootClassName="flex-1 border-b-0"
           />
           {hasSearch && (
@@ -622,7 +1071,7 @@ export const StorageInspector: React.FC = () => {
             </Button>
           )}
           <Tooltip
-            content="Filters loaded entries only. Expand directories to include their contents in the search."
+            content="Search by file name within loaded entries, or by prefix (e.g. 'folder/x') for backend search. Press Enter to fetch more results."
             delayDuration={200}
           >
             <HelpCircleIcon className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground hover:text-foreground mr-2" />
@@ -638,15 +1087,20 @@ export const StorageInspector: React.FC = () => {
           </AddConnectionDialog>
         </div>
         <CommandList className="flex flex-col">
-          {namespaces.map((ns) => (
-            <StorageNamespaceSection
-              key={ns.name ?? ns.displayName}
-              namespace={ns}
-              locale={locale}
-              searchValue={searchValue}
-              onOpenFile={setOpenFile}
-            />
-          ))}
+          {namespaces.map((ns) => {
+            const namespaceName = ns.name ?? ns.displayName;
+            return (
+              <StorageNamespaceSection
+                key={namespaceName}
+                namespace={ns}
+                locale={locale}
+                searchValue={searchValue}
+                remoteSearch={remoteSearchForNamespace(namespaceName)}
+                onContinueRemoteSearch={() => void continueRemoteSearch(ns)}
+                onOpenFile={setOpenFile}
+              />
+            );
+          })}
         </CommandList>
       </Command>
     </div>

@@ -435,7 +435,7 @@ const ValueSlot = <TData, TValue>({
     const v =
       value.kind === "multi-values" ? value : { kind: "multi-values" as const };
     return (
-      <div className="min-w-[14rem] w-fit max-w-[24rem]">
+      <div className="min-w-56 w-fit max-w-[24rem]">
         <FilterByValuesPicker
           column={column}
           calculateTopKRows={calculateTopKRows}

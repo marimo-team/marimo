@@ -574,6 +574,32 @@ def test_sanitize_dtypes_enum() -> None:
     assert result.collect_schema()["enum_col"] == nw.String
 
 
+@pytest.mark.skipif(
+    not DependencyManager.narwhals.has()
+    or not DependencyManager.polars.has()
+    or not DependencyManager.altair.has(),
+    reason="narwhals, polars and altair not installed",
+)
+def test_preview_column_struct_skips_chart() -> None:
+    import polars as pl
+
+    df = pl.DataFrame({"struct_col": [{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]})
+
+    with patch("marimo._data.preview_column.LOGGER") as mock_logger:
+        result = get_column_preview_dataset(
+            table=get_table_manager(df),
+            table_name="table",
+            column_name="struct_col",
+        )
+
+    assert result is not None
+    assert result.error is None
+    assert result.chart_spec is None
+    assert result.chart_code is None
+    assert result.stats is not None
+    mock_logger.warning.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "df",
     create_dataframes(

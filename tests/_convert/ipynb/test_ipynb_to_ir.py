@@ -1302,6 +1302,47 @@ def test_integration_exclamation_marks_full_pipeline():
     )
 
 
+def _convert_code_cells(sources: list[str]) -> list[str]:
+    notebook = {
+        "cells": [
+            {"cell_type": "code", "source": s, "metadata": {}} for s in sources
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 2,
+    }
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+    return [cell.code for cell in result.cells]
+
+
+def test_exclamation_mark_does_not_disable_privatization():
+    # A `!` command cell must not disable underscore-privatization of
+    # cell-local duplicate definitions for the rest of the notebook.
+    dup = ["x = 1\nprint(x)", "x = 2\nprint(x)"]
+
+    code = _convert_code_cells(["!ls"] + dup)
+
+    # The `!` command is still rewritten to a subprocess call.
+    assert any("subprocess.call(['ls'])" in s for s in code)
+    # Duplicate `x` is made private to each cell, not suffix-versioned.
+    assert "_x = 1\nprint(_x)" in code
+    assert "_x = 2\nprint(_x)" in code
+    assert all("x_1" not in s for s in code)
+
+
+def test_exclamation_mark_privatization_matches_no_command():
+    # Converting with and without an unrelated `!` cell should privatize the
+    # duplicate `x` identically.
+    dup = ["x = 1\nprint(x)", "x = 2\nprint(x)"]
+
+    with_command = _convert_code_cells(["!ls"] + dup)
+    without_command = _convert_code_cells(dup)
+
+    privatized = ["_x = 1\nprint(_x)", "_x = 2\nprint(_x)"]
+    assert without_command == privatized
+    assert with_command[-2:] == privatized
+
+
 def test_transform_git_url_packages():
     from marimo._convert.ipynb.to_ir import _normalize_git_url_package
 

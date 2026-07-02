@@ -131,8 +131,8 @@ export const MCPConfig: React.FC<MCPConfigProps> = ({ form, onSubmit }) => {
                       key={config.id}
                       className={`cursor-pointer transition-all ${
                         isChecked
-                          ? "border-[var(--blue-9)] bg-[var(--blue-2)]"
-                          : "hover:border-[var(--blue-7)]"
+                          ? "border-(--blue-9) bg-(--blue-2)"
+                          : "hover:border-(--blue-7)"
                       }`}
                       onClick={() => togglePreset(config.id)}
                     >
@@ -144,7 +144,7 @@ export const MCPConfig: React.FC<MCPConfigProps> = ({ form, onSubmit }) => {
                           <span
                             className={`h-5 w-5 flex items-center justify-center rounded border ${
                               isChecked
-                                ? "border-[var(--blue-7)] bg-[var(--blue-7)] text-foreground"
+                                ? "border-(--blue-7) bg-(--blue-7) text-foreground"
                                 : "border-muted bg-background text-muted-foreground"
                             }`}
                           >

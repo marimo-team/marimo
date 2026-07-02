@@ -35,6 +35,7 @@ from marimo._server.router import APIRouter
 from marimo._server.templates.templates import (
     home_page_template,
     inject_script,
+    json_script,
     notebook_page_template,
 )
 from marimo._session.model import SessionMode
@@ -448,13 +449,17 @@ def _resolve_lsp_workspace(
 
 
 def _inject_service_worker(html: str, file_key: str) -> str:
+    # `file_key` is user-controlled, so emit it as a JSON string literal rather
+    # than interpolating it directly into the JS source. It stays URI-encoded
+    # so it round-trips through the `X-Notebook-Id` header and
+    # `uri_decode_component` on the server.
     return inject_script(
         html,
         # Register service worker with the notebook ID
         # Potentially update the service worker and send the notebook ID again.
         f"""
             if ('serviceWorker' in navigator) {{
-                const notebookId = '{uri_encode_component(file_key)}';
+                const notebookId = {json_script(uri_encode_component(file_key))};
                 function sendNotebookId(registration) {{
                     if (registration.active) {{
                         registration.active.postMessage({{ notebookId }});

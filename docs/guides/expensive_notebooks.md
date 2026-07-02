@@ -132,6 +132,15 @@ attempting to manually run the second cell will raise a `NameError`, and you'll
 need to re-run the defining cell in order to get your notebook back to a
 consistent state.
 
+### Local variables
+
+[Local or temporary
+variables](../guides/reactivity.md#creating-temporary-variables) (i.e.,
+variables prefixed with an underscore) are automatically removed from the
+kernel globals after cell-run. If another Python object retains a reference to
+the variable, it will remain in memory; otherwise, Python's garbage collector
+will automatically reclaim its allocated memory.
+
 ## Automatically snapshot outputs as HTML or IPYNB
 
 To keep a record of your cell outputs while working on your

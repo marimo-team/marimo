@@ -18,7 +18,7 @@ export interface AutoFix {
   fixType: "manual" | "ai";
   onFix: (ctx: {
     addCodeBelow: (code: string) => void;
-    editor: EditorView | undefined;
+    editor: EditorView | null | undefined;
     cellId: CellId;
     aiFix?: AIFix;
   }) => Promise<void>;

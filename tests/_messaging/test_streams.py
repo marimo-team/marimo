@@ -1,7 +1,85 @@
 import sys
+import threading
+from queue import Queue
+from typing import Any
 
+from marimo._messaging.streams import ThreadSafeStream
+from marimo._messaging.types import KernelMessage
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider, MockedKernel
+
+
+class _SerializedPipe:
+    def __init__(self) -> None:
+        self.messages: list[KernelMessage] = []
+        self.entered_first_send = threading.Event()
+        self.release_first_send = threading.Event()
+        self.lock = threading.Lock()
+        self.active_sends = 0
+        self.overlapped = False
+
+    def send(self, message: KernelMessage) -> None:
+        with self.lock:
+            self.active_sends += 1
+            if self.active_sends > 1:
+                self.overlapped = True
+            should_block = len(self.messages) == 0
+            self.messages.append(message)
+            if should_block:
+                self.entered_first_send.set()
+
+        if should_block:
+            assert self.release_first_send.wait(timeout=1)
+
+        with self.lock:
+            self.active_sends -= 1
+
+
+def test_thread_stream_copy_serializes_writes_to_shared_transport() -> None:
+    pipe = _SerializedPipe()
+    stream = ThreadSafeStream(
+        pipe=pipe,
+        input_queue=Queue[Any](),
+        redirect_console=True,
+    )
+
+    try:
+        copied = stream.copy_for_thread()
+        assert copied.redirect_console is False
+
+        copied_writer_started = threading.Event()
+
+        def write_copy() -> None:
+            copied_writer_started.set()
+            copied.write(KernelMessage(b"copy"))
+
+        parent_writer = threading.Thread(
+            target=stream.write, args=(KernelMessage(b"parent"),)
+        )
+        copied_writer = threading.Thread(target=write_copy)
+
+        parent_writer.start()
+        assert pipe.entered_first_send.wait(timeout=1)
+        copied_writer.start()
+        assert copied_writer_started.wait(timeout=1)
+        copied_writer.join(timeout=0.1)
+        assert copied_writer.is_alive()
+        assert pipe.messages == [KernelMessage(b"parent")]
+        assert not pipe.overlapped
+
+        pipe.release_first_send.set()
+        parent_writer.join(timeout=1)
+        copied_writer.join(timeout=1)
+
+        assert not parent_writer.is_alive()
+        assert not copied_writer.is_alive()
+        assert pipe.messages == [
+            KernelMessage(b"parent"),
+            KernelMessage(b"copy"),
+        ]
+        assert not pipe.overlapped
+    finally:
+        stream.stop()
 
 
 # Make sure that standard in is installed; stdin is not writable so we

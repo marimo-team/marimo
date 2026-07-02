@@ -1,9 +1,21 @@
 from __future__ import annotations
 
+import asyncio
 import time
+from typing import cast
 
+from marimo._ast.app import App, InternalApp
+from marimo._pyodide.streams import PyodideStream
 from marimo._runtime.commands import DeleteCellCommand
+from marimo._runtime.context import get_context
+from marimo._runtime.context.script_context import (
+    ScriptRuntimeContext,
+    initialize_script_context,
+)
+from marimo._runtime.context.types import teardown_context
 from marimo._runtime.runtime import Kernel
+from marimo._runtime.threads import Thread
+from marimo._types.ids import CellId_t
 from tests._messaging.mocks import MockStream
 from tests.conftest import ExecReqProvider
 
@@ -62,6 +74,41 @@ async def test_thread_has_own_stream(
     assert k.globals["thread_ctx"] != k.globals["ctx_main"]
     stream = k.globals["thread_ctx"].stream
     assert stream.cell_id == k.globals["cell_id"]
+
+
+def test_thread_copies_pyodide_stream_in_script_context() -> None:
+    stream = PyodideStream(
+        pipe=lambda _message: None,
+        input_queue=asyncio.Queue(),
+        cell_id=CellId_t("script-cell"),
+    )
+    observed_contexts: list[ScriptRuntimeContext] = []
+
+    teardown_context()
+    initialize_script_context(InternalApp(App()), stream, filename=None)
+    ctx = cast(ScriptRuntimeContext, get_context())
+    ctx.query_params["source"] = "parent"
+    try:
+
+        def target() -> None:
+            observed_contexts.append(cast(ScriptRuntimeContext, get_context()))
+
+        thread = Thread(target=target)
+        thread.start()
+        thread.join(timeout=1)
+
+        assert not thread.is_alive()
+        assert len(observed_contexts) == 1
+        copied_ctx = observed_contexts[0]
+        copied = cast(PyodideStream, copied_ctx.stream)
+        assert copied is not stream
+        assert copied.pipe is stream.pipe
+        assert copied.input_queue is stream.input_queue
+        assert copied.cell_id == stream.cell_id
+        assert copied_ctx.query_params is ctx.query_params
+        assert copied_ctx.query_params.get("source") == "parent"
+    finally:
+        teardown_context()
 
 
 async def test_thread_output_append(

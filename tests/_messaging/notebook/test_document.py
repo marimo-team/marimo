@@ -181,6 +181,42 @@ class TestCreateCell:
         assert cell.config.hide_code is True
         assert cell.config.disabled is True
 
+    def test_copies_config_on_ingest(self) -> None:
+        """CreateCell stores a copy of the config, not the caller's instance.
+
+        Two documents built from the same CellConfig must not share it, and
+        mutating one document's stored config must not affect the other.
+        """
+        shared = CellConfig(disabled=True)
+
+        def build() -> NotebookDocument:
+            doc = NotebookDocument()
+            doc.apply(
+                _tx(
+                    CreateCell(
+                        cell_id=CellId_t("a"),
+                        code="x = 1",
+                        name="__",
+                        config=shared,
+                    )
+                )
+            )
+            return doc
+
+        doc_a = build()
+        doc_b = build()
+
+        config_a = doc_a.get_cell(CellId_t("a")).config
+        config_b = doc_b.get_cell(CellId_t("a")).config
+
+        assert config_a is not shared
+        assert config_b is not shared
+        assert config_a is not config_b
+
+        config_a.configure({"disabled": False})
+        assert doc_b.get_cell(CellId_t("a")).config.disabled is True
+        assert shared.disabled is True
+
 
 # ------------------------------------------------------------------
 # DeleteCell
@@ -322,53 +358,6 @@ class TestCellVersion:
         assert doc.get_cell_version(CellId_t("a")) == 2
         doc._rekey({CellId_t("a"): CellId_t("x")})
         assert doc.get_cell_version(CellId_t("x")) == 2
-
-    def test_replace_cells_same_code_preserves_version(self) -> None:
-        doc = _doc("a")
-        doc.apply(_tx(SetCode(cell_id=CellId_t("a"), code="x")))
-        assert doc.get_cell_version(CellId_t("a")) == 1
-        doc._replace_cells(
-            [
-                NotebookCell(
-                    id=CellId_t("a"),
-                    code="x",
-                    name="__",
-                    config=CellConfig(),
-                )
-            ]
-        )
-        assert doc.get_cell_version(CellId_t("a")) == 1
-
-    def test_replace_cells_changed_code_bumps_version(self) -> None:
-        doc = _doc("a")
-        doc.apply(_tx(SetCode(cell_id=CellId_t("a"), code="x")))
-        assert doc.get_cell_version(CellId_t("a")) == 1
-        doc._replace_cells(
-            [
-                NotebookCell(
-                    id=CellId_t("a"),
-                    code="y",
-                    name="__",
-                    config=CellConfig(),
-                )
-            ]
-        )
-        assert doc.get_cell_version(CellId_t("a")) == 2
-
-    def test_replace_cells_new_id_keeps_constructed_version(self) -> None:
-        doc = _doc("a")
-        doc._replace_cells(
-            [
-                NotebookCell(
-                    id=CellId_t("b"),
-                    code="y",
-                    name="__",
-                    config=CellConfig(),
-                    version=42,
-                )
-            ]
-        )
-        assert doc.get_cell_version(CellId_t("b")) == 42
 
 
 # ------------------------------------------------------------------
@@ -561,22 +550,6 @@ class TestVersion:
         applied = doc.apply(_tx())
         assert doc.version == 1
         assert applied.version == 1
-
-    def test_replace_cells_bumps_version(self) -> None:
-        doc = _doc("a", "b")
-        starting = doc.version
-        doc._replace_cells([_cell("c"), _cell("d")])
-        assert doc.version == starting + 1
-
-    def test_replace_cells_preserves_document_identity(self) -> None:
-        doc = _doc("a")
-        new_cells = [_cell("b"), _cell("c")]
-        doc._replace_cells(new_cells)
-        assert _ids(doc) == ["b", "c"]
-        # Reassigning the cells list — not mutating in place — lets prior
-        # holders (e.g. file-watch diff path) keep a snapshot of the
-        # pre-rebuild state for comparison.
-        assert doc._cells is new_cells
 
     def test_rekey_bumps_version(self) -> None:
         doc = _doc("a", "b")

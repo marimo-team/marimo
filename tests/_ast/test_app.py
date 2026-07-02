@@ -995,6 +995,35 @@ class TestApp:
         assert cloned_impl.config.disabled is True
         assert original_impl.config.disabled is False
 
+    def test_app_clone_document_configs_are_independent(self) -> None:
+        """clone() must not alias cell configs between the two documents.
+
+        The cloned document owns its own CellConfig; mutating the original
+        document's config must not leak into the clone.
+        """
+        app = App()
+
+        @app.cell(disabled=True)
+        def __():
+            x = 1
+            return (x,)
+
+        clone = app.clone()
+
+        original_cm = InternalApp(app).cell_manager
+        cloned_cm = InternalApp(clone).cell_manager
+
+        original_id = list(original_cm.cell_ids())[0]
+        cloned_id = list(cloned_cm.cell_ids())[0]
+
+        original_config = original_cm.document.get_cell(original_id).config
+        cloned_config = cloned_cm.document.get_cell(cloned_id).config
+
+        assert original_config is not cloned_config
+
+        original_config.configure({"disabled": False})
+        assert cloned_cm.document.get_cell(cloned_id).config.disabled is True
+
     def test_to_py(self) -> None:
         """Test that InternalApp.to_py() returns the Python code representation."""
         app = App()
@@ -1825,6 +1854,21 @@ class TestInternalAppWithData:
             is original_compiled
         )
 
+    def test_preserves_compiled_cells_dict_identity(self) -> None:
+        internal_app, cell_id = self._seed_single()
+        compiled = internal_app.cell_manager._compiled_cells
+
+        internal_app.with_data(
+            cell_ids=["new"],
+            codes=["y = 2"],
+            names=["__"],
+            configs=[CellConfig()],
+        )
+
+        # The dict is mutated in place, not reassigned, so holders of the
+        # original reference still see live state.
+        assert internal_app.cell_manager._compiled_cells is compiled
+
     def test_writes_new_codes_and_names(self) -> None:
         app = App()
 
@@ -1847,6 +1891,110 @@ class TestInternalAppWithData:
         assert cd is not None
         assert cd.code == "x = 99"
         assert cd.name == "renamed"
+
+    def _seed_single(self) -> tuple[InternalApp, str]:
+        app = App()
+
+        @app.cell
+        def _():
+            x = 1
+            return (x,)
+
+        internal_app = InternalApp(app)
+        cell_id = next(iter(internal_app.cell_manager.cell_ids()))
+        return internal_app, cell_id
+
+    def test_unchanged_code_preserves_cell_version(self) -> None:
+        internal_app, cell_id = self._seed_single()
+        doc = internal_app.cell_manager.document
+        before = doc.get_cell_version(cell_id)
+
+        internal_app.with_data(
+            cell_ids=[cell_id],
+            codes=[doc.get_cell(cell_id).code],
+            names=["__"],
+            configs=[CellConfig()],
+        )
+
+        assert doc.get_cell_version(cell_id) == before
+
+    def test_changed_code_bumps_cell_version_by_one(self) -> None:
+        internal_app, cell_id = self._seed_single()
+        doc = internal_app.cell_manager.document
+        before = doc.get_cell_version(cell_id)
+
+        internal_app.with_data(
+            cell_ids=[cell_id],
+            codes=["x = 2"],
+            names=["__"],
+            configs=[CellConfig()],
+        )
+
+        assert doc.get_cell_version(cell_id) == before + 1
+
+    def test_new_cell_keeps_constructed_version(self) -> None:
+        internal_app, cell_id = self._seed_single()
+        doc = internal_app.cell_manager.document
+
+        internal_app.with_data(
+            cell_ids=[cell_id, "new"],
+            codes=["x = 1", "y = 2"],
+            names=["__", "__"],
+            configs=[CellConfig(), CellConfig()],
+        )
+
+        # New ids are created via CreateCell, which constructs a fresh cell
+        # at version 0.
+        assert doc.get_cell_version(CellId_t("new")) == 0
+
+    def test_deleted_id_stays_reserved_for_generation(self) -> None:
+        internal_app, cell_id = self._seed_single()
+
+        # Drop the original cell.
+        internal_app.with_data(
+            cell_ids=["other"],
+            codes=["y = 2"],
+            names=["__"],
+            configs=[CellConfig()],
+        )
+
+        # seen_ids remembers the dropped id so the generator won't mint it
+        # again, even though it's gone from the document.
+        seen = internal_app.cell_manager._cell_id_generator.seen_ids
+        assert cell_id in seen
+
+    def test_unparsable_not_carried_over(self) -> None:
+        internal_app, cell_id = self._seed_single()
+        internal_app.cell_manager.unparsable = True
+
+        internal_app.with_data(
+            cell_ids=[cell_id],
+            codes=["x = 2"],
+            names=["__"],
+            configs=[CellConfig()],
+        )
+
+        # with_data rebuilds from parsable textual fields, so unparsable
+        # resets to the rebuilt manager's value (False).
+        assert internal_app.cell_manager.unparsable is False
+
+    def test_noop_save_does_not_bump_document_version(self) -> None:
+        # with_data routes through apply(); a save with identical content
+        # produces an empty transaction, which leaves the document version
+        # unchanged (consistent with SetCode no-op staying stable).
+        internal_app, cell_id = self._seed_single()
+        doc = internal_app.cell_manager.document
+        cell = doc.get_cell(cell_id)
+        before = doc.version
+
+        internal_app.with_data(
+            cell_ids=[cell_id],
+            codes=[cell.code],
+            names=[cell.name],
+            configs=[cell.config],
+        )
+
+        assert doc.version == before
 
 
 class TestInternalAppOverrides:

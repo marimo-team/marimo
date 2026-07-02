@@ -2055,6 +2055,26 @@ class Kernel:
             error_title = "Function not found"
             error_message = f"Could not find function given request: {request}"
             debug(error_title, error_message)
+            # Logged at warning level so the field trigger is visible in
+            # production. The requested namespace missing from the registry is
+            # the signature of a frontend/kernel object-id desync; the set of
+            # registered namespaces lets us compare object-id (cell) prefixes
+            # to tell an unknown cell apart from a stale one. Object-ids and
+            # filenames only, never argument values.
+            LOGGER.warning(
+                "Function call not found "
+                "(pid=%s, notebook=%s, namespace=%s, function=%s, "
+                "namespace_registered=%s, registered_namespace_count=%d, "
+                "registered_namespaces=%s, child_contexts_searched=%d)",
+                os.getpid(),
+                self.app_metadata.filename,
+                request.namespace,
+                request.function_name,
+                request.namespace in ctx.function_registry.namespaces,
+                len(ctx.function_registry.namespaces),
+                sorted(ctx.function_registry.namespaces),
+                sum(1 for child in ctx.children if child.app is not None),
+            )
         elif function.cell_id is None:
             found = True
             error_title = "Function not associated with cell"
@@ -2455,7 +2475,6 @@ def _create_streams(
 
 def _install_subprocess_handlers(
     kernel: Kernel,
-    ctx: KernelRuntimeContext,
     user_config: MarimoConfig,
     interrupt_queue: QueueType[bool] | None,
 ) -> None:
@@ -2465,7 +2484,7 @@ def _install_subprocess_handlers(
 
     register_formatters(theme=user_config["display"]["theme"])
 
-    signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
+    signal.signal(signal.SIGINT, handlers.construct_interrupt_handler())
 
     if sys.platform == "win32":
         if interrupt_queue is not None:
@@ -2548,7 +2567,7 @@ def launch_kernel(
                 # Read theme from kernel.user_config — create_kernel may have
                 # mutated it for run mode (autorun + auto_reload off).
                 _install_subprocess_handlers(
-                    kernel, ctx, kernel.user_config, interrupt_queue
+                    kernel, kernel.user_config, interrupt_queue
                 )
 
             # The control loop is asynchronous so that (a) user code can use

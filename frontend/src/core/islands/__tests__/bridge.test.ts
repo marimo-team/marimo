@@ -12,6 +12,7 @@ import {
 type Base64String = components["schemas"]["Base64String"];
 interface TestIslandApp {
   id: string;
+  payloadBacked?: boolean;
   cells: { code: string; idx: number; output: string }[];
 }
 interface TestExportContext {
@@ -139,6 +140,30 @@ describe("IslandsPyodideBridge", () => {
       expect(mockStartSessionRequest).toHaveBeenCalledWith({
         appId: "app-1",
         code: "import marimo\napp = marimo.App()\n@app.cell\ndef __():\n    x = 1\n    return",
+      });
+    });
+
+    it("should ignore trusted export notebook code for a payload-backed app", async () => {
+      const payloadApp = {
+        id: "app-1",
+        payloadBacked: true,
+        cells: [{ code: "x = 1", idx: 0, output: "<div>1</div>" }],
+      };
+      mockParseMarimoIslandApps.mockReturnValue([payloadApp]);
+      mockGetMarimoExportContext.mockReturnValue({
+        trusted: true,
+        notebookCode: "full notebook should be ignored",
+      });
+      mockCreateMarimoFile.mockReturnValue("generated payload app");
+
+      await (
+        bridge as unknown as { startSessionsForAllApps(): Promise<void> }
+      ).startSessionsForAllApps();
+
+      expect(mockCreateMarimoFile).toHaveBeenCalledWith(payloadApp);
+      expect(mockStartSessionRequest).toHaveBeenCalledWith({
+        appId: "app-1",
+        code: "generated payload app",
       });
     });
 

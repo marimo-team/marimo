@@ -61,6 +61,7 @@ export const CellActionsContextMenu = ({
   });
   const [imageRightClicked, setImageRightClicked] =
     React.useState<HTMLImageElement>();
+  const suppressCloseAutoFocus = React.useRef(false);
 
   const DEFAULT_CONTEXT_MENU_ITEMS: ActionButton[] = [
     {
@@ -166,7 +167,10 @@ export const CellActionsContextMenu = ({
       handle: () => {
         const editorView = getEditorView();
         if (editorView) {
-          goToDefinitionAtCursorPosition(editorView);
+          // Only suppress focus restoration when we actually navigated;
+          // otherwise let Radix return focus to the trigger cell.
+          suppressCloseAutoFocus.current =
+            goToDefinitionAtCursorPosition(editorView);
         }
       },
     },
@@ -194,7 +198,16 @@ export const CellActionsContextMenu = ({
       >
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-[300px]" scrollable={true}>
+      <ContextMenuContent
+        className="w-[300px]"
+        scrollable={true}
+        onCloseAutoFocus={(evt) => {
+          if (suppressCloseAutoFocus.current) {
+            evt.preventDefault();
+            suppressCloseAutoFocus.current = false;
+          }
+        }}
+      >
         {visibleActions.map((group, i) => (
           <Fragment key={i}>
             {group.map((action) => {

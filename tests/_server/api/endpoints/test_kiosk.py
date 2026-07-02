@@ -1,16 +1,17 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from tests._server.api.endpoints.ws_helpers import (
     HEADERS as _HEADERS,
     assert_kernel_ready_response,
     create_response,
+    receive_until,
 )
 
 if TYPE_CHECKING:
-    from starlette.testclient import TestClient, WebSocketTestSession
+    from starlette.testclient import TestClient
 
 
 HEADERS = {
@@ -76,7 +77,7 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             )
 
             # Assert kiosk session received a focused cell notification
-            data = _receive_until("focus-cell", other_websocket)
+            data = receive_until("focus-cell", other_websocket)
             assert data["op"] == "focus-cell"
             assert data["data"]["cell_id"] == "cell-3"
 
@@ -112,7 +113,7 @@ def test_takeover_ping_pong_preserves_membership(client: TestClient) -> None:
         with client.websocket_connect(
             "/ws?session_id=b", headers=_HEADERS
         ) as tb:
-            _receive_until("kernel-ready", tb)
+            receive_until("kernel-ready", tb)
 
             # Drain both tabs each round so per-tab queues stay aligned: every
             # takeover enqueues one capabilities-changed per tab.
@@ -123,8 +124,8 @@ def test_takeover_ping_pong_preserves_membership(client: TestClient) -> None:
                     headers={**HEADERS, "Marimo-Session-Id": caller},
                 )
                 assert resp.status_code == 200, resp.text
-                caller_msg = _receive_until("consumer-capabilities", ws_caller)
-                other_msg = _receive_until("consumer-capabilities", ws_other)
+                caller_msg = receive_until("consumer-capabilities", ws_caller)
+                other_msg = receive_until("consumer-capabilities", ws_other)
                 assert (
                     caller_msg["data"]["consumer_capabilities"]["edit"] is True
                 )
@@ -139,18 +140,18 @@ def test_third_viewer_survives_takeover(client: TestClient) -> None:
         with client.websocket_connect(
             "/ws?session_id=b", headers=_HEADERS
         ) as tb:
-            _receive_until("kernel-ready", tb)
+            receive_until("kernel-ready", tb)
             with client.websocket_connect(
                 "/ws?session_id=c", headers=_HEADERS
             ) as tc:
-                _receive_until("kernel-ready", tc)
+                receive_until("kernel-ready", tc)
 
                 resp = client.post(
                     "/api/kernel/takeover",
                     headers={**HEADERS, "Marimo-Session-Id": "b"},
                 )
                 assert resp.status_code == 200, resp.text
-                _receive_until("consumer-capabilities", tb)
+                receive_until("consumer-capabilities", tb)
 
                 # New editor (b) broadcasts; the third viewer (c) still gets it.
                 resp = client.post(
@@ -163,7 +164,7 @@ def test_third_viewer_survives_takeover(client: TestClient) -> None:
                     },
                 )
                 assert resp.status_code == 200, resp.text
-                data = _receive_until("notebook-document-transaction", tc)
+                data = receive_until("notebook-document-transaction", tc)
                 assert data["op"] == "notebook-document-transaction"
 
 
@@ -175,12 +176,12 @@ def test_capabilities_changed_is_not_recorded(client: TestClient) -> None:
         with client.websocket_connect(
             "/ws?session_id=b", headers=_HEADERS
         ) as tb:
-            _receive_until("kernel-ready", tb)
+            receive_until("kernel-ready", tb)
             client.post(
                 "/api/kernel/takeover",
                 headers={**HEADERS, "Marimo-Session-Id": "b"},
             )
-            _receive_until("consumer-capabilities", tb)
+            receive_until("consumer-capabilities", tb)
 
             sm = client.app.state.session_manager
             session = next(iter(sm.sessions.values()))
@@ -206,7 +207,7 @@ def test_refresh_resumes_as_editor(client: TestClient) -> None:
             "data": {"op": "reconnected"},
         }
         assert_kernel_ready_response(
-            _receive_until("kernel-ready", refreshed),
+            receive_until("kernel-ready", refreshed),
             create_response(
                 {
                     "resumed": True,
@@ -215,10 +216,3 @@ def test_refresh_resumes_as_editor(client: TestClient) -> None:
                 }
             ),
         )
-
-
-def _receive_until(op: str, websocket: WebSocketTestSession) -> dict[str, Any]:
-    while True:
-        data = websocket.receive_json()
-        if data["op"] == op:
-            return data

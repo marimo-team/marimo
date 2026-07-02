@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from opentelemetry import trace
+    from opentelemetry.sdk.resources import Resource
 
 
 class MockSpan:
@@ -82,6 +83,17 @@ class MockTracer:
 
 TRACE_FILENAME = os.path.join("traces", "spans.jsonl")
 OTLPProtocol = Literal["grpc", "http/protobuf"]
+# OTEL SDK default when service.name is unset (Resource.create in
+# opentelemetry.sdk.resources). May be suffixed with :<executable>.
+_OTEL_DEFAULT_SERVICE_NAME = "unknown_service"
+
+
+def _is_otel_sdk_default_service_name(service_name: str) -> bool:
+    # SDK uses "unknown_service" or "unknown_service:<executable>" only.
+    return (
+        service_name == _OTEL_DEFAULT_SERVICE_NAME
+        or service_name.startswith(f"{_OTEL_DEFAULT_SERVICE_NAME}:")
+    )
 
 
 def _otlp_endpoint_configured() -> bool:
@@ -114,6 +126,21 @@ def _otlp_protocol() -> OTLPProtocol | None:
     return None
 
 
+def _tracer_resource() -> Resource:
+    """Build the OpenTelemetry resource from standard OTEL env vars."""
+    from opentelemetry.sdk.resources import Resource
+
+    # Resource.create() reads OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES
+    # Default to marimo when unset.
+    resource = Resource.create()
+    service_name = resource.attributes.get("service.name")
+    if not isinstance(service_name, str) or _is_otel_sdk_default_service_name(
+        service_name
+    ):
+        resource = resource.merge(Resource({"service.name": "marimo"}))
+    return resource
+
+
 def _set_tracer_provider() -> None:
     if is_pyodide() or GLOBAL_SETTINGS.TRACING is False:
         return
@@ -121,7 +148,6 @@ def _set_tracer_provider() -> None:
     DependencyManager.opentelemetry.require("for tracing.")
 
     from opentelemetry import trace
-    from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
     from opentelemetry.sdk.trace.export import (
         BatchSpanProcessor,
@@ -162,12 +188,9 @@ def _set_tracer_provider() -> None:
                 "install marimo[otel] for OTLP export. Falling back to file export.",
             )
 
+    resource = _tracer_resource()
+
     if OTLPSpanExporter is not None:
-        resource = Resource.create(
-            {
-                "service.name": "marimo",
-            },
-        )
         provider = TracerProvider(resource=resource)
         provider.add_span_processor(
             BatchSpanProcessor(
@@ -206,12 +229,31 @@ def _set_tracer_provider() -> None:
         filepath = config_ready.filepath
         filepath.parent.mkdir(parents=True, exist_ok=True)
 
-        provider = TracerProvider()
+        provider = TracerProvider(resource=resource)
         provider.add_span_processor(BatchSpanProcessor(FileExporter(filepath)))
         LOGGER.debug("OTel tracer: file export to %s", filepath)
 
     # Sets the global default tracer provider
     trace.set_tracer_provider(provider)
+
+    _instrument_ai(provider)
+
+
+def _instrument_ai(provider: trace.TracerProvider) -> None:
+    """Current AI integrations use pydantic_ai, so we instrument it globally."""
+
+    if not DependencyManager.pydantic_ai.has():
+        LOGGER.debug("Skipping AI instrumentation (pydantic_ai not installed)")
+        return
+
+    try:
+        from pydantic_ai import Agent
+        from pydantic_ai.models.instrumented import InstrumentationSettings
+
+        Agent.instrument_all(InstrumentationSettings(tracer_provider=provider))
+        LOGGER.debug("Enabled AI instrumentation")
+    except Exception as e:
+        LOGGER.debug("AI instrumentation failed: %s", e)
 
 
 def create_tracer(trace_name: str) -> trace.Tracer:

@@ -7,6 +7,11 @@ import { type StorageConnection, StorageConnectionSchema } from "./schemas";
 
 export type StorageLibrary = "obstore" | "fsspec";
 
+export interface StorageCodeOptions {
+  library: StorageLibrary;
+  isEmbedded?: boolean;
+}
+
 export const StorageLibraryDisplayNames: Record<StorageLibrary, string> = {
   obstore: "obstore",
   fsspec: "fsspec",
@@ -161,8 +166,13 @@ function generateCoreWeaveCode(
 
 function generateGDriveCode(
   connection: Extract<StorageConnection, { type: "gdrive" }>,
-  secrets: SecretContainer,
+  options: { secrets: SecretContainer; isEmbedded?: boolean },
 ): { imports: Set<string>; code: string } {
+  /**
+   * Skip instance cache True so you can create multiple connections which don't reference the same creds.
+   * Use listings cache False so we don't get stale reads.
+   */
+  const { secrets, isEmbedded = false } = options;
   const imports = new Set(["from gdrive_fsspec import GoogleDriveFileSystem"]);
 
   if (connection.credentials_json) {
@@ -173,20 +183,28 @@ function generateGDriveCode(
     );
     const code = dedent(`
       _creds = json.loads("""${connection.credentials_json?.startsWith("ENV:") ? `{${creds}}` : connection.credentials_json}""")
-      fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False)
+      fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False, skip_instance_cache=True)
     `);
     return { imports, code };
   }
 
-  const code = dedent(`
-    fs = GoogleDriveFileSystem(token="browser", use_listings_cache=False)
-  `);
+  // In the iframe (embedded) flow we authenticate via the console-based OOB
+  // flow, which prints an auth URL and reads the code from stdin. Clear the
+  // console afterwards so the (single-use) auth code doesn't linger.
+  const code = isEmbedded
+    ? dedent(`
+        fs = GoogleDriveFileSystem(use_listings_cache=False, skip_instance_cache=True, auth_kwargs={"use_local_webserver": False})
+        mo.output.clear_console()
+      `)
+    : dedent(`
+        fs = GoogleDriveFileSystem(use_listings_cache=False, skip_instance_cache=True)
+      `);
   return { imports, code };
 }
 
 export function generateStorageCode(
   connection: StorageConnection,
-  _library: StorageLibrary,
+  options: StorageCodeOptions,
 ): string {
   StorageConnectionSchema.parse(connection);
 
@@ -207,7 +225,10 @@ export function generateStorageCode(
       result = generateCoreWeaveCode(connection, secrets);
       break;
     case "gdrive":
-      result = generateGDriveCode(connection, secrets);
+      result = generateGDriveCode(connection, {
+        secrets,
+        isEmbedded: options.isEmbedded,
+      });
       break;
     default:
       assertNever(connection);

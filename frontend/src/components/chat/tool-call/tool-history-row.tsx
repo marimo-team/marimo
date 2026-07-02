@@ -1,6 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { BanIcon, CheckCircleIcon, Loader2, WrenchIcon } from "lucide-react";
+import {
+  BanIcon,
+  CheckCircleIcon,
+  CircleSlashIcon,
+  Loader2,
+  WrenchIcon,
+} from "lucide-react";
 import React from "react";
 import {
   Accordion,
@@ -29,7 +35,19 @@ const STATUS_LABEL: Record<HistoryState, string> = {
   "output-denied": "Denied",
 };
 
-const StatusIcon: React.FC<{ state: HistoryState }> = ({ state }) => {
+const PENDING_STATES = new Set<HistoryState>([
+  "input-streaming",
+  "input-available",
+  "approval-responded",
+]);
+
+const StatusIcon: React.FC<{ state: HistoryState; interrupted: boolean }> = ({
+  state,
+  interrupted,
+}) => {
+  if (interrupted) {
+    return <CircleSlashIcon className="h-3 w-3 text-muted-foreground" />;
+  }
   switch (state) {
     case "input-streaming":
     case "input-available":
@@ -69,6 +87,7 @@ interface ToolHistoryRowProps {
   approval?: ToolApproval;
   index?: number;
   className?: string;
+  isActive?: boolean;
 }
 
 export const ToolHistoryRow: React.FC<ToolHistoryRowProps> = ({
@@ -79,7 +98,9 @@ export const ToolHistoryRow: React.FC<ToolHistoryRowProps> = ({
   approval,
   index = 0,
   className,
+  isActive = true,
 }) => {
+  const interrupted = !isActive && PENDING_STATES.has(state);
   return (
     <Accordion
       key={`tool-${index}`}
@@ -91,12 +112,12 @@ export const ToolHistoryRow: React.FC<ToolHistoryRowProps> = ({
         <AccordionTrigger
           className={cn(
             "h-6 text-xs border-border shadow-none! ring-0! bg-muted/60 hover:bg-muted py-0 px-2 gap-1 rounded-sm [&[data-state=open]>svg]:rotate-180 hover:no-underline",
-            getTriggerToneClass(state),
+            interrupted ? "text-muted-foreground" : getTriggerToneClass(state),
           )}
         >
           <span className="flex items-center gap-1">
-            <StatusIcon state={state} />
-            {STATUS_LABEL[state]}:
+            <StatusIcon state={state} interrupted={interrupted} />
+            {interrupted ? "Interrupted" : STATUS_LABEL[state]}:
             <code className="font-mono text-xs">
               {formatToolName(toolName)}
             </code>

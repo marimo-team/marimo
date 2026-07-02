@@ -40,7 +40,10 @@ import {
 } from "@/hooks/useEventListener";
 import { StyleNamespace } from "@/theme/namespace";
 import { useTheme } from "@/theme/useTheme";
-import { CellNotInitializedError } from "@/utils/errors.ts";
+import {
+  CellNotInitializedError,
+  FunctionNotFoundError,
+} from "@/utils/errors.ts";
 import { Functions } from "@/utils/functions";
 import { shallowCompare } from "@/utils/shallow-compare";
 import { defineCustomElement } from "../../core/dom/defineCustomElement";
@@ -79,6 +82,12 @@ export interface IMarimoHTMLElement extends HTMLElement {
    */
   rerender: () => void;
 }
+
+// Bounded exponential backoff for re-issuing a request whose function the
+// kernel reported as not found. Short enough to fail fast on a genuinely
+// missing function, long enough to outlast a transient object-id desync.
+const FUNCTION_NOT_FOUND_MAX_RETRIES = 3;
+const FUNCTION_NOT_FOUND_BASE_DELAY_MS = 150;
 
 interface PluginSlotProps<T> {
   hostElement: HTMLElement;
@@ -188,8 +197,6 @@ function PluginSlotInternal<T>(
           args.length <= 1,
           `Plugin functions only supports a single argument. Called ${key}`,
         );
-        const objectId = getUIElementObjectId(hostElement);
-        invariant(objectId, "Object ID should exist");
 
         const isStatic = isStaticNotebook();
 
@@ -218,16 +225,41 @@ function PluginSlotInternal<T>(
           Logger.warn(`Cell ID ${cellId} cannot be found`);
         }
 
-        const response = await FUNCTIONS_REGISTRY.request({
-          args: prettyParse(input, args[0]),
-          functionName: key,
-          namespace: objectId,
-        });
-        if (response.status.code !== "ok") {
+        // A "function not found" response means the kernel never ran the
+        // function, so re-issuing the request is side-effect-safe regardless
+        // of whether the function is idempotent. This recovers from a
+        // transient window where the frontend's object-id leads the kernel's
+        // registry. The object-id is re-read each attempt so a corrected id
+        // from a re-render is picked up. Once the function is found
+        // (found === true) the request is never retried, since the failure
+        // is unrelated to lookup and retrying would not help.
+        const parsedArgs = prettyParse(input, args[0]);
+        for (let attempt = 0; ; attempt++) {
+          const namespace = getUIElementObjectId(hostElement);
+          invariant(namespace, "Object ID should exist");
+
+          const response = await FUNCTIONS_REGISTRY.request({
+            args: parsedArgs,
+            functionName: key,
+            namespace,
+          });
+          if (response.status.code === "ok") {
+            return prettyParse(output, response.return_value);
+          }
+
+          const recoverable = response.found === false;
+          if (recoverable && attempt < FUNCTION_NOT_FOUND_MAX_RETRIES) {
+            const delay = FUNCTION_NOT_FOUND_BASE_DELAY_MS * 2 ** attempt;
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+
           Logger.error(response.status);
+          if (recoverable) {
+            throw new FunctionNotFoundError();
+          }
           throw new Error(response.status.message || "Unknown error");
         }
-        return prettyParse(output, response.return_value);
       };
     }
 

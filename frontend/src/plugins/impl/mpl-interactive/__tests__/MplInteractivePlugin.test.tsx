@@ -1,4 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+/* oxlint-disable typescript/no-explicit-any */
+/* oxlint-disable marimo/prefer-object-params -- the mocked mpl.js figure
+   constructor must match its real positional signature. */
+import { render, waitFor } from "@testing-library/react";
 import type { ExtractAtomValue } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hasRunAnyCellAtom } from "@/components/editor/cell/useRunCells";
@@ -7,9 +11,12 @@ import { parseUserConfig } from "@/core/config/config-schema";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
+import { MODEL_MANAGER, Model } from "@/plugins/impl/anywidget/model";
+import type { WidgetModelId } from "@/plugins/impl/anywidget/types";
 import { visibleForTesting } from "../MplInteractivePlugin";
 
-const { ensureMplJs, injectCss, resetMplJsLoading } = visibleForTesting;
+const { ensureMplJs, injectCss, MplInteractiveSlot, resetMplJsLoading } =
+  visibleForTesting;
 
 /**
  * Clear every "notebook trust" signal `isTrustedVirtualFileUrl` consults so
@@ -149,5 +156,151 @@ describe("MplInteractivePlugin URL validation", () => {
       cleanup();
       expect(container.querySelector("link")).toBeNull();
     });
+  });
+});
+
+const asModelId = (id: string): WidgetModelId => id as WidgetModelId;
+
+/**
+ * Minimal stand-in for the global `window.mpl.figure` constructor. mpl.js
+ * builds the canvas DOM and wires `onopen`/`onmessage` onto the socket at
+ * construction; the mock reproduces just enough of that for the slot to mount
+ * and rebind.
+ */
+function installMplFigureMock(): ReturnType<typeof vi.fn> {
+  const ctor = vi.fn(function (
+    this: any,
+    id: string,
+    ws: any,
+    _ondownload: unknown,
+    container: HTMLElement,
+  ) {
+    this.id = id;
+    this.ws = ws;
+    const root = document.createElement("div");
+    const canvasDiv = document.createElement("div");
+    canvasDiv.setAttribute("tabindex", "0");
+    root.append(canvasDiv);
+    container.append(root);
+    this.root = root;
+    this.send_message = vi.fn();
+    ws.onopen = vi.fn();
+    ws.onmessage = vi.fn();
+  });
+  (window as unknown as { mpl: unknown }).mpl = {
+    figure: ctor,
+    toolbar_items: [],
+  };
+  return ctor;
+}
+
+function makeModel(): Model<Record<string, never>> {
+  return new Model(
+    {},
+    {
+      sendUpdate: vi.fn().mockResolvedValue(undefined),
+      sendCustomMessage: vi.fn().mockResolvedValue(undefined),
+    },
+  );
+}
+
+function makeProps(modelId: WidgetModelId) {
+  return {
+    data: {
+      mplJsUrl: "./@file/1-mpl.js",
+      cssUrl: "./@file/2-mpl.css",
+      toolbarImages: {},
+      width: 640,
+      height: 480,
+    },
+    value: { model_id: modelId },
+    host: document.createElement("div"),
+    setValue: vi.fn(),
+    functions: {},
+  } as any;
+}
+
+describe("MplInteractiveSlot rerun rebinding", () => {
+  beforeEach(() => {
+    vi.spyOn(Logger, "error").mockImplementation(() => {});
+    resetMplJsLoading();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete (window as { mpl?: unknown }).mpl;
+  });
+
+  it("rebinds to a new model without rebuilding the figure DOM", async () => {
+    const ctor = installMplFigureMock();
+    const idA = asModelId("model-a");
+    const idB = asModelId("model-b");
+    MODEL_MANAGER.set(idA, makeModel());
+    MODEL_MANAGER.set(idB, makeModel());
+
+    const { container, rerender } = render(
+      <MplInteractiveSlot {...makeProps(idA)} />,
+    );
+
+    await waitFor(() => expect(ctor).toHaveBeenCalledTimes(1));
+
+    const figureRoot = ctor.mock.instances[0].root as HTMLElement;
+    const socket = ctor.mock.calls[0][1];
+    const slot = container.querySelector(".mpl-interactive-figure");
+    expect(slot?.contains(figureRoot)).toBe(true);
+    // One handshake on the initial bind.
+    expect(socket.onopen).toHaveBeenCalledTimes(1);
+    const setSendHandler = vi.spyOn(socket, "setSendHandler");
+
+    // Cell re-run: only the model id changes.
+    rerender(<MplInteractiveSlot {...makeProps(idB)} />);
+
+    // The new model is bound through the existing socket, with a fresh
+    // handshake, and the figure is never reconstructed.
+    await waitFor(() => expect(socket.onopen).toHaveBeenCalledTimes(2));
+    expect(ctor).toHaveBeenCalledTimes(1);
+    expect(setSendHandler).toHaveBeenCalledTimes(1);
+    // The same rendered DOM is still in place — not cleared and rebuilt.
+    expect(container.querySelector(".mpl-interactive-figure")).toBe(slot);
+    expect(slot?.contains(figureRoot)).toBe(true);
+  });
+
+  it("detaches the previous model's listener on each rerun (no buildup)", async () => {
+    installMplFigureMock();
+    // Unique ids: MODEL_MANAGER is a module singleton whose deferreds resolve
+    // once, so reusing ids from another test would return that test's models.
+    const idA = asModelId("leak-a");
+    const idB = asModelId("leak-b");
+    const idC = asModelId("leak-c");
+    const modelA = makeModel();
+    const modelB = makeModel();
+    const modelC = makeModel();
+    MODEL_MANAGER.set(idA, modelA);
+    MODEL_MANAGER.set(idB, modelB);
+    MODEL_MANAGER.set(idC, modelC);
+
+    const onA = vi.spyOn(modelA, "on");
+    const offA = vi.spyOn(modelA, "off");
+    const onB = vi.spyOn(modelB, "on");
+    const offB = vi.spyOn(modelB, "off");
+    const onC = vi.spyOn(modelC, "on");
+    const offC = vi.spyOn(modelC, "off");
+
+    const { rerender } = render(<MplInteractiveSlot {...makeProps(idA)} />);
+    await waitFor(() =>
+      expect(onA).toHaveBeenCalledWith("msg:custom", expect.any(Function)),
+    );
+
+    rerender(<MplInteractiveSlot {...makeProps(idB)} />);
+    await waitFor(() => expect(onB).toHaveBeenCalled());
+
+    rerender(<MplInteractiveSlot {...makeProps(idC)} />);
+    await waitFor(() => expect(onC).toHaveBeenCalled());
+
+    // Each superseded model had its listener detached exactly once when the
+    // next bind replaced it; the current model's listener stays attached.
+    expect(offA).toHaveBeenCalledTimes(1);
+    expect(offB).toHaveBeenCalledTimes(1);
+    expect(offC).not.toHaveBeenCalled();
   });
 });

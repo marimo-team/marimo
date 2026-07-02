@@ -127,6 +127,7 @@ _DIRECT_READER_SPECS: dict[str, _DirectReaderSpec] = {
     ),
     "read_parquet": _DirectReaderSpec(
         source_keyword_names=(
+            "path_or_buffer",
             "file_glob",
             "file_globs",
             "source",
@@ -615,7 +616,7 @@ def _make_direct_reader_wrapper(
     function_name: str,
     *,
     call_spec: _DirectReaderCallSpec,
-) -> WrapperFactory:
+) -> WrapperFactory[Callable[..., Any], Callable[..., Any]]:
     def _wrap(original: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(original)
         def _wrapper(*args: Any, **kwargs: Any) -> Any:

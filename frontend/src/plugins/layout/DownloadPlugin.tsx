@@ -98,7 +98,7 @@ const DownloadButton = ({
     try {
       const loadedData = await load({});
       downloadByURL(
-        loadedData.data,
+        loadedData.data || data.data,
         loadedData.filename ?? data.filename ?? undefined,
       );
     } catch (error) {

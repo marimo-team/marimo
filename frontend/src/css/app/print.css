@@ -16,6 +16,10 @@ body.printing #App {
     height: fit-content !important;
     overflow-y: visible !important;
     overflow-x: hidden !important;
+
+    /* With @page margin:0 the themed background reaches the paper edge;
+       this padding insets printed content from all four edges. */
+    padding: 2rem !important;
   }
 
   h1,
@@ -68,5 +72,9 @@ body.printing #App {
     padding-left: 0 !important;
     padding-right: 0 !important;
     max-height: none !important;
+  }
+
+  @page {
+    margin: 0;
   }
 }

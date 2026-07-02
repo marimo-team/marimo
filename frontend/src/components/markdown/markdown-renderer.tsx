@@ -4,7 +4,12 @@ import { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
 import { BetweenHorizontalStartIcon } from "lucide-react";
 import { memo, Suspense, useState } from "react";
-import { Streamdown, type StreamdownProps } from "streamdown";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import {
+  defaultRehypePlugins,
+  Streamdown,
+  type StreamdownProps,
+} from "streamdown";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
@@ -148,6 +153,23 @@ const CopyButton: React.FC<ButtonProps> = ({ onClick, ...props }) => {
   );
 };
 
+// Allow `className` on every element; the default GitHub schema strips it,
+// which drops the styling on marimo HTML like `mo.md(...)` admonitions.
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    "*": [...(defaultSchema.attributes?.["*"] ?? []), "className"],
+  },
+};
+
+// Keep Streamdown's other rehype plugins (raw, harden) so scripts and unsafe
+// URLs are still sanitized.
+const REHYPE_PLUGINS: StreamdownProps["rehypePlugins"] = Object.values({
+  ...defaultRehypePlugins,
+  sanitize: [rehypeSanitize, sanitizeSchema],
+});
+
 type Components = StreamdownProps["components"];
 
 const COMPONENTS: Components = {
@@ -187,6 +209,7 @@ export const MarkdownRenderer = memo(({ content }: { content: string }) => {
     <Streamdown
       components={COMPONENTS}
       plugins={plugins}
+      rehypePlugins={REHYPE_PLUGINS}
       className="mo-markdown-renderer"
     >
       {content}

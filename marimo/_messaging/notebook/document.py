@@ -171,7 +171,9 @@ class NotebookDocument:
                 id=change.cell_id,
                 code=change.code,
                 name=change.name,
-                config=change.config,
+                # Own the config: copy on ingest so no two documents (or a
+                # document and its caller) ever share a mutable CellConfig.
+                config=structs_replace(change.config),
             )
             if change.after is not None:
                 idx = self._find_index(change.after)
@@ -236,35 +238,6 @@ class NotebookDocument:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-
-    def _replace_cells(self, cells: list[NotebookCell]) -> None:
-        """Bulk-replace the cell list in place, bypassing `apply`.
-
-        Transitional. Used for full-document rebuilds (save round-trip)
-        until those flows are expressed as diff Transactions. The
-        `_cells` attribute is reassigned (not mutated element-wise)
-        so any external holder of the prior list keeps a snapshot of
-        pre-rebuild state — useful for diff comparison. Bumps
-        `version` so observers see the state change like they would
-        after `apply()`.
-
-        Per-cell `version` is reconciled against the prior state: an id
-        whose code matches inherits the prior version (agent reads stay
-        valid); an id whose code changed gets `prior + 1` (invalidates
-        stale agent reads); brand-new ids keep the version they were
-        constructed with.
-        """
-        prior_by_id = {c.id: c for c in self._cells}
-        for i, c in enumerate(cells):
-            prior = prior_by_id.get(c.id)
-            if prior is None:
-                continue
-            if prior.code == c.code:
-                cells[i] = structs_replace(c, version=prior.version)
-            else:
-                cells[i] = structs_replace(c, version=prior.version + 1)
-        self._cells = cells
-        self._version += 1
 
     def _rekey(self, mapping: dict[CellId_t, CellId_t]) -> None:
         """Rekey cells by an old-id to new-id mapping, preserving order.

@@ -36,7 +36,7 @@ jobs:
 
       - name: 🛠️ Run export
         run: |
-          uvx marimo export html-wasm frontend/public/files/wasm-intro.py -o out --mode run
+          uvx marimo export html-wasm frontend/public/export_demos/wasm-intro.py -o out --mode run
           sed -i -e "s/after_delay/off/g" out/index.html
 
       - name: 📄 List changed files

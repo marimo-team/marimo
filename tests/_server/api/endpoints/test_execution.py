@@ -4,16 +4,21 @@ from __future__ import annotations
 import json
 import sys
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._code_mode.screenshot_meta import (
+    SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_SERVER_URL_KEY,
+)
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.lists import first
 from tests._server.api.endpoints.ws_helpers import (
     HEADERS as WS_HEADERS,
     assert_kernel_ready_response,
     create_response,
+    receive_until,
 )
 from tests._server.mocks import (
     get_session_manager,
@@ -23,7 +28,7 @@ from tests._server.mocks import (
 )
 
 if TYPE_CHECKING:
-    from starlette.testclient import TestClient, WebSocketTestSession
+    from starlette.testclient import TestClient
 
 SESSION_ID = SessionId("session-123")
 HEADERS = {
@@ -246,10 +251,13 @@ class TestExecutionRoutes_EditMode:
         assert len(scratchpad_cmds) == 1, (
             f"expected one ExecuteScratchpadCommand, got {captured!r}"
         )
-        meta = scratchpad_cmds[0].request.meta
-        assert meta["screenshot_auth_token"] == "fake-token"
+        http_req = scratchpad_cmds[0].request
+        assert http_req is not None
         # Mock server uses host="localhost", port=1234, base_url=""
-        assert meta["screenshot_server_url"] == "http://localhost:1234"
+        assert http_req.meta[SCREENSHOT_SERVER_URL_KEY] == (
+            "http://localhost:1234"
+        )
+        assert http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] == "fake-token"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -601,13 +609,6 @@ def get_printed_object(
     return json.loads(console.data)
 
 
-def _receive_until(op: str, websocket: WebSocketTestSession) -> dict[str, Any]:
-    while True:
-        data = websocket.receive_json()
-        if data["op"] == op:
-            return data
-
-
 def test_takeover_transfers_edit_without_disconnect(
     client: TestClient,
 ) -> None:
@@ -638,8 +639,8 @@ def test_takeover_transfers_edit_without_disconnect(
             )
             assert resp.status_code == 200, resp.text
 
-            ed = _receive_until("consumer-capabilities", editor)
-            vw = _receive_until("consumer-capabilities", viewer)
+            ed = receive_until("consumer-capabilities", editor)
+            vw = receive_until("consumer-capabilities", viewer)
             assert ed["data"]["consumer_capabilities"] == {
                 "edit": False,
                 "interact": False,

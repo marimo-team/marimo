@@ -569,17 +569,75 @@ export function fromDocumentChanges(
 }
 
 // ---------------------------------------------------------------------------
+// Coalescing: reduce a buffered change sequence to its net effect
+// ---------------------------------------------------------------------------
+
+const COLLAPSIBLE_TYPES = new Set(["set-code", "set-name", "set-config"]);
+const DROPPABLE_ON_DELETE = new Set([
+  "set-code",
+  "set-name",
+  "set-config",
+  "move-cell",
+]);
+
+/**
+ * Reduce a buffered sequence of changes to an equivalent batch that reflects
+ * net effect rather than edit history. The server applies a transaction
+ * atomically and rejects internally contradictory batches (e.g. updating a
+ * cell that is also deleted in the same transaction), so a debounced sequence
+ * of edits must be reconciled before it is sent.
+ *
+ * Two reductions, both order-preserving:
+ * - For any cell deleted in the batch, drop its property/move changes. The
+ *   `create-cell` and `delete-cell` are kept so anchors referencing the cell
+ *   stay resolvable on the server; create+delete applies to a net no-op.
+ * - Collapse repeated `set-code`/`set-name`/`set-config` for a surviving cell
+ *   to the last occurrence.
+ */
+export function coalesceChanges(changes: DocumentChange[]): DocumentChange[] {
+  const deletedIds = new Set<CellId>();
+  for (const change of changes) {
+    if (change.type === "delete-cell") {
+      deletedIds.add(change.cellId);
+    }
+  }
+
+  const withoutEditsToDeletedCells = changes.filter(
+    (change) =>
+      !(
+        DROPPABLE_ON_DELETE.has(change.type) &&
+        "cellId" in change &&
+        deletedIds.has(change.cellId)
+      ),
+  );
+
+  const lastIndexByKey = new Map<string, number>();
+  withoutEditsToDeletedCells.forEach((change, index) => {
+    if (COLLAPSIBLE_TYPES.has(change.type) && "cellId" in change) {
+      lastIndexByKey.set(`${change.type}:${change.cellId}`, index);
+    }
+  });
+
+  return withoutEditsToDeletedCells.filter((change, index) => {
+    if (COLLAPSIBLE_TYPES.has(change.type) && "cellId" in change) {
+      return lastIndexByKey.get(`${change.type}:${change.cellId}`) === index;
+    }
+    return true;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Middleware: debounced change dispatch to the server
 // ---------------------------------------------------------------------------
 
 let pendingChanges: DocumentChange[] = [];
 
 const flushChanges = debounce(() => {
-  if (pendingChanges.length === 0) {
+  const changes = coalesceChanges(pendingChanges);
+  pendingChanges = [];
+  if (changes.length === 0) {
     return;
   }
-  const changes = pendingChanges;
-  pendingChanges = [];
   void getRequestClient().sendDocumentTransaction({ changes });
 }, 400);
 

@@ -248,6 +248,26 @@ const BACKWARDS_COMPAT_SNAPSHOTS: BackwardsCompatCase[] = [
       ],
     },
   },
+  {
+    // `showCode` was added to SlideConfig. The validator must know about it (so
+    // it isn't silently stripped), the deserializer must carry it through, and
+    // serialize → deserialize must round-trip both values.
+    label: "showCode round-trips through validate + (de)serialize",
+    input: {
+      cells: [
+        { type: "slide", showCode: true },
+        { type: "fragment", showCode: false },
+      ],
+    },
+    expected: {
+      deck: {},
+      cellIds: ["a", "b"],
+      cellEntries: [
+        ["a", { type: "slide", showCode: true }],
+        ["b", { type: "fragment", showCode: false }],
+      ],
+    },
+  },
 ];
 
 describe("SlidesLayoutPlugin backwards compatibility", () => {

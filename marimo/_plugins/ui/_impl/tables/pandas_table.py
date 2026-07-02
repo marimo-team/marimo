@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import functools
 import io
+import json
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -11,6 +12,7 @@ import narwhals.stable.v2 as nw
 from marimo import _loggers
 from marimo._data.models import ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.msgspec_encoder import enc_hook
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -71,6 +73,28 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
         df.index = df.index.rename(new_names[0])
 
     return df
+
+
+def _extension_column_needs_stringify(series: pd.Series[Any]) -> bool:
+    """Whether an extension-array column should be cast to str for JSON."""
+    from pandas.api.types import is_extension_array_dtype
+
+    try:
+        if not is_extension_array_dtype(series.dtype):
+            return False
+
+        notna = series.notna()
+        if not notna.any():
+            return False
+
+        # Position-based sample: avoids dropna() copies and .at on
+        # duplicate labels (which can return a Series instead of a scalar).
+        sample = series.iat[int(notna.to_numpy().argmax())]
+        serialized = json.loads(json.dumps(sample, default=enc_hook))
+        return not isinstance(serialized, (str, int, float, bool, type(None)))
+    except Exception:
+        # Conservative fallback: stringify if sampling or serialization fails.
+        return True
 
 
 def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:
@@ -216,6 +240,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                         # We want to preserve the original display
                         if is_complex_dtype(dtype):
                             result[col] = result[col].apply(str)
+                        if _extension_column_needs_stringify(result[col]):
+                            # Extension arrays with rich Python values (e.g.
+                            # pint-pandas) serialize to nested dicts via
+                            # to_dict; stringify to preserve display.
+                            result[col] = result[col].astype(str)
                         if is_timedelta64_dtype(
                             dtype
                         ) or is_timedelta64_ns_dtype(dtype):
@@ -226,9 +255,8 @@ class PandasTableManagerFactory(TableManagerFactory):
                             inferred_dtype = self._infer_dtype(col)
                             if inferred_dtype == "date":
                                 result[col] = result[col].apply(str)
-
-                            # Cast bytes to string to avoid overflow error
-                            if self._infer_dtype(col) == "bytes":
+                            elif inferred_dtype == "bytes":
+                                # Cast bytes to string to avoid overflow error
                                 result[col] = result[col].apply(str)
 
                 except Exception as e:
@@ -418,7 +446,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                     # Restore the original index structure
                     native_df = native_df.set_index(index_columns)
-                    native_df.index.names = original_names
+                    native_df.index = native_df.index.set_names(original_names)
                     return PandasTableManager(native_df)
                 result = super().search(query)
                 native_df = nw.to_native(result.data)

@@ -3,7 +3,12 @@
 import React from "react";
 
 interface LazyComponentWithPreload<T> {
-  preload: () => void;
+  /**
+   * Eagerly trigger the dynamic import. Returns the import promise so callers
+   * can await it or attach error handling; safe to call multiple times (the
+   * import is memoized).
+   */
+  preload: () => Promise<{ default: React.ComponentType<T> }>;
   Component: React.LazyExoticComponent<React.ComponentType<T>>;
 }
 

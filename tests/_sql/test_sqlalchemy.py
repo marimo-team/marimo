@@ -11,7 +11,11 @@ import pytest
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine, safe_execute
-from marimo._sql.engines.types import EngineCatalog, QueryEngine
+from marimo._sql.engines.types import (
+    EngineCatalog,
+    QueryEngine,
+    default_inference_config,
+)
 from marimo._sql.sql import sql
 from marimo._types.ids import VariableName
 
@@ -113,6 +117,17 @@ def test_sqlalchemy_engine_dialect(sqlite_engine: sa.Engine) -> None:
         sqlite_engine, engine_name=VariableName("test_sqlite")
     )
     assert engine.dialect == "sqlite"
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_engine_uses_default_inference_config(
+    sqlite_engine: sa.Engine,
+) -> None:
+    """SQLAlchemy shares the default discovery config (see #9775)."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("test_sqlite")
+    )
+    assert engine.inference_config == default_inference_config()
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -390,6 +405,10 @@ def test_sqlalchemy_skip_meta_schemas(
 
     information_schema = databases[0].schemas[1]
     assert information_schema.tables == []
+    # Eager discovery was skipped for the meta schema, so the empty table
+    # list is not authoritative — `tables_resolved` must be False so the
+    # frontend doesn't treat it as "known empty".
+    assert information_schema.tables_resolved is False
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -497,8 +516,8 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
             name=":memory:",
             dialect="sqlite",
             schemas=[
-                Schema(name="main", tables=[]),
-                Schema(name="my_schema", tables=[]),
+                Schema(name="main", tables=[], tables_resolved=False),
+                Schema(name="my_schema", tables=[], tables_resolved=False),
             ],
             engine=VariableName("test_sqlite"),
         )
@@ -513,6 +532,7 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
             name=":memory:",
             dialect="sqlite",
             schemas=[],
+            schemas_resolved=False,
             engine=VariableName("test_sqlite"),
         )
     ]
@@ -526,6 +546,7 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
             name=":memory:",
             dialect="sqlite",
             schemas=[],
+            schemas_resolved=False,
             engine=VariableName("test_sqlite"),
         )
     ]
@@ -578,6 +599,7 @@ def test_sqlalchemy_get_databases_auto(sqlite_engine: sa.Engine) -> None:
                 name=":memory:",
                 dialect="sqlite",
                 schemas=[],
+                schemas_resolved=False,
                 engine=VariableName("test_sqlite"),
             )
         ]

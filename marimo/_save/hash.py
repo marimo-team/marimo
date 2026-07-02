@@ -80,6 +80,13 @@ def hash_module(code: CodeType | None, hash_type: str = DEFAULT_HASH) -> bytes:
         for const in code_obj.co_consts:
             if isinstance(const, types.CodeType):
                 process(const)
+            elif isinstance(const, frozenset) and len(const) > 1:
+                # Set literals fold to frozensets whose str()/iteration order is
+                # PYTHONHASHSEED-dependent once there are 2+ elements.
+                # Sort the element reprs for a deterministic order.
+                hash_alg.update(
+                    ",".join(sorted(map(repr, const))).encode("utf8")
+                )
             else:
                 hash_alg.update(str(const).encode("utf8"))
         # Concatenate the names and bytecode of the current code object
@@ -698,11 +705,13 @@ class BlockHasher:
                 version = ""
                 module = None
                 if self.pin_modules:
-                    module = sys.modules[imports[ref].module]
-                    version = getattr(module, "__version__", "")
+                    # `.get`: a cached module def restored as a missing-
+                    # module placeholder is in scope but not sys.modules.
+                    module = sys.modules.get(imports[ref].module)
+                    version = getattr(module, "__version__", "") or ""
                     if not version:
-                        module = sys.modules[imports[ref].namespace]
-                        version = getattr(module, "__version__", "")
+                        module = sys.modules.get(imports[ref].namespace)
+                        version = getattr(module, "__version__", "") or ""
 
                 content_serialization[ref] = type_sign(
                     bytes(f"module:{ref}:{version}", "utf-8"), "module"
@@ -1071,6 +1080,7 @@ def cache_attempt_from_hash(
         hasher.defs,
         hasher.key,
         hasher.stateful_refs,
+        glbls=scope,
     )
 
 
@@ -1159,4 +1169,5 @@ def content_cache_attempt_from_base(
         hasher.defs,
         hasher.key,
         stateful_refs,
+        glbls=scope,
     )

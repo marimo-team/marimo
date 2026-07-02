@@ -6,10 +6,12 @@ MW003: Packages in the dependency tree incompatible with WASM.
 
 ## What it does
 
-Reads the notebook's PEP 723 `dependencies`, walks their transitive
-dependency tree via installed metadata, then queries PyPI's JSON API
-to check whether each package has a `py3-none-any` or emscripten
-wheel available. Packages only in pyodide-lock.json are also accepted.
+Reads the notebook's PEP 723 `dependencies`, **filters out requirements whose
+PEP 508 markers exclude Emscripten** (for example
+`torch; sys_platform != 'emscripten'`), walks the transitive dependency tree
+via installed metadata, then queries PyPI's JSON API to check whether each
+package has a `py3-none-any`, `emscripten`, or `wasm32` wheel available.
+Packages only in pyodide-lock.json are also accepted.
 
 ## Why is this bad?
 
@@ -34,7 +36,17 @@ import numpy  # Native, but pre-built in Pyodide
 import requests  # Pure Python wheel on PyPI
 ```
 
+**Not flagged (PEP 723 metadata):**
+```python
+# /// script
+# dependencies = ["jax; sys_platform != 'emscripten'"]
+# ///
+# jax is excluded from WASM checks via PEP 508 marker
+```
+
 ## References
 
 - https://pyodide.org/en/stable/usage/packages-in-pyodide.html
+- https://peps.python.org/pep-0508/ (environment markers)
+- https://peps.python.org/pep-0783/ (Emscripten wheels on PyPI)
 

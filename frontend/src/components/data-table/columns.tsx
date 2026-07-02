@@ -118,6 +118,7 @@ export function generateColumns<T>({
   showDataTypes,
   calculateTopKRows,
   fractionDigitsByColumn,
+  columnWidths,
 }: {
   rowHeaders: FieldTypesWithExternalType;
   selection: DataTableSelection;
@@ -129,6 +130,7 @@ export function generateColumns<T>({
   showDataTypes?: boolean;
   calculateTopKRows?: CalculateTopKRows;
   fractionDigitsByColumn?: Record<string, number>;
+  columnWidths?: Record<string, number>;
 }): ColumnDef<T>[] {
   // Row-headers are typically index columns
   const rowHeadersSet = new Set(rowHeaders.map(([columnName]) => columnName));
@@ -311,7 +313,20 @@ export function generateColumns<T>({
       // Can only sort if key is defined
       // For example, unnamed index columns, won't be sortable
       enableSorting: !!key,
-      meta: getMeta(key),
+      meta: {
+        ...getMeta(key),
+        width: columnWidths?.[key],
+      },
+      // size seeds the width before measurement; minSize/maxSize pin
+      // getSize() to the fixed width so the per-paint measurement writeback
+      // cannot drift the header width or sticky-pin offsets.
+      ...(columnWidths?.[key] !== undefined
+        ? {
+            size: columnWidths[key],
+            minSize: columnWidths[key],
+            maxSize: columnWidths[key],
+          }
+        : {}),
     }),
   );
 
@@ -488,7 +503,7 @@ function getCellStyleClass({
     isNumeric && "tabular-nums",
     justify === "center" && "text-center",
     justify === "right" && "text-right",
-    wrapped && `${COLUMN_WRAPPING_STYLES} break-words`,
+    wrapped && `${COLUMN_WRAPPING_STYLES} wrap-break-word`,
   );
 }
 
@@ -636,7 +651,7 @@ export function renderCellValue<TData, TValue>({
         selectCell={selectCell}
         rawStringValue={stringValue}
         edges={{ leading, trailing }}
-        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm w-96"
+        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap wrap-break-word text-sm w-96"
         buttonText="X"
         wrapped={isWrapped}
       >

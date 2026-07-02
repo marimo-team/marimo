@@ -10,7 +10,11 @@ import pytest
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.ibis import IbisEngine, IbisToMarimoConversionError
-from marimo._sql.engines.types import EngineCatalog, QueryEngine
+from marimo._sql.engines.types import (
+    EngineCatalog,
+    QueryEngine,
+    default_inference_config,
+)
 from marimo._sql.sql import sql
 from marimo._types.ids import VariableName
 
@@ -507,6 +511,16 @@ def test_ibis_engine_get_schemas(ibis_backend: SQLBackend) -> None:
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
+def test_ibis_engine_uses_default_inference_config(
+    ibis_backend: SQLBackend,
+) -> None:
+    """Ibis shares the default discovery config (see #9775)."""
+    engine = IbisEngine(ibis_backend, engine_name=VariableName("my_ibis"))
+    assert engine.inference_config == default_inference_config()
+    assert engine.inference_config.auto_discover_schemas == "auto"
+
+
+@pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
 def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     """Test IbisEngine get_databases method."""
     var_name = VariableName("my_ibis")
@@ -566,8 +580,8 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
         name="memory",
         dialect="duckdb",
         schemas=[
-            Schema(name="main", tables=[]),
-            Schema(name="my_schema", tables=[]),
+            Schema(name="main", tables=[], tables_resolved=False),
+            Schema(name="my_schema", tables=[], tables_resolved=False),
         ],
         engine=var_name,
     )
@@ -586,6 +600,7 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
         name="memory",
         dialect="duckdb",
         schemas=[],
+        schemas_resolved=False,
         engine=var_name,
     )
 
@@ -603,6 +618,7 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
         name="memory",
         dialect="duckdb",
         schemas=[],
+        schemas_resolved=False,
         engine=var_name,
     )
 
@@ -663,6 +679,7 @@ def test_ibis_engine_get_databases_auto(ibis_backend: SQLBackend) -> None:
             name="memory",
             dialect="duckdb",
             schemas=[],
+            schemas_resolved=False,
             engine=var_name,
         )
 
@@ -802,6 +819,87 @@ def test_ibis_get_databases_multiple_catalogs(
     )
     table_names = {table.name for table in tables_in_test_catalog}
     assert "test_table" in table_names
+
+
+@pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+def test_ibis_get_databases_surfaces_empty_schemas(
+    empty_ibis_backend: SQLBackend,
+) -> None:
+    """Empty schemas are returned and marked as resolved.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/6807.
+    The frontend uses `tables_resolved` to distinguish a truly empty schema
+    from one whose tables haven't been fetched yet.
+    """
+    import ibis
+
+    engine = IbisEngine(empty_ibis_backend)
+
+    empty_ibis_backend.create_table(
+        "my_table", obj=ibis.memtable({"id": [1, 2]})
+    )
+    empty_ibis_backend.create_database("empty_schema")
+
+    databases = engine.get_databases(
+        include_schemas=True,
+        include_tables=True,
+        include_table_details=False,
+    )
+
+    memory_db = next(db for db in databases if db.name == "memory")
+    assert memory_db.schemas_resolved is True
+
+    empty_schema = next(
+        schema for schema in memory_db.schemas if schema.name == "empty_schema"
+    )
+    assert empty_schema.tables == []
+    assert empty_schema.tables_resolved is True
+
+
+@pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+def test_ibis_get_databases_marks_deferred_tables(
+    empty_ibis_backend: SQLBackend,
+) -> None:
+    """When tables are not eagerly fetched, schemas report tables_resolved=False.
+
+    The frontend relies on this to keep deferred schemas visible so the
+    user can expand them to trigger a lazy table fetch.
+    """
+    engine = IbisEngine(empty_ibis_backend)
+
+    databases = engine.get_databases(
+        include_schemas=True,
+        include_tables=False,
+        include_table_details=False,
+    )
+
+    memory_db = next(db for db in databases if db.name == "memory")
+    assert memory_db.schemas_resolved is True
+    assert all(
+        schema.tables == [] and schema.tables_resolved is False
+        for schema in memory_db.schemas
+    )
+
+
+@pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+def test_ibis_get_databases_marks_deferred_schemas(
+    empty_ibis_backend: SQLBackend,
+) -> None:
+    """When schemas are not eagerly fetched, databases report schemas_resolved=False."""
+    engine = IbisEngine(empty_ibis_backend)
+
+    databases = engine.get_databases(
+        include_schemas=False,
+        include_tables=False,
+        include_table_details=False,
+    )
+
+    assert all(
+        db.schemas == [] and db.schemas_resolved is False for db in databases
+    )
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")

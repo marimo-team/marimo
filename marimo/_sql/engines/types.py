@@ -14,6 +14,7 @@ from marimo._sql.parse import (
 )
 from marimo._sql.utils import (
     get_configured_sql_output_format,
+    is_cheap_dialect,
     is_query_empty,
     strip_explain_from_error_message,
     wrap_query_with_explain,
@@ -28,6 +29,19 @@ class InferenceConfig(ABC):
     auto_discover_schemas: bool | Literal["auto"]
     auto_discover_tables: bool | Literal["auto"]
     auto_discover_columns: bool | Literal["auto"]
+
+
+def default_inference_config() -> InferenceConfig:
+    """Default discovery config shared by general-purpose SQL engines.
+
+    Expensive backends can have a large number of schemas and tables, so we
+    gate discovery behind the `"auto"` heuristic.
+    """
+    return InferenceConfig(
+        auto_discover_schemas="auto",
+        auto_discover_tables="auto",
+        auto_discover_columns=False,
+    )
 
 
 def _validate_sql_output_format(sql_output: SqlOutputType) -> SqlOutputType:
@@ -106,20 +120,61 @@ class EngineCatalog(BaseEngine[CONN], ABC):
         database: str | None,
         include_tables: bool,
         include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[Schema]:
-        """Return the schemas for a database in the engine."""
+        """Return schemas within a database.
+
+        Empty `schema_path` lists the database's top-level schemas; a non-empty
+        path lists the child schemas at that path. Only nested-namespace engines
+        (e.g. Iceberg) honour a non-empty path; flat engines return `[]` for one.
+        """
 
     @abstractmethod
     def get_tables_in_schema(
-        self, *, schema: str, database: str, include_table_details: bool
+        self,
+        *,
+        schema: str,
+        database: str,
+        include_table_details: bool,
+        schema_path: list[str] | None = None,
     ) -> list[DataTable]:
-        """Return all tables in a schema."""
+        """Return all tables in a schema.
+
+        Nested-namespace engines locate the schema via `schema_path` (relative
+        to `database`); flat engines use `schema` and ignore it.
+        """
 
     @abstractmethod
     def get_table_details(
-        self, *, table_name: str, schema_name: str, database_name: str
+        self,
+        *,
+        table_name: str,
+        schema_name: str,
+        database_name: str,
+        schema_path: list[str] | None = None,
     ) -> DataTable | None:
-        """Get a single table from the engine."""
+        """Get a single table from the engine.
+
+        Nested-namespace engines locate the table via `schema_path` (relative to
+        `database_name`); flat engines ignore it.
+        """
+
+    def _resolve_should_auto_discover(
+        self, value: bool | Literal["auto"]
+    ) -> bool:
+        """Resolve a discovery flag, deferring `"auto"` to engine policy."""
+        if value == "auto":
+            return self._is_cheap_discovery()
+        return value
+
+    def _is_cheap_discovery(self) -> bool:
+        """Whether discovery is cheap enough to run when a flag is `"auto"`.
+
+        Defaults to a dialect-based heuristic; engines with different cost
+        profiles (e.g. always-cheap local catalogs, or expensive remote
+        warehouses) should override this.
+        """
+        return is_cheap_dialect(self.dialect)
 
 
 class QueryEngine(BaseEngine[CONN], ABC):

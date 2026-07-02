@@ -13,19 +13,31 @@ from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
+from marimo._ast.load import load_notebook_ir
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
+from marimo._schemas.islands import (
+    ISLANDS_JSON_SCHEMA_VERSION,
+    ISLANDS_JSON_SCRIPT_TYPE,
+    MarimoIslandCellPayload,
+    MarimoIslandPayload,
+)
+from marimo._schemas.serialization import NotebookSerialization
+from marimo._server.templates.templates import json_script
 from marimo._session.notebook import AppFileManager, load_notebook
 from marimo._types.ids import CellId_t
+from marimo._utils.marimo_path import MarimoPath
 from marimo._version import __version__
 
 if sys.platform == "win32":  # handling for windows
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 if TYPE_CHECKING:
+    from marimo._ast.models import CellData
     from marimo._session.state.session_view import SessionView
 
 LOGGER = _loggers.marimo_logger()
+IN_MEMORY_FILENAME = "<marimo>.py"
 
 
 class MarimoIslandStub:
@@ -35,7 +47,6 @@ class MarimoIslandStub:
         display_output: Whether to display output.
         is_reactive: Whether it is reactive.
         cell_id: Cell identifier.
-        app_id: App identifier.
         app_id: App identifier.
         code: Code.
     """
@@ -96,50 +107,49 @@ class MarimoIslandStub:
 
         - str: The HTML code.
         """
-        from marimo._output.formatting import as_html, mime_to_html
+        from marimo._output.formatting import as_html
         from marimo._plugins.ui import code_editor
 
-        is_reactive = (
-            is_reactive if is_reactive is not None else self._is_reactive
-        )
-        display_code = (
-            display_code if display_code is not None else self._display_code
-        )
-        display_output = (
-            display_output
-            if display_output is not None
-            else self._display_output
+        (
+            resolved_display_code,
+            resolved_display_output,
+            resolved_is_reactive,
+        ) = self._resolve_render_options(
+            display_code=display_code,
+            display_output=display_output,
+            is_reactive=is_reactive,
         )
 
-        if not (display_code or display_output or is_reactive):
+        if not (
+            resolved_display_code
+            or resolved_display_output
+            or resolved_is_reactive
+        ):
             raise ValueError("You must include either code or output")
 
-        output = (
-            mime_to_html(self.output.mimetype, self.output.data)
-            if self.output is not None
-            else None
-        )
+        output_html = self._output_html()
 
         # Specifying display_code=False will hide the code block, but still
         # make it present for reactivity, unless reactivity is disabled.
-        if display_code:
+        if resolved_display_code:
             # TODO: Allow for non-disabled code editors.
             code_block = as_html(
                 code_editor(self.code.strip(), disabled=False)
             ).text
         else:
+            encoded_code = (
+                uri_encode_component(self.code) if resolved_is_reactive else ""
+            )
             code_block = (
-                "<marimo-cell-code hidden>"
-                f"{uri_encode_component(self.code) if is_reactive else ''}"
-                "</marimo-cell-code>"
+                f"<marimo-cell-code hidden>{encoded_code}</marimo-cell-code>"
             )
 
         if as_raw:
             # If as_raw is True, output as raw values as possible.
             # Used primarily for cases with no js (like pdfs)
             released = (
-                output.text.encode().decode("unicode_escape")
-                if output and display_output
+                output_html.encode().decode("unicode_escape")
+                if output_html and resolved_display_output
                 else ""
             )
             return dedent(
@@ -157,16 +167,71 @@ class MarimoIslandStub:
         <marimo-island
             data-app-id="{self._app_id}"
             data-cell-id="{self._cell_id}"
-            data-reactive="{json.dumps(is_reactive)}"
+            data-reactive="{json.dumps(resolved_is_reactive)}"
         >
             <marimo-cell-output>
-            {output.text if output and display_output else ""}
+            {output_html if output_html and resolved_display_output else ""}
             </marimo-cell-output>
             {code_block}
         </marimo-island>
         """
             )
         ).strip()
+
+    def to_payload(
+        self,
+        display_code: bool | None = None,
+        display_output: bool | None = None,
+        is_reactive: bool | None = None,
+    ) -> MarimoIslandCellPayload:
+        """Return this cell's JSON payload for the islands runtime.
+
+        Uses the configured render defaults unless options are provided.
+        """
+        (
+            display_code,
+            display_output,
+            is_reactive,
+        ) = self._resolve_render_options(
+            display_code=display_code,
+            display_output=display_output,
+            is_reactive=is_reactive,
+        )
+        output = self.output
+        output_html = self._output_html()
+        return {
+            "cellId": str(self._cell_id),
+            "code": self.code if is_reactive or display_code else "",
+            "outputHtml": output_html if display_output else "",
+            "outputMimetype": (
+                output.mimetype if output is not None else "text/plain"
+            ),
+            "reactive": is_reactive,
+            "displayCode": display_code,
+            "displayOutput": display_output,
+        }
+
+    def _resolve_render_options(
+        self,
+        *,
+        display_code: bool | None = None,
+        display_output: bool | None = None,
+        is_reactive: bool | None = None,
+    ) -> tuple[bool, bool, bool]:
+        return (
+            display_code if display_code is not None else self._display_code,
+            display_output
+            if display_output is not None
+            else self._display_output,
+            is_reactive if is_reactive is not None else self._is_reactive,
+        )
+
+    def _output_html(self) -> str:
+        from marimo._output.formatting import mime_to_html
+
+        if self.output is None:
+            return ""
+        return mime_to_html(self.output.mimetype, self.output.data).text
 
 
 class MarimoIslandGenerator:
@@ -255,6 +320,11 @@ class MarimoIslandGenerator:
         # resolve to the notebook rather than to the host process.
         self._source_filename: str | None = None
 
+    @property
+    def stubs(self) -> tuple[MarimoIslandStub, ...]:
+        """Return a snapshot of the generated per-cell island renderers."""
+        return tuple(self._stubs)
+
     @staticmethod
     def from_file(
         filename: str,
@@ -287,6 +357,49 @@ class MarimoIslandGenerator:
 
         generator._stubs = stubs
         generator._config = file_manager.app.config
+
+        return generator
+
+    @staticmethod
+    def _from_ir(
+        notebook: NotebookSerialization,
+        *,
+        app_id: str = "main",
+        filepath: str | None = None,
+        display_code: bool = False,
+    ) -> MarimoIslandGenerator:
+        """Create a generator from serialized marimo notebook data.
+
+        Args:
+            notebook: Serialized notebook IR.
+            app_id: App identifier written to rendered island DOM.
+            filepath: Source path used for `__file__` and `mo.notebook_dir()`.
+            display_code: Whether generated stubs render code by default.
+        """
+        ir_filepath = filepath if filepath is not None else notebook.filename
+        source_filename = _source_filename(ir_filepath)
+        app = load_notebook_ir(
+            notebook,
+            filepath=_load_filepath(source_filename or ir_filepath),
+        )
+
+        generator = MarimoIslandGenerator(app_id=app_id)
+        generator._source_filename = source_filename
+        internal_app = InternalApp(app)
+        generator._app = internal_app
+        generator._config = internal_app.config
+        cells = list(generator._app.cell_manager.cell_data())
+        disabled_cell_ids = _disabled_cell_ids(cells)
+        generator._stubs = [
+            MarimoIslandStub(
+                cell_id=data.cell_id,
+                app_id=generator._app_id,
+                code=data.code,
+                display_code=display_code,
+                is_reactive=data.cell_id not in disabled_cell_ids,
+            )
+            for data in cells
+        ]
 
         return generator
 
@@ -494,6 +607,7 @@ class MarimoIslandGenerator:
         self,
         *,
         include_init_island: bool = True,
+        include_payload: bool = False,
         max_width: str | None = None,
         margin: str | None = None,
         style: str | None = None,
@@ -504,6 +618,7 @@ class MarimoIslandGenerator:
 
         *Args:*
         - include_init_island (bool): If True, adds initialization loader.
+        - include_payload (bool): If True, adds a JSON payload for hydration.
         - max_width (str): CSS style max_width property.
         - margin (str): CSS style margin property.
         - style (str): CSS style. Overrides max_width and margin.
@@ -516,6 +631,8 @@ class MarimoIslandGenerator:
         if include_init_island:
             init_island = self.render_init_island()
             rendered_stubs = [init_island] + rendered_stubs
+        if include_payload:
+            rendered_stubs.append(self.render_payload_script())
 
         body = "\n".join(rendered_stubs)
 
@@ -547,6 +664,7 @@ class MarimoIslandGenerator:
         version_override: str = __version__,
         _development_url: str | bool = False,
         include_init_island: bool = True,
+        include_payload: bool = False,
         max_width: str | None = None,
         margin: str | None = None,
         style: str | None = None,
@@ -559,6 +677,7 @@ class MarimoIslandGenerator:
         - version_override (str): Marimo version to use for loaded js/css.
         - _development_url (str): If True, uses local marimo islands js.
         - include_init_island (bool): If True, adds initialization loader.
+        - include_payload (bool): If True, adds a JSON payload for hydration.
         - max_width (str): CSS style max_width property.
         - margin (str): CSS style margin property.
         - style (str): CSS style. Overrides max_width and margin.
@@ -569,6 +688,7 @@ class MarimoIslandGenerator:
         )
         body = self.render_body(
             include_init_island=include_init_island,
+            include_payload=include_payload,
             max_width=max_width,
             margin=margin,
             style=style,
@@ -594,6 +714,52 @@ class MarimoIslandGenerator:
                 """
         ).strip()
 
+    def render_payload(self) -> MarimoIslandPayload:
+        """Return the JSON payload consumed by the islands runtime."""
+        return {
+            "schemaVersion": ISLANDS_JSON_SCHEMA_VERSION,
+            "appId": self._app_id,
+            "cells": [stub.to_payload() for stub in self._stubs],
+        }
+
+    def render_payload_script(self) -> str:
+        """Render the island app payload in a JSON script tag."""
+        payload = json_script(self.render_payload())
+        return f'<script type="{ISLANDS_JSON_SCRIPT_TYPE}">{payload}</script>'
+
 
 def remove_empty_lines(text: str) -> str:
     return "\n".join([line for line in text.split("\n") if line.strip() != ""])
+
+
+def _source_filename(filename: str | None) -> str | None:
+    if filename is None or filename == IN_MEMORY_FILENAME:
+        return None
+    return os.path.abspath(filename)
+
+
+def _load_filepath(filename: str | None) -> str:
+    if filename and MarimoPath.is_valid_path(filename):
+        return filename
+    return IN_MEMORY_FILENAME
+
+
+def _disabled_cell_ids(cell_data: list[CellData]) -> set[CellId_t]:
+    from marimo._runtime.dataflow.graph import DirectedGraph
+
+    disabled_cell_ids = {
+        data.cell_id for data in cell_data if data.cell is None
+    }
+    graph = DirectedGraph()
+
+    for data in cell_data:
+        cell = data.cell
+        if cell is not None:
+            graph.register_cell(data.cell_id, cell._cell)
+
+    for data in cell_data:
+        cell = data.cell
+        if cell is not None and graph.is_disabled(data.cell_id):
+            disabled_cell_ids.add(data.cell_id)
+
+    return disabled_cell_ids

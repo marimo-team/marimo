@@ -25,6 +25,10 @@ class TestStream:
         # cell_id should be None by default
         assert stream.cell_id is None
 
+        copied = stream.copy_for_thread()
+        assert isinstance(copied, NoopStream)
+        assert copied is not stream
+
         # Set cell_id
         stream.cell_id = "test_cell"
         assert stream.cell_id == "test_cell"
