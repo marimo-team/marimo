@@ -108,10 +108,18 @@ export class DefaultWasmController implements WasmController {
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
+    wheelUrls?: string[];
     onMessage: (message: JsonString<NotificationPayload>) => void;
     userConfig: UserConfig;
   }): Promise<SerializedBridge> {
-    const { code, filename, onMessage, queryParameters, userConfig } = opts;
+    const {
+      code,
+      filename,
+      onMessage,
+      queryParameters,
+      userConfig,
+      wheelUrls = [],
+    } = opts;
     // We pass down a messenger object to the code
     // This is used to have synchronous communication between the JS and Python code
     // Previously, we used a queue, but this would not properly flush the queue
@@ -123,6 +131,8 @@ export class DefaultWasmController implements WasmController {
     };
     self.query_params = queryParameters;
     self.user_config = userConfig;
+
+    await this.installIncludedWheels(wheelUrls);
 
     const span = t.startSpan("startSession.runPython");
     const nbFilename = filename || WasmFileSystem.NOTEBOOK_FILENAME;
@@ -167,6 +177,23 @@ export class DefaultWasmController implements WasmController {
     });
 
     return bridge;
+  }
+
+  private async installIncludedWheels(wheelUrls: string[]) {
+    if (wheelUrls.length === 0) {
+      return;
+    }
+
+    const loadSpan = t.startSpan("micropip.install.wheels");
+    try {
+      await this.requirePyodide.runPythonAsync(`
+        import micropip
+        print("Loading included wheels:", ${JSON.stringify(wheelUrls)})
+        await micropip.install(${JSON.stringify(wheelUrls)})
+      `);
+    } finally {
+      loadSpan.end();
+    }
   }
 
   private async loadNotebookDeps(code: string, foundPackages: Set<string>) {

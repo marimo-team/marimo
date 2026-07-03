@@ -7,6 +7,7 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
+from urllib.parse import quote
 
 import click
 
@@ -66,12 +67,48 @@ _sandbox_message = (
     "`uv run --isolated`. Requires `uv`."
 )
 
+_WASM_WHEEL_URL_PREFIX = "public/wheels"
+
 
 @click.group(
     cls=ColoredGroup, help="""Export a notebook to various formats."""
 )
 def export() -> None:
     pass
+
+
+def _included_wheel_urls(wheel_paths: tuple[Path, ...]) -> list[str]:
+    wheel_urls: list[str] = []
+    seen_names: set[str] = set()
+    for wheel_path in wheel_paths:
+        if wheel_path.suffix.lower() != ".whl":
+            raise click.UsageError(
+                f"--include-wheel expects a .whl file: {wheel_path}"
+            )
+        if wheel_path.name in seen_names:
+            raise click.UsageError(
+                "--include-wheel files must have distinct filenames: "
+                f"{wheel_path.name}"
+            )
+        seen_names.add(wheel_path.name)
+        wheel_urls.append(f"{_WASM_WHEEL_URL_PREFIX}/{quote(wheel_path.name)}")
+    return wheel_urls
+
+
+def _copy_included_wheels(
+    out_dir: Path, wheel_paths: tuple[Path, ...]
+) -> None:
+    if not wheel_paths:
+        return
+
+    import shutil
+
+    wheel_dir = out_dir / _WASM_WHEEL_URL_PREFIX
+    wheel_dir.mkdir(parents=True, exist_ok=True)
+    for wheel_path in wheel_paths:
+        target = wheel_dir / wheel_path.name
+        if wheel_path.resolve() != target.resolve():
+            shutil.copyfile(wheel_path, target)
 
 
 class _PDFExportCLIReporter:
@@ -891,6 +928,21 @@ and cannot be opened directly from the file system (e.g. file://).
     ),
 )
 @click.option(
+    "--include-wheel",
+    "include_wheels",
+    type=click.Path(
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        path_type=Path,
+    ),
+    multiple=True,
+    help=(
+        "Include a local Python wheel in the WASM export. "
+        "Can be passed multiple times."
+    ),
+)
+@click.option(
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
@@ -926,6 +978,7 @@ def html_wasm(
     watch: bool,
     show_code: bool,
     include_cloudflare: bool,
+    include_wheels: tuple[Path, ...],
     sandbox: bool | None,
     force: bool,
     execute: bool,
@@ -982,6 +1035,7 @@ def html_wasm(
         filename = output.name
 
     marimo_file = MarimoPath(name)
+    wasm_wheel_urls = _included_wheel_urls(include_wheels)
 
     if execute:
         cli_args = parse_args(args)
@@ -1005,6 +1059,7 @@ def html_wasm(
                     cli_args=cli_args,
                     argv=list(args),
                     cache_export_dir=out_dir,
+                    wasm_wheel_urls=wasm_wheel_urls,
                 )
             )
 
@@ -1012,7 +1067,12 @@ def html_wasm(
     else:
 
         def export_callback(file_path: MarimoPath) -> ExportResult:
-            return export_as_wasm(file_path, mode, show_code=show_code)
+            return export_as_wasm(
+                file_path,
+                mode,
+                show_code=show_code,
+                wasm_wheel_urls=wasm_wheel_urls,
+            )
 
     # Export assets first
     Exporter().export_assets(out_dir)
@@ -1032,6 +1092,7 @@ def html_wasm(
             f"The public folder next to your notebook was copied to "
             f"{green(str(out_dir))}."
         )
+    _copy_included_wheels(out_dir, include_wheels)
 
     echo(
         "To run the exported notebook, use:\n"

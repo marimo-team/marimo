@@ -165,6 +165,7 @@ def export_as_wasm(
     mode: Literal["edit", "run"],
     show_code: bool,
     asset_url: str | None = None,
+    wasm_wheel_urls: list[str] | None = None,
 ) -> ExportResult:
     _app = load_app(path.absolute_name)
     if _app is None:
@@ -190,6 +191,7 @@ def export_as_wasm(
         asset_url=asset_url,
         show_code=show_code,
         sharing_config=resolved.get("sharing"),
+        wasm_wheel_urls=wasm_wheel_urls,
     )
     return ExportResult(
         contents=result[0],
@@ -444,6 +446,7 @@ async def run_app_then_export_as_wasm(
     *,
     asset_url: str | None = None,
     cache_export_dir: Path | None = None,
+    wasm_wheel_urls: list[str] | None = None,
 ) -> ExportResult:
     """Execute notebook and export as WASM HTML with embedded session.
 
@@ -511,6 +514,7 @@ async def run_app_then_export_as_wasm(
         session_snapshot=session_snapshot,
         notebook_snapshot=notebook_snapshot,
         sharing_config=resolved.get("sharing"),
+        wasm_wheel_urls=wasm_wheel_urls,
     )
     return ExportResult(
         contents=html,

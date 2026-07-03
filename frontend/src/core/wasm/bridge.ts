@@ -38,7 +38,7 @@ import type { IConnectionTransport } from "../websocket/transports/transport";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC } from "./rpc";
 import { createShareableLink } from "./share";
-import { wasmInitStateAtom } from "./state";
+import { wasmInitStateAtom, wasmWheelUrlsAtom } from "./state";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
 import type { SaveWorkerSchema } from "./worker/save-worker";
@@ -160,6 +160,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
     const fallbackCode = await fallbackFileStore.readFile();
     const filename = store.get(filenameAtom) ?? PyodideRouter.getFilename();
     const userConfig = store.get(userConfigAtom);
+    const wheelUrls = store
+      .get(wasmWheelUrlsAtom)
+      .map((url) => new URL(url, document.baseURI).toString());
 
     const queryParameters: Record<string, string | string[]> = {};
     const searchParams = new URLSearchParams(window.location.search);
@@ -172,6 +175,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       queryParameters: queryParameters,
       code: code || fallbackCode || "",
       filename,
+      wheelUrls,
       userConfig: {
         ...userConfig,
         runtime: {
