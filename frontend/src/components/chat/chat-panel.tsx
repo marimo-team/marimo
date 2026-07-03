@@ -45,6 +45,7 @@ import {
   type Chat,
   type ChatId,
   chatStateAtom,
+  pendingAiPromptAtom,
 } from "@/core/ai/state";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import {
@@ -94,6 +95,7 @@ import {
   useFileState,
 } from "./chat-utils";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
+import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 
 // Default mode for the AI
 const DEFAULT_MODE = "manual";
@@ -407,6 +409,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
       <div className="relative shrink-0 min-h-[80px] flex flex-col border-t">
         <div className={cn("px-2 py-3 flex-1", inputClassName)}>
           <PromptInput
+            className="max-h-[400px]"
             inputRef={inputRef}
             value={input}
             onChange={setInput}
@@ -481,6 +484,7 @@ const ChatPanel = () => {
 const ChatPanelBody = () => {
   const setChatState = useSetAtom(chatStateAtom);
   const [activeChat, setActiveChat] = useAtom(activeChatAtom);
+  const [pendingPrompt, setPendingPrompt] = useAtom(pendingAiPromptAtom);
   const [input, setInput] = useState("");
   const [newThreadInput, setNewThreadInput] = useState("");
   const { files, addFiles, clearFiles, removeFile } = useFileState();
@@ -600,10 +604,7 @@ const ChatPanelBody = () => {
     requestAnimationFrame(scrollToBottom);
   }, [activeChatId]);
 
-  const createNewThread = async (
-    initialMessage: string,
-    initialAttachments?: File[],
-  ) => {
+  const startNewChatState = useEvent((initialMessage: string) => {
     const now = Date.now();
     const newChat: Chat = {
       id: chatId as ChatId,
@@ -613,41 +614,41 @@ const ChatPanelBody = () => {
       updatedAt: now,
     };
 
-    // Create new chat and set as active
     setChatState((prev) => {
       const newChats = new Map(prev.chats);
       newChats.set(newChat.id, newChat);
-      const newState = {
+      return {
         ...prev,
         chats: newChats,
         activeChatId: newChat.id,
       };
-      return newState;
     });
+  });
 
-    const fileParts =
-      initialAttachments && initialAttachments.length > 0
-        ? await convertToFileUIPart(initialAttachments)
-        : undefined;
-    const { contextPart, attachments } =
-      await resolveChatContext(initialMessage);
+  const createNewThread = useEvent(
+    async (initialMessage: string, initialAttachments?: File[]) => {
+      startNewChatState(initialMessage);
 
-    // Trigger AI conversation with append
-    sendMessage({
-      role: "user",
-      parts: [
-        {
-          type: "text" as const,
-          text: initialMessage,
-        },
-        ...(contextPart ? [contextPart] : []),
-        ...(fileParts ?? []),
-        ...attachments,
-      ],
-    });
-    clearFiles();
-    setInput("");
-  };
+      const fileParts =
+        initialAttachments && initialAttachments.length > 0
+          ? await convertToFileUIPart(initialAttachments)
+          : undefined;
+      const { contextPart, attachments } =
+        await resolveChatContext(initialMessage);
+
+      sendMessage({
+        role: "user",
+        parts: [
+          { type: "text" as const, text: initialMessage },
+          ...(contextPart ? [contextPart] : []),
+          ...(fileParts ?? []),
+          ...attachments,
+        ],
+      });
+      clearFiles();
+      setInput("");
+    },
+  );
 
   const handleNewChat = useEvent(() => {
     setActiveChat(null);
@@ -728,7 +729,45 @@ const ChatPanelBody = () => {
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
 
+  const submitPendingPrompt = useEvent(async (prompt: string) => {
+    if (activeChatId == null) {
+      startNewChatState(prompt);
+      // Starting a chat swaps the new-thread input for the regular input;
+      // carry over any draft the user had typed so it isn't lost.
+      setInput(newThreadInput);
+    }
+    const { contextPart, attachments } = await resolveChatContext(prompt);
+    sendMessage({
+      role: "user",
+      parts: [
+        { type: "text", text: prompt },
+        ...(contextPart ? [contextPart] : []),
+        ...attachments,
+      ],
+    });
+  });
+
   const isNewThread = messages.length === 0;
+
+  // Deliver a prompt queued elsewhere (e.g. error auto-fix) to the chat,
+  // appending to the active thread or starting one if none exists.
+  useEffect(() => {
+    if (!pendingPrompt) {
+      return;
+    }
+    setPendingPrompt(null);
+    const { prompt, submit } = pendingPrompt;
+    if (submit) {
+      void submitPendingPrompt(prompt);
+    } else if (isNewThread) {
+      setNewThreadInput(prompt);
+      focusInputAndMoveToEnd(newThreadInputRef);
+    } else {
+      setInput(prompt);
+      focusInputAndMoveToEnd(newMessageInputRef);
+    }
+  }, [pendingPrompt, setPendingPrompt, isNewThread, submitPendingPrompt]);
+
   const chatInput = isNewThread ? (
     <ChatInput
       key="new-thread-input"

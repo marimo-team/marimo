@@ -698,6 +698,113 @@ mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
     assert set(options_values) == set(expected_keys)
 
 
+def _run_complete(document: str, other_code: str = "") -> dict[str, Any]:
+    """Run the `complete()` entrypoint and return the emitted notification."""
+    current_cell_id = CellId_t("current-cell")
+
+    mock_other_cell = mock.MagicMock()
+    mock_other_cell.code = other_code
+    mock_current_cell = mock.MagicMock()
+    mock_current_cell.code = document
+
+    mock_graph = mock.MagicMock()
+    mock_graph.cells = {
+        "other-cell": mock_other_cell,
+        current_cell_id: mock_current_cell,
+    }
+
+    glbls: dict[str, Any] = {}
+    if other_code:
+        exec(other_code, {}, glbls)
+
+    stream = CaptureStream()
+    complete(
+        request=CodeCompletionCommand(
+            id="request-id", document=document, cell_id=current_cell_id
+        ),
+        graph=mock_graph,
+        glbls=glbls,
+        glbls_lock=threading.RLock(),
+        stream=stream,
+    )
+    assert len(stream.operations) == 1
+    return stream.operations[0]
+
+
+@pytest.mark.parametrize("document", ["1,", "foo(", "foo(1,", "[1, "])
+def test_no_completions_after_comma_or_paren_without_signature(
+    document: str,
+) -> None:
+    """An empty prefix after `,` or `(` must not dump the whole namespace.
+
+    Regression test: previously `,` and `(` were treated as completion trigger
+    characters, so typing e.g. `1,` opened a popup listing every builtin.
+    """
+    content = _run_complete(document)
+    assert content["op"] == CompletionResultNotification.name
+    assert content["options"] == []
+
+
+@pytest.mark.parametrize("document", ["my_func(", "my_func(1,"])
+def test_signature_shown_after_comma_or_paren_in_call(document: str) -> None:
+    """Inside a known call, an empty prefix falls through to signature help."""
+    content = _run_complete(
+        document, other_code="def my_func(a, b): return a + b"
+    )
+    assert content["op"] == CompletionResultNotification.name
+    assert len(content["options"]) == 1
+    option = content["options"][0]
+    assert option["type"] == "tooltip"
+    assert option["name"] == "my_func"
+
+
+@pytest.mark.parametrize("document", ["1 / ", "x = 10 /", "a = b / "])
+def test_no_completions_for_division_operator(document: str) -> None:
+    """`/` triggers path completion inside strings, but as a division operator
+    it must not dump the whole namespace.
+    """
+    content = _run_complete(document)
+    assert content["op"] == CompletionResultNotification.name
+    assert content["options"] == []
+
+
+def test_path_completion_still_works(tmp_path: Any) -> None:
+    """`/` still triggers file-path completion inside a string literal."""
+    (tmp_path / "marimo_data.csv").write_text("x\n")
+    content = _run_complete(f'open("{tmp_path}/')
+    assert content["options"]
+    assert all(option["type"] == "path" for option in content["options"])
+    assert any(
+        "marimo_data.csv" in option["name"] for option in content["options"]
+    )
+
+
+def test_parameter_completion_omits_full_function_docstring() -> None:
+    """Completing a parameter must not dump the whole function docstring.
+
+    Regression test: `param` completions used to be swapped to the enclosing
+    signature, so every parameter's info box showed the entire function
+    docstring. Now we surface only the parameter's own description (empty when
+    it can't be extracted, e.g. without `docstring_to_markdown`), never the
+    function summary or a sibling parameter's text.
+    """
+    other_code = (
+        "def my_func(alpha, beta):\n"
+        '    """SUMMARY_MARKER.\n\n'
+        "    Args:\n"
+        "        alpha: ALPHA_MARKER.\n"
+        "        beta: BETA_MARKER.\n"
+        '    """\n'
+        "    return alpha\n"
+    )
+    content = _run_complete("my_func(al", other_code=other_code)
+    options = {o["name"]: o for o in content["options"]}
+    assert "alpha=" in options
+    info = options["alpha="]["completion_info"]
+    assert "SUMMARY_MARKER" not in info
+    assert "BETA_MARKER" not in info
+
+
 @pytest.mark.parametrize(
     ("trigger_code", "expected_key_path"),
     # NOTE trigger code produce by marimo must end with `['` or `["`
@@ -763,11 +870,9 @@ class _FakeCompletion:
 
 def test_get_completion_option_skips_type_when_compute_type_false() -> None:
     completion = _FakeCompletion("foo", raise_on_type=True)
-    script = mock.MagicMock()
 
     option = _get_completion_option(
         completion,
-        script,
         compute_completion_info=False,
         compute_type=False,
     )
@@ -780,11 +885,9 @@ def test_get_completion_option_skips_type_when_compute_type_false() -> None:
 
 def test_get_completion_option_computes_type_by_default() -> None:
     completion = _FakeCompletion("foo", completion_type="class")
-    script = mock.MagicMock()
 
     option = _get_completion_option(
         completion,
-        script,
         compute_completion_info=False,
     )
 
@@ -798,11 +901,9 @@ def test_get_completion_option_skips_all_inference_when_type_skipped() -> None:
     further jedi inference (docstring, signature) would defeat the purpose.
     """
     completion = _FakeCompletion("foo", raise_on_type=True)
-    script = mock.MagicMock()
 
     option = _get_completion_option(
         completion,
-        script,
         compute_completion_info=True,
         compute_type=False,
     )
@@ -812,15 +913,13 @@ def test_get_completion_option_skips_all_inference_when_type_skipped() -> None:
     assert option.completion_info == ""
     assert completion.type_access_count == 0
     assert not completion.docstring_called
-    script.get_signatures.assert_not_called()
 
 
 def test_get_completion_options_skips_docstrings_past_limit() -> None:
     completions = [_FakeCompletion(f"attr_{i}") for i in range(10)]
-    script = mock.MagicMock()
 
     options = _get_completion_options(
-        completions, script, prefix="", limit=5, timeout=5.0
+        completions, prefix="", limit=5, timeout=5.0
     )
 
     assert len(options) == 10
@@ -831,11 +930,8 @@ def test_get_completion_options_skips_docstrings_past_limit() -> None:
 
 def test_get_completion_options_keeps_docstrings_under_limit() -> None:
     completions = [_FakeCompletion(f"attr_{i}") for i in range(3)]
-    script = mock.MagicMock()
 
-    _get_completion_options(
-        completions, script, prefix="", limit=10, timeout=5.0
-    )
+    _get_completion_options(completions, prefix="", limit=10, timeout=5.0)
 
     # All three completions should have had docstring() invoked
     assert all(c.docstring_called for c in completions)
@@ -847,7 +943,6 @@ def test_get_completion_options_bails_out_when_timeout_elapsed() -> None:
     completions from taking 10+ seconds on heavy libraries.
     """
     completions = [_FakeCompletion(f"attr_{i}") for i in range(4)]
-    script = mock.MagicMock()
 
     # Burn time on the first call so the rest see an expired budget.
     original_monotonic = time.monotonic
@@ -858,7 +953,7 @@ def test_get_completion_options_bails_out_when_timeout_elapsed() -> None:
         side_effect=lambda: next(times, original_monotonic()),
     ):
         options = _get_completion_options(
-            completions, script, prefix="", limit=100, timeout=1.0
+            completions, prefix="", limit=100, timeout=1.0
         )
 
     # First one completes normally, the rest should have no info or type
@@ -876,10 +971,9 @@ def test_get_completion_options_respects_prefix_filter() -> None:
         _FakeCompletion("_private"),
         _FakeCompletion("__dunder__"),
     ]
-    script = mock.MagicMock()
 
     options = _get_completion_options(
-        completions, script, prefix="", limit=100, timeout=5.0
+        completions, prefix="", limit=100, timeout=5.0
     )
 
     assert [opt.name for opt in options] == ["public"]
@@ -988,9 +1082,7 @@ def test_infer_skipped_for_statements_past_limit() -> None:
         for i in range(10)
     ]
 
-    _get_completion_options(
-        completions, mock.MagicMock(), prefix="", limit=5, timeout=5.0
-    )
+    _get_completion_options(completions, prefix="", limit=5, timeout=5.0)
 
     assert all(c.infer_count == 0 for c in completions)
 
@@ -1007,7 +1099,6 @@ def test_infer_only_runs_for_statements_under_budget() -> None:
 
     _get_completion_options(
         statements + functions,
-        mock.MagicMock(),
         prefix="",
         limit=100,
         timeout=5.0,
@@ -1031,9 +1122,7 @@ def test_infer_skipped_once_timeout_elapsed() -> None:
         "marimo._runtime.complete.time.monotonic",
         side_effect=lambda: next(times, original_monotonic()),
     ):
-        _get_completion_options(
-            completions, mock.MagicMock(), prefix="", limit=100, timeout=1.0
-        )
+        _get_completion_options(completions, prefix="", limit=100, timeout=1.0)
 
     # First completion is under budget and infers; the rest are skipped.
     assert completions[0].infer_count == 1

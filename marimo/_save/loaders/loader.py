@@ -230,6 +230,13 @@ class BasePersistenceLoader(Loader):
     def cache_hit(self, key: HashKey) -> bool:
         return self.store.hit(str(self.build_path(key)))
 
+    def mark_stale(self, manifest_key: str) -> None:
+        """Force a manifest to miss for the rest of the session.
+
+        No-op by default; loaders with a session-scoped store override this to
+        record the key as stale.
+        """
+
     def save_cache(self, cache: Cache) -> bool:
         blob = self.to_blob(cache)
         if blob is None:

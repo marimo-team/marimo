@@ -688,13 +688,13 @@ export function useNotebookActions() {
     {
       divider: true,
       icon: <Home size={14} strokeWidth={1.5} />,
-      label: "Return home",
+      label: "Open home",
       // If file is in the url, then we ran `marimo edit`
       // without a specific file
       hidden: !location.search.includes("file"),
       handle: () => {
         const withoutSearch = document.baseURI.split("?")[0];
-        window.open(withoutSearch, "_self");
+        window.open(withoutSearch, "_blank", "noopener");
       },
     },
 

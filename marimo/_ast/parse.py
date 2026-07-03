@@ -97,21 +97,16 @@ def unwrap_cell_body(formatted: str) -> str:
         raise ValueError(
             f"Expected a FunctionDef node, got {type(fn).__name__}"
         )
-    if fn.end_lineno is None:
-        raise ValueError("FunctionDef node has no end_lineno")
-    first = fn.body[0]
-    start_lineno = first.lineno - 1
-    # AST statement line numbers point at `def`/`class`, not decorators.
-    # Start at the first decorator to preserve decorated top-level cells.
-    if isinstance(
-        first, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef)
-    ):
-        if first.decorator_list:
-            start_lineno = first.decorator_list[0].lineno - 1
+    # The `def _():` header is a single line, so everything from `fn.lineno`
+    # (the first body line) through the end of the source is the cell body.
+    # Extracting this whole span rather than statement offsets keeps comments
+    # and decorators, which have no AST nodes of their own and would otherwise
+    # fall outside the first/last statement's line and column offsets.
+    start_lineno = fn.lineno
 
     extractor = Extractor(formatted)
     raw = extractor.extract_from_offsets(
-        start_lineno, 0, fn.end_lineno - 1, fn.end_col_offset
+        start_lineno, 0, len(extractor.lines) - 1, None
     )
     return fixed_dedent(raw).strip()
 
