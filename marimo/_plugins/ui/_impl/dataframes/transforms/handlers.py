@@ -567,6 +567,12 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 .select(expanded_columns)
             )
 
+        raise nw.exceptions.InvalidOperationError(
+            "Expand dict requires a struct-like column with named fields on "
+            f"this backend; got column '{transform.column_id}' with dtype "
+            f"{dtype!r}."
+        )
+
     @staticmethod
     def handle_unique(df: DataFrame, transform: UniqueTransform) -> DataFrame:
         keep = transform.keep
