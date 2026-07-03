@@ -10,7 +10,6 @@ import narwhals.stable.v2 as nw
 from narwhals.stable.v2 import col
 from narwhals.typing import IntoLazyFrame
 
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
     python_print_ibis,
     python_print_pandas,
@@ -504,29 +503,69 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         # Keep pandas handling fully pandas-native so mixed/object columns in
         # unrelated fields do not trigger Arrow coercion errors.
         if nw.dependencies.is_pandas_dataframe(native_df):
+            import math
+
             import pandas as pd
 
             result_df = native_df.copy()
-            # max_level=0 was used so that pandas doesn't recursively unnest dicts
-            # causing mismatch between pandas vs. polars df
-            # using the map function to replace the None values
-            # Replace top-level null rows so pandas 2.x can normalise them, needed for
-            # older versions of pandas running on py310 otherwise CI will fail
+
+            def normalise_empty_dict(value: Any) -> Any:
+                if value is None:
+                    return {}
+                if isinstance(value, float) and math.isnan(value):
+                    return {}
+                return value
+
+            # Keep expansion shallow and replace top-level null/nan entries so
+            # pandas and other backends agree on expand-dict behaviour.
             expanded = pd.json_normalize(
-                result_df.pop(transform.column_id).map(
-                    lambda value: {} if value is None else value
-                ),  # type: ignore[arg-type]
+                result_df.pop(transform.column_id).map(normalise_empty_dict),
+                # type: ignore[arg-type]
                 max_level=0,
             )
+            duplicate_columns = sorted(
+                set(result_df.columns) & set(expanded.columns)
+            )
+            if duplicate_columns:
+                raise nw.exceptions.InvalidOperationError(
+                    "Cannot expand dict because it would duplicate existing "
+                    f"columns: {duplicate_columns}"
+                )
             expanded.index = result_df.index
             return undo(nw.from_native(result_df.join(expanded)))
 
-        DependencyManager.polars.require(
-            why="to expand dict/struct columns for non-pandas backends"
-        )
-        polars_df = collected_df.to_polars()
-        unnested = polars_df.unnest(transform.column_id)
-        return undo(nw.from_native(unnested))
+        schema = collected_df.collect_schema()
+        dtype = schema.get(transform.column_id)
+        fields = getattr(dtype, "fields", None)
+        if fields is not None:
+            field_names = [field.name for field in fields]
+            columns = schema.names()
+            column_index = columns.index(transform.column_id)
+            expanded_columns = (
+                columns[:column_index]
+                + field_names
+                + columns[column_index + 1 :]
+            )
+            duplicate_columns = sorted(
+                (set(columns) - {transform.column_id}) & set(field_names)
+            )
+            if duplicate_columns:
+                raise nw.exceptions.InvalidOperationError(
+                    "Cannot expand dict because it would duplicate existing "
+                    f"columns: {duplicate_columns}"
+                )
+            return undo(
+                collected_df.with_columns(
+                    [
+                        nw.col(transform.column_id)
+                        .struct.field(field_name)
+                        .alias(field_name)
+                        for field_name in field_names
+                    ]
+                )
+                .drop(transform.column_id)
+                .select(expanded_columns)
+            )
 
     @staticmethod
     def handle_unique(df: DataFrame, transform: UniqueTransform) -> DataFrame:

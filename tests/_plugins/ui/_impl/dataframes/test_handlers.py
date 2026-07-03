@@ -1831,6 +1831,32 @@ class TestTransformHandler:
             allow_none_equals_nan=True,
         )
 
+    @pytest.mark.xfail(
+        reason=(
+            "Duplicate-column errors from expand-dict are not yet normalised "
+            "across all optional backends."
+        )
+    )
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_test_dataframes(
+            {
+                "A": [{"B": 1}, {"B": 2}],
+                "B": [10, 20],
+            },
+            strict=False,
+        ),
+    )
+    def test_expand_dict_duplicate_columns_raises_xfail(
+        df: DataFrameType,
+    ) -> None:
+        transform = ExpandDictTransform(
+            type=TransformType.EXPAND_DICT, column_id="A"
+        )
+        with pytest.raises(nw.exceptions.InvalidOperationError):
+            apply(df, transform)
+
     @staticmethod
     @pytest.mark.parametrize(
         (
