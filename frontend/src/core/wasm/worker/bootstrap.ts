@@ -10,6 +10,7 @@ import { getMarimoWheel } from "./getMarimoWheel";
 import { t } from "./tracer";
 import type { SerializedBridge, WasmController } from "./types";
 import { shouldLoadDuckDBPackages } from "../utils";
+import { resolveWasmWheelUrls } from "../wheel-urls";
 
 const MAKE_SNAPSHOT = false;
 
@@ -180,7 +181,12 @@ export class DefaultWasmController implements WasmController {
   }
 
   private async installIncludedWheels(wheelUrls: string[]) {
-    if (wheelUrls.length === 0) {
+    const safeWheelUrls = resolveWasmWheelUrls(wheelUrls, {
+      allowedOrigin: self.location.origin,
+      baseUrl: self.location.href,
+    });
+
+    if (safeWheelUrls.length === 0) {
       return;
     }
 
@@ -188,8 +194,8 @@ export class DefaultWasmController implements WasmController {
     try {
       await this.requirePyodide.runPythonAsync(`
         import micropip
-        print("Loading included wheels:", ${JSON.stringify(wheelUrls)})
-        await micropip.install(${JSON.stringify(wheelUrls)})
+        print("Loading included wheels:", ${JSON.stringify(safeWheelUrls)})
+        await micropip.install(${JSON.stringify(safeWheelUrls)})
       `);
     } finally {
       loadSpan.end();

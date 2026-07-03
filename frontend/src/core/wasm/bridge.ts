@@ -41,6 +41,7 @@ import { createShareableLink } from "./share";
 import { wasmInitStateAtom, wasmWheelUrlsAtom } from "./state";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
+import { resolveWasmWheelUrls } from "./wheel-urls";
 import type { SaveWorkerSchema } from "./worker/save-worker";
 import type { WorkerSchema } from "./worker/worker";
 
@@ -113,7 +114,13 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
     // Listeners
     this.rpc.addMessageListener("ready", () => {
-      this.startSession();
+      void this.startSession().catch((error) => {
+        Logger.error("Failed to start WASM session", error);
+        store.set(wasmInitStatusAtom, "error");
+        this.initialized.reject(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      });
     });
     this.rpc.addMessageListener("initialized", () => {
       // Wait until the worker is ready to create the save worker
@@ -160,9 +167,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     const fallbackCode = await fallbackFileStore.readFile();
     const filename = store.get(filenameAtom) ?? PyodideRouter.getFilename();
     const userConfig = store.get(userConfigAtom);
-    const wheelUrls = store
-      .get(wasmWheelUrlsAtom)
-      .map((url) => new URL(url, document.baseURI).toString());
+    const wheelUrls = resolveWasmWheelUrls(store.get(wasmWheelUrlsAtom), {
+      allowedOrigin: window.location.origin,
+      baseUrl: document.baseURI,
+    });
 
     const queryParameters: Record<string, string | string[]> = {};
     const searchParams = new URLSearchParams(window.location.search);

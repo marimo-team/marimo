@@ -68,6 +68,7 @@ import { userConfigAtom } from "@/core/config/config";
 import { store } from "@/core/state/jotai";
 import { initialModeAtom } from "@/core/mode";
 import { filenameAtom } from "@/core/saving/file-state";
+import { Logger } from "@/utils/Logger";
 import { getWasmWorkerName, PyodideBridge } from "../bridge";
 import { wasmWheelUrlsAtom } from "../state";
 
@@ -94,12 +95,15 @@ describe("PyodideBridge.readCode", () => {
     store.set(wasmWheelUrlsAtom, []);
   });
 
-  it("passes included wheel URLs to the worker", async () => {
+  it("passes same-origin included wheel URLs to the worker", async () => {
     mockNotebookReadFile.mockResolvedValue("import demo_pkg");
     store.set(wasmWheelUrlsAtom, [
       "public/wheels/demo_pkg-0.1.0-py3-none-any.whl",
+      "",
+      "http://[::1",
       "https://cdn.example.com/extra_pkg-0.1.0-py3-none-any.whl",
     ]);
+    const warn = vi.spyOn(Logger, "warn").mockImplementation(() => undefined);
 
     rpcListeners.ready();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -113,10 +117,11 @@ describe("PyodideBridge.readCode", () => {
             "public/wheels/demo_pkg-0.1.0-py3-none-any.whl",
             document.baseURI,
           ).toString(),
-          "https://cdn.example.com/extra_pkg-0.1.0-py3-none-any.whl",
         ],
       }),
     );
+    expect(warn).toHaveBeenCalledTimes(3);
+    warn.mockRestore();
   });
 
   it("reads from notebookFileStore in read mode", async () => {
