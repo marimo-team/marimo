@@ -16,6 +16,7 @@ import { marimoVersionAtom, showCodeInRunModeAtom } from "../core/meta/state";
 import { type AppMode, viewStateAtom } from "../core/mode";
 import { codeAtom, filenameAtom } from "../core/saving/file-state";
 import { store } from "../core/state/jotai";
+import { wasmWheelUrlsAtom } from "../core/wasm/state";
 import { mount, visibleForTesting } from "../mount";
 
 vi.mock("../utils/vitals", () => ({
@@ -43,6 +44,7 @@ describe("main", () => {
     store.set(appConfigAtom, parseAppConfig({}));
     store.set(userConfigAtom, defaultUserConfig());
     store.set(configOverridesAtom, {});
+    store.set(wasmWheelUrlsAtom, []);
   });
 
   it.each(["edit", "read", "home", "run"])(
@@ -133,6 +135,7 @@ describe("main", () => {
       configOverrides: { display: { code_editor_font_size: 100 } },
       appConfig: { app_title: "My App" } as AppConfig,
       view: { showAppCode: true },
+      wasmWheelUrls: ["public/wheels/demo_pkg-0.1.0-py3-none-any.whl"],
     };
 
     mount(options, el);
@@ -155,6 +158,9 @@ describe("main", () => {
     expect(store.get(appConfigAtom)).toEqual(
       expect.objectContaining({ app_title: "My App" }),
     );
+    expect(store.get(wasmWheelUrlsAtom)).toEqual([
+      "public/wheels/demo_pkg-0.1.0-py3-none-any.whl",
+    ]);
   });
 
   it("should throw on invalid options", () => {
