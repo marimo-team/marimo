@@ -190,7 +190,7 @@ describe("readonlyDisplay", () => {
     expect(result.code).toBe(code);
   });
 
-  it("treats markdown cells as python (handled via shouldHideCode)", () => {
+  it("leaves non-SQL cells (e.g. markdown) unchanged as python", () => {
     const code = 'mo.md("""## Heading""")';
     const result = readonlyDisplay(code);
     expect(result.language).toBe("python");
