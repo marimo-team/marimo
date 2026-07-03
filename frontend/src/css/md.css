@@ -47,7 +47,7 @@
 .markdown h4,
 .markdown h5,
 .markdown h6 {
-  font-weight: inherit;
+  font-weight: 600;
   font-family: var(--heading-font);
 
   /*

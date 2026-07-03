@@ -18,14 +18,14 @@
 
 /* Title styling */
 .progress-title {
-  font-family: var(--heading-font, "Lora", serif);
+  font-family: var(--heading-font, system-ui, sans-serif);
 
   @apply text-lg font-bold text-foreground/60;
 }
 
 /* Subtitle styling */
 .progress-subtitle {
-  font-family: var(--text-font, "PT Sans", sans-serif);
+  font-family: var(--text-font, system-ui, sans-serif);
 
   @apply text-sm text-muted-foreground font-normal;
 }
@@ -43,7 +43,7 @@
 .progress-row {
   display: flex;
   align-items: baseline;
-  font-family: var(--text-font, "PT Sans", sans-serif);
+  font-family: var(--text-font, system-ui, sans-serif);
 
   @apply gap-3 text-sm text-muted-foreground;
 }
@@ -51,7 +51,7 @@
 /* Meta information row */
 .progress-meta {
   display: flex;
-  font-family: var(--text-font, "PT Sans", sans-serif);
+  font-family: var(--text-font, system-ui, sans-serif);
 
   @apply gap-2 text-muted-foreground text-sm;
 }

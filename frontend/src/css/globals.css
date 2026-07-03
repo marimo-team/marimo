@@ -40,9 +40,36 @@
 
   :root,
   .marimo {
-    --monospace-font: var(--marimo-monospace-font, "Fira Mono", monospace);
-    --text-font: var(--marimo-text-font, "PT Sans", sans-serif);
-    --heading-font: var(--marimo-heading-font, "Lora", serif);
+    --monospace-font: var(
+      --marimo-monospace-font,
+      ui-monospace,
+      "Cascadia Code",
+      Consolas,
+      "SF Mono",
+      Menlo,
+      "Roboto Mono",
+      monospace
+    );
+    --text-font: var(
+      --marimo-text-font,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      Roboto,
+      "Helvetica Neue",
+      Arial,
+      sans-serif
+    );
+    --heading-font: var(
+      --marimo-heading-font,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      Roboto,
+      "Helvetica Neue",
+      Arial,
+      sans-serif
+    );
     --radius: 8px;
     /* stylelint-disable-next-line unit-allowed-list */
     --markdown-max-width: 80ch;

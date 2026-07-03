@@ -1,0 +1,40 @@
+/*
+ * VSCode / Jupyter–style theme for marimo.
+ *
+ * Apply it one of two ways:
+ *   1. Per notebook:   app = marimo.App(css_file="vscode-theme.css")
+ *   2. Project-wide:   pyproject.toml (or marimo.toml)
+ *                        [tool.marimo.display]
+ *                        custom_css = ["vscode-theme.css"]
+ *      (paths are relative to the notebook / config file)
+ */
+
+:root {
+  /* UI and markdown text: the same system font stack VSCode, Jupyter Lab,
+     and Claude use — renders as Segoe UI on Windows. */
+  --marimo-text-font: system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  /* Headings: sans-serif instead of marimo's default serif (Lora). */
+  --marimo-heading-font: system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  /* Code cells and outputs: VSCode's editor fonts —
+     Cascadia Code / Consolas on Windows. */
+  --marimo-monospace-font: ui-monospace, "Cascadia Code", Consolas, "SF Mono",
+    Menlo, "Roboto Mono", monospace;
+
+  /* Match VSCode's default 14px editor font size
+     (also adjustable in marimo's Settings > Display). */
+  --marimo-code-editor-font-size: 14px;
+}
+
+/* Semibold headings, like VSCode / Jupyter / GitHub markdown. */
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  font-weight: 600;
+}
