@@ -101,6 +101,7 @@ describe("PyodideBridge.readCode", () => {
       "public/wheels/demo_pkg-0.1.0-py3-none-any.whl",
       "",
       "http://[::1",
+      "public/wheels/not-a-wheel.txt",
       "https://cdn.example.com/extra_pkg-0.1.0-py3-none-any.whl",
     ]);
     const warn = vi.spyOn(Logger, "warn").mockImplementation(() => undefined);
@@ -110,6 +111,7 @@ describe("PyodideBridge.readCode", () => {
 
     expect(mockStartSession).toHaveBeenCalledWith(
       expect.objectContaining({
+        allowedWheelOrigin: window.location.origin,
         code: "import demo_pkg",
         filename: "notebook.py",
         wheelUrls: [
@@ -120,7 +122,7 @@ describe("PyodideBridge.readCode", () => {
         ],
       }),
     );
-    expect(warn).toHaveBeenCalledTimes(3);
+    expect(warn).toHaveBeenCalledTimes(4);
     warn.mockRestore();
   });
 

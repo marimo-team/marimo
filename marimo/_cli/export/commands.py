@@ -85,12 +85,13 @@ def _included_wheel_urls(wheel_paths: tuple[Path, ...]) -> list[str]:
             raise click.UsageError(
                 f"--include-wheel expects a .whl file: {wheel_path}"
             )
-        if wheel_path.name in seen_names:
+        target_name = wheel_path.name.casefold()
+        if target_name in seen_names:
             raise click.UsageError(
                 "--include-wheel files must have distinct filenames: "
                 f"{wheel_path.name}"
             )
-        seen_names.add(wheel_path.name)
+        seen_names.add(target_name)
         wheel_urls.append(f"{_WASM_WHEEL_URL_PREFIX}/{quote(wheel_path.name)}")
     return wheel_urls
 
@@ -990,6 +991,13 @@ def html_wasm(
             "--execute and --watch cannot be used together."
         )
 
+    # Validate before sandbox handoff. run_in_sandbox can update script
+    # metadata before re-entering this command.
+    wasm_wheel_urls = _included_wheel_urls(include_wheels)
+    included_wheel_deps = [
+        str(wheel_path.resolve()) for wheel_path in include_wheels
+    ]
+
     # When --execute is set, take ownership of sandboxing so we can layer
     # the pyodide-lock constraints on top. Re-entry marker keeps the
     # in-sandbox invocation from looping back here.
@@ -1005,6 +1013,7 @@ def html_wasm(
                     name=name,
                     pyodide_constraints=True,
                     python_version_override=PYODIDE_PYTHON_VERSION,
+                    additional_deps=included_wheel_deps,
                     extra_env={_BOOTSTRAPPED_ENV: "1"},
                 )
             )
@@ -1035,7 +1044,6 @@ def html_wasm(
         filename = output.name
 
     marimo_file = MarimoPath(name)
-    wasm_wheel_urls = _included_wheel_urls(include_wheels)
 
     if execute:
         cli_args = parse_args(args)

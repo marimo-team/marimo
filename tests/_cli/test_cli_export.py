@@ -188,7 +188,7 @@ class TestExportHTML:
         temp_marimo_file: str,
     ) -> None:
         parent = Path(temp_marimo_file).parent
-        first_wheel = parent / "demo_pkg-0.1.0-py3-none-any.whl"
+        first_wheel = parent / "demo_pkg-0.1.0+local-py3-none-any.whl"
         second_wheel = parent / "extra_pkg-0.1.0-py3-none-any.whl"
         first_wheel.write_bytes(b"first wheel")
         second_wheel.write_bytes(b"second wheel")
@@ -211,7 +211,7 @@ class TestExportHTML:
         assert (wheel_dir / second_wheel.name).read_bytes() == b"second wheel"
         html = (out_dir / "index.html").read_text()
         expected_urls = [
-            f"public/wheels/{first_wheel.name}",
+            "public/wheels/demo_pkg-0.1.0%2Blocal-py3-none-any.whl",
             f"public/wheels/{second_wheel.name}",
         ]
         assert (
@@ -220,23 +220,92 @@ class TestExportHTML:
         )
 
     @staticmethod
-    def test_cli_export_html_wasm_include_wheel_requires_wheel(
+    def test_cli_export_html_wasm_include_wheel_requires_distinct_names(
         temp_marimo_file: str,
     ) -> None:
-        text_file = Path(temp_marimo_file).parent / "demo_pkg.txt"
-        text_file.write_text("")
+        parent = Path(temp_marimo_file).parent
+        first_dir = parent / "first"
+        second_dir = parent / "second"
+        first_dir.mkdir()
+        second_dir.mkdir()
+        first_wheel = first_dir / "demo_pkg-0.1.0-py3-none-any.whl"
+        second_wheel = second_dir / "Demo_pkg-0.1.0-py3-none-any.whl"
+        first_wheel.write_bytes(b"first wheel")
+        second_wheel.write_bytes(b"second wheel")
 
         p = _run_export(
             "html-wasm",
             temp_marimo_file,
             "--output",
-            str(Path(temp_marimo_file).parent / "out"),
+            str(parent / "out"),
             "--include-wheel",
-            str(text_file),
+            str(first_wheel),
+            "--include-wheel",
+            str(second_wheel),
         )
 
         _assert_failure(p)
+        assert "--include-wheel files must have distinct filenames" in p.output
+
+    @staticmethod
+    def test_cli_export_html_wasm_include_wheel_adds_execute_sandbox_dep(
+        temp_marimo_file: str,
+    ) -> None:
+        wheel = (
+            Path(temp_marimo_file).parent / "demo_pkg-0.1.0-py3-none-any.whl"
+        )
+        wheel.write_bytes(b"wheel")
+
+        with (
+            mock.patch(
+                "marimo._cli.export.commands.DependencyManager.which",
+                return_value="uv",
+            ),
+            mock.patch(
+                "marimo._cli.export.commands.run_in_sandbox",
+                return_value=0,
+            ) as run_in_sandbox,
+        ):
+            p = _run_export(
+                "html-wasm",
+                temp_marimo_file,
+                "--output",
+                str(Path(temp_marimo_file).parent / "out"),
+                "--execute",
+                "--include-wheel",
+                str(wheel),
+            )
+
+        _assert_success(p)
+        run_in_sandbox.assert_called_once()
+        assert run_in_sandbox.call_args.kwargs["additional_deps"] == [
+            str(wheel.resolve())
+        ]
+
+    @staticmethod
+    def test_cli_export_html_wasm_include_wheel_validates_before_sandbox(
+        temp_marimo_file: str,
+    ) -> None:
+        text_file = Path(temp_marimo_file).parent / "demo_pkg.txt"
+        text_file.write_text("")
+
+        with mock.patch(
+            "marimo._cli.export.commands.run_in_sandbox",
+            return_value=0,
+        ) as run_in_sandbox:
+            p = _run_export(
+                "html-wasm",
+                temp_marimo_file,
+                "--output",
+                str(Path(temp_marimo_file).parent / "out"),
+                "--sandbox",
+                "--include-wheel",
+                str(text_file),
+            )
+
+        _assert_failure(p)
         assert "--include-wheel expects a .whl file" in p.output
+        run_in_sandbox.assert_not_called()
 
     @staticmethod
     def test_cli_export_html_wasm_no_override(temp_marimo_file: str) -> None:

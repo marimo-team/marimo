@@ -115,11 +115,14 @@ export class PyodideBridge implements RunRequests, EditRequests {
     // Listeners
     this.rpc.addMessageListener("ready", () => {
       void this.startSession().catch((error) => {
+        const sessionError =
+          error instanceof Error ? error : new Error(String(error));
         Logger.error("Failed to start WASM session", error);
-        store.set(wasmInitStatusAtom, "error");
-        this.initialized.reject(
-          error instanceof Error ? error : new Error(String(error)),
-        );
+        store.set(wasmInitStateAtom, {
+          kind: "error",
+          message: sessionError.message,
+        });
+        this.initialized.reject(sessionError);
       });
     });
     this.rpc.addMessageListener("initialized", () => {
@@ -183,6 +186,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
       queryParameters: queryParameters,
       code: code || fallbackCode || "",
       filename,
+      // The worker can be served from asset_url, so validate included wheels
+      // against the notebook page origin rather than the worker script origin.
+      allowedWheelOrigin: window.location.origin,
       wheelUrls,
       userConfig: {
         ...userConfig,

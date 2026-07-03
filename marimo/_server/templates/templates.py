@@ -110,11 +110,11 @@ def _get_mount_config(
     Return a JSON string with custom indentation and sorting.
     """
 
-    wasm_wheel_urls_line = (
-        f'"wasmWheelUrls": {json_script(wasm_wheel_urls)},'
-        if wasm_wheel_urls is not None
-        else ""
-    )
+    wasm_wheel_urls_line = ""
+    if wasm_wheel_urls is not None:
+        wasm_wheel_urls_line = (
+            f'\n            "wasmWheelUrls": {json_script(wasm_wheel_urls)},'
+        )
     options: dict[str, Any] = {
         "filename": filename or "",
         "cwd": cwd or "",
@@ -150,8 +150,7 @@ def _get_mount_config(
             "view": {view},
             "notebook": {notebook},
             "session": {session},
-            "runtimeConfig": {runtime_config},
-            {wasm_wheel_urls_line}
+            "runtimeConfig": {runtime_config},{wasm_wheel_urls_line}
         }}
 """.format(**formatted_options).strip()
 

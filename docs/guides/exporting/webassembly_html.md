@@ -22,6 +22,7 @@ Options:
 - `--show-code/--no-show-code`: Whether to initially show or hide the code in the notebook
 - `--watch/--no-watch`: Watch the notebook for changes and automatically export
 - `--include-cloudflare`: Write configuration files necessary for deploying to Cloudflare
+- `--include-wheel`: Copy a local `.whl` file into the export and install it in the browser runtime
 
 Note that WebAssembly notebooks have [limitations](../wasm.md#limitations); in particular,
 [many but not all packages work](../wasm.md#packages). If your notebook runs both
@@ -71,6 +72,18 @@ python -m http.server
 
 See the docs for [mo.notebook_location][marimo.notebook_location] to learn how
 to include data files in exported WASM HTML notebooks.
+
+## Including local wheels
+
+```bash
+marimo export html-wasm notebook.py -o output_dir \
+  --include-wheel dist/example_pkg-0.1.0-py3-none-any.whl
+```
+
+marimo copies each wheel to `output_dir/public/wheels` and installs it when the
+WASM runtime starts. Pass `--include-wheel` multiple times to include multiple
+wheels. With `--execute`, marimo adds the wheels to the uv sandbox before
+executing the notebook.
 
 ## Exporting multiple notebooks
 

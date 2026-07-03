@@ -109,6 +109,7 @@ export class DefaultWasmController implements WasmController {
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
+    allowedWheelOrigin?: string;
     wheelUrls?: string[];
     onMessage: (message: JsonString<NotificationPayload>) => void;
     userConfig: UserConfig;
@@ -116,6 +117,7 @@ export class DefaultWasmController implements WasmController {
     const {
       code,
       filename,
+      allowedWheelOrigin = self.location.origin,
       onMessage,
       queryParameters,
       userConfig,
@@ -133,7 +135,7 @@ export class DefaultWasmController implements WasmController {
     self.query_params = queryParameters;
     self.user_config = userConfig;
 
-    await this.installIncludedWheels(wheelUrls);
+    await this.installIncludedWheels(wheelUrls, allowedWheelOrigin);
 
     const span = t.startSpan("startSession.runPython");
     const nbFilename = filename || WasmFileSystem.NOTEBOOK_FILENAME;
@@ -180,9 +182,12 @@ export class DefaultWasmController implements WasmController {
     return bridge;
   }
 
-  private async installIncludedWheels(wheelUrls: string[]) {
+  private async installIncludedWheels(
+    wheelUrls: string[],
+    allowedWheelOrigin: string,
+  ) {
     const safeWheelUrls = resolveWasmWheelUrls(wheelUrls, {
-      allowedOrigin: self.location.origin,
+      allowedOrigin: allowedWheelOrigin,
       baseUrl: self.location.href,
     });
 
@@ -250,9 +255,15 @@ export class DefaultWasmController implements WasmController {
       await pyodide
         .runPythonAsync(`
         import micropip
+        import importlib.util
         import sys
-        # Filter out builtins
-        missing = [p for p in ${JSON.stringify(missingPackages)} if p not in sys.modules]
+        # URL-installed wheels are importable without appearing in
+        # pyodide.loadedPackages. find_spec prevents a second micropip fetch.
+        missing = [
+          p
+          for p in ${JSON.stringify(missingPackages)}
+          if p not in sys.modules and importlib.util.find_spec(p) is None
+        ]
         if len(missing) > 0:
           print("Loading from micropip:", missing)
           await micropip.install(missing)

@@ -271,9 +271,6 @@ const mountOptionsSchema = z.object({
     .nullish()
     .transform((val) => val ?? []),
 
-  /**
-   * Local wheel URLs bundled with a WASM export.
-   */
   wasmWheelUrls: z
     .array(z.string())
     .nullish()
