@@ -31,7 +31,6 @@ from marimo._save.stubs import (
     ModuleStub,
 )
 from marimo._save.stubs.lazy_stub import (
-    _LAZY_STUB_CACHE,
     BLOB_DESERIALIZERS,
     BLOB_SERIALIZERS,
     LAZY_STUB_LOOKUP,
@@ -55,18 +54,10 @@ class _BlobStatus(Enum):
 
 
 def maybe_update_lazy_stub(value: Any) -> str:
-    """Return the loader strategy string for *value*, caching the result.
-
-    Walks the MRO of `type(value)` against `LAZY_STUB_LOOKUP` (a
-    fq-class-name -> loader-string registry).  Falls back to `"pickle"`
-    when no match is found.
-    """
     value_type = type(value)
-    if value_type in _LAZY_STUB_CACHE:
-        return _LAZY_STUB_CACHE[value_type]
+    # MRO not that expensive, type hashable for functools lookup.
     result = mro_lookup(value_type, LAZY_STUB_LOOKUP)
     loader = result[1] if result else "pickle"
-    _LAZY_STUB_CACHE[value_type] = loader
     return loader
 
 
@@ -134,7 +125,10 @@ def to_item(
     if isinstance(value, ClassStub):
         return Item(class_def=value.dump())
     if isinstance(value, ModuleStub):
-        return Item(module=value.name)
+        return Item(
+            module=value.name,
+            module_version=value.version or None,
+        )
     if isinstance(value, (int, str, float, bool, bytes, type(None))):
         return Item(primitive=value)
 
@@ -159,6 +153,7 @@ def from_item(item: Item, var_name: str = "") -> Any:
     if item.module is not None:
         mod_stub = ModuleStub.__new__(ModuleStub)
         mod_stub.name = item.module
+        mod_stub.version = item.module_version or ""
         return mod_stub
     if item.import_ref is not None:
         module, qualname = item.import_ref
@@ -384,15 +379,23 @@ class LazyLoader(BasePersistenceLoader):
         """Loaders the current session has created (for flush/export)."""
         return list(_cache_state().active_lazy_loaders.values())
 
+    def mark_stale(self, manifest_key: str) -> None:
+        """Force this manifest to miss for the rest of the session."""
+        _cache_state().stale_keys.add(manifest_key)
+
     def load_cache(
         self,
         key: HashKey,
         glbls: dict[str, Any] | None = None,
     ) -> Cache | None:
         del glbls
+        manifest_key = str(self.build_path(key))
+        # Invalidated for re-execution this session.
+        if manifest_key in _cache_state().stale_keys:
+            return None
         blob: bytes | None = None
         try:
-            blob = self.store.get(str(self.build_path(key)))
+            blob = self.store.get(manifest_key)
             if not blob:
                 return None
             return self.restore_cache(key, blob)
@@ -471,6 +474,13 @@ class LazyLoader(BasePersistenceLoader):
                 val = unpickled.get(ref_key)
                 if var_name in cache_data.ui_defs and isinstance(val, dict):
                     defs[var_name] = val[var_name]
+                elif isinstance(val, UnhashableStub):
+                    # Fall through stub.
+                    defs[var_name] = UnhashableStub(
+                        var_name=var_name,
+                        type_name=val.type_name,
+                        error_msg=val.error_msg,
+                    )
                 else:
                     defs[var_name] = val
             else:
@@ -511,7 +521,13 @@ class LazyLoader(BasePersistenceLoader):
         type_hint = ref_type_hints.get(key) or (
             return_type_hint if key == return_ref else None
         )
-        return deserialize(data, type_hint)
+        try:
+            return deserialize(data, type_hint)
+        except ModuleNotFoundError as e:
+            # Raise if we need something for return, otherwise defer to a stub.
+            if key == return_ref:
+                raise
+            return UnhashableStub(error_msg=str(e), type_name=type_hint)
 
     def _read_blobs(
         self,
@@ -566,6 +582,9 @@ class LazyLoader(BasePersistenceLoader):
     def save_cache(self, cache: Cache) -> bool:
         # Reap completed threads
         self._pending = [t for t in self._pending if t.is_alive()]
+
+        # Fresh load, so invalidate the "stale" marker.
+        _cache_state().stale_keys.discard(str(self.build_path(cache.key)))
 
         path = Path(self.name) / cache.hash
         variable_hashes = cache.meta.get("variable_hashes", {})

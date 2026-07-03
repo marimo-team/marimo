@@ -30,6 +30,7 @@ class TestModuleStubLoad:
         stub = ModuleStub.__new__(ModuleStub)
         stub.name = "marimo_definitely_not_a_real_module_xyz"
         stub.hash = ""
+        stub.version = ""
         result = stub.load()
         assert isinstance(result, MissingModule)
         assert result.__missing__ is True
@@ -54,6 +55,7 @@ class TestModuleStubLoad:
             stub = ModuleStub.__new__(ModuleStub)
             stub.name = mod_name
             stub.hash = ""
+            stub.version = ""
             with pytest.raises(ModuleNotFoundError) as exc_info:
                 stub.load()
             # The error is about the transitive dep, not our module.
