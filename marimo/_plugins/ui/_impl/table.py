@@ -371,10 +371,7 @@ class table(
 
         ```python
         table = mo.ui.table(
-            data=[
-                {"first_name": "Michael", "last_name": "Scott"},
-                {"first_name": "Dwight", "last_name": "Schrute"},
-            ],
+            data=["Michael Scott", "Dwight Schrute"],
             label="Users",
         )
         ```
