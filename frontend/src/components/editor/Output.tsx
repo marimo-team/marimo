@@ -45,6 +45,18 @@ import { renderMimeIcon } from "./renderMimeIcon";
 
 const METADATA_KEY = "__metadata__";
 
+/**
+ * Dismiss any open Glide Data Grid overlay by firing Escape on it.
+ */
+function dismissOpenOverlay() {
+  const overlay = document.querySelector("#portal .gdg-clip-region");
+  if (overlay) {
+  	overlay.dispatchEvent(
+  	  new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+  	);
+  }
+}
+
 export type MimeType = OutputMessage["mimetype"];
 
 type MimeBundleWithoutMetadata = Record<MimeType, { [key: string]: unknown }>;
@@ -439,6 +451,7 @@ const ExpandableOutput = React.memo(
         container.appendChild(portal);
         return () => {
           document.body.appendChild(portal);
+          dismissOpenOverlay();
         };
       }
     }, [fullScreenElement]);
