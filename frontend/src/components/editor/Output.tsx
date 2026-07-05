@@ -430,17 +430,17 @@ const ExpandableOutput = React.memo(
     // When output enters fullscreen, move the Glide Data Grid portal into the fullscreen element so overlays are visible.
     const fullScreenElement = useFullScreenElement();
     useEffect(() => {
-    	const portal = document.getElementById("portal");
-    	const container = containerRef.current;
-    	if (!portal || !container) {
-    		return;
-    	}
-    	if (fullScreenElement === container) {
-    		container.appendChild(portal);
-    		return () => {
-    			document.body.appendChild(portal);
-    		};
-    	}
+      const portal = document.getElementById("portal");
+      const container = containerRef.current;
+      if (!portal || !container) {
+        return;
+      }
+      if (fullScreenElement === container) {
+        container.appendChild(portal);
+        return () => {
+          document.body.appendChild(portal);
+        };
+      }
     }, [fullScreenElement]);
 
     return (
