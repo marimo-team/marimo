@@ -51,9 +51,9 @@ const METADATA_KEY = "__metadata__";
 function dismissOpenOverlay() {
   const overlay = document.querySelector("#portal .gdg-clip-region");
   if (overlay) {
-  	overlay.dispatchEvent(
-  	  new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
-  	);
+    overlay.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
   }
 }
 
