@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React, { memo, Suspense, useMemo, useRef } from "react";
+import React, { memo, Suspense, useEffect, useMemo, useRef } from "react";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import type { CellOutput, OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
+import { useFullScreenElement } from "@/components/ui/fullscreen";
 import { viewStateAtom } from "@/core/mode";
 import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
 import { useOverflowDetection } from "@/hooks/useOverflowDetection";
@@ -425,6 +426,22 @@ const ExpandableOutput = React.memo(
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
     const isOverflowing = useOverflowDetection(containerRef);
     const { hasFullscreen } = useIframeCapabilities();
+
+    // When output enters fullscreen, move the Glide Data Grid portal into the fullscreen element so overlays are visible.
+    const fullScreenElement = useFullScreenElement();
+    useEffect(() => {
+    	const portal = document.getElementById("portal");
+    	const container = containerRef.current;
+    	if (!portal || !container) {
+    		return;
+    	}
+    	if (fullScreenElement === container) {
+    		container.appendChild(portal);
+    		return () => {
+    			document.body.appendChild(portal);
+    		};
+    	}
+    }, [fullScreenElement]);
 
     return (
       <>
