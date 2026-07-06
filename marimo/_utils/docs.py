@@ -19,8 +19,13 @@ def _fill_missing_param_types(
     if not param_types:
         return
     for index, (name, arg_type, description) in enumerate(table):
-        if not arg_type and name in param_types:
-            table[index] = (name, param_types[name], description)
+        if arg_type:
+            continue
+        # Varargs rows are stored as `*args`/`**kwargs`, but signatures report
+        # them as `args`/`kwargs`, so strip leading stars before matching.
+        lookup = name.lstrip("*")
+        if lookup in param_types:
+            table[index] = (name, param_types[lookup], description)
 
 
 def google_docstring_to_markdown(
@@ -64,20 +69,13 @@ def google_docstring_to_markdown(
     def _handle_arg_or_attribute(
         table: list[tuple[str, str, str]], stripped: str
     ) -> None:
-        # Parse standard parameters: "arg_name (arg_type): description" or "arg_name: description"
-        # This handles both typed and untyped parameters, with or without description
-        match = re.match(r"^(\w+)(?:\s*\(([^)]+)\))?:\s*(.*)", stripped)
+        # Parse parameters, including varargs: "var_name", "*var_name", or "**var_name",
+        # each optionally "(type)" and optionally ": description". This handles
+        # typed and untyped params, with or without a description.
+        match = re.match(r"^(\*{0,2}\w+)(?:\s*\(([^)]+)\))?:\s*(.*)", stripped)
         if match:
             arg_name, arg_type, description = match.groups()
             table.append((arg_name, arg_type or "", description.strip()))
-            return
-
-        # Parse special parameters: "*args: description" or "**kwargs: description"
-        if stripped.startswith("*args:"):
-            table.append(("*args", "", stripped[6:].strip()))
-            return
-        if stripped.startswith("**kwargs:"):
-            table.append(("**kwargs", "", stripped[9:].strip()))
             return
 
         # Handle continuation lines

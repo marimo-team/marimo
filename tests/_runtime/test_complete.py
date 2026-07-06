@@ -97,6 +97,32 @@ func'''
     assert "An integer argument" in result
 
 
+def test_docstring_function_infers_varargs_types_from_jedi() -> None:
+    patch_jedi_parameter_completion()
+
+    code = '''def func(*args: str, **kwargs: float) -> None:
+    """Do something
+
+    Args:
+        *args: extra positionals
+        **kwargs: extra keywords
+    """
+    return
+
+func'''
+    script = jedi.Script(code)
+    completions = script.complete(line=10, column=4)
+    func_completion = next(c for c in completions if c.name == "func")
+    result = _get_docstring(func_completion)
+
+    assert "extra positionals" in result
+    assert "extra keywords" in result
+    # Jedi reports varargs as container types (`args`/`kwargs` without stars);
+    # they should still populate the `*args`/`**kwargs` rows.
+    assert "<code>Tuple[str]</code>" in result
+    assert "<code>Dict[str, float]</code>" in result
+
+
 def test_docstring_math_directive_is_normalized():
     result = _build_docstring_cached(
         completion_type="function",
