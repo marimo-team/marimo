@@ -91,6 +91,16 @@ anthropic:
     cost: {input: 3, output: 15}
 
 openai:
+  - name: gpt-image-2
+    model: gpt-image-2
+    description: ""
+    roles: [chat, edit]
+    capabilities: []
+    input_types: [text, image]
+    output_types: [image]
+    release_date: 2026-04-21
+    cost: {input: 5, output: 30}
+
   - name: GPT-5.5
     model: gpt-5.5
     description: "OpenAI's frontier model designed for complex professional workloads, building on GPT-5.4 with stronger reasoning, higher reliability, and improved token efficiency on hard tasks"
@@ -161,6 +171,36 @@ openai:
     release_date: 2025-12-16
 
 google:
+  - name: Claude Sonnet 5
+    model: claude-sonnet-5@default
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-30
+    cost: {input: 2, output: 10}
+
+  - name: Claude Opus 4.8
+    model: claude-opus-4-8@default
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-05-28
+    cost: {input: 5, output: 25}
+
+  - name: Claude Opus 4.7
+    model: claude-opus-4-7@default
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-04-16
+    cost: {input: 5, output: 25}
+
   - name: Gemini 3.5 Flash
     model: gemini-3.5-flash
     description: "Google's high-efficiency multimodal model, bringing near-Pro level coding and reasoning at Flash-tier cost and speed"
@@ -230,6 +270,46 @@ google:
     cost: {input: 2, output: 12}
 
 bedrock:
+  - name: Claude Sonnet 5 (AU)
+    model: au.anthropic.claude-sonnet-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-30
+    cost: {input: 2, output: 10}
+
+  - name: Claude Sonnet 5 (EU)
+    model: eu.anthropic.claude-sonnet-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-30
+    cost: {input: 2.2, output: 11}
+
+  - name: Claude Sonnet 5 (Global)
+    model: global.anthropic.claude-sonnet-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-30
+    cost: {input: 2, output: 10}
+
+  - name: Claude Sonnet 5 (JP)
+    model: jp.anthropic.claude-sonnet-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-30
+    cost: {input: 2, output: 10}
+
   - name: Claude Fable 5 (Global)
     model: global.anthropic.claude-fable-5
     description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
@@ -682,6 +762,26 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
+  - name: GLM 5
+    model: zai-org/GLM-5-FP8
+    description: ""
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-02-11
+    cost: {input: 1, output: 3.2}
+
+  - name: Kimi K2.5
+    model: moonshotai/Kimi-K2.5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-01-27
+    cost: {input: 0.5, output: 2.85}
+
   - name: DeepSeek V4-Flash
     model: deepseek-ai/DeepSeek-V4-Flash
     description: "DeepSeek V4-Flash is an MoE model with 1M context length great for coding, reasoning, and agentic workloads"
