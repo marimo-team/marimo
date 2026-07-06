@@ -150,9 +150,7 @@ def smart_dedent(code: str) -> str:
         if shift <= 0:
             result.append(line)
         else:
-            result.append(
-                line[shift:] if line[:shift].strip() == "" else line
-            )
+            result.append(line[shift:] if line[:shift].strip() == "" else line)
 
     return "".join(result)
 
