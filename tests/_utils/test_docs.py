@@ -130,6 +130,28 @@ def test_google_docstring_to_markdown_oneliner():
         assert substr in md_result
 
 
+def test_google_docstring_infers_types_from_signature() -> None:
+    docstring = """Do something
+
+    Args:
+        arg: An integer argument
+    """
+    md_result = google_docstring_to_markdown(
+        docstring, param_types={"arg": "int"}
+    )
+    assert "| `arg` | `int` | An integer argument |" in md_result
+
+
+def test_google_docstring_preserves_explicit_types() -> None:
+    docstring = """Args:
+        arg (str): A string argument
+    """
+    md_result = google_docstring_to_markdown(
+        docstring, param_types={"arg": "int"}
+    )
+    assert "| `arg` | `str` | A string argument |" in md_result
+
+
 def test_process_code_block_content():
     """Test the _process_code_block_content function with various inputs."""
 
