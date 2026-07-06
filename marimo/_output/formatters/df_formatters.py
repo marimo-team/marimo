@@ -48,16 +48,19 @@ def polars_dot_to_mermaid(dot: str) -> str:
     """
 
     edge_regex = r"(?P<node1>\w+) -- (?P<node2>\w+)"
+    directed_edge_regex = r"(?P<node1>\w+) -> (?P<node2>\w+)"
     node_regex = r"(?P<node>\w+)(\s+)?\[label=\"(?P<label>.*)\"]"
 
-    nodes = re.finditer(node_regex, dot)
     edges = re.finditer(edge_regex, dot)
+    directed_edges = re.finditer(directed_edge_regex, dot)
+    nodes = re.finditer(node_regex, dot)
 
     mermaid_str = "\n".join(
         [
             "graph TD",
             *[f'\t{n["node"]}["{n["label"]}"]' for n in nodes],
             *[f"\t{e['node1']} --- {e['node2']}" for e in edges],
+            *[f"\t{e['node1']} --> {e['node2']}" for e in directed_edges],
         ]
     )
 
