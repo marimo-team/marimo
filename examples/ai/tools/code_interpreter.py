@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -18,6 +18,7 @@ def _():
     import marimo as mo
     import ell
     import textwrap
+
 
     return ell, mo
 
@@ -143,9 +144,9 @@ def _(ell, mo):
     @ell.tool()
     def execute_code(code: str):
         """
-        Execute python. The last line should be the result, don't use print().
-        Please make sure it is safe before executing.
-        """
+            Execute python. The last line should be the result, don't use print().
+            Please make sure it is safe before executing.
+            """
         with mo.capture_stdout() as out:
             result = exec_with_result(code)
             output = out.getvalue()
@@ -156,6 +157,7 @@ def _(ell, mo):
                 code_fence(result if result is not None else output),
             ]
             return mo.md("\n\n".join(results))
+
 
     return (execute_code,)
 
@@ -178,6 +180,7 @@ def _(client, ell, execute_code, mo, model):
         if response.tool_calls:
             return response.tool_calls[0]()
         return mo.md(response.text)
+
 
     return (my_model,)
 

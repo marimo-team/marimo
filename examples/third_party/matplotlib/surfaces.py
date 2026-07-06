@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -51,55 +51,55 @@ def _(
     if function.value == "paraboloid":
         _prose = rf"""defined by the function
 
-        \[
-        f(x, y) = ax^2 + by^2,
-        \]
+            \[
+            f(x, y) = ax^2 + by^2,
+            \]
 
-        where $a={a.value}$ and $b={b.value}$.
-        """
+            where $a={a.value}$ and $b={b.value}$.
+            """
     elif function.value == "saddle":
         _prose = rf"""defined by the function
 
-        \[
-        f(x, y) = ax^2 - by^4,
-        \]
+            \[
+            f(x, y) = ax^2 - by^4,
+            \]
 
-        where $a=${saddle_param_a.value} and $b$={saddle_param_b.value}.
-        """
+            where $a=${saddle_param_a.value} and $b$={saddle_param_b.value}.
+            """
     elif function.value == "sphere":
         _prose = rf"""given by
 
-        \[
-        (x, y, z) =
-        r \begin{{bmatrix}}
-        \cos(\theta)\sin(\phi) \\
-        \sin(\theta)\sin(\phi) \\
-        \cos(\phi)
-        \end{{bmatrix}}
-        \]
+            \[
+            (x, y, z) =
+            r \begin{{bmatrix}}
+            \cos(\theta)\sin(\phi) \\
+            \sin(\theta)\sin(\phi) \\
+            \cos(\phi)
+            \end{{bmatrix}}
+            \]
 
-        where $\theta \in [0, 2\pi]$ and $\phi \in [0, \pi]$ and
-        $r={sphere_param_r.value}$ is the radius.
-        """
+            where $\theta \in [0, 2\pi]$ and $\phi \in [0, \pi]$ and
+            $r={sphere_param_r.value}$ is the radius.
+            """
     elif function.value == "torus":
         _prose = rf"""given by
 
-        \[
-        (x, y, z) = \begin{{bmatrix}}
-        (c + a\cos(v))\cos(u) \\
-        (c + a\cos(v))\sin(u) \\
-        a\sin(v) \\
-        \end{{bmatrix}}
-        \]
+            \[
+            (x, y, z) = \begin{{bmatrix}}
+            (c + a\cos(v))\cos(u) \\
+            (c + a\cos(v))\sin(u) \\
+            a\sin(v) \\
+            \end{{bmatrix}}
+            \]
 
-        where $u \in [0, 2\pi]$ and $v \in [0, 2\pi]$,
-        $c={torus_param_c.value}$ is radius of the torus from the origin,
-        and $a={torus_param_a.value}$ is inner radius of the torus.
-        """
+            where $u \in [0, 2\pi]$ and $v \in [0, 2\pi]$,
+            $c={torus_param_c.value}$ is radius of the torus from the origin,
+            and $a={torus_param_a.value}$ is inner radius of the torus.
+            """
     mo.md(
         rf"""You are looking at a **{function}**. This is a
-        surface in $\mathbf{{R}}^3$ {_prose}
-        """
+            surface in $\mathbf{{R}}^3$ {_prose}
+            """
     )
     return
 
@@ -151,6 +151,7 @@ def _(plt):
 
         return ax
 
+
     return (plot_3d_surface,)
 
 
@@ -189,12 +190,12 @@ def _(function, mo):
 
     mo.md(
         f"""
-        You can adjust the plot using these controls:
+            You can adjust the plot using these controls:
 
-        **Axes.**
+            **Axes.**
 
-        {mo.hstack([xlim, ylim, zlim])}
-        """
+            {mo.hstack([xlim, ylim, zlim])}
+            """
     )
     return xlim, ylim, zlim
 
@@ -205,28 +206,28 @@ def _(function, mo):
         a = mo.ui.slider(1, 10)
         b = mo.ui.slider(1, 10)
         _prose = f"""
-        - $a$: {a}
-        - $b$: {b}
-        """
+            - $a$: {a}
+            - $b$: {b}
+            """
     elif function.value == "saddle":
         saddle_param_a = mo.ui.slider(1, 10)
         saddle_param_b = mo.ui.slider(1, 10)
         _prose = f"""
-        - $a$: {saddle_param_a}
-        - $b$: {saddle_param_b}
-        """
+            - $a$: {saddle_param_a}
+            - $b$: {saddle_param_b}
+            """
     elif function.value == "sphere":
         sphere_param_r = mo.ui.slider(1, 10)
         _prose = f"""
-        - $r$: {sphere_param_r}
-        """
+            - $r$: {sphere_param_r}
+            """
     elif function.value == "torus":
         torus_param_c = mo.ui.slider(0, 10, value=1)
         torus_param_a = mo.ui.slider(0.5, 10)
         _prose = f"""
-        - $c$: {torus_param_c}
-        - $a$: {torus_param_a}
-        """
+            - $c$: {torus_param_c}
+            - $a$: {torus_param_a}
+            """
     else:
         _prose = ""
 
@@ -248,6 +249,7 @@ def _(grid, saddle_param_a, saddle_param_b):
         x, y = grid(xlim=(-1, 1), ylim=(-1, 1))
         return x, y, saddle_param_a.value*x**2 - saddle_param_b.value*y**4
 
+
     return (saddle,)
 
 
@@ -256,6 +258,7 @@ def _(a, b, grid):
     def paraboloid():
         x, y = grid(xlim=(-1, 1), ylim=(-1, 1))
         return x, y, a.value*x**2 / 2 + b.value*y**2/ 2
+
 
     return (paraboloid,)
 
@@ -268,6 +271,7 @@ def _(grid, np, sphere_param_r):
         y = np.sin(theta)*np.sin(phi)
         z = np.cos(phi)
         return sphere_param_r.value*x, sphere_param_r.value*y, sphere_param_r.value*z
+
 
     return (sphere,)
 
@@ -284,6 +288,7 @@ def _(grid, np, torus_param_a, torus_param_c):
         z = tube_radius*np.sin(theta)
         return x, y, z
 
+
     return (torus,)
 
 
@@ -296,6 +301,7 @@ def _(np):
         y = np.linspace(ymin, ymax, 100)
         return np.meshgrid(x, y)
 
+
     return (grid,)
 
 
@@ -305,12 +311,14 @@ def _():
     from mpl_toolkits.mplot3d import Axes3D
     import numpy as np
 
+
     return np, plt
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 

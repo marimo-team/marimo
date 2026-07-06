@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -53,6 +53,7 @@ def _():
 def _():
     from micrograd.engine import Value
     from micrograd.nn import Neuron, Layer, MLP
+
 
     return MLP, Value
 
@@ -134,10 +135,10 @@ def _(mo, n_layers):
 
     training_parameters = mo.md(
         """
-       {layer_sizes} 
+           {layer_sizes} 
 
-       {iterations}
-        """
+           {iterations}
+            """
     ).batch(layer_sizes=layer_sizes, iterations=iterations).form(
         submit_button_label="Train",
         bordered=False,
@@ -202,6 +203,7 @@ def _(Value, X, np, y):
         ]
         return total_loss, sum(accuracy) / len(accuracy)
 
+
     return (loss,)
 
 
@@ -226,6 +228,7 @@ def _(loss, mo):
                 print(f"step {k} loss {total_loss.data}, accuracy {acc*100}%")
 
         return model
+
 
     return (train,)
 
@@ -252,12 +255,14 @@ def _(Value, X, np, plt, y):
         plt.ylim(yy.min(), yy.max())
         return plt.gca()
 
+
     return (plot_decision_boundary,)
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 

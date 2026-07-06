@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -23,6 +23,7 @@ def _(dataclass):
     class Task:
         name: str
         done: bool = False
+
 
     return (Task,)
 
@@ -94,12 +95,14 @@ def _(mo, task_list):
 def _():
     import marimo as mo
 
+
     return (mo,)
 
 
 @app.cell
 def _():
     from dataclasses import dataclass
+
 
     return (dataclass,)
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -22,8 +22,8 @@ def _():
 def _(mo, name):
     mo.md(
         f"""
-        Hello, {name}!
-        """
+            Hello, {name}!
+            """
     )
     return
 
@@ -46,10 +46,10 @@ def _(mo):
 def _(mo, text_input):
     mo.md(
         f"""
-        What's your name? {text_input}
+            What's your name? {text_input}
 
-        Hello, {text_input.value}!
-        """
+            Hello, {text_input.value}!
+            """
     )
     return
 
@@ -66,10 +66,10 @@ def _(mo):
 def _(mo):
     mo.md(
         f"""
-        Here's a list of numbers:
+            Here's a list of numbers:
 
-        {mo.as_html([1, 2, 3])}
-        """
+            {mo.as_html([1, 2, 3])}
+            """
     )
     return
 
@@ -77,6 +77,7 @@ def _(mo):
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 

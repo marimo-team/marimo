@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -72,6 +72,7 @@ def _(complete_graph, mo, tree):
             }
         )
 
+
     return (draw_graphs,)
 
 
@@ -95,6 +96,7 @@ def _(functools, penalties, pymde):
         )
         mde.embed(verbose=False)
         return format_axis(mde.plot(edges=edges))
+
 
     return (complete_graph,)
 
@@ -127,6 +129,7 @@ def _(embedding_dim, functools, losses, pymde, torch):
         mde.embed(snapshot_every=1, max_iter=20, verbose=False)
         return format_axis(mde.plot(edges=tree.edges))
 
+
     return (tree,)
 
 
@@ -149,6 +152,7 @@ def _():
     import numpy as np
     import scipy.sparse as sp
     import torch
+
 
     return functools, mo, pymde, torch
 

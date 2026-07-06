@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -76,6 +76,7 @@ def _(cylinders, horse_power, manufacturer):
             ]
         return filtered_df
 
+
     return (filter_df,)
 
 
@@ -88,6 +89,7 @@ def data_url(file):
 def _():
     import marimo as mo
     import pandas as pd
+
 
     return mo, pd
 

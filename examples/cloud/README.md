@@ -1,3 +1,8 @@
+---
+title: Readme
+marimo-version: 0.23.9
+---
+
 # Cloud ☁️
 
 These examples show how to use various cloud provider APIs.

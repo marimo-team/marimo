@@ -1,3 +1,8 @@
+---
+title: Readme
+marimo-version: 0.23.9
+---
+
 # FastAPI + marimo: Authentication Middleware
 
 This example shows the recommended pattern for passing user info into marimo

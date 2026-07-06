@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -49,11 +49,11 @@ def _(n_neighbors):
 def _(mo, ready):
     mo.md(
         """
-        Below, we've plotted an embedding along with a CDF of the distortions
-        per pair. We see that most pairs were embedded with
-        very low distortion, but some pairs have much higher distortion
-        that the rest. These will be interesting to examine up close.
-        """
+            Below, we've plotted an embedding along with a CDF of the distortions
+            per pair. We see that most pairs were embedded with
+            very low distortion, but some pairs have much higher distortion
+            that the rest. These will be interesting to examine up close.
+            """
     ) if ready else None
     return
 
@@ -100,6 +100,7 @@ def _(functools, mnist, pymde):
             mnist.data, k=n_neighbors, verbose=True
         )
 
+
     return (knn,)
 
 
@@ -128,13 +129,13 @@ def _(knn_graph, mnist, pymde, ready, torch):
 def _(mo, ready):
     mo.md(
         """
-        ## Pairs with highest and lowest distortion
+            ## Pairs with highest and lowest distortion
 
-        Let's visualize a few pairs of images with low distortion (meaning they
-        were similar and placed near each other by the embedding) and with high
-        distortion (meaning they were similar but the embedding failed to place
-        them near each other).
-        """
+            Let's visualize a few pairs of images with low distortion (meaning they
+            were similar and placed near each other by the embedding) and with high
+            distortion (meaning they were similar but the embedding failed to place
+            them near each other).
+            """
     ) if ready else None
     return
 
@@ -151,9 +152,9 @@ def _(mo, ready):
     mo.md(
         """### Low distortion pairs
 
-        These are examples of pairs of images that were known to be similar,
-        and that the embedding placed very near each other.
-        """
+            These are examples of pairs of images that were known to be similar,
+            and that the embedding placed very near each other.
+            """
     ) if ready else None
     return
 
@@ -168,15 +169,15 @@ def _(n_pairs, pairs, plot_pairs, ready):
 def _(mo, ready):
     mo.md(
         """
-        ### High distortion pairs
+            ### High distortion pairs
 
-        Notice that some of these pairs of images are actually not the same digit;
-        we told our embedding to put them close together, but the embedding refused
-        to do so (in some cases, rightly so!). In other cases, the images in a pair
-        do depict the same digit, but are very strangely drawn. In a very real
-        sense, these pairs can be considered to be **outliers** in our original
-        data.
-        """
+            Notice that some of these pairs of images are actually not the same digit;
+            we told our embedding to put them close together, but the embedding refused
+            to do so (in some cases, rightly so!). In other cases, the images in a pair
+            do depict the same digit, but are very strangely drawn. In a very real
+            sense, these pairs can be considered to be **outliers** in our original
+            data.
+            """
     ) if ready else None
     return
 
@@ -205,6 +206,7 @@ def _(mnist, plt):
         plt.tight_layout()
         return plt.gca()
 
+
     return (plot_pairs,)
 
 
@@ -223,6 +225,7 @@ def _():
     import torch
 
     import marimo as mo
+
 
     return functools, mo, plt, pymde, torch
 

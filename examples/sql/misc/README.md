@@ -1,3 +1,8 @@
+---
+title: Readme
+marimo-version: 0.23.9
+---
+
 # Misc. SQL examples 🛢️
 
 This folder contains illustrative examples of using SQL in marimo.

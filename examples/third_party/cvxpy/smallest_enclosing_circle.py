@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -44,9 +44,9 @@ def _(mo, number_of_circles):
     resample_button = mo.ui.button(label='Click this button')
     mo.md(
         f"""
-        {resample_button} to solve this problem for another set of
-        {number_of_circles.value} circles.
-        """
+            {resample_button} to solve this problem for another set of
+            {number_of_circles.value} circles.
+            """
     )
     return (resample_button,)
 
@@ -60,6 +60,7 @@ def _(np):
             r_i = np.abs(np.random.randn())
             circles.append((c_i, r_i))
         return circles
+
 
     return (generate_circles,)
 
@@ -97,6 +98,7 @@ def _(plt):
         ax = plt.gca() if ax is None else ax
         ax.add_patch(plt.Circle(center, radius, fill=False, **kwargs))
         return ax
+
 
     return (plot_circle,)
 
@@ -164,6 +166,7 @@ def _(cp):
         cp.Problem(objective, constraints).solve()
         return (center.value, radius.value)
 
+
     return (smallest_enclosing_circle,)
 
 
@@ -173,12 +176,14 @@ def _():
     import numpy as np
     import cvxpy as cp
 
+
     return cp, np, plt
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -57,6 +57,7 @@ def _(a, mo):
 def _():
     import marimo as mo
     from aframe import Aframe, xyz
+
 
     return Aframe, mo, xyz
 

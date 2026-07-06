@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -10,6 +10,7 @@ def _():
     import sys
     import platform
     import os
+
 
     return mo, os, platform, sys
 
@@ -35,11 +36,11 @@ def _(mo):
         )
         output = mo.md(
             f"""## 🚀 GPU is available:
-    ```
-    {result.stdout.decode()}
+        ```
+        {result.stdout.decode()}
 
-    ```
-        """,
+        ```
+            """,
         )
     except FileNotFoundError:
         output = mo.md("## ✅️ We are running on CPU")

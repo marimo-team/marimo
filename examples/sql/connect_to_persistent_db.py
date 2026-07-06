@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 
@@ -23,9 +24,9 @@ def _(mo):
 def _(mo):
     _df = mo.sql(
         f"""
-        ATTACH 'test.db' as test;
-        SHOW ALL TABLES;
-        """
+            ATTACH 'test.db' as test;
+            SHOW ALL TABLES;
+            """
     )
     return
 
@@ -34,8 +35,8 @@ def _(mo):
 def _(mo):
     _df = mo.sql(
         f"""
-        SELECT * FROM test.test_table;
-        """
+            SELECT * FROM test.test_table;
+            """
     )
     return
 

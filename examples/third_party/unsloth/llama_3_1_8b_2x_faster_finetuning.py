@@ -14,13 +14,14 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="full")
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 
@@ -31,6 +32,7 @@ def _():
     from transformers import TextStreamer
 
     import torch
+
 
     return FastLanguageModel, torch
 
@@ -169,14 +171,14 @@ def _(mo):
 def _(tokenizer):
     alpaca_prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
-    ### Instruction:
-    {}
+        ### Instruction:
+        {}
 
-    ### Input:
-    {}
+        ### Input:
+        {}
 
-    ### Response:
-    {}"""
+        ### Response:
+        {}"""
 
     EOS_TOKEN = tokenizer.eos_token  # Must add EOS_TOKEN
 
@@ -316,10 +318,10 @@ def _(mo):
 def _(mo):
     inf_instr_inp = mo.md(
         """
-        {instr}
+            {instr}
 
-        {inp}
-        """
+            {inp}
+            """
     ).batch(
         instr=mo.ui.text_area(placeholder="Your instruction ..."),
         inp=mo.ui.text_area(placeholder="Your input ..."),

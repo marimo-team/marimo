@@ -12,13 +12,14 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="columns")
 
 
 @app.cell(column=0)
 def _():
     import marimo as mo
+
 
     return (mo,)
 
@@ -34,6 +35,7 @@ async def _():
 
     import altair as alt
 
+
     return (alt,)
 
 
@@ -43,12 +45,14 @@ def _():
     import sklearn.datasets
     import sklearn.manifold
 
+
     return (sklearn,)
 
 
 @app.cell
 def _():
     import polars as pl
+
 
     return (pl,)
 
@@ -66,6 +70,7 @@ def _(alt):
             )
             .properties(width=500, height=500)
         )
+
 
     return (scatter,)
 
@@ -90,6 +95,7 @@ def _(raw_digits):
             axes.set_xticks([])
         plt.tight_layout()
         return fig
+
 
     return (show_images,)
 
@@ -165,14 +171,14 @@ def _(chart, mo, show_images, table):
 
     mo.md(
         f"""
-        **Here's a preview of the images you've selected**:
+            **Here's a preview of the images you've selected**:
 
-        {mo.as_html(selected_images)}
+            {mo.as_html(selected_images)}
 
-        Here's all the data you've selected.
+            Here's all the data you've selected.
 
-        {table}
-        """
+            {table}
+            """
     )
     return
 

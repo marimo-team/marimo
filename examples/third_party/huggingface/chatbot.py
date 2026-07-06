@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -17,6 +17,7 @@ def _():
     import marimo as mo
     import os
     from huggingface_hub import InferenceClient
+
 
     return InferenceClient, mo, os
 
@@ -30,8 +31,8 @@ def _():
 @app.cell(hide_code=True)
 def _(MODEL_NAME, mo):
     mo.md(f"""
-    # Chat with **{MODEL_NAME}**
-    """)
+        # Chat with **{MODEL_NAME}**
+        """)
     return
 
 
@@ -59,8 +60,8 @@ def _(mo, respond):
 @app.cell
 def _(InferenceClient, MODEL_NAME, os):
     """
-    For more information on `huggingface_hub` Inference API support, please check the docs: https://huggingface.co/docs/huggingface_hub/v0.26.2/en/guides/inference
-    """
+        For more information on `huggingface_hub` Inference API support, please check the docs: https://huggingface.co/docs/huggingface_hub/v0.26.2/en/guides/inference
+        """
 
     hf_token = os.environ.get("HF_TOKEN")
     if not hf_token:
@@ -146,6 +147,7 @@ def _(client, mo):
 
         # You can return strings, markdown, charts, tables, dataframes, and more.
         return response.choices[0].message.content
+
 
     return max_tokens, respond, system_message, temperature, top_p
 

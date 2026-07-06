@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -106,16 +106,16 @@ def _(mo):
         ["circle", "square", "triangle"], inline=True, value="square"
     )
     mo.md(f"""
-    Let's build something:
+        Let's build something:
 
-    **Pick a shape:**
+        **Pick a shape:**
 
-    {shape}
+        {shape}
 
-    **Pick a color:**
+        **Pick a color:**
 
-    {colors.hstack().left()}
-    """).center()
+        {colors.hstack().left()}
+        """).center()
     return COLORS, colors, shape
 
 
@@ -154,9 +154,9 @@ def _(COLORS, colors, mo, shape):
 
 
     mo.md(f"""
-    A {"/".join(selected_colors)} {shape.value}:
-    {draw_shape(shape.value, selected_colors)}
-    """).center()
+        A {"/".join(selected_colors)} {shape.value}:
+        {draw_shape(shape.value, selected_colors)}
+        """).center()
     return
 
 
@@ -222,6 +222,7 @@ def _(mo):
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 

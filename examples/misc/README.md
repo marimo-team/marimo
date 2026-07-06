@@ -1,4 +1,9 @@
-# Misc ✨ 
+---
+title: Readme
+marimo-version: 0.23.9
+---
+
+# Misc ✨
 
 A hodgepodge of examples!
 

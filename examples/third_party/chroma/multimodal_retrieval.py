@@ -13,13 +13,14 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 
@@ -54,6 +55,7 @@ def _():
 
     from datasets import load_dataset
     from matplotlib import pyplot as plt
+
 
     return load_dataset, os
 

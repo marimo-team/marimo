@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -49,11 +49,11 @@ def _(mo):
 def _(mo, n_max):
     mo.md(
         f"""
-        You can play with the number of iterations to see when points are 
-        eliminated from the set:
+            You can play with the number of iterations to see when points are 
+            eliminated from the set:
 
-        - _Number of iterations_: {n_max}
-        """
+            - _Number of iterations_: {n_max}
+            """
     )
     return
 
@@ -62,14 +62,14 @@ def _(mo, n_max):
 def _(mo, reset_plot_scale, x_offset, y_offset, zoom):
     mo.md(
         f"""
-        **Plot controls.**
+            **Plot controls.**
 
-        Here are some controls to play with the plot. ( {reset_plot_scale} )
+            Here are some controls to play with the plot. ( {reset_plot_scale} )
 
-        - _Zoom_: {zoom}
-        - _Pan left/right_: {x_offset}
-        - _Pan down/up_: {y_offset}
-        """
+            - _Zoom_: {zoom}
+            - _Pan left/right_: {x_offset}
+            - _Pan down/up_: {y_offset}
+            """
     )
     return
 
@@ -136,6 +136,7 @@ def _(np, plt):
         plt.colorbar()
         return plt.gca()
 
+
     return (compute_mandelbrot,)
 
 
@@ -144,12 +145,14 @@ def _():
     import numpy as np
     import matplotlib.pyplot as plt
 
+
     return np, plt
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 

@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.20.2"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -16,6 +16,7 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import plotly.graph_objects as go
+
 
     return go, mo
 
@@ -65,17 +66,17 @@ def _(go, mo):
 @app.cell
 def _(mo, pure_line):
     mo.md(f"""
-    ### Single Line Selection Output
+        ### Single Line Selection Output
 
-    **Selected rows:** {len(pure_line.value)}
+        **Selected rows:** {len(pure_line.value)}
 
-    **Selected indices:** {pure_line.indices}
+        **Selected indices:** {pure_line.indices}
 
-    **Selection ranges:** {pure_line.ranges}
+        **Selection ranges:** {pure_line.ranges}
 
-    **Preview:**
-    {pure_line.value[:10]}
-    """)
+        **Preview:**
+        {pure_line.value[:10]}
+        """)
     return
 
 
@@ -117,17 +118,17 @@ def _(go, mo):
 @app.cell
 def _(mo, multi_line):
     mo.md(f"""
-    ### Multi-Line Selection Output
+        ### Multi-Line Selection Output
 
-    **Selected rows:** {len(multi_line.value)}
+        **Selected rows:** {len(multi_line.value)}
 
-    **Selected indices:** {multi_line.indices}
+        **Selected indices:** {multi_line.indices}
 
-    **Selection ranges:** {multi_line.ranges}
+        **Selection ranges:** {multi_line.ranges}
 
-    **Preview:**
-    {multi_line.value[:10]}
-    """)
+        **Preview:**
+        {multi_line.value[:10]}
+        """)
     return
 
 

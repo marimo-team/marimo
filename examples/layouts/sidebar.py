@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="full")
 
 
@@ -27,6 +27,7 @@ def _():
     import marimo as mo
     import altair as alt
     from vega_datasets import data
+
 
     return alt, data, mo
 
@@ -113,10 +114,10 @@ def _(mo, population, year):
         footer=[
             mo.md(
                 f"""
-            [{mo.icon("lucide:twitter")} Twitter](https://twitter.com/marimo_io)
+                [{mo.icon("lucide:twitter")} Twitter](https://twitter.com/marimo_io)
 
-            [{mo.icon("lucide:github")} GitHub](https://github.com/marimo-team/marimo)    
-            """
+                [{mo.icon("lucide:github")} GitHub](https://github.com/marimo-team/marimo)    
+                """
             )
         ],
     )

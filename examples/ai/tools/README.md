@@ -1,3 +1,8 @@
+---
+title: Readme
+marimo-version: 0.23.9
+---
+
 # AI tool use 🛠
 
 These are examples of using AI that interact with external functions and

@@ -8,13 +8,14 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
 
     return (mo,)
 
@@ -66,23 +67,23 @@ def _(aws_config, mo):
     mo.stop(
         not aws_config["has_credentials"],
         mo.md("""
-            ### ⚠️ AWS Credentials Not Found
+                ### ⚠️ AWS Credentials Not Found
 
-            To use AWS Bedrock, you need AWS credentials configured.
-            Options:
-            1. Set environment variables:
-            ```
-            export AWS_ACCESS_KEY_ID=your_key
-            export AWS_SECRET_ACCESS_KEY=your_secret
-            ```
+                To use AWS Bedrock, you need AWS credentials configured.
+                Options:
+                1. Set environment variables:
+                ```
+                export AWS_ACCESS_KEY_ID=your_key
+                export AWS_SECRET_ACCESS_KEY=your_secret
+                ```
 
-            2. Configure AWS CLI:
-            ```
-            aws configure
-            ```
+                2. Configure AWS CLI:
+                ```
+                aws configure
+                ```
 
-            3. Use an AWS profile in ~/.aws/credentials
-        """),
+                3. Use an AWS profile in ~/.aws/credentials
+            """),
     )
     return
 
@@ -137,12 +138,12 @@ def _(mo):
     # Create a form to wrap all inputs
     config_form = (
         mo.md("""
-            AWS Bedrock Chat Configuration:
-            {model}
-            {region}
-            {profile}
-            {system_message}
-        """)
+                AWS Bedrock Chat Configuration:
+                {model}
+                {region}
+                {profile}
+                {system_message}
+            """)
         .batch(
             model=model,
             region=region,

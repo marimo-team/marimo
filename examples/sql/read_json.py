@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -54,14 +54,14 @@ def _(mo):
         {
             "Tip: Creating SQL Cells": mo.md(
                 f"""
-                Create a SQL cell in one of two ways:
+                    Create a SQL cell in one of two ways:
 
-                1. Click the {mo.icon("lucide:database")} `SQL` button at the **bottom of your notebook**
-                2. **Right-click** the {mo.icon("lucide:circle-plus")} button to the **left of a cell**, and choose `SQL`.
+                    1. Click the {mo.icon("lucide:database")} `SQL` button at the **bottom of your notebook**
+                    2. **Right-click** the {mo.icon("lucide:circle-plus")} button to the **left of a cell**, and choose `SQL`.
 
-                In the SQL cell, you can query dataframes in your notebook as if
-                they were tables — just reference them by name.
-                """
+                    In the SQL cell, you can query dataframes in your notebook as if
+                    they were tables — just reference them by name.
+                    """
             )
         }
     )
@@ -72,10 +72,10 @@ def _(mo):
 def _(mo):
     result = mo.sql(
         f"""
-        -- Tip: you can also specify the data files using a glob, such as '/path/to/*.json'
-        -- or '/path/**/to/*.json'
-        SELECT * FROM 'data.json'
-        """,
+            -- Tip: you can also specify the data files using a glob, such as '/path/to/*.json'
+            -- or '/path/**/to/*.json'
+            SELECT * FROM 'data.json'
+            """,
         output=False,
     )
     return (result,)
@@ -87,12 +87,12 @@ def _(mo):
         {
             "Tip: Query output": mo.md(
                 r"""
-                The query output is returned to Python as a dataframe (Polars if you have it installed, Pandas otherwise).
+                    The query output is returned to Python as a dataframe (Polars if you have it installed, Pandas otherwise).
 
-                Choose the dataframe name via the **output variable** input in the bottom-left
-                of the cell. If the name starts with an underscore, it won't be made available
-                to other cells. In this case, we've named the output `result`.
-                """
+                    Choose the dataframe name via the **output variable** input in the bottom-left
+                    of the cell. If the name starts with an underscore, it won't be made available
+                    to other cells. In this case, we've named the output `result`.
+                    """
             )
         }
     )
@@ -119,18 +119,18 @@ def _(mo):
 def _(mo):
     _df = mo.sql(
         f"""
-        CREATE OR REPLACE TABLE myTable AS SELECT * FROM 'data.json'
-        """
+            CREATE OR REPLACE TABLE myTable AS SELECT * FROM 'data.json'
+            """
     )
     return
 
 
 @app.cell
-def _(mo, mytable):
+def _(mo):
     _df = mo.sql(
         f"""
-        SELECT * FROM myTable
-        """
+            SELECT * FROM myTable
+            """
     )
     return
 

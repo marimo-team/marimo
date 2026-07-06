@@ -560,7 +560,7 @@ def foo():
     # Multiline string preserved
     assert fixed_dedent('    x = """hello\n    world"""') == snapshot('''\
 x = """hello
-    world"""\
+world"""\
 ''')
 
     # Code with comments
@@ -593,10 +593,9 @@ y = 2\
         '    """This is a docstring.\n\n    Args:\n        x: something\n    """'
     ) == snapshot('''\
 """This is a docstring.
-
-    Args:
-        x: something
-    """\
+Args:
+    x: something
+"""\
 ''')
 
     # Single line with indentation

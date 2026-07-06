@@ -1,3 +1,8 @@
+---
+title: Readme
+marimo-version: 0.23.9
+---
+
 # Running marimo on Modal
 
 This folder contains examples of how to run marimo notebooks on

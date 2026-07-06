@@ -9,13 +9,14 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 
@@ -37,6 +38,7 @@ def _(mo):
 def _():
     import plotly.graph_objects as go
     import pandas as pd
+
 
     return go, pd
 
@@ -83,19 +85,19 @@ def _(data, go, mo):
 @app.cell
 def _(area_chart, mo):
     mo.md(f"""
-    ## Basic Area Chart (fill='tozeroy')
+        ## Basic Area Chart (fill='tozeroy')
 
-    **Instructions:** Use the box select tool (in the toolbar) to select a range.
+        **Instructions:** Use the box select tool (in the toolbar) to select a range.
 
-    ### Selected Points:
-    {area_chart.value}
+        ### Selected Points:
+        {area_chart.value}
 
-    ### Selection Range:
-    {area_chart.ranges}
+        ### Selection Range:
+        {area_chart.ranges}
 
-    ### Indices:
-    {area_chart.indices}
-    """)
+        ### Indices:
+        {area_chart.indices}
+        """)
     return
 
 
@@ -139,20 +141,20 @@ def _(data, go, mo):
 @app.cell
 def _(mo, stacked_area):
     mo.md(f"""
-    ## Stacked Area Chart (stackgroup)
+        ## Stacked Area Chart (stackgroup)
 
-    **Instructions:** Use the box select tool to select a range.
-    Points from both areas will be returned!
+        **Instructions:** Use the box select tool to select a range.
+        Points from both areas will be returned!
 
-    ### Selected Points:
-    {stacked_area.value}
+        ### Selected Points:
+        {stacked_area.value}
 
-    ### Number of selected points:
-    {len(stacked_area.value)}
+        ### Number of selected points:
+        {len(stacked_area.value)}
 
-    ### Selection Range:
-    {stacked_area.ranges}
-    """)
+        ### Selection Range:
+        {stacked_area.ranges}
+        """)
     return
 
 

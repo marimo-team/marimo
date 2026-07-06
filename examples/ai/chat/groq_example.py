@@ -8,13 +8,14 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 
@@ -34,14 +35,14 @@ def _(mo):
     # Hyperlinking the groq as it is mentioned here - https://console.groq.com/docs/badge
     mo.md(
         r"""
-        <a href="https://groq.com" target="_blank" rel="noopener noreferrer">
-          <img
-            src="https://groq.com/wp-content/uploads/2024/03/PBG-mark1-color.svg"
-            alt="Powered by Groq for fast inference."
-            width="80" height="800"
-          />
-        </a>
-        """
+            <a href="https://groq.com" target="_blank" rel="noopener noreferrer">
+              <img
+                src="https://groq.com/wp-content/uploads/2024/03/PBG-mark1-color.svg"
+                alt="Powered by Groq for fast inference."
+                width="80" height="800"
+              />
+            </a>
+            """
     ).right()
     return
 

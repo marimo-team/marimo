@@ -11,13 +11,14 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 
@@ -40,7 +41,7 @@ def _():
 
     df = data.iris()
     df
-    return (df,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -76,14 +77,14 @@ def _(mo):
         {
             "Tip: Creating SQL Cells": mo.md(
                 f"""
-                Create a SQL cell in one of two ways:
+                    Create a SQL cell in one of two ways:
 
-                1. Click the {mo.icon("lucide:database")} `SQL` button at the **bottom of your notebook**
-                2. **Right-click** the {mo.icon("lucide:circle-plus")} button to the **left of a cell**, and choose `SQL`.
+                    1. Click the {mo.icon("lucide:database")} `SQL` button at the **bottom of your notebook**
+                    2. **Right-click** the {mo.icon("lucide:circle-plus")} button to the **left of a cell**, and choose `SQL`.
 
-                In the SQL cell, you can query dataframes in your notebook as if
-                they were tables — just reference them by name.
-                """
+                    In the SQL cell, you can query dataframes in your notebook as if
+                    they were tables — just reference them by name.
+                    """
             )
         }
     )
@@ -91,11 +92,11 @@ def _(mo):
 
 
 @app.cell
-def _(df, mo, species_dropdown):
+def _(mo, species_dropdown):
     result = mo.sql(
         f"""
-        SELECT * FROM df where species == '{species_dropdown.value}'
-        """, output=False
+            SELECT * FROM df where species == '{species_dropdown.value}'
+            """, output=False
     )
     return (result,)
 

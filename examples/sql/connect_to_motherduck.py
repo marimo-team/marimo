@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -30,13 +30,13 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(md_token, mo):
     callout = mo.md(f"""
-    There is no **MotherDuck** token found in your environment. To set one up, go to the [MotherDuck's settings page](https://app.motherduck.com/settings/general), create a token, and copy it below.
-    And re-run this notebook:
+        There is no **MotherDuck** token found in your environment. To set one up, go to the [MotherDuck's settings page](https://app.motherduck.com/settings/general), create a token, and copy it below.
+        And re-run this notebook:
 
-    ```console
-    motherduck_token="YOUR_TOKEN_HERE" marimo edit {__file__}
-    ```
-    """).callout()
+        ```console
+        motherduck_token="YOUR_TOKEN_HERE" marimo edit {__file__}
+        ```
+        """).callout()
 
     if md_token is None:
         mo.output.replace(
@@ -97,20 +97,20 @@ def _(mo):
 def _(mo):
     most_shared_websites = mo.sql(
         f"""
-        -- Most shared websites
-        -- This query returns the top domains being shared on Hacker News.
+            -- Most shared websites
+            -- This query returns the top domains being shared on Hacker News.
 
-        SELECT
-            regexp_extract(url, 'http[s]?://([^/]+)/', 1) AS domain,
-            count(*) AS count
-        FROM sample_data.hn.hacker_news
-        WHERE url IS NOT NULL AND regexp_extract(url, 'http[s]?://([^/]+)/', 1) != ''
-        GROUP BY domain
-        ORDER BY count DESC
-        LIMIT 20;
+            SELECT
+                regexp_extract(url, 'http[s]?://([^/]+)/', 1) AS domain,
+                count(*) AS count
+            FROM sample_data.hn.hacker_news
+            WHERE url IS NOT NULL AND regexp_extract(url, 'http[s]?://([^/]+)/', 1) != ''
+            GROUP BY domain
+            ORDER BY count DESC
+            LIMIT 20;
 
-        -- We've named the result of this dataframe to be `most_shared_websites`. Now we can use this in any downstream Python or SQL code.
-        """
+            -- We've named the result of this dataframe to be `most_shared_websites`. Now we can use this in any downstream Python or SQL code.
+            """
     )
     return (most_shared_websites,)
 
@@ -119,38 +119,38 @@ def _(mo):
 def _(mo):
     most_commented_stories_each_month = mo.sql(
         f"""
-        -- Most Commented Stories Each Month
-        -- This query calculates the total number of comments for each story and identifies the most commented story of each month.
-        WITH ranked_stories AS (
+            -- Most Commented Stories Each Month
+            -- This query calculates the total number of comments for each story and identifies the most commented story of each month.
+            WITH ranked_stories AS (
+                SELECT
+                    title,
+                    'https://news.ycombinator.com/item?id=' || id AS hn_url,
+                    descendants AS nb_comments,
+                    YEAR(timestamp) AS year,
+                    MONTH(timestamp) AS month,
+                    ROW_NUMBER()
+                        OVER (
+                            PARTITION BY YEAR(timestamp), MONTH(timestamp) 
+                            ORDER BY descendants DESC
+                        )
+                    AS rn
+                FROM sample_data.hn.hacker_news
+                WHERE type = 'story'
+            )
+
             SELECT
+                year,
+                month,
                 title,
-                'https://news.ycombinator.com/item?id=' || id AS hn_url,
-                descendants AS nb_comments,
-                YEAR(timestamp) AS year,
-                MONTH(timestamp) AS month,
-                ROW_NUMBER()
-                    OVER (
-                        PARTITION BY YEAR(timestamp), MONTH(timestamp) 
-                        ORDER BY descendants DESC
-                    )
-                AS rn
-            FROM sample_data.hn.hacker_news
-            WHERE type = 'story'
-        )
+                hn_url,
+                nb_comments
+            FROM ranked_stories
+            WHERE rn = 1
+            ORDER BY year, month;
 
-        SELECT
-            year,
-            month,
-            title,
-            hn_url,
-            nb_comments
-        FROM ranked_stories
-        WHERE rn = 1
-        ORDER BY year, month;
-
-        -- This also creates a table most_commented_stories_each_month
-        -- Which can be used in Python to create charts
-        """
+            -- This also creates a table most_commented_stories_each_month
+            -- Which can be used in Python to create charts
+            """
     )
     return
 
@@ -206,11 +206,11 @@ def _(MONTHS, duckdb, mo):
 
     hn_types = duckdb.sql(
         """
-        SELECT DISTINCT type as 'HN Type'
-        FROM sample_data.hn.hacker_news
-        WHERE score IS NOT NULL AND descendants IS NOT NULL
-        LIMIT 10;
-        """
+            SELECT DISTINCT type as 'HN Type'
+            FROM sample_data.hn.hacker_news
+            WHERE score IS NOT NULL AND descendants IS NOT NULL
+            LIMIT 10;
+            """
     ).df()
 
     hn_type_select = mo.ui.dropdown.from_series(hn_types["HN Type"], value="story")
@@ -234,42 +234,42 @@ def _(hn_type_select, mo, month_select):
 def _(hn_type_select, mo, month_list):
     most_monthly_voted = mo.sql(
         f"""
-        -- Most monthly voted
-        -- This query determines the most voted type for each month.
-        WITH ranked_stories AS (
+            -- Most monthly voted
+            -- This query determines the most voted type for each month.
+            WITH ranked_stories AS (
+                SELECT
+                    title,
+                    'https://news.ycombinator.com/item?id=' || id AS hn_url,
+                    score,
+                    type,
+                    descendants,
+                    YEAR(timestamp) AS year,
+                    MONTH(timestamp) AS month,
+                    ROW_NUMBER()
+                        OVER (PARTITION BY YEAR(timestamp), MONTH(timestamp) ORDER BY score DESC)
+                    AS rn
+                FROM sample_data.hn.hacker_news
+                -- here we parameterize the sql statement
+                WHERE
+                    type = '{hn_type_select.value}'
+                    AND
+                    MONTH(timestamp) in ({month_list})
+                    AND
+                    descendants IS NOT NULL
+            )
+
             SELECT
-                title,
-                'https://news.ycombinator.com/item?id=' || id AS hn_url,
+                month,
                 score,
                 type,
-                descendants,
-                YEAR(timestamp) AS year,
-                MONTH(timestamp) AS month,
-                ROW_NUMBER()
-                    OVER (PARTITION BY YEAR(timestamp), MONTH(timestamp) ORDER BY score DESC)
-                AS rn
-            FROM sample_data.hn.hacker_news
-            -- here we parameterize the sql statement
-            WHERE
-                type = '{hn_type_select.value}'
-                AND
-                MONTH(timestamp) in ({month_list})
-                AND
-                descendants IS NOT NULL
-        )
-
-        SELECT
-            month,
-            score,
-            type,
-            title,
-            hn_url,
-            descendants as nb_comments,
-            year,
-        FROM ranked_stories
-        WHERE rn = 1
-        ORDER BY year, month;
-        """
+                title,
+                hn_url,
+                descendants as nb_comments,
+                year,
+            FROM ranked_stories
+            WHERE rn = 1
+            ORDER BY year, month;
+            """
     )
     return (most_monthly_voted,)
 
@@ -319,16 +319,16 @@ def _(mo):
 def _(mo, search_value):
     keyword_results = mo.sql(
         f"""
-        SELECT
-            YEAR(timestamp) AS year,
-            MONTH(timestamp) AS month,
-            COUNT(*) AS keyword_mentions
-        FROM sample_data.hn.hacker_news
-        WHERE
-            (title LIKE '%{search_value}%' OR text LIKE '%{search_value}%')
-        GROUP BY year, month
-        ORDER BY year ASC, month ASC;
-        """
+            SELECT
+                YEAR(timestamp) AS year,
+                MONTH(timestamp) AS month,
+                COUNT(*) AS keyword_mentions
+            FROM sample_data.hn.hacker_news
+            WHERE
+                (title LIKE '%{search_value}%' OR text LIKE '%{search_value}%')
+            GROUP BY year, month
+            ORDER BY year ASC, month ASC;
+            """
     )
     return (keyword_results,)
 

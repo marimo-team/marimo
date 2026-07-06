@@ -8,13 +8,14 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 
@@ -29,8 +30,8 @@ def _(mo, sys):
 def _(mo, sys):
     mo.md(
         f"""
-        I'm a chatbot that can answer questions about the **{sys.argv[-1]}** GitHub repo. Ask me anything!
-        """
+            I'm a chatbot that can answer questions about the **{sys.argv[-1]}** GitHub repo. Ask me anything!
+            """
     )
     return
 
@@ -124,6 +125,7 @@ def _(
             history_aware_retriever, question_answer_chain
         )
         return rag_chain
+
 
     return (build_rag_chain,)
 
@@ -220,6 +222,7 @@ def _(AIMessage, HumanMessage, args, build_rag_chain, logging, mo):
                         logging.info(f"Query rewrite: {query_rewrite}")
                     response += chunk
                     yield mo.md(response)
+
 
     return (predict,)
 

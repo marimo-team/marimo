@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -34,6 +34,7 @@ def _():
     import pyarrow
     import altair as alt
 
+
     return alt, mo
 
 
@@ -53,13 +54,13 @@ def _(URL, mo):
 def _(URL, mo):
     dataset = mo.sql(
         f"""
-        CREATE OR REPLACE VIEW dataset AS
-        SELECT *
-        FROM read_csv_auto('{URL}');
-        FROM dataset
-        """
+            CREATE OR REPLACE VIEW dataset AS
+            SELECT *
+            FROM read_csv_auto('{URL}');
+            FROM dataset
+            """
     )
-    return
+    return (dataset,)
 
 
 @app.cell
@@ -75,9 +76,9 @@ def _(dataset, mo):
 def _(column, mo):
     histogram = mo.sql(
         f"""
-        -- Use the duckdb histogram function
-        SELECT bin, count FROM histogram('dataset', {column.value}, bin_count := 10)
-        """
+            -- Use the duckdb histogram function
+            SELECT bin, count FROM histogram('dataset', {column.value}, bin_count := 10)
+            """
     )
     return (histogram,)
 

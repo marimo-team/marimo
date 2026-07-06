@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -19,6 +19,7 @@ def _():
     from pathlib import Path
     import marimo as mo
     from huggingface_hub import snapshot_download
+
 
     return Path, generate, load, mo, snapshot_download
 
@@ -47,15 +48,15 @@ def _(mo):
 def _(Path, snapshot_download):
     def get_model_path(path_or_hf_repo: str) -> Path:
         """
-        Ensures the model is available locally. If the path does not exist locally,
-        it is downloaded from the Hugging Face Hub.
+            Ensures the model is available locally. If the path does not exist locally,
+            it is downloaded from the Hugging Face Hub.
 
-        Args:
-            path_or_hf_repo (str): The local path or Hugging Face repository ID of the model.
+            Args:
+                path_or_hf_repo (str): The local path or Hugging Face repository ID of the model.
 
-        Returns:
-            Path: The path to the model.
-        """
+            Returns:
+                Path: The path to the model.
+            """
         model_path = Path(path_or_hf_repo)
         if model_path.exists():
             return model_path
@@ -79,6 +80,7 @@ def _(Path, snapshot_download):
                 raise ValueError(
                     f"Error downloading model from Hugging Face: {str(e)}"
                 )
+
 
     return (get_model_path,)
 

@@ -1,3 +1,8 @@
+---
+title: Readme
+marimo-version: 0.23.9
+---
+
 # Layouts 📽️
 
 These examples show how to use marimo's built-in features for laying out

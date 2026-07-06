@@ -9,13 +9,14 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 
@@ -35,6 +36,7 @@ def _(mo):
 def _():
     import plotly.graph_objects as go
     import pandas as pd
+
 
     return go, pd
 
@@ -78,16 +80,16 @@ def _(data, go, mo):
 @app.cell
 def _(line_chart, mo):
     mo.md(f"""
-    ## Simple Line Chart
+        ## Simple Line Chart
 
-    **Instructions:** Use the box select tool (in the toolbar) to select a range.
+        **Instructions:** Use the box select tool (in the toolbar) to select a range.
 
-    ### Selected Points:
-    {line_chart.value}
+        ### Selected Points:
+        {line_chart.value}
 
-    ### Selection Range:
-    {line_chart.ranges}
-    """)
+        ### Selection Range:
+        {line_chart.ranges}
+        """)
     return
 
 
@@ -119,13 +121,13 @@ def _(data, go, mo):
 @app.cell
 def _(line_markers, mo):
     mo.md(f"""
-    ## Line Chart with Markers
+        ## Line Chart with Markers
 
-    **Instructions:** Use the box select tool to select a range.
+        **Instructions:** Use the box select tool to select a range.
 
-    ### Selected Points:
-    {line_markers.value}
-    """)
+        ### Selected Points:
+        {line_markers.value}
+        """)
     return
 
 
@@ -165,17 +167,17 @@ def _(data, go, mo):
 @app.cell
 def _(mo, multi_line):
     mo.md(f"""
-    ## Multiple Lines
+        ## Multiple Lines
 
-    **Instructions:** Use the box select tool to select a range.
-    Points from both lines will be returned!
+        **Instructions:** Use the box select tool to select a range.
+        Points from both lines will be returned!
 
-    ### Selected Points:
-    {multi_line.value}
+        ### Selected Points:
+        {multi_line.value}
 
-    ### Number of selected points:
-    {len(multi_line.value)}
-    """)
+        ### Number of selected points:
+        {len(multi_line.value)}
+        """)
     return
 
 

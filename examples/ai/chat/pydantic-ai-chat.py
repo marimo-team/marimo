@@ -253,11 +253,11 @@ def _():
     def _pending_approval(messages) -> dict | None:
         """Find a tool part the user just approved or denied, if any.
 
-        After Approve/Deny, the SDK transitions the tool part on the last
-        assistant message to `approval-responded` and auto-resumes. We
-        look for that state on the most recent assistant turn so we know
-        whether to start a fresh showcase or finish the deletion.
-        """
+            After Approve/Deny, the SDK transitions the tool part on the last
+            assistant message to `approval-responded` and auto-resumes. We
+            look for that state on the most recent assistant turn so we know
+            whether to start a fresh showcase or finish the deletion.
+            """
         for message in reversed(messages):
             if message.role != "assistant":
                 continue

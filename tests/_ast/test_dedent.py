@@ -73,12 +73,25 @@ class TestSmartDedent:
         code = "    x = 'hello world'\n    y = 2\n"
         assert smart_dedent(code) == "x = 'hello world'\ny = 2\n"
 
-    def test_mixed_code_and_multiline_string(self):
+    def test_mixed_code_and_multiline_string_deeper_indent(self):
+        # String block indented MORE than surrounding code (block_min >=
+        # base_shift) participates in the same dedent, preserving its own
+        # internal alignment between SELECT and FROM.
         code = '    def f():\n        sql = """\n            SELECT *\n            FROM t\n        """\n        return sql\n'
         result = smart_dedent(code)
         assert result.startswith("def f():")
-        assert "            SELECT *" in result
-        assert "            FROM t" in result
+        assert "        SELECT *" in result
+        assert "        FROM t" in result
+
+    def test_multiline_string_under_indented_relative_to_code(self):
+        # String block indented LESS than the surrounding code in places
+        # (block_min < base_shift) is left fully untouched, since it can't
+        # safely absorb the same dedent without losing structure.
+        code = '    def f():\n        text = """\n  shallow\n            deep\n        """\n        return text\n'
+        result = smart_dedent(code)
+        assert result.startswith("def f():")
+        assert "  shallow" in result
+        assert "            deep" in result
 
     def test_top_level_function_with_multiline_docstring(self):
         # Already at zero indent — no-op

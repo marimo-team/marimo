@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -25,6 +25,7 @@ def _(mo):
 @app.cell
 def _():
     import leafmap
+
 
     return (leafmap,)
 
@@ -46,6 +47,7 @@ def _(leafmap):
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 

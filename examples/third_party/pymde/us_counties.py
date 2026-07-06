@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -40,6 +40,7 @@ def _(mo):
 @app.cell
 def _():
     import pymde
+
 
     return (pymde,)
 
@@ -166,12 +167,14 @@ def _(mo, plot):
 def _():
     import matplotlib.pyplot as plt
 
+
     return
 
 
 @app.cell
 def _():
     import pandas as pd
+
 
     return (pd,)
 
@@ -180,12 +183,14 @@ def _():
 def _():
     import altair as alt
 
+
     return (alt,)
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 

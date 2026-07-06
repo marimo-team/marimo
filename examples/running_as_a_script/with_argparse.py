@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -8,12 +8,14 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
 
+
     return (mo,)
 
 
 @app.cell
 def _():
     import argparse
+
 
     return (argparse,)
 
@@ -44,6 +46,7 @@ def _(mo, parser):
             count = args.count
             verbose = args.verbose
         return filename, count, verbose
+
 
     return (parse_args,)
 

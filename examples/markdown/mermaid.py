@@ -7,13 +7,14 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 
@@ -22,15 +23,15 @@ def _():
 def _(mo):
     mo.mermaid(
         """
-    graph TD
-        A[Enter Chart Definition] --> B(Preview)
-        B --> C{decide}
-        C --> D[Keep]
-        C --> E[Edit Definition]
-        E --> B
-        D --> F[Save Image and Code]
-        F --> B
-    """
+        graph TD
+            A[Enter Chart Definition] --> B(Preview)
+            B --> C{decide}
+            C --> D[Keep]
+            C --> E[Edit Definition]
+            E --> B
+            D --> F[Save Image and Code]
+            F --> B
+        """
     ).center()
     return
 
@@ -39,9 +40,9 @@ def _(mo):
 def _(mo):
     graph = mo.ui.code_editor(
         value="""sequenceDiagram
-        Alice->>John: Hello John, how are you?
-        John-->>Alice: Great!
-        Alice-)John: See you later!""",
+            Alice->>John: Hello John, how are you?
+            John-->>Alice: Great!
+            Alice-)John: See you later!""",
         language="md",
         label="Mermaid editor",
     )
@@ -58,12 +59,12 @@ def _(graph, mo):
 @app.cell
 def _(graph, mo):
     mo.md(f"""
-    You can render mermaid directly inside `mo.md`. Using
+        You can render mermaid directly inside `mo.md`. Using
 
-    `mo.mermaid()`
+        `mo.mermaid()`
 
-    {mo.mermaid(graph.value).text}
-    """)
+        {mo.mermaid(graph.value).text}
+        """)
     return
 
 

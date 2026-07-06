@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -65,10 +65,10 @@ def _(content, item, mo, openai, openaikey):
 
     mo.md(
         f"""
-        🤖 Response:
+            🤖 Response:
 
-        {result}
-        """
+            {result}
+            """
     ) if item.value else None
     return (result,)
 
@@ -80,8 +80,8 @@ def _(mo, result):
 
     mo.md(
         f"""
-        Choose a superhero: {superhero}
-        """
+            Choose a superhero: {superhero}
+            """
     ) if result else None
     return (superhero,)
 
@@ -106,12 +106,12 @@ def _(mo, openai, superhero):
 
     mo.md(
         f"""
-        💬 Create a catchphrase for {superhero.value}
+            💬 Create a catchphrase for {superhero.value}
 
-        🤖 Response:
+            🤖 Response:
 
-        {catchphrase}
-        """
+            {catchphrase}
+            """
     ) if superhero.value else None
     return (catchphrase,)
 
@@ -144,6 +144,7 @@ def _(generate_image_button, mo, openai, superhero):
 def _():
     import marimo as mo
     import openai
+
 
     return mo, openai
 

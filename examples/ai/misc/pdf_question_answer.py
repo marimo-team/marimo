@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -33,14 +33,14 @@ def _(mo):
 def _(mo):
     mo.accordion({
         "How is this app implemented?": """
-        - Your PDF is tokenized into chunks, which are embedded using
-        OpenAI's `text-embedding-ada-002`.
-        - Your question is embedded using the same model.
-        - We use an approximate k-nearest neighbor search on the PDF embeddings to
-        retrieve relevant chunks.
-        - The most relevant chunks are added to the context of your prompt, which
-        is processed by a GPT model.
-        """
+            - Your PDF is tokenized into chunks, which are embedded using
+            OpenAI's `text-embedding-ada-002`.
+            - Your question is embedded using the same model.
+            - We use an approximate k-nearest neighbor search on the PDF embeddings to
+            retrieve relevant chunks.
+            - The most relevant chunks are added to the context of your prompt, which
+            is processed by a GPT model.
+            """
     })
     return
 
@@ -160,6 +160,7 @@ def _():
     from langchain.callbacks import get_openai_callback
 
     import os
+
 
     return (
         CharacterTextSplitter,

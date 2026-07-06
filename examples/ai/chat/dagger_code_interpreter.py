@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -20,6 +20,7 @@ def _():
     import marimo as mo
     import ell
     import textwrap
+
 
     return ell, mo
 
@@ -97,6 +98,7 @@ def _(backend, input_key, mo):
 def _():
     import dagger
 
+
     return (dagger,)
 
 
@@ -125,8 +127,8 @@ def _(dagger, ell, files, mo, packages):
     @ell.tool()
     async def execute_code(code: str):
         """
-        Execute python using Dagger. You MUST have print() in the last expression.
-        """
+            Execute python using Dagger. You MUST have print() in the last expression.
+            """
         async with dagger.Connection() as _dag:
             container = (
                 _dag.container()
@@ -154,6 +156,7 @@ def _(dagger, ell, files, mo, packages):
             ]
         )
 
+
     return (execute_code,)
 
 
@@ -174,16 +177,16 @@ def _(client, ell, execute_code, files, mo, model, packages):
     packages_instructions = ""
     if files.value:
         files_instructions = f"""
-        Here are the files you can access:"
+            Here are the files you can access:"
 
-        {"\n".join([describe_file(file) for file in files.value])}
-        """
+            {"\n".join([describe_file(file) for file in files.value])}
+            """
 
     if packages.value:
         packages_instructions = f"""
-        Here are the python packages you can access:"
-        {packages.value}
-        """
+            Here are the python packages you can access:"
+            {packages.value}
+            """
 
 
     @ell.complex(
@@ -193,12 +196,12 @@ def _(client, ell, execute_code, files, mo, model, packages):
     )
     def custom_chatbot(messages, config) -> str:
         system_message = ell.system(f"""
-            You are data scientist with access to writing python code.
+                You are data scientist with access to writing python code.
 
-            {files_instructions}
+                {files_instructions}
 
-            {packages_instructions}
-            """)
+                {packages_instructions}
+                """)
         return [system_message] + [
             ell.user(message.content)
             if message.role == "user"
@@ -212,6 +215,7 @@ def _(client, ell, execute_code, files, mo, model, packages):
         if response.tool_calls:
             return response.tool_calls[0]()
         return mo.md(response.text)
+
 
     return (my_model,)
 

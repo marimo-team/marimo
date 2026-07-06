@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -48,13 +48,13 @@ def _(mo):
     params = (
         mo.md(
             """
-            ### Try these controls <span style="font-size: 28px">🎮</span>
-            Here are some parameters you can play around with to control the
-            embedding.
+                ### Try these controls <span style="font-size: 28px">🎮</span>
+                Here are some parameters you can play around with to control the
+                embedding.
 
-            - embedding dimension (2 or 3): {embedding_dimension}
-            - constraint: {constraint_type}
-            """
+                - embedding dimension (2 or 3): {embedding_dimension}
+                - constraint: {constraint_type}
+                """
         )
         .batch(
             embedding_dimension=mo.ui.slider(2, 3, value=2),
@@ -130,6 +130,7 @@ def _(mnist, mo, pymde, torch):
         embedding_cache[key] = value
         return value
 
+
     return (compute_embedding,)
 
 
@@ -153,6 +154,7 @@ def _(mnist, plt, torch):
         plt.tight_layout()
         return fig
 
+
     return (show_random_images,)
 
 
@@ -163,6 +165,7 @@ def _():
     import torch
 
     import marimo as mo
+
 
     return mo, plt, pymde, torch
 

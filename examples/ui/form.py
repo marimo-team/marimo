@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
 
     return (mo,)
 
@@ -17,12 +18,12 @@ def _(mo):
     form = (
         mo.md(
             """
-            **Your form.**
+                **Your form.**
 
-            {name}
+                {name}
 
-            {date}
-            """
+                {date}
+                """
         )
         .batch(
             name=mo.ui.text(label="name"),

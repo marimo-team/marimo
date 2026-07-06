@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App(width="full")
 
 
@@ -80,8 +80,8 @@ def _(mo, pd, set_end_date, set_start_date):
 def _(mo, previous_end_date, previous_start_date):
     mo.md(
         f"""
-    > Compared to: {previous_start_date.strftime("%Y-%m-%d")} - {previous_end_date.strftime("%Y-%m-%d")}
-    """
+        > Compared to: {previous_start_date.strftime("%Y-%m-%d")} - {previous_end_date.strftime("%Y-%m-%d")}
+        """
     )
     return
 
@@ -330,6 +330,7 @@ def _(datetime):
     def format_date(date):
         return date.strftime("%Y-%m-%d")
 
+
     return (
         get_average_budget,
         get_average_gross,
@@ -347,6 +348,7 @@ def _():
     import pandas as pd
     import datetime
     import altair as alt
+
 
     return alt, data, datetime, mo, pd
 

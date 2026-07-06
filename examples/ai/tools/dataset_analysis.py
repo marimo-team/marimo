@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.9"
 app = marimo.App()
 
 
@@ -30,6 +30,7 @@ def _():
     import pyarrow
     import polars as pl
     from vega_datasets import data
+
 
     return alt, data, ell, mo, pl
 
@@ -114,6 +115,7 @@ def _(alt, cars, client, ell, schema):
         """You are an agent that can analayze the a dataset"""
         return f"I have a dataset with schema: {schema}. \n{prompt}"
 
+
     return (analyze_dataset,)
 
 
@@ -125,18 +127,18 @@ def _(input_key, mo, schema):
     ).form(bordered=False)
 
     mo.md(f"""
-    ## **Ask a question!**
+        ## **Ask a question!**
 
-    {mo.accordion({
-        "View schema": schema,
-        "View sample questions": mo.md('''
-        * What is the relationship between Cylinders and Horsepower?"
-        * How many cars with MPG great than 30?
-        ''')
-    })}
+        {mo.accordion({
+            "View schema": schema,
+            "View sample questions": mo.md('''
+            * What is the relationship between Cylinders and Horsepower?"
+            * How many cars with MPG great than 30?
+            ''')
+        })}
 
-    {text}
-    """)
+        {text}
+        """)
     return (text,)
 
 
