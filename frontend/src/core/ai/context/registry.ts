@@ -150,6 +150,20 @@ export class AIContextRegistry<T extends AIContextItem> {
     );
   }
 
+  private findProviderForUri(
+    uri: ContextLocatorId,
+  ): AIContextProvider | undefined {
+    const type = parseContextType(uri);
+    if (!type) {
+      return undefined;
+    }
+    return [...this.providers].find(
+      (provider) =>
+        provider.contextType === type &&
+        provider.getItems().some((item) => item.uri === uri),
+    );
+  }
+
   /**
    * Resolve only the requested context items, querying each matching provider
    */
@@ -217,7 +231,7 @@ export class AIContextRegistry<T extends AIContextItem> {
 
     return contextInfo
       .map((item) => {
-        const provider = this.getProvider(item.type);
+        const provider = this.findProviderForUri(item.uri as ContextLocatorId);
         return provider?.formatContext(item) || "";
       })
       .join("\n\n");
@@ -235,20 +249,16 @@ export class AIContextRegistry<T extends AIContextItem> {
       return [];
     }
 
-    // Group items by provider type to batch attachment requests
-    const itemsByProvider = new MultiMap<string, T>();
+    const itemsByProvider = new MultiMap<AIContextProvider, T>();
     for (const item of contextInfo) {
-      const providerType = item.type;
-      itemsByProvider.add(providerType, item);
+      const provider = this.findProviderForUri(item.uri as ContextLocatorId);
+      if (provider) {
+        itemsByProvider.add(provider, item);
+      }
     }
 
-    // Collect attachments from all providers
     const attachmentPromises = [...itemsByProvider.entries()].map(
-      async ([providerType, items]) => {
-        const provider = this.getProvider(providerType);
-        if (!provider) {
-          return [];
-        }
+      async ([provider, items]) => {
         try {
           return await provider.getAttachments(items);
         } catch (error) {

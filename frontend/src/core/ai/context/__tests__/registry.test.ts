@@ -646,6 +646,45 @@ describe("AIContextRegistry", () => {
       expect(formatted).toContain("Mock: Item 1 (value1)");
       expect(formatted.split("\n\n")).toHaveLength(1);
     });
+
+    it("should format items from the provider that owns them", () => {
+      class SecondaryMockProvider extends AIContextProvider<MockContextItem> {
+        readonly title = "Secondary Mock Items";
+        readonly mentionPrefix = "@";
+        readonly contextType = "mock";
+
+        getItems(): MockContextItem[] {
+          return [
+            {
+              type: "mock",
+              uri: this.asURI("secondary-item"),
+              name: "Secondary Item",
+              description: "From the second mock provider",
+              data: { value: "secondary" },
+            },
+          ];
+        }
+
+        formatContext(item: MockContextItem): string {
+          return `Secondary: ${item.name}`;
+        }
+
+        formatCompletion(item: MockContextItem): Completion {
+          return this.createBasicCompletion(item);
+        }
+      }
+
+      registry.register(new SecondaryMockProvider());
+
+      const formatted = registry.formatContextForAI([
+        "mock://item1",
+        "mock://secondary-item",
+      ] as ContextLocatorId[]);
+
+      expect(formatted).toBe(
+        "Mock: Item 1 (value1)\n\nSecondary: Secondary Item",
+      );
+    });
   });
 
   describe("edge cases and error handling", () => {
