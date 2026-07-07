@@ -31,7 +31,7 @@ import { cn } from "@/utils/cn";
 import { HideInKioskMode } from "../../kiosk-mode";
 import { ContributeSnippetButton } from "../components/contribute-snippet-button";
 import { usePanelOrientation, usePanelSection } from "./panel-context";
-import { getSnippetDisplay } from "./snippet-display";
+import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
 
 const extensions = [EditorView.lineWrapping];
 
@@ -188,7 +188,7 @@ const SnippetViewer: React.FC<{ snippet: Snippet; onClose: () => void }> = ({
             return null;
           }
 
-          const { language, value } = getSnippetDisplay(code);
+          const { language, code: displayCode } = getReadonlyCodeDisplay(code);
 
           return (
             <div
@@ -216,7 +216,7 @@ const SnippetViewer: React.FC<{ snippet: Snippet; onClose: () => void }> = ({
                   language={language}
                   className="cm border rounded overflow-hidden"
                   extensions={extensions}
-                  value={value}
+                  value={displayCode}
                   readOnly={true}
                 />
               </Suspense>

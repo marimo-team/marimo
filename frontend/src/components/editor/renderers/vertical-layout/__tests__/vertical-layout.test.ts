@@ -2,11 +2,7 @@
 /* oxlint-disable typescript/no-explicit-any */
 import { describe, expect, it } from "vitest";
 import type { OutputMessage } from "@/core/kernel/messages";
-import {
-  groupCellsByColumn,
-  readonlyDisplay,
-  shouldHideCode,
-} from "../vertical-layout";
+import { groupCellsByColumn, shouldHideCode } from "../vertical-layout";
 
 describe("groupCellsByColumn", () => {
   it("should group cells by column and maintain order", () => {
@@ -173,27 +169,5 @@ describe("shouldHideCode", () => {
       expect(shouldHideCode(newlineMarkdown, createOutput())).toBe(true);
       expect(shouldHideCode(newlineMarkdown, null)).toBe(false);
     });
-  });
-});
-
-describe("readonlyDisplay", () => {
-  it("unwraps SQL cells to their inner query and marks them as sql", () => {
-    const result = readonlyDisplay('my_table = mo.sql("""SELECT 1 AS id""")');
-    expect(result.language).toBe("sql");
-    expect(result.code).toBe("SELECT 1 AS id");
-  });
-
-  it("leaves plain Python cells untouched", () => {
-    const code = "x = 1 + 2";
-    const result = readonlyDisplay(code);
-    expect(result.language).toBe("python");
-    expect(result.code).toBe(code);
-  });
-
-  it("leaves non-SQL cells (e.g. markdown) unchanged as python", () => {
-    const code = 'mo.md("""## Heading""")';
-    const result = readonlyDisplay(code);
-    expect(result.language).toBe("python");
-    expect(result.code).toBe(code);
   });
 });
