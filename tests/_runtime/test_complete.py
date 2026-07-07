@@ -55,7 +55,7 @@ def test_docstring_function_with_google_style():
     result = _build_docstring_cached(
         completion_type="function",
         completion_name="my_func",
-        signature_strings=("my_func(arg1, arg2)",),
+        signature_strings=("my_func(arg1: str, arg2: int)",),
         raw_body="""
         Args:
             arg1: Description of arg1.
@@ -65,12 +65,62 @@ def test_docstring_function_with_google_style():
             HTML: A description of the return value.
         """,
         init_docstring=None,
+        param_types=(("arg1", "str"), ("arg2", "int")),
     )
 
     assert "Description of arg1" in result
     assert "Description of arg2" in result
     assert "A description of the return value" in result
+    assert "<code>str</code>" in result
+    assert "<code>int</code>" in result
     snapshot("docstrings_function_google.txt", result)
+
+
+def test_docstring_function_with_google_style_infers_types_from_jedi() -> None:
+    patch_jedi_parameter_completion()
+
+    code = '''def func(arg: int) -> None:
+    """Do something
+
+    Args:
+        arg: An integer argument
+    """
+    return
+
+func'''
+    script = jedi.Script(code)
+    completions = script.complete(line=9, column=4)
+    func_completion = next(c for c in completions if c.name == "func")
+    result = _get_docstring(func_completion)
+
+    assert "<code>int</code>" in result
+    assert "An integer argument" in result
+
+
+def test_docstring_function_infers_varargs_types_from_jedi() -> None:
+    patch_jedi_parameter_completion()
+
+    code = '''def func(*args: str, **kwargs: float) -> None:
+    """Do something
+
+    Args:
+        *args: extra positionals
+        **kwargs: extra keywords
+    """
+    return
+
+func'''
+    script = jedi.Script(code)
+    completions = script.complete(line=10, column=4)
+    func_completion = next(c for c in completions if c.name == "func")
+    result = _get_docstring(func_completion)
+
+    assert "extra positionals" in result
+    assert "extra keywords" in result
+    # Jedi reports varargs as container types (`args`/`kwargs` without stars);
+    # they should still populate the `*args`/`**kwargs` rows.
+    assert "<code>Tuple[str]</code>" in result
+    assert "<code>Dict[str, float]</code>" in result
 
 
 def test_docstring_math_directive_is_normalized():
