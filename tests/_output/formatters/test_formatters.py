@@ -635,7 +635,6 @@ def test_polars_dot_to_mermaid() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@pytest.mark.xfail(reason="TODO: skipping since upstream broken this test")
 def test_polars_dot_to_mermaid_complex() -> None:
     import polars as pl
 
@@ -650,15 +649,15 @@ def test_polars_dot_to_mermaid_complex() -> None:
     assert (
         polars_dot_to_mermaid(ldf._ldf.to_dot(optimized=True))
         == """graph TD
-\tp4["TABLE\nπ 2/2"]
+\tp4["TABLE\nπ */2"]
 \tp3["FILTER BY [(col(#quot;A#quot;)) > (1)]"]
 \tp2["π 2/2"]
 \tp5["TABLE\nπ */1"]
 \tp1["JOIN INNER\nleft: [col(#quot;A#quot;)];\nright: [col(#quot;A#quot;)]"]
-\tp1 --- p2
-\tp2 --- p3
-\tp3 --- p4
-\tp1 --- p5"""
+\tp2 --> p1
+\tp3 --> p2
+\tp4 --> p3
+\tp5 --> p1"""
     )
 
 
