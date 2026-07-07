@@ -25,7 +25,6 @@ import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
-import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
 import { type FixMode, useFixMode } from "./fix-mode";
 
 export function buildFixInChatPrompt(cellId: CellId): string {

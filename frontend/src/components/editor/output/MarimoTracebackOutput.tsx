@@ -42,7 +42,7 @@ import {
   getTracebackInfo,
 } from "@/utils/traceback";
 import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
-import { AIFixButton, buildFixPromptFromText } from "../errors/auto-fix";
+import { AIFixButton, buildFixInChatPrompt } from "../errors/auto-fix";
 import { MangledSegments } from "../errors/mangled-local-chip";
 import { CellLinkTraceback } from "../links/cell-link";
 import type { OnRefactorWithAI } from "../Output";

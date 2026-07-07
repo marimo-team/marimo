@@ -46,7 +46,6 @@ import {
   type ChatId,
   chatStateAtom,
   pendingAiPromptAtom,
-  pendingAiPromptAtom,
 } from "@/core/ai/state";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import {

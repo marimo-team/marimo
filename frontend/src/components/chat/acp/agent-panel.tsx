@@ -50,7 +50,6 @@ import {
   CONTEXT_TRIGGER,
 } from "@/components/editor/ai/completion-utils";
 import { pendingAiPromptAtom } from "@/core/ai/state";
-import { pendingAiPromptAtom } from "@/core/ai/state";
 import {
   Select,
   SelectContent,
