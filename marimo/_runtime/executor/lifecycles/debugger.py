@@ -31,7 +31,7 @@ class FrameWatcher:
     `co_filename`, see `cell_id_from_filename`) and:
 
     - records the current `(cell_id, line)` on every traced line (cheap), which
-      the heartbeat flushes to the frontend as a `DebuggerLineNotification`
+      the heartbeat flushes to the frontend as an `ActiveLineNotification`
       only when it changes — never once per line; and
     - drops into `MarimoPdb` when a line with a registered breakpoint is hit,
       handing tracing off to pdb for the rest of the cell.
@@ -198,11 +198,11 @@ class FrameWatcher:
     def _broadcast(self, cell_id: CellId_t, line: int | None) -> None:
         if self._stream is None:
             return
-        from marimo._messaging.notification import DebuggerLineNotification
+        from marimo._messaging.notification import ActiveLineNotification
         from marimo._messaging.notification_utils import broadcast_notification
 
         broadcast_notification(
-            DebuggerLineNotification(cell_id=cell_id, line=line),
+            ActiveLineNotification(cell_id=cell_id, line=line),
             stream=self._stream,
         )
 

@@ -3417,6 +3417,25 @@ export type webhooks = Record<string, any>;
 export interface components {
   schemas: {
     /**
+     * ActiveLineNotification
+     * @description Reports the line a cell's frame watcher is currently executing.
+     *
+     *         Emitted on a timed heartbeat while a cell runs (only when the line
+     *         changed), so the editor can highlight the live line. A `None` line
+     *         clears the highlight (e.g. when the cell finishes).
+     *
+     *         Attributes:
+     *             cell_id: Cell whose frame is being watched.
+     *             line: 1-based line within the cell, or `None` to clear.
+     */
+    ActiveLineNotification: {
+      cell_id: components["schemas"]["CellId"];
+      /** @default null */
+      line?: number | null;
+      /** @enum {unknown} */
+      op: "active-line";
+    };
+    /**
      * AddPackageRequest
      * @description This can be a remove package or a local package.
      *
@@ -4250,25 +4269,6 @@ export interface components {
       cellId: components["schemas"]["CellId"];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
-    };
-    /**
-     * DebuggerLineNotification
-     * @description Reports the line a cell's frame watcher is currently executing.
-     *
-     *         Emitted on a timed heartbeat while a cell runs (only when the line
-     *         changed), so the editor can highlight the live line. A `None` line
-     *         clears the highlight (e.g. when the cell finishes).
-     *
-     *         Attributes:
-     *             cell_id: Cell whose frame is being watched.
-     *             line: 1-based line within the cell, or `None` to clear.
-     */
-    DebuggerLineNotification: {
-      cell_id: components["schemas"]["CellId"];
-      /** @default null */
-      line?: number | null;
-      /** @enum {unknown} */
-      op: "debugger-line";
     };
     /**
      * DeleteCell
@@ -5158,7 +5158,7 @@ export interface components {
         | components["schemas"]["CacheClearedNotification"]
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
-        | components["schemas"]["DebuggerLineNotification"]
+        | components["schemas"]["ActiveLineNotification"]
         | components["schemas"]["NotebookDocumentTransactionNotification"]
         | components["schemas"]["ConsumerCapabilitiesNotification"];
     };

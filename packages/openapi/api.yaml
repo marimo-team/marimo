@@ -1,5 +1,28 @@
 components:
   schemas:
+    ActiveLineNotification:
+      description: "Reports the line a cell's frame watcher is currently executing.\n\
+        \n    Emitted on a timed heartbeat while a cell runs (only when the line\n\
+        \    changed), so the editor can highlight the live line. A `None` line\n\
+        \    clears the highlight (e.g. when the cell finishes).\n\n    Attributes:\n\
+        \        cell_id: Cell whose frame is being watched.\n        line: 1-based\
+        \ line within the cell, or `None` to clear."
+      properties:
+        cell_id:
+          $ref: '#/components/schemas/CellId'
+        line:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        op:
+          enum:
+          - active-line
+      required:
+      - op
+      - cell_id
+      title: ActiveLineNotification
+      type: object
     AddPackageRequest:
       description: 'This can be a remove package or a local package.
 
@@ -1329,29 +1352,6 @@ components:
       required:
       - cellId
       title: DebugCellRequest
-      type: object
-    DebuggerLineNotification:
-      description: "Reports the line a cell's frame watcher is currently executing.\n\
-        \n    Emitted on a timed heartbeat while a cell runs (only when the line\n\
-        \    changed), so the editor can highlight the live line. A `None` line\n\
-        \    clears the highlight (e.g. when the cell finishes).\n\n    Attributes:\n\
-        \        cell_id: Cell whose frame is being watched.\n        line: 1-based\
-        \ line within the cell, or `None` to clear."
-      properties:
-        cell_id:
-          $ref: '#/components/schemas/CellId'
-        line:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          default: null
-        op:
-          enum:
-          - debugger-line
-      required:
-      - op
-      - cell_id
-      title: DebuggerLineNotification
       type: object
     DeleteCell:
       description: Remove a cell from the notebook.
@@ -2791,11 +2791,12 @@ components:
           - $ref: '#/components/schemas/CacheClearedNotification'
           - $ref: '#/components/schemas/CacheInfoNotification'
           - $ref: '#/components/schemas/FocusCellNotification'
-          - $ref: '#/components/schemas/DebuggerLineNotification'
+          - $ref: '#/components/schemas/ActiveLineNotification'
           - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
           - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
           discriminator:
             mapping:
+              active-line: '#/components/schemas/ActiveLineNotification'
               alert: '#/components/schemas/AlertNotification'
               banner: '#/components/schemas/BannerNotification'
               cache-cleared: '#/components/schemas/CacheClearedNotification'
@@ -2807,7 +2808,6 @@ components:
               data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
               data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
               datasets: '#/components/schemas/DatasetsNotification'
-              debugger-line: '#/components/schemas/DebuggerLineNotification'
               focus-cell: '#/components/schemas/FocusCellNotification'
               function-call-result: '#/components/schemas/FunctionCallResultNotification'
               installing-package-alert: '#/components/schemas/InstallingPackageAlertNotification'

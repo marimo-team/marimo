@@ -810,7 +810,7 @@ class FocusCellNotification(Notification, tag="focus-cell"):
     cell_id: CellId_t
 
 
-class DebuggerLineNotification(Notification, tag="debugger-line"):
+class ActiveLineNotification(Notification, tag="active-line"):
     """Reports the line a cell's frame watcher is currently executing.
 
     Emitted on a timed heartbeat while a cell runs (only when the line
@@ -822,7 +822,7 @@ class DebuggerLineNotification(Notification, tag="debugger-line"):
         line: 1-based line within the cell, or `None` to clear.
     """
 
-    name: ClassVar[str] = "debugger-line"
+    name: ClassVar[str] = "active-line"
     cell_id: CellId_t
     line: int | None = None
 
@@ -933,7 +933,7 @@ NotificationMessage = (
     # Kiosk
     | FocusCellNotification
     # Debugger
-    | DebuggerLineNotification
+    | ActiveLineNotification
     # Document
     | NotebookDocumentTransactionNotification
     # Consumer

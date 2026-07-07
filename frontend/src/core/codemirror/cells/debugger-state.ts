@@ -4,12 +4,13 @@ import { atom } from "jotai";
 import type { CellId } from "@/core/cells/ids";
 import { getRequestClient } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
+import { Logger } from "@/utils/Logger";
 
 /**
  * State for the experimental live debugger.
  *
  * - `debuggerCurrentLineAtom` holds the cell + line the kernel's frame watcher
- *   is currently executing (driven by `debugger-line` notifications). Only one
+ *   is currently executing (driven by `active-line` notifications). Only one
  *   cell runs at a time, so a single global value suffices.
  * - `breakpointsAtom` holds the user's gutter breakpoints, session-only. It is
  *   the source of truth; mutations are mirrored to the kernel via
@@ -49,7 +50,14 @@ function sendBreakpoints(map: ReadonlyMap<CellId, ReadonlySet<number>>): void {
       breakpoints[cellId] = [...lines].toSorted((a, b) => a - b);
     }
   }
-  void getRequestClient().sendSetBreakpoints({ breakpoints });
+  // Fire-and-forget: the request layer rethrows on failure (e.g. static or
+  // wasm mode with no live kernel). Swallow it so toggling a breakpoint never
+  // surfaces as an unhandled promise rejection.
+  getRequestClient()
+    .sendSetBreakpoints({ breakpoints })
+    .catch((error) => {
+      Logger.debug("Failed to sync breakpoints to kernel", { error });
+    });
 }
 
 /** Remove all breakpoints for a cell and sync the full set to the kernel. */

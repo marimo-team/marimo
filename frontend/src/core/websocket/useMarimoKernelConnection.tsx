@@ -394,7 +394,7 @@ export function useMarimoKernelConnection(opts: {
       case "focus-cell":
         focusAndScrollCellOutputIntoView(msg.data.cell_id);
         return;
-      case "debugger-line":
+      case "active-line":
         setDebuggerCurrentLine(
           msg.data.line == null
             ? null

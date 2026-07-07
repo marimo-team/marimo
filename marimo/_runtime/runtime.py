@@ -713,10 +713,16 @@ class Kernel:
         The one place that maps an `OutOfBandCommand` to its handler; extend
         with a new branch when adding a member to the union.
         """
+        from marimo._utils.assert_never import assert_never
+
         if isinstance(command, SetBreakpointsCommand):
             self.set_breakpoints(command)
         elif isinstance(command, CodeCompletionCommand):
             self.code_completion(command, docstrings_limit=docstrings_limit)
+        else:
+            # Exhaustiveness guard: a new OutOfBandCommand member without a
+            # branch here would otherwise be silently dropped by the worker.
+            assert_never(command)
 
     def set_breakpoints(self, request: SetBreakpointsCommand) -> None:
         """Update the live debugger's breakpoints (session-scoped).

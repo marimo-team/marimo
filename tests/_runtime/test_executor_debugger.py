@@ -187,8 +187,8 @@ class TestFrameWatcher:
         assert sys.gettrace() is prev
 
     @staticmethod
-    def test_broadcast_emits_debugger_line_notification() -> None:
-        from marimo._messaging.notification import DebuggerLineNotification
+    def test_broadcast_emits_active_line_notification() -> None:
+        from marimo._messaging.notification import ActiveLineNotification
         from marimo._runtime.executor.lifecycles.debugger import FrameWatcher
 
         watcher = FrameWatcher(_FakeDebugger())  # type: ignore[arg-type]
@@ -198,7 +198,7 @@ class TestFrameWatcher:
 
         ops = watcher._stream.parsed_operations
         assert len(ops) == 2
-        assert isinstance(ops[0], DebuggerLineNotification)
+        assert isinstance(ops[0], ActiveLineNotification)
         assert ops[0].cell_id == "abc"
         assert ops[0].line == 5
         assert ops[1].line is None
