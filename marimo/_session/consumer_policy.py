@@ -38,9 +38,9 @@ def initial_capabilities(
     # but not edit the notebook. Pure read-only (interact=False) is opt-in, set
     # by a deployment's capability provider rather than the local default.
     if connection_params.kiosk or has_live_editor:
-        return ConsumerCapabilities(edit=False, interact=True)
+        return ConsumerCapabilities.INTERACTOR
 
-    return ConsumerCapabilities(edit=True, interact=True)
+    return ConsumerCapabilities.EDITOR
 
 
 def can_take_over_editing(

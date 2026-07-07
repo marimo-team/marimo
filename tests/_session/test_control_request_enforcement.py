@@ -30,7 +30,7 @@ def _run_command() -> commands.CommandMessage:
 
 def test_viewer_run_request_is_dropped() -> None:
     session, event_bus = _session_with_capabilities(
-        ConsumerCapabilities(edit=False, interact=False)
+        ConsumerCapabilities.VIEWER
     )
     session.put_control_request(
         _run_command(), from_consumer_id=ConsumerId("viewer")
@@ -40,7 +40,7 @@ def test_viewer_run_request_is_dropped() -> None:
 
 def test_editor_run_request_passes() -> None:
     session, event_bus = _session_with_capabilities(
-        ConsumerCapabilities(edit=True, interact=True)
+        ConsumerCapabilities.EDITOR
     )
     session.put_control_request(
         _run_command(), from_consumer_id=ConsumerId("editor")
@@ -50,7 +50,7 @@ def test_editor_run_request_passes() -> None:
 
 def test_system_request_bypasses_enforcement() -> None:
     session, event_bus = _session_with_capabilities(
-        ConsumerCapabilities(edit=False, interact=False)
+        ConsumerCapabilities.VIEWER
     )
     session.put_control_request(_run_command(), from_consumer_id=None)
     event_bus.emit_received_command.assert_called_once()
@@ -58,7 +58,7 @@ def test_system_request_bypasses_enforcement() -> None:
 
 def test_missing_consumer_read_request_is_dropped() -> None:
     session, event_bus = _session_with_capabilities(
-        ConsumerCapabilities(edit=False, interact=False),
+        ConsumerCapabilities.VIEWER,
         consumer_present=False,
     )
     # Read-tier commands are granted unconditionally once a consumer is found,

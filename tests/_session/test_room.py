@@ -61,12 +61,8 @@ def test_get_consumer_resolves_by_id() -> None:
 def test_get_capabilities_editor_vs_viewer() -> None:
     a, b = FakeConsumer("a"), FakeConsumer("b")
     room = _room_with(a, b)
-    assert room.get_capabilities(a) == ConsumerCapabilities(
-        edit=True, interact=True
-    )
-    assert room.get_capabilities(b) == ConsumerCapabilities(
-        edit=False, interact=True
-    )
+    assert room.get_capabilities(a) == ConsumerCapabilities.EDITOR
+    assert room.get_capabilities(b) == ConsumerCapabilities.INTERACTOR
 
 
 def test_promote_demotes_old_grants_new_no_disconnect() -> None:
@@ -80,12 +76,8 @@ def test_promote_demotes_old_grants_new_no_disconnect() -> None:
     assert a.consumer_id in room.consumers
     assert b.consumer_id in room.consumers
     # old editor -> interactor caps; new editor -> editor caps
-    assert _caps(a.received) == [
-        ConsumerCapabilities(edit=False, interact=True)
-    ]
-    assert _caps(b.received) == [
-        ConsumerCapabilities(edit=True, interact=True)
-    ]
+    assert _caps(a.received) == [ConsumerCapabilities.INTERACTOR]
+    assert _caps(b.received) == [ConsumerCapabilities.EDITOR]
 
 
 def test_promote_third_viewer_untouched() -> None:
@@ -108,9 +100,7 @@ def test_promote_skips_closed_consumer() -> None:
     a.state = ConnectionState.CLOSED
     room.promote_consumer_to_main(b)
     assert _caps(a.received) == []  # closed: not notified
-    assert _caps(b.received) == [
-        ConsumerCapabilities(edit=True, interact=True)
-    ]
+    assert _caps(b.received) == [ConsumerCapabilities.EDITOR]
 
 
 def test_stored_capabilities_override_slot() -> None:
@@ -121,11 +111,9 @@ def test_stored_capabilities_override_slot() -> None:
     room.add_consumer(
         b,
         main=False,
-        capabilities=ConsumerCapabilities(edit=False, interact=True),
+        capabilities=ConsumerCapabilities.INTERACTOR,
     )
-    assert room.get_capabilities(b) == ConsumerCapabilities(
-        edit=False, interact=True
-    )
+    assert room.get_capabilities(b) == ConsumerCapabilities.INTERACTOR
 
 
 def test_remove_stale_duplicate_keeps_live_consumer() -> None:
@@ -154,9 +142,5 @@ def test_promote_restamps_stored_capabilities() -> None:
     a, b = FakeConsumer("a"), FakeConsumer("b")
     room = _room_with(a, b)
     room.promote_consumer_to_main(b)
-    assert room.get_capabilities(b) == ConsumerCapabilities(
-        edit=True, interact=True
-    )
-    assert room.get_capabilities(a) == ConsumerCapabilities(
-        edit=False, interact=True
-    )
+    assert room.get_capabilities(b) == ConsumerCapabilities.EDITOR
+    assert room.get_capabilities(a) == ConsumerCapabilities.INTERACTOR

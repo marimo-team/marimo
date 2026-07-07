@@ -309,6 +309,20 @@ class ConsumerCapabilities(msgspec.Struct, frozen=True):
     edit: bool
     interact: bool
 
+    # Canonical role presets. Declared here and assigned below the class
+    # because each value is an instance of the class itself, which does not
+    # exist yet inside the body (cf. `datetime.min`/`datetime.max`).
+    EDITOR: ClassVar[ConsumerCapabilities]
+    INTERACTOR: ClassVar[ConsumerCapabilities]
+    VIEWER: ClassVar[ConsumerCapabilities]
+
+
+ConsumerCapabilities.EDITOR = ConsumerCapabilities(edit=True, interact=True)
+ConsumerCapabilities.INTERACTOR = ConsumerCapabilities(
+    edit=False, interact=True
+)
+ConsumerCapabilities.VIEWER = ConsumerCapabilities(edit=False, interact=False)
+
 
 class ConsumerCapabilitiesNotification(
     Notification, tag="consumer-capabilities"

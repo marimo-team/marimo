@@ -47,7 +47,9 @@ def create_response(
         response.update(
             {
                 "consumer_capabilities": asdict(
-                    ConsumerCapabilities(edit=not kiosk, interact=True)
+                    ConsumerCapabilities.INTERACTOR
+                    if kiosk
+                    else ConsumerCapabilities.EDITOR
                 )
             }
         )

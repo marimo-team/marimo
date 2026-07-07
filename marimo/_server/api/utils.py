@@ -113,7 +113,7 @@ def enforce_consumer_capability(
     capabilities = (
         session.room.get_capabilities(consumer)
         if consumer is not None
-        else ConsumerCapabilities(edit=False, interact=False)
+        else ConsumerCapabilities.VIEWER
     )
     if not consumer_can(capabilities, type(command)):
         raise HTTPException(

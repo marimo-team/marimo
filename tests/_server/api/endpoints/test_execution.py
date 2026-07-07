@@ -668,9 +668,7 @@ def _app_state_for_consumer(caps: ConsumerCapabilities) -> object:
 def test_enforce_consumer_capability_blocks_viewer() -> None:
     # A default viewer is an interactor (edit=False); an edit-tier command is
     # still refused.
-    app_state = _app_state_for_consumer(
-        ConsumerCapabilities(edit=False, interact=True)
-    )
+    app_state = _app_state_for_consumer(ConsumerCapabilities.INTERACTOR)
     command = ExecuteCellsCommand(cell_ids=[], codes=[])
     with pytest.raises(HTTPException) as exc_info:
         enforce_consumer_capability(app_state, command)  # type: ignore[arg-type]
@@ -678,8 +676,6 @@ def test_enforce_consumer_capability_blocks_viewer() -> None:
 
 
 def test_enforce_consumer_capability_allows_editor() -> None:
-    app_state = _app_state_for_consumer(
-        ConsumerCapabilities(edit=True, interact=True)
-    )
+    app_state = _app_state_for_consumer(ConsumerCapabilities.EDITOR)
     command = ExecuteCellsCommand(cell_ids=[], codes=[])
     enforce_consumer_capability(app_state, command)  # type: ignore[arg-type]

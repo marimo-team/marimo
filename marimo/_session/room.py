@@ -65,7 +65,11 @@ class Room:
         if capabilities is None:
             # Non-main connections default to interactors (drive UI state, no
             # edit). Pure read-only is opt-in, passed explicitly by the caller.
-            capabilities = ConsumerCapabilities(edit=main, interact=True)
+            capabilities = (
+                ConsumerCapabilities.EDITOR
+                if main
+                else ConsumerCapabilities.INTERACTOR
+            )
         self.consumers[consumer.consumer_id] = _ConsumerState(
             consumer=consumer, capabilities=capabilities
         )
@@ -117,14 +121,14 @@ class Room:
         if previous_main_consumer is not None:
             self.consumers[
                 previous_main_consumer.consumer_id
-            ].capabilities = ConsumerCapabilities(edit=False, interact=True)
+            ].capabilities = ConsumerCapabilities.INTERACTOR
             self._notify_consumer_capability_change(
                 previous_main_consumer,
                 self.get_capabilities(previous_main_consumer),
             )
         self.consumers[
             consumer.consumer_id
-        ].capabilities = ConsumerCapabilities(edit=True, interact=True)
+        ].capabilities = ConsumerCapabilities.EDITOR
         self._notify_consumer_capability_change(
             consumer, self.get_capabilities(consumer)
         )
@@ -135,7 +139,7 @@ class Room:
         """Get the stored capabilities of a consumer in this room."""
         state = self.consumers.get(consumer.consumer_id)
         if state is None:
-            return ConsumerCapabilities(edit=False, interact=False)
+            return ConsumerCapabilities.VIEWER
         return state.capabilities
 
     def get_consumer(self, consumer_id: ConsumerId) -> SessionConsumer | None:
