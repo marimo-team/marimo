@@ -27,10 +27,20 @@ describe("getReadonlyCodeDisplay", () => {
     expect(result.code).toBe(code);
   });
 
-  it("leaves non-SQL cells (e.g. markdown) unchanged as python", () => {
-    const code = 'mo.md("""## Heading""")';
-    const result = getReadonlyCodeDisplay(code);
-    expect(result.language).toBe("python");
-    expect(result.code).toBe(code);
+  it("unwraps markdown cells to their inner content", () => {
+    const result = getReadonlyCodeDisplay('mo.md("""## Heading""")');
+    expect(result.language).toBe("markdown");
+    expect(result.code).toBe("## Heading");
+  });
+
+  it("treats empty or whitespace-only code as python", () => {
+    expect(getReadonlyCodeDisplay("")).toEqual({
+      code: "",
+      language: "python",
+    });
+    expect(getReadonlyCodeDisplay("   \n\t  ")).toEqual({
+      code: "   \n\t  ",
+      language: "python",
+    });
   });
 });
