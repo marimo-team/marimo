@@ -805,6 +805,7 @@ export const LoadingDataTableComponent = memo(
             dataTable={dataTable}
             getDataUrl={props.get_data_url}
             fieldTypes={props.fieldTypes}
+            rowHeaders={props.rowHeaders}
             cellId={cellId}
           />
         ) : (
