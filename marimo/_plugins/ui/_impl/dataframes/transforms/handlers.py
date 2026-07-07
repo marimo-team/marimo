@@ -519,8 +519,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             # Keep expansion shallow and replace top-level null/nan entries so
             # pandas and other backends agree on expand-dict behaviour.
             expanded = pd.json_normalize(
-                result_df.pop(transform.column_id).map(normalise_empty_dict),
-                # type: ignore[arg-type]
+                result_df.pop(transform.column_id).map(normalise_empty_dict),  # type: ignore[arg-type]
                 max_level=0,
             )
             duplicate_columns = sorted(
@@ -536,8 +535,8 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
 
         schema = collected_df.collect_schema()
         dtype = schema.get(transform.column_id)
-        fields = getattr(dtype, "fields", None)
-        if fields is not None:
+        if isinstance(dtype, nw.Struct):
+            fields = dtype.fields
             field_names = [field.name for field in fields]
             columns = schema.names()
             column_index = columns.index(transform.column_id)
