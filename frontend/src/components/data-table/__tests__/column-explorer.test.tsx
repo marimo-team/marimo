@@ -126,3 +126,28 @@ describe("ColumnExplorerPanel header counts", () => {
     expect(screen.queryByText(/hidden/)).not.toBeInTheDocument();
   });
 });
+
+describe("ColumnExplorerPanel visibility actions", () => {
+  const showAll = () => screen.getByRole("button", { name: /Show all/ });
+  const hideAll = () => screen.getByRole("button", { name: /Hide all/ });
+
+  it("disables 'Show all' when every column is visible", () => {
+    renderPanel();
+    expect(showAll()).toBeDisabled();
+    expect(hideAll()).toBeEnabled();
+  });
+
+  it("disables 'Hide all' when every column is hidden", () => {
+    renderPanel({
+      initiallyHidden: ["customer_name", "cust_age", "order_total"],
+    });
+    expect(showAll()).toBeEnabled();
+    expect(hideAll()).toBeDisabled();
+  });
+
+  it("enables both actions when some columns are hidden", () => {
+    renderPanel({ initiallyHidden: ["cust_age"] });
+    expect(showAll()).toBeEnabled();
+    expect(hideAll()).toBeEnabled();
+  });
+});
