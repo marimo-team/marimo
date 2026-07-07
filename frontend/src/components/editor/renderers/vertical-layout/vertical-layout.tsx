@@ -10,6 +10,7 @@ import {
   Loader2Icon,
   MoreHorizontalIcon,
 } from "lucide-react";
+import { SQLParser } from "@marimo-team/smart-cells";
 import type React from "react";
 import { memo, useRef, useState } from "react";
 import { z } from "zod";
@@ -384,6 +385,8 @@ const VerticalCell = memo(
 
       // Hide the code if it's pure markdown and there's an output, or if the code is empty
       const hideCode = shouldHideCode(code, output);
+      // Only unwrap SQL when the code will actually be rendered.
+      const display = hideCode ? null : readonlyDisplay(code);
 
       return (
         <div
@@ -393,11 +396,12 @@ const VerticalCell = memo(
           {...cellDomProps(cellId, name)}
         >
           {cellOutputArea === "above" && outputArea}
-          {!hideCode && (
+          {display && (
             <div className="tray">
               <ReadonlyCode
                 initiallyHideCode={config.hide_code || kiosk}
-                code={code}
+                code={display.code}
+                language={display.language}
               />
             </div>
           )}
@@ -495,4 +499,21 @@ export function shouldHideCode(code: string, output: OutputMessage | null) {
   const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
   const hasOutput = output !== null && !isOutputEmpty(output);
   return (isPureMarkdown && hasOutput) || code.trim() === "";
+}
+
+const sqlParser = new SQLParser();
+
+/**
+ * Unwrap SQL cells to their inner query so read-only views highlight them as
+ * SQL instead of showing the raw `mo.sql(...)` wrapper.
+ */
+export function readonlyDisplay(code: string): {
+  code: string;
+  language: "python" | "sql";
+} {
+  const trimmed = code.trim();
+  if (sqlParser.isSupported(trimmed)) {
+    return { code: sqlParser.transformIn(trimmed).code, language: "sql" };
+  }
+  return { code, language: "python" };
 }
