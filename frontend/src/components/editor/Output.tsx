@@ -447,13 +447,22 @@ const ExpandableOutput = React.memo(
       if (!portal || !container) {
         return;
       }
-      if (fullScreenElement === container) {
-        container.appendChild(portal);
-        return () => {
-          document.body.appendChild(portal);
-          dismissOpenOverlay();
-        };
+      if (fullScreenElement !== container) {
+        return;
       }
+
+      const originalParent = portal.parentElement;
+      const originalNextSibling = portal.nextSibling;
+
+      container.appendChild(portal);
+      return () => {
+        dismissOpenOverlay();
+        if (originalParent && originalParent !== container) {
+          originalParent.insertBefore(portal, originalNextSibling);
+        } else {
+          document.body.appendChild(portal);
+        }
+      };
     }, [fullScreenElement]);
 
     return (
