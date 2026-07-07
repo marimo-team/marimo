@@ -1849,15 +1849,6 @@ def _validate_frozen_columns(
             raise ValueError("The same column cannot be frozen on both sides.")
 
     if freeze_columns_left_set:
-        # Unnamed row headers (e.g. a default pandas index) have no stable
-        # client-side id, so we can't freeze them. Surface this directly
-        # rather than letting the frontend silently no-op.
-        if "" in freeze_columns_left_set and "" in row_header_names_set:
-            raise ValueError(
-                "Cannot freeze an unnamed row index. "
-                "Set `df.index.name = '...'` (or `df.index.names = [...]` "
-                "for a MultiIndex) and pass that name to freeze_columns_left."
-            )
         invalid = (
             freeze_columns_left_set - column_names_set - row_header_names_set
         )

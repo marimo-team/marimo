@@ -1116,12 +1116,14 @@ def test_table_with_frozen_columns() -> None:
     not DependencyManager.pandas.has(), reason="Pandas not installed"
 )
 class TestFrozenRowHeaders:
-    def test_freeze_unnamed_pandas_index_rejected(self) -> None:
+    def test_freeze_unnamed_pandas_index(self) -> None:
         import pandas as pd
 
+        # An unnamed index is exposed as the row header "Index0", so it has a
+        # stable name that can be frozen like any named index.
         df = pd.DataFrame({"a": [1, 2, 3]}, index=["x", "y", "z"])
-        with pytest.raises(ValueError, match="unnamed row index"):
-            ui.table(df, freeze_columns_left=[""])
+        table = ui.table(df, freeze_columns_left=["Index0"])
+        assert table._component_args["freeze-columns-left"] == ["Index0"]
 
     def test_freeze_named_pandas_index(self) -> None:
         import pandas as pd
@@ -2396,13 +2398,13 @@ def test_json_multi_col_idx_table() -> None:
     json_data = json.loads(table._component_args["data"])
     assert json_data == [
         {
-            "": "All",
+            "Index0": "All",
             INDEX_COLUMN_NAME: 0,
             "basic_amt,NSW": 1,
             "basic_amt,QLD": 1,
         },
         {
-            "": "Full",
+            "Index0": "Full",
             INDEX_COLUMN_NAME: 1,
             "basic_amt,NSW": 0,
             "basic_amt,QLD": 1,
