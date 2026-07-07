@@ -94,6 +94,17 @@ DocumentChange = (
     | SetConfig
 )
 
+# Verified using drift guard test in `test_change_tag_matches_union`
+ChangeTag = Literal[
+    "create-cell",
+    "delete-cell",
+    "move-cell",
+    "reorder-cells",
+    "set-code",
+    "set-name",
+    "set-config",
+]
+
 # ------------------------------------------------------------------
 # Transaction
 # ------------------------------------------------------------------

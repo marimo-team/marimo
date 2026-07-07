@@ -1,13 +1,17 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import get_args
+
 import pytest
 from msgspec.structs import replace as structs_replace
 
 from marimo._ast.cell import CellConfig
 from marimo._messaging.notebook.changes import (
+    ChangeTag,
     CreateCell,
     DeleteCell,
+    DocumentChange,
     MoveCell,
     ReorderCells,
     SetCode,
@@ -94,3 +98,8 @@ class TestTransaction:
             source="test",
         )
         assert isinstance(tx.changes, tuple)
+
+
+def test_change_tag_matches_union() -> None:
+    derived = {m.__struct_config__.tag for m in get_args(DocumentChange)}
+    assert set(get_args(ChangeTag)) == derived
