@@ -421,6 +421,12 @@ class PandasTableManagerFactory(TableManagerFactory):
                     self._original_data.index
                 )
 
+            def with_index_as_columns(self) -> PandasTableManager:
+                flattened = _flatten_non_trivial_index(self._original_data)
+                if flattened is self._original_data:
+                    return self
+                return PandasTableManager(flattened)
+
             def _has_non_trivial_index(self) -> bool:
                 """Check if the DataFrame has a non-trivial index that should be searched."""
                 index = self._original_data.index

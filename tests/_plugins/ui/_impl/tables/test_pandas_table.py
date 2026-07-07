@@ -587,6 +587,29 @@ class TestPandasTableManager(unittest.TestCase):
         out = _flatten_non_trivial_index(df)
         assert list(out.columns) == ["Index0_index", "Index0"]
 
+    def test_with_index_as_columns_pandas_named_index(self) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            PandasTableManagerFactory,
+        )
+
+        df = pd.DataFrame({"v": [1, 2]}, index=pd.Index(["a", "b"], name="k"))
+        mgr = PandasTableManagerFactory.create()(df).with_index_as_columns()
+        assert "k" in mgr.get_column_names()
+        assert "v" in mgr.get_column_names()
+
+    def test_with_index_as_columns_trivial_index_is_noop(self) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            PandasTableManagerFactory,
+        )
+
+        df = pd.DataFrame({"v": [1, 2]})
+        mgr = PandasTableManagerFactory.create()(df).with_index_as_columns()
+        assert mgr.get_column_names() == ["v"]
+
     @pytest.mark.skipif(
         not DependencyManager.numpy.has(), reason="numpy not installed"
     )
