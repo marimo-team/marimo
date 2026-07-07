@@ -29,12 +29,7 @@ def setup_mcp_server(app: Starlette, allow_remote: bool = False) -> None:
 
     Args:
         app: Starlette application instance for accessing marimo state
-        server_name: Name for the MCP server instance
-        stateless_http: Whether to use stateless HTTP mode
         allow_remote: If True, disable DNS rebinding protection to allow remote access behind proxies.
-
-    Returns:
-        StreamableHTTPSessionManager: MCP session manager
     """
     if not DependencyManager.mcp.has():
         raise MarimoCLIMissingDependencyError(

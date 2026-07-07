@@ -1242,6 +1242,48 @@ if __name__ == "__main__":
     assert manager.file_content_matches_last_save() is False
 
 
+def test_file_content_matches_last_save_ignores_generated_with_version(
+    tmp_path: Path,
+) -> None:
+    temp_file = tmp_path / "test_generated_with.py"
+    temp_file.write_text(
+        """
+import marimo
+__generated_with = "0.0.0"
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+if __name__ == "__main__":
+    app.run()
+"""
+    )
+
+    manager = AppFileManager(filename=str(temp_file))
+    manager.save(
+        SaveNotebookRequest(
+            cell_ids=[CellId_t("1")],
+            filename=str(temp_file),
+            codes=["x = 1"],
+            names=["cell1"],
+            configs=[CellConfig()],
+            persist=True,
+        )
+    )
+
+    temp_file.write_text(
+        temp_file.read_text().replace(
+            f'__generated_with = "{__version__}"',
+            '__generated_with = "0.0.0"',
+        )
+    )
+
+    assert manager.file_content_matches_last_save() is True
+
+
 def test_file_content_matches_last_save_multiple_saves(tmp_path: Path) -> None:
     """Test that file_content_matches_last_save tracks the most recent save."""
     temp_file = tmp_path / "test_multiple_saves.py"

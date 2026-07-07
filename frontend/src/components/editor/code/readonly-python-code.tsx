@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { markdown } from "@codemirror/lang-markdown";
 import { sql } from "@codemirror/lang-sql";
 import CodeMirror, {
   EditorView,
@@ -11,6 +12,7 @@ import { useAddCodeToNewCell } from "@/components/editor/cell/useAddCell";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
+import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
@@ -22,6 +24,18 @@ const pythonExtensions = [
   EditorView.lineWrapping,
 ];
 const sqlExtensions = [sql(), EditorView.lineWrapping];
+const markdownExtensions = [markdown(), EditorView.lineWrapping];
+
+function readonlyCodeExtensions(language: LanguageAdapterType) {
+  switch (language) {
+    case "sql":
+      return sqlExtensions;
+    case "markdown":
+      return markdownExtensions;
+    default:
+      return pythonExtensions;
+  }
+}
 
 /**
  * A readonly code component that can be used to display code in a readonly state.
@@ -42,7 +56,7 @@ export const ReadonlyCode = memo(
       showHideCode?: boolean;
       showCopyCode?: boolean;
       insertNewCell?: boolean;
-      language?: "python" | "sql";
+      language?: LanguageAdapterType;
     } & ReactCodeMirrorProps,
   ) => {
     const { theme } = useTheme();
@@ -84,7 +98,7 @@ export const ReadonlyCode = memo(
           theme={theme === "dark" ? "dark" : "light"}
           height="100%"
           editable={!hideCode}
-          extensions={language === "python" ? pythonExtensions : sqlExtensions}
+          extensions={readonlyCodeExtensions(language)}
           value={code}
           readOnly={true}
         />
