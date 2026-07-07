@@ -14,7 +14,7 @@ Tool availability depends on which [chat panel mode](ai_completion.md#chat-panel
 | **Manual** | — |
 | **Ask** | Read-only inspection, data, debugging, and reference tools |
 | **Agent** | All **Ask** tools plus editing tools |
-| **Code mode** | `execute_code` and on-demand reference guides (see below) |
+| **Code mode** | Code execution tool and on-demand reference guides (see below) |
 
 External AI applications can also access the **Ask** and **Agent** notebook tools through the [marimo MCP server](mcp.md#mcp-server).
 
@@ -103,7 +103,7 @@ Code mode is available from the chat panel mode selector. Instead of the inspect
 
 | Tool / capability | Description |
 |-------------------|-------------|
-| **execute_code** | Run Python in the notebook kernel's scratchpad via `marimo._code_mode`. The assistant uses this for all notebook mutations — adding cells, updating code, inspecting variables, and running logic. |
+| **execute_code** | Run Python in the notebook kernel's scratchpad. The assistant uses this for all notebook mutations — adding cells, updating code, inspecting variables, and running logic. |
 | **gotchas** | On-demand reference for name redefinition, cached module proxies, and other notebook traps. |
 | **notebook-improvements** | On-demand reference for improving, optimizing, or cleaning up an existing notebook. |
 | **rich-representations** | On-demand reference for custom widgets, visual encodings, and interactive output. |
