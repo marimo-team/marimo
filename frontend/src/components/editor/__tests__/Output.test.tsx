@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OutputArea, OutputRenderer } from "../Output";
@@ -156,5 +156,71 @@ describe("OutputRenderer image and SVG rendering", () => {
     const imgElement = container.querySelector("img");
     expect(imgElement).not.toBeNull();
     expect(imgElement).toHaveAttribute("src", base64PngDataUrl);
+  });
+});
+
+vi.mock("@/utils/capabilities", () => ({
+  getIframeCapabilities: () => ({
+    isEmbedded: false,
+    hasLocalStorage: true,
+    hasSessionStorage: true,
+    hasClipboard: true,
+    hasDownloads: true,
+    hasFullscreen: true,
+    hasMediaDevices: true,
+  }),
+}));
+
+describe("OutputArea fullscreen portal behavior", () => {
+  let fullscreenElement: Element | null;
+  let portal: HTMLDivElement;
+
+  beforeEach(() => {
+    portal = document.createElement("div");
+    portal.id = "portal";
+    document.body.appendChild(portal);
+    fullscreenElement = null;
+    Object.defineProperty(document, "fullscreenElement", {
+      get: () => fullscreenElement,
+      configurable: true,
+    });
+  });
+
+  it("should move portal into the output container on fullscreen enter and restore on exit", () => {
+    const { container } = render(
+      <TooltipProvider>
+        <OutputArea
+          output={{
+            channel: "output",
+            data: "test",
+            mimetype: "text/plain",
+          }}
+          cellId={cellId("test")}
+          stale={false}
+          loading={false}
+          allowExpand={true}
+        />
+      </TooltipProvider>,
+    );
+
+    const outputContainer = container.querySelector(
+      '[data-cell-role="output"]',
+    )!;
+
+    expect(portal.parentElement).toBe(document.body);
+
+    act(() => {
+      fullscreenElement = outputContainer;
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+
+    expect(portal.parentElement).toBe(outputContainer);
+
+    act(() => {
+      fullscreenElement = null;
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+
+    expect(portal.parentElement).toBe(document.body);
   });
 });
