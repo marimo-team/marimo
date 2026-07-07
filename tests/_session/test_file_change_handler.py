@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from marimo import _loggers
+from marimo import __version__, _loggers
 from marimo._ast.cell import CellConfig
 from marimo._ast.cell_manager import CellManager
 from marimo._config.manager import get_default_config_manager
@@ -697,6 +697,60 @@ async def test_file_change_coordinator_skips_own_writes(
     result = await coordinator.handle_change(temp_file, mock_session)
     assert result.handled
     strategy.handle_reload.assert_called_once()
+
+
+async def test_file_change_coordinator_keeps_reloaded_generated_with(
+    tmp_path: Path, mock_session: MagicMock
+) -> None:
+    temp_file = tmp_path / "test_reloaded_generated_with.py"
+    temp_file.write_text("import marimo\napp = marimo.App()\n")
+
+    afm = AppFileManager(filename=str(temp_file))
+    mock_session.app_file_manager = afm
+    request = SaveNotebookRequest(
+        cell_ids=[CellId_t("1")],
+        filename=str(temp_file),
+        codes=["x = 1"],
+        names=["cell1"],
+        configs=[CellConfig()],
+        persist=True,
+    )
+    afm.save(request)
+    old_content = temp_file.read_text().replace(
+        f'__generated_with = "{__version__}"',
+        '__generated_with = "0.0.0"',
+    )
+
+    afm.save(
+        SaveNotebookRequest(
+            cell_ids=[CellId_t("1")],
+            filename=str(temp_file),
+            codes=["x = 2"],
+            names=["cell1"],
+            configs=[CellConfig()],
+            persist=True,
+        )
+    )
+
+    temp_file.write_text(old_content)
+    result = await FileChangeCoordinator(MagicMock()).handle_change(
+        temp_file, mock_session
+    )
+    assert result.handled
+
+    afm.save(
+        SaveNotebookRequest(
+            cell_ids=list(afm.app.cell_manager.cell_ids()),
+            filename=str(temp_file),
+            codes=list(afm.app.cell_manager.codes()),
+            names=["cell1"],
+            configs=[CellConfig()],
+            persist=True,
+        )
+    )
+
+    assert '__generated_with = "0.0.0"' in temp_file.read_text()
+    assert f'__generated_with = "{__version__}"' not in temp_file.read_text()
 
 
 async def test_file_change_coordinator_handles_syntax_errors(
