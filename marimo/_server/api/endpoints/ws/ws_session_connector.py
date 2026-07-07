@@ -21,7 +21,7 @@ from starlette.websockets import WebSocketDisconnect
 from marimo import _loggers
 from marimo._messaging.types import NoopStream
 from marimo._runtime.params import QueryParams
-from marimo._server.codes import WebSocketCodes
+from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._server.models.models import InstantiateNotebookRequest
 from marimo._session.model import ConnectionState, SessionMode
 
@@ -130,7 +130,8 @@ class SessionConnector:
         if self.manager.mode is not SessionMode.EDIT:
             LOGGER.debug("Kiosk mode is only supported in edit mode")
             raise WebSocketDisconnect(
-                WebSocketCodes.FORBIDDEN, "MARIMO_KIOSK_NOT_ALLOWED"
+                WebSocketCodes.FORBIDDEN,
+                WebSocketCloseReason.KIOSK_NOT_ALLOWED,
             )
 
         # Try to find session by ID first
@@ -151,7 +152,7 @@ class SessionConnector:
                 self.params.file_key,
             )
             raise WebSocketDisconnect(
-                WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_SESSION"
+                WebSocketCodes.NORMAL_CLOSE, WebSocketCloseReason.NO_SESSION
             )
 
         LOGGER.debug("Connecting to kiosk session")

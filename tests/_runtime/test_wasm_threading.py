@@ -10,7 +10,7 @@ import sys
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import patch
 
@@ -82,28 +82,91 @@ def test_wasm_threading_redundant_handle_does_not_unpatch_owner() -> None:
     assert threading.local is original_local
 
 
+def _stdlib_thread_ids(patch_state: Any) -> set[int]:
+    ids = {
+        patch_state.original_get_ident(),
+        patch_state.original_get_native_id(),
+    }
+    for thread in patch_state.original_enumerate():
+        for attr in ("ident", "native_id"):
+            ident = getattr(thread, attr, None)
+            if ident is not None:
+                ids.add(ident)
+    return ids
+
+
+def _mock_stdlib_thread_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> set[int]:
+    current_thread = threading.current_thread()
+    thread_ids = {101, 202, 303, 404}
+    monkeypatch.setattr(threading, "get_ident", lambda: 101)
+    monkeypatch.setattr(threading, "get_native_id", lambda: 202)
+    monkeypatch.setattr(threading, "current_thread", lambda: current_thread)
+    monkeypatch.setattr(
+        threading,
+        "enumerate",
+        lambda: [SimpleNamespace(ident=303, native_id=404)],
+    )
+    return thread_ids
+
+
 def test_wasm_threading_synthetic_ids_skip_real_thread_ids(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    real_ident = threading.get_ident()
-    real_native_id = getattr(threading, "get_native_id", threading.get_ident)()
-    expected_ident = max(real_ident, real_native_id) + 1000
+    stdlib_thread_ids = _mock_stdlib_thread_ids(monkeypatch)
 
     with _mock_pyodide_with_run_sync():
         from marimo._runtime._wasm._concurrency import _state
 
         unpatch = install_wasm_concurrency_shims()
         try:
+            real_thread_ids = _stdlib_thread_ids(_state.patch_state())
+            assert real_thread_ids == stdlib_thread_ids
+            expected_ident = max(real_thread_ids) + 1000
             monkeypatch.setattr(
                 _state,
                 "_IDENTS",
-                iter([real_ident, real_native_id, expected_ident]),
+                iter([*real_thread_ids, expected_ident]),
             )
             thread = threading.Thread(name="synthetic", target=lambda: None)
             thread.start()
             thread.join(timeout=1)
 
             assert thread.ident == expected_ident
+        finally:
+            unpatch()
+
+
+def test_wasm_threading_synthetic_ids_ignore_finished_thread_records(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stdlib_thread_ids = _mock_stdlib_thread_ids(monkeypatch)
+
+    with _mock_pyodide_with_run_sync():
+        from marimo._runtime._wasm._concurrency import _state
+
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            real_thread_ids = _stdlib_thread_ids(_state.patch_state())
+            assert real_thread_ids == stdlib_thread_ids
+            expected_ident = max(real_thread_ids) + 1000
+            stale_thread = _state.ThreadIdentity()
+            stale_thread._ident = expected_ident
+            stale_thread._native_id = expected_ident
+            _state.live_threads.add(stale_thread)
+            monkeypatch.setattr(
+                _state,
+                "_IDENTS",
+                iter([*real_thread_ids, expected_ident]),
+            )
+
+            thread = threading.Thread(name="synthetic", target=lambda: None)
+            thread.start()
+            thread.join(timeout=1)
+
+            assert thread.ident == expected_ident
+            assert stale_thread not in _state.live_threads
         finally:
             unpatch()
 

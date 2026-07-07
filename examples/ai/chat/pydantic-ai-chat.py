@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.23.10"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
@@ -272,19 +272,6 @@ def _():
         return None
 
 
-    async def custom_model(messages, config):
-        del config
-
-        pending = _pending_approval(messages)
-        if pending is not None:
-            async for chunk in _resume_after_approval(pending):
-                yield chunk
-            return
-
-        async for chunk in _showcase_turn():
-            yield chunk
-
-
     async def _showcase_turn():
         reasoning_id = _new_id("reasoning")
         search_id = _new_id("tc")
@@ -495,6 +482,19 @@ def _():
 
         yield vercel.FinishStepChunk()
         yield vercel.FinishChunk(finish_reason="stop")
+
+
+    async def custom_model(messages, config):
+        del config
+
+        pending = _pending_approval(messages)
+        if pending is not None:
+            async for chunk in _resume_after_approval(pending):
+                yield chunk
+            return
+
+        async for chunk in _showcase_turn():
+            yield chunk
 
 
     custom_chat = mo.ui.chat(

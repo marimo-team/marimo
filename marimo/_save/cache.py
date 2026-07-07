@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import inspect
 import re
+import textwrap
 from collections import namedtuple
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, get_args
@@ -14,6 +15,7 @@ from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.state import SetFunctor
 from marimo._save.stubs import (
     CUSTOM_STUBS,
+    ClassStub,
     CustomStub,
     FunctionStub,
     ModuleStub,
@@ -21,6 +23,7 @@ from marimo._save.stubs import (
     UIElementStub,
     maybe_register_stub,
 )
+from marimo._save.stubs.lazy_stub import UnhashableStub
 
 # Many assertions are for typing and should always pass. This message is a
 # catch all to motive users to report if something does fail.
@@ -38,6 +41,7 @@ if TYPE_CHECKING:
     from marimo._runtime.state import State
     from marimo._save.hash import HashKey
     from marimo._save.loaders import Loader
+    from marimo._save.loaders.lazy import LazyLoader
     from marimo._save.stores import Store
 
 # NB. Increment on cache breaking changes.
@@ -73,6 +77,12 @@ class CacheState:
 
     store: Store
     hash_memo: dict[str, bytes] = field(default_factory=dict)
+    # Lazy-store session state; see `loaders/lazy.py:_cache_state`.
+    active_lazy_loaders: dict[str, LazyLoader] = field(default_factory=dict)
+    poisoned_keys: set[str] = field(default_factory=set)
+    # Manifest keys invalidated this session for re-execution.
+    stale_keys: set[str] = field(default_factory=set)
+    wasm_dict_store: Store | None = None
 
     def is_memoizable(self, value: Any) -> bool:
         """Whether *value* is eligible for content-hash memoization.
@@ -114,6 +124,24 @@ CacheInfo = namedtuple(
 )
 
 
+def _source_refs(code: str) -> set[Name]:
+    """Free references of a captured class/function source block.
+
+    Reuses the cell `ScopedVisitor` so the notion of "what this def needs"
+    matches marimo's dataflow rather than a bespoke parser.
+    """
+    from marimo._ast.parse import ast_parse
+    from marimo._ast.visitor import ScopedVisitor
+
+    try:
+        tree = ast_parse(textwrap.dedent(code))
+    except SyntaxError:
+        return set()
+    visitor = ScopedVisitor("cache_restore")
+    visitor.visit(tree)
+    return set(visitor.refs)
+
+
 # BaseException because "raise _ as e" is utilized.
 class CacheException(BaseException):
     pass
@@ -136,7 +164,7 @@ class Cache:
     def restore(self, scope: dict[str, Any]) -> None:
         """Restores values from cache, into scope."""
         memo: dict[int, Any] = {}  # Track processed objects to handle cycles
-        for var, lookup in self.contextual_defs():
+        for var, lookup in self._restore_order(self.contextual_defs()):
             value = self.defs.get(var, None)
             scope[lookup] = self._restore_from_stub_if_needed(
                 value, scope, memo
@@ -166,6 +194,44 @@ class Cache:
                     "Unexpected stateful reference type "
                     f"({type(ref)}:{ref})."
                 )
+
+    def _restore_deps(self, value: Any) -> set[Name]:
+        """Cross-def names *value* needs before it can be restored.
+
+        - A re-exec'd class/function needs the defs it references at
+          definition time (bases, decorators, class-body calls).
+        - A pickled instance of a cell-defined class needs that class
+          materialized first (tagged via `requires`).
+        """
+        if isinstance(value, (ClassStub, FunctionStub)):
+            return _source_refs(value.code)
+        requires = getattr(value, "requires", "")
+        return {requires} if requires else set()
+
+    def _restore_order(
+        self, contextual_defs: dict[tuple[Name, Name], Any]
+    ) -> list[tuple[Name, Name]]:
+        """Order `(var, lookup)` pairs so each def's cross-def dependencies
+        restore first (depth-first; tolerant of cycles via `seen`)."""
+        lookups = {var: lookup for var, lookup in contextual_defs}
+        deps = {
+            var: self._restore_deps(self.defs.get(var)) & lookups.keys()
+            for var in lookups
+        }
+        order: list[tuple[Name, Name]] = []
+        seen: set[Name] = set()
+
+        def visit(var: Name) -> None:
+            if var in seen:
+                return
+            seen.add(var)
+            for dep in deps[var]:
+                visit(dep)
+            order.append((var, lookups[var]))
+
+        for var in lookups:
+            visit(var)
+        return order
 
     def _restore_from_stub_if_needed(
         self,
@@ -223,10 +289,23 @@ class Cache:
             result = value
         elif isinstance(value, ReferenceStub):
             result = value.load(scope)
+        elif isinstance(value, ClassStub):
+            # Re-exec the captured source into the cell namespace so the
+            # name rebinds to a live class (not the stub). Must run before
+            # any pickle blob referencing the class deserializes, so the
+            # class is resolvable as `__main__.<name>` in `scope`.
+            result = value.load(scope)
+        elif isinstance(value, UnhashableStub):
+            # Marker for a def whose value couldn't be serialized. Place it
+            # in scope as-is.
+            result = value
         elif isinstance(value, CustomStub):
             # CustomStub is a placeholder for a custom type, which cannot be
             # restored directly.
             result = value.load(scope)
+            # Account for nested stubs via recursive restore.
+            if isinstance(result, CustomStub) and result is not value:
+                result = self._restore_from_stub_if_needed(result, scope, memo)
         else:
             result = value
 
@@ -315,8 +394,28 @@ class Cache:
 
         if inspect.ismodule(value):
             result = ModuleStub(value)
-        elif inspect.isfunction(value):
+        elif (
+            inspect.isfunction(value)
+            and value.__name__ != "<lambda>"
+            and getattr(value, "__module__", "__main__") == "__main__"
+        ):
+            # NB. Lambdas can't round-trip via FunctionStub: inspect.getsource
+            # returns the line *containing* the lambda (e.g. "return model,
+            # lambda inp: model(inp)"), which fails to compile as a module.
             result = FunctionStub(value)
+        elif (
+            inspect.isclass(value)
+            and getattr(value, "__module__", None) == "__main__"
+        ):
+            # Attempt to capture classes by source so the loader can rebuild
+            # them in the cell namespace before pickle blobs that reference them
+            # deserialize. Pass the executing cell's source filename as a hint
+            # so attribute-only classes (no method code object to read a
+            # filename from) still resolve against `linecache`.
+            try:
+                result = ClassStub(value, filename=self._cell_filename())
+            except (TypeError, OSError):
+                result = value
         elif isinstance(value, UIElement):
             result = UIElementStub(value)
         elif isinstance(value, tuple):
@@ -396,6 +495,20 @@ class Cache:
         memo[obj_id] = result
 
         return result
+
+    @staticmethod
+    def _cell_filename() -> str | None:
+        """Source filename of the executing cell, for sourcing classes that
+        lack a method code object. `None` when there is no runtime context
+        (e.g. script-mode / direct API use)."""
+        try:
+            from marimo._ast.compiler import get_filename
+
+            context = get_context().execution_context
+            assert context is not None
+            return get_filename(context.cell_id)
+        except (ContextNotInitializedError, AssertionError):
+            return None
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""

@@ -705,11 +705,18 @@ class BlockHasher:
                 version = ""
                 module = None
                 if self.pin_modules:
-                    module = sys.modules[imports[ref].module]
-                    version = getattr(module, "__version__", "")
+                    # Fall back to the in-scope value (which may be a module
+                    # stub) so its replayed `__version__` reproduces the pinned
+                    # hash.
+                    module = sys.modules.get(imports[ref].module) or scope.get(
+                        local_ref
+                    )
+                    version = getattr(module, "__version__", "") or ""
                     if not version:
-                        module = sys.modules[imports[ref].namespace]
-                        version = getattr(module, "__version__", "")
+                        module = sys.modules.get(
+                            imports[ref].namespace
+                        ) or scope.get(imports[ref].namespace)
+                        version = getattr(module, "__version__", "") or ""
 
                 content_serialization[ref] = type_sign(
                     bytes(f"module:{ref}:{version}", "utf-8"), "module"
@@ -1078,6 +1085,7 @@ def cache_attempt_from_hash(
         hasher.defs,
         hasher.key,
         hasher.stateful_refs,
+        glbls=scope,
     )
 
 
@@ -1166,4 +1174,5 @@ def content_cache_attempt_from_base(
         hasher.defs,
         hasher.key,
         stateful_refs,
+        glbls=scope,
     )

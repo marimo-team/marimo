@@ -66,7 +66,6 @@ class ChatRequest(msgspec.Struct, rename="camel"):
     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
     """
 
-    context: AiCompletionContext
     include_other_code: str
     ui_messages: list[UIMessage]
     tools: list[ToolDefinition] | None = None

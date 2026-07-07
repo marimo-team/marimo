@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import functools
 import io
+import weakref
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -25,6 +26,8 @@ from marimo._runtime.virtual_file.virtual_file import VirtualFile
 from marimo._types.ids import WidgetModelId
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from matplotlib.figure import Figure, SubFigure
 
 LOGGER = _loggers.marimo_logger()
@@ -52,6 +55,87 @@ def _disconnect_owner_callbacks(canvas: Any, owner: Any) -> None:
                 cids.append(cid)
     for cid in cids:
         registry.disconnect(cid)
+
+
+class _FigureManagerRegistry:
+    """Shared `FigureManagerWebAgg` per figure, reference-counted by live
+    `mpl_interactive` instances.
+
+    matplotlib assumes one canvas/manager per figure for the figure's
+    lifetime, so every `mpl_interactive` wrapping the same figure reuses one
+    manager (and thus one toolbar, zoom history, and shared callback
+    registry). The manager is destroyed only when its last consumer is gone.
+
+    Both maps are weak so neither pins a figure on its own:
+      * The manager is held weakly; each live `mpl_interactive` keeps it alive
+        via `self._figure_manager`, so the entry drops once all are disposed.
+      * The figure is the weak key of the refcount map, so a discarded figure
+        evicts its own count without manual cleanup.
+
+    Bookkeeping only: manager creation, dpi/size capture, and canvas rebinding
+    are matplotlib-specific and stay with the caller.
+    """
+
+    def __init__(self) -> None:
+        self._managers: weakref.WeakValueDictionary[int, Any] = (
+            weakref.WeakValueDictionary()
+        )
+        self._refcounts: weakref.WeakKeyDictionary[Any, int] = (
+            weakref.WeakKeyDictionary()
+        )
+        # The figure's pristine dpi/size, captured before any interactive
+        # resize, to restore when the shared manager is destroyed. Kept here
+        # rather than on the manager so it shares the manager's lifecycle and
+        # stays typed instead of stringly monkey-patched onto a foreign object.
+        self._original_geometry: weakref.WeakKeyDictionary[
+            Any, tuple[float, tuple[float, float]]
+        ] = weakref.WeakKeyDictionary()
+
+    def acquire(
+        self, figure: Any, factory: Callable[[], Any]
+    ) -> tuple[Any, bool]:
+        """Return `(manager, created)` and increment the figure's refcount.
+
+        Reuses the cached manager if present, otherwise builds one via
+        `factory` and caches it. `created` is True only on the fresh build.
+        """
+        key = id(figure)
+        manager = self._managers.get(key)
+        created = False
+        if manager is None:
+            manager = factory()
+            self._managers[key] = manager
+            created = True
+        self._refcounts[figure] = self._refcounts.get(figure, 0) + 1
+        return manager, created
+
+    def set_original_geometry(
+        self, figure: Any, dpi: float, size_inches: tuple[float, float]
+    ) -> None:
+        self._original_geometry[figure] = (dpi, size_inches)
+
+    def original_geometry(
+        self, figure: Any
+    ) -> tuple[float, tuple[float, float]] | None:
+        return self._original_geometry.get(figure)
+
+    def release(self, figure: Any) -> bool:
+        """Decrement the figure's refcount.
+
+        Returns True when it reaches zero (the caller destroys the manager),
+        dropping every entry for the figure in that case.
+        """
+        count = self._refcounts.get(figure, 0) - 1
+        if count > 0:
+            self._refcounts[figure] = count
+            return False
+        self._refcounts.pop(figure, None)
+        self._managers.pop(id(figure), None)
+        self._original_geometry.pop(figure, None)
+        return True
+
+
+_FIGURE_MANAGERS = _FigureManagerRegistry()
 
 
 # Must match the className on the container div in MplInteractivePlugin.tsx
@@ -194,10 +278,27 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
         self._original_dpi = root.get_dpi()
         self._original_size_inches = tuple(root.get_size_inches())
 
-        # Create FigureManagerWebAgg
-        self._figure_manager = new_figure_manager_given_figure(
-            id(figure), figure
+        # Reuse the figure's manager across reruns so toolbar state, zoom
+        # history, and the shared callback registry survive. Only the comm is
+        # recreated per element (below).
+        manager, created = _FIGURE_MANAGERS.acquire(
+            figure,
+            lambda: new_figure_manager_given_figure(id(figure), figure),
         )
+        if created:
+            # Capture the pristine dpi/size once, before any interactive
+            # resize mutates them; restored when the shared manager is
+            # finally destroyed (refcount reaches zero).
+            _FIGURE_MANAGERS.set_original_geometry(
+                figure, self._original_dpi, self._original_size_inches
+            )
+        elif root.canvas is not manager.canvas:
+            # matplotlib >= 3.11 resets `figure.canvas` to a bare
+            # FigureCanvasBase on close, and marimo closes figures after every
+            # cell run (`close_figures()` -> `plt.close("all")`). Re-bind the
+            # cached canvas so the first frame after a rerun renders against it.
+            root.set_canvas(manager.canvas)
+        self._figure_manager = manager
 
         # Get figure dimensions in CSS pixels for initial sizing.
         # get_width_height() returns device pixels (includes DPI scaling).
@@ -265,10 +366,9 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
             ctx.cell_lifecycle_registry.add(
                 _MplCleanupHandle(
                     comm=self._comm,
+                    figure=self._figure,
                     figure_manager=self._figure_manager,
                     sync_ws=self._sync_ws,
-                    original_dpi=self._original_dpi,
-                    original_size_inches=self._original_size_inches,
                 )
             )
         except ContextNotInitializedError:
@@ -284,6 +384,16 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
         The actual mpl event (with "type" key) is at
           msg["content"]["data"]["content"].
         """
+        # matplotlib 3.11 resets `figure.canvas` to a bare FigureCanvasBase
+        # when the figure is closed, and marimo closes figures after every
+        # cell run (`close_figures()` -> `plt.close("all")`). Re-bind our
+        # canvas so matplotlib's hit-testing (`Artist.contains` ->
+        # `_different_canvas`) keeps accepting events and pan/zoom survive.
+        canvas = self._figure_manager.canvas
+        root_figure = canvas.figure.figure
+        if root_figure.canvas is not canvas:
+            root_figure.set_canvas(canvas)
+
         content = msg.get("content", {})
         data = content.get("data", {})
         # For custom messages, the actual payload is nested under "content"
@@ -344,17 +454,26 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
 
 
 class _MplCleanupHandle(CellLifecycleItem):
-    """Cleans up the matplotlib figure manager and MarimoComm on cell re-run or deletion."""
+    """Cleans up an `mpl_interactive` on cell re-run or deletion.
+
+    The comm and websocket are per-element and always torn down. The figure
+    manager is shared across every element wrapping the same figure, so it is
+    destroyed only when the last of those elements is disposed (its refcount
+    reaches zero). Callers that do not pass a `figure` fall back to destroying
+    the manager unconditionally.
+    """
 
     def __init__(
         self,
         comm: MarimoComm,
-        original_dpi: float,
-        original_size_inches: tuple[float, float],
+        figure: Any = None,
         figure_manager: Any = None,
         sync_ws: Any = None,
+        original_dpi: float | None = None,
+        original_size_inches: tuple[float, float] | None = None,
     ) -> None:
         self._comm = comm
+        self._figure = figure
         self._figure_manager = figure_manager
         self._sync_ws = sync_ws
         self._original_dpi = original_dpi
@@ -366,32 +485,52 @@ class _MplCleanupHandle(CellLifecycleItem):
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
         del context, deletion
         fm = self._figure_manager
-        if fm is not None:
-            if self._sync_ws is not None:
-                try:
-                    fm.remove_web_socket(self._sync_ws)
-                except Exception:
-                    LOGGER.exception("Failed to remove mpl web socket")
+        if fm is not None and self._sync_ws is not None:
+            try:
+                fm.remove_web_socket(self._sync_ws)
+            except Exception:
+                LOGGER.exception("Failed to remove mpl web socket")
 
-            canvas = fm.canvas
-            toolbar = getattr(canvas, "toolbar", None)
-            if toolbar is not None:
-                try:
-                    _disconnect_owner_callbacks(canvas, toolbar)
-                except Exception:
-                    LOGGER.exception(
-                        "Failed to disconnect mpl toolbar callbacks"
-                    )
+        if self._figure is None:
+            # No shared refcount (manual/legacy callers): destroy immediately,
+            # restoring the geometry passed at construction.
+            self._destroy_manager(
+                self._original_dpi, self._original_size_inches
+            )
+        else:
+            # Read the captured geometry before release drops it.
+            geometry = _FIGURE_MANAGERS.original_geometry(self._figure)
+            if _FIGURE_MANAGERS.release(self._figure):
+                dpi, size = geometry if geometry is not None else (None, None)
+                self._destroy_manager(dpi, size)
 
+        self._comm.close()
+        return True
+
+    def _destroy_manager(
+        self,
+        dpi: float | None,
+        size_inches: tuple[float, float] | None,
+    ) -> None:
+        fm = self._figure_manager
+        if fm is None:
+            return
+
+        canvas = fm.canvas
+        toolbar = getattr(canvas, "toolbar", None)
+        if toolbar is not None:
+            try:
+                _disconnect_owner_callbacks(canvas, toolbar)
+            except Exception:
+                LOGGER.exception("Failed to disconnect mpl toolbar callbacks")
+
+        if dpi is not None and size_inches is not None:
             try:
                 # get the root figure (in case of Subfigure) which handles dpi
                 root = canvas.figure.figure
-                root.set_dpi(self._original_dpi)
-                root.set_size_inches(*self._original_size_inches)
+                root.set_dpi(dpi)
+                root.set_size_inches(*size_inches)
             except Exception:
                 LOGGER.exception(
                     "Failed to restore mpl figure dpi/size on dispose"
                 )
-
-        self._comm.close()
-        return True

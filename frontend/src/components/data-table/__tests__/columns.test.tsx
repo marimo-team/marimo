@@ -1082,3 +1082,23 @@ describe("renderCellValue with datetime values", () => {
     });
   });
 });
+
+test("column_widths sets fixed size and meta.width", () => {
+  const cols = generateColumns({
+    rowHeaders: [],
+    selection: null,
+    fieldTypes: [
+      ["a", ["number", "int64"]],
+      ["b", ["string", "str"]],
+    ],
+    columnWidths: { a: 120 },
+  });
+  const a = cols.find((c) => c.id === "a");
+  const b = cols.find((c) => c.id === "b");
+  expect(a?.size).toBe(120);
+  expect(a?.minSize).toBe(120);
+  expect(a?.maxSize).toBe(120);
+  expect(a?.meta?.width).toBe(120);
+  expect(b?.size).toBeUndefined();
+  expect(b?.meta?.width).toBeUndefined();
+});

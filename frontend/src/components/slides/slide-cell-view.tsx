@@ -26,7 +26,7 @@ import { connectionAtom } from "@/core/network/connection";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { ReadonlyCode } from "../editor/code/readonly-python-code";
-import { languageAdapterFromCode } from "@/core/codemirror/language/extension";
+import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
 
 type RuntimeCell = CellRuntimeState & CellData;
 
@@ -188,10 +188,7 @@ export const SlideCellReadOnlyView = ({ cell }: { cell: RuntimeCell }) => {
   const [userConfig] = useUserConfig();
   const cellOutputPosition = userConfig.display.cell_output;
 
-  const language = useMemo(() => {
-    const adapter = languageAdapterFromCode(cell.code.trim());
-    return adapter.type === "sql" ? "sql" : "python";
-  }, [cell.code]);
+  const display = useMemo(() => getReadonlyCodeDisplay(cell.code), [cell.code]);
 
   const output = (
     <CellOutputSlide
@@ -203,7 +200,11 @@ export const SlideCellReadOnlyView = ({ cell }: { cell: RuntimeCell }) => {
 
   const editor = (
     <div className="marimo-cell">
-      <ReadonlyCode code={cell.code} language={language} showHideCode={false} />
+      <ReadonlyCode
+        code={display.code}
+        language={display.language}
+        showHideCode={false}
+      />
     </div>
   );
 

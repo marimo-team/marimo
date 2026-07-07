@@ -2920,6 +2920,39 @@ describe("cell reducer", () => {
       expect(state.untouchedNewCells.has(newCellId)).toBe(true);
     });
 
+    it("adds interactively-created hidden cell with boilerplate code to untouchedNewCells", () => {
+      // Markdown cells are created with hideCode and non-empty default code
+      // (e.g. `mo.md(r"""\n""")`). They are user-initiated, so their editor
+      // should be shown until first blur.
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        code: 'mo.md(r"""\n""")',
+        hideCode: true,
+        autoFocus: true,
+      });
+
+      const newCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
+    });
+
+    it("does not add programmatically-created hidden cell with code to untouchedNewCells", () => {
+      // Cells created by the kernel (e.g. via code_mode) carry code and
+      // autoFocus=false; their hide_code must take effect immediately.
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        code: "x = 1",
+        hideCode: true,
+        autoFocus: false,
+      });
+
+      const newCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      expect(state.untouchedNewCells.has(newCellId)).toBe(false);
+    });
+
     it("does not add cell to untouchedNewCells when hideCode is false", () => {
       actions.createNewCell({
         cellId: "__end__",

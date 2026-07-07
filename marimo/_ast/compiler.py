@@ -28,7 +28,12 @@ from marimo._ast.names import SETUP_CELL_NAME, TOPLEVEL_CELL_PREFIX
 from marimo._ast.pytest import has_fixture_decorator
 from marimo._ast.transformers import ContainedExtractWithBlock
 from marimo._ast.variables import is_local
-from marimo._ast.visitor import ImportData, Name, ScopedVisitor
+from marimo._ast.visitor import (
+    ImportData,
+    Name,
+    ScopedVisitor,
+    get_closure_refs,
+)
 from marimo._schemas.serialization import CellDef, ClassCell, FunctionCell
 from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
@@ -363,6 +368,11 @@ def compile_cell(
         for name in nonlocals
         if name in v.variable_data
     }
+    # Temporaries that closures depend on (transitively) must be retained even
+    # though they would otherwise be deleted after the cell runs. We use the
+    # unfiltered `v.variable_data` here so that references reachable only
+    # through private (temporary) closures are still found.
+    closed_over_temporaries = get_closure_refs(v.variable_data) & temporaries
 
     # If this cell is an import cell, we carry over any imports in
     # `carried_imports` that are also in this cell to the import workspace's
@@ -389,6 +399,7 @@ def compile_cell(
         refs=v.refs,
         sql_refs=v.sql_refs,
         temporaries=temporaries,
+        closed_over_temporaries=closed_over_temporaries,
         variable_data=variable_data,
         import_workspace=ImportWorkspace(
             is_import_block=is_import_block,

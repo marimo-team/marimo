@@ -9,13 +9,21 @@ from starlette.authentication import requires
 from starlette.responses import JSONResponse, StreamingResponse
 
 from marimo import _loggers
+from marimo._code_mode.screenshot_meta import (
+    SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_SERVER_URL_KEY,
+)
 from marimo._runtime.commands import HTTPRequest, UpdateUIElementCommand
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     FILE_QUERY_PARAM_KEY,
 )
 from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
-from marimo._server.api.utils import dispatch_control_request, parse_request
+from marimo._server.api.utils import (
+    dispatch_control_request,
+    get_code_mode_credentials,
+    parse_request,
+)
 from marimo._server.models.models import (
     BaseResponse,
     DebugCellRequest,
@@ -355,19 +363,11 @@ async def execute_code(
             with session.scoped(listener):
                 async with session.scratchpad_lock:
                     http_req = HTTPRequest.from_request(request)
-                    # Inject trusted server URL and auth token for
-                    # code-mode screenshot support.  We use the
-                    # server's own host/port (from config) rather
-                    # than the request's Host header to prevent
-                    # header-spoofing attacks.
-                    http_req.meta["screenshot_auth_token"] = str(
-                        app_state.session_manager.auth_token
+                    server_url, auth_token = get_code_mode_credentials(
+                        app_state, request
                     )
-                    base_url = app_state.base_url.rstrip("/")
-                    scheme = request.url.scheme or "http"
-                    http_req.meta["screenshot_server_url"] = (
-                        f"{scheme}://{app_state.host}:{app_state.port}{base_url}"
-                    )
+                    http_req.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
+                    http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
                     notebook_cells, cell_outputs = snapshot_for_scratchpad(
                         session
                     )

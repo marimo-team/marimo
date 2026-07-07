@@ -79,7 +79,7 @@ def incomplete_function(
 
     def test_bash_script(self) -> None:
         """Test non-Python script (bash)."""
-        source = """#!/bin/bash
+        source = """#!/usr/bin/env bash
 echo "Hello World"
 for i in {1..5}; do
     echo "Count: $i"
@@ -137,7 +137,7 @@ Some more content here.
 
     def test_script_block_with_special_characters(self) -> None:
         """Test script block with special characters."""
-        source = """#!/bin/bash
+        source = """#!/usr/bin/env bash
 echo "Hello World"
 # This is a bash script, not Python
 """

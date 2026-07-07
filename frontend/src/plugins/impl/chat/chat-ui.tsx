@@ -445,6 +445,7 @@ export const Chatbot: React.FC<Props> = (props) => {
                   message,
                   isStreamingReasoning: status === "streaming",
                   isLast,
+                  isActive: isLoading,
                   addToolApprovalResponse: isLast
                     ? addToolApprovalResponse
                     : undefined,

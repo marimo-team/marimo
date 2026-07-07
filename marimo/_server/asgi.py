@@ -108,14 +108,6 @@ class DynamicDirectoryMiddleware:
                 "Using path='/' or path='' is not supported."
             )
         self.directory = Path(directory)
-        # Precompute the resolved directory so we don't hit the filesystem
-        # on every request. Fall back to an absolute path if resolve()
-        # fails (e.g., broken symlink), so the middleware still starts
-        # and per-request checks can handle resolution errors.
-        try:
-            self._resolved_directory = self.directory.resolve()
-        except (RuntimeError, OSError):
-            self._resolved_directory = self.directory.absolute()
         self.app_builder = app_builder
         self._app_cache: dict[str, ASGIApp] = {}
         self.validate_callback = validate_callback
@@ -144,9 +136,16 @@ class DynamicDirectoryMiddleware:
         return RedirectResponse(url=redirect_url, status_code=307)
 
     def _is_within_directory(self, path: Path) -> bool:
-        """Check that path resolves to a location within self.directory."""
+        """Check that `path` resolves to a location within the directory.
+
+        Resolve the directory live rather than caching it at init, so the
+        check keeps working when the directory is reached through a symlink
+        that is swapped at runtime (atomic deploys, k8s mounts, git-sync).
+        Both sides are still fully resolved, so `..` and escaping-symlink
+        traversal is still rejected.
+        """
         try:
-            path.resolve().relative_to(self._resolved_directory)
+            path.resolve().relative_to(self.directory.resolve())
             return True
         except (ValueError, RuntimeError, OSError):
             return False

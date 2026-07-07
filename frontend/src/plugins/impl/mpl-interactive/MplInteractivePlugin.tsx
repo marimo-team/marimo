@@ -174,99 +174,99 @@ const MplInteractiveSlot = (props: IPluginProps<ModelIdRef, Data>) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const figureRef = useRef<MplFigure | null>(null);
   const wsRef = useRef<MplCommWebSocket | null>(null);
+  // Sends to the currently bound backend model. Re-pointed on every (re)bind
+  // so the persistent socket and toolbar downloads always reach the live comm.
+  const sendRef = useRef<(msg: unknown) => void>(Functions.NOOP);
+  // Detaches the model bound by the most recent bindModel call. Shared between
+  // the mount and rebind effects so a rerun disposes the prior model's
+  // listener before attaching the next one (never stacking listeners).
+  const boundModelCleanupRef = useRef<(() => void) | undefined>(undefined);
+  // Latest model id, read by the mount effect without being a dependency:
+  // the figure is built once, and switching to a new model is the rebind
+  // effect's job, not a reason to tear the canvas down.
+  const modelIdRef = useRef(modelId);
+  modelIdRef.current = modelId;
+  // The data attributes are re-parsed into fresh objects on every rerun, so
+  // `toolbarImages` changes identity even when its contents do not. Read it
+  // from a ref so it can't retrigger the mount effect and rebuild the canvas.
+  const toolbarImagesRef = useRef(toolbarImages);
+  toolbarImagesRef.current = toolbarImages;
 
-  const setupFigure = useCallback(
-    async (container: HTMLElement) => {
-      // Load mpl.js globally (only once, via <script src>)
-      await ensureMplJs(mplJsUrl);
+  // Bind the already-rendered figure/socket to a backend model, leaving the
+  // DOM, figure, and socket in place so they survive across reruns. Disposes
+  // the previously bound model first and records the new cleanup in
+  // boundModelCleanupRef, so exactly one model listener is ever attached.
+  const bindModel = useCallback(async (id: WidgetModelId): Promise<void> => {
+    const fakeWs = wsRef.current;
+    if (!fakeWs) {
+      return;
+    }
 
-      if (!window.mpl) {
-        Logger.error("mpl.js failed to load");
+    let model: Model<ModelState>;
+    try {
+      model = await MODEL_MANAGER.get(id);
+    } catch {
+      Logger.error("Failed to get model for mpl interactive", id);
+      return;
+    }
+
+    // The figure may have been torn down (unmount, or a structural rebuild)
+    // while we awaited the model; don't wire a listener that would outlive it.
+    if (wsRef.current !== fakeWs) {
+      return;
+    }
+
+    // Detach the previously bound model before wiring the new one.
+    boundModelCleanupRef.current?.();
+
+    // Re-point outbound traffic at this model without recreating the socket,
+    // so mpl.js's onopen/onmessage wiring stays intact.
+    const send = (msg: unknown) => model.send(msg);
+    fakeWs.setSendHandler(send);
+    sendRef.current = send;
+
+    // Listen for backend → frontend messages via model custom events
+    const handleCustomMessage = (
+      content: { type: string; data?: unknown; format?: string },
+      buffers?: readonly DataView[],
+    ) => {
+      if (!content) {
         return;
       }
 
-      // Get the model from MODEL_MANAGER
-      let model: Model<ModelState>;
-      try {
-        model = await MODEL_MANAGER.get(modelId);
-      } catch {
-        Logger.error("Failed to get model for mpl interactive", modelId);
-        return;
+      if (content.type === "json") {
+        fakeWs.receiveJson(content.data);
+      } else if (content.type === "binary" && buffers && buffers.length > 0) {
+        fakeWs.receiveBinary(buffers[0]);
+      } else if (content.type === "download" && buffers && buffers.length > 0) {
+        const fmt = content.format || "png";
+        const dv = buffers[0];
+        const ab = dv.buffer.slice(
+          dv.byteOffset,
+          dv.byteOffset + dv.byteLength,
+        ) as ArrayBuffer;
+        downloadBlob(new Blob([ab], { type: `image/${fmt}` }), `figure.${fmt}`);
       }
+    };
 
-      // Create the fake WebSocket
-      const fakeWs = new MplCommWebSocket((msg: unknown) => {
-        // Send from frontend → backend via model custom message
-        model.send(msg);
-      });
-      wsRef.current = fakeWs;
+    model.on("msg:custom", handleCustomMessage as any);
 
-      // Listen for backend → frontend messages via model custom events
-      const handleCustomMessage = (
-        content: { type: string; data?: unknown; format?: string },
-        buffers?: readonly DataView[],
-      ) => {
-        if (!content) {
-          return;
-        }
+    // Replay the mpl.js handshake against the new comm so the backend
+    // re-establishes image mode and pushes a frame. The figure DOM and the
+    // backend manager's toolbar state are left untouched.
+    fakeWs.onopen?.();
 
-        if (content.type === "json") {
-          fakeWs.receiveJson(content.data);
-        } else if (content.type === "binary" && buffers && buffers.length > 0) {
-          fakeWs.receiveBinary(buffers[0]);
-        } else if (
-          content.type === "download" &&
-          buffers &&
-          buffers.length > 0
-        ) {
-          const fmt = content.format || "png";
-          const dv = buffers[0];
-          const ab = dv.buffer.slice(
-            dv.byteOffset,
-            dv.byteOffset + dv.byteLength,
-          ) as ArrayBuffer;
-          downloadBlob(
-            new Blob([ab], { type: `image/${fmt}` }),
-            `figure.${fmt}`,
-          );
-        }
-      };
-
-      model.on("msg:custom", handleCustomMessage as any);
-
-      // Create the mpl figure
-      const figId = modelId;
-      const ondownload = (_figure: MplFigure, format: string) => {
-        // Send download request to backend
-        model.send({ type: "download", format });
-      };
-
-      const fig = new window.mpl.figure(figId, fakeWs, ondownload, container);
-      figureRef.current = fig;
-
-      // Set the canvas_div to the backend's figure size so the
-      // ResizeObserver doesn't trigger an immediate resize cycle.
-      // mpl.js creates: fig.root > [titlebar, canvas_div, toolbar]
-      const canvasDiv = fig.root.querySelector<HTMLElement>("div[tabindex]");
-      if (canvasDiv) {
-        canvasDiv.style.width = `${width}px`;
-        canvasDiv.style.height = `${height}px`;
+    boundModelCleanupRef.current = () => {
+      model.off("msg:custom", handleCustomMessage as any);
+      if (sendRef.current === send) {
+        sendRef.current = Functions.NOOP;
       }
+    };
+  }, []);
 
-      // Trigger the onopen callback to start communication
-      // mpl.js sends initial messages in onopen
-      setTimeout(() => {
-        fakeWs.onopen?.();
-      }, 0);
-
-      return () => {
-        model.off("msg:custom", handleCustomMessage as any);
-        fakeWs.close();
-      };
-    },
-    [modelId, mplJsUrl, width, height],
-  );
-
+  // Mount: build the DOM, mpl figure, and socket once. modelId is read from a
+  // ref and intentionally omitted from the deps — rebinding to a new model is
+  // handled by the effect below, not by rebuilding the canvas.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {
@@ -280,34 +280,90 @@ const MplInteractiveSlot = (props: IPluginProps<ModelIdRef, Data>) => {
     const removeCss = injectCss(container, cssUrl);
 
     // Patch toolbar images
-    const removeImageObserver = patchToolbarImages(container, toolbarImages);
+    const removeImageObserver = patchToolbarImages(
+      container,
+      toolbarImagesRef.current,
+    );
 
-    let cleanup: (() => void) | undefined;
     let cancelled = false;
 
-    setupFigure(container)
-      .then((cleanupFn) => {
-        if (cancelled) {
-          cleanupFn?.();
-          return;
-        }
-        cleanup = cleanupFn;
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          Logger.error("Failed to set up MPL interactive figure", error);
-        }
+    const setup = async () => {
+      // Load mpl.js globally (only once, via <script src>)
+      await ensureMplJs(mplJsUrl);
+
+      if (!window.mpl) {
+        Logger.error("mpl.js failed to load");
+        return;
+      }
+
+      // The send handler is swapped per bind; route through sendRef so the
+      // socket outlives any single model.
+      const fakeWs = new MplCommWebSocket((msg: unknown) => {
+        sendRef.current(msg);
       });
+      wsRef.current = fakeWs;
+
+      const ondownload = (_figure: MplFigure, format: string) => {
+        sendRef.current({ type: "download", format });
+      };
+
+      const fig = new window.mpl.figure(
+        modelIdRef.current,
+        fakeWs,
+        ondownload,
+        container,
+      );
+      figureRef.current = fig;
+
+      // Set the canvas_div to the backend's figure size so the
+      // ResizeObserver doesn't trigger an immediate resize cycle.
+      // mpl.js creates: fig.root > [titlebar, canvas_div, toolbar]
+      const canvasDiv = fig.root.querySelector<HTMLElement>("div[tabindex]");
+      if (canvasDiv) {
+        canvasDiv.style.width = `${width}px`;
+        canvasDiv.style.height = `${height}px`;
+      }
+
+      await bindModel(modelIdRef.current);
+    };
+
+    setup().catch((error) => {
+      if (!cancelled) {
+        Logger.error("Failed to set up MPL interactive figure", error);
+      }
+    });
 
     return () => {
       cancelled = true;
+      boundModelCleanupRef.current?.();
+      boundModelCleanupRef.current = undefined;
       removeCss();
       removeImageObserver();
-      cleanup?.();
+      wsRef.current?.close();
+      wsRef.current = null;
+      figureRef.current = null;
       // Clear DOM on unmount so stale content doesn't linger
       container.innerHTML = "";
     };
-  }, [modelId, cssUrl, toolbarImages, setupFigure]);
+  }, [mplJsUrl, cssUrl, width, height, bindModel]);
+
+  // Rebind to a new model when the cell re-runs, keeping the rendered figure
+  // and toolbar in place. The initial bind is owned by the mount effect, so
+  // skip the first run here.
+  const isInitialBindRef = useRef(true);
+  useEffect(() => {
+    if (isInitialBindRef.current) {
+      isInitialBindRef.current = false;
+      return;
+    }
+
+    // bindModel disposes the previously bound model and guards against a
+    // teardown that races the awaited model lookup, so no per-run cleanup is
+    // needed here; the mount effect's cleanup detaches the final bind.
+    bindModel(modelId).catch((error) => {
+      Logger.error("Failed to rebind MPL interactive figure", error);
+    });
+  }, [modelId, bindModel]);
 
   // Re-request figure when tab becomes visible
   useEventListener(document, "visibilitychange", () => {
@@ -324,6 +380,7 @@ const MplInteractiveSlot = (props: IPluginProps<ModelIdRef, Data>) => {
 export const visibleForTesting = {
   ensureMplJs,
   injectCss,
+  MplInteractiveSlot,
   resetMplJsLoading: () => {
     mplJsLoading = null;
   },

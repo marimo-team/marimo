@@ -10,7 +10,22 @@ from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.models.completion import UIMessage as ServerUIMessage
 
+if TYPE_CHECKING:
+    from pydantic_ai import ModelProfile
+
 LOGGER = _loggers.marimo_logger()
+
+
+def profile_get(profile: ModelProfile, key: str, default: Any) -> Any:
+    """Read a field from a pydantic-ai `ModelProfile`.
+
+    pydantic-ai v1 exposes profiles as dataclasses (attribute access); v2
+    exposes them as TypedDicts (dict access).
+    """
+    if isinstance(profile, dict):
+        return profile.get(key, default)
+    return getattr(profile, key, default)
+
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -21,6 +36,15 @@ if TYPE_CHECKING:
 
 def generate_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex}"
+
+
+# Wire `type` of the @-context data part emitted by the frontend
+MARIMO_CONTEXT_PART_TYPE = "data-marimo-context"
+
+
+def format_inline_context(plain_text: str) -> str:
+    """Render @-context as a user-message text block."""
+    return f"<context>\n{plain_text.strip()}\n</context>"
 
 
 def form_toolsets(
@@ -98,12 +122,16 @@ def convert_to_pydantic_messages(
             or generate_id("message")
         )
         role = message.get("role", "assistant")
-        parts = [sanitize_part(part) for part in message.get("parts", [])]
+        parts = _prepare_parts(message.get("parts", []))
         metadata = message.get("metadata")
 
         ui_message = UIMessage(
             id=message_id, role=role, parts=parts, metadata=metadata
         )
+
+        ui_message.parts = [
+            repair_incomplete_tool_call(part) for part in ui_message.parts
+        ]
 
         # Process parts after casting so the processor will work on typed parts
         if ui_message.parts and part_processor:
@@ -115,6 +143,40 @@ def convert_to_pydantic_messages(
         pydantic_messages.append(ui_message)
 
     return pydantic_messages
+
+
+def _prepare_parts(raw_parts: list[Any]) -> list[Any]:
+    """Normalize a message's raw parts for pydantic-ai validation."""
+    parts: list[Any] = []
+    for part in raw_parts:
+        lowered = _expand_marimo_context_part(part)
+        if lowered is None:
+            continue  # empty context part, drop it
+        parts.append(sanitize_part(lowered))
+    return parts
+
+
+def _expand_marimo_context_part(part: Any) -> Any:
+    """Resolve a `data-marimo-context` part into a text part.
+
+    The @-context is shipped inside the user message as a data part because
+    pydantic-ai's VercelAIAdapter drops DataUIPart entirely.
+
+    Returns the part unchanged when it isn't a context part, a text part when
+    it carries non-empty context, or `None` to drop empty context parts.
+    """
+    if (
+        not isinstance(part, dict)
+        or part.get("type") != MARIMO_CONTEXT_PART_TYPE
+    ):
+        return part
+    data = part.get("data")
+    if not isinstance(data, dict):
+        return None
+    plain_text = (data.get("plainText") or "").strip()
+    if not plain_text:
+        return None
+    return {"type": "text", "text": format_inline_context(plain_text)}
 
 
 def create_simple_prompt(text: str) -> UIMessage:
@@ -145,6 +207,55 @@ def _tool_part_allowed_fields() -> dict[tuple[bool, str], frozenset[str]]:
         )
         result[(is_dynamic, state)] = aliases
     return result
+
+
+_INTERRUPTED_TOOL_MESSAGE = "Tool call was interrupted and did not complete."
+
+
+def repair_incomplete_tool_call(part: UIMessagePart) -> UIMessagePart:
+    """Give an interrupted tool call a terminal `output-error` result.
+
+    A tool part left in `input-streaming`/`input-available` is a tool call with no result.
+    Some providers like Anthropic expect a tool result, so stopping a stream mid-call would break the conversation.
+    We rewrite the part to the matching `output-error` model so the conversion to pydantic-ai produces a tool result.
+
+    A deferred call (approval-requested/approval-responded) is left alone.
+    """
+    from pydantic_ai.ui.vercel_ai.request_types import (
+        DynamicToolInputAvailablePart,
+        DynamicToolInputStreamingPart,
+        DynamicToolOutputErrorPart,
+        ToolInputAvailablePart,
+        ToolInputStreamingPart,
+        ToolOutputErrorPart,
+    )
+
+    if isinstance(part, (ToolInputStreamingPart, ToolInputAvailablePart)):
+        return ToolOutputErrorPart(
+            type=part.type,
+            tool_call_id=part.tool_call_id,
+            title=part.title,
+            input=part.input,
+            error_text=_INTERRUPTED_TOOL_MESSAGE,
+            provider_executed=part.provider_executed,
+            call_provider_metadata=part.call_provider_metadata,
+            approval=part.approval,
+        )
+    if isinstance(
+        part,
+        (DynamicToolInputStreamingPart, DynamicToolInputAvailablePart),
+    ):
+        return DynamicToolOutputErrorPart(
+            tool_name=part.tool_name,
+            tool_call_id=part.tool_call_id,
+            title=part.title,
+            input=part.input,
+            error_text=_INTERRUPTED_TOOL_MESSAGE,
+            provider_executed=part.provider_executed,
+            call_provider_metadata=part.call_provider_metadata,
+            approval=part.approval,
+        )
+    return part
 
 
 def sanitize_part(part: Any) -> Any:

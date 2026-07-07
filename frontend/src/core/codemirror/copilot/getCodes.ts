@@ -47,7 +47,9 @@ const notebookCellCodes = atom((get) => {
       const handle = notebook.cellHandles[id];
       return [
         id,
-        handle?.current ? getEditorCodeAsPython(handle.current.editorView) : "",
+        handle?.current?.editorView
+          ? getEditorCodeAsPython(handle.current.editorView)
+          : "",
       ];
     }),
   );

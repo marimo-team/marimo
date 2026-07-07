@@ -23,7 +23,7 @@ from marimo._output.md import _md
 from marimo._runtime import dataflow
 from marimo._runtime.commands import CodeCompletionCommand
 from marimo._types.ids import RequestId
-from marimo._utils.docs import MarimoConverter
+from marimo._utils.docs import MarimoConverter, google_docstring_to_markdown
 from marimo._utils.format_signature import format_signature
 from marimo._utils.rst_to_html import convert_rst_to_html
 
@@ -60,13 +60,17 @@ def _should_include_name(name: str, prefix: str) -> bool:
 
 
 DOC_CACHE_SIZE = 200
-# Normally '.' is the trigger character for completions.
+# Characters that trigger the completion list when the prefix is empty.
 #
-# We also want to trigger completions on '(', ',' because
-# we don't open the signature popup on these characters.
+# `.` triggers attribute completions and `/` triggers file-path completions.
 #
-# We also add '/' for file path completion.
-COMPLETION_TRIGGER_CHARACTERS = frozenset({".", "(", ",", "/"})
+# We intentionally do NOT trigger the completion list on `(` or `,`. At those
+# positions Jedi has no prefix to filter on and returns the entire namespace
+# (every builtin and global), producing a noisy popup and accidental
+# completions (e.g. after typing `1,`). Instead, an empty prefix after these
+# characters falls through to signature help below, which is the useful
+# behavior inside a call's argument list (e.g. `mo.ui.slider(start=1,`).
+COMPLETION_TRIGGER_CHARACTERS = frozenset({".", "/"})
 # Matches display bracket delimiters: \[...\]
 _MATH_DISPLAY_BRACKET_PATTERN = re.compile(r"\\\[(.+?)\\\]", re.DOTALL)
 # Matches inline paren delimiters: \(...\)
@@ -102,6 +106,7 @@ def _build_docstring_cached(
     signature_strings: tuple[str, ...],
     raw_body: str | None,
     init_docstring: str | None,
+    param_types: tuple[tuple[str, str], ...] = (),
 ) -> str:
     """Builds the docstring that includes signatures and body."""
     if not signature_strings:
@@ -134,7 +139,9 @@ def _build_docstring_cached(
         ).text
 
     body_converted = (
-        _convert_docstring_to_markdown(raw_body) if raw_body else ""
+        _convert_docstring_to_markdown(raw_body, dict(param_types))
+        if raw_body
+        else ""
     )
 
     if signature_text and body_converted:
@@ -151,13 +158,24 @@ def _build_docstring_cached(
 doc_convert = MarimoConverter()
 
 
-def _convert_docstring_to_markdown(raw_docstring: str) -> str:
+def _convert_docstring_to_markdown(
+    raw_docstring: str, param_types: dict[str, str] | None = None
+) -> str:
     """
     Convert raw docstring to markdown then to HTML.
     """
 
     def as_md_html(raw: str) -> str:
         return _md(raw, apply_markdown_class=False).text
+
+    # Prefer our Google converter when applicable so signature types can
+    # fill in missing Args table types.
+    if doc_convert.can_convert(raw_docstring):
+        return as_md_html(
+            google_docstring_to_markdown(
+                raw_docstring, param_types=param_types
+            )
+        )
 
     # Prefer using docstring_to_markdown if available
     # which uses our custom MarimoConverter
@@ -171,10 +189,6 @@ def _convert_docstring_to_markdown(raw_docstring: str) -> str:
                 "docstring_to_markdown could not infer docstring format; "
                 "falling back",
             )
-
-    # Then try our custom MarimoConverter
-    if doc_convert.can_convert(raw_docstring):
-        return as_md_html(doc_convert.convert(raw_docstring))
 
     # Prefer markdown rendering when math syntax is present.
     # This ensures ``.. math::`` and markdown delimiters are interpreted by
@@ -200,6 +214,26 @@ def _convert_docstring_to_markdown(raw_docstring: str) -> str:
         )
 
 
+def _param_types_from_signatures(
+    signatures: list[jedi.api.classes.Signature],
+) -> dict[str, str]:
+    """Extract parameter type hints from a Jedi signature."""
+    if not signatures:
+        return {}
+    params = getattr(signatures[0], "params", None)
+    if not params:
+        return {}
+    param_types: dict[str, str] = {}
+    for param in params:
+        try:
+            type_hint = cast(str, param.get_type_hint())
+        except Exception:
+            continue
+        if type_hint:
+            param_types[param.name] = type_hint
+    return param_types
+
+
 def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
     try:
         raw_body = cast(str, completion.docstring(raw=True))
@@ -209,9 +243,10 @@ def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
 
     # Glean raw signatures
     try:
-        signature_strings = tuple(
-            s.to_string() for s in completion.get_signatures()
-        )
+        signature_objects = completion.get_signatures()
+        signature_strings = tuple(s.to_string() for s in signature_objects)
+        param_types = _param_types_from_signatures(signature_objects)
+        sorted_param_types = sorted(param_types.items())
     except Exception:
         LOGGER.debug("Maybe failed getting signature for %s", completion.name)
         return ""
@@ -241,6 +276,7 @@ def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
         signature_strings,
         raw_body,
         init_docstring or None,
+        tuple(sorted_param_types),
     )
 
 
@@ -303,7 +339,6 @@ def _get_completion_info(completion: jedi.api.classes.BaseName) -> str:
 
 def _get_completion_option(
     completion: jedi.api.classes.Completion,
-    script: jedi.Script,
     compute_completion_info: bool,
     compute_type: bool = True,
 ) -> CompletionOption:
@@ -319,15 +354,14 @@ def _get_completion_option(
     kind = completion.type
 
     if compute_completion_info:
-        # Choose whether the completion info should be from the name
-        # or the enclosing function's signature, if any
-        symbol_to_lookup = completion
-        if kind == "param":
-            # Show the function/class docstring if available
-            signatures = script.get_signatures()
-            if len(signatures) == 1:
-                symbol_to_lookup = signatures[0]
-        completion_info = _get_completion_info(symbol_to_lookup)
+        # Show the completion's own documentation. For a parameter this is the
+        # description of that single parameter, which
+        # `patch_jedi_parameter_completion` extracts from the enclosing
+        # function's docstring. We deliberately do not fall back to the full
+        # function docstring: repeating it for every parameter is noisy, and
+        # the signature hint already provides function-level context when the
+        # call is opened.
+        completion_info = _get_completion_info(completion)
     else:
         completion_info = ""
 
@@ -338,7 +372,6 @@ def _get_completion_option(
 
 def _get_completion_options(
     completions: list[jedi.api.classes.Completion],
-    script: jedi.Script,
     prefix: str,
     limit: int,
     timeout: float,
@@ -358,7 +391,6 @@ def _get_completion_options(
         completion_options.append(
             _get_completion_option(
                 completion,
-                script,
                 compute_completion_info=compute_docstrings
                 and under_time_budget,
                 compute_type=under_time_budget,
@@ -685,11 +717,20 @@ def complete(
             )
             return
 
-        if (
-            prefix_length == 0
-            and len(request.document) >= 1
-            and request.document[-1] not in COMPLETION_TRIGGER_CHARACTERS
-        ):
+        # `/` triggers file-path completion inside strings. As an arithmetic
+        # operator (e.g. `1 / `) it sits at an expression position where Jedi
+        # returns the entire namespace, so only honor it as a trigger when the
+        # results are actually paths. Jedi tags path completions with
+        # `type == "path"`, and a path context yields only path completions, so
+        # checking the first is enough (and avoids inferring the whole list).
+        last_char = request.document[-1:]
+        is_trigger_char = last_char in COMPLETION_TRIGGER_CHARACTERS
+        if is_trigger_char and last_char == "/":
+            is_trigger_char = (
+                bool(completions) and completions[0].type == "path"
+            )
+
+        if prefix_length == 0 and request.document and not is_trigger_char:
             # Empty prefix, not dot notation; don't complete ...
             completions = []
 
@@ -731,7 +772,6 @@ def complete(
 
         options = _get_completion_options(
             completions,
-            script,
             prefix=prefix,
             limit=docstrings_limit,
             timeout=timeout,

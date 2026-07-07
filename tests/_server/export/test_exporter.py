@@ -20,6 +20,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.notification import CellNotification
 from marimo._server.export import (
+    export_as_md,
     export_as_wasm,
     run_app_then_export_as_html,
     run_app_then_export_as_ipynb,
@@ -49,6 +50,29 @@ HAS_DEPS = (
     and DependencyManager.altair.has()
     and DependencyManager.matplotlib.has()
 )
+
+
+@pytest.mark.parametrize(
+    ("filename", "source", "expected_fence"),
+    [
+        ("demo.qmd", "```{marimo .python}\nx = 1\n```", "```{marimo .python"),
+        (
+            "demo.myst.md",
+            "```{marimo} python\nx = 1\n```",
+            "```{marimo} python",
+        ),
+    ],
+)
+def test_export_as_md_uses_resolved_markdown_filename(
+    tmp_path: Path, filename: str, source: str, expected_fence: str
+) -> None:
+    notebook = tmp_path / filename
+    notebook.write_text(source, encoding="utf-8")
+
+    result = export_as_md(MarimoPath(notebook))
+
+    assert result.download_filename == filename
+    assert expected_fence in result.text
 
 
 def _print_messages(messages: list[CellNotification]) -> str:
@@ -2205,3 +2229,38 @@ class TestPDFExport:
                 sys.modules["playwright.async_api"] = orig_playwright
             else:
                 sys.modules.pop("playwright.async_api", None)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Unix permission bits not supported on Windows",
+)
+def test_export_assets_preserves_write_permission(
+    tmp_path: Path,
+) -> None:
+    """Test export_assets keeps output writable when source is read-only."""
+    import stat
+
+    src = tmp_path / "nix-store" / "_static"
+    src.mkdir(parents=True)
+    (src / "file.txt").write_text("hello")
+    sub = src / "assets"
+    sub.mkdir()
+    (sub / "nested.txt").write_text("marimo")
+
+    # 555 simulates /nix/store permissions
+    src.chmod(0o555)
+    sub.chmod(0o555)
+
+    dest = tmp_path / "output"
+    dest.mkdir()
+
+    with patch("marimo._server.export.exporter.ROOT", src):
+        Exporter().export_assets(dest)
+
+    assert dest.stat().st_mode & stat.S_IWUSR, (
+        "export_assets made the output directory read-only"
+    )
+    assert (dest / "assets").stat().st_mode & stat.S_IWUSR, (
+        "export_assets made the assets subdirectory read-only"
+    )

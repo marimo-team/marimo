@@ -235,7 +235,6 @@ def convert_to_output(
     """Convert a result to the specified output format.
 
     Args:
-        result (Any): The result to convert.
         sql_output_format (SqlOutputType): The output format to convert to.
         to_polars (Callable[[], Any]): A function to convert the result to polars.
         to_pandas (Callable[[], Any]): A function to convert the result to pandas.

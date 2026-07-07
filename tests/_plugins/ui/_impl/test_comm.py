@@ -159,6 +159,21 @@ def test_comm_broadcast(comm: MarimoComm):
         assert notification.model_id == comm.comm_id
 
 
+def test_comm_broadcast_echo_update(comm: MarimoComm):
+    """echo_update should still contribute to replay state."""
+    with patch(
+        "marimo._plugins.ui._impl.comm.broadcast_notification"
+    ) as mock_broadcast:
+        comm._broadcast(
+            {"method": "echo_update", "state": {"key": "value"}},
+            [],
+        )
+        mock_broadcast.assert_called_once()
+        notification = mock_broadcast.call_args[0][0]
+        assert notification.model_id == comm.comm_id
+        assert notification.message.state == {"key": "value"}
+
+
 def test_comm_manager_receive_update_message(
     comm_manager: MarimoCommManager, comm: MarimoComm
 ):

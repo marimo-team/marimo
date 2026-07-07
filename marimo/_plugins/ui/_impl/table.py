@@ -8,6 +8,7 @@ from typing import (
     Any,
     Final,
     Literal,
+    TypedDict,
     Union,
     cast,
 )
@@ -124,6 +125,37 @@ class ColumnSummaries:
 
 
 ShowColumnSummaries = bool | Literal["stats", "chart"]
+
+
+class TableDisplay(TypedDict, total=False):
+    """Visibility options for `mo.ui.table` UI elements.
+
+    All fields are optional; omitted fields fall back to the table's
+    defaults. Build one and unpack it into one or more tables:
+
+    ```python
+    cfg = mo.ui.table.Display(show_search=False, show_download=False)
+    mo.ui.table(data, **cfg)
+
+    # Derive a variant; the original is unchanged
+    mo.ui.table(other, **{**cfg, "show_column_summaries": False})
+    ```
+
+    Args:
+        show_search (bool, optional): Whether to show the search bar.
+        show_download (bool, optional): Whether to show the download button.
+        show_column_summaries (bool | Literal["stats", "chart"], optional):
+            Whether to show column summaries.
+        show_data_types (bool, optional): Whether to show data type
+            indicators in column headers.
+    """
+
+    show_search: bool
+    show_download: bool
+    show_column_summaries: ShowColumnSummaries
+    show_data_types: bool
+
+
 CHART_MAX_ROWS_STRING_VALUE_COUNTS = 20_000
 
 DEFAULT_MAX_COLUMNS = 50
@@ -320,7 +352,8 @@ class table(
 
     1. a list of dicts, with one dict for each row, keyed by column names;
     2. a list of values, representing a table with a single column;
-    3. a dataframe (e.g., Polars, Pandas, PyArrow, Ibis, DuckDB).
+    3. a dict of lists, with one list for each column, keyed by column names;
+    4. a dataframe (e.g., Polars, Pandas, PyArrow, Ibis, DuckDB).
 
     Examples:
         Create a table from a list of dicts, one for each row:
@@ -335,14 +368,23 @@ class table(
         )
         ```
 
-        Create a table from a single column of data:
+        Create a table from a list of values, as a single column:
 
         ```python
         table = mo.ui.table(
-            data=[
-                {"first_name": "Michael", "last_name": "Scott"},
-                {"first_name": "Dwight", "last_name": "Schrute"},
-            ],
+            data=["Michael Scott", "Dwight Schrute"],
+            label="Users",
+        )
+        ```
+
+        Create a table from a dict of lists, one list per column:
+
+        ```python
+        table = mo.ui.table(
+            data={
+                "first_name": ["Michael", "Dwight"],
+                "last_name": ["Scott", "Schrute"],
+            },
             label="Users",
         )
         ```
@@ -454,6 +496,8 @@ class table(
             Defaults to True.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
+        show_search (bool, optional): Whether to show the search bar.
+            Defaults to True.
         format_mapping (Dict[str, Union[str, Callable[..., Any]]], optional): A mapping from
             column names to formatting strings or functions.
         freeze_columns_left (Sequence[str], optional): List of column names to freeze on the left.
@@ -463,6 +507,9 @@ class table(
         text_justify_columns (Dict[str, Literal["left", "center", "right"]], optional):
             Dictionary of column names to text justification options: left, center, right.
         wrapped_columns (List[str], optional): List of column names to wrap.
+        column_widths (Dict[str, int], optional): Mapping of column name to
+            fixed pixel width. Listed columns render at exactly that width;
+            unlisted columns size to their content.
         header_tooltip (Dict[str, str], optional): Mapping from column names to tooltip text on the column header.
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
@@ -481,6 +528,8 @@ class table(
             in the UI to remain visible while scrolling. Defaults to None.
         label (str, optional): A descriptive name for the table. Defaults to "".
     """
+
+    Display = TableDisplay
 
     _name: Final[str] = "marimo-table"
 
@@ -528,6 +577,7 @@ class table(
             freeze_columns_right=None,
             text_justify_columns=None,
             wrapped_columns=None,
+            column_widths=None,
             label="",
             on_change=None,
             style_cell=None,
@@ -561,12 +611,14 @@ class table(
         text_justify_columns: dict[str, Literal["left", "center", "right"]]
         | None = None,
         wrapped_columns: list[str] | None = None,
+        column_widths: dict[str, int] | None = None,
         hidden_columns: Sequence[str] | None = None,
         visible_columns: Sequence[str] | None = None,
         header_tooltip: dict[str, str] | None = None,
         show_download: bool = True,
         max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
         *,
+        show_search: bool = True,
         label: str = "",
         on_change: Callable[
             [
@@ -801,6 +853,7 @@ class table(
             _validate_column_formatting(
                 text_justify_columns, wrapped_columns, column_names_set
             )
+            _validate_column_widths(column_widths, column_names_set)
             _validate_header_tooltip(header_tooltip, column_names_set)
 
             field_types = self._manager.get_field_types()
@@ -838,6 +891,7 @@ class table(
                 "show-filters": self._manager.supports_filters(),
                 "show-download": show_download
                 and self._manager.supports_download(),
+                "show-search": show_search,
                 "show-column-summaries": show_column_summaries,
                 "show-data-types": show_data_types,
                 "show-page-size-selector": show_page_size_selector,
@@ -849,6 +903,7 @@ class table(
                 "hidden-columns": hidden_columns_list,
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
+                "column-widths": column_widths,
                 "header-tooltip": header_tooltip,
                 "has-stable-row-id": self._has_stable_row_id,
                 "cell-styles": search_result_styles,
@@ -1896,6 +1951,26 @@ def _validate_column_formatting(
         if invalid:
             raise ValueError(
                 f"Column '{next(iter(invalid))}' not found in table."
+            )
+
+
+def _validate_column_widths(
+    column_widths: dict[str, int] | None,
+    column_names_set: set[str],
+) -> None:
+    """Validate column width mapping.
+
+    Ensures all specified columns exist in the table and widths are positive integers.
+    """
+    if not column_widths:
+        return
+
+    for column, width in column_widths.items():
+        if column not in column_names_set:
+            raise ValueError(f"Column '{column}' not found in table.")
+        if not isinstance(width, int) or isinstance(width, bool) or width <= 0:
+            raise ValueError(
+                f"Width for column '{column}' must be a positive integer, got {width}."
             )
 
 

@@ -134,6 +134,7 @@ components:
           enum:
           - agent
           - ask
+          - code_mode
           - manual
         models:
           $ref: '#/components/schemas/AiModelConfig'
@@ -592,8 +593,6 @@ components:
 
         See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.'
       properties:
-        context:
-          $ref: '#/components/schemas/AiCompletionContext'
         includeOtherCode:
           type: string
         model:
@@ -622,7 +621,6 @@ components:
           - type: 'null'
           default: null
       required:
-      - context
       - includeOtherCode
       - uiMessages
       title: ChatRequest
@@ -2930,7 +2928,9 @@ components:
         \ schemas in a database. Used by the SQL editor for\n    schema selection.\n\
         \n    Attributes:\n        request_id: Unique identifier for this request.\n\
         \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
-        \     database: Database to query."
+        \     database: Database to query.\n        schema_path: Parent schema path\
+        \ whose child schemas to list.\n            Empty lists the database's top-level\
+        \ schemas."
       properties:
         database:
           type: string
@@ -2938,6 +2938,11 @@ components:
           type: string
         requestId:
           $ref: '#/components/schemas/RequestId'
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
         type:
           enum:
           - list-sql-schemas
@@ -2956,6 +2961,11 @@ components:
           type: string
         requestId:
           $ref: '#/components/schemas/RequestId'
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
       required:
       - requestId
       - engine
@@ -2968,7 +2978,8 @@ components:
         \n    Attributes:\n        request_id: Unique identifier for this request.\n\
         \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
         \     database: Database to query.\n        schema: Schema to list tables\
-        \ from."
+        \ from.\n        schema_path: Path of nested schemas (relative to `database`)\
+        \ for\n            catalogs with nested schemas. Empty for the top level."
       properties:
         database:
           type: string
@@ -2978,6 +2989,11 @@ components:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
         type:
           enum:
           - list-sql-tables
@@ -2999,6 +3015,11 @@ components:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
       required:
       - requestId
       - engine
@@ -3960,7 +3981,9 @@ components:
         \ Attributes:\n        request_id: Unique identifier for this request.\n \
         \       engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n    \
         \    database: Database containing the table.\n        schema: Schema containing\
-        \ the table.\n        table_name: Table to preview."
+        \ the table.\n        table_name: Table to preview.\n        schema_path:\
+        \ Path of nested schemas (relative to `database`) for\n            catalogs\
+        \ with nested schemas. Empty for the top level."
       properties:
         database:
           type: string
@@ -3970,6 +3993,11 @@ components:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
         tableName:
           type: string
         type:
@@ -3994,6 +4022,11 @@ components:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
         tableName:
           type: string
       required:
@@ -4337,12 +4370,19 @@ components:
       type: object
     SQLDatabaseMetadata:
       description: "SQL database metadata.\n\n    Attributes:\n        connection:\
-        \ Connection identifier.\n        database: Database name."
+        \ Connection identifier.\n        database: Database name.\n        schema_path:\
+        \ Parent schema path the schemas belong under. Empty for\n            the\
+        \ database's top level."
       properties:
         connection:
           type: string
         database:
           type: string
+        schema_path:
+          default: []
+          items:
+            type: string
+          type: array
       required:
       - connection
       - database
@@ -4351,7 +4391,8 @@ components:
     SQLMetadata:
       description: "SQL database and schema metadata.\n\n    Attributes:\n       \
         \ connection: Connection identifier.\n        database: Database name.\n \
-        \       schema: Schema name."
+        \       schema: Schema name.\n        schema_path: Path of nested schemas\
+        \ (relative to `database`). Empty\n            for the top level."
       properties:
         connection:
           type: string
@@ -4359,6 +4400,11 @@ components:
           type: string
         schema:
           type: string
+        schema_path:
+          default: []
+          items:
+            type: string
+          type: array
         type:
           enum:
           - sql-metadata
@@ -4528,12 +4574,24 @@ components:
       title: SaveUserConfigurationRequest
       type: object
     Schema:
-      description: "Represents a database schema and its tables.\n\nAttributes:\n\
-        \    name (str): The name of the schema.\n    tables (List[DataTable]): Tables\
-        \ in this schema.\n    tables_resolved (bool): True when `tables` has been\
-        \ enumerated\n        False when table discovery was deferred. Defaults to\
-        \ True"
+      description: "Represents a database schema and its tables.\n\nA schema may itself\
+        \ contain nested child schemas, e.g. for catalogs with\nhierarchical namespaces\
+        \ such as Iceberg (`top.nested.deep`).\n\nAttributes:\n    name (str): The\
+        \ name of the schema.\n    tables (List[DataTable]): Tables in this schema.\n\
+        \    tables_resolved (bool): True when `tables` has been enumerated\n    \
+        \    False when table discovery was deferred. Defaults to True\n    child_schemas\
+        \ (List[Schema]): Nested child schemas (sub-namespaces).\n    child_schemas_resolved\
+        \ (bool): True when `child_schemas` has been\n        enumerated. False when\
+        \ discovery was deferred. Defaults to True"
       properties:
+        child_schemas:
+          default: []
+          items:
+            $ref: '#/components/schemas/Schema'
+          type: array
+        child_schemas_resolved:
+          default: true
+          type: boolean
         name:
           type: string
         tables:
@@ -5268,6 +5326,7 @@ components:
             enum:
             - agent
             - ask
+            - code_mode
             - manual
           type: array
         name:

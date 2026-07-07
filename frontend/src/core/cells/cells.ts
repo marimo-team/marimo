@@ -276,7 +276,7 @@ const {
       },
       scrollKey: autoFocus ? newCellId : null,
       untouchedNewCells:
-        hideCode && !code
+        hideCode && autoFocus
           ? new Set([...state.untouchedNewCells, newCellId])
           : state.untouchedNewCells,
     };
