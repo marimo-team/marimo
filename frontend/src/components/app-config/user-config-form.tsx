@@ -1288,25 +1288,23 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
-            <FormField
+            <OverriddenFormField
               control={form.control}
               name="experimental.debugger"
-              render={({ field }) => (
+              render={({ field, override }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
                     <FormLabel className="font-normal">Debugger</FormLabel>
                     <FormControl>
                       <Checkbox
                         data-testid="debugger-checkbox"
-                        checked={field.value === true}
+                        checked={override.value === true}
+                        disabled={override.isOverridden}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
                   </FormItem>
-                  <IsOverridden
-                    userConfig={config}
-                    name="experimental.debugger"
-                  />
+                  <IsOverridden override={override} />
                   <FormDescription>
                     Enable the live debugger: a clickable breakpoint gutter,
                     current-line highlighting while a cell runs, and dropping
