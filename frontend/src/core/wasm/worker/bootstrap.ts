@@ -259,10 +259,18 @@ export class DefaultWasmController implements WasmController {
         import sys
         # URL-installed wheels are importable without appearing in
         # pyodide.loadedPackages. find_spec prevents a second micropip fetch.
+        def needs_micropip_install(requirement):
+          if requirement in sys.modules:
+            return False
+          try:
+            return importlib.util.find_spec(requirement) is None
+          except (ImportError, ModuleNotFoundError, ValueError):
+            return True
+
         missing = [
           p
           for p in ${JSON.stringify(missingPackages)}
-          if p not in sys.modules and importlib.util.find_spec(p) is None
+          if needs_micropip_install(p)
         ]
         if len(missing) > 0:
           print("Loading from micropip:", missing)

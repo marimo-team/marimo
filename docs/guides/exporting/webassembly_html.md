@@ -75,15 +75,36 @@ to include data files in exported WASM HTML notebooks.
 
 ## Including local wheels
 
+When `notebook.py` imports local Python source, `marimo export html-wasm`
+packages the resolved modules as pure-Python wheels under
+`output_dir/public/wheels` and installs them when the WASM runtime starts.
+
+```bash
+marimo export html-wasm notebook.py -o output_dir
+```
+
+The scanner follows static imports in Python notebooks. It resolves sibling
+modules such as `foo.py`, packages such as `pkg`, namespace package directories
+such as `pkg/mod.py`, and paths configured with the `pythonpath` runtime
+setting. A sibling `foo.py` is shipped as top-level `foo.py` inside its wheel.
+
+The wheels contain the local Python source needed for those imports. They are
+served with the exported site, so treat them like other public assets. Package
+wheels include Python files under the resolved package directory. For dynamic
+imports or generated module names, build a wheel and pass it with
+`--include-wheel`. For modules that read data files at runtime, build a wheel
+that includes those files and pass it with `--include-wheel`.
+
 ```bash
 marimo export html-wasm notebook.py -o output_dir \
   --include-wheel dist/example_pkg-0.1.0-py3-none-any.whl
 ```
 
-marimo copies each wheel to `output_dir/public/wheels` and installs it when the
-WASM runtime starts. Pass `--include-wheel` multiple times to include multiple
-wheels. With `--execute`, marimo adds the wheels to the uv sandbox before
-executing the notebook.
+Pass `--include-wheel` to include a wheel you built yourself. marimo copies
+each wheel to `output_dir/public/wheels` and installs it when the WASM runtime
+starts. Pass `--include-wheel` multiple times to include multiple wheels. With
+`--execute`, marimo adds the wheels to the uv sandbox before executing the
+notebook.
 
 ## Exporting multiple notebooks
 

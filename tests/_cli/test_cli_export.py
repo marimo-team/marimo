@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import time
+import zipfile
 from os import path
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -19,6 +20,11 @@ from click.testing import CliRunner, Result
 
 from marimo._cli.cli import main
 from marimo._cli.export.commands import pdf
+from marimo._cli.export.local_wheels import (
+    LocalWheelError,
+    build_local_module_wheels,
+    resolve_local_modules,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils import async_path
@@ -148,6 +154,493 @@ async def _wait_for_file(file: str, timeout: float = 10.0) -> None:
 
 class TestExportHTML:
     @staticmethod
+    def _write_local_module_notebook(parent: Path) -> Path:
+        notebook = parent / "notebook.py"
+        notebook.write_text(
+            """
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def __():
+    import foo
+    import pkg.mathy
+    return foo.value(), pkg.mathy.value()
+
+
+if __name__ == "__main__":
+    app.run()
+""".lstrip()
+        )
+        (parent / "foo.py").write_text(
+            """
+# /// script
+# dependencies = ["rich>=13"]
+# ///
+from helpers import helper
+
+
+def value():
+    return helper()
+""".lstrip()
+        )
+        (parent / "helpers.py").write_text(
+            """
+def helper():
+    return "foo"
+""".lstrip()
+        )
+        package = parent / "pkg"
+        package.mkdir()
+        (package / "__init__.py").write_text("from .mathy import value\n")
+        (package / "mathy.py").write_text(
+            """
+def value():
+    return "pkg"
+""".lstrip()
+        )
+        return notebook
+
+    @staticmethod
+    def test_html_wasm_local_module_wheels_preserve_module_shape(
+        tmp_path: Path,
+    ) -> None:
+        notebook = TestExportHTML._write_local_module_notebook(tmp_path)
+
+        modules = resolve_local_modules(notebook)
+        assert [(module.name, module.kind) for module in modules] == [
+            ("foo", "module"),
+            ("helpers", "module"),
+            ("pkg", "package"),
+        ]
+
+        with build_local_module_wheels(modules) as wheels:
+            foo_wheel = next(
+                wheel for wheel in wheels if wheel.name.startswith("foo-")
+            )
+            with zipfile.ZipFile(foo_wheel) as wheel:
+                names = set(wheel.namelist())
+                metadata = next(
+                    name
+                    for name in names
+                    if name.endswith(".dist-info/METADATA")
+                )
+                assert "foo.py" in names
+                assert "foo/__init__.py" not in names
+                assert (
+                    "Requires-Dist: rich>=13" in wheel.read(metadata).decode()
+                )
+
+            pkg_wheel = next(
+                wheel for wheel in wheels if wheel.name.startswith("pkg-")
+            )
+            with zipfile.ZipFile(pkg_wheel) as wheel:
+                assert "pkg/__init__.py" in wheel.namelist()
+                assert "pkg/mathy.py" in wheel.namelist()
+
+    @staticmethod
+    def test_html_wasm_local_module_resolves_package_relative_imports(
+        tmp_path: Path,
+    ) -> None:
+        project = tmp_path / "project"
+        package = project / "pkg"
+        package.mkdir(parents=True)
+        (project / "__init__.py").write_text("")
+        (project / "shared.py").write_text("value = 'shared'\n")
+        (package / "__init__.py").write_text("")
+        (package / "sibling.py").write_text("value = 'sibling'\n")
+        notebook = package / "notebook.py"
+        notebook.write_text("from .. import shared\nfrom . import sibling\n")
+
+        modules = resolve_local_modules(notebook)
+        assert [(module.name, module.kind) for module in modules] == [
+            ("project", "package"),
+        ]
+
+        with build_local_module_wheels(modules) as wheels:
+            with zipfile.ZipFile(wheels[0]) as wheel:
+                names = set(wheel.namelist())
+                assert "project/shared.py" in names
+                assert "project/pkg/sibling.py" in names
+
+    @staticmethod
+    def test_html_wasm_local_module_resolves_namespace_packages(
+        tmp_path: Path,
+    ) -> None:
+        namespace = tmp_path / "baz"
+        namespace.mkdir()
+        (namespace / "hmm.py").write_text(
+            """
+def hmm_fn():
+    return "hmm"
+""".lstrip()
+        )
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("from baz.hmm import hmm_fn\n")
+
+        modules = resolve_local_modules(notebook)
+        assert [(module.name, module.kind) for module in modules] == [
+            ("baz", "package"),
+        ]
+
+        with build_local_module_wheels(modules) as wheels:
+            with zipfile.ZipFile(wheels[0]) as wheel:
+                names = set(wheel.namelist())
+                assert "baz/hmm.py" in names
+                assert "baz/__init__.py" not in names
+
+    @staticmethod
+    def test_html_wasm_local_module_rejects_bare_namespace_package(
+        tmp_path: Path,
+    ) -> None:
+        namespace = tmp_path / "pkg"
+        namespace.mkdir()
+        (namespace / "mod.py").write_text("value = 'mod'\n")
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("import pkg\n")
+
+        with pytest.raises(LocalWheelError, match="concrete module"):
+            resolve_local_modules(notebook)
+
+    @staticmethod
+    def test_html_wasm_local_module_resolves_namespace_from_import(
+        tmp_path: Path,
+    ) -> None:
+        namespace = tmp_path / "pkg"
+        namespace.mkdir()
+        (namespace / "mod.py").write_text("value = 'mod'\n")
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("from pkg import mod\n")
+
+        modules = resolve_local_modules(notebook)
+        assert [(module.name, module.kind) for module in modules] == [
+            ("pkg", "package"),
+        ]
+
+        with build_local_module_wheels(modules) as wheels:
+            with zipfile.ZipFile(wheels[0]) as wheel:
+                names = set(wheel.namelist())
+                assert "pkg/mod.py" in names
+                assert "pkg/__init__.py" not in names
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "source", ["import pkg.sub", "from pkg import sub"]
+    )
+    def test_html_wasm_local_module_rejects_nested_namespace_package(
+        tmp_path: Path, source: str
+    ) -> None:
+        namespace = tmp_path / "pkg" / "sub"
+        namespace.mkdir(parents=True)
+        (namespace / "mod.py").write_text("value = 'mod'\n")
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text(f"{source}\n")
+
+        with pytest.raises(LocalWheelError, match="concrete module"):
+            resolve_local_modules(notebook)
+
+    @staticmethod
+    def test_html_wasm_local_module_resolves_nested_namespace_module(
+        tmp_path: Path,
+    ) -> None:
+        namespace = tmp_path / "pkg" / "sub"
+        namespace.mkdir(parents=True)
+        (namespace / "mod.py").write_text("value = 'mod'\n")
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("from pkg.sub import mod\n")
+
+        modules = resolve_local_modules(notebook)
+        assert [(module.name, module.kind) for module in modules] == [
+            ("pkg", "package"),
+        ]
+
+        with build_local_module_wheels(modules) as wheels:
+            with zipfile.ZipFile(wheels[0]) as wheel:
+                assert "pkg/sub/mod.py" in set(wheel.namelist())
+
+    @staticmethod
+    def test_html_wasm_local_module_resolves_relative_namespace_module(
+        tmp_path: Path,
+    ) -> None:
+        package = tmp_path / "pkg"
+        namespace = package / "sub"
+        namespace.mkdir(parents=True)
+        (package / "__init__.py").write_text("from .sub import mod\n")
+        (namespace / "mod.py").write_text("value = 'mod'\n")
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("import pkg\n")
+
+        modules = resolve_local_modules(notebook)
+        assert [(module.name, module.kind) for module in modules] == [
+            ("pkg", "package"),
+        ]
+
+        with build_local_module_wheels(modules) as wheels:
+            with zipfile.ZipFile(wheels[0]) as wheel:
+                names = set(wheel.namelist())
+                assert "pkg/__init__.py" in names
+                assert "pkg/sub/mod.py" in names
+
+    @staticmethod
+    def test_html_wasm_local_module_skips_unimported_package_files(
+        tmp_path: Path,
+    ) -> None:
+        package = tmp_path / "pkg"
+        package.mkdir()
+        (package / "__init__.py").write_text("")
+        (package / "good.py").write_text("value = 'good'\n")
+        (package / "unused.py").write_text("def broken(:\n")
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("import pkg.good\n")
+
+        modules = resolve_local_modules(notebook)
+        assert [(module.name, module.kind) for module in modules] == [
+            ("pkg", "package"),
+        ]
+
+        with build_local_module_wheels(modules) as wheels:
+            with zipfile.ZipFile(wheels[0]) as wheel:
+                names = set(wheel.namelist())
+                assert "pkg/__init__.py" in names
+                assert "pkg/good.py" in names
+                assert "pkg/unused.py" not in names
+
+    @staticmethod
+    def test_html_wasm_local_module_scans_from_imported_submodules(
+        tmp_path: Path,
+    ) -> None:
+        package = tmp_path / "pkg"
+        package.mkdir()
+        (package / "__init__.py").write_text("")
+        (package / "good.py").write_text("import helper\nvalue = 'good'\n")
+        (tmp_path / "helper.py").write_text("value = 'helper'\n")
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("from pkg import good\n")
+
+        modules = resolve_local_modules(notebook)
+        assert [(module.name, module.kind) for module in modules] == [
+            ("helper", "module"),
+            ("pkg", "package"),
+        ]
+
+    @staticmethod
+    def test_html_wasm_local_module_matches_python_import_precedence(
+        tmp_path: Path,
+    ) -> None:
+        first_root = tmp_path / "first"
+        second_root = tmp_path / "second"
+        (first_root / "foo").mkdir(parents=True)
+        second_root.mkdir()
+        (first_root / "foo" / "unused.py").write_text("value = 'namespace'\n")
+        (second_root / "foo.py").write_text("value = 'module'\n")
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("import foo\n")
+
+        modules = resolve_local_modules(
+            notebook, roots=(first_root, second_root)
+        )
+        assert [
+            (module.name, module.kind, module.path) for module in modules
+        ] == [
+            ("foo", "module", (second_root / "foo.py").resolve()),
+        ]
+
+    @staticmethod
+    @pytest.mark.skipif(
+        _is_win32(), reason="symlink setup is platform-specific"
+    )
+    def test_html_wasm_local_module_preserves_top_level_aliases(
+        tmp_path: Path,
+    ) -> None:
+        real_package = tmp_path / "realpkg"
+        real_package.mkdir()
+        (real_package / "__init__.py").write_text("")
+        (real_package / "mod.py").write_text("value = 'mod'\n")
+        (tmp_path / "pkg").symlink_to(real_package, target_is_directory=True)
+        (tmp_path / "bar.py").write_text("value = 'bar'\n")
+        (tmp_path / "foo.py").symlink_to(tmp_path / "bar.py")
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text(
+            "import bar\nimport foo\nimport pkg.mod\nimport realpkg.mod\n"
+        )
+
+        modules = resolve_local_modules(notebook)
+        assert [module.name for module in modules] == [
+            "bar",
+            "foo",
+            "pkg",
+            "realpkg",
+        ]
+
+        with build_local_module_wheels(modules) as wheels:
+            wheel_contents = []
+            for wheel_path in wheels:
+                with zipfile.ZipFile(wheel_path) as wheel:
+                    wheel_contents.append(set(wheel.namelist()))
+        assert any("bar.py" in names for names in wheel_contents)
+        assert any("foo.py" in names for names in wheel_contents)
+        assert any("pkg/mod.py" in names for names in wheel_contents)
+        assert any("realpkg/mod.py" in names for names in wheel_contents)
+
+    @staticmethod
+    @pytest.mark.skipif(
+        _is_win32(), reason="symlink setup is platform-specific"
+    )
+    def test_html_wasm_local_module_preserves_alias_relative_imports(
+        tmp_path: Path,
+    ) -> None:
+        real_package = tmp_path / "realpkg"
+        real_package.mkdir()
+        (real_package / "__init__.py").write_text("from . import util\n")
+        (real_package / "mod.py").write_text("value = 'mod'\n")
+        (real_package / "util.py").write_text("value = 'util'\n")
+        (tmp_path / "pkg").symlink_to(real_package, target_is_directory=True)
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("import pkg.mod\n")
+
+        modules = resolve_local_modules(notebook)
+        assert [module.name for module in modules] == ["pkg"]
+
+        with build_local_module_wheels(modules) as wheels:
+            with zipfile.ZipFile(wheels[0]) as wheel:
+                names = set(wheel.namelist())
+                assert "pkg/mod.py" in names
+                assert "pkg/util.py" in names
+                assert "realpkg/util.py" not in names
+
+    @staticmethod
+    @pytest.mark.skipif(
+        _is_win32(), reason="symlink setup is platform-specific"
+    )
+    def test_html_wasm_local_module_rejects_top_level_symlinks_outside_root(
+        tmp_path: Path,
+    ) -> None:
+        project = tmp_path / "project"
+        outside = tmp_path / "outside"
+        real_package = outside / "realpkg"
+        project.mkdir()
+        real_package.mkdir(parents=True)
+        (real_package / "__init__.py").write_text("")
+        (real_package / "mod.py").write_text("value = 'mod'\n")
+        (outside / "foo.py").write_text("value = 'foo'\n")
+        (project / "foo.py").symlink_to(outside / "foo.py")
+        (project / "pkg").symlink_to(real_package, target_is_directory=True)
+        notebook = project / "notebook.py"
+
+        notebook.write_text("import foo\n")
+        with pytest.raises(LocalWheelError, match="outside the import root"):
+            resolve_local_modules(notebook)
+
+        notebook.write_text("import pkg.mod\n")
+        with pytest.raises(LocalWheelError, match="outside the import root"):
+            resolve_local_modules(notebook)
+
+    @staticmethod
+    @pytest.mark.skipif(
+        _is_win32(), reason="symlink setup is platform-specific"
+    )
+    def test_html_wasm_local_module_rejects_package_symlink_alias(
+        tmp_path: Path,
+    ) -> None:
+        package = tmp_path / "pkg"
+        subpackage = package / "sub"
+        subpackage.mkdir(parents=True)
+        (package / "__init__.py").write_text("")
+        (subpackage / "__init__.py").write_text("")
+        (subpackage / "mod.py").write_text("value = 'mod'\n")
+        (package / "alias").symlink_to(subpackage, target_is_directory=True)
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("import pkg.alias.mod\n")
+
+        with pytest.raises(LocalWheelError, match="symlink aliases"):
+            resolve_local_modules(notebook)
+
+    @staticmethod
+    @pytest.mark.skipif(
+        _is_win32(), reason="symlink setup is platform-specific"
+    )
+    def test_html_wasm_local_module_uses_symlinked_notebook_parent(
+        tmp_path: Path,
+    ) -> None:
+        shared = tmp_path / "shared"
+        project = tmp_path / "project"
+        shared.mkdir()
+        project.mkdir()
+        (shared / "notebook.py").write_text("import foo\n")
+        (project / "foo.py").write_text("value = 'project'\n")
+        (project / "notebook.py").symlink_to(shared / "notebook.py")
+
+        modules = resolve_local_modules(project / "notebook.py")
+        assert [
+            (module.name, module.kind, module.path) for module in modules
+        ] == [
+            ("foo", "module", (project / "foo.py").resolve()),
+        ]
+
+    @staticmethod
+    @pytest.mark.skipif(
+        _is_win32(), reason="symlink setup is platform-specific"
+    )
+    def test_html_wasm_local_module_rejects_imported_package_symlink(
+        tmp_path: Path,
+    ) -> None:
+        package = tmp_path / "pkg"
+        package.mkdir()
+        (package / "__init__.py").write_text("")
+        (package / "real.py").write_text("value = 'real'\n")
+        (package / "alias.py").symlink_to(package / "real.py")
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("import pkg.alias\n")
+
+        with pytest.raises(LocalWheelError, match="symlink aliases"):
+            resolve_local_modules(notebook)
+
+    @staticmethod
+    @pytest.mark.skipif(
+        _is_win32(), reason="symlink setup is platform-specific"
+    )
+    def test_html_wasm_local_module_rejects_package_init_symlink(
+        tmp_path: Path,
+    ) -> None:
+        package = tmp_path / "pkg"
+        package.mkdir()
+        (package / "real_init.py").write_text("value = 'init'\n")
+        (package / "__init__.py").symlink_to(package / "real_init.py")
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("import pkg\n")
+
+        with pytest.raises(LocalWheelError, match="symlink aliases"):
+            resolve_local_modules(notebook)
+
+    @staticmethod
+    def test_html_wasm_local_module_skips_type_checking_imports(
+        tmp_path: Path,
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("import foo\n")
+        (tmp_path / "foo.py").write_text(
+            """
+import typing
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import type_only
+
+if typing.TYPE_CHECKING:
+    import also_type_only
+""".lstrip()
+        )
+        (tmp_path / "type_only.py").write_text("value = 'type-only'\n")
+        (tmp_path / "also_type_only.py").write_text("value = 'type-only'\n")
+
+        modules = resolve_local_modules(notebook)
+        assert [(module.name, module.kind) for module in modules] == [
+            ("foo", "module"),
+        ]
+
+    @staticmethod
     def test_cli_export_html(temp_marimo_file: str) -> None:
         p = _run_export("html", temp_marimo_file)
         _assert_success(p)
@@ -218,6 +711,415 @@ class TestExportHTML:
             f'"wasmWheelUrls": {json.dumps(expected_urls, sort_keys=True)}'
             in html
         )
+
+    @staticmethod
+    def test_cli_export_html_wasm_auto_includes_local_wheels(
+        tmp_path: Path,
+    ) -> None:
+        notebook = TestExportHTML._write_local_module_notebook(tmp_path)
+        user_wheel = tmp_path / "user_pkg-0.1.0-py3-none-any.whl"
+        user_wheel.write_bytes(b"user wheel")
+
+        out_dir = tmp_path / "out"
+        p = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--output",
+            str(out_dir),
+            "--include-wheel",
+            str(user_wheel),
+        )
+
+        _assert_success(p)
+        wheel_dir = out_dir / "public" / "wheels"
+        assert (wheel_dir / user_wheel.name).read_bytes() == b"user wheel"
+        assert list(wheel_dir.glob("foo-*.whl"))
+        assert list(wheel_dir.glob("helpers-*.whl"))
+        assert list(wheel_dir.glob("pkg-*.whl"))
+
+        foo_wheel = next(wheel_dir.glob("foo-*.whl"))
+        with zipfile.ZipFile(foo_wheel) as wheel:
+            names = set(wheel.namelist())
+            assert "foo.py" in names
+            assert "foo/__init__.py" not in names
+
+        html = (out_dir / "index.html").read_text()
+        assert "public/wheels/foo-" in html
+        assert "public/wheels/helpers-" in html
+        assert "public/wheels/pkg-" in html
+        assert f"public/wheels/{user_wheel.name}" in html
+
+    @staticmethod
+    def test_cli_export_html_wasm_explicit_wheel_suppresses_matching_auto_wheel(
+        tmp_path: Path,
+    ) -> None:
+        notebook = TestExportHTML._write_local_module_notebook(tmp_path)
+        user_wheel = tmp_path / "foo-1.0.0-py3-none-any.whl"
+        user_wheel.write_bytes(b"user wheel")
+
+        p = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--output",
+            str(tmp_path / "out"),
+            "--include-wheel",
+            str(user_wheel),
+        )
+
+        _assert_success(p)
+        wheel_dir = tmp_path / "out" / "public" / "wheels"
+        assert (wheel_dir / user_wheel.name).read_bytes() == b"user wheel"
+        assert not list(wheel_dir.glob("foo-0.0.0+marimo.*.whl"))
+        assert not list(wheel_dir.glob("helpers-*.whl"))
+
+    @staticmethod
+    def test_cli_export_html_wasm_resolves_pythonpath_modules(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        project = tmp_path / "project"
+        src = project / "src"
+        notebooks = project / "notebooks"
+        src.mkdir(parents=True)
+        notebooks.mkdir()
+        (project / "pyproject.toml").write_text(
+            """
+[tool.marimo.runtime]
+pythonpath = ["src"]
+""".lstrip()
+        )
+        notebook = notebooks / "notebook.py"
+        notebook.write_text(
+            """
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def __():
+    import project_helper
+    return project_helper.value()
+
+
+if __name__ == "__main__":
+    app.run()
+""".lstrip()
+        )
+        (src / "project_helper.py").write_text(
+            "def value():\n    return 'ok'\n"
+        )
+
+        monkeypatch.chdir(project)
+        p = _run_export(
+            "html-wasm",
+            "notebooks/notebook.py",
+            "--output",
+            "out",
+        )
+
+        _assert_success(p)
+        assert list(
+            (project / "out" / "public" / "wheels").glob(
+                "project_helper-*.whl"
+            )
+        )
+        wheel = next(
+            (project / "out" / "public" / "wheels").glob(
+                "project_helper-*.whl"
+            )
+        )
+        with zipfile.ZipFile(wheel) as archive:
+            assert (
+                archive.read("project_helper.py").decode()
+                == "def value():\n    return 'ok'\n"
+            )
+
+    @staticmethod
+    def test_cli_export_html_wasm_notebook_dir_precedes_pythonpath(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        project = tmp_path / "project"
+        src = project / "src"
+        notebooks = project / "notebooks"
+        src.mkdir(parents=True)
+        notebooks.mkdir()
+        (project / "pyproject.toml").write_text(
+            """
+[tool.marimo.runtime]
+pythonpath = ["src"]
+""".lstrip()
+        )
+        notebook = notebooks / "notebook.py"
+        notebook.write_text(
+            """
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def __():
+    import project_helper
+    return project_helper.value()
+
+
+if __name__ == "__main__":
+    app.run()
+""".lstrip()
+        )
+        (src / "project_helper.py").write_text(
+            "def value():\n    return 'src'\n"
+        )
+        (notebooks / "project_helper.py").write_text(
+            "def value():\n    return 'notebook'\n"
+        )
+
+        monkeypatch.chdir(project)
+        p = _run_export(
+            "html-wasm",
+            "notebooks/notebook.py",
+            "--output",
+            "out",
+        )
+
+        _assert_success(p)
+        wheel = next(
+            (project / "out" / "public" / "wheels").glob(
+                "project_helper-*.whl"
+            )
+        )
+        with zipfile.ZipFile(wheel) as archive:
+            assert (
+                archive.read("project_helper.py").decode()
+                == "def value():\n    return 'notebook'\n"
+            )
+
+    @staticmethod
+    def test_cli_export_html_wasm_does_not_scan_cwd_as_import_root(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        project = tmp_path / "project"
+        notebooks = project / "notebooks"
+        notebooks.mkdir(parents=True)
+        notebook = notebooks / "notebook.py"
+        notebook.write_text(
+            """
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def __():
+    import root_helper
+    return root_helper.value()
+
+
+if __name__ == "__main__":
+    app.run()
+""".lstrip()
+        )
+        (project / "root_helper.py").write_text(
+            "def value():\n    return 'root'\n"
+        )
+
+        monkeypatch.chdir(project)
+        p = _run_export(
+            "html-wasm",
+            "notebooks/notebook.py",
+            "--output",
+            "out",
+        )
+
+        _assert_success(p)
+        assert not list(
+            (project / "out" / "public" / "wheels").glob("root_helper-*.whl")
+        )
+
+    @staticmethod
+    def test_cli_export_html_wasm_skips_local_wheels_for_markdown(
+        temp_md_marimo_file: str,
+    ) -> None:
+        out_dir = Path(temp_md_marimo_file).parent / "out"
+        p = _run_export(
+            "html-wasm",
+            temp_md_marimo_file,
+            "--output",
+            str(out_dir),
+        )
+
+        _assert_success(p)
+        assert not (out_dir / "public" / "wheels").exists()
+
+    @staticmethod
+    def test_cli_export_html_wasm_watch_recomputes_local_wheels(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        notebook = TestExportHTML._write_local_module_notebook(tmp_path)
+        (tmp_path / "bar.py").write_text("def value():\n    return 'bar'\n")
+        out_file = tmp_path / "out" / "index.html"
+
+        def fake_watch_and_export(
+            marimo_path: Any,
+            output: Path | None,
+            watch: bool,
+            export_callback: Any,
+            force: bool,
+            **kwargs: Any,
+        ) -> None:
+            del force
+            assert watch
+            assert output == out_file
+            watch_paths = kwargs["watch_paths"]
+            assert (tmp_path / "foo.py").resolve() in {
+                path.resolve() for path in watch_paths(marimo_path)
+            }
+            output.parent.mkdir(parents=True, exist_ok=True)
+            first = export_callback(marimo_path)
+            output.write_bytes(first.bytez)
+            assert "public/wheels/foo-" in output.read_text()
+
+            notebook.write_text(
+                """
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def __():
+    import bar
+    return bar.value()
+
+
+if __name__ == "__main__":
+    app.run()
+""".lstrip()
+            )
+            second = export_callback(marimo_path)
+            output.write_bytes(second.bytez)
+            html = output.read_text()
+            assert "public/wheels/bar-" in html
+            assert "public/wheels/foo-" not in html
+            wheel_dir = tmp_path / "out" / "public" / "wheels"
+            assert not list(wheel_dir.glob("foo-0.0.0+marimo.*.whl"))
+            assert list(wheel_dir.glob("bar-0.0.0+marimo.*.whl"))
+            assert (tmp_path / "bar.py").resolve() in {
+                path.resolve() for path in watch_paths(marimo_path)
+            }
+
+        monkeypatch.setattr(
+            "marimo._cli.export.commands.watch_and_export",
+            fake_watch_and_export,
+        )
+        p = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--output",
+            str(tmp_path / "out"),
+            "--watch",
+        )
+
+        _assert_success(p)
+        assert list((tmp_path / "out" / "public" / "wheels").glob("bar-*.whl"))
+
+    @staticmethod
+    def test_cli_export_html_wasm_watch_copies_include_wheel_on_start(
+        temp_marimo_file: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        parent = Path(temp_marimo_file).parent
+        user_wheel = parent / "user_pkg-0.1.0-py3-none-any.whl"
+        user_wheel.write_bytes(b"user wheel")
+        out_dir = parent / "out"
+
+        def fake_watch_and_export(
+            marimo_path: Any,
+            output: Path | None,
+            watch: bool,
+            export_callback: Any,
+            force: bool,
+            **kwargs: Any,
+        ) -> None:
+            del marimo_path, output, export_callback, force, kwargs
+            assert watch
+            assert (
+                out_dir / "public" / "wheels" / user_wheel.name
+            ).read_bytes() == b"user wheel"
+
+        monkeypatch.setattr(
+            "marimo._cli.export.commands.watch_and_export",
+            fake_watch_and_export,
+        )
+        p = _run_export(
+            "html-wasm",
+            temp_marimo_file,
+            "--output",
+            str(out_dir),
+            "--watch",
+            "--include-wheel",
+            str(user_wheel),
+        )
+
+        _assert_success(p)
+
+    @staticmethod
+    def test_cli_export_html_wasm_auto_wheels_added_to_execute_sandbox(
+        tmp_path: Path,
+    ) -> None:
+        notebook = TestExportHTML._write_local_module_notebook(tmp_path)
+
+        with (
+            mock.patch(
+                "marimo._cli.export.commands.DependencyManager.which",
+                return_value="uv",
+            ),
+            mock.patch(
+                "marimo._cli.export.commands.run_in_sandbox",
+                return_value=0,
+            ) as run_in_sandbox,
+        ):
+            p = _run_export(
+                "html-wasm",
+                str(notebook),
+                "--output",
+                str(tmp_path / "out"),
+                "--execute",
+            )
+
+        _assert_success(p)
+        run_in_sandbox.assert_called_once()
+        sandbox_args = run_in_sandbox.call_args.args[0]
+        assert "--include-wheel" in sandbox_args
+        additional_deps = run_in_sandbox.call_args.kwargs["additional_deps"]
+        assert any(
+            Path(dep).name.startswith("foo-") for dep in additional_deps
+        )
+        assert any(
+            Path(dep).name.startswith("pkg-") for dep in additional_deps
+        )
+        assert run_in_sandbox.call_args.kwargs["extra_env"] == {
+            "MARIMO_HTML_WASM_SANDBOX_BOOTSTRAPPED": "1",
+            "MARIMO_HTML_WASM_LOCAL_WHEELS_INCLUDED": "1",
+        }
+
+    @staticmethod
+    def test_cli_export_html_wasm_local_module_parse_error(
+        tmp_path: Path,
+    ) -> None:
+        notebook = TestExportHTML._write_local_module_notebook(tmp_path)
+        (tmp_path / "foo.py").write_text("def broken(:\n")
+
+        p = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--output",
+            str(tmp_path / "out"),
+        )
+
+        _assert_failure(p)
+        assert "failed to parse local import" in p.output.lower()
+        assert "foo.py" in p.output
 
     @staticmethod
     def test_cli_export_html_wasm_include_wheel_requires_distinct_names(

@@ -13,6 +13,13 @@ import click
 
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.export.cloudflare import create_cloudflare_files
+from marimo._cli.export.local_wheels import (
+    LocalModule,
+    LocalWheelError,
+    build_local_module_wheels,
+    local_module_files,
+    resolve_local_modules,
+)
 from marimo._cli.export.session import session
 from marimo._cli.export.thumbnail import thumbnail
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
@@ -24,6 +31,7 @@ from marimo._cli.print import (
 )
 from marimo._cli.sandbox import maybe_prompt_run_in_sandbox, run_in_sandbox
 from marimo._cli.utils import prompt_to_overwrite
+from marimo._config.manager import get_default_config_manager
 from marimo._convert.converters import MarimoConvert
 from marimo._convert.markdown.flavor import (
     markdown_output_filename,
@@ -47,7 +55,7 @@ from marimo._server.export import (
 from marimo._server.export._status import PDFExportStatusEvent
 from marimo._server.export.exporter import Exporter
 from marimo._server.utils import asyncio_run
-from marimo._utils.file_watcher import FileWatcher
+from marimo._utils.file_watcher import FileWatcherManager
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import maybe_make_dirs
 
@@ -68,6 +76,9 @@ _sandbox_message = (
 )
 
 _WASM_WHEEL_URL_PREFIX = "public/wheels"
+_AUTO_WHEEL_VERSION_MARKER = "-0.0.0+marimo."
+_HTML_WASM_SANDBOX_BOOTSTRAPPED = "MARIMO_HTML_WASM_SANDBOX_BOOTSTRAPPED"
+_HTML_WASM_LOCAL_WHEELS_INCLUDED = "MARIMO_HTML_WASM_LOCAL_WHEELS_INCLUDED"
 
 
 @click.group(
@@ -96,20 +107,95 @@ def _included_wheel_urls(wheel_paths: tuple[Path, ...]) -> list[str]:
     return wheel_urls
 
 
-def _copy_included_wheels(
-    out_dir: Path, wheel_paths: tuple[Path, ...]
-) -> None:
-    if not wheel_paths:
-        return
+def _wheel_distribution_name(wheel_path: Path) -> str:
+    stem = wheel_path.name[: -len(wheel_path.suffix)]
+    distribution = stem.split("-", 1)[0]
+    return distribution.replace("_", "-").replace(".", "-").lower()
 
+
+def _included_wheel_distribution_names(
+    wheel_paths: tuple[Path, ...],
+) -> frozenset[str]:
+    return frozenset(_wheel_distribution_name(path) for path in wheel_paths)
+
+
+def _is_auto_wheel_name(name: str) -> bool:
+    return (
+        name.endswith("-py3-none-any.whl")
+        and _AUTO_WHEEL_VERSION_MARKER in name
+    )
+
+
+def _copy_included_wheels(
+    out_dir: Path,
+    wheel_paths: tuple[Path, ...],
+    *,
+    auto_wheels: tuple[Path, ...] = (),
+) -> None:
     import shutil
 
     wheel_dir = out_dir / _WASM_WHEEL_URL_PREFIX
+    if not wheel_paths and not wheel_dir.exists():
+        return
+
     wheel_dir.mkdir(parents=True, exist_ok=True)
+    current_auto_names = {path.name for path in auto_wheels}
+    for target in wheel_dir.glob("*.whl"):
+        if (
+            _is_auto_wheel_name(target.name)
+            and target.name not in current_auto_names
+        ):
+            target.unlink()
+
     for wheel_path in wheel_paths:
         target = wheel_dir / wheel_path.name
         if wheel_path.resolve() != target.resolve():
             shutil.copyfile(wheel_path, target)
+
+
+def _resolve_local_modules(
+    name: str, *, include_wheels: tuple[Path, ...] = ()
+) -> tuple[LocalModule, ...]:
+    if os.environ.get(_HTML_WASM_LOCAL_WHEELS_INCLUDED) == "1":
+        return ()
+    marimo_path = MarimoPath(name)
+    if not marimo_path.is_python():
+        return ()
+    try:
+        config = get_default_config_manager(
+            current_path=marimo_path.absolute_name
+        ).get_config()
+        pythonpath = config["runtime"].get("pythonpath") or []
+        roots = tuple(reversed([Path(path) for path in pythonpath]))
+        return resolve_local_modules(
+            marimo_path.path,
+            roots=roots,
+            excluded_distributions=_included_wheel_distribution_names(
+                include_wheels
+            ),
+        )
+    except LocalWheelError as error:
+        raise click.UsageError(str(error)) from error
+
+
+def _include_wheel_args(
+    args: list[str], name: str, wheel_paths: tuple[Path, ...]
+) -> list[str]:
+    if not wheel_paths:
+        return args
+
+    include_args = [
+        arg
+        for wheel_path in wheel_paths
+        for arg in ("--include-wheel", str(wheel_path))
+    ]
+    result = list(args)
+    try:
+        insert_at = result.index(name)
+    except ValueError:
+        insert_at = len(result)
+    result[insert_at:insert_at] = include_args
+    return result
 
 
 class _PDFExportCLIReporter:
@@ -134,6 +220,7 @@ def watch_and_export(
     force: bool,
     *,
     initial_export_in_watch: bool = False,
+    watch_paths: Callable[[MarimoPath], tuple[Path, ...]] | None = None,
 ) -> None:
     if watch and not output:
         raise click.UsageError(
@@ -176,6 +263,24 @@ def watch_and_export(
                 err=True,
             )
 
+    watched_paths: set[Path] = set()
+    watcher: FileWatcherManager | None = None
+
+    def resolved_watch_paths() -> set[Path]:
+        paths = [marimo_path.path]
+        if watch_paths is not None:
+            paths.extend(watch_paths(marimo_path))
+        return {path.resolve() for path in paths}
+
+    def sync_watch_paths(watcher: FileWatcherManager) -> None:
+        nonlocal watched_paths
+        next_paths = resolved_watch_paths()
+        for path in watched_paths - next_paths:
+            watcher.remove_callback(path, on_file_changed)
+        for path in next_paths - watched_paths:
+            watcher.add_callback(path, on_file_changed)
+        watched_paths = next_paths
+
     async def on_file_changed(file_path: Path) -> None:
         if output:
             echo(
@@ -185,9 +290,7 @@ def watch_and_export(
             # `export_callback` may call `asyncio_run()` internally. This callback
             # runs inside the file watcher's event loop, so we must execute the
             # export in a separate thread to avoid `asyncio.run()` nesting.
-            result = await asyncio.to_thread(
-                export_callback, MarimoPath(file_path)
-            )
+            result = await asyncio.to_thread(export_callback, marimo_path)
         except Exception as e:
             echo(f"Error: {e}", err=True)
             return
@@ -198,18 +301,21 @@ def watch_and_export(
                 "Warning: Export was successful, but some cells failed to execute.",
                 err=True,
             )
+        if watcher is not None:
+            sync_watch_paths(watcher)
 
     async def start() -> None:
-        # Watch the file for changes
-        watcher = FileWatcher.create(marimo_path.path, on_file_changed)
+        nonlocal watcher
+        watcher = FileWatcherManager()
+        sync_watch_paths(watcher)
         echo(f"Watching {green(marimo_path.relative_name)} for changes...")
-        watcher.start()
         try:
             # Run forever
             while True:  # noqa: ASYNC110
                 await asyncio.sleep(1)
         except KeyboardInterrupt:
-            watcher.stop()
+            if watcher is not None:
+                watcher.stop_all()
 
     asyncio_run(start())
 
@@ -991,32 +1097,41 @@ def html_wasm(
             "--execute and --watch cannot be used together."
         )
 
-    # Validate before sandbox handoff. run_in_sandbox can update script
-    # metadata before re-entering this command.
-    wasm_wheel_urls = _included_wheel_urls(include_wheels)
-    included_wheel_deps = [
-        str(wheel_path.resolve()) for wheel_path in include_wheels
-    ]
+    # Validate user-provided wheels before sandbox handoff. The auto-built
+    # local wheels are validated with the combined list where they are created.
+    _included_wheel_urls(include_wheels)
 
     # When --execute is set, take ownership of sandboxing so we can layer
     # the pyodide-lock constraints on top. Re-entry marker keeps the
     # in-sandbox invocation from looping back here.
-    _BOOTSTRAPPED_ENV = "MARIMO_HTML_WASM_SANDBOX_BOOTSTRAPPED"
-    if execute and os.environ.get(_BOOTSTRAPPED_ENV) != "1":
+    if execute and os.environ.get(_HTML_WASM_SANDBOX_BOOTSTRAPPED) != "1":
         if sandbox is not False and DependencyManager.which("uv"):
-            # Surface inner export failures via the outer process exit code
-            # — the bootstrap shell is a transparent wrapper, not its own
-            # success/failure boundary.
-            sys.exit(
-                run_in_sandbox(
-                    sys.argv[1:],
-                    name=name,
-                    pyodide_constraints=True,
-                    python_version_override=PYODIDE_PYTHON_VERSION,
-                    additional_deps=included_wheel_deps,
-                    extra_env={_BOOTSTRAPPED_ENV: "1"},
+            with build_local_module_wheels(
+                _resolve_local_modules(name, include_wheels=include_wheels)
+            ) as local_wheels:
+                all_wheels = (*include_wheels, *local_wheels)
+                _included_wheel_urls(all_wheels)
+                included_wheel_deps = [
+                    str(wheel_path.resolve()) for wheel_path in all_wheels
+                ]
+                sandbox_args = _include_wheel_args(
+                    sys.argv[1:], name, local_wheels
                 )
-            )
+                # The inner command receives auto-built wheels as explicit
+                # include-wheel args so it exports exactly what the sandbox ran.
+                sys.exit(
+                    run_in_sandbox(
+                        sandbox_args,
+                        name=name,
+                        pyodide_constraints=True,
+                        python_version_override=PYODIDE_PYTHON_VERSION,
+                        additional_deps=included_wheel_deps,
+                        extra_env={
+                            _HTML_WASM_SANDBOX_BOOTSTRAPPED: "1",
+                            _HTML_WASM_LOCAL_WHEELS_INCLUDED: "1",
+                        },
+                    )
+                )
         if sandbox is not False:
             echo(
                 "warn: uv not found; running --execute in current "
@@ -1045,6 +1160,21 @@ def html_wasm(
 
     marimo_file = MarimoPath(name)
 
+    def local_wheel_modules(file_path: MarimoPath) -> tuple[LocalModule, ...]:
+        return _resolve_local_modules(
+            file_path.absolute_name,
+            include_wheels=include_wheels,
+        )
+
+    def copy_wheels_for_export(file_path: MarimoPath) -> list[str]:
+        with build_local_module_wheels(
+            local_wheel_modules(file_path)
+        ) as local_wheels:
+            wheels = (*include_wheels, *local_wheels)
+            urls = _included_wheel_urls(wheels)
+            _copy_included_wheels(out_dir, wheels, auto_wheels=local_wheels)
+            return urls
+
     if execute:
         cli_args = parse_args(args)
 
@@ -1067,7 +1197,7 @@ def html_wasm(
                     cli_args=cli_args,
                     argv=list(args),
                     cache_export_dir=out_dir,
-                    wasm_wheel_urls=wasm_wheel_urls,
+                    wasm_wheel_urls=copy_wheels_for_export(file_path),
                 )
             )
 
@@ -1079,7 +1209,7 @@ def html_wasm(
                 file_path,
                 mode,
                 show_code=show_code,
-                wasm_wheel_urls=wasm_wheel_urls,
+                wasm_wheel_urls=copy_wheels_for_export(file_path),
             )
 
     # Export assets first
@@ -1100,7 +1230,6 @@ def html_wasm(
             f"The public folder next to your notebook was copied to "
             f"{green(str(out_dir))}."
         )
-    _copy_included_wheels(out_dir, include_wheels)
 
     echo(
         "To run the exported notebook, use:\n"
@@ -1112,9 +1241,19 @@ def html_wasm(
         create_cloudflare_files(parse_title(name), out_dir)
 
     outfile = out_dir / filename
-    # NB. with --execute, the callback also bundles session caches into the
-    # export's public/cache/.
-    watch_and_export(MarimoPath(name), outfile, watch, export_callback, force)
+    if watch:
+        copy_wheels_for_export(marimo_file)
+
+    return watch_and_export(
+        MarimoPath(name),
+        outfile,
+        watch,
+        export_callback,
+        force,
+        watch_paths=lambda file_path: local_module_files(
+            local_wheel_modules(file_path)
+        ),
+    )
 
 
 export.add_command(html)
