@@ -24,10 +24,9 @@ type SlideProps = Pick<
 
 const renderSlide = (props: SlideProps) => render(<Slide {...props} />);
 
-describe("Slide (issue #1587)", () => {
+describe("Slide", () => {
   it("does not mark output stale while it is streaming during a run", () => {
-    // Output received AFTER the run started -> the outputReceivedWhileRunning
-    // exemption applies, so it must not be greyed out.
+    // Output received after the run started must not be greyed out.
     const { container } = renderSlide({
       cellId,
       status: "running",

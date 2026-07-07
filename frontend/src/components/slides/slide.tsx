@@ -23,10 +23,8 @@ export const Slide = memo(
     runStartTimestamp,
   }: SlideContentProps) => {
     const loading = outputIsLoading(status);
-    // Don't grey out the output while it is actively streaming (e.g. a
-    // spinner via mo.status.spinner); use outputIsStale so the
-    // "output received while running" exemption applies, matching the
-    // vertical layout. See issue #1587.
+    // Use outputIsStale (like the vertical layout) so streaming output isn't
+    // greyed out while the cell is still running.
     const stale = outputIsStale(
       { status, output, interrupted, runStartTimestamp, staleInputs },
       false,
