@@ -695,9 +695,9 @@ class Kernel:
                 # the (potentially slow, docstring-resolving) completion
                 # command queued in the same drain pass.
                 commands.sort(
-                    key=lambda c: 0
-                    if isinstance(c, SetBreakpointsCommand)
-                    else 1
+                    key=lambda c: (
+                        0 if isinstance(c, SetBreakpointsCommand) else 1
+                    )
                 )
                 for command in commands:
                     self.dispatch_out_of_band(command, docstrings_limit=80)
