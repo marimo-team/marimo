@@ -204,14 +204,9 @@ function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
 const warnedLegacyNamedExportUrls = new Set<string>();
 
 /**
- * Resolve the {@link AnyWidget} from a loaded ES module.
- *
- * Prefers the AFM-spec default export. Falls back to legacy top-level named
- * `render`/`initialize` exports — which anywidget's own runtime still supports
- * (with a deprecation warning) — by synthesizing a widget object, so widgets
- * that render in Jupyter/Colab also render in marimo instead of being rejected.
- *
- * Returns `null` if the module is not a valid anywidget.
+ * Resolve the AnyWidget from a loaded module: prefer the AFM-spec default
+ * export, otherwise synthesize one from legacy named `render`/`initialize`
+ * exports. Returns null if neither is present.
  */
 function resolveAnyWidget(mod: any, jsUrl: string): AnyWidget | null {
   if (isAnyWidgetModule(mod)) {
