@@ -207,10 +207,8 @@ class SortColumnTransform:
 class FilterRowsTransform:
     type: Literal[TransformType.FILTER_ROWS]
     operation: Literal["keep_rows", "remove_rows"]
-    # Accept the legacy flat list-of-conditions shape in addition to a
-    # FilterGroup. The DataFramePlugin frontend can still emit a bare list of
-    # conditions (e.g. on `.form()` submit before the value is normalized),
-    # which would otherwise fail to parse and silently drop the filter.
+    # The frontend can still emit the legacy flat list shape (e.g. on
+    # `.form()` submit); normalize it to a FilterGroup below.
     where: Union[FilterGroup, list[FilterCondition]]
 
     def __post_init__(self) -> None:

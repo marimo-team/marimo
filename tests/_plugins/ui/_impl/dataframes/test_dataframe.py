@@ -464,10 +464,8 @@ class TestDataframes:
         not HAS_DEPS, reason="optional dependencies not installed"
     )
     def test_dataframe_filter_rows_accepts_legacy_where_list() -> None:
-        # Regression test for #7433: a filter_rows transform whose `where` is a
-        # bare list of conditions (the legacy, pre-FilterGroup wire shape the
-        # DataFramePlugin can still emit on `.form()` submit) must filter the
-        # data rather than fail to parse and silently return the original df.
+        # A filter_rows transform with a legacy list-shaped `where` must still
+        # filter the data instead of silently returning the original df.
         df = pd.DataFrame(
             {
                 "name": ["Alice", "Bob", "Charlie"],
