@@ -100,11 +100,8 @@ export const MarimoTracebackOutput = ({
   };
 
   const openAISidebar = () => {
-    if (cellId == null) {
-      return;
-    }
     openAiAssistant({
-      prompt: buildFixInChatPrompt(cellId),
+      prompt: buildFixInChatPrompt(cellId, lastTracebackLine),
     });
   };
 

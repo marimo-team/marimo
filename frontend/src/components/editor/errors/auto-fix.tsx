@@ -27,8 +27,18 @@ import { cn } from "@/utils/cn";
 import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
 import { type FixMode, useFixMode } from "./fix-mode";
 
-export function buildFixInChatPrompt(cellId: CellId): string {
-  return `@error://${cellId}\n\nPlease fix this error.`;
+export function buildFixInChatPrompt(
+  cellId: CellId | undefined,
+  fallbackErrorText?: string,
+): string {
+  if (cellId != null) {
+    return `@error://${cellId}\n\nPlease fix this error.`;
+  }
+  const errorText = fallbackErrorText?.trim();
+  if (errorText) {
+    return `My code gives the following error. Please fix it:\n\n${errorText}`;
+  }
+  return "Please fix this error.";
 }
 
 export const AutoFixButton = ({

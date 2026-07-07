@@ -10,4 +10,14 @@ describe("buildFixInChatPrompt", () => {
       "@error://cell-1\n\nPlease fix this error.",
     );
   });
+
+  it("falls back to inline error text when no cell id", () => {
+    expect(buildFixInChatPrompt(undefined, "ValueError: boom")).toBe(
+      "My code gives the following error. Please fix it:\n\nValueError: boom",
+    );
+  });
+
+  it("uses a generic prompt when no cell id and no error text", () => {
+    expect(buildFixInChatPrompt(undefined)).toBe("Please fix this error.");
+  });
 });
