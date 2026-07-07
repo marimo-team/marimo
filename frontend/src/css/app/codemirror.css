@@ -139,13 +139,8 @@
   padding: 2px;
 }
 
-/* -- Rename symbol popup (F2) -- */
-/* The popup comes from @marimo-team/codemirror-languageserver, which hardcodes
-  `background: white` and sets no text/background color on the input as inline
-  styles. That is unreadable in dark mode (light text on white). Override with
-  theme tokens so it works in both themes. `!important` is required because the
-  upstream styles are inline. The popup is appended to `document.body`, so it is
-  intentionally not scoped under `#root`. */
+/* Rename symbol popup (F2). The upstream popup hardcodes white inline styles;
+  override with theme tokens (!important beats inline styles). */
 .cm-rename-popup {
   background: var(--popover) !important;
   border-color: var(--border) !important;
