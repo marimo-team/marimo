@@ -1373,7 +1373,7 @@ class TestFilterParameter:
 
 
 class TestInitialSelection:
-    """Tests for the `initial_selection` constructor argument (#7468)."""
+    """Tests for the `initial_selection` constructor argument."""
 
     def test_preselects_files(self, tmp_path: Path) -> None:
         file_a = tmp_path / "a.txt"
@@ -1415,8 +1415,7 @@ class TestInitialSelection:
         assert fb.path(0) == normalize_path(file_a)
 
     def test_preselection_matches_listing_paths(self, tmp_path: Path) -> None:
-        # The pre-selected entry's path must byte-for-byte match what
-        # _list_directory emits, otherwise the frontend won't highlight it.
+        # The selection path must match _list_directory's output to highlight.
         file_a = tmp_path / "a.txt"
         file_a.touch()
 
@@ -1431,11 +1430,9 @@ class TestInitialSelection:
         subdir = tmp_path / "sub"
         subdir.mkdir()
 
-        # Default selection_mode is "file"; a directory must be rejected.
         with pytest.raises(ValueError, match="directory"):
             file_browser(initial_path=tmp_path, initial_selection=[subdir])
 
-        # Allowed with selection_mode="all".
         fb = file_browser(
             initial_path=tmp_path,
             initial_selection=[subdir],

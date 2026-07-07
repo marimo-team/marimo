@@ -326,10 +326,8 @@ class file_browser(
     ) -> list[TypedFileBrowserFileInfo]:
         """Build the initial selection value from user-provided paths.
 
-        Each entry is normalized the same way as `initial_path` (via
-        `normalize_path` and `_create_path`) so that its `path` string matches
-        what `_list_directory` emits, ensuring the entry renders as
-        pre-selected when its containing directory is browsed.
+        Paths are normalized the same way as `initial_path` so they match what
+        `_list_directory` emits and render as pre-selected while browsing.
         """
         if initial_selection is None:
             return []
@@ -338,8 +336,7 @@ class file_browser(
         if isinstance(initial_selection, (list, tuple)):
             raw_items = list(initial_selection)
         else:
-            # A single path: str, Path, or CloudPath (which duck-types as a
-            # path but is not a Path subclass, so it isn't in the annotation).
+            # A single path (a CloudPath is path-like but not a Path subclass).
             raw_items = [cast("str | Path", initial_selection)]
 
         if not multiple and len(raw_items) > 1:
