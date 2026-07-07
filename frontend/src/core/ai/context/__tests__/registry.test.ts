@@ -176,6 +176,33 @@ class FileContextProvider extends AIContextProvider<FileContextItem> {
   }
 }
 
+// Second mock provider with the same context type as MockContextProvider
+class SecondaryMockProvider extends AIContextProvider<MockContextItem> {
+  readonly title = "Secondary Mock Items";
+  readonly mentionPrefix = "@";
+  readonly contextType = "mock";
+
+  getItems(): MockContextItem[] {
+    return [
+      {
+        type: "mock",
+        uri: this.asURI("secondary-item"),
+        name: "Secondary Item",
+        description: "From the second mock provider",
+        data: { value: "secondary" },
+      },
+    ];
+  }
+
+  formatContext(item: MockContextItem): string {
+    return `Secondary: ${item.name}`;
+  }
+
+  formatCompletion(item: MockContextItem): Completion {
+    return this.createBasicCompletion(item);
+  }
+}
+
 describe("AIContextProvider", () => {
   let provider: MockContextProvider;
 
@@ -482,32 +509,6 @@ describe("AIContextRegistry", () => {
     });
 
     it("should resolve items from all providers that share a context type", () => {
-      class SecondaryMockProvider extends AIContextProvider<MockContextItem> {
-        readonly title = "Secondary Mock Items";
-        readonly mentionPrefix = "@";
-        readonly contextType = "mock";
-
-        getItems(): MockContextItem[] {
-          return [
-            {
-              type: "mock",
-              uri: this.asURI("secondary-item"),
-              name: "Secondary Item",
-              description: "From the second mock provider",
-              data: { value: "secondary" },
-            },
-          ];
-        }
-
-        formatContext(item: MockContextItem): string {
-          return `Secondary: ${item.name}`;
-        }
-
-        formatCompletion(item: MockContextItem): Completion {
-          return this.createBasicCompletion(item);
-        }
-      }
-
       const secondaryProvider = new SecondaryMockProvider();
       const secondaryGetItems = vi.spyOn(secondaryProvider, "getItems");
       registry.register(secondaryProvider);
@@ -648,32 +649,6 @@ describe("AIContextRegistry", () => {
     });
 
     it("should format items from the provider that owns them", () => {
-      class SecondaryMockProvider extends AIContextProvider<MockContextItem> {
-        readonly title = "Secondary Mock Items";
-        readonly mentionPrefix = "@";
-        readonly contextType = "mock";
-
-        getItems(): MockContextItem[] {
-          return [
-            {
-              type: "mock",
-              uri: this.asURI("secondary-item"),
-              name: "Secondary Item",
-              description: "From the second mock provider",
-              data: { value: "secondary" },
-            },
-          ];
-        }
-
-        formatContext(item: MockContextItem): string {
-          return `Secondary: ${item.name}`;
-        }
-
-        formatCompletion(item: MockContextItem): Completion {
-          return this.createBasicCompletion(item);
-        }
-      }
-
       registry.register(new SecondaryMockProvider());
 
       const formatted = registry.formatContextForAI([
