@@ -1365,14 +1365,19 @@ class table(
         """Get the data URL for the entire table. Used for charting."""
         del args
 
+        # Expose a non-trivial row index (e.g. a named datetime index) as a
+        # column so it can be selected as a chart axis. Scoped to the chart
+        # data path; downloads and the displayed table are unaffected.
+        chart_manager = self._searched_manager.with_index_as_columns()
+
         if DependencyManager.altair.has():
-            result = _to_marimo_arrow(self._searched_manager.data)
+            result = _to_marimo_arrow(chart_manager.data)
             return GetDataUrlResponse(
                 data_url=result["url"],
                 format=result["format"]["type"],
             )
 
-        url, data_format = self._to_chart_data_url(self._searched_manager)
+        url, data_format = self._to_chart_data_url(chart_manager)
         return GetDataUrlResponse(
             data_url=url,
             format=data_format,

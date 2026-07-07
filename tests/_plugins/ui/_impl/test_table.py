@@ -1278,6 +1278,31 @@ def test_table_hidden_columns_row_header_raises() -> None:
         ui.table(df, hidden_columns=[name])
 
 
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_get_data_url_includes_named_index() -> None:
+    import pandas as pd
+
+    from marimo._plugins.ui._impl.charts.altair_transformer import (
+        _data_to_csv_string,
+    )
+
+    df = pd.DataFrame(
+        {"v": [1, 2, 3]},
+        index=pd.Index(["a", "b", "c"], name="k"),
+    )
+    table = ui.table(df)
+    response = table._get_data_url(EmptyArgs())
+    assert response.data_url  # produced without error
+
+    # The flattened manager exposes the index as a column.
+    flattened = table._searched_manager.with_index_as_columns()
+    assert "k" in flattened.get_column_names()
+    csv = _data_to_csv_string(flattened.data)
+    assert "k" in csv.splitlines()[0]
+
+
 @pytest.mark.parametrize(
     "df",
     create_dataframes({"a": [1, 2, 3], "b": ["abc", "def", None]}),
