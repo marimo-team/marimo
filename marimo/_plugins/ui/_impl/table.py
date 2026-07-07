@@ -352,7 +352,8 @@ class table(
 
     1. a list of dicts, with one dict for each row, keyed by column names;
     2. a list of values, representing a table with a single column;
-    3. a dataframe (e.g., Polars, Pandas, PyArrow, Ibis, DuckDB).
+    3. a dict of lists, with one list for each column, keyed by column names;
+    4. a dataframe (e.g., Polars, Pandas, PyArrow, Ibis, DuckDB).
 
     Examples:
         Create a table from a list of dicts, one for each row:
@@ -367,14 +368,23 @@ class table(
         )
         ```
 
-        Create a table from a single column of data:
+        Create a table from a list of values, as a single column:
 
         ```python
         table = mo.ui.table(
-            data=[
-                {"first_name": "Michael", "last_name": "Scott"},
-                {"first_name": "Dwight", "last_name": "Schrute"},
-            ],
+            data=["Michael Scott", "Dwight Schrute"],
+            label="Users",
+        )
+        ```
+
+        Create a table from a dict of lists, one list per column:
+
+        ```python
+        table = mo.ui.table(
+            data={
+                "first_name": ["Michael", "Dwight"],
+                "last_name": ["Scott", "Schrute"],
+            },
             label="Users",
         )
         ```
