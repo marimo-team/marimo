@@ -136,9 +136,10 @@ class BreakpointSync implements PluginValue {
     };
     // Dispatching during view construction is disallowed; defer the initial
     // sync (e.g. for editors that mount after breakpoints already exist).
-    const initial = observable.get();
-    if (initial.size > 0) {
-      queueMicrotask(() => apply(initial));
+    // Read the value fresh inside the microtask so a `sub` update that lands
+    // first isn't clobbered by a stale snapshot.
+    if (observable.get().size > 0) {
+      queueMicrotask(() => apply(observable.get()));
     }
     this.unsubscribe = observable.sub(apply);
   }

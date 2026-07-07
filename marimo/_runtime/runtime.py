@@ -688,9 +688,18 @@ class Kernel:
             while True:
                 # Block for the next command, then drain and dispatch whatever
                 # else is queued in one pass (latest of each type wins).
-                for command in collapse_out_of_band(
+                commands = collapse_out_of_band(
                     out_of_band_queue, first=out_of_band_queue.get()
-                ):
+                )
+                # Breakpoint updates are latency-sensitive; apply them before
+                # the (potentially slow, docstring-resolving) completion
+                # command queued in the same drain pass.
+                commands.sort(
+                    key=lambda c: 0
+                    if isinstance(c, SetBreakpointsCommand)
+                    else 1
+                )
+                for command in commands:
                     self.dispatch_out_of_band(command, docstrings_limit=80)
 
         threading.Thread(target=_worker, daemon=True).start()

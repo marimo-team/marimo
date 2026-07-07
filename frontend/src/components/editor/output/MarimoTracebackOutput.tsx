@@ -228,7 +228,7 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
               >
                 <BugPlayIcon
                   onClick={() => {
-                    if (debuggerEnabled) {
+                    if (debuggerEnabled && !isStaticNotebook()) {
                       toggleBreakpoint(info.cellId, info.lineNumber);
                       return;
                     }
