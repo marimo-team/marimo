@@ -480,6 +480,50 @@ describe("AIContextRegistry", () => {
       expect(mockGetItems).toHaveBeenCalledTimes(1);
       expect(fileGetItems).toHaveBeenCalledTimes(1);
     });
+
+    it("should resolve items from all providers that share a context type", () => {
+      class SecondaryMockProvider extends AIContextProvider<MockContextItem> {
+        readonly title = "Secondary Mock Items";
+        readonly mentionPrefix = "@";
+        readonly contextType = "mock";
+
+        getItems(): MockContextItem[] {
+          return [
+            {
+              type: "mock",
+              uri: this.asURI("secondary-item"),
+              name: "Secondary Item",
+              description: "From the second mock provider",
+              data: { value: "secondary" },
+            },
+          ];
+        }
+
+        formatContext(item: MockContextItem): string {
+          return `Secondary: ${item.name}`;
+        }
+
+        formatCompletion(item: MockContextItem): Completion {
+          return this.createBasicCompletion(item);
+        }
+      }
+
+      const secondaryProvider = new SecondaryMockProvider();
+      const secondaryGetItems = vi.spyOn(secondaryProvider, "getItems");
+      registry.register(secondaryProvider);
+
+      const resolved = registry.resolveItems([
+        "mock://item1",
+        "mock://secondary-item",
+      ] as ContextLocatorId[]);
+
+      expect(resolved.map((item) => item.uri)).toEqual([
+        "mock://item1",
+        "mock://secondary-item",
+      ]);
+      expect(mockGetItems).toHaveBeenCalledTimes(1);
+      expect(secondaryGetItems).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("getContextInfo", () => {
@@ -729,6 +773,7 @@ describe("AIContextRegistry", () => {
 
       const completion = provider!.formatCompletion(items[0]);
       expect(completion.label).toBe("@Errors");
+      expect(completion.apply).toBe("@error://all");
       expect(completion.type).toBe("error");
     });
 

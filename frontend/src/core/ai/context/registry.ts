@@ -9,7 +9,7 @@ import { MultiMap } from "@/utils/multi-map";
 import type { TypedString } from "@/utils/typed";
 
 /**
- * Unique identifier for a context item in the format "type:id"
+ * Unique identifier for a context item in the format "type://id"
  * e.g., "variable://my_var", "data://users", "file://config.py"
  */
 export type ContextLocatorId = TypedString<"ContextLocatorId">;
@@ -168,19 +168,20 @@ export class AIContextRegistry<T extends AIContextItem> {
 
     const itemsById = new Map<ContextLocatorId, T>();
     for (const [type, ids] of idsByType.entries()) {
-      const provider = this.getProvider(type);
-      if (!provider) {
-        continue;
-      }
-      const itemsByUri = new Map<ContextLocatorId, T>(
-        provider
-          .getItems()
-          .map((item) => [item.uri as ContextLocatorId, item as T]),
+      const providers = [...this.providers].filter(
+        (provider) => provider.contextType === type,
       );
-      for (const id of ids) {
-        const item = itemsByUri.get(id);
-        if (item) {
-          itemsById.set(id, item);
+      for (const provider of providers) {
+        const itemsByUri = new Map<ContextLocatorId, T>(
+          provider
+            .getItems()
+            .map((item) => [item.uri as ContextLocatorId, item as T]),
+        );
+        for (const id of ids) {
+          const item = itemsByUri.get(id);
+          if (item) {
+            itemsById.set(id, item);
+          }
         }
       }
     }
