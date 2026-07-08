@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
+import { outputIsStale } from "@/core/cells/cell";
 import { useCellActions, useCellIds } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { CellColumnId } from "@/utils/id-tree";
@@ -674,9 +675,7 @@ const SlideThumbnailCard = ({
               cellId={cell.id}
               status={cell.status}
               output={cell.output}
-              interrupted={cell.interrupted}
-              staleInputs={cell.staleInputs}
-              runStartTimestamp={cell.runStartTimestamp}
+              stale={outputIsStale(cell, false)}
             />
           )}
         </div>

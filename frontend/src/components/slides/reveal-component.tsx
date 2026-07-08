@@ -16,6 +16,7 @@ import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { Button } from "@/components/ui/button";
 import { useFullScreenElement } from "@/components/ui/fullscreen";
 import { Tooltip } from "@/components/ui/tooltip";
+import { outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
 import type { RuntimeCell } from "@/core/cells/types";
 import type { RevealApi, RevealConfig } from "reveal.js";
@@ -333,9 +334,7 @@ const SubslideView = ({
                     cellId={cell.id}
                     status={cell.status}
                     output={cell.output}
-                    interrupted={cell.interrupted}
-                    staleInputs={cell.staleInputs}
-                    runStartTimestamp={cell.runStartTimestamp}
+                    stale={outputIsStale(cell, false)}
                   />
                 );
               }
@@ -400,9 +399,7 @@ const ParkedPreviewContent = ({
       cellId={cell.id}
       status={cell.status}
       output={cell.output}
-      interrupted={cell.interrupted}
-      staleInputs={cell.staleInputs}
-      runStartTimestamp={cell.runStartTimestamp}
+      stale={outputIsStale(cell, false)}
     />
   );
 };

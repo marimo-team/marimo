@@ -222,9 +222,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
               cellId={cell.id}
               output={cell.output}
               status={cell.status}
-              interrupted={cell.interrupted}
-              staleInputs={cell.staleInputs}
-              runStartTimestamp={cell.runStartTimestamp}
+              stale={outputIsStale(cell, false)}
               isScrollable={isScrollable}
               side={side}
               hidden={cell.errored || cell.interrupted || cell.stopped}
@@ -291,9 +289,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 cellId={cell.id}
                 output={cell.output}
                 status={cell.status}
-                interrupted={cell.interrupted}
-                staleInputs={cell.staleInputs}
-                runStartTimestamp={cell.runStartTimestamp}
+                stale={outputIsStale(cell, false)}
                 isScrollable={false}
                 hidden={false}
               />
@@ -364,9 +360,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 output={cell.output}
                 isScrollable={false}
                 status={cell.status}
-                interrupted={cell.interrupted}
-                staleInputs={cell.staleInputs}
-                runStartTimestamp={cell.runStartTimestamp}
+                stale={outputIsStale(cell, false)}
                 hidden={false}
               />
             </div>
@@ -377,10 +371,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
   );
 };
 
-interface GridCellProps extends Pick<
-  CellRuntimeState,
-  "output" | "status" | "interrupted" | "staleInputs" | "runStartTimestamp"
-> {
+interface GridCellProps extends Pick<CellRuntimeState, "output" | "status"> {
   className?: string;
   code: string;
   cellId: CellId;
@@ -388,6 +379,7 @@ interface GridCellProps extends Pick<
   hidden: boolean;
   isScrollable: boolean;
   side?: GridLayoutCellSide;
+  stale: boolean;
 }
 
 const GridCell = memo(
@@ -395,23 +387,15 @@ const GridCell = memo(
     output,
     cellId,
     status,
-    interrupted,
-    staleInputs,
-    runStartTimestamp,
     mode,
     code,
     hidden,
     isScrollable,
     side,
     className,
+    stale,
   }: GridCellProps) => {
     const loading = outputIsLoading(status);
-    // Use outputIsStale (like the vertical layout) so streaming output isn't
-    // greyed out while the cell is still running.
-    const stale = outputIsStale(
-      { status, output, interrupted, runStartTimestamp, staleInputs },
-      false,
-    );
 
     const isOutputEmpty = output == null || output.data === "";
     // If not reading, show code when there is no output

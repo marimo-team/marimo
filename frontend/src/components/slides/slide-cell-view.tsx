@@ -13,6 +13,7 @@ import { StopButton } from "@/components/editor/cell/StopButton";
 import { useRunCell } from "@/components/editor/cell/useRunCells";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { outputIsStale } from "@/core/cells/cell";
 import { useCellActions } from "@/core/cells/cells";
 import { autoInstantiateAtom, useUserConfig } from "@/core/config/config";
 import {
@@ -96,9 +97,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
       cellId={cell.id}
       status={cell.status}
       output={cell.output}
-      interrupted={cell.interrupted}
-      staleInputs={cell.staleInputs}
-      runStartTimestamp={cell.runStartTimestamp}
+      stale={outputIsStale(cell, false)}
     />
   );
 
@@ -201,9 +200,7 @@ export const SlideCellReadOnlyView = ({ cell }: { cell: RuntimeCell }) => {
       cellId={cell.id}
       status={cell.status}
       output={cell.output}
-      interrupted={cell.interrupted}
-      staleInputs={cell.staleInputs}
-      runStartTimestamp={cell.runStartTimestamp}
+      stale={outputIsStale(cell, false)}
     />
   );
 
