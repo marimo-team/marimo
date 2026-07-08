@@ -497,7 +497,80 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_expand_dict(
         df: DataFrame, transform: ExpandDictTransform
     ) -> DataFrame:
-        return df.explode(transform.column_id)
+        collected_df, undo = collect_and_preserve_type(df)
+        native_df = collected_df.to_native()
+
+        # Keep pandas handling fully pandas-native so mixed/object columns in
+        # unrelated fields do not trigger Arrow coercion errors.
+        if nw.dependencies.is_pandas_dataframe(native_df):
+            import math
+
+            import pandas as pd
+
+            result_df = native_df.copy()
+
+            def normalise_empty_dict(value: Any) -> Any:
+                if value is None:
+                    return {}
+                if isinstance(value, float) and math.isnan(value):
+                    return {}
+                return value
+
+            # Keep expansion shallow and replace top-level null/nan entries so
+            # pandas and other backends agree on expand-dict behaviour.
+            expanded = pd.json_normalize(
+                result_df.pop(transform.column_id).map(normalise_empty_dict),  # type: ignore[arg-type]
+                max_level=0,
+            )
+            duplicate_columns = sorted(
+                set(result_df.columns) & set(expanded.columns)
+            )
+            if duplicate_columns:
+                raise nw.exceptions.InvalidOperationError(
+                    "Cannot expand dict because it would duplicate existing "
+                    f"columns: {duplicate_columns}"
+                )
+            expanded.index = result_df.index
+            return undo(nw.from_native(result_df.join(expanded)))
+
+        schema = collected_df.collect_schema()
+        dtype = schema.get(transform.column_id)
+        if isinstance(dtype, nw.Struct):
+            fields = dtype.fields
+            field_names = [field.name for field in fields]
+            columns = schema.names()
+            column_index = columns.index(transform.column_id)
+            expanded_columns = (
+                columns[:column_index]
+                + field_names
+                + columns[column_index + 1 :]
+            )
+            duplicate_columns = sorted(
+                (set(columns) - {transform.column_id}) & set(field_names)
+            )
+            if duplicate_columns:
+                raise nw.exceptions.InvalidOperationError(
+                    "Cannot expand dict because it would duplicate existing "
+                    f"columns: {duplicate_columns}"
+                )
+            return undo(
+                collected_df.with_columns(
+                    [
+                        nw.col(transform.column_id)
+                        .struct.field(field_name)
+                        .alias(field_name)
+                        for field_name in field_names
+                    ]
+                )
+                .drop(transform.column_id)
+                .select(expanded_columns)
+            )
+
+        raise nw.exceptions.InvalidOperationError(
+            "Expand dict requires a struct-like column with named fields on "
+            f"this backend; got column '{transform.column_id}' with dtype "
+            f"{dtype!r}."
+        )
 
     @staticmethod
     def handle_unique(df: DataFrame, transform: UniqueTransform) -> DataFrame:
