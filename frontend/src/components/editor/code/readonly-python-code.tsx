@@ -2,18 +2,24 @@
 
 import { markdown } from "@codemirror/lang-markdown";
 import { sql } from "@codemirror/lang-sql";
+import {
+  defaultHighlightStyle,
+  syntaxHighlighting,
+} from "@codemirror/language";
 import CodeMirror, {
   EditorView,
   type ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import { CopyIcon, EyeIcon, EyeOffIcon, PlusIcon } from "lucide-react";
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { useAddCodeToNewCell } from "@/components/editor/cell/useAddCell";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
+import { darkTheme } from "@/core/codemirror/theme/dark";
+import { lightTheme } from "@/core/codemirror/theme/light";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -72,6 +78,15 @@ export const ReadonlyCode = memo(
     } = props;
     const [hideCode, setHideCode] = useState(initiallyHideCode);
 
+    const extensions = useMemo(
+      () => [
+        theme === "dark" ? darkTheme : lightTheme,
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        ...readonlyCodeExtensions(language),
+      ],
+      [theme, language],
+    );
+
     return (
       <div
         className={cn(
@@ -92,10 +107,10 @@ export const ReadonlyCode = memo(
         <CodeMirror
           {...rest}
           className={cn("cm", hideCode && "opacity-20 h-8 overflow-hidden")}
-          theme={theme === "dark" ? "dark" : "light"}
+          theme="none"
           height="100%"
-          editable={!hideCode}
-          extensions={readonlyCodeExtensions(language)}
+          editable={false}
+          extensions={extensions}
           value={code}
           readOnly={true}
         />
