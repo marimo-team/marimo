@@ -75,21 +75,18 @@ export const ReadonlyCode = memo(
     return (
       <div
         className={cn(
-          "relative hover-actions-parent w-full overflow-hidden",
+          "relative hover-actions-parent w-full overflow-hidden pb-1",
           className,
         )}
       >
-        {showHideCode && hideCode && (
-          <HideCodeButton
-            tooltip="Show code"
-            onClick={() => setHideCode(false)}
-          />
-        )}
         <div className="absolute top-0 right-0 my-1 mx-2 z-10 hover-action flex gap-2">
           {showCopyCode && <CopyButton text={code} />}
           {insertNewCell && <InsertNewCell code={code} />}
-          {showHideCode && !hideCode && (
-            <EyeCloseButton onClick={() => setHideCode(true)} />
+          {showHideCode && (
+            <ToggleCodeButton
+              hidden={hideCode ?? false}
+              onClick={() => setHideCode(!hideCode)}
+            />
           )}
         </div>
         <CodeMirror
@@ -123,32 +120,25 @@ const CopyButton = (props: { text: string }) => {
   );
 };
 
-const EyeCloseButton = (props: { onClick: () => void }) => {
+const ToggleCodeButton = (props: { hidden: boolean; onClick: () => void }) => {
   return (
-    <Tooltip content="Hide code" usePortal={false}>
+    <Tooltip
+      content={props.hidden ? "Show code" : "Hide code"}
+      usePortal={false}
+    >
       <Button
         onClick={props.onClick}
         size="xs"
         className="py-0"
         variant="secondary"
       >
-        <EyeOffIcon size={14} strokeWidth={1.5} />
+        {props.hidden ? (
+          <EyeIcon size={14} strokeWidth={1.5} />
+        ) : (
+          <EyeOffIcon size={14} strokeWidth={1.5} />
+        )}
       </Button>
     </Tooltip>
-  );
-};
-
-export const HideCodeButton = (props: {
-  tooltip?: string;
-  className?: string;
-  onClick: () => void;
-}) => {
-  return (
-    <div className={props.className} onClick={props.onClick}>
-      <Tooltip usePortal={false} content={props.tooltip}>
-        <EyeIcon className="hover-action w-5 h-5 text-muted-foreground cursor-pointer absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-80 hover:opacity-100 z-20" />
-      </Tooltip>
-    </div>
   );
 };
 
