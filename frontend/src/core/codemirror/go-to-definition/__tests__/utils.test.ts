@@ -11,6 +11,7 @@ import { variablesAtom } from "@/core/variables/state";
 import {
   goToDefinitionAtCursorPosition,
   goToDefinitionWithLspFallback,
+  requestLspGoToDefinition,
 } from "../utils";
 
 async function tick(): Promise<void> {
@@ -229,5 +230,26 @@ describe("goToDefinitionWithLspFallback", () => {
     expect(lspGoToDefinition).not.toHaveBeenCalled();
     await tick();
     expect(view.state.selection.main.head).toBe(0);
+  });
+
+  test("falls through with a modified shortcut like Ctrl-F12", () => {
+    const lspGoToDefinition = vi.fn(() => true);
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "parser.add_argument('--foo')",
+        selection: { anchor: "parser.add_argument".indexOf("add_argument") },
+        extensions: [
+          python(),
+          keymap.of([{ key: "Ctrl-F12", run: lspGoToDefinition }]),
+        ],
+      }),
+      parent: document.body,
+    });
+    views.push(view);
+
+    const result = requestLspGoToDefinition(view, "Ctrl-F12");
+
+    expect(result).toBe(true);
+    expect(lspGoToDefinition).toHaveBeenCalledOnce();
   });
 });

@@ -13,6 +13,7 @@ import { notebookAtom } from "../../cells/cells";
 import { store } from "../../state/jotai";
 import { variablesAtom } from "../../variables/state";
 import type { VariableName, Variables } from "../../variables/types";
+import { createKeyboardEventFromShortcut } from "../../hotkeys/shortcuts";
 import { getPositionAtWordBounds } from "../completion/hints";
 import { goToLine, goToVariableDefinition } from "./commands";
 
@@ -81,12 +82,11 @@ export function requestLspGoToDefinition(
   view: EditorView,
   hotkey = store.get(hotkeysAtom).getHotkey("cell.goToDefinition").key,
 ): boolean {
-  const event = new KeyboardEvent("keydown", {
-    key: hotkey,
-    bubbles: true,
-    cancelable: true,
-  });
-  return runScopeHandlers(view, event, "editor");
+  return runScopeHandlers(
+    view,
+    createKeyboardEventFromShortcut(hotkey),
+    "editor",
+  );
 }
 
 /**

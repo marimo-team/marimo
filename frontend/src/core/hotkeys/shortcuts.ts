@@ -115,6 +115,111 @@ function normalizeKey(key: string): string {
   return specialKeys[key.toLowerCase()] || key.toLowerCase();
 }
 
+const MODIFIER_KEYS = new Set([
+  "mod",
+  "ctrl",
+  "control",
+  "cmd",
+  "command",
+  "meta",
+  "shift",
+  "alt",
+  "option",
+]);
+
+const KEYBOARD_EVENT_KEY_ALIASES: Record<string, string> = {
+  space: " ",
+  esc: "Escape",
+  escape: "Escape",
+  enter: "Enter",
+  return: "Enter",
+  tab: "Tab",
+  backspace: "Backspace",
+  delete: "Delete",
+  up: "ArrowUp",
+  down: "ArrowDown",
+  left: "ArrowLeft",
+  right: "ArrowRight",
+};
+
+function toKeyboardEventKey(baseKey: string): string {
+  const lower = baseKey.toLowerCase();
+  const alias = KEYBOARD_EVENT_KEY_ALIASES[lower];
+  if (alias) {
+    return alias;
+  }
+  if (/^f\d+$/i.test(baseKey)) {
+    return baseKey.toUpperCase();
+  }
+  if (baseKey.startsWith("Arrow")) {
+    return baseKey;
+  }
+  if (baseKey.length > 1) {
+    return baseKey.charAt(0).toUpperCase() + baseKey.slice(1);
+  }
+  return lower;
+}
+
+/**
+ * Build a synthetic keyboard event from a marimo/CodeMirror shortcut string.
+ */
+export function createKeyboardEventFromShortcut(
+  shortcut: string,
+  type: "keydown" | "keyup" = "keydown",
+): KeyboardEvent {
+  const separator = shortcut.includes("+") ? "+" : "-";
+  const parts = shortcut.split(separator);
+
+  let ctrlKey = false;
+  let metaKey = false;
+  let shiftKey = false;
+  let altKey = false;
+  let baseKey = "";
+
+  for (const part of parts) {
+    const normalized = normalizeKey(part);
+    if (MODIFIER_KEYS.has(normalized)) {
+      switch (normalized) {
+        case "mod":
+          if (isPlatformMac()) {
+            metaKey = true;
+          } else {
+            ctrlKey = true;
+          }
+          break;
+        case "ctrl":
+        case "control":
+          ctrlKey = true;
+          break;
+        case "cmd":
+        case "command":
+        case "meta":
+          metaKey = true;
+          break;
+        case "shift":
+          shiftKey = true;
+          break;
+        case "alt":
+        case "option":
+          altKey = true;
+          break;
+      }
+    } else {
+      baseKey = part;
+    }
+  }
+
+  return new KeyboardEvent(type, {
+    key: toKeyboardEventKey(baseKey),
+    ctrlKey,
+    metaKey,
+    shiftKey,
+    altKey,
+    bubbles: true,
+    cancelable: true,
+  });
+}
+
 /**
  * Returns a function that checks if a shortcut is pressed.
  *
