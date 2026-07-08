@@ -42,8 +42,9 @@ class Item(msgspec.Struct):
     # `from typing import Optional` or `from os.path import join`. Stored
     # inline so trivial imported references never get their own blob on disk.
     import_ref: tuple[str, str] | None = None
-    # (code, filename, linenumber)
-    function: tuple[str, str, int] | None = None
+    # (code, filename, lineno, is_cached); is_cached marks an @mo.cache /
+    # @mo.persistent_cache wrapper (see `FunctionStub`).
+    function: tuple[str, str, int, bool] | None = None
     # (code, qualname) — cell-defined class source. Materialized into the
     # cell namespace (and __main__) before pickle blobs deserialize, so
     # __main__-qualified instances can resolve their type.
@@ -333,7 +334,7 @@ class UnhashableStub(CustomStub):
 
     __marimo_unhashable__ = True
 
-    __slots__ = ("error_msg", "type_name", "var_name")
+    __slots__ = ("content_hash", "error_msg", "type_name", "var_name")
 
     def __init__(
         self,
@@ -341,8 +342,13 @@ class UnhashableStub(CustomStub):
         var_name: str = "",
         error_msg: str = "",
         type_name: str | None = None,
+        content_hash: str = "",
     ) -> None:
         self.var_name = var_name
+        # Hex content digest, persisted for data primitives. Lets a consumer
+        # reproduce its cache key without materializing the value — the hasher
+        # replays it. Empty for non-data defs, which route by graph provenance.
+        self.content_hash = content_hash
         if type_name is not None:
             # Explicit fq name — used when rebuilding from a manifest marker,
             # where the original value object is no longer available.
@@ -391,7 +397,8 @@ class UnhashableStub(CustomStub):
     def __repr__(self) -> str:
         return (
             f"<UnhashableStub var_name={self.var_name!r} "
-            f"type={self.type_name!r}>"
+            f"type={self.type_name!r} "
+            f"content_hash={self.content_hash!r}>"
         )
 
     @staticmethod

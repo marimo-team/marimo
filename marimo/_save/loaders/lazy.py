@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import hashlib
 import importlib
 import inspect
 import pickle
@@ -14,12 +15,18 @@ import msgspec
 
 from marimo import _loggers
 from marimo._runtime.context import safe_get_context
+from marimo._runtime.primitives import (
+    is_data_primitive,
+    is_data_primitive_container,
+    is_primitive,
+)
 from marimo._save.cache import (
     MARIMO_CACHE_VERSION,
     Cache,
     CacheState,
 )
-from marimo._save.hash import HashKey
+from marimo._save.encode import common_container_to_bytes, data_to_buffer
+from marimo._save.hash import DEFAULT_HASH, HashKey
 from marimo._save.loaders.loader import BasePersistenceLoader
 from marimo._save.stores import DEFAULT_STORE, FileStore, Store
 
@@ -53,12 +60,51 @@ class _BlobStatus(Enum):
     MISSING = auto()
 
 
+def _module_available(type_hint: str | None) -> bool:
+    """True if the root module of `type_hint` can be imported here.
+
+    Lets the caller skip fetching a blob whose deserializer needs an absent
+    module (e.g. `torch` in a torch-free browser). Empty hint or `__main__` is
+    treated as available (resolved elsewhere), so we never skip a fetch we
+    can't reason about.
+    """
+    if not type_hint:
+        return True
+    root = type_hint.split(".", 1)[0]
+    if root == "__main__":
+        return True
+    import importlib.util
+
+    try:
+        return importlib.util.find_spec(root) is not None
+    except (ImportError, ValueError):
+        return False
+
+
 def maybe_update_lazy_stub(value: Any) -> str:
     value_type = type(value)
     # MRO not that expensive, type hashable for functools lookup.
     result = mro_lookup(value_type, LAZY_STUB_LOOKUP)
     loader = result[1] if result else "pickle"
     return loader
+
+
+def _maybe_content_digest(value: Any, hash_type: str = DEFAULT_HASH) -> str:
+    """Hex content digest for an array-like data primitive, else `""`.
+
+    Mirrors the hasher's content serialization (`data_to_buffer` /
+    `common_container_to_bytes`). Plain primitives are excluded: they restore
+    inline, so a consumer content-hashes the real value directly.
+    """
+    if is_primitive(value):
+        return ""
+    if is_data_primitive(value):
+        serial = data_to_buffer(value)
+    elif is_data_primitive_container(value):
+        serial = common_container_to_bytes(value)
+    else:
+        return ""
+    return hashlib.new(hash_type, serial, usedforsecurity=False).digest().hex()
 
 
 def _maybe_import_ref(value: Any) -> tuple[str, str] | None:
@@ -141,10 +187,12 @@ def to_item(
 
 def from_item(item: Item, var_name: str = "") -> Any:
     if item.unserializable_type is not None:
-        # No blob was written for this def — rebuild the tripwire in-memory
-        # from the manifest marker.
+        # No blob written — rebuild the `UnhashableStub` from the marker. NB.
+        # carry any persisted digest so a consumer reproduces its key from it.
         return UnhashableStub(
-            var_name=var_name, type_name=item.unserializable_type
+            var_name=var_name,
+            type_name=item.unserializable_type,
+            content_hash=item.hash or "",
         )
     if item.reference is not None:
         return ImmediateReferenceStub(
@@ -162,9 +210,7 @@ def from_item(item: Item, var_name: str = "") -> Any:
             obj = getattr(obj, part)
         return obj
     if item.function is not None:
-        fn_stub = FunctionStub.__new__(FunctionStub)
-        fn_stub.code, fn_stub.filename, fn_stub.lineno = item.function
-        return fn_stub
+        return FunctionStub.from_dump(item.function)
     if item.class_def is not None:
         return ClassStub.from_dump(item.class_def)
     if item.primitive is not None:
@@ -197,6 +243,11 @@ def _get_wasm_dict_store() -> Store:
 
         cache_state.wasm_dict_store = DictStore()
     return cache_state.wasm_dict_store
+
+
+def flush_active_caches() -> None:
+    """Drain pending writes for every active loader (durability on exit)."""
+    LazyLoader.flush_all()
 
 
 class LazyStore(Store):
@@ -370,7 +421,7 @@ class LazyLoader(BasePersistenceLoader):
 
     @classmethod
     def flush_all(cls) -> None:
-        """Flush all active LazyLoader instances."""
+        """Drain pending background writes for every active loader."""
         for loader in cls.active_loaders():
             loader.flush()
 
@@ -421,6 +472,10 @@ class LazyLoader(BasePersistenceLoader):
         # Instances of cell-defined (__main__) classes are deferred: their
         # class must be re-exec'd into __main__ before the blob can unpickle.
         deferred: dict[str, tuple[str, str]] = {}
+        # Defs whose blob we skip fetching because the value can't be
+        # materialized here anyway (its module is absent). Maps to the
+        # type_hint so the `UnhashableStub` can name what it stood in for.
+        unresolvable: dict[str, str | None] = {}
         for var_name, item in cache_data.defs.items():
             if var_name in cache_data.ui_defs:
                 ref_vars[var_name] = (base / "ui.pickle").as_posix()
@@ -430,6 +485,8 @@ class LazyLoader(BasePersistenceLoader):
                         item.reference,
                         item.type_hint.rsplit(".", 1)[-1],
                     )
+                elif not _module_available(item.type_hint):
+                    unresolvable[var_name] = item.type_hint
                 else:
                     ref_vars[var_name] = item.reference
                     ref_type_hints[item.reference] = item.type_hint
@@ -456,7 +513,16 @@ class LazyLoader(BasePersistenceLoader):
         # Distribute to defs
         defs: dict[str, Any] = {}
         for var_name, item in cache_data.defs.items():
-            if var_name in deferred:
+            if var_name in unresolvable:
+                # Module absent, blob never fetched — stand in an
+                # `UnhashableStub` carrying the persisted digest so a consumer
+                # reproduces its key.
+                defs[var_name] = UnhashableStub(
+                    var_name=var_name,
+                    type_name=unresolvable[var_name],
+                    content_hash=variable_hashes.get(var_name, ""),
+                )
+            elif var_name in deferred:
                 ref, requires = deferred[var_name]
                 # Read the bytes now (via this loader's store); defer only
                 # the unpickle until Cache.restore has materialized the class.
@@ -475,11 +541,13 @@ class LazyLoader(BasePersistenceLoader):
                 if var_name in cache_data.ui_defs and isinstance(val, dict):
                     defs[var_name] = val[var_name]
                 elif isinstance(val, UnhashableStub):
-                    # Fall through stub.
+                    # NB. carry the persisted digest so a consumer reproduces
+                    # its key without the value.
                     defs[var_name] = UnhashableStub(
                         var_name=var_name,
                         type_name=val.type_name,
                         error_msg=val.error_msg,
+                        content_hash=variable_hashes.get(var_name, ""),
                     )
                 else:
                     defs[var_name] = val
@@ -587,7 +655,8 @@ class LazyLoader(BasePersistenceLoader):
         _cache_state().stale_keys.discard(str(self.build_path(cache.key)))
 
         path = Path(self.name) / cache.hash
-        variable_hashes = cache.meta.get("variable_hashes", {})
+        # Copy so per-def digests below don't mutate the cache's meta.
+        variable_hashes = dict(cache.meta.get("variable_hashes", {}))
         return_item = to_item(
             path, cache.meta.get("return", None), var_name="return"
         )
@@ -608,6 +677,12 @@ class LazyLoader(BasePersistenceLoader):
         ui_defs_list: list[str] = []
 
         for var, obj in cache.defs.items():
+            if var not in variable_hashes:
+                # NB. persist a digest for data primitives so a consumer
+                # reproduces its key without the value.
+                digest = _maybe_content_digest(obj)
+                if digest:
+                    variable_hashes[var] = digest
             loader = maybe_update_lazy_stub(obj)
             item = to_item(
                 path,
@@ -683,7 +758,8 @@ class LazyLoader(BasePersistenceLoader):
                 for item in items:
                     type_name = item.type_hint or fallback
                     item.reference = None
-                    item.hash = None
+                    # NB. keep item.hash — the content digest stays valid even
+                    # when the value blob can't be pickled.
                     item.type_hint = None
                     item.unserializable_type = type_name
                 return False
