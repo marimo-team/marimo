@@ -25,6 +25,7 @@ import { useLocale } from "react-aria";
 
 import { Button } from "@/components/ui/button";
 import { Table } from "@/components/ui/table";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import type {
@@ -36,6 +37,8 @@ import {
   PANEL_TYPES,
   type PanelType,
 } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
+import { AiFilterBar } from "./ai-filter/AiFilterBar";
+import type { AiFilterState } from "./ai-filter/useAiFilter";
 import { CellHoverTemplateFeature } from "./cell-hover-template/feature";
 import { CellHoverTextFeature } from "./cell-hover-text/feature";
 import { CellSelectionFeature } from "./cell-selection/feature";
@@ -108,6 +111,8 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   showSearch?: boolean;
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
+  /** AI-assisted "search with AI" filter state (feature-flagged). */
+  aiFilter?: AiFilterState;
   showFilters?: boolean;
   filters?: ColumnFiltersState;
   onFiltersChange?: OnChangeFn<ColumnFiltersState>;
@@ -163,6 +168,7 @@ const DataTableInternal = <TData,>({
   showSearch = false,
   searchQuery,
   onSearchQueryChange,
+  aiFilter,
   showFilters = false,
   filters,
   onFiltersChange,
@@ -342,6 +348,10 @@ const DataTableInternal = <TData,>({
     [table],
   );
 
+  // "Search with AI" is opt-in behind a feature flag.
+  const aiFilterEnabled =
+    aiFilter && getFeatureFlag("ai_table_filter") ? aiFilter : undefined;
+
   const visibilityCounts = getUserColumnVisibilityCounts(table);
   const allUserColumnsHidden =
     visibilityCounts.total > 0 && visibilityCounts.visible === 0;
@@ -368,6 +378,13 @@ const DataTableInternal = <TData,>({
                 showSearch={showSearch}
                 searchQuery={searchQuery}
                 onSearchQueryChange={onSearchQueryChange}
+                onAiSearch={aiFilterEnabled?.generate}
+                aiFilterActive={aiFilterEnabled?.isActive}
+                aiFilterBar={
+                  aiFilterEnabled ? (
+                    <AiFilterBar ai={aiFilterEnabled} />
+                  ) : undefined
+                }
                 reloading={reloading}
                 showChartBuilder={showChartBuilder}
                 isChartBuilderOpen={isChartBuilderOpen}

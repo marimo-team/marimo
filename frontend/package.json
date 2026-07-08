@@ -95,6 +95,7 @@
     "@zed-industries/agent-client-protocol": "^0.4.5",
     "ai": "^6.0.129",
     "ansi_up": "^6.0.6",
+    "better-filter-bar": "^0.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

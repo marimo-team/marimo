@@ -1,0 +1,9 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+/*
+ * better-filter-bar's baseTheme sets min-height: 32px, too tall for the compact
+ * table top bar. !important beats the packaged rule's equal specificity.
+ */
+.fql-filter-bar .cm-editor {
+  min-height: 0 !important;
+}
