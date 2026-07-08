@@ -2,15 +2,35 @@
 
 import { closeCompletion } from "@codemirror/autocomplete";
 import type { EditorState } from "@codemirror/state";
-import { closeHoverTooltips, type EditorView, keymap } from "@codemirror/view";
+import {
+  closeHoverTooltips,
+  type EditorView,
+  type KeyBinding,
+  keymap,
+} from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
 import { hotkeysAtom } from "../../config/config";
 import { notebookAtom } from "../../cells/cells";
+import { resolvePlatform } from "../../hotkeys/shortcuts";
 import { store } from "../../state/jotai";
 import { variablesAtom } from "../../variables/state";
 import type { VariableName, Variables } from "../../variables/types";
 import { getPositionAtWordBounds } from "../completion/hints";
 import { goToLine, goToVariableDefinition } from "./commands";
+
+function keymapBindingMatchesHotkey(
+  binding: KeyBinding,
+  hotkey: string,
+): boolean {
+  const platform = resolvePlatform();
+  const bindingKey =
+    platform === "mac"
+      ? (binding.mac ?? binding.key)
+      : platform === "windows"
+        ? (binding.win ?? binding.key)
+        : (binding.linux ?? binding.key);
+  return bindingKey === hotkey;
+}
 
 /**
  * Get the word under the cursor.
@@ -70,15 +90,16 @@ export function goToDefinitionAtCursorPosition(view: EditorView): boolean {
 }
 
 /**
- * Trigger the editor's LSP go-to-definition keybinding at the current
- * selection. Returns true when a keymap handler consumed the shortcut.
+ * Invoke the editor's go-to-definition keymap handlers for the configured
+ * hotkey. Matches CodeMirror key strings directly (including customized
+ * shortcuts like `Ctrl-F12`) instead of synthesizing keyboard events.
  */
 export function requestLspGoToDefinition(
   view: EditorView,
   hotkey = store.get(hotkeysAtom).getHotkey("cell.goToDefinition").key,
 ): boolean {
   for (const binding of view.state.facet(keymap).flat()) {
-    if (binding.key === hotkey && binding.run?.(view)) {
+    if (keymapBindingMatchesHotkey(binding, hotkey) && binding.run?.(view)) {
       return true;
     }
   }
