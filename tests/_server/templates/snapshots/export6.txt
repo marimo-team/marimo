@@ -92,8 +92,6 @@
 <style title='marimo-custom'>/* custom css 2 */</style></head>
   <body>
     <div id="root"></div>
-    <!-- This is a portal for the data editor to render in -->
-    <div id="portal" data-testid="glide-portal" style="position: fixed; left: 0; top: 0; z-index: 9999"></div>
     <script data-marimo="true">
       Object.defineProperty(window, "__MARIMO_MOUNT_CONFIG__", {
         value: Object.freeze({
