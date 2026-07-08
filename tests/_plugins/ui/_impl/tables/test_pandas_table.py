@@ -383,9 +383,9 @@ class TestPandasTableManager(unittest.TestCase):
         data = pd.DataFrame({"a": [1, 2, 3]}, index=["c", "d", "e"])
         json_data = self.factory_create_json_from_df(data)
         assert json_data == [
-            {"": "c", "a": 1},
-            {"": "d", "a": 2},
-            {"": "e", "a": 3},
+            {"Index0": "c", "a": 1},
+            {"Index0": "d", "a": 2},
+            {"Index0": "e", "a": 3},
         ]
 
         # Named index
@@ -459,7 +459,6 @@ class TestPandasTableManager(unittest.TestCase):
         )
         assert PandasTableManagerFactory.create()(data_pivoted) is not None
 
-    @pytest.mark.xfail(reason="Implementation not yet supported")
     def test_to_json_multi_index_unnamed(self) -> None:
         data = pd.DataFrame(
             {
@@ -470,9 +469,9 @@ class TestPandasTableManager(unittest.TestCase):
         )
         json_data = self.factory_create_json_from_df(data)
         assert json_data == [
-            {"level_0": "x", "level_1": 1, "a": 1, "b": 4},
-            {"level_0": "y", "level_1": 2, "a": 2, "b": 5},
-            {"level_0": "z", "level_1": 3, "a": 3, "b": 6},
+            {"Index0": "x", "Index1": 1, "a": 1, "b": 4},
+            {"Index0": "y", "Index1": 2, "a": 2, "b": 5},
+            {"Index0": "z", "Index1": 3, "a": 3, "b": 6},
         ]
 
     def test_to_json_multi_index_unnamed_2(self) -> None:
@@ -489,12 +488,12 @@ class TestPandasTableManager(unittest.TestCase):
         )
 
         json_data = self.factory_create_json_from_df(df)
-        # Second level converted to empty string
+        # The unnamed second level is the first unnamed level, so it is "Index0"
         assert json_data == [
-            {"level1": "x", "": 1, "A": 1, "B": 5},
-            {"level1": "x", "": 2, "A": 2, "B": 6},
-            {"level1": "y", "": 1, "A": 3, "B": 7},
-            {"level1": "y", "": 2, "A": 4, "B": 8},
+            {"level1": "x", "Index0": 1, "A": 1, "B": 5},
+            {"level1": "x", "Index0": 2, "A": 2, "B": 6},
+            {"level1": "y", "Index0": 1, "A": 3, "B": 7},
+            {"level1": "y", "Index0": 2, "A": 4, "B": 8},
         ]
 
     def test_to_json_multi_index_unnamed_3(self) -> None:
@@ -505,12 +504,148 @@ class TestPandasTableManager(unittest.TestCase):
         df = df.stack(future_stack=True)
         json_data = self.factory_create_json_from_df(df)
         expected = [
-            {"": "cat", " ": "kg", "weight": 1.0, "height": nan},
-            {"": "cat", " ": "m", "weight": nan, "height": 2.0},
-            {"": "dog", " ": "kg", "weight": 3.0, "height": nan},
-            {"": "dog", " ": "m", "weight": nan, "height": 4.0},
+            {"Index0": "cat", "Index1": "kg", "weight": 1.0, "height": nan},
+            {"Index0": "cat", "Index1": "m", "weight": nan, "height": 2.0},
+            {"Index0": "dog", "Index1": "kg", "weight": 3.0, "height": nan},
+            {"Index0": "dog", "Index1": "m", "weight": nan, "height": 4.0},
         ]
         assert_rows_equal_with_nan(json_data, expected)
+
+    def test_flatten_non_trivial_index_named_single(self) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _flatten_non_trivial_index,
+        )
+
+        df = pd.DataFrame({"v": [1, 2]}, index=pd.Index(["a", "b"], name="k"))
+        out = _flatten_non_trivial_index(df)
+        assert list(out.columns) == ["k", "v"]
+
+    def test_flatten_non_trivial_index_trivial_range_noop(self) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _flatten_non_trivial_index,
+        )
+
+        df = pd.DataFrame({"v": [1, 2]})
+        out = _flatten_non_trivial_index(df)
+        assert list(out.columns) == ["v"]
+
+    def test_flatten_non_trivial_index_multiindex(self) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _flatten_non_trivial_index,
+        )
+
+        idx = pd.MultiIndex.from_tuples([("x", 1), ("y", 2)], names=["a", "b"])
+        df = pd.DataFrame({"v": [1, 2]}, index=idx)
+        out = _flatten_non_trivial_index(df)
+        assert list(out.columns) == ["a", "b", "v"]
+
+    def test_flatten_non_trivial_index_unnamed_gets_indexed_names(
+        self,
+    ) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _flatten_non_trivial_index,
+        )
+
+        # A single unnamed index becomes "Index0".
+        df = pd.DataFrame({"v": [1, 2]}, index=pd.Index(["a", "b"]))
+        out = _flatten_non_trivial_index(df)
+        assert list(out.columns) == ["Index0", "v"]
+
+        # The unnamed level of a partially-named MultiIndex is the first
+        # unnamed level, so it is also "Index0".
+        idx = pd.MultiIndex.from_tuples(
+            [("x", 1), ("y", 2)], names=["a", None]
+        )
+        df2 = pd.DataFrame({"v": [1, 2]}, index=idx)
+        out2 = _flatten_non_trivial_index(df2)
+        assert list(out2.columns) == ["a", "Index0", "v"]
+
+        # Two unnamed levels get distinct "Index0"/"Index1" names.
+        idx3 = pd.MultiIndex.from_tuples([("x", 1), ("y", 2)])
+        df3 = pd.DataFrame({"v": [1, 2]}, index=idx3)
+        out3 = _flatten_non_trivial_index(df3)
+        assert list(out3.columns) == ["Index0", "Index1", "v"]
+
+    def test_flatten_non_trivial_index_synthetic_name_conflict(self) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _flatten_non_trivial_index,
+        )
+
+        # A real column already named "Index0" forces the flattened index
+        # column to be disambiguated rather than colliding.
+        df = pd.DataFrame({"Index0": [1, 2]}, index=pd.Index(["a", "b"]))
+        out = _flatten_non_trivial_index(df)
+        assert list(out.columns) == ["Index0_index", "Index0"]
+
+    def test_flatten_non_trivial_index_named_level_collides_with_generated(
+        self,
+    ) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _flatten_non_trivial_index,
+        )
+
+        # A named level "Index0" alongside an unnamed level, whose generated
+        # name would also be "Index0", must be disambiguated instead of
+        # producing two identical columns.
+        index = pd.MultiIndex.from_tuples(
+            [("a", 1), ("b", 2)], names=["Index0", None]
+        )
+        df = pd.DataFrame({"v": [10, 20]}, index=index)
+        out = _flatten_non_trivial_index(df)
+        assert list(out.columns) == ["Index0", "Index0_index", "v"]
+
+    def test_flatten_non_trivial_index_conflict_and_fallback_both_exist(
+        self,
+    ) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _flatten_non_trivial_index,
+        )
+
+        # Both the colliding column "x" and its "_index" fallback already
+        # exist, so disambiguation must keep appending until unique.
+        df = pd.DataFrame(
+            {"x": [1, 2], "x_index": [3, 4]},
+            index=pd.Index(["a", "b"], name="x"),
+        )
+        out = _flatten_non_trivial_index(df)
+        assert list(out.columns) == ["x_index_index", "x", "x_index"]
+
+    def test_with_index_as_columns_pandas_named_index(self) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            PandasTableManagerFactory,
+        )
+
+        df = pd.DataFrame({"v": [1, 2]}, index=pd.Index(["a", "b"], name="k"))
+        mgr = PandasTableManagerFactory.create()(df).with_index_as_columns()
+        assert "k" in mgr.get_column_names()
+        assert "v" in mgr.get_column_names()
+
+    def test_with_index_as_columns_trivial_index_is_noop(self) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            PandasTableManagerFactory,
+        )
+
+        df = pd.DataFrame({"v": [1, 2]})
+        mgr = PandasTableManagerFactory.create()(df).with_index_as_columns()
+        assert mgr.get_column_names() == ["v"]
 
     @pytest.mark.skipif(
         not DependencyManager.numpy.has(), reason="numpy not installed"
@@ -563,8 +698,8 @@ class TestPandasTableManager(unittest.TestCase):
 
         json_data = self.factory_create_json_from_df(data)
         assert json_data == [
-            {"": "All", "basic_amt,NSW": 1, "basic_amt,QLD": 1},
-            {"": "Full", "basic_amt,NSW": 0, "basic_amt,QLD": 1},
+            {"Index0": "All", "basic_amt,NSW": 1, "basic_amt,QLD": 1},
+            {"Index0": "Full", "basic_amt,NSW": 0, "basic_amt,QLD": 1},
         ]
 
     def test_complex_data_field_types(self) -> None:
@@ -613,9 +748,9 @@ class TestPandasTableManager(unittest.TestCase):
         manager = self.factory.create()(data)
         assert manager.get_row_headers() in [
             # pandas 2.x
-            [("", ("datetime", "datetime64[ns]"))],
+            [("Index0", ("datetime", "datetime64[ns]"))],
             # pandas 3.x
-            [("", ("datetime", "datetime64[us]"))],
+            [("Index0", ("datetime", "datetime64[us]"))],
         ]
 
     def test_get_row_headers_timedelta_index(self) -> None:
@@ -630,9 +765,9 @@ class TestPandasTableManager(unittest.TestCase):
         manager = self.factory.create()(data)
         assert manager.get_row_headers() in [
             # pandas 2.x
-            [("", ("string", "timedelta64[ns]"))],
+            [("Index0", ("string", "timedelta64[ns]"))],
             # pandas 3.x
-            [("", ("string", "timedelta64[us]"))],
+            [("Index0", ("string", "timedelta64[us]"))],
         ]
 
     def test_get_row_headers_multi_index(self) -> None:
@@ -687,6 +822,43 @@ class TestPandasTableManager(unittest.TestCase):
         headers = manager.get_row_headers()
         header_names = [h[0] for h in headers]
         assert header_names == ["idx"]
+
+    def test_get_row_headers_unnamed_multi_index(self) -> None:
+        data = pd.DataFrame(
+            {"A": [1, 2, 3]},
+            index=pd.MultiIndex.from_tuples([("a", 1), ("b", 2), ("c", 3)]),
+        )
+        manager = self.factory.create()(data)
+        header_names = [h[0] for h in manager.get_row_headers()]
+        assert header_names == ["Index0", "Index1"]
+
+    def test_get_row_headers_synthetic_name_conflict(self) -> None:
+        data = pd.DataFrame(
+            {"Index0": [1, 2]},
+            index=pd.Index(["a", "b"]),
+        )
+        manager = self.factory.create()(data)
+        header_names = [h[0] for h in manager.get_row_headers()]
+        assert header_names == ["Index0_index"]
+
+    def test_row_headers_match_flattened_columns(self) -> None:
+        # The offered chart fields (row headers) must line up with the
+        # serialized chart-data columns; both go through _index_level_names.
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _flatten_non_trivial_index,
+        )
+
+        data = pd.DataFrame(
+            {"v": [1, 2]},
+            index=pd.MultiIndex.from_tuples(
+                [("a", 1), ("b", 2)], names=["k", None]
+            ),
+        )
+        manager = self.factory.create()(data)
+        header_names = [h[0] for h in manager.get_row_headers()]
+        flattened = list(_flatten_non_trivial_index(data).columns)
+        assert header_names == ["k", "Index0"]
+        assert flattened[: len(header_names)] == header_names
 
     def test_is_type(self) -> None:
         assert self.manager.is_type(self.data)
@@ -1716,9 +1888,15 @@ class TestPandasTableManager(unittest.TestCase):
         manager = self.factory.create()(df)
         assert manager.get_row_headers() in [
             # pandas 2.x
-            [("", ("string", "object")), ("", ("integer", "int64"))],
+            [
+                ("Index0", ("string", "object")),
+                ("Index1", ("integer", "int64")),
+            ],
             # pandas 3.x
-            [("", ("string", "str")), ("", ("integer", "int64"))],
+            [
+                ("Index0", ("string", "str")),
+                ("Index1", ("integer", "int64")),
+            ],
         ]
         assert manager.get_num_rows() == 4
 

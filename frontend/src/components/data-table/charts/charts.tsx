@@ -54,6 +54,24 @@ const CHART_HEIGHT = 290;
 const CHART_MAX_ROWS = 50_000;
 const CHART_MAX_COLUMNS = 50;
 
+/**
+ * Append row-header (index) fields to the chart field list, skipping any whose
+ * name already exists as a data column so the chart builder never offers the
+ * same axis twice.
+ */
+export function mergeIndexFields(
+  fieldTypes: FieldTypesWithExternalType | null | undefined,
+  rowHeaders: FieldTypesWithExternalType | null | undefined,
+): FieldTypesWithExternalType {
+  const base = fieldTypes ?? [];
+  if (!rowHeaders || rowHeaders.length === 0) {
+    return base;
+  }
+  const seen = new Set(base.map(([name]) => name));
+  const indexFields = rowHeaders.filter(([name]) => !seen.has(name));
+  return [...base, ...indexFields];
+}
+
 export interface TablePanelProps {
   cellId: CellId | null;
   data: unknown[];
@@ -64,6 +82,7 @@ export interface TablePanelProps {
   onCloseChartBuilder?: () => void;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
+  rowHeaders?: FieldTypesWithExternalType | null;
 }
 
 export const TablePanel: React.FC<TablePanelProps> = ({
@@ -74,6 +93,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   columns,
   getDataUrl,
   fieldTypes,
+  rowHeaders,
   displayHeader,
   onCloseChartBuilder,
 }) => {
@@ -265,7 +285,10 @@ export const TablePanel: React.FC<TablePanelProps> = ({
               saveChart={saveChart}
               saveChartType={saveChartType}
               getDataUrl={getDataUrl}
-              fieldTypes={fieldTypes ?? inferFieldTypes(dataTable.props.data)}
+              fieldTypes={mergeIndexFields(
+                fieldTypes ?? inferFieldTypes(dataTable.props.data),
+                rowHeaders,
+              )}
               isLargeDataset={isLargeDataset}
             />
           </TabsContent>
