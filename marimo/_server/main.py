@@ -75,6 +75,9 @@ def create_starlette_app(
             ]
         )
 
+    # Do not reflect credentials for wildcard origins.
+    allow_credentials = "*" not in allow_origins
+
     final_middlewares.extend(
         [
             Middleware(OpenTelemetryMiddleware),
@@ -86,7 +89,7 @@ def create_starlette_app(
             Middleware(
                 CORSMiddleware,
                 allow_origins=allow_origins,
-                allow_credentials=True,
+                allow_credentials=allow_credentials,
                 allow_methods=["*"],
                 allow_headers=["*"],
             ),
