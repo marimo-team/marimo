@@ -27,7 +27,7 @@ interface VariableDeclaration {
   scopeId: number;
 }
 
-function goToPosition(view: EditorView, from: number): void {
+export function goToPosition(view: EditorView, from: number): void {
   // Focus on the next frame: a synchronous focus is a no-op while a Radix
   // context menu still owns focus, and codemirror would otherwise add a
   // cursor from the pointer click.
@@ -423,6 +423,29 @@ function findScopedDefinitionPosition(
 }
 
 /**
+ * Resolve the position of a definition for the given variable name, without
+ * navigating. When a usage position is available a scoped lookup is used;
+ * otherwise it falls back to the first matching variable name in the state.
+ * Returns null when no definition is found.
+ * @param state The editor state which contains the variable name.
+ * @param variableName The name of the variable to resolve, if found.
+ * @param usagePosition The position of the variable usage, if available.
+ */
+export function findVariableDefinitionPosition(
+  state: EditorState,
+  variableName: string,
+  usagePosition?: number,
+): number | null {
+  // When the caller knows the usage position, trust the scoped lookup. Falling
+  // back to first-match would defeat the local-vs-cross-cell decision in
+  // goToDefinition: if the symbol only appears as a module path in an import,
+  // scoped resolution returns null and we want the caller to try other cells.
+  return usagePosition !== undefined
+    ? findScopedDefinitionPosition(state, variableName, usagePosition)
+    : findFirstMatchingVariable(state, variableName);
+}
+
+/**
  * This function selects a scoped definition for the given variable name, when
  * a usage position is available, or optionally falls back to the first matching
  * variable name in the given editor view.
@@ -435,15 +458,11 @@ export function goToVariableDefinition(
   variableName: string,
   usagePosition?: number,
 ): boolean {
-  const { state } = view;
-  // When the caller knows the usage position, trust the scoped lookup. Falling
-  // back to first-match would defeat the local-vs-cross-cell decision in
-  // goToDefinition: if the symbol only appears as a module path in an import,
-  // scoped resolution returns null and we want the caller to try other cells.
-  const from =
-    usagePosition !== undefined
-      ? findScopedDefinitionPosition(state, variableName, usagePosition)
-      : findFirstMatchingVariable(state, variableName);
+  const from = findVariableDefinitionPosition(
+    view.state,
+    variableName,
+    usagePosition,
+  );
 
   if (from === null) {
     return false;
