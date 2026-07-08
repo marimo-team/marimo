@@ -207,13 +207,7 @@ class SortColumnTransform:
 class FilterRowsTransform:
     type: Literal[TransformType.FILTER_ROWS]
     operation: Literal["keep_rows", "remove_rows"]
-    # The frontend can still emit the legacy flat list shape (e.g. on
-    # `.form()` submit); normalize it to a FilterGroup below.
-    where: Union[FilterGroup, list[FilterCondition]]
-
-    def __post_init__(self) -> None:
-        if isinstance(self.where, list):
-            self.where = conditions_to_filter_group(self.where)
+    where: FilterGroup
 
 
 @dataclass
@@ -300,6 +294,32 @@ Transform = (
 @dataclass
 class Transformations:
     transforms: list[Transform]
+
+
+def normalize_transforms_payload(value: dict[str, Any]) -> dict[str, Any]:
+    """Coerce the legacy flat-list `where` shape into a FilterGroup dict.
+
+    The DataFramePlugin frontend can still emit a `filter_rows` transform whose
+    `where` is a bare list of conditions (e.g. on `.form()` submit) instead of
+    a FilterGroup. Normalize it before parsing so `FilterRowsTransform.where`
+    stays a FilterGroup for all downstream consumers.
+    """
+    transforms = value.get("transforms")
+    if not isinstance(transforms, list):
+        return value
+    for transform in transforms:
+        if (
+            isinstance(transform, dict)
+            and transform.get("type") == "filter_rows"
+            and isinstance(transform.get("where"), list)
+        ):
+            transform["where"] = {
+                "type": "group",
+                "operator": "and",
+                "children": transform["where"],
+                "negate": False,
+            }
+    return value
 
 
 T = TypeVar("T")
